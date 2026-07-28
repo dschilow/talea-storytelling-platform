@@ -155,17 +155,51 @@ export function useDeleteStory() {
   });
 }
 
+export interface MarkStoryReadInput {
+  storyId: string;
+  storyTitle: string;
+  genre?: string;
+  /** Participating avatars — they are the ones whose personality develops. */
+  avatarIds?: string[];
+}
+
+export interface MarkStoryReadOutcome {
+  updatedAvatars: number;
+  /** True when the story had already been finished — nothing was earned again. */
+  alreadyCompleted: boolean;
+}
+
+/**
+ * Marks a story read, which is what actually applies the avatar development.
+ *
+ * The payload must match /story/mark-read exactly: it previously sent
+ * `{ id }`, which the endpoint does not understand — every completion failed
+ * with "Story not found" and no avatar ever grew from the app.
+ */
 export function useMarkStoryRead() {
   const backend = useBackend();
   const queryClient = useQueryClient();
   const profileId = useProfileId();
 
-  return useMutation({
-    mutationFn: async (storyId: string) => {
-      await backend.story.markRead({ id: storyId } as never);
+  return useMutation<MarkStoryReadOutcome, Error, MarkStoryReadInput>({
+    mutationFn: async (input) => {
+      const response = (await backend.story.markRead({
+        storyId: input.storyId,
+        storyTitle: input.storyTitle,
+        ...(input.genre ? { genre: input.genre } : {}),
+        ...(profileId ? { profileId } : {}),
+        ...(input.avatarIds && input.avatarIds.length > 0 ? { avatarIds: input.avatarIds } : {}),
+      } as never)) as { updatedAvatars?: number; alreadyCompleted?: boolean } | undefined;
+
+      return {
+        updatedAvatars: response?.updatedAvatars ?? 0,
+        alreadyCompleted: response?.alreadyCompleted === true,
+      };
     },
-    onSuccess: () => {
+    onSuccess: (_result, input) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.stories(profileId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.story(input.storyId, profileId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.avatars(profileId) });
     },
   });
 }

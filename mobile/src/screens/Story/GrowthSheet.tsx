@@ -14,6 +14,11 @@ interface GrowthSheetProps {
   open: boolean;
   storyTitle: string;
   developments: TraitChange[];
+  /**
+   * The story had already been finished before. Every reward was granted on
+   * that first completion, so the sheet must not show trait points again.
+   */
+  isRepeat?: boolean;
   onClose: () => void;
 }
 
@@ -28,7 +33,7 @@ interface GrowthSheetProps {
  * A story that produced no changes still gets an honest, non-disappointing
  * message rather than an empty sheet.
  */
-export function GrowthSheet({ open, storyTitle, developments, onClose }: GrowthSheetProps) {
+export function GrowthSheet({ open, storyTitle, developments, isRepeat = false, onClose }: GrowthSheetProps) {
   const { colors, spacing, radius } = useTheme();
   const sheetRef = useRef<SheetRef>(null);
 
@@ -37,7 +42,7 @@ export function GrowthSheet({ open, storyTitle, developments, onClose }: GrowthS
     else sheetRef.current?.close();
   }, [open]);
 
-  const hasChanges = developments.length > 0;
+  const hasChanges = !isRepeat && developments.length > 0;
 
   return (
     <Sheet
@@ -53,12 +58,14 @@ export function GrowthSheet({ open, storyTitle, developments, onClose }: GrowthS
             <PartyPopper size={26} color={colors.success} />
           </View>
           <Text variant="headingSm" center>
-            {hasChanges ? 'Deine Avatare haben dazugelernt!' : 'Gut gelesen!'}
+            {isRepeat ? 'Schön, nochmal!' : hasChanges ? 'Deine Avatare haben dazugelernt!' : 'Gut gelesen!'}
           </Text>
           <Text variant="bodySm" tone="secondary" center>
-            {hasChanges
-              ? 'Diese Erlebnisse haben ihre Eigenschaften verändert.'
-              : 'Diesmal gab es keine neuen Eigenschaften — die nächste Geschichte bringt bestimmt welche.'}
+            {isRepeat
+              ? 'Diese Geschichte kennst du schon — deine Punkte und Schätze hast du beim ersten Mal bekommen.'
+              : hasChanges
+                ? 'Diese Erlebnisse haben ihre Eigenschaften verändert.'
+                : 'Diesmal gab es keine neuen Eigenschaften — die nächste Geschichte bringt bestimmt welche.'}
           </Text>
         </View>
 

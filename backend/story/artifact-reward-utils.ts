@@ -125,6 +125,34 @@ export function extractStoryConfigAvatarIds(config: unknown): string[] {
   return extractStoredAvatarIds(root?.avatarIds ?? root?.avatars);
 }
 
+/**
+ * Decides whether a completion actually granted anything.
+ *
+ * Every reward path (personality claim, shard grant, artifact grant, journal
+ * journey, set crown) is idempotent per avatar and story, so a completion that
+ * granted nothing is by definition a re-read. The client uses this to stay
+ * silent instead of replaying an earlier completion's celebration — a child
+ * who is congratulated for points they did not get learns to ignore the app.
+ */
+export function completionGrantedSomething(args: {
+  updatedAvatars: number;
+  hasUnlockedArtifact: boolean;
+  perAvatar?: Array<{
+    shardsEarned?: number;
+    journey?: unknown;
+    completedSets?: unknown[];
+  }>;
+}): boolean {
+  if (args.updatedAvatars > 0) return true;
+  if (args.hasUnlockedArtifact) return true;
+  return (args.perAvatar || []).some(
+    (entry) =>
+      (entry.shardsEarned ?? 0) > 0 ||
+      Boolean(entry.journey) ||
+      (entry.completedSets?.length ?? 0) > 0
+  );
+}
+
 export function resolveCompletionAvatarIds(args: {
   requestedAvatarIds: string[];
   participantAvatarIds: string[];

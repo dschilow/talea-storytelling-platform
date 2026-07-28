@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@clerk/clerk-react';
 
 import { useBackend } from '../../hooks/useBackend';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { TracingBeam } from '../../components/ui/tracing-beam';
 import { TextGradientScroll } from '../../components/ui/text-gradient-scroll';
@@ -15,8 +16,10 @@ import { getOfflineStory } from '../../utils/offlineDb';
 import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
-import ArtifactCelebrationModal, { type UnlockedArtifact } from '../../components/gamification/ArtifactCelebrationModal';
-import TreasureRewardsOverlay, { type TreasureRewardsPayload } from '../../components/gamification/TreasureRewardsOverlay';
+import StoryFinaleSheet, {
+  StoryAlreadyReadNote,
+  type StoryCompletionResult,
+} from '../../components/story/StoryFinaleSheet';
 
 const StoryScrollReaderScreen: React.FC = () => {
   const { storyId } = useParams<{ storyId: string }>();
@@ -24,6 +27,8 @@ const StoryScrollReaderScreen: React.FC = () => {
   const location = useLocation();
   const backend = useBackend();
   const { getToken } = useAuth();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
   const childProfileContext = useOptionalChildProfiles();
   const activeProfileId = childProfileContext?.activeProfileId;
   const offlineScope = useOfflineScope();
@@ -42,9 +47,9 @@ const StoryScrollReaderScreen: React.FC = () => {
   const [storyCompleted, setStoryCompleted] = useState(false);
   const [completionPending, setCompletionPending] = useState(false);
   const [completionError, setCompletionError] = useState<string | null>(null);
-  const [poolArtifact, setPoolArtifact] = useState<UnlockedArtifact | null>(null);
-  const [showPoolArtifactModal, setShowPoolArtifactModal] = useState(false);
-  const [treasureRewards, setTreasureRewards] = useState<TreasureRewardsPayload | null>(null);
+  // One sheet presents every reward — see StoryFinaleSheet.
+  const [completionResult, setCompletionResult] = useState<StoryCompletionResult | null>(null);
+  const [isRepeatRead, setIsRepeatRead] = useState(false);
   const loadRequestRef = useRef(0);
   const completionAttemptRef = useRef(0);
   const completionInFlightRef = useRef(false);
@@ -60,6 +65,8 @@ const StoryScrollReaderScreen: React.FC = () => {
     setStoryCompleted(false);
     setCompletionPending(false);
     setCompletionError(null);
+    setCompletionResult(null);
+    setIsRepeatRead(false);
     setIsReading(false);
     if (storyId) void loadStory(requestId);
 
@@ -144,13 +151,13 @@ const StoryScrollReaderScreen: React.FC = () => {
         if (completionAttemptRef.current !== attemptId) return;
         setStoryCompleted(true);
 
-        // Schatzkammer: freshly found pool artifact + Fundstück/journey rewards.
-        if (result?.unlockedArtifact) {
-          setPoolArtifact(result.unlockedArtifact as UnlockedArtifact);
-          setTimeout(() => setShowPoolArtifactModal(true), 260);
-        }
-        if (result?.treasureRewards) {
-          setTreasureRewards(result.treasureRewards as TreasureRewardsPayload);
+        // Rewards are granted once per avatar and story; a re-read earns
+        // nothing and therefore celebrates nothing.
+        const completion = result as StoryCompletionResult;
+        if (completion?.alreadyCompleted) {
+          setIsRepeatRead(true);
+        } else {
+          setCompletionResult(completion);
         }
 
         console.log('✅ Personality updates applied:', result);
@@ -165,22 +172,6 @@ const StoryScrollReaderScreen: React.FC = () => {
           }),
         );
         emitMapProgress({ avatarId: progressAvatarId, source: 'story' });
-
-        import('../../utils/toastUtils').then(({ showSuccessToast }) => {
-          let message = `📖 Geschichte abgeschlossen! ${result.updatedAvatars} Avatare entwickelt.\n\n`;
-
-          if (result.personalityChanges && result.personalityChanges.length > 0) {
-            result.personalityChanges.forEach((avatarChange: any) => {
-              const changes = avatarChange.changes.map((change: any) => {
-                const points = change.change > 0 ? `+${change.change}` : `${change.change}`;
-                return `${points} ${getTraitDisplayName(change.trait)}`;
-              }).join(', ');
-              message += `${avatarChange.avatarName}: ${changes}\n`;
-            });
-          }
-
-          showSuccessToast(message.trim());
-        });
       } else {
         throw new Error(`Story completion failed with status ${response.status}`);
       }
@@ -221,41 +212,6 @@ const StoryScrollReaderScreen: React.FC = () => {
     observer.observe(node);
     return () => observer.disconnect();
   }, [isReading, story, storyCompleted]);
-
-  function getTraitDisplayName(trait: string): string {
-    const parts = trait.split('.');
-    const subcategory = parts.length > 1 ? parts[1] : null;
-    const mainTrait = parts[0];
-
-    const names: Record<string, string> = {
-      'knowledge': 'Wissen',
-      'creativity': 'Kreativität',
-      'vocabulary': 'Wortschatz',
-      'courage': 'Mut',
-      'curiosity': 'Neugier',
-      'teamwork': 'Teamgeist',
-      'empathy': 'Empathie',
-      'persistence': 'Ausdauer',
-      'logic': 'Logik',
-      'history': 'Geschichte',
-      'science': 'Wissenschaft',
-      'geography': 'Geografie',
-      'physics': 'Physik',
-      'biology': 'Biologie',
-      'chemistry': 'Chemie',
-      'mathematics': 'Mathematik',
-      'kindness': 'Freundlichkeit',
-      'humor': 'Humor',
-      'determination': 'Entschlossenheit',
-      'wisdom': 'Weisheit'
-    };
-
-    if (subcategory) {
-      return names[subcategory.toLowerCase()] || subcategory;
-    }
-
-    return names[mainTrait.toLowerCase()] || trait;
-  }
 
   // --- Render Functions ---
 
@@ -448,7 +404,7 @@ const StoryScrollReaderScreen: React.FC = () => {
                         {completionError}
                       </p>
                     )}
-                    {storyCompleted && (
+                    {storyCompleted && !isRepeatRead && (
                       <motion.p
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -457,6 +413,7 @@ const StoryScrollReaderScreen: React.FC = () => {
                         Deine Avatare haben sich weiterentwickelt! ✨
                       </motion.p>
                     )}
+                    {isRepeatRead && <StoryAlreadyReadNote isDark={isDark} />}
                   </div>
                 </div>
               </TracingBeam>
@@ -465,17 +422,21 @@ const StoryScrollReaderScreen: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Schatzkammer: neues Artefakt (Bild + Beschreibung) */}
-      <ArtifactCelebrationModal
-        artifact={poolArtifact}
-        isVisible={showPoolArtifactModal}
-        onClose={() => { setShowPoolArtifactModal(false); setPoolArtifact(null); }}
-      />
-
-      {/* Schatzkammer 2.0: Reise-/Level-Karten, Set-Krönungen, Fundstück-Toast */}
-      <TreasureRewardsOverlay
-        rewards={treasureRewards}
-        active={!showPoolArtifactModal}
+      {/* One calm completion moment instead of a stack of competing overlays. */}
+      <StoryFinaleSheet
+        result={completionResult}
+        storyTitle={story.title}
+        isDark={isDark}
+        onClose={() => setCompletionResult(null)}
+        onOpenTreasury={(avatarId) => {
+          setCompletionResult(null);
+          const target = avatarId || progressAvatarId;
+          navigate(target ? `/avatar/${target}?tab=treasure` : '/avatar');
+        }}
+        onNextStory={() => {
+          setCompletionResult(null);
+          navigate('/story');
+        }}
       />
     </div>
   );

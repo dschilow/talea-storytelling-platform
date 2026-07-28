@@ -53,6 +53,11 @@ interface MarkDokuReadResponse {
   updatedAvatars: number;
   memorySaved: boolean;
   memoriesCreated: number;
+  /**
+   * True when the doku had already been completed before, so no trait points
+   * were awarded this time. The client must not replay the celebration.
+   */
+  alreadyCompleted: boolean;
   personalityChanges: Array<{
     avatarName: string;
     changes: Array<{ trait: string; change: number; description: string }>;
@@ -322,6 +327,7 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
         personalityChanges: [],
         memorySaved: false,
         memoriesCreated: 0,
+        alreadyCompleted: false,
       };
     }
 
@@ -496,6 +502,7 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
         memorySaved: false,
         memoriesCreated: 0,
         personalityChanges: [],
+        alreadyCompleted: false,
       };
     }
 
@@ -531,6 +538,7 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
       personalityChanges,
       memorySaved: memoriesCreated > 0,
       memoriesCreated,
+      alreadyCompleted: updatedCount === 0,
     };
   }
 );

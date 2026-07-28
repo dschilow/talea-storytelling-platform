@@ -21,6 +21,9 @@ interface AgentStore {
 
 const initialState: AgentStore = { live: [], results: [], session: null };
 
+/** Upper bound for the result feed — more cards than this stop being readable. */
+const MAX_RESULTS = 4;
+
 // ─── Actions ─────────────────────────────────────────────────────
 
 type Action =
@@ -57,8 +60,17 @@ function reducer(state: AgentStore, action: Action): AgentStore {
       return { ...state, live: state.live.filter(a => a.agentId !== action.agentId) };
     case 'HIDE_ALL':
       return { ...state, live: [] };
-    case 'ADD_RESULT':
-      return { ...state, results: [...state.results, action.result] };
+    case 'ADD_RESULT': {
+      // Results used to accumulate forever: finishing a second story (or
+      // re-reading the same one) appended another copy of every card, so the
+      // feed grew into a wall of duplicates. Same agent + same headline is the
+      // same statement — replace it instead of stacking, and keep the feed
+      // short enough for a child to read.
+      const withoutDuplicate = state.results.filter(
+        r => !(r.agentId === action.result.agentId && r.headline === action.result.headline)
+      );
+      return { ...state, results: [...withoutDuplicate, action.result].slice(-MAX_RESULTS) };
+    }
     case 'DISMISS_RESULT':
       return { ...state, results: state.results.filter((_, i) => i !== action.index) };
     case 'CLEAR_RESULTS':

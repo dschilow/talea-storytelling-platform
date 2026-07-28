@@ -4,6 +4,7 @@ import {
   appendArtifactReward,
   artifactCategoryToInventoryType,
   buildArtifactInventoryItem,
+  completionGrantedSomething,
   extractPendingArtifactReference,
   extractStoredAvatarIds,
   extractStoryConfigAvatarIds,
@@ -104,6 +105,39 @@ describe("artifact reward recovery", () => {
       configAvatarIds: [],
     })).toEqual(["avatar_1"]);
   });
+  test("reports a re-read when no reward path granted anything", () => {
+    expect(completionGrantedSomething({
+      updatedAvatars: 0,
+      hasUnlockedArtifact: false,
+      perAvatar: [{ shardsEarned: 0, journey: undefined, completedSets: [] }],
+    })).toBe(false);
+  });
+
+  test("reports a re-read when the treasure payload is missing entirely", () => {
+    expect(completionGrantedSomething({
+      updatedAvatars: 0,
+      hasUnlockedArtifact: false,
+    })).toBe(false);
+  });
+
+  test("treats every individual reward path as a first completion", () => {
+    const base = { updatedAvatars: 0, hasUnlockedArtifact: false, perAvatar: [{ shardsEarned: 0, completedSets: [] }] };
+    expect(completionGrantedSomething({ ...base, updatedAvatars: 1 })).toBe(true);
+    expect(completionGrantedSomething({ ...base, hasUnlockedArtifact: true })).toBe(true);
+    expect(completionGrantedSomething({
+      ...base,
+      perAvatar: [{ shardsEarned: 1, completedSets: [] }],
+    })).toBe(true);
+    expect(completionGrantedSomething({
+      ...base,
+      perAvatar: [{ shardsEarned: 0, journey: { journeys: 3 }, completedSets: [] }],
+    })).toBe(true);
+    expect(completionGrantedSomething({
+      ...base,
+      perAvatar: [{ shardsEarned: 0, completedSets: [{ setId: "s1" }] }],
+    })).toBe(true);
+  });
+
   test("maps every pool category to a supported inventory type", () => {
     expect(artifactCategoryToInventoryType("weapon")).toBe("WEAPON");
     expect(artifactCategoryToInventoryType("armor")).toBe("WEAPON");

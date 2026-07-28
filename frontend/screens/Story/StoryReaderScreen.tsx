@@ -845,7 +845,10 @@ const StoryReaderScreen: React.FC = () => {
         onViewTreasureRoom={() => {
           setShowPoolArtifactModal(false);
           setPoolArtifact(null);
-          navigate('/treasure-room');
+          // There is no /treasure-room route — it fell through to the catch-all
+          // and dumped the child on the home screen. The treasury lives in the
+          // avatar profile.
+          navigate(progressAvatarId ? `/avatar/${progressAvatarId}?tab=treasure` : '/avatar');
         }}
       />
 

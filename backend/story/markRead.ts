@@ -5,6 +5,7 @@ import { avatar } from "~encore/clients";
 import { InventoryItem, Skill } from "../avatar/avatar";
 import { recordStoryArtifact } from "./artifact-matcher";
 import {
+  completionGrantedSomething,
   extractPendingArtifactReference,
   extractStoredAvatarIds,
   extractStoryConfigAvatarIds,
@@ -74,6 +75,13 @@ interface MarkStoryReadResponse {
   updatedAvatars: number;
   memorySaved: boolean;
   memoriesCreated: number;
+  /**
+   * True when this completion produced nothing new: the story had already been
+   * finished before, so every reward (traits, Fundstücke, artifact, journey)
+   * was claimed on an earlier read. The client MUST NOT replay any celebration
+   * in that case — re-reading is encouraged, but it is not a second reward.
+   */
+  alreadyCompleted: boolean;
   personalityChanges: Array<{
     avatarName: string;
     changes: Array<{ trait: string; change: number; description: string }>;
@@ -133,6 +141,10 @@ interface MarkStoryReadResponse {
       shardsEarned: number;
       shardBalance: number;
       choiceReady: boolean;
+      /**
+       * Only present when THIS completion added a new journey (or triggered a
+       * level-up). Re-reads leave it undefined so the client stays silent.
+       */
       journey?: {
         artifactId: string;
         artifactName: string;
@@ -330,6 +342,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
         personalityChanges: [],
         memorySaved: false,
         memoriesCreated: 0,
+        alreadyCompleted: false,
       };
     }
     const developmentEligibleAvatars = userAvatars.map(({ id: avatarId, name }) => ({
@@ -566,6 +579,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
         memorySaved: false,
         memoriesCreated: 0,
         personalityChanges: [],
+        alreadyCompleted: false,
       };
     }
 
@@ -601,7 +615,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
 
       // 2) Mitnehmen-Loop: the journey counts for the owner's artifact even
       //    when someone else finishes the story first (idempotent journal).
-      let journeyReward: { journeys: number; level: number; leveledUp: boolean } | null = null;
+      let journeyReward: { journeys: number; level: number; leveledUp: boolean; isNew: boolean } | null = null;
       if (artifact && broughtBy) {
         const journeyAdded = await addJournalEntry({
           avatarId: broughtBy,
@@ -624,8 +638,14 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
             note: `Nach ${journeys} Reisen auf Stufe ${level} gestiegen!`,
           });
         }
-        journeyReward = { journeys, level, leveledUp: Boolean(updatedItem) };
-        void journeyAdded;
+        journeyReward = {
+          journeys,
+          level,
+          leveledUp: Boolean(updatedItem),
+          // The journal insert is idempotent per story, so a `false` here means
+          // this exact journey was already counted on an earlier completion.
+          isNew: journeyAdded,
+        };
       }
 
       // 3) Per-avatar reward: fresh artifact (only when the story genuinely
@@ -667,7 +687,10 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
           shardBalance,
           choiceReady: shardBalance >= SHARDS_PER_CHOICE,
           journey:
-            broughtBy === userAvatar.id && artifact && journeyReward
+            broughtBy === userAvatar.id &&
+            artifact &&
+            journeyReward &&
+            (journeyReward.isNew || journeyReward.leveledUp)
               ? {
                   artifactId: artifact.id,
                   artifactName: artifact.name.de || artifact.name.en,
@@ -779,6 +802,12 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
       `;
     }
 
+    const gainedSomething = completionGrantedSomething({
+      updatedAvatars: updatedCount,
+      hasUnlockedArtifact: Boolean(unlockedArtifact),
+      perAvatar: treasureRewards?.perAvatar,
+    });
+
     return {
       success: true,
       updatedAvatars: updatedCount,
@@ -787,6 +816,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
       treasureRewards,
       memorySaved: memoriesCreated > 0,
       memoriesCreated,
+      alreadyCompleted: !gainedSomething,
     };
   }
 );

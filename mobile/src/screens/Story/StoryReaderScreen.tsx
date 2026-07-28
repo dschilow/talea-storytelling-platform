@@ -65,6 +65,7 @@ export function StoryReaderScreen() {
   const [chromeVisible, setChromeVisible] = useState(true);
   const [fontScaleIndex, setFontScaleIndex] = useState(1);
   const [showGrowth, setShowGrowth] = useState(false);
+  const [isRepeatRead, setIsRepeatRead] = useState(false);
 
   const pagerRef = useRef<ScrollView>(null);
   const chapterSheetRef = useRef<SheetRef>(null);
@@ -135,16 +136,30 @@ export function StoryReaderScreen() {
       setShowGrowth(true);
       return;
     }
+    if (!title) return;
     hasMarkedRead.current = true;
     haptic('celebrate');
 
     try {
-      await markRead.mutateAsync(storyId);
+      const outcome = await markRead.mutateAsync({
+        storyId,
+        storyTitle: title,
+        genre: story?.config?.genre,
+        avatarIds: (story?.config?.avatars ?? []).map((avatar) => avatar.id).filter(Boolean),
+      });
+      // A re-read grants nothing: the server already awarded everything on the
+      // first completion. Showing the growth sheet again would promise points
+      // the child does not get.
+      setIsRepeatRead(outcome.alreadyCompleted);
     } catch {
-      // Marking read is a progress nicety — never block the celebration on it.
+      // Progress could not be saved — say so instead of celebrating growth
+      // that never happened, and allow a retry.
+      hasMarkedRead.current = false;
+      toast.info('Noch nicht gespeichert', 'Tippe nochmal, sobald du wieder online bist.');
+      return;
     }
     setShowGrowth(true);
-  }, [markRead, storyId]);
+  }, [markRead, story?.config?.avatars, story?.config?.genre, storyId, title, toast]);
 
   const handleListen = useCallback(() => {
     if (chapters.length === 0) return;
@@ -416,6 +431,7 @@ export function StoryReaderScreen() {
         open={showGrowth}
         storyTitle={title}
         developments={developments}
+        isRepeat={isRepeatRead}
         onClose={() => {
           setShowGrowth(false);
           navigation.goBack();

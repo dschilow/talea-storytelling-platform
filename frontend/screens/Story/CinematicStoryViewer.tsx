@@ -6,11 +6,11 @@ import { useAuth } from '@clerk/clerk-react';
 
 import { useBackend } from '../../hooks/useBackend';
 import { CinematicText } from '../../components/ui/cinematic-text';
-import ArtifactRewardToast from '../../components/gamification/ArtifactRewardToast';
-import ArtifactCelebrationModal, { UnlockedArtifact } from '../../components/gamification/ArtifactCelebrationModal';
-import TreasureRewardsOverlay, { type TreasureRewardsPayload } from '../../components/gamification/TreasureRewardsOverlay';
+import StoryFinaleSheet, {
+  StoryAlreadyReadNote,
+  type StoryCompletionResult,
+} from '../../components/story/StoryFinaleSheet';
 import type { Story, Chapter } from '../../types/story';
-import type { InventoryItem } from '../../types/avatar';
 import { cn } from '../../lib/utils';
 import { StoryAudioActions } from '../../components/story/StoryAudioActions';
 import { AdminGenerationMetrics } from '../../components/story/AdminGenerationMetrics';
@@ -22,7 +22,6 @@ import { getOfflineStory } from '../../utils/offlineDb';
 import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../utils/chapterImagePlacement';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
-import { usePostStoryFlow, AgentResultFeed } from '../../agents';
 import './CinematicStoryViewer.css';
 
 /* ── Palette ── */
@@ -71,23 +70,6 @@ const getStoryPalette = (isDark: boolean): StoryPalette => {
   };
 };
 
-/* ── Helpers ── */
-const collectArtifactsFromChanges = (personalityChanges: any[]): Array<{ item: InventoryItem; isUpgrade: boolean }> => {
-  if (!Array.isArray(personalityChanges)) return [];
-  const collected: Array<{ item: InventoryItem; isUpgrade: boolean }> = [];
-  personalityChanges.forEach((avatarChange) => {
-    const rewards = avatarChange?.rewards;
-    if (!rewards) return;
-    if (Array.isArray(rewards.newItems)) {
-      rewards.newItems.forEach((item: InventoryItem) => collected.push({ item, isUpgrade: false }));
-    }
-    if (Array.isArray(rewards.upgradedItems)) {
-      rewards.upgradedItems.forEach((item: InventoryItem) => collected.push({ item, isUpgrade: true }));
-    }
-  });
-  return collected;
-};
-
 /* ── Ambient Particles ── */
 const PARTICLES = Array.from({ length: 8 }, (_, i) => ({
   id: i,
@@ -125,12 +107,10 @@ const CinematicStoryViewer: React.FC = () => {
   const completionAttemptRef = useRef(0);
   const completionInFlightRef = useRef(false);
 
-  const [artifactQueue, setArtifactQueue] = useState<Array<{ item: InventoryItem; isUpgrade: boolean }>>([]);
-  const [currentArtifact, setCurrentArtifact] = useState<{ item: InventoryItem; isUpgrade: boolean } | null>(null);
-  const [poolArtifact, setPoolArtifact] = useState<UnlockedArtifact | null>(null);
-  const [showPoolArtifactModal, setShowPoolArtifactModal] = useState(false);
-  const [treasureRewards, setTreasureRewards] = useState<TreasureRewardsPayload | null>(null);
-  const { showCompletionResults } = usePostStoryFlow();
+  // Everything the completion produced is presented by ONE sheet — see
+  // StoryFinaleSheet for why this replaced the previous overlay stack.
+  const [completionResult, setCompletionResult] = useState<StoryCompletionResult | null>(null);
+  const [isRepeatRead, setIsRepeatRead] = useState(false);
   const isCharacterLifeStory = isCharacterLifeRoute || story?.config.contentType === 'character_life';
   const returnPath = isCharacterLifeStory && isAdmin ? '/characters' : '/stories';
   const returnLabel = returnPath === '/characters' ? 'Zurück zu den Charakteren' : 'Zurück zu Geschichten';
@@ -157,10 +137,8 @@ const CinematicStoryViewer: React.FC = () => {
     setStory(null);
     setStarted(false);
     setActiveChapter(0);
-    setArtifactQueue([]);
-    setCurrentArtifact(null);
-    setPoolArtifact(null);
-    setShowPoolArtifactModal(false);
+    setCompletionResult(null);
+    setIsRepeatRead(false);
 
     setStoryCompleted(false);
     setCompletionPending(false);
@@ -176,14 +154,6 @@ const CinematicStoryViewer: React.FC = () => {
       completionInFlightRef.current = false;
     };
   }, [storyId, activeProfileId, isAdmin, offlineScope]);
-
-  useEffect(() => {
-    if (!currentArtifact && artifactQueue.length > 0) {
-      const [next, ...rest] = artifactQueue;
-      setCurrentArtifact(next);
-      setArtifactQueue(rest);
-    }
-  }, [currentArtifact, artifactQueue]);
 
   const loadStory = async (requestId: number) => {
     if (!storyId) return;
@@ -282,7 +252,6 @@ const CinematicStoryViewer: React.FC = () => {
       }
       if (completionAttemptRef.current !== attemptId) return;
       setStoryCompleted(true);
-      const { showSuccessToast, showPersonalityUpdateToast } = await import('../../utils/toastUtils');
       window.dispatchEvent(
         new CustomEvent('personalityUpdated', {
           detail: {
@@ -294,54 +263,15 @@ const CinematicStoryViewer: React.FC = () => {
         }),
       );
 
-      if (result?.unlockedArtifact) {
-        setPoolArtifact(result.unlockedArtifact as UnlockedArtifact);
-        setTimeout(() => setShowPoolArtifactModal(true), 260);
-      }
-
-      // Schatzkammer 2.0: Fundstücke, Reisen/Level-Ups und Set-Krönungen.
-      if (result?.treasureRewards) {
-        setTreasureRewards(result.treasureRewards as TreasureRewardsPayload);
-      }
-
-      const collectedArtifacts = collectArtifactsFromChanges(result?.personalityChanges ?? []);
-      if (collectedArtifacts.length > 0) setArtifactQueue(collectedArtifacts);
-
-      if (Array.isArray(result?.personalityChanges) && result.personalityChanges.length > 0) {
-        showSuccessToast(
-          `Geschichte abgeschlossen. ${result.updatedAvatars ?? result.personalityChanges.length} Avatar(e) aktualisiert.`
-        );
-        const mergedByTrait = new Map<string, number>();
-        result.personalityChanges.forEach((avatarChange: any) => {
-          if (!Array.isArray(avatarChange?.changes)) return;
-          avatarChange.changes.forEach((change: any) => {
-            if (!change?.trait || typeof change.change !== 'number') return;
-            mergedByTrait.set(change.trait, (mergedByTrait.get(change.trait) || 0) + change.change);
-          });
-        });
-        const mergedChanges = Array.from(mergedByTrait.entries()).map(([trait, change]) => ({ trait, change }));
-        if (mergedChanges.length > 0) {
-          setTimeout(() => {
-            showPersonalityUpdateToast(mergedChanges, {
-              title: 'Persoenlichkeit entwickelt sich',
-              subtitle: `${result.updatedAvatars ?? result.personalityChanges.length} Avatar(e) aktualisiert`,
-            });
-          }, 700);
-        }
+      // Every reward is granted exactly once per avatar and story. On a re-read
+      // the server reports `alreadyCompleted` and we stay quiet instead of
+      // replaying a celebration the child has not earned again.
+      const completion = result as StoryCompletionResult;
+      if (completion?.alreadyCompleted) {
+        setIsRepeatRead(true);
       } else {
-        showSuccessToast('Geschichte abgeschlossen.');
+        setCompletionResult(completion);
       }
-
-      const hasConfirmedMemory =
-        result?.memorySaved === true ||
-        (typeof result?.memoriesCreated === 'number' && result.memoriesCreated > 0);
-
-      // Only claim a memory when the server explicitly confirms that it was stored.
-      showCompletionResults({
-        hasMemory: hasConfirmedMemory,
-        artifactName: collectedArtifacts.length > 0 ? collectedArtifacts[0].item.name : undefined,
-        storyId,
-      });
 
       emitMapProgress({ avatarId: progressAvatarId, source: 'story' });
     } catch (error) {
@@ -599,42 +529,27 @@ const CinematicStoryViewer: React.FC = () => {
               <ArrowLeft className="h-3.5 w-3.5" />
               Zurueck zur Uebersicht
             </button>
+
+            {isRepeatRead && <StoryAlreadyReadNote isDark={isDark} />}
           </motion.div>
         </section>
       </div>
 
-      {/* ── Agent Result Feed — contextual completion cards ── */}
-      {storyCompleted && !isCharacterLifeStory && (
-        <div className="fixed bottom-6 right-4 z-30 w-80 max-h-[50vh] overflow-y-auto">
-          <AgentResultFeed
-            onAction={(action, payload) => {
-              if (action === 'navigate' && payload?.to) {
-                navigate(payload.to as string);
-              }
-            }}
-          />
-        </div>
-      )}
-
-      {/* ── Modals ── */}
-      <ArtifactRewardToast
-        item={currentArtifact?.item || null}
-        isVisible={!!currentArtifact}
-        onClose={() => setCurrentArtifact(null)}
-        isUpgrade={currentArtifact?.isUpgrade}
-      />
-
-      <ArtifactCelebrationModal
-        artifact={poolArtifact}
-        isVisible={showPoolArtifactModal}
-        onClose={() => { setShowPoolArtifactModal(false); setPoolArtifact(null); }}
-        onViewTreasureRoom={() => { setShowPoolArtifactModal(false); setPoolArtifact(null); navigate('/treasure-room'); }}
-      />
-
-      {/* Schatzkammer 2.0: Reise-/Level-Karten, Set-Krönungen, Fundstück-Toast */}
-      <TreasureRewardsOverlay
-        rewards={treasureRewards}
-        active={!showPoolArtifactModal && !currentArtifact}
+      {/* One calm completion moment instead of a stack of competing overlays. */}
+      <StoryFinaleSheet
+        result={isCharacterLifeStory ? null : completionResult}
+        storyTitle={story.title}
+        isDark={isDark}
+        onClose={() => setCompletionResult(null)}
+        onOpenTreasury={(avatarId) => {
+          setCompletionResult(null);
+          const target = avatarId || progressAvatarId;
+          navigate(target ? `/avatar/${target}?tab=treasure` : '/avatar');
+        }}
+        onNextStory={() => {
+          setCompletionResult(null);
+          navigate('/story');
+        }}
       />
     </div>
   );
