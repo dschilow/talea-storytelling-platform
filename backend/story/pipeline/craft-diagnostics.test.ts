@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   analyzeStoryCraft,
   buildCraftRepairBrief,
+  buildValidatorCraftIssues,
   contentStems,
   extractQuotedLines,
   pagesCarryingPhrase,
@@ -130,5 +131,124 @@ describe("craft diagnostics — unit behaviour", () => {
     expect(brief).toContain("CRAFT-BEFUND");
     expect(brief).toContain("PRIORITÄT");
     expect(brief).toContain("Schubs es weg");
+  });
+});
+
+describe("validator-derived craft issues", () => {
+  const laughless = (pages: number[], laughing: number[] = []) =>
+    pages.map((page) => ({
+      page,
+      hasKidLaugh: laughing.includes(page),
+      device: "",
+      missedOpportunity: `Reaktion auf Seite ${page}`,
+    }));
+
+  test("flags humour once half the pages have no laugh", () => {
+    const issues = buildValidatorCraftIssues({ humorPerPage: laughless([1, 2, 3, 4, 5], [1, 2]) });
+    expect(issues.map((i) => i.code)).toContain("humor-missing");
+  });
+
+  test("a mostly funny story is left alone", () => {
+    const issues = buildValidatorCraftIssues({ humorPerPage: laughless([1, 2, 3, 4, 5], [1, 2, 3]) });
+    expect(issues.map((i) => i.code)).not.toContain("humor-missing");
+  });
+
+  test("humour hint carries the concrete spots the validator named", () => {
+    const issues = buildValidatorCraftIssues({
+      humorPerPage: [
+        { page: 1, hasKidLaugh: false, missedOpportunity: "Adrians Reaktion auf die Statue" },
+        { page: 2, hasKidLaugh: false, missedOpportunity: "Konrads Bart" },
+      ],
+    });
+    const humor = issues.find((i) => i.code === "humor-missing")!;
+    expect(humor.repairHint).toContain("Seite 1: Adrians Reaktion auf die Statue");
+    expect(humor.repairHint).toContain("Seite 2: Konrads Bart");
+    // Humour must never be bought with tension.
+    expect(humor.repairHint).toContain("NICHT entschärfen");
+  });
+
+  test("no humour verdict at all produces no issue", () => {
+    expect(buildValidatorCraftIssues({})).toEqual([]);
+    expect(buildValidatorCraftIssues({ humorPerPage: [] })).toEqual([]);
+  });
+
+  test("turns the run e7b2d09c dimension misses into concrete instructions", () => {
+    // The real verdict of the Sanduhr run. These exact numbers were computed,
+    // written into qualityGateFailureReason — and never reached a repair prompt.
+    const issues = buildValidatorCraftIssues({
+      dimensionScores: { iconicCharacters: 8, voiceDistinctiveness: 8, endingPayoff: 8.2, emotionalEngine: 8.5 },
+      dimensionFloors: { iconicCharacters: 8.2, voiceDistinctiveness: 8.2, endingPayoff: 8.5, emotionalEngine: 8.5 },
+    });
+    const codes = issues.map((i) => i.code);
+    expect(codes).toEqual(["dimension-below-floor", "dimension-below-floor", "dimension-below-floor"]);
+    // emotionalEngine sits exactly on its floor and must not be flagged.
+    expect(issues.some((i) => i.message.includes("emotionalEngine"))).toBe(false);
+    expect(issues.find((i) => i.message.includes("voiceDistinctiveness"))!.repairHint)
+      .toContain("ohne Sprecherangabe zuordnen");
+  });
+
+  test("caps at the three widest gaps so a pass gets orders, not a wish list", () => {
+    // Verbatim first-validation dimensionScores of run e7b2d09c: eight of nine
+    // advisory floors missed at once.
+    const issues = buildValidatorCraftIssues({
+      dimensionScores: {
+        emotionalEngine: 8, iconicCharacters: 7.5, voiceDistinctiveness: 7,
+        endingPayoff: 8, keyMomentPayoff: 8, chapterEndPull: 7.5,
+        pageTurnDrive: 8, rereadValue: 7.5,
+      },
+      dimensionFloors: {
+        emotionalEngine: 8.5, iconicCharacters: 8.2, voiceDistinctiveness: 8.2,
+        endingPayoff: 8.5, keyMomentPayoff: 8.5, chapterEndPull: 8.5,
+        pageTurnDrive: 8.5, rereadValue: 8.5,
+      },
+    });
+    expect(issues.length).toBe(3);
+    // Widest gap first: voiceDistinctiveness is 1.2 under, then the two 1.0s.
+    expect(issues[0].message).toContain("voiceDistinctiveness");
+    expect(issues.map((i) => i.message).join(" ")).toContain("chapterEndPull");
+    expect(issues.map((i) => i.message).join(" ")).toContain("rereadValue");
+  });
+
+  test("humour is exempt from the dimension cap", () => {
+    const issues = buildValidatorCraftIssues({
+      humorPerPage: laughless([1, 2, 3, 4, 5]),
+      dimensionScores: {
+        emotionalEngine: 8, iconicCharacters: 7.5, voiceDistinctiveness: 7,
+        endingPayoff: 8, keyMomentPayoff: 8,
+      },
+      dimensionFloors: {
+        emotionalEngine: 8.5, iconicCharacters: 8.2, voiceDistinctiveness: 8.2,
+        endingPayoff: 8.5, keyMomentPayoff: 8.5,
+      },
+    });
+    expect(issues.filter((i) => i.code === "humor-missing").length).toBe(1);
+    expect(issues.filter((i) => i.code === "dimension-below-floor").length).toBe(3);
+  });
+
+  test("ignores dimensions above their floor, unknown dimensions, and missing scores", () => {
+    expect(buildValidatorCraftIssues({
+      dimensionScores: { iconicCharacters: 9 },
+      dimensionFloors: { iconicCharacters: 8.2 },
+    })).toEqual([]);
+    // A floor without a repair hint would produce a finding nobody can act on.
+    expect(buildValidatorCraftIssues({
+      dimensionScores: { languageCorrectness: 8.4 },
+      dimensionFloors: { languageCorrectness: 9.5 },
+    })).toEqual([]);
+    expect(buildValidatorCraftIssues({
+      dimensionScores: {},
+      dimensionFloors: { iconicCharacters: 8.2 },
+    })).toEqual([]);
+  });
+
+  test("validator issues render into the same prioritised brief", () => {
+    const brief = buildCraftRepairBrief(buildValidatorCraftIssues({
+      humorPerPage: laughless([1, 2, 3]),
+      dimensionScores: { voiceDistinctiveness: 7.5 },
+      dimensionFloors: { voiceDistinctiveness: 8.2 },
+    }));
+    expect(brief).toContain("CRAFT-BEFUND");
+    expect(brief).toContain("lacht");
+    expect(brief).toContain("voiceDistinctiveness");
   });
 });

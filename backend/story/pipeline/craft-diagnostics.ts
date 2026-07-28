@@ -28,7 +28,9 @@ export type CraftIssueCode =
   | "refrain-missing"
   | "motif-thin"
   | "finale-crowded"
-  | "cast-catchphrase-only";
+  | "cast-catchphrase-only"
+  | "humor-missing"
+  | "dimension-below-floor";
 
 export interface CraftIssue {
   code: CraftIssueCode;
@@ -70,6 +72,8 @@ const MIN_CONTENT_WORD_LENGTH = 5;
 const STEM_LENGTH = 5;
 /** A page carries a phrase when at least this many of its stems appear. */
 const STEMS_PER_PAGE_HIT = 2;
+/** Widest dimension gaps to brief per round. More instructions = shallower edits. */
+const MAX_DIMENSION_ISSUES = 3;
 
 /**
  * German function words that would otherwise dominate the stem set. Kept short
@@ -242,6 +246,103 @@ export function extractQuotedLines(text: string): string[] {
     }
   }
   return out;
+}
+
+export interface HumorPageVerdict {
+  page?: number;
+  hasKidLaugh?: boolean;
+  device?: string;
+  missedOpportunity?: string;
+}
+
+/**
+ * Concrete repair instructions per weak dimension. The pipeline already
+ * computes which premium floors a story misses and writes them into
+ * `qualityGateFailureReason` — but that string only ever reached a log line.
+ * The repair prompt got the validator's generic `mustFixBefore95` prose and
+ * never the specific diagnosis, so "voiceDistinctiveness 8.0 below 8.2" turned
+ * into no instruction at all.
+ */
+const DIMENSION_REPAIR_HINTS: Record<string, string> = {
+  iconicCharacters:
+    "Gib jeder Hauptfigur EIN wiedererkennbares körperliches Handlungsmuster, das nur sie hat (was tun ihre Hände, wenn sie nervös ist?) und zeige es mindestens zweimal an verschiedenen Stellen.",
+  voiceDistinctiveness:
+    "Die Figuren klingen zu ähnlich. Gib ihnen unterschiedliche Satzlängen und Sprechhaltungen: eine Figur fragt, die andere behauptet; eine spricht in kurzen Stücken, die andere in einem Bogen. Danach muss man jede Zeile ohne Sprecherangabe zuordnen können.",
+  endingPayoff:
+    "Der Schluss zahlt nicht ein. Nimm ein konkretes Detail aus der ersten Hälfte und lass es im letzten Absatz sichtbar wiederkehren — verändert, nicht wiederholt. Kein zusammenfassender Satz.",
+  keyMomentPayoff:
+    "Der Wendepunkt bleibt unbezahlt. Zeige die Folge der entscheidenden Handlung als sichtbare Veränderung an Objekt, Ort oder Figur, nicht als Gefühlsbeschreibung.",
+  emotionalEngine:
+    "Der emotionale Motor läuft zu leise. Zeige einmal früh, was die Hauptfigur konkret zu verlieren hat — an einem Gegenstand oder einer Gewohnheit, nicht an einem benannten Gefühl.",
+  chapterEndPull:
+    "Die Leseseiten enden zu geschlossen. Mindestens zwei Seiten müssen auf einer offenen Frage, einer Drohung oder einem unfertigen Bild enden statt auf einer abgeschlossenen Aussage.",
+  pageTurnDrive:
+    "Zu wenig Sog. Ziehe je eine Information, die aktuell zu früh erklärt wird, eine Seite nach hinten, damit das Kind weiterblättern muss, um sie zu bekommen.",
+  rereadValue:
+    "Zu wenig Grund für ein zweites Lesen. Pflanze ein Detail, das beim ersten Lesen beiläufig wirkt und nach dem Ende eine zweite Bedeutung bekommt.",
+};
+
+/**
+ * Turns the validator's own verdict into instructions a repair pass can act on:
+ * which page has no laugh and where one would fit, and which measured dimension
+ * sits below its premium floor.
+ *
+ * Costs nothing — the validation call runs on every story regardless.
+ */
+export function buildValidatorCraftIssues(input: {
+  humorPerPage?: HumorPageVerdict[];
+  dimensionScores?: Record<string, unknown>;
+  /** Dimension -> premium floor, as enforced by the release gate. */
+  dimensionFloors?: Record<string, number>;
+}): CraftIssue[] {
+  const issues: CraftIssue[] = [];
+
+  const pages = Array.isArray(input.humorPerPage) ? input.humorPerPage : [];
+  const laughless = pages.filter((page) => page && page.hasKidLaugh === false);
+  // One quiet page in five is normal pacing; a story is only humourless when
+  // most of it is. The validator's own cap uses "4 of 5", which is too late to
+  // be useful as a repair trigger — half the book is the honest threshold.
+  if (pages.length > 0 && laughless.length * 2 >= pages.length) {
+    const spots = laughless
+      .filter((page) => String(page.missedOpportunity || "").trim())
+      .slice(0, 4)
+      .map((page) => `Seite ${page.page}: ${String(page.missedOpportunity).trim()}`);
+    issues.push({
+      code: "humor-missing",
+      message: `${laughless.length} von ${pages.length} Leseseiten haben nichts, worüber ein Kind laut lacht.`,
+      repairHint: [
+        "Setze auf mindestens der Hälfte der Seiten EINEN echten Lacher — eine Figur, die selbstbewusst falsch liegt, ein komisches Missverständnis, Slapstick, eine freche harmlose Bemerkung oder ein Running Gag.",
+        spots.length > 0 ? `Konkrete Stellen: ${spots.join(" | ")}` : "",
+        "Der Humor darf Spannung und Gefahr NICHT entschärfen — er sitzt daneben, nicht darüber. Tausche dafür bestehende Sätze; die Geschichte wird nicht länger.",
+      ].filter(Boolean).join(" "),
+    });
+  }
+
+  // A weak story trips most floors at once — run e7b2d09c missed eight of nine
+  // on its first validation. Handing a repair pass eight instructions produces
+  // eight shallow edits, so keep only the widest gaps and let the next round
+  // pick up what is still open. Humour is exempt from the cap: it is
+  // structurally different work and the one thing every brief keeps asking for.
+  const scores = input.dimensionScores || {};
+  const floors = input.dimensionFloors || {};
+  const gaps: Array<{ dimension: string; raw: number; floor: number; gap: number }> = [];
+  for (const [dimension, floor] of Object.entries(floors)) {
+    const raw = Number((scores as any)[dimension] ?? NaN);
+    if (!Number.isFinite(raw) || raw >= floor) continue;
+    if (!DIMENSION_REPAIR_HINTS[dimension]) continue;
+    gaps.push({ dimension, raw, floor, gap: floor - raw });
+  }
+  gaps.sort((left, right) => right.gap - left.gap || left.dimension.localeCompare(right.dimension));
+
+  for (const { dimension, raw, floor } of gaps.slice(0, MAX_DIMENSION_ISSUES)) {
+    issues.push({
+      code: "dimension-below-floor",
+      message: `${dimension} liegt bei ${raw} und damit unter dem Premium-Wert ${floor}.`,
+      repairHint: DIMENSION_REPAIR_HINTS[dimension],
+    });
+  }
+
+  return issues;
 }
 
 /**

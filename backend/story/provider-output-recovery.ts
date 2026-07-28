@@ -344,13 +344,70 @@ export function recoverTruncatedIdeaCandidatePayload(content: string): any | nul
  */
 export function recoverTruncatedSceneCardPayload(content: string): any | null {
   const sceneCards = recoverCompleteObjectsFromArrayProperty(content, "sceneCards");
-  const scenes = sceneCards.length > 0 ? sceneCards : recoverCompleteObjectsFromArrayProperty(content, "scenes");
+  const complete = sceneCards.length > 0 ? sceneCards : recoverCompleteObjectsFromArrayProperty(content, "scenes");
+  // Run e7b2d09c died 1545 characters in, INSIDE the first card, so there was
+  // no complete object and the whole stage was lost. The fields that had
+  // already been written (scene, location, visibleGoal, obstacle, ...) are
+  // still real dramaturgy, and the deterministic repair fills the rest — which
+  // beats mad-libbing all five cards from scratch.
+  const partial = recoverTrailingPartialObject(content, complete.length > 0 ? undefined : ["sceneCards", "scenes"]);
+  const scenes = partial ? [...complete, partial] : complete;
   if (scenes.length === 0) return null;
   return {
     sceneCards: scenes,
     recoveredFromTruncatedJson: true,
     recoveredSceneCardCount: scenes.length,
+    recoveredPartialCardCount: partial ? 1 : 0,
   };
+}
+
+/**
+ * Salvages the object a truncated payload was in the middle of writing, by
+ * keeping every key/value pair that completed before the cut and discarding the
+ * half-written tail.
+ *
+ * Only used as a last resort — when not a single complete object survived —
+ * because a partial object is by definition missing fields. Downstream repair
+ * treats missing fields as "fill this in", which is exactly the right handling.
+ */
+export function recoverTrailingPartialObject(
+  content: string,
+  propertyNames?: string[],
+): any | null {
+  if (!propertyNames || propertyNames.length === 0) return null;
+
+  let arrayStart = -1;
+  for (const propertyName of propertyNames) {
+    const propertyIndex = content.indexOf(`"${propertyName}"`);
+    if (propertyIndex < 0) continue;
+    const bracket = content.indexOf("[", propertyIndex);
+    if (bracket >= 0) {
+      arrayStart = bracket;
+      break;
+    }
+  }
+  if (arrayStart < 0) return null;
+
+  const objectStart = content.indexOf("{", arrayStart);
+  if (objectStart < 0) return null;
+  // Anything after the last completed pair is half-written; cut there and close
+  // the object. Walk from the end for the last `",` or `,` at depth 1.
+  const body = content.slice(objectStart);
+  let best: any = null;
+  for (let cut = body.length; cut > 1; cut -= 1) {
+    if (body[cut - 1] !== ",") continue;
+    const candidate = `${body.slice(0, cut - 1)}}`;
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && Object.keys(parsed).length > 0) {
+        best = parsed;
+        break;
+      }
+    } catch {
+      // Keep walking backwards to the previous completed pair.
+    }
+  }
+  return best;
 }
 
 /**

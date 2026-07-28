@@ -202,6 +202,30 @@ const DEV_MODE_MIN_MARKET_QUALITY_SCORE = 8.0;
 const DEV_MODE_PREMIUM_RELEASE_SCORE = 9.0;
 const DEV_MODE_TARGET_MARKET_QUALITY_SCORE = 9.5;
 const DEV_MODE_MIN_RELEASE_DIMENSION_SCORE = 8.0;
+/**
+ * Premium-only per-dimension release floors. A paired-MIN aggregate can mask a
+ * single weak dimension (iconicCharacters 7.5 with everything else >=8.5 still
+ * ships at 8.4 overall), so each of these must hold independently.
+ */
+const DEV_MODE_PREMIUM_DIMENSION_FLOORS: Record<string, number> = {
+  emotionalEngine: 8.5,
+  iconicCharacters: 8.2,
+  voiceDistinctiveness: 8.2,
+  endingPayoff: 8.5,
+  keyMomentPayoff: 8.5,
+  languageCorrectness: 9.5,
+};
+/**
+ * Wider set used only to brief a repair pass — never to block a release.
+ * Page-turn pull and reread value are what make a child ask for the next story,
+ * so a repair pass should hear about them even though they do not gate.
+ */
+const DEV_MODE_CRAFT_ADVISORY_DIMENSION_FLOORS: Record<string, number> = {
+  ...DEV_MODE_PREMIUM_DIMENSION_FLOORS,
+  chapterEndPull: 8.5,
+  pageTurnDrive: 8.5,
+  rereadValue: 8.5,
+};
 const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
 // See "Diminishing-returns brake" at the validation-polish loop: once a
 // story clears all hard gates and scores at/above this, further validation
@@ -326,6 +350,7 @@ import { buildPersonalObjectStemMatcher } from "./personal-object-anchor";
 import {
   analyzeStoryCraft,
   buildCraftRepairBrief,
+  buildValidatorCraftIssues,
   type CraftIssue,
 } from "./pipeline/craft-diagnostics";
 
@@ -372,6 +397,7 @@ type DevModePipelineStage =
   | "filmic-beat-sheet"
   | "beat-sheet-repair"
   | "scene-cards"
+  | "scene-cards-retry"
   | "scene-cards-repair"
   | "scene-cards-safe-fallback"
   | "dialogue-intent"
@@ -10270,6 +10296,11 @@ function buildValidationPrompts(
     '    "languageCorrectness": number,',
     '    "jsonValidity": number',
     '  },',
+    // The scoring rules already cap a humourless story at 8.2, but the verdict
+    // never said WHICH page lacked the laugh, so no repair pass could act on it
+    // and three audited runs in a row shipped earnest. This costs no extra call:
+    // the validator is reading every page anyway.
+    '  "humorPerPage": [{ "page": number, "hasKidLaugh": boolean, "device": string, "missedOpportunity": string }],',
     '  "errors": string[],',
     '  "warnings": string[],',
     '  "publishabilityBlockers": string[],',
@@ -10338,6 +10369,11 @@ function buildValidationPrompts(
     "",
     "Check: exactly correct chapter count, valid JSON, no [object Object], clear character roles, central conflict, irreversible key moment, therefore/but causal chain, no explained moral, prepared solution, no spoiled / cheap antagonist defeat, age-appropriate language, dialogue with typographic quotation marks.",
     "Also check: would a child want to hear the next chapter? Is there a recurring motif? Is there callback/payoff? Are there reread rewards and characters one wants to meet again?",
+    "HUMOR CHECK (mandatory, one entry per reading page in humorPerPage):",
+    "- hasKidLaugh is true only for something a 6-year-old would actually laugh or grin at OUT LOUD: a character being confidently wrong, a comic misunderstanding, physical slapstick, silly exaggeration, a rude-but-harmless observation, wordplay, a running gag paying off, or an animal/object behaving absurdly.",
+    "- Warm, cosy, clever or charming is NOT a laugh. Neither is an adult-pleasing ironic aside. If the page has no laugh, say so — an honest false is worth more than a generous true.",
+    "- device: name the comic device in 3-6 words when hasKidLaugh is true, otherwise empty string.",
+    "- missedOpportunity: when hasKidLaugh is false, name the ONE concrete spot on that page where a laugh would fit without touching plot, danger or pacing (a specific line, reaction or object). Otherwise empty string.",
     "LANGUAGE AUTHENTICITY CHECK (mandatory): scan the prose for invented/non-existent words, malformed compounds, or unidiomatic phrasing in the target language (e.g. a made-up German adjective like 'apfelscharf'). Each such word is a mustFixBefore95 entry quoting the exact word and a real-word replacement; 2+ occurrences cap marketQualityScore at 8.4.",
     "COPY-DESK CHECK (mandatory, word by word - this is separate from literary scoring):",
     "- Scan every sentence for spelling, wrong conjugation, subject-verb disagreement, wrong case/article, malformed punctuation, and unidiomatic wording. Do not assume fluent-looking prose is correct.",
@@ -11905,15 +11941,7 @@ function releaseDimensionFailures(validatorFindings: any, opts?: { mode?: DevMod
   // overall). Block premium until each of these holds independently.
   const isPremium = (opts?.mode || "premium") === "premium";
   if (isPremium) {
-    const premiumPerDim: Array<[string, number]> = [
-      ["emotionalEngine", 8.5],
-      ["iconicCharacters", 8.2],
-      ["voiceDistinctiveness", 8.2],
-      ["endingPayoff", 8.5],
-      ["keyMomentPayoff", 8.5],
-      ["languageCorrectness", 9.5],
-    ];
-    for (const [dim, floor] of premiumPerDim) {
+    for (const [dim, floor] of Object.entries(DEV_MODE_PREMIUM_DIMENSION_FLOORS)) {
       const raw = Number(scores[dim] ?? NaN);
       if (Number.isFinite(raw) && raw < floor) {
         failures.push(`${dim} ${raw} is below premium floor ${floor}.`);
@@ -13531,13 +13559,56 @@ export async function generateStoryDevMode(
     }
 
     const sceneCardPrompts = buildSceneCardPrompts(input, beatSheet);
-    const sceneCardStage = await runStage("scene-cards", sceneCardPrompts, {
+    // Scene cards are the dramaturgic brain: the only stage that gives each
+    // scene its own goal, obstacle and per-speaker dialogue beats. When the call
+    // yields NOTHING the pipeline silently falls through to
+    // `repairSceneCardsDeterministically([])`, which mad-libs five cards that
+    // share one identical beat set — the documented cause of stories that feel
+    // same-shaped and lifeless.
+    //
+    // Run e7b2d09c lost the whole stage that way: the response died after 1545
+    // characters, mid-first-card, with usage 0/0 (aborted stream), so not even
+    // the truncation recovery had a complete object to salvage. The story was
+    // then written without any scene dramaturgy at all — and because the
+    // deterministic fallback produces *valid* cards, nothing downstream ever
+    // reported a problem.
+    //
+    // A retry costs about a cent and only runs when the stage produced zero
+    // cards. A partial payload still goes to the deterministic top-up as before.
+    let sceneCardStage = await runStage("scene-cards", sceneCardPrompts, {
       maxTokens: DEV_MODE_SCENE_CARD_MAX_TOKENS,
       temperature: 0.34,
       timeoutMs: 120_000,
       ...supportCallOptions,
       modelRole: "support",
     });
+    if (normalizeSceneCards(sceneCardStage.parsed).length === 0) {
+      console.warn("[dev-mode-generation] scene-cards produced no usable card; retrying once before the mad-libbed fallback", {
+        contentLength: sceneCardStage.provider?.content?.length ?? 0,
+        parseError: sceneCardStage.parseError,
+        completionTokens: sceneCardStage.provider?.usage?.completion,
+      });
+      recordLocalStage("scene-cards-retry", {
+        reason: "no-usable-card",
+        parseError: sceneCardStage.parseError,
+        contentLength: sceneCardStage.provider?.content?.length ?? 0,
+      });
+      try {
+        sceneCardStage = await runStage("scene-cards", sceneCardPrompts, {
+          maxTokens: DEV_MODE_SCENE_CARD_MAX_TOKENS,
+          // Slightly cooler on the retry: the first attempt already proved the
+          // prompt is answerable, so favour a clean finish over variety.
+          temperature: 0.28,
+          timeoutMs: 120_000,
+          ...supportCallOptions,
+          modelRole: "support",
+        });
+      } catch (retryError) {
+        console.warn("[dev-mode-generation] scene-cards retry failed; continuing with deterministic cards", {
+          error: retryError instanceof Error ? retryError.message : String(retryError),
+        });
+      }
+    }
     let sceneCards = applySuppressedArtifactSanitizer("scene-cards", normalizeSceneCards(sceneCardStage.parsed));
     const deterministicSceneRepair = repairSceneCardsDeterministically(sceneCards, beatSheet, input);
     if (deterministicSceneRepair.changed) {
@@ -14616,7 +14687,19 @@ export async function generateStoryDevMode(
       // Measured once per repair round, free, and handed to whichever pass runs
       // below. This is the whole of the "craft gets a seat at the repair table"
       // change: no extra call, the pass just stops being only about form.
-      const currentCraftIssues = collectCraftIssues(input, currentParsed, beatSheet);
+      //
+      // Two sources: deterministic text analysis (refrain planted, motif
+      // carried, finale owned by the heroes) plus the validator's own verdict
+      // that was previously only logged — which page has no laugh, and which
+      // measured dimension sits under its premium floor.
+      const currentCraftIssues = [
+        ...collectCraftIssues(input, currentParsed, beatSheet),
+        ...buildValidatorCraftIssues({
+          humorPerPage: validatorFindings?.humorPerPage,
+          dimensionScores: validatorFindings?.dimensionScores,
+          dimensionFloors: DEV_MODE_CRAFT_ADVISORY_DIMENSION_FLOORS,
+        }),
+      ];
       if (currentCraftIssues.length > 0) {
         console.warn("[dev-mode-generation] craft findings handed to this repair pass", {
           validationAttempt: validationAttempt + 1,

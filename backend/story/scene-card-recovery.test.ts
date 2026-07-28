@@ -1,6 +1,9 @@
 // @ts-ignore Bun exposes this runtime-only test helper without Node typings.
 import { describe, expect, test } from "bun:test";
-import { recoverTruncatedSceneCardPayload } from "./provider-output-recovery";
+import {
+  recoverCompleteObjectsFromArrayProperty,
+  recoverTruncatedSceneCardPayload,
+} from "./provider-output-recovery";
 import truncatedSceneCards from "./__fixtures__/truncated-scene-cards.json";
 
 /**
@@ -9,7 +12,14 @@ import truncatedSceneCards from "./__fixtures__/truncated-scene-cards.json";
  * hit the completion ceiling mid-array, failed JSON.parse, and caused the
  * pipeline to fall back to deterministic mad-libbed cards.
  */
-const fixtures = Object.entries(truncatedSceneCards as Record<string, string>);
+/**
+ * Run e7b2d09c is a different failure class from the other four: its stream
+ * died 1545 characters in, INSIDE the first card, so no complete object ever
+ * closed. It gets its own expectations below.
+ */
+const PARTIAL_FIRST_CARD_RUN = "e7b2d09c-partial-first-card";
+const allFixtures = Object.entries(truncatedSceneCards as Record<string, string>);
+const fixtures = allFixtures.filter(([run]) => run !== PARTIAL_FIRST_CARD_RUN);
 const DEV_MODE_SCENE_CARD_COUNT = 5;
 
 describe("recoverTruncatedSceneCardPayload", () => {
@@ -70,5 +80,44 @@ describe("recoverTruncatedSceneCardPayload", () => {
     expect(recoverTruncatedSceneCardPayload("")).toBeNull();
     expect(recoverTruncatedSceneCardPayload("not json at all")).toBeNull();
     expect(recoverTruncatedSceneCardPayload('{"sceneCards": [')).toBeNull();
+  });
+
+  describe(PARTIAL_FIRST_CARD_RUN, () => {
+    const rawContent = (truncatedSceneCards as Record<string, string>)[PARTIAL_FIRST_CARD_RUN];
+
+    test("is the run that lost the whole stage", () => {
+      // 1545 chars, aborted mid-first-card, usage 0/0. Before this fixture the
+      // pipeline mad-libbed all five cards and the story was written with no
+      // scene dramaturgy at all.
+      expect(rawContent.length).toBe(1545);
+      expect(() => JSON.parse(rawContent)).toThrow();
+      expect(recoverCompleteObjectsFromArrayProperty(rawContent, "sceneCards")).toEqual([]);
+    });
+
+    test("salvages the pairs the first card had already written", () => {
+      const recovered = recoverTruncatedSceneCardPayload(rawContent);
+      expect(recovered).not.toBeNull();
+      expect(recovered.recoveredPartialCardCount).toBe(1);
+      expect(recovered.sceneCards.length).toBe(1);
+
+      const card = recovered.sceneCards[0];
+      expect(card.scene).toBe(1);
+      // Real dramaturgy, not template filler.
+      expect(String(card.visibleGoal || "").length).toBeGreaterThan(10);
+      expect(String(card.obstacle || "").length).toBeGreaterThan(10);
+    });
+
+    test("drops the half-written pair at the cut instead of keeping garbage", () => {
+      const { sceneCards } = recoverTruncatedSceneCardPayload(rawContent);
+      // The stream died inside `characterActions`; that key must not survive
+      // half-formed.
+      const card = sceneCards[0];
+      for (const value of Object.values(card)) {
+        expect(typeof value === "string" || typeof value === "number"
+          || typeof value === "boolean" || value === null
+          || typeof value === "object").toBe(true);
+      }
+      expect(JSON.parse(JSON.stringify(card))).toEqual(card);
+    });
   });
 });
