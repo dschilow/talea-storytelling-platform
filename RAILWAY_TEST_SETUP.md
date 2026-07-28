@@ -103,29 +103,62 @@ gleich — unterschieden wird über die `environmentId`.
 > Test-Datenbank wurde nachträglich angelegt (`postgres-volume-shqm`). Wer die
 > Umgebung neu aufbaut, muss diesen Schritt einplanen.
 
-> **Gefährlich: `volumeCreate` an einem Service, den es in beiden Umgebungen
-> gibt.** Ein Railway-Service ist ein Objekt pro *Projekt* mit einer Instanz je
-> Umgebung. Legt man ein zweites Volume mit demselben `mountPath` an diesem
-> Service an, löst Railway die vorhandene Zuordnung — das Volume der anderen
-> Umgebung steht danach auf `serviceId = null`.
->
-> Genau das passierte am 2026-07-28: Das Anlegen des Test-Volumes hängte das
-> **Production**-Volume ab. Der laufende Prod-Container merkte nichts; der
-> Ausfall trat erst beim nächsten Production-Deploy auf ("Postgres kann nicht
-> gebaut werden"). Eine Kontrolle direkt nach der Änderung zeigte noch die alte,
-> korrekte Zuordnung und war damit wertlos.
->
-> Prüfen (`serviceId: null` ist der Alarm):
-> ```graphql
-> project { volumes { edges { node { name volumeInstances { edges { node {
->   environmentId serviceId state mountPath } } } } } } }
-> ```
-> Reparieren ohne Datenverlust — **nie `volumeDelete` benutzen**:
-> ```graphql
-> volumeInstanceUpdate(volumeId: "…", environmentId: "…",
->   input: { serviceId: "…", mountPath: "/var/lib/postgresql/data" })
-> ```
-> danach `serviceInstanceDeployV2`.
+## ⚠️ Die Test-Umgebung niemals nach Production mergen
+
+Die Test-Umgebung ist ein Fork und bleibt in Railway dauerhaft mit Production
+verknüpft:
+
+```
+test → sourceEnvironment: production
+```
+
+Railway bietet für geforkte Umgebungen eine Aktion, die Konfigurationsänderungen
+**zurück in die Quell-Umgebung** schreibt. Für `test` darf die nie ausgelöst
+werden. In der Railway-UI ist das der Button in Richtung „Änderungen übernehmen
+/ in production mergen".
+
+Am 2026-07-28 geschah genau das bei einem Production-Deploy. Zwei Ausfälle:
+
+| Symptom | Ursache |
+|---|---|
+| „Postgres down, kann nicht gebaut werden" | Prod-Volume vom Service abgehängt (`serviceId: null`) |
+| Bilder in Stories, Avataren, Artefakten, Wizard kaputt — aber nicht alle | Prod bekam die vier Test-Variablen; `IMAGE_PROXY_BASE_URL` zeigte aufs Test-Backend. Direkt gespeicherte Runware-URLs liefen weiter, daher „manche gehen" |
+
+**Production wird direkt in der Production-Umgebung deployt** — nie über die
+Test-Umgebung.
+
+### Nach einem Production-Deploy prüfen
+
+Variablen aller Prod-Services auf eingesickerte Test-Werte scannen
+(`-test.up.railway.app`, `pk_test_`, `sk_test_`, `accounts.dev`) und Volumes auf
+`serviceId: null`:
+
+```graphql
+project { volumes { edges { node { name volumeInstances { edges { node {
+  environmentId serviceId state mountPath } } } } } } }
+```
+
+### Reparatur
+
+Variablen: `variableUpsert` mit `environmentId = production` und den
+Original-Werten, danach `serviceInstanceRedeploy` für `backend 2` **und**
+`frontend` — letzteres backt `VITE_BACKEND_URL` zur Build-Zeit ein.
+
+| Service | Variable | Production-Wert |
+|---|---|---|
+| frontend | `VITE_BACKEND_URL` | `https://backend-2-production-3de1.up.railway.app` |
+| backend 2 | `IMAGE_PROXY_BASE_URL` | `https://backend-2-production-3de1.up.railway.app` |
+| backend 2 | `TTS_SERVICE_URL` | `https://tts-service-production-fa6d.up.railway.app` |
+| backend 2 | `CHATTERBOX_TTS_SERVICE_URL` | `https://tts-chatterbox-service-production.up.railway.app` |
+
+Volume — **nie `volumeDelete` benutzen**, das zerstört die Daten:
+
+```graphql
+volumeInstanceUpdate(volumeId: "…", environmentId: "…",
+  input: { serviceId: "…", mountPath: "/var/lib/postgresql/data" })
+```
+
+danach `serviceInstanceDeployV2`.
 
 Verifiziert am 2026-07-28: Test- und Production-Postgres haben unterschiedliche
 `DATABASE_URL`, unterschiedliche Passwörter, eigene Volumes und eigene
