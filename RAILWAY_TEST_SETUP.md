@@ -87,7 +87,7 @@ gleich — unterschieden wird über die `environmentId`.
 | `backend 2` | `TTS_SERVICE_URL` → Test-TTS |
 | `backend 2` | `CHATTERBOX_TTS_SERVICE_URL` → Test-Chatterbox |
 
-**Was automatisch isoliert ist**
+**Was isoliert ist**
 
 - **Eigene PostgreSQL-Instanz** mit eigenem Volume. Die DB-Variablen nutzen
   Referenzen (`${{Postgres.DATABASE_URL}}`), lösen sich also automatisch auf die
@@ -95,6 +95,13 @@ gleich — unterschieden wird über die `environmentId`.
   beim ersten Backend-Start durch.
 - Eigene interne Domains (`*.railway.internal`) pro Umgebung.
 - Eigene NSQ-Instanz.
+
+> **Achtung beim Forken einer Umgebung:** Railway kopiert Services und Variablen,
+> aber **keine Volumes**. Der Postgres-Container startete deshalb zunächst nicht
+> (`/var/lib/postgresql/data` fehlte), was als Folgefehler auch `talea-mcp-main`
+> mit `ENOTFOUND postgres.railway.internal` scheitern ließ. Das Volume für die
+> Test-Datenbank wurde nachträglich angelegt (`postgres-volume-shqm`). Wer die
+> Umgebung neu aufbaut, muss diesen Schritt einplanen.
 
 Verifiziert am 2026-07-28: Test- und Production-Postgres haben unterschiedliche
 `DATABASE_URL`, unterschiedliche Passwörter, eigene Volumes und eigene
@@ -137,35 +144,35 @@ Wenn du Production später doch automatisch deployen willst, reicht ein Secret:
 RAILWAY_ENVIRONMENT_ID = 7a7f74fa-422e-45a4-aeb4-f51f20eaad05
 ```
 
-## ⚠️ Offener Punkt: Clerk-Login
+## Clerk: eigene Development-Instanz im Test
 
-**Der Login auf der Test-URL funktioniert noch nicht.** Alles andere läuft.
+Die Test-Umgebung nutzt die Clerk-**Development**-Instanz
+`sincere-jay-4.clerk.accounts.dev`, Production unverändert die Live-Instanz
+`clerk.talea.website`.
 
-Die Test-Umgebung nutzt dieselben Clerk-Live-Keys wie Production
-(`pk_live_…` für `clerk.talea.website`). Clerk-Production-Instanzen erlauben nur
-konfigurierte Domains. Verifiziert am 2026-07-28:
+Das war nötig, weil Clerk-Production-Instanzen nur konfigurierte Domains
+erlauben — gemessen am 2026-07-28 antwortete `clerk.talea.website` auf Anfragen
+mit `Origin: https://frontend-test-d2a1.up.railway.app` mit HTTP 400.
 
-```
-GET https://clerk.talea.website/v1/environment
-Origin: https://frontend-test-d2a1.up.railway.app
-→ HTTP 400 (abgelehnt)
-```
+Gesetzt in Railway → Environment `test`:
 
-Zwei Möglichkeiten, beide brauchen das Clerk-Dashboard:
+| Service | Variable | Wert |
+|---|---|---|
+| `frontend` | `VITE_CLERK_PUBLISHABLE_KEY` | `pk_test_…` |
+| `backend 2` | `CLERK_SECRET_KEY` | `sk_test_…` |
+| `talea-mcp-main` | `CLERK_SECRET_KEY` | `sk_test_…` |
 
-**Variante 1 — Test-Domain erlauben** (schnell, du testest mit deinem echten Account)
-Clerk Dashboard → deine Production-Instanz → Domains → Satellite-Domain
-`frontend-test-d2a1.up.railway.app` hinzufügen.
-Test und Production teilen sich dann den Nutzer-Pool. Die *Daten* bleiben
-trotzdem getrennt, weil die Datenbanken getrennt sind.
+Dazu kam ein Code-Change: `backend/auth/auth.ts` führt eine Allowlist der
+Origins, die Clerk-Tokens für das Backend erzeugen dürfen
+(`RAW_AUTHORIZED_PARTIES`). Die Test-Frontend-Domain musste dort ergänzt
+werden — sonst weist das Backend gültige Tokens zurück.
 
-**Variante 2 — eigene Clerk-Development-Instanz** (saubere Trennung)
-In Railway → Environment `test`:
-- Service `frontend`: `VITE_CLERK_PUBLISHABLE_KEY` = `pk_test_…`
-- Service `backend 2`: `CLERK_SECRET_KEY` = `sk_test_…`
+**Konsequenz:** Test hat einen eigenen Nutzer-Pool. Dein Production-Account
+existiert dort nicht; du legst dir im Test einmalig einen Account an.
 
-Danach das Frontend neu deployen (der Key wird beim Container-Start in
-`/config.js` geschrieben). Test hat dann eigene Nutzerkonten.
+**Wenn sich die Test-Frontend-Domain jemals ändert**, müssen beide Stellen
+nachgezogen werden: `RAW_AUTHORIZED_PARTIES` in `auth.ts` und ggf. die
+Clerk-Dashboard-Einstellungen.
 
 ## Troubleshooting
 
