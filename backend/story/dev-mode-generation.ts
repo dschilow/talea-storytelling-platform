@@ -304,6 +304,7 @@ import {
   recoverCompleteObjectsFromArrayProperty,
   recoverTruncatedIdeaCandidatePayload,
   recoverTruncatedSceneCardPayload,
+  recoverTruncatedReplacementsPayload,
   readJsonStringLiteral,
   findMatchingJsonBracket,
   recoverTopLevelStringArrayProperties,
@@ -6120,8 +6121,18 @@ function buildBeatSheetPrompts(
     "Build this like film/TV prep: a causal beat sheet before any pretty sentences exist.",
     "Hard gates:",
     "- midpointIrreversibleTurn must be visible and make the old situation impossible to restore by simply waiting.",
+    // The gate behind this line is a keyword check, not a judgement call: the
+    // sentence has to CONTAIN a word of loss/breakage/finality. Both audited
+    // production runs (69dace41, eefd3600) wrote a semantically irreversible
+    // midpoint without such a word and paid for a full beat-sheet-repair call
+    // to add one. Stating the mechanical requirement costs ~40 prompt tokens
+    // and removes a ~$0.005 support call plus one round trip.
+    "  MECHANICAL FORM: the midpointIrreversibleTurn sentence must literally contain a word of loss or finality — zerbrochen / zerbricht / verloren / verlischt / verschwindet / weg / kaputt / verschlossen / abgeschnitten / kein Zurueck / fuer immer / nicht mehr / endgueltig (or the English equivalent: broken, lost, gone, locked, cannot, never again, for good). A sentence that only implies irreversibility fails.",
     "- personalCost must be concrete: an object, comfort, promise, status, sound, secret, or habit the child risks or gives up.",
     "- personalObject.object, recurringMotif, irreversibleMiddle.visibleDamage, finalPayoff.plantedDetail, and finalPayoff.closingImage must share ONE red-thread object/place from the locked idea.",
+    // Same class of mismatch: the checker compares word stems, so a synonym,
+    // pronoun or paraphrase reads as "a different object" and fails the gate.
+    "  MECHANICAL FORM: pick the red-thread object once in personalObject.object, then REPEAT THAT EXACT NOUN, word for word, inside personalObject.risk, act2.personalCost, irreversibleMiddle.personalCost, irreversibleMiddle.visibleDamage and finalPayoff.plantedDetail. Synonyms, pronouns (\"es\", \"das Ding\", \"it\") or a second related object all fail the gate — only the repeated noun passes.",
     "- Carry refrainLine from the locked engine forward verbatim. It is a separate story refrain, not a pool-character catchphrase.",
     "- Do NOT make a pool artifact/background prop the personalObject or finale engine unless it is already the selected idea's central object.",
     "- finalChoice must be executed by the named main avatars, not by a helper or adult.",
@@ -9155,6 +9166,42 @@ function selectDialogueRebalanceTargets(
     .filter((chapter): chapter is DevModeChapter => Boolean(chapter));
 }
 
+/**
+ * Completion budget for a dialogue rebalance, derived from the pages the model
+ * actually has to rewrite instead of a flat constant.
+ *
+ * The old constants (2600 for <=2 targets, 4200/5200 otherwise) were tied to
+ * the *requested* target limit, not to the pages `selectDialogueRebalanceTargets`
+ * really returned, and not to how long those pages are. Run 69dace41 shows both
+ * failure modes in one story: a 5-page / 4.7k-char rebalance got the 2-page
+ * budget, and a 4-page rebalance stopped at exactly 4200 completion tokens
+ * mid-array. Each miss discarded a full writer call (~$0.011-0.016, together
+ * 28% of that story's LLM bill).
+ *
+ * Calibration from the audited calls (output chars / source chars, at the
+ * measured ~2.9 chars per token for German JSON):
+ *   completed pass          4753 src -> 6681 out  = 1.41x
+ *   cut off mid-array       4687 src -> 7386+ out = >1.58x
+ *   cut off mid-array       3670 src -> 12692+ out = >3.46x  (model exploded
+ *                           the pages into ~50 one-line paragraphs)
+ * 3.4x covers everything observed including the verbose outlier.
+ *
+ * A ceiling is not a charge: unused headroom costs nothing because billing is
+ * per emitted token, while a ceiling one token too low costs the whole call.
+ * So err generous. Runaway output is already bounded from the other side — the
+ * prompt gives each page a `maxCharsAfter` budget — and the hard cap catches
+ * the rest.
+ */
+function resolveDialogueRebalanceMaxTokens(
+  targets: DevModeChapter[],
+  config: StoryConfig
+): number {
+  const sourceChars = targets.reduce((sum, chapter) => sum + String(chapter.content || "").length, 0);
+  const estimated = Math.ceil((sourceChars / 2.9) * 3.4) + 500;
+  const hardCap = config.length === "long" ? 8000 : 7000;
+  return Math.min(hardCap, Math.max(3200, estimated));
+}
+
 function buildDialogueRebalancePrompts(
   input: DevModeGenerationInput,
   story: DevModeRawStory,
@@ -9240,7 +9287,24 @@ function parseDialogueRebalanceResult(
   currentStory: DevModeRawStory,
   options?: { minKeepRatio?: number }
 ): DevModeRawStory {
-  const parsed = tryParseJson(content);
+  // A rebalance call is the most expensive single unit of work in the
+  // pipeline (writer model, full page rewrites). When its JSON breaks — the
+  // completion ceiling cutting the array, or the model emitting `\"` as the
+  // German closing quote and never terminating the last string — the pages
+  // written BEFORE the break are still perfectly good prose. Salvage them
+  // instead of discarding the whole call and paying for another one.
+  let parsed: any;
+  try {
+    parsed = tryParseJson(content);
+  } catch (parseError) {
+    const recovered = recoverTruncatedReplacementsPayload(content);
+    if (!recovered) throw parseError;
+    console.warn("[dev-mode-generation] dialogue-rebalance JSON broken; applying the pages completed before the break", {
+      recoveredReplacements: recovered.recoveredReplacementCount,
+      error: parseError instanceof Error ? parseError.message : String(parseError),
+    });
+    parsed = recovered;
+  }
   const replacements = Array.isArray(parsed?.replacements)
     ? parsed.replacements
     : Array.isArray(parsed?.chapters)
@@ -11432,6 +11496,16 @@ function parseStageObject(content: string, stage?: DevModePipelineStage): { pars
         return {
           parsed: recovered,
           parseError: `${originalError}; recovered ${recovered.recoveredSceneCardCount} complete scene card(s) from truncated JSON`,
+        };
+      }
+    }
+    if (stage === "dialogue-rebalance") {
+      const recovered = recoverTruncatedReplacementsPayload(content);
+      if (recovered) {
+        const originalError = err instanceof Error ? err.message : String(err);
+        return {
+          parsed: recovered,
+          parseError: `${originalError}; recovered ${recovered.recoveredReplacementCount} complete page replacement(s) from truncated JSON`,
         };
       }
     }
@@ -14022,13 +14096,14 @@ export async function generateStoryDevMode(
           }
           try {
             const rebalancePrompts = buildDialogueRebalancePrompts(input, finalParsed, finalDiagnostics, targets);
-            // maxTokens raised: a broad multi-page rebalance emits ~500+
-            // tokens per rewritten page; run 1b0c9363 hit the old 2600 cap
-            // mid-JSON and the whole (length-preserving) pass was discarded.
+            // Budget from the pages actually selected, not from the requested
+            // target limit — `selectDialogueRebalanceTargets` can return more
+            // pages than `targetLimit` suggests, and run 69dace41 paid for a
+            // fully discarded 5-page rewrite that ran on the 2-page budget.
             const rebalanceStage = await runStage("dialogue-rebalance", rebalancePrompts, {
-              maxTokens: targetLimit > 2 ? (input.config.length === "long" ? 5200 : 4200) : 2600,
+              maxTokens: resolveDialogueRebalanceMaxTokens(targets, input.config),
               temperature: 0.22,
-              timeoutMs: targetLimit > 2 ? (input.config.length === "long" ? 220_000 : 180_000) : 120_000,
+              timeoutMs: targets.length > 2 ? (input.config.length === "long" ? 220_000 : 180_000) : 120_000,
               modelRole: "selected-story",
             });
             const rebalancedParsed = parseDialogueRebalanceResult(
@@ -15011,7 +15086,7 @@ export async function generateStoryDevMode(
 
               const rebalancePrompts = buildDialogueRebalancePrompts(input, finalParsed, finalDiagnostics, rebalanceTargets);
               const rebalanceStage = await runStage("dialogue-rebalance", rebalancePrompts, {
-                maxTokens: input.config.length === "long" ? 5200 : 4200,
+                maxTokens: resolveDialogueRebalanceMaxTokens(rebalanceTargets, input.config),
                 temperature: 0.22,
                 timeoutMs: input.config.length === "long" ? 220_000 : 180_000,
                 modelRole: "selected-story",
@@ -15264,11 +15339,8 @@ export async function generateStoryDevMode(
           targetCount: rebalanceTargets.length,
         });
         const rebalancePrompts = buildDialogueRebalancePrompts(input, finalParsed, finalDiagnostics, rebalanceTargets);
-          // maxTokens raised from 2600/3200: a 5-page rebalance needs ~2600+
-          // completion tokens and run 1b0c9363 truncated mid-JSON at exactly
-          // the old budget, voiding the whole pass.
           const rebalanceStage = await runStage("dialogue-rebalance", rebalancePrompts, {
-            maxTokens: input.config.length === "long" ? 5200 : 4200,
+            maxTokens: resolveDialogueRebalanceMaxTokens(rebalanceTargets, input.config),
             temperature: 0.22,
             timeoutMs: input.config.length === "long" ? 220_000 : 180_000,
             modelRole: "selected-story",

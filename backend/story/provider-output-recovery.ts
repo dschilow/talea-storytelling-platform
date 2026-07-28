@@ -353,6 +353,45 @@ export function recoverTruncatedSceneCardPayload(content: string): any | null {
   };
 }
 
+/**
+ * The dialogue-rebalance / story-polish repair stages send the WRITER model
+ * (the most expensive model in the pipeline) a set of reading pages and get
+ * fully rewritten pages back. Until now a single malformed byte anywhere in
+ * that payload discarded the whole call:
+ *
+ *   run 69dace41, call 2  — model used `\"` as the German closing quote and
+ *                            never terminated the last string  → 2550 output
+ *                            tokens ($0.011) thrown away
+ *   run 69dace41, call 4  — hit the completion ceiling mid-array at exactly
+ *                            maxTokens=4200 → 4200 output tokens ($0.016)
+ *                            thrown away
+ *
+ * Both payloads still contained 3-4 COMPLETE page objects before the break.
+ * Recovering those turns a fully wasted writer call into a partially applied
+ * repair: strictly cheaper (no follow-up pass needed for the pages that did
+ * land) and strictly better (real rewritten prose instead of none).
+ */
+export function recoverTruncatedReplacementsPayload(content: string): any | null {
+  const replacements = recoverCompleteObjectsFromArrayProperty(content, "replacements");
+  const pages = replacements.length > 0
+    ? replacements
+    : recoverCompleteObjectsFromArrayProperty(content, "chapters");
+  const usable = pages.filter((page) => {
+    if (!page || typeof page !== "object") return false;
+    if (!Number.isFinite(Number((page as any).order))) return false;
+    const paragraphs = (page as any).paragraphs;
+    const hasParagraphs = Array.isArray(paragraphs) && paragraphs.some((p: any) => String(p || "").trim());
+    const hasContent = String((page as any).content || "").trim().length > 0;
+    return hasParagraphs || hasContent;
+  });
+  if (usable.length === 0) return null;
+  return {
+    replacements: usable,
+    recoveredFromTruncatedJson: true,
+    recoveredReplacementCount: usable.length,
+  };
+}
+
 export function readJsonStringLiteral(source: string, start: number): { value: string; end: number } | null {
   if (source[start] !== '"') return null;
   let escape = false;
