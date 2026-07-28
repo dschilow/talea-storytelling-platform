@@ -61,6 +61,9 @@ const RAW_AUTHORIZED_PARTIES = [
   "https://www.talea.website",
   "https://talea.website",
 
+  // Railway test environment frontend (staging, deployed from test-main)
+  "https://frontend-test-d2a1.up.railway.app",
+
   // Clerk hosted pages (for sign-in flows)
   "https://sincere-jay-4.clerk.accounts.dev",
   "https://amused-aardvark-78.clerk.accounts.dev",
