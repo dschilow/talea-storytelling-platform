@@ -7,6 +7,9 @@
     "backend",
     "frontend"
   ],
+  "scripts": {
+    "setup-railway-test": "bun run setup-railway-test-env.ts"
+  },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.89",
     "pdfjs-dist": "^5.4.530",
