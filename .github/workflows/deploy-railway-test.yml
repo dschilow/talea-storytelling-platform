@@ -219,22 +219,19 @@ jobs:
         with:
           node-version: 22
 
-      - name: Trigger Railway deployment to TEST (skips if secrets missing)
-        continue-on-error: true
+      - name: Trigger Railway deployment to TEST environment
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
-          RAILWAY_ENVIRONMENT_ID_TEST: ${{ secrets.RAILWAY_ENVIRONMENT_ID_TEST }}
-          RAILWAY_SERVICE_ID_TEST: ${{ secrets.RAILWAY_SERVICE_ID_TEST }}
-        run: node scripts/trigger-railway-deploy-test.mjs
+          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID_TEST }}
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID_TEST }}
+        run: node scripts/trigger-railway-deploy.mjs
 
       - name: Deployment Summary
         run: |
           echo "🧪 TEST DEPLOYMENT"
-          echo "Docker image built and pushed successfully"
           echo "  Image: ghcr.io/${{ github.repository }}:test-main"
-          echo "  SHA: ghcr.io/${{ github.repository }}:test-${{ github.sha }}"
+          echo "  SHA:   ghcr.io/${{ github.repository }}:test-${{ github.sha }}"
           echo ""
-          echo "Next steps:"
-          echo "  1. Check Railway dashboard for test-backend service"
-          echo "  2. Verify deployment status at https://talea-test.up.railway.app"
-          echo "  3. Test features before merging to main"
+          echo "Test URLs:"
+          echo "  Frontend: https://frontend-test-d2a1.up.railway.app"
+          echo "  Backend:  https://backend-2-test.up.railway.app"

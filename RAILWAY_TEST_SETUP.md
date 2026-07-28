@@ -1,261 +1,154 @@
-# Railway Test Environment Setup
+# Test-Umgebung (Staging) auf Railway
 
-## Overview
+Die Test-Umgebung ist **fertig eingerichtet**. Dieses Dokument beschreibt, wie sie
+aufgebaut ist und wie du damit arbeitest.
 
-This document explains how to set up the **test-main** branch with automated deployments to a separate Railway test environment (`talea-test`).
-
-## Architecture
-
-```
-main branch → Railway PROD (talea.website)
-test-main branch → Railway TEST (talea-test.up.railway.app)
-```
-
-### What Happens
-
-1. **Push to `test-main`** → Automatic Docker build + Railway deployment to TEST
-2. **Test features** on `https://talea-test.up.railway.app` (or custom domain)
-3. **Merge to `main`** when ready → Automatic deployment to PROD
-
-## GitHub Secrets Required
-
-Add these secrets to your GitHub repository:
-
-### For TEST deployments (required for automatic test-main deployments):
-
-- **`RAILWAY_API_TOKEN`** - Your Railway API token (same as PROD, if using same Railway account)
-- **`RAILWAY_ENVIRONMENT_ID_TEST`** - The TEST environment ID on Railway
-- **`RAILWAY_SERVICE_ID_TEST`** - The backend service ID in TEST environment
-
-### For PROD deployments (already configured):
-
-- **`RAILWAY_ENVIRONMENT_ID`** - The PROD environment ID
-- **`RAILWAY_SERVICE_ID`** - The PROD backend service ID
-- **`GEMINI_API_KEY`** - Your Gemini API key
-- **`OPENROUTER_API_KEY`** - Your OpenRouter API key (if used)
-
-## Railway Configuration
-
-### Step 1: Create Test Environment
-
-In your Railway project on **https://railway.app**:
-
-1. Go to your Talea project
-2. Click **+ New** → **Environment**
-3. Name it: `test` or `staging`
-4. Keep it isolated with **separate services**
-
-### Step 2: Create Test Services
-
-In the TEST environment, create these services:
-
-#### Backend Service (Encore)
-
-1. Click **+ New** → **Database** → **PostgreSQL**
-   - Name: `talea-postgres-test`
-   - This is separate from PROD database ✅
-
-2. Click **+ New** → **Service** → **Github Repo**
-   - Source: Your repository
-   - Branch: `test-main` (important!)
-   - Dockerfile: `Dockerfile.encore-runtime-audio` (custom)
-   - Build command: (leave empty)
-   - Start command: `./app`
-
-3. Configure environment variables for backend:
-   ```
-   ENCORE_APP_SECRETS={"ClerkSecretKey":"sk_test_...","OpenAIKey":"...","GeminiAPIKey":"...","MCPServerAPIKey":"..."}
-   PORT=8080
-   ENVIRONMENT=test
-   DATABASE_URLS=postgres://...  # Test database URL
-   ```
-
-#### Frontend Service (React)
-
-1. Click **+ New** → **Service** → **Github Repo**
-   - Source: Your repository
-   - Branch: `test-main`
-   - Dockerfile: `Dockerfile.frontend`
-   - Config file: `railway.test.toml` (via plugin if available)
-
-2. Configure environment variables for frontend:
-   ```
-   VITE_BACKEND_URL_TEST=https://talea-backend-test.up.railway.app
-   VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
-   ```
-
-### Step 3: Get Service IDs
-
-You need to get the Railway service IDs for automation:
-
-**Via Railway CLI:**
-```bash
-railway login
-railway link  # Select your Talea project
-railway service list
-```
-
-Look for:
-- `test-backend` (or your backend service name)
-- Note the service ID (usually in parentheses)
-
-**Via Railway Dashboard:**
-1. Open https://railway.app → Your Project → TEST environment
-2. Click each service
-3. In the URL: `https://railway.app/project/xxx/service/yyy`
-   - `yyy` is the service ID
-
-### Step 4: Add GitHub Secrets
-
-Go to your GitHub repository **Settings → Secrets and variables → Actions**
-
-Add these secrets:
+## Workflow
 
 ```
-RAILWAY_API_TOKEN
-  └─ Get from https://railway.app/account/tokens
-     (create new token if needed)
-
-RAILWAY_ENVIRONMENT_ID_TEST
-  └─ Environment ID from Railway TEST environment
-     Click environment in Railway dashboard to see it in URL
-
-RAILWAY_SERVICE_ID_TEST
-  └─ Service ID for backend in TEST environment
+test-main  ──►  Railway "test"        ──►  frontend-test-d2a1.up.railway.app
+   │                                        (eigene DB, eigene Services)
+   │
+   └── merge ──►  main  ──►  Railway "production"  ──►  www.talea.website
 ```
 
-## Usage
+Feature entwickeln → auf `test-main` pushen → auf der Test-URL prüfen →
+nach `main` mergen → live.
 
-### Make changes on test-main
+## Test-URLs
+
+| Service | URL |
+|---|---|
+| Frontend | https://frontend-test-d2a1.up.railway.app |
+| Backend | https://backend-2-test.up.railway.app |
+| TTS | https://tts-service-test.up.railway.app |
+| MCP Main | https://talea-mcp-main-test.up.railway.app |
+| MCP Validator | https://talea-mcp-validator-test.up.railway.app |
+
+Production bleibt unverändert auf `www.talea.website` /
+`backend-2-production-3de1.up.railway.app`.
+
+## Tägliche Nutzung
 
 ```bash
-# Switch to test-main branch
+# Feature entwickeln
 git checkout test-main
-
-# Make your changes
-# ...
-
-# Commit and push
-git add .
-git commit -m "feat: test feature"
+git merge main            # optional: aktuellen Stand von main holen
+# ... Änderungen ...
+git commit -am "feat: neues Feature"
 git push origin test-main
 ```
 
-### GitHub Actions automatically:
+Ab hier läuft alles automatisch:
 
-1. ✅ Builds Docker image
-2. ✅ Pushes to `ghcr.io/dschilow/talea:test-main`
-3. ✅ Triggers Railway deployment to TEST environment
+1. **Railway** baut direkt aus dem `test-main`-Branch: `frontend`, `tts-service`,
+   `talea-mcp-main`, `talea-mcp-validator`, `NSQ`.
+2. **GitHub Actions** (`deploy-railway-test.yml`) baut das Encore-Backend-Image,
+   pusht es als `ghcr.io/dschilow/talea-storytelling-platform:test-main` und
+   triggert danach den Redeploy des Backend-Services in der Test-Umgebung.
 
-### Monitor deployment
+Fortschritt sehen:
+- GitHub Actions: https://github.com/dschilow/talea-storytelling-platform/actions
+- Railway: https://railway.app/project/05209d9d-2f3a-46f0-9f6f-74a66ebfc80e
 
-1. Check **GitHub Actions** tab for workflow status
-2. Check **Railway dashboard** for service deployment logs
-3. Test at: **https://talea-test.up.railway.app** (or your custom domain)
-
-### Merge to Production
-
-When ready to go live:
+Wenn alles passt:
 
 ```bash
-# Switch to main
 git checkout main
-
-# Merge test-main
 git merge test-main
-
-# Push to main
 git push origin main
 ```
 
-→ Production deployment automatically triggers
+## Aufbau der Test-Umgebung
 
-## Environment Variables by Service
+Die Umgebung ist ein **Fork der Production-Umgebung**. Alle 8 Services wurden
+inklusive Variablen kopiert, dann auf Test umgestellt.
 
-### Backend Test Environment
+**Railway-IDs**
 
-```
-ClerkSecretKey=sk_test_...
-OpenAIKey=sk-...
-GeminiAPIKey=...
-MCPServerAPIKey=...
-DATABASE_URLS=postgres://user:pass@host/talea_test
-PORT=8080
-ENVIRONMENT=test
-```
+| Was | ID |
+|---|---|
+| Projekt `Talea` | `05209d9d-2f3a-46f0-9f6f-74a66ebfc80e` |
+| Environment `production` | `7a7f74fa-422e-45a4-aeb4-f51f20eaad05` |
+| Environment `test` | `d3454a91-d573-4e9b-9d54-febf697e1533` |
+| Service `backend 2` | `2a42848f-e07b-422e-ba25-961a13df61f6` |
 
-### Frontend Test Environment
+Service-IDs sind in Railway pro Projekt eindeutig und in beiden Umgebungen
+gleich — unterschieden wird über die `environmentId`.
 
-```
-VITE_BACKEND_URL_TEST=https://talea-backend-test.up.railway.app
-VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
-```
+**Was gegenüber Production geändert wurde**
 
-## Important Notes
+| Service | Änderung |
+|---|---|
+| alle GitHub-Services | Deployment-Branch `main` → `test-main` |
+| `backend 2` | Image-Tag `:latest` → `:test-main` |
+| `frontend` | `VITE_BACKEND_URL` → Test-Backend |
+| `backend 2` | `IMAGE_PROXY_BASE_URL` → Test-Backend |
+| `backend 2` | `TTS_SERVICE_URL` → Test-TTS |
+| `backend 2` | `CHATTERBOX_TTS_SERVICE_URL` → Test-Chatterbox |
 
-⚠️ **Database Isolation**
-- Test environment uses a **separate PostgreSQL instance**
-- Test data does NOT affect production
-- Each test can have its own avatar, stories, etc.
+**Was automatisch isoliert ist**
 
-⚠️ **Secrets Management**
-- Never commit `.env` files or secrets
-- Use Railway environment variables
-- Clerk keys must be the same (test key works for both)
+- **Eigene PostgreSQL-Instanz** mit eigenem Volume. Die DB-Variablen nutzen
+  Referenzen (`${{Postgres.DATABASE_URL}}`), lösen sich also automatisch auf die
+  Test-Datenbank auf. Die Test-DB startet leer; die Encore-Migrationen laufen
+  beim ersten Backend-Start durch.
+- Eigene interne Domains (`*.railway.internal`) pro Umgebung.
+- Eigene NSQ-Instanz.
 
-⚠️ **Custom Domain (Optional)**
-- Test URL defaults to: `https://talea-test.up.railway.app`
-- You can add custom domain like `https://test.talea.website`
-- Configure in Railway service settings → Domain
+**Was mit Production geteilt wird** (bewusst)
+
+- API-Keys: OpenAI, Gemini, Anthropic, OpenRouter, Runware, ElevenLabs, RunPod.
+  → Test-Läufe verursachen echte API-Kosten.
+- Der Railway-Storage-Bucket (`BUCKET_*`). Test-Bilder landen im selben Bucket
+  wie Production. Das ist rein additiv, überschreibt also nichts.
+
+## GitHub Secrets
+
+Gesetzt und einsatzbereit:
+
+| Secret | Zweck |
+|---|---|
+| `RAILWAY_API_TOKEN` | Railway GraphQL API |
+| `RAILWAY_ENVIRONMENT_ID_TEST` | Test-Environment |
+| `RAILWAY_SERVICE_ID_TEST` | Backend-Service im Test |
+| `RAILWAY_ENVIRONMENT_ID` | Production-Environment |
+| `RAILWAY_SERVICE_ID` | Backend-Service in Production |
+
+## Offener Punkt: Clerk
+
+Die Test-Umgebung nutzt aktuell dieselben **Clerk-Live-Keys** wie Production
+(`pk_live_…` für `clerk.talea.website`). Clerk-Production-Instanzen erlauben nur
+konfigurierte Domains — der Login auf
+`frontend-test-d2a1.up.railway.app` schlägt daher voraussichtlich fehl.
+
+Zwei Möglichkeiten:
+
+1. **Test-Domain in Clerk erlauben** — Clerk Dashboard → Domains →
+   `frontend-test-d2a1.up.railway.app` als Satellite-Domain hinzufügen.
+2. **Clerk-Development-Instanz nutzen** — in der Railway-Test-Umgebung
+   `VITE_CLERK_PUBLISHABLE_KEY` auf `pk_test_…` und `CLERK_SECRET_KEY` auf
+   `sk_test_…` setzen. Dann hat Test eigene Nutzerkonten, komplett getrennt von
+   Production.
+
+Variante 2 ist die sauberere Trennung, Variante 1 ist schneller und lässt dich
+mit deinem echten Account testen.
 
 ## Troubleshooting
 
-### Deployment fails
+**Backend-Deploy startet nicht**
+Das Image `:test-main` existiert erst, nachdem der GitHub-Actions-Lauf
+durchgelaufen ist. Beim allerersten Mal also erst Actions abwarten.
 
-1. **Check GitHub Actions logs**
-   - Go to repo → Actions tab
-   - Click workflow run
-   - Review error messages
+**Frontend zeigt Production-Daten**
+`VITE_BACKEND_URL` wird zur *Build*-Zeit eingebacken. Nach einer Änderung dieser
+Variable muss das Frontend neu gebaut werden (Railway → Service → Redeploy).
 
-2. **Check Railway logs**
-   - Open Railway dashboard
-   - Select TEST environment → Backend service
-   - Click Logs tab
-   - Look for build/runtime errors
+**Datenbank leer**
+Erwartet. Die Test-DB startet leer, Migrationen legen das Schema an. Test-Avatare
+und -Stories musst du dort neu anlegen.
 
-3. **Missing secrets**
-   - Verify all 3 secrets are in GitHub:
-     - `RAILWAY_API_TOKEN`
-     - `RAILWAY_ENVIRONMENT_ID_TEST`
-     - `RAILWAY_SERVICE_ID_TEST`
-
-### Test site won't load
-
-1. Check if both backend and frontend are deployed
-2. Verify `VITE_BACKEND_URL_TEST` points to correct backend URL
-3. Check browser console for CORS errors
-4. Verify Clerk keys are correct
-
-### Database issues
-
-1. Ensure test database exists on Railway
-2. Check `DATABASE_URLS` environment variable
-3. Verify PostgreSQL service is running
-4. Migrations should run automatically on startup
-
-## Quick Reference
-
-| Environment | Branch | URL | Database |
-|-------------|--------|-----|----------|
-| PROD | main | talea.website | talea-postgres |
-| TEST | test-main | talea-test.up.railway.app | talea-postgres-test |
-
----
-
-**Next Steps:**
-1. ✅ Create TEST environment on Railway
-2. ✅ Add GitHub Secrets for TEST
-3. ✅ Push a change to test-main
-4. ✅ Monitor GitHub Actions + Railway deployment
-5. ✅ Test feature at talea-test URL
-6. ✅ Merge to main when ready
+**Kosten**
+Die Test-Umgebung verdoppelt die Zahl laufender Railway-Services. Nicht benötigte
+Services (z. B. `tts-chatterbox-service`) können in der Test-Umgebung gelöscht
+werden, ohne Production zu beeinflussen.
