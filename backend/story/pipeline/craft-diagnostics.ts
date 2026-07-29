@@ -28,7 +28,7 @@ export type CraftIssueCode =
   | "refrain-missing"
   | "motif-thin"
   | "finale-crowded"
-  | "cast-catchphrase-only"
+  | "cast-catchphrase-repeated"
   | "humor-missing"
   | "dimension-below-floor";
 
@@ -72,6 +72,8 @@ const MIN_CONTENT_WORD_LENGTH = 5;
 const STEM_LENGTH = 5;
 /** A page carries a phrase when at least this many of its stems appear. */
 const STEMS_PER_PAGE_HIT = 2;
+/** A supporting figure may play its catchphrase once; twice is a tic. */
+const CATCHPHRASE_ECHO_LIMIT = 2;
 /** Widest dimension gaps to brief per round. More instructions = shallower edits. */
 const MAX_DIMENSION_ISSUES = 3;
 
@@ -145,14 +147,14 @@ export function pagesCarryingPhrase(chapters: CraftChapter[], phrase: string): n
 function namePresent(content: string, name: string): boolean {
   const normalizedName = normalizeForStems(name);
   if (!normalizedName) return false;
-  // Match on the longest name token so "Magierin Luna" is still found when the
-  // prose only writes "Luna".
-  const longest = normalizedName
-    .split(/\s+/)
-    .filter(Boolean)
-    .sort((a, b) => b.length - a.length)[0];
-  if (!longest || longest.length < 3) return false;
-  return normalizeForStems(content).includes(longest);
+  // ANY token, not the longest one. Pool characters carry a title in front of
+  // the name — "Zauberer Merlin", "Magierin Luna", "Schmied Konrad" — and the
+  // title is the longer word, while the prose uses the bare name. Matching on
+  // the longest token therefore missed every titled figure in the cast.
+  const tokens = normalizedName.split(/\s+/).filter((token) => token.length >= 4);
+  if (tokens.length === 0) return false;
+  const haystack = normalizeForStems(content);
+  return tokens.some((token) => haystack.includes(token));
 }
 
 export function analyzeStoryCraft(input: CraftAnalysisInput): CraftIssue[] {
@@ -204,28 +206,32 @@ export function analyzeStoryCraft(input: CraftAnalysisInput): CraftIssue[] {
     }
 
     const wholeStory = chapters.map((chapter) => chapter.content).join("\n");
+    const quotedLines = extractQuotedLines(wholeStory);
     for (const member of cast) {
       const catchphrase = String(member.catchphrase || "").trim();
       if (!catchphrase) continue;
       if (!namePresent(wholeStory, member.name)) continue;
-      const quotedLines = extractQuotedLines(wholeStory);
-      if (quotedLines.length === 0) continue;
       const catchphraseStems = contentStems(catchphrase);
       if (catchphraseStems.length < 2) continue;
-      const otherLines = quotedLines.filter((line) => {
+      // Counting a character's OWN lines would need speaker attribution, which
+      // German prose makes unreliable (the line usually precedes "sagte er").
+      // Counting catchphrase echoes needs none: in a ~900-word story a
+      // supporting figure who plays their slogan twice is a jukebox, not a
+      // character. Run c5d98e71 had Merlin deliver "Magie liegt nicht im
+      // Zauberstab. Sie liegt in dir." verbatim on two different pages while
+      // changing nothing about the plot.
+      const echoes = quotedLines.filter((line) => {
         const normalized = normalizeForStems(line);
-        const hits = catchphraseStems.filter((stem) => normalized.includes(stem)).length;
-        return hits < STEMS_PER_PAGE_HIT;
-      });
-      // Every quoted line in the whole story echoes this one catchphrase: the
-      // figure is a sound effect, not a character.
-      if (otherLines.length === 0) {
+        return catchphraseStems.filter((stem) => normalized.includes(stem)).length >= STEMS_PER_PAGE_HIT;
+      }).length;
+      if (echoes >= CATCHPHRASE_ECHO_LIMIT) {
         issues.push({
-          code: "cast-catchphrase-only",
-          message: `${member.name} spricht ausschließlich Varianten des eigenen Spruchs.`,
+          code: "cast-catchphrase-repeated",
+          message: `${member.name} spielt den eigenen Spruch ${echoes}-mal ab, statt zu handeln.`,
           repairHint:
-            `Gib ${member.name} eine Zeile, die NICHT der Catchphrase entspricht und die den Hauptfiguren `
-            + "ein konkretes Problem, einen Hinweis oder eine Komplikation liefert — sonst streiche die Figur aus der Szene.",
+            `Lass ${member.name} die Catchphrase höchstens EINMAL sagen, an der Stelle mit der größten Wirkung. `
+            + "Ersetze die übrigen Wiederholungen durch eine Zeile oder Handlung, die den Hauptfiguren ein konkretes "
+            + "Problem, einen Hinweis oder eine Komplikation liefert — sonst streiche die Figur aus der Szene.",
         });
       }
     }

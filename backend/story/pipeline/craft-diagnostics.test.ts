@@ -98,26 +98,42 @@ describe("craft diagnostics — unit behaviour", () => {
     expect(lines).toContain("Und tschüss");
   });
 
-  test("flags a figure that only ever repeats its own catchphrase", () => {
+  test("flags a figure that plays its catchphrase twice", () => {
+    // Verbatim from run c5d98e71: Merlin delivers the same slogan on two pages
+    // and changes nothing about the plot. The first version of this check
+    // required EVERY quoted line in the story to echo the catchphrase, which a
+    // real story with talking heroes can never satisfy — so it never fired.
     const issues = analyzeStoryCraft({
       chapters: [
-        { order: 1, content: 'Silberfunke tanzte. „Glitzer, Funkel, Sternenstaub überall!“' },
-        { order: 2, content: 'Silberfunke wirbelte. „Glitzer und Funkel, Sternenstaub!“' },
+        { order: 1, content: 'Merlin trat vor. „Magie liegt nicht im Zauberstab“, sagte er. „Sie liegt in dir.“ Alexander zog an der Karte. „Sie beißt!“' },
+        { order: 2, content: 'Adrian pfiff. „Der Riss glänzt.“ Merlin stand still. „Magie liegt nicht im Zauberstab“, sagte er leise. „Sie liegt in dir.“' },
       ],
-      supportingCast: [{ name: "Silberfunke", catchphrase: "Glitzer, Funkel, Sternenstaub" }],
+      supportingCast: [{ name: "Zauberer Merlin", catchphrase: "Magie liegt nicht im Zauberstab. Sie liegt in dir." }],
     });
-    expect(issues.map((i) => i.code)).toContain("cast-catchphrase-only");
+    expect(issues.map((i) => i.code)).toContain("cast-catchphrase-repeated");
   });
 
-  test("a figure with a real line of its own is not flagged", () => {
+  test("a figure that says its line once is not flagged", () => {
     const issues = analyzeStoryCraft({
       chapters: [
-        { order: 1, content: 'Silberfunke tanzte. „Glitzer, Funkel, Sternenstaub überall!“' },
-        { order: 2, content: 'Silberfunke zeigte auf die Tür. „Der Riegel klemmt von innen.“' },
+        { order: 1, content: 'Silberfunke tanzte. „Glitzer, Funkel, Sternenstaub überall!“ Alexander lachte. „Hör auf damit!“' },
+        { order: 2, content: 'Silberfunke zeigte auf die Tür. „Der Riegel klemmt von innen.“ Adrian nickte langsam.' },
       ],
       supportingCast: [{ name: "Silberfunke", catchphrase: "Glitzer, Funkel, Sternenstaub" }],
     });
-    expect(issues.map((i) => i.code)).not.toContain("cast-catchphrase-only");
+    expect(issues.map((i) => i.code)).not.toContain("cast-catchphrase-repeated");
+  });
+
+  test("the check survives heroes doing most of the talking", () => {
+    // The regression that made the original check dead code.
+    const issues = analyzeStoryCraft({
+      chapters: [
+        { order: 1, content: 'Merlin: „Magie liegt nicht im Zauberstab. Sie liegt in dir.“ „Und jetzt?“, fragte Alexander. „Keine Ahnung“, sagte Adrian. „Frag ihn nochmal.“ „Nein danke.“' },
+        { order: 2, content: '„Magie liegt nicht im Zauberstab“, wiederholte Merlin. „Sie liegt in dir.“ „Das hilft uns kein Stück“, seufzte Alexander laut.' },
+      ],
+      supportingCast: [{ name: "Merlin", catchphrase: "Magie liegt nicht im Zauberstab. Sie liegt in dir." }],
+    });
+    expect(issues.map((i) => i.code)).toContain("cast-catchphrase-repeated");
   });
 
   test("returns nothing without chapters or without locked craft inputs", () => {
