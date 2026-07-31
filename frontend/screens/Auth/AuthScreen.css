@@ -193,10 +193,20 @@
   width: 100%;
 }
 
-/* While loading, reserve space so the overlaid loader has room.
+/* While loading, reserve space so the loader has room.
    Once ready, height is driven purely by Clerk's real widget → adapts. */
 .auth-clerk-wrap:not(.is-ready) {
-  min-height: 300px;
+  min-height: 320px;
+}
+
+/* Keep the half-painted widget out of sight while the loader is up — the two
+   overlapping is what made the fields unreadable. */
+.auth-clerk-wrap .cl-rootBox {
+  transition: opacity 0.3s ease;
+}
+.auth-clerk-wrap:not(.is-ready) .cl-rootBox {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Make Clerk's widget span the card and never overflow horizontally */
@@ -208,6 +218,20 @@
   margin: 0 !important;
 }
 
+/* Clerk's own card chrome would double up with our .auth-card */
+.auth-clerk-wrap .cl-card,
+.auth-clerk-wrap .cl-cardBox {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.auth-clerk-wrap .cl-footer {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
 /* Dark-theme Clerk inputs reliably (appearance.variables can be overridden by
    Clerk's baseline on some versions — enforce via CSS as the safety net). */
 .auth-clerk-wrap .cl-formFieldInput,
@@ -216,20 +240,57 @@
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
   color: #eee8e0 !important;
 }
+.auth-clerk-wrap .cl-formFieldInput {
+  min-height: 46px !important;
+  padding: 0.7rem 0.9rem !important;
+  font-size: 0.95rem !important;
+  border-radius: 12px !important;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s !important;
+}
+.auth-clerk-wrap .cl-formFieldInput:focus,
+.auth-clerk-wrap .cl-formFieldInput:focus-visible {
+  outline: none !important;
+  border-color: rgba(232, 168, 56, 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(232, 168, 56, 0.16) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+}
 .auth-clerk-wrap .cl-formFieldInput::placeholder {
   color: rgba(238, 232, 224, 0.4) !important;
+}
+/* Chrome paints autofilled fields near-white with dark text — force our theme
+   back in (the saved e-mail address otherwise breaks the dark card). */
+.auth-clerk-wrap .cl-formFieldInput:-webkit-autofill,
+.auth-clerk-wrap .cl-formFieldInput:-webkit-autofill:hover,
+.auth-clerk-wrap .cl-formFieldInput:-webkit-autofill:focus {
+  -webkit-text-fill-color: #eee8e0 !important;
+  caret-color: #eee8e0 !important;
+  box-shadow: 0 0 0 1000px #191720 inset !important;
+  transition: background-color 9999s ease-out 0s !important;
 }
 .auth-clerk-wrap .cl-formFieldLabel,
 .auth-clerk-wrap .cl-dividerText,
 .auth-clerk-wrap .cl-footerActionText {
   color: rgba(238, 232, 224, 0.75) !important;
 }
+.auth-clerk-wrap .cl-formFieldLabel {
+  font-size: 0.78rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em !important;
+  margin-bottom: 0.35rem !important;
+}
+.auth-clerk-wrap .cl-formButtonPrimary {
+  min-height: 46px !important;
+  font-size: 0.92rem !important;
+  letter-spacing: 0.01em !important;
+}
 .auth-clerk-wrap .cl-formFieldInputShowPasswordButton,
 .auth-clerk-wrap .cl-formFieldAction {
   color: var(--a-amber) !important;
 }
 
-/* Branded loader — absolute overlay over the (initially empty) mount area */
+/* Branded loader — overlay over the (still invisible) mount area.
+   Fully opaque: a translucent loader over a painting widget is exactly the
+   "everything overlaps" state we're avoiding. */
 .auth-loading {
   position: absolute;
   inset: 0;
@@ -240,7 +301,8 @@
   justify-content: center;
   gap: 1rem;
   color: var(--a-text-dim);
-  background: rgba(13, 13, 20, 0.85);
+  background: #12121a;
+  border-radius: 16px;
   animation: authFadeIn 0.4s ease both;
 }
 .auth-loading.is-hidden {

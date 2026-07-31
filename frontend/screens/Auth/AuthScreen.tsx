@@ -7,9 +7,19 @@ import "./AuthScreen.css";
 /**
  * Clerk's <SignIn>/<SignUp> widgets mount asynchronously, leaving an empty
  * gap until their JS initialises. We show a branded loader inside the mount
- * area and fade it out the moment Clerk paints its root element, so the user
+ * area and fade it out the moment Clerk paints its real form, so the user
  * never stares at blank space.
+ *
+ * The widget stays invisible while the loader is up and the loader is removed
+ * from the DOM once it has faded — the two must never be visible at once, or
+ * the spinner/skeletons sit on top of the input fields.
  */
+
+/* Any real interactive element inside the mount area means Clerk has painted.
+   Kept deliberately broad (plain input/button too) so a Clerk class rename
+   can't strand the loader on top of a working form. */
+const CLERK_READY_SELECTOR =
+  'input, button, [class*="cl-formButtonPrimary"], [class*="cl-socialButtonsBlockButton"], [class*="cl-formFieldInput"]';
 const clerkAppearance = {
   variables: {
     colorPrimary: "#e8a838",
@@ -36,6 +46,10 @@ const clerkAppearance = {
       background: "transparent",
       "& a": { color: "#e8a838" },
     },
+    /* We render our own German mode toggle below the widget — Clerk's English
+       "Don't have an account? Sign up" would duplicate it (and its link only
+       changes the hash, not our `mode` state). */
+    footerAction: { display: "none" },
     socialButtonsBlockButton: {
       background: "rgba(255, 255, 255, 0.04)",
       border: "1px solid rgba(232, 168, 56, 0.22)",
@@ -67,35 +81,58 @@ const AuthScreen: React.FC = () => {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [clerkReady, setClerkReady] = useState(false);
+  const [loaderMounted, setLoaderMounted] = useState(true);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   /* Fade the loader out once Clerk paints its widget into the mount area. */
   useEffect(() => {
     setClerkReady(false);
+    setLoaderMounted(true);
     const wrap = wrapRef.current;
     if (!wrap) return;
 
-    /* Wait for Clerk's actual interactive content (inputs or social buttons),
-       not just the root shell, so the loader hides only when the form is up. */
+    let done = false;
+    const finish = () => {
+      done = true;
+      setClerkReady(true);
+    };
+
     const check = () => {
-      const ready = wrap.querySelector(
-        ".cl-formButtonPrimary, .cl-socialButtonsBlockButton, .cl-formFieldInput"
-      );
-      if (ready) {
-        setClerkReady(true);
+      if (done) return true;
+      if (wrap.querySelector(CLERK_READY_SELECTOR)) {
+        finish();
         return true;
       }
       return false;
     };
 
     if (check()) return;
-    const observer = new MutationObserver(() => { check(); });
-    observer.observe(wrap, { childList: true, subtree: true });
-    // Safety fallback in case class names change in a future Clerk version.
-    const fallback = window.setTimeout(() => setClerkReady(true), 5000);
 
-    return () => { observer.disconnect(); window.clearTimeout(fallback); };
+    const observer = new MutationObserver(() => {
+      if (check()) observer.disconnect();
+    });
+    observer.observe(wrap, { childList: true, subtree: true });
+    /* Poll as well: attribute-only paints (Clerk swapping its own skeleton for
+       the form) don't always trigger the childList observer. */
+    const poll = window.setInterval(() => {
+      if (check()) window.clearInterval(poll);
+    }, 150);
+    // Safety net: never keep the loader up longer than this, whatever happens.
+    const fallback = window.setTimeout(finish, 2500);
+
+    return () => {
+      observer.disconnect();
+      window.clearInterval(poll);
+      window.clearTimeout(fallback);
+    };
   }, [mode]);
+
+  /* Unmount the loader after its fade so it can never sit over the form. */
+  useEffect(() => {
+    if (!clerkReady) return;
+    const t = window.setTimeout(() => setLoaderMounted(false), 400);
+    return () => window.clearTimeout(t);
+  }, [clerkReady]);
 
   return (
     <div className="auth-root">
@@ -135,15 +172,17 @@ const AuthScreen: React.FC = () => {
         </div>
 
         <div className={`auth-clerk-wrap${clerkReady ? " is-ready" : ""}`} ref={wrapRef}>
-          {/* Branded loader — visible until Clerk's widget mounts */}
-          <div className={`auth-loading${clerkReady ? " is-hidden" : ""}`} aria-hidden={clerkReady}>
-            <div className="auth-spinner" />
-            <span>Anmeldung wird geladen…</span>
-            <div className="auth-skeleton-btns">
-              <div className="auth-skeleton-btn" />
-              <div className="auth-skeleton-btn" />
+          {/* Branded loader — visible until Clerk's widget mounts, then removed */}
+          {loaderMounted && (
+            <div className={`auth-loading${clerkReady ? " is-hidden" : ""}`} aria-hidden={clerkReady}>
+              <div className="auth-spinner" />
+              <span>Anmeldung wird geladen…</span>
+              <div className="auth-skeleton-btns">
+                <div className="auth-skeleton-btn" />
+                <div className="auth-skeleton-btn" />
+              </div>
             </div>
-          </div>
+          )}
 
           {mode === "signin" ? (
             <SignIn
