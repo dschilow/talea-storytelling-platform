@@ -2,7 +2,7 @@ import { buildStoryChapterRevisionPrompt, resolveLengthTargets } from "./prompts
 import { callChatCompletion } from "./llm-client";
 import { buildLlmCostEntry, mergeNormalizedTokenUsage, normalizeTokenUsage } from "./cost-ledger";
 import { generateWithGemini } from "../gemini-generation";
-import { GEMINI_SUPPORT_MODEL, isMiniMaxFamilyModel } from "./model-routing";
+import { SUPPORT_MODEL, isMiniMaxFamilyModel } from "./model-routing";
 import { generateWithRunwareText, isRunwareConfigured } from "../runware-text-generation";
 import type {
   CastSet,
@@ -42,7 +42,7 @@ export async function applySelectiveSurgery(input: {
   hardRewriteChapters?: Set<number>;
 }): Promise<SelectiveSurgeryResult> {
   const maxEdits = Math.max(1, Math.min(5, input.maxEdits ?? 3));
-  const model = input.model || GEMINI_SUPPORT_MODEL;
+  const model = input.model || SUPPORT_MODEL;
   const chapters = input.draft.chapters.map(ch => ({ ...ch }));
   const editedChapters: number[] = [];
   const hardRewriteSet = input.hardRewriteChapters ?? new Set<number>();
@@ -345,7 +345,7 @@ export async function applyWholeStoryEdit(input: {
   model?: string;
   candidateTag?: string;
 }): Promise<SelectiveSurgeryResult> {
-  const model = input.model || GEMINI_SUPPORT_MODEL;
+  const model = input.model || SUPPORT_MODEL;
   const isReasoningModel = model.includes("gpt-5") || model.includes("o4");
   const isGeminiModel = model.startsWith("gemini-");
   const totalChapters = input.draft.chapters.length;

@@ -33,7 +33,7 @@ import {
   normalizeGeneratedImageCount,
   resolveAdminImageCallCount,
 } from "./generation-cost-residual";
-import { normalizeOpenRouterModel } from "./openrouter-generation";
+import { normalizeOpenRouterModel, splitOpenRouterCostUSD } from "./openrouter-generation";
 import {
   assertProfilesBelongToUser,
   ensureDefaultProfileForUser,
@@ -1016,14 +1016,34 @@ export const generate = api<GenerateStoryRequest, Story>(
               const usage = stage?.usage;
               if (!usage) return null;
               const model = stage?.modelUsed || metadataUsage?.modelUsed || config.aiModel || GEMINI_MAIN_STORY_MODEL;
+              const promptTokens = Number(usage.prompt || 0);
+              const completionTokens = Number(usage.completion || 0);
+              // OpenRouter reports what the call actually cost. When present it
+              // wins over the price-table estimate in normalizeTokenUsage: the
+              // table cannot see promotions or which upstream provider served
+              // the request. Absent (native Gemini/OpenAI/Anthropic calls) the
+              // table estimate stays in charge.
+              const reportedCostUSD = Number.isFinite(Number(usage.costUSD))
+                ? Number(usage.costUSD)
+                : undefined;
+              const reportedCostSplit = reportedCostUSD !== undefined
+                ? splitOpenRouterCostUSD(reportedCostUSD, model, promptTokens, completionTokens)
+                : undefined;
               return buildLlmCostEntry({
                 phase: stagePipelinePhase,
                 step: String(stage?.stage || "unknown-stage"),
                 usage: {
-                  promptTokens: Number(usage.prompt || 0),
-                  completionTokens: Number(usage.completion || 0),
+                  promptTokens,
+                  completionTokens,
                   totalTokens: Number(usage.total || 0),
                   model,
+                  ...(reportedCostSplit
+                    ? {
+                        inputCostUSD: reportedCostSplit.inputCostUSD,
+                        outputCostUSD: reportedCostSplit.outputCostUSD,
+                        totalCostUSD: reportedCostUSD,
+                      }
+                    : {}),
                 },
                 fallbackModel: model,
                 success: true,
@@ -1034,6 +1054,7 @@ export const generate = api<GenerateStoryRequest, Story>(
                     || generatedStory.metadata?.devModePipeline
                     || "adaptive-polish-cost-optimized",
                   modelRole: stage?.modelRole,
+                  costSource: reportedCostUSD !== undefined ? "provider-reported" : "price-table",
                 },
               });
             })

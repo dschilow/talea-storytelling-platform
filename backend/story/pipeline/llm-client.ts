@@ -4,8 +4,10 @@ import { logTopic } from "../../log/logger";
 import { isOpenRouterFamilyModel, resolveClaudeStoryModel, resolveOpenRouterFallbackModels } from "./model-routing";
 import {
   callOpenRouterChatCompletion,
+  extractOpenRouterCostUSD,
   getOpenRouterModelPricing,
   normalizeOpenRouterModel,
+  splitOpenRouterCostUSD,
 } from "../openrouter-generation";
 
 const openAIKey = secret("OpenAIKey");
@@ -446,6 +448,20 @@ export async function callChatCompletion(input: {
           const finishReason = data.choices?.[0]?.finish_reason ?? "unknown";
           const content = data.choices?.[0]?.message?.content ?? "";
           const actualModel = data.model || openRouterResult.model || activeModel;
+          // OpenRouter reports the real charge for the call when usage
+          // accounting is requested. Passing it through as explicit cost fields
+          // makes normalizeTokenUsage prefer it over the price-table estimate,
+          // which cannot see promotions or which upstream provider served the
+          // request. Absent, the table estimate stays in charge.
+          const reportedCostUSD = extractOpenRouterCostUSD(data);
+          const reportedCostSplit = reportedCostUSD !== undefined
+            ? splitOpenRouterCostUSD(
+                reportedCostUSD,
+                actualModel,
+                data.usage?.prompt_tokens ?? 0,
+                data.usage?.completion_tokens ?? 0,
+              )
+            : undefined;
           const usage = data.usage
             ? {
                 promptTokens: data.usage.prompt_tokens ?? 0,
@@ -454,6 +470,13 @@ export async function callChatCompletion(input: {
                 totalTokens: data.usage.total_tokens ?? 0,
                 model: actualModel,
                 reasoningTokens: data.usage.completion_tokens_details?.reasoning_tokens ?? 0,
+                ...(reportedCostSplit
+                  ? {
+                      inputCostUSD: reportedCostSplit.inputCostUSD,
+                      outputCostUSD: reportedCostSplit.outputCostUSD,
+                      totalCostUSD: reportedCostUSD,
+                    }
+                  : {}),
               }
             : undefined;
 
@@ -672,6 +695,10 @@ function inputPricePerMillion(model: string): number {
   if (model.includes("gemini-3.1-flash-lite")) return 0.25;
   if (model.includes("gemini-3-flash")) return 0.5;
   if (model.includes("gemini")) return 0.0;
+  // Must precede the generic gpt-5 branch, which would otherwise bill Luna at
+  // the base gpt-5 rate ($2.50) — 12x its actual price.
+  if (model.includes("gpt-5.6-luna")) return 0.20;
+  if (model.includes("gpt-5.6-terra")) return 2.50;
   if (model.includes("gpt-5.4-nano")) return 0.20;
   if (model.includes("gpt-5.4-mini")) return 0.75;
   if (model.includes("gpt-5-pro")) return 5.0;
@@ -699,6 +726,9 @@ function outputPricePerMillion(model: string): number {
   if (model.includes("gemini-3.1-flash-lite")) return 1.5;
   if (model.includes("gemini-3-flash")) return 3.0;
   if (model.includes("gemini")) return 0.0;
+  // Must precede the generic gpt-5 branch — see inputPricePerMillion.
+  if (model.includes("gpt-5.6-luna")) return 1.20;
+  if (model.includes("gpt-5.6-terra")) return 15.0;
   if (model.includes("gpt-5.4-nano")) return 1.25;
   if (model.includes("gpt-5.4-mini")) return 4.50;
   if (model.includes("gpt-5-pro")) return 20.0;

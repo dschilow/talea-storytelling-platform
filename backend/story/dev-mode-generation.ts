@@ -34,7 +34,11 @@ import { secret } from "encore.dev/config";
 import { ai } from "~encore/clients";
 import { generateWithGemini, isGeminiConfigured } from "./gemini-generation";
 import { callAnthropicCompletion } from "./pipeline/llm-client";
-import { callOpenRouterChatCompletion, normalizeOpenRouterModel } from "./openrouter-generation";
+import {
+  callOpenRouterChatCompletion,
+  extractOpenRouterCostUSD,
+  normalizeOpenRouterModel,
+} from "./openrouter-generation";
 import { selectLockedSupportingCast } from "./pipeline/cast-lock";
 import { isOpenRouterFamilyModel, resolveConfiguredStoryModel, GEMINI_MAIN_STORY_MODEL } from "./pipeline/model-routing";
 import { getReferenceFewshotBlock } from "./pipeline/reference-fewshot";
@@ -97,15 +101,24 @@ const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 // Support model = every stage that plans, critiques or validates but writes no
 // prose (idea lab, logline, beat sheet, scene cards, final validation). The
 // 2026-07-28 cost audit measured ~40k input / 9.3k output tokens per story on
-// this role — 37% of a story's bill — while gemini-3.5-flash-lite bills output
-// at $2.50/1M, i.e. close to the writer model's $3.41. gemini-3.1-flash-lite
-// ($0.25/$1.50) does the same structured-JSON work for ~32% less.
-const DEV_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
-// Vision QA stays on 3.5-flash-lite: it is the only support call that needs
-// image input, its share of the bill is ~$0.003, and downgrading a capability
-// we have not verified would risk the illustration checks to save a rounding
-// error.
-const DEV_MODE_VISION_QA_MODEL = "google/gemini-3.5-flash-lite";
+// this role — 37% of a story's bill.
+//
+// 2026-07-31: moved off gemini-3.1-flash-lite ($0.25/$1.50) after OpenAI cut
+// gpt-5.6-luna to $0.20/$1.20 list (plus a temporary OpenRouter promo). Luna is
+// both cheaper per token AND a materially stronger reasoner than a flash-lite
+// tier, which is what this role actually needs — the hard gates it feeds have
+// repeatedly mis-scored structural craft (see the 2026-07-28 audit note that
+// "hard gates measure form, never craft").
+const DEV_MODE_SUPPORT_MODEL = "openai/gpt-5.6-luna";
+// Vision QA also runs on Luna. This is the only support call that needs image
+// input, so it is the one stage where the model switch carries a capability
+// risk rather than just a cost/quality trade — the call is wrapped in a
+// try/catch (§12H) that degrades to "no QA finding" instead of failing the
+// story, and DEV_MODE_VISION_QA_FALLBACK_MODEL takes over when Luna rejects
+// the multimodal request outright.
+const DEV_MODE_VISION_QA_MODEL = "openai/gpt-5.6-luna";
+// Proven vision-capable fallback, used only when the primary QA model errors.
+const DEV_MODE_VISION_QA_FALLBACK_MODEL = "google/gemini-3.5-flash-lite";
 // The 9B variant regressed badly with multiple portrait references (merged
 // bodies, missing heads and duplicated scenes). The proven 4B checkpoint is
 // more reliable for this four-step illustrated-book workflow.
@@ -434,7 +447,7 @@ interface DevModeStageLog {
   rawContent?: string;
   parsed?: any;
   parseError?: string;
-  usage?: { prompt: number; completion: number; total: number };
+  usage?: { prompt: number; completion: number; total: number; costUSD?: number };
   modelUsed?: string;
   modelRole?: "support" | "selected-story";
   durationMs?: number;
@@ -478,7 +491,7 @@ export interface DevModeGeneratedStory {
     devModePipeline?: typeof DEV_MODE_PIPELINE_ID | "whole-story-first-v11" | "whole-story-continuity-v10" | "adaptive-chapter-repair-v5" | "adaptive-chapter-repair-v4" | "adaptive-chapter-repair-v2" | "four-stage-cost-optimized";
     devModeStages?: Array<{
       stage: DevModePipelineStage;
-      usage?: { prompt: number; completion: number; total: number };
+      usage?: { prompt: number; completion: number; total: number; costUSD?: number };
       modelUsed?: string;
       modelRole?: "support" | "selected-story";
       durationMs?: number;
@@ -3327,7 +3340,37 @@ async function generateDevModeImages(
       ? allQaCandidates.map(({ result }) => ({ result }))
       : selectAdaptiveVisualQaCandidates(allQaCandidates, 2).map(({ result }) => ({ result }));
 
-    const qaModel = DEV_MODE_VISION_QA_MODEL; // Gemini Flash supports vision
+    const qaModel: string = DEV_MODE_VISION_QA_MODEL;
+    // The QA call is the pipeline's only multimodal request. If the primary
+    // model refuses or mishandles image input, fall back once to a model whose
+    // vision support is proven, rather than silently losing the check for every
+    // image in the run.
+    const callVisualQa = async (prompt: string, images: string[]) => {
+      // Deduped so pointing both constants at the same model does not retry it.
+      const models = [...new Set<string>([qaModel, DEV_MODE_VISION_QA_FALLBACK_MODEL])];
+      let lastError: unknown;
+      for (const model of models) {
+        try {
+          return await callOpenRouterChatCompletion({
+            messages: [
+              { role: "system", content: "You are a strict picture-book illustration QA assistant. Output STRICT JSON only." },
+              { role: "user", content: prompt },
+            ],
+            model,
+            responseFormat: "json_object",
+            imageInputs: images,
+            temperature: 0,
+            maxTokens: 900,
+          });
+        } catch (err) {
+          lastError = err;
+          console.warn(`[dev-mode-generation] §12H visual-QA model ${model} failed`, {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+      throw lastError;
+    };
     const qaSeen = await mapWithConcurrency(qaJobs, 2, async ({ result: r }) => {
       try {
         const expectedSceneNames = onStageForJob({ ...r.job, prompt: r.fullPrompt });
@@ -3343,17 +3386,10 @@ async function generateDevModeImages(
           referenceNames,
           scenePrompt: r.fullPrompt,
         });
-        const qaRes = await callOpenRouterChatCompletion({
-          messages: [
-            { role: "system", content: "You are a strict picture-book illustration QA assistant. Output STRICT JSON only." },
-            { role: "user", content: qaPrompt },
-          ],
-          model: qaModel,
-          responseFormat: "json_object",
-          imageInputs: [r.imageUrl!, ...r.sceneRefs.slice(0, maxNativeReferences)],
-          temperature: 0,
-          maxTokens: 900,
-        });
+        const qaRes = await callVisualQa(
+          qaPrompt,
+          [r.imageUrl!, ...r.sceneRefs.slice(0, maxNativeReferences)],
+        );
         const qaUsage = qaRes.data?.usage || {};
         promptTokenUsage.prompt += Number(qaUsage.prompt_tokens || 0);
         promptTokenUsage.completion += Number(qaUsage.completion_tokens || 0);
@@ -11782,15 +11818,30 @@ function applyDeterministicStoryTextAutofixes(
   return { story: fixedStory, changed: true, fixes: [...new Set(fixes)] };
 }
 
-function usageSum(results: ProviderResult[]): { prompt: number; completion: number; total: number } {
-  return results.reduce(
+function usageSum(
+  results: ProviderResult[]
+): { prompt: number; completion: number; total: number; costUSD?: number } {
+  const summed = results.reduce(
     (acc, result) => ({
       prompt: acc.prompt + result.usage.prompt,
       completion: acc.completion + result.usage.completion,
       total: acc.total + result.usage.total,
+      // Only calls that reported a cost contribute. A run mixing reporting and
+      // non-reporting providers would otherwise look artificially cheap, so the
+      // partial sum is discarded below unless EVERY call reported one.
+      costUSD: acc.costUSD + (result.usage.costUSD ?? 0),
+      reportedCalls: acc.reportedCalls + (result.usage.costUSD !== undefined ? 1 : 0),
     }),
-    { prompt: 0, completion: 0, total: 0 }
+    { prompt: 0, completion: 0, total: 0, costUSD: 0, reportedCalls: 0 }
   );
+
+  const allReported = results.length > 0 && summed.reportedCalls === results.length;
+  return {
+    prompt: summed.prompt,
+    completion: summed.completion,
+    total: summed.total,
+    ...(allReported ? { costUSD: Number(summed.costUSD.toFixed(6)) } : {}),
+  };
 }
 
 function extractQualityScore(parsed: any): number | null {
@@ -12275,7 +12326,14 @@ function shouldBlockDevModePotentialGateFailure(input: DevModeGenerationInput): 
 
 interface ProviderResult {
   content: string;
-  usage: { prompt: number; completion: number; total: number };
+  /**
+   * `costUSD` is the provider-REPORTED cost of the call, present only for
+   * OpenRouter (which returns it when usage accounting is requested). It rides
+   * along on the usage object so it reaches the cost ledger through the
+   * existing stage-log chain, and it takes precedence over the price-table
+   * estimate — that table cannot see promotions or provider routing.
+   */
+  usage: { prompt: number; completion: number; total: number; costUSD?: number };
   modelUsed: string;
   /**
    * Raw provider finish reason. Truncation used to be invisible: finish_reason
@@ -12573,12 +12631,14 @@ async function callProvider(
       throw new Error(`Empty response from OpenRouter (dev mode, model=${orModel}, stage=${options.stage || "unknown"}, finish_reason=${finishReason}).`);
     }
     const usage = res.data.usage || {};
+    const reportedCostUSD = extractOpenRouterCostUSD(res.data);
     return {
       content,
       usage: {
         prompt: Number(usage.prompt_tokens || 0),
         completion: Number(usage.completion_tokens || 0),
         total: Number(usage.total_tokens || 0),
+        ...(reportedCostUSD !== undefined ? { costUSD: reportedCostUSD } : {}),
       },
       modelUsed: orModel,
       finishReason: choice?.finish_reason,

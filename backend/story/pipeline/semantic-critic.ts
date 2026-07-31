@@ -1,6 +1,6 @@
 import { callChatCompletion } from "./llm-client";
 import type { CastSet, SceneDirective, StoryDraft, TokenUsage } from "./types";
-import { GEMINI_SUPPORT_MODEL, isMiniMaxFamilyModel } from "./model-routing";
+import { SUPPORT_MODEL, isMiniMaxFamilyModel } from "./model-routing";
 import { generateWithGemini } from "../gemini-generation";
 import { generateWithRunwareText, isRunwareConfigured } from "../runware-text-generation";
 
@@ -102,7 +102,7 @@ export async function runSemanticCritic(input: {
   targetMinScore?: number;
   warnFloor?: number;
 }): Promise<SemanticCriticReport> {
-  const model = input.model || GEMINI_SUPPORT_MODEL;
+  const model = input.model || SUPPORT_MODEL;
   const targetMinScore = clampNumber(input.targetMinScore ?? 8.0, 0, 10);
   const warnFloor = clampNumber(input.warnFloor ?? 6.5, 0, targetMinScore);
   const humorLevel = clampNumber(input.humorLevel ?? 2, 0, 3);

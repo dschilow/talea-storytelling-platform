@@ -11,13 +11,14 @@
  * is content-focused, not syntax-focused. The full surgery rewrite is also
  * 5-6× more expensive than this targeted nano pass.
  *
- * Cost profile (per chapter that needs tightening):
- *   - Gemini 3.1 flash-lite: ~$0.0006 in + $0.0008 out → ≈ $0.0015
- *   - Runs on ≤ 5 chapters → max ≈ $0.008/story
+ * Cost profile (per chapter that needs tightening), at gpt-5.6-luna list price
+ * ($0.20/$1.20 per 1M since 2026-07-31):
+ *   - ~$0.0005 in + $0.0006 out → ≈ $0.0011
+ *   - Runs on ≤ 5 chapters → max ≈ $0.006/story
  *   - Replaces ~$0.02 of full hard-rewrite surgery → net SAVINGS
  */
 
-import { GEMINI_SUPPORT_MODEL, isGeminiFamilyModel } from "./model-routing";
+import { SUPPORT_MODEL, isGeminiFamilyModel } from "./model-routing";
 import {
   buildLlmCostEntry,
   mergeNormalizedTokenUsage,
@@ -44,7 +45,7 @@ export interface SentenceTighteningInput {
   draft: StoryDraft;
   /** Only chapters in this set get tightened. Pass empty / undefined to skip. */
   chaptersNeedingTightening: ReadonlySet<number>;
-  /** Default GEMINI_SUPPORT_MODEL — always nano/flash-lite tier for cost. */
+  /** Defaults to SUPPORT_MODEL — the shared cheap support tier. */
   model?: string;
 }
 
@@ -58,7 +59,7 @@ export async function applySentenceTightening(
     return { draft: input.draft, changed: false, tightenedChapters: [] };
   }
 
-  const model = input.model || GEMINI_SUPPORT_MODEL;
+  const model = input.model || SUPPORT_MODEL;
   const isGemini = isGeminiFamilyModel(model);
   const chapters = input.draft.chapters.map((ch) => ({ ...ch }));
   const tightenedChapters: number[] = [];

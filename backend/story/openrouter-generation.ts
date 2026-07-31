@@ -14,8 +14,14 @@ type OpenRouterPricing = {
 // Several entries had drifted significantly from OpenRouter's actual current
 // pricing (e.g. kimi-k2.6 output was hardcoded at $0.45/1M vs the real
 // $3.41/1M — a 7.6x understatement that skewed every cost comparison and
-// model recommendation made from tracked story costs). Re-verify periodically;
-// OpenRouter prices change without notice and this table has no live fallback.
+// model recommendation made from tracked story costs).
+//
+// This table is now only a FALLBACK. Every call requests `usage: {include:true}`
+// and the provider-reported `usage.cost` (see extractOpenRouterCostUSD) is what
+// the cost ledger records — that number is authoritative and already accounts
+// for promotions, provider routing and cache discounts. The table is used only
+// when a response omits the cost field. Re-verify periodically anyway; a stale
+// fallback silently distorts any run where the field is missing.
 const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
   "moonshotai/kimi-k2.6": { inputCostPer1M: 0.65, outputCostPer1M: 3.41 },
   "~moonshotai/kimi-latest": { inputCostPer1M: 0.65, outputCostPer1M: 3.41 },
@@ -47,7 +53,12 @@ const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
   "qwen/qwen3.7-plus": { inputCostPer1M: 0.32, outputCostPer1M: 1.28 },
   "minimax/minimax-m3": { inputCostPer1M: 0.3, outputCostPer1M: 1.2 },
   "z-ai/glm-5.2": { inputCostPer1M: 0.9, outputCostPer1M: 3.08 },
-  "openai/gpt-5.6-luna": { inputCostPer1M: 1.0, outputCostPer1M: 6.0 },
+  // List price after the 2026-07-31 cut (was $1.00/$6.00). OpenRouter is
+  // additionally running a temporary 50% promo on top of this, i.e. real spend
+  // is currently ~$0.10/$0.60 — deliberately NOT encoded here: the promo
+  // expires without notice and would then understate every cost by 2x. The
+  // promo price is captured automatically via the reported usage.cost.
+  "openai/gpt-5.6-luna": { inputCostPer1M: 0.2, outputCostPer1M: 1.2 },
   "openai/gpt-5.6-terra": { inputCostPer1M: 2.5, outputCostPer1M: 15.0 },
 };
 
@@ -101,6 +112,54 @@ export function getOpenRouterModelPricing(model?: string | null): OpenRouterPric
     inputCostPer1M: 0.75,
     outputCostPer1M: 3.5,
   };
+}
+
+/**
+ * Provider-reported cost of a single OpenRouter chat completion, in USD.
+ *
+ * Returned only when the request asked for usage accounting (`usage.include`).
+ * This is the authoritative number — it reflects the price actually charged,
+ * including promotions and whichever upstream provider OpenRouter routed to,
+ * so it is preferred over OPENROUTER_MODEL_PRICING wherever both are available.
+ *
+ * Returns undefined when the field is absent (older responses, streaming edge
+ * cases, provider gaps) so callers can fall back to the price table rather than
+ * booking a bogus $0.
+ */
+export function extractOpenRouterCostUSD(data: any): number | undefined {
+  const cost = Number(data?.usage?.cost);
+  if (!Number.isFinite(cost) || cost < 0) return undefined;
+  return cost;
+}
+
+/**
+ * Splits the reported cost across input/output proportionally to the table's
+ * price ratio. OpenRouter reports one total, but the cost ledger tracks input
+ * and output separately; without a split the per-stage input/output columns
+ * would read 0 while the totals were correct.
+ */
+export function splitOpenRouterCostUSD(
+  totalCostUSD: number,
+  model: string,
+  promptTokens: number,
+  completionTokens: number,
+): { inputCostUSD: number; outputCostUSD: number } {
+  const pricing = getOpenRouterModelPricing(model);
+  const inputWeight = Math.max(0, promptTokens) * pricing.inputCostPer1M;
+  const outputWeight = Math.max(0, completionTokens) * pricing.outputCostPer1M;
+  const totalWeight = inputWeight + outputWeight;
+  if (totalWeight <= 0) {
+    return { inputCostUSD: round6(totalCostUSD), outputCostUSD: 0 };
+  }
+  const inputCostUSD = round6((totalCostUSD * inputWeight) / totalWeight);
+  return {
+    inputCostUSD,
+    outputCostUSD: round6(totalCostUSD - inputCostUSD),
+  };
+}
+
+function round6(value: number): number {
+  return Number(value.toFixed(6));
 }
 
 export function resolveOpenRouterApiKey(): string | null {
@@ -177,6 +236,11 @@ export async function callOpenRouterChatCompletion(input: {
     model,
     messages: outgoingMessages,
     max_tokens: input.maxTokens ?? 2000,
+    // Ask OpenRouter to report what the call actually cost. Without this the
+    // response carries token counts only and every cost figure has to be
+    // re-derived from the hardcoded price table above — which silently drifts
+    // whenever OpenRouter changes prices or runs a promotion.
+    usage: { include: true },
   };
 
   if (input.responseFormat === "json_object") {
@@ -211,26 +275,47 @@ export async function callOpenRouterChatCompletion(input: {
     payload.seed = input.seed;
   }
 
-  const response = await fetch(OPENROUTER_CHAT_COMPLETIONS_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-      "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "https://www.talea.website",
-      "X-OpenRouter-Title": process.env.OPENROUTER_APP_TITLE || "Talea Storytelling Platform",
-    },
-    body: JSON.stringify(payload),
-    signal: input.signal,
-  });
+  const send = async (body: any) => {
+    const response = await fetch(OPENROUTER_CHAT_COMPLETIONS_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": process.env.OPENROUTER_SITE_URL || "https://www.talea.website",
+        "X-OpenRouter-Title": process.env.OPENROUTER_APP_TITLE || "Talea Storytelling Platform",
+      },
+      body: JSON.stringify(body),
+      signal: input.signal,
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenRouter API error ${response.status}: ${errorText}`);
-  }
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`OpenRouter API error ${response.status}: ${errorText}`);
+    }
 
-  return {
-    data: await response.json(),
-    request: payload,
-    model,
+    return response.json();
   };
+
+  try {
+    return { data: await send(payload), request: payload, model };
+  } catch (err) {
+    // Some models (notably the gpt-5 reasoning family) reject an explicit
+    // `temperature`. The blanket omission above only covers one hardcoded
+    // model id, so a newly routed model would otherwise 400 on EVERY call and
+    // take the whole pipeline down. Retry once without the parameter — the
+    // affected models pin temperature internally anyway, so nothing is lost.
+    if (payload.temperature === undefined || !isUnsupportedTemperatureError(err)) throw err;
+    const { temperature, ...withoutTemperature } = payload;
+    console.warn(
+      `[openrouter-generation] model ${model} rejected an explicit temperature — retrying without it`
+    );
+    return { data: await send(withoutTemperature), request: withoutTemperature, model };
+  }
+}
+
+/** True for the 400 a model returns when it does not accept `temperature`. */
+function isUnsupportedTemperatureError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || "");
+  if (!/^OpenRouter API error 400:/i.test(message)) return false;
+  return /temperature/i.test(message);
 }

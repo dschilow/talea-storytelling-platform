@@ -33,7 +33,7 @@ import {
   recordDevModePoolCharacterUsage,
 } from "./dev-mode-generation";
 import type { DevModeAvatar, DevModeGeneratedStory, DevModeMatchedArtifact } from "./dev-mode-generation";
-import { callOpenRouterChatCompletion } from "./openrouter-generation";
+import { callOpenRouterChatCompletion, extractOpenRouterCostUSD } from "./openrouter-generation";
 import type { StoryConfig, StoryLanguage } from "./generate";
 import type { ArtifactCategory, ArtifactRequirement, ArtifactTemplate } from "./types";
 import { storyDB } from "./db";
@@ -52,9 +52,10 @@ import {
 
 const STANDARD_MODE_PIPELINE_ID = "standard-quality-v1";
 // Kept in step with DEV_MODE_SUPPORT_MODEL — same structured-JSON support role,
-// same 2026-07-28 cost rationale (gemini-3.5-flash-lite bills output at
-// $2.50/1M vs $1.50 here for equivalent extraction work).
-const STANDARD_MODE_SUPPORT_MODEL = "google/gemini-3.1-flash-lite";
+// same cost rationale. Moved to gpt-5.6-luna on 2026-07-31 after its price cut
+// put it below gemini-3.1-flash-lite ($0.20/$1.20 vs $0.25/$1.50) at a
+// distinctly higher reasoning tier.
+const STANDARD_MODE_SUPPORT_MODEL = "openai/gpt-5.6-luna";
 const MAX_STORY_CHARS_FOR_DEVELOPMENT = 9_000;
 const MAX_MEMORY_ANCHOR_TITLES = 2;
 
@@ -636,10 +637,13 @@ async function deriveAvatarDevelopments(input: {
 
     const content = res.data?.choices?.[0]?.message?.content;
     const usageRaw = res.data?.usage || {};
+    const reportedCostUSD = extractOpenRouterCostUSD(res.data);
     const usage = {
       prompt: Number(usageRaw.prompt_tokens || 0),
       completion: Number(usageRaw.completion_tokens || 0),
       total: Number(usageRaw.total_tokens || 0),
+      // Provider-reported cost — preferred over the price table downstream.
+      ...(reportedCostUSD !== undefined ? { costUSD: reportedCostUSD } : {}),
     };
 
     const developments = sanitizeDevelopments(

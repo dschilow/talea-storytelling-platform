@@ -22,7 +22,7 @@ import { callChatCompletion } from "./llm-client";
 import { generateWithGemini } from "../gemini-generation";
 import {
   GEMINI_MAIN_STORY_MODEL,
-  GEMINI_SUPPORT_MODEL,
+  SUPPORT_MODEL,
   isMiniMaxFamilyModel,
   isOpenRouterFamilyModel,
   resolveConfiguredStoryModel,
@@ -720,11 +720,11 @@ function resolveSoulPrimaryModel(
   const normalizedSupport = String(supportModel || "").trim().toLowerCase();
 
   if (isOpenRouterFamilyModel(selected)) {
-    return GEMINI_SUPPORT_MODEL;
+    return SUPPORT_MODEL;
   }
 
   if (isOpenRouterFamilyModel(supportModel)) {
-    return GEMINI_SUPPORT_MODEL;
+    return SUPPORT_MODEL;
   }
 
   // MiniMax ist kein guter Soul-Generator (zu schwach in struktur. JSON) → Support-Model nutzen
@@ -733,7 +733,7 @@ function resolveSoulPrimaryModel(
   }
 
   if (normalizedSelected.startsWith("gpt-") || normalizedSelected.startsWith("o4-")) {
-    return GEMINI_SUPPORT_MODEL;
+    return SUPPORT_MODEL;
   }
 
   // gpt-5.4-nano ist zu schwach für Soul → auf mini hochziehen

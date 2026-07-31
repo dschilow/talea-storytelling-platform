@@ -1,5 +1,14 @@
 export const GEMINI_MAIN_STORY_MODEL = "gemini-3-flash-preview";
-export const GEMINI_SUPPORT_MODEL = "google/gemini-3.5-flash-lite";
+/**
+ * Model for every non-prose support task: critic, selective surgery, release
+ * polish, sentence tightening, soul gate.
+ *
+ * 2026-07-31: was google/gemini-3.5-flash-lite ($0.30/$1M in, $2.50/1M out).
+ * gpt-5.6-luna's price cut put it at $0.20/$1.20 list — cheaper on both axes
+ * than the flash-lite tier it replaces, at a higher reasoning tier. Renamed
+ * from GEMINI_SUPPORT_MODEL, which no longer described what it points at.
+ */
+export const SUPPORT_MODEL = "openai/gpt-5.6-luna";
 export const CLAUDE_SONNET_46_WIZARD_MODEL = "claude-sonnet-4-6";
 export const CLAUDE_SONNET_46_MODEL = "claude-sonnet-4-6";
 export const MINIMAX_M27_MODEL = "minimax-m2.7";
@@ -75,21 +84,21 @@ export function isGeminiFlashFamilyModel(model?: string): boolean {
 export function resolveGeminiSupportFallback(selectedStoryModel?: string): string | undefined {
   if (!isGeminiFamilyModel(selectedStoryModel)) return undefined;
   const selected = String(selectedStoryModel || "").trim();
-  if (selected && selected !== GEMINI_SUPPORT_MODEL) return selected;
+  if (selected && selected !== SUPPORT_MODEL) return selected;
   return GEMINI_MAIN_STORY_MODEL;
 }
 
 export function resolveSupportTaskModel(selectedStoryModel?: string): string {
   const selected = String(selectedStoryModel || "").trim();
   const normalized = selected.toLowerCase();
-  if (!normalized) return GEMINI_SUPPORT_MODEL;
+  if (!normalized) return SUPPORT_MODEL;
   // Keep planning / critique / repair work on cheap, predictable support models.
   // OpenRouter story models are often premium prose models; using them for every
   // support task multiplies cost and has caused truncated JSON in production logs.
-  if (isOpenRouterFamilyModel(selected)) return GEMINI_SUPPORT_MODEL;
+  if (isOpenRouterFamilyModel(selected)) return SUPPORT_MODEL;
   if (isMiniMaxFamilyModel(normalized)) return GPT_54_MINI_MODEL;
-  if (normalized.startsWith("gemini-")) return GEMINI_SUPPORT_MODEL;
-  if (isClaudeFamilyModel(normalized)) return GEMINI_SUPPORT_MODEL;
+  if (normalized.startsWith("gemini-")) return SUPPORT_MODEL;
+  if (isClaudeFamilyModel(normalized)) return SUPPORT_MODEL;
   if (normalized.startsWith("gpt-") || normalized.startsWith("o4-")) return GPT_54_NANO_MODEL;
   return GPT_54_NANO_MODEL;
 }
@@ -102,22 +111,22 @@ export function resolveCriticModelForPipeline(input: {
   const explicit = String(input.explicitCriticModel || "").trim();
   const selected = String(input.selectedStoryModel || "").trim();
   if (isOpenRouterFamilyModel(selected)) {
-    return explicit || GEMINI_SUPPORT_MODEL;
+    return explicit || SUPPORT_MODEL;
   }
   if (explicit) return explicit;
   if (isMiniMaxFamilyModel(input.selectedStoryModel)) return GPT_54_MINI_MODEL;
   if (isGeminiFamilyModel(input.selectedStoryModel) || isClaudeFamilyModel(input.selectedStoryModel)) {
-    return GEMINI_SUPPORT_MODEL;
+    return SUPPORT_MODEL;
   }
   return String(input.defaultModel || GPT_54_NANO_MODEL);
 }
 
 export function resolveSurgeryModelForPipeline(selectedStoryModel?: string): string {
   const selected = String(selectedStoryModel || "").trim();
-  if (isOpenRouterFamilyModel(selected)) return GEMINI_SUPPORT_MODEL;
+  if (isOpenRouterFamilyModel(selected)) return SUPPORT_MODEL;
   if (isMiniMaxFamilyModel(selectedStoryModel)) return GPT_54_MINI_MODEL;
   if (isGeminiFamilyModel(selectedStoryModel) || isClaudeFamilyModel(selectedStoryModel)) {
-    return GEMINI_SUPPORT_MODEL;
+    return SUPPORT_MODEL;
   }
   const model = String(selectedStoryModel || "").trim();
   if (!model) return GPT_54_NANO_MODEL;
