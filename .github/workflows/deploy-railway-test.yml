@@ -177,6 +177,9 @@ jobs:
           docker build \
             -f Dockerfile.encore-runtime-audio \
             --build-arg BASE_IMAGE=myapp \
+            --build-arg BUILD_GIT_SHA=${{ github.sha }} \
+            --build-arg BUILD_GIT_REF=${{ github.ref_name }} \
+            --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -t myapp-audio \
             .
 

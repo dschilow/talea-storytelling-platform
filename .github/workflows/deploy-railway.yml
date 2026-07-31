@@ -176,6 +176,9 @@ jobs:
           docker build \
             -f Dockerfile.encore-runtime-audio \
             --build-arg BASE_IMAGE=myapp \
+            --build-arg BUILD_GIT_SHA=${{ github.sha }} \
+            --build-arg BUILD_GIT_REF=${{ github.ref_name }} \
+            --build-arg BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -t myapp-audio \
             .
 
@@ -234,8 +237,11 @@ jobs:
         with:
           node-version: 22
 
-      - name: Trigger Railway deployment (skips if secrets missing)
-        continue-on-error: true
+      # Deliberately NOT continue-on-error: a green check on main must mean the
+      # image reached production, not merely ghcr.io. See the 2026-07-31
+      # incident where production served a :test-main image for three days
+      # while every run here reported success.
+      - name: Trigger Railway deployment
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
           RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
@@ -244,12 +250,11 @@ jobs:
 
       - name: Deployment Summary
         run: |
-          echo "Docker image built and pushed successfully"
+          echo "Built, pushed and redeployed to PRODUCTION"
           echo "  Image: ghcr.io/${{ github.repository }}:latest"
-          echo "  SHA: ghcr.io/${{ github.repository }}:${{ github.sha }}"
+          echo "  SHA:   ghcr.io/${{ github.repository }}:${{ github.sha }}"
           echo ""
-          echo "Next steps if auto-redeploy is not configured:"
-          echo "  1. Open Railway dashboard"
-          echo "  2. Ensure service source is ghcr.io/${{ github.repository }}:latest"
-          echo "  3. Verify PORT=8080 and required environment variables"
-          echo "  4. Trigger a redeploy manually if needed"
+          echo "The production service must have its source set to the ':latest'"
+          echo "tag for this to take effect. Confirm the running build with:"
+          echo "  curl -s https://backend-2-production-3de1.up.railway.app/health/version"
+          echo "  -> gitSha must be ${{ github.sha }}"

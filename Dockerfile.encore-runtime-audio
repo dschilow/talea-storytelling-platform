@@ -25,3 +25,13 @@ FROM ${BASE_IMAGE}
 COPY --from=audio-tools /audio-root/ /
 
 ENV PATH="/usr/bin:${PATH}"
+
+# Build provenance, surfaced by GET /health/version. Encore builds the base
+# image itself, so this derived layer is the only place we control — which is
+# why the SHA is stamped here rather than in the Encore build.
+ARG BUILD_GIT_SHA=unknown
+ARG BUILD_GIT_REF=unknown
+ARG BUILD_TIME=unknown
+ENV BUILD_GIT_SHA=${BUILD_GIT_SHA} \
+    BUILD_GIT_REF=${BUILD_GIT_REF} \
+    BUILD_TIME=${BUILD_TIME}
