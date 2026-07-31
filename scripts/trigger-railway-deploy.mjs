@@ -36,8 +36,15 @@ async function main() {
       authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
-      query: `mutation ServiceInstanceRedeploy($environmentId: String!, $serviceId: String!) {
-  serviceInstanceRedeploy(environmentId: $environmentId, serviceId: $serviceId)
+      // serviceInstanceDeploy, NOT serviceInstanceRedeploy. The latter replays
+      // the previous deployment together with the image it was built from, so
+      // it never picks up a changed source. That is why production kept
+      // serving ':test-main' for days after its source had been corrected to
+      // ':latest' — every redeploy faithfully re-ran the stale image and
+      // reported success. serviceInstanceDeploy creates a new deployment from
+      // the source the service is currently configured with.
+      query: `mutation ServiceInstanceDeploy($environmentId: String!, $serviceId: String!) {
+  serviceInstanceDeploy(environmentId: $environmentId, serviceId: $serviceId)
 }`,
       variables: {
         environmentId,
@@ -50,10 +57,10 @@ async function main() {
 
   if (!response.ok || body.errors) {
     const message = body.errors?.map((err) => err.message).join('; ') || response.statusText;
-    throw new Error(`Railway redeploy failed: ${message}`);
+    throw new Error(`Railway deploy failed: ${message}`);
   }
 
-  console.log('Railway redeploy triggered successfully.');
+  console.log('Railway deployment triggered successfully.');
 }
 
 main().catch((err) => {
