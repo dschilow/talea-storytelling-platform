@@ -12490,6 +12490,18 @@ function openRouterReasoningForDevMode(model: string): { effort?: "none" | "mini
   if (isOpenRouterTextCompatibilityModel(normalized)) {
     return { enabled: false, exclude: true };
   }
+  // gpt-5.x reasons by default, and it is not covered by the branch above
+  // because it is not a "text compatibility" family. `exclude: true` alone
+  // therefore hid the reasoning from the response while its tokens kept
+  // counting against max_tokens. When gpt-5.6-luna became the support model
+  // and finally reached production on 2026-08-06, hidden reasoning consumed
+  // the entire 1800-token ceiling of the beat-sheet stage: finish_reason
+  // =length, an empty payload, and a 500 from the beat-sheet gate on every
+  // single story. Support stages plan, critique and validate — none of that
+  // needs extended thinking.
+  if (/gpt-5/.test(normalized)) {
+    return { effort: "minimal", exclude: true };
+  }
   return { exclude: true };
 }
 
@@ -13540,8 +13552,13 @@ export async function generateStoryDevMode(
     }
 
     const beatSheetPrompts = buildBeatSheetPrompts(input, chapterCount, loglineEngine);
+    // 3000, not 1800: the beat sheet is the largest required payload of the
+    // tight support stages (16 mandatory fields plus a beat per chapter), and
+    // when it truncates the gate below throws instead of degrading. A ceiling
+    // is only charged when it is used, so headroom here costs nothing and buys
+    // a stage that cannot take the whole story down.
     const beatSheetStage = await runStage("filmic-beat-sheet", beatSheetPrompts, {
-      maxTokens: 1800,
+      maxTokens: 3000,
       temperature: 0.32,
       timeoutMs: 90_000,
       ...supportCallOptions,
@@ -13552,7 +13569,7 @@ export async function generateStoryDevMode(
     if (beatSheetIssues.length > 0) {
       const repairPrompts = buildBeatSheetPrompts(input, chapterCount, { ...loglineEngine, previousBeatSheet: beatSheet }, beatSheetIssues);
       const repairedBeatSheetStage = await runStage("beat-sheet-repair", repairPrompts, {
-        maxTokens: 1800,
+        maxTokens: 3000,
         temperature: 0.2,
         timeoutMs: 90_000,
         ...supportCallOptions,
