@@ -415,18 +415,27 @@ const extractElevenLabsErrorMessage = (errText: string): string => {
   return fallback || "Unknown ElevenLabs error.";
 };
 
-const throwElevenLabsApiError = (status: number, errText: string): never => {
+/**
+ * Surfaces the message ElevenLabs actually sent. Swallowing it costs real debugging
+ * time: on 2026-08-06 the account's legacy-format key stopped being accepted, and the
+ * only endpoint that repeated ElevenLabs' own explanation ("API key must start with
+ * sk_") was the dialogue one — the voice list just said it had failed.
+ *
+ * `operation` names the call that failed, so a sound-effect error no longer claims a
+ * dialogue request was rejected.
+ */
+const throwElevenLabsApiError = (status: number, errText: string, operation: string): never => {
   const message = extractElevenLabsErrorMessage(errText);
 
   if (status === 400) {
-    throw APIError.invalidArgument(`ElevenLabs rejected the dialogue request: ${message}`);
+    throw APIError.invalidArgument(`ElevenLabs rejected the ${operation} request: ${message}`);
   }
 
   if (status === 401 || status === 403) {
     throw APIError.failedPrecondition(`ElevenLabs authentication failed: ${message}`);
   }
 
-  throw APIError.unavailable(`ElevenLabs dialogue generation failed: ${message}`);
+  throw APIError.unavailable(`ElevenLabs ${operation} failed: ${message}`);
 };
 
 function concatenateAudioBuffers(buffers: Buffer[], mimeType: string): Buffer {
@@ -490,7 +499,7 @@ export const listElevenLabsVoices = api(
     if (!response.ok) {
       const errText = await response.text();
       log.error(`[ElevenLabs] list voices failed (${response.status}): ${errText}`);
-      throw APIError.unavailable("Failed to fetch ElevenLabs voices.");
+      throwElevenLabsApiError(response.status, errText, "voice list");
     }
 
     const payload = (await response.json()) as {
@@ -606,7 +615,7 @@ export async function synthesizeDialogue(
     if (!response.ok) {
       const errText = await response.text();
       log.error(`[ElevenLabs] dialogue generation failed (${response.status}, chunk ${chunkNumber}): ${errText}`);
-      throwElevenLabsApiError(response.status, errText);
+      throwElevenLabsApiError(response.status, errText, "dialogue generation");
     }
 
     const arrayBuffer = await response.arrayBuffer();
@@ -925,7 +934,7 @@ export async function synthesizeDialogueWithTimestamps(options: {
     if (!response.ok) {
       const errText = await response.text();
       log.error(`[ElevenLabs] with-timestamps failed (${response.status}): ${errText}`);
-      throwElevenLabsApiError(response.status, errText);
+      throwElevenLabsApiError(response.status, errText, "timed dialogue generation");
     }
 
     const payload = (await response.json()) as {
@@ -1150,7 +1159,7 @@ export async function synthesizeSoundEffect(
   if (!response.ok) {
     const errText = await response.text();
     log.error(`[ElevenLabs] sound-effect generation failed (${response.status}): ${errText}`);
-    throwElevenLabsApiError(response.status, errText);
+    throwElevenLabsApiError(response.status, errText, "sound-effect generation");
   }
 
   const arrayBuffer = await response.arrayBuffer();
