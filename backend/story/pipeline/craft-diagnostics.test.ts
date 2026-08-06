@@ -7,6 +7,7 @@ import {
   contentStems,
   extractQuotedLines,
   pagesCarryingPhrase,
+  pagesSpeakingRefrain,
   type CraftAnalysisInput,
 } from "./craft-diagnostics";
 import runs from "../__fixtures__/craft-diagnostics-runs.json";
@@ -68,6 +69,53 @@ describe("craft diagnostics — calibration against real runs", () => {
     expect(issue!.message).toContain("Magierin Luna");
     expect(issue!.message).toContain("Silberfunke");
     expect(issue!.repairHint).toContain("Hauptfiguren");
+  });
+});
+
+describe("craft diagnostics — a short refrain that was deleted outright", () => {
+  /**
+   * Run 4848aa03, "Das Regal mit dem schiefen Knopf". The beat sheet locked the
+   * refrain "Knopf, komm raus, zack!" and the draft used it three times. The
+   * story-polish pass then cut the story to hit a word gate and removed every
+   * instance, rewriting the finale one into an explanatory sentence.
+   *
+   * The page-coverage check could not see it: the refrain's only 5+-character
+   * word is "Knopf", the whole book is about a Knopf, so coverage read 5/5.
+   */
+  const refrain = "Knopf, komm raus, zack!";
+  const shipped = [
+    { order: 1, content: '„Hier fehlt genau ein Knopf“, sagte Alexander. Er zählte die Haken. Der große rote Schubladenknopf stand schief und klapperte.' },
+    { order: 2, content: 'Adrian zog trotzdem an einem Band. Klack, klack, klack machte der rote Knopf. „Der Haken hat es verschluckt!“' },
+    { order: 3, content: 'Ein Stück des Knopfs lag in Alexanders Hand. „Wenn wir aufgeben, bleibt die Schublade kaputt“, sagte er.' },
+    { order: 4, content: '„Ich habe den roten Knopf selbst an meine Festjacke genäht“, begann Adrian. Der lose Faden zitterte in der Kerbe.' },
+    { order: 5, content: 'Adrian hob die Hand. „Knopf, komm heraus. Du hast lange genug gewartet.“ Die Schublade sprang auf.' },
+  ];
+  const draft = [
+    ...shipped.slice(0, 4),
+    { order: 5, content: 'Adrian hob die Hand. „Knopf, komm raus, zack!“ Die Schublade sprang auf.' },
+  ];
+
+  test("page coverage is blind to it — every page mentions the Knopf", () => {
+    expect(pagesCarryingPhrase(shipped, refrain)).toBe(5);
+  });
+
+  test("the spoken-refrain measure sees that the line is gone", () => {
+    expect(pagesSpeakingRefrain(draft, refrain)).toBe(1);
+    expect(pagesSpeakingRefrain(shipped, refrain)).toBe(0);
+  });
+
+  test("a refrain nobody says is flagged with a verbatim repair order", () => {
+    const issue = analyzeStoryCraft({ chapters: shipped, refrainLine: refrain })
+      .find((i) => i.code === "refrain-missing");
+    expect(issue).toBeDefined();
+    expect(issue!.message).toContain("KEINER Leseseite");
+    expect(issue!.repairHint).toContain("wortwörtlich");
+  });
+
+  test("both production fixtures still speak their refrain, so the check stays quiet on them", () => {
+    expect(pagesSpeakingRefrain(brunnen.chapters, brunnen.refrainLine!)).toBeGreaterThanOrEqual(1);
+    expect(pagesSpeakingRefrain(karte.chapters, karte.refrainLine!)).toBeGreaterThanOrEqual(1);
+    expect(analyzeStoryCraft(karte)).toEqual([]);
   });
 });
 

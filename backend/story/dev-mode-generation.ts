@@ -38,6 +38,7 @@ import {
   callOpenRouterChatCompletion,
   extractOpenRouterCostUSD,
   normalizeOpenRouterModel,
+  DEFAULT_OPENROUTER_STORY_MODEL,
 } from "./openrouter-generation";
 import { selectLockedSupportingCast } from "./pipeline/cast-lock";
 import { isOpenRouterFamilyModel, resolveConfiguredStoryModel, GEMINI_MAIN_STORY_MODEL } from "./pipeline/model-routing";
@@ -239,6 +240,20 @@ const DEV_MODE_CRAFT_ADVISORY_DIMENSION_FLOORS: Record<string, number> = {
   pageTurnDrive: 8.5,
   rereadValue: 8.5,
 };
+/**
+ * Completion budget for the market-quality validator.
+ *
+ * Was 1800, which silently biased every verdict toward leniency. The validator
+ * schema is large (17 dimension scores, a humour verdict per page, errors,
+ * warnings, blockers, continuity breaks, must-fixes, copy corrections), so the
+ * length of the answer scales with how much is WRONG with the story. At 1800 a
+ * thorough verdict does not fit: run 4848aa03 produced a 6.8 with three named
+ * continuity breaks, hit the ceiling mid-array, failed to parse, and was
+ * replaced by a second, shorter 8.1 verdict on the identical text — which is
+ * the one that shipped. Harsh verdicts were being truncated out of existence
+ * while lenient ones fit comfortably.
+ */
+const DEV_MODE_FINAL_VALIDATION_MAX_TOKENS = 4200;
 const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
 // See "Diminishing-returns brake" at the validation-polish loop: once a
 // story clears all hard gates and scores at/above this, further validation
@@ -6211,7 +6226,14 @@ function buildBeatSheetPrompts(
     "- personalObject.object, recurringMotif, irreversibleMiddle.visibleDamage, finalPayoff.plantedDetail, and finalPayoff.closingImage must share ONE red-thread object/place from the locked idea.",
     // Same class of mismatch: the checker compares word stems, so a synonym,
     // pronoun or paraphrase reads as "a different object" and fails the gate.
-    "  MECHANICAL FORM: pick the red-thread object once in personalObject.object, then REPEAT THAT EXACT NOUN, word for word, inside personalObject.risk, act2.personalCost, irreversibleMiddle.personalCost, irreversibleMiddle.visibleDamage and finalPayoff.plantedDetail. Synonyms, pronouns (\"es\", \"das Ding\", \"it\") or a second related object all fail the gate — only the repeated noun passes.",
+    "  MECHANICAL FORM: pick the red-thread object once in personalObject.object, then NAME THAT SAME OBJECT AGAIN inside personalObject.risk, act2.personalCost, irreversibleMiddle.personalCost, irreversibleMiddle.visibleDamage and finalPayoff.plantedDetail. Synonyms, pronouns (\"es\", \"das Ding\", \"it\") or a second related object all fail the gate — only the object named again passes.",
+    // The checker stems, so a correctly declined repetition passes. Demanding a
+    // verbatim copy instead produced ungrammatical planning German that then
+    // leaked into the draft prompt: run 4848aa03's beat sheet contained
+    // "Adrian hat Adrians roter Lieblingsknopf selbst an seine Festjacke
+    // genäht" and four more like it, because the model obeyed "word for word"
+    // over German case.
+    "  Decline the noun correctly for each sentence (\"Adrians roten Lieblingsknopf\", \"an Adrians rotem Lieblingsknopf\") and use the possessive only where it is grammatical — the check stems the words, so a correctly inflected repetition counts. Ungrammatical copies of the nominative form are a failure, not a safe choice.",
     "- Carry refrainLine from the locked engine forward verbatim. It is a separate story refrain, not a pool-character catchphrase.",
     "- Do NOT make a pool artifact/background prop the personalObject or finale engine unless it is already the selected idea's central object.",
     "- finalChoice must be executed by the named main avatars, not by a helper or adult.",
@@ -9092,9 +9114,19 @@ function buildStoryPolishPrompts(
   // sees EXACTLY which chapters are below 18 % / 25 % and roughly how many
   // short quoted lines it needs to inject. Without this concrete budget, the
   // model tends to leave the overall dialog ratio in the low 20s.
+  //
+  // The per-page bar is the per-page GATE, not the whole-story writing target.
+  // Measuring every page against the 32 % target meant that a story sitting at a
+  // healthy 37.7 % overall still produced a "reading page 2 and 5 are short on
+  // dialogue" briefing headed "the previous draft failed the dialog gate" — a
+  // false statement, in the same prompt that ordered a 29 % word cut. Run
+  // 4848aa03 got exactly that contradiction, and the pass spent its attention
+  // adding quoted lines while deleting the refrain it was supposed to protect.
+  const overallDialogShortfall = Math.max(0, DEV_MODE_PROMPT_DIALOG_PCT - Math.round(diagnostics.dialogPct || 0));
+  const perPageBar = overallDialogShortfall > 0 ? DEV_MODE_PROMPT_DIALOG_PCT : DEV_MODE_MIN_CHAPTER_DIALOG_PCT;
   const dialogDeficit: Array<{ order: number; pct: number; addLines: number }> = [];
   for (const chapter of diagnostics.chapterDiagnostics || []) {
-    const gap = DEV_MODE_PROMPT_DIALOG_PCT - Math.max(0, chapter.dialogPct || 0);
+    const gap = perPageBar - Math.max(0, chapter.dialogPct || 0);
     if (gap <= 0) continue;
     // ~6-8 characters per spoken word, ~8 words per added short line.
     const approxWords = Math.max(40, Math.round((chapter.chars || 0) / 6));
@@ -9102,11 +9134,16 @@ function buildStoryPolishPrompts(
     const addLines = Math.max(2, Math.min(10, Math.round(wordsNeeded / 8)));
     dialogDeficit.push({ order: chapter.order, pct: Math.round(chapter.dialogPct || 0), addLines });
   }
-  const overallDialogGap = Math.max(0, DEV_MODE_PROMPT_DIALOG_PCT - Math.round(diagnostics.dialogPct || 0));
+  const overallDialogGap = overallDialogShortfall;
+  const dialogGateFailed = Math.round(diagnostics.dialogPct || 0) < DEV_MODE_MIN_DIALOG_PCT;
 
   const dialogBoostBlock = dialogDeficit.length > 0 || overallDialogGap > 0
     ? [
-        "DIALOGUE INJECTION PLAN (TOP PRIORITY \u2014 the previous draft failed the dialog gate):",
+        dialogGateFailed
+          ? "DIALOGUE INJECTION PLAN (TOP PRIORITY \u2014 the previous draft FAILED the dialogue gate):"
+          : overallDialogGap > 0
+            ? "DIALOGUE PLAN (the dialogue gate holds, but the story is under the read-aloud target):"
+            : "DIALOGUE PLAN (the overall dialogue share is fine \u2014 only these pages run narration-heavy):",
         `- Overall dialog share is currently ${Math.round(diagnostics.dialogPct || 0)} % \u2014 it MUST end at \u2265 ${DEV_MODE_MIN_DIALOG_PCT} %, aim ${DEV_MODE_PROMPT_DIALOG_PCT} %.`,
         ...dialogDeficit.map((d) =>
           `- ${readingPageMode ? "Reading page" : "Chapter"} ${d.order}: currently ~${d.pct} % dialog \u2192 inject about ${d.addLines} short quoted lines (1\u20138 words each). Replace narrator sentences with character speech, not new filler chatter.`
@@ -9115,7 +9152,12 @@ function buildStoryPolishPrompts(
         "- Convert summary or interior thought to dialogue between the on-stage characters rather than adding new ones.",
         `- CRITICAL COUPLING: injecting dialogue must NOT pull the whole story below the word target (${wordBounds.targetMin}-${wordBounds.targetMax} words). When the story is at or below target, ADD dialogue lines on top of the existing scene instead of replacing narration 1:1. Only replace narration when the story is over length.`,
       ].join("\n")
-    : "";
+    : [
+        // No deficit: say so explicitly. A silent omission invites the pass to
+        // "improve" a share that is already right, which costs narration.
+        `DIALOGUE STATUS: ${Math.round(diagnostics.dialogPct || 0)} % — inside the target band. Do NOT add dialogue lines and do NOT convert narration to speech.`,
+        `Hold the share at or above ${DEV_MODE_MIN_DIALOG_PCT} % while you edit; when you shorten, cut narration and dialogue in the same proportion.`,
+      ].join("\n");
 
   const rejectedPolishFeedback = critique?.rejectedPolishFeedback;
   const userPrompt = [
@@ -10305,7 +10347,8 @@ function buildValidationPrompts(
   const systemPrompt = [
     "You are a strict children's-book market-quality validator, not a story writer.",
     "Evaluate honestly against real published children's books. Never rewrite the story.",
-    `The story prose is in ${languageName}; your validation JSON may be in English.`,
+    `The story prose is in ${languageName}; your validation JSON MUST be written in English.`,
+    "Keep every finding to one compact sentence. Quote at most a handful of words from the story. Never restate the plot.",
     "Hard local diagnostics are binding: if they report failed form gates, you must reflect that in score, warnings, and mustFixBefore95.",
     "Respond with valid JSON only, no Markdown, no comments, no trailing commas.",
     "Schema:",
@@ -10360,7 +10403,7 @@ function buildValidationPrompts(
   const userPrompt = [
     "CALL 4: Validate JSON, style, market quality, and logic of the final story.",
     "IMPORTANT: Do NOT rewrite the story or return a story copy. This support call only evaluates. The final prose must come from the selected writer model.",
-    "Your JSON output (the validation verdict) is fine in English. Only the story you are evaluating is in the target language.",
+    "Your JSON output (the validation verdict) MUST be in English — findings, warnings and must-fixes included. Only the story you are evaluating is in the target language. English keeps verdicts short enough that a thorough, critical review always fits in the completion budget; a verdict that runs out of room is worth nothing.",
     "",
     "CALIBRATION (binding — compare the story to these anchors, written in the story's target language):",
     "",
@@ -12425,9 +12468,24 @@ function shouldUseCompactOpenRouterDraft(config: StoryConfig): boolean {
   return true;
 }
 
+/**
+ * The model the WRITER stages will actually talk to, i.e. the wizard pick after
+ * the §5 writer-model floor has been applied. Prompt-shape decisions must use
+ * this and not the raw config: when the floor swaps a support-tier pick for the
+ * prose model, the draft prompt has to follow the model that receives it, or a
+ * JSON-mode prompt lands on a family that is documented to return an empty
+ * completion under forced JSON.
+ */
+function resolveEffectiveOpenRouterWriterModel(config: StoryConfig): string {
+  const floor = resolveDevModeWriterModelFloor(config);
+  const floored = floor?.openRouterModelOverride || floor?.modelOverride;
+  if (floored && isOpenRouterFamilyModel(floored)) return normalizeOpenRouterModel(floored);
+  return resolveSelectedOpenRouterStoryModel(config);
+}
+
 function shouldUsePlainTextWholeStoryDraft(config: StoryConfig): boolean {
   if (config.aiProvider !== "openrouter") return false;
-  return isOpenRouterTextCompatibilityModel(resolveSelectedOpenRouterStoryModel(config));
+  return isOpenRouterTextCompatibilityModel(resolveEffectiveOpenRouterWriterModel(config));
 }
 
 // Step 5 \u2014 Writer-model quality floor. The final whole-story draft is where
@@ -12462,8 +12520,32 @@ function resolveDevModeWriterModelFloor(
 ): Pick<ProviderCallOptions, "modelOverride" | "providerOverride" | "openRouterModelOverride"> | null {
   if ((config as any)?.upgradeWriterModel === false) return null;
   // Explicit OpenRouter selections come straight from the wizard picker \u2014
-  // never overridden (see block comment above).
-  if (config.aiProvider === "openrouter") return null;
+  // never overridden (see block comment above) \u2014 with ONE exception: the
+  // degenerate case where the picked story model IS the support model.
+  //
+  // Run 4848aa03 ("Das Regal mit dem schiefen Knopf") shipped that way: all 11
+  // LLM calls of the run went to openai/gpt-5.6-luna. The same model invented
+  // the premise, wrote the beat sheet, wrote the prose, rewrote the prose in
+  // the polish pass AND then graded the result 8.1/10 against Donaldson and
+  // Nordqvist. Two independent quality mechanisms collapse at once there:
+  //   1. the final prose is written at support-tier quality, and
+  //   2. the validator grades its own output, which is the one review setup
+  //      known to be systematically generous (it cannot see the register it
+  //      does not have).
+  // Writer != critic is the cheapest quality lever in the whole pipeline, so a
+  // writer/critic collision is corrected even on the "user picked it" path.
+  // A DIFFERENT explicit OpenRouter pick \u2014 including a deliberately cheap one \u2014
+  // is still respected untouched.
+  if (config.aiProvider === "openrouter") {
+    const selectedOpenRouter = normalizeOpenRouterModel(resolveSelectedOpenRouterStoryModel(config)).toLowerCase();
+    const supportModel = DEV_MODE_SUPPORT_MODEL.toLowerCase();
+    if (!selectedOpenRouter || selectedOpenRouter !== supportModel) return null;
+    return {
+      modelOverride: DEFAULT_OPENROUTER_STORY_MODEL,
+      providerOverride: "openrouter",
+      openRouterModelOverride: DEFAULT_OPENROUTER_STORY_MODEL,
+    };
+  }
   const selected = String(resolveConfiguredStoryModel(config) || config.aiModel || "").toLowerCase();
   if (!selected) return null;
   // Already the upgrade target \u2014 nothing to do.
@@ -14614,7 +14696,23 @@ export async function generateStoryDevMode(
     // repeating the same mistake (log 734d7ae5: expansion pass tanked the
     // dialogue share, got rejected, and the run shipped with failed gates).
     let lastRejectedPolishFeedback: any = null;
-    for (let validationAttempt = 0; validationAttempt <= DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS; validationAttempt += 1) {
+    // Repair-budget accounting.
+    //
+    // The budget used to be spent by LOOP INDEX, which quietly guaranteed that
+    // stories with an open form gate never received a craft repair at all. Run
+    // 4848aa03: iteration 0 skipped validation (story 70 words over budget) and
+    // spent the single polish slot on shortening the text — a pass that also
+    // deleted the planned refrain and the antagonist's only real beat.
+    // Iteration 1 then produced the actual verdict (8.1, six dimensions under
+    // their premium floor, four named must-fixes) and immediately hit the loop
+    // cap, so that verdict was logged and thrown away.
+    //
+    // A polish round that ran WITHOUT a verdict is a form repair, not a quality
+    // repair, and must not consume the quality budget. Counting the two kinds
+    // separately costs one extra call only on stories that actually failed.
+    let polishAttemptsSpent = 0;
+    let blindPolishAttemptsSpent = 0;
+    for (let validationAttempt = 0; validationAttempt <= DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS + 1; validationAttempt += 1) {
       applyCurrentStoryTextAutofixes(`validation-attempt-${validationAttempt + 1}`);
       let validatorFindings: any | undefined;
       const shouldSkipValidation = validationAttempt === 0 && skipInitialValidationForLocalGates;
@@ -14628,7 +14726,7 @@ export async function generateStoryDevMode(
         const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed!, finalDiagnostics);
         try {
           const validationStage = await runStage("final-validation", validationPrompts, {
-            maxTokens: 1800,
+            maxTokens: DEV_MODE_FINAL_VALIDATION_MAX_TOKENS,
             temperature: 0.1,
             timeoutMs: 120_000,
             ...supportCallOptions,
@@ -14728,9 +14826,12 @@ export async function generateStoryDevMode(
       const goodEnoughToStop = !hasLocalHardIssues
         && validatorMaterialFailures.length === 0
         && currentScore >= DEV_MODE_DIMINISHING_RETURNS_SCORE;
+      // Blind (pre-verdict) rounds refund their slot, so the validator-driven
+      // repair the premium gate is built around always gets to run once.
+      const polishBudget = DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS + blindPolishAttemptsSpent;
       const shouldAttemptStoryPolish =
         (
-          validationAttempt < DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS
+          polishAttemptsSpent < polishBudget
           // A rejected polish prepares `lastRejectedPolishFeedback` for one
           // informed retry — but with the attempt cap at 1 that retry could
           // never run and the pipeline shipped the unpolished draft with
@@ -14759,6 +14860,9 @@ export async function generateStoryDevMode(
         break;
       }
 
+      polishAttemptsSpent += 1;
+      if (!validatorFindings) blindPolishAttemptsSpent += 1;
+
       const currentParsed: DevModeRawStory = finalParsed;
       const currentDiagnostics: DevModeStoryDiagnostics = finalDiagnostics;
       // Measured once per repair round, free, and handed to whichever pass runs
@@ -14769,14 +14873,28 @@ export async function generateStoryDevMode(
       // carried, finale owned by the heroes) plus the validator's own verdict
       // that was previously only logged — which page has no laugh, and which
       // measured dimension sits under its premium floor.
+      const currentDeterministicCraftIssues = collectCraftIssues(input, currentParsed, beatSheet);
       const currentCraftIssues = [
-        ...collectCraftIssues(input, currentParsed, beatSheet),
+        ...currentDeterministicCraftIssues,
         ...buildValidatorCraftIssues({
           humorPerPage: validatorFindings?.humorPerPage,
           dimensionScores: validatorFindings?.dimensionScores,
           dimensionFloors: DEV_MODE_CRAFT_ADVISORY_DIMENSION_FLOORS,
         }),
       ];
+      // Craft-regression guard for whatever repair runs below.
+      //
+      // Until now the craft findings were an INPUT to a repair pass and nothing
+      // ever checked the pass's output against them. That is how run 4848aa03
+      // shipped without its refrain: the polish pass was briefed on the craft
+      // findings, trimmed the story to hit the word gate, and in doing so
+      // deleted "Knopf, komm raus, zack!" from all three of its positions —
+      // rewriting the finale instance into an explanatory sentence. Every form
+      // gate went green, so the result was accepted.
+      const craftRegressionsFor = (candidate: DevModeRawStory): CraftIssue[] => {
+        const before = new Set(currentDeterministicCraftIssues.map((issue) => issue.code));
+        return collectCraftIssues(input, candidate, beatSheet).filter((issue) => !before.has(issue.code));
+      };
       if (currentCraftIssues.length > 0) {
         console.warn("[dev-mode-generation] craft findings handed to this repair pass", {
           validationAttempt: validationAttempt + 1,
@@ -15080,14 +15198,17 @@ export async function generateStoryDevMode(
           const punchupSeverity = diagnosticsSeverityScore(punchupDiagnostics, chapterCount, input.config);
           const introducedHardIssue =
             punchupDiagnostics.hardIssueCount > currentDiagnostics.hardIssueCount;
+          const punchupCraftRegressions = craftRegressionsFor(punchupResult.story);
           const locallyAcceptable =
             !introducedHardIssue
+            && punchupCraftRegressions.length === 0
             && (
               punchupSeverity <= currentSeverity + 40
               || punchupDiagnostics.softIssueCount < currentDiagnostics.softIssueCount
             );
           if (!locallyAcceptable) {
             console.warn("[dev-mode-generation] Line-punchup rejected by deterministic diagnostics", {
+              craftRegressions: punchupCraftRegressions.map((issue) => issue.code),
               currentSeverity,
               punchupSeverity,
               hardIssueCountBefore: currentDiagnostics.hardIssueCount,
@@ -15184,30 +15305,38 @@ export async function generateStoryDevMode(
           polishedDiagnostics.hardIssues.some((issue) => pattern.test(issue))
           && !currentDiagnostics.hardIssues.some((issue) => pattern.test(issue))
         );
+        // A rewrite that trades the read-aloud spine for a percentage is not a
+        // repair. Treated exactly like a critical new hard issue so the
+        // informed-retry path below gets to fix it.
+        const polishCraftRegressions = craftRegressionsFor(polishedParsed);
         const locallyAcceptable =
-          polishedDiagnostics.hardIssueCount === 0
-          || (
-            // Softened acceptance: if polish strictly REDUCES the hard-issue
-            // count and doesn't introduce a critical new issue, accept it
-            // even if severity ticks up slightly (severity weighs soft issues
-            // and length penalties; we prioritise eliminating hard gates).
-            polishedDiagnostics.hardIssueCount < currentDiagnostics.hardIssueCount
-            && !introducedCriticalHardIssue
-          )
-          || (
-            polishedSeverity < currentSeverity
-            && polishedDiagnostics.hardIssueCount <= currentDiagnostics.hardIssueCount
-            && polishedDiagnostics.dialogPct >= Math.max(0, currentDiagnostics.dialogPct - 0.5)
-            && !introducedCriticalHardIssue
-          )
-          || (
-            currentDiagnostics.hardIssueCount === 0
-            && polishedDiagnostics.hardIssueCount === 0
-            && polishedSeverity <= currentSeverity + 120
+          polishCraftRegressions.length === 0
+          && (
+            polishedDiagnostics.hardIssueCount === 0
+            || (
+              // Softened acceptance: if polish strictly REDUCES the hard-issue
+              // count and doesn't introduce a critical new issue, accept it
+              // even if severity ticks up slightly (severity weighs soft issues
+              // and length penalties; we prioritise eliminating hard gates).
+              polishedDiagnostics.hardIssueCount < currentDiagnostics.hardIssueCount
+              && !introducedCriticalHardIssue
+            )
+            || (
+              polishedSeverity < currentSeverity
+              && polishedDiagnostics.hardIssueCount <= currentDiagnostics.hardIssueCount
+              && polishedDiagnostics.dialogPct >= Math.max(0, currentDiagnostics.dialogPct - 0.5)
+              && !introducedCriticalHardIssue
+            )
+            || (
+              currentDiagnostics.hardIssueCount === 0
+              && polishedDiagnostics.hardIssueCount === 0
+              && polishedSeverity <= currentSeverity + 120
+            )
           );
 
         if (!locallyAcceptable) {
           console.warn("[dev-mode-generation] Full-story polish rejected by deterministic diagnostics", {
+            craftRegressions: polishCraftRegressions.map((issue) => issue.code),
             currentSeverity,
             polishedSeverity,
             hardIssueCountBefore: currentDiagnostics.hardIssueCount,
@@ -15221,7 +15350,7 @@ export async function generateStoryDevMode(
           // polish attempts unchanged; this only converts a wasted exit
           // into one informed retry (log 734d7ae5 shipped a failed-gate
           // story while a near-release rewrite was thrown away here).
-          if (validationAttempt < DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS) {
+          if (polishAttemptsSpent <= polishBudget) {
             const newCriticalIssues = polishedDiagnostics.hardIssues.filter(
               (issue) => !currentHardIssueKeys.has(normalizeNoveltyText(issue))
             );
@@ -15231,9 +15360,14 @@ export async function generateStoryDevMode(
               afterWords: polishedDiagnostics.totalWords,
               beforeDialogPct: currentDiagnostics.dialogPct,
               afterDialogPct: polishedDiagnostics.dialogPct,
-              instruction: newCriticalIssues.length > 0
-                ? `Your previous rewrite introduced: ${newCriticalIssues.slice(0, 3).join(" | ")}. Fix the original issues WITHOUT introducing these.`
-                : "Your previous rewrite regressed overall severity. Keep every passing gate passing while fixing the named issues.",
+              instruction: polishCraftRegressions.length > 0
+                // Named first: a lost refrain or motif is the failure mode that
+                // silently costs the most and that a form-only retry brief
+                // would never mention.
+                ? `Your previous rewrite destroyed craft the story had already earned: ${polishCraftRegressions.map((issue) => issue.message).slice(0, 2).join(" | ")}. Fix the named form issues WITHOUT removing it — the refrain, the recurring motif and the heroes' ownership of the finale are load-bearing and must survive verbatim.`
+                : newCriticalIssues.length > 0
+                  ? `Your previous rewrite introduced: ${newCriticalIssues.slice(0, 3).join(" | ")}. Fix the original issues WITHOUT introducing these.`
+                  : "Your previous rewrite regressed overall severity. Keep every passing gate passing while fixing the named issues.",
             };
             repairSelfReflections.push({
               attempt: validationAttempt + 1,
@@ -15785,7 +15919,7 @@ export async function generateStoryDevMode(
       try {
         const validationPrompts = buildValidationPrompts(input, chapterCount, finalParsed, finalDiagnostics);
         const validationStage = await runStage("final-validation", validationPrompts, {
-          maxTokens: 1800,
+          maxTokens: DEV_MODE_FINAL_VALIDATION_MAX_TOKENS,
           temperature: 0.1,
           timeoutMs: 120_000,
           ...supportCallOptions,

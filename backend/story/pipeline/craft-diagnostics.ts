@@ -144,6 +144,62 @@ export function pagesCarryingPhrase(chapters: CraftChapter[], phrase: string): n
   return pages;
 }
 
+/** Share of a refrain's word sequence a page must reproduce in order to count. */
+const REFRAIN_SPOKEN_TOKEN_SHARE = 0.6;
+/** Below this many matched words in a row, a "hit" is coincidence, not a refrain. */
+const REFRAIN_SPOKEN_MIN_TOKENS = 2;
+
+function phraseTokens(phrase: string): string[] {
+  return normalizeForStems(phrase).split(/\s+/).filter(Boolean);
+}
+
+/**
+ * Pages on which the refrain is actually SPOKEN — a contiguous run of its words
+ * in their planned order, allowing the tail or head to be dropped.
+ *
+ * `pagesCarryingPhrase` above is stem-based and deliberately fuzzy so a
+ * deliberate refrain inversion still counts. That fuzziness has a hole big
+ * enough to drive a whole book through, because the refrain contract asks for a
+ * SHORT chantable line and the stemmer only keeps words of 5+ characters:
+ * "Knopf, komm raus, zack!" reduces to the single stem "knopf". In run 4848aa03
+ * every page mentioned the Knopf, so the check reported the refrain present on
+ * 5 of 5 pages while the shipped text contained it exactly zero times — the
+ * polish pass had rewritten the one surviving instance into "Knopf, komm
+ * heraus. Du hast lange genug gewartet." and nothing noticed.
+ *
+ * This measure cannot be fooled that way: it needs the words, in order.
+ * Calibration (both production fixtures speak their refrain on exactly one
+ * page) is in craft-diagnostics.test.ts.
+ */
+export function pagesSpeakingRefrain(chapters: CraftChapter[], phrase: string): number {
+  const refrainTokens = phraseTokens(phrase);
+  if (refrainTokens.length === 0) return 0;
+  const required = Math.min(
+    refrainTokens.length,
+    Math.max(REFRAIN_SPOKEN_MIN_TOKENS, Math.ceil(refrainTokens.length * REFRAIN_SPOKEN_TOKEN_SHARE))
+  );
+  let pages = 0;
+  for (const chapter of chapters) {
+    const pageTokens = phraseTokens(chapter.content);
+    let longestRun = 0;
+    for (let pageIndex = 0; pageIndex < pageTokens.length && longestRun < required; pageIndex += 1) {
+      for (let refrainIndex = 0; refrainIndex < refrainTokens.length; refrainIndex += 1) {
+        let run = 0;
+        while (
+          pageIndex + run < pageTokens.length
+          && refrainIndex + run < refrainTokens.length
+          && pageTokens[pageIndex + run] === refrainTokens[refrainIndex + run]
+        ) {
+          run += 1;
+        }
+        if (run > longestRun) longestRun = run;
+      }
+    }
+    if (longestRun >= required) pages += 1;
+  }
+  return pages;
+}
+
 function namePresent(content: string, name: string): boolean {
   const normalizedName = normalizeForStems(name);
   if (!normalizedName) return false;
@@ -165,7 +221,21 @@ export function analyzeStoryCraft(input: CraftAnalysisInput): CraftIssue[] {
   const refrain = String(input.refrainLine || "").trim();
   if (refrain) {
     const pages = pagesCarryingPhrase(chapters, refrain);
-    if (pages < REFRAIN_MIN_PAGES) {
+    const spokenPages = pagesSpeakingRefrain(chapters, refrain);
+    if (spokenPages === 0) {
+      // The severe case: the line was planned, the prose never says it. A
+      // read-aloud book without its own chantable line has lost the single
+      // feature that makes a child ask for it again.
+      issues.push({
+        code: "refrain-missing",
+        message: `Refrain "${refrain}" wurde geplant, wird aber auf KEINER Leseseite tatsächlich gesprochen.`,
+        repairHint:
+          `Setze den Refrain "${refrain}" wortwörtlich als eigene kurze Zeile in den Mund einer Figur — `
+          + "einmal früh, einmal unter Druck in der Mitte, einmal im Finale mit neuer Bedeutung. "
+          + "Er gehört einer Figur, nicht dem Erzähler, und darf nicht zu einem erklärenden Satz umgeschrieben werden. "
+          + "Ersetze dafür bestehende schwache Sätze; die Geschichte darf nicht länger werden.",
+      });
+    } else if (pages < REFRAIN_MIN_PAGES) {
       issues.push({
         code: "refrain-missing",
         message: `Refrain "${refrain}" wurde geplant, taucht aber nur auf ${pages} von ${chapters.length} Leseseiten auf.`,
