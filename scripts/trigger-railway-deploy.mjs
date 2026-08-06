@@ -36,15 +36,21 @@ async function main() {
       authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
-      // serviceInstanceDeploy, NOT serviceInstanceRedeploy. The latter replays
+      // serviceInstanceDeployV2, NOT serviceInstanceRedeploy. The latter replays
       // the previous deployment together with the image it was built from, so
       // it never picks up a changed source. That is why production kept
-      // serving ':test-main' for days after its source had been corrected to
-      // ':latest' — every redeploy faithfully re-ran the stale image and
-      // reported success. serviceInstanceDeploy creates a new deployment from
-      // the source the service is currently configured with.
-      query: `mutation ServiceInstanceDeploy($environmentId: String!, $serviceId: String!) {
-  serviceInstanceDeploy(environmentId: $environmentId, serviceId: $serviceId)
+      // serving ':test-main' from 2026-07-28 to 2026-08-06 after its source had
+      // been corrected to ':latest' — every redeploy faithfully re-ran the same
+      // digest and reported success. V2 creates a new deployment from the
+      // source the service is currently configured with.
+      //
+      // The plain `serviceInstanceDeploy` this replaced is no longer part of
+      // the Railway schema at all, so the call failed with "Cannot query field"
+      // and no push to main reached production between those two dates.
+      // It returns the new deployment's id (String!), which is logged below so
+      // a run can be traced back to a specific deployment.
+      query: `mutation ServiceInstanceDeployV2($environmentId: String!, $serviceId: String!) {
+  serviceInstanceDeployV2(environmentId: $environmentId, serviceId: $serviceId)
 }`,
       variables: {
         environmentId,
@@ -60,7 +66,15 @@ async function main() {
     throw new Error(`Railway deploy failed: ${message}`);
   }
 
-  console.log('Railway deployment triggered successfully.');
+  const deploymentId = body.data?.serviceInstanceDeployV2;
+  if (!deploymentId) {
+    throw new Error(
+      'Railway deploy returned no deployment id. The mutation reported no error, '
+      + 'so treat this as "nothing was deployed" rather than success.'
+    );
+  }
+
+  console.log(`Railway deployment triggered successfully: ${deploymentId}`);
 }
 
 main().catch((err) => {
