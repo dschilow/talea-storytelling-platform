@@ -41,6 +41,7 @@ import {
   DEFAULT_OPENROUTER_STORY_MODEL,
 } from "./openrouter-generation";
 import { selectLockedSupportingCast } from "./pipeline/cast-lock";
+import { collectStakeOwnerDrift } from "./pipeline/stake-owner";
 import { isOpenRouterFamilyModel, resolveConfiguredStoryModel, GEMINI_MAIN_STORY_MODEL } from "./pipeline/model-routing";
 import { getReferenceFewshotBlock } from "./pipeline/reference-fewshot";
 import type { StoryConfig, AIProvider } from "./generate";
@@ -379,6 +380,7 @@ import {
   analyzeStoryCraft,
   buildCraftRepairBrief,
   buildValidatorCraftIssues,
+  pagesSpeakingRefrain,
   type CraftIssue,
 } from "./pipeline/craft-diagnostics";
 
@@ -680,6 +682,18 @@ export interface DevModeGenerationInput {
   disableArtifactSelection?: boolean;
   /** Skip motif/artifact persistence while still keeping generation and stage logging intact. */
   disablePersistenceSideEffects?: boolean;
+  /**
+   * The refrain the beat sheet locked, threaded onto `input` once the plan is
+   * final so the deterministic story diagnostics can gate on it.
+   *
+   * A refrain is not decoration — it is the single feature that makes a child
+   * ask for the same book again ("Gruffalo? Was ist ein Gruffalo?"). The
+   * pipeline plans one on every story, and until now nothing checked that the
+   * prose still contained it: run 4848aa03 planned "Knopf, komm raus, zack!",
+   * used it three times in the draft, and shipped a text containing it zero
+   * times after a polish pass traded it for word count.
+   */
+  lockedRefrainLine?: string;
 }
 
 /**
@@ -6917,6 +6931,19 @@ function validatePersonalCostContract(beatSheet: any): string[] {
   return issues;
 }
 
+/**
+ * Contract drift between the locked idea and the beat sheet. Thin wrapper over
+ * the Encore-free implementation in `pipeline/stake-owner.ts`, which carries the
+ * rationale and the run 4848aa03 worked example.
+ */
+function validateStakeOwnerContract(beatSheet: any, input: DevModeGenerationInput): string[] {
+  return collectStakeOwnerDrift({
+    lockedEmotionalEngine: String(input.selectedIdea?.emotionalEngine || ""),
+    beatSheet,
+    heroNames: (input.avatars || []).map((a) => a.name).filter(Boolean),
+  });
+}
+
 function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): string[] {
   const issues: string[] = [];
   const isCharacterLifeStory = input.config.contentType === "character_life";
@@ -6951,6 +6978,7 @@ function validateBeatSheet(beatSheet: any, input: DevModeGenerationInput): strin
   // named object so the cost is planted and paid off — not just asserted.
   if ((input.qualityMode || "premium") === "premium" && !isCharacterLifeStory) {
     issues.push(...validatePersonalCostContract(beatSheet));
+    issues.push(...validateStakeOwnerContract(beatSheet, input));
   }
   const helper = String(beatSheet?.act2?.helperComplicates || "");
   if (/(explain|erklaer|erklär|loesung|lösung|solution|tells them|sagt ihnen)/i.test(helper)) {
@@ -11373,6 +11401,36 @@ function analyzeDevModeStoryQuality(
     hardIssues.push(castIssue);
   }
 
+  // Refrain gate (premium). The pipeline plans a chantable line for every story
+  // and spends prompt budget on it in the draft, the polish and the validation
+  // brief — but until now nothing checked the delivered text. A read-aloud book
+  // whose refrain never survives contact with a repair pass has lost the one
+  // feature that makes a child ask for it again, and no form gate can see it.
+  //
+  // `pagesSpeakingRefrain` requires the planned words in their planned order, so
+  // a deliberate variation still counts and a story that merely keeps
+  // mentioning the central noun does not. Zero pages is the only trigger:
+  // anything above that is a craft finding (see pipeline/craft-diagnostics.ts),
+  // not a release blocker.
+  const plannedRefrain = String(input.lockedRefrainLine || "").trim();
+  if (plannedRefrain && (input.qualityMode || "premium") === "premium") {
+    const craftChapters = story.chapters.map((chapter) => ({
+      order: Number(chapter.order),
+      content: String(chapter.content || ""),
+    }));
+    if (pagesSpeakingRefrain(craftChapters, plannedRefrain) === 0) {
+      hardIssues.push(
+        `Geplanter Refrain "${plannedRefrain}" wird in der Story auf keiner Leseseite gesprochen; `
+        + "er ist der Vorlese-Magnet und muss woertlich in einer Figurenzeile stehen."
+      );
+      polishInstructions.push(
+        `Setze den Refrain "${plannedRefrain}" woertlich als eigene kurze Zeile in eine Figurenrede: `
+        + "einmal frueh, einmal unter Druck in der Mitte, einmal im Finale mit neuer Bedeutung. "
+        + "Nicht zu einem erklaerenden Satz umformulieren, nicht dem Erzaehler geben."
+      );
+    }
+  }
+
   // v11 §7: pool/helper characters must not directly explain the solution.
   // Soft by default; HARD in premium when the violation appears in 2+
   // chapters OR in any finale-adjacent chapter (last two).
@@ -13184,6 +13242,19 @@ export async function generateStoryDevMode(
         // A clearly strong local audit makes the second LLM judge redundant.
         // Ambiguous or borderline candidates still go through the semantic
         // potential-filter call, preserving the premium safety net.
+        //
+        // ...except in premium, where the fast path was answering the wrong
+        // question. The local audit is a keyword heuristic: it gives
+        // irreversibleMiddlePotential +1.2 for containing "opfer|verlier|
+        // verzicht|zerbroch" and merges the model's own marketing of its own
+        // ideas on top (capped at heuristic + 1.0). It cannot see whether a
+        // wonder rule is PLAYABLE by a child — which is exactly what run
+        // 4848aa03 got wrong: the chosen premise's puzzle mechanic ("the label
+        // moves to the hook you touched last") had nothing to do with its
+        // stated wonder rule, and the middle of the book ran on a rule the
+        // reader was never taught. The premise is the one decision no later
+        // stage can repair, so premium pays ~$0.002 for a semantic verdict on
+        // it. Efficient mode keeps the fast path.
         const localPotentialFilter = normalizePotentialFilterResult(
           {},
           potentialFilterCandidates,
@@ -13193,7 +13264,8 @@ export async function generateStoryDevMode(
         const localChosenAudit = localPotentialFilter.candidateAudits.find(
           (audit) => audit.id === localPotentialFilter.chosenIdeaId
         );
-        if (localChosenAudit && hasStrongLocalPotentialMargin(localChosenAudit.scores)) {
+        const allowLocalFastPath = (input.qualityMode || "premium") !== "premium";
+        if (allowLocalFastPath && localChosenAudit && hasStrongLocalPotentialMargin(localChosenAudit.scores)) {
           screenplayPlan = { ...(screenplayPlan || {}), potentialFilter: localPotentialFilter };
           selectedIdea = selectedIdeaFromPotentialFilter(localPotentialFilter, ideaCandidates, input.poolCharacters);
           recordLocalStage("potential-filter", {
@@ -13715,6 +13787,15 @@ export async function generateStoryDevMode(
       if (blocking.length > 0) {
         throw new Error(`Beat-sheet gate failed before prose: ${blocking.join(" | ")}`);
       }
+    }
+
+    // The plan is final here. Thread the locked refrain onto `input` so every
+    // later call of analyzeDevModeStoryQuality — there are twenty of them, on
+    // every draft, repair candidate and final refresh — can gate on it without
+    // a signature change.
+    const lockedRefrainLine = String(beatSheet?.refrainLine || loglineEngine?.refrainLine || "").trim();
+    if (lockedRefrainLine) {
+      input = { ...input, lockedRefrainLine };
     }
 
     const sceneCardPrompts = buildSceneCardPrompts(input, beatSheet);
