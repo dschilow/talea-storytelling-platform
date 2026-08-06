@@ -227,11 +227,17 @@ jobs:
         with:
           node-version: 22
 
+      # Literals rather than secrets — see the rationale in deploy-railway.yml.
+      # Note the service id is the SAME as production's: a forked Railway
+      # environment shares its parent's service ids, and only the environment id
+      # tells the two apart. A wrong environment id here therefore deploys the
+      # test image straight into production.
+      # test environment d3454a91…, service "backend 2" 2a42848f….
       - name: Trigger Railway deployment to TEST environment
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
-          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID_TEST }}
-          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID_TEST }}
+          RAILWAY_ENVIRONMENT_ID: d3454a91-d573-4e9b-9d54-febf697e1533
+          RAILWAY_SERVICE_ID: 2a42848f-e07b-422e-ba25-961a13df61f6
         run: node scripts/trigger-railway-deploy.mjs
 
       - name: Deployment Summary

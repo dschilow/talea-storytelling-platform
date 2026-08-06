@@ -241,11 +241,19 @@ jobs:
       # image reached production, not merely ghcr.io. See the 2026-07-31
       # incident where production served a :test-main image for three days
       # while every run here reported success.
+      # The two ids are NOT credentials — Railway puts them in every dashboard
+      # URL and they are useless without the token. Keeping them as repository
+      # secrets is what allowed this step to fail for nine days: the
+      # RAILWAY_SERVICE_ID secret still held a value from 2025-10-16 pointing at
+      # a service that no longer exists, and nobody could see that, because a
+      # secret's value cannot be read back. As literals they are reviewable in a
+      # diff and travel with the branch. Only the token stays a secret.
+      # production environment 7a7f74fa…, service "backend 2" 2a42848f….
       - name: Trigger Railway deployment
         env:
           RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
-          RAILWAY_ENVIRONMENT_ID: ${{ secrets.RAILWAY_ENVIRONMENT_ID }}
-          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+          RAILWAY_ENVIRONMENT_ID: 7a7f74fa-422e-45a4-aeb4-f51f20eaad05
+          RAILWAY_SERVICE_ID: 2a42848f-e07b-422e-ba25-961a13df61f6
         run: node scripts/trigger-railway-deploy.mjs
 
       - name: Deployment Summary

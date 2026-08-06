@@ -63,7 +63,17 @@ async function main() {
 
   if (!response.ok || body.errors) {
     const message = body.errors?.map((err) => err.message).join('; ') || response.statusText;
-    throw new Error(`Railway deploy failed: ${message}`);
+    // Name the ids. "ServiceInstance not found" is indistinguishable from a
+    // permission problem unless you can see what was actually asked for, and
+    // that ambiguity cost nine days once already. Neither id is a credential.
+    throw new Error(
+      `Railway deploy failed: ${message} `
+      + `(environmentId=${environmentId}, serviceId=${serviceId}). `
+      + 'If the ids are right, the token cannot see them: a Railway project '
+      + 'token is scoped to ONE environment, so a token minted for the test '
+      + 'environment reports production as "not found". A personal account '
+      + 'token covers every environment the account can access.'
+    );
   }
 
   const deploymentId = body.data?.serviceInstanceDeployV2;
