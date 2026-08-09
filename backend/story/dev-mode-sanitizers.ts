@@ -621,8 +621,23 @@ const SACRIFICE_PATTERN = /\b(?:gab|gebe|gibt|geben|gib)\b.{0,48}\b(?:her|weg|ab
 // Both signals must appear in the SAME chapter window to stay precise:
 // a placement verb with a container preposition AND an explicit loss
 // confirmation.
-const SACRIFICE_PLACEMENT_PATTERN = /\b(?:legte|steckte|stopfte|schob|klemmte)\b.{0,80}\b(?:in|zwischen|unter)\b/i;
-const SACRIFICE_LOSS_CONFIRMATION_PATTERN = /\b(?:war|ist|blieb)\s+(?:fort|weg|verloren)\b|\bleere[nr]?\s+hand\b|\bnie\s+wieder\b|\bkam\s+nicht\s+(?:wieder|zur(?:ue|ü)ck)\b/i;
+// "drückte" joined the placement verbs and the loss confirmation grew a
+// "the gap it left" branch after run 3a1dbd51 ("Die ungeduldige Flickkarte"):
+// Alexander tears his childhood keepsake out of his sewing book and presses it
+// under the seam — "Er riss es heraus. Er drückte es unter die neue Naht. […]
+// Das leere Loch im Heft starrte ihn an. Er schluckte. 'Es fehlt', sagte
+// Adrian." That is the clearest sacrifice the pipeline has produced, and the
+// detector reported "kein persönlicher Einsatz": the placement verb was
+// missing, and "das leere Loch" / "es fehlt" was not a recognised loss.
+// The false negative capped the score at 8.4 and sent three repair rounds
+// looking for a sacrifice that was already on the page.
+const SACRIFICE_PLACEMENT_PATTERN = /\b(?:legte|steckte|stopfte|schob|klemmte|dr(?:ü|ue)ckte|presste)\b.{0,80}\b(?:in|zwischen|unter)\b/i;
+const SACRIFICE_LOSS_CONFIRMATION_PATTERN = /\b(?:war|ist|blieb)\s+(?:fort|weg|verloren)\b|\bleere[nrs]?\s+(?:hand|loch|stelle|platz)\b|\bnie\s+wieder\b|\bkam\s+nicht\s+(?:wieder|zur(?:ue|ü)ck)\b|\b(?:es\s+)?fehlt\b|\bfehlende[nrs]?\b|\bausgefranst\w*\b/i;
+
+// Extraction sacrifice: the child pulls a loved object OUT of the place it
+// belongs so it can be spent elsewhere. "riss ... ab/auf/los" was covered by
+// the destruction branch; "riss ... heraus/hervor/aus" was not.
+const SACRIFICE_EXTRACT_PATTERN = /\b(?:riss|zog|nahm|holte|trennte)\b.{0,40}\b(?:heraus|hervor|raus|aus\s+(?:dem|der|seinem|seiner|ihrem|ihrer))\b/i;
 
 // Throw-away sacrifice (run 3db9b3b0 "Bibliothek der beinahe ausgesprochenen
 // Geheimnisse": "Dann warf er den Notizblock. Weit in die Dunkelheit." — the
@@ -695,6 +710,7 @@ export function detectStructureSignals(
     return SACRIFICE_PATTERN.test(lower)
       || SACRIFICE_KEYWORDS.some((kw) => lower.includes(kw))
       || (SACRIFICE_PLACEMENT_PATTERN.test(lower) && SACRIFICE_LOSS_CONFIRMATION_PATTERN.test(lower))
+      || (SACRIFICE_EXTRACT_PATTERN.test(lower) && SACRIFICE_LOSS_CONFIRMATION_PATTERN.test(lower))
       || SACRIFICE_THROW_PATTERN.test(lower)
       || (SACRIFICE_DESTROY_PATTERN.test(lower) && SACRIFICE_DESTROY_CONFIRMATION_PATTERN.test(lower))
       || (SACRIFICE_RELEASE_PATTERN.test(lower) && SACRIFICE_RELEASE_CONFIRMATION_PATTERN.test(lower));

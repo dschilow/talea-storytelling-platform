@@ -255,6 +255,17 @@ const DEV_MODE_CRAFT_ADVISORY_DIMENSION_FLOORS: Record<string, number> = {
  * while lenient ones fit comfortably.
  */
 const DEV_MODE_FINAL_VALIDATION_MAX_TOKENS = 4200;
+/**
+ * How far under the word floor a draft must land before it is worth paying for
+ * a second draft instead of the normal repair path.
+ *
+ * A 20-40 word miss is what the cheap deterministic and single-page repairs are
+ * for. A miss of this size means whole scene beats were summarised away, and no
+ * amount of line-level repair puts them back — run 3a1dbd51 proved that at a
+ * cost of $0.050 across four repair calls that ended 14 words shorter than they
+ * started.
+ */
+const DEV_MODE_DRAFT_RETRY_MIN_SHORTFALL_WORDS = 90;
 const DEV_MODE_MAX_VALIDATION_POLISH_ATTEMPTS = 1;
 // See "Diminishing-returns brake" at the validation-polish loop: once a
 // story clears all hard gates and scores at/above this, further validation
@@ -445,6 +456,7 @@ type DevModePipelineStage =
   | "repair-router"
   | "chapter-repair"
   | "story-polish"
+  | "story-polish-noop"
   | "line-punchup"
   | "final-validation"
   | "image-scene-plan"
@@ -1011,6 +1023,22 @@ function hashString(input: string): number {
 
 function pickNovelty<T>(items: T[], seed: number, offset: number): T {
   return items[(seed + offset * 9973) % items.length];
+}
+
+/**
+ * Content fingerprint of a story, used to detect a repair that changed nothing.
+ *
+ * Deliberately ignores punctuation, casing and whitespace so a pass that only
+ * re-flowed paragraphs or normalised quotes still counts as a no-op — those are
+ * things the deterministic autofixes do for free and are not worth another
+ * writer-model round.
+ */
+function storyTextFingerprint(story: DevModeRawStory): string {
+  return (story.chapters || [])
+    .slice()
+    .sort((a, b) => Number(a.order) - Number(b.order))
+    .map((chapter) => normalizeNoveltyText(String(chapter.content || "")))
+    .join(" | ");
 }
 
 function normalizeNoveltyText(value: string): string {
@@ -8265,6 +8293,15 @@ interface DevModeWholeStoryDraft {
   paragraphs: string[];
 }
 
+/** Words of actual prose in a draft, used by the draft-length retry gate. */
+function countWholeStoryDraftWords(draft: DevModeWholeStoryDraft): number {
+  return (draft?.paragraphs || [])
+    .join(" ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+}
+
 function extractProseFallback(
   content: string
 ): { title: string; description: string; paragraphs: string[]; titleSource: "field" | "first-paragraph" | "synthetic" } | null {
@@ -14328,6 +14365,76 @@ export async function generateStoryDevMode(
         }
       }
     }
+    // Draft-length retry. The draft is the ONLY point where adding words is
+    // cheap: the writer still has the whole plan in context and has not yet
+    // committed to a text it will defend.
+    //
+    // Run 3a1dbd51 shows what happens without this. The draft came back at 665
+    // words against a 900-word floor, and the pipeline then spent one
+    // dialogue-rebalance and THREE story-polish calls — $0.050, two thirds of
+    // the story's entire LLM bill — trying to buy back 235 words after the
+    // fact. It never got them: the last two polishes returned the text
+    // unchanged, because a model asked to expand its own finished prose in a
+    // brief that also demands a dialogue quota, a paragraph count, a sentence
+    // ceiling and four craft fixes will simply decide the text is done.
+    //
+    // One retry against the plan is cheaper than that whole chain and produces
+    // real scenes instead of padding. It fires only on a clear shortfall so a
+    // draft that lands slightly under target still goes straight to the normal
+    // (and much cheaper) repair path.
+    const draftWordCount = countWholeStoryDraftWords(wholeStoryDraft);
+    const draftWordBounds = getStoryWordBounds(input.config);
+    const draftShortfall = draftWordBounds.min - draftWordCount;
+    if (draftShortfall >= DEV_MODE_DRAFT_RETRY_MIN_SHORTFALL_WORDS) {
+      console.warn("[dev-mode-generation] Whole-story draft is materially short; retrying once against the plan", {
+        draftWordCount,
+        floor: draftWordBounds.min,
+        target: `${draftWordBounds.targetMin}-${draftWordBounds.targetMax}`,
+        shortfall: draftShortfall,
+      });
+      try {
+        const expansionPrompts = buildWholeStoryDraftPrompts(input, chapterCount, blueprint, critique, screenplayPlan);
+        const retryStage = await runStage("whole-story-draft", {
+          systemPrompt: expansionPrompts.systemPrompt,
+          userPrompt: [
+            expansionPrompts.userPrompt,
+            "",
+            `LENGTH CORRECTION (binding): a previous attempt at this exact story came back at ${draftWordCount} words, which is ${draftShortfall} short of the ${draftWordBounds.min}-word floor and well under the ${draftWordBounds.targetMin}-${draftWordBounds.targetMax} target.`,
+            "Do not pad. Write the SAME story with the scenes actually played out: each of the three movements gets its beats staged rather than summarised — the action shown step by step, the sensory consequence on the page, and the exchanges spoken instead of reported.",
+            "A scene that reads like a list of short summary sentences is the failure this correction exists to fix.",
+          ].join("\n"),
+        }, {
+          maxTokens: devModeStoryDraftMaxTokens(input.config, compactDraftMode, true),
+          temperature: 0.86,
+          timeoutMs: devModeStoryDraftTimeoutMs(input.config, true),
+          modelRole: "selected-story",
+        });
+        const retryDraft = parseWholeStoryDraft(retryStage.provider.content);
+        const retryWordCount = countWholeStoryDraftWords(retryDraft);
+        // Keep whichever attempt is closer to the floor. A retry that comes
+        // back even shorter is discarded rather than trusted for being newer.
+        if (retryWordCount > draftWordCount) {
+          wholeStoryDraft = retryDraft;
+          wholeStoryStage = retryStage;
+          console.log("[dev-mode-generation] Draft-length retry accepted", {
+            before: draftWordCount,
+            after: retryWordCount,
+            floor: draftWordBounds.min,
+          });
+        } else {
+          console.warn("[dev-mode-generation] Draft-length retry was not longer; keeping the original draft", {
+            before: draftWordCount,
+            retry: retryWordCount,
+          });
+        }
+      } catch (retryError) {
+        // Never fatal: a short draft is a repairable story, a thrown error is not.
+        console.warn("[dev-mode-generation] Draft-length retry failed; continuing with the short draft", {
+          error: retryError instanceof Error ? retryError.message : String(retryError),
+        });
+      }
+    }
+
     // Once the selected writer has returned an empty completion because it hit
     // its output ceiling, chapter-repair retries on that same writer are pure
     // latency/cost with no new prose. Route the current and later scoped
@@ -15357,6 +15464,33 @@ export async function generateStoryDevMode(
         const polishedAutofix = applyDeterministicStoryTextAutofixes(polishedParsed, input);
         if (polishedAutofix.changed) {
           polishedParsed = polishedAutofix.story;
+        }
+        // No-op guard. A repair that returns its own input is not a repair, and
+        // asking again produces the same answer at the same price.
+        //
+        // Run 3a1dbd51 paid for THREE story-polish calls against kimi-k2.6 and
+        // got byte-identical prose back every time: the brief demanded +114
+        // words to clear the 800-word floor, the model judged the text already
+        // finished, and returned it unchanged. That was $0.045 — 53% of the
+        // whole story's LLM bill — for zero characters of difference. Worse,
+        // the acceptance check then reported "your previous rewrite regressed
+        // overall severity" (before 786 words / 26.7%, after 786 / 26.7%),
+        // which is false and sent the retry chasing a problem it had not
+        // caused.
+        if (storyTextFingerprint(polishedParsed) === storyTextFingerprint(currentParsed)) {
+          console.warn("[dev-mode-generation] Full-story polish returned unchanged text; ending repair loop", {
+            attempt: validationAttempt + 1,
+            words: currentDiagnostics.totalWords,
+            openHardIssues: currentDiagnostics.hardIssues,
+          });
+          recordLocalStage("story-polish-noop", {
+            attempt: validationAttempt + 1,
+            words: currentDiagnostics.totalWords,
+            hint: "The writer model considers the text final. Repeating the same brief cannot change that.",
+            openHardIssues: currentDiagnostics.hardIssues,
+          });
+          lastRejectedPolishFeedback = null;
+          break;
         }
         const polishedDiagnostics = analyzeDevModeStoryQuality(polishedParsed, input, chapterCount);
         const polishedSeverity = diagnosticsSeverityScore(polishedDiagnostics, chapterCount, input.config);
