@@ -167,8 +167,25 @@ export function buildDraftUserPrompt(input: DraftStageInput): string {
     (figure) => !input.heroes.some((hero) => hero.name.split(/\s+/)[0] === String(figure.name || "").split(/\s+/)[0])
   );
   if (figuresNeedingIntro.length > 0) {
-    lines.push("BEIM ERSTEN AUFTRITT sagt EIN Satz mitten in der Handlung, wer die Figur ist:");
-    for (const figure of figuresNeedingIntro) lines.push(`- ${figure.name}: ${figure.werSieSind}`);
+    // Hand over the FACTS, never a finished sentence.
+    //
+    // This block used to print `werSieSind` verbatim — "Räuber Rolf trägt eine
+    // Augenklappe, eine geflickte Lederweste und einen rostigen Krummsäbel" —
+    // under the heading "one sentence says who the figure is". A model given a
+    // complete, correct sentence and told to write one sentence copies it. Run
+    // 6683b402 pasted five such lines into a past-tense story, present tense
+    // and all, and every one of them stopped the narration dead.
+    lines.push("DIESE FIGUREN KENNT DAS KIND NOCH NICHT. Führ jede über eine HANDLUNG ein, nie über einen Steckbrief.");
+    lines.push("  Die Merkmale unten sind Material, kein Satz. Verwende sie nicht als eigenen Vorstellungssatz,");
+    lines.push("  sondern arbeite sie in das ein, was die Figur beim ersten Auftritt tut oder sagt.");
+    lines.push("  Verboten ist jeder Satz der Form „<Name> ist ein …“ oder „<Name> trägt …“.");
+    for (const figure of figuresNeedingIntro) {
+      const traits = String(figure.werSieSind || "")
+        .replace(/^\s*(?:Der |Die |Das )?[^,]*?\b(?:ist|sind|trägt|hat)\b\s*/i, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      lines.push(`- ${figure.name} — Merkmale: ${traits || figure.werSieSind}`);
+    }
     lines.push("");
   }
 

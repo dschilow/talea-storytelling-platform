@@ -15,7 +15,7 @@
  *      is what turned the old engine's prose into ping-pong fragments.
  */
 
-import { CAUSAL_CONNECTIVES } from "./style-contract";
+import { CAUSAL_CONNECTIVES, SUBORDINATING_CONNECTIVES } from "./style-contract";
 import type { CheckIssue, CheckReport, KidLogicCard, StorybookPage } from "./types";
 import type { LengthBudget } from "./style-contract";
 
@@ -191,6 +191,16 @@ export function checkPlan(card: KidLogicCard | null, budget: LengthBudget): Chec
 // ---------------------------------------------------------------------------
 
 const CONNECTIVE_RE = new RegExp(`\\b(${CAUSAL_CONNECTIVES.join("|")})\\b`, "i");
+const SUBORDINATING_RE = new RegExp(`\\b(${SUBORDINATING_CONNECTIVES.join("|")})\\b`, "i");
+
+/**
+ * A present-tense "X ist ein …" / "X trägt …" sentence whose subject is a
+ * capitalised name — the shape of a character sheet copied into past-tense
+ * prose. Matches the whole sentence, so an in-scene "Das ist ein Trick!" (short,
+ * spoken) does not trip it: the tail has to be descriptive.
+ */
+const CHARACTER_SHEET_RE =
+  /^[„"']?\s*(?:Der |Die |Das )?[A-ZÄÖÜ][\wäöüß]+(?:\s+[A-ZÄÖÜ][\wäöüß]+)?\s+(?:ist\s+(?:ein|eine|der|die|das)\s|trägt\s+(?:ein|eine|einen)\s)[^.!?]{25,}[.!?]$/;
 const FORBIDDEN_ENDINGS = [
   /sie lernten,? dass/i,
   /das größte geschenk/i,
@@ -294,6 +304,39 @@ export function checkProse(input: ProseCheckInput): CheckReport {
         message: `Seite ${page.order}: ${paragraphsWithoutConnective.length} von ${paragraphs.length} Absätzen enthalten kein Verbindungswort (weil/deshalb/also/aber/denn). Die Handlung wirkt wie eine Aufzählung.`,
         page: page.order,
       });
+    }
+
+    // …and the ceiling. A floor without one is an instruction to write every
+    // sentence as "action, weil reason" — which is exactly what run 6683b402
+    // did: 21 subordinate clauses in 1087 words, mean sentence length 18 in a
+    // band contracted for 9–14. Every one of those sentences passed the gate
+    // above. A read-aloud text carries its causality in the ORDER of events;
+    // the conjunction is the exception, not the default.
+    const subordinated = sentences.filter((sentence) => SUBORDINATING_RE.test(sentence));
+    if (sentences.length >= 6 && subordinated.length > Math.ceil(sentences.length * 0.4)) {
+      issues.push({
+        code: "causal_tic",
+        severity: "hard",
+        message: `Seite ${page.order}: ${subordinated.length} von ${sentences.length} Sätzen hängen an „weil/denn/damit“. Höchstens jeder dritte Satz darf einen solchen Nebensatz tragen — sonst klingt jeder Satz gleich und der Vorlese-Rhythmus ist weg. Zeig die Ursache stattdessen durch die Reihenfolge: erst die Ursache, dann die Folge, zwei kurze Hauptsätze.`,
+        page: page.order,
+      });
+    }
+
+    // Character sheets pasted into the prose. The plan hands the writer a
+    // `werSieSind` line in the present tense ("Räuber Rolf trägt eine
+    // Augenklappe …"); told to introduce the figure in one sentence, the model
+    // takes the shortest path and copies it. Run 6683b402 did this five times —
+    // in a past-tense story — and no gate saw it.
+    for (const sentence of sentences) {
+      const dump = CHARACTER_SHEET_RE.exec(sentence);
+      if (!dump) continue;
+      issues.push({
+        code: "character_sheet_dump",
+        severity: "hard",
+        message: `Seite ${page.order}: „${sentence.trim().slice(0, 90)}…“ ist ein Steckbrief im Präsens, kein Erzählsatz. Stell die Figur durch eine Handlung vor und arbeite das Aussehen in die Bewegung ein.`,
+        page: page.order,
+      });
+      break;
     }
 
     // Fragment staccato — the single worst habit of the previous engine.

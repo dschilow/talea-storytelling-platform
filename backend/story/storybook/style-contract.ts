@@ -98,6 +98,32 @@ export const CAUSAL_CONNECTIVES = [
 ] as const;
 
 /**
+ * The subset that costs something to use: each one opens a subordinate clause
+ * and pushes the verb to the end, so the sentence grows a tail.
+ *
+ * These need a CEILING, not just a floor. Run 6683b402 ("Alexander und das
+ * stumme Baumwesen") is what a floor alone produces: the writer, told that
+ * every paragraph must carry a connective and measured on it, put one in
+ * essentially every sentence — "denn er wollte …", "weil er trotz der Gefahr …",
+ * "damit sie weiterlaufen konnten", twenty-one of them in 1087 words. The story
+ * passed the causality gate and became unreadable aloud: mean sentence length
+ * ~18 words in a band whose contract says 9 to 14.
+ *
+ * `aber`, `dann`, `also`, `deshalb` stay out of this list — they join two main
+ * clauses and keep the rhythm short.
+ */
+export const SUBORDINATING_CONNECTIVES = [
+  "weil",
+  "denn",
+  "damit",
+  "obwohl",
+  "sodass",
+  "weshalb",
+  "nachdem",
+  "sobald",
+] as const;
+
+/**
  * The style block. Kept under ~2k characters — the writer must be able to hold
  * all of it while writing, not tick it off afterwards.
  */
@@ -114,11 +140,16 @@ export function buildStyleContract(band: AgeBand, budget: LengthBudget, language
     bandNote,
     "",
     `1. Satzlänge: im Schnitt ${budget.sentenceAvgWords} Wörter. Manche kürzer, einer auch mal länger. Der Wechsel ist der Rhythmus, nicht die Kürze.`,
-    "2. In JEDEM Absatz steht mindestens ein Verbindungswort: weil, deshalb, also, da, aber, denn, damit, dann, sonst, bevor. Ein Kind muss hören, WARUM etwas passiert — nicht nur, DASS es passiert.",
+    "2. In jedem Absatz muss ein Kind hören, WARUM etwas passiert — aber höchstens jeder dritte Satz darf ein „weil/denn/damit“ tragen.",
+    "   Meistens zeigst du die Ursache ohne Nebensatz: erst die Ursache, dann die Folge, zwei kurze Hauptsätze.",
+    "   Zu viel: „Er steckte die Pfeife ein, weil Rolf sie sonst genommen hätte.“ … „Er lief los, damit die Leute ihn bemerkten.“ … „Sie hielt an, denn der Bach stieg.“",
+    "   Besser: „Rolf griff nach der Pfeife. Alexander steckte sie weg.“ Das Kind hört das Warum, ohne dass du es sagst.",
     `3. Höchstens ${budget.maxNewNamesPerPage} neue Namen pro Leseseite.`,
-    "4. Jede Figur bekommt beim ersten Auftritt EINEN Satz mitten in der Handlung, der sagt, wer sie ist.",
-    "   Falsch: „Die Nebelhexe lehnte an einer Wurzel.“",
-    "   Richtig: „Die Nebelhexe, die im Dorf jedem die Schnürsenkel verknotete, lehnte an einer Wurzel.“",
+    "4. Jede Figur wird beim ersten Auftritt DURCH EINE HANDLUNG vorgestellt, nicht durch einen Steckbrief.",
+    "   Verboten: „Räuber Rolf trägt eine Augenklappe, eine geflickte Lederweste und einen rostigen Krummsäbel.“ Das ist ein Datenblatt, kein Satz einer Geschichte — und es steht im falschen Tempus.",
+    "   Verboten ist jeder Satz der Form „X ist ein …“ / „X trägt …“ als eigener Vorstellungssatz.",
+    "   Richtig: „Ein Mann mit Augenklappe sprang aus dem Gebüsch und hielt seinen rostigen Säbel quer über den Weg. ‚Weggebühr!‘, rief Räuber Rolf.“",
+    "   Das Aussehen kommt in die Bewegung. Der Name kommt, wenn die Figur etwas tut oder sagt.",
     "5. Verboten: Ketten aus Ein-Wort-Sätzen („Schwarz. Stumm. Tot.“). Das ist Erwachsenen-Thriller, kein Kinderbuch. Höchstens ein Satzfragment pro Seite, und nur wenn es wirklich knallt.",
     "6. Gefühle zeigst du am Körper und an der Handlung, nie am Etikett. Nicht „er war nervös“, sondern „seine Hand wurde feucht“.",
     "7. Nur echte, geläufige Wörter. Keine erfundenen Komposita. Wenn ein Siebenjähriger ein Wort nicht kennt, nimm das einfachere.",

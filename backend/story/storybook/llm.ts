@@ -40,6 +40,8 @@ export {
 export const STORYBOOK_SUPPORT_MODEL = "openai/gpt-5.6-luna";
 /** Used only after the normal support model returned no usable completion. */
 export const STORYBOOK_SUPPORT_FALLBACK_MODEL = "google/gemini-3.5-flash-lite";
+/** Writer floor when the wizard's pick collides with the support model. */
+export const STORYBOOK_WRITER_FLOOR_MODEL = "moonshotai/kimi-k2.6";
 
 const SUPPORT_TIMEOUT_MS = 120_000;
 const WRITER_TIMEOUT_MS = 240_000;
@@ -105,12 +107,31 @@ function estimateCost(model: string, promptTokens: number, completionTokens: num
 }
 
 /** Resolves the wizard-selected prose model. Support tasks never use this. */
+/**
+ * The prose model, floored so the writer is never also the judge.
+ *
+ * This pipeline runs `plan`, `judge` and `image-prompts` on
+ * STORYBOOK_SUPPORT_MODEL. When the wizard's story model resolves to that same
+ * model, one model writes the prose and then grades it — and it grades itself
+ * generously. That exact collision produced the 6.5/10 verdict inflated to 8.1
+ * in the old engine (audit 2026-08-06) and reappeared here: run 6683b402 was
+ * written, judged and line-edited entirely by luna for $0.005, and the prose is
+ * the weakest the project has shipped in weeks.
+ *
+ * Only the collision is corrected. Any other explicit wizard choice stands.
+ */
 export function resolveWriterModel(config: StoryConfig): string {
-  return resolveConfiguredStoryModel({
+  const configured = resolveConfiguredStoryModel({
     aiProvider: config.aiProvider,
     aiModel: config.aiModel,
     openRouterModel: config.openRouterModel,
   });
+  if (configured !== STORYBOOK_SUPPORT_MODEL) return configured;
+  console.warn("[storybook/llm] writer model equals the support model; flooring so the writer is not its own judge", {
+    configured,
+    floored: STORYBOOK_WRITER_FLOOR_MODEL,
+  });
+  return STORYBOOK_WRITER_FLOOR_MODEL;
 }
 
 async function callOpenRouter(input: {

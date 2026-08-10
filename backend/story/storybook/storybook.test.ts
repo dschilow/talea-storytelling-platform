@@ -7,6 +7,7 @@
  * ever sees the same telling twice, so they are the pieces worth pinning down.
  */
 
+// @ts-ignore Bun exposes this runtime-only test helper without Node typings.
 import { describe, expect, test } from "bun:test";
 
 import {
@@ -29,7 +30,10 @@ import type { JudgeAnswers, KidLogicCard, StorybookPage } from "./types";
 const BUDGET = resolveLengthBudget("medium", "6-8");
 
 describe("storybook image references", () => {
-  test("resolves a private collage before sending it to the image provider", async () => {
+  test("resolves a private collage and keeps the portraits alongside it", async () => {
+    // The collage leads (identityContract maps frame colours to "reference
+    // image 1"), but it must never travel alone: run 6683b402 sent one collage
+    // per image and the model painted the frame grid into every illustration.
     const selection = await selectProviderReferences({
       collageUrl: "bucket://talea/images/collages/cast.png",
       directUrls: ["https://cdn.example/alexander.png", "https://cdn.example/adrian.png"],
@@ -37,9 +41,26 @@ describe("storybook image references", () => {
     });
 
     expect(selection).toEqual({
-      urls: ["https://backend.example/story/image?key=cast.png"],
+      urls: [
+        "https://backend.example/story/image?key=cast.png",
+        "https://cdn.example/alexander.png",
+        "https://cdn.example/adrian.png",
+      ],
       usesCollage: true,
     });
+  });
+
+  test("drops portraits the provider cannot read, keeping the collage", async () => {
+    const selection = await selectProviderReferences({
+      collageUrl: "bucket://talea/images/collages/cast.png",
+      directUrls: ["bucket://talea/private/alexander.png", "https://cdn.example/adrian.png"],
+      resolveUrl: async () => "https://backend.example/story/image?key=cast.png",
+    });
+
+    expect(selection.urls).toEqual([
+      "https://backend.example/story/image?key=cast.png",
+      "https://cdn.example/adrian.png",
+    ]);
   });
 
   test("never forwards an unresolved private bucket URI", async () => {
@@ -281,6 +302,69 @@ describe("prose gate", () => {
     ].join("\n");
     const report = checkProse({ pages: [page(1, connected)], budget: BUDGET, card: validCard(), knownNames: ["Ben"] });
     expect(report.hard.some((issue) => issue.code === "no_causality")).toBe(false);
+  });
+
+  test("run 6683b402: a because-clause on every sentence is a hard failure", () => {
+    // Verbatim from "Alexander und das stumme Baumwesen", which passed the
+    // causality floor on every page and was unreadable aloud because of it.
+    const tic = [
+      "Alexander hielt seine kleine Trillerpfeife fest, denn er wollte die Warnung noch vor dem Fest ins Dorf bringen.",
+      "",
+      "Neben ihm tanzte Adrian über den Weg, weil er trotz der Gefahr schnell bleiben wollte.",
+      "",
+      "Alexander steckte die Pfeife ein, weil Rolf sie sonst vielleicht nehmen würde.",
+      "",
+      "Rolf grinste, denn er wollte selbst als Retter gefeiert werden.",
+      "",
+      "Das Baumwesen stemmte die Hände unter den Deich, weil der Weg zum Dorf versperrt war.",
+      "",
+      "Alexander nahm Adrian an der Hand, damit sie weiterlaufen konnten.",
+    ].join("\n");
+    const report = checkProse({ pages: [page(1, tic)], budget: BUDGET, card: validCard(), knownNames: ["Alexander", "Adrian", "Rolf", "Baumwesen"] });
+    expect(report.hard.some((issue) => issue.code === "causal_tic")).toBe(true);
+  });
+
+  test("prose that shows cause through order still passes both causality gates", () => {
+    // The floor wants a connective in most paragraphs; the ceiling wants the
+    // heavy ones to stay rare. Light connectives (aber, also, dann) satisfy the
+    // first without triggering the second — that is the writing lane both gates
+    // are pointing at.
+    const good = [
+      "Rolf griff nach der Pfeife, aber Alexander steckte sie weg.",
+      "",
+      "Der Bach stieg über das Ufer, also rannten die beiden zur Brücke.",
+      "",
+      "Das Baumwesen hob den Deich an. Dann war gerade genug Platz für zwei Kinder.",
+      "",
+      "Adrian rutschte, aber Alexander hielt ihn fest.",
+      "",
+      "Oben schlug die erste Glocke an. Dann blieb sie stumm.",
+      "",
+      "Alexander zählte bis drei, weil er den Takt brauchte.",
+    ].join("\n");
+    const report = checkProse({ pages: [page(1, good)], budget: BUDGET, card: validCard(), knownNames: ["Alexander", "Adrian", "Rolf", "Baumwesen"] });
+    expect(report.hard.some((issue) => issue.code === "causal_tic")).toBe(false);
+    expect(report.hard.some((issue) => issue.code === "no_causality")).toBe(false);
+  });
+
+  test("run 6683b402: a character sheet pasted into the prose is a hard failure", () => {
+    const dump = [
+      "Da trat Räuber Rolf vor den Weg. Räuber Rolf trägt eine Augenklappe, eine geflickte Lederweste und einen rostigen Krummsäbel.",
+      "",
+      "Er schielte nach links, aber der Weg blieb frei, weil niemand ihn aufhielt.",
+    ].join("\n");
+    const report = checkProse({ pages: [page(1, dump)], budget: BUDGET, card: validCard(), knownNames: ["Rolf"] });
+    expect(report.hard.some((issue) => issue.code === "character_sheet_dump")).toBe(true);
+  });
+
+  test("a figure introduced through action is not mistaken for a character sheet", () => {
+    const woven = [
+      "Ein Mann mit Augenklappe sprang aus dem Gebüsch und hielt seinen rostigen Säbel quer über den Weg.",
+      "",
+      "„Weggebühr!“, rief Räuber Rolf, aber seine Lederweste rutschte ihm dabei über die Schulter.",
+    ].join("\n");
+    const report = checkProse({ pages: [page(1, woven)], budget: BUDGET, card: validCard(), knownNames: ["Rolf"] });
+    expect(report.hard.some((issue) => issue.code === "character_sheet_dump")).toBe(false);
   });
 
   test("a moral ending is a hard failure", () => {
