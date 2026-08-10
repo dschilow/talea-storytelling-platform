@@ -22,10 +22,38 @@ import {
   resolveStorybookReasoning,
 } from "./llm-guards";
 import { evaluateJudgeAnswers, parseDraft, resolveTargetPages } from "./parsing";
+import { isProviderReadableReference, selectProviderReferences } from "./image-references";
 import { normalizeAgeBand, resolveLengthBudget } from "./style-contract";
 import type { JudgeAnswers, KidLogicCard, StorybookPage } from "./types";
 
 const BUDGET = resolveLengthBudget("medium", "6-8");
+
+describe("storybook image references", () => {
+  test("resolves a private collage before sending it to the image provider", async () => {
+    const selection = await selectProviderReferences({
+      collageUrl: "bucket://talea/images/collages/cast.png",
+      directUrls: ["https://cdn.example/alexander.png", "https://cdn.example/adrian.png"],
+      resolveUrl: async () => "https://backend.example/story/image?key=cast.png",
+    });
+
+    expect(selection).toEqual({
+      urls: ["https://backend.example/story/image?key=cast.png"],
+      usesCollage: true,
+    });
+  });
+
+  test("never forwards an unresolved private bucket URI", async () => {
+    const directUrls = ["https://cdn.example/alexander.png", "https://cdn.example/adrian.png"];
+    const selection = await selectProviderReferences({
+      collageUrl: "bucket://talea/images/collages/cast.png",
+      directUrls,
+      resolveUrl: async (url) => url,
+    });
+
+    expect(selection).toEqual({ urls: directUrls, usesCollage: false });
+    expect(isProviderReadableReference("bucket://talea/private.png")).toBe(false);
+  });
+});
 
 describe("provider response guards", () => {
   test("gpt-5 support calls receive an explicit minimal reasoning budget", () => {

@@ -16,6 +16,7 @@ import { mapWithConcurrency } from "../../helpers/asyncPool";
 import { resolveImageUrlForClient } from "../../helpers/bucket-storage";
 import { buildSpriteCollage, FRAME_COLORS, type CollageSlot } from "../pipeline/sprite-collage";
 import { callSupport, parseJsonObject, type LlmCallResult } from "./llm";
+import { selectProviderReferences } from "./image-references";
 import type { KidLogicCard, StorybookCastMember, StorybookHero, StorybookPage } from "./types";
 
 const STORYBOOK_IMAGE_MODEL = "runware:400@4";
@@ -216,18 +217,26 @@ export async function generateStorybookImages(input: StorybookImageInput): Promi
     console.warn("[storybook/images] reference build failed:", err);
   }
 
-  let referenceUrls = references.map((entry) => entry.resolvedUrl);
+  const directReferenceUrls = references.map((entry) => entry.resolvedUrl);
+  let referenceUrls = directReferenceUrls;
   let collagePositions: Array<{ displayName: string; color: { name: string } }> | undefined;
   if (references.length >= 2) {
     try {
       const slots: CollageSlot[] = references.map((entry) => ({ imageUrl: entry.resolvedUrl, displayName: entry.name }));
       const collage = await buildSpriteCollage(slots);
       if (collage?.collageUrl) {
-        referenceUrls = [collage.collageUrl];
-        collagePositions = collage.positions.map((position) => ({
-          displayName: position.displayName,
-          color: { name: position.color?.name || FRAME_COLORS[0].name },
-        }));
+        const providerReferences = await selectProviderReferences({
+          collageUrl: collage.collageUrl,
+          directUrls: directReferenceUrls,
+          resolveUrl: resolveImageUrlForClient,
+        });
+        referenceUrls = providerReferences.urls;
+        if (providerReferences.usesCollage) {
+          collagePositions = collage.positions.map((position) => ({
+            displayName: position.displayName,
+            color: { name: position.color?.name || FRAME_COLORS[0].name },
+          }));
+        }
       }
     } catch (err) {
       console.warn("[storybook/images] collage failed, falling back to direct references:", err);
