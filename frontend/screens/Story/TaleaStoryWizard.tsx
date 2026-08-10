@@ -81,6 +81,7 @@ interface WizardState {
   aiProvider: AIProvider;
   openRouterModel: OpenRouterStoryModel;
   developerMode: boolean;
+  storybookMode: boolean;
   /** Schatzkammer: owned artifact taken along into this story (Mitnehmen-Loop). */
   broughtArtifact: BroughtArtifactSelection | null;
 }
@@ -333,6 +334,7 @@ export default function TaleaStoryWizard() {
     aiProvider: 'openrouter',
     openRouterModel: DEFAULT_OPENROUTER_STORY_MODEL,
     developerMode: false,
+    storybookMode: false,
     broughtArtifact: null,
   });
   const lastAppliedProfileRef = React.useRef<string | null>(null);
@@ -671,6 +673,11 @@ export default function TaleaStoryWizard() {
                   <FlaskConical className="h-3 w-3" /> Dev Mode
                 </span>
               )}
+              {state.storybookMode && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/60 bg-emerald-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                  <BookOpen className="h-3 w-3" /> Bilderbuch
+                </span>
+              )}
             </div>
             <h1 className="mt-3 text-[1.85rem] leading-[0.98] text-[var(--talea-text-primary)] sm:text-[2.25rem]" style={{ fontFamily: headingFont }}>
               Neue Geschichte
@@ -757,8 +764,16 @@ interface Step0ModeSelectionProps {
   updateState: (updates: Partial<WizardState>) => void;
 }
 
+type GenerationLane = 'standard' | 'storybook' | 'developer';
+
 function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
-  const select = (developerMode: boolean) => updateState({ developerMode });
+  const activeLane: GenerationLane = state.developerMode
+    ? 'developer'
+    : state.storybookMode
+      ? 'storybook'
+      : 'standard';
+  const select = (lane: GenerationLane) =>
+    updateState({ developerMode: lane === 'developer', storybookMode: lane === 'storybook' });
   const cardBase =
     'flex w-full flex-col gap-3 rounded-2xl border p-5 text-left transition-all duration-200 hover:scale-[1.01]';
   const cardSelected =
@@ -777,22 +792,23 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
         </h2>
         <p className={cn(taleaBodyFont, 'mt-2 text-sm text-[var(--talea-text-secondary)]')}>
           Wähle den Modus. Im Normalmodus läuft die volle Talea-Pipeline mit allen Avataren,
-          Erinnerungen, Stilbausteinen und Bildern. Der Developer Mode testet die fokussierte
-          Qualitäts-Pipeline ohne Story-DNA, Artefakte, Bilder oder Avatar-Mutationen.
+          Erinnerungen, Stilbausteinen und Bildern. Der Bilderbuch-Modus ist die neue Pipeline
+          für echte Vorlesequalität. Der Developer Mode testet die fokussierte Qualitäts-Pipeline
+          ohne Story-DNA, Artefakte, Bilder oder Avatar-Mutationen.
         </p>
       </div>
 
       <button
         type="button"
-        onClick={() => select(false)}
-        className={cn(cardBase, !state.developerMode ? cardSelected : cardIdle)}
+        onClick={() => select('standard')}
+        className={cn(cardBase, activeLane === 'standard' ? cardSelected : cardIdle)}
       >
         <div className="flex items-center gap-3">
           <Sparkles className="h-6 w-6 text-[var(--primary)]" />
           <span className="text-lg font-semibold text-[var(--talea-text-primary)]">
             Normaler Modus
           </span>
-          {!state.developerMode && (
+          {activeLane === 'standard' && (
             <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[var(--primary)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--primary)]">
               <Check className="h-3 w-3" /> Aktiv
             </span>
@@ -806,8 +822,39 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
 
       <button
         type="button"
-        onClick={() => select(true)}
-        className={cn(cardBase, state.developerMode ? cardSelected : cardIdle)}
+        onClick={() => select('storybook')}
+        className={cn(cardBase, activeLane === 'storybook' ? cardSelected : cardIdle)}
+      >
+        <div className="flex items-center gap-3">
+          <BookOpen className="h-6 w-6 text-[var(--primary)]" />
+          <span className="text-lg font-semibold text-[var(--talea-text-primary)]">
+            Bilderbuch-Modus
+          </span>
+          <span className="inline-flex items-center rounded-full border border-emerald-400/60 bg-emerald-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+            Neu
+          </span>
+          {activeLane === 'storybook' && (
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[var(--primary)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--primary)]">
+              <Check className="h-3 w-3" /> Aktiv
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-[var(--talea-text-secondary)]">
+          Auf Verständlichkeit gebaut: fester roter Faden, sichtbare Regel, ein Laufgag und ein
+          Refrain zum Mitsprechen. Ein Verständnis-Test liest die fertige Geschichte gegen und
+          prüft, ob ein Kind ihr wirklich folgen kann. Mit Charakter-Pool, Fundstück, Bildern und
+          Avatar-Entwicklung.
+        </p>
+        <p className="text-xs italic text-[var(--talea-text-tertiary)]">
+          Eine Schreib-Anfrage statt sieben Überarbeitungen — schneller, deutlich günstiger, und
+          jede Geschichte zieht eine neue Variante, damit sich nichts wiederholt.
+        </p>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => select('developer')}
+        className={cn(cardBase, activeLane === 'developer' ? cardSelected : cardIdle)}
       >
         <div className="flex items-center gap-3">
           <FlaskConical className="h-6 w-6 text-[var(--primary)]" />
@@ -817,7 +864,7 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
           <span className="inline-flex items-center rounded-full border border-amber-400/60 bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
             Test
           </span>
-          {state.developerMode && (
+          {activeLane === 'developer' && (
             <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[var(--primary)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--primary)]">
               <Check className="h-3 w-3" /> Aktiv
             </span>
@@ -911,6 +958,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic',
     },
     developerMode: state.developerMode || undefined,
+    storybookMode: state.storybookMode || undefined,
     broughtArtifact:
       state.broughtArtifact && state.selectedAvatars.includes(state.broughtArtifact.avatarId)
         ? {

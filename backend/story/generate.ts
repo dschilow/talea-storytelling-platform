@@ -3,6 +3,7 @@ import { secret } from "encore.dev/config";
 import { generateStoryContent } from "./ai-generation";
 import { generateStoryDevMode, pickDevModePoolCharacters, recordDevModePoolCharacterUsage } from "./dev-mode-generation";
 import { generateStoryStandardMode } from "./standard-mode-generation";
+import { generateStoryStorybookMode } from "./storybook-mode-generation";
 import { isOpenRouterCreditLimitError } from "./openrouter-generation";
 import type { Avatar, InventoryItem, Skill } from "../avatar/avatar";
 import { avatar } from "~encore/clients";
@@ -212,6 +213,14 @@ export interface StoryConfig {
 
   // Prompt pipeline version. V8 enables the new two-pass blueprint flow.
   promptVersion?: StoryPromptVersion;
+
+  // Storybook Mode (storybook-v1): the third, independent generation lane.
+  // Hand-written premise bank + Kinderlogik-Karte + ONE writer call + a
+  // zero-context comprehension judge. Optimised for a child actually following
+  // the story, and for ~4 cents instead of ~12. Support tasks run on
+  // gpt-5.6-luna; the prose model stays whatever the wizard selected.
+  // Does not touch developerMode or the standard path.
+  storybookMode?: boolean;
 
   // Developer Mode: bypass all enrichment (visual profiles, memories, DNA,
   // character pool, artifacts, style packs) and generate from a minimal prompt
@@ -706,7 +715,28 @@ export const generate = api<GenerateStoryRequest, Story>(
       let generatedStory: any;
       let pipelineResult: Awaited<ReturnType<StoryPipelineOrchestrator["run"]>> | undefined;
 
-      if (config.developerMode === true) {
+      if (config.storybookMode === true) {
+        // Storybook lane (storybook-v1). Fully independent of the dev-mode and
+        // standard engines — nothing below this branch is shared with them.
+        console.log("[story.generate] 📖 STORYBOOK MODE (storybook-v1) — premise bank + Kinderlogik-Karte + one writer call + comprehension judge");
+        generatedStory = await generateStoryStorybookMode({
+          config,
+          userId: currentUserId,
+          storyId: id,
+          heroes: avatarDetails.map((a) => ({
+            id: a.id,
+            name: a.name,
+            age: (a as any).age ?? null,
+            description: a.description,
+            imageUrl: a.imageUrl,
+            visualProfile: a.visualProfile,
+            physicalTraits: a.physicalTraits,
+            personalityTraits: a.personalityTraits,
+            narrativeProfile: (a as any).narrativeProfile,
+          })),
+          primaryProfileAge: primaryProfile.age,
+        });
+      } else if (config.developerMode === true) {
         console.log("[story.generate] 🧪 DEVELOPER MODE — adaptive polish cost-optimized quality path (support model for planning/judging, selected model for prose, images enabled, NO personality updates)");
 
         // Auto-cast: load the active character pool and pick supporting cast
@@ -1009,7 +1039,11 @@ export const generate = api<GenerateStoryRequest, Story>(
       const devModeStages = Array.isArray(generatedStory.metadata?.devModeStages)
         ? generatedStory.metadata.devModeStages
         : [];
-      const stagePipelinePhase = config.developerMode === true ? "dev-mode-generation" : "standard-mode-generation";
+      const stagePipelinePhase = config.storybookMode === true
+        ? "storybook-mode-generation"
+        : config.developerMode === true
+          ? "dev-mode-generation"
+          : "standard-mode-generation";
       const devModeCostEntries = devModeStages.length > 0
         ? devModeStages
             .map((stage: any) => {
