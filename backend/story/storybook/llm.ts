@@ -3,7 +3,7 @@
  *
  * Two roles, on purpose:
  *
- *   SUPPORT  — always gpt-5.6-luna. Planning, judging, developments. Cheap,
+ *   SUPPORT  — normally gpt-5.6-luna. Planning, judging, developments. Cheap,
  *              strong enough for structured JSON, and after the 2026-07-31
  *              price cut the best reasoning-per-dollar in the catalogue.
  *   WRITER   — whatever the wizard selected. The prose voice stays a product
@@ -24,15 +24,32 @@ import { generateWithGemini, isGeminiConfigured } from "../gemini-generation";
 import { resolveConfiguredStoryModel } from "../pipeline/model-routing";
 import type { StoryConfig } from "../generate";
 import type { StorybookStageLog } from "./types";
+import {
+  extractStorybookChoiceContent,
+  isTruncatedFinishReason,
+  resolveStorybookReasoning,
+} from "./llm-guards";
+
+export {
+  extractStorybookChoiceContent,
+  isTruncatedFinishReason,
+  resolveStorybookReasoning,
+} from "./llm-guards";
 
 /** Fixed for every support task in this pipeline. */
 export const STORYBOOK_SUPPORT_MODEL = "openai/gpt-5.6-luna";
+/** Used only after the normal support model returned no usable completion. */
+export const STORYBOOK_SUPPORT_FALLBACK_MODEL = "openai/gpt-5.4-mini";
+
+const SUPPORT_TIMEOUT_MS = 120_000;
+const WRITER_TIMEOUT_MS = 240_000;
 
 export interface LlmCallResult {
   text: string;
   modelUsed: string;
   usage: { prompt: number; completion: number; total: number; costUSD: number };
   durationMs: number;
+  finishReason?: string;
 }
 
 export class CostLedger {
@@ -103,22 +120,51 @@ async function callOpenRouter(input: {
   json: boolean;
   maxTokens: number;
   temperature?: number;
+  timeoutMs?: number;
 }): Promise<LlmCallResult> {
   const started = Date.now();
-  const { data, model } = await callOpenRouterChatCompletion({
-    messages: [
-      { role: "system", content: input.system },
-      { role: "user", content: input.user },
-    ],
-    model: input.model,
-    responseFormat: input.json ? "json_object" : "text",
-    maxTokens: input.maxTokens,
-    temperature: input.temperature,
-    reasoning: { exclude: true },
-    includeReasoning: false,
-  });
+  const controller = new AbortController();
+  const timeoutMs = input.timeoutMs ?? SUPPORT_TIMEOUT_MS;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  const text = String(data?.choices?.[0]?.message?.content || "");
+  let response: Awaited<ReturnType<typeof callOpenRouterChatCompletion>>;
+  try {
+    response = await callOpenRouterChatCompletion({
+      messages: [
+        { role: "system", content: input.system },
+        { role: "user", content: input.user },
+      ],
+      model: input.model,
+      responseFormat: input.json ? "json_object" : "text",
+      maxTokens: input.maxTokens,
+      temperature: input.temperature,
+      reasoning: resolveStorybookReasoning(input.model),
+      includeReasoning: false,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if ((err as any)?.name === "AbortError") {
+      throw new Error(`[storybook/llm] ${input.model} timed out after ${timeoutMs / 1000}s.`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const { data, model } = response;
+  const choice = data?.choices?.[0];
+  const finishReason = String(choice?.finish_reason || "unknown");
+  const text = extractStorybookChoiceContent(choice);
+  if (!text) {
+    throw new Error(
+      `[storybook/llm] Empty response from ${model} (finish_reason=${finishReason}, completion_tokens=${Number(data?.usage?.completion_tokens) || 0}).`
+    );
+  }
+  if (isTruncatedFinishReason(finishReason)) {
+    throw new Error(
+      `[storybook/llm] Truncated response from ${model} (finish_reason=${finishReason}, max_tokens=${input.maxTokens}).`
+    );
+  }
   const promptTokens = Number(data?.usage?.prompt_tokens) || 0;
   const completionTokens = Number(data?.usage?.completion_tokens) || 0;
   const reported = extractOpenRouterCostUSD(data);
@@ -133,6 +179,7 @@ async function callOpenRouter(input: {
       costUSD: reported ?? estimateCost(model, promptTokens, completionTokens),
     },
     durationMs: Date.now() - started,
+    finishReason,
   };
 }
 
@@ -175,14 +222,17 @@ export async function callSupport(input: {
   maxTokens?: number;
   json?: boolean;
   temperature?: number;
+  model?: string;
+  timeoutMs?: number;
 }): Promise<LlmCallResult> {
   return callOpenRouter({
     system: input.system,
     user: input.user,
-    model: STORYBOOK_SUPPORT_MODEL,
+    model: input.model || STORYBOOK_SUPPORT_MODEL,
     json: input.json !== false,
     maxTokens: input.maxTokens ?? 1400,
     temperature: input.temperature ?? 0.6,
+    timeoutMs: input.timeoutMs ?? SUPPORT_TIMEOUT_MS,
   });
 }
 
@@ -198,14 +248,34 @@ export async function callWriter(input: {
   const maxTokens = input.maxTokens ?? 3200;
 
   if (isOpenRouterModelId(input.model)) {
-    return callOpenRouter({
-      system: input.system,
-      user: input.user,
-      model: input.model,
-      json: input.json === true,
-      maxTokens,
-      temperature: input.temperature ?? 0.85,
-    });
+    try {
+      return await callOpenRouter({
+        system: input.system,
+        user: input.user,
+        model: input.model,
+        json: input.json === true,
+        maxTokens,
+        temperature: input.temperature ?? 0.85,
+        timeoutMs: WRITER_TIMEOUT_MS,
+      });
+    } catch (err) {
+      const fallbackModel = input.model === STORYBOOK_SUPPORT_MODEL
+        ? STORYBOOK_SUPPORT_FALLBACK_MODEL
+        : STORYBOOK_SUPPORT_MODEL;
+      console.warn(
+        `[storybook/llm] OpenRouter writer ${input.model} failed; retrying once with ${fallbackModel}:`,
+        err
+      );
+      return callOpenRouter({
+        system: input.system,
+        user: input.user,
+        model: fallbackModel,
+        json: input.json === true,
+        maxTokens,
+        temperature: input.temperature ?? 0.85,
+        timeoutMs: WRITER_TIMEOUT_MS,
+      });
+    }
   }
 
   if (isGeminiConfigured()) {
@@ -229,6 +299,7 @@ export async function callWriter(input: {
     json: input.json === true,
     maxTokens,
     temperature: input.temperature ?? 0.85,
+    timeoutMs: WRITER_TIMEOUT_MS,
   });
 }
 

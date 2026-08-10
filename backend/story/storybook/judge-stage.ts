@@ -29,7 +29,7 @@ export interface JudgeStageInput {
 
 export interface JudgeStageResult {
   report: JudgeReport;
-  call: LlmCallResult;
+  call?: LlmCallResult;
 }
 
 function buildJudgeSystemPrompt(): string {
@@ -72,13 +72,38 @@ function buildJudgeUserPrompt(input: JudgeStageInput): string {
 }
 
 export async function runJudgeStage(input: JudgeStageInput): Promise<JudgeStageResult> {
-  const call = await callSupport({
-    system: buildJudgeSystemPrompt(),
-    user: buildJudgeUserPrompt(input),
-    maxTokens: 700,
-    json: true,
-    temperature: 0.2,
-  });
+  let call: LlmCallResult;
+  try {
+    call = await callSupport({
+      system: buildJudgeSystemPrompt(),
+      user: buildJudgeUserPrompt(input),
+      maxTokens: 900,
+      json: true,
+      temperature: 0.2,
+    });
+  } catch (err) {
+    console.warn("[storybook/judge] judge unavailable; continuing with deterministic prose checks:", err);
+    return {
+      report: {
+        answers: {
+          wollte: "",
+          schiefgegangen: "",
+          andersGemacht: "",
+          wiederholung: [],
+          lachstelle: "",
+          unerklaerteFigur: "",
+          unverstaendlicherSatz: "",
+          verstaendlichkeit: 3,
+        },
+        issues: [{
+          code: "judge_unavailable",
+          severity: "soft",
+          message: "Der Verstaendnis-Test war voruebergehend nicht erreichbar.",
+        }],
+        passed: true,
+      },
+    };
+  }
 
   const parsed = parseJsonObject<JudgeAnswers>(call.text);
   if (!parsed) {

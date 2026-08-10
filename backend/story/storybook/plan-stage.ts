@@ -111,6 +111,8 @@ export interface PlanStageInput {
   budget: LengthBudget;
   /** Set on a retry so the planner knows what to fix. */
   repairNotes?: string[];
+  /** Rare recovery route after the normal support model returned no usable output. */
+  supportModel?: string;
 }
 
 export interface PlanStageResult {
@@ -253,9 +255,12 @@ export async function runPlanStage(input: PlanStageInput): Promise<PlanStageResu
   const call = await callSupport({
     system: buildPlanSystemPrompt(),
     user: buildPlanUserPrompt(input),
-    maxTokens: 1800,
+    // 1,800 was too small for a reasoning model plus a multi-page JSON card.
+    // This is a ceiling, not prepaid usage, so successful calls do not cost more.
+    maxTokens: 3200,
     json: true,
     temperature: 0.7,
+    model: input.supportModel,
   });
 
   const card = parseJsonObject<KidLogicCard>(call.text);

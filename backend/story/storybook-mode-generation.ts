@@ -46,7 +46,12 @@ import { logTopic } from "../log/logger";
 import { PREMISE_BANK, countDistinctTellings, resolvePremiseVariant, selectPremise } from "./storybook/premise-bank";
 import { loadStorybookHistory, recentlyUsedPremiseIds } from "./storybook/history";
 import { castArtifact, castSupportingCharacters, recordCastUsage } from "./storybook/casting";
-import { CostLedger, resolveWriterModel, STORYBOOK_SUPPORT_MODEL } from "./storybook/llm";
+import {
+  CostLedger,
+  resolveWriterModel,
+  STORYBOOK_SUPPORT_FALLBACK_MODEL,
+  STORYBOOK_SUPPORT_MODEL,
+} from "./storybook/llm";
 import { normalizeAgeBand, resolveLengthBudget } from "./storybook/style-contract";
 import { runPlanStage, styleContractFor } from "./storybook/plan-stage";
 import { checkPlan, checkProse, issuesToRepairNotes } from "./storybook/checks";
@@ -178,24 +183,9 @@ export async function generateStoryStorybookMode(
   // 2) Plan — with at most one repair. A bad plan is cheap to fix here and
   //    ruinous to fix after the draft.
   // ---------------------------------------------------------------------
-  let planResult = await runPlanStage({
-    config,
-    resolved,
-    heroes,
-    cast: casting.cast,
-    artifact,
-    band,
-    budget,
-  });
-  ledger.recordCall("plan", "support", planResult.call);
-
-  let planReport = checkPlan(planResult.card, budget);
-  let planRepaired = false;
-
-  if (!planReport.ok) {
-    planRepaired = true;
-    const notes = issuesToRepairNotes([...planReport.hard, ...planReport.soft], 6);
-    await logStage(input.storyId, "plan-repair", { issues: notes });
+  let planResult: Awaited<ReturnType<typeof runPlanStage>>;
+  let planProviderFallbackUsed = false;
+  try {
     planResult = await runPlanStage({
       config,
       resolved,
@@ -204,8 +194,57 @@ export async function generateStoryStorybookMode(
       artifact,
       band,
       budget,
-      repairNotes: notes,
     });
+  } catch (err) {
+    // Keep the existing two-call ceiling, but do not send a provider-level
+    // empty/truncated response to the same model a second time.
+    console.warn("[storybook] primary plan model failed; using bounded fallback:", err);
+    planProviderFallbackUsed = true;
+    await logStage(input.storyId, "plan-provider-fallback", {
+      failedModel: STORYBOOK_SUPPORT_MODEL,
+      fallbackModel: STORYBOOK_SUPPORT_FALLBACK_MODEL,
+      reason: err instanceof Error ? err.message : String(err),
+    });
+    planResult = await runPlanStage({
+      config,
+      resolved,
+      heroes,
+      cast: casting.cast,
+      artifact,
+      band,
+      budget,
+      repairNotes: ["Return the complete planning card as one valid JSON object."],
+      supportModel: STORYBOOK_SUPPORT_FALLBACK_MODEL,
+    });
+  }
+  ledger.recordCall("plan", "support", planResult.call);
+
+  let planReport = checkPlan(planResult.card, budget);
+  let planRepaired = false;
+
+  if (!planReport.ok && !planProviderFallbackUsed) {
+    planRepaired = true;
+    const notes = issuesToRepairNotes([...planReport.hard, ...planReport.soft], 6);
+    await logStage(input.storyId, "plan-repair", { issues: notes });
+    try {
+      planResult = await runPlanStage({
+        config,
+        resolved,
+        heroes,
+        cast: casting.cast,
+        artifact,
+        band,
+        budget,
+        repairNotes: notes,
+        // A missing card is a provider/serialization failure, not a content
+        // defect. Route that retry to an independent JSON-capable model.
+        supportModel: planResult.card ? undefined : STORYBOOK_SUPPORT_FALLBACK_MODEL,
+      });
+    } catch (err) {
+      throw new Error(
+        `[storybook] Plan fallback failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
     ledger.recordCall("plan-repair", "support", planResult.call);
     planReport = checkPlan(planResult.card, budget);
   }
@@ -283,7 +322,7 @@ export async function generateStoryStorybookMode(
   // 4) Judge — zero-context comprehension test on gpt-5.6-luna.
   // ---------------------------------------------------------------------
   const judge = await runJudgeStage({ pages: draft.pages, card, title: draft.title });
-  ledger.recordCall("judge", "support", judge.call);
+  if (judge.call) ledger.recordCall("judge", "support", judge.call);
 
   await logStage(input.storyId, "judge", {
     passed: judge.report.passed,

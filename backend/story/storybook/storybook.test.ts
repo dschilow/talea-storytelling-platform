@@ -16,13 +16,44 @@ import {
   selectPremise,
 } from "./premise-bank";
 import { checkPlan, checkProse } from "./checks";
-
-
+import {
+  extractStorybookChoiceContent,
+  isTruncatedFinishReason,
+  resolveStorybookReasoning,
+} from "./llm-guards";
 import { evaluateJudgeAnswers, parseDraft, resolveTargetPages } from "./parsing";
 import { normalizeAgeBand, resolveLengthBudget } from "./style-contract";
 import type { JudgeAnswers, KidLogicCard, StorybookPage } from "./types";
 
 const BUDGET = resolveLengthBudget("medium", "6-8");
+
+describe("provider response guards", () => {
+  test("gpt-5 support calls receive an explicit minimal reasoning budget", () => {
+    expect(resolveStorybookReasoning("openai/gpt-5.6-luna")).toEqual({
+      effort: "minimal",
+      exclude: true,
+    });
+  });
+
+  test("hybrid-thinking writer models have reasoning disabled", () => {
+    expect(resolveStorybookReasoning("moonshotai/kimi-k2.6")).toEqual({
+      enabled: false,
+      exclude: true,
+    });
+  });
+
+  test("content-part arrays are preserved instead of becoming an empty string", () => {
+    expect(extractStorybookChoiceContent({
+      message: { content: [{ type: "text", text: "first" }, { content: "second" }] },
+    })).toBe("first\nsecond");
+  });
+
+  test("provider completion-limit finishes are treated as truncation", () => {
+    expect(isTruncatedFinishReason("length")).toBe(true);
+    expect(isTruncatedFinishReason("max_tokens")).toBe(true);
+    expect(isTruncatedFinishReason("stop")).toBe(false);
+  });
+});
 
 function validCard(overrides: Partial<KidLogicCard> = {}): KidLogicCard {
   return {
