@@ -42,6 +42,7 @@ import {
 } from "./openrouter-generation";
 import { selectLockedSupportingCast } from "./pipeline/cast-lock";
 import { collectStakeOwnerDrift } from "./pipeline/stake-owner";
+import { resolveIdeaCast } from "./pipeline/idea-cast";
 import { isOpenRouterFamilyModel, resolveConfiguredStoryModel, GEMINI_MAIN_STORY_MODEL } from "./pipeline/model-routing";
 import { getReferenceFewshotBlock } from "./pipeline/reference-fewshot";
 import type { StoryConfig, AIProvider } from "./generate";
@@ -5716,11 +5717,52 @@ function normalizePotentialFilterResult(
   // own audited scores ranked a more concrete, funny, child-playable idea
   // slightly higher. The sorted passing list is the source of truth.
   const chosenIdeaId = passingCandidateIds[0];
+
+  // The cast must belong to the idea we are actually writing.
+  //
+  // `selectedSupportingCast` is the model's answer for the model's OWN pick.
+  // When the deterministic audit above overrides that pick, taking the cast
+  // list anyway staples one story's premise to another story's cast — and every
+  // downstream prompt then carries a contradiction it cannot resolve.
+  //
+  // Run 5d8696ee is the worked example and it cost more than any other single
+  // defect so far. The judge chose c3 ("Schirm unter dem Kuchenhimmel") and
+  // named its cast: Die Nebelhexe + Müller Hans. The audit re-picked c2
+  // ("Aufzug zum Pfannkuchen"), whose core conflict reads "den Teig für
+  // ROSALINDES Pfannkuchen vertauscht" and whose own recommendation was
+  // Die Nebelhexe + Prinzessin Rosalinde. Result: every later prompt said
+  // "Rosalinde owns the ruined pancakes" AND "only Alexander, Adrian, Die
+  // Nebelhexe and Müller Hans may speak". The writer did the only thing it
+  // could and put Rosalinde on the page; the validator called it a
+  // publishability blocker; a $0.025 chapter-repair replaced her with "Müller
+  // Hans' Tochter", who is equally unauthorised — so the story still shipped
+  // blocked, after paying for the whole cascade.
+  const modelChosenIdeaId = String(parsed?.chosenIdeaId || "").trim();
+  const chosenCandidate = candidates.find((candidate) => candidate.id === chosenIdeaId);
+  const selectedSupportingCast = resolvePoolNames(
+    resolveIdeaCast({
+      chosenCandidate,
+      modelChosenIdeaId,
+      auditChosenIdeaId: chosenIdeaId,
+      modelCast: asStringArray(parsed?.selectedSupportingCast, 6),
+      poolNames: (pool || []).map((character) => character.name),
+    }),
+    pool
+  );
+  if (modelChosenIdeaId && chosenIdeaId && modelChosenIdeaId !== chosenIdeaId) {
+    console.warn("[dev-mode-generation] potential filter: audit overrode the model's pick; using the chosen idea's own cast", {
+      modelChosenIdeaId,
+      auditChosenIdeaId: chosenIdeaId,
+      modelCast: asStringArray(parsed?.selectedSupportingCast, 6),
+      castUsed: selectedSupportingCast,
+    });
+  }
+
   return {
     candidateAudits,
     passingCandidateIds,
     chosenIdeaId: chosenIdeaId || undefined,
-    selectedSupportingCast: resolvePoolNames(parsed?.selectedSupportingCast || [], pool),
+    selectedSupportingCast,
     roundRecommendation: passingCandidateIds.length > 0 ? "pass" : "regenerate",
   };
 }
@@ -10353,8 +10395,23 @@ function buildValidatorBatchChapterRepairPrompts(
       targetDiagnostics: targets,
     }),
     "",
-    "RELEVANT LOCKED BLUEPRINT:",
-    promptJson(targetOrders.map((order) => buildChapterRepairBlueprintContext(reviewedBlueprint, order))),
+    // One shared blueprint plus per-page deltas.
+    //
+    // This used to emit buildChapterRepairBlueprintContext() once PER TARGET
+    // PAGE, and everything in it except `chapterPlan`/`keyMoments` is identical
+    // across pages: premise, storySpine, noveltySignature, causalChain,
+    // coreMagicRule, readerMagnet, payoffEngine, antagonistChangeLadder and
+    // characterArcs were all sent three times. Run 5d8696ee repaired three
+    // pages and paid 17 373 input tokens ($0.015) for a 2 073-token answer —
+    // the single most expensive call in the pipeline, most of it duplicate.
+    "LOCKED BLUEPRINT (shared by every page below):",
+    promptJson(buildChapterRepairBlueprintContext(reviewedBlueprint, targetOrders[0])),
+    "",
+    "PER-PAGE PLAN DELTAS:",
+    promptJson(targetOrders.slice(1).map((order) => {
+      const perPage = buildChapterRepairBlueprintContext(reviewedBlueprint, order);
+      return { order, keyMoments: perPage.keyMoments, chapterPlan: perPage.chapterPlan };
+    })),
     "",
     "FULL COMPACT STORY FOR CONTINUITY (reference only):",
     promptJson(buildCompactPromptStory(story)),
@@ -14274,9 +14331,25 @@ export async function generateStoryDevMode(
     // the legacy long-form builder (e.g. when chasing a quality regression).
     // The legacy builder is still the safe fallback when no screenplay plan
     // exists.
+    //
+    // PREMIUM EXCEPTION (measured, not assumed): the compact prompt does not
+    // hold its length contract. It has now under-delivered twice in a row —
+    // 665 words in run 3a1dbd51 and 564 in run 5d8696ee, against a 900-word
+    // target — while the SAME model given the long-form prompt wrote 1135. The
+    // saving is about 7 700 prompt characters, roughly $0.0013 on the writer
+    // model. The retry it triggers costs $0.015 and 48 seconds, so the compact
+    // prompt is now a net loss on both axes it was introduced to protect:
+    //
+    //   compact draft (19s) + length retry (48s)  = 67s, $0.024
+    //   long-form draft alone                     = 48s, $0.011
+    //
+    // The 60s edge-timeout incident that made compact the default was solved
+    // separately by the pending/poll response pattern; this run took 281s end
+    // to end and returned fine. Efficient mode keeps the compact prompt.
     const compactDraftOptOut = (input.config as any)?.useCompactDraftPrompt === false;
     const useCompactWholeStoryDraft =
       !compactDraftOptOut
+      && (input.qualityMode || "premium") !== "premium"
       && Boolean(screenplayPlan?.sceneCards?.length);
     const wholeStoryPrompts = useCompactWholeStoryDraft
       ? buildCompactWholeStoryDraftPrompts(input, chapterCount, screenplayPlan!)
