@@ -42,6 +42,13 @@ describe("provider response guards", () => {
     });
   });
 
+  test("Gemini 3.5 Flash-Lite keeps its mandatory reasoning at minimal effort", () => {
+    expect(resolveStorybookReasoning("google/gemini-3.5-flash-lite")).toEqual({
+      effort: "minimal",
+      exclude: true,
+    });
+  });
+
   test("content-part arrays are preserved instead of becoming an empty string", () => {
     expect(extractStorybookChoiceContent({
       message: { content: [{ type: "text", text: "first" }, { content: "second" }] },

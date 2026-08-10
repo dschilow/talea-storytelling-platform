@@ -11,6 +11,11 @@ function isTextCompatibilityModel(model: string): boolean {
 /** `exclude` hides reasoning but does not disable it; budget it explicitly. */
 export function resolveStorybookReasoning(model: string): StorybookReasoningOptions {
   const normalized = String(model || "").toLowerCase();
+  // OpenRouter rejects enabled:false for this endpoint because reasoning is
+  // mandatory. Minimal effort keeps the fallback cheap without producing a 400.
+  if (normalized === "google/gemini-3.5-flash-lite") {
+    return { effort: "minimal", exclude: true };
+  }
   if (isTextCompatibilityModel(normalized)) return { enabled: false, exclude: true };
   if (/gpt-5/.test(normalized)) return { effort: "minimal", exclude: true };
   return { exclude: true };

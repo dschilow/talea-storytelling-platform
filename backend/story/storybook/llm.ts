@@ -39,7 +39,7 @@ export {
 /** Fixed for every support task in this pipeline. */
 export const STORYBOOK_SUPPORT_MODEL = "openai/gpt-5.6-luna";
 /** Used only after the normal support model returned no usable completion. */
-export const STORYBOOK_SUPPORT_FALLBACK_MODEL = "openai/gpt-5.4-mini";
+export const STORYBOOK_SUPPORT_FALLBACK_MODEL = "google/gemini-3.5-flash-lite";
 
 const SUPPORT_TIMEOUT_MS = 120_000;
 const WRITER_TIMEOUT_MS = 240_000;
