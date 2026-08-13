@@ -87,7 +87,14 @@ function getRouteMeta(pathname: string): RouteMeta {
   };
 }
 
-const AppLayout: React.FC = () => {
+/**
+ * `offline` renders the exact same shell without the Clerk `SignedIn` gate.
+ * Offline the app runs on a mocked Clerk that reports "signed out", which would
+ * otherwise strip the sidebar and bottom nav and make offline mode look like a
+ * different product. The profile menu stays out: it reads child profiles from
+ * the backend, which by definition is not there.
+ */
+const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
   const location = useLocation();
   const isCosmosFullScreenRoute = location.pathname.startsWith("/cosmos");
   const isSettingsRoute = location.pathname.startsWith("/settings");
@@ -124,16 +131,21 @@ const AppLayout: React.FC = () => {
             isSettingsRoute ? "max-w-[1520px] md:px-5" : "max-w-[1260px] md:px-8"
           }`;
 
+  const chrome = !isCosmosFullScreenRoute;
+  // Gate helper so the offline shell renders identical chrome without Clerk.
+  const Chrome: React.FC<{ children: React.ReactNode }> = ({ children }) =>
+    offline ? <>{children}</> : <SignedIn>{children}</SignedIn>;
+
   return (
     <div className="min-h-screen text-foreground flex flex-col md:flex-row">
-      <SignedIn>
-        {!isCosmosFullScreenRoute && (
+      <Chrome>
+        {chrome && (
           <>
             <div className="hidden md:block w-[88px] flex-shrink-0" />
             <Sidebar />
           </>
         )}
-      </SignedIn>
+      </Chrome>
 
       <main className="flex-1 min-h-screen transition-all duration-300">
         <div style={shellStyle} className="w-full">
@@ -178,15 +190,15 @@ const AppLayout: React.FC = () => {
         </div>
       </main>
 
-      <SignedIn>
-        {!isCosmosFullScreenRoute && <ProfileMenuButton />}
-      </SignedIn>
+      {!offline && (
+        <SignedIn>
+          {chrome && <ProfileMenuButton />}
+        </SignedIn>
+      )}
 
       <GlobalAudioPlayer />
 
-      <SignedIn>
-        {!isCosmosFullScreenRoute && <BottomNav />}
-      </SignedIn>
+      <Chrome>{chrome && <BottomNav />}</Chrome>
     </div>
   );
 };

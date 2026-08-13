@@ -19,6 +19,12 @@ import { OfflineScopeProvider } from './contexts/OfflineScopeContext';
 import { OfflineClerkProvider } from './contexts/OfflineClerkProvider';
 import { parseHapticIntent, triggerHaptic } from './utils/haptics';
 import { getLastOfflineScope } from './utils/offlineDb';
+import {
+  checkRealConnectivity,
+  getOnlineStatus,
+  refreshConnectivity,
+  subscribeToOnlineStatus,
+} from './utils/connectivity';
 import { AgentProvider } from './agents';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
@@ -59,64 +65,6 @@ const OfflineContentScreen = React.lazy(() => import('./screens/Offline/OfflineC
 const CosmosScreen = React.lazy(() => import('./screens/Cosmos/CosmosScreen'));
 const ParentDashboardRoot = React.lazy(() => import('./screens/Cosmos/ParentDashboardRoot'));
 const WelcomeTour = React.lazy(() => import('./screens/Onboarding/WelcomeTour'));
-
-// Reactive online/offline detection.
-// navigator.onLine is unreliable (returns true when connected to a local network
-// without actual internet), so we also perform a real connectivity check.
-let _connectivityStatus: 'online' | 'offline' | 'checking' = navigator.onLine ? 'checking' : 'offline';
-const _listeners = new Set<() => void>();
-
-function notifyListeners() {
-  _listeners.forEach((cb) => cb());
-}
-
-// Perform a lightweight fetch to verify actual internet connectivity
-async function checkRealConnectivity(): Promise<boolean> {
-  try {
-    // Use a tiny request with a short timeout to verify real connectivity
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
-    const response = await fetch('/config.js', {
-      method: 'HEAD',
-      cache: 'no-store',
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-// Check connectivity on startup
-if (_connectivityStatus === 'checking') {
-  checkRealConnectivity().then((ok) => {
-    _connectivityStatus = ok ? 'online' : 'offline';
-    notifyListeners();
-  });
-}
-
-window.addEventListener('online', () => {
-  // navigator.onLine just became true, but verify real connectivity
-  _connectivityStatus = 'checking';
-  notifyListeners();
-  checkRealConnectivity().then((ok) => {
-    _connectivityStatus = ok ? 'online' : 'offline';
-    notifyListeners();
-  });
-});
-window.addEventListener('offline', () => {
-  _connectivityStatus = 'offline';
-  notifyListeners();
-});
-
-function subscribeToOnlineStatus(callback: () => void) {
-  _listeners.add(callback);
-  return () => { _listeners.delete(callback); };
-}
-function getOnlineStatus() {
-  return _connectivityStatus !== 'offline';
-}
 
 const GLOBAL_HAPTIC_SELECTOR =
   'button, a[href], [role="button"], input[type="button"], input[type="submit"], [data-haptic]';
@@ -539,10 +487,11 @@ const AppCrashScreen: React.FC<{ message?: string; onRetry?: () => void }> = ({ 
   </div>
 );
 
-// Offline app shell: renders without real Clerk when browser is offline
+// Offline app shell. Deliberately the SAME shell as online — same layout, same
+// sidebar and bottom nav, same readers, same audio player — so going offline
+// changes WHAT is available, never how the app looks.
 // OfflineClerkProvider mocks Clerk's internal contexts (useAuth, useUser etc.)
 // OfflineThemeProvider uses localStorage only (no backend API)
-// Original reader components are used for full feature parity (animations, quiz, facts)
 const OfflineApp = () => (
   <MotionConfig reducedMotion="user">
     <GlobalHaptics />
@@ -553,16 +502,32 @@ const OfflineApp = () => (
             <AudioPlayerProvider>
               <React.Suspense fallback={<RouteLoadingFallback />}>
                 <Routes>
-                  <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
-                  <Route path="/character-life-story/:storyId" element={<CinematicStoryViewer />} />
-                  <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
-                  <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
-                  <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
-                  <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
-                  <Route path="/doku-reader-scroll/:dokuId" element={<DokuScrollReaderScreen />} />
-                  <Route path="*" element={<OfflineContentScreen />} />
+                  <Route element={<AppLayout offline />}>
+                    <Route path="/story-reader/:storyId" element={<CinematicStoryViewer />} />
+                    <Route path="/character-life-story/:storyId" element={<CinematicStoryViewer />} />
+                    <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
+                    <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
+                    <Route path="/doku-reader/:dokuId" element={<CinematicDokuViewer />} />
+                    <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
+                    <Route path="/doku-reader-scroll/:dokuId" element={<DokuScrollReaderScreen />} />
+                    <Route path="*" element={<OfflineContentScreen />} />
+                  </Route>
                 </Routes>
               </React.Suspense>
+              <Toaster
+                position="top-right"
+                richColors
+                closeButton
+                toastOptions={{
+                  style: {
+                    background: colors.glass.backgroundAlt,
+                    backdropFilter: 'blur(20px)',
+                    border: `2px solid ${colors.border.light}`,
+                    borderRadius: '16px',
+                    color: colors.text.primary,
+                  },
+                }}
+              />
             </AudioPlayerProvider>
           </OfflineScopeProvider>
         </OfflineThemeProvider>
@@ -591,6 +556,14 @@ function isChunkLoadError(reason: unknown): boolean {
 }
 
 function reloadForStaleChunks(): boolean {
+  // Offline, a failed chunk means "no network", not "stale build". Reloading
+  // would throw away a working offline shell and can strand the user on the
+  // browser's error page — the offline routes recover on their own instead.
+  if (!getOnlineStatus()) {
+    console.warn('[Talea] Chunk load failed while offline — keeping the current shell.');
+    return false;
+  }
+
   try {
     const last = Number(window.sessionStorage.getItem(CHUNK_RELOAD_GUARD_KEY) || '0');
     // Only auto-reload once per ~10s window to avoid loops.
@@ -647,6 +620,9 @@ class ClerkErrorBoundary extends React.Component<
     if (isClerkFailure(error)) {
       // Log but don't crash - we'll show the offline fallback
       console.warn('[Talea] Clerk failed to load, switching to offline mode:', error.message);
+      // Confirm whether this is an auth outage or simply a missing network, so
+      // the app can show the offline library rather than an auth error.
+      refreshConnectivity();
       return;
     }
     console.error('[Talea] Render error (not an auth problem):', error);
@@ -695,7 +671,13 @@ export default function App() {
   const isOnline = useSyncExternalStore(subscribeToOnlineStatus, getOnlineStatus);
   const [clerkFailed, setClerkFailed] = useState(false);
 
-  const handleClerkFailure = useCallback(() => setClerkFailed(true), []);
+  // Clerk failing to load is the earliest hard evidence that the network is
+  // gone. Re-probe immediately so the app drops into offline mode instead of
+  // telling the user "Die App ist nicht offline" until the next scheduled check.
+  const handleClerkFailure = useCallback(() => {
+    setClerkFailed(true);
+    refreshConnectivity();
+  }, []);
   useClerkLoadFailureDetection(handleClerkFailure);
 
   // Reset clerkFailed when connectivity is restored
@@ -734,19 +716,22 @@ export default function App() {
       <Provider store={store}>
         <ClerkProvider publishableKey={clerkPublishableKey}>
           <ThemeProvider>
-            <AudioPlayerProvider>
-              <UserAccessProvider>
-                <ChildProfilesProvider>
-                  <OfflineScopeProvider>
+            <UserAccessProvider>
+              <ChildProfilesProvider>
+                {/* AudioPlayerProvider sits inside OfflineScopeProvider so the
+                    player can fall back to offline-saved audio blobs — the scope
+                    (user + child profile) is what keys those blobs. */}
+                <OfflineScopeProvider>
+                  <AudioPlayerProvider>
                     <OfflineStorageProvider>
                       <AgentProvider>
                         <AppContent />
                       </AgentProvider>
                     </OfflineStorageProvider>
-                  </OfflineScopeProvider>
-                </ChildProfilesProvider>
-              </UserAccessProvider>
-            </AudioPlayerProvider>
+                  </AudioPlayerProvider>
+                </OfflineScopeProvider>
+              </ChildProfilesProvider>
+            </UserAccessProvider>
           </ThemeProvider>
         </ClerkProvider>
       </Provider>

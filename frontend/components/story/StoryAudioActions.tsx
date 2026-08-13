@@ -24,7 +24,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
-import { getBackendUrl } from '../../config';
+import { fetchGeneratedAudioBySource } from '../../utils/audioLibraryApi';
+import { getOfflineGeneratedAudiosBySource } from '../../utils/offlineDb';
+import { useOfflineScope } from '../../contexts/OfflineScopeContext';
+import { isConfirmedOnline } from '../../utils/connectivity';
 import {
   DEFAULT_TTS_VOICE_SETTINGS,
   type TTSVoiceSettings,
@@ -82,6 +85,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   className = '',
 }) => {
   const { getToken } = useAuth();
+  const offlineScope = useOfflineScope();
   const { startStoryConversion, removeStoryFromPlaylist, addAndPlay, addToPlaylist, playlist } = useAudioPlayer();
   const { resolvedTheme } = useTheme();
   const qwenSpeakers = useMemo(() => getStaticQwenSpeakers(), []);
@@ -94,6 +98,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const [dialogueSpeakers, setDialogueSpeakers] = useState<string[]>(qwenSpeakers.slice(0, 2));
   const [generatedAudioItems, setGeneratedAudioItems] = useState<GeneratedAudioLibraryEntry[]>([]);
   const [checkingGeneratedAudio, setCheckingGeneratedAudio] = useState(false);
+  const [isOfflineAudio, setIsOfflineAudio] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<{
     autoplay: boolean;
@@ -148,43 +153,60 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const canStartConversion = useMemo(() => {
     if (isAdding) return false;
     if (generatedAudioItems.length > 0) return true;
+    // Generating new audio needs RunPod/Runware. Offer only playback offline.
+    if (isOfflineAudio) return false;
     if (!chapters.length) return false;
     if (!selectedSpeaker.trim()) return false;
     if (!multiVoiceEnabled) return true;
     return dialogueSpeakers.map((speaker) => speaker.trim()).filter(Boolean).length >= 2;
-  }, [chapters.length, isAdding, selectedSpeaker, multiVoiceEnabled, dialogueSpeakers, generatedAudioItems.length]);
+  }, [
+    chapters.length,
+    isAdding,
+    isOfflineAudio,
+    selectedSpeaker,
+    multiVoiceEnabled,
+    dialogueSpeakers,
+    generatedAudioItems.length,
+  ]);
 
-  const loadGeneratedAudioForStory = useCallback(async (): Promise<GeneratedAudioLibraryEntry[]> => {
-    const token = await getToken();
-    const response = await fetch(`${getBackendUrl()}/story/audio-library/by-source`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        sourceType: 'story',
-        sourceId: storyId,
-      }),
-    });
-
-    if (response.status === 404) {
-      // Older backend deployment without by-source endpoint.
-      setGeneratedAudioItems([]);
+  const loadOfflineGeneratedAudioForStory = useCallback(async (): Promise<
+    GeneratedAudioLibraryEntry[]
+  > => {
+    if (!offlineScope) return [];
+    try {
+      return await getOfflineGeneratedAudiosBySource(offlineScope, 'story', storyId);
+    } catch (error) {
+      console.warn('[StoryAudioActions] Offline audio lookup failed:', error);
       return [];
     }
+  }, [offlineScope, storyId]);
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(errText || `HTTP ${response.status}`);
+  const loadGeneratedAudioForStory = useCallback(async (): Promise<GeneratedAudioLibraryEntry[]> => {
+    // Without a reachable backend the library API is pointless — go straight to
+    // what was saved for offline listening.
+    if (!isConfirmedOnline()) {
+      const offlineItems = await loadOfflineGeneratedAudioForStory();
+      setGeneratedAudioItems(offlineItems);
+      setIsOfflineAudio(offlineItems.length > 0);
+      return offlineItems;
     }
 
-    const payload = (await response.json()) as { items?: GeneratedAudioLibraryEntry[] };
-    const items = Array.isArray(payload.items) ? sortGeneratedAudioItems(payload.items) : [];
-    setGeneratedAudioItems(items);
-    return items;
-  }, [getToken, storyId]);
+    try {
+      const items = await fetchGeneratedAudioBySource(getToken, 'story', storyId);
+      setGeneratedAudioItems(items);
+      setIsOfflineAudio(false);
+      return items;
+    } catch (error) {
+      // The network dropped mid-session: saved audio is still perfectly usable.
+      const offlineItems = await loadOfflineGeneratedAudioForStory();
+      if (offlineItems.length > 0) {
+        setGeneratedAudioItems(offlineItems);
+        setIsOfflineAudio(true);
+        return offlineItems;
+      }
+      throw error;
+    }
+  }, [getToken, loadOfflineGeneratedAudioForStory, storyId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -343,6 +365,15 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           background: isDark ? 'rgba(16,24,35,0.6)' : 'rgba(255,250,244,0.85)',
         }}
       >
+        {isOfflineAudio ? (
+          <p className="text-xs" style={{ color: isDark ? '#d9e5f8' : '#2a3b52' }}>
+            Offline-Modus: {generatedAudioItems.length} gespeicherte Audio-Teil(e) bereit.
+            <span className="mt-1 block text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
+              Neue Stimmen und neue Audios lassen sich erst wieder mit Internetverbindung erzeugen.
+            </span>
+          </p>
+        ) : (
+        <>
         {/* Provider selector */}
         <div className="mb-3">
           <p className="mb-1.5 text-xs font-semibold" style={{ color: isDark ? '#d9e5f8' : '#2a3b52' }}>
@@ -513,6 +544,8 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
               ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber xAI Grok TTS (Runware).`
               : `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber RunPod.`}
           </p>
+        )}
+        </>
         )}
       </div>
 

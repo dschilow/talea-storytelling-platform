@@ -75,10 +75,40 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,lottie}'],
-        // CRITICAL: config.js is generated dynamically at container startup
-        globIgnores: ['config.js'],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB - three.js adds ~1.5 MB
+        // Precache the APP SHELL only (~3 MB). Precaching every png/svg pulled in
+        // ~28 MB of landing-assets/textures and pushed browsers into storage
+        // pressure, which is why the SW had to be force-disabled before. Heavy
+        // media is runtime-cached below with a hard entry cap instead.
+        globPatterns: [
+          '**/*.{js,css,html,woff2}',
+          'pwa-192x192.png',
+          'pwa-512x512.png',
+          'pwa-maskable-512x512.png',
+          'talea_logo.png',
+          'loading-animation.lottie',
+          // Bundled chrome image (imported by the sidebar). The other hashed
+          // images in assets/ are 1 MB+ Lernpfad maps for an online-only screen
+          // and stay runtime-cached.
+          'assets/talea_logo-*.png',
+        ],
+        globIgnores: [
+          // CRITICAL: config.js is generated dynamically at container startup
+          'config.js',
+          // Online-only features (3D cosmos, PDF export) — no need to reserve
+          // ~1.6 MB of the offline budget for chunks that cannot work offline.
+          'assets/three-vendor-*.js',
+          'assets/CosmosScreen-*.js',
+          'assets/pdfExport-*.js',
+          'assets/html2canvas*.js',
+        ],
+        maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
+        cleanupOutdatedCaches: true,
+        // Take control of the very first page load. Without this the SW only
+        // starts serving on the *next* navigation, so a network that dies during
+        // a user's first session leaves the offline shell unable to fetch its
+        // own lazy chunks.
+        clientsClaim: true,
+        skipWaiting: true,
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [
           /^\/api/,
@@ -120,6 +150,29 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: {
               cacheName: 'config-cache',
+            },
+          },
+          {
+            // Chunks deliberately kept out of the precache: still served from
+            // cache on a repeat visit, but they never block an install.
+            urlPattern: /\/assets\/(three-vendor|CosmosScreen|pdfExport|html2canvas)[^/]*\.js$/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'heavy-chunks',
+              expiration: { maxEntries: 12, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Decorative media (landing page, 3D textures, UI illustrations).
+            // Capped so a browsing session can never eat the storage quota that
+            // offline stories/audio in IndexedDB depend on.
+            urlPattern: /\/(landing-assets|textures|assets)\/.*\.(?:png|jpe?g|webp|svg|avif)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'static-media',
+              expiration: { maxEntries: 80, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
         ],

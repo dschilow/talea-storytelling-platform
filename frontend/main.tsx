@@ -4,10 +4,20 @@ import App from "./App";
 import "./index.css";
 import "./src/i18n"; // Initialize i18n
 
-const DISABLE_SW_FLAG = "talea:disable-sw";
+// The service worker is what makes offline mode survive a reload: without a
+// precached app shell, opening Talea without a network yields the browser's
+// error page and the saved stories/audio in IndexedDB stay unreachable.
+//
+// It used to be force-disabled because the precache swallowed ~28 MB of images
+// and tripped the storage quota. That cause is fixed in vite.config.ts (app
+// shell only + capped runtime caches), so registration is on again — with a
+// TIME-BOXED kill switch, not a permanent one. A single bad day must not cost a
+// user offline reading forever.
+const DISABLE_SW_UNTIL_FLAG = "talea:disable-sw-until";
+const LEGACY_DISABLE_SW_FLAG = "talea:disable-sw";
+const DISABLE_SW_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const STORAGE_USAGE_THRESHOLD = 0.92;
 const MIN_FREE_BYTES = 64 * 1024 * 1024;
-const FORCE_DISABLE_SERVICE_WORKER = true;
 const VERBOSE_RUNTIME_WARNINGS_FLAG = "talea:verbose-runtime-warnings";
 
 function shouldKeepVerboseRuntimeWarnings(): boolean {
@@ -93,10 +103,37 @@ async function unregisterServiceWorkersAndClearCaches(): Promise<void> {
   ]);
 }
 
+function suspendServiceWorker(): void {
+  try {
+    localStorage.setItem(
+      DISABLE_SW_UNTIL_FLAG,
+      String(Date.now() + DISABLE_SW_COOLDOWN_MS)
+    );
+  } catch {
+    // localStorage blocked — the SW simply stays enabled next boot.
+  }
+}
+
+function isServiceWorkerSuspended(): boolean {
+  try {
+    // Drop the old permanent flag so browsers that hit storage pressure once
+    // (back when the precache was oversized) recover on their next visit.
+    localStorage.removeItem(LEGACY_DISABLE_SW_FLAG);
+
+    const until = Number(localStorage.getItem(DISABLE_SW_UNTIL_FLAG) || "0");
+    if (!Number.isFinite(until) || until <= Date.now()) {
+      localStorage.removeItem(DISABLE_SW_UNTIL_FLAG);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function shouldEnableServiceWorker(): Promise<boolean> {
-  if (FORCE_DISABLE_SERVICE_WORKER) return false;
   if (!("serviceWorker" in navigator)) return false;
-  if (localStorage.getItem(DISABLE_SW_FLAG) === "1") return false;
+  if (isServiceWorkerSuspended()) return false;
 
   if (navigator.storage?.estimate) {
     try {
@@ -121,14 +158,11 @@ async function shouldEnableServiceWorker(): Promise<boolean> {
 async function setupPwaRegistration(): Promise<void> {
   const enableSw = await shouldEnableServiceWorker();
   if (!enableSw) {
-    localStorage.setItem(DISABLE_SW_FLAG, "1");
+    suspendServiceWorker();
     await unregisterServiceWorkersAndClearCaches();
-    if (import.meta.env.DEV) {
-      const reason = FORCE_DISABLE_SERVICE_WORKER
-        ? "forced by config"
-        : "storage pressure";
-      console.info(`[PWA] Service Worker disabled (${reason}).`);
-    }
+    console.info(
+      "[PWA] Service Worker suspended (storage pressure). Offline mode is limited until storage frees up."
+    );
     return;
   }
 
@@ -143,7 +177,7 @@ async function setupPwaRegistration(): Promise<void> {
 
 window.addEventListener("unhandledrejection", (event) => {
   if (!isStoragePressureError(event.reason)) return;
-  localStorage.setItem(DISABLE_SW_FLAG, "1");
+  suspendServiceWorker();
   void unregisterServiceWorkersAndClearCaches();
 });
 

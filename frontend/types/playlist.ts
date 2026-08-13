@@ -12,6 +12,12 @@ export interface PlaylistItem {
   type: PlaylistItemType;
   /** Set when audio is ready to play */
   audioUrl?: string;
+  /**
+   * Signature-free form of the remote audio URL, used to look the file up in
+   * the offline cache. Survives persistence even when `audioUrl` cannot,
+   * because a pre-signed URL expires but its cache key does not.
+   */
+  offlineAudioKey?: string;
   /** Raw text for TTS conversion (story chapters) */
   sourceText?: string;
   conversionStatus: ConversionStatus;

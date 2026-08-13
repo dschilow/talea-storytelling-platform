@@ -56,6 +56,39 @@ export function getLastOfflineScope(): OfflineCacheScope | null {
   }
 }
 
+// Media URLs from object storage carry a short-lived signature in the query
+// string. Keying a cached blob by the full URL means the next signed URL for the
+// very same file no longer matches and the content looks "not saved" offline.
+// Signed URLs are therefore reduced to their stable origin+path.
+const SIGNED_URL_PARAMS = [
+  'x-amz-signature',
+  'x-amz-algorithm',
+  'x-amz-credential',
+  'x-goog-signature',
+  'signature',
+  'expires',
+  'token',
+  'sig',
+  'se',
+];
+
+export function normalizeOfflineMediaUrl(url: string): string {
+  return normalizeMediaUrl(url);
+}
+
+function normalizeMediaUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+  const queryStart = trimmed.indexOf('?');
+  if (queryStart === -1) return trimmed;
+
+  const query = trimmed.slice(queryStart + 1).toLowerCase();
+  const isSigned = SIGNED_URL_PARAMS.some(
+    (param) => query.startsWith(`${param}=`) || query.includes(`&${param}=`),
+  );
+  return isSigned ? trimmed.slice(0, queryStart) : trimmed;
+}
+
 function createCacheKey(scope: OfflineCacheScope, contentId: string): string {
   const normalized = assertScope(scope);
   const normalizedContentId = contentId.trim();
@@ -441,7 +474,8 @@ async function fetchAndStoreBlob(
 ): Promise<void> {
   if (!url || dbDisabled) return;
   const normalizedScope = assertScope(scope);
-  const cacheKey = createCacheKey(normalizedScope, url);
+  const normalizedUrl = normalizeMediaUrl(url);
+  const cacheKey = createCacheKey(normalizedScope, normalizedUrl);
 
   const writeBlob = async (database: IDBPDatabase<TaleaOfflineDB>) => {
     const existing = await database.get('offline-blobs', cacheKey);
@@ -455,7 +489,7 @@ async function fetchAndStoreBlob(
         cacheKey,
         userId: normalizedScope.userId,
         profileId: normalizedScope.profileId,
-        url,
+        url: normalizedUrl,
         blob,
         mimeType: blob.type,
         savedAt: Date.now(),
@@ -661,26 +695,31 @@ async function cleanupOrphanedBlobs(
 
   const stories = await db.getAll('offline-stories');
   for (const entry of stories.filter((item) => isEntryInScope(item, scope))) {
-    for (const url of collectStoryUrls(entry.story)) allUsedUrls.add(url);
+    for (const url of collectStoryUrls(entry.story)) allUsedUrls.add(normalizeMediaUrl(url));
   }
 
   const dokus = await db.getAll('offline-dokus');
   for (const entry of dokus.filter((item) => isEntryInScope(item, scope))) {
-    for (const url of collectDokuUrls(entry.doku)) allUsedUrls.add(url);
+    for (const url of collectDokuUrls(entry.doku)) allUsedUrls.add(normalizeMediaUrl(url));
   }
 
   const audioDokus = await db.getAll('offline-audio-dokus');
   for (const entry of audioDokus.filter((item) => isEntryInScope(item, scope))) {
-    for (const url of collectAudioDokuUrls(entry.audioDoku)) allUsedUrls.add(url);
+    for (const url of collectAudioDokuUrls(entry.audioDoku)) allUsedUrls.add(normalizeMediaUrl(url));
   }
 
   const generatedAudios = await db.getAll('offline-generated-audios');
   for (const entry of generatedAudios.filter((item) => isEntryInScope(item, scope))) {
-    for (const url of collectGeneratedAudioUrls(entry.generatedAudio)) allUsedUrls.add(url);
+    for (const url of collectGeneratedAudioUrls(entry.generatedAudio)) {
+      allUsedUrls.add(normalizeMediaUrl(url));
+    }
   }
 
   for (const url of urls) {
-    if (!allUsedUrls.has(url)) {
+    const normalizedUrl = normalizeMediaUrl(url);
+    if (allUsedUrls.has(normalizedUrl)) continue;
+    await db.delete('offline-blobs', createCacheKey(scope, normalizedUrl)).catch(() => {});
+    if (normalizedUrl !== url.trim()) {
       await db.delete('offline-blobs', createCacheKey(scope, url)).catch(() => {});
     }
   }
@@ -783,6 +822,77 @@ export async function getAllOfflineGeneratedAudios(
   });
 }
 
+/**
+ * Ids of the generated audio entries saved for one story or doku. Unlike
+ * {@link getOfflineGeneratedAudiosBySource} this creates no object URLs, so it
+ * is the right call for bookkeeping (e.g. deleting a story's audio with it).
+ */
+export async function listOfflineGeneratedAudioIdsBySource(
+  scope: OfflineCacheScope,
+  sourceType: GeneratedAudioLibraryEntry['sourceType'],
+  sourceId: string,
+): Promise<string[]> {
+  return withDbReadFallback([], async (db) => {
+    const entries = await db.getAll('offline-generated-audios');
+    return entries
+      .filter((entry) => isEntryInScope(entry, scope))
+      .filter(
+        (entry) =>
+          entry.generatedAudio.sourceType === sourceType &&
+          entry.generatedAudio.sourceId === sourceId,
+      )
+      .map((entry) => entry.id);
+  });
+}
+
+/**
+ * All generated (TTS) audio saved offline for one story or doku, sorted in
+ * playback order and with `audioUrl`/`coverImageUrl` already pointing at local
+ * blobs. This is what lets the player keep working when the audio library API
+ * is unreachable.
+ */
+export async function getOfflineGeneratedAudiosBySource(
+  scope: OfflineCacheScope,
+  sourceType: GeneratedAudioLibraryEntry['sourceType'],
+  sourceId: string,
+): Promise<GeneratedAudioLibraryEntry[]> {
+  return withDbReadFallback([], async (db) => {
+    const entries = await db.getAll('offline-generated-audios');
+    const matching = entries
+      .filter((entry) => isEntryInScope(entry, scope))
+      .map((entry) => entry.generatedAudio)
+      .filter((audio) => audio.sourceType === sourceType && audio.sourceId === sourceId)
+      .sort((a, b) => {
+        const orderA = Number.isFinite(a.itemOrder as number)
+          ? (a.itemOrder as number)
+          : Number.MAX_SAFE_INTEGER;
+        const orderB = Number.isFinite(b.itemOrder as number)
+          ? (b.itemOrder as number)
+          : Number.MAX_SAFE_INTEGER;
+        if (orderA !== orderB) return orderA - orderB;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
+
+    const resolved: GeneratedAudioLibraryEntry[] = [];
+    for (const audio of matching) {
+      const next = { ...audio };
+      if (next.audioUrl) {
+        const blobUrl = await getBlobUrlForDb(db, scope, next.audioUrl);
+        // An entry without its blob cannot be played offline — skip it rather
+        // than handing the player a URL that will 404 without a network.
+        if (!blobUrl) continue;
+        next.audioUrl = blobUrl;
+      }
+      if (next.coverImageUrl) {
+        const coverUrl = await getBlobUrlForDb(db, scope, next.coverImageUrl);
+        if (coverUrl) next.coverImageUrl = coverUrl;
+      }
+      resolved.push(next);
+    }
+    return resolved;
+  });
+}
+
 export async function getBlobUrl(
   scope: OfflineCacheScope,
   originalUrl: string,
@@ -797,9 +907,20 @@ async function getBlobUrlForDb(
   scope: OfflineCacheScope,
   originalUrl: string,
 ): Promise<string | null> {
-  const entry = await db.get('offline-blobs', createCacheKey(scope, originalUrl));
-  if (!entry || !isEntryInScope(entry, scope)) return null;
-  return URL.createObjectURL(entry.blob);
+  const normalizedUrl = normalizeMediaUrl(originalUrl);
+  const candidateKeys = [createCacheKey(scope, normalizedUrl)];
+  if (normalizedUrl !== originalUrl.trim()) {
+    // Entries written before signed URLs were normalized still use the full URL.
+    candidateKeys.push(createCacheKey(scope, originalUrl));
+  }
+
+  for (const key of candidateKeys) {
+    const entry = await db.get('offline-blobs', key);
+    if (entry && isEntryInScope(entry, scope)) {
+      return URL.createObjectURL(entry.blob);
+    }
+  }
+  return null;
 }
 
 export async function getOfflineStory(

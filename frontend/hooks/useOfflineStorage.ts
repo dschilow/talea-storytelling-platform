@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 import { useBackend } from './useBackend';
 import { useUserAccess } from '../contexts/UserAccessContext';
 import { useOptionalChildProfiles } from '../contexts/ChildProfilesContext';
@@ -7,14 +7,19 @@ import {
   saveStoryOffline,
   saveDokuOffline,
   saveAudioDokuOffline,
+  saveGeneratedAudioOffline,
   removeStoryOffline,
   removeDokuOffline,
   removeAudioDokuOffline,
+  removeGeneratedAudioOffline,
   getAllSavedIds,
+  listOfflineGeneratedAudioIdsBySource,
   storeLastOfflineScope,
   type OfflineCacheScope,
 } from '../utils/offlineDb';
+import { fetchGeneratedAudioBySource } from '../utils/audioLibraryApi';
 import type { AudioDoku } from '../types/audio-doku';
+import type { GeneratedAudioSourceType } from '../types/generated-audio';
 
 function scopeKey(scope: OfflineCacheScope): string {
   return JSON.stringify([scope.userId, scope.profileId]);
@@ -27,6 +32,7 @@ function operationKey(cacheScopeKey: string, contentId: string): string {
 export function useOfflineStorage() {
   const { subscription } = useUserAccess();
   const backend = useBackend();
+  const { getToken } = useAuth();
   const { isLoaded, isSignedIn, user } = useUser();
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
 
@@ -111,6 +117,51 @@ export function useOfflineStorage() {
     [currentScopeKey, savingIds],
   );
 
+  // Saving a story or doku for offline use takes its narration along. Text
+  // without audio is a half-saved item: the child opens it on the train, hits
+  // play, and nothing happens. Audio is best-effort — a story that has no
+  // generated audio yet, or a failing audio API, must never fail the save.
+  const saveRelatedAudioOffline = useCallback(
+    async (
+      cacheScope: OfflineCacheScope,
+      sourceType: GeneratedAudioSourceType,
+      sourceId: string,
+    ): Promise<void> => {
+      try {
+        const entries = await fetchGeneratedAudioBySource(getToken, sourceType, sourceId);
+        if (entries.length === 0) return;
+        await Promise.allSettled(
+          entries.map((entry) => saveGeneratedAudioOffline(cacheScope, entry)),
+        );
+      } catch (error) {
+        console.warn(`[Offline] Could not save ${sourceType} audio for ${sourceId}:`, error);
+      }
+    },
+    [getToken],
+  );
+
+  const removeRelatedAudioOffline = useCallback(
+    async (
+      cacheScope: OfflineCacheScope,
+      sourceType: GeneratedAudioSourceType,
+      sourceId: string,
+    ): Promise<void> => {
+      try {
+        const entryIds = await listOfflineGeneratedAudioIdsBySource(
+          cacheScope,
+          sourceType,
+          sourceId,
+        );
+        await Promise.allSettled(
+          entryIds.map((entryId) => removeGeneratedAudioOffline(cacheScope, entryId)),
+        );
+      } catch (error) {
+        console.warn(`[Offline] Could not remove ${sourceType} audio for ${sourceId}:`, error);
+      }
+    },
+    [],
+  );
+
   const beginSaving = useCallback((key: string): boolean => {
     if (savingIdsRef.current.has(key)) return false;
     savingIdsRef.current.add(key);
@@ -136,6 +187,7 @@ export function useOfflineStorage() {
 
       try {
         if (wasSaved) {
+          await removeRelatedAudioOffline(scope, 'story', storyId);
           await removeStoryOffline(scope, storyId);
           if (scopeKeyRef.current === currentScopeKey) {
             setSavedStoryIds((previous) => {
@@ -153,6 +205,7 @@ export function useOfflineStorage() {
             profileId: scope.profileId,
           });
           await saveStoryOffline(scope, fullStory as any);
+          await saveRelatedAudioOffline(scope, 'story', storyId);
           if (scopeKeyRef.current === currentScopeKey) {
             setSavedStoryIds((previous) => new Set(previous).add(storyId));
             setLoadedScopeKey(currentScopeKey);
@@ -177,7 +230,9 @@ export function useOfflineStorage() {
       currentScopeKey,
       finishSaving,
       loadedScopeKey,
+      removeRelatedAudioOffline,
       savedStoryIds,
+      saveRelatedAudioOffline,
       scope,
     ],
   );
@@ -191,6 +246,7 @@ export function useOfflineStorage() {
 
       try {
         if (wasSaved) {
+          await removeRelatedAudioOffline(scope, 'doku', dokuId);
           await removeDokuOffline(scope, dokuId);
           if (scopeKeyRef.current === currentScopeKey) {
             setSavedDokuIds((previous) => {
@@ -208,6 +264,7 @@ export function useOfflineStorage() {
             profileId: scope.profileId,
           });
           await saveDokuOffline(scope, fullDoku as any);
+          await saveRelatedAudioOffline(scope, 'doku', dokuId);
           if (scopeKeyRef.current === currentScopeKey) {
             setSavedDokuIds((previous) => new Set(previous).add(dokuId));
             setLoadedScopeKey(currentScopeKey);
@@ -232,7 +289,9 @@ export function useOfflineStorage() {
       currentScopeKey,
       finishSaving,
       loadedScopeKey,
+      removeRelatedAudioOffline,
       savedDokuIds,
+      saveRelatedAudioOffline,
       scope,
     ],
   );

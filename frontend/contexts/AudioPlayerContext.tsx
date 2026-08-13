@@ -4,6 +4,9 @@ import { MAX_PLAYLIST_ITEMS } from '../types/playlist';
 import { splitTextIntoChunks, splitTextIntoChunksForXai } from '../utils/ttsChunking';
 import { useTTSConversionQueue } from '../hooks/useTTSConversionQueue';
 import { useBackend } from '../hooks/useBackend';
+import { useOfflineScope } from './OfflineScopeContext';
+import { getBlobUrl, normalizeOfflineMediaUrl } from '../utils/offlineDb';
+import { isConfirmedOnline } from '../utils/connectivity';
 import type { Chapter } from '../types/story';
 import type { TTSRequestOptions, TTSVoiceSettings } from '../types/ttsVoice';
 import {
@@ -207,18 +210,84 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, []);
 
+  // ── Offline audio resolution ─────────────────────────────────────
+  // A remote audio URL is dead without a network. Whenever the same file was
+  // saved for offline use, swap in its local blob before handing it to the
+  // <audio> element — that is what makes a saved story or doku actually
+  // listenable on a train or a plane.
+  const offlineScope = useOfflineScope();
+  const offlineScopeRef = useRef(offlineScope);
+  offlineScopeRef.current = offlineScope;
+
+  /** Blob URL for a signature-free audio key, or null if it was never saved. */
+  const resolveOfflineAudioByKey = useCallback(
+    async (offlineAudioKey: string): Promise<string | null> => {
+      const scope = offlineScopeRef.current;
+      if (!scope || !offlineAudioKey) return null;
+      try {
+        return await getBlobUrl(scope, offlineAudioKey);
+      } catch {
+        return null;
+      }
+    },
+    [],
+  );
+
+  const resolvePlayableUrl = useCallback(
+    async (audioUrl: string): Promise<string> => {
+      if (!audioUrl || audioUrl.startsWith('blob:') || audioUrl.startsWith('data:')) {
+        return audioUrl;
+      }
+      const scope = offlineScopeRef.current;
+      if (!scope) return audioUrl;
+      // Online, the remote URL stays authoritative: it streams instead of
+      // holding a full blob in memory, and it is never stale.
+      if (isConfirmedOnline()) return audioUrl;
+
+      try {
+        const blobUrl = await getBlobUrl(scope, audioUrl);
+        return blobUrl ?? audioUrl;
+      } catch {
+        return audioUrl;
+      }
+    },
+    [],
+  );
+
+  // Object URLs minted here belong to the *currently playing* track only. One
+  // is released as soon as the next one takes over, so a 20-chapter audiobook
+  // never keeps 20 decoded files alive in memory.
+  const resolvedOfflineUrlRef = useRef<string | null>(null);
+
   // ── Internal helper: play a playlist item as AudioTrack ───────────
-  const playItemAsTrack = useCallback((item: PlaylistItem) => {
-    if (!item.audioUrl) return;
-    setShouldAutoplay(true);
-    setTrack({
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      coverImageUrl: item.coverImageUrl,
-      audioUrl: item.audioUrl,
-    });
-  }, []);
+  const playItemAsTrack = useCallback(
+    (item: PlaylistItem) => {
+      if (!item.audioUrl) return;
+      const requestedUrl = item.audioUrl;
+      void resolvePlayableUrl(requestedUrl).then((playableUrl) => {
+        const previousResolved = resolvedOfflineUrlRef.current;
+        if (playableUrl !== requestedUrl && playableUrl.startsWith('blob:')) {
+          trackBlobUrl(playableUrl);
+          resolvedOfflineUrlRef.current = playableUrl;
+        } else {
+          resolvedOfflineUrlRef.current = null;
+        }
+        if (previousResolved && previousResolved !== playableUrl) {
+          revokeBlobUrl(previousResolved);
+        }
+
+        setShouldAutoplay(true);
+        setTrack({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          coverImageUrl: item.coverImageUrl,
+          audioUrl: playableUrl,
+        });
+      });
+    },
+    [resolvePlayableUrl, revokeBlobUrl, trackBlobUrl],
+  );
 
   // ── TTS conversion queue ─────────────────────────────────────────
   const onChunkReady = useCallback(
@@ -254,6 +323,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // ── Restore persisted playlist on startup ───────────────────────
   useEffect(() => {
+    void (async () => {
     try {
       const raw = window.localStorage.getItem(PLAYLIST_STORAGE_KEY);
       if (!raw) {
@@ -268,7 +338,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       let restoredCurrentIndex = -1;
       let droppedPendingCount = 0;
 
-      restoredPlaylist.forEach((item, index) => {
+      for (const [index, item] of restoredPlaylist.entries()) {
         const audioUrl = item.audioUrl;
         const isBlobUrl = Boolean(audioUrl && audioUrl.startsWith('blob:'));
         const hydratedItem =
@@ -283,20 +353,33 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 conversionStatus: audioUrl ? 'ready' : item.conversionStatus || 'pending',
               } as PlaylistItem);
 
+        // A pre-signed URL cannot be persisted (it expires), but the same file
+        // may sit in the offline cache under its signature-free key. Recovering
+        // it here is what keeps a downloaded audiobook in the queue across an
+        // offline restart instead of silently emptying it.
+        if (!hydratedItem.audioUrl && hydratedItem.offlineAudioKey) {
+          const offlineUrl = await resolveOfflineAudioByKey(hydratedItem.offlineAudioKey);
+          if (offlineUrl) {
+            trackBlobUrl(offlineUrl);
+            hydratedItem.audioUrl = offlineUrl;
+            hydratedItem.conversionStatus = 'ready';
+          }
+        }
+
         const shouldDropPendingGeneratedItem =
           (hydratedItem.type === 'story-chapter' || hydratedItem.type === 'doku') &&
           !hydratedItem.audioUrl;
 
         if (shouldDropPendingGeneratedItem) {
           droppedPendingCount += 1;
-          return;
+          continue;
         }
 
         const nextIndex = hydratedPlaylist.push(hydratedItem) - 1;
         if (parsed.currentIndex === index) {
           restoredCurrentIndex = nextIndex;
         }
-      });
+      }
 
       const boundedIndex =
         restoredCurrentIndex >= 0 && restoredCurrentIndex < hydratedPlaylist.length
@@ -321,15 +404,24 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (boundedIndex >= 0) {
         const currentItem = hydratedPlaylist[boundedIndex];
         if (currentItem?.audioUrl && currentItem.conversionStatus === 'ready') {
-          setShouldAutoplay(false);
-          setTrack({
-            id: currentItem.id,
-            title: currentItem.title,
-            description: currentItem.description,
-            coverImageUrl: currentItem.coverImageUrl,
-            audioUrl: currentItem.audioUrl,
-          });
+          const restoredUrl = currentItem.audioUrl;
           setWaitingForConversion(false);
+          // Resolve through the offline cache: after an offline restart the
+          // persisted remote URL is dead, but its saved blob is not.
+          void resolvePlayableUrl(restoredUrl).then((playableUrl) => {
+            if (playableUrl !== restoredUrl && playableUrl.startsWith('blob:')) {
+              trackBlobUrl(playableUrl);
+              resolvedOfflineUrlRef.current = playableUrl;
+            }
+            setShouldAutoplay(false);
+            setTrack({
+              id: currentItem.id,
+              title: currentItem.title,
+              description: currentItem.description,
+              coverImageUrl: currentItem.coverImageUrl,
+              audioUrl: playableUrl,
+            });
+          });
         } else {
           setWaitingForConversion(true);
         }
@@ -341,6 +433,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } finally {
       setHasRestoredState(true);
     }
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -359,9 +452,18 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
             ? undefined
             : item.audioUrl;
 
+        // Keep the stable cache key even when the URL itself cannot be kept —
+        // it is the only way back to the offline copy after a restart.
+        const persistedOfflineKey =
+          item.offlineAudioKey ??
+          (item.audioUrl && !item.audioUrl.startsWith('blob:')
+            ? normalizeOfflineMediaUrl(item.audioUrl)
+            : undefined);
+
         return {
           ...item,
           audioUrl: persistedAudioUrl,
+          offlineAudioKey: persistedOfflineKey,
           conversionStatus:
             item.type === 'story-chapter' || item.type === 'doku'
               ? persistedAudioUrl
@@ -504,10 +606,23 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setIsPlaylistActive(false);
         setWaitingForConversion(false);
       }
-      setShouldAutoplay(options?.autoplay ?? true);
-      setTrack(next);
+      void resolvePlayableUrl(next.audioUrl).then((playableUrl) => {
+        const previousResolved = resolvedOfflineUrlRef.current;
+        if (playableUrl !== next.audioUrl && playableUrl.startsWith('blob:')) {
+          trackBlobUrl(playableUrl);
+          resolvedOfflineUrlRef.current = playableUrl;
+        } else {
+          resolvedOfflineUrlRef.current = null;
+        }
+        if (previousResolved && previousResolved !== playableUrl) {
+          revokeBlobUrl(previousResolved);
+        }
+
+        setShouldAutoplay(options?.autoplay ?? true);
+        setTrack({ ...next, audioUrl: playableUrl });
+      });
     },
-    [isPlaylistActive, cancelConversion, revokeBlobUrl],
+    [isPlaylistActive, cancelConversion, resolvePlayableUrl, revokeBlobUrl, trackBlobUrl],
   );
 
   const togglePlay = useCallback(() => {
