@@ -4,6 +4,7 @@ import { normalizeArtifacts, normalizePeople } from "./catalog";
 import { makeBrief, wizardWishes } from "./brief";
 import { checkManuscript, checkReview, parseContract, readingBudget } from "./contracts";
 import { generateBook, manuscriptHash } from "./engine";
+import { describeBookFailure } from "./failure";
 import { TextBudget } from "./budget";
 import { imageAccounting, illustrateBook, runwareProvider } from "./images";
 import { openRouterTransport, reasoningFor } from "./openrouter";
@@ -30,6 +31,18 @@ function sequence(values: unknown[]) {
 const options = (transport: Transport) => ({ writer: "writer", reviewer: "judge", prices, transport });
 
 describe("release depends on the final manuscript", () => {
+  test("provider and planning failures are not reported as failed comprehension", async () => {
+    const provider = await generateBook(brief, options(sequence([new Error("OpenRouter HTTP 401")]).transport));
+    expect(describeBookFailure(provider).reason).toBe("provider-http-401");
+    expect(describeBookFailure(provider).stage).toBe("plan");
+    const malformed = await generateBook(brief, options(sequence([{}]).transport));
+    expect(describeBookFailure(malformed).reason).toBe("invalid-output");
+    const invalidPlan = copy(plan); invalidPlan.beats = [];
+    const planning = await generateBook(brief, options(sequence([invalidPlan]).transport));
+    expect(describeBookFailure(planning).reason).toBe("plan-rejected");
+    const budget = await generateBook(brief, { ...options(sequence([]).transport), textBudgetUSD: 0.000001 });
+    expect(describeBookFailure(budget).reason).toBe("budget");
+  });
   test("one plan, one manuscript, one review", async () => {
     const fake = sequence([plan, book, review]);
     const result = await generateBook(brief, options(fake.transport));

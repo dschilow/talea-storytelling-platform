@@ -13,6 +13,7 @@ import type { StorybookGeneratedStory, StorybookGenerationInput } from "./storyb
 import { normalizeArtifacts, normalizePeople, shortlistPeople } from "./book-workshop/catalog";
 import { makeBrief, writerModel } from "./book-workshop/brief";
 import { generateBook } from "./book-workshop/engine";
+import { describeBookFailure } from "./book-workshop/failure";
 import { grounded } from "./book-workshop/contracts";
 import { imageAccounting, illustrateBook, runwareProvider } from "./book-workshop/images";
 import { openRouterTransport, resolvePrices } from "./book-workshop/openrouter";
@@ -76,7 +77,13 @@ export async function generateStoryBookWorkshop(input: StorybookGenerationInput 
   });
   await audit(input.storyId, "text-result", { ...result, manuscript: process.env.TALEA_BOOK_LOG_TEXT === "true" ? result.manuscript : undefined });
   if (result.status !== "accepted" || !result.manuscript || !result.review || !result.plan) {
-    throw APIError.failedPrecondition("Diese Geschichte hat die Verständnisprüfung im Textbudget nicht bestanden. Es wurden keine Bilder oder Belohnungen erzeugt.");
+    const failure = describeBookFailure(result);
+    console.error("[book-workshop] Generation stopped", {
+      storyId: input.storyId, ...failure, issues: result.issues,
+      stages: result.receipts.map(({ stage, model, status, durationMs }) => ({ stage, model, status, durationMs })),
+      textCostUSD: result.textCostUSD, budgetCommittedUSD: result.budgetCommittedUSD,
+    });
+    throw APIError.failedPrecondition(`${failure.message} Es wurden keine Bilder oder Belohnungen erzeugt.`);
   }
 
   let imageKey = process.env.RUNWARE_API_KEY || process.env.RunwareApiKey || "";
