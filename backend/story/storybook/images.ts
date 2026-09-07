@@ -14,13 +14,12 @@
 import { ai } from "~encore/clients";
 import { mapWithConcurrency } from "../../helpers/asyncPool";
 import { resolveImageUrlForClient } from "../../helpers/bucket-storage";
-import { buildSpriteCollage, FRAME_COLORS, type CollageSlot } from "../pipeline/sprite-collage";
+import { buildSceneIllustrationPrompt, createIdentityReferenceCache, EMPTY_IDENTITY_REFERENCE, type IdentityReference } from "../image-reference-sprite";
 import { callSupport, parseJsonObject, type LlmCallResult } from "./llm";
-import { selectProviderReferences } from "./image-references";
+import { acceptedGeneratedImageUrl } from "../../helpers/imageResultGuard";
 import type { KidLogicCard, StorybookCastMember, StorybookHero, StorybookPage } from "./types";
 
 const STORYBOOK_IMAGE_MODEL = "runware:400@4";
-const MAX_REFERENCES = 4;
 
 const NEGATIVE_PROMPT = [
   "text, letters, words, watermark, signature, caption, speech bubble",
@@ -106,7 +105,9 @@ async function buildReferences(input: StorybookImageInput): Promise<ReferenceEnt
   }
 
   const resolved: ReferenceEntry[] = [];
-  for (const candidate of candidates.slice(0, MAX_REFERENCES)) {
+  // The provider sees one sprite, so its reference-image limit must not cut
+  // selected avatars or supporting characters out of the sprite itself.
+  for (const candidate of candidates) {
     if (!candidate.imageUrl) continue;
     try {
       const url = await resolveImageUrlForClient(candidate.imageUrl);
@@ -174,23 +175,6 @@ function buildPromptUser(input: StorybookImageInput, references: ReferenceEntry[
   return lines.join("\n");
 }
 
-function identityContract(references: ReferenceEntry[], collagePositions?: Array<{ displayName: string; color: { name: string } }>): string {
-  if (references.length === 0) return "";
-  if (collagePositions && collagePositions.length > 0) {
-    const slots = collagePositions
-      .map((position, index) => `${index + 1}. the character in the ${position.color.name} frame = ${position.displayName}`)
-      .join("; ");
-    return [
-      `The reference image is a character sheet with ${collagePositions.length} framed portraits: ${slots}.`,
-      "Copy each character's exact face, hair, skin tone, outfit and accessories from their own frame.",
-      "Never mix features between characters. Do NOT draw the frames, the sheet or any border in the output.",
-    ].join(" ");
-  }
-  return references
-    .map((entry, index) => `REFERENCE IMAGE ${index + 1} = ${entry.name} ONLY. Keep their exact face, hair, skin, outfit and accessories.`)
-    .join(" ");
-}
-
 function fallbackPrompt(input: StorybookImageInput, order: number | "cover"): string {
   const names = [...input.heroes.map((h) => h.name), ...input.cast.map((c) => c.name)].slice(0, 3).join(" and ");
   if (order === "cover") {
@@ -217,34 +201,20 @@ export async function generateStorybookImages(input: StorybookImageInput): Promi
     console.warn("[storybook/images] reference build failed:", err);
   }
 
-  const directReferenceUrls = references.map((entry) => entry.resolvedUrl);
-  let referenceUrls = directReferenceUrls;
-  let collagePositions: Array<{ displayName: string; color: { name: string } }> | undefined;
-  if (references.length >= 2) {
-    try {
-      const slots: CollageSlot[] = references.map((entry) => ({ imageUrl: entry.resolvedUrl, displayName: entry.name }));
-      const collage = await buildSpriteCollage(slots);
-      if (collage?.collageUrl) {
-        const providerReferences = await selectProviderReferences({
-          collageUrl: collage.collageUrl,
-          directUrls: directReferenceUrls,
-          resolveUrl: resolveImageUrlForClient,
-        });
-        referenceUrls = providerReferences.urls;
-        if (providerReferences.usesCollage) {
-          collagePositions = collage.positions.map((position) => ({
-            displayName: position.displayName,
-            color: { name: position.color?.name || FRAME_COLORS[0].name },
-          }));
-        }
-      }
-    } catch (err) {
-      console.warn("[storybook/images] collage failed, falling back to direct references:", err);
-    }
+  let identityReference: IdentityReference = EMPTY_IDENTITY_REFERENCE;
+  try {
+    identityReference = await createIdentityReferenceCache()(references.map(entry => ({ imageUrl: entry.resolvedUrl, displayName: entry.name })));
+  } catch {
+    // Do not replace a failed sprite with multiple paid reference images or
+    // pretend the resulting identity-free illustrations are consistent.
+    console.warn("[storybook/images] reference sprite unavailable; skipped paid illustration calls");
+    return empty;
   }
 
   // 2) all prompts in one support call -------------------------------------
   let prompts: { cover?: string; pages: Map<number, string> } = { pages: new Map() };
+  const pageCharacters = new Map<number, string[]>();
+  const allNames = [...input.heroes.map(h => h.name), ...input.cast.map(c => c.name)];
   let promptCall: LlmCallResult | undefined;
   try {
     promptCall = await callSupport({
@@ -254,13 +224,16 @@ export async function generateStorybookImages(input: StorybookImageInput): Promi
       json: true,
       temperature: 0.5,
     });
-    const parsed = parseJsonObject<{ cover?: string; pages?: Array<{ nr: number; prompt: string }> }>(promptCall.text);
+    const parsed = parseJsonObject<{ cover?: string; pages?: Array<{ nr: number; prompt: string; characters?: string[] }> }>(promptCall.text);
     if (parsed) {
       prompts.cover = String(parsed.cover || "").trim() || undefined;
       for (const entry of parsed.pages || []) {
         const nr = Number(entry?.nr);
         const prompt = String(entry?.prompt || "").trim();
-        if (Number.isFinite(nr) && prompt) prompts.pages.set(nr, prompt);
+        if (Number.isFinite(nr) && prompt) {
+          prompts.pages.set(nr, prompt);
+          if (Array.isArray(entry.characters) && entry.characters.every(name => allNames.includes(name))) pageCharacters.set(nr, [...new Set(entry.characters)]);
+        }
       }
     }
   } catch (err) {
@@ -268,14 +241,14 @@ export async function generateStorybookImages(input: StorybookImageInput): Promi
   }
 
   // 3) generate -------------------------------------------------------------
-  const contract = identityContract(references, collagePositions);
-  type Job = { kind: "cover" | "page"; order?: number; scene: string };
+  type Job = { kind: "cover" | "page"; order?: number; scene: string; visibleNames: string[] };
   const jobs: Job[] = [
-    { kind: "cover", scene: prompts.cover || fallbackPrompt(input, "cover") },
+    { kind: "cover", scene: prompts.cover || fallbackPrompt(input, "cover"), visibleNames: input.heroes.map(h => h.name) },
     ...input.pages.map((page) => ({
       kind: "page" as const,
       order: page.order,
       scene: prompts.pages.get(page.order) || fallbackPrompt(input, page.order),
+      visibleNames: pageCharacters.get(page.order) || allNames.slice(0, 3),
     })),
   ];
 
@@ -294,7 +267,7 @@ export async function generateStorybookImages(input: StorybookImageInput): Promi
   };
 
   const results = await mapWithConcurrency(jobs, 3, async (job) => {
-    const fullPrompt = [contract, job.scene, STYLE_SUFFIX].filter(Boolean).join("\n");
+    const fullPrompt = buildSceneIllustrationPrompt(job.scene, STYLE_SUFFIX, identityReference, job.visibleNames);
     try {
       imageCalls += 1;
       const image = await ai.generateImage({
@@ -306,14 +279,14 @@ export async function generateStorybookImages(input: StorybookImageInput): Promi
         steps: 4,
         CFGScale: 4,
         outputFormat: "JPEG",
-        referenceImages: referenceUrls.length > 0 ? referenceUrls : undefined,
+        referenceImages: identityReference.urls.length > 0 ? identityReference.urls : undefined,
         logContext: {
           storyId: input.storyId,
           stage: job.kind === "cover" ? "storybook-image-cover" : "storybook-image-page",
           chapter: job.order,
         },
       });
-      const url = String((image as any)?.imageUrl || "").trim();
+      const url = acceptedGeneratedImageUrl(image);
       imageCostUSD = Number((imageCostUSD + providerCost(image)).toFixed(6));
       return { job, imageUrl: url || undefined, prompt: fullPrompt };
     } catch (err) {

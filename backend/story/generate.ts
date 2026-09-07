@@ -4,6 +4,7 @@ import { generateStoryContent } from "./ai-generation";
 import { generateStoryDevMode, pickDevModePoolCharacters, recordDevModePoolCharacterUsage } from "./dev-mode-generation";
 import { generateStoryStandardMode } from "./standard-mode-generation";
 import { generateStoryStorybookMode } from "./storybook-mode-generation";
+import { generateStoryBookWorkshop } from "./book-workshop-generation";
 import { isOpenRouterCreditLimitError } from "./openrouter-generation";
 import type { Avatar, InventoryItem, Skill } from "../avatar/avatar";
 import { avatar } from "~encore/clients";
@@ -716,10 +717,12 @@ export const generate = api<GenerateStoryRequest, Story>(
       let pipelineResult: Awaited<ReturnType<StoryPipelineOrchestrator["run"]>> | undefined;
 
       if (config.storybookMode === true) {
-        // Storybook lane (storybook-v1). Fully independent of the dev-mode and
-        // standard engines — nothing below this branch is shared with them.
-        console.log("[story.generate] 📖 STORYBOOK MODE (storybook-v1) — premise bank + Kinderlogik-Karte + one writer call + comprehension judge");
-        generatedStory = await generateStoryStorybookMode({
+        // The independent workshop is enabled explicitly for the book mode.
+        console.log("[story.generate] Storybook engine:", process.env.TALEA_STORYBOOK_ENGINE === "book-workshop-v1" ? "book-workshop-v1" : "storybook-v1");
+        const storybookGenerator = process.env.TALEA_STORYBOOK_ENGINE === "book-workshop-v1"
+          ? generateStoryBookWorkshop
+          : generateStoryStorybookMode;
+        generatedStory = await storybookGenerator({
           config,
           userId: currentUserId,
           storyId: id,
@@ -735,6 +738,7 @@ export const generate = api<GenerateStoryRequest, Story>(
             narrativeProfile: (a as any).narrativeProfile,
           })),
           primaryProfileAge: primaryProfile.age,
+          ...(process.env.TALEA_STORYBOOK_ENGINE === "book-workshop-v1" ? { blockedTerms } : {}),
         });
       } else if (config.developerMode === true) {
         console.log("[story.generate] 🧪 DEVELOPER MODE — adaptive polish cost-optimized quality path (support model for planning/judging, selected model for prose, images enabled, NO personality updates)");
@@ -962,13 +966,13 @@ export const generate = api<GenerateStoryRequest, Story>(
         generatedStory.avatarDevelopments ?? [],
         developmentAvatars,
       );
-      if (!config.developerMode) {
+      if (!config.developerMode || generatedStory.metadata?.pipeline === "book-workshop-v1") {
         try {
           const validation = await validateAvatarDevelopments(
             validatedDevelopments,
             mcpApiKey
           ) as AvatarDevelopmentValidationResult;
-          if (validation?.isValid === false) {
+          if (validation?.isValid === false || (generatedStory.metadata?.pipeline === "book-workshop-v1" && validation?.isValid !== true)) {
             throw new Error(`Avatar developments invalid: ${JSON.stringify(validation.errors ?? {})}`);
           }
           if (Array.isArray(validation?.normalized)) {
@@ -1000,6 +1004,8 @@ export const generate = api<GenerateStoryRequest, Story>(
           }
         } catch (validationError) {
           console.warn("[story.generate] Avatar development validation warning:", validationError);
+          // The new lane must not award unvalidated changes when MCP fails.
+          if (generatedStory.metadata?.pipeline === "book-workshop-v1") validatedDevelopments = [];
         }
       }
       validatedDevelopments = assignAvatarDevelopmentIds(
@@ -1008,7 +1014,9 @@ export const generate = api<GenerateStoryRequest, Story>(
       );
 
       let parentalFilterReplacements = 0;
-      if (blockedTerms.length > 0) {
+      // The workshop checks parental restrictions before approval and images.
+      // Do not edit its certified manuscript after the review.
+      if (blockedTerms.length > 0 && generatedStory.metadata?.pipeline !== "book-workshop-v1") {
         const sanitizedTitle = sanitizeTextWithBlockedTerms(generatedStory.title ?? "", blockedTerms);
         const sanitizedDescription = sanitizeTextWithBlockedTerms(generatedStory.description ?? "", blockedTerms);
         parentalFilterReplacements += sanitizedTitle.replacements + sanitizedDescription.replacements;
@@ -1057,7 +1065,7 @@ export const generate = api<GenerateStoryRequest, Story>(
               // table cannot see promotions or which upstream provider served
               // the request. Absent (native Gemini/OpenAI/Anthropic calls) the
               // table estimate stays in charge.
-              const reportedCostUSD = Number.isFinite(Number(usage.costUSD))
+              const reportedCostUSD = usage.costUSD != null && usage.costUSD !== "" && Number.isFinite(Number(usage.costUSD))
                 ? Number(usage.costUSD)
                 : undefined;
               const reportedCostSplit = reportedCostUSD !== undefined
@@ -1088,7 +1096,7 @@ export const generate = api<GenerateStoryRequest, Story>(
                     || generatedStory.metadata?.devModePipeline
                     || "adaptive-polish-cost-optimized",
                   modelRole: stage?.modelRole,
-                  costSource: reportedCostUSD !== undefined ? "provider-reported" : "price-table",
+                  costSource: stage?.costSource || (reportedCostUSD !== undefined ? "provider-reported" : "price-table"),
                 },
               });
             })
@@ -1101,7 +1109,9 @@ export const generate = api<GenerateStoryRequest, Story>(
         ? (reportedImageCalls ?? reportedImagesGenerated ?? 0)
         : 0;
       const measuredImageCostUSD = Number(generatedStory.metadata?.imageCostUSD || 0);
-      const billedImageCostUSD = measuredImageCostUSD > 0
+      const workshopImageCosts = generatedStory.metadata?.pipeline === "book-workshop-v1"
+        ? generatedStory.metadata?.bookWorkshop?.imageCosts : undefined;
+      const billedImageCostUSD = workshopImageCosts ? workshopImageCosts.totalCostUSD : measuredImageCostUSD > 0
         ? measuredImageCostUSD
         : Number((devModeImageCalls * DEV_MODE_IMAGE_COST_USD).toFixed(6));
       const devModeImageCostEntries = devModeImageCalls > 0 || measuredImageCostUSD > 0
@@ -1114,9 +1124,11 @@ export const generate = api<GenerateStoryRequest, Story>(
             itemCount: devModeImageCalls,
             providerCostUSD: billedImageCostUSD,
             metadata: {
-              estimated: measuredImageCostUSD <= 0,
+              estimated: workshopImageCosts ? !workshopImageCosts.complete : measuredImageCostUSD <= 0,
               unitCostUSD: measuredImageCostUSD > 0 ? undefined : DEV_MODE_IMAGE_COST_USD,
-              source: measuredImageCostUSD > 0 ? "runware-response" : "dev-mode-image-count-fallback",
+              source: workshopImageCosts ? (workshopImageCosts.complete ? "runware-response" : "runware-response-and-unknown-attempt-estimates")
+                : measuredImageCostUSD > 0 ? "runware-response" : "dev-mode-image-count-fallback",
+              ...(workshopImageCosts ? { providerReportedUSD: workshopImageCosts.providerCostUSD, estimatedUSD: workshopImageCosts.estimatedCostUSD } : {}),
             },
           })]
         : [];
@@ -1125,7 +1137,9 @@ export const generate = api<GenerateStoryRequest, Story>(
         || metadataUsage?.modelUsed
         || config.aiModel
         || GEMINI_MAIN_STORY_MODEL;
-      const devModeResidualUsage = devModeCostEntries.length > 0
+      // Workshop records every paid attempt directly. Rounding residuals are
+      // not additional LLM calls and must not inflate the admin call count.
+      const devModeResidualUsage = devModeCostEntries.length > 0 && generatedStory.metadata?.pipeline !== "book-workshop-v1"
         ? calculateGenerationUsageResidual({
             metadataUsage,
             trackedEntries: devModeCostEntries as any[],

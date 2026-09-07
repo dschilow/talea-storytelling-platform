@@ -3,6 +3,7 @@ import { secret } from "encore.dev/config";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { maybeUploadImageUrlToBucket } from "../helpers/bucket-storage";
+import { summarizeRunwareResponse } from "./image-cost-summary";
 
 const runwareApiKey = secret("RunwareApiKey");
 
@@ -85,12 +86,7 @@ export interface BatchGenerationResponse {
 }
 
 function summarizeImageProviderResponse(value: any): Record<string, unknown> {
-  const itemCount = Array.isArray(value)
-    ? value.length
-    : Array.isArray(value?.data)
-      ? value.data.length
-      : Array.isArray(value?.results) ? value.results.length : undefined;
-  return { responseType: Array.isArray(value) ? "array" : typeof value, itemCount, hasError: Boolean(value?.error) };
+  return summarizeRunwareResponse(value);
 }
 
 // Internal helper that actually calls Runware and returns the parsed image with retry logic
@@ -196,8 +192,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
 
       const responseLog = {
         httpStatus: res.status,
-        responseType: Array.isArray(data) ? "array" : typeof data,
-        itemCount: Array.isArray(data) ? data.length : Array.isArray(data?.data) ? data.data.length : undefined,
+        ...summarizeRunwareResponse(data),
       };
       await publishWithTimeout(logTopic, {
         source: 'runware-single-image',
@@ -236,7 +231,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
       throw abortErr;
     }
 
-    debugInfo.responseReceived = { responseType: Array.isArray(data) ? "array" : typeof data };
+    debugInfo.responseReceived = summarizeRunwareResponse(data);
     debugInfo.processingTime = Date.now() - startTime;
 
     const extracted = extractRunwareImage(data);

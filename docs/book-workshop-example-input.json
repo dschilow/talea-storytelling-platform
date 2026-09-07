@@ -1,0 +1,28 @@
+{
+  "seed": "editorial-pilot-001",
+  "config": {
+    "avatarIds": ["pilot-alexander", "pilot-adrian"],
+    "genre": "fairy_tales",
+    "setting": "village",
+    "length": "medium",
+    "complexity": "simple",
+    "ageGroup": "6-8",
+    "language": "de",
+    "humorLevel": 2,
+    "suspenseLevel": 2,
+    "requireHappyEnd": true,
+    "allowRhymes": false,
+    "pov": "personale",
+    "aiProvider": "openrouter",
+    "openRouterModel": "moonshotai/kimi-k2.6",
+    "customPrompt": "Zwei Kinder wollen ein Geschenk zu einem Fest bringen. Eines plant gern, das andere probiert gern etwas aus. Ein kleines Missgeschick soll die Handlung verändern."
+  },
+  "heroes": [
+    { "id": "pilot-alexander", "name": "Alexander", "description": "Ein Kind, das gern vorausplant und Neues ausprobiert." },
+    { "id": "pilot-adrian", "name": "Adrian", "description": "Ein Kind, das sich gern bewegt und eigene Ideen hat." }
+  ],
+  "candidates": [
+    { "id": "pilot-baker", "name": "Bäcker Wilhelm", "backstory": "Er möchte, dass beim Dorffest jeder etwas Warmes zu essen bekommt.", "speechStyle": ["herzlich", "übertreibend"], "quirk": "schnuppert an allem, als wäre es frisches Brot", "canonSettings": ["village"] }
+  ],
+  "artifacts": []
+}
