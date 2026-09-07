@@ -222,6 +222,8 @@ export interface StoryConfig {
   // gpt-5.6-luna; the prose model stays whatever the wizard selected.
   // Does not touch developerMode or the standard path.
   storybookMode?: boolean;
+  // Explicit wizard selection takes precedence over the legacy server default.
+  storybookEngine?: "storybook-v1" | "book-workshop-v1";
 
   // Developer Mode: bypass all enrichment (visual profiles, memories, DNA,
   // character pool, artifacts, style packs) and generate from a minimal prompt
@@ -717,9 +719,9 @@ export const generate = api<GenerateStoryRequest, Story>(
       let pipelineResult: Awaited<ReturnType<StoryPipelineOrchestrator["run"]>> | undefined;
 
       if (config.storybookMode === true) {
-        // The independent workshop is enabled explicitly for the book mode.
-        console.log("[story.generate] Storybook engine:", process.env.TALEA_STORYBOOK_ENGINE === "book-workshop-v1" ? "book-workshop-v1" : "storybook-v1");
-        const storybookGenerator = process.env.TALEA_STORYBOOK_ENGINE === "book-workshop-v1"
+        const useWorkshop = (config.storybookEngine ?? process.env.TALEA_STORYBOOK_ENGINE) === "book-workshop-v1";
+        console.log("[story.generate] Storybook engine:", useWorkshop ? "book-workshop-v1" : "storybook-v1");
+        const storybookGenerator = useWorkshop
           ? generateStoryBookWorkshop
           : generateStoryStorybookMode;
         generatedStory = await storybookGenerator({
@@ -738,7 +740,7 @@ export const generate = api<GenerateStoryRequest, Story>(
             narrativeProfile: (a as any).narrativeProfile,
           })),
           primaryProfileAge: primaryProfile.age,
-          ...(process.env.TALEA_STORYBOOK_ENGINE === "book-workshop-v1" ? { blockedTerms } : {}),
+          ...(useWorkshop ? { blockedTerms } : {}),
         });
       } else if (config.developerMode === true) {
         console.log("[story.generate] 🧪 DEVELOPER MODE — adaptive polish cost-optimized quality path (support model for planning/judging, selected model for prose, images enabled, NO personality updates)");

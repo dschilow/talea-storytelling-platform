@@ -30,10 +30,7 @@ import type { JudgeAnswers, KidLogicCard, StorybookPage } from "./types";
 const BUDGET = resolveLengthBudget("medium", "6-8");
 
 describe("storybook image references", () => {
-  test("resolves a private collage and keeps the portraits alongside it", async () => {
-    // The collage leads (identityContract maps frame colours to "reference
-    // image 1"), but it must never travel alone: run 6683b402 sent one collage
-    // per image and the model painted the frame grid into every illustration.
+  test("resolves a private collage as the only paid reference", async () => {
     const selection = await selectProviderReferences({
       collageUrl: "bucket://talea/images/collages/cast.png",
       directUrls: ["https://cdn.example/alexander.png", "https://cdn.example/adrian.png"],
@@ -43,14 +40,12 @@ describe("storybook image references", () => {
     expect(selection).toEqual({
       urls: [
         "https://backend.example/story/image?key=cast.png",
-        "https://cdn.example/alexander.png",
-        "https://cdn.example/adrian.png",
       ],
       usesCollage: true,
     });
   });
 
-  test("drops portraits the provider cannot read, keeping the collage", async () => {
+  test("does not append any portrait to the collage", async () => {
     const selection = await selectProviderReferences({
       collageUrl: "bucket://talea/images/collages/cast.png",
       directUrls: ["bucket://talea/private/alexander.png", "https://cdn.example/adrian.png"],
@@ -59,7 +54,6 @@ describe("storybook image references", () => {
 
     expect(selection.urls).toEqual([
       "https://backend.example/story/image?key=cast.png",
-      "https://cdn.example/adrian.png",
     ]);
   });
 
@@ -71,7 +65,7 @@ describe("storybook image references", () => {
       resolveUrl: async (url) => url,
     });
 
-    expect(selection).toEqual({ urls: directUrls, usesCollage: false });
+    expect(selection).toEqual({ urls: [], usesCollage: false });
     expect(isProviderReadableReference("bucket://talea/private.png")).toBe(false);
   });
 });

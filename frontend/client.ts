@@ -259,6 +259,10 @@ import {
     getPersonalityHistory as api_ai_personality_tracker_getPersonalityHistory,
     trackPersonalityUpdate as api_ai_personality_tracker_trackPersonalityUpdate
 } from "~backend/ai/personality-tracker";
+import {
+    generateWizardAssets as api_ai_wizard_assets_generateWizardAssets,
+    getWizardAssets as api_ai_wizard_assets_getWizardAssets
+} from "~backend/ai/wizard-assets";
 
 export namespace ai {
 
@@ -272,7 +276,9 @@ export namespace ai {
             this.checkPersonalityUpdate = this.checkPersonalityUpdate.bind(this)
             this.generateAvatarImage = this.generateAvatarImage.bind(this)
             this.generateVisualProfile = this.generateVisualProfile.bind(this)
+            this.generateWizardAssets = this.generateWizardAssets.bind(this)
             this.getPersonalityHistory = this.getPersonalityHistory.bind(this)
+            this.getWizardAssets = this.getWizardAssets.bind(this)
             this.trackPersonalityUpdate = this.trackPersonalityUpdate.bind(this)
         }
 
@@ -332,12 +338,32 @@ export namespace ai {
         }
 
         /**
+         * Generates the wizard illustrations. Admin-only + metered image pipeline.
+         * Idempotent: existing assets are skipped unless force=true.
+         */
+        public async generateWizardAssets(params: RequestType<typeof api_ai_wizard_assets_generateWizardAssets>): Promise<ResponseType<typeof api_ai_wizard_assets_generateWizardAssets>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/generate-wizard-assets`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_wizard_assets_generateWizardAssets>
+        }
+
+        /**
          * Get all personality updates for an avatar (for history/debugging)
          */
         public async getPersonalityHistory(params: { avatarId: string }): Promise<ResponseType<typeof api_ai_personality_tracker_getPersonalityHistory>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/ai/personality-history/${encodeURIComponent(params.avatarId)}`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_personality_tracker_getPersonalityHistory>
+        }
+
+        /**
+         * Reads the current manifest: which assets exist in the bucket right now.
+         * Public so the wizard can consume it without auth.
+         */
+        public async getWizardAssets(): Promise<ResponseType<typeof api_ai_wizard_assets_getWizardAssets>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/ai/wizard-assets`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_ai_wizard_assets_getWizardAssets>
         }
 
         /**
@@ -1282,6 +1308,7 @@ export namespace fairytales {
  * Import the endpoint handlers to derive the types for the client.
  */
 import { health as api_health_health_health } from "~backend/health/health";
+import { version as api_health_version_version } from "~backend/health/version";
 
 export namespace health {
 
@@ -1291,6 +1318,7 @@ export namespace health {
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
             this.health = this.health.bind(this)
+            this.version = this.version.bind(this)
         }
 
         /**
@@ -1301,6 +1329,28 @@ export namespace health {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/health`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_health_health>
+        }
+
+        /**
+         * Reports which build is actually serving traffic.
+         * 
+         * This exists because of the 2026-07-31 incident: production had been pinned
+         * to the ':test-main' image tag since a forked-environment merge on 07-28, so
+         * every push to main built and pushed an image nobody deployed. It went
+         * unnoticed for three days because there was no way to ask the running service
+         * what it was. The only reason it was found at all is that a support-model
+         * constant in the story pipeline happened to differ between the two builds and
+         * showed up in a story log — a lucky fingerprint, not a diagnostic.
+         * 
+         * Deliberately unauthenticated: its entire purpose is to be curl-able straight
+         * after a deploy, and the repository is public, so a commit SHA discloses
+         * nothing. Keep it that way — do not extend this payload with configuration,
+         * secrets, environment names, or database state.
+         */
+        public async version(): Promise<ResponseType<typeof api_health_version_version>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/health/version`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_health_version_version>
         }
     }
 }

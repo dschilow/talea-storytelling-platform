@@ -82,6 +82,7 @@ interface WizardState {
   openRouterModel: OpenRouterStoryModel;
   developerMode: boolean;
   storybookMode: boolean;
+  bookWorkshopMode: boolean;
   /** Schatzkammer: owned artifact taken along into this story (Mitnehmen-Loop). */
   broughtArtifact: BroughtArtifactSelection | null;
 }
@@ -335,6 +336,7 @@ export default function TaleaStoryWizard() {
     openRouterModel: DEFAULT_OPENROUTER_STORY_MODEL,
     developerMode: false,
     storybookMode: false,
+    bookWorkshopMode: false,
     broughtArtifact: null,
   });
   const lastAppliedProfileRef = React.useRef<string | null>(null);
@@ -673,9 +675,9 @@ export default function TaleaStoryWizard() {
                   <FlaskConical className="h-3 w-3" /> Dev Mode
                 </span>
               )}
-              {state.storybookMode && (
+              {(state.storybookMode || state.bookWorkshopMode) && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/60 bg-emerald-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                  <BookOpen className="h-3 w-3" /> Bilderbuch
+                  <BookOpen className="h-3 w-3" /> {state.bookWorkshopMode ? 'Buchwerkstatt' : 'Bilderbuch'}
                 </span>
               )}
             </div>
@@ -764,16 +766,16 @@ interface Step0ModeSelectionProps {
   updateState: (updates: Partial<WizardState>) => void;
 }
 
-type GenerationLane = 'standard' | 'storybook' | 'developer';
+type GenerationLane = 'standard' | 'storybook' | 'developer' | 'workshop';
 
 function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
-  const activeLane: GenerationLane = state.developerMode
+  const activeLane: GenerationLane = state.bookWorkshopMode ? 'workshop' : state.developerMode
     ? 'developer'
     : state.storybookMode
       ? 'storybook'
       : 'standard';
   const select = (lane: GenerationLane) =>
-    updateState({ developerMode: lane === 'developer', storybookMode: lane === 'storybook' });
+    updateState({ developerMode: lane === 'developer', storybookMode: lane === 'storybook', bookWorkshopMode: lane === 'workshop' });
   const cardBase =
     'flex w-full flex-col gap-3 rounded-2xl border p-5 text-left transition-all duration-200 hover:scale-[1.01]';
   const cardSelected =
@@ -791,10 +793,9 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
           Wie soll die Geschichte generiert werden?
         </h2>
         <p className={cn(taleaBodyFont, 'mt-2 text-sm text-[var(--talea-text-secondary)]')}>
-          Wähle den Modus. Im Normalmodus läuft die volle Talea-Pipeline mit allen Avataren,
-          Erinnerungen, Stilbausteinen und Bildern. Der Bilderbuch-Modus ist die neue Pipeline
-          für echte Vorlesequalität. Der Developer Mode testet die fokussierte Qualitäts-Pipeline
-          ohne Story-DNA, Artefakte, Bilder oder Avatar-Mutationen.
+          Wähle zwischen Normalmodus, Bilderbuch, Buchwerkstatt und Developer Mode.
+          Die Buchwerkstatt ist die neue, eigenständige Pipeline zum Testen.
+          Deine Avatare und Story-Wünsche wählst du anschließend aus.
         </p>
       </div>
 
@@ -848,6 +849,36 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
         <p className="text-xs italic text-[var(--talea-text-tertiary)]">
           Eine Schreib-Anfrage statt sieben Überarbeitungen — schneller, deutlich günstiger, und
           jede Geschichte zieht eine neue Variante, damit sich nichts wiederholt.
+        </p>
+      </button>
+
+      <button
+        type="button"
+        aria-pressed={activeLane === 'workshop'}
+        onClick={() => select('workshop')}
+        className={cn(cardBase, activeLane === 'workshop' ? cardSelected : cardIdle)}
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <Wand2 className="h-6 w-6 text-[var(--primary)]" />
+          <span className="text-lg font-semibold text-[var(--talea-text-primary)]">
+            Buchwerkstatt
+          </span>
+          <span className="rounded-full border border-amber-400/60 bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+            Neu · Test
+          </span>
+          {activeLane === 'workshop' && (
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[var(--primary)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--primary)]">
+              <Check className="h-3 w-3" /> Aktiv
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-[var(--talea-text-secondary)]">
+          Neue, eigenständige Pipeline: plant die Handlung, schreibt die Geschichte und prüft
+          sie auf Verständlichkeit und Widersprüche. Mit deinen Avataren, passenden
+          Nebenfiguren, Artefakten und Illustrationen.
+        </p>
+        <p className="text-xs text-[var(--talea-text-tertiary)]">
+          Zum Testen und Vergleichen. Alter, Wünsche und weitere Einstellungen wählst du in den nächsten Schritten.
         </p>
       </button>
 
@@ -958,7 +989,8 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic',
     },
     developerMode: state.developerMode || undefined,
-    storybookMode: state.storybookMode || undefined,
+    storybookMode: state.storybookMode || state.bookWorkshopMode || undefined,
+    storybookEngine: state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v1' : undefined,
     broughtArtifact:
       state.broughtArtifact && state.selectedAvatars.includes(state.broughtArtifact.avatarId)
         ? {

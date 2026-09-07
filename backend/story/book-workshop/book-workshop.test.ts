@@ -189,6 +189,32 @@ describe("DNA, ages, wishes and artwork", () => {
     expect((await provider({ taskId: "task", page: 1, prompt: "scene", references: ["https://example.com/person.webp"] })).costUSD).toBe(0.00151);
     expect(body[0].model).toBe("runware:400@4"); expect(body[0].includeCost).toBe(true); expect(body[0].inputs.referenceImages.length).toBe(1);
   });
+  test("visible characters and artifact use one combined image input", async () => {
+    const withImages = { ...brief, heroes: [{ ...hero, imageUrl: "https://example.com/alex.png" }], artifacts: [{ id: "a", name: "Map", rule: "Shows the path", appearance: "map", imageUrl: "https://example.com/map.png" }] };
+    const fake = sequence([plan, book, review]); const result = await generateBook(brief, options(fake.transport));
+    result.plan!.artifactId = "a";
+    result.manuscript!.pages.forEach(p => p.illustration.artifactVisible = true);
+    result.manuscriptHash = manuscriptHash(result.manuscript!);
+    const jobs: any[] = [], slotsSeen: any[] = [];
+    await illustrateBook(result, withImages, async job => { jobs.push(job); return { url: "https://example.com/scene.webp", costUSD: 0.001 }; }, async url => url,
+      async slots => { slotsSeen.push(slots); return { urls: ["data:image/png;base64,sprite"], mode: "sprite", subjects: slots.map(s => ({ displayName: s.displayName, kind: s.kind || "character" })) }; });
+    expect(jobs.length).toBe(6);
+    expect(jobs.every(j => j.references.length === 1)).toBe(true);
+    expect(slotsSeen[0].map((s: any) => s.displayName)).toEqual(["Alexander", "Map"]);
+    expect(jobs[0].prompt.startsWith(book.pages[0].illustration.scene)).toBe(true);
+  });
+  test("failed sprite preparation spends no image call", async () => {
+    const fake = sequence([plan, book, review]); const result = await generateBook(brief, options(fake.transport));
+    let calls = 0;
+    const images = await illustrateBook(result, brief, async () => { calls++; return {}; }, async url => url, async () => { throw new Error("reference download failed"); });
+    expect(calls).toBe(0); expect(images.every(i => !i.attempted && i.costUSD === 0)).toBe(true);
+  });
+  test("the Runware boundary rejects an accidental multi-reference request before fetch", async () => {
+    let calls = 0;
+    const provider = runwareProvider("test-key", (async () => { calls++; return new Response("{}"); }) as typeof fetch);
+    await expect(provider({ taskId: "task", page: 1, prompt: "scene", references: ["https://example.com/a.png", "https://example.com/b.png"] })).rejects.toThrow("one combined reference");
+    expect(calls).toBe(0);
+  });
   test("paid placeholder and failed images keep their charge but never become artwork", async () => {
     for (const bad of [{ imageURL: "data:image/svg+xml;base64,PHN2Zz4=" }, { imageURL: "https://example.com/error.svg" }, { imageURL: "https://example.com/failure.webp", success: false }]) {
       const provider = runwareProvider("test-key", (async () => new Response(JSON.stringify({ data: [{ taskType: "imageInference", taskUUID: "task", cost: 0.001, ...bad }] }))) as typeof fetch);
