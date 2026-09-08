@@ -31,10 +31,19 @@ export const reviewSchema = obj({
 });
 const ajv = new Ajv({ allErrors: true });
 const validators = { plan: ajv.compile(planSchema), manuscript: ajv.compile(manuscriptSchema), review: ajv.compile(reviewSchema) };
+export class ContractOutputError extends Error {}
+/** Portable structured-output subset; local validation retains all bounds. */
+export function providerSchema(kind: keyof typeof validators): Record<string, unknown> {
+  const schemas = { plan: planSchema, manuscript: manuscriptSchema, review: reviewSchema };
+  return JSON.parse(JSON.stringify(schemas[kind], (key, value) =>
+    ["uniqueItems", "minItems", "maxItems", "minLength", "maxLength", "minimum", "maximum"].includes(key) ? undefined : value));
+}
 export function parseContract<T>(kind: keyof typeof validators, raw: string): T {
-  const value: unknown = JSON.parse(raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
+  let value: unknown;
+  try { value = JSON.parse(raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")); }
+  catch { throw new ContractOutputError(`Invalid ${kind}: malformed JSON`); }
   const validate = validators[kind];
-  if (!validate(value)) throw new Error(`Invalid ${kind}: ${ajv.errorsText(validate.errors).slice(0, 400)}`);
+  if (!validate(value)) throw new ContractOutputError(`Invalid ${kind}: ${ajv.errorsText(validate.errors).slice(0, 400)}`);
   return value as T;
 }
 export function readingBudget(brief: Pick<BookBrief, "ageBand" | "length" | "heroes">) {

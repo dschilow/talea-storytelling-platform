@@ -5,6 +5,8 @@ import { makeBrief, wizardWishes } from "./brief";
 import { checkManuscript, checkReview, parseContract, readingBudget } from "./contracts";
 import { generateBook, manuscriptHash } from "./engine";
 import { describeBookFailure } from "./failure";
+import { transientGenerationError } from "./recovery";
+import { storyMetadataForViewer } from "../metadata-visibility";
 import { TextBudget } from "./budget";
 import { imageAccounting, illustrateBook, runwareProvider } from "./images";
 import { openRouterTransport, reasoningFor } from "./openrouter";
@@ -28,9 +30,98 @@ function sequence(values: unknown[]) {
   const transport: Transport = async () => { const value = values[calls++]; if (value instanceof Error) throw value; return received(value); };
   return { transport, count: () => calls };
 }
-const options = (transport: Transport) => ({ writer: "writer", reviewer: "judge", prices, transport });
+const options = (transport: Transport) => ({ writer: "writer", reviewer: "judge", prices, transport, maxCalls: 5, maxRecoveryAttempts: 0, recoveryDelayMs: 0 });
 
 describe("release depends on the final manuscript", () => {
+  test("transient planning and writing failures recover and still leave room for a checked revision", async () => {
+    const bad = copy(review); bad.scores.clarity = 2;
+    const fake = sequence([new Error("OpenRouter HTTP 503"), plan, new Error("connection lost"), book, bad, book, review]);
+    const snapshots: any[] = [];
+    const result = await generateBook(brief, { ...options(fake.transport), maxCalls: 7, maxRecoveryAttempts: 2,
+      onCheckpoint: async snapshot => { snapshots.push(snapshot); } });
+    expect(result.status).toBe("accepted"); expect(fake.count()).toBe(7);
+    expect(result.reservedUnknownUSD).toBeGreaterThan(0);
+    expect(result.receipts.filter(r => r.status === "failed").length).toBe(2);
+    expect(snapshots.some(s => s.manuscript && !s.review)).toBe(true);
+    expect(snapshots[0].manuscript).toBeUndefined();
+    expect(result.manuscriptHash).toBe(manuscriptHash(book));
+  });
+  test("malformed writer output retries only the writer", async () => {
+    const fake = sequence([plan, {}, book, review]);
+    const result = await generateBook(brief, { ...options(fake.transport), maxCalls: 7, maxRecoveryAttempts: 2 });
+    expect(result.status).toBe("accepted");
+    expect(result.receipts.map(r => r.stage)).toEqual(["plan", "manuscript", "manuscript-retry", "review"]);
+  });
+  test("persistent outages are bounded and permanent provider errors are not retried", async () => {
+    for (const status of [400, 401, 402, 403, 404]) {
+      expect(transientGenerationError(new Error(`OpenRouter HTTP ${status}`))).toBe(false);
+      const fake = sequence([new Error(`OpenRouter HTTP ${status}`)]);
+      await generateBook(brief, { ...options(fake.transport), maxCalls: 7, maxRecoveryAttempts: 2 });
+      expect(fake.count()).toBe(1);
+    }
+    const fake = sequence([new Error("OpenRouter HTTP 503"), new Error("OpenRouter HTTP 503")]);
+    const result = await generateBook(brief, { ...options(fake.transport), maxCalls: 7, maxRecoveryAttempts: 2 });
+    expect(result.status).toBe("rejected"); expect(fake.count()).toBe(2);
+  });
+  test("saved unapproved drafts are private and survive a failed review in checkpoints", async () => {
+    const saved: any[] = [];
+    const fake = sequence([plan, book, new Error("OpenRouter HTTP 401")]);
+    const result = await generateBook(brief, { ...options(fake.transport), onCheckpoint: async s => { saved.push(s); } });
+    expect(result.status).toBe("rejected");
+    expect(saved[saved.length - 1].manuscript).toEqual(book);
+    expect(saved[saved.length - 1].review).toBeUndefined();
+    const metadata = { adminGenerationMetrics: { bookWorkshopDraft: saved[saved.length - 1] }, error: { message: "unavailable" } };
+    expect(storyMetadataForViewer(metadata, false)).toEqual({ error: { message: "unavailable" } });
+  });
+  test("logged malformed review is retried against the same book and both calls are charged", async () => {
+    const malformed = { ...copy(review), developments: [{ heroId: "alex", trait: "courage", change: "+2", description: "holt den Ball", evidence: [evidence] }], artifactEvidence: [] };
+    const requests: any[] = [];
+    const values = [plan, book, malformed, review];
+    const transport = openRouterTransport("test-only", (async (_url: unknown, init: RequestInit) => {
+      const request = JSON.parse(String(init.body)); requests.push(request);
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify(values[requests.length - 1]) }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 100, completion_tokens: 100, cost: 0.0001 } }));
+    }) as typeof fetch);
+    const result = await generateBook(brief, options(transport));
+    expect(result.status).toBe("accepted"); expect(result.textCostUSD).toBe(0.0004);
+    expect(result.receipts.map(r => r.stage)).toEqual(["plan", "manuscript", "review", "review-retry"]);
+    expect(result.receipts[2].status).toBe("failed");
+    for (const request of requests) {
+      expect(request.response_format.type).toBe("json_schema");
+      expect(request.response_format.json_schema.strict).toBe(true);
+    }
+    const schema = requests[2].response_format.json_schema.schema;
+    expect(schema.properties.developments.items.properties.change.type).toBe("integer");
+    expect(schema.properties.artifactEvidence.anyOf[0].type).toBe("object");
+    expect(JSON.parse(requests[2].messages[1].content).book).toEqual(JSON.parse(requests[3].messages[1].content).book);
+    expect(result.manuscriptHash).toBe(manuscriptHash(book));
+  });
+  test("invalid reviews are not coerced and the retry is bounded", async () => {
+    const malformed = { ...copy(review), scores: { ...review.scores, clarity: "4" } };
+    const fake = sequence([plan, book, malformed, malformed]);
+    const result = await generateBook(brief, options(fake.transport));
+    expect(result.status).toBe("rejected"); expect(fake.count()).toBe(4);
+    expect(result.review).toBeUndefined(); expect(result.manuscriptHash).toBeUndefined();
+    expect(result.manuscript).toEqual(book);
+    expect(result.textCostUSD).toBe(0.0004);
+  });
+  test("review retry cannot bypass a causal blocker or exceed the five-call cap", async () => {
+    const malformed = { ...copy(review), artifactEvidence: [] };
+    const bad = copy(review); bad.scores.causality = 1;
+    const fake = sequence([plan, book, malformed, bad]);
+    const result = await generateBook(brief, options(fake.transport));
+    expect(result.status).toBe("rejected"); expect(fake.count()).toBe(4);
+    expect(result.issues.join(" ")).toContain("causality");
+  });
+  test("truncated review is regenerated once without rewriting the story", async () => {
+    let calls = 0;
+    const result = await generateBook(brief, options(async () => {
+      calls++;
+      return received([plan, book, review, review][calls - 1], { finishReason: calls === 3 ? "length" : "stop" });
+    }));
+    expect(result.status).toBe("accepted"); expect(calls).toBe(4);
+    expect(result.receipts[3].stage).toBe("review-retry");
+  });
   test("redundant plan numbering and location index cannot discard valid events", async () => {
     const metadata = copy(plan);
     metadata.beats.forEach((b, i) => { b.page = i + 2; b.place = " Garten "; });

@@ -34,7 +34,9 @@ export function openRouterTransport(apiKey: string, fetcher: typeof fetch = fetc
       body: JSON.stringify({
         model: request.model,
         messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }],
-        response_format: { type: "json_object" }, max_tokens: request.maxTokens,
+        response_format: request.jsonSchema
+          ? { type: "json_schema", json_schema: { ...request.jsonSchema, strict: true } }
+          : { type: "json_object" }, max_tokens: request.maxTokens,
         reasoning: reasoningFor(request.model),
         usage: { include: true },
         provider: { max_price: { prompt: request.price.inputPerMillion, completion: request.price.outputPerMillion }, require_parameters: true, allow_fallbacks: false },

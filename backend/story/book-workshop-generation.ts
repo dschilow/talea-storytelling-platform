@@ -74,6 +74,17 @@ export async function generateStoryBookWorkshop(input: StorybookGenerationInput 
     transport: openRouterTransport(process.env.OPENROUTER_API_KEY || process.env.ENCORE_SECRET_OPENROUTERAPIKEY || openRouterKey()),
     textBudgetUSD: Number(process.env.TALEA_BOOK_TEXT_BUDGET_USD || "0.03"),
     onReceipt: receipt => audit(input.storyId, receipt.stage, receipt),
+    onCheckpoint: async checkpoint => {
+      if (!input.storyId || !input.userId) return;
+      const row = await storyDB.queryRow<{ metadata: any }>`SELECT metadata FROM stories WHERE id = ${input.storyId} AND user_id = ${input.userId}`;
+      const metadata = readMetadata(row?.metadata);
+      await storyDB.exec`UPDATE stories SET metadata = ${JSON.stringify({
+        ...metadata,
+        adminGenerationMetrics: { ...metadata.adminGenerationMetrics, bookWorkshopDraft: {
+          savedAt: new Date().toISOString(), brief, writer, reviewer, checkpoint,
+        } },
+      })}, updated_at = ${new Date()} WHERE id = ${input.storyId} AND user_id = ${input.userId}`;
+    },
   });
   await audit(input.storyId, "text-result", { ...result, manuscript: process.env.TALEA_BOOK_LOG_TEXT === "true" ? result.manuscript : undefined });
   if (result.status !== "accepted" || !result.manuscript || !result.review || !result.plan) {

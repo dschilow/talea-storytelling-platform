@@ -84,6 +84,7 @@ export interface BookReview {
 }
 export interface ModelPrice { inputPerMillion: number; outputPerMillion: number }
 export interface CompletionRequest {
+  jsonSchema?: { name: string; schema: Record<string, unknown> };
   model: string;
   price: ModelPrice;
   system: string;

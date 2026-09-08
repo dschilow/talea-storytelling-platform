@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { reserveCost, roundUSD, TextBudget, tokenCost, validCost } from "./budget";
-import { checkManuscript, checkPlan, checkReview, normalizePlanMetadata, parseContract, readingBudget } from "./contracts";
+import { checkManuscript, checkPlan, checkReview, ContractOutputError, normalizePlanMetadata, parseContract, providerSchema, readingBudget } from "./contracts";
 import { manuscriptPrompt, planPrompt, reviewPrompt } from "./prompts";
+import { recoverableStageError, transientGenerationError } from "./recovery";
 import type { BookBrief, BookPlan, BookResult, BookReview, Manuscript, ModelPrice, StageReceipt, Transport } from "./types";
 
 export interface EngineOptions {
@@ -11,13 +12,21 @@ export interface EngineOptions {
   transport: Transport;
   textBudgetUSD?: number;
   timeoutMs?: number;
+  maxCalls?: number;
+  maxRecoveryAttempts?: number;
+  recoveryDelayMs?: number;
+  /** Persist valid intermediate output before moving on to another paid stage. */
+  onCheckpoint?: (result: BookResult) => Promise<void>;
   /** Called even for malformed, truncated and uncertain billed attempts. */
   onReceipt?: (receipt: StageReceipt) => void | Promise<void>;
 }
 export const manuscriptHash = (book: Manuscript): string => createHash("sha256").update(JSON.stringify(book)).digest("hex");
 
 export async function generateBook(brief: BookBrief, options: EngineOptions): Promise<BookResult> {
-  const ledger = new TextBudget(options.textBudgetUSD ?? 0.03, 5);
+  const ledger = new TextBudget(options.textBudgetUSD ?? 0.03, options.maxCalls ?? 7);
+  const recoveryLimit = options.maxRecoveryAttempts ?? 2;
+  if (!Number.isInteger(recoveryLimit) || recoveryLimit < 0 || recoveryLimit > 2) throw new Error("Invalid recovery limit");
+  let recoveryAttempts = 0;
   const result: BookResult = { pipeline: "book-workshop-v1", status: "rejected", issues: [], receipts: ledger.receipts, textCostUSD: 0,
     providerTextCostUSD: 0, estimatedTextCostUSD: 0, reservedUnknownUSD: 0, budgetCommittedUSD: 0, accountingComplete: true };
   const finish = () => {
@@ -34,17 +43,18 @@ export async function generateBook(brief: BookBrief, options: EngineOptions): Pr
   }
   if (options.writer === options.reviewer) { result.issues = ["Writer and reviewer must be different models"]; return finish(); }
 
-  const complete = async <T>(stage: string, model: string, prompt: { system: string; user: string }, maxTokens: number, kind: "plan" | "manuscript" | "review"): Promise<T> => {
+  const completeAttempt = async <T>(stage: string, model: string, prompt: { system: string; user: string }, maxTokens: number, kind: "plan" | "manuscript" | "review"): Promise<T> => {
     const price = options.prices[model];
     if (!price || !validCost(price.inputPerMillion) || !validCost(price.outputPerMillion)) throw new Error(`No verified price for ${model}`);
-    const reserved = reserveCost(price, prompt.system, prompt.user, maxTokens);
+    const jsonSchema = { name: `book_${kind}`, schema: providerSchema(kind) };
+    const reserved = reserveCost(price, prompt.system + JSON.stringify(jsonSchema), prompt.user, maxTokens);
     ledger.assertFits(reserved);
     const start = Date.now();
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 150_000);
     let receipt: StageReceipt | undefined;
     try {
-      const call = await options.transport({ model, price, ...prompt, maxTokens, signal: controller.signal });
+      const call = await options.transport({ model, price, ...prompt, jsonSchema, maxTokens, signal: controller.signal });
       const knownTokens = Number.isSafeInteger(call.promptTokens) && call.promptTokens >= 0 && Number.isSafeInteger(call.completionTokens) && call.completionTokens >= 0;
       receipt = {
         stage, model: call.model, promptTokens: knownTokens ? call.promptTokens : 0, completionTokens: knownTokens ? call.completionTokens : 0,
@@ -54,6 +64,7 @@ export async function generateBook(brief: BookBrief, options: EngineOptions): Pr
       // Record before parsing; invalid content still costs money.
       ledger.record(receipt);
       if (ledger.spent > ledger.limitUSD) throw new Error("Provider charge exceeded the reserved budget");
+      if (call.finishReason === "length") throw new ContractOutputError(`Incomplete ${stage} (length)`);
       if (!["stop", "end_turn"].includes(call.finishReason)) throw new Error(`Incomplete ${stage} (${call.finishReason})`);
       return parseContract<T>(kind, call.text);
     } catch (error) {
@@ -69,6 +80,23 @@ export async function generateBook(brief: BookBrief, options: EngineOptions): Pr
       }
     }
   };
+
+  const complete = async <T>(stage: string, model: string, prompt: { system: string; user: string }, maxTokens: number, kind: "plan" | "manuscript" | "review"): Promise<T> => {
+    try { return await completeAttempt<T>(stage, model, prompt, maxTokens, kind); }
+    catch (error) {
+      if (recoveryAttempts >= recoveryLimit || !recoverableStageError(error, kind)) throw error;
+      recoveryAttempts++;
+      if (transientGenerationError(error)) {
+        await new Promise(resolve => setTimeout(resolve, options.recoveryDelayMs ?? 1500 * recoveryAttempts));
+      }
+      // One retry per stage, two across the book. The failed attempt remains
+      // charged/reserved in the ledger, including timeouts with unknown cost.
+      return completeAttempt<T>(`${stage}-retry`, model, {
+        ...prompt, system: prompt.system + "\nGib ein vollständiges JSON gemäß dem Schema aus. Keine Markdown-Hülle. Halte alle Textfelder knapp und die geforderte Wortspanne ein.",
+      }, error instanceof ContractOutputError && error.message.includes("(length)") ? Math.ceil(maxTokens * 1.25) : maxTokens, kind);
+    }
+  };
+  const checkpoint = async () => { if (options.onCheckpoint) await options.onCheckpoint(structuredClone(finish())); };
 
   try {
     const budget = readingBudget(brief);
@@ -87,6 +115,7 @@ export async function generateBook(brief: BookBrief, options: EngineOptions): Pr
     result.plan = plan;
     result.issues = checkPlan(plan, brief);
     if (result.issues.length) return finish();
+    await checkpoint();
 
     // Includes prose, JSON and small image briefs; no separate image-prompt LLM.
     // Include German prose, repeated UUIDs, JSON keys and English image briefs.
@@ -94,27 +123,45 @@ export async function generateBook(brief: BookBrief, options: EngineOptions): Pr
     const writerTokens = Math.ceil(budget.maxWords * 4 + budget.pages * (160 + Math.min(4, brief.heroes.length + plan.castIds.length) * 40) + 512);
     let book = await complete<Manuscript>("manuscript", options.writer, manuscriptPrompt(brief, plan), writerTokens, "manuscript");
     result.manuscript = book;
+    await checkpoint();
+    let reviewRetried = false;
+    const reviewTokens = 2800 + brief.heroes.length * 320;
     for (let version = 0; version < 2; version++) {
       const mechanical = checkManuscript(book, plan, brief);
       // A malformed shape was already rejected by the schema. Review content
       // even with a length defect so a repair receives all known problems.
-      const review = await complete<BookReview>(version ? "review-revision" : "review", options.reviewer, reviewPrompt(brief, book), 1800 + brief.heroes.length * 160, "review");
+      const reviewStage = version ? "review-revision" : "review";
+      let review: BookReview;
+      try {
+        review = await complete<BookReview>(reviewStage, options.reviewer, reviewPrompt(brief, book), reviewTokens, "review");
+      } catch (error) {
+        // Re-read the SAME manuscript once after an invalid output, never turn
+        // malformed scores/evidence into a passing judgement through coercion.
+        if (!(error instanceof ContractOutputError) || reviewRetried) throw error;
+        reviewRetried = true;
+        const prompt = reviewPrompt(brief, book);
+        review = await complete<BookReview>(`${reviewStage}-retry`, options.reviewer, {
+          ...prompt, user: JSON.stringify({ ...JSON.parse(prompt.user), formatCorrection: error.message }),
+        }, reviewTokens, "review");
+      }
       result.review = review;
       result.manuscriptHash = manuscriptHash(book);
       result.issues = [...mechanical, ...checkReview(review, book, brief, plan)];
+      await checkpoint();
       if (!result.issues.length) { result.status = "accepted"; return finish(); }
       if (version === 0) {
         // Reserve BOTH revision and its fresh review before spending on either.
         const repairPrompt = manuscriptPrompt(brief, plan, { book, issues: result.issues });
         const writerPrice = options.prices[options.writer], reviewPrice = options.prices[options.reviewer];
         const reviewPromptBytes = Buffer.byteLength(JSON.stringify(book), "utf8") + Buffer.byteLength(reviewPrompt(brief, book).system + reviewPrompt(brief, book).user, "utf8") + writerTokens * 8;
-        const reviewReserve = tokenCost(reviewPrice, reviewPromptBytes + 256, 1800 + brief.heroes.length * 160);
-        ledger.assertFits(reserveCost(writerPrice, repairPrompt.system, repairPrompt.user, writerTokens) + reviewReserve, 2);
+        const reviewReserve = tokenCost(reviewPrice, reviewPromptBytes + Buffer.byteLength(JSON.stringify({ name: "book_review", schema: providerSchema("review") })) + 256, reviewTokens);
+        ledger.assertFits(reserveCost(writerPrice, repairPrompt.system + JSON.stringify({ name: "book_manuscript", schema: providerSchema("manuscript") }), repairPrompt.user, writerTokens) + reviewReserve, 2);
         book = await complete<Manuscript>("revision", options.writer, repairPrompt, writerTokens, "manuscript");
         result.manuscript = book;
         // Old review must never certify a new version, even if re-review fails.
         result.review = undefined;
         result.manuscriptHash = undefined;
+        await checkpoint();
       }
     }
   } catch (error) {

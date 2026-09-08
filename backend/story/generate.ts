@@ -1329,7 +1329,10 @@ export const generate = api<GenerateStoryRequest, Story>(
 
       // Update story with generated content
       console.log("[story.generate] Persisting story header into DB...");
-      await storyDB.exec`
+      // Publish header and every chapter atomically. Until commit, readers
+      // continue to see the generating status and the private checkpoint.
+      await using publicationTx = await storyDB.begin();
+      await publicationTx.exec`
         UPDATE stories
         SET title = ${generatedStory.title},
             description = ${generatedStory.description},
@@ -1354,7 +1357,7 @@ export const generate = api<GenerateStoryRequest, Story>(
           imageUrlLen: chapter?.imageUrl?.length,
           order: chapter?.order,
         });
-        await storyDB.exec`
+        await publicationTx.exec`
           INSERT INTO chapters (
             id, story_id, title, content, image_url, chapter_order, created_at
           ) VALUES (
@@ -1369,6 +1372,8 @@ export const generate = api<GenerateStoryRequest, Story>(
           order: chapter.order,
         });
       }
+
+      await publicationTx.commit();
 
       // TTS Enrichment Phase: Annotate chapter text with xAI TTS expression tags.
       // Skipped in developer mode (we want a clean A/B without extra LLM calls).
@@ -1410,7 +1415,17 @@ export const generate = api<GenerateStoryRequest, Story>(
       console.error("[story.generate] ERROR:", error);
       const errorMessage = String((error as any)?.message || error);
       const errorStack = (error as any)?.stack ? String((error as any).stack).slice(0, 2000) : undefined;
+      // Preserve privately stored draft/checkpoint data after a later failure.
+      const previousRow = await storyDB.queryRow<{ metadata: any; status: string }>`SELECT metadata, status FROM stories WHERE id = ${id} AND user_id = ${currentUserId}`;
+      if (previousRow?.status === "complete") {
+        // Publication already committed; a response/read error must not
+        // invalidate it or re-run any paid generation or side effects.
+        return await getCompleteStory(id);
+      }
+      let previousMetadata: Record<string, any> = {};
+      try { previousMetadata = typeof previousRow?.metadata === "string" ? JSON.parse(previousRow.metadata) : previousRow?.metadata || {}; } catch { /* Legacy malformed metadata. */ }
       const errorMetadata = {
+        ...previousMetadata,
         error: {
           message: errorMessage,
           stack: errorStack,
@@ -1424,6 +1439,7 @@ export const generate = api<GenerateStoryRequest, Story>(
             metadata = ${JSON.stringify(errorMetadata)},
             updated_at = ${new Date()}
         WHERE id = ${id}
+          AND status <> 'complete'
       `;
       try {
         await updateStoryInstanceStatus(id, "error", String((error as any)?.message || error));

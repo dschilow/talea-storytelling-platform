@@ -59,7 +59,8 @@ Verfolge Aufenthaltsorte, Besitz, Zustand von Gegenständen, Fahrtrichtung, Hin-
 Prüfe Alter und sämtliche Erzählwünsche, einschließlich Perspektive, Sprache, Lernziel, Ton, Happy End und Kinderschutzvorgaben. Eine sachlich falsche Lernbehauptung ist ein blocker. Jeder Avatar muss selbst etwas beitragen; bloß anwesend sein reicht nicht. Schlage nur Reparaturen vor, die diese konkrete Geschichte verbessern.
 Bewerte clarity, causality, agency, readAloud, engagement und humor von 1 bis 5: 1 unbrauchbar, 2 schwere Probleme, 3 verständlicher Rohtext mit deutlichen Schwächen, 4 überzeugendes Vorlesemanuskript, 5 außergewöhnlich. 4 und 5 brauchen sichtbare Leistung. 'Alle lachten' ist keine Evidenz für Humor. Ruhe ist kein Spannungsfehler in einer Einschlafgeschichte. Dies sind redaktionelle Einschätzungen, kein Test mit einem echten Kind.
 Vergleiche jeden englischen Bildmoment mit SEINER Textseite und den sichtbaren Figuren; melde unpassende, verräterische oder unmögliche Bilder in imageIssues.
-Leite höchstens zwei positive, belegte Entwicklungen pro Kind ab. Erlaubte traits: knowledge, creativity, vocabulary, courage, curiosity, teamwork, empathy, persistence, logic. change 1-3. description in der Sprache der Geschichte. Keine Veränderung ohne Handlung im Text. Ein leeres Array ist erlaubt.`,
+Leite höchstens zwei positive, belegte Entwicklungen pro Kind ab. Erlaubte traits: knowledge, creativity, vocabulary, courage, curiosity, teamwork, empathy, persistence, logic. change ist eine JSON-Ganzzahl: 1, 2 oder 3, niemals ein String wie "+2" oder "2". description in der Sprache der Geschichte. Keine Veränderung ohne Handlung im Text. Ein leeres Array ist erlaubt.
+artifactEvidence ist entweder JSON-null oder genau ein Objekt mit discovery und use. Beide enthalten page als Ganzzahl und quote als wörtliches Zitat. Kein Array und kein String. Fehlt ein belegbarer Nachweis, gib null aus. issues.severity ist exakt "blocker" oder "suggestion".`,
     user: JSON.stringify({
       language: brief.language, age: brief.ageBand, wishes: brief.wishes,
       heroes: brief.heroes.map(h => ({ id: h.id, name: h.name })),
@@ -68,12 +69,16 @@ Leite höchstens zwei positive, belegte Entwicklungen pro Kind ab. Erlaubte trai
       output: {
         comprehension: Object.fromEntries(["want", "obstacle", "solution", "outcome"].map(k => [k, { answer: "Aus dem Text; sonst null für diese ganze Antwort", evidence: [{ page: 1, quote: "exaktes kurzes Zitat" }] }])),
         scores: { clarity: 1, causality: 1, agency: 1, readAloud: 1, engagement: 1, humor: 1 },
-        issues: [{ severity: "blocker oder suggestion", page: 1, problem: "konkreter Befund, [] wenn keiner", fix: "konkrete Reparatur" }],
+        issues: [],
         heroActions: [{ heroId: "ID", evidence: [{ page: 1, quote: "belegte Handlung" }] }], imageIssues: [],
         developments: [], artifactEvidence: null,
       },
-      artifactEvidenceFormat: "Falls eines der angebotenen Artefakte vorkommt: {discovery:{page,quote},use:{page,quote}}, sonst null.",
-      developmentFormat: "{heroId,trait,change,description,evidence:[{page,quote}]}",
+      examples: {
+        instruction: "Nur Strukturbeispiele, keine Befunde. Ersetze IDs, Seiten und Zitate durch echte Belege oder verwende [] beziehungsweise null.",
+        issue: { severity: "blocker", page: 1, problem: "Konkreter Widerspruch", fix: "Konkrete Reparatur" },
+        artifactEvidence: { discovery: { page: 1, quote: "Wörtliches Zitat zur Entdeckung" }, use: { page: 2, quote: "Wörtliches Zitat zur Verwendung" } },
+        development: { heroId: "ID", trait: "courage", change: 2, description: "Belegte Handlung", evidence: [{ page: 1, quote: "Wörtliches Zitat zur Handlung" }] },
+      },
     }),
   };
 }
