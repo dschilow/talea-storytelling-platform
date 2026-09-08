@@ -25,8 +25,8 @@ export class TextBudget {
   total(source: StageReceipt["costSource"]): number {
     return roundUSD(this.receipts.filter(r => r.costSource === source).reduce((sum, r) => sum + r.costUSD, 0));
   }
-  assertFits(reservation: number): void {
-    if (!validCost(reservation) || this.receipts.length >= this.maxCalls || this.spent + reservation > this.limitUSD + 1e-9) {
+  assertFits(reservation: number, calls = 1): void {
+    if (!Number.isInteger(calls) || calls < 1 || !validCost(reservation) || this.receipts.length + calls > this.maxCalls || this.spent + reservation > this.limitUSD + 1e-9) {
       throw new BudgetExceeded("Text budget cannot cover the next complete stage.");
     }
   }

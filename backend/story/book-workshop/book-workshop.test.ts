@@ -31,6 +31,46 @@ function sequence(values: unknown[]) {
 const options = (transport: Transport) => ({ writer: "writer", reviewer: "judge", prices, transport });
 
 describe("release depends on the final manuscript", () => {
+  test("redundant plan numbering and location index cannot discard valid events", async () => {
+    const metadata = copy(plan);
+    metadata.beats.forEach((b, i) => { b.page = i + 2; b.place = " Garten "; });
+    const fake = sequence([metadata, book, review]);
+    const result = await generateBook(brief, options(fake.transport));
+    expect(result.status).toBe("accepted"); expect(fake.count()).toBe(3);
+    expect(result.plan!.beats.map(b => b.action)).toEqual(metadata.beats.map(b => b.action));
+    expect(result.plan!.places).toContain("Garten");
+  });
+  test("wrong page count gets one paid plan correction, never padded events", async () => {
+    const short = copy(plan); short.beats.pop();
+    const fake = sequence([short, plan, book, review]);
+    const result = await generateBook(brief, options(fake.transport));
+    expect(result.status).toBe("accepted"); expect(fake.count()).toBe(4);
+    expect(result.receipts.map(r => r.stage)).toEqual(["plan", "plan-repair", "manuscript", "review"]);
+    expect(result.textCostUSD).toBe(0.0004);
+    const stillWrong = sequence([short, short]);
+    const rejected = await generateBook(brief, options(stillWrong.transport));
+    expect(rejected.status).toBe("rejected"); expect(stillWrong.count()).toBe(2);
+    expect(rejected.issues[0]).toContain("received 5");
+  });
+  test("a repaired plan cannot spend on prose revision without a remaining review slot", async () => {
+    const short = copy(plan); short.beats.pop();
+    const bad = copy(review); bad.scores.clarity = 2;
+    const fake = sequence([short, plan, book, bad]);
+    const result = await generateBook(brief, options(fake.transport));
+    expect(result.status).toBe("rejected"); expect(fake.count()).toBe(4);
+    expect(result.issues.join(" ")).toContain("budget");
+  });
+  test("medium German manuscript has room for prose plus illustration JSON", async () => {
+    const medium = { ...brief, ageBand: "6-8" as const, length: "medium" as const };
+    const longerPlan = { ...plan, beats: Array.from({ length: 8 }, (_, i) => ({ ...plan.beats[0], page: i + 1 })) };
+    const longerBook = { ...book, pages: Array.from({ length: 8 }, (_, i) => ({ ...book.pages[0], order: i + 1, text: `${pageText} ${pageText}` })) };
+    let calls = 0;
+    const result = await generateBook(medium, options(async request => {
+      const value = [longerPlan, longerBook, review][calls++];
+      return received(value, { finishReason: calls === 2 && request.maxTokens < 4000 ? "length" : "stop" });
+    }));
+    expect(result.status).toBe("accepted"); expect(calls).toBe(3);
+  });
   test("provider and planning failures are not reported as failed comprehension", async () => {
     const provider = await generateBook(brief, options(sequence([new Error("OpenRouter HTTP 401")]).transport));
     expect(describeBookFailure(provider).reason).toBe("provider-http-401");

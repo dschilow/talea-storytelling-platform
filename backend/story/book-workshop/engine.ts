@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { reserveCost, roundUSD, TextBudget, tokenCost, validCost } from "./budget";
-import { checkManuscript, checkPlan, checkReview, parseContract, readingBudget } from "./contracts";
+import { checkManuscript, checkPlan, checkReview, normalizePlanMetadata, parseContract, readingBudget } from "./contracts";
 import { manuscriptPrompt, planPrompt, reviewPrompt } from "./prompts";
 import type { BookBrief, BookPlan, BookResult, BookReview, Manuscript, ModelPrice, StageReceipt, Transport } from "./types";
 
@@ -72,13 +72,26 @@ export async function generateBook(brief: BookBrief, options: EngineOptions): Pr
 
   try {
     const budget = readingBudget(brief);
-    const plan = await complete<BookPlan>("plan", options.reviewer, planPrompt(brief), 1800, "plan");
+    const planningPrompt = planPrompt(brief);
+    const planTokens = 800 + budget.pages * 200 + brief.heroes.length * 100;
+    let plan = normalizePlanMetadata(await complete<BookPlan>("plan", options.reviewer, planningPrompt, planTokens, "plan"));
+    // A wrong page count needs real planning, not duplicated or discarded beats.
+    // One bounded correction only; it shares the five-call and dollar budget.
+    if (plan.beats.length > 0 && plan.beats.length !== budget.pages) {
+      plan = normalizePlanMetadata(await complete<BookPlan>("plan-repair", options.reviewer, {
+        system: planningPrompt.system,
+        user: JSON.stringify({ originalRequest: JSON.parse(planningPrompt.user), previousPlan: plan,
+          defects: checkPlan(plan, brief), task: `Überarbeite den Plan zu genau ${budget.pages} zusammenhängenden Leseseiten. Keine Ereignisse bloß duplizieren. Gib den vollständigen Plan als JSON zurück.` }),
+      }, planTokens, "plan"));
+    }
     result.plan = plan;
     result.issues = checkPlan(plan, brief);
     if (result.issues.length) return finish();
 
     // Includes prose, JSON and small image briefs; no separate image-prompt LLM.
-    const writerTokens = Math.ceil(budget.maxWords * 2.5 + budget.pages * 100 + 250);
+    // Include German prose, repeated UUIDs, JSON keys and English image briefs.
+    // This is output headroom, not a request for longer prose or a higher bill.
+    const writerTokens = Math.ceil(budget.maxWords * 4 + budget.pages * (160 + Math.min(4, brief.heroes.length + plan.castIds.length) * 40) + 512);
     let book = await complete<Manuscript>("manuscript", options.writer, manuscriptPrompt(brief, plan), writerTokens, "manuscript");
     result.manuscript = book;
     for (let version = 0; version < 2; version++) {
@@ -96,7 +109,7 @@ export async function generateBook(brief: BookBrief, options: EngineOptions): Pr
         const writerPrice = options.prices[options.writer], reviewPrice = options.prices[options.reviewer];
         const reviewPromptBytes = Buffer.byteLength(JSON.stringify(book), "utf8") + Buffer.byteLength(reviewPrompt(brief, book).system + reviewPrompt(brief, book).user, "utf8") + writerTokens * 8;
         const reviewReserve = tokenCost(reviewPrice, reviewPromptBytes + 256, 1800 + brief.heroes.length * 160);
-        ledger.assertFits(reserveCost(writerPrice, repairPrompt.system, repairPrompt.user, writerTokens) + reviewReserve);
+        ledger.assertFits(reserveCost(writerPrice, repairPrompt.system, repairPrompt.user, writerTokens) + reviewReserve, 2);
         book = await complete<Manuscript>("revision", options.writer, repairPrompt, writerTokens, "manuscript");
         result.manuscript = book;
         // Old review must never certify a new version, even if re-review fails.

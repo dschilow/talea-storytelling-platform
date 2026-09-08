@@ -49,11 +49,19 @@ export function checkPlan(plan: BookPlan, brief: BookBrief): string[] {
   if (plan.castIds.some(id => !candidates.has(id)) || plan.castIds.length > budget.supportingCast) issues.push("Invalid or excessive supporting cast");
   const actions = plan.heroActions.map(a => a.heroId);
   if (new Set(actions).size !== actions.length || actions.length !== brief.heroes.length || brief.heroes.some(h => !actions.includes(h.id))) issues.push("Every chosen avatar needs one planned contribution");
-  if (plan.beats.length !== budget.pages || plan.beats.some((b, i) => b.page !== i + 1 || !plan.places.includes(b.place))) issues.push("Pages and places must match the plan");
+  if (plan.beats.length !== budget.pages) issues.push(`Plan needs ${budget.pages} pages; received ${plan.beats.length}`);
+  if (plan.beats.some((b, i) => b.page !== i + 1)) issues.push("Plan page numbers must follow narrative order from 1");
+  if (plan.beats.some(b => !plan.places.includes(b.place))) issues.push("Plan location index must include every beat location");
   if (plan.artifactId && !brief.artifacts.some(a => a.id === plan.artifactId)) issues.push("Invented artifact ID");
   const brought = brief.artifacts.find(a => a.broughtBy);
   if (brought && plan.artifactId !== brought.id) issues.push("The selected brought artifact is required");
   return issues;
+}
+
+/** Repair redundant metadata only. Never add, remove or reorder story events. */
+export function normalizePlanMetadata(plan: BookPlan): BookPlan {
+  const beats = plan.beats.map((beat, index) => ({ ...beat, page: index + 1, place: beat.place.trim() }));
+  return { ...plan, beats, places: [...new Set([...plan.places.map(p => p.trim()), ...beats.map(b => b.place)])].filter(Boolean) };
 }
 const normalized = (s: string): string => s.normalize("NFKC").replace(/\s+/g, " ").trim();
 export function grounded(e: Evidence, book: Manuscript): boolean {
