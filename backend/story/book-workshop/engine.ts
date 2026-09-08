@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { reserveCost, roundUSD, TextBudget, tokenCost, validCost } from "./budget";
-import { checkManuscript, checkPlan, checkReview, ContractOutputError, normalizePlanMetadata, parseContract, providerSchema, readingBudget } from "./contracts";
+import { checkManuscript, checkPlan, checkReview, ContractOutputError, normalizeIllustrationMetadata, normalizePlanMetadata, parseContract, providerSchema, readingBudget } from "./contracts";
 import { manuscriptPrompt, planPrompt, reviewPrompt } from "./prompts";
 import { recoverableStageError, transientGenerationError } from "./recovery";
 import type { BookBrief, BookPlan, BookResult, BookReview, Manuscript, ModelPrice, StageReceipt, Transport } from "./types";
@@ -102,7 +102,7 @@ export async function generateBook(brief: BookBrief, options: EngineOptions): Pr
     const budget = readingBudget(brief);
     const planningPrompt = planPrompt(brief);
     const planTokens = 800 + budget.pages * 200 + brief.heroes.length * 100;
-    let plan = normalizePlanMetadata(await complete<BookPlan>("plan", options.reviewer, planningPrompt, planTokens, "plan"));
+    let plan = normalizePlanMetadata(await complete<BookPlan>("plan", options.reviewer, planningPrompt, planTokens, "plan"), brief);
     // A wrong page count needs real planning, not duplicated or discarded beats.
     // One bounded correction only; it shares the five-call and dollar budget.
     if (plan.beats.length > 0 && plan.beats.length !== budget.pages) {
@@ -110,7 +110,7 @@ export async function generateBook(brief: BookBrief, options: EngineOptions): Pr
         system: planningPrompt.system,
         user: JSON.stringify({ originalRequest: JSON.parse(planningPrompt.user), previousPlan: plan,
           defects: checkPlan(plan, brief), task: `Überarbeite den Plan zu genau ${budget.pages} zusammenhängenden Leseseiten. Keine Ereignisse bloß duplizieren. Gib den vollständigen Plan als JSON zurück.` }),
-      }, planTokens, "plan"));
+      }, planTokens, "plan"), brief);
     }
     result.plan = plan;
     result.issues = checkPlan(plan, brief);
@@ -121,7 +121,7 @@ export async function generateBook(brief: BookBrief, options: EngineOptions): Pr
     // Include German prose, repeated UUIDs, JSON keys and English image briefs.
     // This is output headroom, not a request for longer prose or a higher bill.
     const writerTokens = Math.ceil(budget.maxWords * 4 + budget.pages * (160 + Math.min(4, brief.heroes.length + plan.castIds.length) * 40) + 512);
-    let book = await complete<Manuscript>("manuscript", options.writer, manuscriptPrompt(brief, plan), writerTokens, "manuscript");
+    let book = normalizeIllustrationMetadata(await complete<Manuscript>("manuscript", options.writer, manuscriptPrompt(brief, plan), writerTokens, "manuscript"), plan);
     result.manuscript = book;
     await checkpoint();
     let reviewRetried = false;
@@ -147,16 +147,26 @@ export async function generateBook(brief: BookBrief, options: EngineOptions): Pr
       result.review = review;
       result.manuscriptHash = manuscriptHash(book);
       result.issues = [...mechanical, ...checkReview(review, book, brief, plan)];
+      // Humor is still revised once when requested. A subjective 3/5 humor
+      // score alone must not discard an otherwise comprehensible, checked book.
+      if (version > 0 && review.scores.humor >= 3) {
+        result.editorialNotes = result.issues.filter(issue => issue === "Requested humor is not delivered");
+        result.issues = result.issues.filter(issue => issue !== "Requested humor is not delivered");
+      }
       await checkpoint();
       if (!result.issues.length) { result.status = "accepted"; return finish(); }
       if (version === 0) {
-        // Reserve BOTH revision and its fresh review before spending on either.
+        // Forecast revision plus re-review using the current actual request.
+        // The book is already included in reviewPrompt.user: adding it again
+        // plus writerTokens * 8 was a fictitious second and third input bill.
+        // Every later call still passes its own exact-input byte-bound check.
         const repairPrompt = manuscriptPrompt(brief, plan, { book, issues: result.issues });
         const writerPrice = options.prices[options.writer], reviewPrice = options.prices[options.reviewer];
-        const reviewPromptBytes = Buffer.byteLength(JSON.stringify(book), "utf8") + Buffer.byteLength(reviewPrompt(brief, book).system + reviewPrompt(brief, book).user, "utf8") + writerTokens * 8;
+        const currentReviewPrompt = reviewPrompt(brief, book);
+        const reviewPromptBytes = Buffer.byteLength(currentReviewPrompt.system + currentReviewPrompt.user, "utf8");
         const reviewReserve = tokenCost(reviewPrice, reviewPromptBytes + Buffer.byteLength(JSON.stringify({ name: "book_review", schema: providerSchema("review") })) + 256, reviewTokens);
         ledger.assertFits(reserveCost(writerPrice, repairPrompt.system + JSON.stringify({ name: "book_manuscript", schema: providerSchema("manuscript") }), repairPrompt.user, writerTokens) + reviewReserve, 2);
-        book = await complete<Manuscript>("revision", options.writer, repairPrompt, writerTokens, "manuscript");
+        book = normalizeIllustrationMetadata(await complete<Manuscript>("revision", options.writer, repairPrompt, writerTokens, "manuscript"), plan);
         result.manuscript = book;
         // Old review must never certify a new version, even if re-review fails.
         result.review = undefined;

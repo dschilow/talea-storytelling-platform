@@ -68,13 +68,23 @@ export function checkPlan(plan: BookPlan, brief: BookBrief): string[] {
 }
 
 /** Repair redundant metadata only. Never add, remove or reorder story events. */
-export function normalizePlanMetadata(plan: BookPlan): BookPlan {
+export function normalizePlanMetadata(plan: BookPlan, brief?: Pick<BookBrief, "heroes">): BookPlan {
   const beats = plan.beats.map((beat, index) => ({ ...beat, page: index + 1, place: beat.place.trim() }));
-  return { ...plan, beats, places: [...new Set([...plan.places.map(p => p.trim()), ...beats.map(b => b.place)])].filter(Boolean) };
+  const heroes = new Set(brief?.heroes.map(h => h.id) || []);
+  return { ...plan, castIds: plan.castIds.filter(id => !heroes.has(id)), beats, places: [...new Set([...plan.places.map(p => p.trim()), ...beats.map(b => b.place)])].filter(Boolean) };
 }
 const normalized = (s: string): string => s.normalize("NFKC").replace(/\s+/g, " ").trim();
+const evidenceText = (s: string): string => normalized(s).replace(/[„“”«»‹›"'‘’]/g, "");
 export function grounded(e: Evidence, book: Manuscript): boolean {
-  return normalized(e.quote).length >= 8 && normalized(book.pages[e.page - 1]?.text || "").includes(normalized(e.quote));
+  // An excerpt may be wrapped in quotation marks that close before the
+  // original dialogue ends. Ignore quote typography, never word changes.
+  return evidenceText(e.quote).length >= 8 && evidenceText(book.pages[e.page - 1]?.text || "").includes(evidenceText(e.quote));
+}
+export function normalizeIllustrationMetadata(book: Manuscript, plan: BookPlan): Manuscript {
+  // This flag selects the catalogue reference image. Ordinary story props
+  // (a basket, a ball...) are not catalogue artifacts. No prose is changed.
+  if (plan.artifactId) return book;
+  return { ...book, pages: book.pages.map(p => ({ ...p, illustration: { ...p.illustration, artifactVisible: false } })) };
 }
 export function checkManuscript(book: Manuscript, plan: BookPlan, brief: BookBrief): string[] {
   const budget = readingBudget(brief), issues: string[] = [];

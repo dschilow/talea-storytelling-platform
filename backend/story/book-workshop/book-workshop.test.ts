@@ -2,7 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import { normalizeArtifacts, normalizePeople } from "./catalog";
 import { makeBrief, wizardWishes } from "./brief";
-import { checkManuscript, checkReview, parseContract, readingBudget } from "./contracts";
+import { checkManuscript, checkReview, grounded, normalizeIllustrationMetadata, parseContract, readingBudget } from "./contracts";
 import { generateBook, manuscriptHash } from "./engine";
 import { describeBookFailure } from "./failure";
 import { transientGenerationError } from "./recovery";
@@ -33,6 +33,62 @@ function sequence(values: unknown[]) {
 const options = (transport: Transport) => ({ writer: "writer", reviewer: "judge", prices, transport, maxCalls: 5, maxRecoveryAttempts: 0, recoveryDelayMs: 0 });
 
 describe("release depends on the final manuscript", () => {
+  test("heroes accidentally listed as supporting cast are not dropped from the book", async () => {
+    const doubled = copy(plan); doubled.castIds = [hero.id];
+    const fake = sequence([doubled, book, review]);
+    const result = await generateBook(brief, options(fake.transport));
+    expect(result.status).toBe("accepted"); expect(fake.count()).toBe(3);
+    expect(result.plan!.castIds).toEqual([]);
+    expect(result.plan!.heroActions).toEqual(plan.heroActions);
+    const unknown = copy(plan); unknown.castIds = ["invented-stranger"];
+    const rejected = await generateBook(brief, options(sequence([unknown]).transport));
+    expect(rejected.status).toBe("rejected");
+  });
+  test("moderate humor after revision is an editorial note, while clarity and evidence remain mandatory", async () => {
+    const funnyBrief = { ...brief, wishes: { humorLevel: 2 } };
+    const moderate = copy(review); moderate.scores.humor = 3;
+    const fake = sequence([plan, book, moderate, book, moderate]);
+    const result = await generateBook(funnyBrief, options(fake.transport));
+    expect(result.status).toBe("accepted"); expect(fake.count()).toBe(5);
+    expect(result.editorialNotes).toContain("Requested humor is not delivered");
+    expect(result.review!.scores.humor).toBe(3);
+    for (const defect of ["clarity", "evidence", "humor"] as const) {
+      const failed = copy(moderate);
+      if (defect === "clarity") failed.scores.clarity = 2;
+      if (defect === "evidence") failed.comprehension.solution = null;
+      if (defect === "humor") failed.scores.humor = 2;
+      const run = await generateBook(funnyBrief, options(sequence([plan, book, moderate, book, failed]).transport));
+      expect(run.status).toBe("rejected");
+    }
+  });
+  test("real-price repair remains affordable after the logged 0.00945015 USD spend", async () => {
+    const medium = { ...brief, ageBand: "6-8" as const, length: "medium" as const };
+    const longerPlan = { ...plan, beats: Array.from({ length: 8 }, (_, i) => ({ ...plan.beats[0], page: i + 1 })) };
+    const makeBook = (repetitions: number) => ({ ...book, pages: Array.from({ length: 8 }, (_, i) => ({ ...book.pages[0], order: i + 1, text: Array(repetitions).fill(pageText).join(" ") })) });
+    const badReview = copy(review); badReview.comprehension.solution = null;
+    const values = [longerPlan, makeBook(3), badReview, makeBook(2), review];
+    const costs = [0.002, 0.004, 0.00345015, 0.003, 0.002];
+    let calls = 0;
+    const result = await generateBook(medium, { ...options(async () => { const i = calls++; return received(values[i], { costUSD: costs[i] }); }),
+      prices: { writer: { inputPerMillion: 0.2, outputPerMillion: 1.2 }, judge: { inputPerMillion: 0.25, outputPerMillion: 1.5 } }, textBudgetUSD: 0.03 });
+    expect(result.status).toBe("accepted"); expect(calls).toBe(5);
+    expect(result.textCostUSD).toBe(0.01445015);
+    expect(result.manuscriptHash).toBe(manuscriptHash(makeBook(2)));
+  });
+  test("ordinary props never request a nonexistent catalogue image and prose remains intact", () => {
+    const marked = copy(book); marked.pages[0].illustration.artifactVisible = true;
+    const corrected = normalizeIllustrationMetadata(marked, plan);
+    expect(corrected.pages[0].illustration.artifactVisible).toBe(false);
+    expect(corrected.pages.map(p => p.text)).toEqual(marked.pages.map(p => p.text));
+    expect(marked.pages[0].illustration.artifactVisible).toBe(true);
+    expect(normalizeIllustrationMetadata(marked, { ...plan, artifactId: "real-item" }).pages[0].illustration.artifactVisible).toBe(true);
+  });
+  test("quoted dialogue excerpts tolerate quotation typography but never changed words or wrong pages", () => {
+    const dialogue = copy(book); dialogue.pages[0].text = '„Wir bringen den Korb pünktlich hin. Ich kenne den Weg.“';
+    expect(grounded({ page: 1, quote: '„Wir bringen den Korb pünktlich hin.“' }, dialogue)).toBe(true);
+    expect(grounded({ page: 1, quote: '„Wir brachten den Korb pünktlich hin.“' }, dialogue)).toBe(false);
+    expect(grounded({ page: 2, quote: '„Wir bringen den Korb pünktlich hin.“' }, dialogue)).toBe(false);
+  });
   test("transient planning and writing failures recover and still leave room for a checked revision", async () => {
     const bad = copy(review); bad.scores.clarity = 2;
     const fake = sequence([new Error("OpenRouter HTTP 503"), plan, new Error("connection lost"), book, bad, book, review]);

@@ -120,6 +120,8 @@ export interface BookResult {
   review?: BookReview;
   manuscriptHash?: string;
   issues: string[];
+  /** Non-blocking editorial findings retained after a checked revision. */
+  editorialNotes?: string[];
   receipts: StageReceipt[];
   /** Provider-reported charges plus labelled token estimates; excludes holds. */
   textCostUSD: number;

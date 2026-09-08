@@ -142,7 +142,7 @@ export async function generateStoryBookWorkshop(input: StorybookGenerationInput 
       tokensUsed: { prompt: totalPrompt, completion: totalCompletion, total: totalPrompt + totalCompletion, totalCostUSD: result.textCostUSD, modelUsed: writer },
       devModeStages: result.receipts.map(r => ({ stage: r.stage, modelUsed: r.model, modelRole: r.stage === "manuscript" || r.stage === "revision" ? "selected-story" : "support", durationMs: r.durationMs,
         usage: { prompt: r.promptTokens, completion: r.completionTokens, total: r.promptTokens + r.completionTokens, costUSD: r.costUSD }, costSource: r.costSource, note: r.costSource })),
-      bookWorkshop: { premise: result.plan.premise, plan: result.plan, review: result.review, manuscriptHash: result.manuscriptHash, textAccountingComplete: result.accountingComplete,
+      bookWorkshop: { premise: result.plan.premise, plan: result.plan, review: result.review, editorialNotes: result.editorialNotes || [], manuscriptHash: result.manuscriptHash, textAccountingComplete: result.accountingComplete,
         providerTextCostUSD: result.providerTextCostUSD, estimatedTextCostUSD: result.estimatedTextCostUSD,
         imageCosts, imageAccountingComplete: imagesAccounted, imageReviewStatus: "not-visually-reviewed", imagesComplete: images.every(i => i.status === "generated"), imageReceipts: images.map(({ page, taskId, status, attempted, costUSD }) => ({ page, taskId, status, attempted, costUSD: costUSD ?? null })) },
     },
