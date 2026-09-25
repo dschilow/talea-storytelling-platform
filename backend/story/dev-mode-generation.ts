@@ -12733,7 +12733,10 @@ function openRouterReasoningForDevMode(model: string): { effort?: "none" | "mini
   // =length, an empty payload, and a 500 from the beat-sheet gate on every
   // single story. Support stages plan, critique and validate — none of that
   // needs extended thinking.
-  if (/gpt-5/.test(normalized)) {
+  // gpt-6 (Luna, released 2026-09-22) reasons at "medium" by default exactly
+  // like gpt-5.x; without this branch a wizard pick of gpt-6-luna would reopen
+  // the empty-completion failure described above.
+  if (/gpt-(5|6)/.test(normalized)) {
     return { effort: "minimal", exclude: true };
   }
   return { exclude: true };

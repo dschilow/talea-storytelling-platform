@@ -2307,6 +2307,7 @@ ${repairRule}`;
     if (model.includes("gemini-3-flash")) return 0.50; // $0.50 per 1M
     // Must precede the generic gpt-5 branch below, which would bill Luna at the
     // base gpt-5 rate of $2.50 — 12x its actual price.
+    if (model.includes("gpt-6-luna")) return 0.10; // $0.10 per 1M
     if (model.includes("gpt-5.6-luna")) return 0.20; // $0.20 per 1M
     if (model.includes("gpt-5.6-terra")) return 2.50; // $2.50 per 1M
     if (model.includes("gpt-5.4-nano")) return 0.20; // $0.20 per 1M
@@ -2326,6 +2327,7 @@ ${repairRule}`;
     if (model.includes("gemini-3.1-flash-lite")) return 1.50; // $1.50 per 1M
     if (model.includes("gemini-3-flash")) return 3.00; // $3.00 per 1M
     // Must precede the generic gpt-5 branch — see getInputPricePerMillion.
+    if (model.includes("gpt-6-luna")) return 0.50; // $0.50 per 1M
     if (model.includes("gpt-5.6-luna")) return 1.20; // $1.20 per 1M
     if (model.includes("gpt-5.6-terra")) return 15.00; // $15.00 per 1M
     if (model.includes("gpt-5.4-nano")) return 1.25; // $1.25 per 1M

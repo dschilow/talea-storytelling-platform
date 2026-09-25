@@ -1,50 +1,51 @@
 /**
- * Storybook Pipeline — LLM access with cost accounting.
+ * Storybook Pipeline — model roles, the LLM port and cost accounting.
  *
- * Two roles, on purpose:
+ * Everything in this file is pure. The engine stages only ever see the
+ * `StorybookLlm` port; production plugs in OpenRouter (llm-openrouter.ts), a
+ * local harness or a test plugs in whatever it likes. That is what makes the
+ * whole text pipeline runnable and testable without Encore standing up.
  *
- *   SUPPORT  — normally gpt-5.6-luna. Planning, judging, developments. Cheap,
- *              strong enough for structured JSON, and after the 2026-07-31
- *              price cut the best reasoning-per-dollar in the catalogue.
- *   WRITER   — whatever the wizard selected. The prose voice stays a product
- *              decision, not a pipeline decision.
+ * Three roles:
  *
- * Every call reports provider-side cost (`usage.cost`), which is authoritative
- * and already includes promotions and provider routing.
+ *   SUPPORT — openai/gpt-6-luna. Concept, plan, illustration direction,
+ *             developments, vision checks. $0.10 / $0.50 per 1M tokens (list,
+ *             2026-09-22) — half of gpt-5.6-luna, a newer generation, and it
+ *             reads images.
+ *   WRITER  — the wizard's choice. Defaults to gpt-6-luna as well.
+ *   CRITIC  — always from a DIFFERENT model family than the writer. A model
+ *             grading its own prose grades it generously; that exact
+ *             collision inflated a 6.5/10 story to 8.1 (audit 2026-08-06) and
+ *             produced storybook-v1's weakest run (6683b402).
  */
 
-import {
-  callOpenRouterChatCompletion,
-  extractOpenRouterCostUSD,
-  getOpenRouterModelPricing,
-  isOpenRouterModelId,
-  splitOpenRouterCostUSD,
-} from "../openrouter-generation";
-import { generateWithGemini, isGeminiConfigured } from "../gemini-generation";
-import { resolveConfiguredStoryModel } from "../pipeline/model-routing";
 import type { StoryConfig } from "../generate";
-import type { StorybookStageLog } from "./types";
-import {
-  extractStorybookChoiceContent,
-  isTruncatedFinishReason,
-  resolveStorybookReasoning,
-} from "./llm-guards";
 
-export {
-  extractStorybookChoiceContent,
-  isTruncatedFinishReason,
-  resolveStorybookReasoning,
-} from "./llm-guards";
+export const STORYBOOK_SUPPORT_MODEL = "openai/gpt-6-luna";
+export const STORYBOOK_DEFAULT_WRITER_MODEL = "openai/gpt-6-luna";
+/** Independent critic whenever the writer is an OpenAI model. Also reads images. */
+export const STORYBOOK_CROSS_FAMILY_CRITIC_MODEL = "google/gemini-3.5-flash-lite";
+/** Used once, only after a model returned nothing usable. */
+export const STORYBOOK_FALLBACK_MODEL = "google/gemini-3.5-flash-lite";
 
-/** Fixed for every support task in this pipeline. */
-export const STORYBOOK_SUPPORT_MODEL = "openai/gpt-5.6-luna";
-/** Used only after the normal support model returned no usable completion. */
-export const STORYBOOK_SUPPORT_FALLBACK_MODEL = "google/gemini-3.5-flash-lite";
-/** Writer floor when the wizard's pick collides with the support model. */
-export const STORYBOOK_WRITER_FLOOR_MODEL = "moonshotai/kimi-k2.6";
+export type ReasoningEffort = "none" | "low" | "medium" | "high";
+export type LlmRole = "support" | "writer" | "critic";
 
-const SUPPORT_TIMEOUT_MS = 120_000;
-const WRITER_TIMEOUT_MS = 240_000;
+export interface LlmRequest {
+  stage: string;
+  role: LlmRole;
+  model: string;
+  system: string;
+  user: string;
+  json: boolean;
+  /** Ceiling for visible output PLUS hidden reasoning. Only used tokens are billed. */
+  maxTokens: number;
+  effort?: ReasoningEffort;
+  temperature?: number;
+  /** Image URLs / data URIs for vision-capable models. */
+  imageInputs?: string[];
+  timeoutMs?: number;
+}
 
 export interface LlmCallResult {
   text: string;
@@ -52,20 +53,82 @@ export interface LlmCallResult {
   usage: { prompt: number; completion: number; total: number; costUSD: number };
   durationMs: number;
   finishReason?: string;
+  /** Set when the port had to switch models to get an answer. */
+  fallbackFrom?: string;
+}
+
+export type StorybookLlm = (request: LlmRequest) => Promise<LlmCallResult>;
+
+export interface StorybookModels {
+  writer: string;
+  support: string;
+  critic: string;
+}
+
+/** Maps the wizard's native model ids onto OpenRouter ids; this lane routes everything through OpenRouter. */
+export function toOpenRouterModelId(model: string): string {
+  const value = String(model || "").trim();
+  if (!value) return STORYBOOK_DEFAULT_WRITER_MODEL;
+  if (value.includes("/") || value.startsWith("~")) return value;
+  if (value === "claude-sonnet-4-6") return "anthropic/claude-sonnet-4.6";
+  if (value.startsWith("claude-")) return `anthropic/${value}`;
+  if (value.startsWith("minimax-")) return `minimax/${value}`;
+  if (value.startsWith("gemini-")) return `google/${value}`;
+  if (value.startsWith("gpt-") || /^o\d/.test(value)) return `openai/${value}`;
+  return value;
+}
+
+export function modelFamily(model: string): "openai" | "google" | "anthropic" | "other" {
+  const value = String(model || "").toLowerCase().replace(/^~/, "");
+  if (value.startsWith("openai/")) return "openai";
+  if (value.startsWith("google/")) return "google";
+  if (value.startsWith("anthropic/")) return "anthropic";
+  return "other";
+}
+
+/**
+ * Resolves the three roles. The wizard picks the writer; the critic is always
+ * chosen from the other big family so it can never be the writer's twin.
+ */
+export function resolveStorybookModels(
+  config: Pick<StoryConfig, "aiProvider" | "aiModel" | "openRouterModel">,
+  overrides: { critic?: string; support?: string } = {}
+): StorybookModels {
+  const selected = config.aiProvider === "openrouter"
+    ? String(config.openRouterModel || "").trim()
+    : String(config.aiModel || "").trim();
+  const writer = toOpenRouterModelId(selected || STORYBOOK_DEFAULT_WRITER_MODEL);
+  const support = overrides.support || STORYBOOK_SUPPORT_MODEL;
+
+  let critic = overrides.critic || "";
+  if (!critic || modelFamily(critic) === modelFamily(writer)) {
+    critic = modelFamily(writer) === "openai" ? STORYBOOK_CROSS_FAMILY_CRITIC_MODEL : STORYBOOK_SUPPORT_MODEL;
+  }
+  return { writer, support, critic };
+}
+
+/** The other model to try once when a call returned nothing usable. */
+export function fallbackModelFor(model: string): string {
+  return modelFamily(model) === "google" ? STORYBOOK_SUPPORT_MODEL : STORYBOOK_FALLBACK_MODEL;
+}
+
+export interface StorybookStageLog {
+  stage: string;
+  modelUsed?: string;
+  modelRole?: "support" | "selected-story";
+  durationMs?: number;
+  usage?: { prompt: number; completion: number; total: number; costUSD?: number };
+  note?: string;
 }
 
 export class CostLedger {
   private readonly stages: StorybookStageLog[] = [];
 
-  record(entry: StorybookStageLog): void {
-    this.stages.push(entry);
-  }
-
-  recordCall(stage: string, role: "support" | "selected-story", result: LlmCallResult, note?: string): void {
+  recordCall(stage: string, result: LlmCallResult, role: LlmRole): void {
     this.stages.push({
       stage,
       modelUsed: result.modelUsed,
-      modelRole: role,
+      modelRole: role === "writer" ? "selected-story" : "support",
       durationMs: result.durationMs,
       usage: {
         prompt: result.usage.prompt,
@@ -73,286 +136,50 @@ export class CostLedger {
         total: result.usage.total,
         costUSD: result.usage.costUSD,
       },
-      note,
+      note: result.fallbackFrom ? `fallback from ${result.fallbackFrom}` : undefined,
     });
   }
 
   all(): StorybookStageLog[] {
-    return this.stages;
+    return [...this.stages];
   }
 
   totals(): { prompt: number; completion: number; total: number; costUSD: number; calls: number } {
     return this.stages.reduce(
-      (acc, stage) => {
-        if (!stage.usage) return acc;
-        return {
-          prompt: acc.prompt + (stage.usage.prompt || 0),
-          completion: acc.completion + (stage.usage.completion || 0),
-          total: acc.total + (stage.usage.total || 0),
-          costUSD: Number((acc.costUSD + (stage.usage.costUSD || 0)).toFixed(6)),
-          calls: acc.calls + 1,
-        };
-      },
+      (acc, stage) => ({
+        prompt: acc.prompt + (stage.usage?.prompt || 0),
+        completion: acc.completion + (stage.usage?.completion || 0),
+        total: acc.total + (stage.usage?.total || 0),
+        costUSD: Number((acc.costUSD + (stage.usage?.costUSD || 0)).toFixed(6)),
+        calls: acc.calls + 1,
+      }),
       { prompt: 0, completion: 0, total: 0, costUSD: 0, calls: 0 }
     );
   }
 }
 
-function estimateCost(model: string, promptTokens: number, completionTokens: number): number {
-  const pricing = getOpenRouterModelPricing(model);
-  return Number(
-    ((promptTokens * pricing.inputCostPer1M) / 1_000_000 +
-      (completionTokens * pricing.outputCostPer1M) / 1_000_000).toFixed(6)
-  );
-}
-
-/** Resolves the wizard-selected prose model. Support tasks never use this. */
-/**
- * The prose model, floored so the writer is never also the judge.
- *
- * This pipeline runs `plan`, `judge` and `image-prompts` on
- * STORYBOOK_SUPPORT_MODEL. When the wizard's story model resolves to that same
- * model, one model writes the prose and then grades it — and it grades itself
- * generously. That exact collision produced the 6.5/10 verdict inflated to 8.1
- * in the old engine (audit 2026-08-06) and reappeared here: run 6683b402 was
- * written, judged and line-edited entirely by luna for $0.005, and the prose is
- * the weakest the project has shipped in weeks.
- *
- * Only the collision is corrected. Any other explicit wizard choice stands.
- */
-export function resolveWriterModel(config: StoryConfig): string {
-  const configured = resolveConfiguredStoryModel({
-    aiProvider: config.aiProvider,
-    aiModel: config.aiModel,
-    openRouterModel: config.openRouterModel,
-  });
-  if (configured !== STORYBOOK_SUPPORT_MODEL) return configured;
-  console.warn("[storybook/llm] writer model equals the support model; flooring so the writer is not its own judge", {
-    configured,
-    floored: STORYBOOK_WRITER_FLOOR_MODEL,
-  });
-  return STORYBOOK_WRITER_FLOOR_MODEL;
-}
-
-async function callOpenRouter(input: {
-  system: string;
-  user: string;
-  model: string;
-  json: boolean;
-  maxTokens: number;
-  temperature?: number;
-  timeoutMs?: number;
-}): Promise<LlmCallResult> {
-  const started = Date.now();
-  const controller = new AbortController();
-  const timeoutMs = input.timeoutMs ?? SUPPORT_TIMEOUT_MS;
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-  let response: Awaited<ReturnType<typeof callOpenRouterChatCompletion>>;
-  try {
-    response = await callOpenRouterChatCompletion({
-      messages: [
-        { role: "system", content: input.system },
-        { role: "user", content: input.user },
-      ],
-      model: input.model,
-      responseFormat: input.json ? "json_object" : "text",
-      maxTokens: input.maxTokens,
-      temperature: input.temperature,
-      reasoning: resolveStorybookReasoning(input.model),
-      includeReasoning: false,
-      signal: controller.signal,
-    });
-  } catch (err) {
-    if ((err as any)?.name === "AbortError") {
-      throw new Error(`[storybook/llm] ${input.model} timed out after ${timeoutMs / 1000}s.`);
-    }
-    throw err;
-  } finally {
-    clearTimeout(timeout);
-  }
-
-  const { data, model } = response;
-  const choice = data?.choices?.[0];
-  const finishReason = String(choice?.finish_reason || "unknown");
-  const text = extractStorybookChoiceContent(choice);
-  if (!text) {
-    throw new Error(
-      `[storybook/llm] Empty response from ${model} (finish_reason=${finishReason}, completion_tokens=${Number(data?.usage?.completion_tokens) || 0}).`
-    );
-  }
-  if (isTruncatedFinishReason(finishReason)) {
-    throw new Error(
-      `[storybook/llm] Truncated response from ${model} (finish_reason=${finishReason}, max_tokens=${input.maxTokens}).`
-    );
-  }
-  const promptTokens = Number(data?.usage?.prompt_tokens) || 0;
-  const completionTokens = Number(data?.usage?.completion_tokens) || 0;
-  const reported = extractOpenRouterCostUSD(data);
-
-  return {
-    text,
-    modelUsed: model,
-    usage: {
-      prompt: promptTokens,
-      completion: completionTokens,
-      total: Number(data?.usage?.total_tokens) || promptTokens + completionTokens,
-      costUSD: reported ?? estimateCost(model, promptTokens, completionTokens),
-    },
-    durationMs: Date.now() - started,
-    finishReason,
-  };
-}
-
-async function callGemini(input: {
-  system: string;
-  user: string;
-  model: string;
-  json: boolean;
-  maxTokens: number;
-}): Promise<LlmCallResult> {
-  const started = Date.now();
-  const result = await generateWithGemini({
-    systemPrompt: input.system,
-    userPrompt: input.user,
-    model: input.model,
-    maxTokens: input.maxTokens,
-    logSource: "storybook-generation",
-  });
-
-  const promptTokens = Number(result?.usage?.promptTokens) || 0;
-  const completionTokens = Number(result?.usage?.completionTokens) || 0;
-
-  return {
-    text: String(result?.content || ""),
-    modelUsed: result?.model || input.model,
-    usage: {
-      prompt: promptTokens,
-      completion: completionTokens,
-      total: Number(result?.usage?.totalTokens) || promptTokens + completionTokens,
-      costUSD: estimateCost(input.model, promptTokens, completionTokens),
-    },
-    durationMs: Date.now() - started,
-  };
-}
-
-/** Support-role call. Always gpt-5.6-luna, always JSON unless told otherwise. */
-export async function callSupport(input: {
-  system: string;
-  user: string;
-  maxTokens?: number;
-  json?: boolean;
-  temperature?: number;
-  model?: string;
-  timeoutMs?: number;
-}): Promise<LlmCallResult> {
-  return callOpenRouter({
-    system: input.system,
-    user: input.user,
-    model: input.model || STORYBOOK_SUPPORT_MODEL,
-    json: input.json !== false,
-    maxTokens: input.maxTokens ?? 1400,
-    temperature: input.temperature ?? 0.6,
-    timeoutMs: input.timeoutMs ?? SUPPORT_TIMEOUT_MS,
-  });
-}
-
-/** Writer-role call. Uses the wizard model; falls back to support on failure. */
-export async function callWriter(input: {
-  system: string;
-  user: string;
-  model: string;
-  maxTokens?: number;
-  json?: boolean;
-  temperature?: number;
-}): Promise<LlmCallResult> {
-  const maxTokens = input.maxTokens ?? 3200;
-
-  if (isOpenRouterModelId(input.model)) {
-    try {
-      return await callOpenRouter({
-        system: input.system,
-        user: input.user,
-        model: input.model,
-        json: input.json === true,
-        maxTokens,
-        temperature: input.temperature ?? 0.85,
-        timeoutMs: WRITER_TIMEOUT_MS,
-      });
-    } catch (err) {
-      const fallbackModel = input.model === STORYBOOK_SUPPORT_MODEL
-        ? STORYBOOK_SUPPORT_FALLBACK_MODEL
-        : STORYBOOK_SUPPORT_MODEL;
-      console.warn(
-        `[storybook/llm] OpenRouter writer ${input.model} failed; retrying once with ${fallbackModel}:`,
-        err
-      );
-      return callOpenRouter({
-        system: input.system,
-        user: input.user,
-        model: fallbackModel,
-        json: input.json === true,
-        maxTokens,
-        temperature: input.temperature ?? 0.85,
-        timeoutMs: WRITER_TIMEOUT_MS,
-      });
-    }
-  }
-
-  if (isGeminiConfigured()) {
-    try {
-      return await callGemini({
-        system: input.system,
-        user: input.user,
-        model: input.model,
-        json: input.json === true,
-        maxTokens,
-      });
-    } catch (err) {
-      console.warn("[storybook/llm] Gemini writer call failed, falling back to support model:", err);
-    }
-  }
-
-  return callOpenRouter({
-    system: input.system,
-    user: input.user,
-    model: STORYBOOK_SUPPORT_MODEL,
-    json: input.json === true,
-    maxTokens,
-    temperature: input.temperature ?? 0.85,
-    timeoutMs: WRITER_TIMEOUT_MS,
-  });
-}
-
 /**
  * Parses a JSON object out of a model response. Models occasionally wrap JSON
- * in prose or fences even when asked not to, and a whole generation should not
- * die because of a stray ``` — so we recover rather than throw.
+ * in prose or fences even when asked not to; recover rather than throw.
  */
 export function parseJsonObject<T>(raw: string): T | null {
   const text = String(raw || "").trim();
   if (!text) return null;
 
   const attempts: string[] = [text];
-
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced?.[1]) attempts.push(fenced[1].trim());
-
   const firstBrace = text.indexOf("{");
   const lastBrace = text.lastIndexOf("}");
-  if (firstBrace >= 0 && lastBrace > firstBrace) {
-    attempts.push(text.slice(firstBrace, lastBrace + 1));
-  }
+  if (firstBrace >= 0 && lastBrace > firstBrace) attempts.push(text.slice(firstBrace, lastBrace + 1));
 
   for (const attempt of attempts) {
     try {
       const parsed = JSON.parse(attempt);
-      if (parsed && typeof parsed === "object") return parsed as T;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as T;
     } catch {
-      // try the next shape
+      // next shape
     }
   }
   return null;
 }
-
-export { splitOpenRouterCostUSD };

@@ -215,15 +215,16 @@ export interface StoryConfig {
   // Prompt pipeline version. V8 enables the new two-pass blueprint flow.
   promptVersion?: StoryPromptVersion;
 
-  // Storybook Mode (storybook-v1): the third, independent generation lane.
-  // Hand-written premise bank + Kinderlogik-Karte + ONE writer call + a
-  // zero-context comprehension judge. Optimised for a child actually following
-  // the story, and for ~4 cents instead of ~12. Support tasks run on
-  // gpt-5.6-luna; the prose model stays whatever the wizard selected.
+  // Storybook Mode (Bilderbuch-Modus, storybook-v2): an independent lane.
+  // Three pitches on proven picture-book engines, a page plan, the draft, a
+  // cold read by a critic of another model family (0-10 against real picture
+  // books), one full revision and a blind A/B read. Pool casting and the
+  // wizard's artifact are part of the concept. Support tasks run on
+  // gpt-6-luna; the prose model stays whatever the wizard selected.
   // Does not touch developerMode or the standard path.
   storybookMode?: boolean;
   // Explicit wizard selection takes precedence over the legacy server default.
-  storybookEngine?: "storybook-v1" | "book-workshop-v1";
+  storybookEngine?: "storybook-v1" | "storybook-v2" | "book-workshop-v1";
 
   // Developer Mode: bypass all enrichment (visual profiles, memories, DNA,
   // character pool, artifacts, style packs) and generate from a minimal prompt
@@ -720,7 +721,7 @@ export const generate = api<GenerateStoryRequest, Story>(
 
       if (config.storybookMode === true) {
         const useWorkshop = (config.storybookEngine ?? process.env.TALEA_STORYBOOK_ENGINE) === "book-workshop-v1";
-        console.log("[story.generate] Storybook engine:", useWorkshop ? "book-workshop-v1" : "storybook-v1");
+        console.log("[story.generate] Storybook engine:", useWorkshop ? "book-workshop-v1" : "storybook-v2");
         const storybookGenerator = useWorkshop
           ? generateStoryBookWorkshop
           : generateStoryStorybookMode;
@@ -740,7 +741,7 @@ export const generate = api<GenerateStoryRequest, Story>(
             narrativeProfile: (a as any).narrativeProfile,
           })),
           primaryProfileAge: primaryProfile.age,
-          ...(useWorkshop ? { blockedTerms } : {}),
+          blockedTerms,
         });
       } else if (config.developerMode === true) {
         console.log("[story.generate] 🧪 DEVELOPER MODE — adaptive polish cost-optimized quality path (support model for planning/judging, selected model for prose, images enabled, NO personality updates)");

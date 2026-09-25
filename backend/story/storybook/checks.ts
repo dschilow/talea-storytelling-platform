@@ -1,23 +1,22 @@
 /**
  * Storybook Pipeline — deterministic checks.
  *
- * Everything here is counting and regex. It costs nothing, it runs in
- * milliseconds, and it catches the exact failures a child notices:
- * too many new names, missing cause-and-effect, fragment staccato, a character
- * who appears without ever being introduced.
+ * Counting and matching only; free and instant. Two lessons from storybook-v1
+ * shape what is (and is not) in here:
  *
- * Two rules keep this honest:
- *
- *   1. Plan checks run BEFORE the expensive writer call. A defect caught in the
- *      card costs nothing; the same defect caught after the draft costs a
- *      repair pass.
- *   2. Nothing here ever measures dialogue percentage. Chasing a dialogue quota
- *      is what turned the old engine's prose into ping-pong fragments.
+ *   1. Hard gates only for facts: a missing hero, a pool character who never
+ *      appears, a brought artifact that is forgotten, a moral lecture on the
+ *      last page, a wrong page count, a parental block. Those are objectively
+ *      wrong and a rewrite can fix them.
+ *   2. No style quotas. v1 counted connectives per paragraph and the writer
+ *      answered with a subordinate clause in nearly every sentence (run
+ *      6683b402, 21 of them in 1087 words). Style belongs to the critic, who
+ *      reads like an editor instead of like a regex.
  */
 
-import { CAUSAL_CONNECTIVES, SUBORDINATING_CONNECTIVES } from "./style-contract";
-import type { CheckIssue, CheckReport, KidLogicCard, StorybookPage } from "./types";
-import type { LengthBudget } from "./style-contract";
+import type { LengthBudget } from "./craft";
+import type { StoryBrief } from "./context";
+import type { CheckIssue, CheckReport, StoryPlan, StorybookPage } from "./types";
 
 function report(issues: CheckIssue[]): CheckReport {
   const hard = issues.filter((issue) => issue.severity === "hard");
@@ -25,190 +24,9 @@ function report(issues: CheckIssue[]): CheckReport {
   return { ok: hard.length === 0, hard, soft };
 }
 
-function nonEmpty(value: unknown): boolean {
-  return typeof value === "string" && value.trim().length > 2;
+export function countWords(text: string): number {
+  return String(text || "").trim().split(/\s+/).filter(Boolean).length;
 }
-
-const VAGUE_QUESTION = /^(schafft|wird|kann|ob)\b|was passiert (jetzt|nun|dann)|wie geht (es|'s) weiter|gelingt/i;
-
-/**
- * Validates the Kinderlogik-Karte. A card that fails here means the story was
- * never going to be understandable, so we fix the plan rather than the prose.
- */
-export function checkPlan(card: KidLogicCard | null, budget: LengthBudget): CheckReport {
-  const issues: CheckIssue[] = [];
-  if (!card) {
-    return report([{ code: "plan_missing", severity: "hard", message: "Die Planungskarte konnte nicht gelesen werden." }]);
-  }
-
-  // --- the causal chain: the whole point of the card ---------------------
-  const chainRules: Array<{ field: keyof KidLogicCard["kette"]; needle: RegExp; label: string }> = [
-    { field: "will", needle: /\bwill\b|\bmöchte\b|\bbraucht\b/i, label: "will" },
-    { field: "aber", needle: /^aber\b|\baber\b|\bdoch\b/i, label: "aber" },
-    { field: "also", needle: /^also\b|\balso\b|\bdeshalb\b|\bdarum\b/i, label: "also" },
-    { field: "dadurch", needle: /^dadurch\b|\bdadurch\b|\bdeswegen\b|\bjetzt\b/i, label: "dadurch" },
-    { field: "entweder", needle: /\boder\b|\bentweder\b/i, label: "entweder/oder" },
-    { field: "waehlt", needle: /\bweil\b|\bdenn\b/i, label: "wählt … weil" },
-    { field: "ende", needle: /\b(ende|schluss|zuletzt|schließlich|am ende)\b/i, label: "ende" },
-  ];
-
-  const chain = card.kette || ({} as KidLogicCard["kette"]);
-  for (const rule of chainRules) {
-    const value = String((chain as any)[rule.field] || "");
-    if (!nonEmpty(value)) {
-      issues.push({
-        code: `chain_missing_${String(rule.field)}`,
-        severity: "hard",
-        message: `Die Kette hat kein Glied "${rule.label}". Ohne dieses Glied kann ein Kind der Handlung nicht folgen.`,
-      });
-      continue;
-    }
-    if (!rule.needle.test(value)) {
-      issues.push({
-        code: `chain_weak_${String(rule.field)}`,
-        severity: "soft",
-        message: `Das Kettenglied "${rule.label}" trägt sein Verbindungswort nicht: „${value.slice(0, 80)}“`,
-      });
-    }
-  }
-
-  // --- the magic must leave a mark --------------------------------------
-  if (!nonEmpty(card.wunderregel?.regel)) {
-    issues.push({ code: "rule_missing", severity: "hard", message: "Es gibt keine Wunderregel." });
-  }
-  if (!nonEmpty(card.wunderregel?.sichtbareFolge)) {
-    issues.push({
-      code: "rule_invisible",
-      severity: "hard",
-      message: "Die Wunderregel hat keine sichtbare Folge. Was man nicht sehen kann, gibt es für ein Kind nicht.",
-    });
-  }
-
-  // --- three escalating beats -------------------------------------------
-  const beats = Array.isArray(card.dreierSchritt) ? card.dreierSchritt.filter(nonEmpty) : [];
-  if (beats.length < 3) {
-    issues.push({ code: "escalation_incomplete", severity: "hard", message: "Der Dreierschritt hat weniger als drei Stufen." });
-  } else if (new Set(beats.map((b) => b.trim().toLowerCase())).size < 3) {
-    issues.push({ code: "escalation_repeats", severity: "hard", message: "Zwei Stufen des Dreierschritts sind identisch — es gibt keine Steigerung." });
-  }
-
-  // --- payoff scaffolding ------------------------------------------------
-  for (const [field, label] of [
-    ["umkehrung", "Umkehrung"],
-    ["preis", "Preis"],
-    ["schlussbild", "Schlussbild"],
-    ["ankerObjekt", "Ankerobjekt"],
-    ["refrain", "Refrain"],
-  ] as const) {
-    if (!nonEmpty((card as any)[field])) {
-      issues.push({ code: `missing_${field}`, severity: "hard", message: `Es fehlt: ${label}.` });
-    }
-  }
-
-  const refrain = String(card.refrain || "").trim();
-  if (refrain) {
-    const words = refrain.split(/\s+/).length;
-    if (words > 8) {
-      issues.push({ code: "refrain_too_long", severity: "soft", message: `Der Refrain ist mit ${words} Wörtern zu lang zum Mitsprechen.` });
-    }
-    if (/wenn .* dann|jedes mal|weil .* dann/i.test(refrain)) {
-      issues.push({
-        code: "refrain_explains",
-        severity: "soft",
-        message: "Der Refrain erklärt die Magie, statt Figurensprache zu sein.",
-      });
-    }
-  }
-
-  // --- the running gag ---------------------------------------------------
-  const gagSpots = Array.isArray(card.laufgag?.stellen) ? card.laufgag.stellen.filter(nonEmpty) : [];
-  if (gagSpots.length < 3) {
-    issues.push({ code: "gag_incomplete", severity: "hard", message: "Der Laufgag hat weniger als drei Stellen." });
-  } else if (new Set(gagSpots.map((s) => s.trim().toLowerCase())).size < 3) {
-    issues.push({ code: "gag_repeats", severity: "soft", message: "Der Laufgag ist drei Mal derselbe — beim dritten Mal muss er anders sein." });
-  }
-
-  // --- page questions ----------------------------------------------------
-  const pages = Array.isArray(card.seiten) ? card.seiten : [];
-  if (pages.length !== budget.pages) {
-    issues.push({
-      code: "page_count",
-      severity: "hard",
-      message: `Die Karte hat ${pages.length} Seiten, gebraucht werden ${budget.pages}.`,
-    });
-  }
-  for (const page of pages) {
-    if (!nonEmpty(page?.was)) {
-      issues.push({ code: "page_empty", severity: "hard", message: `Seite ${page?.nr}: kein sichtbares Geschehen.`, page: page?.nr });
-    }
-    const question = String(page?.frage || "").trim();
-    if (!nonEmpty(question)) {
-      issues.push({ code: "page_question_missing", severity: "hard", message: `Seite ${page?.nr}: keine Frage am Seitenende.`, page: page?.nr });
-    } else if (VAGUE_QUESTION.test(question)) {
-      issues.push({
-        code: "page_question_vague",
-        severity: "soft",
-        message: `Seite ${page?.nr}: die Frage „${question}“ ist zu allgemein. Sie muss konkret sein.`,
-        page: page?.nr,
-      });
-    }
-  }
-
-  // --- every figure is introduced ----------------------------------------
-  const figures = Array.isArray(card.figuren) ? card.figuren : [];
-  if (figures.length === 0) {
-    issues.push({ code: "figures_missing", severity: "hard", message: "Die Karte nennt keine Figuren." });
-  }
-  for (const figure of figures) {
-    if (!nonEmpty(figure?.werSieSind)) {
-      issues.push({
-        code: "figure_no_intro",
-        severity: "hard",
-        message: `Für ${figure?.name || "eine Figur"} fehlt der Satz, wer das ist.`,
-      });
-    }
-    if (!nonEmpty(figure?.willWas)) {
-      issues.push({
-        code: "figure_no_want",
-        severity: "soft",
-        message: `${figure?.name || "Eine Figur"} hat keinen eigenen Wunsch.`,
-      });
-    }
-  }
-
-  if (!nonEmpty(card.titel)) issues.push({ code: "title_missing", severity: "hard", message: "Kein Titel." });
-  if (!nonEmpty(card.kurzbeschreibung)) {
-    issues.push({ code: "description_missing", severity: "hard", message: "Keine Kurzbeschreibung." });
-  } else if (/lernt|lernen|botschaft|moral|erkennt, dass/i.test(card.kurzbeschreibung)) {
-    issues.push({ code: "description_moralises", severity: "soft", message: "Die Kurzbeschreibung erklärt eine Lehre statt eines Wunsches." });
-  }
-
-  return report(issues);
-}
-
-// ---------------------------------------------------------------------------
-// Prose checks
-// ---------------------------------------------------------------------------
-
-const CONNECTIVE_RE = new RegExp(`\\b(${CAUSAL_CONNECTIVES.join("|")})\\b`, "i");
-const SUBORDINATING_RE = new RegExp(`\\b(${SUBORDINATING_CONNECTIVES.join("|")})\\b`, "i");
-
-/**
- * A present-tense "X ist ein …" / "X trägt …" sentence whose subject is a
- * capitalised name — the shape of a character sheet copied into past-tense
- * prose. Matches the whole sentence, so an in-scene "Das ist ein Trick!" (short,
- * spoken) does not trip it: the tail has to be descriptive.
- */
-const CHARACTER_SHEET_RE =
-  /^[„"']?\s*(?:Der |Die |Das )?[A-ZÄÖÜ][\wäöüß]+(?:\s+[A-ZÄÖÜ][\wäöüß]+)?\s+(?:ist\s+(?:ein|eine|der|die|das)\s|trägt\s+(?:ein|eine|einen)\s)[^.!?]{25,}[.!?]$/;
-const FORBIDDEN_ENDINGS = [
-  /sie lernten,? dass/i,
-  /das größte geschenk/i,
-  /wahre magie/i,
-  /mit mut und zusammenhalt/i,
-  /war alles nur ein traum/i,
-  /seit diesem tag wusste[n]? (er|sie|es)/i,
-];
 
 export function splitSentences(text: string): string[] {
   return String(text || "")
@@ -218,263 +36,251 @@ export function splitSentences(text: string): string[] {
     .filter((sentence) => sentence.length > 0);
 }
 
-export function splitParagraphs(text: string): string[] {
-  return String(text || "")
-    .split(/\n{2,}|\n/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
+function normalizeForSearch(value: string): string {
+  return String(value || "").normalize("NFKC").toLocaleLowerCase("de-DE");
 }
 
-export function countWords(text: string): number {
-  return String(text || "").trim().split(/\s+/).filter(Boolean).length;
+/** Title and profession words that are not a name on their own ("Hexe Griselda" is found by "Griselda"). */
+const TITLE_WORDS = new Set([
+  "der", "die", "das", "den", "dem", "des", "und", "von",
+  "hexe", "kobold", "räuber", "raeuber", "räuberhauptmann", "könig", "koenig", "königin", "prinz", "prinzessin",
+  "frau", "herr", "bäcker", "baecker", "müller", "fee", "drache", "zauberer", "magierin", "ritter", "kapitän",
+  "detektiv", "professor", "gelehrter", "lehrerin", "postbote", "polizist", "feuerwehrfrau", "schmied", "diener",
+  "magd", "wirtin", "händler", "graf", "tante", "oma", "opa", "onkel", "frosch", "eichhörnchen", "troll",
+  "astronautin", "hirtenjunge", "bauerntochter", "weise", "alte", "kleine", "große", "schwarzmagier", "stiefmutter",
+]);
+
+/** The distinctive parts of a name, the way prose refers to people ("Kobold Kicher" → "Kicher"). */
+export function nameTokens(name: string): string[] {
+  const parts = String(name || "")
+    .split(/\s+/)
+    .map((part) => part.replace(/[^\p{L}\p{N}-]/gu, ""))
+    .filter((part) => part.length >= 3);
+  const distinctive = parts.filter((part) => !TITLE_WORDS.has(part.toLocaleLowerCase("de-DE")));
+  return [...new Set(distinctive.length > 0 ? distinctive : parts)];
 }
 
-/** Capitalised tokens that are not sentence-initial — a crude but effective proper-noun probe. */
-function properNounsIn(text: string): Set<string> {
-  const found = new Set<string>();
-  for (const sentence of splitSentences(text)) {
-    // Strip leading quote marks so a name opening a line of speech still counts
-    // as sentence-initial rather than as a new name.
-    const cleaned = sentence.replace(/^[„"»'\-–—\s]+/, "");
-    const tokens = cleaned.split(/\s+/);
-    tokens.forEach((token, index) => {
-      const word = token.replace(/[^\wÄÖÜäöüß-]/g, "");
-      if (word.length < 3) return;
-      if (index === 0) return;
-      if (!/^[A-ZÄÖÜ]/.test(word)) return;
-      // German capitalises all nouns, so a whitelist of story-relevant common
-      // nouns would be endless. Instead we only count words that never appear
-      // lowercase anywhere in the text AND are not preceded by an article.
-      const prev = (tokens[index - 1] || "").toLowerCase().replace(/[^\wäöüß]/g, "");
-      if (["der", "die", "das", "ein", "eine", "einen", "einem", "einer", "eines", "den", "dem", "des", "im", "am", "zum", "zur", "vom", "beim", "ins"].includes(prev)) return;
-      found.add(word);
-    });
+export function mentions(text: string, name: string): boolean {
+  const haystack = normalizeForSearch(text);
+  return nameTokens(name).some((token) => {
+    const needle = normalizeForSearch(token);
+    // Word-start match so "Kicher" matches "Kichers" but "Ann" does not match "Kanne".
+    return new RegExp(`(^|[^\\p{L}])${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "u").test(haystack);
+  });
+}
+
+/** The artifact's head noun, e.g. "Kompass der Winde" → "kompass". */
+export function artifactHeadToken(name: string): string {
+  const words = String(name || "").split(/\s+/).map((word) => word.replace(/[^\p{L}]/gu, "")).filter(Boolean);
+  const capitalised = words.filter((word) => /^\p{Lu}/u.test(word) && word.length >= 4);
+  return normalizeForSearch(capitalised[0] || words[0] || "");
+}
+
+export function containsBlockedTerm(text: string, blockedTerms: string[]): string | null {
+  const haystack = normalizeForSearch(text);
+  for (const term of blockedTerms) {
+    const needle = normalizeForSearch(term).trim();
+    if (needle && haystack.includes(needle)) return term;
   }
-  return found;
+  return null;
 }
 
-export interface ProseCheckInput {
-  pages: StorybookPage[];
-  budget: LengthBudget;
-  card: KidLogicCard;
-  /** Names that are allowed from page 1 without a fresh introduction. */
-  knownNames: string[];
-}
+// ---------------------------------------------------------------------------
+// Plan
+// ---------------------------------------------------------------------------
 
-export function checkProse(input: ProseCheckInput): CheckReport {
+export function checkPlan(plan: StoryPlan | null, brief: StoryBrief): CheckReport {
   const issues: CheckIssue[] = [];
-  const { pages, budget, card } = input;
-  const fullText = pages.map((page) => page.content).join("\n\n");
+  if (!plan) return report([{ code: "plan_missing", severity: "hard", message: "Der Plan konnte nicht gelesen werden." }]);
+  const pages = brief.budget.pages;
 
-  // --- length -------------------------------------------------------------
-  const totalWords = countWords(fullText);
-  if (totalWords < budget.totalWordsMin * 0.8) {
+  if (!plan.title) issues.push({ code: "title_missing", severity: "hard", message: "Der Plan hat keinen Titel." });
+  if (plan.pages.length !== pages) {
+    issues.push({ code: "page_count", severity: "hard", message: `Der Plan hat ${plan.pages.length} Seiten, gebraucht werden genau ${pages}.` });
+  }
+  for (const page of plan.pages) {
+    const missing = [
+      !page.action && "action",
+      !page.picture && "picture",
+      !page.turn && "turn",
+    ].filter(Boolean);
+    if (missing.length > 0) {
+      issues.push({ code: "page_incomplete", severity: "hard", message: `Seite ${page.page}: es fehlt ${missing.join(", ")}.`, page: page.page });
+    }
+  }
+
+  for (const hero of plan.heroes) {
+    const onPages = plan.pages.filter((page) => page.onPage.includes(hero.id)).length;
+    if (onPages === 0) {
+      issues.push({ code: "hero_absent", severity: "hard", message: `${hero.name} kommt auf keiner Seite vor (onPage).` });
+    }
+    if (!hero.contribution) {
+      issues.push({ code: "hero_no_contribution", severity: "hard", message: `${hero.name} hat keinen eigenen Beitrag zur Lösung.` });
+    }
+  }
+
+  if (brief.candidates.length > 0 && plan.cast.length === 0) {
     issues.push({
-      code: "too_short",
+      code: "cast_empty",
       severity: "hard",
-      message: `Die Geschichte hat ${totalWords} Wörter, erwartet werden ${budget.totalWordsMin}–${budget.totalWordsMax}.`,
-    });
-  } else if (totalWords > budget.totalWordsMax * 1.25) {
-    issues.push({
-      code: "too_long",
-      severity: "soft",
-      message: `Die Geschichte hat ${totalWords} Wörter, erwartet werden ${budget.totalWordsMin}–${budget.totalWordsMax}.`,
+      message: "Keine Figur aus dem Figurenpool besetzt. Besetze mindestens eine Figur aus der Liste (per id) mit einer echten Aufgabe.",
     });
   }
-
-  if (pages.length !== budget.pages) {
-    issues.push({ code: "wrong_page_count", severity: "hard", message: `${pages.length} Leseseiten statt ${budget.pages}.` });
+  for (const member of plan.cast) {
+    const onPages = plan.pages.filter((page) => page.onPage.includes(member.id)).length;
+    if (onPages === 0) {
+      issues.push({ code: "cast_absent", severity: "hard", message: `${member.name} ist besetzt, kommt aber auf keiner Seite vor.` });
+    } else if (onPages === 1) {
+      issues.push({ code: "cast_thin", severity: "soft", message: `${member.name} erscheint nur auf einer Seite — eine Nebenfigur braucht mindestens zwei Auftritte.` });
+    }
+    if (!member.want) issues.push({ code: "cast_no_want", severity: "soft", message: `${member.name} hat keinen eigenen Wunsch.` });
   }
 
-  // --- per page -----------------------------------------------------------
-  const introduced = new Set(input.knownNames.map((name) => name.split(/\s+/)[0]));
-  const seenNames = new Set<string>(introduced);
-
-  for (const page of pages) {
-    const paragraphs = splitParagraphs(page.content);
-    const sentences = splitSentences(page.content);
-
-    // Cause and effect: a page whose paragraphs never say WHY is a page a child
-    // hears as a list of unrelated events.
-    const paragraphsWithoutConnective = paragraphs.filter((p) => !CONNECTIVE_RE.test(p));
-    if (paragraphsWithoutConnective.length > Math.max(1, Math.floor(paragraphs.length * 0.34))) {
-      issues.push({
-        code: "no_causality",
-        severity: "hard",
-        message: `Seite ${page.order}: ${paragraphsWithoutConnective.length} von ${paragraphs.length} Absätzen enthalten kein Verbindungswort (weil/deshalb/also/aber/denn). Die Handlung wirkt wie eine Aufzählung.`,
-        page: page.order,
-      });
-    }
-
-    // …and the ceiling. A floor without one is an instruction to write every
-    // sentence as "action, weil reason" — which is exactly what run 6683b402
-    // did: 21 subordinate clauses in 1087 words, mean sentence length 18 in a
-    // band contracted for 9–14. Every one of those sentences passed the gate
-    // above. A read-aloud text carries its causality in the ORDER of events;
-    // the conjunction is the exception, not the default.
-    const subordinated = sentences.filter((sentence) => SUBORDINATING_RE.test(sentence));
-    if (sentences.length >= 6 && subordinated.length > Math.ceil(sentences.length * 0.4)) {
-      issues.push({
-        code: "causal_tic",
-        severity: "hard",
-        message: `Seite ${page.order}: ${subordinated.length} von ${sentences.length} Sätzen hängen an „weil/denn/damit“. Höchstens jeder dritte Satz darf einen solchen Nebensatz tragen — sonst klingt jeder Satz gleich und der Vorlese-Rhythmus ist weg. Zeig die Ursache stattdessen durch die Reihenfolge: erst die Ursache, dann die Folge, zwei kurze Hauptsätze.`,
-        page: page.order,
-      });
-    }
-
-    // Character sheets pasted into the prose. The plan hands the writer a
-    // `werSieSind` line in the present tense ("Räuber Rolf trägt eine
-    // Augenklappe …"); told to introduce the figure in one sentence, the model
-    // takes the shortest path and copies it. Run 6683b402 did this five times —
-    // in a past-tense story — and no gate saw it.
-    for (const sentence of sentences) {
-      const dump = CHARACTER_SHEET_RE.exec(sentence);
-      if (!dump) continue;
-      issues.push({
-        code: "character_sheet_dump",
-        severity: "hard",
-        message: `Seite ${page.order}: „${sentence.trim().slice(0, 90)}…“ ist ein Steckbrief im Präsens, kein Erzählsatz. Stell die Figur durch eine Handlung vor und arbeite das Aussehen in die Bewegung ein.`,
-        page: page.order,
-      });
-      break;
-    }
-
-    // Fragment staccato — the single worst habit of the previous engine.
-    let run = 0;
-    let worstRun = 0;
-    for (const sentence of sentences) {
-      if (countWords(sentence) <= 3) {
-        run += 1;
-        worstRun = Math.max(worstRun, run);
-      } else {
-        run = 0;
-      }
-    }
-    if (worstRun >= 3) {
-      issues.push({
-        code: "fragment_staccato",
-        severity: "hard",
-        message: `Seite ${page.order}: ${worstRun} Ein-bis-Drei-Wort-Sätze hintereinander. Das ist Erwachsenen-Thriller-Ton, kein Kinderbuch.`,
-        page: page.order,
-      });
-    }
-
-    const longest = sentences.reduce((max, sentence) => Math.max(max, sentence.length), 0);
-    if (longest > budget.maxSentenceChars) {
-      issues.push({
-        code: "sentence_too_long",
-        severity: "soft",
-        message: `Seite ${page.order}: längster Satz ${longest} Zeichen (max ${budget.maxSentenceChars}).`,
-        page: page.order,
-      });
-    }
-
-    // New names per page.
-    const pageNames = [...properNounsIn(page.content)].filter((name) => !seenNames.has(name));
-    if (pageNames.length > budget.maxNewNamesPerPage) {
-      issues.push({
-        code: "too_many_new_names",
-        severity: "soft",
-        message: `Seite ${page.order}: ${pageNames.length} neue Namen (${pageNames.slice(0, 5).join(", ")}), erlaubt sind ${budget.maxNewNamesPerPage}.`,
-        page: page.order,
-      });
-    }
-    pageNames.forEach((name) => seenNames.add(name));
-
-    if (page.content.trim().length < budget.pageCharsMin * 0.6) {
-      issues.push({
-        code: "page_too_thin",
-        severity: "soft",
-        message: `Seite ${page.order}: nur ${page.content.trim().length} Zeichen.`,
-        page: page.order,
-      });
-    }
+  const brought = brief.artifacts.find((artifact) => artifact.broughtBy);
+  if (brought && plan.artifact?.id !== brought.id) {
+    issues.push({ code: "brought_artifact_missing", severity: "hard", message: `Das mitgebrachte Artefakt „${brought.name}“ fehlt im Plan.` });
   }
 
-  // --- named figures must be introduced ------------------------------------
-  const figures = Array.isArray(card.figuren) ? card.figuren : [];
-  for (const figure of figures) {
-    const name = String(figure?.name || "").trim();
-    if (!name) continue;
-    const firstToken = name.split(/\s+/)[0];
-    if (input.knownNames.some((known) => known.split(/\s+/)[0] === firstToken)) continue;
-
-    const index = fullText.indexOf(firstToken);
-    if (index < 0) continue; // never appears — that is fine, the writer dropped them
-    // Look at the sentence carrying the first mention: it must say who this is,
-    // i.e. contain a comma-clause or a descriptive apposition.
-    const window = fullText.slice(Math.max(0, index - 140), index + 200);
-    const introSentence = splitSentences(window).find((sentence) => sentence.includes(firstToken)) || "";
-    const hasIntro = /,/.test(introSentence) && introSentence.length > firstToken.length + 25;
-    if (!hasIntro) {
-      issues.push({
-        code: "figure_unintroduced",
-        severity: "soft",
-        message: `„${name}“ taucht auf, ohne dass in demselben Satz steht, wer das ist.`,
-      });
+  if (plan.setups.length === 0) {
+    issues.push({ code: "no_setup", severity: "soft", message: "Kein vorbereitetes Detail, das sich später auszahlt." });
+  }
+  for (const setup of plan.setups) {
+    if (setup.paysOffOnPage <= setup.plantedOnPage) {
+      issues.push({ code: "setup_order", severity: "soft", message: `„${setup.what}“ wird nicht vor seiner Auszahlung gezeigt.` });
     }
   }
-
-  // --- refrain -------------------------------------------------------------
-  const refrain = String(card.refrain || "").trim();
-  if (refrain.length > 3) {
-    const needle = refrain.replace(/[.!?…„“"»«]/g, "").trim().toLowerCase();
-    const haystack = fullText.replace(/[.!?…„“"»«]/g, "").toLowerCase();
-    let count = 0;
-    let from = 0;
-    while (needle && from < haystack.length) {
-      const at = haystack.indexOf(needle, from);
-      if (at < 0) break;
-      count += 1;
-      from = at + needle.length;
-    }
-    if (count < 3) {
-      issues.push({
-        code: "refrain_missing",
-        severity: count === 0 ? "hard" : "soft",
-        message: `Der Refrain „${refrain}“ steht nur ${count}× im Text, gebraucht werden 3×.`,
-      });
-    }
+  if (plan.runningGag.beats.length < 3) {
+    issues.push({ code: "gag_incomplete", severity: "soft", message: "Der Laufgag hat weniger als drei Stellen." });
+  }
+  if (plan.refrain && countWords(plan.refrain) > 9) {
+    issues.push({ code: "refrain_long", severity: "soft", message: `Der Satz zum Mitsprechen ist mit ${countWords(plan.refrain)} Wörtern zu lang.` });
+  }
+  if (!plan.ending.lastLine) {
+    issues.push({ code: "no_last_line", severity: "soft", message: "Es fehlt die Schlusspointe." });
   }
 
-  // --- anchor object opens and closes --------------------------------------
-  const anchor = String(card.ankerObjekt || "").trim().toLowerCase();
-  if (anchor.length > 2) {
-    const anchorHead = anchor.split(/\s+/).slice(-1)[0].replace(/[^\wäöüß]/g, "");
-    const lastPage = pages[pages.length - 1]?.content?.toLowerCase() || "";
-    if (anchorHead.length > 3 && !lastPage.includes(anchorHead.slice(0, Math.max(4, anchorHead.length - 2)))) {
-      issues.push({
-        code: "anchor_missing_at_end",
-        severity: "soft",
-        message: `Das Ankerobjekt „${card.ankerObjekt}“ kommt auf der letzten Seite nicht vor — der Kreis schließt sich nicht.`,
-        page: pages.length,
-      });
-    }
-  }
-
-  // --- moral endings -------------------------------------------------------
-  const lastPageText = pages[pages.length - 1]?.content || "";
-  for (const pattern of FORBIDDEN_ENDINGS) {
-    if (pattern.test(lastPageText)) {
-      issues.push({
-        code: "moral_ending",
-        severity: "hard",
-        message: "Die letzte Seite spricht eine Lehre aus. Das Ende muss ein Bild sein.",
-        page: pages.length,
-      });
-      break;
-    }
-  }
-
-  // --- serialization leftovers ---------------------------------------------
-  if (/\[object Object\]|\{\{|\}\}|undefined|NaN\b/.test(fullText)) {
-    issues.push({ code: "serialization_artifact", severity: "hard", message: "Im Text stehen technische Platzhalter oder Fehlwerte." });
-  }
+  const blocked = containsBlockedTerm(JSON.stringify(plan), brief.blockedTerms);
+  if (blocked) issues.push({ code: "blocked_term", severity: "hard", message: `Der gesperrte Begriff „${blocked}“ kommt im Plan vor.` });
 
   return report(issues);
 }
 
-/** Turns issues into one short instruction line each for a targeted repair. */
-export function issuesToRepairNotes(issues: CheckIssue[], max = 6): string[] {
-  return issues.slice(0, max).map((issue) => issue.message);
+// ---------------------------------------------------------------------------
+// Prose
+// ---------------------------------------------------------------------------
+
+const FORBIDDEN_ENDINGS = [
+  /(sie|er|wir|alle) (lernten|lernte|hatten gelernt),? dass/i,
+  /das größte geschenk/i,
+  /wahre (magie|freundschaft|stärke)/i,
+  /mit mut und zusammenhalt/i,
+  /(war|alles war) (alles )?nur ein traum/i,
+  /seit diesem tag wusste[n]? (er|sie|es)/i,
+  /und die moral/i,
+  /the (real|true) magic/i,
+  /they learned that/i,
+];
+
+const CHARACTER_SHEET_RE =
+  /^[„"']?\s*(?:Der |Die |Das )?\p{Lu}[\p{L}]+(?:\s+\p{Lu}[\p{L}]+)?\s+(?:ist\s+(?:ein|eine|der|die|das)\s|trägt\s+(?:ein|eine|einen)\s)[^.!?]{25,}[.!?]$/u;
+
+export interface ProseCheckInput {
+  pages: StorybookPage[];
+  budget: LengthBudget;
+  plan: StoryPlan;
+  brief: StoryBrief;
+}
+
+export function checkProse(input: ProseCheckInput): CheckReport {
+  const issues: CheckIssue[] = [];
+  const { pages, budget, plan, brief } = input;
+  const fullText = pages.map((page) => page.content).join("\n\n");
+  const totalWords = countWords(fullText);
+
+  if (pages.length !== budget.pages) {
+    issues.push({ code: "wrong_page_count", severity: "hard", message: `${pages.length} Seiten statt genau ${budget.pages}.` });
+  }
+  if (totalWords < budget.totalWordsMin * 0.8) {
+    issues.push({ code: "too_short", severity: "hard", message: `Die Geschichte hat ${totalWords} Wörter; gebraucht werden ${budget.totalWordsMin}–${budget.totalWordsMax} (je Seite ${budget.wordsPerPageMin}–${budget.wordsPerPageMax}).` });
+  } else if (totalWords > budget.totalWordsMax * 1.3) {
+    issues.push({ code: "too_long", severity: "hard", message: `Die Geschichte hat ${totalWords} Wörter; höchstens ${budget.totalWordsMax} (je Seite ${budget.wordsPerPageMin}–${budget.wordsPerPageMax}). Kürzen, ohne Handlung zu verlieren.` });
+  }
+
+  for (const page of pages) {
+    const words = countWords(page.content);
+    if (words < budget.wordsPerPageMin * 0.5) {
+      issues.push({ code: "page_thin", severity: "soft", message: `Seite ${page.order}: nur ${words} Wörter.`, page: page.order });
+    } else if (words > budget.wordsPerPageMax * 1.6) {
+      issues.push({ code: "page_heavy", severity: "soft", message: `Seite ${page.order}: ${words} Wörter — zu viel für eine Bilderbuchseite.`, page: page.order });
+    }
+
+    const sentences = splitSentences(page.content);
+    let run = 0;
+    let worst = 0;
+    for (const sentence of sentences) {
+      run = countWords(sentence) <= 3 ? run + 1 : 0;
+      worst = Math.max(worst, run);
+    }
+    if (worst >= 3) {
+      issues.push({ code: "fragment_staccato", severity: "soft", message: `Seite ${page.order}: ${worst} Ein-bis-drei-Wort-Sätze hintereinander.`, page: page.order });
+    }
+    const dump = sentences.find((sentence) => CHARACTER_SHEET_RE.test(sentence));
+    if (dump) {
+      issues.push({ code: "character_sheet", severity: "soft", message: `Seite ${page.order}: „${dump.slice(0, 90)}“ ist ein Steckbrief, kein Erzählsatz.`, page: page.order });
+    }
+  }
+
+  for (const hero of brief.heroes) {
+    if (!mentions(fullText, hero.name)) {
+      issues.push({ code: "hero_missing", severity: "hard", message: `${hero.name} kommt im Text nicht vor.` });
+    }
+  }
+  for (const member of plan.cast) {
+    if (!mentions(fullText, member.name)) {
+      issues.push({ code: "cast_missing", severity: "hard", message: `${member.name} (aus dem Figurenpool besetzt) kommt im Text nicht vor.` });
+    }
+  }
+
+  if (plan.artifact) {
+    const head = artifactHeadToken(plan.artifact.name);
+    const present = head.length >= 3 && normalizeForSearch(fullText).includes(head);
+    if (!present) {
+      issues.push({
+        code: "artifact_missing",
+        severity: plan.artifact.carried ? "hard" : "soft",
+        message: `Das Artefakt „${plan.artifact.name}“ kommt im Text nicht vor.`,
+      });
+    }
+  }
+
+  if (plan.refrain) {
+    const needle = normalizeForSearch(plan.refrain).replace(/[^\p{L}\p{N} ]/gu, "").trim();
+    const haystack = normalizeForSearch(fullText).replace(/[^\p{L}\p{N} ]/gu, " ").replace(/\s+/g, " ");
+    const count = needle ? haystack.split(needle).length - 1 : 0;
+    if (count < 2) {
+      issues.push({ code: "refrain_missing", severity: "soft", message: `Der Satz zum Mitsprechen „${plan.refrain}“ steht nur ${count}× im Text (geplant: 3×).` });
+    }
+  }
+
+  const lastPage = pages[pages.length - 1]?.content || "";
+  if (FORBIDDEN_ENDINGS.some((pattern) => pattern.test(lastPage))) {
+    issues.push({ code: "moral_ending", severity: "hard", message: "Die letzte Seite spricht eine Lehre aus. Das Ende muss ein Bild oder eine Pointe sein.", page: pages.length });
+  }
+
+  if (/\[object Object\]|\{\{|\}\}|\bundefined\b|\bNaN\b|SEITE\s+\d+|TITEL\s*:/.test(fullText)) {
+    issues.push({ code: "serialization_artifact", severity: "hard", message: "Im Text stehen technische Reste (Platzhalter, Seitenmarker)." });
+  }
+
+  const blocked = containsBlockedTerm(fullText, brief.blockedTerms);
+  if (blocked) issues.push({ code: "blocked_term", severity: "hard", message: `Der gesperrte Begriff „${blocked}“ steht im Text.` });
+
+  return report(issues);
+}
+
+/** One instruction line per issue, hard ones first. */
+export function issuesToNotes(issues: CheckIssue[], max = 8): string[] {
+  return [...issues]
+    .sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "hard" ? -1 : 1))
+    .slice(0, max)
+    .map((issue) => issue.message);
 }

@@ -697,6 +697,7 @@ function inputPricePerMillion(model: string): number {
   if (model.includes("gemini")) return 0.0;
   // Must precede the generic gpt-5 branch, which would otherwise bill Luna at
   // the base gpt-5 rate ($2.50) — 12x its actual price.
+  if (model.includes("gpt-6-luna")) return 0.10;
   if (model.includes("gpt-5.6-luna")) return 0.20;
   if (model.includes("gpt-5.6-terra")) return 2.50;
   if (model.includes("gpt-5.4-nano")) return 0.20;
@@ -727,6 +728,7 @@ function outputPricePerMillion(model: string): number {
   if (model.includes("gemini-3-flash")) return 3.0;
   if (model.includes("gemini")) return 0.0;
   // Must precede the generic gpt-5 branch — see inputPricePerMillion.
+  if (model.includes("gpt-6-luna")) return 0.50;
   if (model.includes("gpt-5.6-luna")) return 1.20;
   if (model.includes("gpt-5.6-terra")) return 15.0;
   if (model.includes("gpt-5.4-nano")) return 1.25;

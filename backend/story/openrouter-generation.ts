@@ -59,6 +59,11 @@ const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
   // expires without notice and would then understate every cost by 2x. The
   // promo price is captured automatically via the reported usage.cost.
   "openai/gpt-5.6-luna": { inputCostPer1M: 0.2, outputCostPer1M: 1.2 },
+  // GPT-6 Luna, released 2026-09-22. List price from the live OpenRouter
+  // catalog on 2026-09-25 — half of gpt-5.6-luna. Pro is the same model with
+  // reasoning.mode=pro, at the same token price.
+  "openai/gpt-6-luna": { inputCostPer1M: 0.1, outputCostPer1M: 0.5 },
+  "openai/gpt-6-luna-pro": { inputCostPer1M: 0.1, outputCostPer1M: 0.5 },
   "openai/gpt-5.6-terra": { inputCostPer1M: 2.5, outputCostPer1M: 15.0 },
 };
 

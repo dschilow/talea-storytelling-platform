@@ -9,7 +9,7 @@
  * only ever created when the model actually asks for it.
  */
 
-import { callSupport, parseJsonObject, type LlmCallResult } from "./llm";
+import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import type { StorybookAvatarDevelopment, StorybookHero, StorybookPage } from "./types";
 
 const BASE_TRAIT_IDS = [
@@ -132,15 +132,23 @@ function sanitize(raw: any, heroes: StorybookHero[]): StorybookAvatarDevelopment
   return result;
 }
 
-export async function runDevelopmentStage(input: DevelopmentStageInput): Promise<DevelopmentStageResult> {
+export async function runDevelopmentStage(
+  llm: StorybookLlm,
+  input: DevelopmentStageInput,
+  model: string
+): Promise<DevelopmentStageResult> {
   if (input.heroes.length === 0 || input.pages.length === 0) return { developments: [] };
 
   try {
-    const call = await callSupport({
+    const call = await llm({
+      stage: "avatar-development",
+      role: "support",
+      model,
       system: buildSystemPrompt(),
       user: buildUserPrompt(input),
-      maxTokens: 900,
+      maxTokens: 4000,
       json: true,
+      effort: "low",
       temperature: 0.2,
     });
     return { developments: sanitize(parseJsonObject<any>(call.text), input.heroes), call };

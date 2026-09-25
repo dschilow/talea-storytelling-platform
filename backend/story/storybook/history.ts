@@ -1,31 +1,19 @@
 /**
- * Storybook Pipeline — repeat protection.
+ * Storybook Pipeline — repeat protection and continuity.
  *
- * A child who recognises the story stops listening. So the pipeline remembers
- * what this family already got — not by fuzzy motif keywords (which is what the
- * old engine did, and which produced 39 banned words and premises contorted
- * around them) but by the exact premise id and variant key it dealt last time.
- *
- * Exact keys mean the exclusion can be hard instead of a soft penalty, and the
- * planner never has to be told "avoid the word Laterne".
+ * A child who recognises the story stops listening. The concept stage gets
+ * one line per recent story of this family (title + logline) and the engines
+ * used last, so it can steer away from both the surface and the structure.
+ * Each hero's last adventure titles allow at most one small callback.
  */
 
 import { storyDB } from "../db";
+import { avatarDB } from "../../avatar/db";
 
 export interface StorybookHistory {
-  /** Premise ids used in this user's recent stories, newest first. */
-  premiseIds: string[];
-  /** Exact variant keys already dealt — never repeated while unused ones exist. */
-  variantKeys: Set<string>;
-  /** Titles, used only for a final "too similar" sanity check. */
-  recentTitles: string[];
+  recentStories: string[];
+  recentEngineIds: string[];
 }
-
-const EMPTY_HISTORY: StorybookHistory = {
-  premiseIds: [],
-  variantKeys: new Set<string>(),
-  recentTitles: [],
-};
 
 function parseMetadata(raw: unknown): Record<string, any> {
   if (!raw) return {};
@@ -41,57 +29,58 @@ function parseMetadata(raw: unknown): Record<string, any> {
   return {};
 }
 
-/**
- * Loads what this user has already read. Best-effort: a failure here must never
- * block generation, it only weakens the rotation for one story.
- */
-export async function loadStorybookHistory(input: {
-  userId?: string;
-  currentStoryId?: string;
-  limit?: number;
-}): Promise<StorybookHistory> {
-  if (!input.userId) return EMPTY_HISTORY;
-
+export async function loadStorybookHistory(input: { userId?: string; currentStoryId?: string }): Promise<StorybookHistory> {
+  if (!input.userId) return { recentStories: [], recentEngineIds: [] };
   try {
     const currentStoryId = input.currentStoryId || "";
-    const rows = await storyDB.queryAll<{ id: string; title: string | null; metadata: any }>`
-      SELECT id, title, metadata
+    const rows = await storyDB.queryAll<{ title: string | null; description: string | null; metadata: any }>`
+      SELECT title, description, metadata
       FROM stories
       WHERE user_id = ${input.userId}
         AND (${currentStoryId} = '' OR id <> ${currentStoryId})
       ORDER BY created_at DESC
-      LIMIT ${Math.max(10, Math.min(120, input.limit ?? 60))}
+      LIMIT 8
     `;
-
-    const premiseIds: string[] = [];
-    const variantKeys = new Set<string>();
-    const recentTitles: string[] = [];
-
+    const recentStories: string[] = [];
+    const recentEngineIds: string[] = [];
     for (const row of rows) {
       const metadata = parseMetadata(row.metadata);
-      const premiseId = String(metadata?.storybook?.premiseId || "").trim();
-      const variantKey = String(metadata?.storybook?.variantKey || "").trim();
-      if (premiseId) premiseIds.push(premiseId);
-      if (variantKey) variantKeys.add(variantKey);
+      const logline = String(metadata?.storybook?.logline || metadata?.bookWorkshop?.premise || row.description || "").replace(/\s+/g, " ").trim();
       const title = String(row.title || "").trim();
-      if (title) recentTitles.push(title);
+      if (title || logline) recentStories.push([title && `„${title}“`, logline].filter(Boolean).join(": ").slice(0, 220));
+      const engine = String(metadata?.storybook?.engine || "").trim();
+      if (engine) recentEngineIds.push(engine);
     }
-
-    return { premiseIds, variantKeys, recentTitles: recentTitles.slice(0, 20) };
+    return { recentStories, recentEngineIds };
   } catch (err) {
     console.warn("[storybook/history] could not load story history, continuing without it:", err);
-    return EMPTY_HISTORY;
+    return { recentStories: [], recentEngineIds: [] };
   }
 }
 
-/**
- * The premise ids to keep out of the current draw. We block the last N rather
- * than everything ever used: with 22 premises, blocking all history would empty
- * the bank for a heavy user. Blocking the most recent third guarantees a child
- * never meets the same structure twice in a row, while the variant layer keeps
- * even the eventual return unrecognisable.
- */
-export function recentlyUsedPremiseIds(history: StorybookHistory, bankSize: number): string[] {
-  const blockCount = Math.max(3, Math.floor(bankSize / 3));
-  return history.premiseIds.slice(0, blockCount);
+/** The last two story titles each hero remembers. Best-effort. */
+export async function loadHeroMemories(avatarIds: string[]): Promise<Record<string, string[]>> {
+  const ids = avatarIds.filter(Boolean);
+  if (ids.length === 0) return {};
+  try {
+    const rows = await avatarDB.queryAll<{ avatar_id: string; story_title: string | null }>`
+      SELECT avatar_id, story_title FROM (
+        SELECT avatar_id, story_title,
+               ROW_NUMBER() OVER (PARTITION BY avatar_id ORDER BY created_at DESC) AS n
+        FROM avatar_memories
+        WHERE avatar_id = ANY(${ids}) AND story_title IS NOT NULL
+      ) ranked
+      WHERE n <= 2
+    `;
+    const result: Record<string, string[]> = {};
+    for (const row of rows) {
+      const title = String(row.story_title || "").trim();
+      if (!title) continue;
+      (result[row.avatar_id] ||= []).push(title.slice(0, 80));
+    }
+    return result;
+  } catch (err) {
+    console.warn("[storybook/history] could not load hero memories:", err);
+    return {};
+  }
 }

@@ -1,160 +1,12 @@
 /**
- * Storybook Pipeline (storybook-v1) — shared types.
+ * Storybook Pipeline (storybook-v2) — shared types.
  *
- * Design rule for everything in this folder: the WRITER never sees screenplay
- * jargon. Words like "visibleDamage", "irreversibleChange" or "personalCost"
- * belong to the planner's vocabulary only. What reaches the prose model is
- * story language a human editor would use.
+ * Design rule for this folder: the WRITER only ever sees story language. The
+ * plan's structure words (setup, payoff, dramatic irony) belong to the planner
+ * and the critic; the draft prompt turns them into plain instructions.
  */
 
 import type { StoryConfig } from "../generate";
-
-/** Which slot a pool character may fill. Declared by the premise, not by the AI. */
-export type RoleNeed =
-  | "gegenspieler"     // wants something that collides with the hero's want
-  | "komplize"         // helps physically, never explains the solution
-  | "skeptiker"        // doubts out loud, forces the hero to be concrete
-  | "autoritaet"       // adult who can forbid or allow
-  | "kleiner_helfer";  // tiny/animal figure, comic relief with one useful move
-
-/**
- * The five comic engines that actually make 6-8 year olds laugh out loud.
- * Anything outside this list (irony, adult wordplay, wry narrator asides) is
- * charm, not comedy, and does not count.
- */
-export type GagType =
-  | "selbstbewusst_falsch"      // someone insists on something obviously wrong
-  | "koerperliche_eskalation"   // a small mess becomes an absurd mess
-  | "das_ding_hoert_nicht_auf"  // an object keeps doing its thing at the worst time
-  | "erwachsener_merkt_nichts"  // grown-up misses what the child plainly sees
-  | "woertlich_genommen";       // an instruction is followed to the letter
-
-export interface PremiseOpponent {
-  /** Which cast slot the opponent occupies. */
-  roleNeed: RoleNeed;
-  /** The opponent's OWN want. Never "is bored" — that produces no plot. */
-  want: string;
-}
-
-export interface PremiseWonderRule {
-  /** Physical, testable, describable by a child in one sentence. */
-  rule: string;
-  /**
-   * The mandatory visible trace. Without this the magic does not exist for a
-   * child. Countable traces ("ein Schnürsenkel wird kürzer") beat vague ones.
-   */
-  visibleSideEffect: string;
-}
-
-/**
- * A hand-written, child-playable premise. Novelty comes from the combinatorics
- * (premise x avatars x setting x cast x artifact), not from asking a model to
- * be original under a wall of banned words.
- */
-export interface Premise {
-  id: string;
-  /** Working title pattern — the planner may rewrite it for the actual avatars. */
-  workingTitle: string;
-  genres: string[];
-  settings: string[];
-  ageBands: Array<"3-5" | "6-8" | "9-12">;
-
-  /** ONE concrete sentence. Physical. Visible. */
-  situation: string;
-  /** What the child wants RIGHT NOW. Touchable. */
-  childWant: string;
-  /** What is concretely lost on failure. Never abstract. */
-  whyItHurts: string;
-
-  opponent: PremiseOpponent;
-  wonderRule: PremiseWonderRule;
-
-  /** Three beats. Each worse AND funnier than the one before. */
-  escalation: [string, string, string];
-  /** The same action as the setup, second time with higher stakes. */
-  reversal: string;
-  /** A physical thing the child gives up. Not a feeling. */
-  price: string;
-  /** The opening object, changed. */
-  closingImage: string;
-
-  gagType: GagType;
-  /** Cast slots this premise can genuinely use. Empty slots stay empty. */
-  roleNeeds: RoleNeed[];
-  /** Most stories should be false. A decorative artifact confuses a child. */
-  artifactSlot: boolean;
-  /**
-   * Variation axes. A bank of premises alone would eventually repeat itself and
-   * a child who recognises the story is a child who stops listening. Each axis
-   * is swapped independently, so one premise yields hundreds of distinct
-   * surfaces without ever losing the structure that makes it work.
-   */
-  variants: PremiseVariants;
-}
-
-export interface PremiseVariants {
-  /** The central object the whole story hangs on. */
-  objekt: string[];
-  /** The countable unit of the visible side effect ("acht Knoten", "sechs Perlen"). */
-  einheit: string[];
-  /** Where the three escalating beats play out. */
-  arena: string[];
-  /** Alternative wants for the opponent. */
-  gegnerWunsch: string[];
-  /** Alternative comic engines this premise can carry. */
-  gag: GagType[];
-}
-
-/** One concrete draw from the variation axes. Stored so it is never repeated. */
-export interface PremiseVariant {
-  objekt: string;
-  einheit: string;
-  arena: string;
-  gegnerWunsch: string;
-  gag: GagType;
-  /** Stable id of this exact combination, e.g. "schuhe-geradeaus:1-0-2-1-0". */
-  key: string;
-}
-
-/** A premise plus the draw that makes this telling of it unique. */
-export interface ResolvedPremise {
-  premise: Premise;
-  variant: PremiseVariant;
-  /** Human-readable override lines handed to the planner. */
-  directives: string[];
-}
-
-export interface StorybookCastMember {
-  id: string;
-  name: string;
-  roleNeed: RoleNeed;
-  /** One sentence a child understands: who this is. */
-  whoTheyAre: string;
-  /** This character's own want inside THIS story. */
-  wants: string;
-  catchphrase?: string;
-  catchphraseContext?: string;
-  speechStyle?: string[];
-  quirk?: string;
-  imageUrl?: string;
-  visualProfile?: any;
-  physicalDescription?: string;
-  species?: string | null;
-  ageCategory?: string | null;
-}
-
-export interface StorybookArtifact {
-  id: string;
-  name: string;
-  nameEn?: string;
-  description?: string;
-  category?: string;
-  rarity?: string;
-  storyRole: string;
-  visualKeywords: string[];
-  emoji?: string;
-  imageUrl?: string;
-}
 
 export interface StorybookHero {
   id?: string;
@@ -168,60 +20,157 @@ export interface StorybookHero {
   narrativeProfile?: any;
 }
 
-/** One link of the causal chain. Every field must carry its connective word. */
-export interface KidLogicChain {
-  will: string;
-  aber: string;
-  also: string;
-  dadurch: string;
-  entweder: string;
-  waehlt: string;
-  ende: string;
-}
-
-export interface KidLogicPage {
-  nr: number;
-  /** What visibly happens on this page, in one sentence. */
-  was: string;
-  /** A concrete open question a child could say out loud. Not "schafft er es?". */
-  frage: string;
-}
-
-export interface KidLogicFigure {
+/** A pool character offered to the concept stage. The story picks, not the dice. */
+export interface CastCandidate {
+  id: string;
   name: string;
-  /** One sentence: who this is. Goes on the page at first appearance. */
-  werSieSind: string;
-  /** This figure's own want. */
-  willWas: string;
+  /** human | animal | magical_creature | mythical | … — drives image anatomy locks. */
+  species: string;
+  ageCategory?: string | null;
+  role?: string | null;
+  archetype?: string | null;
+  /** Short German "who is this", built from the pool row. */
+  whoTheyAre: string;
+  personality: string[];
+  speechStyle: string[];
+  quirk?: string;
+  catchphrase?: string;
+  catchphraseContext?: string;
+  imageUrl?: string;
+  visualProfile?: any;
+  physicalDescription?: string;
 }
 
-export interface KidLogicGag {
-  typ: GagType;
-  beschreibung: string;
-  /** Three concrete places. The third must differ from the first two. */
-  stellen: [string, string, string];
+/** A catalogue artifact: either brought along by an avatar or a possible reward. */
+export interface ArtifactOption {
+  id: string;
+  name: string;
+  nameEn?: string;
+  description?: string;
+  category?: string;
+  rarity?: string;
+  /** What the artifact can do, including its limits. Never changed by a story. */
+  rule: string;
+  visualKeywords: string[];
+  emoji?: string;
+  imageUrl?: string;
+  /** Avatar id when the wizard took this artifact along (Mitnehmen-Loop). */
+  broughtBy?: string;
 }
 
-/**
- * The Kinderlogik-Karte. If this cannot be filled in six connected sentences,
- * the premise is dead and no writer call is worth paying for.
- */
-export interface KidLogicCard {
-  titel: string;
-  kurzbeschreibung: string;
-  kette: KidLogicChain;
-  wunderregel: { regel: string; sichtbareFolge: string };
-  dreierSchritt: [string, string, string];
-  umkehrung: string;
-  preis: string;
-  schlussbild: string;
-  /** The chantable line. Appears 3x, transformed the third time. */
-  refrain: string;
-  laufgag: KidLogicGag;
-  seiten: KidLogicPage[];
-  figuren: KidLogicFigure[];
-  /** The object that opens and closes the story. Deterministically checked. */
-  ankerObjekt: string;
+export interface StoryPitch {
+  engine: string;
+  title: string;
+  logline: string;
+  heroWant: string;
+  stakes: string;
+  obstacle: { who: string; want: string; weakness: string };
+  comicEngine: string;
+  runningGag: string;
+  dramaticIrony: string;
+  escalation: string[];
+  lowPoint: string;
+  cleverSolution: string;
+  plantedClue: string;
+  heroRoles: Array<{ heroId: string; strength: string; contribution: string }>;
+  cast: Array<{ id: string; role: string }>;
+  artifact: { id: string; use: string } | null;
+  lastPage: string;
+  whyKidsLoveIt: string;
+}
+
+export interface PlanPage {
+  page: number;
+  place: string;
+  /** What visibly happens, 1-3 sentences. */
+  action: string;
+  /** What a hero decides or does on this page. */
+  heroMoment: string;
+  humor: string;
+  emotion: string;
+  /** Why the child turns the page: a concrete question, sound or surprise. */
+  turn: string;
+  /** The single strongest visual moment, for the illustrator. */
+  picture: string;
+  /** Hero and cast ids present on this page. */
+  onPage: string[];
+}
+
+export interface StoryPlan {
+  title: string;
+  logline: string;
+  engine: string;
+  chosenPitch: number;
+  whyChosen: string;
+  want: string;
+  stakes: string;
+  worldRule: string | null;
+  refrain: string | null;
+  runningGag: { what: string; beats: string[] };
+  dramaticIrony: string;
+  setups: Array<{ what: string; plantedOnPage: number; paysOffOnPage: number }>;
+  heroes: Array<{ id: string; name: string; strength: string; voice: string; contribution: string }>;
+  cast: Array<{ id: string; name: string; role: string; want: string; voice: string; signature: string }>;
+  artifact: { id: string; name: string; role: string; firstPage: number; usePage: number; carried: boolean } | null;
+  pages: PlanPage[];
+  ending: { resolution: string; callback: string; lastLine: string };
+}
+
+export interface StorybookPage {
+  order: number;
+  title: string;
+  content: string;
+}
+
+export interface ReviewNote {
+  page: number;
+  quote: string;
+  problem: string;
+  fix: string;
+}
+
+export interface EditorialReview {
+  /** What a first-time listener can answer from the text alone. null = not answerable. */
+  comprehension: { want: string | null; problem: string | null; solution: string | null; ending: string | null };
+  scores: {
+    hook: number;
+    clarity: number;
+    logic: number;
+    humor: number;
+    suspense: number;
+    heroAgency: number;
+    characters: number;
+    language: number;
+    ending: number;
+    overall: number;
+  };
+  mustFix: ReviewNote[];
+  polish: ReviewNote[];
+  keep: string[];
+  languageErrors: Array<{ page: number; quote: string; correction: string }>;
+  verdict: string;
+}
+
+export interface PairwiseVerdict {
+  /** Which of the two presented versions is better ("A" or "B"). */
+  winner: "A" | "B";
+  reason: string;
+  remainingProblems: string[];
+}
+
+export interface IllustrationShot {
+  /** 0 = cover. */
+  page: number;
+  /** English scene description: action, composition, camera, setting, light. */
+  scene: string;
+  /** Hero and cast ids that are drawn. At most three. */
+  onStage: string[];
+  artifactVisible: boolean;
+}
+
+export interface IllustrationPlan {
+  cover: IllustrationShot;
+  pages: IllustrationShot[];
 }
 
 export interface CheckIssue {
@@ -238,46 +187,14 @@ export interface CheckReport {
   soft: CheckIssue[];
 }
 
-export interface JudgeAnswers {
-  wollte: string;
-  schiefgegangen: string;
-  andersGemacht: string;
-  wiederholung: string[];
-  lachstelle: string;
-  unerklaerteFigur: string;
-  unverstaendlicherSatz: string;
-  /** Judge's own 1-5 read on whether a 7-year-old can follow this. */
-  verstaendlichkeit: number;
-}
-
-export interface JudgeReport {
-  answers: JudgeAnswers;
-  /** Deterministic comparison of the answers against the plan. */
-  issues: CheckIssue[];
-  passed: boolean;
-}
-
-export interface StorybookPage {
-  order: number;
-  title: string;
-  content: string;
-}
-
-export interface StorybookStageLog {
-  stage: string;
-  modelUsed?: string;
-  modelRole?: "support" | "selected-story";
-  durationMs?: number;
-  usage?: { prompt: number; completion: number; total: number; costUSD?: number };
-  note?: string;
-}
-
 export interface StorybookGenerationInput {
   config: StoryConfig;
   userId?: string;
   storyId?: string;
   heroes: StorybookHero[];
   primaryProfileAge?: number | null;
+  /** Parental-control terms that must not appear anywhere in the story. */
+  blockedTerms?: string[];
 }
 
 export interface StorybookAvatarDevelopment {

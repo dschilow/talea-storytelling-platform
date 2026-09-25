@@ -1,502 +1,435 @@
 /**
- * Storybook Pipeline — tests for the parts that must never need an LLM.
- *
- * Everything covered here is deterministic: premise rotation, the anti-repeat
- * variant draw, the plan gate, the prose gate and draft parsing. These are the
- * pieces that decide whether a story is understandable and whether a family
- * ever sees the same telling twice, so they are the pieces worth pinning down.
+ * Storybook Pipeline (storybook-v2) — tests for everything that must work
+ * without a model: routing, parsing, the fact gates, casting, illustration
+ * locks, the image retry and the whole engine flow against a scripted port.
  */
 
 // @ts-ignore Bun exposes this runtime-only test helper without Node typings.
 import { describe, expect, test } from "bun:test";
 
-import {
-  PREMISE_BANK,
-  countDistinctTellings,
-  resolvePremiseVariant,
-  selectPremise,
-} from "./premise-bank";
-import { checkPlan, checkProse } from "./checks";
-import {
-  extractStorybookChoiceContent,
-  isTruncatedFinishReason,
-  resolveStorybookReasoning,
-} from "./llm-guards";
-import { evaluateJudgeAnswers, parseDraft, resolveTargetPages } from "./parsing";
-import { isProviderReadableReference, selectProviderReferences } from "./image-references";
-import { normalizeAgeBand, resolveLengthBudget } from "./style-contract";
-import type { JudgeAnswers, KidLogicCard, StorybookPage } from "./types";
+import { normalizeAgeBand, rankEngines, resolveLengthBudget, STORY_ENGINES } from "./craft";
+import { buildBrief, type StoryBrief } from "./context";
+import { CostLedger, modelFamily, resolveStorybookModels, toOpenRouterModelId, type LlmRequest, type StorybookLlm } from "./llm";
+import { acceptsTemperature, resolveStorybookReasoning } from "./llm-guards";
+import { normalizeGermanQuotes, parseDraft } from "./parsing";
+import { checkPlan, checkProse, mentions, nameTokens } from "./checks";
+import { selectRewardArtifacts, shortlistCastCandidates } from "./cast-selection";
+import { sanitizePitches } from "./concept-stage";
+import { sanitizePlan } from "./plan-stage";
+import { comprehensionGaps, needsRevision, sanitizeReview } from "./review-stage";
+import { assembleImagePrompt, castAppearance, heroAppearance, negativePromptFor, sanitizeIllustrationPlan, type VisualEntity } from "./illustration-stage";
+import { generateStorybookImages, qaSeverity } from "./images";
+import { runStorybookTextEngine } from "./engine";
+import type { CastCandidate, StoryPlan, StorybookPage } from "./types";
 
-const BUDGET = resolveLengthBudget("medium", "6-8");
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
 
-describe("storybook image references", () => {
-  test("resolves a private collage as the only paid reference", async () => {
-    const selection = await selectProviderReferences({
-      collageUrl: "bucket://talea/images/collages/cast.png",
-      directUrls: ["https://cdn.example/alexander.png", "https://cdn.example/adrian.png"],
-      resolveUrl: async () => "https://backend.example/story/image?key=cast.png",
-    });
+const KOBOLD: CastCandidate = {
+  id: "pool-kicher",
+  name: "Kobold Kicher",
+  species: "magical_creature",
+  role: "antagonist",
+  archetype: "trickster",
+  whoTheyAre: "Kleiner Kobold mit schiefem Hut",
+  personality: ["frech"],
+  speechStyle: ["kichernd"],
+  quirk: "sammelt knarrende Türgriffe",
+  catchphrase: "Hihi - ein Trick, ein Klick, ein Glück!",
+  imageUrl: "https://img.example/kicher.png",
+  visualProfile: { imagePrompt: "Portrait of a small goblin with a crooked green hat and a bag full of prank tools. Storybook illustration style." },
+};
 
-    expect(selection).toEqual({
-      urls: [
-        "https://backend.example/story/image?key=cast.png",
-      ],
-      usesCollage: true,
-    });
-  });
-
-  test("does not append any portrait to the collage", async () => {
-    const selection = await selectProviderReferences({
-      collageUrl: "bucket://talea/images/collages/cast.png",
-      directUrls: ["bucket://talea/private/alexander.png", "https://cdn.example/adrian.png"],
-      resolveUrl: async () => "https://backend.example/story/image?key=cast.png",
-    });
-
-    expect(selection.urls).toEqual([
-      "https://backend.example/story/image?key=cast.png",
-    ]);
-  });
-
-  test("never forwards an unresolved private bucket URI", async () => {
-    const directUrls = ["https://cdn.example/alexander.png", "https://cdn.example/adrian.png"];
-    const selection = await selectProviderReferences({
-      collageUrl: "bucket://talea/images/collages/cast.png",
-      directUrls,
-      resolveUrl: async (url) => url,
-    });
-
-    expect(selection).toEqual({ urls: [], usesCollage: false });
-    expect(isProviderReadableReference("bucket://talea/private.png")).toBe(false);
-  });
-});
-
-describe("provider response guards", () => {
-  test("gpt-5 support calls receive an explicit minimal reasoning budget", () => {
-    expect(resolveStorybookReasoning("openai/gpt-5.6-luna")).toEqual({
-      effort: "minimal",
-      exclude: true,
-    });
-  });
-
-  test("hybrid-thinking writer models have reasoning disabled", () => {
-    expect(resolveStorybookReasoning("moonshotai/kimi-k2.6")).toEqual({
-      enabled: false,
-      exclude: true,
-    });
-  });
-
-  test("Gemini 3.5 Flash-Lite keeps its mandatory reasoning at minimal effort", () => {
-    expect(resolveStorybookReasoning("google/gemini-3.5-flash-lite")).toEqual({
-      effort: "minimal",
-      exclude: true,
-    });
-  });
-
-  test("content-part arrays are preserved instead of becoming an empty string", () => {
-    expect(extractStorybookChoiceContent({
-      message: { content: [{ type: "text", text: "first" }, { content: "second" }] },
-    })).toBe("first\nsecond");
-  });
-
-  test("provider completion-limit finishes are treated as truncation", () => {
-    expect(isTruncatedFinishReason("length")).toBe(true);
-    expect(isTruncatedFinishReason("max_tokens")).toBe(true);
-    expect(isTruncatedFinishReason("stop")).toBe(false);
-  });
-});
-
-function validCard(overrides: Partial<KidLogicCard> = {}): KidLogicCard {
-  return {
-    titel: "Ben und die Schuhe, die nur geradeaus wollen",
-    kurzbeschreibung: "Ben muss mit störrischen Schuhen zum Bolzplatz, doch sie biegen nicht ab.",
-    kette: {
-      will: "Ben will rechtzeitig zum Spiel auf dem Bolzplatz.",
-      aber: "Aber die Schuhe gehen nur geradeaus.",
-      also: "Also zwingt er sie durch den Sandkasten.",
-      dadurch: "Dadurch löst sich ein Knoten und der Schnürsenkel wird kürzer.",
-      entweder: "Jetzt kann Ben nur noch umlaufen oder den letzten Knoten opfern.",
-      waehlt: "Ben wählt den Knoten, weil sonst niemand spielen kann.",
-      ende: "Am Ende stehen die Schuhe am Zaun.",
-    },
-    wunderregel: {
-      regel: "Die Schuhe gehen nur geradeaus.",
-      sichtbareFolge: "Bei jeder Kurve löst sich einer der acht Knoten.",
-    },
-    dreierSchritt: ["Durch den Sandkasten", "Durch die Wäscheleine", "Durch die Bäckerei"],
-    umkehrung: "Ben biegt nicht ab, sondern läuft absichtlich quer durch die Hecke.",
-    preis: "Ben lässt den letzten Knoten und damit die Schuhe zurück.",
-    schlussbild: "Die Schuhe stehen am Zaun, ein kurzer Schnürsenkel hängt heraus.",
-    ankerObjekt: "die Turnschuhe",
-    refrain: "Immer geradeaus, Ben!",
-    laufgag: {
-      typ: "koerperliche_eskalation",
-      beschreibung: "Ben landet jedes Mal woanders im Dreck.",
-      stellen: ["Sand in den Schuhen", "Bettlaken über dem Kopf", "Mehlwolke in der Bäckerei"],
-    },
-    seiten: Array.from({ length: BUDGET.pages }, (_, index) => ({
-      nr: index + 1,
-      was: `Auf Seite ${index + 1} passiert etwas Sichtbares.`,
-      frage: `Reicht der ${index + 1}. Knoten noch?`,
-    })),
-    figuren: [
-      { name: "Ben", werSieSind: "ein Junge mit zu großen Schuhen", willWas: "zum Spiel kommen" },
-      { name: "Frau Kessler", werSieSind: "die Bäckerin von nebenan", willWas: "ihre Auslage retten" },
+function brief(overrides: Partial<Parameters<typeof buildBrief>[0]> = {}): StoryBrief {
+  const band = normalizeAgeBand("6-8");
+  return buildBrief({
+    config: { genre: "fairy_tales", setting: "fantasy", length: "medium", ageGroup: "6-8", language: "de", humorLevel: 2 } as any,
+    band,
+    budget: resolveLengthBudget("medium", band),
+    heroes: [
+      { id: "a1", name: "Alexander", age: 7, visualProfile: { characterType: "human", hair: { color: "brown", length: "short" }, eyes: { color: "green" } } },
+      { id: "a2", name: "Adrian", age: 6 },
     ],
+    candidates: [KOBOLD],
+    artifacts: [],
+    seed: "seed-1",
+    ...overrides,
+  });
+}
+
+function planFor(b: StoryBrief, overrides: Partial<StoryPlan> = {}): StoryPlan {
+  const pages = Array.from({ length: b.budget.pages }, (_, index) => ({
+    page: index + 1,
+    place: "Mühle",
+    action: `Handlung ${index + 1}`,
+    heroMoment: "Alexander entscheidet",
+    humor: "Kicher stolpert",
+    emotion: "Knie zittern",
+    turn: "Wer klopft da?",
+    picture: "Alexander springt über einen Sack Mehl",
+    onPage: ["a1", "a2", "pool-kicher"],
+  }));
+  return {
+    title: "Alexander und der Kobold im Mehl",
+    logline: "Zwei Kinder wollen das Brot retten.",
+    engine: "gaunerfalle",
+    chosenPitch: 0,
+    whyChosen: "",
+    want: "das Brot retten",
+    stakes: "kein Fest",
+    worldRule: null,
+    refrain: "Mehl im Haar, Kobold da!",
+    runningGag: { what: "Kicher niest", beats: ["1", "2", "3"] },
+    dramaticIrony: "Das Kind sieht den Kobold im Sack.",
+    setups: [{ what: "die Glocke", plantedOnPage: 1, paysOffOnPage: 6 }],
+    heroes: [
+      { id: "a1", name: "Alexander", strength: "planen", voice: "ruhig", contribution: "stellt die Falle" },
+      { id: "a2", name: "Adrian", strength: "schnell", voice: "laut", contribution: "lockt den Kobold" },
+    ],
+    cast: [{ id: "pool-kicher", name: "Kobold Kicher", role: "Gauner", want: "Türgriffe", voice: "kichernd", signature: "niest" }],
+    artifact: null,
+    pages,
+    ending: { resolution: "Brot gerettet", callback: "die Glocke", lastLine: "Kicher niest." },
     ...overrides,
   };
 }
 
-describe("premise bank", () => {
-  test("every premise carries the fields the plan gate depends on", () => {
-    for (const premise of PREMISE_BANK) {
-      expect(premise.situation.length).toBeGreaterThan(20);
-      expect(premise.childWant.length).toBeGreaterThan(10);
-      expect(premise.whyItHurts.length).toBeGreaterThan(10);
-      // An opponent whose want is boredom produces no plot — the exact defect
-      // the old engine shipped with "Die Nebelhexe will nicht gelangweilt sein".
-      expect(premise.opponent.want.length).toBeGreaterThan(10);
-      expect(/langeweile|gelangweilt/i.test(premise.opponent.want)).toBe(false);
-      // Magic with no visible trace does not exist for a child.
-      expect(premise.wonderRule.visibleSideEffect.length).toBeGreaterThan(10);
-      expect(premise.escalation).toHaveLength(3);
-      expect(new Set(premise.escalation).size).toBe(3);
-      expect(premise.price.length).toBeGreaterThan(10);
-      expect(premise.closingImage.length).toBeGreaterThan(10);
-      expect(premise.roleNeeds.length).toBeGreaterThan(0);
-    }
+function storyPages(count: number, text: (page: number) => string): StorybookPage[] {
+  return Array.from({ length: count }, (_, index) => ({ order: index + 1, title: `Seite ${index + 1}`, content: text(index + 1) }));
+}
+
+const WORDS = (n: number) => Array.from({ length: n }, (_, i) => (i % 9 === 0 ? "Mehl." : "Wort")).join(" ");
+
+// ---------------------------------------------------------------------------
+
+describe("model routing", () => {
+  test("GPT-6 Luna is the default writer and the critic comes from another family", () => {
+    const models = resolveStorybookModels({ aiProvider: "openrouter", openRouterModel: "openai/gpt-6-luna" } as any);
+    expect(models.writer).toBe("openai/gpt-6-luna");
+    expect(models.support).toBe("openai/gpt-6-luna");
+    expect(modelFamily(models.critic)).not.toBe(modelFamily(models.writer));
   });
 
-  test("every premise has full variation axes", () => {
-    for (const premise of PREMISE_BANK) {
-      expect(premise.variants.objekt.length).toBeGreaterThanOrEqual(3);
-      expect(premise.variants.einheit.length).toBeGreaterThanOrEqual(3);
-      expect(premise.variants.arena.length).toBeGreaterThanOrEqual(3);
-      expect(premise.variants.gegnerWunsch.length).toBeGreaterThanOrEqual(3);
-      expect(premise.variants.gag.length).toBeGreaterThanOrEqual(3);
-      // Each arena entry must name three places, one per escalation beat.
-      for (const arena of premise.variants.arena) {
-        expect(arena.split(",").length).toBeGreaterThanOrEqual(3);
-      }
-    }
+  test("a Gemini writer gets the Luna critic", () => {
+    const models = resolveStorybookModels({ aiProvider: "native", aiModel: "gemini-3.1-pro-preview" } as any);
+    expect(models.writer).toBe("google/gemini-3.1-pro-preview");
+    expect(models.critic).toBe("openai/gpt-6-luna");
   });
 
-  test("the bank can tell thousands of distinct stories before repeating", () => {
-    expect(countDistinctTellings()).toBeGreaterThan(2000);
+  test("an override critic from the writer's own family is rejected", () => {
+    const models = resolveStorybookModels({ aiProvider: "openrouter", openRouterModel: "openai/gpt-6-luna" } as any, { critic: "openai/gpt-6-luna-pro" });
+    expect(modelFamily(models.critic)).toBe("google");
   });
 
-  test("selection is deterministic for the same seed", () => {
-    const args = { genre: "adventure", setting: "village", ageGroup: "6-8", seed: "abc123" };
-    expect(selectPremise(args).premise.id).toBe(selectPremise(args).premise.id);
+  test("native wizard ids map onto OpenRouter ids", () => {
+    expect(toOpenRouterModelId("claude-sonnet-4-6")).toBe("anthropic/claude-sonnet-4.6");
+    expect(toOpenRouterModelId("gpt-5.4-mini")).toBe("openai/gpt-5.4-mini");
+    expect(toOpenRouterModelId("minimax-m2.7")).toBe("minimax/minimax-m2.7");
+    expect(toOpenRouterModelId("moonshotai/kimi-k2.6")).toBe("moonshotai/kimi-k2.6");
   });
 
-  test("recently used premises are pushed out of the draw", () => {
-    const base = selectPremise({ genre: "adventure", setting: "village", ageGroup: "6-8", seed: "seed-1" });
-    const next = selectPremise({
-      genre: "adventure",
-      setting: "village",
-      ageGroup: "6-8",
-      seed: "seed-1",
-      recentPremiseIds: [base.premise.id],
-    });
-    expect(next.premise.id).not.toBe(base.premise.id);
-  });
-
-  test("variant draw walks the space instead of repeating a used key", () => {
-    const premise = PREMISE_BANK[0];
-    const first = resolvePremiseVariant(premise, "seed-x");
-    const second = resolvePremiseVariant(premise, "seed-x", new Set([first.variant.key]));
-    expect(second.variant.key).not.toBe(first.variant.key);
-    expect(second.directives).toHaveLength(5);
-  });
-
-  test("a family walking the whole space gets unique tellings all the way", () => {
-    const premise = PREMISE_BANK[0];
-    const axes = premise.variants;
-    const combos = axes.objekt.length * axes.einheit.length * axes.arena.length * axes.gegnerWunsch.length * axes.gag.length;
-    const used = new Set<string>();
-    for (let i = 0; i < combos; i += 1) {
-      const drawn = resolvePremiseVariant(premise, `seed-${i}`, used);
-      used.add(drawn.variant.key);
-    }
-    expect(used.size).toBe(combos);
+  test("gpt-6 gets an explicit effort; hidden medium reasoning would eat max_tokens", () => {
+    expect(resolveStorybookReasoning("openai/gpt-6-luna", "low")).toEqual({ effort: "low", exclude: true });
+    expect(resolveStorybookReasoning("openai/gpt-6-luna")).toEqual({ effort: "none", exclude: true });
+    expect(resolveStorybookReasoning("google/gemini-3.5-flash-lite", "none")).toEqual({ effort: "minimal", exclude: true });
+    expect(resolveStorybookReasoning("moonshotai/kimi-k2.6", "medium")).toEqual({ enabled: false, exclude: true });
+    expect(acceptsTemperature("openai/gpt-6-luna")).toBe(false);
+    expect(acceptsTemperature("moonshotai/kimi-k2.6")).toBe(true);
   });
 });
 
-describe("plan gate", () => {
-  test("a complete card passes", () => {
-    expect(checkPlan(validCard(), BUDGET).ok).toBe(true);
-  });
-
-  test("a missing chain link is a hard failure", () => {
-    const card = validCard();
-    (card.kette as any).dadurch = "";
-    const report = checkPlan(card, BUDGET);
-    expect(report.ok).toBe(false);
-    expect(report.hard.some((issue) => issue.code === "chain_missing_dadurch")).toBe(true);
-  });
-
-  test("magic without a visible trace is a hard failure", () => {
-    const card = validCard({ wunderregel: { regel: "Eine Ausrede verschwindet.", sichtbareFolge: "" } });
-    const report = checkPlan(card, BUDGET);
-    expect(report.hard.some((issue) => issue.code === "rule_invisible")).toBe(true);
-  });
-
-  test("vague page questions are flagged", () => {
-    const card = validCard();
-    card.seiten[1].frage = "Schafft er es?";
-    expect(checkPlan(card, BUDGET).soft.some((issue) => issue.code === "page_question_vague")).toBe(true);
-  });
-
-  test("a figure without an introduction sentence is a hard failure", () => {
-    const card = validCard();
-    card.figuren[1].werSieSind = "";
-    expect(checkPlan(card, BUDGET).hard.some((issue) => issue.code === "figure_no_intro")).toBe(true);
-  });
-
-  test("an escalation that does not escalate is caught", () => {
-    const card = validCard({ dreierSchritt: ["gleich", "gleich", "gleich"] });
-    expect(checkPlan(card, BUDGET).hard.some((issue) => issue.code === "escalation_repeats")).toBe(true);
-  });
-});
-
-describe("prose gate", () => {
-  const page = (order: number, content: string): StorybookPage => ({
-    order,
-    title: `Leseseite ${order}`,
-    content,
-  });
-
-  test("fragment staccato is a hard failure", () => {
-    const report = checkProse({
-      pages: [page(1, "Die Taste erlosch. Schwarz. Stumm. Tot. Der Korb ruckte los, weil niemand ihn hielt.")],
-      budget: BUDGET,
-      card: validCard(),
-      knownNames: ["Ben"],
-    });
-    expect(report.hard.some((issue) => issue.code === "fragment_staccato")).toBe(true);
-  });
-
-  test("paragraphs without causal connectives are a hard failure", () => {
-    const flat = [
-      "Ben rutschte aus. Die Schüssel kippte. Sein Kinn traf den Tisch.",
-      "",
-      "Der Korb fuhr los. Teig spritzte. Die Fahnen wurden nass.",
-      "",
-      "Eine Taste leuchtete. Ben drückte sie. Der Korb sank.",
-    ].join("\n");
-    const report = checkProse({ pages: [page(1, flat)], budget: BUDGET, card: validCard(), knownNames: ["Ben"] });
-    expect(report.hard.some((issue) => issue.code === "no_causality")).toBe(true);
-  });
-
-  test("connected prose passes the causality check", () => {
-    const connected = [
-      "Ben rutschte aus, weil der Boden voller Teig war, und die Schüssel kippte vom Tisch.",
-      "",
-      "Also lief er los, aber die Schuhe wollten nur geradeaus und trugen ihn quer durch den Sand.",
-    ].join("\n");
-    const report = checkProse({ pages: [page(1, connected)], budget: BUDGET, card: validCard(), knownNames: ["Ben"] });
-    expect(report.hard.some((issue) => issue.code === "no_causality")).toBe(false);
-  });
-
-  test("run 6683b402: a because-clause on every sentence is a hard failure", () => {
-    // Verbatim from "Alexander und das stumme Baumwesen", which passed the
-    // causality floor on every page and was unreadable aloud because of it.
-    const tic = [
-      "Alexander hielt seine kleine Trillerpfeife fest, denn er wollte die Warnung noch vor dem Fest ins Dorf bringen.",
-      "",
-      "Neben ihm tanzte Adrian über den Weg, weil er trotz der Gefahr schnell bleiben wollte.",
-      "",
-      "Alexander steckte die Pfeife ein, weil Rolf sie sonst vielleicht nehmen würde.",
-      "",
-      "Rolf grinste, denn er wollte selbst als Retter gefeiert werden.",
-      "",
-      "Das Baumwesen stemmte die Hände unter den Deich, weil der Weg zum Dorf versperrt war.",
-      "",
-      "Alexander nahm Adrian an der Hand, damit sie weiterlaufen konnten.",
-    ].join("\n");
-    const report = checkProse({ pages: [page(1, tic)], budget: BUDGET, card: validCard(), knownNames: ["Alexander", "Adrian", "Rolf", "Baumwesen"] });
-    expect(report.hard.some((issue) => issue.code === "causal_tic")).toBe(true);
-  });
-
-  test("prose that shows cause through order still passes both causality gates", () => {
-    // The floor wants a connective in most paragraphs; the ceiling wants the
-    // heavy ones to stay rare. Light connectives (aber, also, dann) satisfy the
-    // first without triggering the second — that is the writing lane both gates
-    // are pointing at.
-    const good = [
-      "Rolf griff nach der Pfeife, aber Alexander steckte sie weg.",
-      "",
-      "Der Bach stieg über das Ufer, also rannten die beiden zur Brücke.",
-      "",
-      "Das Baumwesen hob den Deich an. Dann war gerade genug Platz für zwei Kinder.",
-      "",
-      "Adrian rutschte, aber Alexander hielt ihn fest.",
-      "",
-      "Oben schlug die erste Glocke an. Dann blieb sie stumm.",
-      "",
-      "Alexander zählte bis drei, weil er den Takt brauchte.",
-    ].join("\n");
-    const report = checkProse({ pages: [page(1, good)], budget: BUDGET, card: validCard(), knownNames: ["Alexander", "Adrian", "Rolf", "Baumwesen"] });
-    expect(report.hard.some((issue) => issue.code === "causal_tic")).toBe(false);
-    expect(report.hard.some((issue) => issue.code === "no_causality")).toBe(false);
-  });
-
-  test("run 6683b402: a character sheet pasted into the prose is a hard failure", () => {
-    const dump = [
-      "Da trat Räuber Rolf vor den Weg. Räuber Rolf trägt eine Augenklappe, eine geflickte Lederweste und einen rostigen Krummsäbel.",
-      "",
-      "Er schielte nach links, aber der Weg blieb frei, weil niemand ihn aufhielt.",
-    ].join("\n");
-    const report = checkProse({ pages: [page(1, dump)], budget: BUDGET, card: validCard(), knownNames: ["Rolf"] });
-    expect(report.hard.some((issue) => issue.code === "character_sheet_dump")).toBe(true);
-  });
-
-  test("a figure introduced through action is not mistaken for a character sheet", () => {
-    const woven = [
-      "Ein Mann mit Augenklappe sprang aus dem Gebüsch und hielt seinen rostigen Säbel quer über den Weg.",
-      "",
-      "„Weggebühr!“, rief Räuber Rolf, aber seine Lederweste rutschte ihm dabei über die Schulter.",
-    ].join("\n");
-    const report = checkProse({ pages: [page(1, woven)], budget: BUDGET, card: validCard(), knownNames: ["Rolf"] });
-    expect(report.hard.some((issue) => issue.code === "character_sheet_dump")).toBe(false);
-  });
-
-  test("a moral ending is a hard failure", () => {
-    const card = validCard();
-    const report = checkProse({
-      pages: [
-        page(1, "Ben lief los, weil das Spiel gleich begann, und die Schuhe zogen ihn geradeaus."),
-        page(2, "Sie lernten, dass Freundschaft am wichtigsten ist, und deshalb gingen alle nach Hause."),
-      ],
-      budget: BUDGET,
-      card,
-      knownNames: ["Ben"],
-    });
-    expect(report.hard.some((issue) => issue.code === "moral_ending")).toBe(true);
-  });
-
-  test("a missing refrain is caught", () => {
-    const report = checkProse({
-      pages: [page(1, "Ben lief los, weil das Spiel begann, und niemand sagte etwas dazu.")],
-      budget: BUDGET,
-      card: validCard(),
-      knownNames: ["Ben"],
-    });
-    expect(report.hard.concat(report.soft).some((issue) => issue.code === "refrain_missing")).toBe(true);
-  });
-
-  test("technical leftovers are a hard failure", () => {
-    const report = checkProse({
-      pages: [page(1, "Ben nahm [object Object] in die Hand, weil er nichts anderes fand.")],
-      budget: BUDGET,
-      card: validCard(),
-      knownNames: ["Ben"],
-    });
-    expect(report.hard.some((issue) => issue.code === "serialization_artifact")).toBe(true);
-  });
-});
-
-describe("draft parsing", () => {
-  test("reads title, description and pages", () => {
-    const raw = [
-      "TITEL: Ben und die störrischen Schuhe",
-      "BESCHREIBUNG: Ben will zum Spiel, aber seine Schuhe biegen nicht ab.",
-      "SEITE 1",
-      "Ben zog die Schuhe an, weil das Spiel gleich begann.",
-      "",
-      "SEITE 2",
-      "Die Schuhe liefen geradeaus, also lief Ben mit.",
-    ].join("\n");
-    const parsed = parseDraft(raw, 2);
-    expect(parsed.title).toBe("Ben und die störrischen Schuhe");
-    expect(parsed.description).toContain("Ben will zum Spiel");
-    expect(parsed.pages).toHaveLength(2);
-    expect(parsed.pages[1].content).toContain("geradeaus");
-  });
-
-  test("falls back to even blocks when the model forgets the markers", () => {
-    const raw = ["TITEL: Ohne Marker", "", "Erster Absatz.", "", "Zweiter Absatz.", "", "Dritter Absatz.", "", "Vierter Absatz."].join("\n");
-    const parsed = parseDraft(raw, 2);
-    expect(parsed.pages).toHaveLength(2);
-    expect(parsed.pages[0].content.length).toBeGreaterThan(0);
-  });
-
-  test("renumbers pages so a skipped marker cannot break the reader", () => {
-    const raw = ["SEITE 1", "Eins.", "SEITE 3", "Drei."].join("\n");
-    const parsed = parseDraft(raw, 2);
-    expect(parsed.pages.map((page) => page.order)).toEqual([1, 2]);
-  });
-});
-
-describe("comprehension judge", () => {
-  const answers = (overrides: Partial<JudgeAnswers> = {}): JudgeAnswers => ({
-    wollte: "Ben will rechtzeitig zum Spiel auf dem Bolzplatz kommen.",
-    schiefgegangen: "Die Schuhe gehen nur geradeaus und tragen ihn überall hin.",
-    andersGemacht: "Am Ende nutzt er das Geradeaus absichtlich und läuft durch die Hecke.",
-    wiederholung: ["Immer geradeaus, Ben!", "Bei jeder Kurve löst sich ein Knoten"],
-    lachstelle: "Ben steht mit einem Bettlaken über dem Kopf da.",
-    unerklaerteFigur: "keine",
-    unverstaendlicherSatz: "keiner",
-    verstaendlichkeit: 5,
-    ...overrides,
-  });
-
-  test("a readable story passes", () => {
-    expect(evaluateJudgeAnswers(answers(), validCard()).passed).toBe(true);
-  });
-
-  test("an unreadable want is a hard failure", () => {
-    const report = evaluateJudgeAnswers(answers({ wollte: "Das steht nicht drin." }), validCard());
-    expect(report.passed).toBe(false);
-    expect(report.issues.some((issue) => issue.code === "want_unreadable")).toBe(true);
-  });
-
-  test("an unintroduced figure is a hard failure", () => {
-    const report = evaluateJudgeAnswers(answers({ unerklaerteFigur: "Müller Hans' Tochter" }), validCard());
-    expect(report.issues.some((issue) => issue.code === "figure_unexplained")).toBe(true);
-    expect(report.passed).toBe(false);
-  });
-
-  test("a low comprehension score fails even when the answers look filled in", () => {
-    const report = evaluateJudgeAnswers(answers({ verstaendlichkeit: 2 }), validCard());
-    expect(report.passed).toBe(false);
-  });
-
-  test("a story with no laugh is only a soft issue", () => {
-    const report = evaluateJudgeAnswers(answers({ lachstelle: "keine" }), validCard());
-    expect(report.passed).toBe(true);
-    expect(report.issues.some((issue) => issue.code === "no_laugh")).toBe(true);
-  });
-});
-
-describe("edit targeting", () => {
-  test("never rewrites more than three pages", () => {
-    const issues = Array.from({ length: 8 }, (_, index) => ({
-      code: "no_causality",
-      severity: "hard" as const,
-      message: "x",
-      page: index + 1,
-    }));
-    expect(resolveTargetPages(issues, 8).length).toBeLessThanOrEqual(3);
-  });
-
-  test("story-wide defects map onto fixable pages", () => {
-    const targets = resolveTargetPages([{ code: "refrain_missing", severity: "hard", message: "x" }], 5);
-    expect(targets).toContain(1);
-    expect(targets).toContain(5);
-  });
-});
-
-describe("length budgets", () => {
-  test("age bands normalise, including 13+", () => {
+describe("craft", () => {
+  test("picture-book budgets: more pages, fewer words each", () => {
+    expect(resolveLengthBudget("medium", "6-8").pages).toBe(7);
+    expect(resolveLengthBudget("short", "3-5").wordsPerPageMax).toBeLessThan(resolveLengthBudget("short", "9-12").wordsPerPageMin);
     expect(normalizeAgeBand("13+")).toBe("9-12");
     expect(normalizeAgeBand(undefined)).toBe("6-8");
   });
 
-  test("younger readers get shorter sentences and fewer new names", () => {
-    const young = resolveLengthBudget("medium", "3-5");
-    const older = resolveLengthBudget("medium", "9-12");
-    expect(young.maxSentenceChars).toBeLessThan(older.maxSentenceChars);
-    expect(young.maxNewNamesPerPage).toBeLessThan(older.maxNewNamesPerPage);
+  test("engine ranking respects the age band and pushes recent engines back", () => {
+    const small = rankEngines({ band: "3-5", flavors: [], recentEngineIds: [], seed: "x" });
+    expect(small.every((engine) => engine.ages.includes("3-5"))).toBe(true);
+    const fresh = rankEngines({ band: "6-8", flavors: ["lachfreude"], recentEngineIds: [], seed: "x" });
+    const afterUse = rankEngines({ band: "6-8", flavors: ["lachfreude"], recentEngineIds: [fresh[0].id], seed: "x" });
+    expect(afterUse[0].id).not.toBe(fresh[0].id);
+    expect(STORY_ENGINES.length).toBeGreaterThanOrEqual(10);
+  });
+});
+
+describe("draft parsing", () => {
+  test("reads title, description and markdown-decorated page markers", () => {
+    const parsed = parseDraft("TITEL: Der Kobold\nBESCHREIBUNG: Ein Satz.\n**SEITE 1**\nEins.\n\n## SEITE 2\nZwei.", 2, { german: true });
+    expect(parsed.title).toBe("Der Kobold");
+    expect(parsed.pages.map((p) => p.content)).toEqual(["Eins.", "Zwei."]);
+  });
+
+  test("renumbers skipped markers", () => {
+    const parsed = parseDraft("SEITE 1\nA\n\nSEITE 3\nB", 2);
+    expect(parsed.pages.map((p) => p.order)).toEqual([1, 2]);
+  });
+
+  test("straight quotes become German quotes only when they pair up", () => {
+    expect(normalizeGermanQuotes('"Hallo", sagte er. "Komm!"')).toBe("„Hallo“, sagte er. „Komm!“");
+    expect(normalizeGermanQuotes('Er sagte "Hallo')).toBe('Er sagte "Hallo');
+  });
+});
+
+describe("fact gates", () => {
+  test("name matching uses the distinctive part of a pool name", () => {
+    expect(nameTokens("Hexe Griselda")).toEqual(["Griselda"]);
+    expect(mentions("Die Hexe kicherte.", "Hexe Griselda")).toBe(false);
+    expect(mentions("Griseldas Hut flog weg.", "Hexe Griselda")).toBe(true);
+  });
+
+  test("a plan without pool casting is a hard failure when the pool offered someone", () => {
+    const b = brief();
+    const report = checkPlan(planFor(b, { cast: [] }), b);
+    expect(report.hard.some((issue) => issue.code === "cast_empty")).toBe(true);
+  });
+
+  test("a forgotten brought artifact is a hard failure", () => {
+    const b = brief({ artifacts: [{ id: "art-1", name: "Kompass der Winde", rule: "zeigt, wo der Wind herkommt", visualKeywords: [], broughtBy: "a1" }] });
+    const report = checkPlan(planFor(b), b);
+    expect(report.hard.some((issue) => issue.code === "brought_artifact_missing")).toBe(true);
+  });
+
+  test("a complete plan passes", () => {
+    const b = brief();
+    expect(checkPlan(planFor(b), b).ok).toBe(true);
+  });
+
+  test("prose: missing pool character, moral ending and blocked terms are hard", () => {
+    const b = brief({ blockedTerms: ["Gespenst"] });
+    const pages = storyPages(7, (page) => `Alexander und Adrian ${WORDS(100)}${page === 7 ? " Sie lernten, dass Freundschaft zählt. Ein Gespenst winkte." : ""}`);
+    const report = checkProse({ pages, budget: b.budget, plan: planFor(b), brief: b });
+    const codes = report.hard.map((issue) => issue.code);
+    expect(codes).toContain("cast_missing");
+    expect(codes).toContain("moral_ending");
+    expect(codes).toContain("blocked_term");
+  });
+
+  test("prose: a clean story with every character passes the hard gates", () => {
+    const b = brief();
+    const pages = storyPages(7, () => `Alexander rief Adrian. Kicher kicherte. „Mehl im Haar, Kobold da!“ ${WORDS(95)}`);
+    const report = checkProse({ pages, budget: b.budget, plan: planFor(b), brief: b });
+    expect(report.hard).toEqual([]);
+  });
+
+  test("prose: far too long is hard, so the revision has to cut", () => {
+    const b = brief();
+    const pages = storyPages(7, () => `Alexander Adrian Kicher ${WORDS(260)}`);
+    expect(checkProse({ pages, budget: b.budget, plan: planFor(b), brief: b }).hard.map((i) => i.code)).toContain("too_long");
+  });
+});
+
+describe("casting", () => {
+  const rows = [
+    { id: "1", name: "Bäcker Wilhelm", role: "support", archetype: "craftsman", species_category: "human", canon_settings: ["village"], image_url: null },
+    { id: "2", name: "Bäcker Wilhelm", role: "support", archetype: "craftsman", species_category: "human", canon_settings: ["village"], image_url: "https://img/w.png", quirk: "schnuppert" },
+    { id: "3", name: "Räuber Rolf", role: "antagonist", archetype: "villain", species_category: "human", canon_settings: ["forest"], image_url: "https://img/r.png" },
+    { id: "4", name: "Frosch Quak", role: "helper", archetype: "creature", species_category: "animal", canon_settings: ["forest"], image_url: "https://img/q.png" },
+    { id: "5", name: "Alexander", role: "main", archetype: "hero", species_category: "human", image_url: "https://img/a.png" },
+  ];
+
+  test("dedupes by name, prefers the row with an image, excludes hero names, keeps variety", () => {
+    const list = shortlistCastCandidates({ rows, band: "6-8", genre: "fairy_tales", setting: "forest", excludeNames: new Set(["alexander"]), seed: "s" });
+    const names = list.map((candidate) => candidate.name);
+    expect(names).not.toContain("Alexander");
+    expect(names.filter((name) => name === "Bäcker Wilhelm").length).toBe(1);
+    expect(list.find((candidate) => candidate.name === "Bäcker Wilhelm")?.imageUrl).toBe("https://img/w.png");
+    expect(names).toContain("Räuber Rolf");
+    expect(names).toContain("Frosch Quak");
+  });
+
+  test("reward artifacts skip owned, crowned and legendary ones", () => {
+    const artifacts = [
+      { id: "x1", name_de: "Kompass", story_role: "zeigt Wege", rarity: "common", genre_fantasy: 0.9 },
+      { id: "x2", name_de: "Krone", story_role: "Krone", rarity: "legendary", genre_fantasy: 1 },
+      { id: "x3", name_de: "Laterne", story_role: "leuchtet", rarity: "rare", genre_fantasy: 0.8 },
+    ];
+    const options = selectRewardArtifacts({ rows: artifacts, genre: "fairy_tales", excludeIds: new Set(["x3"]), seed: "s" });
+    expect(options.map((option) => option.id)).toEqual(["x1"]);
+  });
+});
+
+describe("concept and plan sanitising", () => {
+  test("pitches lose unknown cast ids; a brought artifact is forced in", () => {
+    const b = brief({ artifacts: [{ id: "art-1", name: "Kompass", rule: "zeigt Wege", visualKeywords: [], broughtBy: "a1" }] });
+    const pitches = sanitizePitches({ pitches: [{ engine: "bluff", logline: "x", cast: [{ id: "pool-kicher", role: "Gauner" }, { id: "erfunden", role: "?" }], artifact: null, heroRoles: [{ heroId: "a1" }, { heroId: "nobody" }] }] }, b, STORY_ENGINES);
+    expect(pitches[0].cast.map((member) => member.id)).toEqual(["pool-kicher"]);
+    expect(pitches[0].artifact?.id).toBe("art-1");
+    expect(pitches[0].heroRoles.map((role) => role.heroId)).toEqual(["a1"]);
+  });
+
+  test("the plan keeps only known ids on its pages and marks a brought artifact as carried", () => {
+    const b = brief({ artifacts: [{ id: "art-1", name: "Kompass", rule: "zeigt Wege", visualKeywords: [], broughtBy: "a1" }] });
+    const raw = { title: "T", cast: [{ id: "pool-kicher" }], artifact: { id: "art-1", usePage: 5 }, pages: [{ action: "x", onPage: ["a1", "ghost", "pool-kicher"] }], heroes: [{ id: "a1", contribution: "c" }] };
+    const plan = sanitizePlan(raw, b, [])!;
+    expect(plan.pages[0].onPage).toEqual(["a1", "pool-kicher"]);
+    expect(plan.artifact).toMatchObject({ id: "art-1", carried: true, firstPage: 1, usePage: 5 });
+  });
+});
+
+describe("editorial review", () => {
+  test("scores are clamped to 0-10 and unanswerable comprehension becomes a revision note", () => {
+    const review = sanitizeReview({ scores: { overall: 14, humor: -2 }, comprehension: { want: "Brot retten", problem: null, solution: "steht nicht drin", ending: "gut" }, mustFix: [] }, 7)!;
+    expect(review.scores.overall).toBe(10);
+    expect(review.scores.humor).toBe(0);
+    expect(comprehensionGaps(review).length).toBe(2);
+    expect(needsRevision(review, [])).toBe(true);
+  });
+
+  test("a publishable story with nothing to fix is not rewritten", () => {
+    const review = sanitizeReview({ scores: { overall: 9.2 }, comprehension: { want: "a", problem: "b", solution: "c", ending: "d" }, mustFix: [], languageErrors: [] }, 7)!;
+    expect(needsRevision(review, [])).toBe(false);
+    expect(needsRevision(review, ["Held fehlt"])).toBe(true);
+  });
+});
+
+describe("illustration locks", () => {
+  const human: VisualEntity = { id: "a1", name: "Alexander", kind: "character", species: "human", isHuman: true, appearance: "7-year-old boy, brown hair", forbidden: ["glasses"], referenceUrl: "https://r/a.png" };
+  const goblin: VisualEntity = { id: "pool-kicher", name: "Kobold Kicher", kind: "character", species: "magical creature", isHuman: false, appearance: "small goblin", forbidden: [], referenceUrl: "https://r/k.png" };
+
+  test("every human on stage gets the anatomy lock; the sheet order is spelled out", () => {
+    const prompt = assembleImagePrompt({ scene: "Alexander dives under a table.", onStage: [human, goblin], spriteOrder: [human, goblin] });
+    expect(prompt.startsWith("Alexander dives")).toBe(true);
+    expect(prompt).toContain("fully human");
+    expect(prompt).toContain("five fingers");
+    expect(prompt).toContain("1: Alexander; 2: Kobold Kicher");
+    expect(prompt).toContain("Exactly 2 named characters");
+  });
+
+  test("negatives ban animal features on humans and the painted sheet", () => {
+    const negative = negativePromptFor([human, goblin], true);
+    expect(negative).toContain("animal ears on a human");
+    expect(negative).toContain("three hands");
+    expect(negative).toContain("glasses");
+    expect(negative.toLowerCase()).toContain("strip");
+  });
+
+  test("appearance lines come from structured profiles and English pool prompts", () => {
+    expect(heroAppearance({ hair: { color: "brown", length: "short" }, eyes: { color: "green" } })).toContain("brown short hair");
+    expect(castAppearance(KOBOLD.visualProfile)).toContain("goblin");
+    expect(castAppearance({ description: "Kleiner Kobold mit Hut" })).toBe("Kleiner Kobold mit Hut");
+  });
+
+  test("the director may draw at most three characters and missing pages fall back to the plan", () => {
+    const b = brief();
+    const plan = planFor(b);
+    const entities: VisualEntity[] = [human, goblin, { ...human, id: "a2", name: "Adrian" }, { ...goblin, id: "x", name: "X" }];
+    const shots = sanitizeIllustrationPlan({ cover: { scene: "cover", onStage: ["a1", "a2", "pool-kicher", "x"] }, pages: [{ page: 1, scene: "one", onStage: ["a1", "nobody"] }] }, 3, plan, entities, 3);
+    expect(shots.cover.onStage).toEqual(["a1", "a2", "pool-kicher"]);
+    expect(shots.pages[0].onStage).toEqual(["a1"]);
+    expect(shots.pages[1].scene).toBe(plan.pages[1].picture);
+  });
+});
+
+describe("images", () => {
+  const entities: VisualEntity[] = [
+    { id: "a1", name: "Alexander", kind: "character", species: "human", isHuman: true, appearance: "boy", forbidden: [], referenceUrl: "https://r/a.png" },
+    { id: "k", name: "Kicher", kind: "character", species: "goblin", isHuman: false, appearance: "goblin", forbidden: [], referenceUrl: "https://r/k.png" },
+  ];
+
+  test("each picture's identity sheet holds only the characters drawn on it; a severe defect is regenerated once", async () => {
+    const sheets: string[][] = [];
+    let calls = 0;
+    const llm: StorybookLlm = async (request) => {
+      const defective = String(request.imageInputs?.[0]).includes("attempt-1") && request.stage.includes("p1");
+      return {
+        text: JSON.stringify({ namedCharactersVisible: 1, anatomyDefects: defective ? ["three hands"] : [], animalFeaturesOnHumans: [], duplicates: [], identityMatch: 0.9, sceneMatch: 0.9 }),
+        modelUsed: request.model,
+        usage: { prompt: 10, completion: 10, total: 20, costUSD: 0.0001 },
+        durationMs: 1,
+      };
+    };
+    const result = await generateStorybookImages({
+      illustrations: {
+        cover: { page: 0, scene: "cover", onStage: ["a1", "k"], artifactVisible: false },
+        pages: [{ page: 1, scene: "p1", onStage: ["a1"], artifactVisible: false }],
+      },
+      entities,
+      seed: "s",
+      llm,
+      visionModel: "openai/gpt-6-luna",
+      buildReference: async (slots) => {
+        sheets.push(slots.map((slot) => slot.displayName));
+        return { urls: [slots.length > 1 ? "data:image/png;base64,AAA" : slots[0].imageUrl], mode: slots.length > 1 ? "sprite" : "single", subjects: slots.map((slot) => ({ displayName: slot.displayName, kind: slot.kind || "character" })) };
+      },
+      provider: async (request) => {
+        calls += 1;
+        const attempt = request.prompt.includes("Correct anatomy") ? 2 : 1;
+        return { url: `https://img/${request.page}-attempt-${attempt}.jpg`, costUSD: 0.0013 };
+      },
+    });
+    expect(sheets).toContainEqual(["Alexander", "Kicher"]);
+    expect(sheets).toContainEqual(["Alexander"]);
+    expect(result.regenerated).toEqual([1]);
+    expect(result.pages.get(1)?.url).toBe("https://img/1-attempt-2.jpg");
+    expect(calls).toBe(3);
+    expect(result.imageCostUSD).toBeCloseTo(0.0039, 6);
+  });
+
+  test("severity: anatomy and bleed are severe, a missing background figure is not", () => {
+    const clean = { anatomyDefects: [], animalFeaturesOnHumans: [], duplicates: [], unexpectedCharacters: [], textVisible: false, referenceSheetVisible: false, identityMatch: 0.9, sceneMatch: 0.9, namedCharactersVisible: 2 };
+    expect(qaSeverity(clean, 2)).toBe(0);
+    expect(qaSeverity({ ...clean, namedCharactersVisible: 1 }, 2)).toBeLessThan(10);
+    expect(qaSeverity({ ...clean, animalFeaturesOnHumans: ["fox ears"] }, 2)).toBeGreaterThanOrEqual(10);
+  });
+});
+
+describe("engine flow (scripted port)", () => {
+  test("concept → plan → draft → review → revision → blind A/B; the chosen revision ships", async () => {
+    const b = brief();
+    const stages: string[] = [];
+    const plan = planFor(b);
+    const storyText = (tag: string) =>
+      ["TITEL: Der Kobold im Mehl", "BESCHREIBUNG: Zwei Kinder jagen einen Kobold.", ...plan.pages.map((page) => `SEITE ${page.page}\nAlexander und Adrian sehen Kobold Kicher. „Mehl im Haar, Kobold da!“ ${tag} ${WORDS(100)}`)].join("\n\n");
+    const llm: StorybookLlm = async (request: LlmRequest) => {
+      stages.push(`${request.stage}:${request.role}:${request.model}`);
+      const reply = (text: string) => ({ text, modelUsed: request.model, usage: { prompt: 100, completion: 50, total: 150, costUSD: 0.001 }, durationMs: 1 });
+      switch (request.stage) {
+        case "concept":
+          return reply(JSON.stringify({ pitches: [{ engine: "gaunerfalle", title: "T", logline: "L", cast: [{ id: "pool-kicher", role: "Gauner" }], heroRoles: [{ heroId: "a1" }, { heroId: "a2" }] }] }));
+        case "plan":
+          return reply(JSON.stringify(plan));
+        case "draft":
+          return reply(storyText("ENTWURF"));
+        case "review":
+          return reply(JSON.stringify({ scores: { overall: 6.5 }, comprehension: { want: "a", problem: "b", solution: "c", ending: "d" }, mustFix: [{ page: 2, quote: "x", problem: "Witz ohne Aufbau", fix: "aufbauen" }] }));
+        case "revision":
+          return reply(storyText("FASSUNG2"));
+        case "final-ab": {
+          const revisionIsA = request.user.indexOf("FASSUNG2") < request.user.indexOf("ENTWURF");
+          return reply(JSON.stringify({ winner: revisionIsA ? "A" : "B", reason: "lustiger", remainingProblems: [], winnerScore: 8.4 }));
+        }
+        default:
+          throw new Error(`unexpected stage ${request.stage}`);
+      }
+    };
+    const ledger = new CostLedger();
+    const models = resolveStorybookModels({ aiProvider: "openrouter", openRouterModel: "openai/gpt-6-luna" } as any);
+    const result = await runStorybookTextEngine({ llm, brief: b, models, ledger });
+
+    expect(stages.map((stage) => stage.split(":")[0])).toEqual(["concept", "plan", "draft", "review", "revision", "final-ab"]);
+    expect(stages.find((stage) => stage.startsWith("review"))).toContain("google/");
+    expect(result.chosen).toBe("revision");
+    expect(result.pages[0].content).toContain("FASSUNG2");
+    expect(result.benchmarkScore).toBe(8.4);
+    expect(result.draftScore).toBe(6.5);
+    expect(result.plan.cast.map((member) => member.id)).toEqual(["pool-kicher"]);
+    expect(ledger.totals().calls).toBe(6);
+  });
+});
+
+describe("image prompt budget", () => {
+  test("a crowded page stays under Runware's limit and keeps every lock", () => {
+    const long = "x".repeat(400);
+    const entity = (id: string, isHuman: boolean): VisualEntity => ({ id, name: `Figur ${id}`, kind: "character", species: isHuman ? "human" : "dragon", isHuman, appearance: long, forbidden: [], referenceUrl: "https://r" });
+    const onStage = [entity("1", true), entity("2", true), entity("3", false)];
+    const prompt = assembleImagePrompt({ scene: "y".repeat(900), onStage, spriteOrder: onStage });
+    expect(prompt.length).toBeLessThanOrEqual(2900);
+    expect(prompt).toContain("five fingers");
+    expect(prompt).toContain("technical identity sheet");
   });
 });

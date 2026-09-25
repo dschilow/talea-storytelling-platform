@@ -5,6 +5,7 @@ import type { ModelPrice, Transport } from "./types";
  */
 export const VERIFIED_PRICES: Record<string, ModelPrice> = {
   "openai/gpt-5.6-luna": { inputPerMillion: 0.2, outputPerMillion: 1.2 },
+  "openai/gpt-6-luna": { inputPerMillion: 0.1, outputPerMillion: 0.5 },
   "moonshotai/kimi-k2.6": { inputPerMillion: 0.7, outputPerMillion: 3.5 },
   "google/gemini-3.1-flash-lite": { inputPerMillion: 0.25, outputPerMillion: 1.5 },
 };
@@ -16,7 +17,7 @@ export function reasoningFor(model: string): Record<string, unknown> | undefined
       capability.supported_efforts!.includes(e) && !(e === "none" && capability.mandatory));
     return effort ? { effort, exclude: true } : undefined;
   }
-  if (model.startsWith("openai/gpt-5.6-luna")) return { effort: "none", exclude: true };
+  if (model.startsWith("openai/gpt-5.6-luna") || model.startsWith("openai/gpt-6-luna")) return { effort: "none", exclude: true };
   if (/^openai\/gpt-5(?:-mini|-nano)?(?:$|:\w+$)/.test(model)) return { effort: "minimal", exclude: true };
   if (/^google\/gemini-3/.test(model)) return { effort: "minimal", exclude: true };
   if (model === "moonshotai/kimi-k2.6") return { enabled: false, exclude: true };

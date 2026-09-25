@@ -57,6 +57,7 @@ import {
 } from './storyGenerateWithModelFallback';
 import {
   DEFAULT_OPENROUTER_STORY_MODEL,
+  STORYBOOK_OPENROUTER_STORY_MODEL,
   type AIModel,
   type AIProvider,
   type OpenRouterStoryModel,
@@ -774,8 +775,17 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
     : state.storybookMode
       ? 'storybook'
       : 'standard';
-  const select = (lane: GenerationLane) =>
-    updateState({ developerMode: lane === 'developer', storybookMode: lane === 'storybook', bookWorkshopMode: lane === 'workshop' });
+  // The Bilderbuch-Modus is built and measured on GPT-6 Luna; it starts there.
+  // Step 3 still lets an admin pick any other writer afterwards.
+  const select = (lane: GenerationLane) => {
+    const modelUpdate: Partial<WizardState> =
+      lane === 'storybook'
+        ? { aiProvider: 'openrouter', openRouterModel: STORYBOOK_OPENROUTER_STORY_MODEL }
+        : state.openRouterModel === STORYBOOK_OPENROUTER_STORY_MODEL
+          ? { openRouterModel: DEFAULT_OPENROUTER_STORY_MODEL }
+          : {};
+    updateState({ developerMode: lane === 'developer', storybookMode: lane === 'storybook', bookWorkshopMode: lane === 'workshop', ...modelUpdate });
+  };
   const cardBase =
     'flex w-full flex-col gap-3 rounded-2xl border p-5 text-left transition-all duration-200 hover:scale-[1.01]';
   const cardSelected =
@@ -841,14 +851,13 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
           )}
         </div>
         <p className="text-sm text-[var(--talea-text-secondary)]">
-          Auf Verständlichkeit gebaut: fester roter Faden, sichtbare Regel, ein Laufgag und ein
-          Refrain zum Mitsprechen. Ein Verständnis-Test liest die fertige Geschichte gegen und
-          prüft, ob ein Kind ihr wirklich folgen kann. Mit Charakter-Pool, Fundstück, Bildern und
-          Avatar-Entwicklung.
+          Gebaut nach den Bauplänen der besten Bilderbücher: drei Ideen, die stärkste wird
+          Seite für Seite geplant, geschrieben, von einer unabhängigen Lektorin gegen echte
+          Kinderbücher bewertet (0–10) und überarbeitet. Figuren aus dem Charakter-Pool per
+          Casting, Artefakt je nach Einstellung, actionreiche Bilder mit Bildprüfung.
         </p>
         <p className="text-xs italic text-[var(--talea-text-tertiary)]">
-          Eine Schreib-Anfrage statt sieben Überarbeitungen — schneller, deutlich günstiger, und
-          jede Geschichte zieht eine neue Variante, damit sich nichts wiederholt.
+          Startet mit GPT-6 Luna als Autor-Modell; die Lektorin ist immer ein Modell einer anderen Familie.
         </p>
       </button>
 
@@ -990,7 +999,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     },
     developerMode: state.developerMode || undefined,
     storybookMode: state.storybookMode || state.bookWorkshopMode || undefined,
-    storybookEngine: state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v1' : undefined,
+    storybookEngine: state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v2' : undefined,
     broughtArtifact:
       state.broughtArtifact && state.selectedAvatars.includes(state.broughtArtifact.avatarId)
         ? {

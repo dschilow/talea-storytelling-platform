@@ -34,10 +34,13 @@ export type OpenRouterStoryModel =
   | '~anthropic/claude-sonnet-latest'
   | '~openai/gpt-mini-latest'
   | 'qwen/qwen3.6-max-preview'
+  | 'openai/gpt-6-luna'
   | 'openai/gpt-5.6-luna'
   | 'openai/gpt-5.6-terra';
 
 export const DEFAULT_OPENROUTER_STORY_MODEL: OpenRouterStoryModel = 'moonshotai/kimi-k2.6';
+/** Writer the Bilderbuch-Modus starts with (half of gpt-5.6-luna's price, newer generation). */
+export const STORYBOOK_OPENROUTER_STORY_MODEL: OpenRouterStoryModel = 'openai/gpt-6-luna';
 
 export interface StoryConfig {
   genre: string;

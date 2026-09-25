@@ -1,240 +1,267 @@
 /**
- * Storybook Pipeline — Stage 2: the draft. ONE call.
+ * Storybook Pipeline — Stage 3: the draft, and Stage 5: the revision.
  *
- * The old engine wrote the same story seven times (draft, retry, rebalance,
- * polish, rebalance, chapter-repair, polish) and still failed its own gate.
- * 67% of its spend was rework. Here the writer gets a plan it can actually
- * hold in its head and writes once.
- *
- * The prompt is deliberately small — roughly 2.5k tokens. What reaches the
- * writer is story language: who wants what, what happens on which page, the
- * joke, the refrain, and how to write sentences. No screenplay jargon, no
- * twenty-six competing contracts, no JSON schema for prose.
- *
- * Output is plain text with page markers rather than JSON: a model that has to
- * escape German typographic quotes inside JSON strings spends attention on
- * syntax that belongs in the prose.
+ * The writer gets the plan in story language (never a JSON dump), the craft
+ * rules the critic will later apply, one short style sample for rhythm, and
+ * the length per page. Output is plain text with page markers.
  */
 
-import type { StoryConfig } from "../generate";
-import { callWriter, type LlmCallResult } from "./llm";
+import { buildLanguageRules, CRAFT_RULES, isGerman, type AgeBand } from "./craft";
+import type { StoryBrief } from "./context";
+import type { LlmCallResult, StorybookLlm } from "./llm";
 import { parseDraft } from "./parsing";
-import { languageName, type AgeBand, type LengthBudget } from "./style-contract";
-export { parseDraft } from "./parsing";
+import type { EditorialReview, StoryPlan, StorybookPage } from "./types";
 
-import type {
-  KidLogicCard,
-  StorybookArtifact,
-  StorybookCastMember,
-  StorybookHero,
-  StorybookPage,
-} from "./types";
+/**
+ * Written for this pipeline, not taken from any book. It demonstrates rhythm
+ * only: repetition, a sound word, a visible gag, a deadpan reaction and a
+ * page-turn hook — in ten short lines.
+ */
+const STYLE_SAMPLE_DE = [
+  "Der Kuchen war rund, braun und so groß wie ein Wagenrad.",
+  "„Den tragen wir zum Fest“, sagte Lotta. „Ganz. Vorsichtig.“",
+  "Ben nickte. Dann stolperte er über den Gartenschlauch.",
+  "Der Kuchen flog. Der Kuchen drehte sich. Der Kuchen landete — platsch! — mitten auf dem Hut von Herrn Brummel, der gerade über den Zaun schaute.",
+  "Herr Brummel sagte nichts. Er leckte nur ganz langsam die Sahne von seiner Nase.",
+  "Dann sagte er etwas, womit keiner gerechnet hatte.",
+].join("\n");
 
-export interface DraftStageInput {
-  config: StoryConfig;
-  card: KidLogicCard;
-  heroes: StorybookHero[];
-  cast: StorybookCastMember[];
-  artifact?: StorybookArtifact;
-  band: AgeBand;
-  budget: LengthBudget;
-  styleContract: string;
-  writerModel: string;
-  /** Notes from a failed first attempt. */
-  repairNotes?: string[];
+function bandNote(band: AgeBand): string {
+  if (band === "3-5") return "Deine Zuhörer sind drei bis fünf: alles muss man sofort sehen können, Wiederholung ist ein Geschenk, Angst bleibt klein und geborgen.";
+  if (band === "9-12") return "Deine Zuhörer sind neun bis zwölf: sie lieben Tempo, Wortwitz und echte Gefahr — aber keine Erwachsenen-Abstraktionen.";
+  return "Deine Zuhörer sind sechs bis acht: sie folgen jeder Wendung, solange jeder Schritt aus dem vorigen kommt, und sie lachen laut über Slapstick und Figuren, die sich lächerlich sicher sind.";
 }
 
-export interface DraftStageResult {
-  title: string;
-  description: string;
-  pages: StorybookPage[];
-  raw: string;
-  call: LlmCallResult;
-}
-
-export function buildDraftSystemPrompt(band: AgeBand, languageLabel: string): string {
-  return [
-    `Du bist Kinderbuchautorin und schreibst eine Vorlesegeschichte auf ${languageLabel}.`,
+export function buildWriterSystemPrompt(brief: StoryBrief): string {
+  const lines = [
+    `Du bist eine der besten Kinderbuchautorinnen und schreibst auf ${brief.languageLabel}. Deine Bilderbücher werden abends hundertmal vorgelesen, und die Kinder sprechen die besten Sätze mit.`,
+    bandNote(brief.band),
     "",
-    "Du bekommst einen fertigen Plan. Du erfindest die Handlung nicht neu — du schreibst sie schön.",
-    "Deine ganze Aufmerksamkeit gehört den Sätzen: dass sie klingen, dass sie tragen, dass ein Kind",
-    "nach jedem Absatz weiß, warum das jetzt passiert ist.",
+    "Deine Lektorin gibt dir einen fertigen Seitenplan. Die Handlung steht. Du machst daraus Szenen, die man sieht, Sätze, die klingen, und Pointen, die sitzen.",
     "",
-    "Das Handwerk, an dem du dich misst: eine Maus erfindet ein Monster, um nicht gefressen zu werden,",
-    "und benutzt am Ende denselben Trick gegen das Monster selbst. Ein Kater ruft „ich helfe“ und macht",
-    "dabei alles kaputt. Das ist das Niveau: eine einzige klare Regel, dreimal ausgespielt, beim dritten",
-    "Mal anders — und dazwischen jemand, der sich lächerlich sicher ist.",
+    "DEIN HANDWERK:",
+    ...CRAFT_RULES.map((rule) => `- ${rule}`),
     "",
-    band === "3-5"
-      ? "Deine Zuhörer sind drei bis fünf. Alles muss man sich sofort vorstellen können."
-      : band === "9-12"
-        ? "Deine Zuhörer sind neun bis zwölf. Sie vertragen Zwischentöne, aber keine leeren Abstraktionen."
-        : "Deine Zuhörer sind sechs bis acht. Sie können folgen — aber nur, wenn jeder Schritt aus dem vorigen kommt.",
+    "SO KLINGT ES:",
+    ...buildLanguageRules(brief.band, brief.languageLabel).map((rule) => `- ${rule}`),
     "",
-    "AUSGABEFORMAT (nur das, kein Markdown, kein JSON):",
+    "WAS DU NIE TUST:",
+    "- Zusammenfassen statt erzählen ('Sie erlebten viele Abenteuer'). Jede Seite ist eine Szene mit Handlung und Stimmen.",
+    "- Den Witz erklären, oder Figuren lachen lassen, damit es lustig wirkt.",
+    "- Gefühle benennen statt zeigen ('Er war traurig').",
+    "- Eine Lehre oder Botschaft aussprechen, besonders am Ende.",
+    "- Neue Figuren mit Namen erfinden, die nicht im Plan stehen.",
+    "- Etwas voraussetzen, das eine Figur noch nicht wissen oder haben kann.",
+  ];
+  if (isGerman(brief.config.language)) {
+    lines.push("", "STILPROBE aus einer ganz anderen Geschichte (nur Rhythmus und Ton — keine Figuren, Dinge oder Sätze daraus übernehmen):", STYLE_SAMPLE_DE);
+  }
+  lines.push(
+    "",
+    "AUSGABEFORMAT — genau so, ohne Markdown, ohne Überschriften, ohne Kommentare:",
     "TITEL: <Titel>",
-    "BESCHREIBUNG: <ein vollständiger Satz, 12-25 Wörter, konkret, ohne Moral>",
+    "BESCHREIBUNG: <ein Satz, 12–25 Wörter, macht neugierig und verrät nicht das Ende>",
     "SEITE 1",
-    "<Absätze>",
+    "<Text der Seite, in Absätzen>",
     "",
     "SEITE 2",
-    "<Absätze>",
+    "<Text der Seite>",
     "",
-    "… und so weiter. Keine Seitenüberschriften außer der Zeile SEITE <Zahl>. Keine Kapitelnamen.",
-  ].join("\n");
-}
-
-function heroSheet(hero: StorybookHero): string {
-  const bits: string[] = [`${hero.name}`];
-  if (typeof hero.age === "number") bits.push(`${hero.age} Jahre`);
-  const description = String(hero.description || "").replace(/\s+/g, " ").trim();
-  if (description) bits.push(description.slice(0, 160));
-  const narrative = hero.narrativeProfile && typeof hero.narrativeProfile === "object" ? hero.narrativeProfile : null;
-  const voice = String(narrative?.voice || narrative?.speakingStyle || "").trim();
-  if (voice) bits.push(`spricht ${voice}`);
-  const quirk = String(narrative?.quirk || "").trim();
-  if (quirk) bits.push(quirk);
-  return `- ${bits.join(", ")}`;
-}
-
-function castSheet(member: StorybookCastMember): string {
-  const bits: string[] = [`- ${member.name}: ${member.whoTheyAre}. Will: ${member.wants}.`];
-  if (member.speechStyle && member.speechStyle.length > 0) bits.push(`Ton: ${member.speechStyle.join(", ")}.`);
-  if (member.quirk) bits.push(`Macht immer: ${member.quirk}.`);
-  if (member.catchphrase) bits.push(`Darf GENAU EINMAL sagen: „${member.catchphrase}“${member.catchphraseContext ? ` (${member.catchphraseContext})` : ""}.`);
-  return bits.join(" ");
-}
-
-export function buildDraftUserPrompt(input: DraftStageInput): string {
-  const { card, budget, config } = input;
-  const lines: string[] = [];
-
-  lines.push(`GESCHICHTE: ${card.titel}`);
-  lines.push(`Worum es geht: ${card.kurzbeschreibung}`);
-  lines.push("");
-
-  lines.push("DER ROTE FADEN — so hängt alles zusammen. Genau diese Kette muss ein Kind nacherzählen können:");
-  lines.push(`  ${card.kette?.will}`);
-  lines.push(`  ${card.kette?.aber}`);
-  lines.push(`  ${card.kette?.also}`);
-  lines.push(`  ${card.kette?.dadurch}`);
-  lines.push(`  ${card.kette?.entweder}`);
-  lines.push(`  ${card.kette?.waehlt}`);
-  lines.push(`  ${card.kette?.ende}`);
-  lines.push("");
-
-  lines.push("DIE REGEL DIESER WELT:");
-  lines.push(`  ${card.wunderregel?.regel}`);
-  lines.push(`  Man sieht jedes Mal: ${card.wunderregel?.sichtbareFolge}`);
-  lines.push("  Sie wird zwei Mal sichtbar ausprobiert, bevor sie im Finale zählt. Niemand erklärt sie — man sieht sie wirken.");
-  lines.push("");
-
-  lines.push("DIE DREI STUFEN (jede schlimmer und lustiger als die vorige):");
-  card.dreierSchritt?.forEach((beat, index) => lines.push(`  ${index + 1}. ${beat}`));
-  lines.push(`  Umkehrung am Schluss: ${card.umkehrung}`);
-  lines.push(`  Preis, den die Hauptfigur zahlt: ${card.preis}`);
-  lines.push(`  Schlussbild: ${card.schlussbild}`);
-  lines.push("");
-
-  lines.push(`DER REFRAIN: „${card.refrain}“`);
-  lines.push("  Drei Mal. Einmal beiläufig, einmal unter Druck, einmal am Schluss mit neuer Bedeutung.");
-  lines.push("  Immer von einer Figur gesprochen, immer auf einer eigenen kurzen Zeile.");
-  lines.push("");
-
-  lines.push(`DER LAUFGAG (${card.laufgag?.typ}): ${card.laufgag?.beschreibung}`);
-  card.laufgag?.stellen?.forEach((spot, index) => lines.push(`  ${index + 1}. ${spot}`));
-  lines.push("  Der Witz steht in der Handlung, nie im Erzählerkommentar. Nie erklären.");
-  lines.push("");
-
-  lines.push("DIE SEITEN — jede Seite endet so, dass ein Kind weiterblättern will:");
-  for (const page of card.seiten || []) {
-    lines.push(`  SEITE ${page.nr}: ${page.was}`);
-    lines.push(`    offene Frage am Seitenende: ${page.frage}`);
-  }
-  lines.push("");
-
-  lines.push("HAUPTFIGUREN — sie haben die entscheidende Idee und führen sie selbst aus:");
-  for (const hero of input.heroes) lines.push(heroSheet(hero));
-  lines.push("");
-
-  if (input.cast.length > 0) {
-    lines.push("NEBENFIGUREN — sie machen es schwerer. Keine von ihnen erklärt die Lösung:");
-    for (const member of input.cast) lines.push(castSheet(member));
-    lines.push("");
-  }
-
-  const figuresNeedingIntro = (card.figuren || []).filter(
-    (figure) => !input.heroes.some((hero) => hero.name.split(/\s+/)[0] === String(figure.name || "").split(/\s+/)[0])
+    "… bis zur letzten Seite. Die Marker TITEL, BESCHREIBUNG und SEITE bleiben immer deutsch, auch wenn die Geschichte in einer anderen Sprache ist.",
   );
-  if (figuresNeedingIntro.length > 0) {
-    // Hand over the FACTS, never a finished sentence.
-    //
-    // This block used to print `werSieSind` verbatim — "Räuber Rolf trägt eine
-    // Augenklappe, eine geflickte Lederweste und einen rostigen Krummsäbel" —
-    // under the heading "one sentence says who the figure is". A model given a
-    // complete, correct sentence and told to write one sentence copies it. Run
-    // 6683b402 pasted five such lines into a past-tense story, present tense
-    // and all, and every one of them stopped the narration dead.
-    lines.push("DIESE FIGUREN KENNT DAS KIND NOCH NICHT. Führ jede über eine HANDLUNG ein, nie über einen Steckbrief.");
-    lines.push("  Die Merkmale unten sind Material, kein Satz. Verwende sie nicht als eigenen Vorstellungssatz,");
-    lines.push("  sondern arbeite sie in das ein, was die Figur beim ersten Auftritt tut oder sagt.");
-    lines.push("  Verboten ist jeder Satz der Form „<Name> ist ein …“ oder „<Name> trägt …“.");
-    for (const figure of figuresNeedingIntro) {
-      const traits = String(figure.werSieSind || "")
-        .replace(/^\s*(?:Der |Die |Das )?[^,]*?\b(?:ist|sind|trägt|hat)\b\s*/i, "")
-        .replace(/\s+/g, " ")
-        .trim();
-      lines.push(`- ${figure.name} — Merkmale: ${traits || figure.werSieSind}`);
-    }
-    lines.push("");
-  }
-
-  if (input.artifact) {
-    lines.push(`FUNDSTÜCK: ${input.artifact.name} — ${input.artifact.storyRole}`);
-    lines.push("  Es taucht auf, wird einmal benutzt und bleibt am Ende da. Es löst nichts allein.");
-    lines.push("");
-  }
-
-  lines.push(input.styleContract);
-  lines.push("");
-
-  lines.push("UMFANG:");
-  lines.push(`- Genau ${budget.pages} Seiten, jede ${budget.pageCharsMin}–${budget.pageCharsMax} Zeichen.`);
-  lines.push(`- Insgesamt ${budget.totalWordsMin}–${budget.totalWordsMax} Wörter.`);
-  lines.push("- 4 bis 6 Absätze pro Seite.");
-  lines.push("- Direkte Rede gehört dazu, wo sie etwas bewegt. Zähle keine Prozente — schreib die Szene.");
-  if (String(config.language || "de").toLowerCase().startsWith("de")) {
-    lines.push("- Wörtliche Rede in deutschen Anführungszeichen: „so“.");
-  }
-
-  if (input.repairNotes && input.repairNotes.length > 0) {
-    lines.push("");
-    lines.push("DER ERSTE VERSUCH HATTE DIESE FEHLER — vermeide sie diesmal:");
-    for (const note of input.repairNotes) lines.push(`- ${note}`);
-  }
-
-  lines.push("");
-  lines.push("Schreib jetzt die Geschichte.");
-
+  if (isGerman(brief.config.language)) lines.push("Wörtliche Rede in deutschen Anführungszeichen: „so“.");
   return lines.join("\n");
 }
 
-export async function runDraftStage(input: DraftStageInput): Promise<DraftStageResult> {
-  const call = await callWriter({
-    system: buildDraftSystemPrompt(input.band, languageName(input.config.language)),
-    user: buildDraftUserPrompt(input),
-    model: input.writerModel,
-    maxTokens: Math.max(2200, Math.ceil(input.budget.totalWordsMax * 2.6)),
-    json: false,
-    temperature: 0.9,
-  });
+/** The plan, rewritten as a brief a human author would get. */
+export function renderPlanForWriter(plan: StoryPlan, brief: StoryBrief): string {
+  const lines: string[] = [];
+  lines.push(`TITEL: ${plan.title}`);
+  lines.push(`WORUM ES GEHT: ${plan.logline}`);
+  lines.push(`WAS DIE HELDEN WOLLEN: ${plan.want} — auf dem Spiel steht: ${plan.stakes}`);
+  if (plan.worldRule) lines.push(`DIE REGEL DIESER WELT (gilt immer gleich, man sieht sie wirken, niemand erklärt sie lang): ${plan.worldRule}`);
+  if (plan.runningGag.what) {
+    lines.push(`DER LAUFGAG: ${plan.runningGag.what}`);
+    plan.runningGag.beats.forEach((beat, index) => lines.push(`  ${index + 1}. ${beat}`));
+    lines.push("  Beim dritten Mal kippt er. Nie erklären.");
+  }
+  if (plan.refrain) {
+    lines.push(`DER SATZ ZUM MITSPRECHEN: „${plan.refrain}“ — dreimal, immer von einer Figur laut gesagt und auf einer eigenen Zeile; beim dritten Mal mit neuer Bedeutung.`);
+  }
+  if (plan.dramaticIrony) lines.push(`DAS ZUHÖRENDE KIND WEISS MEHR ALS DIE FIGUR: ${plan.dramaticIrony}`);
+  if (plan.setups.length > 0) {
+    lines.push("VORBEREITEN UND AUSZAHLEN (unauffällig zeigen, später ist es der Schlüssel):");
+    for (const setup of plan.setups) lines.push(`  - ${setup.what}: zeigen auf Seite ${setup.plantedOnPage}, zahlt sich aus auf Seite ${setup.paysOffOnPage}`);
+  }
+  lines.push("");
 
-  const parsed = parseDraft(call.text, input.budget.pages);
-  return {
-    title: parsed.title || input.card.titel,
-    description: parsed.description || input.card.kurzbeschreibung,
-    pages: parsed.pages,
-    raw: call.text,
-    call,
-  };
+  lines.push("DIE HELDEN (sie haben die entscheidende Idee und führen sie selbst aus):");
+  for (const hero of plan.heroes) {
+    const source = brief.heroes.find((entry) => entry.id === hero.id);
+    const age = typeof source?.age === "number" && source.age > 0 ? `, ${source.age} Jahre` : "";
+    lines.push(`  - ${hero.name}${age}: kann besonders ${hero.strength || "—"}; spricht ${hero.voice || "natürlich"}; Beitrag: ${hero.contribution}`);
+  }
+  if (plan.cast.length > 0) {
+    lines.push("DIE NEBENFIGUREN (aus unserem Figurenpool — genau so heißen sie):");
+    for (const member of plan.cast) {
+      const candidate = brief.candidates.find((entry) => entry.id === member.id);
+      const catchphrase = candidate?.catchphrase ? `; darf höchstens EINMAL sagen: „${candidate.catchphrase}“` : "";
+      const look = candidate?.whoTheyAre ? ` (${candidate.whoTheyAre})` : "";
+      lines.push(`  - ${member.name}${look}: ${member.role}; will: ${member.want}; spricht: ${member.voice}; typisch: ${member.signature}${catchphrase}`);
+    }
+    lines.push("  Stell jede Nebenfigur beim ersten Auftritt durch das vor, was sie tut oder sagt, mit ihrem Aussehen in der Bewegung — nicht als Steckbrief.");
+  }
+  if (plan.artifact) {
+    const option = brief.artifacts.find((artifact) => artifact.id === plan.artifact!.id);
+    const owner = option?.broughtBy ? brief.heroes.find((hero) => hero.id === option.broughtBy)?.name : undefined;
+    lines.push(
+      plan.artifact.carried
+        ? `DAS MITGEBRACHTE ARTEFAKT: ${plan.artifact.name} — ${owner || "ein Held"} hat es von Anfang an dabei (es wird NICHT gefunden). Es kann genau das: ${option?.rule || plan.artifact.role}. Einsatz: ${plan.artifact.role} (Seite ${plan.artifact.usePage}). Es hilft, die Idee der Kinder entscheidet.`
+        : `DAS FUNDSTÜCK: ${plan.artifact.name} — gefunden auf Seite ${plan.artifact.firstPage}, entscheidend benutzt auf Seite ${plan.artifact.usePage}. Es kann genau das: ${option?.rule || plan.artifact.role}. Am Ende bleibt es bei den Kindern. Nenne es immer mit genau diesem Namen.`
+    );
+  }
+  lines.push("");
+
+  lines.push("SEITE FÜR SEITE:");
+  for (const page of plan.pages) {
+    lines.push(`SEITE ${page.page} — Ort: ${page.place}`);
+    lines.push(`  Was passiert: ${page.action}`);
+    if (page.heroMoment) lines.push(`  Heldenmoment: ${page.heroMoment}`);
+    if (page.humor) lines.push(`  Komik: ${page.humor}`);
+    if (page.emotion) lines.push(`  Gefühl (zeigen, nicht benennen): ${page.emotion}`);
+    lines.push(page.page === plan.pages.length ? `  Schluss: ${page.turn}` : `  Seitenende (Grund umzublättern): ${page.turn}`);
+  }
+  lines.push("");
+  const sentence = (value: string) => (value && !/[.!?…]$/.test(value.trim()) ? `${value.trim()}.` : value.trim());
+  lines.push(`DAS ENDE: ${sentence(plan.ending.resolution)} Das Anfangsbild kehrt zurück: ${sentence(plan.ending.callback)} Letzte Pointe: ${sentence(plan.ending.lastLine)}`);
+  return lines.join("\n");
 }
+
+function lengthBlock(brief: StoryBrief): string[] {
+  const { budget } = brief;
+  return [
+    "UMFANG (wird nachgezählt):",
+    `- Genau ${budget.pages} Seiten.`,
+    `- Jede Seite ${budget.wordsPerPageMin}–${budget.wordsPerPageMax} Wörter. Insgesamt ${budget.totalWordsMin}–${budget.totalWordsMax} Wörter.`,
+    "- Lieber eine starke Szene pro Seite als drei hastige. Kürzen heißt: Erklärungen weglassen, nicht Handlung.",
+  ];
+}
+
+export function buildDraftUserPrompt(plan: StoryPlan, brief: StoryBrief, retryNotes: string[] = []): string {
+  const lines: string[] = [renderPlanForWriter(plan, brief), ""];
+  lines.push(...lengthBlock(brief));
+  if (brief.blockedTerms.length > 0) lines.push(`- Diese Begriffe dürfen nirgends vorkommen: ${brief.blockedTerms.join(", ")}`);
+  if (retryNotes.length > 0) {
+    lines.push("", "DER ERSTE VERSUCH HATTE DIESE FEHLER — diesmal nicht:");
+    for (const note of retryNotes) lines.push(`- ${note}`);
+  }
+  lines.push("", "Schreib jetzt die Geschichte.");
+  return lines.join("\n");
+}
+
+export function renderStoryForPrompt(title: string, pages: StorybookPage[]): string {
+  return [`TITEL: ${title}`, ...pages.map((page) => `SEITE ${page.order}\n${page.content}`)].join("\n\n");
+}
+
+export function buildRevisionUserPrompt(input: {
+  plan: StoryPlan;
+  brief: StoryBrief;
+  title: string;
+  pages: StorybookPage[];
+  review: EditorialReview | null;
+  checkNotes: string[];
+}): string {
+  const { plan, brief, review } = input;
+  const lines: string[] = [];
+  lines.push("Deine Lektorin hat deinen Entwurf gelesen. Überarbeite die GANZE Geschichte: dieselbe Geschichte, nur besser — keine neue.");
+  lines.push("");
+  lines.push("DER PLAN (zur Orientierung, gilt weiter):");
+  lines.push(renderPlanForWriter(plan, brief));
+  lines.push("");
+  lines.push("DEIN ENTWURF:");
+  lines.push(renderStoryForPrompt(input.title, input.pages));
+  lines.push("");
+
+  const must = [
+    ...input.checkNotes,
+    ...(review?.mustFix || []).map((note) => `Seite ${note.page}: ${note.problem}${note.quote ? ` („${note.quote}“)` : ""} → ${note.fix}`),
+  ];
+  if (must.length > 0) {
+    lines.push("DAS MUSS SICH ÄNDERN (jeder Punkt):");
+    for (const note of must) lines.push(`- ${note}`);
+    lines.push("");
+  }
+  if (review?.languageErrors?.length) {
+    lines.push("SPRACHFEHLER (korrigieren):");
+    for (const error of review.languageErrors) lines.push(`- Seite ${error.page}: „${error.quote}“ → ${error.correction}`);
+    lines.push("");
+  }
+  if (review?.polish?.length) {
+    lines.push("DAS MACHT ES NOCH BESSER (wenn es passt):");
+    for (const note of review.polish) lines.push(`- Seite ${note.page}: ${note.problem} → ${note.fix}`);
+    lines.push("");
+  }
+  if (review?.keep?.length) {
+    lines.push("DAS IST STARK — BEHALTEN (möglichst wörtlich):");
+    for (const quote of review.keep) lines.push(`- „${quote}“`);
+    lines.push("");
+  }
+  lines.push(...lengthBlock(brief));
+  lines.push("", "Gib die vollständige überarbeitete Geschichte im selben Format aus (TITEL, BESCHREIBUNG, SEITE 1 …).");
+  return lines.join("\n");
+}
+
+export interface WriterStageResult {
+  title: string;
+  description: string;
+  pages: StorybookPage[];
+  call: LlmCallResult;
+}
+
+function writerMaxTokens(brief: StoryBrief): number {
+  // Prose (~2 tokens per German word) + markers + room for light reasoning.
+  return Math.max(6000, Math.ceil(brief.budget.totalWordsMax * 2.4) + 4000);
+}
+
+export async function runDraftStage(
+  llm: StorybookLlm,
+  brief: StoryBrief,
+  plan: StoryPlan,
+  model: string,
+  retryNotes: string[] = []
+): Promise<WriterStageResult> {
+  const call = await llm({
+    stage: retryNotes.length > 0 ? "draft-retry" : "draft",
+    role: "writer",
+    model,
+    system: buildWriterSystemPrompt(brief),
+    user: buildDraftUserPrompt(plan, brief, retryNotes),
+    json: false,
+    maxTokens: writerMaxTokens(brief),
+    effort: "low",
+    temperature: 0.85,
+  });
+  const parsed = parseDraft(call.text, brief.budget.pages, { german: isGerman(brief.config.language) });
+  return { title: parsed.title || plan.title, description: parsed.description || plan.logline, pages: parsed.pages, call };
+}
+
+export async function runRevisionStage(
+  llm: StorybookLlm,
+  input: { brief: StoryBrief; plan: StoryPlan; title: string; pages: StorybookPage[]; review: EditorialReview | null; checkNotes: string[] },
+  model: string
+): Promise<WriterStageResult> {
+  const call = await llm({
+    stage: "revision",
+    role: "writer",
+    model,
+    system: buildWriterSystemPrompt(input.brief),
+    user: buildRevisionUserPrompt(input),
+    json: false,
+    maxTokens: writerMaxTokens(input.brief),
+    effort: "low",
+    temperature: 0.7,
+  });
+  const parsed = parseDraft(call.text, input.brief.budget.pages, { german: isGerman(input.brief.config.language) });
+  return { title: parsed.title || input.title, description: parsed.description, pages: parsed.pages, call };
+}
+

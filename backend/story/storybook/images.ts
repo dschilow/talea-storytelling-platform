@@ -1,315 +1,273 @@
 /**
- * Storybook Pipeline — illustrations.
+ * Storybook Pipeline — illustrations with a vision check.
  *
- * One support call produces every prompt (cover + all pages) at once, then the
- * Runware calls run in parallel. The old engine paid for a prompt call plus a
- * vision-QA loop plus retries per chapter; this does the same job for about a
- * tenth of a cent because the plan already knows what each page shows.
+ * Per picture:
+ *   1. a reference sprite of ONLY the characters drawn on it (plus the artifact
+ *      when visible) — still one collage, never loose portraits;
+ *   2. the deterministic prompt from illustration-stage.ts;
+ *   3. a cheap vision check (gpt-6-luna reads images) for the defects a parent
+ *      notices first: extra hands or fingers, animal ears/tails on humans,
+ *      doubled characters, text, the reference sheet painted into the scene;
+ *   4. on a severe defect exactly one regeneration with a new seed and a named
+ *      correction; the better of the two attempts ships.
  *
- * Character consistency comes from the same mechanism the rest of the platform
- * uses: a sprite collage of the canonical reference images, with an explicit
- * per-slot identity contract in the prompt.
+ * Everything external is injected (image provider, LLM port, sprite builder),
+ * so this module runs the same under Encore, in the local harness and in tests.
  */
 
-import { ai } from "~encore/clients";
-import { mapWithConcurrency } from "../../helpers/asyncPool";
-import { resolveImageUrlForClient } from "../../helpers/bucket-storage";
-import { buildSceneIllustrationPrompt, createIdentityReferenceCache, EMPTY_IDENTITY_REFERENCE, type IdentityReference } from "../image-reference-sprite";
-import { callSupport, parseJsonObject, type LlmCallResult } from "./llm";
-import { acceptedGeneratedImageUrl } from "../../helpers/imageResultGuard";
-import type { KidLogicCard, StorybookCastMember, StorybookHero, StorybookPage } from "./types";
+import { createHash } from "node:crypto";
+import { createIdentityReferenceCache, type IdentityReferenceBuilder } from "../image-reference-sprite";
+import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
+import { assembleImagePrompt, negativePromptFor, type VisualEntity } from "./illustration-stage";
+import type { IllustrationPlan, IllustrationShot } from "./types";
 
-const STORYBOOK_IMAGE_MODEL = "runware:400@4";
-
-const NEGATIVE_PROMPT = [
-  "text, letters, words, watermark, signature, caption, speech bubble",
-  "extra limbs, extra fingers, deformed hands, fused fingers, disfigured face",
-  "multiple heads, duplicated characters, cloned faces",
-  "photorealistic, 3d render, cgi, hyperrealistic skin",
-  "dark, gloomy, scary, horror, gore, blood, weapons",
-  "collage, grid, panel borders, split screen, picture frame",
-  "nsfw, suggestive",
-].join(", ");
-
-const STYLE_SUFFIX = [
-  "Children's picture-book illustration, warm and friendly.",
-  "Soft watercolor and colored-pencil texture, clean confident linework, rounded shapes.",
-  "Bright cheerful palette, gentle daylight, cosy atmosphere.",
-  "Full-bleed single scene, no borders, no text anywhere in the image.",
-].join(" ");
-
-export interface StorybookImageInput {
-  storyId?: string;
-  title: string;
-  card: KidLogicCard;
-  pages: StorybookPage[];
-  heroes: StorybookHero[];
-  cast: StorybookCastMember[];
-  /** Skip everything when the story did not clear its hard gates. */
-  enabled: boolean;
+export interface ImageRequest {
+  page: number;
+  prompt: string;
+  negativePrompt: string;
+  referenceImages: string[];
+  seed: number;
+  width: number;
+  height: number;
 }
 
-export interface StorybookImageResult {
-  coverImageUrl?: string;
-  pageImages: Map<number, { imageUrl?: string; prompt: string }>;
+export interface ImageResponse {
+  /** What gets stored on the story (may be a private bucket URL). */
+  url?: string;
+  /** A URL the vision checker can fetch, when `url` is not public. */
+  viewUrl?: string;
+  costUSD?: number;
+}
+
+export type ImageProvider = (request: ImageRequest) => Promise<ImageResponse>;
+
+export interface ImageQaReport {
+  anatomyDefects: string[];
+  animalFeaturesOnHumans: string[];
+  duplicates: string[];
+  unexpectedCharacters: string[];
+  textVisible: boolean;
+  referenceSheetVisible: boolean;
+  identityMatch: number;
+  sceneMatch: number;
+  namedCharactersVisible: number;
+}
+
+export interface ImageOutcome {
+  page: number;
+  url?: string;
+  prompt: string;
+  attempts: number;
+  costUSD: number;
+  qa?: ImageQaReport;
+  severity: number;
+}
+
+export interface StorybookImagesResult {
+  cover?: ImageOutcome;
+  pages: Map<number, ImageOutcome>;
   imagesGenerated: number;
   imageCalls: number;
   imageCostUSD: number;
-  promptCall?: LlmCallResult;
+  qaCalls: LlmCallResult[];
+  regenerated: number[];
 }
 
-interface ReferenceEntry {
-  name: string;
-  resolvedUrl: string;
-  appearance: string;
+export interface GenerateImagesInput {
+  illustrations: IllustrationPlan;
+  entities: VisualEntity[];
+  provider: ImageProvider;
+  seed: string;
+  llm?: StorybookLlm;
+  visionModel?: string;
+  buildReference?: IdentityReferenceBuilder;
+  concurrency?: number;
+  width?: number;
+  height?: number;
 }
 
-/** Flattens a visual profile into a short English-ish appearance line. */
-function appearanceFrom(visualProfile: any, fallback?: string): string {
-  if (!visualProfile || typeof visualProfile !== "object") return String(fallback || "").slice(0, 200);
-  const parts: string[] = [];
-  const push = (value: unknown) => {
-    const text = String(value || "").replace(/\s+/g, " ").trim();
-    if (text && !["null", "undefined", "[object Object]"].includes(text)) parts.push(text);
-  };
-
-  push(visualProfile.characterType || visualProfile.species || visualProfile.speciesCategory);
-  push(visualProfile.ageDescription || visualProfile.ageApprox);
-  push([visualProfile.hair?.color, visualProfile.hair?.length, visualProfile.hair?.style].filter(Boolean).join(" "));
-  push([visualProfile.eyes?.color, visualProfile.eyes?.shape].filter(Boolean).join(" "));
-  push(visualProfile.skin?.tone);
-  push(visualProfile.outfit || visualProfile.clothingCanonical?.outfit);
-  if (Array.isArray(visualProfile.accessories)) visualProfile.accessories.slice(0, 3).forEach(push);
-  if (Array.isArray(visualProfile.consistentDescriptors)) visualProfile.consistentDescriptors.slice(0, 6).forEach(push);
-
-  const joined = parts.join(", ").replace(/[{}[\]"]/g, " ").replace(/\s{2,}/g, " ").trim();
-  return (joined || String(fallback || "")).slice(0, 240);
+function seedFor(seed: string, page: number, attempt: number): number {
+  const hex = createHash("sha256").update(`${seed}:${page}:${attempt}`).digest("hex").slice(0, 8);
+  return parseInt(hex, 16) % 2_147_483_647;
 }
 
-async function buildReferences(input: StorybookImageInput): Promise<ReferenceEntry[]> {
-  const candidates: Array<{ name: string; imageUrl?: string; appearance: string }> = [];
-
-  for (const hero of input.heroes) {
-    candidates.push({
-      name: hero.name,
-      imageUrl: hero.imageUrl,
-      appearance: appearanceFrom(hero.visualProfile, hero.description),
-    });
-  }
-  for (const member of input.cast) {
-    candidates.push({
-      name: member.name,
-      imageUrl: member.imageUrl,
-      appearance: appearanceFrom(member.visualProfile, member.physicalDescription || member.whoTheyAre),
-    });
-  }
-
-  const resolved: ReferenceEntry[] = [];
-  // The provider sees one sprite, so its reference-image limit must not cut
-  // selected avatars or supporting characters out of the sprite itself.
-  for (const candidate of candidates) {
-    if (!candidate.imageUrl) continue;
-    try {
-      const url = await resolveImageUrlForClient(candidate.imageUrl);
-      if (url) resolved.push({ name: candidate.name, resolvedUrl: url, appearance: candidate.appearance });
-    } catch (err) {
-      console.warn("[storybook/images] could not resolve reference image for", candidate.name, err);
-    }
-  }
-  return resolved;
-}
-
-function buildPromptSystem(): string {
+export function buildQaPrompt(expected: VisualEntity[], scene: string, hasReference: boolean): string {
+  const list = expected.map((entity) => `- ${entity.name}: ${entity.kind === "artifact" ? "object" : entity.isHuman ? "HUMAN" : entity.species}`).join("\n") || "- (no named characters)";
   return [
-    "You write image prompts for a children's picture book illustrator.",
+    "You inspect ONE illustration from a children's picture book for defects a parent would notice immediately.",
+    `Attachment 1 is the illustration.${hasReference ? " Attachment 2 is a technical identity sheet (reference only, NOT part of the artwork)." : ""}`,
+    "Expected named characters:",
+    list,
+    `Intended scene: ${scene.slice(0, 500)}`,
     "",
-    "Rules:",
-    "- English only.",
-    "- One prompt per page, 30-55 words, describing ONE readable moment.",
-    "- Name every character who is on stage, using the exact names given.",
-    "- Say what they DO and where they are. Concrete nouns, no abstractions.",
-    "- Never describe text, signs, labels or speech bubbles.",
-    "- Never mention the story's magic as an explanation; describe only what the eye sees.",
-    "",
-    "Answer with a valid JSON object only.",
+    "Look carefully at every hand, arm, leg, head and ear. Count fingers where visible.",
+    "Return JSON only:",
+    JSON.stringify({
+      namedCharactersVisible: 0,
+      anatomyDefects: ["e.g. 'child on the left has three hands'"],
+      animalFeaturesOnHumans: ["e.g. 'the boy has fox ears'"],
+      duplicates: ["a character drawn twice"],
+      unexpectedCharacters: ["figures that are not expected"],
+      textVisible: false,
+      referenceSheetVisible: false,
+      identityMatch: 0.0,
+      sceneMatch: 0.0,
+    }),
+    "identityMatch/sceneMatch: 0-1. Empty arrays when there is no such defect. Do not invent defects.",
   ].join("\n");
 }
 
-function buildPromptUser(input: StorybookImageInput, references: ReferenceEntry[]): string {
-  const lines: string[] = [];
-  lines.push(`STORY TITLE: ${input.title}`);
-  lines.push("");
-  lines.push("CHARACTERS (use these exact names, keep their look consistent):");
-  for (const hero of input.heroes) {
-    lines.push(`- ${hero.name}: ${appearanceFrom(hero.visualProfile, hero.description) || "a child"}`);
-  }
-  for (const member of input.cast) {
-    lines.push(`- ${member.name}: ${appearanceFrom(member.visualProfile, member.physicalDescription) || member.whoTheyAre}`);
-  }
-  lines.push("");
-  lines.push(`KEY OBJECT that must be visible whenever it makes sense: ${input.card.ankerObjekt}`);
-  lines.push("");
-  lines.push("PAGES (what happens):");
-  for (const page of input.pages) {
-    const beat = input.card.seiten?.find((entry) => entry.nr === page.order)?.was || "";
-    const excerpt = page.content.replace(/\s+/g, " ").slice(0, 320);
-    lines.push(`- Page ${page.order}: ${beat}`);
-    lines.push(`  text: ${excerpt}`);
-  }
-  lines.push("");
-  if (references.length > 0) {
-    lines.push(`Reference images exist for: ${references.map((entry) => entry.name).join(", ")}.`);
-    lines.push("");
-  }
-  lines.push("Return JSON:");
-  lines.push(
-    JSON.stringify(
-      {
-        cover: "one prompt for the cover: the hero(es) with the key object, inviting, no text",
-        pages: input.pages.map((page) => ({ nr: page.order, prompt: "…", characters: ["Name"] })),
-      },
-      null,
-      1
-    )
-  );
-  return lines.join("\n");
-}
-
-function fallbackPrompt(input: StorybookImageInput, order: number | "cover"): string {
-  const names = [...input.heroes.map((h) => h.name), ...input.cast.map((c) => c.name)].slice(0, 3).join(" and ");
-  if (order === "cover") {
-    return `${names} together with ${input.card.ankerObjekt}, looking straight ahead, warm and inviting.`;
-  }
-  const beat = input.card.seiten?.find((entry) => entry.nr === order)?.was || input.card.kurzbeschreibung;
-  return `${names} in the middle of the action: ${beat}`;
-}
-
-export async function generateStorybookImages(input: StorybookImageInput): Promise<StorybookImageResult> {
-  const empty: StorybookImageResult = {
-    pageImages: new Map(),
-    imagesGenerated: 0,
-    imageCalls: 0,
-    imageCostUSD: 0,
+export function parseQaReport(raw: string): ImageQaReport | null {
+  const data = parseJsonObject<any>(raw);
+  if (!data) return null;
+  const list = (value: unknown) => (Array.isArray(value) ? value.map((item) => String(item ?? "").trim()).filter((item) => item && !/^e\.g\./i.test(item)).slice(0, 6) : []);
+  const unit = (value: unknown) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.5;
   };
-  if (!input.enabled || input.pages.length === 0) return empty;
+  return {
+    anatomyDefects: list(data.anatomyDefects),
+    animalFeaturesOnHumans: list(data.animalFeaturesOnHumans),
+    duplicates: list(data.duplicates),
+    unexpectedCharacters: list(data.unexpectedCharacters),
+    textVisible: data.textVisible === true,
+    referenceSheetVisible: data.referenceSheetVisible === true,
+    identityMatch: unit(data.identityMatch),
+    sceneMatch: unit(data.sceneMatch),
+    namedCharactersVisible: Math.max(0, Math.round(Number(data.namedCharactersVisible) || 0)),
+  };
+}
 
-  // 1) references + collage ------------------------------------------------
-  let references: ReferenceEntry[] = [];
-  try {
-    references = await buildReferences(input);
-  } catch (err) {
-    console.warn("[storybook/images] reference build failed:", err);
-  }
+/** 0 = clean. Anything >= 10 is a defect worth one regeneration. */
+export function qaSeverity(report: ImageQaReport | undefined, expectedCharacters: number): number {
+  if (!report) return 0;
+  let severity = 0;
+  severity += report.anatomyDefects.length * 10;
+  severity += report.animalFeaturesOnHumans.length * 10;
+  severity += report.duplicates.length * 10;
+  if (report.referenceSheetVisible) severity += 12;
+  if (report.textVisible) severity += 6;
+  if (report.identityMatch < 0.4) severity += 8;
+  if (report.namedCharactersVisible > expectedCharacters) severity += 6;
+  if (expectedCharacters > 0 && report.namedCharactersVisible < expectedCharacters) severity += 3;
+  if (report.sceneMatch < 0.4) severity += 3;
+  return severity;
+}
 
-  let identityReference: IdentityReference = EMPTY_IDENTITY_REFERENCE;
-  try {
-    identityReference = await createIdentityReferenceCache()(references.map(entry => ({ imageUrl: entry.resolvedUrl, displayName: entry.name })));
-  } catch {
-    // Do not replace a failed sprite with multiple paid reference images or
-    // pretend the resulting identity-free illustrations are consistent.
-    console.warn("[storybook/images] reference sprite unavailable; skipped paid illustration calls");
-    return empty;
-  }
+function correctionFor(report: ImageQaReport): string {
+  const fixes: string[] = [];
+  if (report.anatomyDefects.length) fixes.push("Correct anatomy: every person has exactly two arms and two hands with five fingers each; no extra limbs.");
+  if (report.animalFeaturesOnHumans.length) fixes.push("The human characters have ordinary human ears and no animal features at all.");
+  if (report.duplicates.length) fixes.push("Each character appears exactly once.");
+  if (report.referenceSheetVisible) fixes.push("Only the scene itself — no reference sheet, no framed portraits, no white panels.");
+  if (report.textVisible) fixes.push("No letters or writing anywhere.");
+  return fixes.join(" ");
+}
 
-  // 2) all prompts in one support call -------------------------------------
-  let prompts: { cover?: string; pages: Map<number, string> } = { pages: new Map() };
-  const pageCharacters = new Map<number, string[]>();
-  const allNames = [...input.heroes.map(h => h.name), ...input.cast.map(c => c.name)];
-  let promptCall: LlmCallResult | undefined;
-  try {
-    promptCall = await callSupport({
-      system: buildPromptSystem(),
-      user: buildPromptUser(input, references),
-      maxTokens: 900,
-      json: true,
-      temperature: 0.5,
-    });
-    const parsed = parseJsonObject<{ cover?: string; pages?: Array<{ nr: number; prompt: string; characters?: string[] }> }>(promptCall.text);
-    if (parsed) {
-      prompts.cover = String(parsed.cover || "").trim() || undefined;
-      for (const entry of parsed.pages || []) {
-        const nr = Number(entry?.nr);
-        const prompt = String(entry?.prompt || "").trim();
-        if (Number.isFinite(nr) && prompt) {
-          prompts.pages.set(nr, prompt);
-          if (Array.isArray(entry.characters) && entry.characters.every(name => allNames.includes(name))) pageCharacters.set(nr, [...new Set(entry.characters)]);
-        }
-      }
+async function mapWithLimit<T, R>(items: T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const run = async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await worker(items[index]);
     }
-  } catch (err) {
-    console.warn("[storybook/images] prompt generation failed, using deterministic fallbacks:", err);
-  }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, run));
+  return results;
+}
 
-  // 3) generate -------------------------------------------------------------
-  type Job = { kind: "cover" | "page"; order?: number; scene: string; visibleNames: string[] };
-  const jobs: Job[] = [
-    { kind: "cover", scene: prompts.cover || fallbackPrompt(input, "cover"), visibleNames: input.heroes.map(h => h.name) },
-    ...input.pages.map((page) => ({
-      kind: "page" as const,
-      order: page.order,
-      scene: prompts.pages.get(page.order) || fallbackPrompt(input, page.order),
-      visibleNames: pageCharacters.get(page.order) || allNames.slice(0, 3),
-    })),
-  ];
-
+export async function generateStorybookImages(input: GenerateImagesInput): Promise<StorybookImagesResult> {
+  const buildReference = input.buildReference || createIdentityReferenceCache();
+  const byId = new Map(input.entities.map((entity) => [entity.id, entity]));
+  const artifact = input.entities.find((entity) => entity.kind === "artifact");
+  const qaCalls: LlmCallResult[] = [];
+  const regenerated: number[] = [];
   let imageCalls = 0;
   let imageCostUSD = 0;
 
-  const providerCost = (result: any): number => {
-    const response = result?.debugInfo?.responseReceived;
-    const rows = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : [];
-    return Number(
-      rows.reduce((sum: number, row: any) => {
-        const cost = Number(row?.cost || 0);
-        return sum + (Number.isFinite(cost) && cost > 0 ? cost : 0);
-      }, 0).toFixed(6)
-    );
+  const shots: IllustrationShot[] = [input.illustrations.cover, ...input.illustrations.pages];
+
+  const renderShot = async (shot: IllustrationShot): Promise<ImageOutcome> => {
+    const onStage = shot.onStage.map((id) => byId.get(id)).filter((entity): entity is VisualEntity => Boolean(entity));
+    const drawn = [...onStage, ...(shot.artifactVisible && artifact ? [artifact] : [])];
+    const spriteOrder = drawn.filter((entity) => entity.referenceUrl);
+
+    let references: string[] = [];
+    try {
+      const reference = await buildReference(spriteOrder.map((entity) => ({ imageUrl: entity.referenceUrl!, displayName: entity.name, kind: entity.kind })));
+      references = reference.urls;
+    } catch (err) {
+      // Without the identity sheet the picture cannot be consistent; drawing it
+      // anyway would put a stranger on the page.
+      console.warn(`[storybook/images] reference sheet failed for page ${shot.page}:`, (err as Error)?.message || err);
+      return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD: 0, severity: 0 };
+    }
+    const sheetEntities = references.length > 0 ? spriteOrder : [];
+    const basePrompt = assembleImagePrompt({ scene: shot.scene, onStage: drawn, spriteOrder: sheetEntities });
+    const negativePrompt = negativePromptFor(drawn, sheetEntities.length > 1);
+    const expectedCharacters = onStage.length;
+
+    const attempt = async (attemptNo: number, extra: string): Promise<ImageOutcome> => {
+      const prompt = extra ? `${basePrompt}\n${extra}` : basePrompt;
+      imageCalls += 1;
+      let response: ImageResponse = {};
+      try {
+        response = await input.provider({
+          page: shot.page,
+          prompt,
+          negativePrompt,
+          referenceImages: references,
+          seed: seedFor(input.seed, shot.page, attemptNo),
+          width: input.width ?? 1024,
+          height: input.height ?? 1024,
+        });
+      } catch (err) {
+        console.warn(`[storybook/images] page ${shot.page} attempt ${attemptNo} failed:`, (err as Error)?.message || err);
+      }
+      const cost = Number.isFinite(response.costUSD) ? Number(response.costUSD) : 0;
+      imageCostUSD = Number((imageCostUSD + cost).toFixed(6));
+      if (!response.url) return { page: shot.page, prompt, attempts: attemptNo, costUSD: cost, severity: 999 };
+
+      let qa: ImageQaReport | undefined;
+      if (input.llm && input.visionModel) {
+        try {
+          const call = await input.llm({
+            stage: `image-qa-${shot.page === 0 ? "cover" : `p${shot.page}`}-${attemptNo}`,
+            role: "support",
+            model: input.visionModel,
+            system: "You are a meticulous picture-book illustration checker. Answer with JSON only.",
+            user: buildQaPrompt(drawn, shot.scene, references.length > 0),
+            json: true,
+            maxTokens: 2500,
+            effort: "low",
+            imageInputs: [response.viewUrl || response.url, ...references.slice(0, 1)],
+            timeoutMs: 60_000,
+          });
+          qaCalls.push(call);
+          qa = parseQaReport(call.text) || undefined;
+        } catch (err) {
+          console.warn(`[storybook/images] vision check failed for page ${shot.page}:`, (err as Error)?.message || err);
+        }
+      }
+      return { page: shot.page, url: response.url, prompt, attempts: attemptNo, costUSD: cost, qa, severity: qaSeverity(qa, expectedCharacters) };
+    };
+
+    const first = await attempt(1, "");
+    if (first.severity < 10) return first;
+    regenerated.push(shot.page);
+    const second = await attempt(2, first.qa ? correctionFor(first.qa) : "");
+    const best = second.severity < first.severity ? second : first;
+    return { ...best, attempts: 2, costUSD: first.costUSD + second.costUSD };
   };
 
-  const results = await mapWithConcurrency(jobs, 3, async (job) => {
-    const fullPrompt = buildSceneIllustrationPrompt(job.scene, STYLE_SUFFIX, identityReference, job.visibleNames);
-    try {
-      imageCalls += 1;
-      const image = await ai.generateImage({
-        prompt: fullPrompt,
-        model: STORYBOOK_IMAGE_MODEL,
-        negativePrompt: NEGATIVE_PROMPT,
-        width: 1024,
-        height: 1024,
-        steps: 4,
-        CFGScale: 4,
-        outputFormat: "JPEG",
-        referenceImages: identityReference.urls.length > 0 ? identityReference.urls : undefined,
-        logContext: {
-          storyId: input.storyId,
-          stage: job.kind === "cover" ? "storybook-image-cover" : "storybook-image-page",
-          chapter: job.order,
-        },
-      });
-      const url = acceptedGeneratedImageUrl(image);
-      imageCostUSD = Number((imageCostUSD + providerCost(image)).toFixed(6));
-      return { job, imageUrl: url || undefined, prompt: fullPrompt };
-    } catch (err) {
-      console.warn(`[storybook/images] generation failed for ${job.kind}${job.order ?? ""}:`, (err as Error)?.message || err);
-      return { job, imageUrl: undefined as string | undefined, prompt: fullPrompt };
-    }
-  });
-
-  const pageImages = new Map<number, { imageUrl?: string; prompt: string }>();
-  let coverImageUrl: string | undefined;
-  let imagesGenerated = 0;
-
-  for (const result of results) {
-    if (result.job.kind === "cover") {
-      coverImageUrl = result.imageUrl;
-      if (result.imageUrl) imagesGenerated += 1;
-      continue;
-    }
-    if (typeof result.job.order === "number") {
-      pageImages.set(result.job.order, { imageUrl: result.imageUrl, prompt: result.prompt });
-      if (result.imageUrl) imagesGenerated += 1;
-    }
+  const outcomes = await mapWithLimit(shots, input.concurrency ?? 4, renderShot);
+  const pages = new Map<number, ImageOutcome>();
+  let cover: ImageOutcome | undefined;
+  for (const outcome of outcomes) {
+    if (outcome.page === 0) cover = outcome;
+    else pages.set(outcome.page, outcome);
   }
-
-  return { coverImageUrl, pageImages, imagesGenerated, imageCalls, imageCostUSD, promptCall };
+  const imagesGenerated = outcomes.filter((outcome) => outcome.url).length;
+  return { cover, pages, imagesGenerated, imageCalls, imageCostUSD, qaCalls, regenerated };
 }
