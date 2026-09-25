@@ -1,4 +1,4 @@
-import type { ReasoningEffort } from "./llm";
+import type { LlmRole, ReasoningEffort } from "./llm";
 
 export type StorybookReasoningOptions = {
   effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
@@ -19,8 +19,14 @@ function isHybridThinkingModel(model: string): boolean {
  * default: left implicit, that ate a 1800-token beat-sheet budget whole in
  * production (2026-08-06). So OpenAI models always get an explicit effort.
  */
-export function resolveStorybookReasoning(model: string, effort: ReasoningEffort = "none"): StorybookReasoningOptions {
+export function resolveStorybookReasoning(model: string, effort: ReasoningEffort = "none", role?: LlmRole): StorybookReasoningOptions {
   const normalized = String(model || "").toLowerCase();
+
+  // Claude as critic: a little thinking finds logic gaps (who is where, why the
+  // solution works). Kept at "low" — thinking tokens bill at output price.
+  if (role === "critic" && /claude|anthropic/.test(normalized) && effort !== "none") {
+    return { effort: "low", exclude: true };
+  }
 
   if (/(^|\/)gpt-(5|6)|(^|\/)o\d/.test(normalized)) {
     return { effort, exclude: true };
@@ -42,6 +48,8 @@ export function acceptsTemperature(model: string): boolean {
   const normalized = String(model || "").toLowerCase();
   if (/(^|\/)gpt-(5|6)|(^|\/)o\d/.test(normalized)) return false;
   if (normalized === "google/gemini-3.5-flash-lite") return false;
+  // The Claude 5 generation lists no `temperature` on OpenRouter.
+  if (/claude-(sonnet|opus|haiku|fable)-5/.test(normalized)) return false;
   return true;
 }
 

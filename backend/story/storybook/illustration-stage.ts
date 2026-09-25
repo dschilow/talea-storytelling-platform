@@ -30,6 +30,8 @@ export interface VisualEntity {
   id: string;
   name: string;
   kind: "character" | "artifact";
+  /** Heroes keep their place when an identity sheet has to shrink. */
+  role?: "hero" | "cast" | "artifact";
   /** "human", "animal", "magical creature", "dragon", … */
   species: string;
   isHuman: boolean;
@@ -173,6 +175,7 @@ export function buildDirectorSystemPrompt(): string {
     "- Choose a camera for each page and vary it from page to page: wide establishing shot, medium action shot, low angle looking up, high angle looking down, over-the-shoulder, close-up on a reaction or an object.",
     "- Show the place concretely: time of day, weather, light, and the props exactly in their CURRENT state on this page (broken, wet, tied up, glowing ...).",
     "- At most 3 named characters per picture; if more are in the scene, pick the 3 that matter and let the others be off-panel. Use only the ids given.",
+    "- Say exactly WHO does WHAT and where each one is (left / right / foreground / on the ladder …). Never swap roles: if the text says Adrian climbs, Adrian is the one climbing.",
     "- Unnamed extras (a flock of geese, a crowd) only when the page needs them, fully described.",
     "- No text, letters, signs, labels or speech bubbles in any picture.",
     "- English only, 45-80 words per scene. Describe only what the eye sees.",

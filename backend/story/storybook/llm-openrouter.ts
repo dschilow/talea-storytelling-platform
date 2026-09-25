@@ -37,7 +37,7 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
       responseFormat: request.json ? "json_object" : "text",
       maxTokens: request.maxTokens,
       temperature: acceptsTemperature(model) ? request.temperature : undefined,
-      reasoning: resolveStorybookReasoning(model, request.effort),
+      reasoning: resolveStorybookReasoning(model, request.effort, request.role),
       includeReasoning: false,
       signal: controller.signal,
       imageInputs: request.imageInputs,

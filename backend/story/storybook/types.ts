@@ -105,6 +105,10 @@ export interface StoryPlan {
   want: string;
   stakes: string;
   worldRule: string | null;
+  /** How the rule is SHOWN before it is needed (page + visible demonstration). */
+  ruleIntro: string | null;
+  /** Why the solution works, in one sentence a six-year-old understands. */
+  solutionWhy: string;
   refrain: string | null;
   runningGag: { what: string; beats: string[] };
   dramaticIrony: string;

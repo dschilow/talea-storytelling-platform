@@ -38,7 +38,9 @@ describe("single reference sprite without injected picture frames", () => {
     const reversed = await build([...slots].reverse());
     expect(calls).toBe(2);
     expect(reversed.subjects.map(s => s.displayName)).toEqual(["Adrian", "Alexander"]);
-    expect(pixel(await pixels(fromReference(reversed.urls[0])), 0, 0)).toEqual([187, 187, 187]);
+    // The provider copy is JPEG (see encodeReferenceSprite): colours survive within ±2.
+    for (const channel of pixel(await pixels(fromReference(reversed.urls[0])), 0, 0)) expect(Math.abs(channel - 187)).toBeLessThanOrEqual(2);
+    expect(reversed.urls[0].startsWith("data:image/jpeg;base64,")).toBe(true);
   });
 
   test("four avatars and an artifact all fit within one bounded reference", async () => {

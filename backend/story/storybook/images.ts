@@ -46,6 +46,8 @@ export interface ImageQaReport {
   animalFeaturesOnHumans: string[];
   duplicates: string[];
   unexpectedCharacters: string[];
+  /** A named character doing what the scene gives to someone else. */
+  roleSwaps: string[];
   textVisible: boolean;
   referenceSheetVisible: boolean;
   identityMatch: number;
@@ -61,6 +63,10 @@ export interface ImageOutcome {
   costUSD: number;
   qa?: ImageQaReport;
   severity: number;
+  /** 0 = full identity sheet, 1 = reduced sheet, 2 = no reference, -1 = no picture. */
+  referenceLevel?: number;
+  /** Why a delivery step failed — goes into the story metadata and logs. */
+  errors?: string[];
 }
 
 export interface StorybookImagesResult {
@@ -101,6 +107,7 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
     `Intended scene: ${scene.slice(0, 500)}`,
     "",
     "Look carefully at every hand, arm, leg, head and ear. Count fingers where visible.",
+    "Compare who does what with the intended scene, using the reference sheet to tell the characters apart.",
     "Return JSON only:",
     JSON.stringify({
       namedCharactersVisible: 0,
@@ -108,6 +115,7 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
       animalFeaturesOnHumans: ["e.g. 'the boy has fox ears'"],
       duplicates: ["a character drawn twice"],
       unexpectedCharacters: ["figures that are not expected"],
+      roleSwaps: ["e.g. 'the scene says Adrian climbs the ladder, but the brown-haired boy is climbing'"],
       textVisible: false,
       referenceSheetVisible: false,
       identityMatch: 0.0,
@@ -130,6 +138,7 @@ export function parseQaReport(raw: string): ImageQaReport | null {
     animalFeaturesOnHumans: list(data.animalFeaturesOnHumans),
     duplicates: list(data.duplicates),
     unexpectedCharacters: list(data.unexpectedCharacters),
+    roleSwaps: list(data.roleSwaps),
     textVisible: data.textVisible === true,
     referenceSheetVisible: data.referenceSheetVisible === true,
     identityMatch: unit(data.identityMatch),
@@ -145,6 +154,7 @@ export function qaSeverity(report: ImageQaReport | undefined, expectedCharacters
   severity += report.anatomyDefects.length * 10;
   severity += report.animalFeaturesOnHumans.length * 10;
   severity += report.duplicates.length * 10;
+  severity += report.roleSwaps.length * 10;
   if (report.referenceSheetVisible) severity += 12;
   if (report.textVisible) severity += 6;
   if (report.identityMatch < 0.4) severity += 8;
@@ -159,6 +169,7 @@ function correctionFor(report: ImageQaReport): string {
   if (report.anatomyDefects.length) fixes.push("Correct anatomy: every person has exactly two arms and two hands with five fingers each; no extra limbs.");
   if (report.animalFeaturesOnHumans.length) fixes.push("The human characters have ordinary human ears and no animal features at all.");
   if (report.duplicates.length) fixes.push("Each character appears exactly once.");
+  if (report.roleSwaps.length) fixes.push(`Keep the roles exactly as described: ${report.roleSwaps.slice(0, 2).join("; ")}.`);
   if (report.referenceSheetVisible) fixes.push("Only the scene itself — no reference sheet, no framed portraits, no white panels.");
   if (report.textVisible) fixes.push("No letters or writing anywhere.");
   return fixes.join(" ");
@@ -188,46 +199,70 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
 
   const shots: IllustrationShot[] = [input.illustrations.cover, ...input.illustrations.pages];
 
+  // Heroes first: when a sheet must shrink, the avatars keep their identity.
+  const rank = (entity: VisualEntity) => (entity.role === "hero" ? 0 : entity.kind === "artifact" ? 2 : 1);
+
   const renderShot = async (shot: IllustrationShot): Promise<ImageOutcome> => {
     const onStage = shot.onStage.map((id) => byId.get(id)).filter((entity): entity is VisualEntity => Boolean(entity));
     const drawn = [...onStage, ...(shot.artifactVisible && artifact ? [artifact] : [])];
-    const spriteOrder = drawn.filter((entity) => entity.referenceUrl);
-
-    let references: string[] = [];
-    try {
-      const reference = await buildReference(spriteOrder.map((entity) => ({ imageUrl: entity.referenceUrl!, displayName: entity.name, kind: entity.kind })));
-      references = reference.urls;
-    } catch (err) {
-      // Without the identity sheet the picture cannot be consistent; drawing it
-      // anyway would put a stranger on the page.
-      console.warn(`[storybook/images] reference sheet failed for page ${shot.page}:`, (err as Error)?.message || err);
-      return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD: 0, severity: 0 };
-    }
-    const sheetEntities = references.length > 0 ? spriteOrder : [];
-    const basePrompt = assembleImagePrompt({ scene: shot.scene, onStage: drawn, spriteOrder: sheetEntities });
-    const negativePrompt = negativePromptFor(drawn, sheetEntities.length > 1);
+    const withReferences = drawn.filter((entity) => entity.referenceUrl).sort((a, b) => rank(a) - rank(b));
     const expectedCharacters = onStage.length;
 
-    const attempt = async (attemptNo: number, extra: string): Promise<ImageOutcome> => {
-      const prompt = extra ? `${basePrompt}\n${extra}` : basePrompt;
-      imageCalls += 1;
-      let response: ImageResponse = {};
-      try {
-        response = await input.provider({
-          page: shot.page,
-          prompt,
-          negativePrompt,
-          referenceImages: references,
-          seed: seedFor(input.seed, shot.page, attemptNo),
-          width: input.width ?? 1024,
-          height: input.height ?? 1024,
-        });
-      } catch (err) {
-        console.warn(`[storybook/images] page ${shot.page} attempt ${attemptNo} failed:`, (err as Error)?.message || err);
+    // A page must never stay blank. Story 0039344e lost three of eight
+    // pictures because the only attempt path was "full sheet or nothing".
+    // Ladder: full sheet → the two most important identities → no reference.
+    const ladder: VisualEntity[][] = [withReferences];
+    if (withReferences.length > 2) ladder.push(withReferences.slice(0, 2));
+    if (withReferences.length > 0) ladder.push([]);
+
+    let costUSD = 0;
+    const errors: string[] = [];
+
+    const deliver = async (attemptNo: number, extra: string, startLevel: number) => {
+      let lastPrompt = shot.scene;
+      for (let level = startLevel; level < ladder.length; level += 1) {
+        const sheet = ladder[level];
+        let references: string[] = [];
+        if (sheet.length > 0) {
+          try {
+            references = (await buildReference(sheet.map((entity) => ({ imageUrl: entity.referenceUrl!, displayName: entity.name, kind: entity.kind })))).urls;
+          } catch (err) {
+            errors.push(`sheet ${sheet.map((entity) => entity.name).join("+")}: ${(err as Error)?.message || err}`);
+            continue;
+          }
+        }
+        const base = assembleImagePrompt({ scene: shot.scene, onStage: drawn, spriteOrder: sheet });
+        const prompt = extra ? `${base}
+${extra}` : base;
+        lastPrompt = prompt;
+        imageCalls += 1;
+        try {
+          const response = await input.provider({
+            page: shot.page,
+            prompt,
+            negativePrompt: negativePromptFor(drawn, sheet.length > 1),
+            referenceImages: references,
+            seed: seedFor(input.seed, shot.page, attemptNo * 10 + level),
+            width: input.width ?? 1024,
+            height: input.height ?? 1024,
+          });
+          const cost = Number.isFinite(response.costUSD) ? Number(response.costUSD) : 0;
+          costUSD += cost;
+          imageCostUSD = Number((imageCostUSD + cost).toFixed(6));
+          if (response.url) return { response, references, prompt, level };
+          errors.push(`level ${level}: provider returned no image`);
+        } catch (err) {
+          errors.push(`level ${level} (${references.length ? `${sheet.length} identities` : "no reference"}): ${(err as Error)?.message || err}`);
+        }
+        console.warn(`[storybook/images] page ${shot.page}: ${errors[errors.length - 1]}`);
       }
-      const cost = Number.isFinite(response.costUSD) ? Number(response.costUSD) : 0;
-      imageCostUSD = Number((imageCostUSD + cost).toFixed(6));
-      if (!response.url) return { page: shot.page, prompt, attempts: attemptNo, costUSD: cost, severity: 999 };
+      return { response: {} as ImageResponse, references: [] as string[], prompt: lastPrompt, level: -1 };
+    };
+
+    const attempt = async (attemptNo: number, extra: string, startLevel: number): Promise<ImageOutcome & { level: number }> => {
+      const delivered = await deliver(attemptNo, extra, startLevel);
+      const url = delivered.response.url;
+      if (!url) return { page: shot.page, prompt: delivered.prompt, attempts: attemptNo, costUSD, severity: 999, level: -1 };
 
       let qa: ImageQaReport | undefined;
       if (input.llm && input.visionModel) {
@@ -237,11 +272,11 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
             role: "support",
             model: input.visionModel,
             system: "You are a meticulous picture-book illustration checker. Answer with JSON only.",
-            user: buildQaPrompt(drawn, shot.scene, references.length > 0),
+            user: buildQaPrompt(drawn, shot.scene, delivered.references.length > 0),
             json: true,
             maxTokens: 2500,
             effort: "low",
-            imageInputs: [response.viewUrl || response.url, ...references.slice(0, 1)],
+            imageInputs: [delivered.response.viewUrl || url, ...delivered.references.slice(0, 1)],
             timeoutMs: 60_000,
           });
           qaCalls.push(call);
@@ -250,15 +285,20 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
           console.warn(`[storybook/images] vision check failed for page ${shot.page}:`, (err as Error)?.message || err);
         }
       }
-      return { page: shot.page, url: response.url, prompt, attempts: attemptNo, costUSD: cost, qa, severity: qaSeverity(qa, expectedCharacters) };
+      return { page: shot.page, url, prompt: delivered.prompt, attempts: attemptNo, costUSD, qa, severity: qaSeverity(qa, expectedCharacters), level: delivered.level };
     };
 
-    const first = await attempt(1, "");
-    if (first.severity < 10) return first;
+    const finish = (outcome: ImageOutcome & { level: number }, attempts: number): ImageOutcome => {
+      const { level, ...rest } = outcome;
+      return { ...rest, attempts, costUSD, referenceLevel: level, errors: errors.length ? errors : undefined };
+    };
+
+    const first = await attempt(1, "", 0);
+    // No picture at all even without a reference: nothing a new seed would fix.
+    if (!first.url || first.severity < 10) return finish(first, 1);
     regenerated.push(shot.page);
-    const second = await attempt(2, first.qa ? correctionFor(first.qa) : "");
-    const best = second.severity < first.severity ? second : first;
-    return { ...best, attempts: 2, costUSD: first.costUSD + second.costUSD };
+    const second = await attempt(2, first.qa ? correctionFor(first.qa) : "", Math.max(0, first.level));
+    return finish(second.severity < first.severity ? second : first, 2);
   };
 
   const outcomes = await mapWithLimit(shots, input.concurrency ?? 4, renderShot);

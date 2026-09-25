@@ -24,6 +24,16 @@ const SCORE_SCALE = [
   "0-3 = verwirrend, falsch oder langweilig",
 ];
 
+/** Shared by the review and the final A/B read, so both scores mean the same thing. */
+const SCORE_CAPS = [
+  "HARTE OBERGRENZEN für die Gesamtnote (die niedrigste zutreffende gilt):",
+  "- Die Magie oder das zentrale Ding wird erst beim Einsatz oder gar nicht erklärt → höchstens 6.",
+  "- Die Lösung lässt sich nicht in einem Kindersatz erklären oder kommt von Erwachsenen/Zufall → höchstens 6.",
+  "- Ein Kind weiß auf einer Seite nicht, wo die Figuren sind oder woher ein Gegenstand kommt → höchstens 6.5.",
+  "- Keine Stelle, an der ein Kind laut lacht, obwohl Humor gewünscht ist → höchstens 7.",
+  "- Eine Nebenfigur hat keine Funktion oder verschwindet → höchstens 7.5.",
+];
+
 export function buildReviewSystemPrompt(brief: StoryBrief): string {
   return [
     "Du bist die strengste Lektorin eines Kinderbuchverlags. Du liest das Manuskript wie ein Kind, das es zum ersten Mal hört — ohne Vorwissen, ohne Plan — und wie eine Profi-Lektorin, die es mit den besten Bilderbüchern vergleicht.",
@@ -41,10 +51,19 @@ export function buildReviewSystemPrompt(brief: StoryBrief): string {
     "- Figuren: Klingt jede Figur anders? Ist jede Nebenfigur nötig? Wird jemand ohne Einführung genannt?",
     `- Sprache (${brief.languageLabel}): Grammatik, falsche oder erfundene Wörter, schiefe Bilder, holprige Sätze, Steckbrief-Sätze, benannte statt gezeigte Gefühle, Moral am Ende.`,
     "- Alter und Wünsche: Passt es zu den Zuhörern und zu den Wünschen der Familie?",
+    "- Magie und besondere Dinge: Wird VOR dem ersten Einsatz klar, was es ist und was es tut — in Kinderworten, durch etwas, das man sieht? Ein Schild oder Regeltext zählt nicht.",
+    "- Lösung: Kann ein Sechsjähriger in EINEM Satz sagen, warum sie klappt? Denkt das Kind 'Ach, na klar!'? Umständliche Basteleien, die man nur mit Zeichnung versteht, sind ein mustFix.",
+    "- Orte und Gegenstände: Ist auf jeder Seite klar, wo alle sind und wie Dinge von A nach B kommen?",
+    "- Nebenfiguren: Bewirkt jede Nebenfigur auch in der zweiten Hälfte etwas, oder verschwindet sie?",
+    "- Seitenenden: Endet eine Seite mit einer Frage des Erzählers statt mit einem Ereignis? Das ist ein mustFix.",
+    "- Schlusspointe: Sitzt der letzte Satz ohne Erklärung? Dreht er eine frühere Stelle witzig oder warm um?",
+    "",
+    "WICHTIG: Überhört eine Figur absichtlich etwas, das das Kind schon weiß, ist das dramatische Ironie — ein gewolltes Stilmittel, kein Logikfehler.",
     "",
     "GESAMTNOTE (overall, 0 bis 10, eine Nachkommastelle erlaubt) im Vergleich zu veröffentlichten Top-Bilderbüchern:",
     ...SCORE_SCALE.map((line) => `- ${line}`),
     "Sei ehrlich. Eine 9 braucht sichtbare Leistung auf jeder Seite. Die Einzelnoten gehen von 0 bis 10.",
+    ...SCORE_CAPS,
     "",
     "mustFix: höchstens 8 Punkte, das Wichtigste zuerst, jeder mit Seite, wörtlichem Zitat (5-15 Wörter, exakt aus dem Text), Problem und konkreter Reparatur, die in DIESE Geschichte passt.",
     "polish: höchstens 5 Verbesserungen, die gut, aber nicht nötig sind.",
@@ -204,7 +223,9 @@ export function buildPairwiseSystemPrompt(brief: StoryBrief): string {
   return [
     "Du bist Lektorin eines Kinderbuchverlags. Vor dir liegen zwei Fassungen derselben Geschichte, A und B.",
     `Entscheide, welche Fassung du einem Kind von ${brief.band} Jahren heute Abend vorlesen würdest: die verständlichere, lustigere, spannendere, sprachlich sauberere Fassung, in der die Kinder das Problem selbst lösen.`,
-    "Die Reihenfolge sagt nichts über die Qualität. Länge allein ist kein Vorteil.",
+    "Die Reihenfolge sagt nichts über die Qualität. Länge allein ist kein Vorteil. Erzählerfragen am Seitenende sind ein Nachteil.",
+    "winnerScore bewertet die Siegerfassung gegen veröffentlichte Top-Bilderbücher (10 = Der Grüffelo, Pettersson und Findus).",
+    ...SCORE_CAPS,
     "Antworte ausschließlich mit JSON: {\"winner\": \"A\" oder \"B\", \"reason\": \"ein Satz\", \"remainingProblems\": [\"was in der Siegerfassung noch stört\"], \"winnerScore\": Note 0-10 der Siegerfassung im Vergleich zu veröffentlichten Top-Bilderbüchern}",
   ].join("\n");
 }
@@ -229,7 +250,7 @@ export async function runPairwiseStage(
     user: ["FASSUNG A:", renderStoryForPrompt(a.title, a.pages), "", "FASSUNG B:", renderStoryForPrompt(b.title, b.pages)].join("\n"),
     json: true,
     maxTokens: 6000,
-    effort: "low",
+    effort: "none",
     temperature: 0,
   });
   const raw = parseJsonObject<any>(call.text);

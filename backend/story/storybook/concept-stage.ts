@@ -212,7 +212,9 @@ export async function runConceptStage(llm: StorybookLlm, brief: StoryBrief, mode
     user: buildConceptUserPrompt(brief, engines),
     json: true,
     maxTokens: 14000,
-    effort: "medium",
+    // "medium" took 106 s of a 242 s run (0039344e) for ideas the plan stage
+    // re-judges and repairs anyway; the logic work happens in the plan.
+    effort: "low",
     temperature: 0.95,
   });
   const pitches = sanitizePitches(parseJsonObject<any>(call.text), brief, engines);

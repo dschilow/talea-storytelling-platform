@@ -136,6 +136,20 @@ export function checkPlan(plan: StoryPlan | null, brief: StoryBrief): CheckRepor
     if (!member.want) issues.push({ code: "cast_no_want", severity: "soft", message: `${member.name} hat keinen eigenen Wunsch.` });
   }
 
+  if (!plan.solutionWhy) {
+    issues.push({ code: "solution_unexplained", severity: "hard", message: "Es fehlt solutionWhy: ein Kindersatz, warum die Lösung klappt. Ist das nicht einfach sagbar, braucht die Geschichte eine einleuchtendere Lösung." });
+  }
+  if (plan.worldRule && !plan.ruleIntro) {
+    issues.push({ code: "rule_not_introduced", severity: "hard", message: "Die magische Regel wird nicht vorgeführt, bevor sie gebraucht wird (ruleIntro fehlt). Zeig sie auf Seite 1 oder 2 in einer kleinen Szene." });
+  }
+  const secondHalfStart = Math.floor(plan.pages.length / 2) + 1;
+  for (const member of plan.cast) {
+    const late = plan.pages.some((page) => page.page >= secondHalfStart && page.onPage.includes(member.id));
+    if (!late) {
+      issues.push({ code: "cast_vanishes", severity: "hard", message: `${member.name} verschwindet nach der ersten Hälfte. Gib der Figur in der zweiten Hälfte (Tiefpunkt, Finale oder Schlusspointe) eine Aufgabe, die etwas bewirkt.` });
+    }
+  }
+
   const brought = brief.artifacts.find((artifact) => artifact.broughtBy);
   if (brought && plan.artifact?.id !== brought.id) {
     issues.push({ code: "brought_artifact_missing", severity: "hard", message: `Das mitgebrachte Artefakt „${brought.name}“ fehlt im Plan.` });
@@ -223,6 +237,13 @@ export function checkProse(input: ProseCheckInput): CheckReport {
     }
     if (worst >= 3) {
       issues.push({ code: "fragment_staccato", severity: "soft", message: `Seite ${page.order}: ${worst} Ein-bis-drei-Wort-Sätze hintereinander.`, page: page.order });
+    }
+    // A page that ends on a narrator's question ("Ob das gut geht?") instead of
+    // an event. Story 0039344e's revision lost the blind A/B read on exactly this.
+    const lastParagraph = page.content.trim().split(/\n+/).pop() || "";
+    const lastSentence = splitSentences(lastParagraph).pop() || "";
+    if (/\?\s*$/.test(lastSentence) && !/[„"»«“”]/.test(lastSentence)) {
+      issues.push({ code: "narrator_question", severity: "soft", message: `Seite ${page.order} endet mit einer Erzählerfrage („${lastSentence.slice(0, 80)}“). Ende stattdessen mit einem Ereignis, Geräusch oder einer Entdeckung.`, page: page.order });
     }
     const dump = sentences.find((sentence) => CHARACTER_SHEET_RE.test(sentence));
     if (dump) {

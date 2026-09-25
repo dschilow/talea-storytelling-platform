@@ -33,6 +33,19 @@ export async function renderIdentitySprite(images: Buffer[]): Promise<Buffer> {
     .composite(tiles.map((input, index) => ({ input, left: index * cell, top: 0 }))).png().toBuffer();
 }
 
+/**
+ * What actually travels to the image provider. The canvas is rendered as PNG,
+ * but a lossless PNG of three portraits is ~2.5 MB of base64 — and in story
+ * 0039344e (2026-09-25) exactly the three pages whose sheet held three
+ * characters never reached Runware at all (11 calls for 8 pictures, no
+ * provider response logged), while every two-character sheet (1.7 MB) went
+ * through. JPEG q90 without chroma subsampling keeps faces and colours crisp
+ * at ~0.4 MB for three and ~0.55 MB for four portraits.
+ */
+export async function encodeReferenceSprite(png: Buffer): Promise<Buffer> {
+  return sharp(png).jpeg({ quality: 90, chromaSubsampling: "4:4:4" }).toBuffer();
+}
+
 /** Runware supports Data URIs. An inline sprite needs no upload, signed URL,
  * storage round-trip or extra model call. Never append the source portraits.
  * A failed download fails this preparation; identities are never renumbered
@@ -56,8 +69,8 @@ export function createIdentityReferenceCache(fetcher: typeof fetch = fetch): Ide
       if (slots.some(s => !isProviderReadableReference(s.imageUrl))) throw new Error("Reference image is not provider-readable");
       const subjects = slots.map(s => ({ displayName: s.displayName, kind: s.kind || "character" as const }));
       if (slots.length === 1) return { urls: [slots[0].imageUrl], mode: "single", subjects };
-      const buffer = await renderIdentitySprite(await Promise.all(slots.map(s => download(s.imageUrl))));
-      return { urls: [`data:image/png;base64,${buffer.toString("base64")}`], mode: "sprite", subjects };
+      const buffer = await encodeReferenceSprite(await renderIdentitySprite(await Promise.all(slots.map(s => download(s.imageUrl)))));
+      return { urls: [`data:image/jpeg;base64,${buffer.toString("base64")}`], mode: "sprite", subjects };
     })());
     return sprites.get(key)!;
   };

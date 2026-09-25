@@ -63,7 +63,7 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
     messages: [{ role: "system", content: request.system }, { role: "user", content: userContent }],
     max_tokens: request.maxTokens,
     usage: { include: true },
-    reasoning: resolveStorybookReasoning(model, request.effort),
+    reasoning: resolveStorybookReasoning(model, request.effort, request.role),
     include_reasoning: false,
   };
   if (request.json) body.response_format = { type: "json_object" };
@@ -222,15 +222,15 @@ if (!flag("--no-images")) {
   const entities: VisualEntity[] = [];
   for (const hero of brief.heroes) {
     const { species, isHuman } = speciesFromProfile(hero.visualProfile, "human");
-    entities.push({ id: hero.id, name: hero.name, kind: "character", species, isHuman, appearance: heroAppearance(hero.visualProfile), forbidden: [], referenceUrl: hero.imageUrl });
+    entities.push({ id: hero.id, name: hero.name, kind: "character", role: "hero", species, isHuman, appearance: heroAppearance(hero.visualProfile), forbidden: [], referenceUrl: hero.imageUrl });
   }
   for (const member of text.plan.cast) {
     const candidate = candidates.find((entry) => entry.id === member.id)!;
     const { species, isHuman } = speciesFromProfile(candidate.visualProfile, candidate.species);
-    entities.push({ id: candidate.id, name: candidate.name, kind: "character", species, isHuman, appearance: castAppearance(candidate.visualProfile, candidate.physicalDescription), forbidden: [], referenceUrl: publicImageUrl(candidate.imageUrl) });
+    entities.push({ id: candidate.id, name: candidate.name, kind: "character", role: "cast", species, isHuman, appearance: castAppearance(candidate.visualProfile, candidate.physicalDescription), forbidden: [], referenceUrl: publicImageUrl(candidate.imageUrl) });
   }
   const artifact = text.plan.artifact ? artifacts.find((entry) => entry.id === text.plan.artifact!.id) : undefined;
-  if (artifact) entities.push({ id: `artifact:${artifact.id}`, name: artifact.name, kind: "artifact", species: "object", isHuman: false, appearance: artifact.visualKeywords.join(", "), forbidden: [], referenceUrl: publicImageUrl(artifact.imageUrl) });
+  if (artifact) entities.push({ id: `artifact:${artifact.id}`, name: artifact.name, kind: "artifact", role: "artifact", species: "object", isHuman: false, appearance: artifact.visualKeywords.join(", "), forbidden: [], referenceUrl: publicImageUrl(artifact.imageUrl) });
 
   const director = await runDirectorStage(llm, { brief, title: text.title, pages: text.pages, plan: text.plan, entities }, models.support);
   if (director.call) ledger.recordCall("illustration-direction", director.call, "support");

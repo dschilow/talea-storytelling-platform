@@ -17,14 +17,20 @@
  *             grading its own prose grades it generously; that exact
  *             collision inflated a 6.5/10 story to 8.1 (audit 2026-08-06) and
  *             produced storybook-v1's weakest run (6683b402).
+ *             Default: Claude Sonnet 5 — the Sonnet line is what EQ-Bench itself
+ *             uses to judge creative writing. Gemini 3.5 Flash-Lite (the first
+ *             choice) scored story 0039344e 8/10 where a careful read gives
+ *             ~5.5: the wish basin was never introduced as one, the solution
+ *             could not be explained in a child's sentence, and the pool
+ *             character vanished after page 2 — none of it was flagged.
  */
 
 import type { StoryConfig } from "../generate";
 
 export const STORYBOOK_SUPPORT_MODEL = "openai/gpt-6-luna";
 export const STORYBOOK_DEFAULT_WRITER_MODEL = "openai/gpt-6-luna";
-/** Independent critic whenever the writer is an OpenAI model. Also reads images. */
-export const STORYBOOK_CROSS_FAMILY_CRITIC_MODEL = "google/gemini-3.5-flash-lite";
+/** Independent critic for every writer that is not itself a Claude model. */
+export const STORYBOOK_CROSS_FAMILY_CRITIC_MODEL = "anthropic/claude-sonnet-5";
 /** Used once, only after a model returned nothing usable. */
 export const STORYBOOK_FALLBACK_MODEL = "google/gemini-3.5-flash-lite";
 
@@ -102,7 +108,7 @@ export function resolveStorybookModels(
 
   let critic = overrides.critic || "";
   if (!critic || modelFamily(critic) === modelFamily(writer)) {
-    critic = modelFamily(writer) === "openai" ? STORYBOOK_CROSS_FAMILY_CRITIC_MODEL : STORYBOOK_SUPPORT_MODEL;
+    critic = modelFamily(writer) === modelFamily(STORYBOOK_CROSS_FAMILY_CRITIC_MODEL) ? STORYBOOK_SUPPORT_MODEL : STORYBOOK_CROSS_FAMILY_CRITIC_MODEL;
   }
   return { writer, support, critic };
 }

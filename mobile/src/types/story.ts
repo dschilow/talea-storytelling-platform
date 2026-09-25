@@ -36,6 +36,7 @@ export type OpenRouterStoryModel =
   | '~openai/gpt-mini-latest'
   | 'qwen/qwen3.6-max-preview'
   | 'openai/gpt-6-luna'
+  | 'moonshotai/kimi-k3'
   | 'openai/gpt-5.6-luna'
   | 'openai/gpt-5.6-terra';
 

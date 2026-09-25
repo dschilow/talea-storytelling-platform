@@ -232,7 +232,10 @@ export const CRAFT_RULES: string[] = [
   "Komik entsteht aus Figuren und Situationen, die man sehen kann: jemand ist sich lächerlich sicher, eine kleine Panne schaukelt sich auf, etwas wird wörtlich genommen, ein Laufgag kehrt dreimal wieder und kippt beim dritten Mal. Kein Erzähler, der Witze erklärt, kein 'alle lachten'.",
   "Dramatische Ironie: mindestens einmal weiß das zuhörende Kind mehr als eine Figur und möchte rufen 'Pass auf!' oder 'Das war doch …!'.",
   "Spannung braucht etwas Sichtbares, das droht (eine Uhr, ein Gegner, ein wackelnder Turm), und einen Tiefpunkt kurz vor Schluss, an dem es aussieht, als wäre alles verloren.",
-  "Jede Seite endet mit einem Grund umzublättern: eine konkrete offene Frage, ein Geräusch, eine Überraschung. Die Auflösung steht erst auf der nächsten Seite.",
+  "Jede Seite endet mit einem Grund umzublättern — und zwar in der HANDLUNG: ein Geräusch, eine Entdeckung, etwas kippt, jemand ruft. Die Frage entsteht im Kopf des Kindes; der Erzähler stellt keine Fragen ('Ob das gut geht?'). Die Auflösung steht erst auf der nächsten Seite.",
+  "Magie und besondere Dinge werden eingeführt, BEVOR sie gebraucht werden: was es ist und was es tut, in Kinderworten, am besten durch eine kleine Vorführung, die man sieht. Nie als Schild, Inschrift oder Regeltext.",
+  "Die Lösung ist eine überraschende, aber sofort einleuchtende Idee — das Kind denkt 'Ach, na klar!'. Sie nutzt genau die Regel, Schwäche oder Eigenart, die vorher gezeigt wurde. Keine umständliche Bastelei, die man nur mit Zeichnung versteht.",
+  "Auf jeder Seite ist klar, wo alle sind und was sie in der Hand haben. Jeder Ortswechsel steht als eigener kurzer Satz da.",
   "Gefühle werden gezeigt, nicht benannt: am Körper, an der Stimme, an dem, was jemand tut. Die Kinder dürfen Angst, Wut oder Enttäuschung haben, und das wird ernst genommen.",
   "Nebenfiguren haben einen eigenen Wunsch und EINE unverwechselbare Eigenart (Stimme, Geste, Tick), die in der Handlung etwas bewirkt. Wer gestrichen werden könnte, ohne dass etwas fehlt, gehört nicht in die Geschichte.",
   "Das Ende zahlt alles aus, was vorbereitet wurde, und kehrt zum Anfangsbild zurück — verwandelt. Die letzte Seite endet mit einer kleinen Schlusspointe oder einem warmen Bild, nie mit einer Lehre.",
@@ -253,7 +256,10 @@ export function buildLanguageRules(band: AgeBand, languageLabel: string): string
     "Klangwörter und Geräusche sparsam, aber genau (Platsch! Rumms! Knirsch.). Sie markieren die Höhepunkte.",
     "Dialoge sind kurz, jede Figur klingt anders. Direkte Rede treibt die Handlung, sie erklärt sie nicht.",
     "Vergleiche kommen aus der Welt der Kinder (Spielzeug, Tiere, Essen, Wetter). Keine erfundenen Wörter, keine Erwachsenen-Ironie, kein Fachjargon.",
-    "Figuren werden durch das eingeführt, was sie tun oder sagen — nie durch einen Steckbrief-Satz ('X ist ein … mit …').",
+    "Figuren werden durch das eingeführt, was sie tun oder sagen — nie durch einen Steckbrief-Satz ('X ist ein … mit …'). Beim ersten Auftritt erfährt das Kind nebenbei, was die Figur ist (ein Fuchs, eine Hexe, ein Bäcker).",
+    "Wichtiges in Kinderworten statt Begriffen: nicht 'Es liefert Gegenstände, aber keine fertigen Handlungen', sondern 'Es gibt dir Sachen. Aber helfen musst du selbst.'",
+    "Vorbereitete Details zeigst du beiläufig. Niemand kündigt an, wofür etwas später gut ist.",
+    "Keine Erzählerfragen und keine Kommentare über die Geschichte. Fragen stellen nur Figuren.",
     "Keine Ketten aus Ein-Wort-Sätzen, keine Nebensatz-Schachteln. Laut vorgelesen darf niemand stolpern.",
   ];
 }

@@ -79,7 +79,11 @@ export function renderPlanForWriter(plan: StoryPlan, brief: StoryBrief): string 
   lines.push(`TITEL: ${plan.title}`);
   lines.push(`WORUM ES GEHT: ${plan.logline}`);
   lines.push(`WAS DIE HELDEN WOLLEN: ${plan.want} — auf dem Spiel steht: ${plan.stakes}`);
-  if (plan.worldRule) lines.push(`DIE REGEL DIESER WELT (gilt immer gleich, man sieht sie wirken, niemand erklärt sie lang): ${plan.worldRule}`);
+  if (plan.worldRule) {
+    lines.push(`DIE REGEL DIESER WELT (gilt immer gleich, man sieht sie wirken, niemand erklärt sie lang): ${plan.worldRule}`);
+    if (plan.ruleIntro) lines.push(`  So versteht das Kind sie, BEVOR sie gebraucht wird: ${plan.ruleIntro}`);
+  }
+  if (plan.solutionWhy) lines.push(`WARUM DIE LÖSUNG KLAPPT (muss am Ende für ein Kind sofort einleuchten): ${plan.solutionWhy}`);
   if (plan.runningGag.what) {
     lines.push(`DER LAUFGAG: ${plan.runningGag.what}`);
     plan.runningGag.beats.forEach((beat, index) => lines.push(`  ${index + 1}. ${beat}`));
@@ -206,6 +210,8 @@ export function buildRevisionUserPrompt(input: {
     for (const quote of review.keep) lines.push(`- „${quote}“`);
     lines.push("");
   }
+  lines.push("BEIM ÜBERARBEITEN NICHT: neue Erzählerfragen am Seitenende, neue Figuren, Erklärsätze statt Szenen.");
+  lines.push("");
   lines.push(...lengthBlock(brief));
   lines.push("", "Gib die vollständige überarbeitete Geschichte im selben Format aus (TITEL, BESCHREIBUNG, SEITE 1 …).");
   return lines.join("\n");

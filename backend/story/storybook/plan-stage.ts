@@ -59,6 +59,9 @@ export function buildPlanSystemPrompt(): string {
     "- Setups: mindestens zwei Dinge, die früh gezeigt und später ausgezahlt werden.",
     "- Der Satz zum Mitsprechen (refrain) ist für junge Zuhörer ein großes Geschenk: 3 bis 7 Wörter, von einer Figur gesprochen, dreimal, beim dritten Mal mit neuer Bedeutung. Nur weglassen (null), wenn er die Geschichte stören würde.",
     "- Keine unbelegten Behauptungen: Wer etwas weiß, hat es auf einer früheren Seite erfahren. Wer etwas benutzt, hat es dabei.",
+    "- Gibt es Magie oder ein besonderes Ding, wird es auf Seite 1 oder 2 VORGEFÜHRT (ruleIntro): man sieht einmal, was passiert, und eine Figur sagt es in Kinderworten. Kein Schild, keine Inschrift.",
+    "- solutionWhy: ein einziger Satz, mit dem ein Sechsjähriger erklären kann, warum die Lösung klappt. Wenn du ihn nicht einfach sagen kannst, ist die Lösung zu kompliziert — dann erfinde eine bessere.",
+    "- Jede Nebenfigur ist auch in der zweiten Hälfte dabei und bewirkt dort etwas (beim Tiefpunkt, im Finale oder in der Schlusspointe).",
     "",
     "Antworte ausschließlich mit einem gültigen JSON-Objekt. Alle Textfelder in der Sprache der Geschichte, außer den ids.",
   ].join("\n");
@@ -140,6 +143,8 @@ export function buildPlanUserPrompt(brief: StoryBrief, pitches: StoryPitch[], re
         want: "was die Kinder wollen (anfassbar)",
         stakes: "was verloren geht, wenn es nicht klappt",
         worldRule: "die eine magische Regel mit ihrer sichtbaren Folge — oder null",
+        ruleIntro: "auf welcher Seite und durch welche kleine Vorführung das Kind die Regel versteht, bevor sie gebraucht wird — oder null",
+        solutionWhy: "ein Satz in Kinderworten: warum klappt die Lösung?",
         refrain: "der Satz zum Mitsprechen — oder null",
         runningGag: { what: "der Laufgag", beats: ["1. Mal", "2. Mal, größer", "3. Mal, gekippt"] },
         dramaticIrony: "was das zuhörende Kind weiß, die Figur aber nicht — und auf welcher Seite",
@@ -236,6 +241,7 @@ export function sanitizePlan(raw: any, brief: StoryBrief, pitches: StoryPitch[])
   const chosenPitch = Math.max(0, Math.min(pitches.length - 1, Math.round(Number(raw.chosenPitch)) || 0));
   const refrain = text(raw.refrain, 90);
   const worldRule = text(raw.worldRule, 300);
+  const ruleIntro = text(raw.ruleIntro, 300);
   return {
     title: text(raw.title, 90) || pitches[chosenPitch]?.title || "",
     logline: text(raw.logline, 400) || pitches[chosenPitch]?.logline || "",
@@ -245,6 +251,8 @@ export function sanitizePlan(raw: any, brief: StoryBrief, pitches: StoryPitch[])
     want: text(raw.want, 300),
     stakes: text(raw.stakes, 300),
     worldRule: worldRule && !/^null$/i.test(worldRule) ? worldRule : null,
+    ruleIntro: ruleIntro && !/^null$/i.test(ruleIntro) ? ruleIntro : null,
+    solutionWhy: text(raw.solutionWhy, 300),
     refrain: refrain && !/^null$/i.test(refrain) ? refrain : null,
     runningGag: {
       what: text(raw.runningGag?.what, 300),

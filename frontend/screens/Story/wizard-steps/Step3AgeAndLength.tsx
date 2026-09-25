@@ -68,6 +68,8 @@ const MODEL_CONFIGS: ModelConfig[] = [
 const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
   // Released 2026-09-22; list price verified against the OpenRouter catalog on 2026-09-25.
   { id: 'openai/gpt-6-luna', title: '🆕 GPT-6 Luna — neu, sehr günstig (Standard im Bilderbuch-Modus)', provider: 'OpenAI', cost: '$0.10 in / $0.50 out' },
+  // EQ-Bench Creative Writing v3 (2026-09-25): Kimi K3 2082 vs Kimi K2.6 1725.
+  { id: 'moonshotai/kimi-k3', title: 'Kimi K3 — stärkster Geschichten-Autor (EQ-Bench), teuer', provider: 'Moonshot AI', cost: '$3 in / $15 out' },
   { id: 'moonshotai/kimi-k2.6', title: '⭐ Kimi K2.6 — Empfohlen (beste Story-Qualität/Preis)', provider: 'Moonshot AI', cost: '$0.65 in / $3.41 out' },
   { id: 'z-ai/glm-5.2', title: 'GLM-5.2 — sehr gute Story-Qualität', provider: 'Z.ai', cost: '$0.90 in / $3.08 out' },
   { id: 'aion-labs/aion-3.0-mini', title: 'Aion 3.0 Mini - Story/Roleplay Test', provider: 'AionLabs', cost: '$0.70 in / $1.40 out' },

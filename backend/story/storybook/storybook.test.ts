@@ -79,6 +79,8 @@ function planFor(b: StoryBrief, overrides: Partial<StoryPlan> = {}): StoryPlan {
     want: "das Brot retten",
     stakes: "kein Fest",
     worldRule: null,
+    ruleIntro: null,
+    solutionWhy: "Der Kobold niest immer, wenn er lügt — also verrät ihn sein Niesen.",
     refrain: "Mehl im Haar, Kobold da!",
     runningGag: { what: "Kicher niest", beats: ["1", "2", "3"] },
     dramaticIrony: "Das Kind sieht den Kobold im Sack.",
@@ -111,15 +113,22 @@ describe("model routing", () => {
     expect(modelFamily(models.critic)).not.toBe(modelFamily(models.writer));
   });
 
-  test("a Gemini writer gets the Luna critic", () => {
-    const models = resolveStorybookModels({ aiProvider: "native", aiModel: "gemini-3.1-pro-preview" } as any);
-    expect(models.writer).toBe("google/gemini-3.1-pro-preview");
+  test("run 0039344e: Flash-Lite scored a ~5.5 story 8/10 — the default critic is Claude Sonnet 5", () => {
+    const models = resolveStorybookModels({ aiProvider: "openrouter", openRouterModel: "openai/gpt-6-luna" } as any);
+    expect(models.critic).toBe("anthropic/claude-sonnet-5");
+    const gemini = resolveStorybookModels({ aiProvider: "native", aiModel: "gemini-3.1-pro-preview" } as any);
+    expect(gemini.writer).toBe("google/gemini-3.1-pro-preview");
+    expect(gemini.critic).toBe("anthropic/claude-sonnet-5");
+  });
+
+  test("a Claude writer is never graded by a Claude critic", () => {
+    const models = resolveStorybookModels({ aiProvider: "native", aiModel: "claude-sonnet-4-6" } as any);
     expect(models.critic).toBe("openai/gpt-6-luna");
   });
 
   test("an override critic from the writer's own family is rejected", () => {
     const models = resolveStorybookModels({ aiProvider: "openrouter", openRouterModel: "openai/gpt-6-luna" } as any, { critic: "openai/gpt-6-luna-pro" });
-    expect(modelFamily(models.critic)).toBe("google");
+    expect(modelFamily(models.critic)).toBe("anthropic");
   });
 
   test("native wizard ids map onto OpenRouter ids", () => {
@@ -136,6 +145,10 @@ describe("model routing", () => {
     expect(resolveStorybookReasoning("moonshotai/kimi-k2.6", "medium")).toEqual({ enabled: false, exclude: true });
     expect(acceptsTemperature("openai/gpt-6-luna")).toBe(false);
     expect(acceptsTemperature("moonshotai/kimi-k2.6")).toBe(true);
+    expect(acceptsTemperature("anthropic/claude-sonnet-5")).toBe(false);
+    expect(resolveStorybookReasoning("anthropic/claude-sonnet-5", "medium", "critic")).toEqual({ effort: "low", exclude: true });
+    expect(resolveStorybookReasoning("anthropic/claude-sonnet-5", "none", "critic")).toEqual({ enabled: false, exclude: true });
+    expect(resolveStorybookReasoning("anthropic/claude-sonnet-5", "low", "writer")).toEqual({ enabled: false, exclude: true });
   });
 });
 
@@ -192,6 +205,23 @@ describe("fact gates", () => {
     const b = brief({ artifacts: [{ id: "art-1", name: "Kompass der Winde", rule: "zeigt, wo der Wind herkommt", visualKeywords: [], broughtBy: "a1" }] });
     const report = checkPlan(planFor(b), b);
     expect(report.hard.some((issue) => issue.code === "brought_artifact_missing")).toBe(true);
+  });
+
+  test("run 0039344e: an unexplainable solution, an unshown rule and a vanishing pool character are hard failures", () => {
+    const b = brief();
+    const plan = planFor(b, { solutionWhy: "", worldRule: "Das Becken erfüllt Wünsche wörtlich.", ruleIntro: null });
+    plan.pages = plan.pages.map((page) => ({ ...page, onPage: page.page <= 2 ? page.onPage : ["a1", "a2"] }));
+    const codes = checkPlan(plan, b).hard.map((issue) => issue.code);
+    expect(codes).toContain("solution_unexplained");
+    expect(codes).toContain("rule_not_introduced");
+    expect(codes).toContain("cast_vanishes");
+  });
+
+  test("a page ending on a narrator's question is flagged, a character's question is not", () => {
+    const b = brief();
+    const pages = storyPages(7, (page) => `Alexander, Adrian und Kicher ${WORDS(100)} ${page === 3 ? "Ob das wohl gut geht?" : "„Wer war das?“, fragte Adrian."}`);
+    const flagged = checkProse({ pages, budget: b.budget, plan: planFor(b), brief: b }).soft.filter((issue) => issue.code === "narrator_question");
+    expect(flagged.map((issue) => issue.page)).toEqual([3]);
   });
 
   test("a complete plan passes", () => {
@@ -371,10 +401,54 @@ describe("images", () => {
   });
 
   test("severity: anatomy and bleed are severe, a missing background figure is not", () => {
-    const clean = { anatomyDefects: [], animalFeaturesOnHumans: [], duplicates: [], unexpectedCharacters: [], textVisible: false, referenceSheetVisible: false, identityMatch: 0.9, sceneMatch: 0.9, namedCharactersVisible: 2 };
+    const clean = { anatomyDefects: [], animalFeaturesOnHumans: [], duplicates: [], unexpectedCharacters: [], roleSwaps: [], textVisible: false, referenceSheetVisible: false, identityMatch: 0.9, sceneMatch: 0.9, namedCharactersVisible: 2 };
     expect(qaSeverity(clean, 2)).toBe(0);
     expect(qaSeverity({ ...clean, namedCharactersVisible: 1 }, 2)).toBeLessThan(10);
     expect(qaSeverity({ ...clean, animalFeaturesOnHumans: ["fox ears"] }, 2)).toBeGreaterThanOrEqual(10);
+    expect(qaSeverity({ ...clean, roleSwaps: ["Alexander climbs instead of Adrian"] }, 2)).toBeGreaterThanOrEqual(10);
+  });
+
+  test("run 0039344e: a sheet the provider rejects never leaves the page blank", async () => {
+    const three: VisualEntity[] = [
+      { id: "a1", name: "Alexander", kind: "character", role: "hero", species: "human", isHuman: true, appearance: "boy", forbidden: [], referenceUrl: "https://r/a.png" },
+      { id: "bo", name: "Bo", kind: "character", role: "cast", species: "fox", isHuman: false, appearance: "fox", forbidden: [], referenceUrl: "https://r/bo.png" },
+      { id: "a2", name: "Adrian", kind: "character", role: "hero", species: "human", isHuman: true, appearance: "boy", forbidden: [], referenceUrl: "https://r/b.png" },
+    ];
+    const sheetsSent: string[][] = [];
+    const result = await generateStorybookImages({
+      illustrations: { cover: { page: 0, scene: "cover", onStage: ["a1", "a2"], artifactVisible: false }, pages: [{ page: 1, scene: "p1", onStage: ["bo", "a1", "a2"], artifactVisible: false }] },
+      entities: three,
+      seed: "s",
+      buildReference: async (slots) => ({ urls: [`sheet:${slots.map((slot) => slot.displayName).join("+")}`], mode: slots.length > 1 ? "sprite" : "single", subjects: slots.map((slot) => ({ displayName: slot.displayName, kind: slot.kind || "character" })) }),
+      provider: async (request) => {
+        sheetsSent.push(request.referenceImages);
+        // The internal RPC refused the three-identity sheet (too large).
+        if (request.referenceImages[0]?.split("+").length === 3) throw new Error("payload too large");
+        return { url: `https://img/${request.page}.jpg`, costUSD: 0.0006 };
+      },
+    });
+    const page = result.pages.get(1)!;
+    expect(page.url).toBe("https://img/1.jpg");
+    expect(page.referenceLevel).toBe(1);
+    // Heroes keep their place when the sheet shrinks.
+    expect(sheetsSent).toContainEqual(["sheet:Alexander+Adrian"]);
+    expect(page.errors?.[0]).toContain("payload too large");
+    expect(result.imagesGenerated).toBe(2);
+  });
+
+  test("with every sheet refused, the picture is drawn without a reference rather than skipped", async () => {
+    const entities: VisualEntity[] = [
+      { id: "a1", name: "Alexander", kind: "character", role: "hero", species: "human", isHuman: true, appearance: "boy", forbidden: [], referenceUrl: "https://r/a.png" },
+    ];
+    const result = await generateStorybookImages({
+      illustrations: { cover: { page: 0, scene: "cover", onStage: ["a1"], artifactVisible: false }, pages: [] },
+      entities,
+      seed: "s",
+      buildReference: async () => { throw new Error("download 403"); },
+      provider: async (request) => ({ url: request.referenceImages.length === 0 ? "https://img/cover.jpg" : undefined }),
+    });
+    expect(result.cover?.url).toBe("https://img/cover.jpg");
+    expect(result.cover?.referenceLevel).toBe(1);
   });
 });
 
@@ -412,7 +486,7 @@ describe("engine flow (scripted port)", () => {
     const result = await runStorybookTextEngine({ llm, brief: b, models, ledger });
 
     expect(stages.map((stage) => stage.split(":")[0])).toEqual(["concept", "plan", "draft", "review", "revision", "final-ab"]);
-    expect(stages.find((stage) => stage.startsWith("review"))).toContain("google/");
+    expect(stages.find((stage) => stage.startsWith("review"))).toContain("anthropic/");
     expect(result.chosen).toBe("revision");
     expect(result.pages[0].content).toContain("FASSUNG2");
     expect(result.benchmarkScore).toBe(8.4);
