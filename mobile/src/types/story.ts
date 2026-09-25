@@ -35,6 +35,7 @@ export type OpenRouterStoryModel =
   | '~anthropic/claude-sonnet-latest'
   | '~openai/gpt-mini-latest'
   | 'qwen/qwen3.6-max-preview'
+  | 'openai/gpt-6-luna'
   | 'openai/gpt-5.6-luna'
   | 'openai/gpt-5.6-terra';
 

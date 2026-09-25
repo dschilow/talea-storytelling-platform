@@ -44,7 +44,7 @@ if (args[0] === "audit") {
     candidates: normalizePeople(input.candidates || []), artifacts: normalizeArtifacts(input.artifacts || [], input.config.language || "de"), blockedTerms: input.blockedTerms || [], recentPremises: input.recentPremises || [],
   }) : input;
   const writer = option("--writer") || (input.config ? writerModel(input.config) : "moonshotai/kimi-k2.6");
-  const reviewer = option("--reviewer") || (writer === "openai/gpt-5.6-luna" ? "google/gemini-3.1-flash-lite" : "openai/gpt-5.6-luna");
+  const reviewer = option("--reviewer") || (/^openai\/gpt-(5\.6|6)-luna/.test(writer) ? "google/gemini-3.1-flash-lite" : "openai/gpt-6-luna");
   const output = option("--output") || "Logs/book-workshop-audit/workshop-result.json";
   if (!args.includes("--live")) {
     const prompt = planPrompt(brief), price = VERIFIED_PRICES[reviewer];

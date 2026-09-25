@@ -112,14 +112,19 @@ const DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview";
 // tier, which is what this role actually needs — the hard gates it feeds have
 // repeatedly mis-scored structural craft (see the 2026-07-28 audit note that
 // "hard gates measure form, never craft").
-const DEV_MODE_SUPPORT_MODEL = "openai/gpt-5.6-luna";
+//
+// 2026-09-25: gpt-5.6-luna → gpt-6-luna. Same Artificial Analysis intelligence
+// index (37.3 vs 37.3), better on structured output and abstention, half the
+// input and 58% less output price. Human-facing prose regressed in external
+// evals, which does not matter here: this role emits JSON for machines.
+const DEV_MODE_SUPPORT_MODEL = "openai/gpt-6-luna";
 // Vision QA also runs on Luna. This is the only support call that needs image
 // input, so it is the one stage where the model switch carries a capability
 // risk rather than just a cost/quality trade — the call is wrapped in a
 // try/catch (§12H) that degrades to "no QA finding" instead of failing the
 // story, and DEV_MODE_VISION_QA_FALLBACK_MODEL takes over when Luna rejects
-// the multimodal request outright.
-const DEV_MODE_VISION_QA_MODEL = "openai/gpt-5.6-luna";
+// the multimodal request outright. gpt-6-luna lists image input on OpenRouter.
+const DEV_MODE_VISION_QA_MODEL = "openai/gpt-6-luna";
 // Proven vision-capable fallback, used only when the primary QA model errors.
 const DEV_MODE_VISION_QA_FALLBACK_MODEL = "google/gemini-3.5-flash-lite";
 // The 9B variant regressed badly with multiple portrait references (merged
@@ -3418,7 +3423,11 @@ async function generateDevModeImages(
             responseFormat: "json_object",
             imageInputs: images,
             temperature: 0,
-            maxTokens: 900,
+            // Explicit effort: implicit "medium" reasoning is hidden but still
+            // billed against max_tokens, and a truncated verdict parses as a
+            // failed check that triggers a paid regeneration.
+            reasoning: openRouterReasoningForDevMode(model),
+            maxTokens: 1400,
           });
         } catch (err) {
           lastError = err;

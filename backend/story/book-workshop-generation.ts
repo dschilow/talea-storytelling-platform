@@ -68,7 +68,7 @@ export async function generateStoryBookWorkshop(input: StorybookGenerationInput 
   });
   const writer = writerModel(config);
   // Reviewer from another family than the writer: a Luna writer must not be graded by a Luna.
-  const reviewer = /^openai\/gpt-(5\.6|6)-luna/.test(writer) ? "google/gemini-3.1-flash-lite" : "openai/gpt-5.6-luna";
+  const reviewer = /^openai\/gpt-(5\.6|6)-luna/.test(writer) ? "google/gemini-3.1-flash-lite" : "openai/gpt-6-luna";
   const startedAt = Date.now();
   const result = await generateBook(brief, {
     writer, reviewer, prices: await resolvePrices([writer, reviewer]),

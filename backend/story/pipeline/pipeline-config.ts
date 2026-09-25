@@ -92,7 +92,7 @@ const DEFAULT_CONFIG: PipelineConfig = {
   soulAwareCriticMinScore: 8.6,
   soulApprovedSingleCandidate: true,
   soulGeneratorMaxOutputTokens: 3000,
-  soulGateModel: "openai/gpt-5.6-luna",
+  soulGateModel: "openai/gpt-6-luna",
   soulGateEnabled: true,
   soulRescueEnabled: false,
   blueprintMode: "deterministic",

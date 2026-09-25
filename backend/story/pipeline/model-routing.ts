@@ -7,8 +7,11 @@ export const GEMINI_MAIN_STORY_MODEL = "gemini-3-flash-preview";
  * gpt-5.6-luna's price cut put it at $0.20/$1.20 list — cheaper on both axes
  * than the flash-lite tier it replaces, at a higher reasoning tier. Renamed
  * from GEMINI_SUPPORT_MODEL, which no longer described what it points at.
+ *
+ * 2026-09-25: gpt-6-luna ($0.10/$0.50) — same intelligence index as gpt-5.6-luna,
+ * better at structured output, half the price. Support tasks are machine-read.
  */
-export const SUPPORT_MODEL = "openai/gpt-5.6-luna";
+export const SUPPORT_MODEL = "openai/gpt-6-luna";
 export const CLAUDE_SONNET_46_WIZARD_MODEL = "claude-sonnet-4-6";
 export const CLAUDE_SONNET_46_MODEL = "claude-sonnet-4-6";
 export const MINIMAX_M27_MODEL = "minimax-m2.7";

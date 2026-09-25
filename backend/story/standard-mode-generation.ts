@@ -54,8 +54,9 @@ const STANDARD_MODE_PIPELINE_ID = "standard-quality-v1";
 // Kept in step with DEV_MODE_SUPPORT_MODEL — same structured-JSON support role,
 // same cost rationale. Moved to gpt-5.6-luna on 2026-07-31 after its price cut
 // put it below gemini-3.1-flash-lite ($0.20/$1.20 vs $0.25/$1.50) at a
-// distinctly higher reasoning tier.
-const STANDARD_MODE_SUPPORT_MODEL = "openai/gpt-5.6-luna";
+// distinctly higher reasoning tier. 2026-09-25: gpt-6-luna, same rationale as
+// DEV_MODE_SUPPORT_MODEL (same intelligence, stronger JSON, half the price).
+const STANDARD_MODE_SUPPORT_MODEL = "openai/gpt-6-luna";
 const MAX_STORY_CHARS_FOR_DEVELOPMENT = 9_000;
 const MAX_MEMORY_ANCHOR_TITLES = 2;
 
@@ -629,6 +630,10 @@ async function deriveAvatarDevelopments(input: {
         responseFormat: "json_object",
         maxTokens: 1400,
         temperature: 0.2,
+        // Luna reasons at "medium" by default and hidden reasoning counts
+        // against max_tokens; gpt-6-luna spends ~23% more tokens per task than
+        // 5.6. A 1400-token ceiling must not be eaten before the JSON starts.
+        reasoning: { effort: "low", exclude: true },
         signal: controller.signal,
       });
     } finally {

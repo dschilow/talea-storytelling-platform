@@ -595,7 +595,7 @@ export class StoryPipelineOrchestrator {
       const criticModel = resolveCriticModelForPipeline({
         selectedStoryModel,
         explicitCriticModel: String((normalized.rawConfig as any)?.criticModel || ""),
-        defaultModel: String(pipelineConfig.criticModel || "openai/gpt-5.6-luna"),
+        defaultModel: String(pipelineConfig.criticModel || "openai/gpt-6-luna"),
       });
       // Soul-aware: wenn Soul approved, senken wir die Surgery-Schwelle, damit
       // Critic-Ergebnisse im 7.2–8.2-Band noch repariert werden. Ohne Soul
