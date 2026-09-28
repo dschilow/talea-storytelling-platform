@@ -34,6 +34,8 @@ export function buildOneShotUserPrompt(brief: StoryBrief): string {
   lines.push("AUFGABE: Erfinde, plane und schreibe ein vollständiges Bilderbuch mit diesen Helden.");
   lines.push("Denk dir zuerst im Kopf drei grundverschiedene Ideen aus (verschiedene Baupläne), nimm die stärkste und plane sie Seite für Seite — wer ist wo, wer hat welches Ding, wie weit ist die Frist. Dann schreib.");
   lines.push("Vor dem Schreiben prüfst du: Ist das Problem echt, oder könnten die Helden einfach hingehen, fragen oder es tragen? Versteht ein Sechsjähriger in einem Satz, warum die Lösung klappt? Würde ein Kind lachen?");
+  // Story a9c00c8b (Sol): the fifth "vain Brunhilde, distracted by a reflection" plot in a row.
+  lines.push("Frische: Diese Lösungen kennt die Familie schon zu oft — nimm sie nicht: ein eitler Gegenspieler, der von Spiegelbildern abgelenkt wird; ein Gegenspieler, der zwanghaft im Takt mittanzen muss; ein Glockenschlag als Frist. Die Eigenart einer Pool-Figur zeigt sich, aber sie muss nicht jedes Mal die Lösung sein.");
   lines.push("");
   lines.push("RAHMEN:");
   for (const line of briefHeader(brief)) lines.push(`- ${line}`);
@@ -153,6 +155,8 @@ function buildPatchPrompt(title: string, pages: StorybookPage[], notes: string[]
     "SEITE <Nummer>",
     "<der ganze neue Text dieser Seite>",
     "Prüf dabei, dass deine Änderung zu den Seiten davor und danach passt.",
+    // Story a9c00c8b: the patch replaced the refrain on one page only — two refrains.
+    "Der Satz zum Mitsprechen bleibt auf jeder Seite wortgleich. Ändere ihn nie, auch wenn eine Anmerkung es vorschlägt.",
   ].join("\n");
 }
 
