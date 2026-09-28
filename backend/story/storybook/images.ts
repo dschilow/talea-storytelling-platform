@@ -48,6 +48,10 @@ export interface ImageQaReport {
   unexpectedCharacters: string[];
   /** A named character doing what the scene gives to someone else. */
   roleSwaps: string[];
+  /** A story element worn as clothing, drawn as a person, or missing. Not shape/colour details. */
+  elementMisuse: string[];
+  /** A feature of one character drawn on another (moustache, crown, cape), or facial hair on a child. */
+  featureBleed?: string[];
   textVisible: boolean;
   referenceSheetVisible: boolean;
   identityMatch: number;
@@ -97,7 +101,7 @@ function seedFor(seed: string, page: number, attempt: number): number {
   return parseInt(hex, 16) % 2_147_483_647;
 }
 
-export function buildQaPrompt(expected: VisualEntity[], scene: string, hasReference: boolean): string {
+export function buildQaPrompt(expected: VisualEntity[], scene: string, hasReference: boolean, elements: Array<{ name: string; look: string }> = []): string {
   const list = expected.map((entity) => `- ${entity.name}: ${entity.kind === "artifact" ? "object" : entity.isHuman ? "HUMAN" : entity.species}`).join("\n") || "- (no named characters)";
   return [
     "You inspect ONE illustration from a children's picture book for defects a parent would notice immediately.",
@@ -105,17 +109,20 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
     "Expected named characters:",
     list,
     `Intended scene: ${scene.slice(0, 500)}`,
+    ...(elements.length ? [`Story elements in this picture: ${elements.map((element) => `${element.name} — ${element.look}`).join("; ")}. Report under elementMisuse ONLY if one is worn as clothing, drawn as a person, or missing entirely — never for shape, size or colour details.`] : []),
     "",
-    "Look carefully at every hand, arm, leg, head and ear. Count fingers where visible.",
-    "Compare who does what with the intended scene, using the reference sheet to tell the characters apart.",
+    "Look carefully at every hand, arm, leg, head and ear. Count fingers where visible. Check every face: children never have a moustache or beard, and no character wears another character's moustache, crown, hat or cape.",
+    "Compare who does the KEY action with the intended scene, using the reference sheet to tell the characters apart. Ignore small pose or prop differences — a picture book illustration may interpret the moment freely.",
     "Return JSON only:",
     JSON.stringify({
       namedCharactersVisible: 0,
       anatomyDefects: ["e.g. 'child on the left has three hands'"],
       animalFeaturesOnHumans: ["e.g. 'the boy has fox ears'"],
+      featureBleed: ["e.g. 'both children have the robber's moustache', 'the frog wears a crown that is not his'"],
       duplicates: ["a character drawn twice"],
       unexpectedCharacters: ["figures that are not expected"],
-      roleSwaps: ["e.g. 'the scene says Adrian climbs the ladder, but the brown-haired boy is climbing'"],
+      roleSwaps: ["ONLY: the page's key action is done by the wrong named character. Pose details, props held slightly differently or small action differences are NOT role swaps."],
+      elementMisuse: [],
       textVisible: false,
       referenceSheetVisible: false,
       identityMatch: 0.0,
@@ -128,7 +135,7 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
 export function parseQaReport(raw: string): ImageQaReport | null {
   const data = parseJsonObject<any>(raw);
   if (!data) return null;
-  const list = (value: unknown) => (Array.isArray(value) ? value.map((item) => String(item ?? "").trim()).filter((item) => item && !/^e\.g\./i.test(item)).slice(0, 6) : []);
+  const list = (value: unknown) => (Array.isArray(value) ? value.map((item) => String(item ?? "").trim()).filter((item) => item && !/^(e\.g\.|ONLY:)/i.test(item)).slice(0, 6) : []);
   const unit = (value: unknown) => {
     const n = Number(value);
     return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.5;
@@ -139,6 +146,8 @@ export function parseQaReport(raw: string): ImageQaReport | null {
     duplicates: list(data.duplicates),
     unexpectedCharacters: list(data.unexpectedCharacters),
     roleSwaps: list(data.roleSwaps),
+    elementMisuse: list(data.elementMisuse),
+    featureBleed: list(data.featureBleed),
     textVisible: data.textVisible === true,
     referenceSheetVisible: data.referenceSheetVisible === true,
     identityMatch: unit(data.identityMatch),
@@ -154,10 +163,14 @@ export function qaSeverity(report: ImageQaReport | undefined, expectedCharacters
   severity += report.anatomyDefects.length * 10;
   severity += report.animalFeaturesOnHumans.length * 10;
   severity += report.duplicates.length * 10;
-  severity += report.roleSwaps.length * 10;
+  // Logged, not regenerated: a 4-step render rarely fixes who-does-what on a
+  // second try (batch 2026-09-28: 5-8 of 8 pictures redrawn for this alone).
+  severity += report.roleSwaps.length * 4;
+  severity += (report.elementMisuse?.length || 0) * 10;
+  severity += (report.featureBleed?.length || 0) * 10;
   if (report.referenceSheetVisible) severity += 12;
   if (report.textVisible) severity += 6;
-  if (report.identityMatch < 0.4) severity += 8;
+  if (report.identityMatch < 0.4) severity += 6;
   if (report.namedCharactersVisible > expectedCharacters) severity += 6;
   if (expectedCharacters > 0 && report.namedCharactersVisible < expectedCharacters) severity += 3;
   if (report.sceneMatch < 0.4) severity += 3;
@@ -169,7 +182,9 @@ function correctionFor(report: ImageQaReport): string {
   if (report.anatomyDefects.length) fixes.push("Correct anatomy: every person has exactly two arms and two hands with five fingers each; no extra limbs.");
   if (report.animalFeaturesOnHumans.length) fixes.push("The human characters have ordinary human ears and no animal features at all.");
   if (report.duplicates.length) fixes.push("Each character appears exactly once.");
+  if (report.featureBleed?.length) fixes.push(`Every character keeps only its own face and outfit — the children have smooth faces without facial hair: ${report.featureBleed.slice(0, 2).join("; ")}.`);
   if (report.roleSwaps.length) fixes.push(`Keep the roles exactly as described: ${report.roleSwaps.slice(0, 2).join("; ")}.`);
+  if (report.elementMisuse?.length) fixes.push(`Draw the story element as its own thing exactly as described: ${report.elementMisuse.slice(0, 2).join("; ")}.`);
   if (report.referenceSheetVisible) fixes.push("Only the scene itself — no reference sheet, no framed portraits, no white panels.");
   if (report.textVisible) fixes.push("No letters or writing anywhere.");
   return fixes.join(" ");
@@ -206,6 +221,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     const onStage = shot.onStage.map((id) => byId.get(id)).filter((entity): entity is VisualEntity => Boolean(entity));
     const drawn = [...onStage, ...(shot.artifactVisible && artifact ? [artifact] : [])];
     const withReferences = drawn.filter((entity) => entity.referenceUrl).sort((a, b) => rank(a) - rank(b));
+    const elements = (input.illustrations.storyElements || []).filter((element) => shot.elements?.includes(element.name));
     const expectedCharacters = onStage.length;
 
     // A page must never stay blank. Story 0039344e lost three of eight
@@ -231,7 +247,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
             continue;
           }
         }
-        const base = assembleImagePrompt({ scene: shot.scene, onStage: drawn, spriteOrder: sheet });
+        const base = assembleImagePrompt({ scene: shot.scene, onStage: drawn, spriteOrder: sheet, elements });
         const prompt = extra ? `${base}
 ${extra}` : base;
         lastPrompt = prompt;
@@ -272,10 +288,11 @@ ${extra}` : base;
             role: "support",
             model: input.visionModel,
             system: "You are a meticulous picture-book illustration checker. Answer with JSON only.",
-            user: buildQaPrompt(drawn, shot.scene, delivered.references.length > 0),
+            user: buildQaPrompt(drawn, shot.scene, delivered.references.length > 0, elements),
             json: true,
-            maxTokens: 2500,
-            effort: "low",
+            // A look-and-list task: no hidden reasoning needed (~$0.0004 per picture).
+            maxTokens: 1500,
+            effort: "none",
             imageInputs: [delivered.response.viewUrl || url, ...delivered.references.slice(0, 1)],
             timeoutMs: 60_000,
           });

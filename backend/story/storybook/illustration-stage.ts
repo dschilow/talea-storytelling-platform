@@ -17,7 +17,7 @@
 import { CANONICAL_NEGATIVE_PACK, COLLAGE_STRIP_NEGATIVES } from "../dev-mode-image-guards";
 import type { StoryBrief } from "./context";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
-import type { IllustrationPlan, IllustrationShot, StoryPlan, StorybookPage } from "./types";
+import type { IllustrationPlan, IllustrationShot, StoryElement, StoryPlan, StorybookPage } from "./types";
 
 export const STORYBOOK_IMAGE_STYLE = [
   "Children's picture-book illustration, hand-painted gouache and coloured-pencil texture, warm vivid palette.",
@@ -96,7 +96,8 @@ export function castAppearance(visualProfile: any, physicalDescription?: string)
 export function anatomyLock(entity: VisualEntity): string {
   if (entity.kind === "artifact") return `${entity.name} is an object: ${entity.appearance}.`;
   if (entity.isHuman) {
-    return `${entity.name} is a fully human ${entity.appearance ? `character (${entity.appearance})` : "character"} with ordinary human ears, human skin and hair, no fur, no tail, no animal features, exactly two arms and two hands with five fingers each.`;
+    const face = entity.role === "hero" ? " a smooth child's face with no moustache, no beard and no facial hair," : "";
+    return `${entity.name} is a fully human ${entity.appearance ? `character (${entity.appearance})` : "character"} with${face} ordinary human ears, human skin and hair, no fur, no tail, no animal features, exactly two arms and two hands with five fingers each. ${entity.name} wears only ${entity.name}'s own clothes and accessories.`;
   }
   return `${entity.name} is a ${entity.species} (${entity.appearance || "as in the reference"}) and keeps its own anatomy, colours and outfit exactly as in its reference.`;
 }
@@ -110,6 +111,9 @@ export function negativePromptFor(onStage: VisualEntity[], usesSprite: boolean):
   ];
   if (onStage.some((entity) => entity.kind === "character" && entity.isHuman)) {
     base.push("animal ears on a human, cat ears, fox ears, bunny ears, tail on a human, fur on human skin, horns on a human, human-animal hybrid, merged characters");
+  }
+  if (onStage.some((entity) => entity.role === "hero" && entity.isHuman)) {
+    base.push("moustache on a child, beard on a child, facial hair on a child, adult features on a child");
   }
   for (const entity of onStage) for (const feature of entity.forbidden.slice(0, 4)) base.push(clean(feature, 60));
   const pack = CANONICAL_NEGATIVE_PACK.filter((term) => /swap|transfer|merged|two characters in one body/.test(term)).slice(0, 12);
@@ -128,6 +132,7 @@ export function assembleImagePrompt(input: {
   scene: string;
   onStage: VisualEntity[];
   spriteOrder: VisualEntity[];
+  elements?: StoryElement[];
 }): string {
   const full = buildImagePrompt(input, 280);
   if (full.length <= MAX_IMAGE_PROMPT_CHARS) return full;
@@ -139,7 +144,7 @@ export function assembleImagePrompt(input: {
 }
 
 function buildImagePrompt(
-  input: { scene: string; onStage: VisualEntity[]; spriteOrder: VisualEntity[] },
+  input: { scene: string; onStage: VisualEntity[]; spriteOrder: VisualEntity[]; elements?: StoryElement[] },
   appearanceChars: number
 ): string {
   const shorten = (entity: VisualEntity): VisualEntity => ({ ...entity, appearance: clean(entity.appearance, appearanceChars) });
@@ -152,6 +157,11 @@ function buildImagePrompt(
     lines.push("No named characters in this scene.");
   }
   for (const entity of input.onStage) lines.push(anatomyLock(entity));
+  // Story 422a3ba3: a wish hat walking on long legs was painted as a cap the
+  // boy wore on four pages. A recurring magic thing gets one fixed look.
+  for (const element of input.elements || []) {
+    lines.push(`Story element, drawn exactly like this: ${clean(element.name, 60)} — ${clean(element.look, appearanceChars)}.`);
+  }
   if (input.spriteOrder.length > 1) {
     const order = input.spriteOrder.map((entity, index) => `${index + 1}: ${entity.name}`).join("; ");
     lines.push(`The attached reference is a technical identity sheet, not part of the artwork. Left to right it shows ${order}. Use it only for faces, species, colours and outfits; keep every identity separate; never draw the sheet, its white background, frames or a lineup.`);
@@ -177,6 +187,9 @@ export function buildDirectorSystemPrompt(): string {
     "- At most 3 named characters per picture; if more are in the scene, pick the 3 that matter and let the others be off-panel. Use only the ids given.",
     "- Say exactly WHO does WHAT and where each one is (left / right / foreground / on the ladder …). Never swap roles: if the text says Adrian climbs, Adrian is the one climbing.",
     "- Unnamed extras (a flock of geese, a crowd) only when the page needs them, fully described.",
+    "- A magic creature, talking object or special thing that is NOT in the list above and appears on more than one page: define it ONCE in storyElements with a fixed, drawable look (shape, size, colours, how it moves) and list its name in 'elements' on every picture where it appears. It is its own figure: a hat with legs is never worn by anyone, a talking cup is never just a cup on a table.",
+    "- A coloured mark, line or stripe in the story (a red water mark, a blue ribbon) colours only that small thing — water, sky and ground keep their natural colours.",
+    "- Features belong to their owner: one character's moustache, crown, hat or cape is never drawn on anyone else.",
     "- No text, letters, signs, labels or speech bubbles in any picture.",
     "- English only, 45-80 words per scene. Describe only what the eye sees.",
     "- The cover shows the heroes in an inviting, dynamic moment with the story's central element, with calm sky or background at the top (for the title, which is added later — do not draw it).",
@@ -213,8 +226,9 @@ export function buildDirectorUserPrompt(input: {
   lines.push(
     JSON.stringify(
       {
-        cover: { scene: "…", onStage: ["id"], artifactVisible: false },
-        pages: input.pages.map((page) => ({ page: page.order, scene: "…", onStage: ["id"], artifactVisible: false })),
+        storyElements: [{ name: "name of a recurring magic thing, or leave the list empty", look: "fixed English look" }],
+        cover: { scene: "…", onStage: ["id"], artifactVisible: false, elements: [] },
+        pages: input.pages.map((page) => ({ page: page.order, scene: "…", onStage: ["id"], artifactVisible: false, elements: [] })),
       },
       null,
       1
@@ -223,7 +237,14 @@ export function buildDirectorUserPrompt(input: {
   return lines.join("\n");
 }
 
-function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerImage: number): IllustrationShot | null {
+function sanitizeElements(raw: unknown): StoryElement[] {
+  return (Array.isArray(raw) ? raw : [])
+    .map((entry: any) => ({ name: clean(entry?.name, 60), look: clean(entry?.look, 260) }))
+    .filter((entry) => entry.name && entry.look && !/^name of a recurring/i.test(entry.name))
+    .slice(0, 4);
+}
+
+function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerImage: number, elementNames: Set<string> = new Set()): IllustrationShot | null {
   const scene = clean(raw?.scene, 900);
   if (!scene) return null;
   const characterIds = new Set(entities.filter((entity) => entity.kind === "character").map((entity) => entity.id));
@@ -232,7 +253,10 @@ function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerIm
     .filter((id: string) => characterIds.has(id))
     .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index)
     .slice(0, maxPerImage);
-  return { page, scene, onStage, artifactVisible: Boolean(raw?.artifactVisible) && entities.some((entity) => entity.kind === "artifact") };
+  const elements = (Array.isArray(raw?.elements) ? raw.elements : [])
+    .map((name: unknown) => clean(name, 60))
+    .filter((name: string) => elementNames.has(name));
+  return { page, scene, onStage, artifactVisible: Boolean(raw?.artifactVisible) && entities.some((entity) => entity.kind === "artifact"), elements };
 }
 
 /** Deterministic shot when the director call fails: the planner's picture, the planner's cast. */
@@ -252,7 +276,9 @@ export function fallbackShot(page: number, plan: StoryPlan, entities: VisualEnti
 }
 
 export function sanitizeIllustrationPlan(raw: any, pageCount: number, plan: StoryPlan, entities: VisualEntity[], maxPerImage: number): IllustrationPlan {
-  const cover = sanitizeShot(raw?.cover, 0, entities, maxPerImage) || fallbackShot(0, plan, entities, maxPerImage);
+  const storyElements = sanitizeElements(raw?.storyElements);
+  const elementNames = new Set(storyElements.map((element) => element.name));
+  const cover = sanitizeShot(raw?.cover, 0, entities, maxPerImage, elementNames) || fallbackShot(0, plan, entities, maxPerImage);
   const byPage = new Map<number, any>();
   for (const entry of Array.isArray(raw?.pages) ? raw.pages : []) {
     const page = Math.round(Number(entry?.page));
@@ -260,9 +286,9 @@ export function sanitizeIllustrationPlan(raw: any, pageCount: number, plan: Stor
   }
   const pages: IllustrationShot[] = [];
   for (let page = 1; page <= pageCount; page += 1) {
-    pages.push(sanitizeShot(byPage.get(page), page, entities, maxPerImage) || fallbackShot(page, plan, entities, maxPerImage));
+    pages.push(sanitizeShot(byPage.get(page), page, entities, maxPerImage, elementNames) || fallbackShot(page, plan, entities, maxPerImage));
   }
-  return { cover, pages };
+  return { cover, pages, storyElements };
 }
 
 export interface DirectorStageResult {

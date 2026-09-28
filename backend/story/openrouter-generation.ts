@@ -52,7 +52,13 @@ const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
   "qwen/qwen3.7-max": { inputCostPer1M: 1.25, outputCostPer1M: 3.75 },
   "qwen/qwen3.7-plus": { inputCostPer1M: 0.32, outputCostPer1M: 1.28 },
   "minimax/minimax-m3": { inputCostPer1M: 0.3, outputCostPer1M: 1.2 },
-  "z-ai/glm-5.2": { inputCostPer1M: 0.9, outputCostPer1M: 3.08 },
+  "z-ai/glm-5.2": { inputCostPer1M: 0.65, outputCostPer1M: 2.04 },
+  "z-ai/glm-5.3": { inputCostPer1M: 1.4, outputCostPer1M: 4.4 },
+  "z-ai/glm-5.3-flash": { inputCostPer1M: 0.15, outputCostPer1M: 0.5 },
+  "qwen/qwen3.8-flash": { inputCostPer1M: 0.15, outputCostPer1M: 0.47 },
+  "qwen/qwen3.8-max-0902": { inputCostPer1M: 2.0, outputCostPer1M: 6.0 },
+  "deepseek/deepseek-v4.1-flash": { inputCostPer1M: 0.02, outputCostPer1M: 0.6 },
+  "xiaomi/mimo-v2.6-pro": { inputCostPer1M: 0.43, outputCostPer1M: 0.87 },
   // List price after the 2026-07-31 cut (was $1.00/$6.00). OpenRouter is
   // additionally running a temporary 50% promo on top of this, i.e. real spend
   // is currently ~$0.10/$0.60 — deliberately NOT encoded here: the promo
@@ -65,7 +71,12 @@ const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
   "openai/gpt-6-luna": { inputCostPer1M: 0.1, outputCostPer1M: 0.5 },
   // Default critic of the Bilderbuch-Modus (storybook-v2). Catalog 2026-09-25.
   "anthropic/claude-sonnet-5": { inputCostPer1M: 2.0, outputCostPer1M: 10.0 },
+  // Default critic of the Bilderbuch-Modus since 2026-09-28. Catalog price.
+  "google/gemini-3.8-flash": { inputCostPer1M: 0.75, outputCostPer1M: 3.75 },
   "moonshotai/kimi-k3": { inputCostPer1M: 3.0, outputCostPer1M: 15.0 },
+  "aion-labs/aion-3.5": { inputCostPer1M: 3.0, outputCostPer1M: 6.0 },
+  "aion-labs/aion-3.5-mini": { inputCostPer1M: 0.7, outputCostPer1M: 1.4 },
+  "openai/gpt-6-sol": { inputCostPer1M: 2.0, outputCostPer1M: 10.0 },
   "openai/gpt-6-luna-pro": { inputCostPer1M: 0.1, outputCostPer1M: 0.5 },
   "openai/gpt-5.6-terra": { inputCostPer1M: 2.5, outputCostPer1M: 15.0 },
 };
@@ -89,7 +100,7 @@ export function isOpenRouterCreditLimitError(error: unknown): boolean {
 }
 
 type OpenRouterReasoningOptions = {
-  effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+  effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
   max_tokens?: number;
   exclude?: boolean;
   enabled?: boolean;

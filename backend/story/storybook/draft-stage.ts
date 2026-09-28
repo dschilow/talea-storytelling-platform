@@ -7,7 +7,7 @@
  */
 
 import { buildLanguageRules, CRAFT_RULES, isGerman, type AgeBand } from "./craft";
-import type { StoryBrief } from "./context";
+import { heroSeasoning, type StoryBrief } from "./context";
 import type { LlmCallResult, StorybookLlm } from "./llm";
 import { parseDraft } from "./parsing";
 import type { EditorialReview, StoryPlan, StorybookPage } from "./types";
@@ -19,7 +19,7 @@ import type { EditorialReview, StoryPlan, StorybookPage } from "./types";
  */
 const STYLE_SAMPLE_DE = [
   "Der Kuchen war rund, braun und so groß wie ein Wagenrad.",
-  "„Den tragen wir zum Fest“, sagte Lotta. „Ganz. Vorsichtig.“",
+  "„Den tragen wir zu Oma“, sagte Lotta. „Ganz. Vorsichtig.“",
   "Ben nickte. Dann stolperte er über den Gartenschlauch.",
   "Der Kuchen flog. Der Kuchen drehte sich. Der Kuchen landete — platsch! — mitten auf dem Hut von Herrn Brummel, der gerade über den Zaun schaute.",
   "Herr Brummel sagte nichts. Er leckte nur ganz langsam die Sahne von seiner Nase.",
@@ -52,6 +52,9 @@ export function buildWriterSystemPrompt(brief: StoryBrief): string {
     "- Eine Lehre oder Botschaft aussprechen, besonders am Ende.",
     "- Neue Figuren mit Namen erfinden, die nicht im Plan stehen.",
     "- Etwas voraussetzen, das eine Figur noch nicht wissen oder haben kann.",
+    "- Dieselbe Verlegenheitsgeste immer wieder ('presste die Lippen zusammen', 'hielt den Atem an', 'ließ die Schultern sinken'). Jede Figur zeigt Gefühle auf ihre eigene Art, und nicht in jedem Absatz.",
+    "",
+    "BEVOR DU SCHREIBST, prüfe im Kopf Seite für Seite: Wo ist jede Figur? Wer hält welches Ding? Wie weit ist die Frist? Passt der Anfang jeder Seite zum Ende der vorigen?",
   ];
   if (isGerman(brief.config.language)) {
     lines.push("", "STILPROBE aus einer ganz anderen Geschichte (nur Rhythmus und Ton — keine Figuren, Dinge oder Sätze daraus übernehmen):", STYLE_SAMPLE_DE);
@@ -79,6 +82,11 @@ export function renderPlanForWriter(plan: StoryPlan, brief: StoryBrief): string 
   lines.push(`TITEL: ${plan.title}`);
   lines.push(`WORUM ES GEHT: ${plan.logline}`);
   lines.push(`WAS DIE HELDEN WOLLEN: ${plan.want} — auf dem Spiel steht: ${plan.stakes}`);
+  if (plan.obstacleMotive) lines.push(`WARUM DER GEGENSPIELER DAS TUT (früh zeigen, Seite 1 oder 2): ${plan.obstacleMotive}`);
+  if (plan.props.length > 0) {
+    lines.push("DIE WICHTIGEN DINGE (jedes ist immer an einem bestimmten Ort und wechselt ihn nur sichtbar):");
+    for (const prop of plan.props) lines.push(`  - ${prop.thing}: am Anfang ${prop.start}; zuerst auf Seite ${prop.firstPage}`);
+  }
   if (plan.worldRule) {
     lines.push(`DIE REGEL DIESER WELT (gilt immer gleich, man sieht sie wirken, niemand erklärt sie lang): ${plan.worldRule}`);
     if (plan.ruleIntro) lines.push(`  So versteht das Kind sie, BEVOR sie gebraucht wird: ${plan.ruleIntro}`);
@@ -104,6 +112,8 @@ export function renderPlanForWriter(plan: StoryPlan, brief: StoryBrief): string 
     const source = brief.heroes.find((entry) => entry.id === hero.id);
     const age = typeof source?.age === "number" && source.age > 0 ? `, ${source.age} Jahre` : "";
     lines.push(`  - ${hero.name}${age}: kann besonders ${hero.strength || "—"}; spricht ${hero.voice || "natürlich"}; Beitrag: ${hero.contribution}`);
+    const seasoning = source ? heroSeasoning(source) : "";
+    if (seasoning) lines.push(`    Würze, höchstens EINMAL beiläufig und nie als Lösung: ${seasoning}`);
   }
   if (plan.cast.length > 0) {
     lines.push("DIE NEBENFIGUREN (aus unserem Figurenpool — genau so heißen sie):");
@@ -133,6 +143,7 @@ export function renderPlanForWriter(plan: StoryPlan, brief: StoryBrief): string 
     if (page.heroMoment) lines.push(`  Heldenmoment: ${page.heroMoment}`);
     if (page.humor) lines.push(`  Komik: ${page.humor}`);
     if (page.emotion) lines.push(`  Gefühl (zeigen, nicht benennen): ${page.emotion}`);
+    if (page.after) lines.push(`  Stand am Seitenende (die nächste Seite beginnt genau hier): ${page.after}`);
     lines.push(page.page === plan.pages.length ? `  Schluss: ${page.turn}` : `  Seitenende (Grund umzublättern): ${page.turn}`);
   }
   lines.push("");
@@ -224,9 +235,16 @@ export interface WriterStageResult {
   call: LlmCallResult;
 }
 
+/** Hidden reasoning shares max_tokens with the prose; xhigh needs real room. */
+const WRITER_REASONING_HEADROOM = 30000;
+
 function writerMaxTokens(brief: StoryBrief): number {
-  // Prose (~2 tokens per German word) + markers + room for light reasoning.
-  return Math.max(6000, Math.ceil(brief.budget.totalWordsMax * 2.4) + 4000);
+  // Prose (~2 tokens per German word) + markers + room for deep reasoning:
+  // Measured 2026-09-28: xhigh/high drafts cost 8-10x, took 4-5 min and in
+  // about one run in four spent the whole budget thinking without writing a
+  // line — with no better stories than "medium" (the plan and its review
+  // carry the structure). The headroom stays for the occasional long think.
+  return Math.max(6000, Math.ceil(brief.budget.totalWordsMax * 2.4) + 4000) + WRITER_REASONING_HEADROOM;
 }
 
 export async function runDraftStage(
@@ -244,7 +262,8 @@ export async function runDraftStage(
     user: buildDraftUserPrompt(plan, brief, retryNotes),
     json: false,
     maxTokens: writerMaxTokens(brief),
-    effort: "low",
+    effort: "medium",
+    timeoutMs: 300_000,
     temperature: 0.85,
   });
   const parsed = parseDraft(call.text, brief.budget.pages, { german: isGerman(brief.config.language) });
@@ -264,7 +283,8 @@ export async function runRevisionStage(
     user: buildRevisionUserPrompt(input),
     json: false,
     maxTokens: writerMaxTokens(input.brief),
-    effort: "low",
+    effort: "medium",
+    timeoutMs: 300_000,
     temperature: 0.7,
   });
   const parsed = parseDraft(call.text, input.brief.budget.pages, { german: isGerman(input.brief.config.language) });

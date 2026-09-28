@@ -17,9 +17,10 @@ import { createHash } from "node:crypto";
 import { checkPlan, checkProse, issuesToNotes } from "./checks";
 import { runConceptStage } from "./concept-stage";
 import type { StoryBrief } from "./context";
-import { runDraftStage, runRevisionStage } from "./draft-stage";
+import { runDraftStage, runRevisionStage, renderPlanForWriter } from "./draft-stage";
 import type { CostLedger, LlmRole, StorybookLlm, StorybookModels } from "./llm";
 import { runPlanStage } from "./plan-stage";
+import { runPlanReviewStage } from "./plan-review-stage";
 import { comprehensionGaps, needsRevision, runPairwiseStage, runReviewStage } from "./review-stage";
 import type { CheckReport, EditorialReview, PairwiseVerdict, StoryPitch, StoryPlan, StorybookPage } from "./types";
 
@@ -92,7 +93,26 @@ export async function runStorybookTextEngine(input: {
     }
   }
   if (!planned.plan || planned.plan.pages.length === 0) throw new Error("[storybook] Der Seitenplan konnte nicht erstellt werden.");
-  const plan: StoryPlan = planned.plan;
+
+  // 2b) Plan read by the critic — structural defects are cheap to fix here.
+  try {
+    const planReview = await runPlanReviewStage(llm, brief, planned.plan, models.critic);
+    record("plan-review", "critic", planReview.call);
+    await observe("plan-review", { review: planReview.review });
+    if (planReview.review?.verdict === "fix") {
+      planRepaired = true;
+      const repaired = await runPlanStage(llm, brief, concept.pitches, models.support, planReview.review.problems, renderPlanForWriter(planned.plan, brief));
+      record("plan-repair-review", "support", repaired.call);
+      const repairedReport = checkPlan(repaired.plan, brief);
+      if (repaired.plan && repaired.plan.pages.length > 0 && repairedReport.hard.length <= planReport.hard.length) {
+        planned = repaired;
+        planReport = repairedReport;
+      }
+    }
+  } catch (err) {
+    console.warn("[storybook] plan review failed; writing from the checked plan:", (err as Error)?.message || err);
+  }
+  const plan: StoryPlan = planned.plan!;
   await observe("plan", { ok: planReport.ok, hard: planReport.hard.map((i) => i.message), soft: planReport.soft.map((i) => i.message), plan });
 
   // 3) Draft -----------------------------------------------------------------
@@ -118,6 +138,7 @@ export async function runStorybookTextEngine(input: {
   let review: EditorialReview | null = null;
   try {
     const reviewed = await runReviewStage(llm, brief, draft.title, draft.pages, castNames, models.critic);
+    if (reviewed.failedCall) record("review-unusable", "critic", reviewed.failedCall);
     record("review", "critic", reviewed.call);
     review = reviewed.review;
   } catch (err) {

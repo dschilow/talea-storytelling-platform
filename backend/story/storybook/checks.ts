@@ -95,6 +95,9 @@ export function checkPlan(plan: StoryPlan | null, brief: StoryBrief): CheckRepor
   const pages = brief.budget.pages;
 
   if (!plan.title) issues.push({ code: "title_missing", severity: "hard", message: "Der Plan hat keinen Titel." });
+  else if (!brief.heroes.some((hero) => mentions(plan.title, hero.name))) {
+    issues.push({ code: "title_without_hero", severity: "soft", message: `Der Titel „${plan.title}“ nennt keinen der Helden.` });
+  }
   if (plan.pages.length !== pages) {
     issues.push({ code: "page_count", severity: "hard", message: `Der Plan hat ${plan.pages.length} Seiten, gebraucht werden genau ${pages}.` });
   }

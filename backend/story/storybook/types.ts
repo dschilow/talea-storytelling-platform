@@ -94,6 +94,8 @@ export interface PlanPage {
   picture: string;
   /** Hero and cast ids present on this page. */
   onPage: string[];
+  /** Continuity at page end: where everyone is, where the key things are, how far the deadline is. */
+  after: string;
 }
 
 export interface StoryPlan {
@@ -113,6 +115,10 @@ export interface StoryPlan {
   runningGag: { what: string; beats: string[] };
   dramaticIrony: string;
   setups: Array<{ what: string; plantedOnPage: number; paysOffOnPage: number }>;
+  /** Why the opponent does what he does — shown on page 1 or 2. */
+  obstacleMotive: string;
+  /** Every thing the plot needs: where it starts and who carries it. */
+  props: Array<{ thing: string; start: string; firstPage: number }>;
   heroes: Array<{ id: string; name: string; strength: string; voice: string; contribution: string }>;
   cast: Array<{ id: string; name: string; role: string; want: string; voice: string; signature: string }>;
   artifact: { id: string; name: string; role: string; firstPage: number; usePage: number; carried: boolean } | null;
@@ -170,11 +176,21 @@ export interface IllustrationShot {
   /** Hero and cast ids that are drawn. At most three. */
   onStage: string[];
   artifactVisible: boolean;
+  /** Names of recurring story elements (see IllustrationPlan.storyElements) in this picture. */
+  elements?: string[];
+}
+
+/** A magic creature or special object that is not a pool character but recurs. */
+export interface StoryElement {
+  name: string;
+  /** Fixed English look, used verbatim on every page it appears. */
+  look: string;
 }
 
 export interface IllustrationPlan {
   cover: IllustrationShot;
   pages: IllustrationShot[];
+  storyElements?: StoryElement[];
 }
 
 export interface CheckIssue {

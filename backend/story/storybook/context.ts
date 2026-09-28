@@ -94,6 +94,12 @@ function strongestTraits(hero: StorybookHero): string[] {
 }
 
 /** One compact line per hero. Appearance stays out — it belongs to the pictures. */
+/**
+ * Planning view of a hero. Quirk and catchphrase stay OUT on purpose: given to
+ * the concept stage they became the engine of every story (batch 2026-09-28:
+ * Mina's mosaic stones solved six stories out of six). The writer receives
+ * them separately as optional seasoning (heroSeasoning).
+ */
 export function heroSheet(hero: StorybookHero & { id: string }, memories: string[] = []): string {
   const bits: string[] = [];
   if (typeof hero.age === "number" && hero.age > 0) bits.push(`${hero.age} Jahre`);
@@ -101,14 +107,21 @@ export function heroSheet(hero: StorybookHero & { id: string }, memories: string
   const personality = [clean(narrative.dominantPersonality, 48), ...(Array.isArray(narrative.traits) ? narrative.traits.map((t: unknown) => clean(t, 32)) : [])]
     .filter(Boolean);
   if (personality.length) bits.push(`Wesen: ${[...new Set(personality)].slice(0, 4).join(", ")}`);
-  if (clean(narrative.quirk)) bits.push(`Eigenart: ${clean(narrative.quirk, 160)}`);
-  if (clean(narrative.catchphrase)) bits.push(`typischer Satz: „${clean(narrative.catchphrase, 100)}“`);
   const description = clean(hero.description, 220);
   if (description) bits.push(`Beschreibung: ${description}`);
   const strengths = strongestTraits(hero);
   if (strengths.length) bits.push(`bisher gewachsen in: ${strengths.join(", ")}`);
   if (memories.length) bits.push(`frühere Abenteuer: ${memories.slice(0, 2).map((t) => `„${clean(t, 70)}“`).join(", ")}`);
   return `- ${hero.name} [id: ${hero.id}] — ${bits.join(" | ") || "keine weiteren Angaben"}`;
+}
+
+/** Quirk and catchphrase for the writer: at most once each, never the solution. */
+export function heroSeasoning(hero: StorybookHero): string {
+  const narrative = hero.narrativeProfile && typeof hero.narrativeProfile === "object" ? hero.narrativeProfile : {};
+  const bits: string[] = [];
+  if (clean(narrative.quirk)) bits.push(`Eigenart: ${clean(narrative.quirk, 160)}`);
+  if (clean(narrative.catchphrase)) bits.push(`typischer Satz: „${clean(narrative.catchphrase, 100)}“`);
+  return bits.join("; ");
 }
 
 export function castSheet(candidate: CastCandidate): string {

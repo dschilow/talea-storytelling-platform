@@ -8,7 +8,7 @@
  * and the one moment the illustrator should draw.
  */
 
-import { CRAFT_RULES } from "./craft";
+import { CRAFT_RULES, STORY_ENGINES } from "./craft";
 import { artifactSheet, briefHeader, broughtArtifact, castSheet, heroSheet, wishLines, type StoryBrief } from "./context";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import type { PlanPage, StoryPitch, StoryPlan } from "./types";
@@ -57,10 +57,14 @@ export function buildPlanSystemPrompt(): string {
     "- 'turn' ist der konkrete Grund umzublättern. Auf der letzten Seite ist 'turn' die Schlusspointe.",
     "- Jede gewählte Nebenfigur erscheint auf mindestens zwei Seiten und verändert die Handlung. Ihr Spruch höchstens einmal.",
     "- Setups: mindestens zwei Dinge, die früh gezeigt und später ausgezahlt werden.",
-    "- Der Satz zum Mitsprechen (refrain) ist für junge Zuhörer ein großes Geschenk: 3 bis 7 Wörter, von einer Figur gesprochen, dreimal, beim dritten Mal mit neuer Bedeutung. Nur weglassen (null), wenn er die Geschichte stören würde.",
+    "- Der Satz zum Mitsprechen (refrain) ist für junge Zuhörer ein großes Geschenk: 3 bis 7 Wörter, von einer Figur gesprochen, dreimal, beim dritten Mal mit neuer Bedeutung. Ein Kind muss sofort verstehen, was er meint und warum die Figur ihn gerade ruft — kein Zauberspruch ohne Sinn. Nur weglassen (null), wenn er die Geschichte stören würde.",
+    "- Genau EINE Frist oder Gefahr (stakes): auf Seite 1 genannt, mit sichtbarer Folge, im Finale eingelöst. Jedes Ding, das zur Frist gehört, hat eine klare Bedeutung für die Helden. Die Frist rückt sichtbar näher (in 'after' festhalten) und wird genau einmal eingelöst.",
     "- Keine unbelegten Behauptungen: Wer etwas weiß, hat es auf einer früheren Seite erfahren. Wer etwas benutzt, hat es dabei.",
     "- Gibt es Magie oder ein besonderes Ding, wird es auf Seite 1 oder 2 VORGEFÜHRT (ruleIntro): man sieht einmal, was passiert, und eine Figur sagt es in Kinderworten. Kein Schild, keine Inschrift.",
     "- solutionWhy: ein einziger Satz, mit dem ein Sechsjähriger erklären kann, warum die Lösung klappt. Wenn du ihn nicht einfach sagen kannst, ist die Lösung zu kompliziert — dann erfinde eine bessere.",
+    "- KONTINUITÄT (häufigster Fehler!): 'after' hält für jede Seite fest, wo am Seitenende jede Figur ist, wo jedes wichtige Ding ist (wer hat es, wie viele sind es noch) und wie weit die Frist ist. Die nächste Seite beginnt genau dort. Wer auf Seite 5 etwas benutzt, muss es laut 'after' von Seite 4 haben.",
+    "- props: JEDES Ding, das die Handlung braucht (auch für die Lösung), steht mit Startort/Besitzer und erster Seite in der Liste. Nichts, was die Lösung braucht, taucht erst im Finale auf.",
+    "- obstacleMotive: warum der Gegenspieler tut, was er tut — in einem Satz, den ein Kind versteht, sichtbar auf Seite 1 oder 2.",
     "- Jede Nebenfigur ist auch in der zweiten Hälfte dabei und bewirkt dort etwas (beim Tiefpunkt, im Finale oder in der Schlusspointe).",
     "",
     "Antworte ausschließlich mit einem gültigen JSON-Objekt. Alle Textfelder in der Sprache der Geschichte, außer den ids.",
@@ -86,7 +90,7 @@ function renderPitch(pitch: StoryPitch, index: number): string {
   ].join("\n");
 }
 
-export function buildPlanUserPrompt(brief: StoryBrief, pitches: StoryPitch[], repairNotes: string[] = []): string {
+export function buildPlanUserPrompt(brief: StoryBrief, pitches: StoryPitch[], repairNotes: string[] = [], previousPlan?: string): string {
   const lines: string[] = [];
   const pages = brief.budget.pages;
   lines.push("RAHMEN:");
@@ -124,6 +128,11 @@ export function buildPlanUserPrompt(brief: StoryBrief, pitches: StoryPitch[], re
   for (const beat of pageRhythm(pages)) lines.push(`- ${beat}`);
   lines.push("");
 
+  if (previousPlan) {
+    lines.push("DEIN LETZTER PLAN (behalte, was gut ist — ändere, was die Fehler verlangt):");
+    lines.push(previousPlan);
+    lines.push("");
+  }
   if (repairNotes.length > 0) {
     lines.push("DEIN LETZTER PLAN HATTE DIESE FEHLER — behebe sie alle:");
     for (const note of repairNotes) lines.push(`- ${note}`);
@@ -137,10 +146,10 @@ export function buildPlanUserPrompt(brief: StoryBrief, pitches: StoryPitch[], re
       {
         chosenPitch: 0,
         whyChosen: "ein Satz",
-        title: "endgültiger Titel",
+        title: "endgültiger Titel — mit dem Namen eines Helden, nicht des Gegenspielers",
         logline: "ein Satz",
         engine: "id des Bauplans",
-        want: "was die Kinder wollen (anfassbar)",
+        want: "was die Kinder wollen (anfassbar) — und warum es IHNEN wichtig ist",
         stakes: "was verloren geht, wenn es nicht klappt",
         worldRule: "die eine magische Regel mit ihrer sichtbaren Folge — oder null",
         ruleIntro: "auf welcher Seite und durch welche kleine Vorführung das Kind die Regel versteht, bevor sie gebraucht wird — oder null",
@@ -149,6 +158,8 @@ export function buildPlanUserPrompt(brief: StoryBrief, pitches: StoryPitch[], re
         runningGag: { what: "der Laufgag", beats: ["1. Mal", "2. Mal, größer", "3. Mal, gekippt"] },
         dramaticIrony: "was das zuhörende Kind weiß, die Figur aber nicht — und auf welcher Seite",
         setups: [{ what: "vorbereitetes Detail", plantedOnPage: 1, paysOffOnPage: pages - 1 }],
+        obstacleMotive: "warum der Gegenspieler das tut — in Kinderworten (oder was das Hindernis ist)",
+        props: [{ thing: "wichtiges Ding", start: "wo es am Anfang ist / wer es hat", firstPage: 1 }],
         heroes: heroIds.map((id) => ({ id, name: "Name", strength: "Stärke", voice: "wie dieses Kind spricht", contribution: "Beitrag zur Lösung" })),
         cast: [{ id: "Pool-id", name: "Name", role: "Funktion", want: "eigener Wunsch", voice: "wie die Figur spricht", signature: "wiederkehrende Geste oder Tick" }],
         artifact: brought
@@ -164,6 +175,7 @@ export function buildPlanUserPrompt(brief: StoryBrief, pitches: StoryPitch[], re
           turn: index + 1 === pages ? "die Schlusspointe" : "der konkrete Grund umzublättern",
           picture: "der eine Moment voller Bewegung für das Bild",
           onPage: heroIds,
+          after: "Stand am Seitenende: wo ist jede Figur, wo sind die wichtigen Dinge (wer hat sie), wie weit ist die Frist",
         })),
         ending: { resolution: "wie der Wunsch aufgeht", callback: "welches Anfangsbild verwandelt zurückkehrt", lastLine: "die letzte Pointe, höchstens zwei Sätze" },
       },
@@ -219,6 +231,7 @@ export function sanitizePlan(raw: any, brief: StoryBrief, pitches: StoryPitch[])
     turn: text(page?.turn, 300),
     picture: text(page?.picture, 400),
     onPage: (Array.isArray(page?.onPage) ? page.onPage : []).map((id: unknown) => text(id, 120)).filter((id: string) => allowedOnPage.has(id)),
+    after: text(page?.after, 400),
   }));
 
   const artifactOption = brief.artifacts.find((artifact) => artifact.id === text(raw.artifact?.id, 120));
@@ -245,7 +258,9 @@ export function sanitizePlan(raw: any, brief: StoryBrief, pitches: StoryPitch[])
   return {
     title: text(raw.title, 90) || pitches[chosenPitch]?.title || "",
     logline: text(raw.logline, 400) || pitches[chosenPitch]?.logline || "",
-    engine: text(raw.engine, 40) || pitches[chosenPitch]?.engine || "frei",
+    // Only catalogue ids: history.ts rotates engines by id, and a free-text
+    // engine ("eitelkeit-lockt-in-die-spiegelkorb-falle") defeats the rotation.
+    engine: [text(raw.engine, 40), pitches[chosenPitch]?.engine].find((id) => id && STORY_ENGINES.some((engine) => engine.id === id)) || "frei",
     chosenPitch,
     whyChosen: text(raw.whyChosen, 300),
     want: text(raw.want, 300),
@@ -267,6 +282,11 @@ export function sanitizePlan(raw: any, brief: StoryBrief, pitches: StoryPitch[])
       }))
       .filter((setup: { what: string }) => setup.what)
       .slice(0, 5),
+    obstacleMotive: text(raw.obstacleMotive, 300),
+    props: (Array.isArray(raw.props) ? raw.props : [])
+      .map((prop: any) => ({ thing: text(prop?.thing, 120), start: text(prop?.start, 200), firstPage: pageNumber(prop?.firstPage, pages, 1) }))
+      .filter((prop: { thing: string }) => prop.thing)
+      .slice(0, 8),
     heroes: brief.heroes.map((hero) => {
       const entry = (Array.isArray(raw.heroes) ? raw.heroes : []).find((candidate: any) => text(candidate?.id, 120) === hero.id) || {};
       return {
@@ -298,17 +318,21 @@ export async function runPlanStage(
   brief: StoryBrief,
   pitches: StoryPitch[],
   model: string,
-  repairNotes: string[] = []
+  repairNotes: string[] = [],
+  previousPlan?: string
 ): Promise<PlanStageResult> {
   const call = await llm({
     stage: repairNotes.length > 0 ? "plan-repair" : "plan",
     role: "support",
     model,
     system: buildPlanSystemPrompt(),
-    user: buildPlanUserPrompt(brief, pitches, repairNotes),
+    user: buildPlanUserPrompt(brief, pitches, repairNotes, previousPlan),
     json: true,
-    maxTokens: 16000,
-    effort: "medium",
+    maxTokens: 24000,
+    // "low": the critic's plan review (plan-review-stage.ts) now catches the
+    // structural defects that the extra thinking was meant to prevent.
+    effort: "low",
+    timeoutMs: 300_000,
     temperature: 0.7,
   });
   return { plan: sanitizePlan(parseJsonObject<any>(call.text), brief, pitches), call };

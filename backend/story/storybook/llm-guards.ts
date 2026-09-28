@@ -1,7 +1,7 @@
 import type { LlmRole, ReasoningEffort } from "./llm";
 
 export type StorybookReasoningOptions = {
-  effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
+  effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
   enabled?: boolean;
   exclude: boolean;
 };
@@ -28,12 +28,27 @@ export function resolveStorybookReasoning(model: string, effort: ReasoningEffort
     return { effort: "low", exclude: true };
   }
 
-  if (/(^|\/)gpt-(5|6)|(^|\/)o\d/.test(normalized)) {
+  if (/(^|\/)gpt-6/.test(normalized)) {
     return { effort, exclude: true };
   }
-  // Gemini 3.x reasoning is mandatory; "none" would be a 400, "minimal" is its floor.
+  // Everything else stops at "high" (fallback models must not get a 400).
+  const capped = effort === "xhigh" || effort === "max" ? "high" : effort;
+  if (/(^|\/)gpt-5|(^|\/)o\d/.test(normalized)) {
+    return { effort: capped, exclude: true };
+  }
+  // Gemini 3.x reasoning is mandatory; "none" would be a 400. Flash-Lite and
+  // 3.6 Flash accept "minimal"; 3.7/3.8 Flash list only low/medium/high.
   if (/gemini/.test(normalized)) {
-    return { effort: effort === "none" ? "minimal" : effort, exclude: true };
+    const floor = /gemini-3\.(7|8)-flash(?!-lite)/.test(normalized) ? "low" : "minimal";
+    return { effort: capped === "none" ? floor : capped, exclude: true };
+  }
+  // Aion (storytelling-tuned) has mandatory reasoning with max/high/low only.
+  if (/aion/.test(normalized)) {
+    return { effort: effort === "high" ? "high" : "low", exclude: true };
+  }
+  // GLM-5.3 reasons mandatorily ("cannot be disabled" → 400, batch 2026-09-28).
+  if (/glm-5\.3/.test(normalized)) {
+    return { effort: capped === "none" ? "low" : capped, exclude: true };
   }
   // Writer stages need plain prose; hidden thinking on these families has
   // returned EMPTY completions with finish_reason=length (runs a5059aef, 38b65185).

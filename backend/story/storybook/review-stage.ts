@@ -13,7 +13,7 @@
 import { CRAFT_RULES } from "./craft";
 import { wishLines, type StoryBrief } from "./context";
 import { renderStoryForPrompt } from "./draft-stage";
-import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
+import { fallbackModelFor, parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import type { EditorialReview, PairwiseVerdict, StorybookPage } from "./types";
 
 const SCORE_SCALE = [
@@ -32,6 +32,7 @@ const SCORE_CAPS = [
   "- Ein Kind weiß auf einer Seite nicht, wo die Figuren sind oder woher ein Gegenstand kommt → höchstens 6.5.",
   "- Keine Stelle, an der ein Kind laut lacht, obwohl Humor gewünscht ist → höchstens 7.",
   "- Eine Nebenfigur hat keine Funktion oder verschwindet → höchstens 7.5.",
+  "- Die Frist ist unklar oder es gibt zwei konkurrierende Fristen → höchstens 7.",
 ];
 
 export function buildReviewSystemPrompt(brief: StoryBrief): string {
@@ -57,6 +58,11 @@ export function buildReviewSystemPrompt(brief: StoryBrief): string {
     "- Nebenfiguren: Bewirkt jede Nebenfigur auch in der zweiten Hälfte etwas, oder verschwindet sie?",
     "- Seitenenden: Endet eine Seite mit einer Frage des Erzählers statt mit einem Ereignis? Das ist ein mustFix.",
     "- Schlusspointe: Sitzt der letzte Satz ohne Erklärung? Dreht er eine frühere Stelle witzig oder warm um?",
+    "- Frist: Gibt es genau EINE klare Frist oder Gefahr mit sichtbarer Folge? Zwei Uhren nebeneinander (z. B. Glocke UND abfahrender Wagen) oder ein Ding, dessen Bedeutung für die Helden unklar bleibt, ist ein mustFix.",
+    "- Satz zum Mitsprechen: Versteht ein Kind, was er meint und warum er gerade gerufen wird?",
+    "- Gegenspieler: Versteht ein Kind früh, WARUM er tut, was er tut? Ein unerklärtes Motiv ist ein mustFix.",
+    "- Dauer-Ticks: Wiederholt sich eine Geste, Marotte oder ein Lieblingsgegenstand einer Figur auf mehr als drei Seiten ohne neue Wirkung? Das ist ein mustFix.",
+    "- Zeitform: Wird durchgehend in der Vergangenheit erzählt? Präsens-Erzählung oder Wechsel ist ein languageError.",
     "",
     "WICHTIG: Überhört eine Figur absichtlich etwas, das das Kind schon weiß, ist das dramatische Ironie — ein gewolltes Stilmittel, kein Logikfehler.",
     "",
@@ -190,6 +196,8 @@ export function needsRevision(review: EditorialReview | null, hardNotes: string[
 export interface ReviewStageResult {
   review: EditorialReview | null;
   call: LlmCallResult;
+  /** The billed first attempt when its reply was not a usable review. */
+  failedCall?: LlmCallResult;
 }
 
 export async function runReviewStage(
@@ -209,10 +217,26 @@ export async function runReviewStage(
     user: buildReviewUserPrompt(brief, title, pages, castNames),
     json: true,
     maxTokens: 12000,
-    effort: "medium",
+    // "low": enough to trace who is where; every reasoning token bills at output price.
+    effort: "low",
     temperature: 0.2,
   });
-  return { review: sanitizeReview(parseJsonObject<any>(call.text), pages.length), call };
+  const review = sanitizeReview(parseJsonObject<any>(call.text), pages.length);
+  if (review) return { review, call };
+  // A reply that is not a review (batch 2026-09-28T10-41: 200 without usable
+  // JSON) would silently skip the whole edit. One retry on the other family.
+  const retry = await llm({
+    stage: `${stage}-retry`,
+    role: "critic",
+    model: fallbackModelFor(model),
+    system: buildReviewSystemPrompt(brief),
+    user: buildReviewUserPrompt(brief, title, pages, castNames),
+    json: true,
+    maxTokens: 12000,
+    effort: "low",
+    temperature: 0.2,
+  });
+  return { review: sanitizeReview(parseJsonObject<any>(retry.text), pages.length), call: retry, failedCall: call };
 }
 
 // ---------------------------------------------------------------------------

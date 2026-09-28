@@ -226,19 +226,23 @@ export function rankEngines(input: {
  * told.
  */
 export const CRAFT_RULES: string[] = [
-  "Seite 1 zeigt in den ersten drei Sätzen, WER etwas WILL und WAS im Weg steht — anfassbar, sichtbar, jetzt.",
-  "Die Kinder lösen das Problem mit ihrer eigenen Idee. Die Idee wurde früh unscheinbar vorbereitet (ein Detail, ein Gegenstand, eine Eigenheit) und zahlt sich im Finale aus. Keine Rettung durch Erwachsene, Zufall oder Magie allein.",
+  "Seite 1 zeigt in den ersten drei Sätzen, WER etwas WILL und WAS im Weg steht — anfassbar, sichtbar, jetzt. Der erste Satz ist ein Bild oder eine Handlung, die neugierig macht — nicht die Formel 'X und Y wollten …'.",
+  "Das Ziel hat ein Herz: Ein Kind versteht in einem Satz, warum es den Helden WICHTIG ist (für jemanden, den sie mögen, ein Versprechen, etwas Eigenes, das sie lieben) — nicht nur, dass irgendein Ding irgendwohin muss.",
+  "Die Kinder lösen das Problem mit ihrer eigenen Idee. Die Idee wurde früh unscheinbar vorbereitet (ein Detail, ein Gegenstand, eine Eigenheit) und zahlt sich im Finale aus. Keine Rettung durch Erwachsene, Zufall oder Magie allein — und auch nicht dadurch, dass der Gegenspieler von allein stolpert: Wenn er hineintappt, dann in die Falle, die die Kinder gestellt haben.",
   "Dreierschritt: drei Versuche oder Begegnungen, jede größer, knapper und komischer. Die dritte ist anders als die ersten beiden.",
   "Komik entsteht aus Figuren und Situationen, die man sehen kann: jemand ist sich lächerlich sicher, eine kleine Panne schaukelt sich auf, etwas wird wörtlich genommen, ein Laufgag kehrt dreimal wieder und kippt beim dritten Mal. Kein Erzähler, der Witze erklärt, kein 'alle lachten'.",
   "Dramatische Ironie: mindestens einmal weiß das zuhörende Kind mehr als eine Figur und möchte rufen 'Pass auf!' oder 'Das war doch …!'.",
-  "Spannung braucht etwas Sichtbares, das droht (eine Uhr, ein Gegner, ein wackelnder Turm), und einen Tiefpunkt kurz vor Schluss, an dem es aussieht, als wäre alles verloren.",
+  "Spannung braucht etwas Sichtbares, das droht (eine Uhr, ein Gegner, ein wackelnder Turm), und einen Tiefpunkt kurz vor Schluss, an dem es aussieht, als wäre alles verloren. Es gibt genau EINE Frist oder Gefahr: auf Seite 1 genannt, mit klarer, sichtbarer Folge, die zu DIESER Welt passt, im Finale eingelöst. Keine zweite Uhr daneben.",
   "Jede Seite endet mit einem Grund umzublättern — und zwar in der HANDLUNG: ein Geräusch, eine Entdeckung, etwas kippt, jemand ruft. Die Frage entsteht im Kopf des Kindes; der Erzähler stellt keine Fragen ('Ob das gut geht?'). Die Auflösung steht erst auf der nächsten Seite.",
-  "Magie und besondere Dinge werden eingeführt, BEVOR sie gebraucht werden: was es ist und was es tut, in Kinderworten, am besten durch eine kleine Vorführung, die man sieht. Nie als Schild, Inschrift oder Regeltext.",
+  "Magie und besondere Dinge werden eingeführt, BEVOR sie gebraucht werden: woher sie kommen (ein halber Satz reicht), was sie sind und was sie tun — in Kinderworten, am besten durch eine kleine Vorführung, die man sieht. Nie als Schild, Inschrift oder Regeltext.",
   "Die Lösung ist eine überraschende, aber sofort einleuchtende Idee — das Kind denkt 'Ach, na klar!'. Sie nutzt genau die Regel, Schwäche oder Eigenart, die vorher gezeigt wurde. Keine umständliche Bastelei, die man nur mit Zeichnung versteht.",
   "Auf jeder Seite ist klar, wo alle sind und was sie in der Hand haben. Jeder Ortswechsel steht als eigener kurzer Satz da.",
   "Gefühle werden gezeigt, nicht benannt: am Körper, an der Stimme, an dem, was jemand tut. Die Kinder dürfen Angst, Wut oder Enttäuschung haben, und das wird ernst genommen.",
   "Nebenfiguren haben einen eigenen Wunsch und EINE unverwechselbare Eigenart (Stimme, Geste, Tick), die in der Handlung etwas bewirkt. Wer gestrichen werden könnte, ohne dass etwas fehlt, gehört nicht in die Geschichte.",
-  "Das Ende zahlt alles aus, was vorbereitet wurde, und kehrt zum Anfangsbild zurück — verwandelt. Die letzte Seite endet mit einer kleinen Schlusspointe oder einem warmen Bild, nie mit einer Lehre.",
+  "Kontinuität: Jede Figur und jedes wichtige Ding ist in jedem Moment an genau einem Ort. Es wechselt Ort oder Besitzer nur, wenn der Text es zeigt. Wer etwas benutzt, hat es nachweislich dabei. Ortswechsel werden in einem halben Satz gezeigt ('Sie rannten zur Brücke.'). Nichts taucht aus dem Nichts auf, nichts verschwindet stillschweigend.",
+  "Ein Gegenspieler hat einen Grund, den ein Kind früh versteht (er ist gierig, eitel, hungrig, hat etwas verwechselt). Wer etwas wegnimmt, tut es sichtbar oder aus einem erkennbaren Grund — nie unerklärt.",
+  "Eigenarten der Figuren (eine Geste, ein Spruch) zeigen sich zwei- bis dreimal in der ganzen Geschichte, jedes Mal mit einer Wirkung — nie als Dauer-Tick auf jeder Seite.",
+  "Das Ende zahlt alles aus, was vorbereitet wurde, und kehrt zum Anfangsbild zurück — verwandelt. Die letzte Seite endet mit einer kleinen Schlusspointe oder einem warmen Bild, nie mit einer Lehre. Die Pointe dreht etwas, das das Kind schon kennt (den Laufgag, die Eigenart einer Figur, das Anfangsbild) — nichts Neues aus dem Nichts.",
 ];
 
 /** The read-aloud rules — sentence level. Short on purpose. */
@@ -260,7 +264,10 @@ export function buildLanguageRules(band: AgeBand, languageLabel: string): string
     "Wichtiges in Kinderworten statt Begriffen: nicht 'Es liefert Gegenstände, aber keine fertigen Handlungen', sondern 'Es gibt dir Sachen. Aber helfen musst du selbst.'",
     "Vorbereitete Details zeigst du beiläufig. Niemand kündigt an, wofür etwas später gut ist.",
     "Keine Erzählerfragen und keine Kommentare über die Geschichte. Fragen stellen nur Figuren.",
-    "Keine Ketten aus Ein-Wort-Sätzen, keine Nebensatz-Schachteln. Laut vorgelesen darf niemand stolpern.",
+    "Erzählt wird durchgehend in der Vergangenheit (im Deutschen: Präteritum — 'Mina lief', nicht 'Mina läuft'). Nur die wörtliche Rede steht in der Gegenwart.",
+    "Keine Ketten aus Ein-Wort-Sätzen, keine Nebensatz-Schachteln, keine Semikolons. Laut vorgelesen darf niemand stolpern.",
+    "Jede Seite ist eine Szene mit Stimmen: Die Figuren reden miteinander — die Helden auch untereinander. Ein Kind, das zuhört, soll hören, wie Mina und Amir klingen, nicht nur sehen, was sie tun.",
+    "Wenn die Helden ihre Idee haben, sagen sie sie laut ('Ich hab's!', 'Wir machen es so: …') — das Kind soll den Plan mitdenken und sich freuen, wenn er aufgeht.",
   ];
 }
 
@@ -302,7 +309,9 @@ export function resolveLengthBudget(length: "short" | "medium" | "long" | undefi
     wordsPerPageMax: max,
     totalWordsMin: pages * min,
     totalWordsMax: pages * max,
-    maxCast: band === "3-5" ? 2 : 3,
+    // Top picture books carry one or two side characters. Three pool figures
+    // plus two heroes crowded batch run 3 (2026-09-28) for 6-8 year olds.
+    maxCast: band === "9-12" ? 3 : 2,
     maxCharactersPerImage: 3,
   };
 }

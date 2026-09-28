@@ -23,7 +23,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { normalizeAgeBand, resolveLengthBudget } from "../backend/story/storybook/craft";
 import { buildBrief } from "../backend/story/storybook/context";
-import { CostLedger, fallbackModelFor, resolveStorybookModels, type LlmCallResult, type LlmRequest, type StorybookLlm } from "../backend/story/storybook/llm";
+import { CostLedger, resolveStorybookModels, retryRequestFor, type LlmCallResult, type LlmRequest, type StorybookLlm } from "../backend/story/storybook/llm";
 import { acceptsTemperature, extractStorybookChoiceContent, isTruncatedFinishReason, resolveStorybookReasoning } from "../backend/story/storybook/llm-guards";
 import { runStorybookTextEngine } from "../backend/story/storybook/engine";
 import { selectRewardArtifacts, shortlistCastCandidates, toArtifactOption, toCastCandidate } from "../backend/story/storybook/cast-selection";
@@ -106,9 +106,10 @@ const llm: StorybookLlm = async (request) => {
   } catch (err) {
     const billed = (err as any)?.billed as LlmCallResult | undefined;
     if (billed) ledger.recordCall(`${request.stage}-failed`, billed, request.role);
-    const fallback = fallbackModelFor(request.model);
-    console.warn(`  ! ${request.stage}: ${(err as Error).message} → retry with ${fallback}`);
-    return { ...(await callOnce({ ...request, maxTokens: Math.ceil(request.maxTokens * 1.5) }, fallback)), fallbackFrom: request.model };
+    const retry = retryRequestFor(request, err);
+    console.warn(`  ! ${request.stage}: ${(err as Error).message} → retry with ${retry.model} (effort ${retry.request.effort || "default"})`);
+    const retried = await callOnce(retry.request, retry.model);
+    return retry.model === request.model ? retried : { ...retried, fallbackFrom: request.model };
   }
 };
 
@@ -147,7 +148,7 @@ const heroes = heroRows.map((row: any) => {
     id: `hero-${candidate.id}`,
     name: shortName,
     age: row.age_category === "child" ? 8 : undefined,
-    description: `${candidate.whoTheyAre}. ${candidate.quirk ? `Eigenart: ${candidate.quirk}.` : ""}`,
+    description: candidate.whoTheyAre,
     imageUrl: publicImageUrl(candidate.imageUrl),
     visualProfile: { characterType: candidate.species === "human" ? "human" : candidate.species, consistentDescriptors: [castAppearance(candidate.visualProfile, candidate.physicalDescription)] },
     narrativeProfile: { dominantPersonality: candidate.personality[0], traits: candidate.personality.slice(1, 3), quirk: candidate.quirk, catchphrase: candidate.catchphrase },
@@ -179,8 +180,12 @@ const artifacts = broughtId
   ? [{ ...toArtifactOption(artifactRows.find((row) => row.id === broughtId), config.language)!, broughtBy: heroes[0].id }]
   : selectRewardArtifacts({ rows: artifactRows, genre: config.genre, excludeIds: new Set(), seed, language: config.language });
 
-const brief = buildBrief({ config, band, budget, heroes, candidates, artifacts, seed });
+const historyPath = option("--history");
+const history: { stories?: string[]; engines?: string[] } = historyPath ? JSON.parse(await readFile(historyPath, "utf8")) : {};
+const brief = buildBrief({ config, band, budget, heroes, candidates, artifacts, seed, recentStories: history.stories, recentEngineIds: history.engines });
 const models = resolveStorybookModels(config, { critic: option("--critic") });
+// A/B tests may deliberately use one fixed judge for every writer.
+if (option("--critic")) models.critic = option("--critic")!;
 const out = option("--out", join("Logs", "storybook-v2-live", new Date().toISOString().replace(/[:.]/g, "-")))!;
 await mkdir(out, { recursive: true });
 
@@ -218,7 +223,8 @@ const text = await runStorybookTextEngine({
 let imageSummary = "Bilder übersprungen";
 let imageCostUSD = 0;
 const imageFiles: Record<number, string> = {};
-if (!flag("--no-images")) {
+if (!flag("--no-images") && !runwareKey) console.warn("  ! RUNWARE_API_KEY fehlt — Bilder werden übersprungen.");
+if (!flag("--no-images") && runwareKey) {
   const entities: VisualEntity[] = [];
   for (const hero of brief.heroes) {
     const { species, isHuman } = speciesFromProfile(hero.visualProfile, "human");

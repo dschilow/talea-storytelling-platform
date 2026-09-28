@@ -12,7 +12,7 @@ import {
   getOpenRouterModelPricing,
 } from "../openrouter-generation";
 import { acceptsTemperature, extractStorybookChoiceContent, isTruncatedFinishReason, resolveStorybookReasoning } from "./llm-guards";
-import { fallbackModelFor, type LlmCallResult, type LlmRequest, type StorybookLlm } from "./llm";
+import { retryRequestFor, type LlmCallResult, type LlmRequest, type StorybookLlm } from "./llm";
 
 const DEFAULT_TIMEOUT_MS = 180_000;
 
@@ -92,15 +92,10 @@ export function createOpenRouterStorybookLlm(options: OpenRouterPortOptions = {}
       return await callOnce(request, request.model);
     } catch (err) {
       options.onFailedAttempt?.(request, (err as any)?.billed, err);
-      const fallback = fallbackModelFor(request.model);
-      console.warn(`[storybook/llm] ${request.stage}: ${request.model} failed, retrying once with ${fallback}:`, (err as Error)?.message || err);
-      // A truncated answer gets more room; everything else the same request.
-      const truncated = /Truncated response/.test(String((err as Error)?.message || ""));
-      const retried = await callOnce(
-        { ...request, maxTokens: truncated ? Math.ceil(request.maxTokens * 1.5) : request.maxTokens },
-        fallback
-      );
-      return { ...retried, fallbackFrom: request.model };
+      const retry = retryRequestFor(request, err);
+      console.warn(`[storybook/llm] ${request.stage}: ${request.model} failed, retrying once with ${retry.model} (effort ${retry.request.effort || "default"}):`, (err as Error)?.message || err);
+      const retried = await callOnce(retry.request, retry.model);
+      return retry.model === request.model ? retried : { ...retried, fallbackFrom: request.model };
     }
   };
 }

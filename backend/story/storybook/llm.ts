@@ -17,24 +17,26 @@
  *             grading its own prose grades it generously; that exact
  *             collision inflated a 6.5/10 story to 8.1 (audit 2026-08-06) and
  *             produced storybook-v1's weakest run (6683b402).
- *             Default: Claude Sonnet 5 — the Sonnet line is what EQ-Bench itself
- *             uses to judge creative writing. Gemini 3.5 Flash-Lite (the first
- *             choice) scored story 0039344e 8/10 where a careful read gives
- *             ~5.5: the wish basin was never introduced as one, the solution
- *             could not be explained in a child's sentence, and the pool
- *             character vanished after page 2 — none of it was flagged.
+ *             History: Gemini 3.5 Flash-Lite without score caps rated story
+ *             0039344e 8/10 (a careful read: ~5.5). Claude Sonnet 5 with the
+ *             caps rated the next draft an honest 5.5 — but cost $0.061 of an
+ *             $0.085 story (422a3ba3). Default now (product decision
+ *             2026-09-28): Gemini 3.8 Flash ($0.75/$3.75) with the caps — the
+ *             Flash line judges creative writing well (Judgemark v2: Gemini 3
+ *             Flash 85 vs 3.1 Flash-Lite 81) at a fraction of Claude's price.
+ *             Other critics stay one env var away (TALEA_STORYBOOK_CRITIC_MODEL).
  */
 
 import type { StoryConfig } from "../generate";
 
 export const STORYBOOK_SUPPORT_MODEL = "openai/gpt-6-luna";
 export const STORYBOOK_DEFAULT_WRITER_MODEL = "openai/gpt-6-luna";
-/** Independent critic for every writer that is not itself a Claude model. */
-export const STORYBOOK_CROSS_FAMILY_CRITIC_MODEL = "anthropic/claude-sonnet-5";
+/** Independent critic for every writer that is not itself a Gemini model. */
+export const STORYBOOK_CROSS_FAMILY_CRITIC_MODEL = "google/gemini-3.8-flash";
 /** Used once, only after a model returned nothing usable. */
 export const STORYBOOK_FALLBACK_MODEL = "google/gemini-3.5-flash-lite";
 
-export type ReasoningEffort = "none" | "low" | "medium" | "high";
+export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
 export type LlmRole = "support" | "writer" | "critic";
 
 export interface LlmRequest {
@@ -116,6 +118,28 @@ export function resolveStorybookModels(
 /** The other model to try once when a call returned nothing usable. */
 export function fallbackModelFor(model: string): string {
   return modelFamily(model) === "google" ? STORYBOOK_SUPPORT_MODEL : STORYBOOK_FALLBACK_MODEL;
+}
+
+/**
+ * The one retry after a failed call. A deep-thinking call that ran out of time
+ * is not a bad model: it retries on the SAME model at "medium" (batch
+ * 2026-09-28: xhigh drafts timed out and fell to Flash-Lite, which wrote
+ * visibly worse stories at a higher price). Everything else goes once to the
+ * other family; a truncated answer gets more room.
+ */
+export function retryRequestFor(request: LlmRequest, error: unknown): { request: LlmRequest; model: string } {
+  const message = String((error as Error)?.message || error || "");
+  const deep = request.effort === "high" || request.effort === "xhigh" || request.effort === "max";
+  // "Empty" after deep thinking = the whole budget went into reasoning
+  // (batch 2026-09-28T10-41: a "high" draft burnt 36k tokens, wrote nothing).
+  if (deep && /timed out|timeout|aborted|Empty response/i.test(message)) {
+    return { request: { ...request, effort: "medium" }, model: request.model };
+  }
+  const truncated = /Truncated/i.test(message);
+  return {
+    request: { ...request, maxTokens: truncated ? Math.ceil(request.maxTokens * 1.5) : request.maxTokens },
+    model: fallbackModelFor(request.model),
+  };
 }
 
 export interface StorybookStageLog {

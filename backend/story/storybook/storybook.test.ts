@@ -9,7 +9,7 @@ import { describe, expect, test } from "bun:test";
 
 import { normalizeAgeBand, rankEngines, resolveLengthBudget, STORY_ENGINES } from "./craft";
 import { buildBrief, type StoryBrief } from "./context";
-import { CostLedger, modelFamily, resolveStorybookModels, toOpenRouterModelId, type LlmRequest, type StorybookLlm } from "./llm";
+import { CostLedger, modelFamily, resolveStorybookModels, retryRequestFor, toOpenRouterModelId, type LlmRequest, type StorybookLlm } from "./llm";
 import { acceptsTemperature, resolveStorybookReasoning } from "./llm-guards";
 import { normalizeGermanQuotes, parseDraft } from "./parsing";
 import { checkPlan, checkProse, mentions, nameTokens } from "./checks";
@@ -69,6 +69,7 @@ function planFor(b: StoryBrief, overrides: Partial<StoryPlan> = {}): StoryPlan {
     turn: "Wer klopft da?",
     picture: "Alexander springt über einen Sack Mehl",
     onPage: ["a1", "a2", "pool-kicher"],
+    after: "",
   }));
   return {
     title: "Alexander und der Kobold im Mehl",
@@ -85,6 +86,8 @@ function planFor(b: StoryBrief, overrides: Partial<StoryPlan> = {}): StoryPlan {
     runningGag: { what: "Kicher niest", beats: ["1", "2", "3"] },
     dramaticIrony: "Das Kind sieht den Kobold im Sack.",
     setups: [{ what: "die Glocke", plantedOnPage: 1, paysOffOnPage: 6 }],
+    obstacleMotive: "Kicher sammelt Türgriffe.",
+    props: [{ thing: "die Glocke", start: "am Turm", firstPage: 1 }],
     heroes: [
       { id: "a1", name: "Alexander", strength: "planen", voice: "ruhig", contribution: "stellt die Falle" },
       { id: "a2", name: "Adrian", strength: "schnell", voice: "laut", contribution: "lockt den Kobold" },
@@ -113,22 +116,34 @@ describe("model routing", () => {
     expect(modelFamily(models.critic)).not.toBe(modelFamily(models.writer));
   });
 
-  test("run 0039344e: Flash-Lite scored a ~5.5 story 8/10 — the default critic is Claude Sonnet 5", () => {
+  test("the default critic is Gemini 3.8 Flash (Claude cost 72% of story 422a3ba3)", () => {
     const models = resolveStorybookModels({ aiProvider: "openrouter", openRouterModel: "openai/gpt-6-luna" } as any);
-    expect(models.critic).toBe("anthropic/claude-sonnet-5");
-    const gemini = resolveStorybookModels({ aiProvider: "native", aiModel: "gemini-3.1-pro-preview" } as any);
-    expect(gemini.writer).toBe("google/gemini-3.1-pro-preview");
-    expect(gemini.critic).toBe("anthropic/claude-sonnet-5");
+    expect(models.critic).toBe("google/gemini-3.8-flash");
+    const claude = resolveStorybookModels({ aiProvider: "native", aiModel: "claude-sonnet-4-6" } as any);
+    expect(claude.critic).toBe("google/gemini-3.8-flash");
   });
 
-  test("a Claude writer is never graded by a Claude critic", () => {
-    const models = resolveStorybookModels({ aiProvider: "native", aiModel: "claude-sonnet-4-6" } as any);
+  test("Gemini 3.8 Flash has no 'minimal' effort: the blind A/B read asks for 'low' instead", () => {
+    expect(resolveStorybookReasoning("google/gemini-3.8-flash", "none", "critic")).toEqual({ effort: "low", exclude: true });
+    expect(resolveStorybookReasoning("google/gemini-3.8-flash", "medium", "critic")).toEqual({ effort: "medium", exclude: true });
+    expect(resolveStorybookReasoning("google/gemini-3.1-flash-lite", "none")).toEqual({ effort: "minimal", exclude: true });
+    expect(resolveStorybookReasoning("google/gemini-3.5-flash-lite", "none")).toEqual({ effort: "minimal", exclude: true });
+  });
+
+  test("a Gemini writer is never graded by a Gemini critic", () => {
+    const models = resolveStorybookModels({ aiProvider: "native", aiModel: "gemini-3.1-pro-preview" } as any);
+    expect(models.writer).toBe("google/gemini-3.1-pro-preview");
     expect(models.critic).toBe("openai/gpt-6-luna");
+  });
+
+  test("Claude remains selectable as critic by override", () => {
+    const models = resolveStorybookModels({ aiProvider: "openrouter", openRouterModel: "openai/gpt-6-luna" } as any, { critic: "anthropic/claude-sonnet-5" });
+    expect(models.critic).toBe("anthropic/claude-sonnet-5");
   });
 
   test("an override critic from the writer's own family is rejected", () => {
     const models = resolveStorybookModels({ aiProvider: "openrouter", openRouterModel: "openai/gpt-6-luna" } as any, { critic: "openai/gpt-6-luna-pro" });
-    expect(modelFamily(models.critic)).toBe("anthropic");
+    expect(modelFamily(models.critic)).toBe("google");
   });
 
   test("native wizard ids map onto OpenRouter ids", () => {
@@ -149,6 +164,21 @@ describe("model routing", () => {
     expect(resolveStorybookReasoning("anthropic/claude-sonnet-5", "medium", "critic")).toEqual({ effort: "low", exclude: true });
     expect(resolveStorybookReasoning("anthropic/claude-sonnet-5", "none", "critic")).toEqual({ enabled: false, exclude: true });
     expect(resolveStorybookReasoning("anthropic/claude-sonnet-5", "low", "writer")).toEqual({ enabled: false, exclude: true });
+  });
+});
+
+describe("retry policy", () => {
+  const base: LlmRequest = { stage: "draft", role: "writer", model: "openai/gpt-6-luna", system: "", user: "", json: false, maxTokens: 1000, effort: "xhigh" };
+  test("a deep-thinking timeout retries the same model at medium", () => {
+    const retry = retryRequestFor(base, new Error("[storybook/llm] openai/gpt-6-luna timed out after 540s (draft)."));
+    expect(retry.model).toBe("openai/gpt-6-luna");
+    expect(retry.request.effort).toBe("medium");
+  });
+  test("other failures go once to the other family, truncation gets more room", () => {
+    const retry = retryRequestFor(base, new Error("Truncated response from openai/gpt-6-luna (draft)"));
+    expect(retry.model).not.toBe("openai/gpt-6-luna");
+    expect(retry.request.maxTokens).toBe(1500);
+    expect(retryRequestFor({ ...base, effort: "low" }, new Error("timed out")).model).not.toBe("openai/gpt-6-luna");
   });
 });
 
@@ -338,6 +368,20 @@ describe("illustration locks", () => {
     expect(negative.toLowerCase()).toContain("strip");
   });
 
+  test("run 422a3ba3: a recurring magic thing gets one fixed look instead of becoming a cap", () => {
+    const b = brief();
+    const plan = planFor(b);
+    const shots = sanitizeIllustrationPlan({
+      storyElements: [{ name: "Wish hat", look: "a big red felt hat walking on two very long thin legs, no body, nobody wears it" }],
+      cover: { scene: "cover", onStage: ["a1"], elements: ["Wish hat", "Unknown thing"] },
+      pages: [{ page: 1, scene: "The wish hat runs off with the basket.", onStage: ["a1"], elements: ["Wish hat"] }],
+    }, 1, plan, [human], 3);
+    expect(shots.storyElements).toEqual([{ name: "Wish hat", look: "a big red felt hat walking on two very long thin legs, no body, nobody wears it" }]);
+    expect(shots.cover.elements).toEqual(["Wish hat"]);
+    const prompt = assembleImagePrompt({ scene: shots.pages[0].scene, onStage: [human], spriteOrder: [human], elements: shots.storyElements });
+    expect(prompt).toContain("Story element, drawn exactly like this: Wish hat — a big red felt hat walking on two very long thin legs");
+  });
+
   test("appearance lines come from structured profiles and English pool prompts", () => {
     expect(heroAppearance({ hair: { color: "brown", length: "short" }, eyes: { color: "green" } })).toContain("brown short hair");
     expect(castAppearance(KOBOLD.visualProfile)).toContain("goblin");
@@ -401,11 +445,13 @@ describe("images", () => {
   });
 
   test("severity: anatomy and bleed are severe, a missing background figure is not", () => {
-    const clean = { anatomyDefects: [], animalFeaturesOnHumans: [], duplicates: [], unexpectedCharacters: [], roleSwaps: [], textVisible: false, referenceSheetVisible: false, identityMatch: 0.9, sceneMatch: 0.9, namedCharactersVisible: 2 };
+    const clean = { anatomyDefects: [], animalFeaturesOnHumans: [], duplicates: [], unexpectedCharacters: [], roleSwaps: [], elementMisuse: [], textVisible: false, referenceSheetVisible: false, identityMatch: 0.9, sceneMatch: 0.9, namedCharactersVisible: 2 };
     expect(qaSeverity(clean, 2)).toBe(0);
     expect(qaSeverity({ ...clean, namedCharactersVisible: 1 }, 2)).toBeLessThan(10);
     expect(qaSeverity({ ...clean, animalFeaturesOnHumans: ["fox ears"] }, 2)).toBeGreaterThanOrEqual(10);
-    expect(qaSeverity({ ...clean, roleSwaps: ["Alexander climbs instead of Adrian"] }, 2)).toBeGreaterThanOrEqual(10);
+    // Role swaps are logged but do not trigger a paid regeneration on their own.
+    expect(qaSeverity({ ...clean, roleSwaps: ["Alexander climbs instead of Adrian"] }, 2)).toBeLessThan(10);
+    expect(qaSeverity({ ...clean, elementMisuse: ["the wish hat is worn as a cap"] } as any, 2)).toBeGreaterThanOrEqual(10);
   });
 
   test("run 0039344e: a sheet the provider rejects never leaves the page blank", async () => {
@@ -453,7 +499,7 @@ describe("images", () => {
 });
 
 describe("engine flow (scripted port)", () => {
-  test("concept → plan → draft → review → revision → blind A/B; the chosen revision ships", async () => {
+  test("concept → plan → plan review → repair → draft → review → revision → blind A/B; the chosen revision ships", async () => {
     const b = brief();
     const stages: string[] = [];
     const plan = planFor(b);
@@ -466,6 +512,13 @@ describe("engine flow (scripted port)", () => {
         case "concept":
           return reply(JSON.stringify({ pitches: [{ engine: "gaunerfalle", title: "T", logline: "L", cast: [{ id: "pool-kicher", role: "Gauner" }], heroRoles: [{ heroId: "a1" }, { heroId: "a2" }] }] }));
         case "plan":
+          return reply(JSON.stringify(plan));
+        case "plan-review":
+          return reply(JSON.stringify({ verdict: "fix", problems: ["Seite 6: Die Falle ist nicht vorstellbar → einfacher machen"] }));
+        case "plan-repair":
+          // The repair sees its previous plan and the critic's problem.
+          expect(request.user).toContain("DEIN LETZTER PLAN (behalte");
+          expect(request.user).toContain("Die Falle ist nicht vorstellbar");
           return reply(JSON.stringify(plan));
         case "draft":
           return reply(storyText("ENTWURF"));
@@ -485,14 +538,15 @@ describe("engine flow (scripted port)", () => {
     const models = resolveStorybookModels({ aiProvider: "openrouter", openRouterModel: "openai/gpt-6-luna" } as any);
     const result = await runStorybookTextEngine({ llm, brief: b, models, ledger });
 
-    expect(stages.map((stage) => stage.split(":")[0])).toEqual(["concept", "plan", "draft", "review", "revision", "final-ab"]);
-    expect(stages.find((stage) => stage.startsWith("review"))).toContain("anthropic/");
+    expect(stages.map((stage) => stage.split(":")[0])).toEqual(["concept", "plan", "plan-review", "plan-repair", "draft", "review", "revision", "final-ab"]);
+    expect(stages.find((stage) => stage.startsWith("plan-review"))).toContain("google/");
+    expect(stages.find((stage) => stage.startsWith("review"))).toContain("google/");
     expect(result.chosen).toBe("revision");
     expect(result.pages[0].content).toContain("FASSUNG2");
     expect(result.benchmarkScore).toBe(8.4);
     expect(result.draftScore).toBe(6.5);
     expect(result.plan.cast.map((member) => member.id)).toEqual(["pool-kicher"]);
-    expect(ledger.totals().calls).toBe(6);
+    expect(ledger.totals().calls).toBe(8);
   });
 });
 

@@ -40,6 +40,8 @@ export function buildConceptSystemPrompt(): string {
     "HANDWERK, DAS ALLE GROSSEN BILDERBÜCHER TEILEN:",
     ...CRAFT_RULES.map((rule) => `- ${rule}`),
     "",
+    "Frische: Diese Motive sind abgenutzt — nimm sie nur, wenn die Wünsche sie ausdrücklich verlangen: ein Glockenschlag oder Mondaufgang als Frist, ein Fest, das ausfällt, ein gestohlenes glänzendes Ding, ein eitler Gegenspieler, der von Spiegeln abgelenkt wird. Die drei Pitches unterscheiden sich in Ziel, Hindernis UND Frist.",
+    "Die Helden-Eigenheiten (Lieblingsgegenstand, Hobby) sind nicht das Werkzeug für jede Lösung. Die Lösung kommt aus der Lage dieser Geschichte.",
     "Verboten: Moralpredigten, 'Freundschaft ist das Wichtigste'-Plots, Rettung durch Erwachsene, Zufall als Lösung, Traum-Enden, Figuren, die nur Sprüche aufsagen, echte Gewalt, Schreckbilder für die Kleinsten.",
     "",
     "Antworte ausschließlich mit einem gültigen JSON-Objekt. Alle Textfelder in der Sprache der Geschichte, außer den ids.",
@@ -59,6 +61,7 @@ export function buildConceptUserPrompt(brief: StoryBrief, engines: StoryEngine[]
   for (const hero of brief.heroes) lines.push(heroSheet(hero, brief.heroMemories[hero.id] || []));
   if (brief.heroes.length > 1) {
     lines.push("Jedes Kind bekommt eine eigene, unterschiedliche Stärke und einen eigenen Beitrag zur Lösung.");
+    lines.push("Die Stärke zeigt sich in dem, was ein Kind in DIESER Geschichte tut. Eigenart und typischer Satz der Helden sind Würze — kein Requisit, das jede Geschichte trägt, und nicht der Schlüssel zur Lösung.");
   }
   lines.push("Erfinde keine Familiengeschichte, keine Haustiere und keine Geschwister der Helden dazu.");
   lines.push("");
@@ -168,7 +171,7 @@ export function sanitizePitches(raw: any, brief: StoryBrief, engines: StoryEngin
         : null;
       if (brought) artifact = { id: brought.id, use: artifact?.use || text(pitch.artifact?.use, 300) };
       return {
-        engine: engineIds.has(text(pitch.engine, 40)) ? text(pitch.engine, 40) : text(pitch.engine, 40) || "frei",
+        engine: engineIds.has(text(pitch.engine, 40)) ? text(pitch.engine, 40) : "frei",
         title: text(pitch.title, 90),
         logline: text(pitch.logline, 400),
         heroWant: text(pitch.heroWant, 300),
