@@ -120,7 +120,7 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
       animalFeaturesOnHumans: ["e.g. 'the boy has fox ears'"],
       featureBleed: ["e.g. 'both children have the robber's moustache', 'the frog wears a crown that is not his'"],
       duplicates: ["a character drawn twice"],
-      unexpectedCharacters: ["figures that are not expected"],
+      unexpectedCharacters: ["figures that are not expected, e.g. two extra children in the background"],
       roleSwaps: ["ONLY: the page's key action is done by the wrong named character. Pose details, props held slightly differently or small action differences are NOT role swaps."],
       elementMisuse: [],
       textVisible: false,
@@ -168,6 +168,9 @@ export function qaSeverity(report: ImageQaReport | undefined, expectedCharacters
   severity += report.roleSwaps.length * 4;
   severity += (report.elementMisuse?.length || 0) * 10;
   severity += (report.featureBleed?.length || 0) * 10;
+  // Story 76dc3218 page 2: two unexplained boys behind the heroes read as
+  // copies of them. Alone not a redraw (5), together with anything else it is.
+  severity += Math.min(report.unexpectedCharacters.length, 2) * 5;
   if (report.referenceSheetVisible) severity += 12;
   if (report.textVisible) severity += 6;
   if (report.identityMatch < 0.4) severity += 6;
@@ -182,6 +185,7 @@ function correctionFor(report: ImageQaReport): string {
   if (report.anatomyDefects.length) fixes.push("Correct anatomy: every person has exactly two arms and two hands with five fingers each; no extra limbs.");
   if (report.animalFeaturesOnHumans.length) fixes.push("The human characters have ordinary human ears and no animal features at all.");
   if (report.duplicates.length) fixes.push("Each character appears exactly once.");
+  if (report.unexpectedCharacters.length) fixes.push("Only the named characters — no additional children or people in the background.");
   if (report.featureBleed?.length) fixes.push(`Every character keeps only its own face and outfit — the children have smooth faces without facial hair: ${report.featureBleed.slice(0, 2).join("; ")}.`);
   if (report.roleSwaps.length) fixes.push(`Keep the roles exactly as described: ${report.roleSwaps.slice(0, 2).join("; ")}.`);
   if (report.elementMisuse?.length) fixes.push(`Draw the story element as its own thing exactly as described: ${report.elementMisuse.slice(0, 2).join("; ")}.`);

@@ -39,7 +39,11 @@ export async function loadCastCandidates(input: {
   }
 }
 
-/** Records pool usage so the rotation actually rotates. Best-effort. */
+/**
+ * Records pool usage so the rotation actually rotates, and links the story to
+ * its cast (story_characters) like every other pipeline — the character tab
+ * lists a figure's stories from there. Best-effort.
+ */
 export async function recordCastUsage(storyId: string | undefined, castIds: string[]): Promise<void> {
   if (!storyId || castIds.length === 0) return;
   for (const id of castIds) {
@@ -51,6 +55,15 @@ export async function recordCastUsage(storyId: string | undefined, castIds: stri
             last_used_at = NOW()
         WHERE id = ${id}
       `;
+      const linked = await storyDB.queryRow<{ id: string }>`
+        SELECT id FROM story_characters WHERE story_id = ${storyId} AND character_id = ${id} LIMIT 1
+      `;
+      if (!linked) {
+        await storyDB.exec`
+          INSERT INTO story_characters (id, story_id, character_id, placeholder)
+          VALUES (${crypto.randomUUID()}, ${storyId}, ${id}, ${"storybook-cast"})
+        `;
+      }
     } catch (err) {
       console.warn("[storybook/casting] failed to record pool usage", id, err);
     }

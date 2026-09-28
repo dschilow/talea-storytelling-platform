@@ -340,6 +340,10 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     tokensUsed: { prompt: totals.prompt, completion: totals.completion, total: totals.total, totalCostUSD: totals.costUSD, modelUsed: models.writer },
     devModeStages: ledger.all(),
     releaseReady,
+    // The shared field every pipeline writes: the story list and the
+    // participants dialog show the cast from here (they were missing for
+    // Bilderbuch stories, 2026-09-28).
+    characterPoolUsed: castInStory.map((member) => ({ characterId: member.id, characterName: member.name })),
     quality: {
       benchmarkScore: text.benchmarkScore,
       draftScore: text.draftScore,

@@ -307,6 +307,15 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
       if (Array.isArray(baseMetadata?.characterPoolUsed) && baseMetadata.characterPoolUsed.length > 0) {
         return baseMetadata;
       }
+      // Bilderbuch stories before 2026-09-28 stored their cast only under
+      // metadata.storybook.castUsed ({ id, name }).
+      const storybookCast = baseMetadata?.storybook?.castUsed;
+      if (Array.isArray(storybookCast) && storybookCast.length > 0) {
+        return {
+          ...baseMetadata,
+          characterPoolUsed: storybookCast.map((member: { id?: string; name?: string }) => ({ characterId: member?.id, characterName: member?.name })),
+        };
+      }
 
       const characterPoolUsed = extractCharacterPoolUsed(castSetByStoryId.get(row.id) || null);
       if (characterPoolUsed.length === 0) {

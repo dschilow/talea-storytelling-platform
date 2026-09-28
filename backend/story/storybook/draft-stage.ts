@@ -98,7 +98,7 @@ export function renderPlanForWriter(plan: StoryPlan, brief: StoryBrief): string 
     lines.push("  Beim dritten Mal kippt er. Nie erklären.");
   }
   if (plan.refrain) {
-    lines.push(`DER SATZ ZUM MITSPRECHEN: „${plan.refrain}“ — dreimal, immer von einer Figur laut gesagt und auf einer eigenen Zeile; beim dritten Mal mit neuer Bedeutung.`);
+    lines.push(`DER SATZ ZUM MITSPRECHEN: „${plan.refrain}“ — dreimal, beim dritten Mal mit neuer Bedeutung. Jedes Mal hört man, WER ihn ruft und warum gerade jetzt („…“, rief Adrian.) — nie als Satz ohne Sprecher.`);
   }
   if (plan.dramaticIrony) lines.push(`DAS ZUHÖRENDE KIND WEISS MEHR ALS DIE FIGUR: ${plan.dramaticIrony}`);
   if (plan.setups.length > 0) {
@@ -221,6 +221,7 @@ export function buildRevisionUserPrompt(input: {
     for (const quote of review.keep) lines.push(`- „${quote}“`);
     lines.push("");
   }
+  lines.push("Sagt die Lektorin, etwas komme aus dem Nichts (eine Eigenart, ein Trick, ein Ding): Zeig es auf einer frühen Seite in einem kurzen, sichtbaren Moment — mit seinem Grund. Das ist Pflicht, auch wenn der Plan es nicht vorsah.");
   lines.push("BEIM ÜBERARBEITEN NICHT: neue Erzählerfragen am Seitenende, neue Figuren, Erklärsätze statt Szenen.");
   lines.push("");
   lines.push(...lengthBlock(brief));
