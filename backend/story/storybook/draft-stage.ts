@@ -6,8 +6,8 @@
  * the length per page. Output is plain text with page markers.
  */
 
-import { buildLanguageRules, CRAFT_RULES, isGerman, type AgeBand } from "./craft";
-import { heroSeasoning, type StoryBrief } from "./context";
+import { buildLanguageRules, buildSlimLanguageRules, CORE_RULES, CRAFT_RULES, isGerman, type AgeBand } from "./craft";
+import { heroSeasoning, isLean, type StoryBrief } from "./context";
 import type { LlmCallResult, StorybookLlm } from "./llm";
 import { parseDraft } from "./parsing";
 import type { EditorialReview, StoryPlan, StorybookPage } from "./types";
@@ -40,10 +40,10 @@ export function buildWriterSystemPrompt(brief: StoryBrief): string {
     "Deine Lektorin gibt dir einen fertigen Seitenplan. Die Handlung steht. Du machst daraus Szenen, die man sieht, Sätze, die klingen, und Pointen, die sitzen.",
     "",
     "DEIN HANDWERK:",
-    ...CRAFT_RULES.map((rule) => `- ${rule}`),
+    ...(brief.experiment?.slim || isLean(brief) ? CORE_RULES : CRAFT_RULES).map((rule) => `- ${rule}`),
     "",
     "SO KLINGT ES:",
-    ...buildLanguageRules(brief.band, brief.languageLabel).map((rule) => `- ${rule}`),
+    ...(brief.experiment?.slim || isLean(brief) ? buildSlimLanguageRules(brief.languageLabel) : buildLanguageRules(brief.band, brief.languageLabel)).map((rule) => `- ${rule}`),
     "",
     "WAS DU NIE TUST:",
     "- Zusammenfassen statt erzählen ('Sie erlebten viele Abenteuer'). Jede Seite ist eine Szene mit Handlung und Stimmen.",
@@ -152,7 +152,7 @@ export function renderPlanForWriter(plan: StoryPlan, brief: StoryBrief): string 
   return lines.join("\n");
 }
 
-function lengthBlock(brief: StoryBrief): string[] {
+export function lengthBlock(brief: StoryBrief): string[] {
   const { budget } = brief;
   return [
     "UMFANG (wird nachgezählt):",
@@ -222,6 +222,8 @@ export function buildRevisionUserPrompt(input: {
     lines.push("");
   }
   lines.push("Sagt die Lektorin, etwas komme aus dem Nichts (eine Eigenart, ein Trick, ein Ding): Zeig es auf einer frühen Seite in einem kurzen, sichtbaren Moment — mit seinem Grund. Das ist Pflicht, auch wenn der Plan es nicht vorsah.");
+  lines.push("Prüf zum Schluss jede Seite: Niemand ist an zwei Orten zugleich oder tut zwei Dinge, die sich ausschließen (erst das Tuch festbinden und im selben Moment im Korb sitzen). Deine Änderungen dürfen keine neuen Widersprüche erzeugen.");
+  lines.push("Jede Seite behält Absätze: neue Zeile bei jedem Sprecherwechsel und nach jedem Bildwechsel — nie ein einziger Textblock.");
   lines.push("BEIM ÜBERARBEITEN NICHT: neue Erzählerfragen am Seitenende, neue Figuren, Erklärsätze statt Szenen.");
   lines.push("");
   lines.push(...lengthBlock(brief));
@@ -263,7 +265,7 @@ export async function runDraftStage(
     user: buildDraftUserPrompt(plan, brief, retryNotes),
     json: false,
     maxTokens: writerMaxTokens(brief),
-    effort: "medium",
+    effort: isLean(brief) ? "low" : "medium",
     timeoutMs: 300_000,
     temperature: 0.85,
   });
@@ -284,7 +286,7 @@ export async function runRevisionStage(
     user: buildRevisionUserPrompt(input),
     json: false,
     maxTokens: writerMaxTokens(input.brief),
-    effort: "medium",
+    effort: isLean(input.brief) ? "low" : "medium",
     timeoutMs: 300_000,
     temperature: 0.7,
   });

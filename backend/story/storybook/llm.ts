@@ -30,7 +30,11 @@
 import type { StoryConfig } from "../generate";
 
 export const STORYBOOK_SUPPORT_MODEL = "openai/gpt-6-luna";
-export const STORYBOOK_DEFAULT_WRITER_MODEL = "openai/gpt-6-luna";
+/**
+ * Sol writes the story in one call (measured 2026-09-28: 7.0 vs Luna's 6.0 at
+ * about the same total price, because Sol needs no plan/review/rewrite chain).
+ */
+export const STORYBOOK_DEFAULT_WRITER_MODEL = "openai/gpt-6-sol";
 /** Independent critic for every writer that is not itself a Gemini model. */
 export const STORYBOOK_CROSS_FAMILY_CRITIC_MODEL = "google/gemini-3.8-flash";
 /** Used once, only after a model returned nothing usable. */
@@ -117,6 +121,8 @@ export function resolveStorybookModels(
 
 /** The other model to try once when a call returned nothing usable. */
 export function fallbackModelFor(model: string): string {
+  // Sol failing is not a reason to leave the family: Luna knows the same prompts.
+  if (/gpt-6-sol/.test(model)) return STORYBOOK_SUPPORT_MODEL;
   return modelFamily(model) === "google" ? STORYBOOK_SUPPORT_MODEL : STORYBOOK_FALLBACK_MODEL;
 }
 

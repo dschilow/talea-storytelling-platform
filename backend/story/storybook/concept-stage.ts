@@ -12,7 +12,7 @@
  * plan stage then picks the strongest and fixes its weaknesses.
  */
 
-import { CRAFT_RULES, rankEngines, type StoryEngine } from "./craft";
+import { CORE_RULES, CRAFT_RULES, rankEngines, type StoryEngine } from "./craft";
 import { artifactSheet, briefHeader, broughtArtifact, castSheet, heroSheet, wishLines, type StoryBrief } from "./context";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import type { StoryPitch } from "./types";
@@ -24,13 +24,24 @@ export function selectEnginesForBrief(brief: StoryBrief, count = 5): StoryEngine
   return rankEngines({ band: brief.band, flavors, recentEngineIds: brief.recentEngineIds, seed: brief.seed }).slice(0, count);
 }
 
-export function buildConceptSystemPrompt(): string {
+export function buildConceptSystemPrompt(experiment?: StoryBrief["experiment"]): string {
+  if (experiment?.slim) {
+    return [
+      "Du bist Programmleiterin eines Kinderbuchverlags (Maßstab: Der Grüffelo, Pettersson und Findus, Räuber Hotzenplotz). Du entwickelst neue Geschichten, die genauso gut funktionieren, ohne bekannte Bücher zu kopieren.",
+      "",
+      "WAS JEDER PITCH ERFÜLLEN MUSS:",
+      ...CORE_RULES.map((rule) => `- ${rule}`),
+      "",
+      "Antworte ausschließlich mit einem gültigen JSON-Objekt. Alle Textfelder in der Sprache der Geschichte, außer den ids.",
+    ].join("\n");
+  }
   return [
     "Du bist Programmleiterin eines Kinderbuchverlags. Eure Bücher stehen im Regal neben Der Grüffelo, Pettersson und Findus, Räuber Hotzenplotz, Das NEINhorn, Für Hund und Katze ist auch noch Platz, Wo die wilden Kerle wohnen und Das Sams — und halten mit.",
     "Du kennst die Baupläne dieser Bücher genau. Du entwickelst NEUE Geschichten, die genauso gut funktionieren. Du kopierst nie Figuren, Titel, Sätze oder Handlungen bekannter Bücher.",
     "",
     "Ein Pitch ist nur gut, wenn alles davon stimmt:",
     "- Ein Kind weiß nach EINEM Satz, worum es geht, und will sofort weiterhören.",
+    "- Das Hindernis versperrt den einfachen Weg sichtbar. Ein Kind fragt nie: 'Warum gehen sie nicht einfach hin / fragen einfach / nehmen es einfach mit?'",
     "- Der Wunsch ist anfassbar, das Hindernis sichtbar. Keine unsichtbaren Probleme wie 'Mut finden' oder 'lernen zu teilen'.",
     "- Die Komik kommt aus einer Figur mit Eigenart oder einer Lage, die sich aufschaukelt — etwas, das man zeichnen kann.",
     "- Die Lösung ist eine clevere Idee der Kinder selbst, vorbereitet durch ein frühes, unscheinbares Detail.",
@@ -67,7 +78,11 @@ export function buildConceptUserPrompt(brief: StoryBrief, engines: StoryEngine[]
   lines.push("");
 
   if (brief.candidates.length > 0) {
-    lines.push(`CASTING — Figuren aus dem Figurenpool. Jeder Pitch besetzt 1 bis ${brief.budget.maxCast} davon (per id) mit einer echten Aufgabe:`);
+    lines.push(
+      brief.experiment?.castOptional
+        ? `FIGURENPOOL — ein Pitch DARF 0 bis ${brief.budget.maxCast} Figuren daraus besetzen (per id), aber nur, wenn die Figur die Geschichte besser macht. Keine Figur nur, um sie unterzubringen:`
+        : `CASTING — Figuren aus dem Figurenpool. Jeder Pitch besetzt 1 bis ${brief.budget.maxCast} davon (per id) mit einer echten Aufgabe:`
+    );
     for (const candidate of brief.candidates) lines.push(castSheet(candidate));
     lines.push("Nutze Eigenart und Stimme dieser Figuren. Erfinde keine weiteren Figuren mit Namen; namenlose Randfiguren (eine Nachbarin, drei Hühner) sind erlaubt.");
     lines.push("");
@@ -211,13 +226,13 @@ export async function runConceptStage(llm: StorybookLlm, brief: StoryBrief, mode
     stage: "concept",
     role: "support",
     model,
-    system: buildConceptSystemPrompt(),
+    system: buildConceptSystemPrompt(brief.experiment),
     user: buildConceptUserPrompt(brief, engines),
     json: true,
     maxTokens: 14000,
     // "medium" took 106 s of a 242 s run (0039344e) for ideas the plan stage
     // re-judges and repairs anyway; the logic work happens in the plan.
-    effort: "low",
+    effort: brief.experiment?.planEffort || "low",
     temperature: 0.95,
   });
   const pitches = sanitizePitches(parseJsonObject<any>(call.text), brief, engines);

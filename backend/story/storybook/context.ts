@@ -26,6 +26,33 @@ export interface StoryBrief {
   heroMemories: Record<string, string[]>;
   blockedTerms: string[];
   seed: string;
+  /** Test-only switches (scripts/storybook-live-test.ts --variant). Empty in production. */
+  experiment?: StorybookExperiment;
+}
+
+export interface StorybookExperiment {
+  /** Core rules only and a plan with half the fields. */
+  slim?: boolean;
+  /** Pool characters may be cast, but need not be. */
+  castOptional?: boolean;
+  /** Thinking depth for concept and plan (default "low"). */
+  planEffort?: "low" | "medium" | "high";
+  /** Model for concept and plan (default: the support model). */
+  plannerModel?: string;
+  /**
+   * "Schlank": one planner call instead of concept + plan, the plan checked by
+   * the support model (serious defects only), writing at "low", a leaner
+   * review, revision only on real defects, no final A/B.
+   */
+  lean?: boolean;
+  /** "Spar": lean, plus no plan review and the support model as reviewer. */
+  spar?: boolean;
+  /** The multi-stage chain (concept → plan → review → draft → review → revision) instead of one shot. */
+  legacy?: boolean;
+}
+
+export function isLean(brief: { experiment?: StorybookExperiment }): boolean {
+  return Boolean(brief.experiment?.lean || brief.experiment?.spar);
 }
 
 const FLAVOR_LABELS: Record<string, string> = {
@@ -189,6 +216,7 @@ export function buildBrief(input: {
   heroMemories?: Record<string, string[]>;
   blockedTerms?: string[];
   seed: string;
+  experiment?: StorybookExperiment;
 }): StoryBrief {
   return {
     config: input.config,
@@ -203,6 +231,7 @@ export function buildBrief(input: {
     heroMemories: input.heroMemories || {},
     blockedTerms: (input.blockedTerms || []).map((term) => clean(term, 60)).filter(Boolean),
     seed: input.seed,
+    experiment: input.experiment,
   };
 }
 

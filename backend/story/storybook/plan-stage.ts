@@ -8,8 +8,9 @@
  * and the one moment the illustrator should draw.
  */
 
-import { CRAFT_RULES, STORY_ENGINES } from "./craft";
-import { artifactSheet, briefHeader, broughtArtifact, castSheet, heroSheet, wishLines, type StoryBrief } from "./context";
+import { CORE_RULES, CRAFT_RULES, STORY_ENGINES } from "./craft";
+import { artifactSheet, briefHeader, broughtArtifact, castSheet, heroSheet, isLean, wishLines, type StoryBrief } from "./context";
+import { selectEnginesForBrief } from "./concept-stage";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import type { PlanPage, StoryPitch, StoryPlan } from "./types";
 
@@ -35,7 +36,33 @@ export function pageRhythm(pages: number): string[] {
   ];
 }
 
-export function buildPlanSystemPrompt(): string {
+export function buildPlanSystemPrompt(experiment?: StoryBrief["experiment"]): string {
+  if (experiment?.lean || experiment?.spar) {
+    return [
+      "Du bist Programmleiterin und leitende Lektorin eines Kinderbuchverlags (Maßstab: Der Grüffelo, Pettersson und Findus, Räuber Hotzenplotz, Das NEINhorn). Du erfindest neue Geschichten, die genauso gut funktionieren, ohne bekannte Bücher zu kopieren.",
+      "Erfinde zuerst drei grundverschiedene Ideen (je ein Satz, verschiedene Baupläne) und schreib sie in 'ideas'. Wähle die stärkste und baue daraus den verbindlichen Seitenplan für die Autorin.",
+      "Frag dich vor der Wahl: Ist das Problem echt, oder könnten die Helden einfach hingehen, fragen oder es tragen? Versteht ein Sechsjähriger in einem Satz, warum die Lösung klappt? Würde ein Kind lachen?",
+      "",
+      "WAS DIE GESCHICHTE ERFÜLLEN MUSS:",
+      ...CORE_RULES.map((rule) => `- ${rule}`),
+      "",
+      "Frische: Glockenschlag oder Mondaufgang als Frist, ein Fest, das ausfällt, ein gestohlenes glänzendes Ding und ein eitler Gegenspieler vor dem Spiegel sind abgenutzt — nur, wenn die Wünsche sie verlangen.",
+      "Verboten: Moralpredigten, Rettung durch Erwachsene, Zufall als Lösung, Traum-Enden, echte Gewalt.",
+      "",
+      "Antworte ausschließlich mit einem gültigen JSON-Objekt. Alle Textfelder in der Sprache der Geschichte, außer den ids.",
+    ].join("\n");
+  }
+  if (experiment?.slim) {
+    return [
+      "Du bist die leitende Lektorin eines Kinderbuchverlags. Vor dir liegen drei Pitches. Wähle den stärksten, repariere seine Schwächen und baue daraus den Seitenplan für die Autorin.",
+      "Frag dich zuerst: Ist das Problem echt, oder könnten die Helden einfach hingehen, fragen oder es tragen? Versteht ein Sechsjähriger in einem Satz, warum die Lösung klappt? Wenn nicht: bessere Lösung erfinden.",
+      "",
+      "WAS DIE GESCHICHTE ERFÜLLEN MUSS:",
+      ...CORE_RULES.map((rule) => `- ${rule}`),
+      "",
+      "Antworte ausschließlich mit einem gültigen JSON-Objekt. Alle Textfelder in der Sprache der Geschichte, außer den ids.",
+    ].join("\n");
+  }
   return [
     "Du bist die leitende Lektorin eines Kinderbuchverlags. Dein Maßstab sind die besten Bilderbücher: Der Grüffelo, Pettersson und Findus, Räuber Hotzenplotz, Das NEINhorn, Das Sams.",
     "Vor dir liegen drei Pitches. Du wählst den stärksten, reparierst seine Schwächen (gute Einfälle aus den anderen Pitches darfst du übernehmen) und baust daraus den verbindlichen Seitenplan für die Autorin.",
@@ -104,7 +131,7 @@ export function buildPlanUserPrompt(brief: StoryBrief, pitches: StoryPitch[], re
   lines.push("");
 
   if (brief.candidates.length > 0) {
-    lines.push(`FIGURENPOOL (Besetzung nur aus dieser Liste, 1 bis ${brief.budget.maxCast} Figuren, per id):`);
+    lines.push(`FIGURENPOOL (Besetzung nur aus dieser Liste, ${brief.experiment?.castOptional ? "0" : "1"} bis ${brief.budget.maxCast} Figuren, per id):`);
     for (const candidate of brief.candidates) lines.push(castSheet(candidate));
     lines.push("");
   }
@@ -120,9 +147,25 @@ export function buildPlanUserPrompt(brief: StoryBrief, pitches: StoryPitch[], re
     lines.push("");
   }
 
-  lines.push("DIE PITCHES:");
-  pitches.forEach((pitch, index) => lines.push(renderPitch(pitch, index)));
-  lines.push("");
+  if (pitches.length > 0) {
+    lines.push("DIE PITCHES:");
+    pitches.forEach((pitch, index) => lines.push(renderPitch(pitch, index)));
+    lines.push("");
+  } else {
+    // Lean: no separate concept call — the planner invents on proven engines.
+    lines.push("BAUPLÄNE (jede deiner drei Ideen nimmt einen anderen):");
+    for (const engine of selectEnginesForBrief(brief)) lines.push(`- ${engine.id} — ${engine.name}: ${engine.mechanism} (Falle: ${engine.trap})`);
+    lines.push("");
+    if (brief.recentStories.length > 0) {
+      lines.push("DIESE FAMILIE KENNT SCHON (nichts davon wiederholen — weder Idee noch Hauptgegenstand noch Titelmuster):");
+      for (const story of brief.recentStories) lines.push(`- ${story}`);
+      lines.push("");
+    }
+    if (brief.blockedTerms.length > 0) {
+      lines.push(`Diese Begriffe dürfen nirgends vorkommen: ${brief.blockedTerms.join(", ")}`);
+      lines.push("");
+    }
+  }
 
   lines.push(`SEITENRHYTHMUS für ${pages} Seiten (Orientierung, keine Zwangsjacke):`);
   for (const beat of pageRhythm(pages)) lines.push(`- ${beat}`);
@@ -141,9 +184,8 @@ export function buildPlanUserPrompt(brief: StoryBrief, pitches: StoryPitch[], re
 
   const heroIds = brief.heroes.map((hero) => hero.id);
   lines.push(`ANTWORTE MIT GENAU DIESEM JSON. pages hat genau ${pages} Einträge. onPage enthält nur ids von Helden oder gewählten Nebenfiguren.`);
-  lines.push(
-    JSON.stringify(
-      {
+  const template: Record<string, any> = {
+        ...(pitches.length === 0 ? { ideas: ["Idee 1 (Bauplan-id): ein Satz", "Idee 2 (…)", "Idee 3 (…)"] } : {}),
         chosenPitch: 0,
         whyChosen: "ein Satz",
         title: "endgültiger Titel — mit dem Namen eines Helden, nicht des Gegenspielers",
@@ -178,11 +220,13 @@ export function buildPlanUserPrompt(brief: StoryBrief, pitches: StoryPitch[], re
           after: "Stand am Seitenende: wo ist jede Figur, wo sind die wichtigen Dinge (wer hat sie), wie weit ist die Frist",
         })),
         ending: { resolution: "wie der Wunsch aufgeht", callback: "welches Anfangsbild verwandelt zurückkehrt", lastLine: "die letzte Pointe, höchstens zwei Sätze" },
-      },
-      null,
-      1
-    )
-  );
+  };
+  if (brief.experiment?.slim || isLean(brief)) {
+    // Half the fields: what the story needs, not every bookkeeping column.
+    for (const key of ["whyChosen", "runningGag", "dramaticIrony", "props"]) delete template[key];
+    for (const page of template.pages) for (const key of ["humor", "emotion", "after"]) delete page[key];
+  }
+  lines.push(JSON.stringify(template, null, 1));
   return lines.join("\n");
 }
 
@@ -325,13 +369,13 @@ export async function runPlanStage(
     stage: repairNotes.length > 0 ? "plan-repair" : "plan",
     role: "support",
     model,
-    system: buildPlanSystemPrompt(),
+    system: buildPlanSystemPrompt(brief.experiment),
     user: buildPlanUserPrompt(brief, pitches, repairNotes, previousPlan),
     json: true,
     maxTokens: 24000,
     // "low": the critic's plan review (plan-review-stage.ts) now catches the
     // structural defects that the extra thinking was meant to prevent.
-    effort: "low",
+    effort: brief.experiment?.planEffort || "low",
     timeoutMs: 300_000,
     temperature: 0.7,
   });

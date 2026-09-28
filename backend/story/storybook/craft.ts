@@ -246,6 +246,30 @@ export const CRAFT_RULES: string[] = [
 ];
 
 /** The read-aloud rules — sentence level. Short on purpose. */
+/**
+ * Experiment "slim": the eight rules that decide whether a picture book works.
+ * Tested against the full list (17 craft + ~20 plan rules) on 2026-09-28.
+ */
+export const CORE_RULES: string[] = [
+  "Ein echtes Problem: Ein Kind versteht in einem Satz, was die Helden wollen, warum es IHNEN wichtig ist und was sichtbar im Weg steht. Es gibt keinen einfachen Weg drumherum — niemand fragt 'Warum gehen sie nicht einfach hin?'.",
+  "Der Gegenspieler hat einen Grund, den ein Kind früh versteht, und eine komische Schwäche, die früh gezeigt wird.",
+  "Die Kinder lösen es selbst mit einer Idee, die ein früh gezeigtes Detail nutzt. Das Kind denkt 'Ach, na klar!'. Kein Zufall, keine Erwachsenen, kein Gegenspieler, der von allein stolpert.",
+  "Magie oder besondere Dinge werden gezeigt, bevor sie gebraucht werden, und bleiben gleich.",
+  "Genau eine Frist mit logischer, sichtbarer Folge. Sie rückt näher und wird im Finale eingelöst.",
+  "Drei Versuche, jeder größer und komischer, der dritte anders. Komik kommt aus Figuren und Lagen, die man sehen kann.",
+  "Jede Figur und jedes wichtige Ding ist immer an genau einem Ort. Nichts taucht aus dem Nichts auf.",
+  "Jede Seite endet mit einem Grund umzublättern. Die letzte Pointe dreht etwas, das das Kind schon kennt.",
+];
+
+export function buildSlimLanguageRules(languageLabel: string): string[] {
+  return [
+    `Sprache: ${languageLabel}, wie eine sehr gute Muttersprachlerin vorliest. Erzählt im Präteritum.`,
+    "Kurze bis mittlere Sätze, konkrete Nomen, starke Verben. Keine Semikolons.",
+    "Jede Seite ist eine Szene mit Stimmen. Gefühle zeigen, nicht benennen.",
+    "Keine Erzählerfragen, keine Lehre, keine Erklärung des Witzes.",
+  ];
+}
+
 export function buildLanguageRules(band: AgeBand, languageLabel: string): string[] {
   const sentence =
     band === "3-5"

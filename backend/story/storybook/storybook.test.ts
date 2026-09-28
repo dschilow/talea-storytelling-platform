@@ -11,14 +11,14 @@ import { normalizeAgeBand, rankEngines, resolveLengthBudget, STORY_ENGINES } fro
 import { buildBrief, type StoryBrief } from "./context";
 import { CostLedger, modelFamily, resolveStorybookModels, retryRequestFor, toOpenRouterModelId, type LlmRequest, type StorybookLlm } from "./llm";
 import { acceptsTemperature, resolveStorybookReasoning } from "./llm-guards";
-import { normalizeGermanQuotes, parseDraft } from "./parsing";
+import { ensureParagraphs, normalizeGermanQuotes, parseDraft } from "./parsing";
 import { checkPlan, checkProse, mentions, nameTokens } from "./checks";
 import { selectRewardArtifacts, shortlistCastCandidates } from "./cast-selection";
 import { sanitizePitches } from "./concept-stage";
 import { sanitizePlan } from "./plan-stage";
 import { comprehensionGaps, needsRevision, sanitizeReview } from "./review-stage";
 import { assembleImagePrompt, castAppearance, heroAppearance, negativePromptFor, sanitizeIllustrationPlan, type VisualEntity } from "./illustration-stage";
-import { generateStorybookImages, qaSeverity } from "./images";
+import { generateStorybookImages, parseQaReport, qaSeverity } from "./images";
 import { runStorybookTextEngine } from "./engine";
 import type { CastCandidate, StoryPlan, StorybookPage } from "./types";
 
@@ -179,6 +179,23 @@ describe("retry policy", () => {
     expect(retry.model).not.toBe("openai/gpt-6-luna");
     expect(retry.request.maxTokens).toBe(1500);
     expect(retryRequestFor({ ...base, effort: "low" }, new Error("timed out")).model).not.toBe("openai/gpt-6-luna");
+  });
+});
+
+describe("paragraphs and picture counts", () => {
+  test("a one-block page gets paragraphs at speech, the same speaker stays together", () => {
+    const page = "Das Papier flatterte zwischen Johanns Händen. Alexander griff danach, doch der Diener stellte sich quer auf die schmale Brücke. „Wir müssen Rosalinde die Karte bringen“, sagte Adrian. „Sie braucht den Weg.“ Drüben lief Rosalinde auf und ab, und Johann hielt das Blatt fest an seine gebügelte Livree, während der Wind am Tuch zerrte und das große Leinentuch über den alten Bohlen der Brücke knatterte.";
+    const fixed = ensureParagraphs(page);
+    expect(fixed).toContain("Brücke.\n\n„Wir müssen");
+    expect(fixed).toContain("sagte Adrian. „Sie braucht");
+    expect(fixed).toContain("Weg.“\n\nDrüben");
+    expect(ensureParagraphs("Kurz. „Hallo.“ Ende.")).toBe("Kurz. „Hallo.“ Ende.");
+  });
+  test("character counts reveal duplicates the checker did not list", () => {
+    const report = parseQaReport(JSON.stringify({ characterCounts: { Johann: 2, Alexander: 1, Adrian: 0 }, duplicates: [] }))!;
+    expect(report.duplicates).toEqual(["Johann drawn 2 times"]);
+    expect(report.namedCharactersVisible).toBe(2);
+    expect(qaSeverity(report, 3)).toBeGreaterThanOrEqual(10);
   });
 });
 
@@ -500,7 +517,7 @@ describe("images", () => {
 
 describe("engine flow (scripted port)", () => {
   test("concept → plan → plan review → repair → draft → review → revision → blind A/B; the chosen revision ships", async () => {
-    const b = brief();
+    const b = { ...brief(), experiment: { legacy: true } };
     const stages: string[] = [];
     const plan = planFor(b);
     const storyText = (tag: string) =>
@@ -547,6 +564,36 @@ describe("engine flow (scripted port)", () => {
     expect(result.draftScore).toBe(6.5);
     expect(result.plan.cast.map((member) => member.id)).toEqual(["pool-kicher"]);
     expect(ledger.totals().calls).toBe(8);
+  });
+});
+
+describe("engine flow (one shot, the standard)", () => {
+  test("Sol invents and writes in one call, Luna reads and patches only the flagged page; cast and checks survive", async () => {
+    const b = brief();
+    const stages: string[] = [];
+    const page = (n: number, tag: string) => `SEITE ${n}\nAlexander und Adrian laufen los. ${n === 3 ? "Kobold Kicher niest. " : ""}${tag} ${WORDS(100)}`;
+    const story = ["BAUPLAN: gaunerfalle", "BESETZUNG: pool-kicher", "FUNDSTÜCK: keins", "REFRAIN: Mehl im Haar, Kobold da!", "TITEL: Alexander und der Kobold", "BESCHREIBUNG: Zwei Kinder jagen einen Kobold.", ...Array.from({ length: b.budget.pages }, (_, i) => page(i + 1, "ALT"))].join("\n\n");
+    const llm: StorybookLlm = async (request: LlmRequest) => {
+      stages.push(`${request.stage}:${request.model}`);
+      const reply = (text: string) => ({ text, modelUsed: request.model, usage: { prompt: 100, completion: 50, total: 150, costUSD: 0.001 }, durationMs: 1 });
+      if (request.stage === "oneshot") return reply(story);
+      if (request.stage === "review") return reply(JSON.stringify({ scores: { overall: 7 }, comprehension: { want: "a", problem: "b", solution: "c", ending: "d" }, mustFix: [{ page: 2, quote: "x", problem: "Wer hat den Sack?", fix: "klären" }] }));
+      if (request.stage === "patch") return reply(page(2, "NEU"));
+      throw new Error(`unexpected stage ${request.stage}`);
+    };
+    const ledger = new CostLedger();
+    const models = resolveStorybookModels({ aiProvider: "openrouter", openRouterModel: "openai/gpt-6-sol" } as any);
+    const result = await runStorybookTextEngine({ llm, brief: b, models, ledger });
+
+    expect(stages.map((stage) => stage.split(":")[0])).toEqual(["oneshot", "review", "patch"]);
+    expect(stages[0]).toContain("gpt-6-sol");
+    expect(stages[1]).toContain("gpt-6-luna");
+    expect(stages[2]).toContain("gpt-6-luna");
+    expect(result.pages[1].content).toContain("NEU");
+    expect(result.pages[0].content).toContain("ALT");
+    expect(result.plan.cast.map((member) => member.id)).toEqual(["pool-kicher"]);
+    expect(result.plan.refrain).toBe("Mehl im Haar, Kobold da!");
+    expect(result.chosen).toBe("revision");
   });
 });
 

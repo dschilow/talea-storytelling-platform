@@ -113,8 +113,10 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
     "",
     "Look carefully at every hand, arm, leg, head and ear. Count fingers where visible. Check every face: children never have a moustache or beard, and no character wears another character's moustache, crown, hat or cape.",
     "Compare who does the KEY action with the intended scene, using the reference sheet to tell the characters apart. Ignore small pose or prop differences — a picture book illustration may interpret the moment freely.",
+    "First count how often EACH expected character is drawn (a second person with the same face, hair or outfit counts). Exactly 1 is correct; 2 or more is a duplicate; 0 means missing.",
     "Return JSON only:",
     JSON.stringify({
+      characterCounts: Object.fromEntries(expected.filter((entity) => entity.kind !== "artifact").map((entity) => [entity.name, 1])),
       namedCharactersVisible: 0,
       anatomyDefects: ["e.g. 'child on the left has three hands'"],
       animalFeaturesOnHumans: ["e.g. 'the boy has fox ears'"],
@@ -140,10 +142,17 @@ export function parseQaReport(raw: string): ImageQaReport | null {
     const n = Number(value);
     return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.5;
   };
+  // Counts are the reliable signal: a model that lists no duplicate in prose
+  // still writes "Johann": 2 when asked to count.
+  const counts = data.characterCounts && typeof data.characterCounts === "object" ? data.characterCounts : {};
+  const counted = Object.entries(counts).map(([name, value]) => [name, Math.round(Number(value) || 0)] as const);
+  const countedDuplicates = counted.filter(([, count]) => count >= 2).map(([name, count]) => `${name} drawn ${count} times`);
+  const duplicates = [...list(data.duplicates), ...countedDuplicates].slice(0, 6);
+  const countedVisible = counted.filter(([, count]) => count >= 1).length;
   return {
     anatomyDefects: list(data.anatomyDefects),
     animalFeaturesOnHumans: list(data.animalFeaturesOnHumans),
-    duplicates: list(data.duplicates),
+    duplicates,
     unexpectedCharacters: list(data.unexpectedCharacters),
     roleSwaps: list(data.roleSwaps),
     elementMisuse: list(data.elementMisuse),
@@ -152,7 +161,7 @@ export function parseQaReport(raw: string): ImageQaReport | null {
     referenceSheetVisible: data.referenceSheetVisible === true,
     identityMatch: unit(data.identityMatch),
     sceneMatch: unit(data.sceneMatch),
-    namedCharactersVisible: Math.max(0, Math.round(Number(data.namedCharactersVisible) || 0)),
+    namedCharactersVisible: counted.length > 0 ? countedVisible : Math.max(0, Math.round(Number(data.namedCharactersVisible) || 0)),
   };
 }
 
@@ -294,9 +303,10 @@ ${extra}` : base;
             system: "You are a meticulous picture-book illustration checker. Answer with JSON only.",
             user: buildQaPrompt(drawn, shot.scene, delivered.references.length > 0, elements),
             json: true,
-            // A look-and-list task: no hidden reasoning needed (~$0.0004 per picture).
-            maxTokens: 1500,
-            effort: "none",
+            // "low": without any thinking the checker missed two Johanns and two
+            // Rosalindes (story 655ef79b). A little counting costs ~$0.0002.
+            maxTokens: 3000,
+            effort: "low",
             imageInputs: [delivered.response.viewUrl || url, ...delivered.references.slice(0, 1)],
             timeoutMs: 60_000,
           });

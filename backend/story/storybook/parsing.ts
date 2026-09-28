@@ -73,6 +73,25 @@ export function normalizeGermanQuotes(text: string): string {
     .join("\n");
 }
 
+/**
+ * A page that arrives as one block of text (story 655ef79b: the revision
+ * dropped every paragraph) is hard to read aloud. Deterministic repair for
+ * German prose: a new paragraph where direct speech begins after a finished
+ * sentence, and after a quote that ends a sentence. Pages that already have
+ * paragraphs are left alone.
+ */
+export function ensureParagraphs(text: string): string {
+  const content = String(text || "").trim();
+  if (/\n\s*\n/.test(content)) return content;
+  if (content.split(/\s+/).filter(Boolean).length < 60) return content;
+  return content
+    // Not after an attribution ("„…“, sagte Adrian. „…“"): same speaker, same paragraph.
+    .replace(/([.!?…])\s+(„)/g, (match: string, end: string, quote: string, offset: number, whole: string) =>
+      /“,[^„“]{1,40}$/.test(whole.slice(Math.max(0, offset - 60), offset)) ? match : `${end}\n\n${quote}`)
+    .replace(/([.!?…]“)\s+(?=[A-ZÄÖÜ])/g, "$1\n\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 export function parseDraft(
   raw: string,
   expectedPages: number,
@@ -102,7 +121,7 @@ export function parseDraft(
     .sort((a, b) => a.order - b.order)
     .map((block, index) => {
       let content = cleanProse(block.content);
-      if (options.german) content = normalizeGermanQuotes(content);
+      if (options.german) content = ensureParagraphs(normalizeGermanQuotes(content));
       return { order: index + 1, title: `Seite ${index + 1}`, content };
     });
 

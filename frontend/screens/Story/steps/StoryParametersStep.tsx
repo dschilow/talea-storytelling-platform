@@ -189,7 +189,8 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
     { key: 'deepseek/deepseek-v4-pro', label: 'DeepSeek V4 Pro', description: 'DeepSeek - $0.96 in / $1.91 out' },
     { key: 'qwen/qwen3.8-max-0902', label: 'Qwen 3.8 Max', description: 'Qwen - $2 in / $6 out (neu)' },
     { key: 'moonshotai/kimi-k3', label: 'Kimi K3', description: 'Moonshot AI - $3 in / $15 out (stärkster Autor laut EQ-Bench)' },
-    { key: 'openai/gpt-6-luna', label: 'GPT-6 Luna', description: 'OpenAI - $0.10 in / $0.50 out (neu)' },
+    { key: 'openai/gpt-6-sol', label: 'GPT-6 Sol', description: 'OpenAI - $2 in / $10 out (Standard im Bilderbuch-Modus)' },
+    { key: 'openai/gpt-6-luna', label: 'GPT-6 Luna', description: 'OpenAI - $0.10 in / $0.50 out' },
     { key: 'openai/gpt-5.6-luna', label: 'GPT-5.6 Luna', description: 'OpenAI - Vorgänger, nur zum Vergleich' },
     { key: 'openai/gpt-5.6-terra', label: 'GPT-5.6 Terra', description: 'OpenAI - Test-Modell' },
   ];

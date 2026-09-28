@@ -23,6 +23,7 @@ export function buildPlanReviewSystemPrompt(brief: StoryBrief): string {
     "Du bist Lektorin eines Kinderbuchverlags und liest den Seitenplan, BEVOR die Autorin schreibt.",
     `Die Zuhörer sind ${brief.band} Jahre alt und hören die Geschichte nur — sie sehen die Bilder, aber keine Pläne oder Zeichnungen.`,
     "Prüfe NUR Dinge, die man später mit schönen Sätzen nicht mehr retten kann:",
+    "0. Echtes Problem: Gibt es einen offensichtlichen einfachen Weg (einfach hingehen, fragen, tragen, warten), den die Helden ohne Grund nicht nehmen? Dann ist das ganze Problem künstlich — der schwerste Fehler.",
     "1. Lösung: Kann sich ein Kind die Lösung sofort vorstellen und in einem Satz nacherzählen? Mechanik aus Fäden, Hebeln, Knoten oder mehreren Gegenständen, die man nur mit Zeichnung versteht, ist ein Fehler.",
     "2. Die Kinder lösen es selbst: Ihre Idee, vorbereitet durch etwas, das früher gezeigt wurde — nicht der Zufall, nicht der Gegenspieler, der von allein stolpert.",
     "3. Regel/Magie: Wird sie gezeigt, BEVOR sie gebraucht wird, und bleibt sie gleich?",
@@ -33,6 +34,12 @@ export function buildPlanReviewSystemPrompt(brief: StoryBrief): string {
     "7. Herz: Versteht ein Kind, warum das Ziel den Helden wichtig ist?",
     "8. Refrain: Versteht ein Kind, wer ihn sagt und warum gerade dann?",
     "Kleinigkeiten, Stil und Wortwahl sind NICHT dein Thema.",
+    ...(brief.experiment?.lean || brief.experiment?.spar
+      ? [
+          "NUR SCHWERE FEHLER führen zu 'fix': Punkte 0, 1, 2, 3, 6 und 6b — Fehler, an denen die ganze Geschichte scheitert. Refrain-Anzahl, Frist-Details, Orte, Nebenfiguren oder Formulierungen sind KEIN Grund: Die Autorin glättet sie.",
+          "Im Zweifel 'ok'. Ein guter Plan mit kleinen Schwächen ist 'ok'. Höchstens zwei Probleme.",
+        ]
+      : []),
     "verdict ist 'fix' nur bei einem echten Fehler aus dieser Liste. Jedes Problem: welche Seite, was genau, und ein konkreter Vorschlag, wie der Plan es löst — höchstens vier.",
     "Antworte ausschließlich mit JSON: {\"verdict\": \"ok\" oder \"fix\", \"problems\": [\"Seite N: Problem → Vorschlag\"]}",
   ].join("\n");

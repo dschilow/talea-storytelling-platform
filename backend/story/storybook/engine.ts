@@ -16,9 +16,10 @@
 import { createHash } from "node:crypto";
 import { checkPlan, checkProse, issuesToNotes } from "./checks";
 import { runConceptStage } from "./concept-stage";
-import type { StoryBrief } from "./context";
+import { isLean, type StoryBrief } from "./context";
 import { runDraftStage, runRevisionStage, renderPlanForWriter } from "./draft-stage";
 import type { CostLedger, LlmRole, StorybookLlm, StorybookModels } from "./llm";
+import { runOneShotEngine } from "./oneshot-stage";
 import { runPlanStage } from "./plan-stage";
 import { runPlanReviewStage } from "./plan-review-stage";
 import { comprehensionGaps, needsRevision, runPairwiseStage, runReviewStage } from "./review-stage";
@@ -56,6 +57,8 @@ export async function runStorybookTextEngine(input: {
   observe?: StageObserver;
 }): Promise<TextEngineResult> {
   const { llm, brief, models, ledger } = input;
+  // Standard since 2026-09-28: the writer invents, plans and writes in one call.
+  if (!brief.experiment?.legacy) return runOneShotEngine(input);
   const observe: StageObserver = async (stage, payload) => {
     try {
       await input.observe?.(stage, payload);
@@ -66,17 +69,25 @@ export async function runStorybookTextEngine(input: {
   const record = (stage: string, role: LlmRole, call: Parameters<CostLedger["recordCall"]>[1]) => ledger.recordCall(stage, call, role);
 
   // 1) Concept ---------------------------------------------------------------
-  let concept = await runConceptStage(llm, brief, models.support);
-  record("concept", "support", concept.call);
-  if (concept.pitches.length === 0) {
-    concept = await runConceptStage(llm, brief, models.critic);
-    record("concept-retry", "support", concept.call);
+  // Concept and plan decide whether a story works; the experiment may hand them to another model.
+  const planner = brief.experiment?.plannerModel || models.support;
+  const lean = isLean(brief);
+  // Lean: the planner invents, chooses and plans in one call (no pitch step).
+  let concept: { pitches: StoryPitch[]; engines: Array<{ id: string }> } = { pitches: [], engines: [] };
+  if (!lean) {
+    let conceptRun = await runConceptStage(llm, brief, planner);
+    record("concept", "support", conceptRun.call);
+    if (conceptRun.pitches.length === 0) {
+      conceptRun = await runConceptStage(llm, brief, models.critic);
+      record("concept-retry", "support", conceptRun.call);
+    }
+    if (conceptRun.pitches.length === 0) throw new Error("[storybook] Es konnten keine Geschichtenideen entwickelt werden.");
+    concept = conceptRun;
   }
-  if (concept.pitches.length === 0) throw new Error("[storybook] Es konnten keine Geschichtenideen entwickelt werden.");
   await observe("concept", { engines: concept.engines.map((engine) => engine.id), pitches: concept.pitches });
 
   // 2) Plan ------------------------------------------------------------------
-  let planned = await runPlanStage(llm, brief, concept.pitches, models.support);
+  let planned = await runPlanStage(llm, brief, concept.pitches, planner);
   record("plan", "support", planned.call);
   let planReport = checkPlan(planned.plan, brief);
   let planRepaired = false;
@@ -84,7 +95,7 @@ export async function runStorybookTextEngine(input: {
     planRepaired = true;
     const notes = issuesToNotes([...planReport.hard, ...planReport.soft], 8);
     await observe("plan-repair", { issues: notes });
-    const repaired = await runPlanStage(llm, brief, concept.pitches, models.support, notes);
+    const repaired = await runPlanStage(llm, brief, concept.pitches, planner, notes);
     record("plan-repair", "support", repaired.call);
     const repairedReport = checkPlan(repaired.plan, brief);
     if (repaired.plan && repairedReport.hard.length <= planReport.hard.length) {
@@ -96,12 +107,15 @@ export async function runStorybookTextEngine(input: {
 
   // 2b) Plan read by the critic — structural defects are cheap to fix here.
   try {
-    const planReview = await runPlanReviewStage(llm, brief, planned.plan, models.critic);
+    if (brief.experiment?.spar) throw new Error("plan review skipped (spar)");
+    // Lean: the support model reads the (other family's) plan — cheap and unbiased.
+    const planReview = await runPlanReviewStage(llm, brief, planned.plan, lean ? models.support : models.critic);
     record("plan-review", "critic", planReview.call);
     await observe("plan-review", { review: planReview.review });
     if (planReview.review?.verdict === "fix") {
       planRepaired = true;
-      const repaired = await runPlanStage(llm, brief, concept.pitches, models.support, planReview.review.problems, renderPlanForWriter(planned.plan, brief));
+      // Lean: the support model works the findings into the planner's plan (0.4 ¢ instead of 1.3 ¢).
+      const repaired = await runPlanStage(llm, brief, concept.pitches, lean ? models.support : planner, planReview.review.problems, renderPlanForWriter(planned.plan, brief));
       record("plan-repair-review", "support", repaired.call);
       const repairedReport = checkPlan(repaired.plan, brief);
       if (repaired.plan && repaired.plan.pages.length > 0 && repairedReport.hard.length <= planReport.hard.length) {
@@ -110,7 +124,7 @@ export async function runStorybookTextEngine(input: {
       }
     }
   } catch (err) {
-    console.warn("[storybook] plan review failed; writing from the checked plan:", (err as Error)?.message || err);
+    if (!brief.experiment?.spar) console.warn("[storybook] plan review failed; writing from the checked plan:", (err as Error)?.message || err);
   }
   const plan: StoryPlan = planned.plan!;
   await observe("plan", { ok: planReport.ok, hard: planReport.hard.map((i) => i.message), soft: planReport.soft.map((i) => i.message), plan });
@@ -137,7 +151,7 @@ export async function runStorybookTextEngine(input: {
   const castNames = plan.cast.map((member) => member.name);
   let review: EditorialReview | null = null;
   try {
-    const reviewed = await runReviewStage(llm, brief, draft.title, draft.pages, castNames, models.critic);
+    const reviewed = await runReviewStage(llm, brief, draft.title, draft.pages, castNames, brief.experiment?.spar ? models.support : models.critic);
     if (reviewed.failedCall) record("review-unusable", "critic", reviewed.failedCall);
     record("review", "critic", reviewed.call);
     review = reviewed.review;
@@ -153,7 +167,7 @@ export async function runStorybookTextEngine(input: {
   let finalReport = draftReport;
   let pairwise: TextEngineResult["pairwise"] = null;
 
-  if (needsRevision(review, hardNotes)) {
+  if (needsRevision(review, hardNotes, { strict: lean })) {
     const checkNotes = [...hardNotes, ...issuesToNotes(draftReport.soft, 4)];
     try {
       const revision = await runRevisionStage(llm, { brief, plan, title: draft.title, pages: draft.pages, review, checkNotes }, models.writer);
@@ -168,11 +182,13 @@ export async function runStorybookTextEngine(input: {
         const a = revisionFirst ? revision : draft;
         const b = revisionFirst ? draft : revision;
         try {
+          // Lean: no A/B — the revision ships unless the checks found more hard defects.
+          if (lean) throw new Error("final A/B skipped (lean)");
           const ab = await runPairwiseStage(llm, brief, a, b, models.critic);
           record("final-ab", "critic", ab.call);
           pairwise = ab.verdict;
         } catch (err) {
-          console.warn("[storybook] final A/B read failed; keeping the revision:", (err as Error)?.message || err);
+          if (!lean) console.warn("[storybook] final A/B read failed; keeping the revision:", (err as Error)?.message || err);
         }
         const revisionWon = !pairwise || (pairwise.winner === "A") === revisionFirst;
         // A revision that fixed hard defects wins regardless of taste.

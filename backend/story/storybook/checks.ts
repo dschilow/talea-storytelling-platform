@@ -122,7 +122,7 @@ export function checkPlan(plan: StoryPlan | null, brief: StoryBrief): CheckRepor
     }
   }
 
-  if (brief.candidates.length > 0 && plan.cast.length === 0) {
+  if (brief.candidates.length > 0 && plan.cast.length === 0 && !brief.experiment?.castOptional) {
     issues.push({
       code: "cast_empty",
       severity: "hard",

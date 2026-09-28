@@ -138,10 +138,13 @@ const runware: ImageProvider = async (request) => {
 // --- Brief from the exported pool ---
 const pool: any[] = JSON.parse(await readFile(option("--characters", "Logs/talea-characters-2026-08-10T08-13-38-438Z.json")!, "utf8"));
 const artifactRows: any[] = JSON.parse(await readFile(option("--artifacts", "Logs/talea-artifacts-2026-04-27T11-18-00-036Z.json")!, "utf8"));
+const heroFile = option("--hero-file");
 const heroNames = option("--heroes", "Amir Sternfinder,Mina Mosaik")!.split(",").map((name) => name.trim());
-const heroRows = heroNames.map((name) => pool.find((row) => row.name === name && row.imageUrl) || pool.find((row) => row.name === name));
+const heroRows = heroFile ? [] : heroNames.map((name) => pool.find((row) => row.name === name && row.imageUrl) || pool.find((row) => row.name === name));
 if (heroRows.some((row) => !row)) throw new Error(`Unknown hero in --heroes: ${heroNames.join(", ")}`);
-const heroes = heroRows.map((row: any) => {
+// --hero-file: the family's own avatars (not in the pool export), already in StorybookHero shape.
+const fileHeroes: any[] = heroFile ? JSON.parse(await readFile(heroFile, "utf8")) : [];
+const heroes = heroFile ? fileHeroes : heroRows.map((row: any) => {
   const candidate = toCastCandidate(row)!;
   const shortName = candidate.name.split(" ")[0];
   return {
@@ -168,12 +171,12 @@ const config: any = {
   allowRhymes: flag("--rhymes"),
   customPrompt: option("--wish"),
   aiProvider: "openrouter",
-  openRouterModel: option("--writer", "openai/gpt-6-luna"),
+  openRouterModel: option("--writer", "openai/gpt-6-sol"),
 };
 const band = normalizeAgeBand(config.ageGroup);
 const budget = resolveLengthBudget(config.length, band);
 const seed = option("--seed", `live-${Date.now()}`)!;
-const excludeNames = new Set(heroRows.map((row: any) => String(row.name).toLocaleLowerCase("de-DE")));
+const excludeNames = new Set([...heroRows.map((row: any) => String(row.name)), ...fileHeroes.map((hero) => String(hero.name))].map((name) => name.toLocaleLowerCase("de-DE")));
 const candidates = shortlistCastCandidates({ rows: pool, genre: config.genre, setting: config.setting, band, excludeNames, seed });
 const broughtId = option("--brought");
 const artifacts = broughtId
@@ -182,7 +185,19 @@ const artifacts = broughtId
 
 const historyPath = option("--history");
 const history: { stories?: string[]; engines?: string[] } = historyPath ? JSON.parse(await readFile(historyPath, "utf8")) : {};
-const brief = buildBrief({ config, band, budget, heroes, candidates, artifacts, seed, recentStories: history.stories, recentEngineIds: history.engines });
+// --variant: the diagnosis of 2026-09-28 (A baseline, B deeper planning, C slim prompts, D optional cast).
+const variant = (option("--variant", "O") || "O").toUpperCase();
+const experiment = {
+  planEffort: variant.includes("B") ? ("medium" as const) : undefined,
+  slim: variant.includes("C") || variant.includes("O") || undefined,
+  lean: variant.includes("L") || undefined,
+  spar: variant.includes("S") || undefined,
+  // Every lettered variant except O is a multi-stage experiment.
+  legacy: /[ABCDEFGLS]/.test(variant) || undefined,
+  castOptional: variant.includes("D") || undefined,
+  plannerModel: option("--planner"),
+};
+const brief = buildBrief({ config, band, budget, heroes, candidates, artifacts, seed, recentStories: history.stories, recentEngineIds: history.engines, experiment });
 const models = resolveStorybookModels(config, { critic: option("--critic") });
 // A/B tests may deliberately use one fixed judge for every writer.
 if (option("--critic")) models.critic = option("--critic")!;
@@ -198,7 +213,7 @@ if (flag("--dry")) {
   const engines = selectEnginesForBrief(brief);
   await writeFile(join(out, "concept-prompt.md"), `# SYSTEM
 
-${buildConceptSystemPrompt()}
+${buildConceptSystemPrompt(brief.experiment)}
 
 # USER
 

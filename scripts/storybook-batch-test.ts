@@ -18,13 +18,19 @@ function numberFlag(name: string, fallback: number): number {
 }
 const count = numberFlag("--count", 3);
 const parallel = numberFlag("--parallel", 1);
-const passThrough = args.filter((_, index) => !["--count", "--parallel"].includes(args[index]) && !["--count", "--parallel"].includes(args[index - 1]));
+// --seed-base X: run N gets seed "X-N", so variants can be compared on the same starting points.
+const seedBaseAt = args.indexOf("--seed-base");
+const seedBase = seedBaseAt >= 0 ? args[seedBaseAt + 1] : "";
+const own = ["--count", "--parallel", "--seed-base"];
+const passThrough = args.filter((_, index) => !own.includes(args[index]) && !own.includes(args[index - 1]));
 // Märchen, 6-8 Jahre, mittlere Länge — unless the caller says otherwise.
 const defaultPairs = [["--genre", "fairy_tales"], ["--age", "6-8"], ["--length", "medium"]]
   .filter(([flag]) => !passThrough.includes(flag))
   .flat();
 
-const root = join("Logs", "storybook-v2-batch", new Date().toISOString().replace(/[:.]/g, "-"));
+const variantAt = passThrough.indexOf("--variant");
+const variantTag = variantAt >= 0 ? `-${passThrough[variantAt + 1]}` : "";
+const root = join("Logs", "storybook-v2-batch", `${new Date().toISOString().replace(/[:.]/g, "-")}${variantTag}`);
 await mkdir(root, { recursive: true });
 
 // Like one family in production: every wave knows the stories before it, so
@@ -35,7 +41,7 @@ const rows: string[] = [];
 async function runOne(run: number, historyFile: string): Promise<void> {
   const out = join(root, `run-${run}`);
   console.log(`\n=== Lauf ${run}/${count} → ${out}`);
-  const child = Bun.spawn(["bun", "run", "scripts/storybook-live-test.ts", ...defaultPairs, ...passThrough, "--history", historyFile, "--seed", `batch-${Date.now()}-${run}`, "--out", out], {
+  const child = Bun.spawn(["bun", "run", "scripts/storybook-live-test.ts", ...defaultPairs, ...passThrough, "--history", historyFile, "--seed", seedBase ? `${seedBase}-${run}` : `batch-${Date.now()}-${run}`, "--out", out], {
     stdout: "inherit",
     stderr: "inherit",
     env: process.env,
