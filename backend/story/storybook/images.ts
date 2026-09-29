@@ -23,7 +23,7 @@ import { createHash } from "node:crypto";
 import { createIdentityReferenceCache, type IdentityReferenceBuilder } from "../image-reference-sprite";
 import { mentions } from "./checks";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
-import { assembleImagePrompt, elementNoun, negativePromptFor, type VisualEntity } from "./illustration-stage";
+import { assembleImagePrompt, mentionsElement, negativePromptFor, type VisualEntity } from "./illustration-stage";
 import type { IllustrationPlan, IllustrationShot, StoryElement } from "./types";
 
 export interface ImageRequest {
@@ -262,7 +262,7 @@ export function qaStatus(report: ImageQaReport | undefined, parts: { hard: numbe
  * as element misuse and the picture was dropped.
  */
 export function scopeQaReport(report: ImageQaReport, onStageNames: string[], elements: StoryElement[]): ImageQaReport {
-  const aboutElement = (note: string) => elements.some((element) => mentions(note, element.name) || (element.noun ? mentions(note, element.noun) : false));
+  const aboutElement = (note: string) => elements.some((element) => mentionsElement(note, element));
   const aboutCharacter = (note: string) => onStageNames.some((name) => mentions(note, name));
   return {
     ...report,
@@ -458,14 +458,14 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     /**
      * The last resort before a blank page (never the cover): the page's key
      * object or place without any person — nothing that can grow a third hand
-     * or a second Adrian.
+     * or a second Adrian. Printed only when clean: a flawed vignette (story
+     * c2ff7f42 page 2, sceneMatch 0.35) tells the page less than no picture.
      */
     const vignette = async (attemptNo: number): Promise<Attempt | null> => {
       if (cover || !shot.vignette) return null;
       const scene = shot.vignette;
-      const shown = (input.illustrations.storyElements || [])
-        .filter((element) => mentions(scene, element.name) || (element.noun ? mentions(scene, element.noun) : false) || scene.toLowerCase().includes(elementNoun(element)))
-        .slice(0, 2);
+      // Things only: a creature in a vignette is a figure without a reference.
+      const shown = (input.illustrations.storyElements || []).filter((element) => !element.figure && mentionsElement(scene, element)).slice(0, 2);
       const prompt = assembleImagePrompt({ scene, onStage: [], spriteOrder: [], elements: shown, vignette: true });
       imageCalls += 1;
       let response: ImageResponse = {};
@@ -503,7 +503,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       // An unresolved composition never buys a portrait scene; a people-free vignette cannot go wrong that way.
       errors.push(...shot.planningErrors);
       const fallback = await vignette(1);
-      if (fallback) return finish(fallback, 1);
+      if (fallback) return finish(fallback.status === "passed" ? fallback : { ...fallback, status: "failed" }, 1);
       return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD, severity: 999, status: "unverified", errors };
     }
 
@@ -511,7 +511,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     if (!first.url) {
       // Nothing arrived even without a reference: the vignette is the only picture left.
       const fallback = await vignette(2);
-      return fallback && isPublishable(fallback) ? finish(fallback, 2) : finish(first, fallback ? 2 : 1);
+      return fallback?.status === "passed" ? finish(fallback, 2) : finish(first, fallback ? 2 : 1);
     }
     // A broken checker is not evidence that a new image would help.
     if (!first.qa || first.severity < 10) return finish(first, 1);
@@ -529,7 +529,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     const best = better(second, first) ? second : first;
     if (isPublishable(best)) return finish(best, 2);
     const fallback = await vignette(3);
-    if (fallback && isPublishable(fallback)) return finish(fallback, 3);
+    if (fallback?.status === "passed") return finish(fallback, 3);
     return finish(best, fallback ? 3 : 2);
   };
 

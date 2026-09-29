@@ -132,7 +132,7 @@ export function buildConceptUserPrompt(brief: StoryBrief, engines: StoryEngine[]
         pitches: [
           {
             engine: "id des Bauplans",
-            title: "Titel, der neugierig macht (mit Namen eines Helden, kein Doppelpunkt-Untertitel)",
+            title: "Titel wie ein echtes Bilderbuch, 2–6 Wörter, macht neugierig (Heldennamen erlaubt, nicht nötig; kein Doppelpunkt-Untertitel)",
             logline: "Ein Satz: wer will was, was steht im Weg, was ist der Witz daran",
             heroWant: "das anfassbare Ziel",
             stakes: "was konkret verloren geht, wenn es nicht klappt",

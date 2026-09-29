@@ -106,10 +106,8 @@ export function checkPlan(plan: StoryPlan | null, brief: StoryBrief): CheckRepor
   if (!plan) return report([{ code: "plan_missing", severity: "hard", message: "Der Plan konnte nicht gelesen werden." }]);
   const pages = brief.budget.pages;
 
+  // The heroes' names are allowed in a title, never required (user 2026-09-29).
   if (!plan.title) issues.push({ code: "title_missing", severity: "hard", message: "Der Plan hat keinen Titel." });
-  else if (!brief.heroes.some((hero) => mentions(plan.title, hero.name))) {
-    issues.push({ code: "title_without_hero", severity: "soft", message: `Der Titel „${plan.title}“ nennt keinen der Helden.` });
-  }
   if (plan.pages.length !== pages) {
     issues.push({ code: "page_count", severity: "hard", message: `Der Plan hat ${plan.pages.length} Seiten, gebraucht werden genau ${pages}.` });
   }

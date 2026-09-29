@@ -403,9 +403,17 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   };
 
   const imageOutcomes = [...(images.cover ? [images.cover] : []), ...images.pages.values()];
+  // Story c2ff7f42 shipped without a cover. A book always has one: when the
+  // cover itself failed, the first clean page picture with figures stands in.
+  const coverStandIn = pages
+    .map((page) => images.pages.get(page.order))
+    .find((outcome) => outcome?.status === "passed" && !outcome.vignette && outcome.url);
+  const coverImageUrl = publishableImageUrl(images.cover) || coverStandIn?.url;
   await logStage(input.storyId, "complete", {
     title: text.title,
     imagesMissing: pages.filter((page) => !publishableImageUrl(images.pages.get(page.order))).map((page) => page.order),
+    coverMissing: !publishableImageUrl(images.cover),
+    coverFromPage: !publishableImageUrl(images.cover) && coverStandIn ? coverStandIn.page : undefined,
     imageDeliveryIssues: imageOutcomes.filter((outcome) => outcome.errors?.length).map((outcome) => ({ page: outcome.page, referenceLevel: outcome.referenceLevel, errors: outcome.errors })),
     pages: pages.length,
     wordCount,
@@ -426,7 +434,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   return {
     title: text.title,
     description: text.description,
-    coverImageUrl: publishableImageUrl(images.cover),
+    coverImageUrl,
     displayMode: "reading_pages",
     chapters,
     avatarDevelopments: development.developments,

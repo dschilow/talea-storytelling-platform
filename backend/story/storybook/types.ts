@@ -209,6 +209,8 @@ export interface IllustrationShot {
   vignette?: string;
   /** Invalid plans are repaired before paying for image generation. */
   planningErrors?: string[];
+  /** Figures left off-panel because the repaired shot was still too crowded. */
+  recomposed?: string[];
 }
 
 /** A magic creature or special object that is not a pool character but recurs. */

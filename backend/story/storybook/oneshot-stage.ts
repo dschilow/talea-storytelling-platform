@@ -66,7 +66,7 @@ export function buildOneShotUserPrompt(brief: StoryBrief, options: { visiblePlan
   for (const engine of selectEnginesForBrief(brief, 3)) lines.push(`- ${engine.id} — ${engine.name}: ${engine.mechanism}`);
   lines.push("");
   if (brief.recentStories.length > 0) {
-    lines.push("DIESE FAMILIE KENNT SCHON (nichts davon wiederholen):");
+    lines.push("DIESE FAMILIE KENNT SCHON (nichts davon wiederholen — weder Idee noch Hauptgegenstand noch Titelmuster):");
     for (const story of brief.recentStories.slice(0, 5)) lines.push(`- ${story}`);
     lines.push("");
   }
@@ -88,6 +88,9 @@ export function buildOneShotUserPrompt(brief: StoryBrief, options: { visiblePlan
   // Only these names exist in the story (Sonnet 5.5 invented "Mats" and "Königin Isabella").
   const allowed = [...brief.heroes.map((hero) => hero.name), ...brief.candidates.map((candidate) => candidate.name)];
   lines.push(`NAMEN: Nur diese Figuren haben Namen: ${allowed.join(", ")}. Alle anderen bleiben namenlos (die Königin, ein Bär) — höchstens eine solche Randfigur.`);
+  // Story c2ff7f42: an unnamed duck carried the plot (her nest, her roof) while
+  // the cast list showed only the frog. Whoever matters comes from the pool.
+  lines.push("Diese Randfigur hat nur einen kurzen Auftritt (höchstens zwei Seiten) und trägt weder das Ziel noch die Lösung. Wer einen eigenen Wunsch hat oder die Handlung mitträgt, kommt aus dem Figurenpool.");
   lines.push("");
   if (options.visiblePlan) {
     // Models that think little before writing (Sonnet 5.5 on "low") improvised
@@ -116,8 +119,10 @@ export function buildOneShotUserPrompt(brief: StoryBrief, options: { visiblePlan
   lines.push(`BESETZUNG: <ids aus dem Figurenpool, mit Komma getrennt>`);
   lines.push("FUNDSTÜCK: <id oder keins>");
   lines.push("REFRAIN: <der Satz zum Mitsprechen oder keiner>");
-  // Control run 2026-09-28: 3 of 4 titles named the opponent or a thing, not a hero.
-  lines.push(`TITEL: <mit dem Namen von ${brief.heroes.map((hero) => hero.name).join(" oder ")} — die Helden gehören in den Titel, nicht der Gegenspieler>`);
+  // User 2026-09-29: "Alexander, Adrian und der/die/das …" on every book reads
+  // like a template. Real picture-book titles are short and make you curious;
+  // the heroes' names are allowed, never required.
+  lines.push(`TITEL: <wie ein echtes Bilderbuch: 2 bis 6 Wörter, macht neugierig — ein rätselhaftes Ding oder Wesen, ein Ausruf, eine Frage oder eine unmögliche Lage aus DIESER Geschichte. Die Heldennamen dürfen vorkommen, müssen aber nicht; nie nach dem Muster „${brief.heroes.map((hero) => hero.name).join(", ")} und der/die/das …“ und nie wie ein Titel, den die Familie schon kennt. Verrät nicht das Ende.>`);
   lines.push("BESCHREIBUNG: …");
   lines.push("SEITE 1 …");
   return lines.join("\n");

@@ -275,6 +275,28 @@ export function bindNamesToLooks(scene: string, characters: VisualEntity[]): str
   return result;
 }
 
+const LEADING_ARTICLE = /^(the|a|an|der|die|das|den|dem|des|ein|eine|einen|einem|einer)\s+/i;
+
+/**
+ * Story c2ff7f42: elements named "The duck" and "The red cloth" were found in
+ * EVERY scene — the name-token matcher for German names took "the" as a name.
+ * The duck was added to every shot (4 figures, composition error on the cover
+ * and four pages) and to every vignette. Elements match by their whole phrase
+ * or their head noun ("red picnic cloth" is "the red cloth"), articles ignored.
+ */
+export function mentionsElement(text: string, element: Pick<StoryElement, "name" | "noun">): boolean {
+  const haystack = String(text || "").toLowerCase();
+  const phrases = new Set<string>();
+  for (const raw of [element.name, element.noun]) {
+    const phrase = clean(raw, 60).toLowerCase().replace(LEADING_ARTICLE, "").trim();
+    if (!phrase) continue;
+    phrases.add(phrase);
+    const head = phrase.split(/[\s-]+/).pop() || "";
+    if (head.length >= 4) phrases.add(head);
+  }
+  return [...phrases].some((phrase) => new RegExp(`(^|[^\\p{L}])${escapeRegExp(phrase)}(?:e?s)?(?![\\p{L}])`, "u").test(haystack));
+}
+
 /** The plain noun the image model sees instead of an element's title-like name. */
 export function elementNoun(element: StoryElement): string {
   return clean(element.noun, 40).toLowerCase() || clean(element.name, 60).toLowerCase();
@@ -371,8 +393,8 @@ export function buildDirectorSystemPrompt(): string {
     "- Only the listed characters plus extras the page needs. Never extra children in the background — they look like copies of the heroes.",
     "- Features belong to their owner: one character's moustache, crown, hat or cape is never drawn on anyone else.",
     "- No text, letters, labels or speech bubbles in any picture. Books, pages, letters and notes show simple pictures (a painted bear, berries), never writing — a painted scribble reads as nonsense. A sign may carry ONE short word only when the text names it, written in the scene in capitals and quotes (a sign reading \"BEEREN\").",
-    "- English only, 45-80 words per scene. Describe only what the eye sees.",
-    "- For every PAGE also write vignette: the same moment WITHOUT any person or named character — the key object, one story element or the place in its current state, calm and clear, at most 30 words (e.g. 'the giant pumpkin rolling down the cobbled lane with the wooden signpost on its back'). It is printed only when the full picture fails.",
+    "- English only, 45-80 words per scene. Describe only what the eye sees. Start every scene with the camera and the ACTION — who does what, with which body language and expression — and put place and light last: the illustrator reads the first words most carefully (never open with 'In warm morning light …').",
+    "- For every PAGE also write vignette: the same moment WITHOUT any person, animal, creature or named character — the key object or the place in its current state, calm and clear, at most 30 words (e.g. 'the wooden signpost lying in the wet grass behind the open garden gate'). It is printed only when the full picture fails.",
     "- For a difficult shot (3 figures or overlapping limbs/props), also provide simpleScene: the SAME instant, actors and place in a simpler separated composition, at most 35 words. Otherwise omit it. focus is 'detail' ONLY for a deliberate close-up without any character.",
     "- The cover shows the heroes in an inviting, dynamic moment with the story's central element, with calm sky or background at the top (for the title, which is added later — do not draw it).",
     "",
@@ -428,7 +450,9 @@ function sanitizeElements(raw: unknown): StoryElement[] {
     .slice(0, 4);
 }
 
-function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerImage: number, elementNames: Set<string> = new Set(), figureNames: Set<string> = new Set()): IllustrationShot | null {
+function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerImage: number, storyElements: StoryElement[] = []): IllustrationShot | null {
+  const elementNames = new Set(storyElements.map((element) => element.name));
+  const figureNames = new Set(storyElements.filter((element) => element.figure).map((element) => element.name));
   const scene = clean(raw?.scene, 900);
   if (!scene) return null;
   const characters = entities.filter((entity) => entity.kind === "character");
@@ -448,16 +472,61 @@ function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerIm
   const elements = [...new Set<string>((Array.isArray(raw?.elements) ? raw.elements : [])
     .map((name: unknown) => clean(name, 60))
     .filter((name: string) => elementNames.has(name)))];
-  for (const name of elementNames) if (mentions(scene, name) && !elements.includes(name)) elements.push(name);
+  for (const element of storyElements) if (mentionsElement(scene, element) && !elements.includes(element.name)) elements.push(element.name);
   if (onStage.length + elements.filter((name) => figureNames.has(name)).length > maxPerImage) errors.push(`Composition exceeds ${maxPerImage} figures; recompose instead of dropping identities.`);
   if (!onStage.length && !elements.some((name) => figureNames.has(name)) && raw?.focus !== "detail") errors.push("Empty character manifest; explicitly choose a detail shot or identify the visible figures.");
-  // A vignette that names a character is no vignette: it would draw that character without a reference.
+  // A vignette with a character or a creature in it is no vignette: it would
+  // draw that figure without a reference (story c2ff7f42: a duck on page 1,
+  // two pages before the duck enters the story).
   const vignette = clean(raw?.vignette, 300);
-  const vignetteOk = vignette.length >= 15 && vignette !== "…" && !characters.some((entity) => mentions(vignette, entity.name));
+  const vignetteOk = vignette.length >= 15 && vignette !== "…"
+    && !characters.some((entity) => mentions(vignette, entity.name))
+    && !storyElements.some((element) => element.figure && mentionsElement(vignette, element));
   return { page, scene, onStage, artifactVisible: Boolean(raw?.artifactVisible) && entities.some((entity) => entity.kind === "artifact"), elements,
     focus: raw?.focus === "detail" ? "detail" : "scene", simpleScene: clean(raw?.simpleScene, 420) || undefined,
     ...(page > 0 && vignetteOk ? { vignette } : {}),
     ...(errors.length ? { planningErrors: errors } : {}),
+  };
+}
+
+const CROWDED = /^(Composition exceeds|Cover must keep every hero)/;
+
+/**
+ * Last step after the repair: a shot that is only too crowded is trimmed
+ * instead of skipped — heroes stay, then the other figures in the director's
+ * order. Sentences about a dropped figure leave the scene, so the image model
+ * does not paint it without a reference. Story c2ff7f42 printed four
+ * people-free vignettes and no cover because crowded shots were never drawn.
+ */
+export function recomposeShot(shot: IllustrationShot, entities: VisualEntity[], storyElements: StoryElement[], maxPerImage: number): IllustrationShot {
+  const errors = shot.planningErrors || [];
+  if (!errors.length || !errors.every((error) => CROWDED.test(error))) return shot;
+  const heroIds = entities.filter((entity) => entity.role === "hero").map((entity) => entity.id);
+  const limit = shot.page === 0 ? Math.max(maxPerImage, heroIds.filter((id) => shot.onStage.includes(id)).length) : maxPerImage;
+  const ordered = [...shot.onStage.filter((id) => heroIds.includes(id)), ...shot.onStage.filter((id) => !heroIds.includes(id))];
+  const onStage = ordered.slice(0, limit);
+  const figures = (shot.elements || []).filter((name) => storyElements.some((element) => element.name === name && element.figure));
+  const keptFigures = figures.slice(0, Math.max(0, limit - onStage.length));
+  const elements = (shot.elements || []).filter((name) => !figures.includes(name) || keptFigures.includes(name));
+  const droppedCharacters = entities.filter((entity) => shot.onStage.includes(entity.id) && !onStage.includes(entity.id));
+  const droppedFigures = storyElements.filter((element) => figures.includes(element.name) && !keptFigures.includes(element.name));
+  const aboutDropped = (sentence: string) =>
+    droppedCharacters.some((entity) => mentions(sentence, entity.name)) || droppedFigures.some((element) => mentionsElement(sentence, element));
+  const trim = (text: string | undefined) => {
+    if (!text) return text;
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    const kept = sentences.filter((sentence) => !aboutDropped(sentence));
+    return kept.length > 0 ? kept.join(" ") : text;
+  };
+  // The shot keeps its layout order (left to right) for the figures that stay.
+  const { planningErrors: _dropped, ...rest } = shot;
+  return {
+    ...rest,
+    onStage: shot.onStage.filter((id) => onStage.includes(id)),
+    elements,
+    scene: trim(shot.scene) || shot.scene,
+    simpleScene: trim(shot.simpleScene),
+    recomposed: [...droppedCharacters.map((entity) => entity.name), ...droppedFigures.map((element) => element.name)],
   };
 }
 
@@ -480,9 +549,8 @@ export function fallbackShot(page: number, plan: StoryPlan, entities: VisualEnti
 
 export function sanitizeIllustrationPlan(raw: any, pageCount: number, plan: StoryPlan, entities: VisualEntity[], maxPerImage: number): IllustrationPlan {
   const storyElements = sanitizeElements(raw?.storyElements);
-  const elementNames = new Set(storyElements.map((element) => element.name));
   const figureNames = new Set(storyElements.filter((element) => element.figure).map((element) => element.name));
-  const drafted = sanitizeShot(raw?.cover, 0, entities, maxPerImage, elementNames, figureNames) || fallbackShot(0, plan, entities, maxPerImage);
+  const drafted = sanitizeShot(raw?.cover, 0, entities, maxPerImage, storyElements) || fallbackShot(0, plan, entities, maxPerImage);
   // The cover always shows every hero (story 2db50859: Adrian was left off).
   const heroIds = entities.filter((entity) => entity.role === "hero").map((entity) => entity.id);
   const cover = { ...drafted, onStage: [...heroIds, ...drafted.onStage.filter((id) => !heroIds.includes(id))] };
@@ -496,7 +564,7 @@ export function sanitizeIllustrationPlan(raw: any, pageCount: number, plan: Stor
   }
   const pages: IllustrationShot[] = [];
   for (let page = 1; page <= pageCount; page += 1) {
-    pages.push(sanitizeShot(byPage.get(page), page, entities, maxPerImage, elementNames, figureNames) || fallbackShot(page, plan, entities, maxPerImage));
+    pages.push(sanitizeShot(byPage.get(page), page, entities, maxPerImage, storyElements) || fallbackShot(page, plan, entities, maxPerImage));
   }
   return { cover, pages, storyElements };
 }
@@ -600,6 +668,11 @@ export async function runDirectorStage(
   }
   const invalid = [result.illustrations.cover, ...result.illustrations.pages].filter((shot) => shot.planningErrors?.length);
   if (!invalid.length) return result;
+  const recompose = () => {
+    const elements = result.illustrations.storyElements || [];
+    result.illustrations.cover = recomposeShot(result.illustrations.cover, input.entities, elements, maxPerImage);
+    result.illustrations.pages = result.illustrations.pages.map((shot) => recomposeShot(shot, input.entities, elements, maxPerImage));
+  };
   try {
     // One batch repair before images: cheaper than repeatedly rendering an invalid cast.
     const repair = await llm({
@@ -629,5 +702,6 @@ export async function runDirectorStage(
   } catch (err) {
     console.warn("[storybook/illustration] shot repair unavailable:", (err as Error)?.message || err);
   }
+  recompose();
   return result;
 }

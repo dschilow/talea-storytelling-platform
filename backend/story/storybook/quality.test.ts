@@ -4,7 +4,7 @@ import { buildBrief } from "./context";
 import { resolveLengthBudget, type AgeBand } from "./craft";
 import { buildWriterSystemPrompt } from "./draft-stage";
 import { runStorybookTextEngine } from "./engine";
-import { assembleImagePrompt, bindNamesToLooks, describeReferenceLooks, nameElementsPlainly, negativePromptFor, runDirectorStage, sanitizeIllustrationPlan, type VisualEntity } from "./illustration-stage";
+import { assembleImagePrompt, bindNamesToLooks, describeReferenceLooks, mentionsElement, nameElementsPlainly, negativePromptFor, recomposeShot, runDirectorStage, sanitizeIllustrationPlan, type VisualEntity } from "./illustration-stage";
 import { generateStorybookImages, parseQaReport, publishableImageUrl, qaSeverity, qaSeverityParts, qaStatus, scopeQaReport, type ImageOutcome } from "./images";
 import { CostLedger, resolveStorybookModels, type LlmRequest, type StorybookLlm } from "./llm";
 import { buildOneShotUserPrompt, buildPatchPrompt, mergeStorybookPatch, planFromOneShot } from "./oneshot-stage";
@@ -327,5 +327,78 @@ describe("story 774d5a5e: the reader writes its evidence down", () => {
     await runReviewStage(async (r) => { request = r; return reply(r, ledgerReview); }, brief(), "T", [{ order: 1, title: "", content: "Alexander malte." }], [], "google/gemini-3.8-flash", "review", true);
     expect(request?.system).toContain("Schreib ZUERST das ledger");
     expect(request?.user).toContain("\"solutionKey\"");
+  });
+});
+
+describe("story c2ff7f42: the duck on every page and the missing cover", () => {
+  const frog: VisualEntity = { id: "q", name: "Frosch Quak", role: "cast", kind: "character", species: "frog", isHuman: false, appearance: "green frog with a golden crown and a lily-pad cloak", forbidden: [], referenceUrl: "https://example.test/quak.png" };
+  const cast = [...people, frog];
+  const duck = { name: "The duck", noun: "brown duck", look: "a brown mallard duck with a wet green leaf on its head", figure: true };
+  const cloth = { name: "The red cloth", noun: "red picnic cloth", look: "a red checked picnic cloth with an embroidered hem" };
+  const b = brief();
+  const plan = planFromOneShot("", b, { title: "Tuch", description: "", pages: [{ order: 1, title: "", content: "Alexander und Adrian am Teich." }] });
+  const crowded = {
+    storyElements: [duck, cloth],
+    cover: { scene: "Alexander and Adrian laugh as the red picnic cloth glides over the pond with Frosch Quak. A brown duck waddles behind them.", onStage: ["a", "b", "q"], elements: ["The red cloth", "The duck"] },
+    pages: [{ page: 1, scene: "Alexander reads on the red picnic cloth while Adrian sets out cups. Frosch Quak hops onto a lily pad. One corner of the cloth lifts like an ear.", onStage: ["a", "b", "q"], vignette: "The red picnic cloth on the grass beside the pond, one corner lifted like an ear." }],
+  };
+
+  test("an element named with an article is found by its noun, not by 'the'", () => {
+    expect(mentionsElement("The red picnic cloth lies on the grass.", duck)).toBe(false);
+    expect(mentionsElement("A brown duck waddles from the reeds.", duck)).toBe(true);
+    expect(mentionsElement("Two ducks paddle by.", duck)).toBe(true);
+    expect(mentionsElement("The red picnic cloth lies on the grass.", cloth)).toBe(true);
+    expect(mentionsElement("Adrian holds the red cloth.", cloth)).toBe(true);
+  });
+
+  test("a page without the duck in its scene is not crowded by it", () => {
+    const result = sanitizeIllustrationPlan(crowded, 1, plan, cast, 3);
+    expect(result.pages[0].elements).toEqual(["The red cloth"]);
+    expect(result.pages[0].planningErrors).toBeUndefined();
+    expect(result.pages[0].vignette).toContain("red picnic cloth");
+  });
+
+  test("a vignette with a creature in it is no vignette", () => {
+    const result = sanitizeIllustrationPlan({ ...crowded, pages: [{ ...crowded.pages[0], vignette: "The brown duck sits alone on the red picnic cloth by the pond." }] }, 1, plan, cast, 3);
+    expect(result.pages[0].vignette).toBeUndefined();
+  });
+
+  test("a shot the repair could not simplify is trimmed and drawn, heroes first", async () => {
+    const stages: string[] = [];
+    const result = await runDirectorStage(async (r) => { stages.push(r.stage); return reply(r, crowded); },
+      { brief: b, title: "Tuch", pages: [{ order: 1, title: "", content: "Alexander und Adrian am Teich." }], plan, entities: cast }, "test");
+    expect(stages).toEqual(["illustration-direction", "illustration-plan-repair"]);
+    const cover = result.illustrations.cover;
+    expect(cover.planningErrors).toBeUndefined();
+    expect(cover.onStage).toEqual(["a", "b", "q"]);
+    expect(cover.elements).toEqual(["The red cloth"]);
+    expect(cover.scene).not.toContain("duck");
+    expect(cover.recomposed).toEqual(["The duck"]);
+  });
+
+  test("recomposition keeps the heroes and drops the last cast member when heroes alone fill the page", () => {
+    const shot = { page: 2, scene: "Alexander pulls. Adrian pushes. Frosch Quak drums his toes.", onStage: ["q", "a", "b"], artifactVisible: false, elements: [], planningErrors: ["Composition exceeds 2 figures; recompose instead of dropping identities."] };
+    const trimmed = recomposeShot(shot, cast, [], 2);
+    expect(trimmed.onStage).toEqual(["a", "b"]);
+    expect(trimmed.scene).toBe("Alexander pulls. Adrian pushes.");
+    expect(recomposeShot({ ...shot, planningErrors: ["Empty character manifest; explicitly choose a detail shot or identify the visible figures."] }, cast, [], 2).planningErrors).toHaveLength(1);
+  });
+
+  test("a flawed vignette is never printed", async () => {
+    const result = await generateStorybookImages({
+      illustrations: { cover: images.cover, pages: [{ page: 1, scene: "Nothing to draw.", onStage: [], artifactVisible: false, vignette: "The red picnic cloth on the grass by the pond.", planningErrors: ["Empty character manifest; explicitly choose a detail shot or identify the visible figures."] }], storyElements: [cloth] },
+      entities: people, seed: "s", buildReference: reference, visionModel: "test",
+      llm: async (r) => reply(r, r.stage.includes("vignette") ? { characterCounts: { "The red cloth": 1 }, namedCharactersVisible: 1, anatomyDefects: [], duplicates: [], unexpectedCharacters: [], identityMatch: 1, sceneMatch: .3, posing: true } : cleanQa),
+      provider: async () => ({ url: "https://example.test/x.jpg" }),
+    });
+    expect(result.pages.get(1)?.vignette).toBe(true);
+    expect(publishableImageUrl(result.pages.get(1))).toBeUndefined();
+  });
+
+  test("titles like real books: the heroes' names are allowed, never required", () => {
+    const prompt = buildOneShotUserPrompt(b);
+    expect(prompt).toContain("müssen aber nicht");
+    expect(prompt).not.toContain("die Helden gehören in den Titel");
+    expect(prompt).toContain("höchstens zwei Seiten");
   });
 });
