@@ -77,6 +77,7 @@ export function toCastCandidate(row: Row): CastCandidate | null {
     role: text(row.role, 40) || null,
     archetype: text(row.archetype, 60) || null,
     whoTheyAre: firstClause || text(row.backstory, 160) || "eine Figur aus der Gegend",
+    backstory: text(row.backstory, 360) || undefined,
     personality: [...new Set(personality)].slice(0, 5),
     speechStyle: list(row.speech_style ?? row.speechStyle, 3),
     quirk: text(row.quirk, 160) || undefined,

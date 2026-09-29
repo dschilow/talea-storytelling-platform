@@ -226,7 +226,10 @@ export function rankEngines(input: {
  * told.
  */
 export const CRAFT_RULES: string[] = [
-  "Seite 1 zeigt in den ersten drei Sätzen, WER etwas WILL und WAS im Weg steht — anfassbar, sichtbar, jetzt. Der erste Satz ist ein Bild oder eine Handlung, die neugierig macht — nicht die Formel 'X und Y wollten …'.",
+  // 2026-09-29 (story fc06c0d1): "who wants what in the first three sentences"
+  // is novel craft — page 1 crammed rope, mangle, count, princess and a
+  // flashback into 100 words and a child did not know where it was.
+  "Seite 1 ist eine Einführung wie in echten Bilderbüchern: Das Kind erfährt in Ruhe, wo wir sind, wer die Helden sind, was sie gerade tun oder lieben und warum ihnen die Sache wichtig ist. Jede Figur wird bei ihrem ersten Auftritt kurz vorgestellt. Die Störung kommt am Ende von Seite 1, das Problem ist spätestens auf Seite 2 ganz klar. Der erste Satz ist ein ruhiges Bild, das man malen kann — nicht mitten im Durcheinander.",
   "Das Ziel hat ein Herz: Ein Kind versteht in einem Satz, warum es den Helden WICHTIG ist (für jemanden, den sie mögen, ein Versprechen, etwas Eigenes, das sie lieben) — nicht nur, dass irgendein Ding irgendwohin muss.",
   "Die Kinder lösen das Problem mit ihrer eigenen Idee. Die Idee wurde früh unscheinbar vorbereitet (ein Detail, ein Gegenstand, eine Eigenheit) und zahlt sich im Finale aus. Keine Rettung durch Erwachsene, Zufall oder Magie allein — und auch nicht dadurch, dass der Gegenspieler von allein stolpert: Wenn er hineintappt, dann in die Falle, die die Kinder gestellt haben.",
   "Dreierschritt: drei Versuche oder Begegnungen, jede größer, knapper und komischer. Die dritte ist anders als die ersten beiden.",
@@ -251,6 +254,7 @@ export const CRAFT_RULES: string[] = [
  * Tested against the full list (17 craft + ~20 plan rules) on 2026-09-28.
  */
 export const CORE_RULES: string[] = [
+  "Seite 1 führt ein wie ein echtes Bilderbuch: wo wir sind, wer die Helden sind, was sie lieben, jede Figur kurz vorgestellt; die Störung erst am Seitenende. Alles in der Reihenfolge, in der es passiert.",
   "Ein echtes Problem: Ein Kind versteht in einem Satz, was die Helden wollen, warum es IHNEN wichtig ist und was sichtbar im Weg steht. Es gibt keinen einfachen Weg drumherum — niemand fragt 'Warum gehen sie nicht einfach hin?'.",
   "Der Gegenspieler hat einen Grund, den ein Kind früh versteht, und eine komische Schwäche, die früh gezeigt wird.",
   "Die Kinder lösen es selbst mit einer Idee, die ein früh gezeigtes Detail nutzt. Das Kind denkt 'Ach, na klar!'. Kein Zufall, keine Erwachsenen, kein Gegenspieler, der von allein stolpert.",
@@ -266,6 +270,7 @@ export function buildSlimLanguageRules(languageLabel: string): string[] {
     `Sprache: ${languageLabel}, wie eine sehr gute Muttersprachlerin vorliest. Erzählt im Präteritum.`,
     "Kurze bis mittlere Sätze, konkrete Nomen, starke Verben. Keine Semikolons.",
     "Jede Seite ist eine Szene mit Stimmen. Gefühle zeigen, nicht benennen.",
+    "Figuren beim ersten Auftritt in ein, zwei Sätzen vorstellen (wer, wo, was sie mögen). Alles in der Reihenfolge erzählen, in der es passiert — keine Rückblenden.",
     "Keine Erzählerfragen, keine Lehre, keine Erklärung des Witzes.",
   ];
 }
@@ -284,7 +289,9 @@ export function buildLanguageRules(band: AgeBand, languageLabel: string): string
     "Klangwörter und Geräusche sparsam, aber genau (Platsch! Rumms! Knirsch.). Sie markieren die Höhepunkte.",
     "Dialoge sind kurz, jede Figur klingt anders. Direkte Rede treibt die Handlung, sie erklärt sie nicht.",
     "Vergleiche kommen aus der Welt der Kinder (Spielzeug, Tiere, Essen, Wetter). Keine erfundenen Wörter, keine Erwachsenen-Ironie, kein Fachjargon.",
-    "Figuren werden durch das eingeführt, was sie tun oder sagen — nie durch einen Steckbrief-Satz ('X ist ein … mit …'). Beim ersten Auftritt erfährt das Kind nebenbei, was die Figur ist (ein Fuchs, eine Hexe, ein Bäcker).",
+    "Jede Figur wird beim ersten Auftritt vorgestellt, wie Bilderbücher es tun: wer sie ist, wo sie lebt, was sie mag oder nicht mag — ein, zwei kurze Sätze, gern mit einem Detail aus ihrer Vorgeschichte ('Im Schloss wohnte Graf Griesgram. Er mochte keinen Lärm, keine Kinder und am allerwenigsten Vorlesen.'). Keine Aufzählung ihres Aussehens.",
+    "Erzähl alles in der Reihenfolge, in der es passiert. Keine Rückblenden und keine Vorvergangenheit für Vorgeschichte ('Er hatte das Buch eben genommen …') — zeig es, wenn es passiert.",
+    "Dinge, die ein Kind nicht kennt (eine Wäschewalze, eine Schleuse), erklärst du beim ersten Auftauchen in einem halben Satz in Kinderworten.",
     "Wichtiges in Kinderworten statt Begriffen: nicht 'Es liefert Gegenstände, aber keine fertigen Handlungen', sondern 'Es gibt dir Sachen. Aber helfen musst du selbst.'",
     "Vorbereitete Details zeigst du beiläufig. Niemand kündigt an, wofür etwas später gut ist.",
     "Keine Erzählerfragen und keine Kommentare über die Geschichte. Fragen stellen nur Figuren.",

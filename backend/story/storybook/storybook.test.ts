@@ -20,7 +20,7 @@ import { comprehensionGaps, needsRevision, sanitizeReview } from "./review-stage
 import { assembleImagePrompt, castAppearance, heroAppearance, negativePromptFor, ownershipLine, sanitizeIllustrationPlan, signatureNegatives, speciesFromProfile, type VisualEntity } from "./illustration-stage";
 import { correctionFor, generateStorybookImages, parseQaReport, qaSeverity } from "./images";
 import { runStorybookTextEngine } from "./engine";
-import { acceptablePatch } from "./oneshot-stage";
+import { acceptablePatch, planFromOneShot } from "./oneshot-stage";
 import type { CastCandidate, StoryPlan, StorybookPage } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -757,5 +757,16 @@ describe("species (A/B 2026-09-29)", () => {
     const prompt = assembleImagePrompt({ scene: "Mia meets Fauchi and Griselda.", onStage: [hero, dragon, witch], spriteOrder: [hero, dragon, witch] });
     expect(prompt).toContain("Only Drache Fauchi has wings");
     expect(prompt.length).toBeLessThanOrEqual(1900);
+  });
+});
+
+describe("one-shot cast detection (run intro-0929-2)", () => {
+  test("two candidates named Wilhelm: only the one the text names in full is cast", () => {
+    const baker: CastCandidate = { ...KOBOLD, id: "baker", name: "Bäcker Wilhelm", whoTheyAre: "Bäcker" };
+    const king: CastCandidate = { ...KOBOLD, id: "king", name: "König Wilhelm", whoTheyAre: "König" };
+    const b = brief({ candidates: [baker, king] });
+    const pages = Array.from({ length: b.budget.pages }, (_, index) => ({ order: index + 1, title: "", content: index === 0 ? "Bäcker Wilhelm schnupperte am Kuchen. Wilhelm lachte." : "Die Jungen liefen weiter." }));
+    const plan = planFromOneShot("BAUPLAN: frei\nBESETZUNG: \nFUNDSTÜCK: keins\nREFRAIN: keiner", b, { title: "T", description: "D", pages });
+    expect(plan.cast.map((member) => member.id)).toEqual(["baker"]);
   });
 });

@@ -45,6 +45,7 @@ export function buildReviewSystemPrompt(brief: StoryBrief): string {
     "",
     "PRÜFE BESONDERS:",
     "- Logik: Wer ist wo? Wer hat was dabei? Woher weiß eine Figur etwas? Passt eine Regel oder ein Gegenstand zu dem, was er vorher konnte? Jede Lücke ist ein mustFix.",
+    "- Einführung: Weiß ein Kind nach Seite 1, wo wir sind, wer die Helden und die anderen Figuren sind und warum den Helden die Sache wichtig ist? Beginnt die Geschichte mitten im Durcheinander, wird eine Figur ohne Vorstellung genannt oder Vorgeschichte in Rückblende oder Vorvergangenheit nachgereicht, ist das ein mustFix.",
     "- Verständnis: Kann das Kind nach einmal Hören sagen, was die Helden wollten, was im Weg stand, wie sie es gelöst haben und wie es ausging? Beantworte das nur aus dem Text; wenn du etwas ergänzen musst, ist die Antwort null.",
     "- Heldenleistung: Lösen die Kinder es selbst, mit einer vorbereiteten Idee? Trägt jeder Held etwas Eigenes bei?",
     "- Komik: Gibt es Stellen, an denen ein Kind wirklich lacht (mit Aufbau), oder wird Lustigkeit nur behauptet?",

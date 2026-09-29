@@ -31,6 +31,8 @@ export interface CastCandidate {
   archetype?: string | null;
   /** Short German "who is this", built from the pool row. */
   whoTheyAre: string;
+  /** The pool character's own backstory — used to introduce them like a picture book does. */
+  backstory?: string;
   personality: string[];
   speechStyle: string[];
   quirk?: string;

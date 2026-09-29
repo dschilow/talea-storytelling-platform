@@ -161,6 +161,7 @@ export function heroSeasoning(hero: StorybookHero): string {
 
 export function castSheet(candidate: CastCandidate): string {
   const bits: string[] = [`- ${candidate.name} [id: ${candidate.id}]`, candidate.whoTheyAre];
+  if (candidate.backstory) bits.push(`Vorgeschichte: ${candidate.backstory}`);
   if (candidate.personality.length) bits.push(`Wesen: ${candidate.personality.slice(0, 4).join(", ")}`);
   if (candidate.quirk) bits.push(`Eigenart: ${candidate.quirk}`);
   if (candidate.speechStyle.length) bits.push(`spricht: ${candidate.speechStyle.slice(0, 3).join(", ")}`);

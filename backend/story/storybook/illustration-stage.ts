@@ -127,6 +127,7 @@ export function negativePromptFor(onStage: VisualEntity[], usesSprite: boolean):
     "extra arms, extra hands, three hands, extra fingers, six fingers, fused fingers, missing fingers, deformed hands, extra legs, two heads, duplicated body parts, floating limbs",
     "duplicate character, same character twice, cloned face, unlisted character",
     "photorealistic, 3d render, cgi, harsh horror lighting, gore, blood, weapon pointed at someone",
+    "washing machine, refrigerator, electric lamp, modern appliance, plastic",
   ];
   if (onStage.some((entity) => entity.kind === "character" && entity.isHuman)) {
     base.push("animal ears on a human, cat ears, fox ears, bunny ears, tail on a human, fur on human skin, horns on a human, human-animal hybrid, merged characters, child with an animal body");
@@ -311,6 +312,9 @@ export function buildDirectorSystemPrompt(): string {
     "- Any creature, animal, talking object or special thing that is NOT in the list above and appears on more than one page (also an ordinary goose, dog or broom): define it ONCE in storyElements with a fixed, drawable look (shape, size, colours, how it moves) and list its name in 'elements' on every picture where it appears. It is its own figure: a hat with legs is never worn by anyone, a talking cup is never just a cup on a table. Set figure:true for anything alive (a troll, a giant, a goose). Its look is concrete (species, skin or fur colour, clothes WITH colours) and clearly different from every listed character — never their clothes, hair or colours.",
     "- A coloured mark, line or stripe in the story (a red water mark, a blue ribbon) colours only that small thing — water, sky and ground keep their natural colours.",
     "- Every object fits the story's world: in a fairy-tale or fantasy world everything is old-fashioned (wood, stone, clay, copper, wicker) — no modern appliances, stainless steel, plastic, electric ovens, sinks with taps or cars.",
+    // Story fc06c0d1: "the castle laundry" became two front-loading washing
+    // machines. The image model draws the word, so name the old things instead.
+    "- Never write a bare room word (laundry, kitchen, bathroom, workshop): describe what stands there in the old way — a laundry is wooden washtubs, a washboard and a wooden mangle with two rollers and a hand crank; a kitchen is a stone hearth with a copper pot; light comes from candles or an oil lamp.",
     "- Each picture happens exactly at this page's place from the text: an outdoor scene at a stream is never moved into a kitchen.",
     "- Only the listed characters plus extras the page needs. Never extra children in the background — they look like copies of the heroes.",
     "- Features belong to their owner: one character's moustache, crown, hat or cape is never drawn on anyone else.",

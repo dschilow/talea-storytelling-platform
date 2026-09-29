@@ -11,7 +11,7 @@
  */
 
 import { isGerman } from "./craft";
-import { checkProse, issuesToNotes, mentions } from "./checks";
+import { checkProse, issuesToNotes, mentions, nameTokens } from "./checks";
 import { selectEnginesForBrief } from "./concept-stage";
 import { artifactSheet, briefHeader, broughtArtifact, castSheet, heroSeasoning, heroSheet, wishLines, type StoryBrief } from "./context";
 import { buildWriterSystemPrompt, lengthBlock, renderStoryForPrompt } from "./draft-stage";
@@ -19,7 +19,7 @@ import { modelFamily, type CostLedger, type LlmRole, type StorybookLlm, type Sto
 import { parseDraft } from "./parsing";
 import { pageRhythm } from "./plan-stage";
 import { runReviewStage } from "./review-stage";
-import type { StoryPlan, StorybookPage } from "./types";
+import type { CastCandidate, StoryPlan, StorybookPage } from "./types";
 import type { TextEngineResult, StageObserver } from "./engine";
 
 const HEADER = {
@@ -33,6 +33,7 @@ export function buildOneShotUserPrompt(brief: StoryBrief, options: { visiblePlan
   const lines: string[] = [];
   lines.push("AUFGABE: Erfinde, plane und schreibe ein vollständiges Bilderbuch mit diesen Helden.");
   lines.push("Denk dir zuerst im Kopf drei grundverschiedene Ideen aus (verschiedene Baupläne), nimm die stärkste und plane sie Seite für Seite — wer ist wo, wer hat welches Ding, wie weit ist die Frist. Dann schreib.");
+  lines.push("SEITE 1 IST EINE EINFÜHRUNG wie in echten Bilderbüchern: erst ankommen (wo, wer, was die Helden gerade tun oder lieben, warum ihnen die Sache wichtig ist), jede Figur beim ersten Auftritt kurz vorgestellt — die Helden mit dem, was sie können und lieben, die Pool-Figuren mit einem Detail aus ihrer Vorgeschichte. Haar- und Augenfarben zeigt das Bild; zähl sie nicht auf. Die Störung kommt erst am Ende von Seite 1. Erzähl alles in der Reihenfolge, in der es passiert.");
   lines.push("Vor dem Schreiben prüfst du: Ist das Problem echt, oder könnten die Helden einfach hingehen, fragen oder es tragen? Versteht ein Sechsjähriger in einem Satz, warum die Lösung klappt? Würde ein Kind lachen?");
   // Story a9c00c8b (Sol): the fifth "vain Brunhilde, distracted by a reflection" plot in a row.
   lines.push("Frische: Diese Lösungen kennt die Familie schon zu oft — nimm sie nicht: ein eitler Gegenspieler, der von Spiegelbildern abgelenkt wird; ein Gegenspieler, der zwanghaft im Takt mittanzen muss; ein Glockenschlag als Frist. Die Eigenart einer Pool-Figur zeigt sich, aber sie muss nicht jedes Mal die Lösung sein.");
@@ -129,8 +130,16 @@ export function planFromOneShot(raw: string, brief: StoryBrief, parsed: { title:
   const header = (pattern: RegExp) => (String(raw).match(pattern)?.[1] || "").trim();
   const none = (value: string) => !value || /^(keins?|keiner|keine|null|—|-)$/i.test(value);
   const castIds = header(HEADER.cast).split(/[,;]/).map((id) => id.trim()).filter(Boolean);
+  const fullText = parsed.pages.map((page) => page.content).join("\n");
+  // Run intro-0929-2: "Bäcker Wilhelm" in the text also cast "König Wilhelm"
+  // (and would have drawn a king). When two candidates share their name, only
+  // the header id or the full name counts.
+  const shared = (candidate: CastCandidate) =>
+    brief.candidates.some((other) => other.id !== candidate.id && nameTokens(other.name).some((token) => nameTokens(candidate.name).includes(token)));
+  const inText = (candidate: CastCandidate) =>
+    shared(candidate) ? fullText.toLocaleLowerCase("de-DE").includes(candidate.name.toLocaleLowerCase("de-DE")) : mentions(fullText, candidate.name);
   const cast = brief.candidates
-    .filter((candidate) => castIds.includes(candidate.id) || parsed.pages.some((page) => mentions(page.content, candidate.name)))
+    .filter((candidate) => castIds.includes(candidate.id) || inText(candidate))
     .slice(0, brief.budget.maxCast)
     .map((candidate) => ({ id: candidate.id, name: candidate.name, role: "", want: "", voice: "", signature: "" }));
   const artifactId = header(HEADER.artifact);

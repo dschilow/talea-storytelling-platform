@@ -18,8 +18,8 @@ import type { PlanPage, StoryPitch, StoryPlan } from "./types";
 export function pageRhythm(pages: number): string[] {
   if (pages <= 5) {
     return [
-      "Seite 1: Wer will was, was steht im Weg — und ein Haken, der neugierig macht. Das unscheinbare Detail für die spätere Lösung wird gezeigt.",
-      "Seite 2: Erster und zweiter Versuch, der zweite größer und komischer.",
+      "Seite 1: Die Einführung, wie in echten Bilderbüchern — erst ankommen, dann die Störung. Wo sind wir? Wer sind die Helden, was tun oder lieben sie gerade? Warum ist ihnen die Sache oder die Person wichtig? Jede Figur, die hier auftritt, wird kurz vorgestellt. Das unscheinbare Detail für die spätere Lösung liegt nebenbei im Bild. Erst am Seitenende passiert die Störung — zum Umblättern.",
+      "Seite 2: Das Problem wird ganz klar (was will wer, was steht im Weg), dann der erste und zweite Versuch, der zweite größer und komischer.",
       `Seite 3: Der dritte Versuch ist anders — und kippt. Am Seitenende scheint alles verloren.`,
       "Seite 4: Die Idee der Kinder (mit dem vorbereiteten Detail) und das Finale.",
       "Seite 5: Auflösung, Rückkehr zum Anfangsbild — verwandelt — und die Schlusspointe.",
@@ -28,8 +28,8 @@ export function pageRhythm(pages: number): string[] {
   const lowPoint = pages - 2;
   const finale = pages - 1;
   return [
-    "Seite 1: Wer will was, was steht im Weg — und ein Haken, der neugierig macht. Das unscheinbare Detail für die spätere Lösung wird gezeigt.",
-    `Seiten 2 bis ${lowPoint - 1}: Der Dreierschritt — drei Versuche oder Begegnungen, jede größer, knapper und komischer; die dritte ist anders. Der Laufgag kehrt wieder.${pages >= 9 ? " Eine Überraschung in der Mitte ändert die Lage." : ""}`,
+    "Seite 1: Die Einführung, wie in echten Bilderbüchern — erst ankommen, dann die Störung. Wo sind wir? Wer sind die Helden, was tun oder lieben sie gerade? Warum ist ihnen die Sache oder die Person wichtig? Jede Figur, die hier auftritt, wird kurz vorgestellt. Das unscheinbare Detail für die spätere Lösung liegt nebenbei im Bild. Erst am Seitenende passiert die Störung — zum Umblättern.",
+    `Seite 2: Das Problem wird ganz klar — was wollen die Helden, was steht sichtbar im Weg, bis wann. Seiten 2 bis ${lowPoint - 1}: Der Dreierschritt — drei Versuche oder Begegnungen, jede größer, knapper und komischer; die dritte ist anders. Der Laufgag kehrt wieder.${pages >= 9 ? " Eine Überraschung in der Mitte ändert die Lage." : ""}`,
     `Seite ${lowPoint}: Der Tiefpunkt — es sieht aus, als wäre alles verloren.`,
     `Seite ${finale}: Die Idee der Kinder (mit dem vorbereiteten Detail) und das Finale.`,
     `Seite ${pages}: Auflösung, Rückkehr zum Anfangsbild — verwandelt — und die Schlusspointe.`,
