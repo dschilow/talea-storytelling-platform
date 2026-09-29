@@ -121,7 +121,7 @@ const runware: ImageProvider = async (request) => {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${runwareKey}` },
     body: JSON.stringify([{
-      taskType: "imageInference", taskUUID, model: "runware:400@4",
+      taskType: "imageInference", taskUUID, model: option("--image-model", "runware:400@2"),
       positivePrompt: request.prompt, negativePrompt: request.negativePrompt,
       width: request.width, height: request.height, steps: Number(option("--steps", "4")), CFGScale: 4,
       seed: request.seed, numberResults: 1, outputType: ["URL"], outputFormat: "JPEG", includeCost: true,

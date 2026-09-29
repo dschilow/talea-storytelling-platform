@@ -76,11 +76,23 @@ export function artifactHeadToken(name: string): string {
   return normalizeForSearch(capitalised[0] || words[0] || "");
 }
 
+/**
+ * Whole words only: "mut" is not in "Mutter". "glaube" as the everyday verb
+ * ("ich glaube") is not religion — story 31a7a59d forced a patch for it that
+ * produced a clumsy sentence, and the parental filter rewrites the verb anyway.
+ * Only the noun (capitalised after a lowercase word) is blocked.
+ */
 export function containsBlockedTerm(text: string, blockedTerms: string[]): string | null {
   const haystack = normalizeForSearch(text);
   for (const term of blockedTerms) {
     const needle = normalizeForSearch(term).trim();
-    if (needle && haystack.includes(needle)) return term;
+    if (!needle) continue;
+    if (needle === "glaube") {
+      if (/[\p{Ll},;:]\s+(?:\p{Ll}+\s+)?Glauben?\b/u.test(String(text))) return term;
+      continue;
+    }
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, "u").test(haystack)) return term;
   }
   return null;
 }

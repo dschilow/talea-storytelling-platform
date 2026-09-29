@@ -12,13 +12,13 @@ import { buildBrief, type StoryBrief } from "./context";
 import { CostLedger, modelFamily, resolveStorybookModels, retryRequestFor, toOpenRouterModelId, type LlmRequest, type StorybookLlm } from "./llm";
 import { acceptsTemperature, resolveStorybookReasoning } from "./llm-guards";
 import { ensureParagraphs, normalizeGermanQuotes, parseDraft } from "./parsing";
-import { checkPlan, checkProse, mentions, nameTokens } from "./checks";
+import { checkPlan, checkProse, containsBlockedTerm, mentions, nameTokens } from "./checks";
 import { selectRewardArtifacts, shortlistCastCandidates } from "./cast-selection";
 import { sanitizePitches } from "./concept-stage";
 import { sanitizePlan } from "./plan-stage";
 import { comprehensionGaps, needsRevision, sanitizeReview } from "./review-stage";
 import { assembleImagePrompt, castAppearance, heroAppearance, negativePromptFor, sanitizeIllustrationPlan, signatureNegatives, type VisualEntity } from "./illustration-stage";
-import { generateStorybookImages, parseQaReport, qaSeverity } from "./images";
+import { correctionFor, generateStorybookImages, parseQaReport, qaSeverity } from "./images";
 import { runStorybookTextEngine } from "./engine";
 import { acceptablePatch } from "./oneshot-stage";
 import type { CastCandidate, StoryPlan, StorybookPage } from "./types";
@@ -372,10 +372,13 @@ describe("illustration locks", () => {
   test("every human on stage gets the anatomy lock; the sheet order is spelled out", () => {
     const prompt = assembleImagePrompt({ scene: "Alexander dives under a table.", onStage: [human, goblin], spriteOrder: [human, goblin] });
     expect(prompt.startsWith("Alexander dives")).toBe(true);
-    expect(prompt).toContain("fully human");
-    expect(prompt).toContain("five fingers");
-    expect(prompt).toContain("1: Alexander; 2: Kobold Kicher");
-    expect(prompt).toContain("Exactly 2 named characters");
+    expect(prompt).toContain("ordinary human");
+    expect(prompt).toContain("five-fingered hands");
+    expect(prompt).toContain("left to right Alexander, Kobold Kicher");
+    expect(prompt).toContain("Kobold Kicher (magical creature: small goblin, second on the identity sheet)");
+    expect(prompt).toContain("Exactly 2 figures");
+    // Negations belong in the negative prompt; FLUX draws what it reads.
+    expect(prompt).not.toMatch(/\bno (beard|moustache|wings|tail|fur)\b/);
   });
 
   test("negatives ban animal features on humans and the painted sheet", () => {
@@ -397,7 +400,7 @@ describe("illustration locks", () => {
     expect(shots.storyElements).toEqual([{ name: "Wish hat", look: "a big red felt hat walking on two very long thin legs, no body, nobody wears it" }]);
     expect(shots.cover.elements).toEqual(["Wish hat"]);
     const prompt = assembleImagePrompt({ scene: shots.pages[0].scene, onStage: [human], spriteOrder: [human], elements: shots.storyElements });
-    expect(prompt).toContain("Story element, drawn exactly once and exactly like this: Wish hat — a big red felt hat walking on two very long thin legs");
+    expect(prompt).toContain("Wish hat, drawn exactly like this: a big red felt hat walking on two very long thin legs");
   });
 
   test("appearance lines come from structured profiles and English pool prompts", () => {
@@ -450,7 +453,7 @@ describe("images", () => {
       },
       provider: async (request) => {
         calls += 1;
-        const attempt = request.prompt.includes("Correct anatomy") ? 2 : 1;
+        const attempt = request.prompt.includes("one separate, complete body") ? 2 : 1;
         return { url: `https://img/${request.page}-attempt-${attempt}.jpg`, costUSD: 0.0013 };
       },
     });
@@ -604,9 +607,9 @@ describe("image prompt budget", () => {
     const entity = (id: string, isHuman: boolean): VisualEntity => ({ id, name: `Figur ${id}`, kind: "character", species: isHuman ? "human" : "dragon", isHuman, appearance: long, forbidden: [], referenceUrl: "https://r" });
     const onStage = [entity("1", true), entity("2", true), entity("3", false)];
     const prompt = assembleImagePrompt({ scene: "y".repeat(900), onStage, spriteOrder: onStage });
-    expect(prompt.length).toBeLessThanOrEqual(2900);
-    expect(prompt).toContain("five fingers");
-    expect(prompt).toContain("technical identity sheet");
+    expect(prompt.length).toBeLessThanOrEqual(1900);
+    expect(prompt).toContain("five-fingered hands");
+    expect(prompt).toContain("identity sheet");
   });
 });
 
@@ -686,8 +689,8 @@ describe("feature bleed (runs fix-0929-a/b)", () => {
   });
 });
 
-describe("crowding (runs fix2-0929)", () => {
-  test("figure story elements crowd out named characters beyond three figures", () => {
+describe("crowding (runs fix2-0929, story 31a7a59d)", () => {
+  test("figure elements are marked; ids the scene names are never dropped (a figure in the text without its reference is worse)", () => {
     const e = (id: string, role: "hero" | "cast"): VisualEntity => ({ id, name: id, kind: "character", role, species: "human", isHuman: true, appearance: "", forbidden: [] });
     const plan = { title: "T", logline: "L", heroes: [], pages: [] } as any;
     const shots = sanitizeIllustrationPlan({
@@ -699,7 +702,39 @@ describe("crowding (runs fix2-0929)", () => {
       ],
     }, 2, plan, [e("h1", "hero"), e("h2", "hero"), e("c1", "cast")], 3);
     expect(shots.storyElements?.[0]?.figure).toBe(true);
-    expect(shots.pages[0].onStage).toEqual(["h1", "h2"]);
+    expect(shots.pages[0].onStage).toEqual(["h1", "h2", "c1"]);
     expect(shots.pages[1].onStage).toEqual(["h1", "h2", "c1"]);
+  });
+});
+
+describe("story 31a7a59d: compact, positive image prompts", () => {
+  const adrian: VisualEntity = { id: "a2", name: "Adrian", kind: "character", role: "hero", species: "human", isHuman: true, appearance: "boy with short blond hair, grey t-shirt, blue jeans", forbidden: [], referenceUrl: "https://r/a2.png" };
+  const theo: VisualEntity = { id: "t", name: "Theo Zeitsam", kind: "character", role: "cast", species: "tortoise", isHuman: false, appearance: "elderly land tortoise, golden-brown shell, red satchel, brass pocket watch", forbidden: [], referenceUrl: "https://r/t.png" };
+
+  test("a redraw correction never quotes the defect", () => {
+    const qa = parseQaReport(JSON.stringify({ characterCounts: { Adrian: 1, "Theo Zeitsam": 1 }, featureBleed: ["Theo has the troll's shaggy orange beard"], roleSwaps: ["the boy holds the mud instead of Theo"], elementMisuse: ["Troll is missing entirely"] }))!;
+    const correction = correctionFor(qa, ["Troll"]);
+    expect(correction).not.toContain("beard");
+    expect(correction).not.toContain("mud");
+    expect(correction).toContain("Troll shown as its own separate figure");
+    const prompt = assembleImagePrompt({ scene: "Adrian and Theo look at the water.", onStage: [adrian, theo], spriteOrder: [adrian, theo], correction });
+    expect(prompt.indexOf("identity sheet; the children")).toBeLessThan(prompt.indexOf("Exactly 2 figures"));
+    expect(prompt.length).toBeLessThanOrEqual(1900);
+  });
+
+  test("the tortoise's shell is forbidden on the children; pool boilerplate is stripped", () => {
+    expect(signatureNegatives([adrian, theo])).toContain("child with a shell");
+    const elsa: VisualEntity = { id: "e", name: "Magd Elsa", kind: "character", role: "cast", species: "human", isHuman: true, appearance: "young maid, brown hair in a bun, white headband, grey dress, white apron", forbidden: [], referenceUrl: "https://r/e.png" };
+    const griselda: VisualEntity = { id: "g", name: "Hexe Griselda", kind: "character", role: "cast", species: "human", isHuman: true, appearance: "old witch, pointed black witch hat, black robe", forbidden: [], referenceUrl: "https://r/g.png" };
+    // Run fix6-0929: Elsa's apron and a felt hat landed on Amir.
+    expect(signatureNegatives([adrian, elsa, griselda])).toEqual(expect.arrayContaining(["child with an apron", "child with a headband", "child with a witch hat", "child with a hat"]));
+    expect(castAppearance({ imagePrompt: "Portrait of Theo Zeitsam, old tortoise with amber shell, red satchel and stopped pocket watch, European storybook illustration, no text." })).toBe("Theo Zeitsam, old tortoise with amber shell, red satchel and stopped pocket watch");
+  });
+
+  test("blocked terms: whole words, and 'ich glaube' is not religion", () => {
+    expect(containsBlockedTerm("Ich glaube, das ist ein Däumchen.", ["glaube"])).toBeNull();
+    expect(containsBlockedTerm("Sie sprachen über den Glauben der Leute.", ["glaube"])).toBe("glaube");
+    expect(containsBlockedTerm("Die Mutter lachte.", ["mut"])).toBeNull();
+    expect(containsBlockedTerm("Das braucht Mut.", ["mut"])).toBe("mut");
   });
 });

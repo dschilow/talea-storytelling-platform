@@ -197,18 +197,20 @@ export function qaSeverity(report: ImageQaReport | undefined, expectedCharacters
   return severity;
 }
 
-function correctionFor(report: ImageQaReport): string {
+/**
+ * A redraw instruction in positive words only. Story 31a7a59d / run fix4-0929-a:
+ * quoting the checker ("Theo has the troll's shaggy orange beard") put exactly
+ * that into the next picture — a diffusion model draws what it reads.
+ */
+export function correctionFor(report: ImageQaReport, elementNames: string[] = []): string {
   const fixes: string[] = [];
-  if (report.anatomyDefects.length) fixes.push("Correct anatomy: every person has exactly two arms and two hands with five fingers each; no extra limbs; every figure is a separate body, nothing grows out of anyone.");
-  if (report.animalFeaturesOnHumans.length) fixes.push("The human characters have ordinary human ears and no animal features at all: no wings, no tail, no horns, no fur.");
-  if (report.duplicates.length) fixes.push("Each character appears exactly once.");
-  if (report.unexpectedCharacters.length) fixes.push("Only the named characters — no additional children or people in the background.");
-  if (report.missing?.length) fixes.push(`Clearly show ${report.missing.slice(0, 3).join(", ")} in the scene.`);
-  if (report.featureBleed?.length) fixes.push(`Every character keeps only its own face and outfit — the children have smooth faces without facial hair: ${report.featureBleed.slice(0, 2).join("; ")}.`);
-  if (report.roleSwaps.length) fixes.push(`Keep the roles exactly as described: ${report.roleSwaps.slice(0, 2).join("; ")}.`);
-  if (report.elementMisuse?.length) fixes.push(`Draw the story element as its own thing exactly as described: ${report.elementMisuse.slice(0, 2).join("; ")}.`);
-  if (report.referenceSheetVisible) fixes.push("Only the scene itself — no reference sheet, no framed portraits, no white panels.");
-  if (report.textVisible) fixes.push("No letters or writing anywhere.");
+  if (report.anatomyDefects.length) fixes.push("Every figure is one separate, complete body with natural anatomy.");
+  if (report.animalFeaturesOnHumans.length || report.featureBleed?.length) fixes.push("Each figure looks exactly like its own place on the identity sheet; the children look like ordinary human kids in their own clothes.");
+  if (report.duplicates.length || report.unexpectedCharacters.length) fixes.push("The listed figures are the only figures in the picture, each exactly once.");
+  if (report.missing?.length) fixes.push(`${report.missing.slice(0, 3).join(" and ")} clearly visible in the foreground.`);
+  const misused = elementNames.filter((name) => report.elementMisuse?.some((note) => note.toLowerCase().includes(name.toLowerCase())));
+  if (misused.length) fixes.push(`${misused.join(" and ")} shown as its own separate figure or thing.`);
+  if (report.referenceSheetVisible) fixes.push("One single full-bleed scene.");
   return fixes.join(" ");
 }
 
@@ -281,9 +283,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
             continue;
           }
         }
-        const base = assembleImagePrompt({ scene: shot.scene, onStage: drawn, spriteOrder: sheet, elements });
-        const prompt = extra ? `${base}
-${extra}` : base;
+        const prompt = assembleImagePrompt({ scene: shot.scene, onStage: drawn, spriteOrder: sheet, elements, correction: extra || undefined });
         lastPrompt = prompt;
         imageCalls += 1;
         try {
@@ -349,22 +349,19 @@ ${extra}` : base;
     // No picture at all even without a reference: nothing a new seed would fix.
     if (!first.url || first.severity < 10) return finish(first, 1);
     regenerated.push(shot.page);
-    // Up to two redraws; the least defective one ships. The third only for what
-    // a new seed or a smaller sheet can fix (bleed, doubles, anatomy) — a
-    // missing figure or a role swap came back on every retry in runs fix2-0929.
-    const seedFixable = (qa?: ImageQaReport) =>
-      Boolean(qa && (qa.anatomyDefects.length || qa.animalFeaturesOnHumans.length || qa.duplicates.length || qa.featureBleed?.length || qa.unexpectedCharacters.length));
+    // One redraw; the less defective picture ships. A third attempt (runs
+    // fix2/fix3-0929) rarely rescued a page and cost ~1 ¢ per story.
     let best = first;
     let last = first;
     let attempts = 1;
-    for (let attemptNo = 2; attemptNo <= 3 && best.severity >= 10 && (attemptNo === 2 || seedFixable(last.qa)); attemptNo += 1) {
+    for (let attemptNo = 2; attemptNo <= 2 && best.severity >= 10; attemptNo += 1) {
       const bled = Boolean(last.qa && (last.qa.animalFeaturesOnHumans.length || last.qa.featureBleed?.length));
       let startLevel = Math.max(0, last.level);
       if (bled && canSplitSheet && ladder[0] !== heroSheet) {
         ladder = ladderFor(heroSheet);
         startLevel = 0;
       }
-      last = await attempt(attemptNo, last.qa ? correctionFor(last.qa) : "", startLevel);
+      last = await attempt(attemptNo, last.qa ? correctionFor(last.qa, elements.map((element) => element.name)) : "", startLevel);
       attempts = attemptNo;
       if (last.url && last.severity < best.severity) best = last;
     }

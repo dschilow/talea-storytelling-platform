@@ -50,12 +50,16 @@ function bandNote(band: AgeBand): string {
   return "Deine Zuhörer sind sechs bis acht: sie folgen jeder Wendung, solange jeder Schritt aus dem vorigen kommt, und sie lachen laut über Slapstick und Figuren, die sich lächerlich sicher sind.";
 }
 
-export function buildWriterSystemPrompt(brief: StoryBrief): string {
+export function buildWriterSystemPrompt(brief: StoryBrief, options: { oneShot?: boolean } = {}): string {
   const lines = [
     `Du bist eine der besten Kinderbuchautorinnen und schreibst auf ${brief.languageLabel}. Deine Bilderbücher werden abends hundertmal vorgelesen, und die Kinder sprechen die besten Sätze mit.`,
     bandNote(brief.band),
     "",
-    "Deine Lektorin gibt dir einen fertigen Seitenplan. Die Handlung steht. Du machst daraus Szenen, die man sieht, Sätze, die klingen, und Pointen, die sitzen.",
+    // The one-shot writer invents the story itself; telling it "the plot is
+    // fixed" contradicted the task it gets in the same call.
+    options.oneShot
+      ? "Du erfindest die Geschichte selbst, planst sie Seite für Seite und schreibst sie dann: Szenen, die man sieht, Sätze, die klingen, und Pointen, die sitzen."
+      : "Deine Lektorin gibt dir einen fertigen Seitenplan. Die Handlung steht. Du machst daraus Szenen, die man sieht, Sätze, die klingen, und Pointen, die sitzen.",
     "",
     "DEIN HANDWERK:",
     ...(brief.experiment?.slim || isLean(brief) ? CORE_RULES : CRAFT_RULES).map((rule) => `- ${rule}`),

@@ -81,25 +81,36 @@ export function heroAppearance(visualProfile: any, fallback = ""): string {
   return clean(joined || fallback, 280);
 }
 
+/** Cut at a word or comma boundary instead of mid-word ("Europ"). */
+function clip(value: unknown, max: number): string {
+  const text = clean(value, 2000);
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max);
+  const boundary = Math.max(cut.lastIndexOf(", "), cut.lastIndexOf("; "), cut.lastIndexOf(". "));
+  return (boundary > max * 0.5 ? cut.slice(0, boundary) : cut.slice(0, cut.lastIndexOf(" ") > 0 ? cut.lastIndexOf(" ") : max)).trim();
+}
+
+/**
+ * Pool prompts were written for a portrait ("Portrait of Theo Zeitsam, old
+ * tortoise …, European storybook illustration, no text."). Only the look stays.
+ */
+function stripPortraitBoilerplate(text: string): string {
+  return text
+    .replace(/^portrait of\s+/i, "")
+    .replace(/[,.]?\s*(european |watercolou?r |whimsical |classic )?(storybook|children'?s book|picture[- ]book) illustration( style)?.*$/i, "")
+    .replace(/[,.]?\s*no text\.?\s*$/i, "")
+    .replace(/\b(background|floating in zero gravity|cosmic background)[^.,]*/gi, "")
+    .replace(/\s*,\s*,/g, ",")
+    .trim()
+    .replace(/[,.]$/, "");
+}
+
 /** English appearance for a pool character: its English image prompt beats the German description. */
 export function castAppearance(visualProfile: any, physicalDescription?: string): string {
-  const prompt = clean(visualProfile?.imagePrompt, 400)
-    .replace(/^portrait of\s+/i, "")
-    .replace(/storybook illustration style.*$/i, "")
-    .replace(/\b(background|floating in zero gravity|cosmic background)[^.,]*/gi, "")
-    .trim();
+  const prompt = stripPortraitBoilerplate(clean(visualProfile?.imagePrompt, 400));
   if (prompt && looksEnglish(prompt)) return clean(prompt, 260);
   const description = clean(visualProfile?.description || physicalDescription, 260);
   return description;
-}
-
-export function anatomyLock(entity: VisualEntity): string {
-  if (entity.kind === "artifact") return `${entity.name} is an object: ${entity.appearance}.`;
-  if (entity.isHuman) {
-    const face = entity.role === "hero" ? " a smooth child's face with no moustache, no beard and no facial hair," : "";
-    return `${entity.name} is a fully human ${entity.appearance ? `character (${entity.appearance})` : "character"} with${face} ordinary human ears, human skin and hair, no wings, no fur, no tail, no animal features, exactly two arms and two hands with five fingers each. ${entity.name} wears only ${entity.name}'s own clothes and accessories.`;
-  }
-  return `${entity.name} is a ${entity.species} (${entity.appearance || "as in the reference"}) and keeps its own anatomy, colours and outfit exactly as in its reference.`;
 }
 
 export function negativePromptFor(onStage: VisualEntity[], usesSprite: boolean): string {
@@ -110,7 +121,7 @@ export function negativePromptFor(onStage: VisualEntity[], usesSprite: boolean):
     "photorealistic, 3d render, cgi, harsh horror lighting, gore, blood, weapon pointed at someone",
   ];
   if (onStage.some((entity) => entity.kind === "character" && entity.isHuman)) {
-    base.push("animal ears on a human, cat ears, fox ears, bunny ears, tail on a human, fur on human skin, horns on a human, human-animal hybrid, merged characters");
+    base.push("animal ears on a human, cat ears, fox ears, bunny ears, tail on a human, fur on human skin, horns on a human, human-animal hybrid, merged characters, child with an animal body");
   }
   if (onStage.some((entity) => entity.role === "hero" && entity.isHuman)) {
     base.push("moustache on a child, beard on a child, facial hair on a child, adult features on a child");
@@ -122,12 +133,13 @@ export function negativePromptFor(onStage: VisualEntity[], usesSprite: boolean):
   return [...base, ...pack, ...strip].join(", ");
 }
 
-const SIGNATURE_FEATURES = /\b(witch hat|pointed hat|top hat|hat|crown|tiara|cape|cloak|wings?|horns?|tail|beard|moustache|mustache|antlers|halo)\b/gi;
+const SIGNATURE_FEATURES = /\b(witch hat|pointed hat|top hat|hat|bonnet|headband|apron|crown|tiara|cape|cloak|wings?|horns?|tail|shell|beard|moustache|mustache|antlers|halo)\b/gi;
 
 /**
  * Story fix-0929-b: the witch's pointed hat landed on the children, the
- * dragon's wings on Mina. The signature features of every other figure on the
- * page are forbidden on the heroes by name of the feature.
+ * dragon's wings on Mina; story 31a7a59d: the tortoise's shell on Adrian.
+ * The signature features of every other figure on the page are forbidden on
+ * the heroes by name of the feature.
  */
 export function signatureNegatives(onStage: VisualEntity[]): string[] {
   if (!onStage.some((entity) => entity.role === "hero" && entity.isHuman)) return [];
@@ -139,59 +151,92 @@ export function signatureNegatives(onStage: VisualEntity[]): string[] {
       const feature = match[1].toLowerCase().replace(/s$/, "");
       // A hero who wears a hat of their own keeps it.
       if (!heroText.includes(feature)) features.add(feature);
+      // Run fix6-0929: the witch's pointed hat came back as a felt hat on Amir.
+      if (/hat$/.test(feature) && !/\bhat\b/.test(heroText)) features.add("hat");
     }
     if (!entity.isHuman && /dragon|bird|bat|fairy|griffin|owl|butterfly|bee/i.test(entity.species)) features.add("wing");
   }
-  return [...features].slice(0, 6).map((feature) => `child with ${feature === "wing" ? "wings" : `a ${feature}`}`);
+  return [...features].slice(0, 8).map((feature) => `child with ${feature === "wing" ? "wings" : `${/^[aeiou]/.test(feature) ? "an" : "a"} ${feature}`}`);
 }
 
 /**
- * The final Runware prompt. Order matters: the scene first (the model weights
- * the beginning most), then style, then the locks and the sprite contract.
+ * The final Runware prompt for FLUX.2 [klein] (runware:400@4, 4 steps).
+ *
+ * Story 31a7a59d (2026-09-29): prompts of 3.000–3.500 characters, the sheet
+ * contract and the redraw correction at the very end, and negations in the
+ * positive prompt ("no beard", "Theo has the troll's orange beard" quoted from
+ * the checker) — the tortoise's shell landed on Adrian three times. Now:
+ *   scene → correction → who is who (with the sheet slot) → humans → objects → style,
+ * only positive phrasing (negations live in the negative prompt), ≤ 1.900 chars.
  */
-/** Runware accepts up to 3000 characters; the locks at the end must survive. */
-export const MAX_IMAGE_PROMPT_CHARS = 2900;
+export const MAX_IMAGE_PROMPT_CHARS = 1900;
+
+export const STORYBOOK_IMAGE_STYLE_SHORT =
+  "Children's picture-book illustration, hand-painted gouache and coloured pencil, warm vivid palette, expressive faces and clear silhouettes, lively motion, one continuous full-bleed scene, pure illustration.";
 
 export function assembleImagePrompt(input: {
   scene: string;
   onStage: VisualEntity[];
   spriteOrder: VisualEntity[];
   elements?: StoryElement[];
+  correction?: string;
 }): string {
-  const full = buildImagePrompt(input, 280);
-  if (full.length <= MAX_IMAGE_PROMPT_CHARS) return full;
-  // Tighten the appearance lines first (the reference image carries the look),
-  // then the scene; never cut the anatomy locks or the sheet contract.
-  const tight = buildImagePrompt(input, 90);
-  if (tight.length <= MAX_IMAGE_PROMPT_CHARS) return tight;
-  return buildImagePrompt({ ...input, scene: clean(input.scene, Math.max(200, 900 - (tight.length - MAX_IMAGE_PROMPT_CHARS))) }, 90);
+  for (const [lookChars, sceneChars] of [[150, 650], [110, 520], [80, 420]] as const) {
+    const prompt = buildImagePrompt(input, lookChars, sceneChars);
+    if (prompt.length <= MAX_IMAGE_PROMPT_CHARS) return prompt;
+  }
+  return buildImagePrompt({ ...input, correction: undefined }, 70, 360).slice(0, MAX_IMAGE_PROMPT_CHARS);
+}
+
+function ordinal(index: number): string {
+  return ["first", "second", "third", "fourth", "fifth"][index] || `${index + 1}th`;
 }
 
 function buildImagePrompt(
-  input: { scene: string; onStage: VisualEntity[]; spriteOrder: VisualEntity[]; elements?: StoryElement[] },
-  appearanceChars: number
+  input: { scene: string; onStage: VisualEntity[]; spriteOrder: VisualEntity[]; elements?: StoryElement[]; correction?: string },
+  lookChars: number,
+  sceneChars: number
 ): string {
-  const shorten = (entity: VisualEntity): VisualEntity => ({ ...entity, appearance: clean(entity.appearance, appearanceChars) });
-  input = { ...input, onStage: input.onStage.map(shorten) };
-  const lines: string[] = [clean(input.scene, 900), STORYBOOK_IMAGE_STYLE];
   const characters = input.onStage.filter((entity) => entity.kind === "character");
-  if (characters.length > 0) {
-    lines.push(`Exactly ${characters.length} named character${characters.length === 1 ? "" : "s"} in the scene, each appearing once: ${characters.map((entity) => entity.name).join(", ")}.`);
+  const objects = input.onStage.filter((entity) => entity.kind === "artifact");
+  const figureElements = (input.elements || []).filter((element) => element.figure);
+  const thingElements = (input.elements || []).filter((element) => !element.figure);
+  const slotOf = (entity: VisualEntity) => input.spriteOrder.findIndex((sheet) => sheet.id === entity.id);
+
+  const lines: string[] = [clip(input.scene, sceneChars)];
+  if (input.correction) lines.push(clip(input.correction, 320));
+
+  const figures = [
+    ...characters.map((entity) => {
+      const kind = entity.isHuman ? (entity.role === "hero" ? "child" : "person") : entity.species;
+      const slot = slotOf(entity);
+      const where = slot >= 0 && input.spriteOrder.length > 1 ? `, ${ordinal(slot)} on the identity sheet` : "";
+      return `${entity.name} (${kind}${entity.appearance ? `: ${clip(entity.appearance, lookChars)}` : ""}${where})`;
+    }),
+    // Story 422a3ba3 / runs fix2-0929: a recurring figure without a reference gets one fixed look.
+    ...figureElements.map((element) => `${clean(element.name, 60)} (${clip(element.look, lookChars + 40)})`),
+  ];
+  if (figures.length > 0) {
+    lines.push(`Exactly ${figures.length} figure${figures.length === 1 ? "" : "s"}, each drawn once as its own separate body: ${figures.join("; ")}.`);
   } else {
-    lines.push("No named characters in this scene.");
+    lines.push("A scene without people.");
   }
-  for (const entity of input.onStage) lines.push(anatomyLock(entity));
-  // Story 422a3ba3: a wish hat walking on long legs was painted as a cap the
-  // boy wore on four pages. A recurring magic thing gets one fixed look.
-  for (const element of input.elements || []) {
-    lines.push(`Story element, drawn exactly once and exactly like this: ${clean(element.name, 60)} — ${clean(element.look, appearanceChars)}. It is its own separate figure or thing, never part of a character's body, and never wears a named character's clothes or face.`);
+
+  const humans = characters.filter((entity) => entity.isHuman);
+  if (humans.length > 0) {
+    const children = humans.filter((entity) => entity.role === "hero").map((entity) => entity.name);
+    lines.push(`${humans.map((entity) => entity.name).join(" and ")} ${humans.length === 1 ? "is an ordinary human" : "are ordinary humans"} with natural human faces, ears, skin and two five-fingered hands${children.length ? `; ${children.join(" and ")} ${children.length === 1 ? "has a smooth child's face" : "have smooth children's faces"}` : ""}. Everyone wears only their own clothes.`);
   }
+
+  for (const entity of objects) lines.push(`${entity.name}, an object: ${clip(entity.appearance, lookChars)}.`);
+  for (const element of thingElements) lines.push(`${clean(element.name, 60)}, drawn exactly like this: ${clip(element.look, lookChars)}; a separate thing that nobody wears.`);
+
   if (input.spriteOrder.length > 1) {
-    const order = input.spriteOrder.map((entity, index) => `${index + 1}: ${entity.name}`).join("; ");
-    lines.push(`The attached reference is a technical identity sheet, not part of the artwork. Left to right it shows ${order}. Use it only for faces, species, colours and outfits; keep every identity separate; never draw the sheet, its white background, frames or a lineup.`);
+    lines.push(`The attached image is only an identity sheet, not part of the picture: left to right ${input.spriteOrder.map((entity) => entity.name).join(", ")}. Take each figure's face, hair or fur, colours and outfit from its own place on the sheet and draw one single scene.`);
   } else if (input.spriteOrder.length === 1) {
-    lines.push(`The attached reference shows ${input.spriteOrder[0].name}. Use it only for identity; ignore its pose and background.`);
+    lines.push(`The attached image shows ${input.spriteOrder[0].name}; use it only for ${input.spriteOrder[0].name}'s identity, in a new pose.`);
   }
+  lines.push(STORYBOOK_IMAGE_STYLE_SHORT);
   return lines.join("\n");
 }
 
@@ -283,11 +328,9 @@ function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerIm
   const elements = (Array.isArray(raw?.elements) ? raw.elements : [])
     .map((name: unknown) => clean(name, 60))
     .filter((name: string) => elementNames.has(name));
-  // Runs fix2-0929: three named characters plus a troll and a lamb on every
-  // page — the troll took Amir's jacket, the giant fused with the turtle.
-  // Figures without a reference crowd out the named ones, never the other way.
-  const figures = elements.filter((name: string) => figureNames.has(name)).length;
-  onStage.splice(Math.max(1, maxPerImage - figures));
+  // The figure limit is the director's job: dropping ids here left figures in
+  // the scene text without a reference (story 31a7a59d), which is worse.
+  void figureNames;
   return { page, scene, onStage, artifactVisible: Boolean(raw?.artifactVisible) && entities.some((entity) => entity.kind === "artifact"), elements };
 }
 
@@ -362,7 +405,9 @@ export async function describeReferenceLooks(
       call,
       entities: entities.map((entity) => {
         const look = targets.includes(entity) ? clean(looks[entity.name], 220) : "";
-        return look && look !== "…" ? { ...entity, appearance: clean(`${look}. ${entity.appearance}`, 400) } : entity;
+        // The look read off the portrait replaces the pool prompt (story 31a7a59d
+        // carried both: 300 characters of duplicates per figure).
+        return look && look !== "…" ? { ...entity, appearance: look } : entity;
       }),
     };
   } catch (err) {

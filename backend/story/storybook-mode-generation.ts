@@ -51,7 +51,12 @@ import type { StorybookGeneratedStory, StorybookGenerationInput } from "./storyb
 export { STORYBOOK_PIPELINE_ID };
 export type { StorybookGenerationInput, StorybookGeneratedStory, StorybookHero } from "./storybook/types";
 
-const IMAGE_MODEL = "runware:400@4";
+/**
+ * FLUX.2 [klein] 9B. A/B 2026-09-29 (16 shots each, same prompts, sprites and
+ * seeds): 14/16 clean pictures vs 7/16 with the 4B model (runware:400@4) —
+ * the 4B fused children with dragons and tortoises. ~$0.0009–0.0016 per picture.
+ */
+const IMAGE_MODEL = process.env.TALEA_STORYBOOK_IMAGE_MODEL || "runware:400@2";
 
 function stableSeed(input: StorybookGenerationInput): string {
   return createHash("sha256")
