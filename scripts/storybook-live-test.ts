@@ -27,7 +27,7 @@ import { CostLedger, resolveStorybookModels, retryRequestFor, type LlmCallResult
 import { acceptsTemperature, extractStorybookChoiceContent, isTruncatedFinishReason, resolveStorybookReasoning } from "../backend/story/storybook/llm-guards";
 import { runStorybookTextEngine } from "../backend/story/storybook/engine";
 import { selectRewardArtifacts, shortlistCastCandidates, toArtifactOption, toCastCandidate } from "../backend/story/storybook/cast-selection";
-import { castAppearance, heroAppearance, runDirectorStage, speciesFromProfile, type VisualEntity } from "../backend/story/storybook/illustration-stage";
+import { castAppearance, describeReferenceLooks, heroAppearance, runDirectorStage, speciesFromProfile, type VisualEntity } from "../backend/story/storybook/illustration-stage";
 import { generateStorybookImages, type ImageProvider } from "../backend/story/storybook/images";
 import { runDevelopmentStage } from "../backend/story/storybook/developments";
 import { countWords } from "../backend/story/storybook/checks";
@@ -261,9 +261,11 @@ if (!flag("--no-images") && runwareKey) {
   const artifact = text.plan.artifact ? artifacts.find((entry) => entry.id === text.plan.artifact!.id) : undefined;
   if (artifact) entities.push({ id: `artifact:${artifact.id}`, name: artifact.name, kind: "artifact", role: "artifact", species: "object", isHuman: false, appearance: artifact.visualKeywords.join(", "), forbidden: [], referenceUrl: publicImageUrl(artifact.imageUrl) });
 
-  const director = await runDirectorStage(llm, { brief, title: text.title, pages: text.pages, plan: text.plan, entities }, models.support);
+  const looks = await describeReferenceLooks(llm, entities, models.support);
+  if (looks.call) ledger.recordCall("reference-looks", looks.call, "support");
+  const director = await runDirectorStage(llm, { brief, title: text.title, pages: text.pages, plan: text.plan, entities: looks.entities }, models.support);
   if (director.call) ledger.recordCall("illustration-direction", director.call, "support");
-  const images = await generateStorybookImages({ illustrations: director.illustrations, entities, provider: runware, seed, llm, visionModel: models.support });
+  const images = await generateStorybookImages({ illustrations: director.illustrations, entities: looks.entities, provider: runware, seed, llm, visionModel: models.support });
   images.qaCalls.forEach((call, index) => ledger.recordCall(`image-qa-${index + 1}`, call, "support"));
   imageCostUSD = images.imageCostUSD;
   for (const outcome of [images.cover, ...images.pages.values()]) {

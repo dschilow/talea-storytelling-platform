@@ -97,7 +97,7 @@ export function anatomyLock(entity: VisualEntity): string {
   if (entity.kind === "artifact") return `${entity.name} is an object: ${entity.appearance}.`;
   if (entity.isHuman) {
     const face = entity.role === "hero" ? " a smooth child's face with no moustache, no beard and no facial hair," : "";
-    return `${entity.name} is a fully human ${entity.appearance ? `character (${entity.appearance})` : "character"} with${face} ordinary human ears, human skin and hair, no fur, no tail, no animal features, exactly two arms and two hands with five fingers each. ${entity.name} wears only ${entity.name}'s own clothes and accessories.`;
+    return `${entity.name} is a fully human ${entity.appearance ? `character (${entity.appearance})` : "character"} with${face} ordinary human ears, human skin and hair, no wings, no fur, no tail, no animal features, exactly two arms and two hands with five fingers each. ${entity.name} wears only ${entity.name}'s own clothes and accessories.`;
   }
   return `${entity.name} is a ${entity.species} (${entity.appearance || "as in the reference"}) and keeps its own anatomy, colours and outfit exactly as in its reference.`;
 }
@@ -116,9 +116,33 @@ export function negativePromptFor(onStage: VisualEntity[], usesSprite: boolean):
     base.push("moustache on a child, beard on a child, facial hair on a child, adult features on a child");
   }
   for (const entity of onStage) for (const feature of entity.forbidden.slice(0, 4)) base.push(clean(feature, 60));
+  base.push(...signatureNegatives(onStage));
   const pack = CANONICAL_NEGATIVE_PACK.filter((term) => /swap|transfer|merged|two characters in one body/.test(term)).slice(0, 12);
   const strip = usesSprite ? COLLAGE_STRIP_NEGATIVES.slice(0, 14) : [];
   return [...base, ...pack, ...strip].join(", ");
+}
+
+const SIGNATURE_FEATURES = /\b(witch hat|pointed hat|top hat|hat|crown|tiara|cape|cloak|wings?|horns?|tail|beard|moustache|mustache|antlers|halo)\b/gi;
+
+/**
+ * Story fix-0929-b: the witch's pointed hat landed on the children, the
+ * dragon's wings on Mina. The signature features of every other figure on the
+ * page are forbidden on the heroes by name of the feature.
+ */
+export function signatureNegatives(onStage: VisualEntity[]): string[] {
+  if (!onStage.some((entity) => entity.role === "hero" && entity.isHuman)) return [];
+  const heroText = onStage.filter((entity) => entity.role === "hero").map((entity) => entity.appearance.toLowerCase()).join(" ");
+  const features = new Set<string>();
+  for (const entity of onStage) {
+    if (entity.role === "hero" || entity.kind !== "character") continue;
+    for (const match of entity.appearance.matchAll(SIGNATURE_FEATURES)) {
+      const feature = match[1].toLowerCase().replace(/s$/, "");
+      // A hero who wears a hat of their own keeps it.
+      if (!heroText.includes(feature)) features.add(feature);
+    }
+    if (!entity.isHuman && /dragon|bird|bat|fairy|griffin|owl|butterfly|bee/i.test(entity.species)) features.add("wing");
+  }
+  return [...features].slice(0, 6).map((feature) => `child with ${feature === "wing" ? "wings" : `a ${feature}`}`);
 }
 
 /**
@@ -160,7 +184,7 @@ function buildImagePrompt(
   // Story 422a3ba3: a wish hat walking on long legs was painted as a cap the
   // boy wore on four pages. A recurring magic thing gets one fixed look.
   for (const element of input.elements || []) {
-    lines.push(`Story element, drawn exactly like this: ${clean(element.name, 60)} — ${clean(element.look, appearanceChars)}.`);
+    lines.push(`Story element, drawn exactly once and exactly like this: ${clean(element.name, 60)} — ${clean(element.look, appearanceChars)}. It is its own separate figure or thing, never part of a character's body, and never wears a named character's clothes or face.`);
   }
   if (input.spriteOrder.length > 1) {
     const order = input.spriteOrder.map((entity, index) => `${index + 1}: ${entity.name}`).join("; ");
@@ -184,10 +208,10 @@ export function buildDirectorSystemPrompt(): string {
     "- Never a lineup, never characters standing side by side looking at the viewer, never posing.",
     "- Choose a camera for each page and vary it from page to page: wide establishing shot, medium action shot, low angle looking up, high angle looking down, over-the-shoulder, close-up on a reaction or an object.",
     "- Show the place concretely: time of day, weather, light, and the props exactly in their CURRENT state on this page (broken, wet, tied up, glowing ...).",
-    "- At most 3 named characters per picture; if more are in the scene, pick the 3 that matter and let the others be off-panel. Use only the ids given.",
+    "- At most 3 FIGURES per picture in total, counting named characters AND figure story elements (a troll, a giant, a goose). If more are in the scene, pick the ones the moment needs and leave the others off-panel. List onStage in order of importance. Use only the ids given.",
     "- Say exactly WHO does WHAT and where each one is (left / right / foreground / on the ladder …). Never swap roles: if the text says Adrian climbs, Adrian is the one climbing.",
     "- Unnamed extras (a flock of geese, a crowd) only when the page needs them, fully described.",
-    "- A magic creature, talking object or special thing that is NOT in the list above and appears on more than one page: define it ONCE in storyElements with a fixed, drawable look (shape, size, colours, how it moves) and list its name in 'elements' on every picture where it appears. It is its own figure: a hat with legs is never worn by anyone, a talking cup is never just a cup on a table.",
+    "- Any creature, animal, talking object or special thing that is NOT in the list above and appears on more than one page (also an ordinary goose, dog or broom): define it ONCE in storyElements with a fixed, drawable look (shape, size, colours, how it moves) and list its name in 'elements' on every picture where it appears. It is its own figure: a hat with legs is never worn by anyone, a talking cup is never just a cup on a table. Set figure:true for anything alive (a troll, a giant, a goose). Its look is concrete (species, skin or fur colour, clothes WITH colours) and clearly different from every listed character — never their clothes, hair or colours.",
     "- A coloured mark, line or stripe in the story (a red water mark, a blue ribbon) colours only that small thing — water, sky and ground keep their natural colours.",
     "- Every object fits the story's world: in a fairy-tale or fantasy world everything is old-fashioned (wood, stone, clay, copper, wicker) — no modern appliances, stainless steel, plastic, electric ovens, sinks with taps or cars.",
     "- Each picture happens exactly at this page's place from the text: an outdoor scene at a stream is never moved into a kitchen.",
@@ -229,7 +253,7 @@ export function buildDirectorUserPrompt(input: {
   lines.push(
     JSON.stringify(
       {
-        storyElements: [{ name: "name of a recurring magic thing, or leave the list empty", look: "fixed English look" }],
+        storyElements: [{ name: "name of a recurring figure or thing, or leave the list empty", look: "fixed English look", figure: true }],
         cover: { scene: "…", onStage: ["id"], artifactVisible: false, elements: [] },
         pages: input.pages.map((page) => ({ page: page.order, scene: "…", onStage: ["id"], artifactVisible: false, elements: [] })),
       },
@@ -242,12 +266,12 @@ export function buildDirectorUserPrompt(input: {
 
 function sanitizeElements(raw: unknown): StoryElement[] {
   return (Array.isArray(raw) ? raw : [])
-    .map((entry: any) => ({ name: clean(entry?.name, 60), look: clean(entry?.look, 260) }))
+    .map((entry: any) => ({ name: clean(entry?.name, 60), look: clean(entry?.look, 260), ...(entry?.figure === true ? { figure: true } : {}) }))
     .filter((entry) => entry.name && entry.look && !/^name of a recurring/i.test(entry.name))
     .slice(0, 4);
 }
 
-function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerImage: number, elementNames: Set<string> = new Set()): IllustrationShot | null {
+function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerImage: number, elementNames: Set<string> = new Set(), figureNames: Set<string> = new Set()): IllustrationShot | null {
   const scene = clean(raw?.scene, 900);
   if (!scene) return null;
   const characterIds = new Set(entities.filter((entity) => entity.kind === "character").map((entity) => entity.id));
@@ -259,6 +283,11 @@ function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerIm
   const elements = (Array.isArray(raw?.elements) ? raw.elements : [])
     .map((name: unknown) => clean(name, 60))
     .filter((name: string) => elementNames.has(name));
+  // Runs fix2-0929: three named characters plus a troll and a lamb on every
+  // page — the troll took Amir's jacket, the giant fused with the turtle.
+  // Figures without a reference crowd out the named ones, never the other way.
+  const figures = elements.filter((name: string) => figureNames.has(name)).length;
+  onStage.splice(Math.max(1, maxPerImage - figures));
   return { page, scene, onStage, artifactVisible: Boolean(raw?.artifactVisible) && entities.some((entity) => entity.kind === "artifact"), elements };
 }
 
@@ -281,7 +310,11 @@ export function fallbackShot(page: number, plan: StoryPlan, entities: VisualEnti
 export function sanitizeIllustrationPlan(raw: any, pageCount: number, plan: StoryPlan, entities: VisualEntity[], maxPerImage: number): IllustrationPlan {
   const storyElements = sanitizeElements(raw?.storyElements);
   const elementNames = new Set(storyElements.map((element) => element.name));
-  const cover = sanitizeShot(raw?.cover, 0, entities, maxPerImage, elementNames) || fallbackShot(0, plan, entities, maxPerImage);
+  const figureNames = new Set(storyElements.filter((element) => element.figure).map((element) => element.name));
+  const drafted = sanitizeShot(raw?.cover, 0, entities, maxPerImage, elementNames, figureNames) || fallbackShot(0, plan, entities, maxPerImage);
+  // The cover always shows every hero (story 2db50859: Adrian was left off).
+  const heroIds = entities.filter((entity) => entity.role === "hero").map((entity) => entity.id);
+  const cover = { ...drafted, onStage: [...heroIds, ...drafted.onStage.filter((id) => !heroIds.includes(id))].slice(0, Math.max(maxPerImage, heroIds.length)) };
   const byPage = new Map<number, any>();
   for (const entry of Array.isArray(raw?.pages) ? raw.pages : []) {
     const page = Math.round(Number(entry?.page));
@@ -289,9 +322,53 @@ export function sanitizeIllustrationPlan(raw: any, pageCount: number, plan: Stor
   }
   const pages: IllustrationShot[] = [];
   for (let page = 1; page <= pageCount; page += 1) {
-    pages.push(sanitizeShot(byPage.get(page), page, entities, maxPerImage, elementNames) || fallbackShot(page, plan, entities, maxPerImage));
+    pages.push(sanitizeShot(byPage.get(page), page, entities, maxPerImage, elementNames, figureNames) || fallbackShot(page, plan, entities, maxPerImage));
   }
   return { cover, pages, storyElements };
+}
+
+/**
+ * Pool characters often carry only a vague text look ("young maid with simple
+ * dress"), so the image model filled the gaps differently on every page —
+ * story 2db50859 drew Magd Elsa blonde on the cover and brunette on page 3.
+ * One cheap vision call reads the fixed look off the reference portraits.
+ */
+export async function describeReferenceLooks(
+  llm: StorybookLlm,
+  entities: VisualEntity[],
+  model: string
+): Promise<{ entities: VisualEntity[]; call?: LlmCallResult }> {
+  const targets = entities.filter((entity) => entity.kind === "character" && entity.role !== "hero" && entity.referenceUrl);
+  if (targets.length === 0) return { entities };
+  try {
+    const call = await llm({
+      stage: "reference-looks",
+      role: "support",
+      model,
+      system: "You describe character reference portraits for an illustrator. Answer with JSON only.",
+      user: [
+        ...targets.map((entity, index) => `Attachment ${index + 1} shows ${entity.name} (${entity.species}).`),
+        "For each character write ONE English line, at most 30 words, of what stays the same in every picture: apparent age, hair colour and hairstyle (or fur/feather colours), skin tone, each clothing piece with its colour, at most two accessories. Only what is visible, no mood, no background.",
+        JSON.stringify({ looks: Object.fromEntries(targets.map((entity) => [entity.name, "…"])) }),
+      ].join("\n"),
+      json: true,
+      maxTokens: 2000,
+      effort: "low",
+      imageInputs: targets.map((entity) => entity.referenceUrl!),
+      timeoutMs: 60_000,
+    });
+    const looks = parseJsonObject<any>(call.text)?.looks || {};
+    return {
+      call,
+      entities: entities.map((entity) => {
+        const look = targets.includes(entity) ? clean(looks[entity.name], 220) : "";
+        return look && look !== "…" ? { ...entity, appearance: clean(`${look}. ${entity.appearance}`, 400) } : entity;
+      }),
+    };
+  } catch (err) {
+    console.warn("[storybook/illustration] reference looks failed:", (err as Error)?.message || err);
+    return { entities };
+  }
 }
 
 export interface DirectorStageResult {

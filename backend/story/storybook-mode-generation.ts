@@ -42,7 +42,7 @@ import { loadHeroMemories, loadStorybookHistory } from "./storybook/history";
 import { CostLedger, resolveStorybookModels } from "./storybook/llm";
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
 import { runStorybookTextEngine, STORYBOOK_PIPELINE_ID } from "./storybook/engine";
-import { castAppearance, heroAppearance, runDirectorStage, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
+import { castAppearance, describeReferenceLooks, heroAppearance, runDirectorStage, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
 import { generateStorybookImages, type ImageProvider, type StorybookImagesResult } from "./storybook/images";
 import { runDevelopmentStage } from "./storybook/developments";
 import { artifactHeadToken, countWords } from "./storybook/checks";
@@ -244,14 +244,16 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     });
   }
 
-  const director = await runDirectorStage(llm, { brief, title: text.title, pages, plan, entities }, models.support);
+  const looks = await describeReferenceLooks(llm, entities, models.support);
+  if (looks.call) ledger.recordCall("reference-looks", looks.call, "support");
+  const director = await runDirectorStage(llm, { brief, title: text.title, pages, plan, entities: looks.entities }, models.support);
   if (director.call) ledger.recordCall("illustration-direction", director.call, "support");
 
   const emptyImages: StorybookImagesResult = { pages: new Map(), imagesGenerated: 0, imageCalls: 0, imageCostUSD: 0, qaCalls: [], regenerated: [] };
   const [images, development] = await Promise.all([
     generateStorybookImages({
       illustrations: director.illustrations,
-      entities,
+      entities: looks.entities,
       provider: encoreImageProvider(input.storyId),
       seed,
       llm,

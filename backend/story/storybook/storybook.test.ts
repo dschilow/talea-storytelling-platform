@@ -17,9 +17,10 @@ import { selectRewardArtifacts, shortlistCastCandidates } from "./cast-selection
 import { sanitizePitches } from "./concept-stage";
 import { sanitizePlan } from "./plan-stage";
 import { comprehensionGaps, needsRevision, sanitizeReview } from "./review-stage";
-import { assembleImagePrompt, castAppearance, heroAppearance, negativePromptFor, sanitizeIllustrationPlan, type VisualEntity } from "./illustration-stage";
+import { assembleImagePrompt, castAppearance, heroAppearance, negativePromptFor, sanitizeIllustrationPlan, signatureNegatives, type VisualEntity } from "./illustration-stage";
 import { generateStorybookImages, parseQaReport, qaSeverity } from "./images";
 import { runStorybookTextEngine } from "./engine";
+import { acceptablePatch } from "./oneshot-stage";
 import type { CastCandidate, StoryPlan, StorybookPage } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -396,7 +397,7 @@ describe("illustration locks", () => {
     expect(shots.storyElements).toEqual([{ name: "Wish hat", look: "a big red felt hat walking on two very long thin legs, no body, nobody wears it" }]);
     expect(shots.cover.elements).toEqual(["Wish hat"]);
     const prompt = assembleImagePrompt({ scene: shots.pages[0].scene, onStage: [human], spriteOrder: [human], elements: shots.storyElements });
-    expect(prompt).toContain("Story element, drawn exactly like this: Wish hat — a big red felt hat walking on two very long thin legs");
+    expect(prompt).toContain("Story element, drawn exactly once and exactly like this: Wish hat — a big red felt hat walking on two very long thin legs");
   });
 
   test("appearance lines come from structured profiles and English pool prompts", () => {
@@ -606,5 +607,99 @@ describe("image prompt budget", () => {
     expect(prompt.length).toBeLessThanOrEqual(2900);
     expect(prompt).toContain("five fingers");
     expect(prompt).toContain("technical identity sheet");
+  });
+});
+
+describe("story 2db50859 fixes", () => {
+  test("a missing hero and a stranger in the scene are redraws; a story element is counted", () => {
+    const missing = parseQaReport(JSON.stringify({ characterCounts: { Alexander: 1, Adrian: 0 } }))!;
+    expect(missing.missing).toEqual(["Adrian"]);
+    expect(qaSeverity(missing, 2, ["Alexander", "Adrian"])).toBeGreaterThanOrEqual(10);
+    // A missing side figure alone is no redraw (runs fix2-0929: it came back on every retry).
+    expect(qaSeverity(missing, 2, ["Alexander"])).toBeLessThan(10);
+    const goose = parseQaReport(JSON.stringify({ characterCounts: { Alexander: 1, Gans: 2 } }))!;
+    expect(qaSeverity(goose, 1)).toBeGreaterThanOrEqual(10);
+    const stranger = parseQaReport(JSON.stringify({ characterCounts: { Elsa: 1 }, unexpectedCharacters: ["a second blonde girl in a maid's dress"] }))!;
+    expect(qaSeverity(stranger, 1)).toBeGreaterThanOrEqual(10);
+  });
+
+  test("the cover always carries every hero", () => {
+    const heroes: VisualEntity[] = ["h1", "h2"].map((id) => ({ id, name: id, kind: "character", role: "hero", species: "human", isHuman: true, appearance: "", forbidden: [] }));
+    const cast: VisualEntity = { id: "c1", name: "Elsa", kind: "character", role: "cast", species: "human", isHuman: true, appearance: "", forbidden: [] };
+    const plan = { title: "T", logline: "L", heroes: [], pages: [] } as any;
+    const shots = sanitizeIllustrationPlan({ cover: { scene: "Elsa and Alexander at the fountain", onStage: ["h1", "c1"] }, pages: [] }, 0, plan, [...heroes, cast], 3);
+    expect(shots.cover.onStage).toEqual(["h1", "h2", "c1"]);
+  });
+
+  test("a patch is a touch-up, not a rewrite", () => {
+    const page = "Die Gans hob einen Fuß. Alexander streckte die Hand aus. Sofort setzte sie ihn wieder hin. Adrian hielt sein rotes Band hoch. Die Gans drehte den Kopf.";
+    expect(acceptablePatch(page, `${page} Bo nickte.`)).toBe(true);
+    expect(acceptablePatch(page, "Ganz etwas anderes passiert hier jetzt auf dieser Seite, und niemand erinnert sich an das Band oder die Gans, denn alle gehen nach Hause.")).toBe(false);
+    expect(acceptablePatch(page, `${page} ${"Und dann passierte noch sehr viel mehr auf dieser Seite. ".repeat(4)}`)).toBe(false);
+  });
+});
+
+describe("feature bleed (runs fix-0929-a/b)", () => {
+  const mina: VisualEntity = { id: "m", name: "Mina", kind: "character", role: "hero", species: "human", isHuman: true, appearance: "girl with curly hair, orange top", forbidden: [], referenceUrl: "https://r/m.png" };
+  const fauchi: VisualEntity = { id: "f", name: "Drache Fauchi", kind: "character", role: "cast", species: "dragon", isHuman: false, appearance: "small green dragon with orange wings and a long tail", forbidden: [], referenceUrl: "https://r/f.png" };
+  const griselda: VisualEntity = { id: "g", name: "Hexe Griselda", kind: "character", role: "cast", species: "human", isHuman: true, appearance: "old witch with a pointed black witch hat and black cloak", forbidden: [], referenceUrl: "https://r/g.png" };
+
+  test("the other figures' signature features are forbidden on the children", () => {
+    const negatives = signatureNegatives([mina, fauchi, griselda]);
+    expect(negatives).toContain("child with wings");
+    expect(negatives).toContain("child with a tail");
+    expect(negatives).toContain("child with a witch hat");
+    expect(negativePromptFor([mina, fauchi], true)).toContain("child with wings");
+    expect(signatureNegatives([griselda])).toEqual([]);
+  });
+
+  test("after wings on a child, the redraw keeps only the heroes on the sheet", async () => {
+    const sheets: string[][] = [];
+    let calls = 0;
+    const llm: StorybookLlm = async (request) => ({
+      text: JSON.stringify({ characterCounts: { Mina: 1, "Drache Fauchi": 1 }, animalFeaturesOnHumans: request.stage === "image-qa-p1-1" ? ["Mina has dragon wings"] : [], identityMatch: 0.9, sceneMatch: 0.9 }),
+      modelUsed: request.model,
+      usage: { prompt: 10, completion: 10, total: 20, costUSD: 0.0001 },
+      durationMs: 1,
+    });
+    const result = await generateStorybookImages({
+      illustrations: { cover: { page: 0, scene: "cover", onStage: ["m"], artifactVisible: false }, pages: [{ page: 1, scene: "p1", onStage: ["m", "f"], artifactVisible: false }] },
+      entities: [mina, fauchi],
+      seed: "s",
+      llm,
+      visionModel: "openai/gpt-6-luna",
+      buildReference: async (slots) => {
+        sheets.push(slots.map((slot) => slot.displayName));
+        return { urls: ["data:image/png;base64,AAA"], mode: slots.length > 1 ? "sprite" : "single", subjects: [] };
+      },
+      provider: async (request) => {
+        calls += 1;
+        return { url: `https://img/${request.page}-${calls}.jpg`, costUSD: 0.0006 };
+      },
+    });
+    expect(sheets).toContainEqual(["Mina", "Drache Fauchi"]);
+    // The cover (Mina alone) builds the single sheet once; the redraw of page 1 builds it again from the human-only ladder.
+    expect(sheets.filter((sheet) => sheet.join() === "Mina").length).toBe(2);
+    expect(result.regenerated).toEqual([1]);
+    expect(result.pages.get(1)?.attempts).toBe(2);
+    expect(result.pages.get(1)?.severity).toBe(0);
+  });
+});
+
+describe("crowding (runs fix2-0929)", () => {
+  test("figure story elements crowd out named characters beyond three figures", () => {
+    const e = (id: string, role: "hero" | "cast"): VisualEntity => ({ id, name: id, kind: "character", role, species: "human", isHuman: true, appearance: "", forbidden: [] });
+    const plan = { title: "T", logline: "L", heroes: [], pages: [] } as any;
+    const shots = sanitizeIllustrationPlan({
+      storyElements: [{ name: "Troll", look: "grey-green troll in a brown tunic", figure: true }, { name: "red yarn", look: "a red strand of wool" }],
+      cover: { scene: "c", onStage: ["h1"] },
+      pages: [
+        { page: 1, scene: "p1", onStage: ["h1", "h2", "c1"], elements: ["Troll", "red yarn"] },
+        { page: 2, scene: "p2", onStage: ["h1", "h2", "c1"], elements: ["red yarn"] },
+      ],
+    }, 2, plan, [e("h1", "hero"), e("h2", "hero"), e("c1", "cast")], 3);
+    expect(shots.storyElements?.[0]?.figure).toBe(true);
+    expect(shots.pages[0].onStage).toEqual(["h1", "h2"]);
+    expect(shots.pages[1].onStage).toEqual(["h1", "h2", "c1"]);
   });
 });

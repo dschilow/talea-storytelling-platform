@@ -185,6 +185,8 @@ export interface StoryElement {
   name: string;
   /** Fixed English look, used verbatim on every page it appears. */
   look: string;
+  /** A living figure (troll, giant, goose) — counts against the figures per picture. */
+  figure?: boolean;
 }
 
 export interface IllustrationPlan {

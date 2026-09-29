@@ -52,6 +52,8 @@ export interface ImageQaReport {
   elementMisuse: string[];
   /** A feature of one character drawn on another (moustache, crown, cape), or facial hair on a child. */
   featureBleed?: string[];
+  /** Expected characters or story elements counted 0 times. */
+  missing?: string[];
   textVisible: boolean;
   referenceSheetVisible: boolean;
   identityMatch: number;
@@ -111,12 +113,13 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
     `Intended scene: ${scene.slice(0, 500)}`,
     ...(elements.length ? [`Story elements in this picture: ${elements.map((element) => `${element.name} — ${element.look}`).join("; ")}. Report under elementMisuse ONLY if one is worn as clothing, drawn as a person, or missing entirely — never for shape, size or colour details.`] : []),
     "",
-    "Look carefully at every hand, arm, leg, head and ear. Count fingers where visible. Check every face: children never have a moustache or beard, and no character wears another character's moustache, crown, hat or cape.",
+    "Look for MERGED bodies: an animal body growing out of a person, a tail or wing attached to the wrong figure, two figures sharing limbs. Each one is an anatomyDefect.",
+    "Look carefully at every hand, arm, leg, head and ear. Count fingers where visible. Check every face: children never have a moustache or beard, and no character wears another character's moustache, crown, hat, cape, wings or tail.",
     "Compare who does the KEY action with the intended scene, using the reference sheet to tell the characters apart. Ignore small pose or prop differences — a picture book illustration may interpret the moment freely.",
-    "First count how often EACH expected character is drawn (a second person with the same face, hair or outfit counts). Exactly 1 is correct; 2 or more is a duplicate; 0 means missing.",
+    "First count how often EACH expected character and story element is drawn (a second person with the same face, hair or outfit counts, a second goose counts, a second girl in the same dress counts even with other hair). Exactly 1 is correct; 2 or more is a duplicate; 0 means missing.",
     "Return JSON only:",
     JSON.stringify({
-      characterCounts: Object.fromEntries(expected.filter((entity) => entity.kind !== "artifact").map((entity) => [entity.name, 1])),
+      characterCounts: Object.fromEntries([...expected.filter((entity) => entity.kind !== "artifact").map((entity) => entity.name), ...elements.map((element) => element.name)].map((name) => [name, 1])),
       namedCharactersVisible: 0,
       anatomyDefects: ["e.g. 'child on the left has three hands'"],
       animalFeaturesOnHumans: ["e.g. 'the boy has fox ears'"],
@@ -149,6 +152,7 @@ export function parseQaReport(raw: string): ImageQaReport | null {
   const countedDuplicates = counted.filter(([, count]) => count >= 2).map(([name, count]) => `${name} drawn ${count} times`);
   const duplicates = [...list(data.duplicates), ...countedDuplicates].slice(0, 6);
   const countedVisible = counted.filter(([, count]) => count >= 1).length;
+  const missing = counted.filter(([, count]) => count === 0).map(([name]) => name).slice(0, 6);
   return {
     anatomyDefects: list(data.anatomyDefects),
     animalFeaturesOnHumans: list(data.animalFeaturesOnHumans),
@@ -157,6 +161,7 @@ export function parseQaReport(raw: string): ImageQaReport | null {
     roleSwaps: list(data.roleSwaps),
     elementMisuse: list(data.elementMisuse),
     featureBleed: list(data.featureBleed),
+    missing,
     textVisible: data.textVisible === true,
     referenceSheetVisible: data.referenceSheetVisible === true,
     identityMatch: unit(data.identityMatch),
@@ -166,7 +171,7 @@ export function parseQaReport(raw: string): ImageQaReport | null {
 }
 
 /** 0 = clean. Anything >= 10 is a defect worth one regeneration. */
-export function qaSeverity(report: ImageQaReport | undefined, expectedCharacters: number): number {
+export function qaSeverity(report: ImageQaReport | undefined, expectedCharacters: number, heroNames: string[] = []): number {
   if (!report) return 0;
   let severity = 0;
   severity += report.anatomyDefects.length * 10;
@@ -177,24 +182,28 @@ export function qaSeverity(report: ImageQaReport | undefined, expectedCharacters
   severity += report.roleSwaps.length * 4;
   severity += (report.elementMisuse?.length || 0) * 10;
   severity += (report.featureBleed?.length || 0) * 10;
-  // Story 76dc3218 page 2: two unexplained boys behind the heroes read as
-  // copies of them. Alone not a redraw (5), together with anything else it is.
-  severity += Math.min(report.unexpectedCharacters.length, 2) * 5;
+  // Story 2db50859 page 7: a second Elsa with other hair was only an
+  // "unexpected girl" (5) and shipped. A stranger in the scene is a redraw.
+  severity += Math.min(report.unexpectedCharacters.length, 2) * 10;
+  // Story 2db50859: Adrian missing on the cover and page 1, Alexander on page 3.
+  // A missing hero is a redraw; a missing side figure alone is not.
+  for (const name of (report.missing || []).slice(0, 2)) severity += heroNames.includes(name) ? 10 : 5;
   if (report.referenceSheetVisible) severity += 12;
   if (report.textVisible) severity += 6;
   if (report.identityMatch < 0.4) severity += 6;
   if (report.namedCharactersVisible > expectedCharacters) severity += 6;
-  if (expectedCharacters > 0 && report.namedCharactersVisible < expectedCharacters) severity += 3;
+  if (!report.missing?.length && expectedCharacters > 0 && report.namedCharactersVisible < expectedCharacters) severity += 3;
   if (report.sceneMatch < 0.4) severity += 3;
   return severity;
 }
 
 function correctionFor(report: ImageQaReport): string {
   const fixes: string[] = [];
-  if (report.anatomyDefects.length) fixes.push("Correct anatomy: every person has exactly two arms and two hands with five fingers each; no extra limbs.");
-  if (report.animalFeaturesOnHumans.length) fixes.push("The human characters have ordinary human ears and no animal features at all.");
+  if (report.anatomyDefects.length) fixes.push("Correct anatomy: every person has exactly two arms and two hands with five fingers each; no extra limbs; every figure is a separate body, nothing grows out of anyone.");
+  if (report.animalFeaturesOnHumans.length) fixes.push("The human characters have ordinary human ears and no animal features at all: no wings, no tail, no horns, no fur.");
   if (report.duplicates.length) fixes.push("Each character appears exactly once.");
   if (report.unexpectedCharacters.length) fixes.push("Only the named characters — no additional children or people in the background.");
+  if (report.missing?.length) fixes.push(`Clearly show ${report.missing.slice(0, 3).join(", ")} in the scene.`);
   if (report.featureBleed?.length) fixes.push(`Every character keeps only its own face and outfit — the children have smooth faces without facial hair: ${report.featureBleed.slice(0, 2).join("; ")}.`);
   if (report.roleSwaps.length) fixes.push(`Keep the roles exactly as described: ${report.roleSwaps.slice(0, 2).join("; ")}.`);
   if (report.elementMisuse?.length) fixes.push(`Draw the story element as its own thing exactly as described: ${report.elementMisuse.slice(0, 2).join("; ")}.`);
@@ -235,14 +244,26 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     const drawn = [...onStage, ...(shot.artifactVisible && artifact ? [artifact] : [])];
     const withReferences = drawn.filter((entity) => entity.referenceUrl).sort((a, b) => rank(a) - rank(b));
     const elements = (input.illustrations.storyElements || []).filter((element) => shot.elements?.includes(element.name));
-    const expectedCharacters = onStage.length;
+    // The checker counts named characters AND story elements.
+    const expectedCharacters = onStage.length + elements.length;
+    const heroNames = onStage.filter((entity) => entity.role === "hero").map((entity) => entity.name);
 
     // A page must never stay blank. Story 0039344e lost three of eight
     // pictures because the only attempt path was "full sheet or nothing".
     // Ladder: full sheet → the two most important identities → no reference.
-    const ladder: VisualEntity[][] = [withReferences];
-    if (withReferences.length > 2) ladder.push(withReferences.slice(0, 2));
-    if (withReferences.length > 0) ladder.push([]);
+    const ladderFor = (sheetEntities: VisualEntity[]): VisualEntity[][] => {
+      const steps: VisualEntity[][] = [sheetEntities];
+      if (sheetEntities.length > 2) steps.push(sheetEntities.slice(0, 2));
+      if (sheetEntities.length > 0) steps.push([]);
+      return steps;
+    };
+    // Story fix-0929-a: with the dragon on the sheet, Mina got its wings on five
+    // of eight pictures — and again on every redraw; in fix3-0929-b the witch's
+    // hat and robe landed on Amir. After such a bleed the redraw keeps only the
+    // heroes on the sheet; everyone else comes from the text look.
+    const heroSheet = withReferences.filter((entity) => entity.role === "hero" || entity.kind === "artifact");
+    const canSplitSheet = heroSheet.length > 0 && heroSheet.length < withReferences.length;
+    let ladder = ladderFor(withReferences);
 
     let costUSD = 0;
     const errors: string[] = [];
@@ -316,7 +337,7 @@ ${extra}` : base;
           console.warn(`[storybook/images] vision check failed for page ${shot.page}:`, (err as Error)?.message || err);
         }
       }
-      return { page: shot.page, url, prompt: delivered.prompt, attempts: attemptNo, costUSD, qa, severity: qaSeverity(qa, expectedCharacters), level: delivered.level };
+      return { page: shot.page, url, prompt: delivered.prompt, attempts: attemptNo, costUSD, qa, severity: qaSeverity(qa, expectedCharacters, heroNames), level: delivered.level };
     };
 
     const finish = (outcome: ImageOutcome & { level: number }, attempts: number): ImageOutcome => {
@@ -328,8 +349,26 @@ ${extra}` : base;
     // No picture at all even without a reference: nothing a new seed would fix.
     if (!first.url || first.severity < 10) return finish(first, 1);
     regenerated.push(shot.page);
-    const second = await attempt(2, first.qa ? correctionFor(first.qa) : "", Math.max(0, first.level));
-    return finish(second.severity < first.severity ? second : first, 2);
+    // Up to two redraws; the least defective one ships. The third only for what
+    // a new seed or a smaller sheet can fix (bleed, doubles, anatomy) — a
+    // missing figure or a role swap came back on every retry in runs fix2-0929.
+    const seedFixable = (qa?: ImageQaReport) =>
+      Boolean(qa && (qa.anatomyDefects.length || qa.animalFeaturesOnHumans.length || qa.duplicates.length || qa.featureBleed?.length || qa.unexpectedCharacters.length));
+    let best = first;
+    let last = first;
+    let attempts = 1;
+    for (let attemptNo = 2; attemptNo <= 3 && best.severity >= 10 && (attemptNo === 2 || seedFixable(last.qa)); attemptNo += 1) {
+      const bled = Boolean(last.qa && (last.qa.animalFeaturesOnHumans.length || last.qa.featureBleed?.length));
+      let startLevel = Math.max(0, last.level);
+      if (bled && canSplitSheet && ladder[0] !== heroSheet) {
+        ladder = ladderFor(heroSheet);
+        startLevel = 0;
+      }
+      last = await attempt(attemptNo, last.qa ? correctionFor(last.qa) : "", startLevel);
+      attempts = attemptNo;
+      if (last.url && last.severity < best.severity) best = last;
+    }
+    return finish(best, attempts);
   };
 
   const outcomes = await mapWithLimit(shots, input.concurrency ?? 4, renderShot);

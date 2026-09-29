@@ -192,10 +192,29 @@ function buildPolishPrompt(raw: string, notes: string[]): string {
   ].join("\n");
 }
 
+/** A patched page may grow by at most ~two short sentences and must keep most of the original. */
+export function acceptablePatch(before: string, after: string): boolean {
+  const words = (text: string) => text.toLocaleLowerCase("de-DE").match(/[\p{L}\p{N}]+/gu) || [];
+  const original = words(before);
+  const patched = words(after);
+  if (patched.length === 0) return false;
+  if (patched.length - original.length > 25) return false;
+  const kept = new Set(patched);
+  const shared = original.filter((word) => kept.has(word)).length;
+  return shared >= original.length * 0.7;
+}
+
 function buildPatchPrompt(title: string, pages: StorybookPage[], notes: string[]): string {
   return [
     "Du bist die Lektorin dieses Bilderbuchs. Die Geschichte stammt von einer sehr guten Autorin — ihre Stimme, ihr Witz und ihre Sätze bleiben.",
-    "Behebe NUR diese Fehler, mit so wenigen Worten wie möglich (einen Satz ergänzen oder ändern, nicht die Seite neu schreiben). Alles andere bleibt Wort für Wort gleich:",
+    "Unten stehen Anmerkungen. Behebe davon NUR echte Fakten- und Kontinuitätsfehler: wer wo ist, wer was in der Hand hat, woher etwas kommt, Widersprüche zwischen Seiten, Sprachfehler, fehlende Figuren aus dem Figurenpool.",
+    "Anmerkungen zu Stil, Witz, Spannung, Seitenenden, Frist oder zur Rolle einer Nebenfigur IGNORIERST du — das ist Sache der Autorin.",
+    "Mit so wenigen Worten wie möglich: einen Satz ändern oder einen kurzen Satz ergänzen, nie die Seite neu schreiben, nie eine neue Handlung erfinden.",
+    // Story 2db50859: the patch pasted the critic's fix into page 5 and gave
+    // the solution away one page before the heroes' "Ich hab's!".
+    "Verrate NIE die Lösung oder den Plan der Helden vor der Seite, auf der sie ihn selbst haben. Übernimm keine Formulierung aus den Anmerkungen wörtlich.",
+    "",
+    "ANMERKUNGEN:",
     ...notes.map((note) => `- ${note}`),
     "",
     "DEINE GESCHICHTE:",
@@ -272,7 +291,8 @@ export async function runOneShotEngine(input: {
   const notes = [
     ...castNote,
     ...issuesToNotes(report.hard, 6),
-    ...(review?.mustFix || []).slice(0, 5).map((note) => `Seite ${note.page}: ${note.problem}${note.quote ? ` („${note.quote}“)` : ""} → ${note.fix}`),
+    // Only the problem, never the critic's suggested wording: Luna pasted those in verbatim.
+    ...(review?.mustFix || []).slice(0, 5).map((note) => `Seite ${note.page}: ${note.problem}${note.quote ? ` („${note.quote}“)` : ""}`),
     ...(review?.languageErrors || []).slice(0, 5).map((error) => `Seite ${error.page}: „${error.quote}“ → ${error.correction}`),
   ];
   let chosen: "draft" | "revision" = "draft";
@@ -326,7 +346,9 @@ export async function runOneShotEngine(input: {
       const markers = [...String(patch.text).matchAll(/^\s*SEITE\s+(\d+)\s*$/gim)].map((match) => Number(match[1]));
       const patched = pages.map((page) => {
         const index = markers.indexOf(page.order);
-        return index >= 0 && changed[index]?.content ? { ...page, content: changed[index].content } : page;
+        const content = index >= 0 ? changed[index]?.content : undefined;
+        // A patch is a touch-up: a page that grew by more than two sentences was rewritten.
+        return content && acceptablePatch(page.content, content) ? { ...page, content } : page;
       });
       const patchedReport = checkProse({ pages: patched, budget: brief.budget, plan, brief });
       if (patchedReport.hard.length <= report.hard.length) {
