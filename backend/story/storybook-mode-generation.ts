@@ -117,7 +117,10 @@ function encoreImageProvider(storyId: string | undefined): ImageProvider {
     const rows = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : [];
     const costUSD = rows.reduce((sum: number, row: any) => sum + (Number(row?.cost) > 0 ? Number(row.cost) : 0), 0);
     const viewUrl = url ? await resolveImageUrlForClient(url).catch(() => undefined) : undefined;
-    return { url, viewUrl, costUSD };
+    const httpStatus = Number((image as any)?.debugInfo?.responseStatus) || undefined;
+    // The client already waited and retried; a refusal now means the provider is limiting us.
+    const refused = !url && (httpStatus === 429 || httpStatus === 402 || (httpStatus !== undefined && httpStatus >= 500));
+    return { url, viewUrl, costUSD, ...(refused ? { refused: true, httpStatus } : {}) };
   };
 }
 

@@ -209,6 +209,17 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
         await new Promise(resolve => setTimeout(resolve, waitTime));
         return runwareGenerateImage(req, retryCount + 1, maxRetries);
       }
+      // Story c6df0e94: every request got 429 and nothing waited. A rate limit
+      // passes; retry after Retry-After or 2s/4s/8s, with jitter so parallel
+      // pages do not return in lockstep.
+      if ((res.status === 429 || res.status === 502 || res.status === 503) && retryCount < maxRetries) {
+        const retryAfter = Number(res.headers.get("retry-after"));
+        const backoff = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 2000 * Math.pow(2, retryCount);
+        const waitTime = Math.min(backoff, 15000) + Math.floor(Math.random() * 750);
+        console.warn(`[Runware] Got ${res.status}, retrying in ${waitTime}ms (attempt ${retryCount + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        return runwareGenerateImage(req, retryCount + 1, maxRetries);
+      }
 
       if (!res.ok) {
         debugInfo.errorMessage = `Image provider returned HTTP ${res.status}`;

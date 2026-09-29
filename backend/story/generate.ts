@@ -1111,7 +1111,9 @@ export const generate = api<GenerateStoryRequest, Story>(
       const reportedImageCount = generatedStory.metadata?.imagesGenerated;
       const reportedImagesGenerated = normalizeGeneratedImageCount(reportedImageCount);
       const reportedImageCalls = normalizeGeneratedImageCount(generatedStory.metadata?.imageCalls);
-      const devModeImageCalls = devModeStages.length > 0
+      // Story c6df0e94: 29 refused requests (HTTP 429, no picture) were billed
+      // as 29 × $0.00151. A pipeline that delivered no picture paid for none.
+      const devModeImageCalls = devModeStages.length > 0 && reportedImagesGenerated !== 0
         ? (reportedImageCalls ?? reportedImagesGenerated ?? 0)
         : 0;
       const measuredImageCostUSD = Number(generatedStory.metadata?.imageCostUSD || 0);

@@ -402,3 +402,26 @@ describe("story c2ff7f42: the duck on every page and the missing cover", () => {
     expect(prompt).toContain("höchstens zwei Seiten");
   });
 });
+
+describe("story c6df0e94: Runware refused every request", () => {
+  test("a refusing provider is asked at most three times per book: no ladder, no vignette", async () => {
+    let calls = 0;
+    const pages = [1, 2, 3, 4, 5].map((page) => ({ page, scene: "Alexander and Adrian chase the cart.", onStage: ["a", "b"], artifactVisible: false, vignette: "The wooden cart on the empty village square." }));
+    const result = await generateStorybookImages({ illustrations: { cover: images.cover, pages }, entities: people, seed: "s", buildReference: reference, visionModel: "test", concurrency: 1,
+      llm: async (r) => reply(r, cleanQa),
+      provider: async () => { calls++; return { refused: true, httpStatus: 429 }; },
+    });
+    expect(calls).toBe(3);
+    expect(result.imagesGenerated).toBe(0);
+    expect(result.pages.get(5)?.errors?.join(" ")).toContain("provider unavailable");
+    expect([...result.pages.values()].some((outcome) => outcome.vignette)).toBe(false);
+  });
+
+  test("Runware's error code and message reach the log", async () => {
+    const { summarizeRunwareResponse } = await import("../../ai/image-cost-summary");
+    const summary: any = summarizeRunwareResponse({ errors: [{ code: "rateLimitExceeded", message: "Too many requests" }] });
+    expect(summary.hasError).toBe(true);
+    expect(summary.errorCode).toBe("rateLimitExceeded");
+    expect(summary.errorMessage).toBe("Too many requests");
+  });
+});

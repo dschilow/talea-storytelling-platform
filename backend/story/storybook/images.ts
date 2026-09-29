@@ -42,6 +42,9 @@ export interface ImageResponse {
   /** A URL the vision checker can fetch, when `url` is not public. */
   viewUrl?: string;
   costUSD?: number;
+  /** The provider refused (rate limit, quota, outage) — a smaller sheet or a vignette will not help. */
+  refused?: boolean;
+  httpStatus?: number;
 }
 
 export type ImageProvider = (request: ImageRequest) => Promise<ImageResponse>;
@@ -312,6 +315,12 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
   const regenerated: number[] = [];
   let imageCalls = 0;
   let imageCostUSD = 0;
+  // Story c6df0e94: Runware answered 429 to all 29 requests; the ladder and the
+  // vignette fired them within one second. After three refusals without a
+  // single picture the book stops asking.
+  let delivered = 0;
+  let refused = 0;
+  const providerDown = () => refused >= 3 && delivered === 0;
 
   const shots: IllustrationShot[] = [input.illustrations.cover, ...input.illustrations.pages];
 
@@ -398,9 +407,16 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       imageCostUSD = Number((imageCostUSD + cost).toFixed(6));
     };
 
+    let lastRefused = false;
     const deliver = async (attemptNo: number, extra: string, startLevel: number) => {
       let lastPrompt = shot.scene;
+      lastRefused = false;
       for (let level = startLevel; level < ladder.length; level += 1) {
+        if (providerDown()) {
+          errors.push("image provider unavailable; no further requests");
+          lastRefused = true;
+          break;
+        }
         const sheet = ladder[level];
         let references: string[] = [];
         if (sheet.length > 0) {
@@ -426,7 +442,17 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
             height,
           });
           addCost(response);
-          if (response.url) return { response, references, prompt, level };
+          if (response.url) {
+            delivered += 1;
+            return { response, references, prompt, level };
+          }
+          if (response.refused) {
+            refused += 1;
+            lastRefused = true;
+            errors.push(`level ${level}: provider refused (HTTP ${response.httpStatus ?? "?"})`);
+            // A rate limit is not a reference problem: descending the ladder only adds requests.
+            break;
+          }
           errors.push(`level ${level}: provider returned no image`);
         } catch (err) {
           errors.push(`level ${level} (${references.length ? `${sheet.length} identities` : "no reference"}): ${(err as Error)?.message || err}`);
@@ -462,7 +488,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
      * c2ff7f42 page 2, sceneMatch 0.35) tells the page less than no picture.
      */
     const vignette = async (attemptNo: number): Promise<Attempt | null> => {
-      if (cover || !shot.vignette) return null;
+      if (cover || !shot.vignette || lastRefused || providerDown()) return null;
       const scene = shot.vignette;
       // Things only: a creature in a vignette is a figure without a reference.
       const shown = (input.illustrations.storyElements || []).filter((element) => !element.figure && mentionsElement(scene, element)).slice(0, 2);
@@ -480,6 +506,8 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
           height,
         });
         addCost(response);
+        if (response.url) delivered += 1;
+        else if (response.refused) refused += 1;
       } catch (err) {
         errors.push(`vignette: ${(err as Error)?.message || err}`);
       }
