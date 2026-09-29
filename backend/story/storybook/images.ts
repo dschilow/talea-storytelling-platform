@@ -112,6 +112,8 @@ export interface GenerateImagesInput {
   height?: number;
   /** Final manuscript, independently of the director's interpretation. */
   pageTexts?: Record<number, string>;
+  /** A second reader of another family when the first reply is unreadable. */
+  fallbackVisionModel?: string;
   historical?: boolean;
 }
 
@@ -166,15 +168,41 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
   ].join("\n");
 }
 
+/** A count the checker wrote as 1, "1" or "1 time"; undefined when there is none. */
+function countValue(value: unknown): number | undefined {
+  const n = typeof value === "number" ? value : Number(String(value ?? "").match(/^\s*(\d+)/)?.[1] ?? NaN);
+  return Number.isInteger(n) && n >= 0 ? n : undefined;
+}
+
+/** 0.9, "0.9" or 90 (percent) → 0.9; undefined when unreadable. */
+function unitValue(value: unknown): number | undefined {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return undefined;
+  return n > 1 && n <= 100 ? n / 100 : n <= 1 ? n : undefined;
+}
+
+/**
+ * Story 2b414c45: the cover and page 4 were drawn, but both checker replies
+ * were "incomplete" and the pictures were dropped. The checker names a figure
+ * "Rolf" instead of "Räuber Rolf" or writes counts as strings; a count is found
+ * by the exact name, case-insensitively or by the distinctive name part.
+ */
 export function parseQaReport(raw: string, expectedNames?: string[]): ImageQaReport | null {
   const data = parseJsonObject<any>(raw);
-  if (!data || (!data.characterCounts && !Number.isFinite(data.namedCharactersVisible))) return null;
+  if (!data || (!data.characterCounts && !Number.isFinite(Number(data.namedCharactersVisible)))) return null;
+  const given = data.characterCounts && typeof data.characterCounts === "object" && !Array.isArray(data.characterCounts) ? Object.entries(data.characterCounts) : [];
+  const countFor = (name: string): number | undefined => {
+    const exact = given.find(([key]) => key === name) || given.find(([key]) => key.toLowerCase() === name.toLowerCase())
+      || given.find(([key]) => mentions(key, name) || mentions(name, key));
+    return exact ? countValue(exact[1]) : undefined;
+  };
   if (expectedNames && (
-    !data.characterCounts || Array.isArray(data.characterCounts) ||
-    expectedNames.some((name) => !Number.isInteger(data.characterCounts[name]) || data.characterCounts[name] < 0) ||
-    ![data.identityMatch, data.sceneMatch].every((n) => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1) ||
-    !["anatomyDefects", "duplicates", "unexpectedCharacters"].every((field) => Array.isArray(data[field]))
+    expectedNames.some((name) => countFor(name) === undefined) ||
+    ![data.identityMatch, data.sceneMatch].every((n) => unitValue(n) !== undefined)
   )) return null;
+  if (expectedNames) data.characterCounts = Object.fromEntries(expectedNames.map((name) => [name, countFor(name)]));
+  data.identityMatch = unitValue(data.identityMatch) ?? data.identityMatch;
+  data.sceneMatch = unitValue(data.sceneMatch) ?? data.sceneMatch;
   const list = (value: unknown) => (Array.isArray(value) ? value.map((item) => String(item ?? "").trim()).filter((item) => item && !/^(e\.g\.|ONLY:)/i.test(item)).slice(0, 6) : []);
   const unit = (value: unknown) => {
     const n = Number(value);
@@ -342,7 +370,9 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
         const call = await input.llm({
           stage: `${stage}${suffix}`,
           role: "support",
-          model: input.visionModel,
+          // The same model repeated the same unreadable reply for the cover and
+          // page 4 of story 2b414c45; the second read goes to the other family.
+          model: suffix && input.fallbackVisionModel ? input.fallbackVisionModel : input.visionModel,
           system: "You are a meticulous picture-book illustration checker. Answer with JSON only.",
           user,
           json: true,

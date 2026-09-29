@@ -271,6 +271,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       seed,
       llm,
       visionModel: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : models.support,
+      fallbackVisionModel: models.critic,
       pageTexts: Object.fromEntries(pages.map((page) => [page.order, page.content])),
       historical: !["modern", "scifi"].includes(config.genre || "") && ["fantasy", "medieval", "castle"].includes(config.setting || ""),
     }).catch((err): StorybookImagesResult => {

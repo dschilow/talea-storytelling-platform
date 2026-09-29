@@ -425,3 +425,23 @@ describe("story c6df0e94: Runware refused every request", () => {
     expect(summary.errorMessage).toBe("Too many requests");
   });
 });
+
+describe("story 2b414c45: a drawn picture dropped for an unreadable checker reply", () => {
+  test("short names, string counts and percentages are read, not rejected", () => {
+    const qa = parseQaReport(JSON.stringify({ ...cleanQa, characterCounts: { alexander: "1", Adrian: 1, Rolf: "1 time" }, identityMatch: 95, sceneMatch: "0.8" }), ["Alexander", "Adrian", "Räuber Rolf"]);
+    expect(qa).not.toBeNull();
+    expect(qa!.identityMatch).toBe(.95);
+    expect(qa!.sceneMatch).toBe(.8);
+    expect(qa!.missing).toEqual([]);
+  });
+
+  test("the second read goes to the other family", async () => {
+    const models: string[] = [];
+    const result = await generateStorybookImages({ illustrations: images, entities: people, seed: "s", buildReference: reference, visionModel: "luna", fallbackVisionModel: "gemini",
+      llm: async (r) => { models.push(r.model); return reply(r, r.model === "luna" ? "not json" : cleanQa); },
+      provider: async () => ({ url: "https://example.test/cover.jpg" }),
+    });
+    expect(models).toEqual(["luna", "gemini"]);
+    expect(result.cover?.status).toBe("passed");
+  });
+});
