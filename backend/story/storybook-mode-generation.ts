@@ -392,6 +392,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
         attempts: outcome.attempts,
         severity: outcome.severity,
         status: outcome.status,
+        vignette: outcome.vignette || undefined,
         referenceLevel: outcome.referenceLevel,
         errors: outcome.errors,
         qa: outcome.qa,
@@ -404,7 +405,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const imageOutcomes = [...(images.cover ? [images.cover] : []), ...images.pages.values()];
   await logStage(input.storyId, "complete", {
     title: text.title,
-    imagesMissing: pages.filter((page) => !images.pages.get(page.order)?.url).map((page) => page.order),
+    imagesMissing: pages.filter((page) => !publishableImageUrl(images.pages.get(page.order))).map((page) => page.order),
     imageDeliveryIssues: imageOutcomes.filter((outcome) => outcome.errors?.length).map((outcome) => ({ page: outcome.page, referenceLevel: outcome.referenceLevel, errors: outcome.errors })),
     pages: pages.length,
     wordCount,
@@ -418,7 +419,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     releaseReady,
     quality,
     textQuality: text.textQuality,
-    imageQa: imageOutcomes.map(({ page, status, severity, attempts, qa }) => ({ page, status, severity, attempts, qa })),
+    imageQa: imageOutcomes.map(({ page, status, severity, attempts, qa, vignette }) => ({ page, status, severity, attempts, ...(vignette ? { vignette } : {}), qa })),
     durationMs,
   });
 

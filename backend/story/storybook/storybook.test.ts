@@ -400,7 +400,8 @@ describe("illustration locks", () => {
     expect(shots.storyElements).toEqual([{ name: "Wish hat", look: "a big red felt hat walking on two very long thin legs, no body, nobody wears it" }]);
     expect(shots.cover.elements).toEqual(["Wish hat"]);
     const prompt = assembleImagePrompt({ scene: shots.pages[0].scene, onStage: [human], spriteOrder: [human], elements: shots.storyElements });
-    expect(prompt).toContain("Wish hat, drawn exactly like this: a big red felt hat walking on two very long thin legs");
+    // Story 774d5a5e: the image model sees the plain noun, never a title-like name.
+    expect(prompt).toContain("The wish hat, drawn exactly like this: a big red felt hat walking on two very long thin legs");
   });
 
   test("appearance lines come from structured profiles and English pool prompts", () => {
@@ -573,7 +574,7 @@ describe("engine flow (scripted port)", () => {
 });
 
 describe("engine flow (one shot, the standard)", () => {
-  test("Sol invents and writes in one call, Luna reads and patches only the flagged page; cast and checks survive", async () => {
+  test("Sol invents and writes in one call, the other family reads, Luna patches only the flagged page; cast and checks survive", async () => {
     const b = brief();
     const stages: string[] = [];
     const page = (n: number, tag: string) => `SEITE ${n}\nAlexander und Adrian laufen los. ${n === 3 ? "Kobold Kicher niest. " : ""}${tag} ${WORDS(100)}`;
@@ -593,7 +594,8 @@ describe("engine flow (one shot, the standard)", () => {
 
     expect(stages.map((stage) => stage.split(":")[0])).toEqual(["oneshot", "review", "patch", "patch-check"]);
     expect(stages[0]).toContain("gpt-6-sol");
-    expect(stages[1]).toContain("gpt-6-luna");
+    // Story 774d5a5e: Luna, Sol's own family, missed every plan-level defect.
+    expect(stages[1]).toContain("google/gemini");
     expect(stages[2]).toContain("gpt-6-luna");
     expect(result.pages[1].content).toContain("NEU");
     expect(result.pages[0].content).toContain("ALT");

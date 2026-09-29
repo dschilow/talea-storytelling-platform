@@ -14,7 +14,7 @@ import { CORE_RULES, CRAFT_RULES } from "./craft";
 import { isLean, wishLines, type StoryBrief } from "./context";
 import { renderStoryForPrompt } from "./draft-stage";
 import { fallbackModelFor, parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
-import type { EditorialReview, PairwiseVerdict, StorybookPage } from "./types";
+import type { EditorialReview, PairwiseVerdict, StoryLedger, StorybookPage } from "./types";
 
 const SCORE_SCALE = [
   "10 = auf Augenhöhe mit Der Grüffelo, Pettersson und Findus, Räuber Hotzenplotz, Das NEINhorn",
@@ -81,7 +81,23 @@ export function buildReviewSystemPrompt(brief: StoryBrief): string {
   ].join("\n");
 }
 
-export function buildReviewUserPrompt(brief: StoryBrief, title: string, pages: StorybookPage[], castNames: string[]): string {
+/**
+ * The evidence the compact read writes down before it judges. Story 774d5a5e:
+ * without it the reader found one typo and gave 7 to a story whose solution was
+ * a map found by chance, whose painted arrow later hung on a peg and whose goal
+ * ("the guests find the way") was never reached.
+ */
+export const LEDGER_RULES = [
+  "Schreib ZUERST das ledger — nur aus dem Text, Seite für Seite:",
+  "- goal: das Ziel der Helden von Seite 1–2 (kurz, mit Zitat). fulfilled: Seite und Zitat, wo GENAU dieses Ziel am Ende erreicht wird. Wird es ersetzt, vergessen oder nur behauptet: null.",
+  "- solutionKey: Was trägt die Lösung (Ding, Wissen, Fähigkeit)? firstShown: Seite, auf der es zuerst vorkommt; usedOn: Seite der Lösung. foundByChance: true, wenn es erst kurz vor der Lösung auftaucht (gefunden, liegt zufällig bereit, fällt vom Himmel), statt dass die Helden es vorher kennen, mitbringen oder gezeigt bekommen.",
+  "- props: bis zu 4 Dinge, die die Handlung braucht. Verfolge Form, Ort und Besitzer über alle Seiten. contradiction: ein konkreter Widerspruch mit Seitenzahlen (ein Ding wechselt Form, Ort oder Besitzer ohne Grund, ist erst fest und später lose, erst hier und plötzlich dort) — sonst null.",
+  "- setups: bis zu 4 früh angekündigte Dinge (ein geübter Satz, ein Wunsch, ein Streit, eine Warnung, eine Eigenart). payoff: Seite und Zitat der Einlösung — null, wenn es nie eingelöst wird.",
+  "- introduction: relationship = wer die Helden füreinander sind, traits = je Held eine sichtbare Eigenart beim ersten Auftritt; jeweils null, wenn der Text es nicht sagt oder zeigt.",
+  "Obergrenzen der Gesamtnote: Lösung durch Zufall → höchstens 6; Ziel nicht erreicht oder Widerspruch bei einem Ding → höchstens 6.5.",
+];
+
+export function buildReviewUserPrompt(brief: StoryBrief, title: string, pages: StorybookPage[], castNames: string[], withLedger = false): string {
   const lines: string[] = [];
   lines.push(`ZUHÖRER: ${brief.band} Jahre`);
   lines.push("WÜNSCHE DER FAMILIE:");
@@ -96,6 +112,17 @@ export function buildReviewUserPrompt(brief: StoryBrief, title: string, pages: S
   lines.push(
     JSON.stringify(
       {
+        ...(withLedger
+          ? {
+              ledger: {
+                goal: { want: "Ziel laut Seite 1–2", fulfilled: "Seite + Zitat — oder null" },
+                solutionKey: { what: "was die Lösung trägt", firstShown: 1, usedOn: 6, foundByChance: false },
+                props: [{ thing: "wichtiges Ding", track: "S1: … / S3: … / S6: …", contradiction: "Widerspruch mit Seiten — oder null" }],
+                setups: [{ setup: "früh Angekündigtes", page: 1, payoff: "Seite + Zitat — oder null" }],
+                introduction: { relationship: "laut Text — oder null", traits: "je Held eine Eigenart — oder null" },
+              },
+            }
+          : {}),
         comprehension: { want: "Was wollten die Helden? — oder null", problem: "Was stand im Weg? — oder null", solution: "Wie haben sie es gelöst, und warum hat das funktioniert? — oder null", ending: "Wie ging es aus? — oder null" },
         scores: { hook: 0, clarity: 0, logic: 0, humor: 0, suspense: 0, heroAgency: 0, characters: 0, language: 0, ending: 0, overall: 0 },
         mustFix: [{ page: 1, quote: "exaktes Zitat", problem: "was nicht funktioniert", fix: "konkrete Reparatur" }],
@@ -127,6 +154,77 @@ function answer(value: unknown): string | null {
   return value_;
 }
 
+/** Ledger fields also say "nicht erreicht", "nie", "nein" when something is missing. */
+function finding(value: unknown): string | null {
+  const value_ = answer(value);
+  if (!value_ || /^(kein\b|nicht\b|nie\b|nein\b|no\b|not\b|never\b|nichts|false|[—–-]+$)/i.test(value_)) return null;
+  return value_;
+}
+
+export function sanitizeLedger(raw: any, pageCount: number): StoryLedger | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const page = (value: unknown) => {
+    const n = Math.round(Number(value));
+    return Number.isFinite(n) && n >= 1 && n <= pageCount ? n : null;
+  };
+  const list = (value: unknown) => (Array.isArray(value) ? value : []);
+  return {
+    goal: { want: text(raw.goal?.want, 200), fulfilled: finding(raw.goal?.fulfilled) },
+    solutionKey: {
+      what: text(raw.solutionKey?.what, 200),
+      firstShown: page(raw.solutionKey?.firstShown),
+      usedOn: page(raw.solutionKey?.usedOn),
+      foundByChance: raw.solutionKey?.foundByChance === true,
+    },
+    props: list(raw.props)
+      .map((prop: any) => ({ thing: text(prop?.thing, 80), track: text(prop?.track, 300), contradiction: finding(prop?.contradiction) }))
+      .filter((prop) => prop.thing)
+      .slice(0, 4),
+    setups: list(raw.setups)
+      .map((setup: any) => ({ setup: text(setup?.setup, 160), page: page(setup?.page) ?? 1, payoff: finding(setup?.payoff) }))
+      .filter((setup) => setup.setup)
+      .slice(0, 4),
+    introduction: { relationship: finding(raw.introduction?.relationship), traits: finding(raw.introduction?.traits) },
+  };
+}
+
+/** The caps in LEDGER_RULES, enforced: a model that writes the evidence down still tends to score it kindly. */
+export function ledgerScoreCap(ledger: StoryLedger | undefined): number {
+  if (!ledger) return 10;
+  let cap = 10;
+  if (ledger.solutionKey.what && ledger.solutionKey.foundByChance) cap = Math.min(cap, 6);
+  if (ledger.goal.want && ledger.goal.fulfilled === null) cap = Math.min(cap, 6.5);
+  if (ledger.props.some((prop) => prop.contradiction)) cap = Math.min(cap, 6.5);
+  if (ledger.setups.filter((setup) => setup.payoff === null).length >= 2) cap = Math.min(cap, 7);
+  return cap;
+}
+
+/**
+ * Ledger findings as edit notes — problems only, never wording to paste in.
+ * The heroes' relationship stays diagnostic: the brief does not know whether
+ * two avatars are brothers or friends, so no edit may invent it.
+ */
+export function ledgerNotes(review: EditorialReview): string[] {
+  const ledger = review.ledger;
+  if (!ledger) return [];
+  const notes: string[] = [];
+  if (ledger.goal.want && ledger.goal.fulfilled === null) {
+    notes.push(`Das Ziel vom Anfang („${ledger.goal.want}“) wird am Ende nicht erreicht oder durch ein anderes ersetzt. Das Ende muss genau dieses Ziel sichtbar erfüllen.`);
+  }
+  if (ledger.solutionKey.what && ledger.solutionKey.foundByChance) {
+    const before = ledger.solutionKey.usedOn ? ` vor Seite ${ledger.solutionKey.usedOn}` : "";
+    notes.push(`Die Lösung hängt an „${ledger.solutionKey.what}“, das zufällig bereitliegt. Es fehlt eine frühere Stelle${before}, an der die Helden es kennen, mitnehmen oder sehen.`);
+  }
+  for (const prop of ledger.props) if (prop.contradiction) notes.push(`Widerspruch bei „${prop.thing}“: ${prop.contradiction}`);
+  for (const setup of ledger.setups.filter((entry) => entry.payoff === null).slice(0, 2)) {
+    notes.push(`Seite ${setup.page}: „${setup.setup}“ wird angekündigt, aber nie eingelöst.`);
+  }
+  if (ledger.introduction.traits === null) {
+    notes.push("Seite 1: Die Helden werden nur genannt, nicht vorgestellt — von jedem fehlt beim ersten Auftritt eine sichtbare Eigenart.");
+  }
+  return notes;
+}
+
 export function sanitizeReview(raw: any, pageCount: number): EditorialReview | null {
   if (!raw || typeof raw !== "object" || !raw.scores) return null;
   const notes = (list: unknown, max: number) =>
@@ -140,7 +238,9 @@ export function sanitizeReview(raw: any, pageCount: number): EditorialReview | n
       .filter((note) => note.problem)
       .slice(0, max);
   const s = raw.scores || {};
+  const ledger = sanitizeLedger(raw.ledger, pageCount);
   return {
+    ...(ledger ? { ledger } : {}),
     comprehension: {
       want: answer(raw.comprehension?.want),
       problem: answer(raw.comprehension?.problem),
@@ -157,7 +257,7 @@ export function sanitizeReview(raw: any, pageCount: number): EditorialReview | n
       characters: score(s.characters),
       language: score(s.language),
       ending: score(s.ending),
-      overall: score(s.overall),
+      overall: Math.min(score(s.overall), ledgerScoreCap(ledger)),
     },
     mustFix: notes(raw.mustFix, 8),
     polish: notes(raw.polish, 5),
@@ -218,6 +318,7 @@ export async function runReviewStage(
     "Prüfe Einführung (Ort, Figuren, persönliches Anliegen, Störung erst nach Orientierung), verständliches Ziel und Motiv, Kausalität, Orte/Wege/Besitzer von Dingen, vorbereitete Lösung durch die Helden, Sprachfehler und Abschluss aller Gefahren. Keine Rückblenden zum Nachreichen fehlender Einführung.",
     "mustFix enthält nur konkrete Verständnis-, Einführungs-, Kontinuitäts- oder Sprachfehler, höchstens 5, jeweils mit Seite, exaktem kurzen Zitat und einer knappen Reparatur. Geschmacksfragen, mehr Witz oder mehr Spannung sind KEINE Pflichtkorrektur. Intensität und Wortschatz müssen zu Alter und Familienwünschen passen.",
     "Beantworte want/problem/solution/ending knapp aus dem Text; Unverständliches ist null. Werte die Handwerksqualität ehrlich von 0–10 (6–7 solide, 8–9 verlagsreif). Eine klare Einführung braucht Zeit; nicht für einen schnelleren Konflikt kürzen. Kein Bonus für Länge.",
+    ...LEDGER_RULES,
     "Gib das angeforderte JSON zurück: polish und keep bleiben leer; verdict höchstens ein Satz. Leere Fehlerlisten, wenn alles funktioniert. Keine zusätzlichen Kommentare.",
   ].join("\n") : buildReviewSystemPrompt(brief);
   const call = await llm({
@@ -225,9 +326,10 @@ export async function runReviewStage(
     role: "critic",
     model,
     system,
-    user: buildReviewUserPrompt(brief, title, pages, castNames),
+    user: buildReviewUserPrompt(brief, title, pages, castNames, compact),
     json: true,
-    maxTokens: compact ? 4000 : 12000,
+    // The ledger adds ~600 output tokens.
+    maxTokens: compact ? 6000 : 12000,
     // "low": enough to trace who is where; every reasoning token bills at output price.
     effort: "low",
     temperature: 0.2,
@@ -241,9 +343,10 @@ export async function runReviewStage(
     role: "critic",
     model: fallbackModelFor(model),
     system,
-    user: buildReviewUserPrompt(brief, title, pages, castNames),
+    user: buildReviewUserPrompt(brief, title, pages, castNames, compact),
     json: true,
-    maxTokens: compact ? 4000 : 12000,
+    // The ledger adds ~600 output tokens.
+    maxTokens: compact ? 6000 : 12000,
     effort: "low",
     temperature: 0.2,
   });

@@ -8,8 +8,12 @@
  *   3. a cheap vision check (gpt-6-luna reads images) for the defects a parent
  *      notices first: extra hands or fingers, animal ears/tails on humans,
  *      doubled characters, text, the reference sheet painted into the scene;
- *   4. on a severe defect exactly one regeneration with a new seed and a named
- *      correction; the better of the two attempts ships.
+ *   4. on a defect exactly one regeneration with a new seed and a named
+ *      correction; the better of the two attempts ships;
+ *   5. hard defects (extra limbs, doubles, strangers, features on the wrong
+ *      figure) are never printed; soft ones (who holds what, a posed lineup, a
+ *      word on a sign) are. When both attempts carry a hard defect, a vignette
+ *      without people — the page's key object or place — replaces the blank page.
  *
  * Everything external is injected (image provider, LLM port, sprite builder),
  * so this module runs the same under Encore, in the local harness and in tests.
@@ -17,9 +21,10 @@
 
 import { createHash } from "node:crypto";
 import { createIdentityReferenceCache, type IdentityReferenceBuilder } from "../image-reference-sprite";
+import { mentions } from "./checks";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
-import { assembleImagePrompt, negativePromptFor, type VisualEntity } from "./illustration-stage";
-import type { IllustrationPlan, IllustrationShot } from "./types";
+import { assembleImagePrompt, elementNoun, negativePromptFor, type VisualEntity } from "./illustration-stage";
+import type { IllustrationPlan, IllustrationShot, StoryElement } from "./types";
 
 export interface ImageRequest {
   page: number;
@@ -54,6 +59,8 @@ export interface ImageQaReport {
   featureBleed?: string[];
   /** Expected characters or story elements counted 0 times. */
   missing?: string[];
+  /** Figures standing side by side facing the viewer instead of acting (story 774d5a5e page 3). */
+  posing?: boolean;
   textVisible: boolean;
   referenceSheetVisible: boolean;
   identityMatch: number;
@@ -69,7 +76,10 @@ export interface ImageOutcome {
   costUSD: number;
   qa?: ImageQaReport;
   severity: number;
-  status: "passed" | "failed" | "unverified" | "missing";
+  /** passed = clean; flawed = only soft defects, printed; failed = hard defect, never printed. */
+  status: "passed" | "flawed" | "failed" | "unverified" | "missing";
+  /** The picture is the people-free fallback, not the planned scene. */
+  vignette?: boolean;
   /** 0 = full identity sheet, 1 = reduced sheet, 2 = no reference, -1 = no picture. */
   referenceLevel?: number;
   /** Why a delivery step failed — goes into the story metadata and logs. */
@@ -103,8 +113,12 @@ export interface GenerateImagesInput {
 }
 
 /** Keep rejected candidates for diagnostics, but never attach them to a reading page. */
+export function isPublishable(outcome: Pick<ImageOutcome, "status" | "url"> | undefined): boolean {
+  return Boolean(outcome?.url) && (outcome?.status === "passed" || outcome?.status === "flawed");
+}
+
 export function publishableImageUrl(outcome: ImageOutcome | undefined): string | undefined {
-  return outcome?.status === "passed" ? outcome.url : undefined;
+  return isPublishable(outcome) ? outcome!.url : undefined;
 }
 
 function seedFor(seed: string, page: number, attempt: number): number {
@@ -127,6 +141,7 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
     "Look carefully at every hand, arm, leg, head and ear. Count fingers where visible. Check every face: children never have a moustache or beard, and no character wears another character's moustache, crown, hat, cape, wings or tail.",
     "Compare who does the KEY action with the intended scene, using the reference sheet to tell the characters apart. Ignore small pose or prop differences — a picture book illustration may interpret the moment freely.",
     "First count how often EACH expected character and story element is drawn (a second person with the same face, hair or outfit counts, a second goose counts, a second girl in the same dress counts even with other hair). Exactly 1 is correct; 2 or more is a duplicate; 0 means missing.",
+    ...(expected.some((entity) => entity.kind === "character") ? ["posing: true only when the figures stand or sit side by side facing the viewer, like a group photo, instead of doing the scene's action."] : []),
     "Return JSON only:",
     JSON.stringify({
       characterCounts: Object.fromEntries([...expected.filter((entity) => entity.kind !== "artifact").map((entity) => entity.name), ...elements.map((element) => element.name)].map((name) => [name, "integer count"])),
@@ -138,6 +153,7 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
       unexpectedCharacters: [],
       roleSwaps: [],
       elementMisuse: [],
+      posing: false,
       textVisible: false,
       referenceSheetVisible: false,
       identityMatch: 0.0,
@@ -178,6 +194,7 @@ export function parseQaReport(raw: string, expectedNames?: string[]): ImageQaRep
     elementMisuse: list(data.elementMisuse),
     featureBleed: list(data.featureBleed),
     missing,
+    posing: data.posing === true,
     textVisible: data.textVisible === true,
     referenceSheetVisible: data.referenceSheetVisible === true,
     identityMatch: unit(data.identityMatch),
@@ -186,30 +203,72 @@ export function parseQaReport(raw: string, expectedNames?: string[]): ImageQaRep
   };
 }
 
-/** 0 = clean. Anything >= 10 is a defect worth one regeneration. */
-export function qaSeverity(report: ImageQaReport | undefined, expectedCharacters: number, heroNames: string[] = []): number {
-  if (!report) return 999;
-  let severity = 0;
-  severity += report.anatomyDefects.length * 10;
-  severity += report.animalFeaturesOnHumans.length * 10;
-  severity += report.duplicates.length * 10;
-  // A wrong key action breaks the story, unlike a harmless pose difference.
-  severity += report.roleSwaps.length * 10;
-  severity += (report.elementMisuse?.length || 0) * 10;
-  severity += (report.featureBleed?.length || 0) * 10;
+/**
+ * Hard: what a child sees at once and a parent would not accept — never printed.
+ * Soft: the picture tells the page a little differently — printed rather than
+ * leaving a picture book page blank (story 774d5a5e lost three of seven
+ * pictures, two of them to role swaps and a missing arrow alone).
+ */
+export function qaSeverityParts(
+  report: ImageQaReport | undefined,
+  expectedCharacters: number,
+  options: { heroNames?: string[]; cover?: boolean } = {}
+): { hard: number; soft: number } {
+  if (!report) return { hard: 999, soft: 0 };
+  let hard = 0;
+  let soft = 0;
+  hard += report.anatomyDefects.length * 10;
+  hard += report.animalFeaturesOnHumans.length * 10;
+  hard += report.duplicates.length * 10;
+  hard += (report.featureBleed?.length || 0) * 10;
   // Story 2db50859 page 7: a second Elsa with other hair was only an
   // "unexpected girl" (5) and shipped. A stranger in the scene is a redraw.
-  severity += Math.min(report.unexpectedCharacters.length, 2) * 10;
+  hard += Math.min(report.unexpectedCharacters.length, 2) * 10;
+  if (report.referenceSheetVisible) hard += 12;
+  if (report.identityMatch < 0.6) hard += 10;
+  if (report.namedCharactersVisible > expectedCharacters) hard += 6;
+  // A wrong key action is worth a redraw, but it does not make the page unreadable.
+  soft += report.roleSwaps.length * 10;
+  soft += (report.elementMisuse?.length || 0) * 10;
   // Story 2db50859: Adrian missing on the cover and page 1, Alexander on page 3.
-  // Only visible figures belong to the manifest, so each one is required.
-  severity += Math.min(report.missing?.length || 0, 2) * 10;
-  if (report.referenceSheetVisible) severity += 12;
-  if (report.textVisible) severity += 6;
-  if (report.identityMatch < 0.6) severity += 10;
-  if (report.namedCharactersVisible > expectedCharacters) severity += 6;
-  if (!report.missing?.length && expectedCharacters > 0 && report.namedCharactersVisible < expectedCharacters) severity += 3;
-  if (report.sceneMatch < 0.5) severity += 10;
-  return severity;
+  // Only visible figures belong to the manifest, so each one is required; a
+  // cover without one of its heroes is never printed.
+  for (const name of (report.missing || []).slice(0, 2)) {
+    if (options.cover && options.heroNames?.includes(name)) hard += 10;
+    else soft += 10;
+  }
+  if (report.posing) soft += 10;
+  if (report.textVisible) soft += 6;
+  if (!report.missing?.length && expectedCharacters > 0 && report.namedCharactersVisible < expectedCharacters) soft += 3;
+  if (report.sceneMatch < 0.5) soft += 10;
+  return { hard, soft };
+}
+
+/** 0 = clean. Anything >= 10 is a defect worth one regeneration. */
+export function qaSeverity(report: ImageQaReport | undefined, expectedCharacters: number, heroNames: string[] = [], cover = false): number {
+  const { hard, soft } = qaSeverityParts(report, expectedCharacters, { heroNames, cover });
+  return hard + soft;
+}
+
+export function qaStatus(report: ImageQaReport | undefined, parts: { hard: number; soft: number }): ImageOutcome["status"] {
+  if (!report) return "unverified";
+  if (parts.hard + parts.soft < 10) return "passed";
+  return parts.hard < 10 ? "flawed" : "failed";
+}
+
+/**
+ * Findings about things that are not in the picture are noise: story 774d5a5e
+ * page 5 had no story element, yet "the painted arrow is not visible" counted
+ * as element misuse and the picture was dropped.
+ */
+export function scopeQaReport(report: ImageQaReport, onStageNames: string[], elements: StoryElement[]): ImageQaReport {
+  const aboutElement = (note: string) => elements.some((element) => mentions(note, element.name) || (element.noun ? mentions(note, element.noun) : false));
+  const aboutCharacter = (note: string) => onStageNames.some((name) => mentions(note, name));
+  return {
+    ...report,
+    elementMisuse: (report.elementMisuse || []).filter(aboutElement),
+    roleSwaps: report.roleSwaps.filter(aboutCharacter),
+  };
 }
 
 /**
@@ -227,6 +286,7 @@ export function correctionFor(report: ImageQaReport, elementNames: string[] = []
   if (misused.length) fixes.push(`${misused.join(" and ")} shown as its own separate figure or thing.`);
   if (report.referenceSheetVisible) fixes.push("One single full-bleed scene.");
   if (report.roleSwaps.length || report.sceneMatch < 0.5) fixes.push("Freeze the single described action at its stated location; keep each prop with its named owner.");
+  if (report.posing) fixes.push("Everyone is busy with the action and turned toward it.");
   if (report.identityMatch < 0.6) fixes.push("Match each named figure's age, species, face and outfit to its own reference.");
   return fixes.join(" ");
 }
@@ -257,24 +317,68 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
 
   // Heroes first: when a sheet must shrink, the avatars keep their identity.
   const rank = (entity: VisualEntity) => (entity.role === "hero" ? 0 : entity.kind === "artifact" ? 2 : 1);
+  const width = input.width ?? 1024;
+  const height = input.height ?? 1024;
+
+  /**
+   * One vision read. An unreadable report gets exactly one more read — story
+   * 774d5a5e page 2 threw away its redraw because the report was incomplete,
+   * not because the picture was bad. A checker that fails outright is not
+   * retried here; the LLM port has its own retry.
+   */
+  const inspect = async (stage: string, user: string, imageInputs: string[], expectedNames: string[], errors: string[], label: string): Promise<ImageQaReport | undefined> => {
+    if (!input.llm || !input.visionModel) return undefined;
+    for (const suffix of ["", "-retry"]) {
+      try {
+        const call = await input.llm({
+          stage: `${stage}${suffix}`,
+          role: "support",
+          model: input.visionModel,
+          system: "You are a meticulous picture-book illustration checker. Answer with JSON only.",
+          user,
+          json: true,
+          // "low": without any thinking the checker missed two Johanns and two
+          // Rosalindes (story 655ef79b). A little counting costs ~$0.0002.
+          maxTokens: 3000,
+          effort: "low",
+          imageInputs,
+          timeoutMs: 60_000,
+        });
+        qaCalls.push(call);
+        const qa = parseQaReport(call.text, expectedNames.length ? expectedNames : undefined);
+        if (qa) return qa;
+      } catch (err) {
+        console.warn(`[storybook/images] vision check failed (${label}):`, (err as Error)?.message || err);
+        errors.push(`${label}: image QA unavailable`);
+        return undefined;
+      }
+    }
+    errors.push(`${label}: incomplete image QA report`);
+    return undefined;
+  };
 
   const renderShot = async (shot: IllustrationShot): Promise<ImageOutcome> => {
-    if (shot.planningErrors?.length) return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD: 0, severity: 999, status: "unverified", errors: shot.planningErrors };
     const onStage = shot.onStage.map((id) => byId.get(id)).filter((entity): entity is VisualEntity => Boolean(entity));
     const drawn = [...onStage, ...(shot.artifactVisible && artifact ? [artifact] : [])];
-    const withReferences = drawn.filter((entity) => entity.referenceUrl).sort((a, b) => rank(a) - rank(b));
+    // The sheet follows the picture from left to right (the director lists
+    // onStage that way), so "first on the sheet" is also the figure on the left.
+    const withReferences = drawn.filter((entity) => entity.referenceUrl);
     const elements = (input.illustrations.storyElements || []).filter((element) => shot.elements?.includes(element.name));
     // The checker counts named characters AND story elements.
     const expectedCharacters = onStage.length + elements.length;
     const expectedNames = [...onStage.map((entity) => entity.name), ...elements.map((element) => element.name)];
     const heroNames = onStage.filter((entity) => entity.role === "hero").map((entity) => entity.name);
+    const cover = shot.page === 0;
 
     // A page must never stay blank. Story 0039344e lost three of eight
     // pictures because the only attempt path was "full sheet or nothing".
     // Ladder: full sheet → the two most important identities → no reference.
     const ladderFor = (sheetEntities: VisualEntity[]): VisualEntity[][] => {
       const steps: VisualEntity[][] = [sheetEntities];
-      if (sheetEntities.length > 2) steps.push(sheetEntities.slice(0, 2));
+      if (sheetEntities.length > 2) {
+        const keep = new Set([...sheetEntities].sort((a, b) => rank(a) - rank(b)).slice(0, 2).map((entity) => entity.id));
+        steps.push(sheetEntities.filter((entity) => keep.has(entity.id)));
+      }
       if (sheetEntities.length > 0) steps.push([]);
       return steps;
     };
@@ -288,6 +392,11 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
 
     let costUSD = 0;
     const errors: string[] = [];
+    const addCost = (response: ImageResponse) => {
+      const cost = Number.isFinite(response.costUSD) ? Number(response.costUSD) : 0;
+      costUSD += cost;
+      imageCostUSD = Number((imageCostUSD + cost).toFixed(6));
+    };
 
     const deliver = async (attemptNo: number, extra: string, startLevel: number) => {
       let lastPrompt = shot.scene;
@@ -313,12 +422,10 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
             negativePrompt: negativePromptFor(drawn, sheet.length > 1, input.historical),
             referenceImages: references,
             seed: seedFor(input.seed, shot.page, attemptNo * 10 + level),
-            width: input.width ?? 1024,
-            height: input.height ?? 1024,
+            width,
+            height,
           });
-          const cost = Number.isFinite(response.costUSD) ? Number(response.costUSD) : 0;
-          costUSD += cost;
-          imageCostUSD = Number((imageCostUSD + cost).toFixed(6));
+          addCost(response);
           if (response.url) return { response, references, prompt, level };
           errors.push(`level ${level}: provider returned no image`);
         } catch (err) {
@@ -329,68 +436,101 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       return { response: {} as ImageResponse, references: [] as string[], prompt: lastPrompt, level: -1 };
     };
 
-    const attempt = async (attemptNo: number, extra: string, startLevel: number): Promise<ImageOutcome & { level: number }> => {
+    type Attempt = ImageOutcome & { level: number };
+
+    const attempt = async (attemptNo: number, extra: string, startLevel: number): Promise<Attempt> => {
       const delivered = await deliver(attemptNo, extra, startLevel);
       const url = delivered.response.url;
       if (!url) return { page: shot.page, prompt: delivered.prompt, attempts: attemptNo, costUSD, severity: 999, status: "missing", level: -1 };
-
-      let qa: ImageQaReport | undefined;
-      if (input.llm && input.visionModel) {
-        try {
-          const call = await input.llm({
-            stage: `image-qa-${shot.page === 0 ? "cover" : `p${shot.page}`}-${attemptNo}`,
-            role: "support",
-            model: input.visionModel,
-            system: "You are a meticulous picture-book illustration checker. Answer with JSON only.",
-            user: buildQaPrompt(drawn, shot.scene, delivered.references.length > 0, elements, input.pageTexts?.[shot.page]),
-            json: true,
-            // "low": without any thinking the checker missed two Johanns and two
-            // Rosalindes (story 655ef79b). A little counting costs ~$0.0002.
-            maxTokens: 3000,
-            effort: "low",
-            imageInputs: [delivered.response.viewUrl || url, ...delivered.references.slice(0, 1)],
-            timeoutMs: 60_000,
-          });
-          qaCalls.push(call);
-          qa = parseQaReport(call.text, expectedNames) || undefined;
-          if (!qa) errors.push(`attempt ${attemptNo}: incomplete image QA report`);
-        } catch (err) {
-          console.warn(`[storybook/images] vision check failed for page ${shot.page}:`, (err as Error)?.message || err);
-          errors.push(`attempt ${attemptNo}: image QA unavailable`);
-        }
-      }
-      const severity = qaSeverity(qa, expectedCharacters, heroNames);
-      return { page: shot.page, url, prompt: delivered.prompt, attempts: attemptNo, costUSD, qa, severity, status: !qa ? "unverified" : severity >= 10 ? "failed" : "passed", level: delivered.level };
+      const raw = await inspect(
+        `image-qa-${cover ? "cover" : `p${shot.page}`}-${attemptNo}`,
+        buildQaPrompt(drawn, shot.scene, delivered.references.length > 0, elements, input.pageTexts?.[shot.page]),
+        [delivered.response.viewUrl || url, ...delivered.references.slice(0, 1)],
+        expectedNames,
+        errors,
+        `attempt ${attemptNo}`
+      );
+      const qa = raw ? scopeQaReport(raw, onStage.map((entity) => entity.name), elements) : undefined;
+      const parts = qaSeverityParts(qa, expectedCharacters, { heroNames, cover });
+      return { page: shot.page, url, prompt: delivered.prompt, attempts: attemptNo, costUSD, qa, severity: parts.hard + parts.soft, status: qaStatus(qa, parts), level: delivered.level };
     };
 
-    const finish = (outcome: ImageOutcome & { level: number }, attempts: number): ImageOutcome => {
+    /**
+     * The last resort before a blank page (never the cover): the page's key
+     * object or place without any person — nothing that can grow a third hand
+     * or a second Adrian.
+     */
+    const vignette = async (attemptNo: number): Promise<Attempt | null> => {
+      if (cover || !shot.vignette) return null;
+      const scene = shot.vignette;
+      const shown = (input.illustrations.storyElements || [])
+        .filter((element) => mentions(scene, element.name) || (element.noun ? mentions(scene, element.noun) : false) || scene.toLowerCase().includes(elementNoun(element)))
+        .slice(0, 2);
+      const prompt = assembleImagePrompt({ scene, onStage: [], spriteOrder: [], elements: shown, vignette: true });
+      imageCalls += 1;
+      let response: ImageResponse = {};
+      try {
+        response = await input.provider({
+          page: shot.page,
+          prompt,
+          negativePrompt: `${negativePromptFor([], false, input.historical)}, person, people, child, boy, girl, human figure, face, hands`,
+          referenceImages: [],
+          seed: seedFor(input.seed, shot.page, 90 + attemptNo),
+          width,
+          height,
+        });
+        addCost(response);
+      } catch (err) {
+        errors.push(`vignette: ${(err as Error)?.message || err}`);
+      }
+      if (!response.url) return null;
+      const raw = await inspect(`image-qa-p${shot.page}-vignette`, buildQaPrompt([], scene, false, shown), [response.viewUrl || response.url], shown.map((element) => element.name), errors, "vignette");
+      const qa = raw ? scopeQaReport(raw, [], shown) : undefined;
+      const parts = qaSeverityParts(qa, shown.length);
+      return { page: shot.page, url: response.url, prompt, attempts: attemptNo, costUSD, qa, severity: parts.hard + parts.soft, status: qaStatus(qa, parts), vignette: true, level: 2 };
+    };
+
+    const finish = (outcome: Attempt, attempts: number): ImageOutcome => {
       const { level, ...rest } = outcome;
       return { ...rest, attempts, costUSD, referenceLevel: level, errors: errors.length ? errors : undefined };
     };
 
-    const first = await attempt(1, "", 0);
-    // No picture at all even without a reference: nothing a new seed would fix.
-    // A broken checker is not evidence that a new image would help.
-    if (!first.url || !first.qa || first.severity < 10) return finish(first, 1);
-    regenerated.push(shot.page);
-    // One redraw; the less defective picture ships. A third attempt (runs
-    // fix2/fix3-0929) rarely rescued a page and cost ~1 ¢ per story.
-    let best = first;
-    let last = first;
-    let attempts = 1;
-    for (let attemptNo = 2; attemptNo <= 2 && best.severity >= 10; attemptNo += 1) {
-      const bled = Boolean(last.qa && (last.qa.animalFeaturesOnHumans.length || last.qa.featureBleed?.length));
-      let startLevel = Math.max(0, last.level);
-      if (bled && canSplitSheet && ladder[0] !== heroSheet) {
-        ladder = ladderFor(heroSheet);
-        startLevel = 0;
-      }
-      const correction = last.qa ? correctionFor(last.qa, elements.map((element) => element.name)) : "";
-      last = await attempt(attemptNo, `${correction} Simple clear composition; separate silhouettes, one pose per figure, hands apart and easy to read.`, startLevel);
-      attempts = attemptNo;
-      if (last.url && last.severity < best.severity) best = last;
+    // Printable first, then the fewer defects.
+    const better = (a: Attempt, b: Attempt) =>
+      Boolean(a.url) && (isPublishable(a) !== isPublishable(b) ? isPublishable(a) : a.severity < b.severity);
+
+    if (shot.planningErrors?.length) {
+      // An unresolved composition never buys a portrait scene; a people-free vignette cannot go wrong that way.
+      errors.push(...shot.planningErrors);
+      const fallback = await vignette(1);
+      if (fallback) return finish(fallback, 1);
+      return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD, severity: 999, status: "unverified", errors };
     }
-    return finish(best, attempts);
+
+    const first = await attempt(1, "", 0);
+    if (!first.url) {
+      // Nothing arrived even without a reference: the vignette is the only picture left.
+      const fallback = await vignette(2);
+      return fallback && isPublishable(fallback) ? finish(fallback, 2) : finish(first, fallback ? 2 : 1);
+    }
+    // A broken checker is not evidence that a new image would help.
+    if (!first.qa || first.severity < 10) return finish(first, 1);
+    regenerated.push(shot.page);
+    // One redraw; the better picture ships. A third full attempt (runs
+    // fix2/fix3-0929) rarely rescued a page and cost ~1 ¢ per story.
+    const bled = Boolean(first.qa.animalFeaturesOnHumans.length || first.qa.featureBleed?.length);
+    let startLevel = Math.max(0, first.level);
+    if (bled && canSplitSheet && ladder[0] !== heroSheet) {
+      ladder = ladderFor(heroSheet);
+      startLevel = 0;
+    }
+    const correction = correctionFor(first.qa, elements.map((element) => element.name));
+    const second = await attempt(2, `${correction} Simple clear composition; separate silhouettes, one pose per figure, hands apart and easy to read.`, startLevel);
+    const best = better(second, first) ? second : first;
+    if (isPublishable(best)) return finish(best, 2);
+    const fallback = await vignette(3);
+    if (fallback && isPublishable(fallback)) return finish(fallback, 3);
+    return finish(best, fallback ? 3 : 2);
   };
 
   const outcomes = await mapWithLimit(shots, input.concurrency ?? 4, renderShot);

@@ -15,7 +15,7 @@
  */
 
 import { CANONICAL_NEGATIVE_PACK, COLLAGE_STRIP_NEGATIVES } from "../dev-mode-image-guards";
-import { mentions } from "./checks";
+import { mentions, nameTokens } from "./checks";
 import type { StoryBrief } from "./context";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import type { IllustrationPlan, IllustrationShot, StoryElement, StoryPlan, StorybookPage } from "./types";
@@ -38,6 +38,8 @@ export interface VisualEntity {
   isHuman: boolean;
   /** English appearance line — the identity lock. */
   appearance: string;
+  /** At most ~6 words that tell the figure apart at a glance ("blond boy in dark T-shirt"). */
+  tag?: string;
   forbidden: string[];
   referenceUrl?: string;
   /** Stable original asset URL/id, before generating expiring signed URLs. */
@@ -232,6 +234,8 @@ export function assembleImagePrompt(input: {
   spriteOrder: VisualEntity[];
   elements?: StoryElement[];
   correction?: string;
+  /** Last resort before a blank page: the moment without any person. */
+  vignette?: boolean;
 }): string {
   // Story A/B 2026-09-29: a 150-character cut took the witch's hat off her
   // look ("… black robe and pointed black hat"). Identity lines keep their
@@ -247,8 +251,47 @@ function ordinal(index: number): string {
   return ["first", "second", "third", "fourth", "fifth"][index] || `${index + 1}th`;
 }
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Story 774d5a5e: "Adrian braces the cart, Alexander catches the basket" came
+ * out swapped on two pages and Adrian twice on a third — the image model does
+ * not know who "Adrian" is. Each named mention in the action carries the look
+ * that tells the figure apart ("Adrian (blond boy in dark T-shirt)"); at most
+ * two per figure, never on a possessive.
+ */
+export function bindNamesToLooks(scene: string, characters: VisualEntity[]): string {
+  let result = scene;
+  for (const entity of characters) {
+    const tag = clean(entity.tag, 60);
+    if (!tag) continue;
+    const alternatives = [...new Set([entity.name, ...nameTokens(entity.name)])].sort((a, b) => b.length - a.length).map(escapeRegExp);
+    const pattern = new RegExp(`(^|[^\\p{L}])(${alternatives.join("|")})(?![\\p{L}])(?!\\s*\\()(?!['’]s\\b)`, "gu");
+    let tagged = 0;
+    result = result.replace(pattern, (match, before: string, name: string) => (tagged++ < 2 ? `${before}${name} (${tag})` : match));
+  }
+  return result;
+}
+
+/** The plain noun the image model sees instead of an element's title-like name. */
+export function elementNoun(element: StoryElement): string {
+  return clean(element.noun, 40).toLowerCase() || clean(element.name, 60).toLowerCase();
+}
+
+/** Every mention of an element's name in the scene becomes its plain noun. */
+export function nameElementsPlainly(scene: string, elements: StoryElement[]): string {
+  let result = scene;
+  for (const element of [...elements].sort((a, b) => b.name.length - a.name.length)) {
+    if (!element.name) continue;
+    result = result.replace(new RegExp(`(^|[^\\p{L}])${escapeRegExp(element.name)}(?![\\p{L}])`, "giu"), (_match, before: string) => `${before}${elementNoun(element)}`);
+  }
+  return result;
+}
+
 function buildImagePrompt(
-  input: { scene: string; onStage: VisualEntity[]; spriteOrder: VisualEntity[]; elements?: StoryElement[]; correction?: string },
+  input: { scene: string; onStage: VisualEntity[]; spriteOrder: VisualEntity[]; elements?: StoryElement[]; correction?: string; vignette?: boolean },
   lookChars: number,
   sceneChars: number
 ): string {
@@ -258,7 +301,8 @@ function buildImagePrompt(
   const thingElements = (input.elements || []).filter((element) => !element.figure);
   const slotOf = (entity: VisualEntity) => input.spriteOrder.findIndex((sheet) => sheet.id === entity.id);
 
-  const lines: string[] = [clip(input.scene, sceneChars), STORYBOOK_IMAGE_STYLE_SHORT];
+  const scene = bindNamesToLooks(nameElementsPlainly(clip(input.scene, sceneChars), input.elements || []), characters);
+  const lines: string[] = [scene, STORYBOOK_IMAGE_STYLE_SHORT];
   if (input.correction) lines.push(clip(input.correction, 320));
 
   const figures = [
@@ -269,13 +313,14 @@ function buildImagePrompt(
       return `${entity.name} (${kind}${entity.appearance ? `: ${clip(entity.appearance, lookChars)}` : ""}${where})`;
     }),
     // Story 422a3ba3 / runs fix2-0929: a recurring figure without a reference gets one fixed look.
-    ...figureElements.map((element) => `${clean(element.name, 60)} (${clip(element.look, lookChars + 40)})`),
+    ...figureElements.map((element) => `the ${elementNoun(element)} (${clip(element.look, lookChars + 40)})`),
   ];
   if (figures.length > 0) {
     lines.push(`Exactly ${figures.length} figure${figures.length === 1 ? "" : "s"}, each drawn once as its own separate body: ${figures.join("; ")}.`);
   } else {
     lines.push("A scene without people.");
   }
+  if (input.vignette && figures.length > 0) lines.push("A quiet scene without people: only the things and the place described.");
   if (figureElements.length) lines.push("Each creature keeps its own described anatomy, limbs and covering, with a separate clear silhouette.");
 
   const humans = characters.filter((entity) => entity.isHuman);
@@ -287,7 +332,7 @@ function buildImagePrompt(
   if (owned) lines.push(owned);
 
   for (const entity of objects) lines.push(`${entity.name}, an object: ${clip(entity.appearance, lookChars)}.`);
-  for (const element of thingElements) lines.push(`${clean(element.name, 60)}, drawn exactly like this: ${clip(element.look, lookChars)}; a separate thing that nobody wears.`);
+  for (const element of thingElements) lines.push(`The ${elementNoun(element)}, drawn exactly like this: ${clip(element.look, lookChars)}; a separate thing that nobody wears.`);
 
   if (input.spriteOrder.length > 1) {
     lines.push(`The attached image is only an identity sheet, not part of the picture: left to right ${input.spriteOrder.map((entity) => entity.name).join(", ")}. Take each figure's face, hair or fur, colours and outfit from its own place on the sheet — the identities, not the sheet's painting style — and draw one single scene.`);
@@ -313,10 +358,10 @@ export function buildDirectorSystemPrompt(): string {
     "- Never a lineup, never characters standing side by side looking at the viewer, never posing.",
     "- Choose a camera for each page and vary it from page to page: wide establishing shot, medium action shot, low angle looking up, high angle looking down, over-the-shoulder, close-up on a reaction or an object.",
     "- Show the place concretely: time of day, weather, light, and the props exactly in their CURRENT state on this page (broken, wet, tied up, glowing ...).",
-    "- At most 3 FIGURES per picture in total, counting named characters AND figure story elements (a troll, a giant, a goose). If more are in the scene, pick the ones the moment needs and leave the others off-panel. List onStage in order of importance. Use only the ids given.",
+    "- At most 3 FIGURES per picture in total, counting named characters AND figure story elements (a troll, a giant, a goose). If more are in the scene, pick the ones the moment needs and leave the others off-panel. List onStage from LEFT to RIGHT as the figures stand in the picture. Use only the ids given.",
     "- Say exactly WHO does WHAT and where each one is (left / right / foreground / on the ladder …). Use each visible character's exact name in scene AND its id in onStage. Never mention off-panel people in the scene. Never swap roles: if the text says Adrian climbs, Adrian is the one climbing.",
     "- Unnamed extras (a flock of geese, a crowd) only when the page needs them, fully described.",
-    "- Any creature, animal, talking object or special thing that is NOT in the list above and appears on more than one page (also an ordinary goose, dog or broom): define it ONCE in storyElements with a fixed, drawable look (shape, size, colours, how it moves) and list its name in 'elements' on every picture where it appears. It is its own figure: a hat with legs is never worn by anyone, a talking cup is never just a cup on a table. Set figure:true for anything alive (a troll, a giant, a goose). Its look is concrete (species, skin or fur colour, clothes WITH colours) and clearly different from every listed character — never their clothes, hair or colours.",
+    "- Any creature, animal, talking object or special thing that is NOT in the list above and appears on more than one page (also an ordinary goose, dog or broom): define it ONCE in storyElements with a fixed, drawable look (shape, size, colours, how it moves) and list its name in 'elements' on every picture where it appears. It is its own figure: a hat with legs is never worn by anyone, a talking cup is never just a cup on a table. Set figure:true for anything alive (a troll, a giant, a goose). Its look is concrete (species, skin or fur colour, clothes WITH colours) and clearly different from every listed character — never their clothes, hair or colours. Give it a noun: 1-3 plain lowercase English words a painter would use ('giant pumpkin', 'wooden signpost', 'grey goose') — the illustrator only ever sees that noun, never the name, because a title-like name gets painted on as text or turns a thing into a character.",
     "- A coloured mark, line or stripe in the story (a red water mark, a blue ribbon) colours only that small thing — water, sky and ground keep their natural colours.",
     "- Every object fits the story's world: in a fairy-tale or fantasy world everything is old-fashioned (wood, stone, clay, copper, wicker) — no modern appliances, stainless steel, plastic, electric ovens, sinks with taps or cars.",
     // Story fc06c0d1: "the castle laundry" became two front-loading washing
@@ -327,6 +372,7 @@ export function buildDirectorSystemPrompt(): string {
     "- Features belong to their owner: one character's moustache, crown, hat or cape is never drawn on anyone else.",
     "- No text, letters, labels or speech bubbles in any picture. Books, pages, letters and notes show simple pictures (a painted bear, berries), never writing — a painted scribble reads as nonsense. A sign may carry ONE short word only when the text names it, written in the scene in capitals and quotes (a sign reading \"BEEREN\").",
     "- English only, 45-80 words per scene. Describe only what the eye sees.",
+    "- For every PAGE also write vignette: the same moment WITHOUT any person or named character — the key object, one story element or the place in its current state, calm and clear, at most 30 words (e.g. 'the giant pumpkin rolling down the cobbled lane with the wooden signpost on its back'). It is printed only when the full picture fails.",
     "- For a difficult shot (3 figures or overlapping limbs/props), also provide simpleScene: the SAME instant, actors and place in a simpler separated composition, at most 35 words. Otherwise omit it. focus is 'detail' ONLY for a deliberate close-up without any character.",
     "- The cover shows the heroes in an inviting, dynamic moment with the story's central element, with calm sky or background at the top (for the title, which is added later — do not draw it).",
     "",
@@ -364,9 +410,9 @@ export function buildDirectorUserPrompt(input: {
   lines.push(
     JSON.stringify(
       {
-        storyElements: [{ name: "name of a recurring figure or thing, or leave the list empty", look: "fixed English look", figure: true }],
+        storyElements: [{ name: "name of a recurring figure or thing, or leave the list empty", noun: "plain lowercase noun", look: "fixed English look", figure: true }],
         cover: { scene: "…", onStage: ["e1"], artifactVisible: false, elements: [] },
-        pages: input.pages.map((page) => ({ page: page.order, scene: "…", onStage: ["e1"], artifactVisible: false, elements: [], focus: "scene" })),
+        pages: input.pages.map((page) => ({ page: page.order, scene: "…", onStage: ["e1"], artifactVisible: false, elements: [], focus: "scene", vignette: "…" })),
       },
       null,
       1
@@ -377,7 +423,7 @@ export function buildDirectorUserPrompt(input: {
 
 function sanitizeElements(raw: unknown): StoryElement[] {
   return (Array.isArray(raw) ? raw : [])
-    .map((entry: any) => ({ name: clean(entry?.name, 60), look: clean(entry?.look, 260), ...(entry?.figure === true ? { figure: true } : {}) }))
+    .map((entry: any) => ({ name: clean(entry?.name, 60), look: clean(entry?.look, 260), ...(clean(entry?.noun, 40) ? { noun: clean(entry.noun, 40).toLowerCase() } : {}), ...(entry?.figure === true ? { figure: true } : {}) }))
     .filter((entry) => entry.name && entry.look && !/^name of a recurring/i.test(entry.name))
     .slice(0, 4);
 }
@@ -405,8 +451,12 @@ function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerIm
   for (const name of elementNames) if (mentions(scene, name) && !elements.includes(name)) elements.push(name);
   if (onStage.length + elements.filter((name) => figureNames.has(name)).length > maxPerImage) errors.push(`Composition exceeds ${maxPerImage} figures; recompose instead of dropping identities.`);
   if (!onStage.length && !elements.some((name) => figureNames.has(name)) && raw?.focus !== "detail") errors.push("Empty character manifest; explicitly choose a detail shot or identify the visible figures.");
+  // A vignette that names a character is no vignette: it would draw that character without a reference.
+  const vignette = clean(raw?.vignette, 300);
+  const vignetteOk = vignette.length >= 15 && vignette !== "…" && !characters.some((entity) => mentions(vignette, entity.name));
   return { page, scene, onStage, artifactVisible: Boolean(raw?.artifactVisible) && entities.some((entity) => entity.kind === "artifact"), elements,
     focus: raw?.focus === "detail" ? "detail" : "scene", simpleScene: clean(raw?.simpleScene, 420) || undefined,
+    ...(page > 0 && vignetteOk ? { vignette } : {}),
     ...(errors.length ? { planningErrors: errors } : {}),
   };
 }
@@ -457,7 +507,7 @@ export function sanitizeIllustrationPlan(raw: any, pageCount: number, plan: Stor
  * story 2db50859 drew Magd Elsa blonde on the cover and brunette on page 3.
  * One cheap vision call reads the fixed look off the reference portraits.
  */
-const referenceLookCache = new Map<string, { look: string; expires: number }>();
+const referenceLookCache = new Map<string, { look: string; tag?: string; expires: number }>();
 const REFERENCE_LOOK_TTL = 24 * 60 * 60 * 1000;
 
 export async function describeReferenceLooks(
@@ -467,13 +517,12 @@ export async function describeReferenceLooks(
 ): Promise<{ entities: VisualEntity[]; call?: LlmCallResult }> {
   // Heroes too: story 5b1b8b7a gave Alexander four different shirts in seven
   // pictures — the avatar profile had no outfit, the sheet alone did not hold it.
-  const keyFor = (entity: VisualEntity) => JSON.stringify(["look-v2", model, entity.id, entity.referenceKey || entity.referenceUrl, entity.species, entity.appearance]);
+  const keyFor = (entity: VisualEntity) => JSON.stringify(["look-v3", model, entity.id, entity.referenceKey || entity.referenceUrl, entity.species, entity.appearance]);
+  const apply = (entity: VisualEntity, cached?: { look: string; tag?: string }) =>
+    cached ? { ...entity, appearance: cached.look, ...(cached.tag ? { tag: cached.tag } : {}) } : entity;
   const now = Date.now();
   for (const [key, value] of referenceLookCache) if (value.expires <= now) referenceLookCache.delete(key);
-  const withCachedLooks = entities.map((entity) => {
-    const cached = referenceLookCache.get(keyFor(entity));
-    return cached ? { ...entity, appearance: cached.look } : entity;
-  });
+  const withCachedLooks = entities.map((entity) => apply(entity, referenceLookCache.get(keyFor(entity))));
   const targets = entities.filter((entity) => entity.kind === "character" && entity.referenceUrl && !referenceLookCache.has(keyFor(entity)));
   if (targets.length === 0) return { entities: withCachedLooks };
   try {
@@ -487,7 +536,9 @@ export async function describeReferenceLooks(
         // Distinctive item first, so no budget cut can drop it (A/B 2026-09-29:
         // variant H — fewest defects in both stories).
         "For each character write ONE English line, at most 25 words, of what stays the same in every picture. Start with the most distinctive thing (a pointed witch hat, wings, a crown, a shell, a star-patterned jacket), then apparent age, skin tone, hair colour and style (or fur/feather colours), the main clothing pieces with colours. Only what is visible, no mood, no background.",
-        JSON.stringify({ looks: Object.fromEntries(targets.map((entity, index) => [`e${index + 1}`, "…"])) }),
+        // Story 774d5a5e: the action sentence binds to this tag, not to a name the image model cannot know.
+        "Also a tag for each: at most 6 words that tell this figure apart from the others at a glance — hair or fur colour plus the main garment with its colour (e.g. 'blond boy in dark T-shirt', 'woman in floral apron').",
+        JSON.stringify({ looks: Object.fromEntries(targets.map((entity, index) => [`e${index + 1}`, "…"])), tags: Object.fromEntries(targets.map((entity, index) => [`e${index + 1}`, "…"])) }),
       ].join("\n"),
       json: true,
       maxTokens: 2000,
@@ -495,21 +546,21 @@ export async function describeReferenceLooks(
       imageInputs: targets.map((entity) => entity.referenceUrl!),
       timeoutMs: 60_000,
     });
-    const looks = parseJsonObject<any>(call.text)?.looks || {};
+    const parsed = parseJsonObject<any>(call.text) || {};
+    const looks = parsed.looks || {};
+    const tags = parsed.tags || {};
     for (const [index, entity] of targets.entries()) {
       const look = clean(looks[`e${index + 1}`] || looks[entity.name], 220);
       if (look.length < 15 || look === "…") continue;
-      referenceLookCache.set(keyFor(entity), { look, expires: now + REFERENCE_LOOK_TTL });
+      const tag = clean(tags[`e${index + 1}`] || tags[entity.name], 60);
+      referenceLookCache.set(keyFor(entity), { look, ...(tag.length >= 5 && tag !== "…" ? { tag } : {}), expires: now + REFERENCE_LOOK_TTL });
       while (referenceLookCache.size > 512) referenceLookCache.delete(referenceLookCache.keys().next().value!);
     }
     return {
       call,
-      entities: entities.map((entity) => {
-        const look = referenceLookCache.get(keyFor(entity))?.look;
-        // The look read off the portrait replaces the pool prompt (story 31a7a59d
-        // carried both: 300 characters of duplicates per figure).
-        return look && look !== "…" ? { ...entity, appearance: look } : entity;
-      }),
+      // The look read off the portrait replaces the pool prompt (story 31a7a59d
+      // carried both: 300 characters of duplicates per figure).
+      entities: entities.map((entity) => apply(entity, referenceLookCache.get(keyFor(entity)))),
     };
   } catch (err) {
     console.warn("[storybook/illustration] reference looks failed:", (err as Error)?.message || err);

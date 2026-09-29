@@ -4,12 +4,12 @@ import { buildBrief } from "./context";
 import { resolveLengthBudget, type AgeBand } from "./craft";
 import { buildWriterSystemPrompt } from "./draft-stage";
 import { runStorybookTextEngine } from "./engine";
-import { describeReferenceLooks, negativePromptFor, runDirectorStage, sanitizeIllustrationPlan, type VisualEntity } from "./illustration-stage";
-import { generateStorybookImages, parseQaReport, publishableImageUrl, qaSeverity, type ImageOutcome } from "./images";
+import { assembleImagePrompt, bindNamesToLooks, describeReferenceLooks, nameElementsPlainly, negativePromptFor, runDirectorStage, sanitizeIllustrationPlan, type VisualEntity } from "./illustration-stage";
+import { generateStorybookImages, parseQaReport, publishableImageUrl, qaSeverity, qaSeverityParts, qaStatus, scopeQaReport, type ImageOutcome } from "./images";
 import { CostLedger, resolveStorybookModels, type LlmRequest, type StorybookLlm } from "./llm";
 import { buildOneShotUserPrompt, buildPatchPrompt, mergeStorybookPatch, planFromOneShot } from "./oneshot-stage";
 import { storybookQuality } from "./quality";
-import { verifyStorybookRepair } from "./review-stage";
+import { ledgerNotes, runReviewStage, sanitizeReview, verifyStorybookRepair } from "./review-stage";
 
 function brief(band: AgeBand = "6-8", length: "short" | "medium" | "long" = "medium") {
   return buildBrief({ config: { ageGroup: band, length, language: "de", genre: "fairy_tales", setting: "fantasy", humorLevel: 0, suspenseLevel: 0 } as any,
@@ -41,7 +41,7 @@ describe("wizard budgets and compact writing", () => {
     const prompt = buildWriterSystemPrompt(brief(), { oneShot: true });
     expect(prompt.length).toBeLessThan(4000);
     expect(prompt).toContain("Seite 1");
-    expect(prompt).toContain("erst nach"); // chronological orientation is explicit in the review; see below
+    expect(prompt).toContain("Erst am Seitenende kommt die Störung");
   });
 });
 
@@ -174,5 +174,158 @@ describe("text repair and book readiness", () => {
     ledger.recordCall("writer", { text: "", modelUsed: "test", durationMs: 1, usage: { prompt: 1000, completion: 300, total: 1300, costUSD: .001, cachedPromptTokens: 800, cacheWriteTokens: 100, reasoningTokens: 50 } }, "writer");
     expect(ledger.all()[0].usage?.cachedPromptTokens).toBe(800);
     expect(ledger.all()[0].usage?.reasoningTokens).toBe(50);
+  });
+});
+
+describe("story 774d5a5e: no blank pages, bound roles, plain nouns", () => {
+  const tagged: VisualEntity[] = people.map((entity) => ({ ...entity, tag: entity.name === "Adrian" ? "blond boy in dark T-shirt" : "brown-haired boy in cream sweater" }));
+  const vignetteText = "the long wooden cart at the fork of two country paths, a wicker basket tipping over its edge";
+  const withPage = { ...images, pages: [{ page: 1, scene: "Adrian braces the cart while Alexander catches the basket.", onStage: ["b", "a"], artifactVisible: false, vignette: vignetteText }] };
+  const vignetteQa = { characterCounts: {}, namedCharactersVisible: 0, anatomyDefects: [], duplicates: [], unexpectedCharacters: [], identityMatch: 1, sceneMatch: .9 };
+
+  test("a role swap alone is printed as flawed instead of leaving the page blank", async () => {
+    let calls = 0;
+    const result = await generateStorybookImages({ illustrations: withPage, entities: tagged, seed: "s", buildReference: reference, visionModel: "test",
+      llm: async (r) => reply(r, r.stage.includes("cover") ? cleanQa : { ...cleanQa, roleSwaps: ["Alexander braces the cart instead of Adrian"] }),
+      provider: async () => ({ url: `https://example.test/${++calls}.jpg` }),
+    });
+    const page = result.pages.get(1)!;
+    expect(calls).toBe(3);
+    expect(page.status).toBe("flawed");
+    expect(page.vignette).toBeUndefined();
+    expect(publishableImageUrl(page)).toBeDefined();
+    expect(storybookQuality({ finalChecks: { ok: true, hard: [], soft: [] }, review: null, textQuality: { status: "passed", issues: [] } }, result, [1]).imagesReady).toBe(true);
+  });
+
+  test("a hard defect on both attempts becomes a people-free vignette; the cover never does", async () => {
+    const requests: Array<{ page: number; prompt: string; referenceImages: string[] }> = [];
+    const result = await generateStorybookImages({ illustrations: withPage, entities: tagged, seed: "s", buildReference: reference, visionModel: "test",
+      llm: async (r) => reply(r, r.stage.includes("vignette") ? vignetteQa : { ...cleanQa, duplicates: ["Adrian appears twice"] }),
+      provider: async (request) => { requests.push(request); return { url: `https://example.test/${requests.length}.jpg` }; },
+    });
+    const page = result.pages.get(1)!;
+    expect(page.vignette).toBe(true);
+    expect(page.status).toBe("passed");
+    expect(page.attempts).toBe(3);
+    expect(publishableImageUrl(page)).toBeDefined();
+    const last = requests.filter((request) => request.page === 1).pop()!;
+    expect(last.referenceImages).toEqual([]);
+    expect(last.prompt).not.toMatch(/Alexander|Adrian/);
+    expect(result.cover?.status).toBe("failed");
+    expect(result.cover?.vignette).toBeUndefined();
+    expect(requests.filter((request) => request.page === 0)).toHaveLength(2);
+  });
+
+  test("an incomplete QA report is read once more instead of discarding the picture", async () => {
+    const stages: string[] = [];
+    let calls = 0;
+    const result = await generateStorybookImages({ illustrations: images, entities: people, seed: "s", buildReference: reference, visionModel: "test",
+      llm: async (r) => { stages.push(r.stage); return reply(r, stages.length === 1 ? "{}" : cleanQa); },
+      provider: async () => ({ url: `https://example.test/${++calls}.jpg` }),
+    });
+    expect(stages).toEqual(["image-qa-cover-1", "image-qa-cover-1-retry"]);
+    expect(calls).toBe(1);
+    expect(result.cover?.status).toBe("passed");
+  });
+
+  test("the identity sheet runs left to right like the picture", async () => {
+    const sheets: string[][] = [];
+    await generateStorybookImages({ illustrations: { cover: { ...images.cover, onStage: ["b", "a"] }, pages: [] }, entities: people, seed: "s",
+      buildReference: async (subjects) => { sheets.push(subjects.map((subject) => subject.displayName)); return reference(); },
+      provider: async () => ({ url: "https://example.test/cover.jpg" }),
+    });
+    expect(sheets[0]).toEqual(["Adrian", "Alexander"]);
+  });
+
+  test("QA findings about things that are not in the picture are dropped", () => {
+    const qa = parseQaReport(JSON.stringify({ ...cleanQa, elementMisuse: ["The painted arrow is not visible."], roleSwaps: ["Somebody else holds the basket"] }), ["Alexander", "Adrian"])!;
+    const scoped = scopeQaReport(qa, ["Alexander", "Adrian"], []);
+    expect(scoped.elementMisuse).toEqual([]);
+    expect(scoped.roleSwaps).toEqual([]);
+    const sign = { name: "Hand-painted Wayfinder", noun: "wooden signpost", look: "a small weathered wooden signboard" };
+    expect(scopeQaReport({ ...qa, elementMisuse: ["Wayfinder is depicted with a face"] }, [], [sign]).elementMisuse).toHaveLength(1);
+  });
+
+  test("hard and soft defects: a posed lineup is printed, a missing hero on the cover is not", () => {
+    const qa = parseQaReport(JSON.stringify({ ...cleanQa, posing: true }), ["Alexander", "Adrian"])!;
+    const posed = qaSeverityParts(qa, 2);
+    expect(posed).toEqual({ hard: 0, soft: 10 });
+    expect(qaStatus(qa, posed)).toBe("flawed");
+    const missing = parseQaReport(JSON.stringify({ ...cleanQa, characterCounts: { Alexander: 1, Adrian: 0 } }), ["Alexander", "Adrian"])!;
+    expect(qaSeverityParts(missing, 2, { heroNames: ["Alexander", "Adrian"], cover: true }).hard).toBe(10);
+    expect(qaSeverityParts(missing, 2, { heroNames: ["Alexander", "Adrian"] }).hard).toBe(0);
+  });
+
+  test("names in the action carry the look; objects are drawn by their plain noun", () => {
+    const sign = { name: "Hand-painted Wayfinder", noun: "wooden signpost", look: "a small weathered wooden signboard with a painted arrow" };
+    const scene = "Adrian holds the Hand-painted Wayfinder. Alexander points at Adrian's hand. Adrian laughs. Adrian runs off.";
+    const prompt = assembleImagePrompt({ scene, onStage: tagged, spriteOrder: tagged, elements: [sign] });
+    expect(prompt).not.toContain("Wayfinder");
+    expect(prompt).toContain("holds the wooden signpost");
+    expect(prompt).toContain("The wooden signpost, drawn exactly like this");
+    expect(prompt).toContain("Adrian (blond boy in dark T-shirt) holds");
+    expect(prompt).toContain("Adrian's hand");
+    expect(prompt.split("(blond boy in dark T-shirt)")).toHaveLength(3);
+    expect(bindNamesToLooks("Alexander (already described) waves.", tagged)).toBe("Alexander (already described) waves.");
+    expect(nameElementsPlainly("A hand-painted wayfinder on a post.", [sign])).toBe("A wooden signpost on a post.");
+  });
+
+  test("the director's vignette never names a character; the element noun is kept", () => {
+    const b = brief();
+    const plan = planFromOneShot("", b, { title: "Weg", description: "", pages: [{ order: 1, title: "", content: "Alexander und Adrian am Karren." }] });
+    const raw = (vignette: string) => ({
+      storyElements: [{ name: "Hand-painted Wayfinder", noun: "Wooden Signpost", look: "a small weathered wooden signboard" }],
+      cover: images.cover,
+      pages: [{ page: 1, scene: "Alexander and Adrian at the cart.", onStage: ["a", "b"], vignette }],
+    });
+    expect(sanitizeIllustrationPlan(raw("Alexander's signpost lying in the grass by the gate"), 1, plan, people, 3).pages[0].vignette).toBeUndefined();
+    const ok = sanitizeIllustrationPlan(raw("the wooden signpost lying in the grass by the gate"), 1, plan, people, 3);
+    expect(ok.pages[0].vignette).toContain("signpost");
+    expect(ok.storyElements?.[0].noun).toBe("wooden signpost");
+    expect(ok.cover.vignette).toBeUndefined();
+  });
+});
+
+describe("story 774d5a5e: the reader writes its evidence down", () => {
+  const ledgerReview = {
+    scores: { overall: 8 },
+    comprehension: { want: "a", problem: "b", solution: "c", ending: "d" },
+    ledger: {
+      goal: { want: "Die Gäste finden den Weg zur Lese-Wiese", fulfilled: "nicht erreicht" },
+      solutionKey: { what: "Karte unter der Decke", firstShown: 5, usedOn: 6, foundByChance: true },
+      props: [
+        { thing: "Pfeil", track: "S1 aufgemalt / S4 mit Holzstift", contradiction: "S1 aufgemalt, S4 ein loses Holzteil mit Stift" },
+        { thing: "Korb", track: "S5 auf dem Karren", contradiction: "kein Widerspruch" },
+      ],
+      setups: [{ setup: "Adrian hat einen lustigen Satz geübt", page: 2, payoff: null }, { setup: "Martha trocknet ein Glas", page: 1, payoff: "Seite 7: stellt das Glas ab" }],
+      introduction: { relationship: null, traits: "Alexander malt sorgfältig, Adrian hüpft" },
+    },
+  };
+
+  test("chance solution, unreached goal and a changing prop cap the score and become notes", () => {
+    const review = sanitizeReview(ledgerReview, 7)!;
+    expect(review.scores.overall).toBe(6);
+    expect(review.ledger?.props[1].contradiction).toBeNull();
+    const notes = ledgerNotes(review);
+    expect(notes).toHaveLength(4);
+    expect(notes.join(" ")).toContain("zufällig bereitliegt");
+    expect(notes.join(" ")).toContain("vor Seite 6");
+    expect(notes.join(" ")).toContain("Pfeil");
+    expect(notes.join(" ")).toContain("lustigen Satz");
+    // The brief does not know whether the heroes are brothers or friends: no edit may invent it.
+    expect(notes.join(" ")).not.toMatch(/Geschwister|Freunde/);
+  });
+
+  test("a review without a ledger keeps its own score and adds no notes", () => {
+    const review = sanitizeReview({ ...ledgerReview, ledger: undefined }, 7)!;
+    expect(review.scores.overall).toBe(8);
+    expect(ledgerNotes(review)).toEqual([]);
+  });
+
+  test("the compact read on the other family asks for the ledger", async () => {
+    let request: LlmRequest | undefined;
+    await runReviewStage(async (r) => { request = r; return reply(r, ledgerReview); }, brief(), "T", [{ order: 1, title: "", content: "Alexander malte." }], [], "google/gemini-3.8-flash", "review", true);
+    expect(request?.system).toContain("Schreib ZUERST das ledger");
+    expect(request?.user).toContain("\"solutionKey\"");
   });
 });

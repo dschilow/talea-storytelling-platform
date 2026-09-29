@@ -17,7 +17,7 @@ import { artifactSheet, briefHeader, broughtArtifact, castSheet, heroSeasoning, 
 import { buildWriterSystemPrompt, lengthBlock, renderStoryForPrompt } from "./draft-stage";
 import { modelFamily, type CostLedger, type LlmRole, type StorybookLlm, type StorybookModels } from "./llm";
 import { parseDraft } from "./parsing";
-import { comprehensionGaps, runReviewStage, verifyStorybookRepair } from "./review-stage";
+import { comprehensionGaps, ledgerNotes, runReviewStage, verifyStorybookRepair } from "./review-stage";
 import type { CastCandidate, StoryPlan, StorybookPage } from "./types";
 import type { TextEngineResult, StageObserver } from "./engine";
 
@@ -215,6 +215,8 @@ export function buildPatchPrompt(title: string, pages: StorybookPage[], notes: s
   return [
     "Du bist die Lektorin dieses Bilderbuchs. Die Geschichte stammt von einer sehr guten Autorin — ihre Stimme, ihr Witz und ihre Sätze bleiben.",
     "Behebe die konkreten Fehler: fehlende Einführung oder Motivation, unklare Orte und Besitzwechsel, Widersprüche, unverständliche Lösung, Sprachfehler und fehlende Pflichtfiguren. Reine Geschmacksänderungen an Stil, Witz oder Spannung bleiben aus.",
+    // Story 774d5a5e: these need a sentence in the RIGHT place, usually an earlier page.
+    "Liegt die Lösung zufällig bereit, ergänze auf einer früheren Seite einen kurzen Satz, in dem die Helden das Ding sehen, kennen oder mitnehmen. Erfüllt das Ende das Anfangsziel nicht, zeig auf der letzten Seite in einem Satz, dass genau dieses Ziel erreicht ist. Wird etwas angekündigt und nie eingelöst, löse es mit einem Satz ein oder streiche die Ankündigung. Wechselt ein Ding ohne Grund Form, Ort oder Besitzer, gleiche die frühere Stelle an.",
     `Die Familie wählte ${brief.band} Jahre, ${brief.budget.pages} Seiten und ${brief.budget.totalWordsMin}–${brief.budget.totalWordsMax} Wörter (${brief.budget.wordsPerPageMin}–${brief.budget.wordsPerPageMax} je Seite). Diese Vorgaben bleiben erhalten.`,
     "Mit so wenigen Worten wie möglich: einen Satz ändern oder einen kurzen Satz ergänzen, nie die Seite neu schreiben, nie eine neue Handlung erfinden.",
     // Story 2db50859: the patch pasted the critic's fix into page 5 and gave
@@ -310,10 +312,12 @@ export async function runOneShotEngine(input: {
   if (!pages.length || report.hard.some((issue) => structural.has(issue.code))) throw new Error("[storybook] Die Geschichte erfüllt die gewählte Länge oder Seitenzahl noch nicht. Bitte erneut versuchen.");
   await observe("draft", { title: parsed.title, hard: report.hard.map((i) => i.message) });
 
-  // 2) Continuity read by a cheap model of another family (no taste, only logic).
+  // 2) Continuity read by the critic of the OTHER family (no taste, only logic).
+  // Story 774d5a5e: Luna — Sol's own family — found a typo and missed a chance
+  // solution, an unreached goal and a painted arrow that later hung on a peg.
   let review = null;
   try {
-    const reviewed = await runReviewStage(llm, brief, parsed.title, pages, plan.cast.map((member) => member.name), models.support, "review", true);
+    const reviewed = await runReviewStage(llm, brief, parsed.title, pages, plan.cast.map((member) => member.name), models.critic, "review", true);
     if (reviewed.failedCall) record("review-unusable", "critic", reviewed.failedCall);
     record("review", "critic", reviewed.call);
     review = reviewed.review;
@@ -332,6 +336,7 @@ export async function runOneShotEngine(input: {
     ...castNote,
     ...issuesToNotes(report.hard, 6),
     ...(review ? comprehensionGaps(review) : []),
+    ...(review ? ledgerNotes(review) : []),
     // Only the problem, never the critic's suggested wording: Luna pasted those in verbatim.
     ...(review?.mustFix || []).slice(0, 5).map((note) => `Seite ${note.page}: ${note.problem}${note.quote ? ` („${note.quote}“)` : ""}`),
     ...(review?.languageErrors || []).slice(0, 5).map((error) => `Seite ${error.page}: „${error.quote}“ → ${error.correction}`),

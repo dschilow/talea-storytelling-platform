@@ -161,6 +161,27 @@ export interface EditorialReview {
   keep: string[];
   languageErrors: Array<{ page: number; quote: string; correction: string }>;
   verdict: string;
+  /** Evidence the critic must write down before judging (compact review only). */
+  ledger?: StoryLedger;
+}
+
+/**
+ * Story 774d5a5e: the free-form continuity read found one typo and missed a
+ * painted arrow that became a pegged wooden piece, a map found by chance as the
+ * solution and a goal that was never reached. Writing the evidence down first
+ * makes those gaps visible; the notes and score caps follow deterministically.
+ */
+export interface StoryLedger {
+  /** The heroes' goal from pages 1-2 and where exactly it is reached (null = never). */
+  goal: { want: string; fulfilled: string | null };
+  /** What carries the solution and whether it simply turns up when needed. */
+  solutionKey: { what: string; firstShown: number | null; usedOn: number | null; foundByChance: boolean };
+  /** Form, place and owner of the key things across the pages. */
+  props: Array<{ thing: string; track: string; contradiction: string | null }>;
+  /** Things announced early and whether they pay off (null = never). */
+  setups: Array<{ setup: string; page: number; payoff: string | null }>;
+  /** How the heroes are introduced; null = not said in the text. */
+  introduction: { relationship: string | null; traits: string | null };
 }
 
 export interface PairwiseVerdict {
@@ -184,6 +205,8 @@ export interface IllustrationShot {
   focus?: "scene" | "detail";
   /** Shorter composition for the single redraw, with the same action and cast. */
   simpleScene?: string;
+  /** The same moment without any named character (key object or place) — the last resort before a blank page. */
+  vignette?: string;
   /** Invalid plans are repaired before paying for image generation. */
   planningErrors?: string[];
 }
@@ -193,6 +216,12 @@ export interface StoryElement {
   name: string;
   /** Fixed English look, used verbatim on every page it appears. */
   look: string;
+  /**
+   * Plain lowercase noun for the image model ("wooden signpost"). Story 774d5a5e:
+   * the title-like name "Hand-painted Wayfinder" was painted onto the sign as
+   * text and gave the sign a face — the image prompt never carries the name.
+   */
+  noun?: string;
   /** A living figure (troll, giant, goose) — counts against the figures per picture. */
   figure?: boolean;
 }
