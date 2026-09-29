@@ -1122,7 +1122,7 @@ export const generate = api<GenerateStoryRequest, Story>(
             phase: stagePipelinePhase,
             step: "runware-images",
             provider: "runware",
-            model: DEV_MODE_IMAGE_MODEL,
+            model: generatedStory.metadata?.imageModel || DEV_MODE_IMAGE_MODEL,
             success: (reportedImagesGenerated ?? 0) > 0,
             itemCount: devModeImageCalls,
             providerCostUSD: billedImageCostUSD,

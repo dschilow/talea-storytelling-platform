@@ -17,7 +17,7 @@ import { selectRewardArtifacts, shortlistCastCandidates } from "./cast-selection
 import { sanitizePitches } from "./concept-stage";
 import { sanitizePlan } from "./plan-stage";
 import { comprehensionGaps, needsRevision, sanitizeReview } from "./review-stage";
-import { assembleImagePrompt, castAppearance, heroAppearance, negativePromptFor, sanitizeIllustrationPlan, signatureNegatives, type VisualEntity } from "./illustration-stage";
+import { assembleImagePrompt, castAppearance, heroAppearance, negativePromptFor, ownershipLine, sanitizeIllustrationPlan, signatureNegatives, speciesFromProfile, type VisualEntity } from "./illustration-stage";
 import { correctionFor, generateStorybookImages, parseQaReport, qaSeverity } from "./images";
 import { runStorybookTextEngine } from "./engine";
 import { acceptablePatch } from "./oneshot-stage";
@@ -736,5 +736,26 @@ describe("story 31a7a59d: compact, positive image prompts", () => {
     expect(containsBlockedTerm("Sie sprachen über den Glauben der Leute.", ["glaube"])).toBe("glaube");
     expect(containsBlockedTerm("Die Mutter lachte.", ["mut"])).toBeNull();
     expect(containsBlockedTerm("Das braucht Mut.", ["mut"])).toBe("mut");
+  });
+});
+
+describe("species (A/B 2026-09-29)", () => {
+  test("'human child astronomer' is a human; a dragon stays a dragon", () => {
+    expect(speciesFromProfile({ characterType: "human child astronomer" }).isHuman).toBe(true);
+    expect(speciesFromProfile({ characterType: "human child" })).toEqual({ species: "human", isHuman: true });
+    expect(speciesFromProfile({ characterType: "dragon small" }).isHuman).toBe(false);
+    expect(speciesFromProfile({ characterType: "fox child" }).isHuman).toBe(false);
+    expect(speciesFromProfile(undefined, "human").isHuman).toBe(true);
+  });
+
+  test("the ownership line keeps a creature's wings and tail on it; clothing is never named", () => {
+    const hero: VisualEntity = { id: "h", name: "Mia", kind: "character", role: "hero", species: "human", isHuman: true, appearance: "blue denim overalls, brown pigtails", forbidden: [] };
+    const dragon: VisualEntity = { id: "d", name: "Drache Fauchi", kind: "character", role: "cast", species: "dragon", isHuman: false, appearance: "small green dragon with orange wings and a long tail", forbidden: [] };
+    const witch: VisualEntity = { id: "w", name: "Hexe Griselda", kind: "character", role: "cast", species: "human", isHuman: true, appearance: "a pointed black witch hat, long gray hair, black robe", forbidden: [] };
+    expect(ownershipLine([hero, dragon, witch])).toBe("Only Drache Fauchi has wings and a tail.");
+    expect(ownershipLine([hero, witch])).toBe("");
+    const prompt = assembleImagePrompt({ scene: "Mia meets Fauchi and Griselda.", onStage: [hero, dragon, witch], spriteOrder: [hero, dragon, witch] });
+    expect(prompt).toContain("Only Drache Fauchi has wings");
+    expect(prompt.length).toBeLessThanOrEqual(1900);
   });
 });

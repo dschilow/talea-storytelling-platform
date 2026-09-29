@@ -341,6 +341,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     criticModel: models.critic,
     processingTime: durationMs,
     displayMode: "reading_pages",
+    imageModel: IMAGE_MODEL,
     imagesGenerated: images.imagesGenerated,
     imageCalls: images.imageCalls,
     imageCostUSD: images.imageCostUSD,

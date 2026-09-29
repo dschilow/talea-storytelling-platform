@@ -52,11 +52,19 @@ function looksEnglish(text: string): boolean {
 }
 
 const HUMAN_SPECIES = /^(human|mensch|person|child|kind|boy|girl|junge|mädchen|man|woman|mann|frau)$/i;
+const HUMAN_WORD = /\b(human|mensch|person|child|kid|kind|boy|girl|junge|mädchen|man|woman|mann|frau)\b/i;
+const CREATURE_WORD = /\b(animal|tier|dragon|drache|fox|fuchs|bear|bär|cat|katze|dog|hund|bird|vogel|owl|eule|frog|frosch|tortoise|turtle|schildkröte|mouse|maus|rabbit|hase|creature|wesen|robot|roboter|goblin|kobold|troll|monster|unicorn|einhorn|fairy|fee|elf|dwarf|zwerg)\b/i;
 
+/**
+ * Pool and avatar profiles say "human child astronomer" or "human child", not
+ * just "human" — the exact match treated such children as creatures, and their
+ * pictures lost the human-anatomy and child-face lines (A/B 2026-09-29).
+ */
 export function speciesFromProfile(visualProfile: any, fallbackSpecies?: string | null): { species: string; isHuman: boolean } {
   const raw = clean(visualProfile?.characterType || visualProfile?.speciesCategory || visualProfile?.species || fallbackSpecies || "human", 60).toLowerCase();
   const species = raw === "any" || raw === "" ? "character" : raw.replace(/_/g, " ");
-  return { species, isHuman: HUMAN_SPECIES.test(species) };
+  const isHuman = HUMAN_SPECIES.test(species) || (HUMAN_WORD.test(species) && !CREATURE_WORD.test(species));
+  return { species: isHuman ? "human" : species, isHuman };
 }
 
 /** English appearance for an avatar, assembled from its visual profile fields. */
@@ -115,7 +123,7 @@ export function castAppearance(visualProfile: any, physicalDescription?: string)
 
 export function negativePromptFor(onStage: VisualEntity[], usesSprite: boolean): string {
   const base = [
-    "text, letters, words, numbers, signage, caption, speech bubble, watermark, logo",
+    "text, letters, words, numbers, signage, caption, speech bubble, watermark, logo, artist signature, scribbled handwriting",
     "extra arms, extra hands, three hands, extra fingers, six fingers, fused fingers, missing fingers, deformed hands, extra legs, two heads, duplicated body parts, floating limbs",
     "duplicate character, same character twice, cloned face, unlisted character",
     "photorealistic, 3d render, cgi, harsh horror lighting, gore, blood, weapon pointed at someone",
@@ -131,6 +139,11 @@ export function negativePromptFor(onStage: VisualEntity[], usesSprite: boolean):
   const pack = CANONICAL_NEGATIVE_PACK.filter((term) => /swap|transfer|merged|two characters in one body/.test(term)).slice(0, 12);
   const strip = usesSprite ? COLLAGE_STRIP_NEGATIVES.slice(0, 14) : [];
   return [...base, ...pack, ...strip].join(", ");
+}
+
+/** Whole words: "tail" is not in "pigtails". */
+function heroWears(heroText: string, feature: string): boolean {
+  return new RegExp(`\\b${feature}s?\\b`, "i").test(heroText);
 }
 
 const SIGNATURE_FEATURES = /\b(witch hat|pointed hat|top hat|hat|bonnet|headband|apron|crown|tiara|cape|cloak|wings?|horns?|tail|shell|beard|moustache|mustache|antlers|halo)\b/gi;
@@ -150,7 +163,7 @@ export function signatureNegatives(onStage: VisualEntity[]): string[] {
     for (const match of entity.appearance.matchAll(SIGNATURE_FEATURES)) {
       const feature = match[1].toLowerCase().replace(/s$/, "");
       // A hero who wears a hat of their own keeps it.
-      if (!heroText.includes(feature)) features.add(feature);
+      if (!heroWears(heroText, feature)) features.add(feature);
       // Run fix6-0929: the witch's pointed hat came back as a felt hat on Amir.
       if (/hat$/.test(feature) && !/\bhat\b/.test(heroText)) features.add("hat");
     }
@@ -160,19 +173,54 @@ export function signatureNegatives(onStage: VisualEntity[]): string[] {
 }
 
 /**
- * The final Runware prompt for FLUX.2 [klein] (runware:400@4, 4 steps).
+ * FLUX.2 [klein] is guidance-distilled: A/B 2026-09-29 gave the same pictures at
+ * CFG 1 and CFG 4, so the negative prompt barely acts. What must not travel
+ * from one figure to another is said positively: "Only Hexe Griselda has a
+ * witch hat; only Drache Fauchi has wings and a tail."
+ */
+const BODY_FEATURES = new Set(["wing", "tail", "shell", "horn", "antler"]);
+
+export function ownershipLine(onStage: VisualEntity[]): string {
+  if (!onStage.some((entity) => entity.role === "hero" && entity.isHuman)) return "";
+  const heroText = onStage.filter((entity) => entity.role === "hero").map((entity) => entity.appearance.toLowerCase()).join(" ");
+  const claims: string[] = [];
+  for (const entity of onStage) {
+    if (entity.role === "hero" || entity.kind !== "character") continue;
+    const features = new Set<string>();
+    for (const match of entity.appearance.matchAll(SIGNATURE_FEATURES)) {
+      const feature = match[1].toLowerCase().replace(/s$/, "");
+      if (!heroWears(heroText, feature)) features.add(feature);
+    }
+    if (!entity.isHuman && /dragon|bird|bat|fairy|griffin|owl|butterfly|bee/i.test(entity.species)) features.add("wing");
+    // Body parts only. Naming clothing ("only Griselda has a witch hat") put
+    // MORE witch hats and a green-skinned witch into the pictures (A/B G,
+    // 2026-09-29) — clothing stays in the negative prompt.
+    const list = [...features].filter((feature) => BODY_FEATURES.has(feature));
+    if (list.length === 0) continue;
+    const words = list.slice(0, 3).map((feature) => (feature === "wing" ? "wings" : `${/^[aeiou]/.test(feature) ? "an" : "a"} ${feature}`));
+    claims.push(`only ${entity.name} has ${words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}` : words[0]}`);
+  }
+  if (claims.length === 0) return "";
+  const sentence = claims.join("; ");
+  return `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}.`;
+}
+
+/**
+ * The final Runware prompt for FLUX.2 [klein] 9B (runware:400@2, 4 steps).
  *
  * Story 31a7a59d (2026-09-29): prompts of 3.000–3.500 characters, the sheet
  * contract and the redraw correction at the very end, and negations in the
  * positive prompt ("no beard", "Theo has the troll's orange beard" quoted from
  * the checker) — the tortoise's shell landed on Adrian three times. Now:
- *   scene → correction → who is who (with the sheet slot) → humans → objects → style,
+ *   scene → style → correction → who is who (with the sheet slot) → humans → objects → sheet,
  * only positive phrasing (negations live in the negative prompt), ≤ 1.900 chars.
+ * Story 5b1b8b7a: with the style line last, the merchant came out as a dark
+ * oil painting (the style of his pool portrait) — the style now comes second.
  */
 export const MAX_IMAGE_PROMPT_CHARS = 1900;
 
 export const STORYBOOK_IMAGE_STYLE_SHORT =
-  "Children's picture-book illustration, hand-painted gouache and coloured pencil, warm vivid palette, expressive faces and clear silhouettes, lively motion, one continuous full-bleed scene, pure illustration.";
+  "Soft watercolour and coloured-pencil picture-book illustration, warm light palette, one gentle style for every figure, expressive faces, lively motion, one full-bleed scene.";
 
 export function assembleImagePrompt(input: {
   scene: string;
@@ -181,11 +229,14 @@ export function assembleImagePrompt(input: {
   elements?: StoryElement[];
   correction?: string;
 }): string {
-  for (const [lookChars, sceneChars] of [[150, 650], [110, 520], [80, 420]] as const) {
+  // Story A/B 2026-09-29: a 150-character cut took the witch's hat off her
+  // look ("… black robe and pointed black hat"). Identity lines keep their
+  // length; the scene gives way first.
+  for (const [lookChars, sceneChars] of [[210, 650], [210, 480], [210, 380], [160, 360], [120, 320]] as const) {
     const prompt = buildImagePrompt(input, lookChars, sceneChars);
     if (prompt.length <= MAX_IMAGE_PROMPT_CHARS) return prompt;
   }
-  return buildImagePrompt({ ...input, correction: undefined }, 70, 360).slice(0, MAX_IMAGE_PROMPT_CHARS);
+  return buildImagePrompt({ ...input, correction: undefined }, 100, 300).slice(0, MAX_IMAGE_PROMPT_CHARS);
 }
 
 function ordinal(index: number): string {
@@ -203,7 +254,7 @@ function buildImagePrompt(
   const thingElements = (input.elements || []).filter((element) => !element.figure);
   const slotOf = (entity: VisualEntity) => input.spriteOrder.findIndex((sheet) => sheet.id === entity.id);
 
-  const lines: string[] = [clip(input.scene, sceneChars)];
+  const lines: string[] = [clip(input.scene, sceneChars), STORYBOOK_IMAGE_STYLE_SHORT];
   if (input.correction) lines.push(clip(input.correction, 320));
 
   const figures = [
@@ -225,18 +276,19 @@ function buildImagePrompt(
   const humans = characters.filter((entity) => entity.isHuman);
   if (humans.length > 0) {
     const children = humans.filter((entity) => entity.role === "hero").map((entity) => entity.name);
-    lines.push(`${humans.map((entity) => entity.name).join(" and ")} ${humans.length === 1 ? "is an ordinary human" : "are ordinary humans"} with natural human faces, ears, skin and two five-fingered hands${children.length ? `; ${children.join(" and ")} ${children.length === 1 ? "has a smooth child's face" : "have smooth children's faces"}` : ""}. Everyone wears only their own clothes.`);
+    lines.push(`${humans.map((entity) => entity.name).join(" and ")} ${humans.length === 1 ? "is an ordinary human" : "are ordinary humans"} with natural faces and two five-fingered hands${children.length ? `; ${children.join(" and ")} ${children.length === 1 ? "has a smooth child's face" : "have smooth children's faces"}` : ""}. Everyone wears only their own clothes.`);
   }
+  const owned = ownershipLine(characters);
+  if (owned) lines.push(owned);
 
   for (const entity of objects) lines.push(`${entity.name}, an object: ${clip(entity.appearance, lookChars)}.`);
   for (const element of thingElements) lines.push(`${clean(element.name, 60)}, drawn exactly like this: ${clip(element.look, lookChars)}; a separate thing that nobody wears.`);
 
   if (input.spriteOrder.length > 1) {
-    lines.push(`The attached image is only an identity sheet, not part of the picture: left to right ${input.spriteOrder.map((entity) => entity.name).join(", ")}. Take each figure's face, hair or fur, colours and outfit from its own place on the sheet and draw one single scene.`);
+    lines.push(`The attached image is only an identity sheet, not part of the picture: left to right ${input.spriteOrder.map((entity) => entity.name).join(", ")}. Take each figure's face, hair or fur, colours and outfit from its own place on the sheet — the identities, not the sheet's painting style — and draw one single scene.`);
   } else if (input.spriteOrder.length === 1) {
-    lines.push(`The attached image shows ${input.spriteOrder[0].name}; use it only for ${input.spriteOrder[0].name}'s identity, in a new pose.`);
+    lines.push(`The attached image shows ${input.spriteOrder[0].name}; use it only for ${input.spriteOrder[0].name}'s identity and outfit, in a new pose and in this book's painting style.`);
   }
-  lines.push(STORYBOOK_IMAGE_STYLE_SHORT);
   return lines.join("\n");
 }
 
@@ -262,7 +314,7 @@ export function buildDirectorSystemPrompt(): string {
     "- Each picture happens exactly at this page's place from the text: an outdoor scene at a stream is never moved into a kitchen.",
     "- Only the listed characters plus extras the page needs. Never extra children in the background — they look like copies of the heroes.",
     "- Features belong to their owner: one character's moustache, crown, hat or cape is never drawn on anyone else.",
-    "- No text, letters, signs, labels or speech bubbles in any picture.",
+    "- No text, letters, labels or speech bubbles in any picture. Books, pages, letters and notes show simple pictures (a painted bear, berries), never writing — a painted scribble reads as nonsense. A sign may carry ONE short word only when the text names it, written in the scene in capitals and quotes (a sign reading \"BEEREN\").",
     "- English only, 45-80 words per scene. Describe only what the eye sees.",
     "- The cover shows the heroes in an inviting, dynamic moment with the story's central element, with calm sky or background at the top (for the title, which is added later — do not draw it).",
     "",
@@ -381,7 +433,9 @@ export async function describeReferenceLooks(
   entities: VisualEntity[],
   model: string
 ): Promise<{ entities: VisualEntity[]; call?: LlmCallResult }> {
-  const targets = entities.filter((entity) => entity.kind === "character" && entity.role !== "hero" && entity.referenceUrl);
+  // Heroes too: story 5b1b8b7a gave Alexander four different shirts in seven
+  // pictures — the avatar profile had no outfit, the sheet alone did not hold it.
+  const targets = entities.filter((entity) => entity.kind === "character" && entity.referenceUrl);
   if (targets.length === 0) return { entities };
   try {
     const call = await llm({
@@ -391,7 +445,9 @@ export async function describeReferenceLooks(
       system: "You describe character reference portraits for an illustrator. Answer with JSON only.",
       user: [
         ...targets.map((entity, index) => `Attachment ${index + 1} shows ${entity.name} (${entity.species}).`),
-        "For each character write ONE English line, at most 30 words, of what stays the same in every picture: apparent age, hair colour and hairstyle (or fur/feather colours), skin tone, each clothing piece with its colour, at most two accessories. Only what is visible, no mood, no background.",
+        // Distinctive item first, so no budget cut can drop it (A/B 2026-09-29:
+        // variant H — fewest defects in both stories).
+        "For each character write ONE English line, at most 25 words, of what stays the same in every picture. Start with the most distinctive thing (a pointed witch hat, wings, a crown, a shell, a star-patterned jacket), then apparent age, skin tone, hair colour and style (or fur/feather colours), the main clothing pieces with colours. Only what is visible, no mood, no background.",
         JSON.stringify({ looks: Object.fromEntries(targets.map((entity) => [entity.name, "…"])) }),
       ].join("\n"),
       json: true,
