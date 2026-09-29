@@ -33,6 +33,10 @@ export function resolveStorybookReasoning(model: string, effort: ReasoningEffort
   }
   // Everything else stops at "high" (fallback models must not get a 400).
   const capped = effort === "xhigh" || effort === "max" ? "high" : effort;
+  // Sonnet 5.5 reasons mandatorily (default "high", no "none"); "low" keeps a one-shot story affordable.
+  if (/claude-sonnet-5\.5/.test(normalized)) {
+    return { effort: capped === "none" ? "low" : capped, exclude: true };
+  }
   if (/(^|\/)gpt-5|(^|\/)o\d/.test(normalized)) {
     return { effort: capped, exclude: true };
   }

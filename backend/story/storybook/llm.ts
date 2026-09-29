@@ -121,8 +121,9 @@ export function resolveStorybookModels(
 
 /** The other model to try once when a call returned nothing usable. */
 export function fallbackModelFor(model: string): string {
-  // Sol failing is not a reason to leave the family: Luna knows the same prompts.
-  if (/gpt-6-sol/.test(model)) return STORYBOOK_SUPPORT_MODEL;
+  // A failing premium writer (Sol, Claude) falls back to Luna — it knows the
+  // prompts; Flash-Lite wrote a 3.5/10 story after a Sonnet failure.
+  if (/gpt-6-sol/.test(model) || modelFamily(model) === "anthropic") return STORYBOOK_SUPPORT_MODEL;
   return modelFamily(model) === "google" ? STORYBOOK_SUPPORT_MODEL : STORYBOOK_FALLBACK_MODEL;
 }
 

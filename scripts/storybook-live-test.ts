@@ -174,7 +174,11 @@ const config: any = {
   openRouterModel: option("--writer", "openai/gpt-6-sol"),
 };
 const band = normalizeAgeBand(config.ageGroup);
-const budget = resolveLengthBudget(config.length, band);
+const baseBudget = resolveLengthBudget(config.length, band);
+// --variant P: picture-book pages (50-85 words) instead of 90-135.
+const budget = (option("--variant", "O") || "O").toUpperCase().includes("P")
+  ? { ...baseBudget, wordsPerPageMin: 50, wordsPerPageMax: 85, totalWordsMin: 50 * baseBudget.pages, totalWordsMax: 85 * baseBudget.pages }
+  : baseBudget;
 const seed = option("--seed", `live-${Date.now()}`)!;
 const excludeNames = new Set([...heroRows.map((row: any) => String(row.name)), ...fileHeroes.map((hero) => String(hero.name))].map((name) => name.toLocaleLowerCase("de-DE")));
 const candidates = shortlistCastCandidates({ rows: pool, genre: config.genre, setting: config.setting, band, excludeNames, seed });
@@ -194,8 +198,12 @@ const experiment = {
   spar: variant.includes("S") || undefined,
   // Every lettered variant except O is a multi-stage experiment.
   legacy: /[ABCDEFGLS]/.test(variant) || undefined,
+  pictureBook: variant.includes("P") || undefined,
+  writerPolish: variant.includes("Q") || undefined,
+  selfCheck: variant.includes("R") || undefined,
   castOptional: variant.includes("D") || undefined,
   plannerModel: option("--planner"),
+  writerEffort: option("--writer-effort") as "low" | "medium" | "high" | undefined,
 };
 const brief = buildBrief({ config, band, budget, heroes, candidates, artifacts, seed, recentStories: history.stories, recentEngineIds: history.engines, experiment });
 const models = resolveStorybookModels(config, { critic: option("--critic") });

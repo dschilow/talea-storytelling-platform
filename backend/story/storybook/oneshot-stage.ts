@@ -15,7 +15,7 @@ import { checkProse, issuesToNotes, mentions } from "./checks";
 import { selectEnginesForBrief } from "./concept-stage";
 import { artifactSheet, briefHeader, broughtArtifact, castSheet, heroSeasoning, heroSheet, wishLines, type StoryBrief } from "./context";
 import { buildWriterSystemPrompt, lengthBlock, renderStoryForPrompt } from "./draft-stage";
-import type { CostLedger, LlmRole, StorybookLlm, StorybookModels } from "./llm";
+import { modelFamily, type CostLedger, type LlmRole, type StorybookLlm, type StorybookModels } from "./llm";
 import { parseDraft } from "./parsing";
 import { pageRhythm } from "./plan-stage";
 import { runReviewStage } from "./review-stage";
@@ -29,7 +29,7 @@ const HEADER = {
   refrain: /^\s*REFRAIN\s*[:：]\s*(.+?)\s*$/im,
 };
 
-export function buildOneShotUserPrompt(brief: StoryBrief): string {
+export function buildOneShotUserPrompt(brief: StoryBrief, options: { visiblePlan?: boolean } = {}): string {
   const lines: string[] = [];
   lines.push("AUFGABE: Erfinde, plane und schreibe ein vollständiges Bilderbuch mit diesen Helden.");
   lines.push("Denk dir zuerst im Kopf drei grundverschiedene Ideen aus (verschiedene Baupläne), nimm die stärkste und plane sie Seite für Seite — wer ist wo, wer hat welches Ding, wie weit ist die Frist. Dann schreib.");
@@ -78,7 +78,41 @@ export function buildOneShotUserPrompt(brief: StoryBrief): string {
   lines.push(...lengthBlock(brief));
   if (brief.blockedTerms.length > 0) lines.push(`- Diese Begriffe dürfen nirgends vorkommen: ${brief.blockedTerms.join(", ")}`);
   lines.push("");
-  lines.push("AUSGABE — zuerst diese vier Kopfzeilen, dann die Geschichte im gewohnten Format:");
+  if (brief.experiment?.pictureBook) {
+    lines.push("BILDERBUCH-FORM (so klingen die besten Bilderbücher):");
+    lines.push("- Jede Seite ist EIN Moment, den man malen kann. Keine Nebenhandlungen, keine Kleinigkeiten, die das Bild ohnehin zeigt. Jede Seite endet so, dass das Umblättern eine Überraschung bringt.");
+    lines.push("- Schreib zum Vorlesen: kurze Sätze mit Rhythmus, Wiederholung mit kleiner Veränderung (erst …, dann …, dann …). Ein Satz, den Kinder beim zweiten Mal mitsprechen.");
+    lines.push("- Mindestens eine Lachkaskade: Eine Lage steigert sich dreimal und kippt beim dritten Mal. Übertreibung, Missgeschicke, Figuren, die sich lächerlich sicher sind.");
+    lines.push("- Herz: Einmal geht es den Helden selbst ans Herz — sie haben Angst, sind traurig oder platzen vor Stolz — und das Kind fühlt mit. Das Ziel ist IHR Ziel, nicht nur das eines anderen.");
+    lines.push("");
+  }
+  // Only these names exist in the story (Sonnet 5.5 invented "Mats" and "Königin Isabella").
+  const allowed = [...brief.heroes.map((hero) => hero.name), ...brief.candidates.map((candidate) => candidate.name)];
+  lines.push(`NAMEN: Nur diese Figuren haben Namen: ${allowed.join(", ")}. Alle anderen bleiben namenlos (die Königin, ein Bär) — höchstens eine solche Randfigur.`);
+  lines.push("");
+  if (options.visiblePlan) {
+    // Models that think little before writing (Sonnet 5.5 on "low") improvised
+    // their endings. A short plan they write themselves, then follow, fixes that
+    // for ~200 tokens; the parser drops it (only SEITE blocks become pages).
+    lines.push("ZUERST DEIN PLAN — sechs kurze Zeilen, dann hältst du dich beim Schreiben genau daran:");
+    lines.push("PLAN-ZIEL: was die Helden wollen und warum es IHNEN wichtig ist");
+    lines.push("PLAN-HINDERNIS: was den einfachen Weg sichtbar versperrt");
+    lines.push("PLAN-SCHLÜSSEL: die Eigenart oder Regel, die die Lösung trägt — und auf welchen Seiten (mindestens zweimal, vor dem Finale) sie gezeigt wird");
+    lines.push("PLAN-LÖSUNG: in einem Satz, den ein Sechsjähriger versteht — nichts darin darf neu sein");
+    lines.push("PLAN-FRIST: die eine Frist und ihre sichtbare Folge");
+    lines.push("PLAN-FIGUREN: alle Figuren der Geschichte (nur erlaubte Namen, höchstens eine namenlose Randfigur)");
+    lines.push("");
+  }
+  if (brief.experiment?.selfCheck) {
+    lines.push("BEVOR DU AUSGIBST: Schreib die Geschichte zuerst im Kopf. Dann lies sie gegen wie die strengste Lektorin — und wie ein sechsjähriges Kind, das sie zum ersten Mal hört:");
+    lines.push("- Ist das, was die Lösung trägt, vorher gezeigt worden (mindestens einmal, besser zweimal)?");
+    lines.push("- Ist jede Figur und jedes Ding immer da, wo es sein muss? Weiß jeder nur, was er wissen kann?");
+    lines.push("- Gibt es auf jeder Seite einen Grund zu lachen oder zu zittern? Wo nicht: nachschärfen.");
+    lines.push("- Klingt jeder Satz beim Vorlesen? Holprige Sätze glätten.");
+    lines.push("Verbessere alles, was nicht stimmt, und gib erst dann die fertige Fassung aus. Die Prüfung selbst schreibst du nicht hin.");
+    lines.push("");
+  }
+  lines.push(`AUSGABE — ${options.visiblePlan ? "nach dem Plan " : "zuerst "}diese vier Kopfzeilen, dann die Geschichte im gewohnten Format:`);
   lines.push("BAUPLAN: <id des Bauplans>");
   lines.push(`BESETZUNG: <ids aus dem Figurenpool, mit Komma getrennt>`);
   lines.push("FUNDSTÜCK: <id oder keins>");
@@ -142,6 +176,22 @@ export function planFromOneShot(raw: string, brief: StoryBrief, parsed: { title:
   };
 }
 
+function buildPolishPrompt(raw: string, notes: string[]): string {
+  return [
+    "Du hast diese Geschichte geschrieben. Lies sie jetzt einmal laut, so wie ein sechsjähriges Kind sie hört. Dann überarbeite sie genau einmal:",
+    "1. Behebe diese Anmerkungen der Lektorin:",
+    ...(notes.length ? notes.map((note) => `   - ${note}`) : ["   - (keine)"]),
+    "2. Mach die lustigen Stellen lustiger: eine Lage, die sich dreimal steigert und beim dritten Mal kippt; Übertreibung; Figuren, die sich lächerlich sicher sind. Kein erklärter Witz.",
+    "3. Schärfe jeden Satz, der beim Vorlesen nicht klingt. Streiche, was die Handlung nicht braucht.",
+    "4. Handlung, Lösung, Figuren, Namen und der Satz zum Mitsprechen bleiben. Keine neuen Figuren.",
+    "",
+    "DEINE GESCHICHTE:",
+    raw,
+    "",
+    "Gib die vollständige überarbeitete Geschichte im selben Format aus: die vier Kopfzeilen, TITEL, BESCHREIBUNG, SEITE 1 …",
+  ].join("\n");
+}
+
 function buildPatchPrompt(title: string, pages: StorybookPage[], notes: string[]): string {
   return [
     "Du bist die Lektorin dieses Bilderbuchs. Die Geschichte stammt von einer sehr guten Autorin — ihre Stimme, ihr Witz und ihre Sätze bleiben.",
@@ -185,10 +235,12 @@ export async function runOneShotEngine(input: {
     role: "writer",
     model: strong,
     system: buildWriterSystemPrompt(brief),
-    user: buildOneShotUserPrompt(brief),
+    user: buildOneShotUserPrompt(brief, { visiblePlan: modelFamily(strong) === "anthropic" }),
     json: false,
-    maxTokens: 30000,
-    effort: "low",
+    // A whole story is ~2.500 tokens (Sol low) to ~5.000 (medium). 30k let
+    // Sonnet 5.5 think itself into a 31 ¢ loop without a single page (2026-09-29).
+    maxTokens: 10000,
+    effort: brief.experiment?.writerEffort || "low",
     timeoutMs: 300_000,
     temperature: 0.9,
   });
@@ -224,7 +276,37 @@ export async function runOneShotEngine(input: {
     ...(review?.languageErrors || []).slice(0, 5).map((error) => `Seite ${error.page}: „${error.quote}“ → ${error.correction}`),
   ];
   let chosen: "draft" | "revision" = "draft";
-  if (notes.length > 0) {
+  if (brief.experiment?.writerPolish) {
+    // The writer reads its own story once and polishes it (humour, sound, notes).
+    try {
+      const polish = await llm({
+        stage: "polish",
+        role: "writer",
+        model: strong,
+        system: buildWriterSystemPrompt(brief),
+        user: buildPolishPrompt(call.text, notes),
+        json: false,
+        maxTokens: 10000,
+        effort: brief.experiment?.writerEffort || "low",
+        timeoutMs: 300_000,
+        temperature: 0.7,
+      });
+      record("polish", "writer", polish);
+      const polished = parseDraft(polish.text, brief.budget.pages, { german });
+      if (polished.pages.length === brief.budget.pages) {
+        const polishedPlan = planFromOneShot(polish.text.includes("BESETZUNG") ? polish.text : call.text, brief, polished);
+        const polishedReport = checkProse({ pages: polished.pages, budget: brief.budget, plan: polishedPlan, brief });
+        if (polishedReport.hard.length <= report.hard.length) {
+          pages = polished.pages;
+          plan = polishedPlan;
+          report = polishedReport;
+          chosen = "revision";
+        }
+      }
+    } catch (err) {
+      console.warn("[storybook] writer polish failed; shipping the first version:", (err as Error)?.message || err);
+    }
+  } else if (notes.length > 0) {
     try {
       const patch = await llm({
         stage: "patch",

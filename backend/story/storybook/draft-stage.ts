@@ -26,6 +26,24 @@ const STYLE_SAMPLE_DE = [
   "Dann sagte er etwas, womit keiner gerechnet hatte.",
 ].join("\n");
 
+/**
+ * Experiment "pictureBook" (2026-09-29): written for this pipeline, not taken
+ * from any book. Shows what the short sample cannot: a cascade that grows three
+ * times and tips, repetition with a twist, a page turn as surprise, a warm beat.
+ */
+const STYLE_SAMPLE_PICTUREBOOK_DE = [
+  "Der Kürbis war rund. Der Kürbis war orange. Und der Kürbis war viel zu schwer.",
+  "„Ich zieh“, sagte Lotta. Sie zog. Der Kürbis blieb liegen.",
+  "„Wir ziehen“, sagte Ben. Sie zogen. Der Kürbis blieb liegen.",
+  "Da kam Herr Brummel über den Zaun. „Lasst mich mal. Ich bin der stärkste Mann im ganzen Dorf.“",
+  "Er zog. Er zog, bis sein Hut davonflog. Er zog, bis seine Hosenträger sangen: Pling! Plong!",
+  "Der Kürbis blieb liegen.",
+  "Da setzte sich eine kleine Maus oben auf den Kürbis.",
+  "(nächste Seite) Und der Kürbis rollte los — mitten in Herrn Brummels Tomaten.",
+  "Lotta hielt Bens Hand. Ganz fest. Denn jetzt drehte sich Herr Brummel um.",
+  "Er sah die Tomaten. Er sah die Maus. Und dann lachte er so laut, dass die Maus vom Kürbis fiel.",
+].join("\n");
+
 function bandNote(band: AgeBand): string {
   if (band === "3-5") return "Deine Zuhörer sind drei bis fünf: alles muss man sofort sehen können, Wiederholung ist ein Geschenk, Angst bleibt klein und geborgen.";
   if (band === "9-12") return "Deine Zuhörer sind neun bis zwölf: sie lieben Tempo, Wortwitz und echte Gefahr — aber keine Erwachsenen-Abstraktionen.";
@@ -57,7 +75,7 @@ export function buildWriterSystemPrompt(brief: StoryBrief): string {
     "BEVOR DU SCHREIBST, prüfe im Kopf Seite für Seite: Wo ist jede Figur? Wer hält welches Ding? Wie weit ist die Frist? Passt der Anfang jeder Seite zum Ende der vorigen?",
   ];
   if (isGerman(brief.config.language)) {
-    lines.push("", "STILPROBE aus einer ganz anderen Geschichte (nur Rhythmus und Ton — keine Figuren, Dinge oder Sätze daraus übernehmen):", STYLE_SAMPLE_DE);
+    lines.push("", "STILPROBE aus einer ganz anderen Geschichte (nur Rhythmus und Ton — keine Figuren, Dinge oder Sätze daraus übernehmen):", brief.experiment?.pictureBook ? STYLE_SAMPLE_PICTUREBOOK_DE : STYLE_SAMPLE_DE);
   }
   lines.push(
     "",

@@ -35,6 +35,14 @@ export interface StorybookExperiment {
   slim?: boolean;
   /** Pool characters may be cast, but need not be. */
   castOptional?: boolean;
+  /** Picture-book form: short pages, read-aloud rhythm, a laugh cascade, a heart moment. */
+  pictureBook?: boolean;
+  /** The writer re-reads its story in its head before answering (same call, no extra step). */
+  selfCheck?: boolean;
+  /** The writer polishes its own story once (instead of the support model's patch). */
+  writerPolish?: boolean;
+  /** Thinking depth of the one-shot writer (default "low"). */
+  writerEffort?: "low" | "medium" | "high";
   /** Thinking depth for concept and plan (default "low"). */
   planEffort?: "low" | "medium" | "high";
   /** Model for concept and plan (default: the support model). */
