@@ -62,7 +62,7 @@ export interface LlmRequest {
 export interface LlmCallResult {
   text: string;
   modelUsed: string;
-  usage: { prompt: number; completion: number; total: number; costUSD: number };
+  usage: { prompt: number; completion: number; total: number; costUSD: number; cachedPromptTokens?: number; cacheWriteTokens?: number; reasoningTokens?: number };
   durationMs: number;
   finishReason?: string;
   /** Set when the port had to switch models to get an answer. */
@@ -154,7 +154,7 @@ export interface StorybookStageLog {
   modelUsed?: string;
   modelRole?: "support" | "selected-story";
   durationMs?: number;
-  usage?: { prompt: number; completion: number; total: number; costUSD?: number };
+  usage?: LlmCallResult["usage"];
   note?: string;
 }
 
@@ -168,10 +168,7 @@ export class CostLedger {
       modelRole: role === "writer" ? "selected-story" : "support",
       durationMs: result.durationMs,
       usage: {
-        prompt: result.usage.prompt,
-        completion: result.usage.completion,
-        total: result.usage.total,
-        costUSD: result.usage.costUSD,
+        ...result.usage,
       },
       note: result.fallbackFrom ? `fallback from ${result.fallbackFrom}` : undefined,
     });

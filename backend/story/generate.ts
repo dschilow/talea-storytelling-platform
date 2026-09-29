@@ -1080,6 +1080,7 @@ export const generate = api<GenerateStoryRequest, Story>(
                 usage: {
                   promptTokens,
                   completionTokens,
+                  cachedPromptTokens: Number(usage.cachedPromptTokens || 0),
                   totalTokens: Number(usage.total || 0),
                   model,
                   ...(reportedCostSplit
@@ -1094,6 +1095,8 @@ export const generate = api<GenerateStoryRequest, Story>(
                 success: true,
                 metadata: {
                   durationMs: stage?.durationMs,
+                  cacheWriteTokens: usage.cacheWriteTokens,
+                  reasoningTokens: usage.reasoningTokens,
                   score: stage?.score,
                   pipeline: generatedStory.metadata?.generationMode
                     || generatedStory.metadata?.devModePipeline

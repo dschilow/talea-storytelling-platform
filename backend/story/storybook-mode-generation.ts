@@ -43,7 +43,8 @@ import { CostLedger, resolveStorybookModels } from "./storybook/llm";
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
 import { runStorybookTextEngine, STORYBOOK_PIPELINE_ID } from "./storybook/engine";
 import { castAppearance, describeReferenceLooks, heroAppearance, runDirectorStage, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
-import { generateStorybookImages, type ImageProvider, type StorybookImagesResult } from "./storybook/images";
+import { generateStorybookImages, publishableImageUrl, type ImageProvider, type StorybookImagesResult } from "./storybook/images";
+import { storybookQuality } from "./storybook/quality";
 import { runDevelopmentStage } from "./storybook/developments";
 import { artifactHeadToken, countWords } from "./storybook/checks";
 import type { StorybookGeneratedStory, StorybookGenerationInput } from "./storybook/types";
@@ -219,6 +220,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       appearance: heroAppearance(hero.visualProfile, ""),
       forbidden: Array.isArray(hero.visualProfile?.forbiddenFeatures) ? hero.visualProfile.forbiddenFeatures.map(String) : [],
       referenceUrl: await readableReference(hero.imageUrl),
+      referenceKey: hero.imageUrl,
     });
   }
   for (const member of castInStory) {
@@ -233,6 +235,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       appearance: castAppearance(member.visualProfile, member.physicalDescription),
       forbidden: [],
       referenceUrl: await readableReference(member.imageUrl),
+      referenceKey: member.imageUrl,
     });
   }
   if (artifactOption && plan.artifact) {
@@ -253,6 +256,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   if (looks.call) ledger.recordCall("reference-looks", looks.call, "support");
   const director = await runDirectorStage(llm, { brief, title: text.title, pages, plan, entities: looks.entities }, models.support);
   if (director.call) ledger.recordCall("illustration-direction", director.call, "support");
+  if (director.repairCall) ledger.recordCall("illustration-plan-repair", director.repairCall, "support");
+  await logStage(input.storyId, "illustration-plan", { illustrations: director.illustrations });
 
   const emptyImages: StorybookImagesResult = { pages: new Map(), imagesGenerated: 0, imageCalls: 0, imageCostUSD: 0, qaCalls: [], regenerated: [] };
   const [images, development] = await Promise.all([
@@ -263,6 +268,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       seed,
       llm,
       visionModel: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : models.support,
+      pageTexts: Object.fromEntries(pages.map((page) => [page.order, page.content])),
+      historical: !["modern", "scifi"].includes(config.genre || "") && ["fantasy", "medieval", "castle"].includes(config.setting || ""),
     }).catch((err): StorybookImagesResult => {
       console.warn("[storybook] image stage failed:", err);
       return emptyImages;
@@ -318,7 +325,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const totals = ledger.totals();
   const wordCount = pages.reduce((sum, page) => sum + countWords(page.content), 0);
   const durationMs = Date.now() - startedAt;
-  const releaseReady = text.finalChecks.hard.length === 0;
+  const quality = storybookQuality(text, images, pages.map((page) => page.order));
+  const { releaseReady } = quality;
   const chapters = pages.map((page) => {
     const image = images.pages.get(page.order);
     return {
@@ -326,9 +334,9 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       title: pageTitle(config.language, page.order),
       content: page.content,
       order: page.order,
-      imageUrl: image?.url,
+      imageUrl: publishableImageUrl(image),
       imagePrompt: image?.prompt,
-      imageModel: image?.url ? IMAGE_MODEL : undefined,
+      imageModel: publishableImageUrl(image) ? IMAGE_MODEL : undefined,
     };
   });
 
@@ -353,6 +361,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     // Bilderbuch stories, 2026-09-28).
     characterPoolUsed: castInStory.map((member) => ({ characterId: member.id, characterName: member.name })),
     quality: {
+      ...quality,
       benchmarkScore: text.benchmarkScore,
       draftScore: text.draftScore,
       scale: "0-10 vs. published top picture books",
@@ -371,6 +380,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       benchmarkScore: text.benchmarkScore,
       draftScore: text.draftScore,
       review: text.review,
+      textQuality: text.textQuality,
       pairwise: text.pairwise,
       castUsed: castInStory.map((member) => ({ id: member.id, name: member.name })),
       artifact: plan.artifact ? { ...plan.artifact, awarded: Boolean(pendingArtifact) } : null,
@@ -381,6 +391,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
         page: outcome.page,
         attempts: outcome.attempts,
         severity: outcome.severity,
+        status: outcome.status,
         referenceLevel: outcome.referenceLevel,
         errors: outcome.errors,
         qa: outcome.qa,
@@ -405,13 +416,16 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     draftScore: text.draftScore,
     chosen: text.chosen,
     releaseReady,
+    quality,
+    textQuality: text.textQuality,
+    imageQa: imageOutcomes.map(({ page, status, severity, attempts, qa }) => ({ page, status, severity, attempts, qa })),
     durationMs,
   });
 
   return {
     title: text.title,
     description: text.description,
-    coverImageUrl: images.cover?.url,
+    coverImageUrl: publishableImageUrl(images.cover),
     displayMode: "reading_pages",
     chapters,
     avatarDevelopments: development.developments,

@@ -15,6 +15,7 @@
  */
 
 import { CANONICAL_NEGATIVE_PACK, COLLAGE_STRIP_NEGATIVES } from "../dev-mode-image-guards";
+import { mentions } from "./checks";
 import type { StoryBrief } from "./context";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import type { IllustrationPlan, IllustrationShot, StoryElement, StoryPlan, StorybookPage } from "./types";
@@ -39,6 +40,8 @@ export interface VisualEntity {
   appearance: string;
   forbidden: string[];
   referenceUrl?: string;
+  /** Stable original asset URL/id, before generating expiring signed URLs. */
+  referenceKey?: string;
 }
 
 function clean(value: unknown, max = 300): string {
@@ -121,14 +124,14 @@ export function castAppearance(visualProfile: any, physicalDescription?: string)
   return description;
 }
 
-export function negativePromptFor(onStage: VisualEntity[], usesSprite: boolean): string {
+export function negativePromptFor(onStage: VisualEntity[], usesSprite: boolean, historical = false): string {
   const base = [
     "text, letters, words, numbers, signage, caption, speech bubble, watermark, logo, artist signature, scribbled handwriting",
     "extra arms, extra hands, three hands, extra fingers, six fingers, fused fingers, missing fingers, deformed hands, extra legs, two heads, duplicated body parts, floating limbs",
     "duplicate character, same character twice, cloned face, unlisted character",
     "photorealistic, 3d render, cgi, harsh horror lighting, gore, blood, weapon pointed at someone",
-    "washing machine, refrigerator, electric lamp, modern appliance, plastic",
   ];
+  if (historical) base.push("washing machine, refrigerator, electric lamp, modern appliance, plastic");
   if (onStage.some((entity) => entity.kind === "character" && entity.isHuman)) {
     base.push("animal ears on a human, cat ears, fox ears, bunny ears, tail on a human, fur on human skin, horns on a human, human-animal hybrid, merged characters, child with an animal body");
   }
@@ -273,6 +276,7 @@ function buildImagePrompt(
   } else {
     lines.push("A scene without people.");
   }
+  if (figureElements.length) lines.push("Each creature keeps its own described anatomy, limbs and covering, with a separate clear silhouette.");
 
   const humans = characters.filter((entity) => entity.isHuman);
   if (humans.length > 0) {
@@ -302,24 +306,28 @@ export function buildDirectorSystemPrompt(): string {
     "You are the art director of an award-winning children's picture book. You turn each page of the finished text into ONE illustration brief.",
     "",
     "Every page picture must be a frozen moment of ACTION from that page — the funniest or most dramatic instant, never a summary:",
+    "- Page 1 establishes the setting and introduces the heroes calmly BEFORE the disruption. Show its opening moment, not a frantic montage of everything on that page.",
+    "- Exactly one instant, one pose per figure. Prefer separated silhouettes and clearly visible hands; avoid tangles of hands, sacks and bodies. Give each important prop ONE owner and a fixed position. Never combine before and after.",
+    "- Repeated places and props keep their layout, material, scale and colour throughout the book (a waterwheel stays a wheel, never a boat).",
     "- Characters DO something physical and react to each other: running, tumbling, pulling, hiding, reaching, ducking, laughing, gasping. Faces and bodies show the emotion.",
     "- Never a lineup, never characters standing side by side looking at the viewer, never posing.",
     "- Choose a camera for each page and vary it from page to page: wide establishing shot, medium action shot, low angle looking up, high angle looking down, over-the-shoulder, close-up on a reaction or an object.",
     "- Show the place concretely: time of day, weather, light, and the props exactly in their CURRENT state on this page (broken, wet, tied up, glowing ...).",
     "- At most 3 FIGURES per picture in total, counting named characters AND figure story elements (a troll, a giant, a goose). If more are in the scene, pick the ones the moment needs and leave the others off-panel. List onStage in order of importance. Use only the ids given.",
-    "- Say exactly WHO does WHAT and where each one is (left / right / foreground / on the ladder …). Never swap roles: if the text says Adrian climbs, Adrian is the one climbing.",
+    "- Say exactly WHO does WHAT and where each one is (left / right / foreground / on the ladder …). Use each visible character's exact name in scene AND its id in onStage. Never mention off-panel people in the scene. Never swap roles: if the text says Adrian climbs, Adrian is the one climbing.",
     "- Unnamed extras (a flock of geese, a crowd) only when the page needs them, fully described.",
     "- Any creature, animal, talking object or special thing that is NOT in the list above and appears on more than one page (also an ordinary goose, dog or broom): define it ONCE in storyElements with a fixed, drawable look (shape, size, colours, how it moves) and list its name in 'elements' on every picture where it appears. It is its own figure: a hat with legs is never worn by anyone, a talking cup is never just a cup on a table. Set figure:true for anything alive (a troll, a giant, a goose). Its look is concrete (species, skin or fur colour, clothes WITH colours) and clearly different from every listed character — never their clothes, hair or colours.",
     "- A coloured mark, line or stripe in the story (a red water mark, a blue ribbon) colours only that small thing — water, sky and ground keep their natural colours.",
     "- Every object fits the story's world: in a fairy-tale or fantasy world everything is old-fashioned (wood, stone, clay, copper, wicker) — no modern appliances, stainless steel, plastic, electric ovens, sinks with taps or cars.",
     // Story fc06c0d1: "the castle laundry" became two front-loading washing
     // machines. The image model draws the word, so name the old things instead.
-    "- Never write a bare room word (laundry, kitchen, bathroom, workshop): describe what stands there in the old way — a laundry is wooden washtubs, a washboard and a wooden mangle with two rollers and a hand crank; a kitchen is a stone hearth with a copper pot; light comes from candles or an oil lamp.",
+    "- In a historical/fairy-tale world describe old furnishings rather than a bare room word: wooden washtubs, washboard, hand-cranked mangle; stone hearth and copper pot. In modern or science-fiction settings honour that world's technology instead.",
     "- Each picture happens exactly at this page's place from the text: an outdoor scene at a stream is never moved into a kitchen.",
     "- Only the listed characters plus extras the page needs. Never extra children in the background — they look like copies of the heroes.",
     "- Features belong to their owner: one character's moustache, crown, hat or cape is never drawn on anyone else.",
     "- No text, letters, labels or speech bubbles in any picture. Books, pages, letters and notes show simple pictures (a painted bear, berries), never writing — a painted scribble reads as nonsense. A sign may carry ONE short word only when the text names it, written in the scene in capitals and quotes (a sign reading \"BEEREN\").",
     "- English only, 45-80 words per scene. Describe only what the eye sees.",
+    "- For a difficult shot (3 figures or overlapping limbs/props), also provide simpleScene: the SAME instant, actors and place in a simpler separated composition, at most 35 words. Otherwise omit it. focus is 'detail' ONLY for a deliberate close-up without any character.",
     "- The cover shows the heroes in an inviting, dynamic moment with the story's central element, with calm sky or background at the top (for the title, which is added later — do not draw it).",
     "",
     "Answer with a valid JSON object only.",
@@ -332,20 +340,22 @@ export function buildDirectorUserPrompt(input: {
   plan: StoryPlan;
   entities: VisualEntity[];
   maxPerImage: number;
+  world?: string;
 }): string {
   const lines: string[] = [];
   lines.push(`BOOK: ${input.title}`);
+  if (input.world) lines.push(`WORLD REQUESTED BY FAMILY: ${input.world}`);
   lines.push("");
   lines.push("CHARACTERS AND OBJECTS YOU MAY DRAW (use the ids):");
-  for (const entity of input.entities) {
-    lines.push(`- id ${entity.id}: ${entity.name} — ${entity.kind === "artifact" ? "magic object" : entity.species}; looks: ${entity.appearance || "see reference"}`);
+  for (const [index, entity] of input.entities.entries()) {
+    lines.push(`- id e${index + 1}: ${entity.name} — ${entity.kind === "artifact" ? "magic object" : entity.species}; looks: ${entity.appearance || "see reference"}`);
   }
   lines.push("");
   lines.push("PAGES (final text; the planner's suggested picture in brackets):");
   for (const page of input.pages) {
     const planned = input.plan.pages.find((entry) => entry.page === page.order);
     lines.push(`PAGE ${page.order}${planned?.place ? ` — place: ${planned.place}` : ""}`);
-    lines.push(page.content.replace(/\s+/g, " ").slice(0, 1400));
+    lines.push(page.content.replace(/\s+/g, " "));
     if (planned?.picture) lines.push(`[suggested picture: ${planned.picture}]`);
     lines.push("");
   }
@@ -355,8 +365,8 @@ export function buildDirectorUserPrompt(input: {
     JSON.stringify(
       {
         storyElements: [{ name: "name of a recurring figure or thing, or leave the list empty", look: "fixed English look", figure: true }],
-        cover: { scene: "…", onStage: ["id"], artifactVisible: false, elements: [] },
-        pages: input.pages.map((page) => ({ page: page.order, scene: "…", onStage: ["id"], artifactVisible: false, elements: [] })),
+        cover: { scene: "…", onStage: ["e1"], artifactVisible: false, elements: [] },
+        pages: input.pages.map((page) => ({ page: page.order, scene: "…", onStage: ["e1"], artifactVisible: false, elements: [], focus: "scene" })),
       },
       null,
       1
@@ -375,19 +385,30 @@ function sanitizeElements(raw: unknown): StoryElement[] {
 function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerImage: number, elementNames: Set<string> = new Set(), figureNames: Set<string> = new Set()): IllustrationShot | null {
   const scene = clean(raw?.scene, 900);
   if (!scene) return null;
-  const characterIds = new Set(entities.filter((entity) => entity.kind === "character").map((entity) => entity.id));
-  const onStage = (Array.isArray(raw?.onStage) ? raw.onStage : [])
-    .map((id: unknown) => String(id ?? "").trim())
-    .filter((id: string) => characterIds.has(id))
-    .filter((id: string, index: number, all: string[]) => all.indexOf(id) === index)
-    .slice(0, maxPerImage);
-  const elements = (Array.isArray(raw?.elements) ? raw.elements : [])
+  const characters = entities.filter((entity) => entity.kind === "character");
+  const errors: string[] = [];
+  const resolve = (value: unknown): string | undefined => {
+    const key = String(value ?? "").trim();
+    const entity = characters.find((entry) => entry.id === key) || entities.find((entry, index) => `e${index + 1}` === key.toLowerCase() && entry.kind === "character") || characters.find((entry) => entry.name.toLocaleLowerCase() === key.toLocaleLowerCase());
+    if (!entity) errors.push(`Unknown character id: ${key}`);
+    return entity?.id;
+  };
+  const onStage = [...new Set<string>((Array.isArray(raw?.onStage) ? raw.onStage : []).map(resolve).filter((id: unknown): id is string => typeof id === "string"))];
+  // Recover an omitted manifest entry from an unambiguous exact name in the scene.
+  for (const entity of characters) if (mentions(scene, entity.name) && !onStage.includes(entity.id)) {
+    const ambiguous = characters.some((other) => other.id !== entity.id && mentions(other.name, entity.name));
+    if (!ambiguous) onStage.push(entity.id);
+  }
+  const elements = [...new Set<string>((Array.isArray(raw?.elements) ? raw.elements : [])
     .map((name: unknown) => clean(name, 60))
-    .filter((name: string) => elementNames.has(name));
-  // The figure limit is the director's job: dropping ids here left figures in
-  // the scene text without a reference (story 31a7a59d), which is worse.
-  void figureNames;
-  return { page, scene, onStage, artifactVisible: Boolean(raw?.artifactVisible) && entities.some((entity) => entity.kind === "artifact"), elements };
+    .filter((name: string) => elementNames.has(name)))];
+  for (const name of elementNames) if (mentions(scene, name) && !elements.includes(name)) elements.push(name);
+  if (onStage.length + elements.filter((name) => figureNames.has(name)).length > maxPerImage) errors.push(`Composition exceeds ${maxPerImage} figures; recompose instead of dropping identities.`);
+  if (!onStage.length && !elements.some((name) => figureNames.has(name)) && raw?.focus !== "detail") errors.push("Empty character manifest; explicitly choose a detail shot or identify the visible figures.");
+  return { page, scene, onStage, artifactVisible: Boolean(raw?.artifactVisible) && entities.some((entity) => entity.kind === "artifact"), elements,
+    focus: raw?.focus === "detail" ? "detail" : "scene", simpleScene: clean(raw?.simpleScene, 420) || undefined,
+    ...(errors.length ? { planningErrors: errors } : {}),
+  };
 }
 
 /** Deterministic shot when the director call fails: the planner's picture, the planner's cast. */
@@ -395,7 +416,7 @@ export function fallbackShot(page: number, plan: StoryPlan, entities: VisualEnti
   const characterIds = new Set(entities.filter((entity) => entity.kind === "character").map((entity) => entity.id));
   if (page === 0) {
     const heroes = plan.heroes.map((hero) => hero.id).filter((id) => characterIds.has(id)).slice(0, maxPerImage);
-    return { page: 0, scene: `${plan.heroes.map((hero) => hero.name).join(" and ")} in an exciting moment of the story "${plan.title}": ${plan.pages[0]?.picture || plan.logline}`, onStage: heroes, artifactVisible: false };
+    return { page: 0, scene: `${plan.heroes.map((hero) => hero.name).join(" and ")} in an exciting moment of the story "${plan.title}": ${plan.pages[0]?.picture || plan.logline}`, onStage: heroes, artifactVisible: false, planningErrors: ["Missing director cover; compose from the final manuscript."] };
   }
   const planned = plan.pages.find((entry) => entry.page === page);
   return {
@@ -403,6 +424,7 @@ export function fallbackShot(page: number, plan: StoryPlan, entities: VisualEnti
     scene: planned?.picture || planned?.action || plan.logline,
     onStage: (planned?.onPage || []).filter((id) => characterIds.has(id)).slice(0, maxPerImage),
     artifactVisible: false,
+    planningErrors: ["Missing director page; compose from the final manuscript."],
   };
 }
 
@@ -413,7 +435,10 @@ export function sanitizeIllustrationPlan(raw: any, pageCount: number, plan: Stor
   const drafted = sanitizeShot(raw?.cover, 0, entities, maxPerImage, elementNames, figureNames) || fallbackShot(0, plan, entities, maxPerImage);
   // The cover always shows every hero (story 2db50859: Adrian was left off).
   const heroIds = entities.filter((entity) => entity.role === "hero").map((entity) => entity.id);
-  const cover = { ...drafted, onStage: [...heroIds, ...drafted.onStage.filter((id) => !heroIds.includes(id))].slice(0, Math.max(maxPerImage, heroIds.length)) };
+  const cover = { ...drafted, onStage: [...heroIds, ...drafted.onStage.filter((id) => !heroIds.includes(id))] };
+  if (cover.onStage.length + (cover.elements || []).filter((name) => figureNames.has(name)).length > Math.max(maxPerImage, heroIds.length)) {
+    cover.planningErrors = [...(cover.planningErrors || []), "Cover must keep every hero and simplify the other figures."];
+  }
   const byPage = new Map<number, any>();
   for (const entry of Array.isArray(raw?.pages) ? raw.pages : []) {
     const page = Math.round(Number(entry?.page));
@@ -432,6 +457,9 @@ export function sanitizeIllustrationPlan(raw: any, pageCount: number, plan: Stor
  * story 2db50859 drew Magd Elsa blonde on the cover and brunette on page 3.
  * One cheap vision call reads the fixed look off the reference portraits.
  */
+const referenceLookCache = new Map<string, { look: string; expires: number }>();
+const REFERENCE_LOOK_TTL = 24 * 60 * 60 * 1000;
+
 export async function describeReferenceLooks(
   llm: StorybookLlm,
   entities: VisualEntity[],
@@ -439,8 +467,15 @@ export async function describeReferenceLooks(
 ): Promise<{ entities: VisualEntity[]; call?: LlmCallResult }> {
   // Heroes too: story 5b1b8b7a gave Alexander four different shirts in seven
   // pictures — the avatar profile had no outfit, the sheet alone did not hold it.
-  const targets = entities.filter((entity) => entity.kind === "character" && entity.referenceUrl);
-  if (targets.length === 0) return { entities };
+  const keyFor = (entity: VisualEntity) => JSON.stringify(["look-v2", model, entity.id, entity.referenceKey || entity.referenceUrl, entity.species, entity.appearance]);
+  const now = Date.now();
+  for (const [key, value] of referenceLookCache) if (value.expires <= now) referenceLookCache.delete(key);
+  const withCachedLooks = entities.map((entity) => {
+    const cached = referenceLookCache.get(keyFor(entity));
+    return cached ? { ...entity, appearance: cached.look } : entity;
+  });
+  const targets = entities.filter((entity) => entity.kind === "character" && entity.referenceUrl && !referenceLookCache.has(keyFor(entity)));
+  if (targets.length === 0) return { entities: withCachedLooks };
   try {
     const call = await llm({
       stage: "reference-looks",
@@ -448,11 +483,11 @@ export async function describeReferenceLooks(
       model,
       system: "You describe character reference portraits for an illustrator. Answer with JSON only.",
       user: [
-        ...targets.map((entity, index) => `Attachment ${index + 1} shows ${entity.name} (${entity.species}).`),
+        ...targets.map((entity, index) => `Attachment ${index + 1} shows e${index + 1}: ${entity.name} (${entity.species}).`),
         // Distinctive item first, so no budget cut can drop it (A/B 2026-09-29:
         // variant H — fewest defects in both stories).
         "For each character write ONE English line, at most 25 words, of what stays the same in every picture. Start with the most distinctive thing (a pointed witch hat, wings, a crown, a shell, a star-patterned jacket), then apparent age, skin tone, hair colour and style (or fur/feather colours), the main clothing pieces with colours. Only what is visible, no mood, no background.",
-        JSON.stringify({ looks: Object.fromEntries(targets.map((entity) => [entity.name, "…"])) }),
+        JSON.stringify({ looks: Object.fromEntries(targets.map((entity, index) => [`e${index + 1}`, "…"])) }),
       ].join("\n"),
       json: true,
       maxTokens: 2000,
@@ -461,10 +496,16 @@ export async function describeReferenceLooks(
       timeoutMs: 60_000,
     });
     const looks = parseJsonObject<any>(call.text)?.looks || {};
+    for (const [index, entity] of targets.entries()) {
+      const look = clean(looks[`e${index + 1}`] || looks[entity.name], 220);
+      if (look.length < 15 || look === "…") continue;
+      referenceLookCache.set(keyFor(entity), { look, expires: now + REFERENCE_LOOK_TTL });
+      while (referenceLookCache.size > 512) referenceLookCache.delete(referenceLookCache.keys().next().value!);
+    }
     return {
       call,
       entities: entities.map((entity) => {
-        const look = targets.includes(entity) ? clean(looks[entity.name], 220) : "";
+        const look = referenceLookCache.get(keyFor(entity))?.look;
         // The look read off the portrait replaces the pool prompt (story 31a7a59d
         // carried both: 300 characters of duplicates per figure).
         return look && look !== "…" ? { ...entity, appearance: look } : entity;
@@ -472,13 +513,14 @@ export async function describeReferenceLooks(
     };
   } catch (err) {
     console.warn("[storybook/illustration] reference looks failed:", (err as Error)?.message || err);
-    return { entities };
+    return { entities: withCachedLooks };
   }
 }
 
 export interface DirectorStageResult {
   illustrations: IllustrationPlan;
   call?: LlmCallResult;
+  repairCall?: LlmCallResult;
 }
 
 export async function runDirectorStage(
@@ -487,21 +529,54 @@ export async function runDirectorStage(
   model: string
 ): Promise<DirectorStageResult> {
   const maxPerImage = input.brief.budget.maxCharactersPerImage;
+  const result: DirectorStageResult = { illustrations: sanitizeIllustrationPlan(null, input.pages.length, input.plan, input.entities, maxPerImage) };
   try {
     const call = await llm({
       stage: "illustration-direction",
       role: "support",
       model,
       system: buildDirectorSystemPrompt(),
-      user: buildDirectorUserPrompt({ ...input, maxPerImage }),
+      user: buildDirectorUserPrompt({ ...input, maxPerImage, world: `${input.brief.config.genre || ""}; ${input.brief.config.setting || ""}` }),
       json: true,
-      maxTokens: 10000,
+      maxTokens: 1500 + input.pages.length * 500,
       effort: "low",
       temperature: 0.6,
     });
-    return { illustrations: sanitizeIllustrationPlan(parseJsonObject<any>(call.text), input.pages.length, input.plan, input.entities, maxPerImage), call };
+    result.call = call;
+    result.illustrations = sanitizeIllustrationPlan(parseJsonObject<any>(call.text), input.pages.length, input.plan, input.entities, maxPerImage);
   } catch (err) {
     console.warn("[storybook/illustration] director failed, using planner pictures:", (err as Error)?.message || err);
-    return { illustrations: sanitizeIllustrationPlan(null, input.pages.length, input.plan, input.entities, maxPerImage) };
   }
+  const invalid = [result.illustrations.cover, ...result.illustrations.pages].filter((shot) => shot.planningErrors?.length);
+  if (!invalid.length) return result;
+  try {
+    // One batch repair before images: cheaper than repeatedly rendering an invalid cast.
+    const repair = await llm({
+      stage: "illustration-plan-repair", role: "support", model, json: true, effort: "low",
+      maxTokens: 1000 + invalid.length * 500,
+      system: buildDirectorSystemPrompt(),
+      user: [
+        buildDirectorUserPrompt({ ...input, pages: input.pages.filter((page) => invalid.some((shot) => shot.page === page.order || shot.page === 0 && page.order === 1)), maxPerImage, world: `${input.brief.config.genre || ""}; ${input.brief.config.setting || ""}` }),
+        `Keep these fixed story elements: ${JSON.stringify(result.illustrations.storyElements || [])}`,
+        `Repair ONLY these shots. Retain the story action but simplify crowded scenes. Every visible named figure must have its id, every visible recurring element its name. Cover keeps all heroes.\n${JSON.stringify(invalid)}`,
+      ].join("\n"),
+    });
+    result.repairCall = repair;
+    const raw = parseJsonObject<any>(repair.text);
+    if (raw) {
+      const candidate = sanitizeIllustrationPlan({
+        ...raw,
+        storyElements: result.illustrations.storyElements?.length ? result.illustrations.storyElements : raw.storyElements,
+      }, input.pages.length, input.plan, input.entities, maxPerImage);
+      if (invalid.some((shot) => shot.page === 0) && !candidate.cover.planningErrors?.length) result.illustrations.cover = candidate.cover;
+      result.illustrations.pages = result.illustrations.pages.map((shot) => {
+        const fixed = candidate.pages.find((page) => page.page === shot.page);
+        return shot.planningErrors?.length && fixed && !fixed.planningErrors?.length ? fixed : shot;
+      });
+      result.illustrations.storyElements = candidate.storyElements;
+    }
+  } catch (err) {
+    console.warn("[storybook/illustration] shot repair unavailable:", (err as Error)?.message || err);
+  }
+  return result;
 }

@@ -45,6 +45,7 @@ export interface TextEngineResult {
   draftScore: number | null;
   planRepaired: boolean;
   draftRetried: boolean;
+  textQuality?: { status: "passed" | "failed" | "unverified"; issues: string[] };
 }
 
 const STRUCTURAL = new Set(["wrong_page_count", "too_short", "serialization_artifact"]);

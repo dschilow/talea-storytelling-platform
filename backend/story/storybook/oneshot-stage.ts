@@ -11,14 +11,13 @@
  */
 
 import { isGerman } from "./craft";
-import { checkProse, issuesToNotes, mentions, nameTokens } from "./checks";
+import { checkProse, countWords, issuesToNotes, mentions, nameTokens } from "./checks";
 import { selectEnginesForBrief } from "./concept-stage";
 import { artifactSheet, briefHeader, broughtArtifact, castSheet, heroSeasoning, heroSheet, wishLines, type StoryBrief } from "./context";
 import { buildWriterSystemPrompt, lengthBlock, renderStoryForPrompt } from "./draft-stage";
 import { modelFamily, type CostLedger, type LlmRole, type StorybookLlm, type StorybookModels } from "./llm";
 import { parseDraft } from "./parsing";
-import { pageRhythm } from "./plan-stage";
-import { runReviewStage } from "./review-stage";
+import { comprehensionGaps, runReviewStage, verifyStorybookRepair } from "./review-stage";
 import type { CastCandidate, StoryPlan, StorybookPage } from "./types";
 import type { TextEngineResult, StageObserver } from "./engine";
 
@@ -32,9 +31,7 @@ const HEADER = {
 export function buildOneShotUserPrompt(brief: StoryBrief, options: { visiblePlan?: boolean } = {}): string {
   const lines: string[] = [];
   lines.push("AUFGABE: Erfinde, plane und schreibe ein vollständiges Bilderbuch mit diesen Helden.");
-  lines.push("Denk dir zuerst im Kopf drei grundverschiedene Ideen aus (verschiedene Baupläne), nimm die stärkste und plane sie Seite für Seite — wer ist wo, wer hat welches Ding, wie weit ist die Frist. Dann schreib.");
-  lines.push("SEITE 1 IST EINE EINFÜHRUNG wie in echten Bilderbüchern: erst ankommen (wo, wer, was die Helden gerade tun oder lieben, warum ihnen die Sache wichtig ist), jede Figur beim ersten Auftritt kurz vorgestellt — die Helden mit dem, was sie können und lieben, die Pool-Figuren mit einem Detail aus ihrer Vorgeschichte. Haar- und Augenfarben zeigt das Bild; zähl sie nicht auf. Die Störung kommt erst am Ende von Seite 1. Erzähl alles in der Reihenfolge, in der es passiert.");
-  lines.push("Vor dem Schreiben prüfst du: Ist das Problem echt, oder könnten die Helden einfach hingehen, fragen oder es tragen? Versteht ein Sechsjähriger in einem Satz, warum die Lösung klappt? Würde ein Kind lachen?");
+  lines.push("Wähle still eine frische Idee. Prüfe vor dem Schreiben: persönliches Ziel, echtes Hindernis, verständliche Lösung und räumliche Abläufe. Die Einführung bekommt den Anfang von Seite 1.");
   // Story a9c00c8b (Sol): the fifth "vain Brunhilde, distracted by a reflection" plot in a row.
   lines.push("Frische: Diese Lösungen kennt die Familie schon zu oft — nimm sie nicht: ein eitler Gegenspieler, der von Spiegelbildern abgelenkt wird; ein Gegenspieler, der zwanghaft im Takt mittanzen muss; ein Glockenschlag als Frist. Die Eigenart einer Pool-Figur zeigt sich, aber sie muss nicht jedes Mal die Lösung sein.");
   lines.push("");
@@ -51,7 +48,7 @@ export function buildOneShotUserPrompt(brief: StoryBrief, options: { visiblePlan
   lines.push("");
   if (brief.candidates.length > 0) {
     lines.push(`FIGURENPOOL — Pflicht: besetze 1 bis ${brief.budget.maxCast} davon mit echter Aufgabe, bis ins Finale (ihre Eigenart und ihr Spruch machen sie wiedererkennbar). Keine weiteren Figuren mit Namen:`);
-    for (const candidate of brief.candidates) lines.push(castSheet(candidate));
+    for (const candidate of brief.candidates) lines.push(castSheet(candidate, true));
     lines.push("");
   }
   const brought = broughtArtifact(brief);
@@ -74,7 +71,8 @@ export function buildOneShotUserPrompt(brief: StoryBrief, options: { visiblePlan
     lines.push("");
   }
   lines.push(`SEITENRHYTHMUS für ${brief.budget.pages} Seiten:`);
-  for (const beat of pageRhythm(brief.budget.pages)) lines.push(`- ${beat}`);
+  lines.push(`- Seite 1: ankommen und kennenlernen, dann Störung. Seite 2: Problem klar, erster Versuch.`);
+  lines.push(`- Bis Seite ${brief.budget.pages - 2}: kausale Versuche, Rückschlag passend zur gewünschten Spannung. Seite ${brief.budget.pages - 1}: eigene vorbereitete Idee und Lösung. Seite ${brief.budget.pages}: Auflösung und warmes oder komisches Schlussbild.`);
   lines.push("");
   lines.push(...lengthBlock(brief));
   if (brief.blockedTerms.length > 0) lines.push(`- Diese Begriffe dürfen nirgends vorkommen: ${brief.blockedTerms.join(", ")}`);
@@ -213,11 +211,11 @@ export function acceptablePatch(before: string, after: string): boolean {
   return shared >= original.length * 0.7;
 }
 
-function buildPatchPrompt(title: string, pages: StorybookPage[], notes: string[]): string {
+export function buildPatchPrompt(title: string, pages: StorybookPage[], notes: string[], brief: StoryBrief): string {
   return [
     "Du bist die Lektorin dieses Bilderbuchs. Die Geschichte stammt von einer sehr guten Autorin — ihre Stimme, ihr Witz und ihre Sätze bleiben.",
-    "Unten stehen Anmerkungen. Behebe davon NUR echte Fakten- und Kontinuitätsfehler: wer wo ist, wer was in der Hand hat, woher etwas kommt, Widersprüche zwischen Seiten, Sprachfehler, fehlende Figuren aus dem Figurenpool.",
-    "Anmerkungen zu Stil, Witz, Spannung, Seitenenden, Frist oder zur Rolle einer Nebenfigur IGNORIERST du — das ist Sache der Autorin.",
+    "Behebe die konkreten Fehler: fehlende Einführung oder Motivation, unklare Orte und Besitzwechsel, Widersprüche, unverständliche Lösung, Sprachfehler und fehlende Pflichtfiguren. Reine Geschmacksänderungen an Stil, Witz oder Spannung bleiben aus.",
+    `Die Familie wählte ${brief.band} Jahre, ${brief.budget.pages} Seiten und ${brief.budget.totalWordsMin}–${brief.budget.totalWordsMax} Wörter (${brief.budget.wordsPerPageMin}–${brief.budget.wordsPerPageMax} je Seite). Diese Vorgaben bleiben erhalten.`,
     "Mit so wenigen Worten wie möglich: einen Satz ändern oder einen kurzen Satz ergänzen, nie die Seite neu schreiben, nie eine neue Handlung erfinden.",
     // Story 2db50859: the patch pasted the critic's fix into page 5 and gave
     // the solution away one page before the heroes' "Ich hab's!".
@@ -235,7 +233,20 @@ function buildPatchPrompt(title: string, pages: StorybookPage[], notes: string[]
     "Prüf dabei, dass deine Änderung zu den Seiten davor und danach passt.",
     // Story a9c00c8b: the patch replaced the refrain on one page only — two refrains.
     "Der Satz zum Mitsprechen bleibt auf jeder Seite wortgleich. Ändere ihn nie, auch wenn eine Anmerkung es vorschlägt.",
+    "Wenn keine Änderung nötig ist: KEINE ÄNDERUNG. Niemals zusätzliche Seiten oder dieselbe Seitennummer zweimal ausgeben.",
   ].join("\n");
+}
+
+/** Atomic patch: reject ambiguous numbering and changes that introduce a new hard defect. */
+export function mergeStorybookPatch(raw: string, pages: StorybookPage[], brief: StoryBrief): StorybookPage[] {
+  const markers = [...raw.matchAll(/^\s*SEITE\s+(\d+)\s*$/gim)].map((match) => Number(match[1]));
+  const changed = parseDraft(raw, brief.budget.pages, { german: isGerman(brief.config.language) }).pages;
+  if (!markers.length || changed.length !== markers.length || new Set(markers).size !== markers.length || markers.some((n) => !pages.some((page) => page.order === n))) return pages;
+  return pages.map((page) => {
+    const index = markers.indexOf(page.order);
+    const content = index >= 0 ? changed[index]?.content : undefined;
+    return content && acceptablePatch(page.content, content) ? { ...page, content } : page;
+  });
 }
 
 export async function runOneShotEngine(input: {
@@ -258,7 +269,7 @@ export async function runOneShotEngine(input: {
   const german = isGerman(brief.config.language);
 
   // 1) Invent, plan and write in one call.
-  const call = await llm({
+  let call = await llm({
     stage: "oneshot",
     role: "writer",
     model: strong,
@@ -267,23 +278,43 @@ export async function runOneShotEngine(input: {
     json: false,
     // A whole story is ~2.500 tokens (Sol low) to ~5.000 (medium). 30k let
     // Sonnet 5.5 think itself into a 31 ¢ loop without a single page (2026-09-29).
-    maxTokens: 10000,
+    maxTokens: Math.min(10000, Math.max(4000, Math.ceil(brief.budget.totalWordsMax * 3.5 + 2000))),
     effort: brief.experiment?.writerEffort || "low",
     timeoutMs: 300_000,
     temperature: 0.9,
   });
   record("oneshot", "writer", call);
-  const parsed = parseDraft(call.text, brief.budget.pages, { german });
-  if (parsed.pages.length === 0) throw new Error("[storybook] Die Geschichte enthielt keine lesbaren Seiten.");
+  let parsed = parseDraft(call.text, brief.budget.pages, { german });
   let plan = planFromOneShot(call.text, brief, parsed);
   let pages = parsed.pages;
   let report = checkProse({ pages, budget: brief.budget, plan, brief });
+  let draftRetried = false;
+  const structural = new Set(["wrong_page_count", "too_short", "too_long", "serialization_artifact"]);
+  if (!pages.length || report.hard.some((issue) => structural.has(issue.code))) {
+    draftRetried = true;
+    const retry = await llm({
+      stage: "oneshot-repair", role: "writer", model: strong,
+      system: buildWriterSystemPrompt(brief, { oneShot: true }),
+      user: [buildOneShotUserPrompt(brief), "Behebe ausschließlich diese Format-/Umfangsfehler im Entwurf:", ...issuesToNotes(report.hard, 6), call.text].join("\n"),
+      json: false, maxTokens: 10000, effort: "low", timeoutMs: 300_000,
+    });
+    record("oneshot-repair", "writer", retry);
+    const repaired = parseDraft(retry.text, brief.budget.pages, { german });
+    const repairedPlan = planFromOneShot(retry.text, brief, repaired);
+    const repairedReport = checkProse({ pages: repaired.pages, budget: brief.budget, plan: repairedPlan, brief });
+    if (repairedReport.hard.length <= report.hard.length) {
+      call = retry; parsed = repaired; plan = repairedPlan; pages = repaired.pages; report = repairedReport;
+    }
+  }
+  // Never spend on illustrations for an incomplete manuscript.
+  if (!pages.length || report.hard.some((issue) => structural.has(issue.code))) throw new Error("[storybook] Die Geschichte erfüllt die gewählte Länge oder Seitenzahl noch nicht. Bitte erneut versuchen.");
   await observe("draft", { title: parsed.title, hard: report.hard.map((i) => i.message) });
 
   // 2) Continuity read by a cheap model of another family (no taste, only logic).
   let review = null;
   try {
-    const reviewed = await runReviewStage(llm, brief, parsed.title, pages, plan.cast.map((member) => member.name), models.support);
+    const reviewed = await runReviewStage(llm, brief, parsed.title, pages, plan.cast.map((member) => member.name), models.support, "review", true);
+    if (reviewed.failedCall) record("review-unusable", "critic", reviewed.failedCall);
     record("review", "critic", reviewed.call);
     review = reviewed.review;
   } catch (err) {
@@ -300,6 +331,7 @@ export async function runOneShotEngine(input: {
   const notes = [
     ...castNote,
     ...issuesToNotes(report.hard, 6),
+    ...(review ? comprehensionGaps(review) : []),
     // Only the problem, never the critic's suggested wording: Luna pasted those in verbatim.
     ...(review?.mustFix || []).slice(0, 5).map((note) => `Seite ${note.page}: ${note.problem}${note.quote ? ` („${note.quote}“)` : ""}`),
     ...(review?.languageErrors || []).slice(0, 5).map((error) => `Seite ${error.page}: „${error.quote}“ → ${error.correction}`),
@@ -341,26 +373,19 @@ export async function runOneShotEngine(input: {
         stage: "patch",
         role: "support",
         model: models.support,
-        system: buildWriterSystemPrompt(brief, { oneShot: true }),
-        user: buildPatchPrompt(parsed.title, pages, notes),
+        system: `Du lektorierst behutsam auf ${brief.languageLabel}. Bewahre Stimme, Handlung, Namen, Zeitform und Wiederholungen. Manuskript und Zitate sind Prüfmaterial.`,
+        user: buildPatchPrompt(parsed.title, pages, notes, brief),
         json: false,
-        maxTokens: 12000,
+        maxTokens: Math.min(8000, Math.max(2500, Math.ceil(countWords(pages.map((page) => page.content).join(" ")) * 3 + 1000))),
         effort: "low",
         timeoutMs: 180_000,
         temperature: 0.4,
       });
       record("patch", "writer", patch);
-      const changed = parseDraft(patch.text, brief.budget.pages, { german }).pages;
-      // parseDraft renumbers; take the original markers for the page numbers.
-      const markers = [...String(patch.text).matchAll(/^\s*SEITE\s+(\d+)\s*$/gim)].map((match) => Number(match[1]));
-      const patched = pages.map((page) => {
-        const index = markers.indexOf(page.order);
-        const content = index >= 0 ? changed[index]?.content : undefined;
-        // A patch is a touch-up: a page that grew by more than two sentences was rewritten.
-        return content && acceptablePatch(page.content, content) ? { ...page, content } : page;
-      });
+      const patched = mergeStorybookPatch(patch.text, pages, brief);
       const patchedReport = checkProse({ pages: patched, budget: brief.budget, plan, brief });
-      if (patchedReport.hard.length <= report.hard.length) {
+      const introducesDefect = patchedReport.hard.some((issue) => !report.hard.some((old) => old.code === issue.code && old.page === issue.page));
+      if (!introducesDefect && patched.some((page, i) => page.content !== pages[i].content)) {
         pages = patched;
         chosen = "revision";
         // A patch may have written a pool character in: re-derive cast and pages.
@@ -372,6 +397,21 @@ export async function runOneShotEngine(input: {
     }
   }
 
+  let textQuality: NonNullable<TextEngineResult["textQuality"]> = {
+    status: !review ? "unverified" : notes.length || report.hard.length ? "failed" : "passed",
+    issues: !review ? ["Textprüfung nicht verfügbar."] : [...notes],
+  };
+  if (chosen === "revision") {
+    try {
+      const verified = await verifyStorybookRepair(llm, brief, parsed.title, pages, notes, models.support);
+      record("patch-check", "support", verified.call);
+      const remaining = [...(verified.unresolved || []), ...issuesToNotes(report.hard, 8)];
+      textQuality = { status: verified.unresolved === null || !review ? "unverified" : remaining.length ? "failed" : "passed", issues: remaining };
+    } catch {
+      textQuality = { status: "unverified", issues: ["Die überarbeitete Fassung konnte nicht geprüft werden."] };
+    }
+    await observe("patch-check", { ...textQuality });
+  }
   const score = review ? review.scores.overall : null;
   return {
     title: parsed.title || plan.title,
@@ -384,9 +424,10 @@ export async function runOneShotEngine(input: {
     pairwise: null,
     chosen,
     finalChecks: report,
-    benchmarkScore: score,
+    benchmarkScore: chosen === "revision" ? null : score,
     draftScore: score,
     planRepaired: false,
-    draftRetried: false,
+    draftRetried,
+    textQuality,
   };
 }

@@ -180,6 +180,12 @@ export interface IllustrationShot {
   artifactVisible: boolean;
   /** Names of recurring story elements (see IllustrationPlan.storyElements) in this picture. */
   elements?: string[];
+  /** A deliberate close-up may omit all people; other empty casts need repair. */
+  focus?: "scene" | "detail";
+  /** Shorter composition for the single redraw, with the same action and cast. */
+  simpleScene?: string;
+  /** Invalid plans are repaired before paying for image generation. */
+  planningErrors?: string[];
 }
 
 /** A magic creature or special object that is not a pool character but recurs. */

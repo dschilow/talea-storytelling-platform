@@ -64,6 +64,9 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
       completion: completionTokens,
       total: Number(data?.usage?.total_tokens) || promptTokens + completionTokens,
       costUSD: reported ?? estimateCost(model, promptTokens, completionTokens),
+      cachedPromptTokens: Number(data?.usage?.prompt_tokens_details?.cached_tokens) || 0,
+      cacheWriteTokens: Number(data?.usage?.prompt_tokens_details?.cache_write_tokens) || 0,
+      reasoningTokens: Number(data?.usage?.completion_tokens_details?.reasoning_tokens) || 0,
     },
     durationMs: Date.now() - started,
     finishReason,
@@ -94,8 +97,13 @@ export function createOpenRouterStorybookLlm(options: OpenRouterPortOptions = {}
       options.onFailedAttempt?.(request, (err as any)?.billed, err);
       const retry = retryRequestFor(request, err);
       console.warn(`[storybook/llm] ${request.stage}: ${request.model} failed, retrying once with ${retry.model} (effort ${retry.request.effort || "default"}):`, (err as Error)?.message || err);
-      const retried = await callOnce(retry.request, retry.model);
-      return retry.model === request.model ? retried : { ...retried, fallbackFrom: request.model };
+      try {
+        const retried = await callOnce(retry.request, retry.model);
+        return retry.model === request.model ? retried : { ...retried, fallbackFrom: request.model };
+      } catch (retryError) {
+        options.onFailedAttempt?.({ ...retry.request, model: retry.model }, (retryError as any)?.billed, retryError);
+        throw retryError;
+      }
     }
   };
 }

@@ -159,12 +159,12 @@ export function heroSeasoning(hero: StorybookHero): string {
   return bits.join("; ");
 }
 
-export function castSheet(candidate: CastCandidate): string {
+export function castSheet(candidate: CastCandidate, compact = false): string {
   const bits: string[] = [`- ${candidate.name} [id: ${candidate.id}]`, candidate.whoTheyAre];
-  if (candidate.backstory) bits.push(`Vorgeschichte: ${candidate.backstory}`);
-  if (candidate.personality.length) bits.push(`Wesen: ${candidate.personality.slice(0, 4).join(", ")}`);
-  if (candidate.quirk) bits.push(`Eigenart: ${candidate.quirk}`);
-  if (candidate.speechStyle.length) bits.push(`spricht: ${candidate.speechStyle.slice(0, 3).join(", ")}`);
+  if (candidate.backstory) bits.push(`Vorgeschichte: ${clean(candidate.backstory, compact ? 160 : 360)}`);
+  if (candidate.personality.length) bits.push(`Wesen: ${candidate.personality.slice(0, compact ? 2 : 4).join(", ")}`);
+  if (candidate.quirk) bits.push(`Eigenart: ${clean(candidate.quirk, compact ? 100 : 160)}`);
+  if (candidate.speechStyle.length) bits.push(`spricht: ${candidate.speechStyle.slice(0, compact ? 1 : 3).join(", ")}`);
   if (candidate.catchphrase) bits.push(`Spruch (höchstens einmal): „${candidate.catchphrase}“`);
   return bits.join(" | ");
 }

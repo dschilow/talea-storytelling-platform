@@ -69,6 +69,7 @@ export interface ImageOutcome {
   costUSD: number;
   qa?: ImageQaReport;
   severity: number;
+  status: "passed" | "failed" | "unverified" | "missing";
   /** 0 = full identity sheet, 1 = reduced sheet, 2 = no reference, -1 = no picture. */
   referenceLevel?: number;
   /** Why a delivery step failed — goes into the story metadata and logs. */
@@ -96,6 +97,14 @@ export interface GenerateImagesInput {
   concurrency?: number;
   width?: number;
   height?: number;
+  /** Final manuscript, independently of the director's interpretation. */
+  pageTexts?: Record<number, string>;
+  historical?: boolean;
+}
+
+/** Keep rejected candidates for diagnostics, but never attach them to a reading page. */
+export function publishableImageUrl(outcome: ImageOutcome | undefined): string | undefined {
+  return outcome?.status === "passed" ? outcome.url : undefined;
 }
 
 function seedFor(seed: string, page: number, attempt: number): number {
@@ -103,43 +112,50 @@ function seedFor(seed: string, page: number, attempt: number): number {
   return parseInt(hex, 16) % 2_147_483_647;
 }
 
-export function buildQaPrompt(expected: VisualEntity[], scene: string, hasReference: boolean, elements: Array<{ name: string; look: string }> = []): string {
-  const list = expected.map((entity) => `- ${entity.name}: ${entity.kind === "artifact" ? "object" : entity.isHuman ? "HUMAN" : entity.species}`).join("\n") || "- (no named characters)";
+export function buildQaPrompt(expected: VisualEntity[], scene: string, hasReference: boolean, elements: Array<{ name: string; look: string }> = [], pageText?: string): string {
+  const list = expected.map((entity) => `- ${entity.name}: ${entity.kind === "artifact" ? "object" : entity.isHuman ? entity.role === "hero" ? "HUMAN CHILD" : "HUMAN" : entity.species}; ${entity.appearance}`).join("\n") || "- (no named characters)";
   return [
     "You inspect ONE illustration from a children's picture book for defects a parent would notice immediately.",
     `Attachment 1 is the illustration.${hasReference ? " Attachment 2 is a technical identity sheet (reference only, NOT part of the artwork)." : ""}`,
     "Expected named characters:",
     list,
     `Intended scene: ${scene.slice(0, 500)}`,
+    ...(pageText ? [`Actual reading page: ${pageText}`, "The illustration depicts ONE moment from the page, not every mentioned person. Reject contradictions in the key action, place or object state; do not require off-panel characters."] : []),
     ...(elements.length ? [`Story elements in this picture: ${elements.map((element) => `${element.name} — ${element.look}`).join("; ")}. Report under elementMisuse ONLY if one is worn as clothing, drawn as a person, or missing entirely — never for shape, size or colour details.`] : []),
     "",
-    "Look for MERGED bodies: an animal body growing out of a person, a tail or wing attached to the wrong figure, two figures sharing limbs. Each one is an anatomyDefect.",
+    "Inspect the actual pixels, not the prompt's claims. Look for MERGED bodies and extra limbs on EVERY figure, including animals: human hands or sweater sleeves on a natural goat are defects too. Talking does not change anatomy. Count arms from each shoulder to each hand, including behind the body.",
     "Look carefully at every hand, arm, leg, head and ear. Count fingers where visible. Check every face: children never have a moustache or beard, and no character wears another character's moustache, crown, hat, cape, wings or tail.",
     "Compare who does the KEY action with the intended scene, using the reference sheet to tell the characters apart. Ignore small pose or prop differences — a picture book illustration may interpret the moment freely.",
     "First count how often EACH expected character and story element is drawn (a second person with the same face, hair or outfit counts, a second goose counts, a second girl in the same dress counts even with other hair). Exactly 1 is correct; 2 or more is a duplicate; 0 means missing.",
     "Return JSON only:",
     JSON.stringify({
-      characterCounts: Object.fromEntries([...expected.filter((entity) => entity.kind !== "artifact").map((entity) => entity.name), ...elements.map((element) => element.name)].map((name) => [name, 1])),
+      characterCounts: Object.fromEntries([...expected.filter((entity) => entity.kind !== "artifact").map((entity) => entity.name), ...elements.map((element) => element.name)].map((name) => [name, "integer count"])),
       namedCharactersVisible: 0,
-      anatomyDefects: ["e.g. 'child on the left has three hands'"],
-      animalFeaturesOnHumans: ["e.g. 'the boy has fox ears'"],
-      featureBleed: ["e.g. 'both children have the robber's moustache', 'the frog wears a crown that is not his'"],
-      duplicates: ["a character drawn twice"],
-      unexpectedCharacters: ["figures that are not expected, e.g. two extra children in the background"],
-      roleSwaps: ["ONLY: the page's key action is done by the wrong named character. Pose details, props held slightly differently or small action differences are NOT role swaps."],
+      anatomyDefects: [],
+      animalFeaturesOnHumans: [],
+      featureBleed: [],
+      duplicates: [],
+      unexpectedCharacters: [],
+      roleSwaps: [],
       elementMisuse: [],
       textVisible: false,
       referenceSheetVisible: false,
       identityMatch: 0.0,
       sceneMatch: 0.0,
     }),
-    "identityMatch/sceneMatch: 0-1. Empty arrays when there is no such defect. Do not invent defects.",
+    "identityMatch/sceneMatch: 0-1. Wrong age/species/clothing is low identityMatch. A missing wheel or an uncaught sack in a catch scene is low sceneMatch. Only short observed defects in arrays; empty arrays when clean. Count every expected name, never omit one. Do not invent defects from occluded fingers.",
   ].join("\n");
 }
 
-export function parseQaReport(raw: string): ImageQaReport | null {
+export function parseQaReport(raw: string, expectedNames?: string[]): ImageQaReport | null {
   const data = parseJsonObject<any>(raw);
-  if (!data) return null;
+  if (!data || (!data.characterCounts && !Number.isFinite(data.namedCharactersVisible))) return null;
+  if (expectedNames && (
+    !data.characterCounts || Array.isArray(data.characterCounts) ||
+    expectedNames.some((name) => !Number.isInteger(data.characterCounts[name]) || data.characterCounts[name] < 0) ||
+    ![data.identityMatch, data.sceneMatch].every((n) => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1) ||
+    !["anatomyDefects", "duplicates", "unexpectedCharacters"].every((field) => Array.isArray(data[field]))
+  )) return null;
   const list = (value: unknown) => (Array.isArray(value) ? value.map((item) => String(item ?? "").trim()).filter((item) => item && !/^(e\.g\.|ONLY:)/i.test(item)).slice(0, 6) : []);
   const unit = (value: unknown) => {
     const n = Number(value);
@@ -172,28 +188,27 @@ export function parseQaReport(raw: string): ImageQaReport | null {
 
 /** 0 = clean. Anything >= 10 is a defect worth one regeneration. */
 export function qaSeverity(report: ImageQaReport | undefined, expectedCharacters: number, heroNames: string[] = []): number {
-  if (!report) return 0;
+  if (!report) return 999;
   let severity = 0;
   severity += report.anatomyDefects.length * 10;
   severity += report.animalFeaturesOnHumans.length * 10;
   severity += report.duplicates.length * 10;
-  // Logged, not regenerated: a 4-step render rarely fixes who-does-what on a
-  // second try (batch 2026-09-28: 5-8 of 8 pictures redrawn for this alone).
-  severity += report.roleSwaps.length * 4;
+  // A wrong key action breaks the story, unlike a harmless pose difference.
+  severity += report.roleSwaps.length * 10;
   severity += (report.elementMisuse?.length || 0) * 10;
   severity += (report.featureBleed?.length || 0) * 10;
   // Story 2db50859 page 7: a second Elsa with other hair was only an
   // "unexpected girl" (5) and shipped. A stranger in the scene is a redraw.
   severity += Math.min(report.unexpectedCharacters.length, 2) * 10;
   // Story 2db50859: Adrian missing on the cover and page 1, Alexander on page 3.
-  // A missing hero is a redraw; a missing side figure alone is not.
-  for (const name of (report.missing || []).slice(0, 2)) severity += heroNames.includes(name) ? 10 : 5;
+  // Only visible figures belong to the manifest, so each one is required.
+  severity += Math.min(report.missing?.length || 0, 2) * 10;
   if (report.referenceSheetVisible) severity += 12;
   if (report.textVisible) severity += 6;
-  if (report.identityMatch < 0.4) severity += 6;
+  if (report.identityMatch < 0.6) severity += 10;
   if (report.namedCharactersVisible > expectedCharacters) severity += 6;
   if (!report.missing?.length && expectedCharacters > 0 && report.namedCharactersVisible < expectedCharacters) severity += 3;
-  if (report.sceneMatch < 0.4) severity += 3;
+  if (report.sceneMatch < 0.5) severity += 10;
   return severity;
 }
 
@@ -211,6 +226,8 @@ export function correctionFor(report: ImageQaReport, elementNames: string[] = []
   const misused = elementNames.filter((name) => report.elementMisuse?.some((note) => note.toLowerCase().includes(name.toLowerCase())));
   if (misused.length) fixes.push(`${misused.join(" and ")} shown as its own separate figure or thing.`);
   if (report.referenceSheetVisible) fixes.push("One single full-bleed scene.");
+  if (report.roleSwaps.length || report.sceneMatch < 0.5) fixes.push("Freeze the single described action at its stated location; keep each prop with its named owner.");
+  if (report.identityMatch < 0.6) fixes.push("Match each named figure's age, species, face and outfit to its own reference.");
   return fixes.join(" ");
 }
 
@@ -242,12 +259,14 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
   const rank = (entity: VisualEntity) => (entity.role === "hero" ? 0 : entity.kind === "artifact" ? 2 : 1);
 
   const renderShot = async (shot: IllustrationShot): Promise<ImageOutcome> => {
+    if (shot.planningErrors?.length) return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD: 0, severity: 999, status: "unverified", errors: shot.planningErrors };
     const onStage = shot.onStage.map((id) => byId.get(id)).filter((entity): entity is VisualEntity => Boolean(entity));
     const drawn = [...onStage, ...(shot.artifactVisible && artifact ? [artifact] : [])];
     const withReferences = drawn.filter((entity) => entity.referenceUrl).sort((a, b) => rank(a) - rank(b));
     const elements = (input.illustrations.storyElements || []).filter((element) => shot.elements?.includes(element.name));
     // The checker counts named characters AND story elements.
     const expectedCharacters = onStage.length + elements.length;
+    const expectedNames = [...onStage.map((entity) => entity.name), ...elements.map((element) => element.name)];
     const heroNames = onStage.filter((entity) => entity.role === "hero").map((entity) => entity.name);
 
     // A page must never stay blank. Story 0039344e lost three of eight
@@ -283,14 +302,15 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
             continue;
           }
         }
-        const prompt = assembleImagePrompt({ scene: shot.scene, onStage: drawn, spriteOrder: sheet, elements, correction: extra || undefined });
+        const scene = attemptNo > 1 && shot.simpleScene ? shot.simpleScene : shot.scene;
+        const prompt = assembleImagePrompt({ scene, onStage: drawn, spriteOrder: sheet, elements, correction: extra || undefined });
         lastPrompt = prompt;
         imageCalls += 1;
         try {
           const response = await input.provider({
             page: shot.page,
             prompt,
-            negativePrompt: negativePromptFor(drawn, sheet.length > 1),
+            negativePrompt: negativePromptFor(drawn, sheet.length > 1, input.historical),
             referenceImages: references,
             seed: seedFor(input.seed, shot.page, attemptNo * 10 + level),
             width: input.width ?? 1024,
@@ -312,7 +332,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     const attempt = async (attemptNo: number, extra: string, startLevel: number): Promise<ImageOutcome & { level: number }> => {
       const delivered = await deliver(attemptNo, extra, startLevel);
       const url = delivered.response.url;
-      if (!url) return { page: shot.page, prompt: delivered.prompt, attempts: attemptNo, costUSD, severity: 999, level: -1 };
+      if (!url) return { page: shot.page, prompt: delivered.prompt, attempts: attemptNo, costUSD, severity: 999, status: "missing", level: -1 };
 
       let qa: ImageQaReport | undefined;
       if (input.llm && input.visionModel) {
@@ -322,7 +342,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
             role: "support",
             model: input.visionModel,
             system: "You are a meticulous picture-book illustration checker. Answer with JSON only.",
-            user: buildQaPrompt(drawn, shot.scene, delivered.references.length > 0, elements),
+            user: buildQaPrompt(drawn, shot.scene, delivered.references.length > 0, elements, input.pageTexts?.[shot.page]),
             json: true,
             // "low": without any thinking the checker missed two Johanns and two
             // Rosalindes (story 655ef79b). A little counting costs ~$0.0002.
@@ -332,12 +352,15 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
             timeoutMs: 60_000,
           });
           qaCalls.push(call);
-          qa = parseQaReport(call.text) || undefined;
+          qa = parseQaReport(call.text, expectedNames) || undefined;
+          if (!qa) errors.push(`attempt ${attemptNo}: incomplete image QA report`);
         } catch (err) {
           console.warn(`[storybook/images] vision check failed for page ${shot.page}:`, (err as Error)?.message || err);
+          errors.push(`attempt ${attemptNo}: image QA unavailable`);
         }
       }
-      return { page: shot.page, url, prompt: delivered.prompt, attempts: attemptNo, costUSD, qa, severity: qaSeverity(qa, expectedCharacters, heroNames), level: delivered.level };
+      const severity = qaSeverity(qa, expectedCharacters, heroNames);
+      return { page: shot.page, url, prompt: delivered.prompt, attempts: attemptNo, costUSD, qa, severity, status: !qa ? "unverified" : severity >= 10 ? "failed" : "passed", level: delivered.level };
     };
 
     const finish = (outcome: ImageOutcome & { level: number }, attempts: number): ImageOutcome => {
@@ -347,7 +370,8 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
 
     const first = await attempt(1, "", 0);
     // No picture at all even without a reference: nothing a new seed would fix.
-    if (!first.url || first.severity < 10) return finish(first, 1);
+    // A broken checker is not evidence that a new image would help.
+    if (!first.url || !first.qa || first.severity < 10) return finish(first, 1);
     regenerated.push(shot.page);
     // One redraw; the less defective picture ships. A third attempt (runs
     // fix2/fix3-0929) rarely rescued a page and cost ~1 ¢ per story.
@@ -361,7 +385,8 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
         ladder = ladderFor(heroSheet);
         startLevel = 0;
       }
-      last = await attempt(attemptNo, last.qa ? correctionFor(last.qa, elements.map((element) => element.name)) : "", startLevel);
+      const correction = last.qa ? correctionFor(last.qa, elements.map((element) => element.name)) : "";
+      last = await attempt(attemptNo, `${correction} Simple clear composition; separate silhouettes, one pose per figure, hands apart and easy to read.`, startLevel);
       attempts = attemptNo;
       if (last.url && last.severity < best.severity) best = last;
     }

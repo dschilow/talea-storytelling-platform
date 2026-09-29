@@ -409,12 +409,13 @@ describe("illustration locks", () => {
     expect(castAppearance({ description: "Kleiner Kobold mit Hut" })).toBe("Kleiner Kobold mit Hut");
   });
 
-  test("the director may draw at most three characters and missing pages fall back to the plan", () => {
+  test("crowded or incomplete direction is flagged before drawing, without dropping identities", () => {
     const b = brief();
     const plan = planFor(b);
     const entities: VisualEntity[] = [human, goblin, { ...human, id: "a2", name: "Adrian" }, { ...goblin, id: "x", name: "X" }];
     const shots = sanitizeIllustrationPlan({ cover: { scene: "cover", onStage: ["a1", "a2", "pool-kicher", "x"] }, pages: [{ page: 1, scene: "one", onStage: ["a1", "nobody"] }] }, 3, plan, entities, 3);
-    expect(shots.cover.onStage).toEqual(["a1", "a2", "pool-kicher"]);
+    expect(shots.cover.onStage).toEqual(["a1", "a2", "pool-kicher", "x"]);
+    expect(shots.cover.planningErrors?.length).toBeGreaterThan(0);
     expect(shots.pages[0].onStage).toEqual(["a1"]);
     expect(shots.pages[1].scene).toBe(plan.pages[1].picture);
   });
@@ -432,7 +433,7 @@ describe("images", () => {
     const llm: StorybookLlm = async (request) => {
       const defective = String(request.imageInputs?.[0]).includes("attempt-1") && request.stage.includes("p1");
       return {
-        text: JSON.stringify({ namedCharactersVisible: 1, anatomyDefects: defective ? ["three hands"] : [], animalFeaturesOnHumans: [], duplicates: [], identityMatch: 0.9, sceneMatch: 0.9 }),
+        text: JSON.stringify({ characterCounts: request.stage.includes("cover") ? { Alexander: 1, Kicher: 1 } : { Alexander: 1 }, anatomyDefects: defective ? ["three hands"] : [], animalFeaturesOnHumans: [], duplicates: [], unexpectedCharacters: [], identityMatch: 0.9, sceneMatch: 0.9 }),
         modelUsed: request.model,
         usage: { prompt: 10, completion: 10, total: 20, costUSD: 0.0001 },
         durationMs: 1,
@@ -470,8 +471,8 @@ describe("images", () => {
     expect(qaSeverity(clean, 2)).toBe(0);
     expect(qaSeverity({ ...clean, namedCharactersVisible: 1 }, 2)).toBeLessThan(10);
     expect(qaSeverity({ ...clean, animalFeaturesOnHumans: ["fox ears"] }, 2)).toBeGreaterThanOrEqual(10);
-    // Role swaps are logged but do not trigger a paid regeneration on their own.
-    expect(qaSeverity({ ...clean, roleSwaps: ["Alexander climbs instead of Adrian"] }, 2)).toBeLessThan(10);
+    // The page's key action must belong to the right child.
+    expect(qaSeverity({ ...clean, roleSwaps: ["Alexander climbs instead of Adrian"] }, 2)).toBeGreaterThanOrEqual(10);
     expect(qaSeverity({ ...clean, elementMisuse: ["the wish hat is worn as a cap"] } as any, 2)).toBeGreaterThanOrEqual(10);
   });
 
@@ -583,13 +584,14 @@ describe("engine flow (one shot, the standard)", () => {
       if (request.stage === "oneshot") return reply(story);
       if (request.stage === "review") return reply(JSON.stringify({ scores: { overall: 7 }, comprehension: { want: "a", problem: "b", solution: "c", ending: "d" }, mustFix: [{ page: 2, quote: "x", problem: "Wer hat den Sack?", fix: "klären" }] }));
       if (request.stage === "patch") return reply(page(2, "NEU"));
+      if (request.stage === "patch-check") return reply(JSON.stringify({ checks: [{ id: 0, resolved: true }], newProblems: [] }));
       throw new Error(`unexpected stage ${request.stage}`);
     };
     const ledger = new CostLedger();
     const models = resolveStorybookModels({ aiProvider: "openrouter", openRouterModel: "openai/gpt-6-sol" } as any);
     const result = await runStorybookTextEngine({ llm, brief: b, models, ledger });
 
-    expect(stages.map((stage) => stage.split(":")[0])).toEqual(["oneshot", "review", "patch"]);
+    expect(stages.map((stage) => stage.split(":")[0])).toEqual(["oneshot", "review", "patch", "patch-check"]);
     expect(stages[0]).toContain("gpt-6-sol");
     expect(stages[1]).toContain("gpt-6-luna");
     expect(stages[2]).toContain("gpt-6-luna");
@@ -598,6 +600,8 @@ describe("engine flow (one shot, the standard)", () => {
     expect(result.plan.cast.map((member) => member.id)).toEqual(["pool-kicher"]);
     expect(result.plan.refrain).toBe("Mehl im Haar, Kobold da!");
     expect(result.chosen).toBe("revision");
+    expect(result.textQuality?.status).toBe("passed");
+    expect(result.benchmarkScore).toBeNull();
   });
 });
 
@@ -618,8 +622,8 @@ describe("story 2db50859 fixes", () => {
     const missing = parseQaReport(JSON.stringify({ characterCounts: { Alexander: 1, Adrian: 0 } }))!;
     expect(missing.missing).toEqual(["Adrian"]);
     expect(qaSeverity(missing, 2, ["Alexander", "Adrian"])).toBeGreaterThanOrEqual(10);
-    // A missing side figure alone is no redraw (runs fix2-0929: it came back on every retry).
-    expect(qaSeverity(missing, 2, ["Alexander"])).toBeLessThan(10);
+    // Every figure selected for this image is required; off-panel figures are excluded in direction.
+    expect(qaSeverity(missing, 2, ["Alexander"])).toBeGreaterThanOrEqual(10);
     const goose = parseQaReport(JSON.stringify({ characterCounts: { Alexander: 1, Gans: 2 } }))!;
     expect(qaSeverity(goose, 1)).toBeGreaterThanOrEqual(10);
     const stranger = parseQaReport(JSON.stringify({ characterCounts: { Elsa: 1 }, unexpectedCharacters: ["a second blonde girl in a maid's dress"] }))!;
@@ -660,7 +664,7 @@ describe("feature bleed (runs fix-0929-a/b)", () => {
     const sheets: string[][] = [];
     let calls = 0;
     const llm: StorybookLlm = async (request) => ({
-      text: JSON.stringify({ characterCounts: { Mina: 1, "Drache Fauchi": 1 }, animalFeaturesOnHumans: request.stage === "image-qa-p1-1" ? ["Mina has dragon wings"] : [], identityMatch: 0.9, sceneMatch: 0.9 }),
+      text: JSON.stringify({ characterCounts: request.stage.includes("cover") ? { Mina: 1 } : { Mina: 1, "Drache Fauchi": 1 }, anatomyDefects: [], duplicates: [], unexpectedCharacters: [], animalFeaturesOnHumans: request.stage === "image-qa-p1-1" ? ["Mina has dragon wings"] : [], identityMatch: 0.9, sceneMatch: 0.9 }),
       modelUsed: request.model,
       usage: { prompt: 10, completion: 10, total: 20, costUSD: 0.0001 },
       durationMs: 1,
