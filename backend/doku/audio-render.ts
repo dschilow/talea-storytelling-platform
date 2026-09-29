@@ -25,11 +25,11 @@ import {
 // Audio Director: server-side studio master for audio dokus.
 //
 // Treats the doku like film post-production on a real timeline:
-//   1. Dialogue is rendered turn-by-turn WITH a word-level timeline
-//      (ElevenLabs with-timestamps, MP3 — raw PCM formats are Pro-tier-only).
-//      Each turn's REAL decoded duration is measured via ffprobe and the voice
-//      track is concatenated in the decoded domain, so word anchors stay
-//      sample-accurate with zero cumulative MP3-frame drift.
+//   1. Dialogue is rendered as a real conversation WITH a word-level timeline
+//      (ElevenLabs text-to-dialogue with-timestamps, 1-2 batches per doku, MP3 —
+//      raw PCM formats are Pro-tier-only). Each batch's REAL decoded duration is
+//      measured via ffprobe and the voice track is concatenated in the decoded
+//      domain, so word anchors stay sample-accurate with zero MP3-frame drift.
 //   2. A "sound director" AI produces a cue sheet (spot SFX anchored to words,
 //      ambience beds, a music underscore that follows the narrative beats,
 //      transition whooshes).
@@ -57,6 +57,7 @@ const AMBIENT_LOOP_BUFFER_SAMPLES = (AMBIENT_MAX_SECONDS + 4) * SAMPLE_RATE;
 
 // Cost/time guards for cue asset generation.
 const MAX_GENERATED_ASSETS = 26;
+const ASSET_CONCURRENCY = 4;
 const SFX_ANTICIPATION_SEC = 0.25; // start a spot effect slightly before its word
 
 // Mastering targets.
@@ -369,8 +370,9 @@ export const renderAudioDokuMaster = api<
           speakers = timed.speakers;
 
           let offset = 0;
-          for (const seg of timed.segments) {
-            const filePath = path.join(tmpDir, `turn-${seg.index}.mp3`);
+          for (let i = 0; i < timed.segments.length; i += 1) {
+            const seg = timed.segments[i];
+            const filePath = path.join(tmpDir, `voice-${i + 1}.mp3`);
             await fs.writeFile(filePath, seg.audio);
             voiceFiles.push(filePath);
             // Real decoded duration beats the alignment estimate: it is exactly what the
@@ -380,13 +382,9 @@ export const renderAudioDokuMaster = api<
             for (const w of seg.words) {
               words.push({ ...w, start: w.start + offset, end: w.end + offset });
             }
-            turnSpans.push({
-              index: seg.index,
-              speaker: seg.speaker,
-              text: seg.text,
-              start: offset,
-              end: offset + segDur,
-            });
+            for (const span of seg.turnSpans) {
+              turnSpans.push({ ...span, start: span.start + offset, end: span.end + offset });
+            }
             offset += segDur;
           }
           dialogueDurationSec = offset;
@@ -439,13 +437,13 @@ export const renderAudioDokuMaster = api<
       for (const filePath of voiceFiles) inputArgs.push("-i", filePath);
       let nextInputIndex = voiceFiles.length;
 
-      const assetCache = new Map<string, number>(); // cacheKey -> input index
-      const placed: PlacedCue[] = [];
-      let generatedAssets = 0;
+      // Plan first (dedupe + cap), then generate the unique assets in parallel — these
+      // sound-generation calls used to run one after another and dominated render time.
+      type AssetJob = { prompt: string; genDur: number; isLoop: boolean; type: CueType };
+      const assetJobs = new Map<string, AssetJob>();
+      const planned: Array<{ cue: SoundCue; cacheKey: string; isLoop: boolean; atrimWindow: number }> = [];
 
       for (const cue of cues) {
-        if (generatedAssets >= MAX_GENERATED_ASSETS) break;
-
         const isLoop = cue.behavior === "loop";
         const genDur = isLoop
           ? clamp(Math.min(cue.duration, 18), 6, 24)
@@ -458,33 +456,55 @@ export const renderAudioDokuMaster = api<
         if (!prompt.trim()) continue;
 
         const cacheKey = `${cue.type}|${cue.mood || prompt}|${Math.round(genDur)}|${isLoop}`;
-        let inputIndex = assetCache.get(cacheKey) ?? -1;
-
-        if (inputIndex < 0) {
-          try {
-            const sound = await synthesizeSoundEffect({
-              prompt,
-              durationSeconds: genDur,
-              mode: isLoop ? "loop" : "oneshot",
-              promptInfluence: cue.type === "sfx" ? 0.7 : 0.55,
-            });
-            const filePath = path.join(tmpDir, `cue-${nextInputIndex}.mp3`);
-            await fs.writeFile(filePath, sound.audio);
-            inputIndex = nextInputIndex++;
-            inputArgs.push("-i", filePath);
-            assetCache.set(cacheKey, inputIndex);
-            generatedAssets += 1;
-          } catch (err) {
-            log.warn(
-              `[AudioDokuMaster] cue asset (${cue.type}) failed, skipping: ${
-                err instanceof Error ? err.message : String(err)
-              }`,
-            );
-            continue;
-          }
+        if (!assetJobs.has(cacheKey)) {
+          if (assetJobs.size >= MAX_GENERATED_ASSETS) continue;
+          assetJobs.set(cacheKey, { prompt, genDur, isLoop, type: cue.type });
         }
+        planned.push({ cue, cacheKey, isLoop, atrimWindow });
+      }
 
-        placed.push({ cue, inputIndex, isLoop, atrimWindow });
+      const jobEntries = [...assetJobs.entries()];
+      const assetFiles: Array<string | null> = new Array(jobEntries.length).fill(null);
+      let nextJob = 0;
+      await Promise.all(
+        Array.from({ length: Math.min(ASSET_CONCURRENCY, jobEntries.length) }, async () => {
+          while (nextJob < jobEntries.length) {
+            const j = nextJob++;
+            const job = jobEntries[j][1];
+            try {
+              const sound = await synthesizeSoundEffect({
+                prompt: job.prompt,
+                durationSeconds: job.genDur,
+                mode: job.isLoop ? "loop" : "oneshot",
+                promptInfluence: job.type === "sfx" ? 0.7 : 0.55,
+              });
+              const filePath = path.join(tmpDir, `cue-${j}.mp3`);
+              await fs.writeFile(filePath, sound.audio);
+              assetFiles[j] = filePath;
+            } catch (err) {
+              log.warn(
+                `[AudioDokuMaster] cue asset (${job.type}) failed, skipping: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              );
+            }
+          }
+        }),
+      );
+
+      const assetCache = new Map<string, number>(); // cacheKey -> input index
+      jobEntries.forEach(([cacheKey], j) => {
+        const filePath = assetFiles[j];
+        if (!filePath) return;
+        inputArgs.push("-i", filePath);
+        assetCache.set(cacheKey, nextInputIndex++);
+      });
+      const generatedAssets = assetCache.size;
+
+      const placed: PlacedCue[] = [];
+      for (const { cue, cacheKey, isLoop, atrimWindow } of planned) {
+        const inputIndex = assetCache.get(cacheKey);
+        if (inputIndex !== undefined) placed.push({ cue, inputIndex, isLoop, atrimWindow });
       }
 
       // --- 4) Build the multi-bus ffmpeg graph -------------------------------

@@ -135,7 +135,7 @@ const buildTimedScript = (input: GenerateSoundCuesInput): string =>
     .map((span) => `[${span.start.toFixed(1)}-${span.end.toFixed(1)}s] ${span.speaker}: ${span.text}`)
     .join("\n");
 
-const SYSTEM_PROMPT = `Du bist ein erstklassiger Sound-Designer und Tonmeister fuer hochwertige Kinder-Wissens-Dokus (Stil: Checker Tobi, Galileo, BBC Earth Kids). Du arbeitest wie in einer echten Film-Postproduktion mit einer Timeline.
+const SYSTEM_PROMPT = `Du bist ein erstklassiger Sound-Designer und Tonmeister fuer hochwertige Kinder-Reportage-Dokus im Stil von Checker Tobi. Du arbeitest wie in einer echten Film-Postproduktion mit einer Timeline.
 
 Du bekommst ein vertontes Dialog-Skript MIT Zeitstempeln pro Zeile (in Sekunden) und erzeugst eine PRAEZISE KLANG-PARTITUR (cue sheet) als JSON.
 
@@ -144,6 +144,14 @@ Es gibt vier Arten von Cues:
 2. "ambience" — leise Orts-Atmosphaere unter einem Abschnitt (Meer, Wald, Wind, Regen, Laborhum). behavior "loop". Nur wenn der Abschnitt klar an einem Ort spielt.
 3. "music" — instrumentales Musikbett, das der DRAMATURGIE folgt. behavior "loop". Setze "mood" aus: intro, curious, wonder, tension, playful, resolve, calm. Wechsle die Stimmung mit den Erzaehl-Beats (Hook -> Neugier -> Staunen -> Spannung -> Aufloesung). Lass Musik an starken "Wow"-Momenten kurz aussetzen oder leiser werden.
 4. "transition" — kurzer Riser/Whoosh (0.8-1.5s) an Themen-/Orts-Wechseln, um Abschnitte zu verbinden. behavior "oneshot".
+
+FORMAT DER DOKU (Reportage vor Ort, Checker-Stil) — so klingt jeder Abschnitt:
+- Einstieg mit Leitfrage: kurzer "intro"-Musik-Hook, dann Musik zuruecknehmen.
+- Station vor Ort (Moderator kommt an einem echten Ort an: Wald, Werkstatt, Feuerwache, Stall, Meer...): ambience des Ortes ueber die ganze Station, KEINE Musik darunter — der Ort soll hoerbar echt wirken.
+- Selbst-Ausprobieren: hier sitzen die meisten sfx, genau auf das Ereignis im Text (Jacke raschelt, Wasserstrahl zischt, Tuer knarzt, Motor startet).
+- Check-Wissen (ruhige Erklaerpassage mit Vergleich) und Zwischen-Check: "curious"- oder "calm"-Musikbett, keine ambience.
+- Stationswechsel: transition, danach neue Orts-ambience.
+- Finale ("Das hab ich heute gecheckt"): "resolve"-Musik.
 
 REGELN:
 - Sprache ist immer die Hauptspur. Sound unterstuetzt, ueberdeckt nie.

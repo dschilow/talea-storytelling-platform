@@ -14,6 +14,8 @@ import { getStaticQwenVoiceOptions } from '../../constants/qwenVoices';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii } from '../../utils/constants/spacing';
 import type { AudioDoku } from '../../types/audio-doku';
+import SpeakerCastPanel, { type SpeakerSuggestion } from './SpeakerCastPanel';
+import { suggestVoiceForSpeaker, type VoiceAge, type VoiceGender } from './speakerCasting';
 
 const UNSPLASH_PLACEHOLDER =
   'https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=1200&q=80';
@@ -22,7 +24,7 @@ const AGE_GROUP_OPTIONS = ['4-6', '6-8', '8-10', '10-12', '12+'];
 const CATEGORY_OPTIONS = ['Abenteuer', 'Wissen', 'Natur', 'Tiere', 'Geschichte', 'Entspannung'];
 const AUDIO_TAG_OPTIONS = ['excited', 'curious', 'mischievously', 'thoughtful', 'giggles', 'inhales deeply', 'woo'];
 const headingFont = '"Cormorant Garamond", serif';
-const ELEVENLABS_MAX_REQUEST_TEXT_LENGTH = 5000;
+const ELEVENLABS_MAX_REQUEST_TEXT_LENGTH = 10000; // Eleven v4 per-request limit
 const AUDIO_DOKU_INTRO_URL = '/audio-doku/Talea_intro.mp3';
 const AUDIO_DOKU_OUTRO_URL = '/audio-doku/talea-end.mp3';
 const AUDIO_DOKU_GAP_SECONDS = 1;
@@ -184,6 +186,9 @@ type DialogueGenerationPayload = {
 type ProviderVoiceOption = {
   id: string;
   name: string;
+  labels?: Record<string, string>;
+  description?: string;
+  previewUrl?: string;
 };
 
 type DialogueSpeaker = {
@@ -1093,7 +1098,7 @@ const createDefaultSpeakerProfiles = (): DialogueSpeaker[] => [
   { id: 'speaker-lumi', name: 'LUMI', voiceId: '7Nj1UduP6iY6hWpEDibS' },
 ];
 
-type TopicExtraSpeaker = { name: string; role: string };
+type TopicExtraSpeaker = { name: string; role: string; gender?: VoiceGender; age?: VoiceAge };
 
 type TopicCasting = {
   topic: string;
@@ -1165,8 +1170,6 @@ const CreateAudioDokuScreen: React.FC = () => {
   const [dialogueStatusType, setDialogueStatusType] = useState<'success' | 'error' | null>(null);
   const [generatedVariants, setGeneratedVariants] = useState<GeneratedDialogueVariant[]>([]);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
-  const [voiceSearchQuery, setVoiceSearchQuery] = useState('');
-  const [voiceTargetSpeakerId, setVoiceTargetSpeakerId] = useState<string>('speaker-tavi');
 
   useEffect(() => {
     if (!audioFile) {
@@ -1253,16 +1256,6 @@ const CreateAudioDokuScreen: React.FC = () => {
     () => new Set(dialogueValidationIssues.map((issue) => issue.line)),
     [dialogueValidationIssues]
   );
-  const filteredVoices = useMemo(() => {
-    const query = voiceSearchQuery.trim().toLowerCase();
-    if (!query) return providerVoices;
-
-    return providerVoices.filter((voice) => {
-      const nameMatch = voice.name.toLowerCase().includes(query);
-      const idMatch = voice.id.toLowerCase().includes(query);
-      return nameMatch || idMatch;
-    });
-  }, [providerVoices, voiceSearchQuery]);
   const dialogueLineCount = useMemo(() => {
     const lineCount = Math.max(1, dialogueScript.replace(/\r\n/g, '\n').split('\n').length);
     return lineCount;
@@ -1275,17 +1268,34 @@ const CreateAudioDokuScreen: React.FC = () => {
     () => topicCastings[selectedTopic.trim()] ?? null,
     [topicCastings, selectedTopic],
   );
+  // Sprecher, die die Themen-Besetzung oder das Skript vorschlagen, aber noch fehlen —
+  // jeweils mit automatisch passender, noch nicht vergebener Stimme.
+  const speakerSuggestions = useMemo<SpeakerSuggestion[]>(() => {
+    const usedVoiceIds = new Set(speakerProfiles.map((s) => s.voiceId.trim()).filter(Boolean));
+    const seen = new Set(configuredSpeakerNames);
+    const suggestions: SpeakerSuggestion[] = [];
+    const push = (hint: TopicExtraSpeaker | { name: string }, source: SpeakerSuggestion['source']) => {
+      const key = hint.name.trim().toLowerCase();
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      const suggestedVoiceId = suggestVoiceForSpeaker(hint, providerVoices, usedVoiceIds);
+      if (suggestedVoiceId) usedVoiceIds.add(suggestedVoiceId);
+      suggestions.push({
+        name: hint.name.trim(),
+        role: 'role' in hint ? hint.role : undefined,
+        source,
+        suggestedVoiceId,
+      });
+    };
+    selectedCasting?.extraSpeakers.forEach((extra) => push(extra, 'casting'));
+    unmappedScriptSpeakers.forEach((name) => push({ name }, 'script'));
+    return suggestions;
+  }, [configuredSpeakerNames, providerVoices, selectedCasting, speakerProfiles, unmappedScriptSpeakers]);
   const providerLabel = ttsProvider === 'qwen' ? 'Qwen TTS' : 'ElevenLabs';
   const voiceInputPlaceholder =
     ttsProvider === 'qwen'
       ? 'Qwen-Sprecher (z. B. Vivian)'
       : 'Voice-ID (z. B. 7Nj1UduP6iY6hWpEDibS)';
-
-  useEffect(() => {
-    if (!speakerProfiles.some((speaker) => speaker.id === voiceTargetSpeakerId)) {
-      setVoiceTargetSpeakerId(speakerProfiles[0]?.id || '');
-    }
-  }, [speakerProfiles, voiceTargetSpeakerId]);
 
   // Qwen wurde deaktiviert. Wir laden ElevenLabs-Stimmen einmalig nach Mount.
   useEffect(() => {
@@ -1304,7 +1314,13 @@ const CreateAudioDokuScreen: React.FC = () => {
         const payload = (await response.json()) as ElevenLabsVoicesResponse;
         if (cancelled) return;
         const voices = (payload.voices || [])
-          .map((voice) => ({ id: voice.voiceId, name: voice.name } as ProviderVoiceOption))
+          .map((voice): ProviderVoiceOption => ({
+            id: voice.voiceId,
+            name: voice.name,
+            labels: voice.labels,
+            description: voice.description,
+            previewUrl: voice.previewUrl,
+          }))
           .sort((a, b) => a.name.localeCompare(b.name));
         setProviderVoices(voices);
       } catch (err) {
@@ -1367,7 +1383,13 @@ const CreateAudioDokuScreen: React.FC = () => {
 
         const payload = (await response.json()) as ElevenLabsVoicesResponse;
         const voices = (payload.voices || [])
-          .map((voice) => ({ id: voice.voiceId, name: voice.name } as ProviderVoiceOption))
+          .map((voice): ProviderVoiceOption => ({
+            id: voice.voiceId,
+            name: voice.name,
+            labels: voice.labels,
+            description: voice.description,
+            previewUrl: voice.previewUrl,
+          }))
           .sort((a, b) => a.name.localeCompare(b.name));
 
         setProviderVoices(voices);
@@ -1431,28 +1453,76 @@ const CreateAudioDokuScreen: React.FC = () => {
     setSpeakerProfiles((prev) => prev.filter((entry) => entry.id !== speakerId));
   };
 
-  const handleAddMissingSpeakersFromScript = () => {
-    if (unmappedScriptSpeakers.length === 0) return;
+  const handleAddSpeakerSuggestions = (suggestions: SpeakerSuggestion[]) => {
+    if (suggestions.length === 0) return;
 
     setSpeakerProfiles((prev) => {
       const existing = new Set(prev.map((speaker) => speaker.name.trim().toLowerCase()));
-      const additions = unmappedScriptSpeakers
-        .filter((speakerName) => !existing.has(speakerName.toLowerCase()))
-        .map((speakerName) => ({
+      const additions = suggestions
+        .filter((suggestion) => !existing.has(suggestion.name.toLowerCase()))
+        .map((suggestion) => ({
           id: createSpeakerDraft().id,
-          name: speakerName,
-          voiceId: '',
+          name: suggestion.name,
+          voiceId: suggestion.suggestedVoiceId,
         }));
       return [...prev, ...additions];
     });
 
-    setDialogueStatus(`Sprecher automatisch hinzugefuegt: ${unmappedScriptSpeakers.join(', ')}`);
+    setDialogueStatus(
+      `Sprecher hinzugefügt: ${suggestions.map((s) => s.name).join(', ')}. Stimmen wurden automatisch vorgeschlagen.`,
+    );
     setDialogueStatusType('success');
   };
 
-  const handleAssignVoiceToTargetSpeaker = (voiceId: string) => {
-    if (!voiceTargetSpeakerId) return;
-    handleSpeakerFieldChange(voiceTargetSpeakerId, 'voiceId', voiceId);
+  const handleAddMissingSpeakersFromScript = () => {
+    handleAddSpeakerSuggestions(speakerSuggestions.filter((s) => s.source === 'script'));
+  };
+
+  // Deutsche Hörprobe: erste Skriptzeile des Sprechers mit der gewählten Stimme.
+  // Gecacht pro Stimme + Text; das Backend cached zusätzlich im Bucket.
+  const lineSampleCacheRef = useRef(new Map<string, string>());
+  const renderSpeakerLineSample = async (speakerName: string, voiceId: string): Promise<string> => {
+    const line = dialogueScript
+      .replace(/\r\n/g, '\n')
+      .split('\n')
+      .map((raw) => raw.match(/^\s*([^:\n]{1,80}):\s*(.+)$/))
+      .find((match) => match && match[1].trim().toLowerCase() === speakerName.toLowerCase());
+    let text = line?.[2].trim() || `Hallo, ich bin ${speakerName}. Heute zeige ich euch, was ich bei der Arbeit so erlebe!`;
+    if (text.length > 220) {
+      const cut = text.slice(0, 220);
+      const sentenceEnd = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+      text = sentenceEnd > 60 ? cut.slice(0, sentenceEnd + 1) : cut;
+    }
+
+    const cacheKey = `${voiceId}|${text}`;
+    const cached = lineSampleCacheRef.current.get(cacheKey);
+    if (cached) return cached;
+
+    const token = await getToken();
+    const request = async (): Promise<ElevenLabsDialogueResponse> => {
+      const response = await fetch(`${getBackendUrl()}/tts/elevenlabs/dialogue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ script: `SPRECHER: ${text}`, speakerVoiceMap: { SPRECHER: voiceId } }),
+      });
+      if (!response.ok) throw new Error(await readErrorMessage(response));
+      return (await response.json()) as ElevenLabsDialogueResponse;
+    };
+
+    let payload = await request();
+    for (let attempt = 0; payload.status === 'pending' && attempt < 5; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      payload = await request();
+    }
+    const variant = payload.variants?.[0];
+    const url = variant?.audioUrl || variant?.audioData;
+    if (!url) throw new Error('ElevenLabs hat keine Hörprobe geliefert.');
+    lineSampleCacheRef.current.set(cacheKey, url);
+    return url;
   };
 
   const applyGeneratedVariant = (variant: GeneratedDialogueVariant) => {
@@ -2243,7 +2313,12 @@ const CreateAudioDokuScreen: React.FC = () => {
         const extraSpeakers = Array.isArray(suggestion.extraSpeakers)
           ? suggestion.extraSpeakers
               .filter((extra) => Boolean(extra?.name?.trim()))
-              .map((extra) => ({ name: extra.name.trim().toUpperCase(), role: (extra.role || '').trim() }))
+              .map((extra) => ({
+                name: extra.name.trim().toUpperCase(),
+                role: (extra.role || '').trim(),
+                gender: extra.gender,
+                age: extra.age,
+              }))
           : [];
         castings[topic] = {
           topic,
@@ -2266,17 +2341,19 @@ const CreateAudioDokuScreen: React.FC = () => {
   };
 
   const applyRecommendedCast = (casting: TopicCasting) => {
+    const defaults = createDefaultSpeakerProfiles();
+    const usedVoiceIds = new Set(defaults.map((s) => s.voiceId));
     setSpeakerProfiles([
-      ...createDefaultSpeakerProfiles(),
-      ...casting.extraSpeakers.map((extra, idx) => ({
-        id: `speaker-extra-${Date.now()}-${idx}`,
-        name: extra.name,
-        voiceId: '',
-      })),
+      ...defaults,
+      ...casting.extraSpeakers.map((extra, idx) => {
+        const voiceId = suggestVoiceForSpeaker(extra, providerVoices, usedVoiceIds);
+        if (voiceId) usedVoiceIds.add(voiceId);
+        return { id: `speaker-extra-${Date.now()}-${idx}`, name: extra.name, voiceId };
+      }),
     ]);
     setDialogueStatus(
       casting.extraSpeakers.length > 0
-        ? `Besetzung übernommen: TAVI, LUMI + ${casting.extraSpeakers.map((e) => e.name).join(', ')}. Bitte den Gast-Sprechern unten noch Stimmen zuweisen.`
+        ? `Besetzung übernommen: TAVI, LUMI + ${casting.extraSpeakers.map((e) => e.name).join(', ')}. Stimmen wurden automatisch vorgeschlagen — unter "Sprecher & Stimmen" anhören und bei Bedarf tauschen.`
         : 'Besetzung übernommen: TAVI & LUMI.',
     );
     setDialogueStatusType('success');
@@ -2341,8 +2418,6 @@ const CreateAudioDokuScreen: React.FC = () => {
     setDialogueStatusType(null);
     setGeneratedVariants([]);
     setSelectedVariantId(null);
-    setVoiceSearchQuery('');
-    setVoiceTargetSpeakerId('speaker-tavi');
     setTopicDirection('');
     setTopicSuggestions([]);
     setTopicCastings({});
@@ -2706,7 +2781,7 @@ const CreateAudioDokuScreen: React.FC = () => {
                           </button>
                           {selectedCasting.extraSpeakers.length > 0 && (
                             <span className="text-[11px]" style={{ color: palette.muted }}>
-                              Gast-Sprechern danach unten eine Stimme zuweisen.
+                              Stimmen werden automatisch passend vorgeschlagen und lassen sich unten anhören.
                             </span>
                           )}
                         </div>
@@ -3135,128 +3210,18 @@ const CreateAudioDokuScreen: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="mt-5">
-                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: palette.muted }}>
-                        Sprecher
-                      </div>
-                      <div className="space-y-3">
-                        {speakerProfiles.map((speaker, index) => (
-                          <div key={speaker.id} className="rounded-xl border p-3" style={{ borderColor: palette.panelBorder, background: palette.panel }}>
-                            <div className="grid grid-cols-1 gap-2 md:grid-cols-12">
-                              <input
-                                value={speaker.name}
-                                onChange={(e) => handleSpeakerFieldChange(speaker.id, 'name', e.target.value)}
-                                placeholder={`Name (z. B. ${index === 0 ? 'TAVI' : 'LUMI'})`}
-                                className="md:col-span-3 w-full rounded-lg border px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none"
-                                style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
-                              />
-                              <select
-                                value={speaker.voiceId}
-                                onChange={(e) => handleSpeakerFieldChange(speaker.id, 'voiceId', e.target.value)}
-                                className="md:col-span-4 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none"
-                                style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
-                              >
-                                <option value="">Stimme aus Liste...</option>
-                                {providerVoices.map((voice) => (
-                                  <option key={voice.id} value={voice.id}>
-                                    {voice.name}
-                                  </option>
-                                ))}
-                              </select>
-                              <input
-                                value={speaker.voiceId}
-                                onChange={(e) => handleSpeakerFieldChange(speaker.id, 'voiceId', e.target.value)}
-                                placeholder={voiceInputPlaceholder}
-                                className="md:col-span-5 w-full rounded-lg border px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none"
-                                style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
-                              />
-                            </div>
-                            {speakerProfiles.length > 1 && (
-                              <div className="mt-2 flex justify-end">
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveSpeaker(speaker.id)}
-                                  className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium"
-                                  style={{ borderColor: palette.panelBorder, background: palette.soft, color: palette.text }}
-                                  aria-label="Sprecher entfernen"
-                                  title="Sprecher entfernen"
-                                >
-                                  <Trash2 size={13} />
-                                  Entfernen
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-3">
-                        <button
-                          type="button"
-                          onClick={handleAddSpeaker}
-                          className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-semibold"
-                          style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
-                        >
-                          <Plus size={14} />
-                          Sprecher hinzufuegen
-                        </button>
-                      </div>
-                    </div>
-
-                    {providerVoices.length > 0 && (
-                      <div className="mt-4 rounded-xl border p-3" style={{ borderColor: palette.panelBorder, background: palette.panel }}>
-                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                            <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: palette.muted }}>
-                            Verfuegbare Stimmen ({providerVoices.length})
-                            </div>
-                          <select
-                            value={voiceTargetSpeakerId}
-                            onChange={(e) => setVoiceTargetSpeakerId(e.target.value)}
-                            className="rounded-lg border px-3 py-1.5 text-xs focus:outline-none"
-                            style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
-                          >
-                            {speakerProfiles.map((speaker) => (
-                              <option key={speaker.id} value={speaker.id}>
-                                Ziel: {speaker.name.trim() || 'Unbenannter Sprecher'}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <input
-                          value={voiceSearchQuery}
-                          onChange={(e) => setVoiceSearchQuery(e.target.value)}
-                          placeholder="Stimme suchen (Name oder ID)"
-                          className="w-full rounded-lg border px-3 py-2 text-xs placeholder:text-slate-400 focus:outline-none"
-                          style={{ borderColor: palette.inputBorder, background: palette.input, color: palette.text }}
-                        />
-                        <div className="mt-2 max-h-40 space-y-1 overflow-y-auto pr-1">
-                          {filteredVoices.slice(0, 30).map((voice) => (
-                            <div
-                              key={voice.id}
-                              className="flex items-center justify-between gap-2 rounded-lg border px-2 py-1.5"
-                              style={{ borderColor: palette.panelBorder, background: palette.soft }}
-                            >
-                              <div className="min-w-0">
-                                <div className="truncate text-xs font-semibold">{voice.name}</div>
-                                <div className="truncate text-[11px]" style={{ color: palette.muted }}>{voice.id}</div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleAssignVoiceToTargetSpeaker(voice.id)}
-                                className="shrink-0 rounded border px-2 py-1 text-[11px] font-semibold"
-                                style={{ borderColor: palette.panelBorder, background: palette.panel, color: palette.text }}
-                              >
-                                Uebernehmen
-                              </button>
-                            </div>
-                          ))}
-                          {filteredVoices.length === 0 && (
-                            <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: palette.panelBorder, background: palette.soft, color: palette.muted }}>
-                              Keine Stimme gefunden.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                    <SpeakerCastPanel
+                      palette={palette}
+                      speakers={speakerProfiles}
+                      voices={providerVoices}
+                      suggestions={speakerSuggestions}
+                      voicePlaceholder={voiceInputPlaceholder}
+                      onAddSuggestions={handleAddSpeakerSuggestions}
+                      onChangeSpeaker={handleSpeakerFieldChange}
+                      onRemoveSpeaker={handleRemoveSpeaker}
+                      onAddSpeaker={handleAddSpeaker}
+                      onRenderLineSample={renderSpeakerLineSample}
+                    />
 
                     <div className="mt-4 flex flex-wrap items-center gap-3">
                       <button

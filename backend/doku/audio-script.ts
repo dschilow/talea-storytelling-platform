@@ -22,6 +22,9 @@ export interface AudioDokuExtraSpeakerSuggestion {
   name: string;
   /** Kurze Rollenbeschreibung, z.B. "schrulliger Tiefsee-Experte" */
   role: string;
+  /** Stimm-Hinweis fuer die automatische Stimmenwahl im Frontend. */
+  gender?: "female" | "male";
+  age?: "young" | "adult" | "old";
 }
 
 export interface AudioDokuTopicSuggestion {
@@ -179,30 +182,32 @@ export const generateAudioDokuTopics = api<AudioDokuTopicsRequest, AudioDokuTopi
         ? existingTitles.map((t) => `- ${t}`).join("\n")
         : "- (noch keine)";
 
-    const system = `Du bist Chefredakteur für eine erstklassige Kinder-Audio-Doku-Reihe (Stil: Checker Tobi / WDR Maus / Galileo für Kinder).
-Feste Moderatoren der Reihe: TAVI (erwachsener Erzähler) und LUMI (neugieriges Kind). Pro Doku können zusätzliche Gast-Sprecher dazukommen.
+    const system = `Du bist Chefredakteur für eine Kinder-Audio-Doku-Reihe im Reportage-Format von "Checker Tobi": Ein Moderator nimmt sich EINE Frage vor, geht dorthin, wo die Antwort zu finden ist, trifft echte Fachleute, probiert selbst aus und fasst am Ende zusammen, was er gecheckt hat.
+Feste Besetzung: TAVI (erwachsener Moderator, der "Checker") und LUMI (Kind im Check-Team). Dazu kommen pro Doku 1-2 echte Fachleute vor Ort.
 Deine Aufgabe: 10 Doku-Themen vorschlagen, die Kinder SOFORT hören wollen — plus eine Besetzungs-Empfehlung pro Thema.
 
 REGELN FÜR THEMEN:
 - Jedes Thema ist EIN kurzer, packender Titel (max 8 Wörter).
+- Jedes Thema ist CHECKBAR: Es gibt einen echten Ort, an den man hingehen kann (Feuerwache, Zoo-Tierklinik, Sternwarte, Bäckerei um 3 Uhr nachts, Kläranlage, Bauernhof, Forschungsschiff, Vulkan-Observatorium, Ausgrabung, Windpark, Flughafen-Vorfeld), und echte Menschen mit Beruf, die es erklären können.
+- Jedes Thema hat eine konkrete Leitfrage mit AHA-Kern ("Wie kommt...?", "Warum...?", "Was passiert, wenn...?"). Titelmuster wie "Der Feuerwehr-Check: Wie schnell ist schnell?" sind ausdrücklich erwünscht.
+- Gute Mischung: Alltags-Rätsel (wo kommt das her, wo geht das hin?), Berufe & Orte hinter den Kulissen, Tiere & Natur, Technik & Maschinen, Körper, Weltall, Geschichte zum Anfassen (Burg, Museum, Ausgrabung).
+- Kinder lieben: Rekorde & Extreme, Ekliges & Kurioses (wahr und altersgerecht), Verborgenes hinter verschlossenen Türen, große Maschinen, Tiere aus nächster Nähe, ungefährlich erzählte Gefahr.
 - KEINE generischen Titel wie "Alles über Tiere" oder "Die Welt der...".
-- Jedes Thema braucht einen konkreten AHA-Kern: eine überraschende Frage, ein Rätsel, einen Rekord oder ein Geheimnis ("Warum...", "Wie...", "Das geheime Leben von...", "Was wäre wenn...").
-- Nutze, was Kinder magisch anzieht: Rekorde & Extreme, Ekliges & Kurioses (Kacka, Schleim, Pupse — wahr und altersgerecht), Verborgenes & Geheimes, ungefährlich erzählte Gefahr, "Was wäre wenn"-Szenarien, Alltagsdinge mit überraschendem Twist.
-- Mindestens 3 der 10 Themen haben einen lustigen oder kuriosen Dreh (Stil: "Warum Wombats würfelförmig kacken", "Der Fisch, der auf Bäume klettert").
-- Themen müssen für die angegebene Altersgruppe passend sein.
-- Themen müssen für eine Audio-Doku der angegebenen Dauer realistisch erzählbar sein.
-- KEINE doppelten oder zu ähnlichen Themen — auch NICHT ähnlich zu den bereits existierenden Dokus aus der Nutzer-Nachricht. Schlage bewusst Neues vor.
+- Themen müssen zur Altersgruppe passen und in der angegebenen Dauer realistisch erzählbar sein.
+- KEINE doppelten oder zu ähnlichen Themen — auch NICHT ähnlich zu den bereits existierenden Dokus aus der Nutzer-Nachricht.
 - Themen sind kindgerecht, sicher, faszinierend, faktisch wahr.
 
 BESETZUNGS-EMPFEHLUNG PRO THEMA:
 - recommendedSpeakerCount: Gesamtzahl Sprecher (2-4), inkl. TAVI und LUMI.
-- 2 = nur TAVI & LUMI (guter Default für die meisten Themen).
-- 3-4 nur, wenn das Thema wirklich davon profitiert: schrulliger EXPERTE bei Wissenschafts-/Detailthemen, REPORTER VOR ORT bei Expeditionen und Ereignissen, SKEPTIKER bei Mythen und "Stimmt das wirklich?"-Themen, QUIZMASTER bei Rekord-Themen.
-- extraSpeakers: pro Gast-Sprecher ein kurzer Name in GROSSBUCHSTABEN (z.B. "PROFESSOR KAUZ", "REPORTERIN PIA") und eine Rolle in 3-8 Wörtern.
-- castingReason: 1 kurzer Satz, warum diese Besetzung das Thema unterhaltsamer macht.
+- 3 = Standard: TAVI, LUMI und EINE Fachperson vor Ort.
+- 4 = wenn die Doku zwei Stationen mit zwei verschiedenen Fachleuten braucht (z.B. erst Förster im Wald, dann Tischlerin in der Werkstatt).
+- 2 = nur, wenn wirklich kein Mensch vor Ort nötig ist (z.B. reines Gedankenexperiment).
+- extraSpeakers: pro Fachperson BERUF + VORNAME in GROSSBUCHSTABEN (z.B. "FÖRSTERIN MARA", "VULKANOLOGE BEN", "TIERPFLEGER JONAS"), eine Rolle in 3-8 Wörtern ("zeigt die Tierklinik im Zoo"), gender ("female" oder "male", passend zu Beruf und Vorname) und age ("young", "adult" oder "old").
+- Mische die Besetzung über die 10 Themen: Frauen und Männer, jünger und älter.
+- castingReason: 1 kurzer Satz, was die Fachleute zeigen oder ausprobieren lassen.
 
 Antworte AUSSCHLIESSLICH als JSON:
-{ "topics": [ { "topic": "Thema 1", "recommendedSpeakerCount": 2, "extraSpeakers": [], "castingReason": "..." }, { "topic": "Thema 2", "recommendedSpeakerCount": 3, "extraSpeakers": [{ "name": "PROFESSOR KAUZ", "role": "schrulliger Vulkan-Experte" }], "castingReason": "..." } ] }`;
+{ "topics": [ { "topic": "Thema 1", "recommendedSpeakerCount": 3, "extraSpeakers": [{ "name": "VULKANOLOGE BEN", "role": "misst am Ätna, wann es brodelt", "gender": "male", "age": "adult" }], "castingReason": "..." }, { "topic": "Thema 2", "recommendedSpeakerCount": 4, "extraSpeakers": [{ "name": "FÖRSTERIN MARA", "role": "zeigt, welcher Baum gefällt wird", "gender": "female", "age": "old" }, { "name": "TISCHLERIN IDA", "role": "macht aus dem Stamm ein Brett", "gender": "female", "age": "young" }], "castingReason": "..." } ] }`;
 
     const user = `Zielgruppe: ${ageFrom}-${ageTo} Jahre
 Geplante Dauer der Audio-Doku: ${durationMinutes} Minuten
@@ -270,7 +275,9 @@ Liefere genau 10 Themenvorschläge mit Besetzungs-Empfehlung.`;
         const name = typeof eo.name === "string" ? eo.name.trim().toUpperCase() : "";
         const role = typeof eo.role === "string" ? eo.role.trim() : "";
         if (!name) continue;
-        extraSpeakers.push({ name, role });
+        const gender = eo.gender === "female" || eo.gender === "male" ? eo.gender : undefined;
+        const age = eo.age === "young" || eo.age === "adult" || eo.age === "old" ? eo.age : undefined;
+        extraSpeakers.push({ name, role, gender, age });
       }
 
       const castingReason =
@@ -295,35 +302,30 @@ Liefere genau 10 Themenvorschläge mit Besetzungs-Empfehlung.`;
 );
 
 // Feste Personas der Reihe: TAVI (erwachsener Erzähler) und LUMI (neugieriges Kind).
+// Checker-Format: TAVI checkt vor Ort, LUMI ist das Kind im Team, Gäste sind echte Fachleute.
 const FIXED_SPEAKER_ROLES: Record<string, string> = {
-  TAVI: "MODERATOR & ERZÄHLER (Erwachsener): warm, begeistert, führt durch die Doku und erklärt bildhaft — gerät aber selbst ins Staunen und lässt sich vom Team überraschen.",
-  LUMI: "KIND & SIDEKICK: frech und neugierig, stellt die Fragen, die Kinder wirklich stellen würden, rät vor Auflösungen wild drauflos (meist herrlich falsch) und feiert jeden Wow-Fakt lautstark.",
+  TAVI: "DER CHECKER (erwachsener Moderator & Reporter): geht vor Ort, stellt die Fragen, die Kinder stellen würden, probiert alles selbst aus (auch wenn es schiefgeht), übersetzt Fachwissen in Kindersprache ('Also heißt das...?') und fasst zusammen. Ehrlich neugierig, begeistert, lacht über sich selbst — nie besserwisserisch.",
+  LUMI: "KIND IM CHECK-TEAM: ist mit dabei, sagt ehrlich, was sie denkt ('Iiih!', 'Das glaub ich nicht!'), stellt die einfachsten und damit besten Fragen, rät vor Auflösungen mit und darf auch selbst ausprobieren.",
 };
 
-// Rollen-Pool für zusätzliche Gast-Sprecher (Zuweisung in dieser Reihenfolge).
+// Rollen-Pool für zusätzliche Sprecher (Zuweisung in dieser Reihenfolge). Der Beruf steht
+// im Sprechernamen (z.B. "FÖRSTERIN MARA"), die Rolle beschreibt nur die Funktion im Check.
 const EXTRA_SPEAKER_ROLES = [
-  "EXPERTE/EXPERTIN (schrullig): liebt Details über alles, platzt mit verrückten Zusatzfakten heraus, redet manchmal zu kompliziert und wird liebevoll gestoppt ('Auf Kinderdeutsch, bitte!').",
-  "REPORTER/REPORTERIN VOR ORT: meldet sich dramatisch mitten aus dem Geschehen ([whispers], wenn es nah dran ist), übertreibt gern und wird vom Team charmant eingebremst.",
-  "SKEPTIKER/SKEPTIKERIN: glaubt erst mal gar nichts ('Das habt ihr euch ausgedacht!') und wird Stück für Stück von den Fakten überzeugt — perfekt für Wow-Momente.",
-  "QUIZMASTER/IN: stellt dem Team und den Hörern Schätzfragen und zählt genüsslich mit, wer am häufigsten daneben liegt.",
-  "JUNIOR-ENTDECKER/IN: das jüngste Teammitglied, stellt herrlich einfache Fragen und hat am Ende oft die klügste Idee.",
-  "GESCHICHTENERZÄHLER/IN: verpackt Fakten in kleine Kopfkino-Momente und sorgt für Gänsehaut.",
+  "FACHPERSON VOR ORT (Station 1): echter Beruf laut Name. Stellt sich mit Beruf vor, erklärt am echten Objekt, erzählt eine kurze wahre Anekdote aus dem Berufsalltag und lässt das Team selbst ausprobieren. Spricht einfach und konkret; wird bei Fachwörtern nach einer Kinder-Übersetzung gefragt.",
+  "ZWEITE FACHPERSON (Station 2 oder anderer Blickwinkel): echter Beruf laut Name. Bringt den Twist der Doku, zeigt etwas, das man nicht erwartet, und lässt das Team noch einmal ran.",
+  "WEITERE FACHPERSON: echter Beruf laut Name, ergänzt einen eigenen Blickwinkel mit einem Aha-Moment zum Anfassen.",
 ];
 
 const FIXED_SPEAKER_VISUALS: Record<string, string> = {
-  TAVI: "adult male science host, friendly explorer style with simple goggles and warm jacket, holding a prop related to the topic",
-  LUMI: "curious young girl sidekick in a colorful jacket with a small backpack, wide-eyed and excited",
+  TAVI: "adult male reporter host, friendly explorer style with simple goggles and warm jacket, holding a prop related to the topic",
+  LUMI: "curious young girl team member in a colorful jacket with a small backpack, wide-eyed and excited",
 };
 
-// Cover-Beschreibungen für Gast-Sprecher — gleiche Reihenfolge wie EXTRA_SPEAKER_ROLES,
-// damit Skript-Rolle und Cover-Figur zusammenpassen.
+// Cover-Beschreibungen für die Fachleute — gleiche Reihenfolge wie EXTRA_SPEAKER_ROLES.
 const EXTRA_SPEAKER_VISUALS = [
-  "quirky professor with wild hair, oversized glasses and a lab coat full of pens, proudly holding a magnifying glass",
-  "adventurous field reporter with headset, microphone and utility vest, caught mid-action",
-  "skeptical kid with crossed arms, raised eyebrow and a half-smile",
-  "cheerful quizmaster holding a stack of colorful question cards",
-  "young junior explorer with binoculars and a slightly-too-big expedition hat",
-  "warm storyteller with a cozy scarf and a small glowing lantern",
+  "friendly real-world expert in authentic work clothes of their profession, proudly holding a typical tool of their trade",
+  "second friendly expert in different authentic work clothes, showing an object from their workplace",
+  "cheerful specialist in practical work gear, pointing at something surprising",
 ];
 
 type SpeakerCastingEntry = { name: string; role: string; visual: string };
@@ -343,7 +345,7 @@ const buildSpeakerCasting = (speakers: string[]): SpeakerCastingEntry[] => {
       name,
       role:
         EXTRA_SPEAKER_ROLES[poolIdx] ??
-        "GAST-CO-HOST: eigene, klar erkennbare Marotte, die das Team ergänzt.",
+        "FACHPERSON: echter Beruf laut Name, bringt einen eigenen Blickwinkel zum Anfassen mit.",
       visual:
         EXTRA_SPEAKER_VISUALS[poolIdx] ?? "cheerful cartoon co-host in a distinctive colorful outfit",
     };
@@ -395,178 +397,112 @@ export const generateAudioDokuScript = api<AudioDokuScriptRequest, AudioDokuScri
     const approxWords = durationMinutes * 130;
     const minLines = Math.round(durationMinutes * 11);
     const approxLines = Math.max(10, minLines);
+    // Checker-Format: kurze Dokus bleiben an einem Ort, lange besuchen mehrere Stationen.
+    const stationCount = durationMinutes <= 4 ? 1 : durationMinutes <= 9 ? 2 : 3;
 
     const casting = buildSpeakerCasting(cleanedSpeakers);
     const speakerListText = casting
       .map((entry, idx) => `${idx + 1}. ${entry.name} — ${entry.role}`)
       .join("\n");
 
-    const system = `Du bist ein erstklassiger Autor und Sound-Designer für hochspannende, professionell produzierte Kinder-Audio-Dokus im Stil von Checker Tobi, Galileo, BBC Earth und National Geographic Kids.
+    const system = `Du bist Autor und Redakteur einer Kinder-Audio-Doku-Reihe im Reportage-Format von "Checker Tobi": Der Moderator nimmt sich EINE Frage vor, geht dorthin, wo die Antwort zu finden ist, trifft echte Fachleute, probiert selbst aus und fasst am Ende zusammen, was er gecheckt hat.
+Die Doku ist reines Audio und wird mit ElevenLabs Eleven v4 (Text-to-Dialogue) vertont. Weil man nichts sieht, muss jeder Ort, jedes Objekt und jede Handlung HÖRBAR werden: durch Beschreibung, Reaktion und Geräusch-Anlass im Text.
 
-Deine Aufgabe: Erstelle ein Dialog-Skript MIT Drehbuch (Szenen-Aufteilung mit Hintergrund-Ambient) für eine Audio-Doku, die per Text-zu-Sprache (ElevenLabs Eleven v3) vertont wird.
+Deine Aufgabe: ein Dialog-Skript MIT Drehbuch (Szenen = Stationen mit Hintergrund-Ambient) plus Metadaten.
 
 ============================================================
-TEIL 1 — STRENGES SKRIPT-FORMAT
+TEIL 1 — SKRIPT-FORMAT (streng)
 ============================================================
 - Jede Zeile: SPRECHERNAME: gesprochener Text
-- Optional darf am Zeilenanfang genau 1 sparsames Emotion-Tag stehen.
-- Beispiel: TAVI: [excited] Heute tauchen wir ab in die Tiefsee!
-- KEINE Leerzeilen.
-- KEINE Zeile ohne gesprochenen Text. "TAVI: [clapping]" alleine ist ungültig.
-- Jede Zeile MUSS gesprochenen Text enthalten neben den Tags.
-- Sprechernamen ausschließlich aus der vorgegebenen Liste, GROSSBUCHSTABEN, immer gleich geschrieben.
-- Maximal 1 Emotion-Tag direkt vor dem Text (am Anfang nach dem Doppelpunkt).
-- Inline-Sound-FX-Tags sind erlaubt, aber selten: maximal 1 Tag pro Zeile und nur an echten dramaturgischen Momenten.
-- Saubere, kurze, lebendige Sätze. Kein Wikipedia-Stil.
+- Sprechernamen ausschließlich aus der vorgegebenen Liste, exakt so geschrieben (GROSSBUCHSTABEN).
+- KEINE Leerzeilen. Jede Zeile enthält gesprochenen Text — "TAVI: [laughs]" allein ist ungültig.
+- Kurze, gesprochene Sätze wie im echten Gespräch: Unterbrechungen, Nachfragen, "Moment mal...", "Echt jetzt?". Kein Vorlese- oder Wikipedia-Stil.
+- Umlaute und ß normal schreiben (ä, ö, ü, ß) — niemals ae/oe/ue, das wird falsch ausgesprochen.
+- Zahlen, die vorgelesen werden, ausschreiben, wenn sie sonst holpern ("dreißigtausend", "minus zweihundert Grad").
 
-EMOTION-TAGS (verändern die Stimme — am Zeilenanfang):
-[excited] [curious] [thoughtful] [warm] [dramatic] [serious] [awe]
-[surprised] [whispers] [calmly] [nervous] [confused] [proudly]
-[mischievously] [giggles] [laughs] [shouts] [sighs]
-Nutze die lebendigen Tags [laughs], [giggles], [mischievously], [shouts] genau dort, wo im Dialog wirklich gelacht, gefrotzelt oder laut gestaunt wird.
-
-INLINE-SOUND-FX-TAGS:
-- Erlaubt als punktuelle ElevenLabs-Regie, nicht als Daueratmosphaere.
-- Verwende solche Tags bewusst als Akzente: mehrere pro Doku sind erwünscht, aber nie mehrere direkt hintereinander.
-- Gute Einsaetze: [gasp] fuer eine echte Ueberraschung, [heartbeat] fuer einen kurzen Koerper-Moment, [bubbles] beim konkreten Abtauchen, [applause] nur als echtes Finale.
-- Keine Tags nur wegen Witz oder Dekoration. Wenn ein Effekt nicht punktgenau passt, weglassen.
+AUDIO-TAGS (Eleven v4 — Regie für die Stimme, werden nicht gesprochen):
+- Emotion am Zeilenanfang, höchstens 1 pro Zeile, nicht in jeder Zeile:
+  [excited] [curious] [thoughtful] [warm] [serious] [awe] [surprised] [whispers] [calmly] [nervous] [confused] [proudly] [mischievously] [dramatic] [sighs] [shouts]
+- Im Satz erlaubt, sparsam und nur wo es wirklich passiert:
+  [pause] vor einer Auflösung oder Pointe, [long pause] höchstens 1-2 Mal pro Doku für echte Spannung,
+  [laughs] [giggles] [gasp] [sighs] [inhales deeply] als echte Reaktionen.
+- Geräusch-Tags ([heartbeat], [applause], [bubbles] ...) nur ganz selten (höchstens 3 pro Doku). Umgebungsgeräusche legt die Tonregie später selbst an — schreibe stattdessen den Anlass in den Text ("Hörst du das? Da zischt es!").
 
 ============================================================
-TEIL 1B — SPRECHER-ROLLEN (CHARAKTERE)
+TEIL 2 — DAS CHECK-TEAM (Rollen)
 ============================================================
-Die Sprecher sind keine austauschbaren Stimmen, sondern ein eingespieltes Show-Team.
-Das feste Duo der Reihe: ein erwachsener Moderator/Erzähler (TAVI) und ein neugieriges Kind als Sidekick (LUMI).
-Alle weiteren Sprecher sind Gast-Personas mit eigener Rolle.
-Die konkrete Rollen-Zuordnung pro Sprecher steht in der Nutzer-Nachricht — halte dich exakt daran.
-
-REGELN FÜR DAS TEAM:
-- Jeder Sprecher hat eine eigene, klar erkennbare Sprechweise und Marotte.
-- KEIN Sprecher ist Dekoration: jeder kommt regelmäßig zu Wort und bekommt mindestens einen eigenen Highlight-Moment (eigener Witz, eigener Wow-Fakt oder eine eigene Mini-Szene).
-- Interaktion läuft kreuz und quer, nicht nur Moderator ↔ Rest: das Kind zieht den Experten auf, die Reporterin unterbricht den Moderator, zwei Sprecher schließen eine Wette ab.
-- Liebevolles Necken, kleine Wetten und Mini-Wettstreits zwischen den Sprechern sind ausdrücklich erwünscht — nie gemein, immer warmherzig.
+Die konkrete Rolle pro Sprecher steht in der Nutzer-Nachricht — halte dich exakt daran.
+- TAVI ist der Checker: geht hin, fragt nach, probiert selbst, übersetzt ("Also heißt das...?"), fasst zusammen. Er weiß NICHT schon alles — er findet es heraus.
+- LUMI ist das Kind im Team: ehrliche Reaktionen, einfache Fragen, rät mit, darf ausprobieren.
+- Fachleute sind echte Menschen mit echtem Beruf (steht im Namen). Sie stellen sich beim ersten Auftritt mit Beruf vor, erklären am echten Objekt, erzählen eine kurze wahre Anekdote aus dem Berufsalltag und lassen das Team selbst ran. Sie reden einfach, aber nie babyhaft.
+- Jeder Sprecher kommt regelmäßig zu Wort und hat mindestens einen eigenen Moment.
+- Bei nur 1 Sprecher: TAVI spricht die Fachleute indirekt ("Die Försterin hat mir erklärt...") und spricht die Hörer direkt an.
 
 ============================================================
-TEIL 1C — HUMOR & ENTERTAINMENT (genauso wichtig wie die Fakten)
+TEIL 3 — ABLAUF EINES CHECKS
 ============================================================
-Die Doku soll Kinder zum Lachen UND zum Staunen bringen. Baue gezielt ein:
-- MINDESTENS 3 absurde, aber wahre Vergleiche aus der Kinderwelt ("Ein Blauwal-Herz ist so groß wie ein Kleinwagen — da könntest du reinklettern. Bitte nicht machen.").
-- GENAU 1 altersgerechten Ekel- oder Kurios-Fakt (Kinder lieben wahre Kacka-, Schleim- und Pups-Fakten — dosiert und faktisch korrekt).
-- 1-2 direkte Hörer-Ansprachen mit Schätzfrage oder Mini-Quiz: "Rate mal: Wie viele Zähne verbraucht ein Hai in seinem Leben? ... Mehr. ... Noch mehr. ... DREISSIGTAUSEND!"
-- Vor mindestens 2 Auflösungen rät ein Sprecher wild und herrlich falsch drauflos (bei nur 1 Sprecher: die Hörer raten lassen).
-- Vor jedem Szenenwechsel ein kurzer Cliffhanger-Satz ("Aber was die Forscher dann fanden, hat selbst die Profis umgehauen...").
-- HUMOR NACH ALTER: 2-5 Jahre: Quatsch-Wörter, Geräuschwörter, Wiederholungen. 6-9 Jahre: Ekel-Fakten, absurde Vergleiche, Falsch-Raten. Ab 10: Wortwitz, leichte Ironie, verrückte "Was wäre wenn"-Gedankenspiele.
-- Witze gehen NIE auf Kosten der Fakten (alles bleibt wahr) und NIE auf Kosten eines Kindes oder einer Gruppe.
+Die Anzahl der Stationen steht in der Nutzer-Nachricht.
 
-SO SOLL DAS KLINGEN (nur Ton-Beispiel — verwende die echten Sprechernamen aus der Liste):
-MODERATOR: [excited] Und jetzt festhalten: Dieser Fisch kann etwas, das kein Fisch können sollte.
-KIND: [mischievously] Fahrrad fahren!
-MODERATOR: [laughs] Nein! Aber fast genauso verrückt: Er klettert auf Bäume!
-KIND: [shouts] WAS?!
+1. EINSTIEG (erste 2-4 Zeilen): TAVI startet mitten in einer Situation oder mit einer Alltagsbeobachtung und nennt die Leitfrage: "Heute checke ich: ...". Dazu EINE Rate-Frage an die Hörer, die erst im Finale aufgelöst wird ("Rate mal mit: ... Am Ende verrat ich's.").
+2. STATION VOR ORT: Ankommen mit 1-2 Sätzen Kopfkino ("Ich steh hier direkt neben..., und es riecht nach..."). Fachperson begrüßen. Erklären am echten Objekt, TAVI und LUMI fragen nach, TAVI übersetzt in Kindersprache, die Fachperson bestätigt oder korrigiert.
+3. SELBST AUSPROBIEREN (pro Station mindestens einmal): TAVI oder LUMI probiert etwas selbst — es ist schwerer, lauter, kälter oder ekliger als gedacht; echte Reaktion. Hier entsteht der meiste Humor.
+4. CHECK-WISSEN (einmal pro Doku, bei langen Dokus zweimal): TAVI erklärt in 3-6 Zeilen ruhig den Kern-Mechanismus mit EINEM starken Vergleich aus dem Kinderalltag. Die anderen dürfen kurz reagieren.
+5. ZWISCHEN-CHECK (bei 2+ Stationen, vor jedem Stationswechsel): 1-2 Zeilen "Was haben wir bis jetzt gecheckt?" plus ein Satz, der neugierig auf die nächste Station macht.
+6. TWIST: Mindestens eine echte Überraschung, die die Leitfrage in neues Licht rückt.
+7. FINALE: Auflösung der Rate-Frage, dann TAVI: "Das hab ich heute gecheckt:" mit genau 3 kurzen Punkten (verteilt auf 1-3 Zeilen), dann eine emotionale Schlusszeile von TAVI, die zeigt, was ihn persönlich beeindruckt hat. Das Skript endet HIER — keine Verabschiedung, die kommt automatisch danach.
 
-============================================================
-TEIL 2 — DREHBUCH (SZENEN MIT HINTERGRUND-AMBIENT)
-============================================================
-Zusätzlich zum Skript erzeugst du ein Drehbuch (screenplay), das das Skript in 3-7 redaktionelle Abschnitte aufteilt.
-Jede Szene darf einen passenden HINTERGRUND-SOUND bekommen, wenn die Szene akustisch wirklich etwas hergibt.
-Wenn kein klar passender Sound existiert, bleibt die Szene bewusst stumm.
-
-Pro Szene:
-- index: 1, 2, 3, ...
-- startLine: erste Skript-Zeile dieser Szene (1-basiert, inklusive)
-- endLine: letzte Skript-Zeile dieser Szene (inklusive)
-- description: kurze deutsche Szenen-Beschreibung (z.B. "Briefing an Bord des Forschungsschiffs")
-- ambientPrompt: DEUTSCHER Sound-Prompt fuer ElevenLabs Sound Generation. ElevenLabs versteht natuerliche Sprache; formuliere klar, kurz und konkret.
-
-  KRITISCH WICHTIG: Sound wird nur erzeugt, wenn er aus dem Inhalt der Szene logisch folgt.
-  - Passend: Meer bei Ozean/Kueste/Tiefsee; Voegel bei Wald/Garten/Morgen; Bienen bei Blumen/Wiese/Insekten; Donner/Regen bei Gewitter/Wetter; Labor-/Maschinenhum bei Technik; sanfte Musik bei abstrakten Erklaer- oder Zusammenfassungsstellen.
-  - Unpassend: Supermarkt, Einkaufstueten, Kantine oder Kueche nur weil es um Ernaehrung geht. Solche Orte nur nutzen, wenn das Skript wirklich dort spielt.
-  - Kein Dauer-Foley mit vielen Einzelgeraeschen. Lieber 1-3 klare, ruhige Soundquellen.
-  - Keine Stimmen, kein verstaendliches Gemurmel, kein Gesang. Musik nur als sehr sanftes instrumentales Doku-Bett.
-  - Erklaerpassagen ohne klare akustische Szene duerfen bewusst keinen Ambient haben: ambientVolume 0.
-
-  GUTE Beispiele (passend, atmosphaerisch, nicht ablenkend):
-  * "reine Stimme - kein Hintergrundsound, keine Musik, keine Stimmen"
-  * "ruhiges Meeresufer mit sanft rollenden Wellen, leichter Seewind, ferne Moewen, weite Doku-Atmosphaere, keine Musik, keine Stimmen"
-  * "Fruehlingswiese mit sanftem Bienensummen zwischen Blumen, leicht bewegtes Gras, warme Nachmittagsluft, keine Musik, keine Stimmen"
-  * "ruhiger Waldmorgen mit fernen singenden Voegeln, leises Blaetterrascheln, leichter Wind in den Baeumen, keine Musik, keine Stimmen"
-  * "entferntes Gewitter mit tiefem rollendem Donner, sanfter Regen draussen, gedaempfter Raumton, spannend aber sicher, keine Musik, keine Stimmen"
-  * "sanftes warmes instrumentales Doku-Musikbett, minimale Melodie, keine Percussion, keine Stimmen, kein Gesang"
-  * "sehr dezenter Studio-Raumton mit sanfter Luft, warme ruhige Flaeche, keine auffaelligen Einzelgeraeusche, keine Musik, keine Stimmen"
-  * "ruhiges Wissenschafts-Doku-Bett mit tiefer weicher Textur, langsame sanfte Bewegung, keine Percussion, keine Stimmen"
-
-  SCHLECHTE Beispiele (NICHT verwenden - nicht aus der Szene begruendet oder als Dauerteppich stoerend):
-  * "busy supermarket with shopping bags and carts"
-  * "kitchen with constant knife chopping and plate clinks"
-  * "school cafeteria with chatter and cutlery"
-
-- ambientVolume: 0 fuer weglassen, 0.06 bis 0.14 fuer dezente Natur-/Raum-/Musikbetten, maximal 0.18. Der Dialog muss immer klar vorne bleiben.
-- durationSeconds: Laenge des zu generierenden Sound-Clips in Sekunden. Nutze 8-16 Sekunden fuer ruhige Betten, bis 30 Sekunden fuer komplexere Atmosphaeren. Der Clip kann im finalen Mix geloopt werden.
-
-REGELN für das Drehbuch:
-- Die Szenen müssen lückenlos das gesamte Skript abdecken (von Zeile 1 bis zur letzten Zeile).
-- Keine Lücken zwischen Szenen, keine Überlappungen.
-- 3-7 Szenen je nach Skript-Länge.
-- Jede Szene mindestens 4 Skript-Zeilen lang.
-- Die Szenenwechsel sollen sich AUS dem Skript ergeben (Themen-/Orts-Wechsel).
-
-DRAMATURGIE:
-1. Starker Hook in den ersten 2-3 Zeilen.
-2. Klare Hauptfrage / Thema-Einführung.
-3. Spannender Verlauf mit Wow-Fakten, Vergleichen aus dem Kinderalltag, Aha-Momenten.
-4. Mindestens 1 Twist / Überraschung — und in JEDER Szene mindestens 1 Wow- oder Lach-Moment, damit die Energie nie abfällt.
-5. Emotional starkes Finale: Der erste Sprecher fasst in 1-2 Sätzen zusammen was die Expedition/das Abenteuer bedeutet hat — themenspezifisch und emotional. Beispiel: "Mission geschafft. Wir waren dort, wo kein Sonnenlicht hinkommt… und haben trotzdem Licht gefunden." Das Skript endet HIER. Keine Verabschiedung, kein "Bis zum nächsten Mal" — das kommt automatisch danach.
+HUMOR & STAUNEN:
+- Humor entsteht aus echten Situationen: beim Ausprobieren, aus ehrlichen Reaktionen, aus der Anekdote der Fachperson — nicht aus eingestreuten Gags.
+- Pro Station mindestens ein Wow-Fakt und ein absurder, aber wahrer Vergleich aus der Kinderwelt ("Der Schlauch spritzt so weit wie drei Schulbusse hintereinander.").
+- Ein wahrer kurioser oder ekliger Fakt ist willkommen, wenn er zum Thema gehört.
+- HUMOR NACH ALTER: 2-5 Jahre: Geräuschwörter, Wiederholungen, einfache Quatsch-Momente. 6-9 Jahre: Ausprobieren-geht-schief, Ekel-Fakten, Falsch-Raten. Ab 10: Wortwitz, leichte Ironie, "Was wäre wenn"-Gedankenspiele.
+- Witze gehen NIE auf Kosten der Fakten und NIE auf Kosten eines Kindes, einer Gruppe oder der Fachleute.
 
 INHALT:
-- Faktisch korrekt, kindgerecht erklärt, niemals belehrend.
-- Bildhafte Sprache, kurze Sätze, viel Kopfkino.
-- Dialog mit echtem Wechselspiel: Fragen, Reaktionen, Staunen, Necken, echte Lacher (siehe TEIL 1C).
-- Natürliche Mischung aller Sprecher: jeder bleibt in seiner Rolle (TEIL 1B), kommt regelmäßig zu Wort und bekommt eigene Highlight-Momente.
+- Faktisch korrekt, kindgerecht, niemals belehrend. Lieber eine Sache richtig verstehen als zehn Fakten aufzählen.
+- Fachwörter nur, wenn sie sofort erklärt werden — am besten fragt LUMI nach.
+- Nichts erfinden, was man nachprüfen könnte: Zahlen und Rekorde nur, wenn sie stimmen.
 
-ZUSÄTZLICH erzeugst du Metadaten:
-
-- title: WICHTIG! Der Titel muss sofort Neugier wecken und Lust aufs Hören machen.
-  VERBOTEN: "Alles über X", "Die Geschichte von X", "X erklärt", reine Substantiv-Ketten, langweilige Beschreibungen.
-  ERLAUBT und erwünscht: "Warum...", "Wie...", "Das geheime Leben von...", "Das verrückte Geheimnis von...", "Was wäre wenn...", rhetorische Fragen, überraschende Formulierungen, Spannung erzeugende Titel.
-  LÄNGE: 5–10 Wörter, in der Sprache der Doku.
-  BEISPIELE für gute Titel: "Warum leuchten Tiere in der Tiefsee?", "Das geheime Leben der Pilze", "Was wäre wenn die Sonne erlischt?", "Wie ein Raketenstart die Welt verändert"
-
-- ageGroup: Altersangabe als Bereich z.B. "6-8".
-
-- category: Eine der Kategorien Abenteuer, Wissen, Natur, Tiere, Geschichte, Entspannung.
-
-- coverPrompt: ENGLISCH, exakt im folgenden Format als ein zusammenhängender Absatz. PFLICHT: ALLE Moderatoren-Figuren MÜSSEN im Vordergrund sichtbar sein!
-  "Square 1:1  Theme: <one-line topic theme>. <Detailed visual scene with environment, atmosphere, lighting, foreground subjects, background details, sound visualized as particles/wind/etc>. Foreground: the show's cheerful cartoon hosts (<one short visual description per host, exactly as provided in the user message>) standing amazed and pointing toward the scene. <Additional wildlife/detail elements>. Modern clean premium illustration, smooth gradients, soft glow, high contrast, crisp outlines, cinematic depth of field, adventurous but not scary, kid-friendly, ultra-detailed, balanced composition with open space, no writing, no symbols that resemble letters or numbers."
-  Der Moderator (TAVI) ist ein erwachsener, freundlicher Männer-Presenter. Das Mädchen (LUMI) ist eine neugierige junge Sidekick. Nutze für alle weiteren Sprecher die Host-Beschreibungen aus der Nutzer-Nachricht. ALLE Sprecher-Figuren MÜSSEN erkennbar im Bild sein.
-
-- description: 2-3 Sätze auf Deutsch, die neben dem Player als Beschreibung erscheinen.
+SO SOLL DAS KLINGEN (nur Ton-Beispiel — verwende die echten Sprechernamen aus der Liste):
+MODERATOR: [excited] Ich steh hier in der Fahrzeughalle der Feuerwache, und vor mir parkt ein knallrotes Löschfahrzeug. Hallo Jana!
+FEUERWEHRFRAU: [warm] Hallo! Ich bin Jana, Feuerwehrfrau hier auf der Wache. Willst du mal die Jacke anziehen?
+MODERATOR: [laughs] Klar! Moment... [pause] Die ist ja schwer wie ein voller Schulranzen!
+KIND: [mischievously] Und jetzt rennen!
+FEUERWEHRFRAU: Genau. Beim Alarm haben wir dafür nur eine Minute.
+MODERATOR: [surprised] Eine Minute?! Also heißt das: Anziehen, einsteigen, losfahren — alles in sechzig Sekunden?
 
 ============================================================
-TEIL 3 - REALISTISCHER AUDIO-MIX: DIESE REGELN HABEN VORRANG
+TEIL 4 — DREHBUCH (Szenen mit Hintergrund-Ambient)
 ============================================================
-Ziel ist eine echte, professionelle Wissens-Doku, nicht ein Hoerspiel mit Dauer-Geraeuschen.
-Die Sprache bleibt immer die Hauptspur. Sound darf nur helfen, wenn er den Inhalt wirklich klarer macht.
+Teile das Skript in 3-7 Szenen. Szenen folgen den Stationen: Einstieg, jede Station, Check-Wissen, Finale.
+Pro Szene:
+- index: 1, 2, 3, ...
+- startLine / endLine: erste und letzte Skript-Zeile (1-basiert, inklusive). Lückenlos von Zeile 1 bis zur letzten Zeile, keine Überlappungen, jede Szene mindestens 4 Zeilen.
+- description: kurze deutsche Beschreibung (z.B. "Station 1: Fahrzeughalle der Feuerwache").
+- ambientPrompt: DEUTSCHER Sound-Prompt für ElevenLabs Sound Generation — der Klang des ORTES, an dem die Szene spielt. Klar, kurz, 1-3 ruhige Soundquellen, immer mit "keine Stimmen".
+- ambientVolume: 0 für weglassen, 0.05-0.10 für dezente Betten, 0.11-0.14 für eindeutig passende Orte, maximal 0.18. Die Stimmen bleiben immer klar vorne.
+- durationSeconds: 8-16 Sekunden für ruhige Betten, bis 30 für komplexere Atmosphären (wird im Mix geloopt).
 
-SPRECHER-TEXT:
-- Verbaler Humor ist ausdrücklich erwünscht (TEIL 1C). Die Zurückhaltung in diesem Teil gilt für Sound-Effekte und Ambient — nicht für Witz, Necken und Lachen im gesprochenen Text.
-- Nutze Emotion-Tags sparsam. Nicht jede Zeile braucht ein Tag.
-- Erlaubt sind nur zur Stimme passende Start-Tags wie [excited], [curious], [thoughtful], [warm], [serious], [awe], [calmly], [proudly], [confused], [nervous].
-- Inline-Sound-FX-Tags wie [heartbeat], [gasp], [applause] oder [bubbles] sind erlaubt, aber nur als einzelne kurze Akzente an eindeutig passenden Stellen.
-- Nutze Inline-Sound-FX regelmäßig dort, wo sie inhaltlich tragen. Nie als wiederkehrenden Running Gag.
-- Wenn ein Effekt nur "lustig" oder "dramatisch" waere, schreibe lieber eine natuerliche Reaktion als gesprochenen Text.
+AMBIENT-REGELN:
+- Stationen vor Ort bekommen den Klang ihres Ortes (Wald, Werkstatt, Stall, Meer, Halle, Labor), weil die Szene wirklich dort spielt.
+- Check-Wissen, Zwischen-Check und Finale: sanftes Musikbett oder gar nichts ("sanftes warmes instrumentales Doku-Musikbett, minimale Melodie, keine Percussion, keine Stimmen, kein Gesang").
+- Wenn kein klar passender Sound existiert: ambientVolume 0 und ambientPrompt "reine Stimme - kein Hintergrundsound, keine Musik, keine Stimmen".
+- Weil das Ambient durchgehend unter der Szene läuft, keine auffälligen Einzelgeräusche als Dauerschleife (keine Stimmen, Kassen, Messer, Schritte, Sirenen, Hupen). Lieber breite, ruhige Flächen: fernes Vogelzwitschern, leiser Hallenraumton, sanfte Wellen, leises Maschinenbrummen.
+- Erfinde keine Orte nur wegen eines Begriffs: Bei Ernährung KEIN Supermarkt, nur weil Essen vorkommt — nur, wenn die Station wirklich dort spielt.
 
-HINTERGRUND-AMBIENT:
-- Ambient ist OPTIONAL. Wenn kein wirklich passender, ruhiger Sound existiert, setze ambientVolume auf 0 und ambientPrompt auf "reine Stimme - kein Hintergrundsound, keine Musik, keine Stimmen".
-- Erzeuge Hintergrund-Sound, wenn die Szene klar danach ruft: Meeresrauschen, Voegel, Bienen, Regen, Donner, Wind, Laborhum, Maschinenhum oder sanfte Musik duerfen und sollen genutzt werden, wenn sie wirklich passen.
-- Erfinde keine Orte nur wegen eines Begriffs. Bei Ernaehrung also KEIN dauerhafter Supermarkt, keine Einkaufstueten, keine Kantine, kein staendiges Schneiden, nur weil Essen vorkommt.
-- Weil der aktuelle Ambient pro Szene durchgehend laeuft, darf er niemals aus auffaelligen Einzelgeraeuschen bestehen. Keine permanenten Tueten, Kassen, Messer, Stimmen, Schritte, Tiere, Maschinen oder Action-Foley unter Erklaertext.
-- Gute automatische Sounds sind leise, neutral und breit: sanfte Meereswellen, ferne Voegel, sanfte Bienen, leiser Regen, entfernter Donner, dezenter Doku-Raumton, sanftes warmes instrumentales Doku-Bett, sehr dezente Studio-Luft, weiche Uebergangstextur. Immer ohne Stimmen.
-- Wenn Musik sinnvoller ist als Foley, formuliere den Prompt als "sanftes warmes instrumentales Doku-Musikbett, minimale Melodie, keine Percussion, keine Stimmen, kein Gesang".
-- Lautstaerke: 0 fuer weglassen, 0.05-0.10 fuer dezente Betten, 0.11-0.14 nur fuer eindeutig passende ruhige Szenen, maximal 0.18.
-- Aufeinanderfolgende Szenen muessen NICHT zwanghaft unterschiedlich klingen. Konsistenz ist besser als stoerende Abwechslung.
+============================================================
+TEIL 5 — METADATEN
+============================================================
+- title: weckt sofort Neugier, 4-10 Wörter, in der Sprache der Doku. Erwünscht: "Der Feuerwehr-Check: Wie schnell ist schnell?", "Warum...", "Wie kommt...", "Was passiert, wenn...". VERBOTEN: "Alles über X", "Die Geschichte von X", "X erklärt", reine Substantiv-Ketten.
+- ageGroup: Altersbereich z.B. "6-8".
+- category: eine von Abenteuer, Wissen, Natur, Tiere, Geschichte, Entspannung.
+- coverPrompt: ENGLISCH, exakt in diesem Format als ein zusammenhängender Absatz. PFLICHT: ALLE Sprecher-Figuren im Vordergrund sichtbar!
+  "Square 1:1  Theme: <one-line topic theme>. <Detailed visual scene at the main on-location station: environment, atmosphere, lighting, background details, sound visualized as particles/wind/etc>. Foreground: the show's cheerful cartoon hosts (<one short visual description per host, exactly as provided in the user message>) on location, amazed and pointing toward the scene. <Additional detail elements>. Modern clean premium illustration, smooth gradients, soft glow, high contrast, crisp outlines, cinematic depth of field, adventurous but not scary, kid-friendly, ultra-detailed, balanced composition with open space, no writing, no symbols that resemble letters or numbers."
+- description: 2-3 Sätze auf Deutsch für die Anzeige neben dem Player: Leitfrage + wohin der Check geht.
 
 Antworte AUSSCHLIESSLICH als JSON-Objekt:
 {
-  "script": "SPRECHER1: [warm] Text mit passenden Inline-FX wie [gasp] oder [heartbeat]\\nSPRECHER2: Text mit passender Reaktion\\n...",
+  "script": "SPRECHER1: [excited] Text\\nSPRECHER2: Text mit [pause] Auflösung\\n...",
   "title": "...",
   "ageGroup": "...",
   "category": "...",
@@ -576,20 +512,20 @@ Antworte AUSSCHLIESSLICH als JSON-Objekt:
     {
       "index": 1,
       "startLine": 1,
-      "endLine": 6,
-      "description": "Ruhiger Einstieg",
+      "endLine": 5,
+      "description": "Einstieg: die Leitfrage",
       "ambientPrompt": "sanftes warmes instrumentales Doku-Musikbett, minimale Melodie, keine Percussion, keine Stimmen, kein Gesang",
       "ambientVolume": 0.08,
       "durationSeconds": 10
     },
     {
       "index": 2,
-      "startLine": 7,
-      "endLine": 14,
-      "description": "Sachliche Erklaerpassage",
-      "ambientPrompt": "reine Stimme - kein Hintergrundsound, keine Musik, keine Stimmen",
-      "ambientVolume": 0,
-      "durationSeconds": 10
+      "startLine": 6,
+      "endLine": 18,
+      "description": "Station 1: Fahrzeughalle der Feuerwache",
+      "ambientPrompt": "große hallige Fahrzeughalle, leiser Raumton, fernes gleichmäßiges Brummen der Lüftung, keine Stimmen, keine Sirenen",
+      "ambientVolume": 0.1,
+      "durationSeconds": 14
     }
   ]
 }`;
@@ -603,8 +539,9 @@ Zielgruppe: ${ageFrom}-${ageTo} Jahre
 Geplante Audio-Dauer: ${durationMinutes} Minuten (≈ ${approxWords} gesprochene Wörter)
 PFLICHT: Das Skript MUSS MINDESTENS ${approxLines} Zeilen haben. Kürzer ist ein Fehler!
 Anzahl Sprecher: ${speakerCount}
+Anzahl Stationen vor Ort: ${stationCount}
 
-SPRECHER-TEAM (exakt diese Namen in Großbuchstaben verwenden; jeder spielt konsequent seine Rolle aus TEIL 1B):
+CHECK-TEAM (exakt diese Namen in Großbuchstaben verwenden; jeder spielt konsequent seine Rolle):
 ${speakerListText}
 
 COVER-PROMPT PFLICHT: ALLE Sprecher MÜSSEN im Vordergrund sichtbar sein.
@@ -614,18 +551,18 @@ Erstelle das vollständige Skript jetzt nach den oben genannten Regeln.
 
 WICHTIG: Validiere selbst vor der Ausgabe:
 - Hat das Skript MINDESTENS ${approxLines} Zeilen? -> Wenn nein, WEITER SCHREIBEN bis Mindestlänge erreicht!
-- Gibt es Leerzeilen? -> Entfernen.
-- Hat jede Zeile gesprochenen Text neben Tags? -> Wenn nein, korrigieren.
-- Werden ALLE angegebenen Sprecher genutzt? -> Wenn nein, ergänzen.
-- Sprechernamen exakt wie vorgegeben in Großbuchstaben? -> Wenn nein, korrigieren.
-- Coverprompt im exakten Square-1:1-Format und auf Englisch?
-- Ist der Hook stark, gibt es einen Twist, ist das Finale stark?
-- Spielt JEDER Sprecher seine Rolle aus dem SPRECHER-TEAM und hat mindestens einen eigenen Highlight-Moment? -> Wenn nein, Zeilen umverteilen.
-- Sind die Humor-Pflichtelemente aus TEIL 1C drin (mind. 3 absurde Vergleiche, 1 Ekel-/Kurios-Fakt, 1-2 Hörer-Schätzfragen, Falsch-Rate-Momente, Cliffhanger vor Szenenwechseln)? -> Wenn nein, ergänzen.
-- Enthält das Skript Inline-Sound-FX-Tags nur selten und punktgenau passend? -> Wenn nein, reduzieren oder entfernen.
-- Hat jede aktive Szene im screenplay einen deutschen ambientPrompt ohne Stimmen? Bei unsicherem Kontext: ambientVolume 0 und "reine Stimme - kein Hintergrundsound, keine Musik, keine Stimmen".
-- Decken die screenplay-Szenen ALLE Skript-Zeilen ab (lückenlos, keine Überlappung)?
-- Ist die LETZTE Szene endLine = letzte Skript-Zeilennummer?`;
+- Keine Leerzeilen, jede Zeile hat gesprochenen Text, Sprechernamen exakt wie vorgegeben?
+- Werden ALLE angegebenen Sprecher genutzt, jeder mit eigenem Moment?
+- Nennt TAVI am Anfang die Leitfrage und stellt eine Rate-Frage, die im Finale aufgelöst wird?
+- Gibt es ${stationCount} Station(en) vor Ort mit Kopfkino-Ankunft, und wird an jeder Station etwas selbst ausprobiert?
+- Stellen sich die Fachleute mit Beruf vor und erzählen eine echte Anekdote?
+- Gibt es ein Check-Wissen-Stück mit einem starken Alltagsvergleich${stationCount > 1 ? " und einen Zwischen-Check vor jedem Stationswechsel" : ""}?
+- Gibt es einen echten Twist?
+- Endet das Skript mit "Das hab ich heute gecheckt:" (3 Punkte) und einer emotionalen Schlusszeile von TAVI — ohne Verabschiedung?
+- Umlaute korrekt (ä, ö, ü, ß), keine ae/oe/ue-Umschreibungen?
+- Audio-Tags sparsam, Geräusch-Tags höchstens 3 insgesamt?
+- Decken die screenplay-Szenen ALLE Skript-Zeilen lückenlos ab, letzte endLine = letzte Skript-Zeile?
+- Coverprompt im exakten Square-1:1-Format und auf Englisch?`;
 
     // gpt-5.4-mini is a reasoning model: reasoning tokens are INCLUDED in max_completion_tokens.
     // With reasoning_effort "low", the model uses ~2000-4000 reasoning tokens internally.
@@ -827,6 +764,17 @@ const ALLOWED_AUDIO_DOKU_VOICE_TAGS = new Set([
   "proudly",
 ]);
 
+// Reactions and Eleven v4 pause tags may also sit mid-sentence ("Moment... [pause] DREISSIG!").
+const ALLOWED_AUDIO_DOKU_INLINE_VOICE_TAGS = new Set([
+  "pause",
+  "long pause",
+  "laughs",
+  "giggles",
+  "sighs",
+  "inhales deeply",
+  "whispers",
+]);
+
 const ALLOWED_AUDIO_DOKU_INLINE_FX_TAGS = new Set([
   "applause",
   "clapping",
@@ -877,7 +825,10 @@ const sanitizeSpokenTextWithInlineFx = (value: string): string =>
   value
     .replace(/\[([^\]\r\n]{1,60})\]/g, (_full, rawTag: string) => {
       const tagName = normalizeAudioDokuTagName(rawTag);
-      if (ALLOWED_AUDIO_DOKU_INLINE_FX_TAGS.has(tagName)) {
+      if (
+        ALLOWED_AUDIO_DOKU_INLINE_FX_TAGS.has(tagName) ||
+        ALLOWED_AUDIO_DOKU_INLINE_VOICE_TAGS.has(tagName)
+      ) {
         return ` [${tagName}] `;
       }
       return " ";
@@ -942,7 +893,7 @@ const sanitizeScript = (raw: string, speakers: string[]): string => {
   // Die thematische Abschlusszeile (host1) kommt vom Modell.
   // Wir hängen nur die feste Verabschiedung des zweiten Sprechers an.
   const host2 = speakers[1] ?? speakers[0] ?? "LUMI";
-  cleaned.push(`${host2}: [excited] Bis zur naechsten Doku! [applause] Tschuess!`);
+  cleaned.push(`${host2}: [excited] Bis zum nächsten Check! [applause] Tschüss!`);
 
   return cleaned.join("\n");
 };

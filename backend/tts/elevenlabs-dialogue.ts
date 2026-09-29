@@ -6,10 +6,17 @@ import { ensureAdmin } from "../admin/authz";
 import { bucketObjectExists, resolveObjectKeyUrlForClient, resolveObjectUrlForClient, uploadBufferToBucket, uploadBufferToBucketKey } from "../helpers/bucket-storage";
 
 const ELEVENLABS_API_BASE = "https://api.elevenlabs.io/v1";
-const DEFAULT_MODEL_ID = "eleven_v3";
+const DEFAULT_MODEL_ID = "eleven_v4";
+// Eleven v4 launched 2026-09-28. If an account or endpoint does not accept it yet,
+// the whole synthesis is retried once on v3 instead of failing the doku.
+const FALLBACK_MODEL_ID = "eleven_v3";
 const DEFAULT_OUTPUT_FORMAT = "mp3_44100_192";
-const ELEVENLABS_MAX_TEXT_LENGTH = 5000;
-const ELEVENLABS_TARGET_CHUNK_LENGTH = 4800;
+// Characters per dialogue request: v4 takes 10k, v3 (and unknown models) 5k.
+const MODEL_MAX_TEXT_LENGTH: Record<string, number> = {
+  eleven_v4: 10_000,
+  eleven_v3: 5_000,
+};
+const DEFAULT_MAX_TEXT_LENGTH = 5_000;
 const DEFAULT_INLINE_AUDIO_MAX_BYTES = 1_500_000;
 const DEFAULT_DIALOGUE_CHUNK_CONCURRENCY = 3;
 
@@ -328,19 +335,20 @@ const splitTextForElevenLabs = (text: string, maxLength: number): string[] => {
   return chunks;
 };
 
-const chunkDialogueInputsForElevenLabs = (
-  inputs: ElevenLabsDialogueInput[],
+/** Leaves ~4% headroom under the model's hard per-request limit. */
+const getTargetChunkLength = (modelId: string): number =>
+  Math.floor((MODEL_MAX_TEXT_LENGTH[modelId] ?? DEFAULT_MAX_TEXT_LENGTH) * 0.96);
+
+const chunkDialogueInputsForElevenLabs = <T extends ElevenLabsDialogueInput>(
+  inputs: T[],
   maxLength: number
-): ElevenLabsDialogueInput[][] => {
+): T[][] => {
   const expandedInputs = inputs.flatMap((input) =>
-    splitTextForElevenLabs(input.text, maxLength).map((text) => ({
-      text,
-      voice_id: input.voice_id,
-    }))
+    splitTextForElevenLabs(input.text, maxLength).map((text) => ({ ...input, text }))
   );
 
-  const batches: ElevenLabsDialogueInput[][] = [];
-  let currentBatch: ElevenLabsDialogueInput[] = [];
+  const batches: T[][] = [];
+  let currentBatch: T[] = [];
   let currentLength = 0;
 
   const flushBatch = () => {
@@ -353,7 +361,7 @@ const chunkDialogueInputsForElevenLabs = (
   for (const input of expandedInputs) {
     if (input.text.length > maxLength) {
       throw APIError.invalidArgument(
-        `A dialogue block still exceeds the ElevenLabs limit of ${ELEVENLABS_MAX_TEXT_LENGTH} characters after splitting.`
+        `A dialogue block still exceeds the ElevenLabs limit of ${maxLength} characters after splitting.`
       );
     }
 
@@ -437,6 +445,42 @@ const throwElevenLabsApiError = (status: number, errText: string, operation: str
 
   throw APIError.unavailable(`ElevenLabs ${operation} failed: ${message}`);
 };
+
+/** ElevenLabs refused the requested model (not enabled for the account or endpoint). */
+class ElevenLabsModelRejectedError extends Error {}
+
+/**
+ * Like throwElevenLabsApiError, but a model rejection on a non-fallback model throws
+ * ElevenLabsModelRejectedError so withModelFallback can retry on the fallback model.
+ */
+const failElevenLabsRequest = (
+  status: number,
+  errText: string,
+  operation: string,
+  modelId: string,
+): never => {
+  if (
+    modelId !== FALLBACK_MODEL_ID &&
+    (status === 400 || status === 404 || status === 422) &&
+    /model/i.test(errText)
+  ) {
+    throw new ElevenLabsModelRejectedError(extractElevenLabsErrorMessage(errText));
+  }
+  return throwElevenLabsApiError(status, errText, operation);
+};
+
+async function withModelFallback<T>(modelId: string, run: (modelId: string) => Promise<T>): Promise<T> {
+  try {
+    return await run(modelId);
+  } catch (error) {
+    if (!(error instanceof ElevenLabsModelRejectedError)) throw error;
+    log.warn(
+      `[ElevenLabs] Model ${modelId} rejected (${error.message}); retrying with ${FALLBACK_MODEL_ID}.`,
+    );
+    // Re-runs from scratch: v3 needs smaller chunks than v4.
+    return run(FALLBACK_MODEL_ID);
+  }
+}
 
 function concatenateAudioBuffers(buffers: Buffer[], mimeType: string): Buffer {
   if (buffers.length <= 1) return buffers[0] || Buffer.alloc(0);
@@ -578,15 +622,34 @@ export async function synthesizeDialogue(
     throw APIError.invalidArgument(`Missing voice IDs for speaker(s): ${speakers}`);
   }
 
-  const modelId = options.modelId?.trim() || DEFAULT_MODEL_ID;
   const outputFormat = options.outputFormat?.trim() || DEFAULT_OUTPUT_FORMAT;
+  const { audio, mimeType } = await withModelFallback(
+    options.modelId?.trim() || DEFAULT_MODEL_ID,
+    (modelId) => renderDialogueBatches({ apiKey, inputs, modelId, outputFormat }),
+  );
+
+  return {
+    audio,
+    mimeType,
+    turns: turns.length,
+    speakers: [...new Set(turns.map((turn) => turn.speaker))],
+  };
+}
+
+async function renderDialogueBatches(options: {
+  apiKey: string;
+  inputs: ElevenLabsDialogueInput[];
+  modelId: string;
+  outputFormat: string;
+}): Promise<{ audio: Buffer; mimeType: string }> {
+  const { apiKey, inputs, modelId, outputFormat } = options;
   const isPcm = outputFormat.startsWith("pcm_");
   const totalTextLength = getDialogueTextLength(inputs);
-  const inputBatches = chunkDialogueInputsForElevenLabs(inputs, ELEVENLABS_TARGET_CHUNK_LENGTH);
+  const inputBatches = chunkDialogueInputsForElevenLabs(inputs, getTargetChunkLength(modelId));
 
   if (inputBatches.length > 1) {
     log.info(
-      `[ElevenLabs] Splitting dialogue request into ${inputBatches.length} chunk(s) (${totalTextLength} chars total).`
+      `[ElevenLabs] Splitting dialogue request into ${inputBatches.length} chunk(s) (${totalTextLength} chars total, model ${modelId}).`
     );
   }
 
@@ -615,7 +678,7 @@ export async function synthesizeDialogue(
     if (!response.ok) {
       const errText = await response.text();
       log.error(`[ElevenLabs] dialogue generation failed (${response.status}, chunk ${chunkNumber}): ${errText}`);
-      throwElevenLabsApiError(response.status, errText, "dialogue generation");
+      failElevenLabsRequest(response.status, errText, "dialogue generation", modelId);
     }
 
     const arrayBuffer = await response.arrayBuffer();
@@ -670,12 +733,7 @@ export async function synthesizeDialogue(
     throw APIError.unavailable("ElevenLabs returned no audio data.");
   }
 
-  return {
-    audio: combinedAudio,
-    mimeType: detectedMimeType,
-    turns: turns.length,
-    speakers: [...new Set(turns.map((turn) => turn.speaker))],
-  };
+  return { audio: combinedAudio, mimeType: detectedMimeType };
 }
 
 const buildDialogueAudioVariant = async (
@@ -790,12 +848,10 @@ export interface DialogueTurnSpan {
 }
 
 export interface TimedDialogueSegment {
-  /** 1-based turn index (≈ script line). */
-  index: number;
-  speaker: string;
-  text: string;
-  /** MP3 audio for this single turn (mp3_44100_128, one voice). */
+  /** MP3 audio for one dialogue batch (mp3_44100_128, all voices of that batch). */
   audio: Buffer;
+  /** Turn spans relative to THIS segment's own audio start. */
+  turnSpans: DialogueTurnSpan[];
   /** Word timings relative to THIS segment's own audio start. */
   words: DialogueWord[];
   /**
@@ -808,10 +864,10 @@ export interface TimedDialogueSegment {
 
 export interface SynthesizeDialogueTimedResult {
   /**
-   * One segment per dialogue turn. Deliberately NOT pre-concatenated: MP3 frames are
-   * padded to a 26 ms grid, so byte-concatenation would accumulate timing drift across
-   * turns. The renderer measures each segment's real decoded duration and concatenates
-   * in the decoded domain (sample-accurate word anchors).
+   * One segment per dialogue batch (usually 1-2 for a whole doku). Deliberately NOT
+   * pre-concatenated: MP3 frames are padded to a 26 ms grid, so byte-concatenation would
+   * accumulate timing drift. The renderer measures each segment's real decoded duration
+   * and concatenates in the decoded domain (sample-accurate word anchors).
    */
   segments: TimedDialogueSegment[];
   turns: number;
@@ -826,7 +882,7 @@ type ElevenLabsAlignment = {
 
 /**
  * Reconstructs words from ElevenLabs character-level alignment, skipping audio-tag
- * spans like "[excited]" (the bracket content is a v3 directive, not spoken text).
+ * spans like "[excited]" (the bracket content is an audio tag, not spoken text).
  */
 const buildWordsFromAlignment = (
   alignment: ElevenLabsAlignment,
@@ -880,10 +936,32 @@ const buildWordsFromAlignment = (
     .filter((w) => w.word.length > 0 && Number.isFinite(w.start) && Number.isFinite(w.end));
 };
 
+type ElevenLabsVoiceSegment = {
+  start_time_seconds?: number;
+  end_time_seconds?: number;
+  character_start_index?: number;
+  character_end_index?: number;
+  dialogue_input_index?: number;
+};
+
+type TimedDialogueInput = ElevenLabsDialogueInput & {
+  /** 0-based index of the script turn this (possibly split) input belongs to. */
+  turnIndex: number;
+};
+
+const sliceAlignment = (alignment: ElevenLabsAlignment, from: number, to: number): ElevenLabsAlignment => ({
+  characters: (alignment.characters ?? []).slice(from, to),
+  character_start_times_seconds: (alignment.character_start_times_seconds ?? []).slice(from, to),
+  character_end_times_seconds: (alignment.character_end_times_seconds ?? []).slice(from, to),
+});
+
 /**
- * Renders the dialogue turn-by-turn via ElevenLabs text-to-speech "with-timestamps", so we
- * get a precise word timeline per turn (the basis for word-anchored sound design). Audio is
- * requested as mp3_44100_128 — raw PCM output formats require the ElevenLabs Pro tier and
+ * Renders the dialogue via ElevenLabs text-to-dialogue "with-timestamps": the whole doku in
+ * 1-2 requests, so the voices react to each other like a real conversation, while the
+ * character alignment + voice segments still give a word timeline per turn (the basis for
+ * word-anchored sound design). Until 2026-09 this ran one text-to-speech call per line —
+ * ~80 serial requests for a 7-minute doku, each voice blind to the others.
+ * Audio is mp3_44100_128 — raw PCM output formats require the ElevenLabs Pro tier and
  * would 403 on lower tiers. No auth — the caller is responsible for it.
  */
 export async function synthesizeDialogueWithTimestamps(options: {
@@ -905,16 +983,17 @@ export async function synthesizeDialogueWithTimestamps(options: {
     throw APIError.invalidArgument(`Missing voice IDs for speaker(s): ${[...missingSpeakers].join(", ")}`);
   }
 
-  const modelId = options.modelId?.trim() || DEFAULT_MODEL_ID;
-  const segments: TimedDialogueSegment[] = [];
+  const inputs: TimedDialogueInput[] = turns.map((turn, turnIndex) => ({
+    text: turn.text,
+    voice_id: resolveVoiceId(turn.speaker, options.speakerVoiceMap)!,
+    turnIndex,
+  }));
 
-  for (let t = 0; t < turns.length; t += 1) {
-    const turn = turns[t];
-    const voiceId = resolveVoiceId(turn.speaker, options.speakerVoiceMap)!;
+  const renderBatch = async (batch: TimedDialogueInput[], modelId: string): Promise<TimedDialogueSegment> => {
     let response: Response;
     try {
       response = await fetch(
-        `${ELEVENLABS_API_BASE}/text-to-speech/${encodeURIComponent(voiceId)}/with-timestamps?output_format=mp3_44100_128`,
+        `${ELEVENLABS_API_BASE}/text-to-dialogue/with-timestamps?output_format=mp3_44100_128`,
         {
           method: "POST",
           headers: {
@@ -922,49 +1001,104 @@ export async function synthesizeDialogueWithTimestamps(options: {
             "Content-Type": "application/json",
             Accept: "application/json",
           },
-          body: JSON.stringify({ text: turn.text, model_id: modelId }),
+          body: JSON.stringify({
+            model_id: modelId,
+            inputs: batch.map(({ text, voice_id }) => ({ text, voice_id })),
+          }),
         },
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.error(`[ElevenLabs] with-timestamps request failed before response: ${message}`);
+      log.error(`[ElevenLabs] dialogue with-timestamps request failed before response: ${message}`);
       throw APIError.unavailable("ElevenLabs timed synthesis failed before a response was received.");
     }
 
     if (!response.ok) {
       const errText = await response.text();
-      log.error(`[ElevenLabs] with-timestamps failed (${response.status}): ${errText}`);
-      throwElevenLabsApiError(response.status, errText, "timed dialogue generation");
+      log.error(`[ElevenLabs] dialogue with-timestamps failed (${response.status}): ${errText}`);
+      failElevenLabsRequest(response.status, errText, "timed dialogue generation", modelId);
     }
 
     const payload = (await response.json()) as {
       audio_base64?: string;
       alignment?: ElevenLabsAlignment;
       normalized_alignment?: ElevenLabsAlignment;
+      voice_segments?: ElevenLabsVoiceSegment[];
     };
-    const audioBase64 = payload.audio_base64;
-    if (!audioBase64) {
-      throw APIError.unavailable("ElevenLabs with-timestamps returned no audio.");
+    if (!payload.audio_base64) {
+      throw APIError.unavailable("ElevenLabs dialogue with-timestamps returned no audio.");
     }
 
     const alignment = payload.alignment ?? payload.normalized_alignment;
-    if (!alignment) {
-      log.warn(`[ElevenLabs] with-timestamps returned no alignment for turn ${t + 1}; word anchors unavailable for it.`);
-    }
     const endTimes = alignment?.character_end_times_seconds ?? [];
     const alignmentDurationSec = endTimes.length > 0 ? Math.max(...endTimes) : 0;
 
-    segments.push({
-      index: t + 1,
-      speaker: turn.speaker,
-      text: turn.text,
-      audio: Buffer.from(audioBase64, "base64"),
-      // Offset 0: word times stay relative to this segment; the renderer shifts them by
-      // each segment's real decoded start once measured.
-      words: alignment ? buildWordsFromAlignment(alignment, 0, turn.speaker) : [],
+    // Voice segments map audio time + alignment characters back to the dialogue inputs.
+    const words: DialogueWord[] = [];
+    const turnTimes = new Map<number, { start: number; end: number }>();
+    for (const seg of payload.voice_segments ?? []) {
+      const input = batch[seg.dialogue_input_index ?? -1];
+      if (!input) continue;
+      const speaker = turns[input.turnIndex].speaker;
+      const start = Number(seg.start_time_seconds);
+      const end = Number(seg.end_time_seconds);
+      if (Number.isFinite(start) && Number.isFinite(end)) {
+        const prev = turnTimes.get(input.turnIndex);
+        turnTimes.set(input.turnIndex, {
+          start: prev ? Math.min(prev.start, start) : start,
+          end: prev ? Math.max(prev.end, end) : end,
+        });
+      }
+      const from = Number(seg.character_start_index);
+      const to = Number(seg.character_end_index);
+      if (alignment && Number.isInteger(from) && Number.isInteger(to) && to > from) {
+        words.push(...buildWordsFromAlignment(sliceAlignment(alignment, from, to), 0, speaker));
+      }
+    }
+
+    if (words.length === 0 && alignment) {
+      log.warn("[ElevenLabs] dialogue with-timestamps returned no voice segments; word speakers unknown.");
+      words.push(...buildWordsFromAlignment(alignment, 0, ""));
+    }
+
+    // A turn the response did not place gets a char-weighted slot after the previous turn.
+    const batchTurnIndexes = [...new Set(batch.map((input) => input.turnIndex))];
+    const totalChars = batch.reduce((sum, input) => sum + Math.max(1, input.text.length), 0) || 1;
+    const turnSpans: DialogueTurnSpan[] = [];
+    let cursor = 0;
+    for (const turnIndex of batchTurnIndexes) {
+      const chars = batch
+        .filter((input) => input.turnIndex === turnIndex)
+        .reduce((sum, input) => sum + Math.max(1, input.text.length), 0);
+      const span = turnTimes.get(turnIndex) ?? {
+        start: cursor,
+        end: cursor + (chars / totalChars) * alignmentDurationSec,
+      };
+      turnSpans.push({
+        index: turnIndex + 1,
+        speaker: turns[turnIndex].speaker,
+        text: turns[turnIndex].text,
+        start: span.start,
+        end: span.end,
+      });
+      cursor = span.end;
+    }
+
+    return {
+      audio: Buffer.from(payload.audio_base64, "base64"),
+      turnSpans,
+      words: words.sort((x, y) => x.start - y.start),
       alignmentDurationSec,
-    });
-  }
+    };
+  };
+
+  const segments = await withModelFallback(options.modelId?.trim() || DEFAULT_MODEL_ID, (modelId) => {
+    const batches = chunkDialogueInputsForElevenLabs(inputs, getTargetChunkLength(modelId));
+    log.info(
+      `[ElevenLabs] Timed dialogue: ${turns.length} turn(s) in ${batches.length} request(s), model ${modelId}.`,
+    );
+    return mapWithConcurrency(batches, getDialogueChunkConcurrency(), (batch) => renderBatch(batch, modelId));
+  });
 
   if (segments.length === 0 || segments.every((s) => s.audio.length === 0)) {
     throw APIError.unavailable("ElevenLabs returned no audio data.");
