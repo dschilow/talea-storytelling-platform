@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 /**
  * Compares all local Bilderbuch-Modus test runs by writer model.
  *
