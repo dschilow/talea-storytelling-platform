@@ -6,7 +6,8 @@ import path from "node:path";
 const backendRoot = path.resolve(import.meta.dir, "..");
 
 function source(relativePath: string): string {
-  return readFileSync(path.join(backendRoot, relativePath), "utf8");
+  // Checked-out files may use CRLF; the assertions below expect LF.
+  return readFileSync(path.join(backendRoot, relativePath), "utf8").split(String.fromCharCode(13, 10)).join(String.fromCharCode(10));
 }
 
 function routeOptions(relativePath: string, route: string): string {

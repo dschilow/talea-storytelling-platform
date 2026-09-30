@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { getOfflineLicense, isOfflineAccessAllowed, recordOfflineLicense } from './offlineLicense';
+// @ts-nocheck (imports frontend code at runtime; not part of the Encore TypeScript project)
+import { getOfflineLicense, isOfflineAccessAllowed, recordOfflineLicense } from '../../frontend/utils/offlineLicense';
 
 const store = new Map<string, string>();
 const DAY = 24 * 60 * 60 * 1000;
