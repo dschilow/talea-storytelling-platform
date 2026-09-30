@@ -1,12 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 import type { PlaylistItem, ConversionStatus } from '../types/playlist';
 import { MAX_PLAYLIST_ITEMS } from '../types/playlist';
 import { splitTextIntoChunks, splitTextIntoChunksForXai } from '../utils/ttsChunking';
 import { useTTSConversionQueue } from '../hooks/useTTSConversionQueue';
 import { useBackend } from '../hooks/useBackend';
 import { useOfflineScope } from './OfflineScopeContext';
-import { getBlobUrl, normalizeOfflineMediaUrl } from '../utils/offlineDb';
-import { isConfirmedOnline } from '../utils/connectivity';
+import { getBlobUrl, isSignedMediaUrl, normalizeOfflineMediaUrl } from '../utils/offlineDb';
+import { getOnlineStatus, isConfirmedOnline } from '../utils/connectivity';
 import type { Chapter } from '../types/story';
 import type { TTSRequestOptions, TTSVoiceSettings } from '../types/ttsVoice';
 import {
@@ -40,6 +41,24 @@ function uniqueNonEmpty(values: string[]): string[] {
     output.push(normalized);
   }
   return output;
+}
+
+const AUDIO_DOKU_LOOKUP_TIMEOUT_MS = 10000;
+
+function withLookupTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error('lookup timed out')), timeoutMs);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 function splitChapterIntoDialogueAwareSegments(content: string): DialogueAwareSegment[] {
@@ -148,6 +167,12 @@ const AudioPlayerContext = createContext<AudioPlayerContextValue | undefined>(un
 
 export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const backend = useBackend();
+  // The mount-time restore effect and long-lived async work must see the
+  // CURRENT client: the one captured on first render was built before Clerk had
+  // loaded and would send every request without a token.
+  const backendRef = useRef(backend);
+  backendRef.current = backend;
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Legacy single-track state
@@ -259,11 +284,25 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // never keeps 20 decoded files alive in memory.
   const resolvedOfflineUrlRef = useRef<string | null>(null);
 
+  // An item restored after an app restart must come back PAUSED even though its
+  // source is resolved asynchronously through the normal "start this item" path.
+  const restoredPausedItemIdRef = useRef<string | null>(null);
+  // Audio-Doku whose fresh source is being looked up right now.
+  const refreshingItemIdRef = useRef<string | null>(null);
+  // Audio-Doku that already got one automatic second chance after a load error.
+  const recoveredItemIdRef = useRef<string | null>(null);
+  // Position to return to after the source of a playing item was swapped.
+  const pendingSeekRef = useRef<{ itemId: string; time: number } | null>(null);
+  const shouldAutoplayRef = useRef(true);
+  shouldAutoplayRef.current = shouldAutoplay;
+
   // ── Internal helper: play a playlist item as AudioTrack ───────────
   const playItemAsTrack = useCallback(
     (item: PlaylistItem) => {
       if (!item.audioUrl) return;
       const requestedUrl = item.audioUrl;
+      const startPaused = restoredPausedItemIdRef.current === item.id;
+      if (startPaused) restoredPausedItemIdRef.current = null;
       void resolvePlayableUrl(requestedUrl).then((playableUrl) => {
         const previousResolved = resolvedOfflineUrlRef.current;
         if (playableUrl !== requestedUrl && playableUrl.startsWith('blob:')) {
@@ -276,7 +315,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
           revokeBlobUrl(previousResolved);
         }
 
-        setShouldAutoplay(true);
+        setShouldAutoplay(!startPaused);
         setTrack({
           id: item.id,
           title: item.title,
@@ -287,6 +326,32 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       });
     },
     [resolvePlayableUrl, revokeBlobUrl, trackBlobUrl],
+  );
+
+  // ── Source lookup for Audio-Dokus without a usable URL ─────────────
+  // An Audio-Doku URL is signed and expires, so it is never persisted. After an
+  // app restart (or once a queued URL went stale) the item has to get its
+  // source again: the offline copy when the device is offline, otherwise a
+  // freshly signed URL from the server, with the offline copy as fallback.
+  const resolveAudioDokuSource = useCallback(
+    async (item: PlaylistItem, allowRemote: boolean): Promise<string | null> => {
+      const fromOfflineCache = async (): Promise<string | null> =>
+        item.offlineAudioKey ? resolveOfflineAudioByKey(item.offlineAudioKey) : null;
+
+      if (allowRemote && getOnlineStatus()) {
+        try {
+          const audioDoku = await withLookupTimeout(
+            backendRef.current.doku.getAudioDoku({ id: item.trackId }),
+            AUDIO_DOKU_LOOKUP_TIMEOUT_MS,
+          );
+          if (audioDoku.audioUrl) return audioDoku.audioUrl;
+        } catch (error) {
+          console.warn('[AudioPlayer] Could not refresh audio doku source:', error);
+        }
+      }
+      return fromOfflineCache();
+    },
+    [resolveOfflineAudioByKey],
   );
 
   // ── TTS conversion queue ─────────────────────────────────────────
@@ -340,17 +405,23 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       for (const [index, item] of restoredPlaylist.entries()) {
         const audioUrl = item.audioUrl;
-        const isBlobUrl = Boolean(audioUrl && audioUrl.startsWith('blob:'));
+        // Blob URLs died with the previous page and signed URLs have expired.
+        const isUsableUrl = Boolean(
+          audioUrl && !audioUrl.startsWith('blob:') && !isSignedMediaUrl(audioUrl),
+        );
         const hydratedItem =
           item.type === 'story-chapter' || item.type === 'doku'
             ? ({
                 ...item,
-                audioUrl: !isBlobUrl ? audioUrl : undefined,
-                conversionStatus: !isBlobUrl && audioUrl ? 'ready' : 'pending',
+                audioUrl: isUsableUrl ? audioUrl : undefined,
+                conversionStatus: isUsableUrl ? 'ready' : 'pending',
               } as PlaylistItem)
             : ({
+                // An Audio-Doku stays playable without a URL: its source is
+                // looked up again when it is started (see resolveAudioDokuSource).
                 ...item,
-                conversionStatus: audioUrl ? 'ready' : item.conversionStatus || 'pending',
+                audioUrl: isUsableUrl ? audioUrl : undefined,
+                conversionStatus: 'ready',
               } as PlaylistItem);
 
         // A pre-signed URL cannot be persisted (it expires), but the same file
@@ -403,6 +474,11 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       // If there was an active current item, restore waiting/track state.
       if (boundedIndex >= 0) {
         const currentItem = hydratedPlaylist[boundedIndex];
+        if (currentItem && !currentItem.audioUrl) {
+          // Its source is resolved right after startup; it must come back
+          // paused, not start playing by itself.
+          restoredPausedItemIdRef.current = currentItem.id;
+        }
         if (currentItem?.audioUrl && currentItem.conversionStatus === 'ready') {
           const restoredUrl = currentItem.audioUrl;
           setWaitingForConversion(false);
@@ -442,10 +518,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!hasRestoredState) return;
     try {
       const serializablePlaylist = playlist.map((item) => {
-        const hasExpiringSignedUrl = Boolean(
-          item.audioUrl &&
-          (item.audioUrl.includes('X-Amz-Signature') || item.audioUrl.includes('X-Amz-Algorithm'))
-        );
+        const hasExpiringSignedUrl = Boolean(item.audioUrl && isSignedMediaUrl(item.audioUrl));
         // Blob URLs are session-local and signed URLs expire quickly.
         const persistedAudioUrl =
           hasExpiringSignedUrl || item.audioUrl?.startsWith('blob:')
@@ -515,6 +588,61 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, [playItemAsTrack]);
 
+  // ── Load failures ─────────────────────────────────────────────────
+  // Nothing used to listen for the audio element's `error` event, so a source
+  // that cannot be loaded (expired URL, deleted file, connection lost) left the
+  // player "loading" for ever. An Audio-Doku gets one automatic second chance
+  // with a freshly resolved source; everything else fails visibly and moves on.
+  const markItemError = useCallback((itemId: string) => {
+    playlistRef.current = playlistRef.current.map((item) =>
+      item.id === itemId ? { ...item, conversionStatus: 'error' as const } : item,
+    );
+    setPlaylist(playlistRef.current);
+  }, []);
+
+  const announcePlaybackError = useCallback((message: string) => {
+    void import('../utils/toastUtils').then(({ showErrorToast }) => showErrorToast(message));
+  }, []);
+
+  const handleAudioError = useCallback(() => {
+    const audio = audioRef.current;
+    // Clearing the player removes the source on purpose; that is not a failure.
+    if (!audio || !audio.getAttribute('src')) return;
+
+    console.warn('[AudioPlayer] Audio failed to load:', audio.error);
+    const index = currentIndexRef.current;
+    const item = index >= 0 ? playlistRef.current[index] : undefined;
+    const wasPlaying = shouldAutoplayRef.current || !audio.paused;
+
+    if (item?.type === 'audio-doku' && recoveredItemIdRef.current !== item.id) {
+      recoveredItemIdRef.current = item.id;
+      pendingSeekRef.current =
+        audio.currentTime > 1 ? { itemId: item.id, time: audio.currentTime } : null;
+      if (!wasPlaying) restoredPausedItemIdRef.current = item.id;
+      playlistRef.current = playlistRef.current.map((entry) =>
+        entry.id === item.id ? { ...entry, audioUrl: undefined } : entry,
+      );
+      setPlaylist(playlistRef.current);
+      setTrack(null);
+      setWaitingForConversion(true);
+      return;
+    }
+
+    setIsPlaying(false);
+    if (item) markItemError(item.id);
+    announcePlaybackError(
+      getOnlineStatus()
+        ? 'Audio konnte nicht geladen werden.'
+        : 'Dieses Audio ist offline nicht gespeichert.',
+    );
+    if (wasPlaying && item && isPlaylistActiveRef.current) {
+      playNextInternal();
+    } else {
+      setTrack(null);
+      setWaitingForConversion(false);
+    }
+  }, [announcePlaybackError, markItemError, playNextInternal]);
+
   // ── Audio element event listeners ─────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
@@ -524,6 +652,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const handleLoadedMetadata = () => {
       setDuration(audio.duration || 0);
       setIsReady(true);
+      // A successful load earns the item a fresh second chance next time.
+      recoveredItemIdRef.current = null;
     };
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
@@ -540,6 +670,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleAudioError);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
@@ -548,8 +679,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleAudioError);
     };
-  }, [playNextInternal]);
+  }, [playNextInternal, handleAudioError]);
 
   // ── Load track into audio element ──────────────────────────────────
   useEffect(() => {
@@ -570,6 +702,20 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     audio.src = track.audioUrl;
     audio.load();
     setIsReady(false);
+
+    // The source of a playing item was swapped (fresh signed URL): continue
+    // where it stopped instead of starting over.
+    const seekTarget = pendingSeekRef.current;
+    if (seekTarget && seekTarget.itemId === track.id) {
+      pendingSeekRef.current = null;
+      audio.addEventListener(
+        'loadedmetadata',
+        () => {
+          audio.currentTime = seekTarget.time;
+        },
+        { once: true },
+      );
+    }
 
     if (shouldAutoplay) {
       void audio.play().catch(() => {
@@ -594,6 +740,72 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       playNextInternal();
     }
   }, [playlist, currentIndex, waitingForConversion, isPlaylistActive, playItemAsTrack, playNextInternal]);
+
+  // ── Resolve the source of an Audio-Doku that has none yet ─────────
+  // Reached after an app restart and whenever a queued item lost its expired URL.
+  // The item counts as "ready", so every entry point (play, next, queue tap)
+  // ends up waiting here instead of on a conversion that will never come.
+  useEffect(() => {
+    if (!hasRestoredState || !waitingForConversion || !isPlaylistActive || currentIndex < 0) return;
+    const item = playlist[currentIndex];
+    if (
+      !item ||
+      item.type !== 'audio-doku' ||
+      item.audioUrl ||
+      item.conversionStatus === 'error' ||
+      refreshingItemIdRef.current === item.id
+    ) {
+      return;
+    }
+
+    // Asking the server needs Clerk; the offline copy does not. Wait for it to
+    // finish loading rather than firing an unauthenticated request.
+    const canAskServer = getOnlineStatus() && isSignedIn === true;
+    if (getOnlineStatus() && !authLoaded) return;
+
+    refreshingItemIdRef.current = item.id;
+    void resolveAudioDokuSource(item, canAskServer)
+      .then((source) => {
+        if (source) {
+          if (source.startsWith('blob:')) trackBlobUrl(source);
+          playlistRef.current = playlistRef.current.map((entry) =>
+            entry.id === item.id
+              ? { ...entry, audioUrl: source, conversionStatus: 'ready' as const }
+              : entry,
+          );
+          setPlaylist(playlistRef.current);
+          return;
+        }
+
+        markItemError(item.id);
+        if (restoredPausedItemIdRef.current === item.id) {
+          // Startup restore: stay quiet and stay put, do not skip ahead.
+          restoredPausedItemIdRef.current = null;
+          setWaitingForConversion(false);
+          return;
+        }
+        announcePlaybackError(
+          getOnlineStatus()
+            ? 'Audio konnte nicht geladen werden.'
+            : 'Dieses Audio ist offline nicht gespeichert.',
+        );
+      })
+      .finally(() => {
+        refreshingItemIdRef.current = null;
+      });
+  }, [
+    announcePlaybackError,
+    authLoaded,
+    currentIndex,
+    hasRestoredState,
+    isPlaylistActive,
+    isSignedIn,
+    markItemError,
+    playlist,
+    resolveAudioDokuSource,
+    trackBlobUrl,
+    waitingForConversion,
+  ]);
 
   // ── Legacy playTrack (clears playlist) ────────────────────────────
   const playTrack = useCallback(
@@ -660,6 +872,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     playlistRef.current = [];
     currentIndexRef.current = -1;
     isPlaylistActiveRef.current = false;
+    restoredPausedItemIdRef.current = null;
+    pendingSeekRef.current = null;
+    recoveredItemIdRef.current = null;
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
@@ -877,6 +1092,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     playlistRef.current = [];
     currentIndexRef.current = -1;
     isPlaylistActiveRef.current = false;
+    restoredPausedItemIdRef.current = null;
+    pendingSeekRef.current = null;
+    recoveredItemIdRef.current = null;
     setPlaylist([]);
     setCurrentIndex(-1);
     setIsPlaylistActive(false);

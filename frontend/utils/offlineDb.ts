@@ -76,17 +76,43 @@ export function normalizeOfflineMediaUrl(url: string): string {
   return normalizeMediaUrl(url);
 }
 
+/** True when the URL carries a short-lived signature and must not be persisted. */
+export function isSignedMediaUrl(url: string): boolean {
+  const queryStart = url.indexOf('?');
+  if (queryStart === -1) return false;
+  const query = url.slice(queryStart + 1).toLowerCase();
+  return SIGNED_URL_PARAMS.some(
+    (param) => query.startsWith(`${param}=`) || query.includes(`&${param}=`),
+  );
+}
+
 function normalizeMediaUrl(url: string): string {
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
-  const queryStart = trimmed.indexOf('?');
-  if (queryStart === -1) return trimmed;
+  return isSignedMediaUrl(trimmed) ? trimmed.slice(0, trimmed.indexOf('?')) : trimmed;
+}
 
-  const query = trimmed.slice(queryStart + 1).toLowerCase();
-  const isSigned = SIGNED_URL_PARAMS.some(
-    (param) => query.startsWith(`${param}=`) || query.includes(`&${param}=`),
-  );
-  return isSigned ? trimmed.slice(0, queryStart) : trimmed;
+const MIME_BY_EXTENSION: Record<string, string> = {
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  m4a: 'audio/mp4',
+  aac: 'audio/aac',
+  ogg: 'audio/ogg',
+  oga: 'audio/ogg',
+  webm: 'audio/webm',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  webp: 'image/webp',
+  gif: 'image/gif',
+  avif: 'image/avif',
+  svg: 'image/svg+xml',
+};
+
+function guessMimeFromUrl(url: string): string | undefined {
+  const path = url.split('?')[0].split('#')[0];
+  const extension = path.slice(path.lastIndexOf('.') + 1).toLowerCase();
+  return MIME_BY_EXTENSION[extension];
 }
 
 function createCacheKey(scope: OfflineCacheScope, contentId: string): string {
@@ -177,9 +203,17 @@ interface TaleaOfflineDB extends DBSchema {
 
 const DB_NAME = 'talea-offline';
 const DB_VERSION = 3;
-const DB_OPEN_TIMEOUT_MS = 1200;
-const DB_READ_TIMEOUT_MS = 1500;
-const DB_WRITE_TIMEOUT_MS = 3000;
+// These only guard against an IndexedDB that hangs outright. They used to be
+// 1.2s / 1.5s / 3s, which a slow phone or a large audio blob exceeds on a good
+// day — and a timeout then disabled offline storage for the whole session (or
+// even deleted the database on open).
+const DB_OPEN_TIMEOUT_MS = 10000;
+const DB_READ_TIMEOUT_MS = 8000;
+const DB_WRITE_TIMEOUT_MS = 20000;
+const DB_BLOB_WRITE_TIMEOUT_MS = 60000;
+// Network transfers are deliberately NOT covered by the IndexedDB timeouts above.
+const MEDIA_DOWNLOAD_TIMEOUT_MS = 120000;
+const MEDIA_DOWNLOAD_CONCURRENCY = 3;
 
 let dbInstance: IDBPDatabase<TaleaOfflineDB> | null = null;
 let dbOpenPromise: Promise<IDBPDatabase<TaleaOfflineDB>> | null = null;
@@ -282,6 +316,32 @@ function isRecoverableDbError(error: unknown): boolean {
   );
 }
 
+function isQuotaError(error: unknown): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  return (
+    getErrorName(error).toLowerCase() === 'quotaexceedederror' ||
+    message.includes('quotaexceedederror') ||
+    message.includes('file_error_no_space')
+  );
+}
+
+/**
+ * Only genuine corruption justifies deleting the database on open. Timeouts and
+ * quota problems must never trigger it — the saved stories and audio inside are
+ * exactly what the user came here for.
+ */
+function isCorruptionError(error: unknown): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  const name = getErrorName(error).toLowerCase();
+  return (
+    name === 'unknownerror' ||
+    name === 'versionerror' ||
+    message.includes('unknownerror') ||
+    message.includes('internal error') ||
+    message.includes('versionerror')
+  );
+}
+
 function isDbUnavailableError(error: unknown): boolean {
   const message = getErrorMessage(error);
   return (
@@ -301,6 +361,20 @@ function isDbConnectionClosingError(error: unknown): boolean {
   );
 }
 
+function handleDbReadFailure<T>(error: unknown, fallback: T): T {
+  // A slow read is not a broken database: answer "nothing found" this once and
+  // keep the storage usable for the next call.
+  if (isDbTimeoutError(error)) {
+    console.warn('[Offline] IndexedDB read timed out, using fallback.', error);
+    return fallback;
+  }
+  if (isDbUnavailableError(error)) {
+    markDbUnavailable(error);
+    return fallback;
+  }
+  throw error;
+}
+
 async function withDbReadFallback<T>(
   fallback: T,
   reader: (db: IDBPDatabase<TaleaOfflineDB>) => Promise<T>
@@ -315,47 +389,55 @@ async function withDbReadFallback<T>(
         const db = await getDb();
         return await withTimeout(reader(db), DB_READ_TIMEOUT_MS, 'read');
       } catch (retryError) {
-        if (isDbUnavailableError(retryError)) {
-          markDbUnavailable(retryError);
-          return fallback;
-        }
-        throw retryError;
+        return handleDbReadFailure(retryError, fallback);
       }
     }
-    if (isDbUnavailableError(error)) {
-      markDbUnavailable(error);
-      return fallback;
-    }
-    throw error;
+    return handleDbReadFailure(error, fallback);
   }
 }
 
+/**
+ * Runs a write. Resolves `true` when it was stored and `false` when offline
+ * storage is unavailable in this browser context. A timeout throws so the
+ * caller can tell the user the save failed instead of reporting a false success.
+ */
 async function withDbWriteFallback(
-  writer: (db: IDBPDatabase<TaleaOfflineDB>) => Promise<void>
-): Promise<void> {
+  writer: (db: IDBPDatabase<TaleaOfflineDB>) => Promise<unknown>,
+  timeoutMs: number = DB_WRITE_TIMEOUT_MS,
+): Promise<boolean> {
+  const handleFailure = (error: unknown): boolean => {
+    // Timeouts and a full disk say nothing about the health of what is already
+    // stored, so they must not switch offline reading off.
+    if (isDbTimeoutError(error) || isQuotaError(error)) throw error;
+    if (isDbUnavailableError(error)) {
+      markDbUnavailable(error);
+      return false;
+    }
+    throw error;
+  };
+
   try {
     const db = await getDb();
-    await withTimeout(writer(db), DB_WRITE_TIMEOUT_MS, 'write');
+    await withTimeout(writer(db), timeoutMs, 'write');
+    return true;
   } catch (error) {
     if (isDbConnectionClosingError(error)) {
       resetDbConnection();
       try {
         const db = await getDb();
-        await withTimeout(writer(db), DB_WRITE_TIMEOUT_MS, 'write');
-        return;
+        await withTimeout(writer(db), timeoutMs, 'write');
+        return true;
       } catch (retryError) {
-        if (isDbUnavailableError(retryError)) {
-          markDbUnavailable(retryError);
-          return;
-        }
-        throw retryError;
+        return handleFailure(retryError);
       }
     }
-    if (isDbUnavailableError(error)) {
-      markDbUnavailable(error);
-      return;
-    }
-    throw error;
+    return handleFailure(error);
+  }
+}
+
+function assertStored(stored: boolean): void {
+  if (!stored) {
+    throw new Error('[Offline] Offline storage is unavailable in this browser context');
   }
 }
 
@@ -428,12 +510,15 @@ async function getDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
       dbInstance = openedDb;
       return dbInstance;
     } catch (error) {
-      if (!isRecoverableDbError(error)) {
+      // A slow open is retried on the next call. It must never fall through to
+      // the reset below, which deletes every saved story and audio file.
+      if (isDbTimeoutError(error)) throw error;
+      if (!isCorruptionError(error)) {
         dbDisabled = true;
         throw error;
       }
 
-      console.warn('[Offline] IndexedDB unavailable or unresponsive, trying database reset...');
+      console.warn('[Offline] IndexedDB looks corrupted, trying database reset...');
       resetDbConnection();
       const recoverySession = dbSession;
 
@@ -467,48 +552,108 @@ async function getDb(): Promise<IDBPDatabase<TaleaOfflineDB>> {
   return dbOpenPromise;
 }
 
+async function downloadMedia(url: string): Promise<Blob> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), MEDIA_DOWNLOAD_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.blob();
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+/**
+ * Downloads one media file and stores it as a blob. The download happens
+ * OUTSIDE any IndexedDB timeout: a multi-megabyte audio file on a train wifi
+ * legitimately takes longer than a database call should. Resolves `false` when
+ * the file could not be saved; the caller decides how loud to be about it.
+ */
 async function fetchAndStoreBlob(
   url: string,
   scope: OfflineCacheScope,
-  db?: IDBPDatabase<TaleaOfflineDB>
-): Promise<void> {
-  if (!url || dbDisabled) return;
+  mimeHint?: string,
+): Promise<boolean> {
+  if (!url || dbDisabled) return false;
   const normalizedScope = assertScope(scope);
   const normalizedUrl = normalizeMediaUrl(url);
   const cacheKey = createCacheKey(normalizedScope, normalizedUrl);
 
-  const writeBlob = async (database: IDBPDatabase<TaleaOfflineDB>) => {
-    const existing = await database.get('offline-blobs', cacheKey);
-    if (existing) return;
+  try {
+    const existing = await withDbReadFallback<OfflineBlobEntry | undefined>(
+      undefined,
+      (db) => db.get('offline-blobs', cacheKey),
+    );
+    if (existing && existing.blob.size > 0) return true;
 
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const blob = await response.blob();
-      await database.put('offline-blobs', {
-        cacheKey,
-        userId: normalizedScope.userId,
-        profileId: normalizedScope.profileId,
-        url: normalizedUrl,
-        blob,
-        mimeType: blob.type,
-        savedAt: Date.now(),
-      });
-    } catch (error) {
-      if (isDbUnavailableError(error)) {
-        markDbUnavailable(error);
-        return;
-      }
-      console.warn('[Offline] Failed to cache blob:', url, error);
+    let blob = await downloadMedia(url);
+    if (blob.size === 0) throw new Error('empty response');
+
+    // Object storage often answers audio with application/octet-stream, which
+    // iOS refuses to play from a blob URL. Restore the real type.
+    const declaredType = blob.type;
+    if (!declaredType || declaredType === 'application/octet-stream') {
+      const mimeType = mimeHint || guessMimeFromUrl(url);
+      if (mimeType) blob = new Blob([blob], { type: mimeType });
     }
-  };
 
-  if (db) {
-    await writeBlob(db);
-    return;
+    return await withDbWriteFallback(
+      (db) =>
+        db.put('offline-blobs', {
+          cacheKey,
+          userId: normalizedScope.userId,
+          profileId: normalizedScope.profileId,
+          url: normalizedUrl,
+          blob,
+          mimeType: blob.type,
+          savedAt: Date.now(),
+        }),
+      DB_BLOB_WRITE_TIMEOUT_MS,
+    );
+  } catch (error) {
+    console.warn('[Offline] Failed to cache blob:', url, error);
+    return false;
+  }
+}
+
+interface MediaSource {
+  url: string;
+  mimeType?: string;
+}
+
+/**
+ * Stores many media files with a small worker pool. Saving a 20-part audiobook
+ * used to start 20 parallel downloads at once. Returns how many files failed.
+ */
+async function storeMediaBlobs(
+  scope: OfflineCacheScope,
+  sources: MediaSource[],
+): Promise<number> {
+  const unique = new Map<string, MediaSource>();
+  for (const source of sources) {
+    if (!source.url) continue;
+    const key = normalizeMediaUrl(source.url);
+    if (!unique.has(key)) unique.set(key, source);
   }
 
-  await withDbWriteFallback(writeBlob);
+  const queue = [...unique.values()];
+  let failed = 0;
+  const worker = async () => {
+    for (let next = queue.shift(); next; next = queue.shift()) {
+      const ok = await fetchAndStoreBlob(next.url, scope, next.mimeType);
+      if (!ok) failed += 1;
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(MEDIA_DOWNLOAD_CONCURRENCY, queue.length) }, worker),
+  );
+  return failed;
+}
+
+/** What a save managed to store; `failedMedia` files can not be shown offline. */
+export interface OfflineSaveResult {
+  failedMedia: number;
 }
 
 function collectStoryUrls(story: Story): string[] {
@@ -541,84 +686,137 @@ function collectAudioDokuUrls(audioDoku: AudioDoku): string[] {
 }
 
 function collectGeneratedAudioUrls(entry: GeneratedAudioLibraryEntry): string[] {
-  const urls: string[] = [];
-  if (entry.coverImageUrl) urls.push(entry.coverImageUrl);
-  if (entry.audioUrl) urls.push(entry.audioUrl);
-  return urls;
+  return collectGeneratedAudioSources(entry).map((source) => source.url);
 }
 
-export async function saveStoryOffline(scope: OfflineCacheScope, story: Story): Promise<void> {
-  const normalizedScope = assertScope(scope);
-  await withDbWriteFallback(async (db) => {
-    await db.put('offline-stories', {
-      cacheKey: createCacheKey(normalizedScope, story.id),
-      userId: normalizedScope.userId,
-      profileId: normalizedScope.profileId,
-      id: story.id,
-      story,
-      savedAt: Date.now(),
-    });
+const toMediaSources = (urls: string[]): MediaSource[] => urls.map((url) => ({ url }));
 
-    const urls = collectStoryUrls(story);
-    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, normalizedScope, db)));
-  });
+function collectGeneratedAudioSources(entry: GeneratedAudioLibraryEntry): MediaSource[] {
+  const sources: MediaSource[] = [];
+  if (entry.coverImageUrl) sources.push({ url: entry.coverImageUrl });
+  if (entry.audioUrl) sources.push({ url: entry.audioUrl, mimeType: entry.mimeType });
+  return sources;
 }
 
-export async function saveDokuOffline(scope: OfflineCacheScope, doku: Doku): Promise<void> {
+export async function saveStoryOffline(
+  scope: OfflineCacheScope,
+  story: Story,
+): Promise<OfflineSaveResult> {
   const normalizedScope = assertScope(scope);
-  await withDbWriteFallback(async (db) => {
-    await db.put('offline-dokus', {
-      cacheKey: createCacheKey(normalizedScope, doku.id),
-      userId: normalizedScope.userId,
-      profileId: normalizedScope.profileId,
-      id: doku.id,
-      doku,
-      savedAt: Date.now(),
-    });
+  assertStored(
+    await withDbWriteFallback((db) =>
+      db.put('offline-stories', {
+        cacheKey: createCacheKey(normalizedScope, story.id),
+        userId: normalizedScope.userId,
+        profileId: normalizedScope.profileId,
+        id: story.id,
+        story,
+        savedAt: Date.now(),
+      }),
+    ),
+  );
 
-    const urls = collectDokuUrls(doku);
-    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, normalizedScope, db)));
-  });
+  const failedMedia = await storeMediaBlobs(
+    normalizedScope,
+    toMediaSources(collectStoryUrls(story)),
+  );
+  return { failedMedia };
+}
+
+export async function saveDokuOffline(
+  scope: OfflineCacheScope,
+  doku: Doku,
+): Promise<OfflineSaveResult> {
+  const normalizedScope = assertScope(scope);
+  assertStored(
+    await withDbWriteFallback((db) =>
+      db.put('offline-dokus', {
+        cacheKey: createCacheKey(normalizedScope, doku.id),
+        userId: normalizedScope.userId,
+        profileId: normalizedScope.profileId,
+        id: doku.id,
+        doku,
+        savedAt: Date.now(),
+      }),
+    ),
+  );
+
+  const failedMedia = await storeMediaBlobs(
+    normalizedScope,
+    toMediaSources(collectDokuUrls(doku)),
+  );
+  return { failedMedia };
 }
 
 export async function saveAudioDokuOffline(
   scope: OfflineCacheScope,
   audioDoku: AudioDoku,
-): Promise<void> {
+): Promise<OfflineSaveResult> {
   const normalizedScope = assertScope(scope);
-  await withDbWriteFallback(async (db) => {
-    await db.put('offline-audio-dokus', {
-      cacheKey: createCacheKey(normalizedScope, audioDoku.id),
-      userId: normalizedScope.userId,
-      profileId: normalizedScope.profileId,
-      id: audioDoku.id,
-      audioDoku,
-      savedAt: Date.now(),
-    });
+  assertStored(
+    await withDbWriteFallback((db) =>
+      db.put('offline-audio-dokus', {
+        cacheKey: createCacheKey(normalizedScope, audioDoku.id),
+        userId: normalizedScope.userId,
+        profileId: normalizedScope.profileId,
+        id: audioDoku.id,
+        audioDoku,
+        savedAt: Date.now(),
+      }),
+    ),
+  );
 
-    const urls = collectAudioDokuUrls(audioDoku);
-    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, normalizedScope, db)));
-  });
+  const failedMedia = await storeMediaBlobs(
+    normalizedScope,
+    toMediaSources(collectAudioDokuUrls(audioDoku)),
+  );
+  return { failedMedia };
+}
+
+/**
+ * Saves any number of generated audio parts (e.g. every chapter of one story)
+ * in one go: all entries are recorded first, then their files are downloaded
+ * through a single worker pool.
+ */
+export async function saveGeneratedAudiosOffline(
+  scope: OfflineCacheScope,
+  entries: GeneratedAudioLibraryEntry[],
+): Promise<OfflineSaveResult> {
+  const normalizedScope = assertScope(scope);
+  if (entries.length === 0) return { failedMedia: 0 };
+
+  assertStored(
+    await withDbWriteFallback(async (db) => {
+      const tx = db.transaction('offline-generated-audios', 'readwrite');
+      const savedAt = Date.now();
+      await Promise.all([
+        ...entries.map((entry) =>
+          tx.store.put({
+            cacheKey: createCacheKey(normalizedScope, entry.id),
+            userId: normalizedScope.userId,
+            profileId: normalizedScope.profileId,
+            id: entry.id,
+            generatedAudio: entry,
+            savedAt,
+          }),
+        ),
+        tx.done,
+      ]);
+    }),
+  );
+
+  const failedMedia = await storeMediaBlobs(
+    normalizedScope,
+    entries.flatMap(collectGeneratedAudioSources),
+  );
+  return { failedMedia };
 }
 
 export async function saveGeneratedAudioOffline(
   scope: OfflineCacheScope,
   entry: GeneratedAudioLibraryEntry,
-): Promise<void> {
-  const normalizedScope = assertScope(scope);
-  await withDbWriteFallback(async (db) => {
-    await db.put('offline-generated-audios', {
-      cacheKey: createCacheKey(normalizedScope, entry.id),
-      userId: normalizedScope.userId,
-      profileId: normalizedScope.profileId,
-      id: entry.id,
-      generatedAudio: entry,
-      savedAt: Date.now(),
-    });
-
-    const urls = collectGeneratedAudioUrls(entry);
-    await Promise.allSettled(urls.map((url) => fetchAndStoreBlob(url, normalizedScope, db)));
-  });
+): Promise<OfflineSaveResult> {
+  return saveGeneratedAudiosOffline(scope, [entry]);
 }
 
 export async function removeStoryOffline(
@@ -881,6 +1079,9 @@ export async function getOfflineGeneratedAudiosBySource(
         // An entry without its blob cannot be played offline — skip it rather
         // than handing the player a URL that will 404 without a network.
         if (!blobUrl) continue;
+        // The blob URL dies with the page; the key is how the player finds this
+        // file again after the app was closed and reopened.
+        next.offlineAudioKey = normalizeMediaUrl(next.audioUrl);
         next.audioUrl = blobUrl;
       }
       if (next.coverImageUrl) {

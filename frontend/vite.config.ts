@@ -146,10 +146,15 @@ export default defineConfig({
             },
           },
           {
+            // index.html loads this as a BLOCKING script. On a flaky link
+            // (train tunnel, captive portal) a plain NetworkFirst would hang
+            // the whole app start until the browser gives up; fall back to the
+            // cached copy after a few seconds instead.
             urlPattern: /\/config\.js$/,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'config-cache',
+              networkTimeoutSeconds: 3,
             },
           },
           {

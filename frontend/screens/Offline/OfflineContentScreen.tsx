@@ -13,6 +13,7 @@ import {
   getAllOfflineAudioDokus,
   getAllOfflineGeneratedAudios,
   getBlobUrl,
+  normalizeOfflineMediaUrl,
 } from '../../utils/offlineDb';
 import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
@@ -44,6 +45,9 @@ const OfflineContentScreen: React.FC = () => {
   const [audioDokus, setAudioDokus] = useState<AudioDoku[]>([]);
   const [generatedAudios, setGeneratedAudios] = useState<GeneratedAudioLibraryEntry[]>([]);
   const [coverUrls, setCoverUrls] = useState<Record<string, string>>({});
+  // Stable cache key per audio doku. The blob URL in `audioUrl` dies with the
+  // page; this key is how the player finds the file again after a restart.
+  const [audioDokuKeys, setAudioDokuKeys] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<OfflineTab>('stories');
   const [query, setQuery] = useState('');
@@ -56,6 +60,7 @@ const OfflineContentScreen: React.FC = () => {
         setStories([]);
         setDokus([]);
         setAudioDokus([]);
+        setAudioDokuKeys({});
         setGeneratedAudios([]);
         setCoverUrls({});
         setLoading(false);
@@ -73,27 +78,37 @@ const OfflineContentScreen: React.FC = () => {
 
         setStories(s);
         setDokus(d);
+        const audioKeys: Record<string, string> = {};
 
         // Audio-Dokus keep their remote audioUrl in the saved record; playback
-        // offline has to come from the stored blob.
+        // offline has to come from the stored blob. The remote URL is a signed,
+        // long-expired one, so only entries whose blob really exists are playable
+        // — the rest would spin forever instead of failing visibly.
         const resolvedAudioDokus: AudioDoku[] = [];
         for (const entry of a) {
           const next: AudioDoku = { ...entry };
           if (next.audioUrl) {
             const blob = await getBlobUrl(scope, next.audioUrl);
-            if (blob) next.audioUrl = blob;
+            if (blob) {
+              next.audioUrl = blob;
+              audioKeys[entry.id] = normalizeOfflineMediaUrl(entry.audioUrl);
+            } else {
+              next.audioUrl = '';
+            }
           }
           resolvedAudioDokus.push(next);
         }
 
         const resolvedGenerated: GeneratedAudioLibraryEntry[] = [];
         for (const entry of g) {
-          const next: GeneratedAudioLibraryEntry = { ...entry };
-          if (next.audioUrl) {
-            const blob = await getBlobUrl(scope, next.audioUrl);
-            if (blob) next.audioUrl = blob;
-          }
-          resolvedGenerated.push(next);
+          if (!entry.audioUrl) continue;
+          const blob = await getBlobUrl(scope, entry.audioUrl);
+          if (!blob) continue;
+          resolvedGenerated.push({
+            ...entry,
+            audioUrl: blob,
+            offlineAudioKey: normalizeOfflineMediaUrl(entry.audioUrl),
+          });
         }
 
         const urls: Record<string, string> = {};
@@ -109,6 +124,7 @@ const OfflineContentScreen: React.FC = () => {
 
         if (cancelled) return;
         setAudioDokus(resolvedAudioDokus);
+        setAudioDokuKeys(audioKeys);
         setGeneratedAudios(resolvedGenerated);
         setCoverUrls(urls);
       } catch (err) {
@@ -181,6 +197,7 @@ const OfflineContentScreen: React.FC = () => {
         coverImageUrl: coverUrls[audioDoku.id] || audioDoku.coverImageUrl,
         type: 'audio-doku',
         audioUrl: audioDoku.audioUrl,
+        offlineAudioKey: audioDokuKeys[audioDoku.id],
         conversionStatus: 'ready',
         parentDokuId: audioDoku.id,
         parentDokuTitle: audioDoku.title,
@@ -206,6 +223,7 @@ const OfflineContentScreen: React.FC = () => {
         coverImageUrl: coverUrls[entry.id] || entry.coverImageUrl,
         type: entry.sourceType === 'story' ? 'story-chapter' : 'doku',
         audioUrl: entry.audioUrl,
+        offlineAudioKey: entry.offlineAudioKey,
         conversionStatus: 'ready',
         ...(entry.sourceType === 'story'
           ? { parentStoryId: entry.sourceId, parentStoryTitle: entry.sourceTitle }

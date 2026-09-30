@@ -68,6 +68,7 @@ function buildStoryPlaylistFromGeneratedAudio(
       coverImageUrl: entry.coverImageUrl || coverImageUrl,
       type: 'story-chapter',
       audioUrl: entry.audioUrl,
+      offlineAudioKey: entry.offlineAudioKey,
       conversionStatus: 'ready',
       parentStoryId: storyId,
       parentStoryTitle: storyTitle,

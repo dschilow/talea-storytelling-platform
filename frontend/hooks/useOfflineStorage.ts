@@ -7,7 +7,7 @@ import {
   saveStoryOffline,
   saveDokuOffline,
   saveAudioDokuOffline,
-  saveGeneratedAudioOffline,
+  saveGeneratedAudiosOffline,
   removeStoryOffline,
   removeDokuOffline,
   removeAudioDokuOffline,
@@ -27,6 +27,20 @@ function scopeKey(scope: OfflineCacheScope): string {
 
 function operationKey(cacheScopeKey: string, contentId: string): string {
   return JSON.stringify([cacheScopeKey, contentId]);
+}
+
+// "Saved" must not be announced when the audio file itself did not make it —
+// that is exactly the file the child will go looking for on the plane.
+function reportSaveResult(label: string, failedMedia: number): void {
+  void import('../utils/toastUtils').then(({ showSuccessToast, showWarningToast }) => {
+    if (failedMedia > 0) {
+      showWarningToast(
+        `${label} nur teilweise offline gespeichert (${failedMedia} Datei${failedMedia === 1 ? '' : 'en'} fehlen). Bitte mit Internet erneut versuchen.`,
+      );
+      return;
+    }
+    showSuccessToast(`${label} offline gespeichert`);
+  });
 }
 
 export function useOfflineStorage() {
@@ -121,20 +135,21 @@ export function useOfflineStorage() {
   // without audio is a half-saved item: the child opens it on the train, hits
   // play, and nothing happens. Audio is best-effort — a story that has no
   // generated audio yet, or a failing audio API, must never fail the save.
+  // Resolves with the number of audio/cover files that could not be stored.
   const saveRelatedAudioOffline = useCallback(
     async (
       cacheScope: OfflineCacheScope,
       sourceType: GeneratedAudioSourceType,
       sourceId: string,
-    ): Promise<void> => {
+    ): Promise<number> => {
       try {
         const entries = await fetchGeneratedAudioBySource(getToken, sourceType, sourceId);
-        if (entries.length === 0) return;
-        await Promise.allSettled(
-          entries.map((entry) => saveGeneratedAudioOffline(cacheScope, entry)),
-        );
+        if (entries.length === 0) return 0;
+        const result = await saveGeneratedAudiosOffline(cacheScope, entries);
+        return result.failedMedia;
       } catch (error) {
         console.warn(`[Offline] Could not save ${sourceType} audio for ${sourceId}:`, error);
+        return 1;
       }
     },
     [getToken],
@@ -204,15 +219,13 @@ export function useOfflineStorage() {
             id: storyId,
             profileId: scope.profileId,
           });
-          await saveStoryOffline(scope, fullStory as any);
-          await saveRelatedAudioOffline(scope, 'story', storyId);
+          const saved = await saveStoryOffline(scope, fullStory as any);
+          const failedAudio = await saveRelatedAudioOffline(scope, 'story', storyId);
           if (scopeKeyRef.current === currentScopeKey) {
             setSavedStoryIds((previous) => new Set(previous).add(storyId));
             setLoadedScopeKey(currentScopeKey);
           }
-          import('../utils/toastUtils').then(({ showSuccessToast }) =>
-            showSuccessToast('Geschichte offline gespeichert'),
-          );
+          reportSaveResult('Geschichte', saved.failedMedia + failedAudio);
         }
       } catch (error) {
         console.error('[Offline] Failed to toggle story:', error);
@@ -263,15 +276,13 @@ export function useOfflineStorage() {
             id: dokuId,
             profileId: scope.profileId,
           });
-          await saveDokuOffline(scope, fullDoku as any);
-          await saveRelatedAudioOffline(scope, 'doku', dokuId);
+          const saved = await saveDokuOffline(scope, fullDoku as any);
+          const failedAudio = await saveRelatedAudioOffline(scope, 'doku', dokuId);
           if (scopeKeyRef.current === currentScopeKey) {
             setSavedDokuIds((previous) => new Set(previous).add(dokuId));
             setLoadedScopeKey(currentScopeKey);
           }
-          import('../utils/toastUtils').then(({ showSuccessToast }) =>
-            showSuccessToast('Doku offline gespeichert'),
-          );
+          reportSaveResult('Doku', saved.failedMedia + failedAudio);
         }
       } catch (error) {
         console.error('[Offline] Failed to toggle doku:', error);
@@ -318,14 +329,12 @@ export function useOfflineStorage() {
             showSuccessToast('Offline-Speicherung entfernt'),
           );
         } else {
-          await saveAudioDokuOffline(scope, audioDoku);
+          const saved = await saveAudioDokuOffline(scope, audioDoku);
           if (scopeKeyRef.current === currentScopeKey) {
             setSavedAudioDokuIds((previous) => new Set(previous).add(audioDoku.id));
             setLoadedScopeKey(currentScopeKey);
           }
-          import('../utils/toastUtils').then(({ showSuccessToast }) =>
-            showSuccessToast('Audio-Doku offline gespeichert'),
-          );
+          reportSaveResult('Audio-Doku', saved.failedMedia);
         }
       } catch (error) {
         console.error('[Offline] Failed to toggle audio doku:', error);
