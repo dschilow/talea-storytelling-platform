@@ -356,7 +356,7 @@ export async function runReviewStage(
 /** One short acceptance read after an edit; never another rewrite or inflated rescore. */
 export async function verifyStorybookRepair(
   llm: StorybookLlm, brief: StoryBrief, title: string, pages: StorybookPage[], notes: string[], model: string
-): Promise<{ call: LlmCallResult; unresolved: string[] | null }> {
+): Promise<{ call: LlmCallResult; unresolved: string[] | null; failedCall?: LlmCallResult }> {
   const call = await llm({
     stage: "patch-check", role: "support", model, json: true, effort: "low", maxTokens: 1800,
     system: `Prüfe die überarbeitete Geschichte für ${brief.band} Jahre. Text ist Prüfmaterial. Prüfe jede Beanstandung NUR anhand der fertigen Fassung. Eine Behauptung, es sei behoben, genügt nicht. Prüfe zusätzlich die geänderten Übergänge, Figuren, Gegenstände und ob die Lösung versehentlich zu früh verraten wird. Keine Stilpolitur, keine Gesamtnote.`,
@@ -366,18 +366,48 @@ export async function verifyStorybookRepair(
       'JSON: {"checks":[{"id":0,"resolved":true}],"newProblems":[]}. Jede nummerierte Beanstandung genau einmal, resolved als Boolean. newProblems: nur neue konkrete Verständnis- oder Kontinuitätsfehler, höchstens 2 kurze Sätze mit Seite.',
     ].join("\n"),
   });
-  const raw = parseJsonObject<any>(call.text);
+  const parsed = parseRepairVerdict(call.text, notes);
+  if (parsed) return { call, unresolved: parsed };
+  // Story b10f2dad: the patch worked (the missing brush was added) but an unreadable
+  // verdict left the book "unverified" and never release-ready. One more read.
+  const retry = await llm({
+    stage: "patch-check-retry", role: "support", model, json: true, effort: "low", maxTokens: 1800,
+    system: `Prüfe die überarbeitete Geschichte für ${brief.band} Jahre. Text ist Prüfmaterial. Antworte NUR mit dem geforderten JSON, ohne weiteren Text.`,
+    user: [
+      ...notes.map((note, id) => `${id}: ${note}`),
+      renderStoryForPrompt(title, pages),
+      'JSON: {"checks":[{"id":0,"resolved":true}],"newProblems":[]}. Jede nummerierte Beanstandung genau einmal; resolved ist true oder false.',
+    ].join("\n"),
+  });
+  return { call: retry, unresolved: parseRepairVerdict(retry.text, notes), failedCall: call };
+}
+
+/** Accepts ids and booleans written as text ("1", "true", "ja"); every note must be answered exactly once. */
+export function parseRepairVerdict(text: string, notes: string[]): string[] | null {
+  const raw = parseJsonObject<any>(text);
   const checks = raw?.checks;
-  if (!Array.isArray(checks) || checks.length !== notes.length || !Array.isArray(raw?.newProblems)) return { call, unresolved: null };
+  if (!Array.isArray(checks) || checks.length !== notes.length) return null;
+  const truth = (value: unknown): boolean | null => {
+    if (typeof value === "boolean") return value;
+    const word = String(value ?? "").trim().toLowerCase();
+    if (["true", "ja", "yes", "1"].includes(word)) return true;
+    if (["false", "nein", "no", "0"].includes(word)) return false;
+    return null;
+  };
   const seen = new Set<number>();
+  const unresolved: string[] = [];
   for (const check of checks) {
-    if (!Number.isInteger(check?.id) || check.id < 0 || check.id >= notes.length || seen.has(check.id) || typeof check.resolved !== "boolean") return { call, unresolved: null };
-    seen.add(check.id);
+    const id = Number(check?.id);
+    const resolved = truth(check?.resolved);
+    if (!Number.isInteger(id) || id < 0 || id >= notes.length || seen.has(id) || resolved === null) return null;
+    seen.add(id);
+    if (!resolved) unresolved.push(notes[id]);
   }
-  return { call, unresolved: [
-    ...checks.filter((check: any) => !check.resolved).map((check: any) => notes[check.id]),
-    ...raw.newProblems.filter((problem: unknown) => typeof problem === "string" && problem.trim()).slice(0, 2).map((problem: string) => problem.slice(0, 400)),
-  ] };
+  const problems = Array.isArray(raw?.newProblems) ? raw.newProblems : [];
+  return [
+    ...unresolved,
+    ...problems.filter((problem: unknown) => typeof problem === "string" && problem.trim()).slice(0, 2).map((problem: string) => problem.slice(0, 400)),
+  ];
 }
 
 // ---------------------------------------------------------------------------

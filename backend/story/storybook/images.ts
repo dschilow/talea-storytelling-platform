@@ -64,6 +64,8 @@ export interface ImageQaReport {
   missing?: string[];
   /** Figures standing side by side facing the viewer instead of acting (story 774d5a5e page 3). */
   posing?: boolean;
+  /** A story THING drawn twice (a doubled pot): worth a redraw, never a reason to leave the page blank. */
+  thingDuplicates?: string[];
   textVisible: boolean;
   referenceSheetVisible: boolean;
   identityMatch: number;
@@ -83,6 +85,10 @@ export interface ImageOutcome {
   status: "passed" | "flawed" | "failed" | "unverified" | "missing";
   /** The picture is the people-free fallback, not the planned scene. */
   vignette?: boolean;
+  /** The least bad picture, printed because every clean attempt failed. */
+  salvaged?: boolean;
+  /** Every attempt of this page in short form, for the log (story b10f2dad hid why page 7 failed). */
+  history?: Array<{ kind: string; status: string; severity: number; notes: string[] }>;
   /** 0 = full identity sheet, 1 = reduced sheet, 2 = no reference, -1 = no picture. */
   referenceLevel?: number;
   /** Why a delivery step failed — goes into the story metadata and logs. */
@@ -251,6 +257,7 @@ export function qaSeverityParts(
   hard += report.anatomyDefects.length * 10;
   hard += report.animalFeaturesOnHumans.length * 10;
   hard += report.duplicates.length * 10;
+  soft += (report.thingDuplicates?.length || 0) * 10;
   hard += (report.featureBleed?.length || 0) * 10;
   // Story 2db50859 page 7: a second Elsa with other hair was only an
   // "unexpected girl" (5) and shipped. A stranger in the scene is a redraw.
@@ -295,11 +302,31 @@ export function qaStatus(report: ImageQaReport | undefined, parts: { hard: numbe
 export function scopeQaReport(report: ImageQaReport, onStageNames: string[], elements: StoryElement[]): ImageQaReport {
   const aboutElement = (note: string) => elements.some((element) => mentionsElement(note, element));
   const aboutCharacter = (note: string) => onStageNames.some((name) => mentions(note, name));
+  // "Schwebetopf appears twice" is a doubled THING, "Adrian drawn 2 times" a doubled person.
+  const thingNames = elements.filter((element) => !element.figure);
+  const aboutThing = (note: string) => !aboutCharacter(note) && thingNames.some((element) => mentionsElement(note, element));
   return {
     ...report,
+    duplicates: report.duplicates.filter((note) => !aboutThing(note)),
+    thingDuplicates: report.duplicates.filter(aboutThing),
     elementMisuse: (report.elementMisuse || []).filter(aboutElement),
     roleSwaps: report.roleSwaps.filter(aboutCharacter),
   };
+}
+
+/**
+ * Last rung of the ladder: a picture with a doubled thing, a feature on the
+ * wrong figure or a slightly off scene still beats a blank page; a body
+ * defect, a stranger, a doubled person, animal traits on a child or the
+ * reference sheet in the picture does not.
+ */
+export function salvageable(report: ImageQaReport | undefined): boolean {
+  if (!report) return false;
+  return !report.anatomyDefects.length
+    && !report.animalFeaturesOnHumans.length
+    && !report.unexpectedCharacters.length
+    && !report.duplicates.length
+    && !report.referenceSheetVisible;
 }
 
 /**
@@ -397,17 +424,22 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
   };
 
   const renderShot = async (shot: IllustrationShot): Promise<ImageOutcome> => {
-    const onStage = shot.onStage.map((id) => byId.get(id)).filter((entity): entity is VisualEntity => Boolean(entity));
-    const drawn = [...onStage, ...(shot.artifactVisible && artifact ? [artifact] : [])];
-    // The sheet follows the picture from left to right (the director lists
-    // onStage that way), so "first on the sheet" is also the figure on the left.
-    const withReferences = drawn.filter((entity) => entity.referenceUrl);
-    const elements = (input.illustrations.storyElements || []).filter((element) => shot.elements?.includes(element.name));
-    // The checker counts named characters AND story elements.
-    const expectedCharacters = onStage.length + elements.length;
-    const expectedNames = [...onStage.map((entity) => entity.name), ...elements.map((element) => element.name)];
-    const heroNames = onStage.filter((entity) => entity.role === "hero").map((entity) => entity.name);
     const cover = shot.page === 0;
+    const allElements = input.illustrations.storyElements || [];
+    const fullOnStage = shot.onStage.map((id) => byId.get(id)).filter((entity): entity is VisualEntity => Boolean(entity));
+    const fullElements = allElements.filter((element) => shot.elements?.includes(element.name));
+    const fullDrawn = [...fullOnStage, ...(shot.artifactVisible && artifact ? [artifact] : [])];
+
+    /** One composition to draw: the full shot, or the reduced one (heroes only) after two failures. */
+    interface Plan {
+      kind: "full" | "reduced";
+      onStage: VisualEntity[];
+      drawn: VisualEntity[];
+      elements: StoryElement[];
+      sceneOf: (attemptNo: number) => string;
+      ladder: VisualEntity[][];
+      qaScene: string;
+    }
 
     // A page must never stay blank. Story 0039344e lost three of eight
     // pictures because the only attempt path was "full sheet or nothing".
@@ -421,16 +453,59 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       if (sheetEntities.length > 0) steps.push([]);
       return steps;
     };
+    // The sheet follows the picture from left to right (the director lists
+    // onStage that way), so "first on the sheet" is also the figure on the left.
+    const withReferences = fullDrawn.filter((entity) => entity.referenceUrl);
     // Story fix-0929-a: with the dragon on the sheet, Mina got its wings on five
     // of eight pictures — and again on every redraw; in fix3-0929-b the witch's
     // hat and robe landed on Amir. After such a bleed the redraw keeps only the
     // heroes on the sheet; everyone else comes from the text look.
     const heroSheet = withReferences.filter((entity) => entity.role === "hero" || entity.kind === "artifact");
     const canSplitSheet = heroSheet.length > 0 && heroSheet.length < withReferences.length;
-    let ladder = ladderFor(withReferences);
+
+    const fullPlan: Plan = {
+      kind: "full",
+      onStage: fullOnStage,
+      drawn: fullDrawn,
+      elements: fullElements,
+      sceneOf: (attemptNo) => (attemptNo > 1 && shot.simpleScene ? shot.simpleScene : shot.scene),
+      ladder: ladderFor(withReferences),
+      qaScene: shot.scene,
+    };
+
+    /**
+     * Story b10f2dad: the last page (all figures gathered) failed twice with a
+     * doubled pot and the dragon in a sweater, and the page stayed blank. The
+     * reduced plan draws only the heroes and the things, in a scene without
+     * the sentences about everybody else.
+     */
+    const reducedPlan = (): Plan | null => {
+      const heroes = fullOnStage.filter((entity) => entity.role === "hero");
+      const keep = heroes.length ? heroes : fullOnStage.slice(0, 1);
+      if (keep.length === 0 || keep.length >= fullOnStage.length && fullElements.every((element) => !element.figure)) return null;
+      const dropped = fullOnStage.filter((entity) => !keep.includes(entity));
+      const droppedFigures = fullElements.filter((element) => element.figure);
+      const trim = (text: string) => {
+        const kept = text.split(/(?<=[.!?])\s+/).filter((sentence) => !dropped.some((entity) => mentions(sentence, entity.name)) && !droppedFigures.some((element) => mentionsElement(sentence, element)));
+        return kept.length ? kept.join(" ") : text;
+      };
+      const base = trim(shot.simpleScene || shot.scene);
+      const things = fullElements.filter((element) => !element.figure);
+      const drawn = [...keep, ...(shot.artifactVisible && artifact ? [artifact] : [])];
+      return {
+        kind: "reduced",
+        onStage: keep,
+        drawn,
+        elements: things,
+        sceneOf: () => base,
+        ladder: ladderFor(drawn.filter((entity) => entity.referenceUrl)),
+        qaScene: base,
+      };
+    };
 
     let costUSD = 0;
     const errors: string[] = [];
+    const history: NonNullable<ImageOutcome["history"]> = [];
     const addCost = (response: ImageResponse) => {
       const cost = Number.isFinite(response.costUSD) ? Number(response.costUSD) : 0;
       costUSD += cost;
@@ -438,7 +513,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     };
 
     let lastRefused = false;
-    const deliver = async (attemptNo: number, extra: string, startLevel: number) => {
+    const deliver = async (plan: Plan, attemptNo: number, extra: string, startLevel: number, ladder: VisualEntity[][]) => {
       let lastPrompt = shot.scene;
       lastRefused = false;
       for (let level = startLevel; level < ladder.length; level += 1) {
@@ -457,15 +532,14 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
             continue;
           }
         }
-        const scene = attemptNo > 1 && shot.simpleScene ? shot.simpleScene : shot.scene;
-        const prompt = assembleImagePrompt({ scene, onStage: drawn, spriteOrder: sheet, elements, correction: extra || undefined });
+        const prompt = assembleImagePrompt({ scene: plan.sceneOf(attemptNo), onStage: plan.drawn, spriteOrder: sheet, elements: plan.elements, correction: extra || undefined });
         lastPrompt = prompt;
         imageCalls += 1;
         try {
           const response = await input.provider({
             page: shot.page,
             prompt,
-            negativePrompt: negativePromptFor(drawn, sheet.length > 1, input.historical),
+            negativePrompt: negativePromptFor(plan.drawn, sheet.length > 1, input.historical),
             referenceImages: references,
             seed: seedFor(input.seed, shot.page, attemptNo * 10 + level),
             width,
@@ -492,36 +566,51 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       return { response: {} as ImageResponse, references: [] as string[], prompt: lastPrompt, level: -1 };
     };
 
-    type Attempt = ImageOutcome & { level: number };
+    type Attempt = ImageOutcome & { level: number; plan?: Plan["kind"] };
 
-    const attempt = async (attemptNo: number, extra: string, startLevel: number): Promise<Attempt> => {
-      const delivered = await deliver(attemptNo, extra, startLevel);
-      const url = delivered.response.url;
-      if (!url) return { page: shot.page, prompt: delivered.prompt, attempts: attemptNo, costUSD, severity: 999, status: "missing", level: -1 };
+    const note = (kind: string, outcome: Attempt) => {
+      const parts = qaSeverityParts(outcome.qa, 0);
+      history.push({
+        kind,
+        status: outcome.status,
+        severity: outcome.severity,
+        notes: outcome.qa
+          ? [...outcome.qa.anatomyDefects, ...outcome.qa.animalFeaturesOnHumans, ...outcome.qa.duplicates, ...(outcome.qa.thingDuplicates || []), ...(outcome.qa.featureBleed || []), ...outcome.qa.roleSwaps, ...outcome.qa.unexpectedCharacters, ...outcome.qa.missing?.map((name) => `${name} missing`) || []].slice(0, 5)
+          : [outcome.status],
+        ...(parts.hard >= 999 ? {} : {}),
+      });
+    };
+
+    const attempt = async (plan: Plan, attemptNo: number, extra: string, startLevel: number, ladder = plan.ladder): Promise<Attempt> => {
+      const got = await deliver(plan, attemptNo, extra, startLevel, ladder);
+      const url = got.response.url;
+      if (!url) return { page: shot.page, prompt: got.prompt, attempts: attemptNo, costUSD, severity: 999, status: "missing", level: -1, plan: plan.kind };
+      const expectedNames = [...plan.onStage.map((entity) => entity.name), ...plan.elements.map((element) => element.name)];
       const raw = await inspect(
         `image-qa-${cover ? "cover" : `p${shot.page}`}-${attemptNo}`,
-        buildQaPrompt(drawn, shot.scene, delivered.references.length > 0, elements, input.pageTexts?.[shot.page]),
-        [delivered.response.viewUrl || url, ...delivered.references.slice(0, 1)],
+        buildQaPrompt(plan.drawn, plan.qaScene, got.references.length > 0, plan.elements, input.pageTexts?.[shot.page]),
+        [got.response.viewUrl || url, ...got.references.slice(0, 1)],
         expectedNames,
         errors,
         `attempt ${attemptNo}`
       );
-      const qa = raw ? scopeQaReport(raw, onStage.map((entity) => entity.name), elements) : undefined;
-      const parts = qaSeverityParts(qa, expectedCharacters, { heroNames, cover });
-      return { page: shot.page, url, prompt: delivered.prompt, attempts: attemptNo, costUSD, qa, severity: parts.hard + parts.soft, status: qaStatus(qa, parts), level: delivered.level };
+      const qa = raw ? scopeQaReport(raw, plan.onStage.map((entity) => entity.name), plan.elements) : undefined;
+      const heroNames = plan.onStage.filter((entity) => entity.role === "hero").map((entity) => entity.name);
+      const parts = qaSeverityParts(qa, plan.onStage.length + plan.elements.length, { heroNames, cover });
+      return { page: shot.page, url, prompt: got.prompt, attempts: attemptNo, costUSD, qa, severity: parts.hard + parts.soft, status: qaStatus(qa, parts), level: got.level, plan: plan.kind };
     };
 
     /**
-     * The last resort before a blank page (never the cover): the page's key
-     * object or place without any person — nothing that can grow a third hand
-     * or a second Adrian. Printed only when clean: a flawed vignette (story
-     * c2ff7f42 page 2, sceneMatch 0.35) tells the page less than no picture.
+     * The people-free picture (never the cover): the page's key object or
+     * place. Nothing that can grow a third hand or a second Adrian. Printed
+     * unless it shows a person or a body defect: a calm picture of the thing
+     * the page is about is better than a blank page (story b10f2dad page 7).
      */
     const vignette = async (attemptNo: number): Promise<Attempt | null> => {
       if (cover || !shot.vignette || lastRefused || providerDown()) return null;
       const scene = shot.vignette;
       // Things only: a creature in a vignette is a figure without a reference.
-      const shown = (input.illustrations.storyElements || []).filter((element) => !element.figure && mentionsElement(scene, element)).slice(0, 2);
+      const shown = allElements.filter((element) => !element.figure && mentionsElement(scene, element)).slice(0, 2);
       const prompt = assembleImagePrompt({ scene, onStage: [], spriteOrder: [], elements: shown, vignette: true });
       imageCalls += 1;
       let response: ImageResponse = {};
@@ -545,12 +634,15 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       const raw = await inspect(`image-qa-p${shot.page}-vignette`, buildQaPrompt([], scene, false, shown), [response.viewUrl || response.url], shown.map((element) => element.name), errors, "vignette");
       const qa = raw ? scopeQaReport(raw, [], shown) : undefined;
       const parts = qaSeverityParts(qa, shown.length);
-      return { page: shot.page, url: response.url, prompt, attempts: attemptNo, costUSD, qa, severity: parts.hard + parts.soft, status: qaStatus(qa, parts), vignette: true, level: 2 };
+      // Anything a person could be counted as makes it useless.
+      const personSeen = Boolean(qa && (qa.unexpectedCharacters.length || qa.anatomyDefects.length));
+      const status = personSeen ? "failed" : qaStatus(qa, parts);
+      return { page: shot.page, url: response.url, prompt, attempts: attemptNo, costUSD, qa, severity: parts.hard + parts.soft, status, vignette: true, level: 2 };
     };
 
     const finish = (outcome: Attempt, attempts: number): ImageOutcome => {
-      const { level, ...rest } = outcome;
-      return { ...rest, attempts, costUSD, referenceLevel: level, errors: errors.length ? errors : undefined };
+      const { level, plan: _plan, ...rest } = outcome;
+      return { ...rest, attempts, costUSD, referenceLevel: level, errors: errors.length ? errors : undefined, history };
     };
 
     // Printable first, then the fewer defects.
@@ -561,34 +653,70 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       // An unresolved composition never buys a portrait scene; a people-free vignette cannot go wrong that way.
       errors.push(...shot.planningErrors);
       const fallback = await vignette(1);
-      if (fallback) return finish(fallback.status === "passed" ? fallback : { ...fallback, status: "failed" }, 1);
-      return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD, severity: 999, status: "unverified", errors };
+      if (fallback) {
+        note("vignette", fallback);
+        return finish(fallback, 1);
+      }
+      return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD, severity: 999, status: "unverified", errors, history };
     }
 
-    const first = await attempt(1, "", 0);
+    const candidates: Attempt[] = [];
+    const first = await attempt(fullPlan, 1, "", 0);
+    note("full", first);
+    if (first.url) candidates.push(first);
     if (!first.url) {
       // Nothing arrived even without a reference: the vignette is the only picture left.
       const fallback = await vignette(2);
-      return fallback?.status === "passed" ? finish(fallback, 2) : finish(first, fallback ? 2 : 1);
+      if (fallback) note("vignette", fallback);
+      return fallback && isPublishable(fallback) ? finish(fallback, 2) : finish(first, fallback ? 2 : 1);
     }
     // A broken checker is not evidence that a new image would help.
     if (!first.qa || first.severity < 10) return finish(first, 1);
     regenerated.push(shot.page);
-    // One redraw; the better picture ships. A third full attempt (runs
-    // fix2/fix3-0929) rarely rescued a page and cost ~1 ¢ per story.
+
+    // Redraw 1: one more full attempt with a named correction and a simpler composition.
     const bled = Boolean(first.qa.animalFeaturesOnHumans.length || first.qa.featureBleed?.length);
     let startLevel = Math.max(0, first.level);
-    if (bled && canSplitSheet && ladder[0] !== heroSheet) {
-      ladder = ladderFor(heroSheet);
+    let redrawLadder = fullPlan.ladder;
+    if (bled && canSplitSheet) {
+      redrawLadder = ladderFor(heroSheet);
       startLevel = 0;
     }
-    const correction = correctionFor(first.qa, elements.map((element) => element.name));
-    const second = await attempt(2, `${correction} Simple clear composition; separate silhouettes, one pose per figure, hands apart and easy to read.`, startLevel);
-    const best = better(second, first) ? second : first;
+    const correction = correctionFor(first.qa, fullElements.map((element) => element.name));
+    const second = await attempt(fullPlan, 2, `${correction} Simple clear composition; separate silhouettes, one pose per figure, hands apart and easy to read.`, startLevel, redrawLadder);
+    note("redraw", second);
+    if (second.url) candidates.push(second);
+    let best = better(second, first) ? second : first;
     if (isPublishable(best)) return finish(best, 2);
-    const fallback = await vignette(3);
-    if (fallback?.status === "passed") return finish(fallback, 3);
-    return finish(best, fallback ? 3 : 2);
+
+    // Rung 3: only the heroes and the things (drops the crowd that tangles the picture).
+    const reduced = reducedPlan();
+    let attempts = 2;
+    if (reduced && !lastRefused && !providerDown()) {
+      attempts = 3;
+      const third = await attempt(reduced, 3, "Simple clear composition; separate silhouettes, hands apart and easy to read.", 0);
+      note("reduced", third);
+      if (third.url) candidates.push(third);
+      if (better(third, best)) best = third;
+      if (isPublishable(best)) return finish(best, attempts);
+    }
+
+    // Rung 4: the people-free picture.
+    const fallback = await vignette(attempts + 1);
+    if (fallback) {
+      attempts += 1;
+      note("vignette", fallback);
+      if (isPublishable(fallback)) return finish(fallback, attempts);
+      if (fallback.url) candidates.push(fallback);
+    }
+
+    // Rung 5: the least bad picture, if it has no body defect, no stranger and no doubled figure.
+    const salvage = candidates.filter((candidate) => salvageable(candidate.qa)).sort((a, b) => a.severity - b.severity)[0];
+    if (salvage) {
+      errors.push(`salvaged ${salvage.plan === "reduced" ? "reduced" : salvage.vignette ? "vignette" : "full"} picture with severity ${salvage.severity}`);
+      return finish({ ...salvage, status: "flawed", salvaged: true }, attempts);
+    }
+    return finish(best, attempts);
   };
 
   const outcomes = await mapWithLimit(shots, input.concurrency ?? 4, renderShot);

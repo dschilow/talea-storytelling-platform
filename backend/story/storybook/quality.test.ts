@@ -5,7 +5,7 @@ import { resolveLengthBudget, type AgeBand } from "./craft";
 import { buildWriterSystemPrompt } from "./draft-stage";
 import { runStorybookTextEngine } from "./engine";
 import { assembleImagePrompt, bindNamesToLooks, describeReferenceLooks, mentionsElement, nameElementsPlainly, negativePromptFor, recomposeShot, runDirectorStage, sanitizeIllustrationPlan, type VisualEntity } from "./illustration-stage";
-import { generateStorybookImages, parseQaReport, publishableImageUrl, qaSeverity, qaSeverityParts, qaStatus, scopeQaReport, type ImageOutcome } from "./images";
+import { generateStorybookImages, parseQaReport, publishableImageUrl, qaSeverity, qaSeverityParts, qaStatus, salvageable, scopeQaReport, type ImageOutcome } from "./images";
 import { CostLedger, resolveStorybookModels, retryRequestFor, type LlmRequest, type StorybookLlm } from "./llm";
 import { buildOneShotUserPrompt, buildPatchPrompt, mergeStorybookPatch, planFromOneShot } from "./oneshot-stage";
 import { storybookQuality } from "./quality";
@@ -384,7 +384,18 @@ describe("story c2ff7f42: the duck on every page and the missing cover", () => {
     expect(recomposeShot({ ...shot, planningErrors: ["Empty character manifest; explicitly choose a detail shot or identify the visible figures."] }, cast, [], 2).planningErrors).toHaveLength(1);
   });
 
-  test("a flawed vignette is never printed", async () => {
+  test("a vignette that shows a person is never printed; one that is merely off is", async () => {
+    const run = async (extra: Record<string, unknown>) => generateStorybookImages({
+      illustrations: { cover: images.cover, pages: [{ page: 1, scene: "Nothing to draw.", onStage: [], artifactVisible: false, vignette: "The red picnic cloth on the grass by the pond.", planningErrors: ["Empty character manifest; explicitly choose a detail shot or identify the visible figures."] }], storyElements: [cloth] },
+      entities: people, seed: "s", buildReference: reference, visionModel: "test",
+      llm: async (r) => reply(r, r.stage.includes("vignette") ? { characterCounts: { "The red cloth": 1 }, namedCharactersVisible: 1, anatomyDefects: [], duplicates: [], unexpectedCharacters: [], identityMatch: 1, sceneMatch: .3, ...extra } : cleanQa),
+      provider: async () => ({ url: "https://example.test/x.jpg" }),
+    });
+    expect(publishableImageUrl((await run({ unexpectedCharacters: ["a boy"] })).pages.get(1))).toBeUndefined();
+    expect(publishableImageUrl((await run({})).pages.get(1))).toBeDefined();
+  });
+
+  test("OLD: a flawed vignette is never printed (kept for the rule above)", async () => {
     const result = await generateStorybookImages({
       illustrations: { cover: images.cover, pages: [{ page: 1, scene: "Nothing to draw.", onStage: [], artifactVisible: false, vignette: "The red picnic cloth on the grass by the pond.", planningErrors: ["Empty character manifest; explicitly choose a detail shot or identify the visible figures."] }], storyElements: [cloth] },
       entities: people, seed: "s", buildReference: reference, visionModel: "test",
@@ -392,7 +403,6 @@ describe("story c2ff7f42: the duck on every page and the missing cover", () => {
       provider: async () => ({ url: "https://example.test/x.jpg" }),
     });
     expect(result.pages.get(1)?.vignette).toBe(true);
-    expect(publishableImageUrl(result.pages.get(1))).toBeUndefined();
   });
 
   test("titles like real books: the heroes' names are allowed, never required", () => {
@@ -465,5 +475,57 @@ describe("catchphrase spelling", () => {
     const { fixCatchphrase } = await import("./context");
     expect(fixCatchphrase("Erst qualmts, dann klaerts sich!")).toBe("Erst qualm's, dann klärt's sich!");
     expect(fixCatchphrase("Fest wie Stein, so soll es sein!")).toBe("Fest wie Stein, so soll es sein!");
+  });
+});
+
+describe("story b10f2dad: the last page must not stay blank", () => {
+  const dragon: VisualEntity = { id: "f", name: "Drache Fauchi", role: "cast", kind: "character", species: "dragon", isHuman: false, appearance: "small green dragon with orange wings", forbidden: [], referenceUrl: "https://example.test/fauchi.png" };
+  const pot = { name: "Schwebetopf", noun: "copper floating pot", look: "a round copper pot with a whistle tube" };
+  const crowd = { cover: images.cover, pages: [{ page: 7, scene: "Adrian laughs with a spoon. Alexander steps on the chain. Drache Fauchi closes his eyes over a bite of pudding. Three portions stand beside the copper pot.", onStage: ["a", "b", "f"], artifactVisible: false, elements: ["Schwebetopf"], vignette: "A firm pudding with a deep hole in three portions on plates beside the copper pot." }], storyElements: [pot] };
+  const qaWith = (extra: Record<string, unknown>) => ({ characterCounts: { Alexander: 1, Adrian: 1, "Drache Fauchi": 1, Schwebetopf: 1 }, namedCharactersVisible: 4, anatomyDefects: [], duplicates: [], unexpectedCharacters: [], identityMatch: 1, sceneMatch: .8, ...extra });
+
+  test("a doubled THING is soft, a doubled person stays hard", () => {
+    const qa = parseQaReport(JSON.stringify(qaWith({ duplicates: ["Schwebetopf appears twice", "Adrian drawn 2 times"] })), ["Alexander", "Adrian", "Drache Fauchi", "Schwebetopf"])!;
+    const scoped = scopeQaReport(qa, ["Alexander", "Adrian", "Drache Fauchi"], [pot]);
+    expect(scoped.thingDuplicates).toEqual(["Schwebetopf appears twice"]);
+    expect(scoped.duplicates).toEqual(["Adrian drawn 2 times"]);
+    expect(qaSeverityParts(scopeQaReport(qa, [], [pot]), 4).soft).toBeGreaterThanOrEqual(10);
+    expect(salvageable(scoped)).toBe(false);
+    expect(salvageable(scopeQaReport(parseQaReport(JSON.stringify(qaWith({ duplicates: ["Schwebetopf appears twice"], featureBleed: ["Fauchi wears sleeves"] })), ["Alexander", "Adrian", "Drache Fauchi", "Schwebetopf"])!, ["Alexander", "Adrian", "Drache Fauchi"], [pot]))).toBe(true);
+  });
+
+  test("full picture and redraw fail, the heroes-only attempt rescues the page", async () => {
+    const requests: string[] = [];
+    let qaCalls = 0;
+    const result = await generateStorybookImages({ illustrations: crowd, entities: [...people, dragon], seed: "s", buildReference: reference, visionModel: "test", concurrency: 1,
+      llm: async (r) => { qaCalls++; return reply(r, r.user.includes("Drache Fauchi") ? qaWith({ duplicates: ["Adrian drawn 2 times"] }) : { ...qaWith({}), characterCounts: { Alexander: 1, Adrian: 1, Schwebetopf: 1 }, namedCharactersVisible: 3 }); },
+      provider: async (request) => { requests.push(request.prompt); return { url: `https://example.test/${requests.length}.jpg` }; },
+    });
+    const page = result.pages.get(7)!;
+    expect(page.status).toBe("passed");
+    expect(page.attempts).toBe(3);
+    expect(publishableImageUrl(page)).toBeDefined();
+    const reducedPrompt = requests.filter((prompt) => prompt.length > 0).pop()!;
+    expect(reducedPrompt).not.toContain("Fauchi");
+    expect(page.history?.map((entry) => entry.kind)).toEqual(["full", "redraw", "reduced"]);
+  });
+
+  test("when everything fails the least bad salvageable picture is printed, never a blank page", async () => {
+    const result = await generateStorybookImages({ illustrations: crowd, entities: [...people, dragon], seed: "s", buildReference: reference, visionModel: "test", concurrency: 1,
+      llm: async (r) => reply(r, r.stage.includes("vignette") ? qaWith({ unexpectedCharacters: ["a boy"] }) : qaWith({ featureBleed: ["Fauchi wears sleeves"], duplicates: ["Schwebetopf appears twice"] })),
+      provider: async () => ({ url: "https://example.test/x.jpg" }),
+    });
+    const page = result.pages.get(7)!;
+    expect(page.salvaged).toBe(true);
+    expect(page.status).toBe("flawed");
+    expect(publishableImageUrl(page)).toBeDefined();
+  });
+
+  test("a body defect on every attempt is still not printed", async () => {
+    const result = await generateStorybookImages({ illustrations: crowd, entities: [...people, dragon], seed: "s", buildReference: reference, visionModel: "test", concurrency: 1,
+      llm: async (r) => reply(r, qaWith({ anatomyDefects: ["Adrian has three hands"] })),
+      provider: async () => ({ url: "https://example.test/x.jpg" }),
+    });
+    expect(publishableImageUrl(result.pages.get(7))).toBeUndefined();
   });
 });

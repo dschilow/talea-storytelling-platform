@@ -415,6 +415,7 @@ export async function runOneShotEngine(input: {
   if (chosen === "revision") {
     try {
       const verified = await verifyStorybookRepair(llm, brief, parsed.title, pages, notes, models.support);
+      if (verified.failedCall) record("patch-check-unreadable", "support", verified.failedCall);
       record("patch-check", "support", verified.call);
       const remaining = [...(verified.unresolved || []), ...issuesToNotes(report.hard, 8)];
       textQuality = { status: verified.unresolved === null || !review ? "unverified" : remaining.length ? "failed" : "passed", issues: remaining };

@@ -174,7 +174,7 @@ export function castSheet(candidate: CastCandidate, compact = false): string {
   if (candidate.personality.length) bits.push(`Wesen: ${candidate.personality.slice(0, compact ? 2 : 4).join(", ")}`);
   if (candidate.quirk) bits.push(`Eigenart: ${clean(candidate.quirk, compact ? 100 : 160)}`);
   if (candidate.speechStyle.length) bits.push(`spricht: ${candidate.speechStyle.slice(0, compact ? 1 : 3).join(", ")}`);
-  if (candidate.catchphrase) bits.push(`Spruch (höchstens einmal): „${fixCatchphrase(candidate.catchphrase)}“`);
+  if (candidate.catchphrase) bits.push(`Spruch (nur wenn er zur Szene passt, höchstens einmal, nie als Refrain): „${fixCatchphrase(candidate.catchphrase)}“`);
   return bits.join(" | ");
 }
 

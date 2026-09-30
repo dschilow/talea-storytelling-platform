@@ -12,7 +12,7 @@ import {
   getOpenRouterModelPricing,
 } from "../openrouter-generation";
 import { acceptsTemperature, extractStorybookChoiceContent, isTruncatedFinishReason, resolveStorybookReasoning } from "./llm-guards";
-import { retryRequestFor, type LlmCallResult, type LlmRequest, type StorybookLlm } from "./llm";
+import { fallbackModelFor, retryRequestFor, type LlmCallResult, type LlmRequest, type StorybookLlm } from "./llm";
 
 const DEFAULT_TIMEOUT_MS = 180_000;
 
@@ -72,7 +72,7 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
     finishReason,
   };
   if (!text) {
-    const error = new Error(`[storybook/llm] Empty response from ${model} (${request.stage}, finish_reason=${finishReason}, completion_tokens=${completionTokens}).`);
+    const error = new Error(`[storybook/llm] Empty response from ${model} (${request.stage}, finish_reason=${finishReason}, completion_tokens=${completionTokens}, reasoning_tokens=${result.usage.reasoningTokens ?? 0}, refusal=${JSON.stringify(choice?.message?.refusal ?? null)}).`);
     (error as any).billed = result;
     throw error;
   }
@@ -102,6 +102,20 @@ export function createOpenRouterStorybookLlm(options: OpenRouterPortOptions = {}
         return retry.model === request.model ? retried : { ...retried, fallbackFrom: request.model };
       } catch (retryError) {
         options.onFailedAttempt?.({ ...retry.request, model: retry.model }, (retryError as any)?.billed, retryError);
+        // The same model failed twice (Sol 6.1 answered empty three times in one batch,
+        // 2026-09-30): only now does the other model write the story.
+        if (retry.model === request.model) {
+          const last = retryRequestFor({ ...retry.request, effort: "low" }, new Error("Truncated"));
+          const lastModel = fallbackModelFor(request.model);
+          console.warn(`[storybook/llm] ${request.stage}: ${request.model} failed twice, last try with ${lastModel}:`, (retryError as Error)?.message || retryError);
+          try {
+            const finalTry = await callOnce({ ...retry.request, maxTokens: last.request.maxTokens }, lastModel);
+            return { ...finalTry, fallbackFrom: request.model };
+          } catch (finalError) {
+            options.onFailedAttempt?.({ ...retry.request, model: lastModel }, (finalError as any)?.billed, finalError);
+            throw finalError;
+          }
+        }
         throw retryError;
       }
     }

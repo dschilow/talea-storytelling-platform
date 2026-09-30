@@ -1,13 +1,15 @@
 import { api, APIError } from "encore.dev/api";
-import { secret } from "encore.dev/config";
 import { getAuthData } from "~encore/auth";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { dokuDB } from "./db";
 import { claimMeteredUsage } from "../helpers/billing";
 
-const openAIKey = secret("OpenAIKey");
-const MODEL = "gpt-5.4-mini";
+import { callOpenRouterChatCompletion } from "../story/openrouter-generation";
+import { resolveStorybookReasoning } from "../story/storybook/llm-guards";
+
+// Sol 6.1 via OpenRouter (same writer the Bilderbuch pipeline uses).
+const MODEL = "openai/gpt-6.1-sol";
 
 export interface AudioDokuTopicsRequest {
   ageFrom: number;
@@ -92,23 +94,24 @@ const callOpenAI = async (
   const abortController = new AbortController();
   const timeoutHandle = setTimeout(() => abortController.abort(), timeoutMs);
 
-  try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${openAIKey()}`,
-      },
-      body: JSON.stringify(payload),
+  const send = () =>
+    callOpenRouterChatCompletion({
+      messages: payload.messages as Array<{ role: "system" | "user"; content: string }>,
+      model: String(payload.model),
+      responseFormat: "json_object",
+      maxTokens: Number(payload.max_completion_tokens),
+      reasoning: resolveStorybookReasoning(String(payload.model), "low", "writer"),
+      includeReasoning: false,
       signal: abortController.signal,
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`OpenAI error ${res.status}: ${errText}`);
+  try {
+    let { data } = await send();
+    // Sol 6.1 sometimes answers instantly with zero output tokens: a provider blip, ask again once.
+    if (!data?.choices?.[0]?.message?.content && !data?.usage?.completion_tokens) {
+      console.warn(`[AudioDoku] ${source}: empty reply from ${MODEL}, retrying once`);
+      ({ data } = await send());
     }
-
-    const data = await res.json();
 
     await publishWithTimeout(logTopic, {
       source,
@@ -120,7 +123,7 @@ const callOpenAI = async (
     return data;
   } catch (error) {
     if ((error as any)?.name === "AbortError") {
-      throw new Error(`OpenAI request timed out after ${Math.round(timeoutMs / 1000)}s`);
+      throw new Error(`Audio doku request timed out after ${Math.round(timeoutMs / 1000)}s`);
     }
     throw error;
   } finally {
@@ -227,9 +230,8 @@ Liefere genau 10 Themenvorschläge mit Besetzungs-Empfehlung.`;
         { role: "user", content: user },
       ],
       response_format: { type: "json_object" },
-      // Reasoning-Tokens zaehlen bei gpt-5.4-mini mit; Objekt-Antworten (Besetzung) brauchen mehr Platz.
+      // Reasoning-Tokens zaehlen bei Sol 6.1 mit; Objekt-Antworten (Besetzung) brauchen mehr Platz.
       max_completion_tokens: 8000,
-      reasoning_effort: "low",
     };
 
     const data = await callOpenAI(payload, 90_000, "openai-audio-doku-topics");
@@ -564,7 +566,7 @@ WICHTIG: Validiere selbst vor der Ausgabe:
 - Decken die screenplay-Szenen ALLE Skript-Zeilen lückenlos ab, letzte endLine = letzte Skript-Zeile?
 - Coverprompt im exakten Square-1:1-Format und auf Englisch?`;
 
-    // gpt-5.4-mini is a reasoning model: reasoning tokens are INCLUDED in max_completion_tokens.
+    // Sol 6.1 is a reasoning model: reasoning tokens are INCLUDED in max_completion_tokens.
     // With reasoning_effort "low", the model uses ~2000-4000 reasoning tokens internally.
     // Content budget: 1 script line ≈ 20 tokens JSON-encoded + screenplay/metadata overhead.
     // We need: reasoning reserve (4000) + content (approxLines × 20 + 3000 overhead) → cap at 32000.
@@ -578,7 +580,6 @@ WICHTIG: Validiere selbst vor der Ausgabe:
       ],
       response_format: { type: "json_object" },
       max_completion_tokens: completionTokenLimit,
-      reasoning_effort: "low",
     };
 
     const timeoutMs = durationMinutes >= 10 ? 300_000 : 240_000;

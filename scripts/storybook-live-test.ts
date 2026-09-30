@@ -92,7 +92,7 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
     finishReason: choice?.finish_reason,
   };
   if (!text || isTruncatedFinishReason(choice?.finish_reason)) {
-    const error = new Error(`${!text ? "Empty" : "Truncated"} response from ${model} (${request.stage})`);
+    const error = new Error(`${!text ? "Empty" : "Truncated"} response from ${model} (${request.stage}, finish_reason=${choice?.finish_reason || "unknown"}, completion_tokens=${result.usage.completion}, reasoning_tokens=${data.usage?.completion_tokens_details?.reasoning_tokens ?? "?"}, refusal=${JSON.stringify(choice?.message?.refusal ?? null)}).`);
     (error as any).billed = result;
     throw error;
   }
