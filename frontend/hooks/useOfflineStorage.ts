@@ -20,6 +20,8 @@ import {
 import { fetchGeneratedAudioBySource } from '../utils/audioLibraryApi';
 import type { AudioDoku } from '../types/audio-doku';
 import type { GeneratedAudioSourceType } from '../types/generated-audio';
+import { offlineLimitForPlan, recordOfflineLicense } from '../utils/offlineLicense';
+import { PLAN_TITLES } from '../constants/planCatalog';
 
 function scopeKey(scope: OfflineCacheScope): string {
   return JSON.stringify([scope.userId, scope.profileId]);
@@ -44,7 +46,7 @@ function reportSaveResult(label: string, failedMedia: number): void {
 }
 
 export function useOfflineStorage() {
-  const { subscription } = useUserAccess();
+  const { subscription, isAdmin, isLoading: accessLoading } = useUserAccess();
   const backend = useBackend();
   const { getToken } = useAuth();
   const { isLoaded, isSignedIn, user } = useUser();
@@ -67,8 +69,29 @@ export function useOfflineStorage() {
   const loadRequestRef = useRef(0);
   const [storageUnavailable, setStorageUnavailable] = useState(false);
 
-  const hasOfflineEntitlement = subscription === 'familie' || subscription === 'premium';
+  // Offline saving is part of Starter and above; the number of saved items is
+  // capped per child profile (null = unlimited, for admins).
+  const offlineLimit = subscription ? offlineLimitForPlan(subscription, isAdmin) : 0;
+  const hasOfflineEntitlement = offlineLimit === null || offlineLimit > 0;
   const canUseOffline = hasOfflineEntitlement && !!scope && !storageUnavailable;
+  const savedCount = savedStoryIds.size + savedDokuIds.size + savedAudioDokuIds.size;
+
+  // Every online visit confirms the plan; offline access expires without it.
+  useEffect(() => {
+    if (!user?.id || !subscription || accessLoading) return;
+    recordOfflineLicense(user.id, subscription, isAdmin);
+  }, [accessLoading, isAdmin, subscription, user?.id]);
+
+  // True (after telling the user) when another item would exceed the plan limit.
+  const offlineLimitReached = useCallback((): boolean => {
+    if (offlineLimit === null || savedCount < offlineLimit) return false;
+    import('../utils/toastUtils').then(({ showWarningToast }) =>
+      showWarningToast(
+        `Dein ${subscription ? PLAN_TITLES[subscription] : ''}-Plan erlaubt bis zu ${offlineLimit} Offline-Inhalte pro Kinderprofil. Entferne einen gespeicherten Inhalt oder upgrade dein Abo.`,
+      ),
+    );
+    return true;
+  }, [offlineLimit, savedCount, subscription]);
 
   useEffect(() => {
     if (scope) storeLastOfflineScope(scope);
@@ -199,6 +222,10 @@ export function useOfflineStorage() {
       const key = operationKey(currentScopeKey, storyId);
       if (!beginSaving(key)) return;
       const wasSaved = loadedScopeKey === currentScopeKey && savedStoryIds.has(storyId);
+      if (!wasSaved && offlineLimitReached()) {
+        finishSaving(key);
+        return;
+      }
 
       try {
         if (wasSaved) {
@@ -243,6 +270,7 @@ export function useOfflineStorage() {
       currentScopeKey,
       finishSaving,
       loadedScopeKey,
+      offlineLimitReached,
       removeRelatedAudioOffline,
       savedStoryIds,
       saveRelatedAudioOffline,
@@ -256,6 +284,10 @@ export function useOfflineStorage() {
       const key = operationKey(currentScopeKey, dokuId);
       if (!beginSaving(key)) return;
       const wasSaved = loadedScopeKey === currentScopeKey && savedDokuIds.has(dokuId);
+      if (!wasSaved && offlineLimitReached()) {
+        finishSaving(key);
+        return;
+      }
 
       try {
         if (wasSaved) {
@@ -300,6 +332,7 @@ export function useOfflineStorage() {
       currentScopeKey,
       finishSaving,
       loadedScopeKey,
+      offlineLimitReached,
       removeRelatedAudioOffline,
       savedDokuIds,
       saveRelatedAudioOffline,
@@ -314,6 +347,17 @@ export function useOfflineStorage() {
       if (!beginSaving(key)) return;
       const wasSaved =
         loadedScopeKey === currentScopeKey && savedAudioDokuIds.has(audioDoku.id);
+      if (!wasSaved && audioDoku.locked) {
+        import('../utils/toastUtils').then(({ showWarningToast }) =>
+          showWarningToast(audioDoku.lockReason || 'Diese Folge ist in deinem Plan nicht enthalten.'),
+        );
+        finishSaving(key);
+        return;
+      }
+      if (!wasSaved && offlineLimitReached()) {
+        finishSaving(key);
+        return;
+      }
 
       try {
         if (wasSaved) {
@@ -351,6 +395,7 @@ export function useOfflineStorage() {
       currentScopeKey,
       finishSaving,
       loadedScopeKey,
+      offlineLimitReached,
       savedAudioDokuIds,
       scope,
     ],

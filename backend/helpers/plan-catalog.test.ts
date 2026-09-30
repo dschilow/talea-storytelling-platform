@@ -20,6 +20,8 @@ describe("plan catalog", () => {
     expect(frontend.PLAN_AUDIO_LIBRARY_ACCESS).toEqual(backend.PLAN_AUDIO_LIBRARY_ACCESS);
     expect(frontend.PLAN_TAVI_CAN_CREATE).toEqual(backend.PLAN_TAVI_CAN_CREATE);
     expect(frontend.AUDIO_BASIC_LIBRARY_MIN_AGE_DAYS).toBe(backend.AUDIO_BASIC_LIBRARY_MIN_AGE_DAYS);
+    expect(frontend.PLAN_OFFLINE_LIMITS).toEqual(backend.PLAN_OFFLINE_LIMITS);
+    expect(frontend.OFFLINE_LICENSE_MAX_DAYS).toBe(backend.OFFLINE_LICENSE_MAX_DAYS);
     expect(frontend.FREE_TRIAL_DAYS).toBe(backend.FREE_TRIAL_DAYS);
     expect(frontend.FREE_TRIAL_TAVI_MESSAGES).toBe(backend.FREE_TRIAL_METERED_QUOTAS.chat);
     for (const plan of PLANS) {

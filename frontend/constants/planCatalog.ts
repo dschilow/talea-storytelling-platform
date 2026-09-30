@@ -99,6 +99,16 @@ export const AUDIO_ACCESS_LABELS: Record<AudioLibraryAccess, string> = {
   full: 'Komplette Bibliothek',
 };
 
+// Mirrors backend/helpers/plan-catalog.ts (checked by plan-catalog.test.ts).
+export const PLAN_OFFLINE_LIMITS: Record<SubscriptionPlan, number> = {
+  free: 0,
+  starter: 10,
+  familie: 50,
+  premium: 100,
+};
+
+export const OFFLINE_LICENSE_MAX_DAYS = 14;
+
 export type PlanFeatureRow = {
   label: string;
   hint?: string;
@@ -175,6 +185,16 @@ export const PLAN_FEATURE_ROWS: PlanFeatureRow[] = [
       starter: String(PLAN_PROFILE_LIMITS.starter),
       familie: String(PLAN_PROFILE_LIMITS.familie),
       premium: String(PLAN_PROFILE_LIMITS.premium),
+    },
+  },
+  {
+    label: 'Offline speichern',
+    hint: `pro Kinderprofil · im Flugmodus lesen & hören · Plan-Check alle ${OFFLINE_LICENSE_MAX_DAYS} Tage`,
+    values: {
+      free: false,
+      starter: `bis ${PLAN_OFFLINE_LIMITS.starter}`,
+      familie: `bis ${PLAN_OFFLINE_LIMITS.familie}`,
+      premium: `bis ${PLAN_OFFLINE_LIMITS.premium}`,
     },
   },
   {

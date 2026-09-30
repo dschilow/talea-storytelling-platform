@@ -16,6 +16,7 @@ import {
   normalizeOfflineMediaUrl,
 } from '../../utils/offlineDb';
 import { useOfflineScope } from '../../contexts/OfflineScopeContext';
+import { getOfflineLicense, offlineLicenseMessage } from '../../utils/offlineLicense';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
@@ -51,6 +52,7 @@ const OfflineContentScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<OfflineTab>('stories');
   const [query, setQuery] = useState('');
+  const licenseNotice = scope ? offlineLicenseMessage(getOfflineLicense(scope.userId)) : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -245,6 +247,14 @@ const OfflineContentScreen: React.FC = () => {
       <TaleaPageBackground isDark={isDark} />
 
       <div className={cn(taleaPageShellClass, 'relative z-10 flex flex-col gap-5 py-4 sm:py-6')}>
+        {licenseNotice && (
+          <div
+            role="status"
+            className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-[var(--talea-text-primary)]"
+          >
+            {licenseNotice}
+          </div>
+        )}
         <div className={cn(taleaSurfaceClass, 'p-5 sm:p-6')}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">

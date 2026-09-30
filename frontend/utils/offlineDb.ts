@@ -1,3 +1,4 @@
+import { isOfflineAccessAllowed } from './offlineLicense';
 import { openDB, deleteDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Story } from '../types/story';
 import type { Doku } from '../types/doku';
@@ -373,6 +374,17 @@ function handleDbReadFailure<T>(error: unknown, fallback: T): T {
     return fallback;
   }
   throw error;
+}
+
+// Offline content is only handed out while the plan was confirmed recently
+// (see utils/offlineLicense). Bookkeeping reads use withDbReadFallback directly.
+function withLicensedRead<T>(
+  scope: OfflineCacheScope,
+  fallback: T,
+  reader: (db: IDBPDatabase<TaleaOfflineDB>) => Promise<T>
+): Promise<T> {
+  if (!isOfflineAccessAllowed(scope.userId)) return Promise.resolve(fallback);
+  return withDbReadFallback(fallback, reader);
 }
 
 async function withDbReadFallback<T>(
@@ -982,7 +994,7 @@ export async function getAllSavedIds(scope: OfflineCacheScope): Promise<{
 }
 
 export async function getAllOfflineStories(scope: OfflineCacheScope): Promise<Story[]> {
-  return withDbReadFallback([], async (db) => {
+  return withLicensedRead(scope, [], async (db) => {
     const entries = await db.getAll('offline-stories');
     return entries
       .filter((entry) => isEntryInScope(entry, scope))
@@ -991,7 +1003,7 @@ export async function getAllOfflineStories(scope: OfflineCacheScope): Promise<St
 }
 
 export async function getAllOfflineDokus(scope: OfflineCacheScope): Promise<Doku[]> {
-  return withDbReadFallback([], async (db) => {
+  return withLicensedRead(scope, [], async (db) => {
     const entries = await db.getAll('offline-dokus');
     return entries
       .filter((entry) => isEntryInScope(entry, scope))
@@ -1000,7 +1012,7 @@ export async function getAllOfflineDokus(scope: OfflineCacheScope): Promise<Doku
 }
 
 export async function getAllOfflineAudioDokus(scope: OfflineCacheScope): Promise<AudioDoku[]> {
-  return withDbReadFallback([], async (db) => {
+  return withLicensedRead(scope, [], async (db) => {
     const entries = await db.getAll('offline-audio-dokus');
     return entries
       .filter((entry) => isEntryInScope(entry, scope))
@@ -1011,7 +1023,7 @@ export async function getAllOfflineAudioDokus(scope: OfflineCacheScope): Promise
 export async function getAllOfflineGeneratedAudios(
   scope: OfflineCacheScope,
 ): Promise<GeneratedAudioLibraryEntry[]> {
-  return withDbReadFallback([], async (db) => {
+  return withLicensedRead(scope, [], async (db) => {
     const entries = await db.getAll('offline-generated-audios');
     return entries
       .filter((entry) => isEntryInScope(entry, scope))
@@ -1098,7 +1110,7 @@ export async function getBlobUrl(
   scope: OfflineCacheScope,
   originalUrl: string,
 ): Promise<string | null> {
-  return withDbReadFallback(null, async (db) => {
+  return withLicensedRead(scope, null, async (db) => {
     return getBlobUrlForDb(db, scope, originalUrl);
   });
 }
@@ -1128,7 +1140,7 @@ export async function getOfflineStory(
   scope: OfflineCacheScope,
   storyId: string,
 ): Promise<Story | null> {
-  return withDbReadFallback(null, async (db) => {
+  return withLicensedRead(scope, null, async (db) => {
     const entry = await db.get('offline-stories', createCacheKey(scope, storyId));
     if (!entry || !isEntryInScope(entry, scope)) return null;
 
@@ -1164,7 +1176,7 @@ export async function getOfflineDoku(
   scope: OfflineCacheScope,
   dokuId: string,
 ): Promise<Doku | null> {
-  return withDbReadFallback(null, async (db) => {
+  return withLicensedRead(scope, null, async (db) => {
     const entry = await db.get('offline-dokus', createCacheKey(scope, dokuId));
     if (!entry || !isEntryInScope(entry, scope)) return null;
 
@@ -1198,7 +1210,7 @@ export async function getOfflineAudioDoku(
   scope: OfflineCacheScope,
   audioDokuId: string,
 ): Promise<AudioDoku | null> {
-  return withDbReadFallback(null, async (db) => {
+  return withLicensedRead(scope, null, async (db) => {
     const entry = await db.get('offline-audio-dokus', createCacheKey(scope, audioDokuId));
     if (!entry || !isEntryInScope(entry, scope)) return null;
 
@@ -1224,7 +1236,7 @@ export async function getOfflineGeneratedAudio(
   scope: OfflineCacheScope,
   entryId: string,
 ): Promise<GeneratedAudioLibraryEntry | null> {
-  return withDbReadFallback(null, async (db) => {
+  return withLicensedRead(scope, null, async (db) => {
     const entry = await db.get('offline-generated-audios', createCacheKey(scope, entryId));
     if (!entry || !isEntryInScope(entry, scope)) return null;
 

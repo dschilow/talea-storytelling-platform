@@ -77,3 +77,16 @@ export const BASE_PROFILE_LIMITS: Record<SubscriptionPlan, number> = {
   familie: 3,
   premium: 10,
 };
+
+// Stories, dokus and audio dokus a child profile may keep saved for offline use.
+// 0 = offline saving is not part of the plan.
+export const PLAN_OFFLINE_LIMITS: Record<SubscriptionPlan, number> = {
+  free: 0,
+  starter: 10,
+  familie: 50,
+  premium: 100,
+};
+
+// Saved items stay playable without internet only this long after the last
+// online check of the plan, so cancelling the plan also ends offline access.
+export const OFFLINE_LICENSE_MAX_DAYS = 14;
