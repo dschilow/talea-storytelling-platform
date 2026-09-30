@@ -67,7 +67,8 @@ const MODEL_CONFIGS: ModelConfig[] = [
 // (e.g. kimi-k2.6 was shown at $0.45/1M out, actual is $3.41/1M).
 const OPENROUTER_MODEL_CONFIGS: OpenRouterModelConfig[] = [
   // Released 2026-09-22; list price verified against the OpenRouter catalog on 2026-09-25.
-  { id: 'openai/gpt-6-sol', title: '⭐ GPT-6 Sol — Standard im Bilderbuch-Modus (schreibt in einem Durchgang)', provider: 'OpenAI', cost: '$2 in / $10 out' },
+  { id: 'openai/gpt-6.1-sol', title: '⭐ GPT-6.1 Sol — Standard im Bilderbuch-Modus (schreibt in einem Durchgang)', provider: 'OpenAI', cost: '$2 in / $10 out' },
+  { id: 'openai/gpt-6-sol', title: 'GPT-6 Sol — Vorgänger, etwas gleichförmiger', provider: 'OpenAI', cost: '$2 in / $10 out' },
   { id: 'openai/gpt-6-luna', title: 'GPT-6 Luna — sehr günstig, schwächere Geschichten', provider: 'OpenAI', cost: '$0.10 in / $0.50 out' },
   // EQ-Bench Creative Writing v3 (2026-09-25): Kimi K3 2082 vs Kimi K2.6 1725.
   { id: 'moonshotai/kimi-k3', title: 'Kimi K3 — stärkster Geschichten-Autor (EQ-Bench), teuer', provider: 'Moonshot AI', cost: '$3 in / $15 out' },
