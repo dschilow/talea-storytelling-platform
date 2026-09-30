@@ -47,7 +47,7 @@ export default function UpgradePlanModal({
               type="button"
               onClick={onClose}
               className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--talea-border-soft)] bg-white text-[#4a3d31] dark:border-[#4d6682] dark:bg-[#1c2c42] dark:text-[#dbe9fa]"
-              aria-label="Schliessen"
+              aria-label="Schließen"
             >
               <X className="h-4 w-4" />
             </button>
@@ -70,7 +70,7 @@ export default function UpgradePlanModal({
                 onClick={onClose}
                 className="inline-flex flex-1 items-center justify-center rounded-xl border border-[var(--talea-border-soft)] bg-white px-4 py-2.5 text-sm font-semibold text-[#2d3d52] dark:border-[#4d6682] dark:bg-[#1c2c42] dark:text-[#dbe9fa]"
               >
-                Spaeter
+                Später
               </button>
               <button
                 type="button"
