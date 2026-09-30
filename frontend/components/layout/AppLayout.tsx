@@ -128,8 +128,8 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
     ? "w-full min-h-screen p-0 m-0 max-w-none"
     : usesImmersiveShell
       ? "w-full mx-auto max-w-none pb-[calc(env(safe-area-inset-bottom)+6rem+var(--talea-player-offset,0px))] md:pb-12"
-      : `w-full mx-auto px-4 pb-[calc(env(safe-area-inset-bottom)+6rem+var(--talea-player-offset,0px))] md:pb-12 ${
-          isSettingsRoute ? "max-w-[1520px] md:px-5" : "max-w-[1260px] md:px-8"
+      : `w-full mx-auto pb-[calc(env(safe-area-inset-bottom)+6rem+var(--talea-player-offset,0px))] md:pb-12 ${
+          isSettingsRoute ? "max-w-none" : "max-w-[1260px] px-4 md:px-8"
         }`;
 
   const chrome = !isCosmosFullScreenRoute;

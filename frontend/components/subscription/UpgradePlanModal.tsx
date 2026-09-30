@@ -20,7 +20,7 @@ export default function UpgradePlanModal({
 
   const openBilling = () => {
     onClose();
-    navigate("/settings?section=billing#billing-plan-switcher");
+    navigate("/settings?section=billing#/billing");
   };
 
   return (

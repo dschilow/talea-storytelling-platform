@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PricingTable, UserProfile, useAuth, useClerk, useUser } from '@clerk/clerk-react';
+import { UserProfile, useAuth, useClerk, useUser } from '@clerk/clerk-react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 import { useBackend } from '../../hooks/useBackend';
@@ -38,16 +38,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ProfilesSettingsPanel from './ProfilesSettingsPanel';
-import PlanComparisonTable from '../../components/subscription/PlanComparisonTable';
+import BillingPlanPicker from '../../components/subscription/BillingPlanPicker';
 import {
   AUDIO_ACCESS_LABELS,
-  FREE_TRIAL_QUOTAS,
-  FREE_TRIAL_TAVI_MESSAGES,
-  PLAN_AUDIO_LIBRARY_ACCESS,
-  PLAN_DAILY_LIMITS,
-  PLAN_QUOTAS,
-  PLAN_TAVI_CAN_CREATE,
-  PLAN_TAVI_MESSAGES,
   PLAN_TITLES,
   type AudioLibraryAccess,
 } from '../../constants/planCatalog';
@@ -63,7 +56,6 @@ import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 import {
   TaleaPageBackground,
   taleaDisplayFont,
-  taleaPageShellClass,
 } from '@/components/talea/TaleaPastelPrimitives';
 
 type ThemeOption = 'light' | 'dark' | 'system';
@@ -195,19 +187,6 @@ const PLAN_META: Record<SubscriptionPlan, { icon: typeof Sparkles; gradient: str
   familie: { icon: Users, gradient: 'from-[#2DD4BF] to-[#0EA5E9]' },
   premium: { icon: Crown, gradient: 'from-[#FF9B5C] to-[#FF6B9D]' },
 };
-
-// What the current plan includes, derived from the shared plan catalog.
-function includedForPlan(plan: SubscriptionPlan, trialActive: boolean) {
-  const quotas = plan === 'free' && trialActive ? FREE_TRIAL_QUOTAS : PLAN_QUOTAS[plan];
-  const period = plan === 'free' && trialActive ? 'Testphase' : 'Monat';
-  const taviMessages = plan === 'free' && trialActive ? FREE_TRIAL_TAVI_MESSAGES : PLAN_TAVI_MESSAGES[plan];
-  return [
-    { label: 'Stories', value: `${quotas.stories} / ${period} · max. ${PLAN_DAILY_LIMITS[plan].stories} pro Tag` },
-    { label: 'Dokus', value: `${quotas.dokus} / ${period} · max. ${PLAN_DAILY_LIMITS[plan].dokus} pro Tag` },
-    { label: 'Tavi', value: `${taviMessages} Nachrichten${PLAN_TAVI_CAN_CREATE[plan] ? ' · erstellt direkt' : ' · nur Chat'}` },
-    { label: 'Audio-Dokus', value: AUDIO_ACCESS_LABELS[PLAN_AUDIO_LIBRARY_ACCESS[plan]] },
-  ];
-}
 
 const settingsPanelClass = 'talea-settings-panel max-w-full min-w-0 overflow-x-hidden space-y-6 p-4 sm:p-6 lg:p-8';
 
@@ -1507,7 +1486,6 @@ function BillingPanel() {
   const billing = profile?.billing ?? null;
   const currentPlan = billing?.plan ?? profile?.subscription ?? 'free';
   const currentPlanMeta = PLAN_META[currentPlan];
-  const includedItems = includedForPlan(currentPlan, Boolean(billing?.permissions.freeTrialActive));
   const CurrentPlanIcon = currentPlanMeta.icon;
   const periodStartLabel = useMemo(() => {
     if (!billing?.periodStart) return '-';
@@ -1518,18 +1496,18 @@ function BillingPanel() {
     <div className={settingsPanelClass}>
       <SettingsPanelHeader
         eyebrow="Plan & Nutzung"
-        title={t('settings.billingTitle', 'Abo & Credits')}
-        subtitle={t('settings.billingSubtitle', 'Monatliche Credits, Verbrauch und Planwechsel in einem Bereich.')}
+        title="Abo & Nutzung"
+        subtitle="Dein Verbrauch, alle Kontingente und der passende Plan für deine Familie."
         icon={<CreditCard className="h-5 w-5" />}
         action={
-          <Button type="button" variant="outline" onClick={loadBilling} className="rounded-[1.1rem]">
+          <Button type="button" variant="outline" onClick={loadBilling} disabled={isLoading} className="rounded-[1.1rem]">
             <RefreshCcw className="mr-2 h-4 w-4" />
             {t('settings.billingRefresh', 'Aktualisieren')}
           </Button>
         }
       />
 
-      {isLoading ? (
+      {isLoading && !billing ? (
         <div className="rounded-2xl border border-border bg-card/70 p-5 text-sm text-muted-foreground">
           {t('settings.billingLoading', 'Lade Billing-Daten...')}
         </div>
@@ -1547,7 +1525,7 @@ function BillingPanel() {
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('settings.billingCurrentPlan', 'Dein Plan')}</p>
                     <h3 className="text-xl font-bold text-foreground">{PLAN_TITLES[currentPlan]}</h3>
-                    <p className="text-xs text-muted-foreground">{t('settings.billingPeriod', 'Abrechnungsmonat')}: {periodStartLabel}</p>
+                    <p className="text-xs text-muted-foreground">Kontingentmonat: {periodStartLabel}</p>
                   </div>
                 </div>
 
@@ -1559,15 +1537,6 @@ function BillingPanel() {
                     Audio: {AUDIO_ACCESS_LABELS[billing.audioLibrary.access]}
                   </span>
                 </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-4 sm:grid-cols-4">
-                {includedItems.map((item) => (
-                  <div key={item.label} className="rounded-xl bg-[var(--talea-surface-inset)]/70 px-3 py-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{item.label}</p>
-                    <p className="mt-0.5 text-sm font-semibold text-foreground">{item.value}</p>
-                  </div>
-                ))}
               </div>
 
               {currentPlan === 'free' && (
@@ -1622,44 +1591,7 @@ function BillingPanel() {
             </p>
           </div>
 
-          {/* Plan vergleichen & wechseln: einzige Stelle, an der alle Pläne gelistet sind */}
-          <div id="billing-plan-switcher" className="rounded-2xl border border-[#A989F2]/30 bg-card/70 backdrop-blur-lg p-4 md:p-5">
-            <div className="mb-4 flex items-start justify-between gap-3 flex-wrap">
-              <div>
-                <h3 className="text-sm font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
-                  {t('settings.billingPlanSwitchTitle', 'Plan vergleichen & wechseln')}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {t('settings.billingPlanSwitchDesc', "Der Checkout öffnet als eigenes Fenster. Nach erfolgreichem Wechsel hier auf 'Aktualisieren' klicken.")}
-                </p>
-              </div>
-              <span className="text-[11px] font-semibold text-[#A989F2] bg-[#A989F2]/10 rounded-full px-3 py-1">
-                {t('settings.billingMonthly', 'Monatlich kündbar')}
-              </span>
-            </div>
-
-            <div className="mb-4">
-              <PlanComparisonTable currentPlan={currentPlan} />
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card/80 p-2 md:p-3">
-              <PricingTable
-                ctaPosition="bottom"
-                newSubscriptionRedirectUrl="/settings?billing=success"
-                checkoutProps={{
-                  appearance: {
-                    elements: {
-                      drawerBackdrop: 'z-[5000] !fixed',
-                      drawerRoot: 'z-[5001] !fixed',
-                      drawerContent: 'z-[5002] !fixed',
-                      modalBackdrop: 'z-[5000] !fixed',
-                      modalContent: 'z-[5002] !fixed',
-                    },
-                  },
-                }}
-              />
-            </div>
-          </div>
+          <BillingPlanPicker currentPlan={currentPlan} onBillingChange={loadBilling} />
 
         </>
       ) : (
@@ -1678,6 +1610,7 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     if (!location.search.includes('section=billing')) return;
+    if (window.location.hash !== '#/billing') window.location.hash = '/billing';
     const handle = window.setTimeout(() => {
       document.getElementById('billing-plan-switcher')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 320);
@@ -1688,7 +1621,7 @@ export default function SettingsScreen() {
     <div className="relative min-h-screen pb-32 pt-5 md:pb-12 md:pt-8">
       <TaleaPageBackground isDark={resolvedTheme === 'dark'} />
 
-      <div className={`${taleaPageShellClass} relative z-10`}>
+      <div className="relative z-10 mx-auto w-full max-w-[1600px] px-3 sm:px-5 lg:px-6">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1727,6 +1660,7 @@ export default function SettingsScreen() {
 
         <div className="relative min-h-[72vh] overflow-visible rounded-[2rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-medium)] backdrop-blur-2xl before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:bg-white/80 md:min-h-[calc(100vh-220px)] md:overflow-hidden dark:before:bg-white/10">
           <UserProfile
+            routing="hash"
             appearance={{
               baseTheme: undefined,
               variables: {

@@ -871,6 +871,37 @@
   color: var(--talea-text-primary);
 }
 
+/* Custom pages own their spacing; Clerk's wrappers must not add another inset. */
+.talea-settings-profile :is(.cl-pageScrollBox, .cl-page, .cl-profilePage):has(.talea-settings-panel) {
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+.talea-plan-comparison {
+  container-type: inline-size;
+}
+
+.talea-plan-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+@container (min-width: 34rem) {
+  .talea-plan-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@container (min-width: 64rem) {
+  .talea-plan-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (min-width: 769px) {
+  .talea-settings-profile .cl-navbar {
+    flex-basis: 14rem !important;
+    width: 14rem !important;
+  }
+}
+
 .talea-settings-panel :is(input, select, textarea):focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
