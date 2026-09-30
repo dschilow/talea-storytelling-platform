@@ -12,9 +12,9 @@ import {
   uploadBufferToBucket,
 } from "../helpers/bucket-storage";
 import {
-  assertAudioDokuAccess,
-  claimGenerationUsage,
-  claimMeteredUsage,
+  AUDIO_BASIC_LIBRARY_MIN_AGE_DAYS,
+  getAudioLibraryAccess,
+  type AudioLibraryAccess,
 } from "../helpers/billing";
 import { resolveRequestedProfileId } from "../helpers/profiles";
 
@@ -33,6 +33,9 @@ export interface AudioDoku {
   isPublic: boolean;
   createdAt: Date;
   updatedAt: Date;
+  // Set when the viewer's plan does not include this episode. audioUrl is then empty.
+  locked?: boolean;
+  lockReason?: string;
 }
 
 interface CreateAudioDokuRequest {
@@ -155,8 +158,76 @@ const buildCoverPrompt = (description: string, title: string): string => {
   return `Modern educational cover art for an audio documentary: ${normalized}. Soft gradients, friendly illustration, clean composition, no text in the image.`;
 };
 
-const resolveAudioDokuRow = async (row: AudioDokuRow): Promise<AudioDoku> => {
+type AudioViewer = {
+  userId: string;
+  isAdmin: boolean;
+  access: AudioLibraryAccess;
+  sampleId: string | null;
+};
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// Audio dokus are produced by admins and unlocked per plan: free gets one
+// sample episode (the oldest public one), Starter every episode that is at
+// least AUDIO_BASIC_LIBRARY_MIN_AGE_DAYS old, Familie and Premium everything.
+async function loadAudioViewer(): Promise<AudioViewer> {
+  const auth = getAuthData()!;
+  if (auth.role === "admin") {
+    return { userId: auth.userID, isAdmin: true, access: "full", sampleId: null };
+  }
+  const access = await getAudioLibraryAccess({
+    userId: auth.userID,
+    clerkToken: auth.clerkToken,
+  });
+  let sampleId: string | null = null;
+  if (access === "sample") {
+    const sample = await dokuDB.queryRow<{ id: string }>`
+      SELECT id FROM audio_dokus
+      WHERE is_public = true
+      ORDER BY created_at ASC, id ASC
+      LIMIT 1
+    `;
+    sampleId = sample?.id ?? null;
+  }
+  return { userId: auth.userID, isAdmin: false, access, sampleId };
+}
+
+function audioLockReason(viewer: AudioViewer, row: AudioDokuRow): string | null {
+  if (viewer.isAdmin || viewer.access === "full" || row.user_id === viewer.userId) {
+    return null;
+  }
+  if (viewer.access === "basic") {
+    const ageMs = Date.now() - new Date(row.created_at).getTime();
+    return ageMs >= AUDIO_BASIC_LIBRARY_MIN_AGE_DAYS * MS_PER_DAY
+      ? null
+      : `Neue Folgen der letzten ${AUDIO_BASIC_LIBRARY_MIN_AGE_DAYS} Tage gibt es ab dem Familie-Abo. Starter enthält alle älteren Folgen.`;
+  }
+  return row.id === viewer.sampleId
+    ? null
+    : "Im kostenlosen Plan ist eine Probe-Folge frei. Alle Audio-Dokus gibt es ab dem Starter-Abo.";
+}
+
+const resolveAudioDokuRow = async (row: AudioDokuRow, viewer?: AudioViewer): Promise<AudioDoku> => {
   const coverImageUrl = await resolveImageUrlForClient(row.cover_image_url || undefined);
+  const lockReason = viewer ? audioLockReason(viewer, row) : null;
+  if (lockReason) {
+    return {
+      id: row.id,
+      userId: row.user_id,
+      title: row.title,
+      description: row.description,
+      ageGroup: row.age_group ?? undefined,
+      category: row.category ?? undefined,
+      coverDescription: row.cover_description ?? undefined,
+      coverImageUrl: coverImageUrl ?? row.cover_image_url ?? undefined,
+      audioUrl: "",
+      isPublic: row.is_public,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      locked: true,
+      lockReason,
+    };
+  }
   const audioUrl = await resolveObjectUrlForClient(row.audio_url);
   return {
     id: row.id,
@@ -177,11 +248,7 @@ const resolveAudioDokuRow = async (row: AudioDokuRow): Promise<AudioDoku> => {
 export const createAudioUploadUrl = api<CreateAudioUploadUrlRequest, CreateAudioUploadUrlResponse>(
   { expose: true, method: "POST", path: "/audio-dokus/upload-url", auth: true },
   async (req) => {
-    const auth = getAuthData()!;
-    await assertAudioDokuAccess({
-      userId: auth.userID,
-      clerkToken: auth.clerkToken,
-    });
+    ensureAdmin();
 
     const contentType = req.contentType?.trim();
     const filename = req.filename?.trim();
@@ -219,15 +286,13 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
     bodyLimit: 80 * 1024 * 1024,
   },
   async (req) => {
+    // Audio dokus are produced by admins only; customers unlock them per plan.
+    ensureAdmin();
     const auth = getAuthData()!;
     const activeProfileId = await resolveRequestedProfileId({
       userId: auth.userID,
       requestedProfileId: req.profileId,
       fallbackName: auth.email ?? undefined,
-    });
-    await assertAudioDokuAccess({
-      userId: auth.userID,
-      clerkToken: auth.clerkToken,
     });
 
     const description = req.description?.trim();
@@ -267,14 +332,6 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
     const now = new Date();
     const id = crypto.randomUUID();
 
-    await claimGenerationUsage({
-      userId: auth.userID,
-      kind: "audio",
-      profileId: activeProfileId,
-      contentRef: id,
-      clerkToken: auth.clerkToken,
-    });
-
     const title =
       (req.title && req.title.trim()) ||
       inferTitleFromFilename(req.filename) ||
@@ -283,12 +340,6 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
     let coverImageUrl: string | undefined = req.coverImageUrl?.trim() || undefined;
     if (!coverImageUrl) {
       try {
-        await claimMeteredUsage({
-          userId: auth.userID,
-          kind: "image",
-          units: 1,
-          clerkToken: auth.clerkToken,
-        });
         const prompt = buildCoverPrompt(coverDescription, title);
         const img = await ai.generateImage({
           prompt,
@@ -398,11 +449,7 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
 export const generateAudioCover = api<GenerateAudioCoverRequest, GenerateAudioCoverResponse>(
   { expose: true, method: "POST", path: "/audio-dokus/generate-cover", auth: true },
   async (req) => {
-    const auth = getAuthData()!;
-    await assertAudioDokuAccess({
-      userId: auth.userID,
-      clerkToken: auth.clerkToken,
-    });
+    ensureAdmin();
 
     const coverDescription = req.coverDescription?.trim();
     if (!coverDescription) {
@@ -415,13 +462,6 @@ export const generateAudioCover = api<GenerateAudioCoverRequest, GenerateAudioCo
 
     const title = req.title?.trim() || "Audio Doku";
     const prompt = buildCoverPrompt(coverDescription, title);
-
-    await claimMeteredUsage({
-      userId: auth.userID,
-      kind: "image",
-      units: 1,
-      clerkToken: auth.clerkToken,
-    });
 
     try {
       const img = await ai.generateImage({
@@ -459,12 +499,6 @@ export const getAudioDoku = api<{ id: string }, AudioDoku>(
   { expose: true, method: "GET", path: "/audio-dokus/:id", auth: true },
   async ({ id }) => {
     const auth = getAuthData()!;
-    if (auth.role !== "admin") {
-      await assertAudioDokuAccess({
-        userId: auth.userID,
-        clerkToken: auth.clerkToken,
-      });
-    }
 
     const row = await dokuDB.queryRow<AudioDokuRow>`
       SELECT * FROM audio_dokus WHERE id = ${id}
@@ -477,7 +511,13 @@ export const getAudioDoku = api<{ id: string }, AudioDoku>(
       throw APIError.permissionDenied("You do not have permission to access this audio doku.");
     }
 
-    return resolveAudioDokuRow(row);
+    const viewer = await loadAudioViewer();
+    const lockReason = audioLockReason(viewer, row);
+    if (lockReason) {
+      throw APIError.permissionDenied(`Abo-Limit erreicht: ${lockReason}`);
+    }
+
+    return resolveAudioDokuRow(row, viewer);
   }
 );
 
@@ -491,22 +531,13 @@ export const updateAudioDoku = api<UpdateAudioDokuRequest, AudioDoku>(
     bodyLimit: 80 * 1024 * 1024,
   },
   async (req) => {
-    const auth = getAuthData()!;
-    await assertAudioDokuAccess({
-      userId: auth.userID,
-      clerkToken: auth.clerkToken,
-    });
+    ensureAdmin();
 
     const existing = await dokuDB.queryRow<AudioDokuRow>`
       SELECT * FROM audio_dokus WHERE id = ${req.id}
     `;
     if (!existing) {
       throw APIError.notFound("Audio Doku not found.");
-    }
-
-    // Check ownership (unless admin)
-    if (auth.role !== "admin" && existing.user_id !== auth.userID) {
-      throw APIError.permissionDenied("You do not have permission to update this audio doku.");
     }
 
     const titlePatch = normalizeRequiredPatch(req.title, "Title");
@@ -601,17 +632,11 @@ export const deleteAudioDoku = api<{ id: string }, void>(
 export const listAudioDokus = api<ListAudioDokusRequest, ListAudioDokusResponse>(
   { expose: true, method: "GET", path: "/audio-dokus", auth: true },
   async (req) => {
-    const auth = getAuthData()!;
-    const isAdmin = auth.role === "admin";
-    if (!isAdmin) {
-      await assertAudioDokuAccess({
-        userId: auth.userID,
-        clerkToken: auth.clerkToken,
-      });
-    }
+    const viewer = await loadAudioViewer();
+    const isAdmin = viewer.isAdmin;
 
-    const limit = req.limit || 12;
-    const offset = req.offset || 0;
+    const limit = Math.min(Math.max(Math.floor(req.limit || 12), 1), 100);
+    const offset = Math.max(Math.floor(req.offset || 0), 0);
 
     const countResult = isAdmin
       ? await dokuDB.queryRow<{ count: number }>`
@@ -635,7 +660,7 @@ export const listAudioDokus = api<ListAudioDokusRequest, ListAudioDokusResponse>
           LIMIT ${limit} OFFSET ${offset}
         `;
 
-    const audioDokus = await Promise.all(rows.map((row) => resolveAudioDokuRow(row)));
+    const audioDokus = await Promise.all(rows.map((row) => resolveAudioDokuRow(row, viewer)));
 
     const hasMore = offset + limit < total;
 

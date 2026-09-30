@@ -1,16 +1,11 @@
 import { APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
+import { BASE_PROFILE_LIMITS, type SubscriptionPlan } from "./plan-catalog";
 
 const userDB = SQLDatabase.named("user");
 
-export type SubscriptionPlan = "free" | "starter" | "familie" | "premium";
-
-export const BASE_PROFILE_LIMITS: Record<SubscriptionPlan, number> = {
-  free: 1,
-  starter: 1,
-  familie: 3,
-  premium: 5,
-};
+export type { SubscriptionPlan } from "./plan-catalog";
+export { BASE_PROFILE_LIMITS } from "./plan-catalog";
 
 type ChildProfileRow = {
   id: string;

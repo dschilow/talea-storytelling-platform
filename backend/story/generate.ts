@@ -19,7 +19,7 @@ import { assignAvatarDevelopmentIds } from "./avatar-development-assignment";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { buildStoryChapterImageUrlForClient, buildArtifactImageUrlForClient } from "../helpers/image-proxy";
 import { updateStoryInstanceStatus } from "./pipeline/repository";
-import { claimGenerationUsage } from "../helpers/billing";
+import { claimGenerationUsage, refundGenerationUsage } from "../helpers/billing";
 import { extractParticipantProfileIds, extractRequestedProfileId } from "../helpers/profile-context";
 import {
   assertParentalDailyLimit,
@@ -35,7 +35,7 @@ import {
   normalizeGeneratedImageCount,
   resolveAdminImageCallCount,
 } from "./generation-cost-residual";
-import { normalizeOpenRouterModel, splitOpenRouterCostUSD } from "./openrouter-generation";
+import { DEFAULT_OPENROUTER_STORY_MODEL, normalizeOpenRouterModel, splitOpenRouterCostUSD } from "./openrouter-generation";
 import {
   assertProfilesBelongToUser,
   ensureDefaultProfileForUser,
@@ -387,6 +387,78 @@ function mergePromptBlocks(...blocks: Array<string | undefined>): string | undef
   return merged.length > 0 ? merged : undefined;
 }
 
+// The only engine settings a customer request may carry. The wizard sends
+// exactly these release defaults; Tavi uses the cheaper flash-lite writer.
+const CUSTOMER_AI_MODELS: ReadonlySet<AIModel> = new Set<AIModel>([
+  "gemini-3.1-pro-preview",
+  "gemini-3-flash-preview",
+]);
+const CUSTOMER_OPENROUTER_MODELS: ReadonlySet<string> = new Set([
+  DEFAULT_OPENROUTER_STORY_MODEL,
+  "google/gemini-3.1-flash-lite",
+]);
+const CUSTOMER_MAX_PROMPT_CHARS = 2_000;
+const CUSTOMER_MAX_LIST_ITEMS = 10;
+
+function limitList<T>(list: T[] | undefined): T[] | undefined {
+  return Array.isArray(list) ? list.slice(0, CUSTOMER_MAX_LIST_ITEMS) : undefined;
+}
+
+/**
+ * Keeps only the fields the customer wizard and Tavi send. Everything that
+ * changes cost or bypasses the product pipeline (model choice, candidate
+ * counts, rewrite passes, token caps, developer/storybook engines, editorial
+ * content types) is dropped, so a hand-crafted request cannot spend more
+ * than one story coin is worth.
+ */
+function stripAdminOnlyStoryOptions(config: StoryConfig): StoryConfig {
+  const openRouterModel = CUSTOMER_OPENROUTER_MODELS.has(String(config.openRouterModel || ""))
+    ? config.openRouterModel
+    : DEFAULT_OPENROUTER_STORY_MODEL;
+  return {
+    avatarIds: limitList(config.avatarIds) ?? [],
+    genre: config.genre,
+    setting: config.setting,
+    length: config.length,
+    complexity: config.complexity,
+    learningMode: config.learningMode
+      ? {
+          ...config.learningMode,
+          subjects: limitList(config.learningMode.subjects) ?? [],
+          learningObjectives: limitList(config.learningMode.learningObjectives) ?? [],
+        }
+      : undefined,
+    ageGroup: config.ageGroup,
+    stylePreset: config.stylePreset,
+    allowRhymes: config.allowRhymes,
+    tone: config.tone,
+    language: config.language,
+    suspenseLevel: config.suspenseLevel,
+    humorLevel: config.humorLevel,
+    pacing: config.pacing,
+    pov: config.pov,
+    hooks: limitList(config.hooks),
+    hasTwist: config.hasTwist,
+    requireMoral: config.requireMoral,
+    avatarIsHero: config.avatarIsHero,
+    allowFamousCharacters: config.allowFamousCharacters,
+    requireHappyEnd: config.requireHappyEnd,
+    customPrompt: config.customPrompt?.slice(0, CUSTOMER_MAX_PROMPT_CHARS),
+    storySoul: config.storySoul,
+    emotionalFlavors: limitList(config.emotionalFlavors),
+    storyTempo: config.storyTempo,
+    specialIngredients: limitList(config.specialIngredients),
+    aiModel: config.aiModel && CUSTOMER_AI_MODELS.has(config.aiModel) ? config.aiModel : undefined,
+    aiProvider: "openrouter",
+    openRouterModel,
+    useCharacterPool: config.useCharacterPool,
+    preferences: config.preferences
+      ? { useFairyTaleTemplate: config.preferences.useFairyTaleTemplate }
+      : undefined,
+    broughtArtifact: config.broughtArtifact,
+  };
+}
+
 // Generates a new story based on the provided configuration.
 export const generate = api<GenerateStoryRequest, Story>(
   { expose: true, method: "POST", path: "/story/generate", auth: true },
@@ -426,6 +498,12 @@ export const generate = api<GenerateStoryRequest, Story>(
     });
 
     const parentalGuidance = buildGenerationGuidanceFromControls(parentalControls);
+    // Engine and model choice are admin tools. Customers always get the
+    // release defaults, otherwise any request could pick the most expensive
+    // OpenRouter model and spend far more than one story coin covers.
+    if (auth?.role !== "admin") {
+      req.config = stripAdminOnlyStoryOptions(req.config);
+    }
     const requestedAiModel = req.config.aiModel;
     const requestedAiProvider: AIProvider = req.config.aiProvider === "openrouter" ? "openrouter" : "native";
     const requestedOpenRouterModel =
@@ -551,6 +629,9 @@ export const generate = api<GenerateStoryRequest, Story>(
       },
     });
 
+    // The coin is reserved up front (so parallel requests cannot overspend)
+    // and refunded in the catch below unless the story is published.
+    let coinReserved = false;
     try {
       await claimGenerationUsage({
         userId: currentUserId,
@@ -559,6 +640,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         contentRef: id,
         clerkToken,
       });
+      coinReserved = true;
 
       await Promise.all(
         participantProfileIds.flatMap((participantProfileId) => [
@@ -1447,6 +1529,14 @@ export const generate = api<GenerateStoryRequest, Story>(
         WHERE id = ${id}
           AND status <> 'complete'
       `;
+      if (coinReserved) {
+        await refundGenerationUsage({
+          userId: currentUserId,
+          kind: "story",
+          contentRef: id,
+          reason: errorMessage.slice(0, 200),
+        });
+      }
       try {
         await updateStoryInstanceStatus(id, "error", String((error as any)?.message || error));
       } catch (pipelineStatusError) {

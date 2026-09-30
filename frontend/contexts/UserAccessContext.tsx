@@ -17,10 +17,24 @@ export type BillingSnapshot = {
   periodStart: string | Date;
   storyCredits: CreditUsage;
   dokuCredits: CreditUsage;
-  audioCredits: CreditUsage;
+  dailyStoryCredits: CreditUsage;
+  dailyDokuCredits: CreditUsage;
   chatCredits: CreditUsage;
+  assistCredits: CreditUsage;
   imageCredits: CreditUsage;
   ttsCharacterCredits: CreditUsage;
+  audioLibrary: {
+    access: "sample" | "basic" | "full";
+    basicMinAgeDays: number;
+  };
+  permissions: {
+    canReadCommunityDokus: boolean;
+    canUseAudioDokus: boolean;
+    taviCanCreate: boolean;
+    freeTrialActive: boolean;
+    freeTrialEndsAt: string | Date | null;
+    freeTrialDaysRemaining: number;
+  };
 };
 
 type UserAccessState = {

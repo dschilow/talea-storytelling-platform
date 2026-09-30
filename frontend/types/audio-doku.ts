@@ -11,4 +11,7 @@ export interface AudioDoku {
   isPublic: boolean;
   createdAt: string | Date;
   updatedAt: string | Date;
+  // Set when the plan does not include this episode; audioUrl is then empty.
+  locked?: boolean;
+  lockReason?: string;
 }

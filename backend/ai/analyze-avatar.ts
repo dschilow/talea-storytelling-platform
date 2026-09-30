@@ -6,7 +6,7 @@ import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { translateVisualProfile } from "./translate";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { getAuthData } from "~encore/auth";
-import { claimMeteredUsage } from "../helpers/billing";
+import { claimMeteredUsage, refundMeteredUsage } from "../helpers/billing";
 
 const openAIKey = secret("OpenAIKey");
 
@@ -41,38 +41,41 @@ export const analyzeAvatarImage = api<AnalyzeAvatarImageRequest, AnalyzeAvatarIm
     if (!req.imageUrl || req.imageUrl.length > 8_000) {
       throw APIError.invalidArgument("Invalid image URL.");
     }
-    await claimMeteredUsage({
+    const usageClaim = await claimMeteredUsage({
       userId: auth.userID,
-      kind: "chat",
+      kind: "assist",
       units: 1,
       clerkToken: auth.clerkToken,
     });
 
-    const startTime = Date.now();
-    console.log("🔬 Analyzing avatar image with STABLE analysis...");
+    try {
+      const startTime = Date.now();
+      console.log("🔬 Analyzing avatar image with STABLE analysis...");
 
-    // Resolve bucket:// URLs to HTTP URLs before sending to OpenAI
-    const resolvedImageUrl = await resolveImageUrlForClient(req.imageUrl);
-    if (!resolvedImageUrl) {
-      console.error("[ai.avatar-analysis] Could not resolve image URL");
-      return {
-        success: false,
-        visualProfile: null,
-        processingTime: Date.now() - startTime,
-      };
-    }
+      // Resolve bucket:// URLs to HTTP URLs before sending to OpenAI
+      const resolvedImageUrl = await resolveImageUrlForClient(req.imageUrl);
+      if (!resolvedImageUrl) {
+        console.error("[ai.avatar-analysis] Could not resolve image URL");
+        await refundMeteredUsage(usageClaim);
+        return {
+          success: false,
+          visualProfile: null,
+          processingTime: Date.now() - startTime,
+        };
+      }
 
-    // Check if the image is an SVG placeholder (unsupported by OpenAI)
-    if (resolvedImageUrl.startsWith("data:image/svg+xml")) {
-      console.warn("⚠️ Cannot analyze SVG placeholder images - skipping analysis");
-      return {
-        success: false,
-        visualProfile: null,
-        processingTime: Date.now() - startTime,
-      };
-    }
+      // Check if the image is an SVG placeholder (unsupported by OpenAI)
+      if (resolvedImageUrl.startsWith("data:image/svg+xml")) {
+        console.warn("⚠️ Cannot analyze SVG placeholder images - skipping analysis");
+        await refundMeteredUsage(usageClaim);
+        return {
+          success: false,
+          visualProfile: null,
+          processingTime: Date.now() - startTime,
+        };
+      }
 
-    const system = `Du bist ein Experte für visuelle Charakter-Profile in Geschichten und Illustrationen. Du erhältst ein Bild (Avatar), das ein Wesen darstellen kann – Mensch, Tier, Roboter, Fantasiefigur, Obst, Gemüse, unbelebtes Objekt oder Anime-Stil. Deine Aufgabe: Beschreibe den Avatar so präzise und konsistent wie möglich, damit er in allen zukünftigen Illustrationen gleich aussieht.
+      const system = `Du bist ein Experte für visuelle Charakter-Profile in Geschichten und Illustrationen. Du erhältst ein Bild (Avatar), das ein Wesen darstellen kann – Mensch, Tier, Roboter, Fantasiefigur, Obst, Gemüse, unbelebtes Objekt oder Anime-Stil. Deine Aufgabe: Beschreibe den Avatar so präzise und konsistent wie möglich, damit er in allen zukünftigen Illustrationen gleich aussieht.
 
 ### KRITISCH: Charaktertyp-Identifikation
 - Identifiziere ZUERST den Charaktertyp präzise: Mensch, Tier (welche Art?), Roboter, Obst/Gemüse, Objekt, Fantasiewesen
@@ -99,7 +102,7 @@ export const analyzeAvatarImage = api<AnalyzeAvatarImageRequest, AnalyzeAvatarIm
 - Textur: „authentische Materialeigenschaften, natürliche Farbverläufe"
 - Vermeide: „digitale Artefakte, verzerrte Proportionen, unnatürlich gesättigte Farben"`;
 
-    const userText = `Analysiere dieses Avatar-Bild und gib die kanonische Beschreibung exakt gemäß Schema als JSON aus.
+      const userText = `Analysiere dieses Avatar-Bild und gib die kanonische Beschreibung exakt gemäß Schema als JSON aus.
 
 WICHTIG: Identifiziere zuerst den CHARACTER TYPE genau (Mensch/Tier/Roboter/Obst/etc) und beschreibe dann alle relevanten Merkmale.
 
@@ -151,193 +154,197 @@ Schema:
   "consistentDescriptors": ["string", ...] // genau 8-10 Tokens - WICHTIG bei Tieren: "quadruped on four paws", "tail visible", etc.
 }`;
 
-    const hintsText = req.hints ? `AVATAR-EIGENSCHAFTEN ZUR BERÜCKSICHTIGUNG:
+      const hintsText = req.hints ? `AVATAR-EIGENSCHAFTEN ZUR BERÜCKSICHTIGUNG:
 ${req.hints.physicalTraits ? `- Physische Eigenschaften vom Ersteller: ${JSON.stringify(req.hints.physicalTraits, null, 2)}` : ""}
 ${req.hints.expectedType ? `- Erwarteter Charakter-Typ: ${req.hints.expectedType}` : ""}
 ${req.hints.stylePreference ? `- Stil-Präferenz: ${req.hints.stylePreference}` : ""}
 
 Nutze nur visuell relevante Hinweise und übernimm nichts, das dem Bild widerspricht.` : "";
 
-    const payload = {
-      model: "gpt-5.4-mini",
-      messages: [
-        { role: "system", content: system },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: `${userText}\n${hintsText}`.trim() },
-            { type: "image_url", image_url: { url: resolvedImageUrl } }
-          ]
-        }
-      ],
-      response_format: { type: "json_object" },
-      max_completion_tokens: 4000,
-    };
+      const payload = {
+        model: "gpt-5.4-mini",
+        messages: [
+          { role: "system", content: system },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: `${userText}\n${hintsText}`.trim() },
+              { type: "image_url", image_url: { url: resolvedImageUrl } }
+            ]
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_completion_tokens: 4000,
+      };
 
-    const analysisRequestLog = {
-      model: payload.model,
-      hasImage: true,
-      hasPhysicalHints: Boolean(req.hints?.physicalTraits),
-      expectedType: req.hints?.expectedType ?? null,
-      stylePreference: req.hints?.stylePreference ?? null,
-      maxTokens: payload.max_completion_tokens,
-    };
-    console.info("[ai.avatar-analysis] Sending vision request", analysisRequestLog);
+      const analysisRequestLog = {
+        model: payload.model,
+        hasImage: true,
+        hasPhysicalHints: Boolean(req.hints?.physicalTraits),
+        expectedType: req.hints?.expectedType ?? null,
+        stylePreference: req.hints?.stylePreference ?? null,
+        maxTokens: payload.max_completion_tokens,
+      };
+      console.info("[ai.avatar-analysis] Sending vision request", analysisRequestLog);
 
-    let res;
-    try {
-      res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${openAIKey()}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-    } catch (fetchError: any) {
-      console.error("[ai.avatar-analysis] Vision provider network error", { errorName: fetchError?.name });
+      let res;
+      try {
+        res = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${openAIKey()}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+      } catch (fetchError: any) {
+        console.error("[ai.avatar-analysis] Vision provider network error", { errorName: fetchError?.name });
 
-      // Log network errors
-      await publishWithTimeout(logTopic, {
-        source: 'openai-avatar-analysis-stable',
-        timestamp: new Date(),
-        request: analysisRequestLog,
-        response: {
-          success: false,
-          errorType: 'network_error',
-          processingTimeMs: Date.now() - startTime
-        },
-      });
+        // Log network errors
+        await publishWithTimeout(logTopic, {
+          source: 'openai-avatar-analysis-stable',
+          timestamp: new Date(),
+          request: analysisRequestLog,
+          response: {
+            success: false,
+            errorType: 'network_error',
+            processingTimeMs: Date.now() - startTime
+          },
+        });
 
-      throw new Error("Avatar image analysis provider is temporarily unavailable.");
-    }
-
-    if (!res.ok) {
-      console.error("[ai.avatar-analysis] Vision provider API error", { status: res.status });
-
-      // Log API errors
-      await publishWithTimeout(logTopic, {
-        source: 'openai-avatar-analysis-stable',
-        timestamp: new Date(),
-        request: analysisRequestLog,
-        response: {
-          success: false,
-          errorType: 'openai_api_error',
-          httpStatus: res.status,
-          processingTimeMs: Date.now() - startTime
-        },
-      });
-
-      throw new Error(`Avatar image analysis failed with status ${res.status}.`);
-    }
-
-    let data: any;
-    try {
-      data = await res.json();
-    } catch (jsonError: any) {
-      console.error("[ai.avatar-analysis] Invalid provider response envelope", { errorName: jsonError?.name });
-
-      // Log JSON parsing errors
-      await publishWithTimeout(logTopic, {
-        source: 'openai-avatar-analysis-stable',
-        timestamp: new Date(),
-        request: analysisRequestLog,
-        response: {
-          success: false,
-          errorType: 'json_parse_error',
-          processingTimeMs: Date.now() - startTime
-        },
-      });
-
-      throw new Error("Avatar image analysis returned an invalid response.");
-    }
-
-    console.log("📥 OpenAI response received:", {
-      hasChoices: !!data.choices,
-      choicesLength: data.choices?.length || 0,
-      usage: data.usage,
-      firstChoiceContent: data.choices?.[0]?.message?.content ? "present" : "missing"
-    });
-
-    const content = (data as any).choices?.[0]?.message?.content;
-    if (!content || content.trim() === "") {
-      console.error("❌ Empty content from OpenAI");
-
-      // Log empty content errors
-      await publishWithTimeout(logTopic, {
-        source: 'openai-avatar-analysis-stable',
-        timestamp: new Date(),
-        request: analysisRequestLog,
-        response: {
-          success: false,
-          errorType: 'empty_content',
-          errorMessage: "OpenAI returned empty content",
-          processingTimeMs: Date.now() - startTime
-        },
-      });
-
-      throw new Error("OpenAI returned empty content");
-    }
-
-    let parsed: any;
-    try {
-      const clean = content.replace(/```json\s*|\s*```/g, "").trim();
-      parsed = JSON.parse(clean);
-      console.log("✅ Successfully parsed visual profile");
-      
-      // Basis-Validierung
-      if (!parsed.hair || !parsed.eyes) {
-        console.warn("⚠️ Profile seems incomplete but proceeding...");
+        throw new Error("Avatar image analysis provider is temporarily unavailable.");
       }
-      
-    } catch (parseError: any) {
-      console.error("[ai.avatar-analysis] Invalid visual profile JSON", { errorName: parseError?.name });
 
-      // Log analysis parsing errors
+      if (!res.ok) {
+        console.error("[ai.avatar-analysis] Vision provider API error", { status: res.status });
+
+        // Log API errors
+        await publishWithTimeout(logTopic, {
+          source: 'openai-avatar-analysis-stable',
+          timestamp: new Date(),
+          request: analysisRequestLog,
+          response: {
+            success: false,
+            errorType: 'openai_api_error',
+            httpStatus: res.status,
+            processingTimeMs: Date.now() - startTime
+          },
+        });
+
+        throw new Error(`Avatar image analysis failed with status ${res.status}.`);
+      }
+
+      let data: any;
+      try {
+        data = await res.json();
+      } catch (jsonError: any) {
+        console.error("[ai.avatar-analysis] Invalid provider response envelope", { errorName: jsonError?.name });
+
+        // Log JSON parsing errors
+        await publishWithTimeout(logTopic, {
+          source: 'openai-avatar-analysis-stable',
+          timestamp: new Date(),
+          request: analysisRequestLog,
+          response: {
+            success: false,
+            errorType: 'json_parse_error',
+            processingTimeMs: Date.now() - startTime
+          },
+        });
+
+        throw new Error("Avatar image analysis returned an invalid response.");
+      }
+
+      console.log("📥 OpenAI response received:", {
+        hasChoices: !!data.choices,
+        choicesLength: data.choices?.length || 0,
+        usage: data.usage,
+        firstChoiceContent: data.choices?.[0]?.message?.content ? "present" : "missing"
+      });
+
+      const content = (data as any).choices?.[0]?.message?.content;
+      if (!content || content.trim() === "") {
+        console.error("❌ Empty content from OpenAI");
+
+        // Log empty content errors
+        await publishWithTimeout(logTopic, {
+          source: 'openai-avatar-analysis-stable',
+          timestamp: new Date(),
+          request: analysisRequestLog,
+          response: {
+            success: false,
+            errorType: 'empty_content',
+            errorMessage: "OpenAI returned empty content",
+            processingTimeMs: Date.now() - startTime
+          },
+        });
+
+        throw new Error("OpenAI returned empty content");
+      }
+
+      let parsed: any;
+      try {
+        const clean = content.replace(/```json\s*|\s*```/g, "").trim();
+        parsed = JSON.parse(clean);
+        console.log("✅ Successfully parsed visual profile");
+        
+        // Basis-Validierung
+        if (!parsed.hair || !parsed.eyes) {
+          console.warn("⚠️ Profile seems incomplete but proceeding...");
+        }
+        
+      } catch (parseError: any) {
+        console.error("[ai.avatar-analysis] Invalid visual profile JSON", { errorName: parseError?.name });
+
+        // Log analysis parsing errors
+        await publishWithTimeout(logTopic, {
+          source: 'openai-avatar-analysis-stable',
+          timestamp: new Date(),
+          request: analysisRequestLog,
+          response: {
+            success: false,
+            errorType: 'analysis_parse_error',
+            processingTimeMs: Date.now() - startTime
+          },
+        });
+
+        throw new Error("Avatar image analysis returned invalid profile JSON.");
+      }
+
+      const processingTime = Date.now() - startTime;
+
+      // The vision prompt requests English. Translation is a defensive fallback for localized fields only.
+      const translatedProfile = await translateVisualProfile(parsed);
+      console.info("[ai.avatar-analysis] Analysis completed", {
+        processingTimeMs: processingTime,
+        totalTokens: data.usage?.total_tokens ?? 0,
+      });
+
+      // Erweiterte Logs für bessere Analyse
       await publishWithTimeout(logTopic, {
         source: 'openai-avatar-analysis-stable',
         timestamp: new Date(),
         request: analysisRequestLog,
         response: {
-          success: false,
-          errorType: 'analysis_parse_error',
-          processingTimeMs: Date.now() - startTime
+          tokensUsed: data.usage,
+          success: true,
+          processingTimeMs: processingTime
         },
       });
 
-      throw new Error("Avatar image analysis returned invalid profile JSON.");
-    }
-
-    const processingTime = Date.now() - startTime;
-
-    // The vision prompt requests English. Translation is a defensive fallback for localized fields only.
-    const translatedProfile = await translateVisualProfile(parsed);
-    console.info("[ai.avatar-analysis] Analysis completed", {
-      processingTimeMs: processingTime,
-      totalTokens: data.usage?.total_tokens ?? 0,
-    });
-
-    // Erweiterte Logs für bessere Analyse
-    await publishWithTimeout(logTopic, {
-      source: 'openai-avatar-analysis-stable',
-      timestamp: new Date(),
-      request: analysisRequestLog,
-      response: {
-        tokensUsed: data.usage,
+      return {
         success: true,
-        processingTimeMs: processingTime
-      },
-    });
-
-    return {
-      success: true,
-      visualProfile: translatedProfile, // Return translated version for Runware
-      tokensUsed: {
-        prompt: data.usage?.prompt_tokens ?? 0,
-        completion: data.usage?.completion_tokens ?? 0,
-        total: data.usage?.total_tokens ?? 0,
-      },
-      processingTime
-    };
+        visualProfile: translatedProfile, // Return translated version for Runware
+        tokensUsed: {
+          prompt: data.usage?.prompt_tokens ?? 0,
+          completion: data.usage?.completion_tokens ?? 0,
+          total: data.usage?.total_tokens ?? 0,
+        },
+        processingTime
+      };
+    } catch (error) {
+      await refundMeteredUsage(usageClaim);
+      throw error;
+    }
   }
 );

@@ -1,8 +1,9 @@
 import { api, APIError } from "encore.dev/api";
+import { ensureAdmin } from "../admin/authz";
 import log from "encore.dev/log";
 import { splitTextIntoChunks } from "../helpers/ttsChunking";
 import { getAuthData } from "~encore/auth";
-import { claimMeteredUsage } from "../helpers/billing";
+import { claimMeteredUsage, refundMeteredUsage, withMeteredUsage } from "../helpers/billing";
 import {
   xaiGenerateSpeech,
   xaiGenerateSpeechBatch,
@@ -1659,44 +1660,48 @@ export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
     if (text.length > 20_000) {
       throw APIError.invalidArgument("Text is too long for one TTS request.");
     }
-    await claimMeteredUsage({
-      userId: auth.userID,
-      kind: "tts",
-      units: text.length,
-      clerkToken: auth.clerkToken,
-    });
+    // Characters are charged only when audio comes back.
+    return withMeteredUsage(
+      {
+        userId: auth.userID,
+        kind: "tts",
+        units: text.length,
+        clerkToken: auth.clerkToken,
+      },
+      async () => {
+        if (req.provider === "xai") {
+          try {
+            const result = await xaiGenerateSpeech({
+              text: req.text,
+              voice: req.speaker,
+              language: req.languageId,
+              outputFormat: req.outputFormat,
+            });
+            return {
+              audioData: result.audioData,
+              providerUsed: "xai" as TTSProvider,
+              mimeType: result.mimeType,
+              outputFormat: result.outputFormat,
+            };
+          } catch (error) {
+            const message = getErrorMessage(error);
+            log.error(`xAI TTS generate failed: ${message}`);
+            throw APIError.unavailable(`xAI TTS generation failed: ${message}`);
+          }
+        }
 
-    if (req.provider === "xai") {
-      try {
-        const result = await xaiGenerateSpeech({
-          text: req.text,
-          voice: req.speaker,
-          language: req.languageId,
-          outputFormat: req.outputFormat,
-        });
-        return {
-          audioData: result.audioData,
-          providerUsed: "xai" as TTSProvider,
-          mimeType: result.mimeType,
-          outputFormat: result.outputFormat,
-        };
-      } catch (error) {
-        const message = getErrorMessage(error);
-        log.error(`xAI TTS generate failed: ${message}`);
-        throw APIError.unavailable(`xAI TTS generation failed: ${message}`);
+        try {
+          return await withRunpodSlot(() => runpodTtsRequest(req));
+        } catch (error) {
+          if (isApiError(error)) {
+            throw error;
+          }
+          const message = getErrorMessage(error);
+          log.error(`TTS generate failed: ${message}`);
+          throw APIError.unavailable(`Qwen generation failed: ${message}`);
+        }
       }
-    }
-
-    try {
-      return await withRunpodSlot(() => runpodTtsRequest(req));
-    } catch (error) {
-      if (isApiError(error)) {
-        throw error;
-      }
-      const message = getErrorMessage(error);
-      log.error(`TTS generate failed: ${message}`);
-      throw APIError.unavailable(`Qwen generation failed: ${message}`);
-    }
+    );
   }
 );
 
@@ -1832,15 +1837,34 @@ export const generateSpeechBatch = api<GenerateSpeechBatchRequest, TTSBatchRespo
     if (totalCharacters > 100_000) {
       throw APIError.invalidArgument("TTS batch text is too large.");
     }
-    if (totalCharacters > 0) {
-      await claimMeteredUsage({
-        userId: auth.userID,
-        kind: "tts",
-        units: totalCharacters,
-        clerkToken: auth.clerkToken,
-      });
+    if (totalCharacters === 0) {
+      return await generateSpeechBatchInternal(req);
     }
-    return await generateSpeechBatchInternal(req);
+    const claim = await claimMeteredUsage({
+      userId: auth.userID,
+      kind: "tts",
+      units: totalCharacters,
+      clerkToken: auth.clerkToken,
+    });
+    let response: TTSBatchResponse;
+    try {
+      response = await generateSpeechBatchInternal(req);
+    } catch (error) {
+      await refundMeteredUsage(claim);
+      throw error;
+    }
+    // Items without audio are not charged.
+    const deliveredIds = new Set(
+      (response.results || []).filter((result) => result.audio && !result.error).map((result) => result.id)
+    );
+    const failedCharacters = req.items.reduce(
+      (sum, item) => (deliveredIds.has(item.id) ? sum : sum + String(item.text || "").trim().length),
+      0
+    );
+    if (failedCharacters > 0) {
+      await refundMeteredUsage(claim, failedCharacters);
+    }
+    return response;
   }
 );
 
@@ -1982,6 +2006,7 @@ function decodeAudioResult(audio: string, fallbackMimeType: string): { buffer: B
 export const generateQwenDialogue = api<GenerateQwenDialogueRequest, GenerateQwenDialogueResponse>(
   { expose: true, method: "POST", path: "/tts/qwen/dialogue", auth: true },
   async (req) => {
+    ensureAdmin();
     const auth = getAuthData()!;
     const scriptLength = String(req.script || "").trim().length;
     if (!scriptLength || scriptLength > 100_000) {

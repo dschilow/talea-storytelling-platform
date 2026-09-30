@@ -4,7 +4,7 @@ import { storyDB } from "./db";
 import { avatarDB } from "../avatar/db";
 import { fairytalesDB } from "../fairytales/db";
 import type { Story, Chapter } from "./generate";
-import { claimGenerationUsage } from "../helpers/billing";
+import { claimGenerationUsage, refundGenerationUsage } from "../helpers/billing";
 import { extractParticipantProfileIds, extractRequestedProfileId } from "../helpers/profile-context";
 import {
   assertProfilesBelongToUser,
@@ -66,14 +66,6 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
       auth?.email ?? undefined
     );
     const storyId = crypto.randomUUID();
-
-    await claimGenerationUsage({
-      userId: currentUserId,
-      kind: "story",
-      profileId: primaryProfileId,
-      contentRef: storyId,
-      clerkToken: auth?.clerkToken,
-    });
 
     console.log("[FairyTaleStory] Starting generation:", {
       taleId: req.taleId,
@@ -166,166 +158,212 @@ export const generateFromFairyTale = api<GenerateFromFairyTaleRequest, Story>(
 
     console.log("[FairyTaleStory] Processing scenes:", { count: scenes.length });
 
-    // 5. Create story record
-    const now = new Date();
+    // The coin is reserved only after validation and returned if saving fails.
+    await claimGenerationUsage({
+      userId: currentUserId,
+      kind: "story",
+      profileId: primaryProfileId,
+      contentRef: storyId,
+      clerkToken: auth?.clerkToken,
+    });
 
+    try {
+      return await persistFairyTaleStory({
+        storyId,
+        currentUserId,
+        primaryProfileId,
+        participantProfileIds,
+        avatarIds,
+        tale,
+        scenes,
+        req,
+      });
+    } catch (error) {
+      await storyDB.exec`DELETE FROM stories WHERE id = ${storyId} AND user_id = ${currentUserId}`.catch(
+        (cleanupError) => console.warn("[FairyTaleStory] Cleanup after failure failed", cleanupError)
+      );
+      await refundGenerationUsage({
+        userId: currentUserId,
+        kind: "story",
+        contentRef: storyId,
+        reason: error instanceof Error ? error.message.slice(0, 200) : String(error).slice(0, 200),
+      });
+      throw error;
+    }
+  }
+);
+
+async function persistFairyTaleStory(input: {
+  storyId: string;
+  currentUserId: string;
+  primaryProfileId: string;
+  participantProfileIds: string[];
+  avatarIds: string[];
+  tale: any;
+  scenes: any[];
+  req: GenerateFromFairyTaleRequest;
+}): Promise<Story> {
+  const { storyId, currentUserId, primaryProfileId, participantProfileIds, avatarIds, tale, scenes, req } = input;
+
+  // 5. Create story record
+  const now = new Date();
+
+  await storyDB.exec`
+    INSERT INTO stories (
+      id, user_id, primary_profile_id, title, description, config, status, created_at, updated_at
+    ) VALUES (
+      ${storyId}, 
+      ${currentUserId}, 
+      ${primaryProfileId},
+      ${tale.title}, 
+      ${tale.summary || 'Eine personalisierte Geschichte basierend auf einem klassischen Märchen'},
+      ${JSON.stringify({ taleId: req.taleId, characterMappings: req.characterMappings, length: req.length, style: req.style })},
+      'complete',
+      ${now}, 
+      ${now}
+    )
+  `;
+  for (const participantProfileId of participantProfileIds) {
     await storyDB.exec`
-      INSERT INTO stories (
-        id, user_id, primary_profile_id, title, description, config, status, created_at, updated_at
-      ) VALUES (
-        ${storyId}, 
-        ${currentUserId}, 
-        ${primaryProfileId},
-        ${tale.title}, 
-        ${tale.summary || 'Eine personalisierte Geschichte basierend auf einem klassischen Märchen'},
-        ${JSON.stringify({ taleId: req.taleId, characterMappings: req.characterMappings, length: req.length, style: req.style })},
-        'complete',
-        ${now}, 
+      INSERT INTO story_participants (
+        id,
+        story_id,
+        profile_id,
+        avatar_ids,
+        created_at
+      )
+      VALUES (
+        ${crypto.randomUUID()},
+        ${storyId},
+        ${participantProfileId},
+        ${JSON.stringify(avatarIds)}::jsonb,
         ${now}
       )
+      ON CONFLICT (story_id, profile_id) DO UPDATE
+      SET avatar_ids = EXCLUDED.avatar_ids
     `;
-    for (const participantProfileId of participantProfileIds) {
-      await storyDB.exec`
-        INSERT INTO story_participants (
-          id,
-          story_id,
-          profile_id,
-          avatar_ids,
-          created_at
-        )
-        VALUES (
-          ${crypto.randomUUID()},
-          ${storyId},
-          ${participantProfileId},
-          ${JSON.stringify(avatarIds)}::jsonb,
-          ${now}
-        )
-        ON CONFLICT (story_id, profile_id) DO UPDATE
-        SET avatar_ids = EXCLUDED.avatar_ids
-      `;
 
-      await storyDB.exec`
-        INSERT INTO story_profile_state (
-          profile_id,
-          story_id,
-          progress_pct,
-          completion_state,
-          created_at,
-          updated_at
-        )
-        VALUES (
-          ${participantProfileId},
-          ${storyId},
-          0,
-          'not_started',
-          ${now},
-          ${now}
-        )
-        ON CONFLICT (profile_id, story_id) DO NOTHING
-      `;
+    await storyDB.exec`
+      INSERT INTO story_profile_state (
+        profile_id,
+        story_id,
+        progress_pct,
+        completion_state,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        ${participantProfileId},
+        ${storyId},
+        0,
+        'not_started',
+        ${now},
+        ${now}
+      )
+      ON CONFLICT (profile_id, story_id) DO NOTHING
+    `;
+  }
+
+  // 6. Load avatar details for personalization
+  const avatarDetailsMap = new Map<string, any>();
+  
+  if (avatarIds.length > 0) {
+    const avatars = await avatarDB.queryAll<any>`
+      SELECT 
+        a.id, 
+        a.name, 
+        a.description,
+        avp.age,
+        avp.profession,
+        avp.species
+      FROM avatars a
+      LEFT JOIN avatar_visual_profiles avp ON avp.avatar_id = a.id
+      WHERE a.id = ANY(${avatarIds})
+    `;
+
+    for (const avatar of avatars) {
+      avatarDetailsMap.set(avatar.id, avatar);
     }
+  }
 
-    // 6. Load avatar details for personalization
-    const avatarDetailsMap = new Map<string, any>();
+  // 7. Create chapters from scenes with character substitution
+  const chapters: Chapter[] = [];
+  let chapterOrder = 1;
+
+  for (const scene of scenes) {
+    let sceneText = scene.scene_description || '';
     
-    if (avatarIds.length > 0) {
-      const avatars = await avatarDB.queryAll<any>`
-        SELECT 
-          a.id, 
-          a.name, 
-          a.description,
-          avp.age,
-          avp.profession,
-          avp.species
-        FROM avatars a
-        LEFT JOIN avatar_visual_profiles avp ON avp.avatar_id = a.id
-        WHERE a.id = ANY(${avatarIds})
-      `;
+    // Replace character variables with actual avatar names
+    const charVars = typeof scene.character_variables === 'string' 
+      ? JSON.parse(scene.character_variables)
+      : scene.character_variables;
 
-      for (const avatar of avatars) {
-        avatarDetailsMap.set(avatar.id, avatar);
-      }
-    }
-
-    // 7. Create chapters from scenes with character substitution
-    const chapters: Chapter[] = [];
-    let chapterOrder = 1;
-
-    for (const scene of scenes) {
-      let sceneText = scene.scene_description || '';
-      
-      // Replace character variables with actual avatar names
-      const charVars = typeof scene.character_variables === 'string' 
-        ? JSON.parse(scene.character_variables)
-        : scene.character_variables;
-
-      if (charVars) {
-        for (const [varName, roleType] of Object.entries(charVars)) {
-          const avatarId = req.characterMappings[roleType as string];
-          if (avatarId) {
-            const avatar = avatarDetailsMap.get(avatarId);
-            if (avatar) {
-              // Replace {{VARIABLE}} with avatar name
-              sceneText = sceneText.replace(
-                new RegExp(`{{${varName}}}`, 'g'),
-                avatar.name
-              );
-            }
+    if (charVars) {
+      for (const [varName, roleType] of Object.entries(charVars)) {
+        const avatarId = req.characterMappings[roleType as string];
+        if (avatarId) {
+          const avatar = avatarDetailsMap.get(avatarId);
+          if (avatar) {
+            // Replace {{VARIABLE}} with avatar name
+            sceneText = sceneText.replace(
+              new RegExp(`{{${varName}}}`, 'g'),
+              avatar.name
+            );
           }
         }
       }
-
-      const chapterId = crypto.randomUUID();
-      const chapter: Chapter = {
-        id: chapterId,
-        order: chapterOrder++,
-        title: scene.scene_title || `Szene ${scene.scene_number}`,
-        content: sceneText,
-        imageUrl: undefined, // Images will be generated separately if needed
-      };
-
-      chapters.push(chapter);
-
-      // Insert chapter into DB
-      await storyDB.exec`
-        INSERT INTO chapters (
-          id, story_id, chapter_order, title, content, image_url, created_at
-        ) VALUES (
-          ${chapterId}, ${storyId}, ${chapter.order}, ${chapter.title}, 
-          ${chapter.content}, ${chapter.imageUrl}, ${now}
-        )
-      `;
     }
 
-    console.log("[FairyTaleStory] Story generated:", {
-      storyId,
-      chaptersCount: chapters.length,
-    });
-
-    // 8. Return complete story
-    const story: Story = {
-      id: storyId,
-      userId: currentUserId,
-      primaryProfileId,
-      participantProfileIds,
-      title: tale.title,
-      description: tale.summary || '',
-      coverImageUrl: undefined,
-      config: {
-        taleId: req.taleId,
-        characterMappings: req.characterMappings,
-        length: req.length || 'medium',
-        style: req.style || 'classic',
-      } as any,
-      status: 'complete',
-      chapters,
-      createdAt: now,
-      updatedAt: now,
+    const chapterId = crypto.randomUUID();
+    const chapter: Chapter = {
+      id: chapterId,
+      order: chapterOrder++,
+      title: scene.scene_title || `Szene ${scene.scene_number}`,
+      content: sceneText,
+      imageUrl: undefined, // Images will be generated separately if needed
     };
 
-    return story;
+    chapters.push(chapter);
+
+    // Insert chapter into DB
+    await storyDB.exec`
+      INSERT INTO chapters (
+        id, story_id, chapter_order, title, content, image_url, created_at
+      ) VALUES (
+        ${chapterId}, ${storyId}, ${chapter.order}, ${chapter.title}, 
+        ${chapter.content}, ${chapter.imageUrl}, ${now}
+      )
+    `;
   }
-);
+
+  console.log("[FairyTaleStory] Story generated:", {
+    storyId,
+    chaptersCount: chapters.length,
+  });
+
+  // 8. Return complete story
+  const story: Story = {
+    id: storyId,
+    userId: currentUserId,
+    primaryProfileId,
+    participantProfileIds,
+    title: tale.title,
+    description: tale.summary || '',
+    coverImageUrl: undefined,
+    config: {
+      taleId: req.taleId,
+      characterMappings: req.characterMappings,
+      length: req.length || 'medium',
+      style: req.style || 'classic',
+    } as any,
+    status: 'complete',
+    chapters,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  return story;
+}
 
 /**
  * Get list of available fairy tales for story selection

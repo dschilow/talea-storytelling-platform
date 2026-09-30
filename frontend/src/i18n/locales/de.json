@@ -989,8 +989,8 @@
     "audioLibraryOfflineFailed": "Offline-Speicherung fehlgeschlagen.",
     "audioLibraryDeleted": "Titel entfernt.",
     "audioLibraryNoAudio": "Keine gespeicherten Audiodateien vorhanden.",
-    "billingTitle": "Abo & Credits",
-    "billingSubtitle": "Monatliche Credits, Verbrauch und Planwechsel in einem Bereich.",
+    "billingTitle": "Abo & Münzen",
+    "billingSubtitle": "Münzen, Verbrauch und Planwechsel in einem Bereich.",
     "billingRefresh": "Aktualisieren",
     "billingLoading": "Lade Billing-Daten...",
     "billingLoadFailed": "Billing-Daten konnten nicht geladen werden.",
@@ -1003,12 +1003,12 @@
     "billingPlanActive": "Aktiv",
     "billingRemaining": "verbleibend",
     "billingUsedLimit": "verbraucht / limit",
-    "billingCostPerGen": "Kosten: {{cost}} Credit pro Generierung",
-    "billingTrialActive": "Free-Testphase aktiv: noch {{days}} Tage. Danach keine Generierung, keine Community-Dokus und keine Audio-Dokus.",
-    "billingTrialExpired": "Free-Testphase abgelaufen. Upgrade auf Starter, Familie oder Premium, um weiter zu generieren.",
+    "billingCostPerGen": "Kosten: {{cost}} Münze pro Erstellung, nur bei Erfolg",
+    "billingTrialActive": "Testphase aktiv: noch {{days}} Tage mit 3 Stories, 3 Dokus und 25 Tavi-Nachrichten. Danach bleibt der kostenlose Plan mit 1 Story und 1 Doku pro Monat.",
+    "billingTrialExpired": "Kostenloser Plan: 1 Story, 1 Doku und 10 Tavi-Nachrichten pro Monat. Mehr gibt es mit Starter, Familie oder Premium.",
     "billingPlanSwitchTitle": "Plan in Clerk Billing wechseln",
     "billingPlanSwitchDesc": "Der Checkout öffnet als eigenes Fenster. Nach erfolgreichem Wechsel hier auf 'Aktualisieren' klicken.",
-    "billingMonthly": "Monatlich wechselbar"
+    "billingMonthly": "Monatlich kündbar"
   },
   "admin": {
     "title": "Admin-Dashboard",
@@ -1618,7 +1618,7 @@
       },
       "premium": {
         "name": "Premium",
-        "price": "€19,99",
+        "price": "€14,99",
         "period": "/Monat",
         "features": [
           "Alles aus Familie",

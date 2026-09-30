@@ -4,7 +4,7 @@ import { maybeUploadImageUrlToBucket, resolveImageUrlForClient } from "../helper
 import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
 import { translateToEnglish } from "./translate";
 import { getAuthData } from "~encore/auth";
-import { claimMeteredUsage } from "../helpers/billing";
+import { claimMeteredUsage, refundMeteredUsage } from "../helpers/billing";
 
 interface GenerateAvatarImageRequest {
   characterType: string;
@@ -36,74 +36,82 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
     if ((req.characterType || "").length > 120 || (req.appearance || "").length > 2_000) {
       throw APIError.invalidArgument("Avatar description is too long.");
     }
-    await claimMeteredUsage({
+    const usageClaim = await claimMeteredUsage({
       userId: auth.userID,
       kind: "image",
       units: 1,
       clerkToken: auth.clerkToken,
     });
 
-    // Structured profiles are already English; only free-form localized fields need translation.
-    const rawCharacterType = req.characterType || "";
-    const rawAppearance = req.appearance || "";
-    const characterIsEnglish = isStructuredEnglishVisualText(rawCharacterType);
-    const appearanceIsEnglish = isStructuredEnglishVisualText(rawAppearance);
-    console.info("[ai.avatar-generation] Preparing visual prompt", {
-      characterTranslationNeeded: !characterIsEnglish,
-      appearanceTranslationNeeded: !appearanceIsEnglish,
-    });
-    const [translatedCharacterType, translatedAppearance] = await Promise.all([
-      characterIsEnglish ? rawCharacterType : translateToEnglish(rawCharacterType),
-      appearanceIsEnglish ? rawAppearance : translateToEnglish(rawAppearance),
-    ]);
-
-    const prompt = buildAvatarPrompt(
-      translatedCharacterType,
-      translatedAppearance,
-      req.personalityTraits,
-      req.style
-    );
-
-    console.info("[ai.avatar-generation] Requesting image", {
-      style: req.style || "disney",
-      hasReferenceImage: Boolean(req.referenceImageUrl),
-      promptLength: prompt.length,
-    });
-
-    // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
-    // FEATURE: Support reference image for character consistency
-    const imageResult = await runwareGenerateImage({
-      prompt,
-      width: 1024,
-      height: 1024,
-      steps: 4,  // runware:400@4 uses fewer steps
-      CFGScale: 4,
-      outputFormat: "WEBP",
-      referenceImages: req.referenceImageUrl ? [req.referenceImageUrl] : undefined,
-    });
-
-    console.info("[ai.avatar-generation] Image generation completed", {
-      success: Boolean(imageResult.debugInfo?.success),
-      hasImage: Boolean(imageResult.imageUrl),
-      contentType: imageResult.debugInfo?.contentType,
-    });
-
-    let finalImageUrl = imageResult.imageUrl;
-    if (finalImageUrl) {
-      const uploaded = await maybeUploadImageUrlToBucket(finalImageUrl, {
-        prefix: "images/avatars",
-        filenameHint: "avatar-preview",
-        uploadMode: "always",
+    try {
+      const rawCharacterType = req.characterType || "";
+      const rawAppearance = req.appearance || "";
+      const characterIsEnglish = isStructuredEnglishVisualText(rawCharacterType);
+      const appearanceIsEnglish = isStructuredEnglishVisualText(rawAppearance);
+      console.info("[ai.avatar-generation] Preparing visual prompt", {
+        characterTranslationNeeded: !characterIsEnglish,
+        appearanceTranslationNeeded: !appearanceIsEnglish,
       });
-      finalImageUrl = uploaded?.url ?? finalImageUrl;
-    }
-    const resolvedImageUrl = await resolveImageUrlForClient(finalImageUrl);
+      const [translatedCharacterType, translatedAppearance] = await Promise.all([
+        characterIsEnglish ? rawCharacterType : translateToEnglish(rawCharacterType),
+        appearanceIsEnglish ? rawAppearance : translateToEnglish(rawAppearance),
+      ]);
 
-    return {
-      imageUrl: resolvedImageUrl || finalImageUrl || imageResult.imageUrl,
-      prompt,
-      debugInfo: imageResult.debugInfo,
-    };
+      const prompt = buildAvatarPrompt(
+        translatedCharacterType,
+        translatedAppearance,
+        req.personalityTraits,
+        req.style
+      );
+
+      console.info("[ai.avatar-generation] Requesting image", {
+        style: req.style || "disney",
+        hasReferenceImage: Boolean(req.referenceImageUrl),
+        promptLength: prompt.length,
+      });
+
+      // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
+      // FEATURE: Support reference image for character consistency
+      const imageResult = await runwareGenerateImage({
+        prompt,
+        width: 1024,
+        height: 1024,
+        steps: 4,  // runware:400@4 uses fewer steps
+        CFGScale: 4,
+        outputFormat: "WEBP",
+        referenceImages: req.referenceImageUrl ? [req.referenceImageUrl] : undefined,
+      });
+
+      console.info("[ai.avatar-generation] Image generation completed", {
+        success: Boolean(imageResult.debugInfo?.success),
+        hasImage: Boolean(imageResult.imageUrl),
+        contentType: imageResult.debugInfo?.contentType,
+      });
+
+      let finalImageUrl = imageResult.imageUrl;
+      if (!finalImageUrl || imageResult.debugInfo?.success === false) {
+        // A placeholder or empty result is not a delivered image.
+        await refundMeteredUsage(usageClaim);
+      }
+      if (finalImageUrl) {
+        const uploaded = await maybeUploadImageUrlToBucket(finalImageUrl, {
+          prefix: "images/avatars",
+          filenameHint: "avatar-preview",
+          uploadMode: "always",
+        });
+        finalImageUrl = uploaded?.url ?? finalImageUrl;
+      }
+      const resolvedImageUrl = await resolveImageUrlForClient(finalImageUrl);
+
+      return {
+        imageUrl: resolvedImageUrl || finalImageUrl || imageResult.imageUrl,
+        prompt,
+        debugInfo: imageResult.debugInfo,
+      };
+    } catch (error) {
+      await refundMeteredUsage(usageClaim);
+      throw error;
+    }
   }
 );
 

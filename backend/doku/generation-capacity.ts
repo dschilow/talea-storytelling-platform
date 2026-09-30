@@ -1,4 +1,5 @@
 import { APIError } from "encore.dev/api";
+import { refundGenerationUsage } from "../helpers/billing";
 import { dokuDB } from "./db";
 
 const DOKU_GENERATION_LOCK_KEY = 810_002;
@@ -60,12 +61,14 @@ export async function reserveDokuGenerationCapacity(input: {
     DOKU_GENERATION_LOCK_KEY
   );
 
-  await tx.rawExec(
+  // A job stuck this long died with its process; its coin goes back after commit.
+  const staleJobs = await tx.rawQueryAll<{ id: string; user_id: string }>(
     `UPDATE dokus
      SET status = 'error',
          updated_at = CURRENT_TIMESTAMP
      WHERE status = 'generating'
-       AND updated_at < $1`,
+       AND updated_at < $1
+     RETURNING id, user_id`,
     staleBefore
   );
 
@@ -95,4 +98,13 @@ export async function reserveDokuGenerationCapacity(input: {
 
   await input.createReservation(tx);
   await tx.commit();
+
+  for (const job of staleJobs) {
+    await refundGenerationUsage({
+      userId: job.user_id,
+      kind: "doku",
+      contentRef: job.id,
+      reason: "stale generation",
+    });
+  }
 }

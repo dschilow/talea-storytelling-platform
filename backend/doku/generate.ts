@@ -6,7 +6,7 @@ import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { normalizeLanguage } from "../story/avatar-image-optimization";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { getAuthData } from "~encore/auth";
-import { claimGenerationUsage } from "../helpers/billing";
+import { claimGenerationUsage, refundGenerationUsage } from "../helpers/billing";
 import { extractParticipantProfileIds, extractRequestedProfileId } from "../helpers/profile-context";
 import {
   assertProfilesBelongToUser,
@@ -412,6 +412,8 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
 
     const startTime = Date.now();
     let imagesGenerated = 0;
+    // Reserved up front, refunded in the catch below unless the doku is saved.
+    let coinReserved = false;
 
     try {
       await claimGenerationUsage({
@@ -421,6 +423,7 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         contentRef: id,
         clerkToken,
       });
+      coinReserved = true;
 
       for (const participantProfileId of participantProfileIds) {
         await dokuDB.exec`
@@ -693,9 +696,20 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         updatedAt: new Date(),
       };
     } catch (err) {
-      await dokuDB.exec`
-        UPDATE dokus SET status = 'error', updated_at = ${new Date()} WHERE id = ${id}
+      const failed = await dokuDB.queryRow<{ id: string }>`
+        UPDATE dokus SET status = 'error', updated_at = ${new Date()}
+        WHERE id = ${id} AND status <> 'complete'
+        RETURNING id
       `;
+      // A doku that was already saved keeps its coin even if a later step failed.
+      if (coinReserved && failed) {
+        await refundGenerationUsage({
+          userId: currentUserId,
+          kind: "doku",
+          contentRef: id,
+          reason: err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200),
+        });
+      }
       throw err;
     }
   }

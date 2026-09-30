@@ -10,6 +10,15 @@ export interface TaviTool {
   };
 }
 
+// Tools that spend story/doku coins, images or AI helpers. Free accounts get
+// Tavi without them; the chat handler also rejects them server-side.
+export const TAVI_CREATION_TOOL_NAMES: ReadonlySet<string> = new Set([
+  "create_story",
+  "create_doku",
+  "create_avatar",
+  "generate_image",
+]);
+
 export const TAVI_TOOLS: TaviTool[] = [
   {
     type: "function",

@@ -1,6 +1,6 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
-import { claimMeteredUsage } from "../helpers/billing";
+import { claimMeteredUsage, refundMeteredUsage } from "../helpers/billing";
 import type { InvariantFeature } from "../avatar/avatar";
 
 /**
@@ -251,295 +251,300 @@ export const generateVisualProfile = api<GenerateVisualProfileRequest, GenerateV
     if (JSON.stringify(req).length > 50_000) {
       throw APIError.invalidArgument("Visual profile request is too large.");
     }
-    await claimMeteredUsage({
+    const usageClaim = await claimMeteredUsage({
       userId: auth.userID,
-      kind: "chat",
+      kind: "assist",
       units: 1,
       clerkToken: auth.clerkToken,
     });
 
-    const { avatarData } = req;
+    try {
+      const { avatarData } = req;
 
-    console.info("[ai.visual-profile] Building structured profile", {
-      characterType: avatarData.characterType,
-      hasAge: Number.isFinite(avatarData.age),
-      hasHeight: Number.isFinite(avatarData.height),
-      specialFeatureCount: avatarData.specialFeatures?.length ?? 0,
-    });
+      console.info("[ai.visual-profile] Building structured profile", {
+        characterType: avatarData.characterType,
+        hasAge: Number.isFinite(avatarData.age),
+        hasHeight: Number.isFinite(avatarData.height),
+        specialFeatureCount: avatarData.specialFeatures?.length ?? 0,
+      });
 
-    const charType = avatarData.characterType;
-    const isHumanChar = isHuman(charType);
-    const isAnimalChar = isAnimal(charType);
+      const charType = avatarData.characterType;
+      const isHumanChar = isHuman(charType);
+      const isAnimalChar = isAnimal(charType);
 
-    // Get English character type
-    let characterTypeEn = CHARACTER_TYPE_MAP[charType] || charType;
-    if (charType === "other" && avatarData.customCharacterType) {
-      characterTypeEn = avatarData.customCharacterType;
-    }
-
-    // Get age description
-    const ageDesc = getAgeDescription(avatarData.age, charType);
-
-    // Build consistent descriptors (8-10 tokens for reliable regeneration)
-    const consistentDescriptors: string[] = [];
-
-    // 1. Character type
-    consistentDescriptors.push(characterTypeEn);
-
-    // 2. Age
-    consistentDescriptors.push(`${avatarData.age} years old`);
-    consistentDescriptors.push(ageDesc);
-
-    // 3. Gender
-    consistentDescriptors.push(avatarData.gender);
-
-    // 4. Hair (if applicable)
-    const hairColor = HAIR_COLOR_MAP[avatarData.hairColor] || avatarData.hairColor;
-    const hairStyle = HAIR_STYLE_MAP[avatarData.hairStyle] || avatarData.hairStyle;
-    if (hairColor && hairColor !== "bald" && !isAnimalChar) {
-      consistentDescriptors.push(`${hairColor} ${hairStyle} hair`);
-    }
-
-    // 5. Eyes
-    const eyeColor = EYE_COLOR_MAP[avatarData.eyeColor] || avatarData.eyeColor;
-    consistentDescriptors.push(`${eyeColor} eyes`);
-
-    // 6. Height (for humans)
-    if (isHumanChar && avatarData.height) {
-      consistentDescriptors.push(`${avatarData.height}cm tall`);
-      const heightDesc = getHeightDescription(avatarData.height, avatarData.age);
-      if (heightDesc !== "average height") {
-        consistentDescriptors.push(heightDesc);
-      }
-    }
-
-    // 7. Animal-specific
-    if (isAnimalChar) {
-      consistentDescriptors.push("quadruped");
-      consistentDescriptors.push("four paws");
-      consistentDescriptors.push("tail visible");
-    }
-
-    // 8. Human-specific
-    if (isHumanChar) {
-      consistentDescriptors.push("human");
-      consistentDescriptors.push("natural skin");
-    }
-
-    // Build skin/fur tone
-    let skinTone: string;
-    if (isHumanChar) {
-      skinTone = SKIN_TONE_MAP[avatarData.skinTone] || avatarData.skinTone || "medium skin";
-    } else if (isAnimalChar) {
-      skinTone = FUR_COLOR_MAP[avatarData.skinTone] || avatarData.skinTone || "natural fur";
-    } else {
-      skinTone = avatarData.skinTone || "natural coloring";
-    }
-
-    // Build accessories list from special features
-    const accessories: string[] = [];
-    const bodyFeatures: string[] = [];
-    const faceFeatures: string[] = [];
-
-    // NEW v2.0: Build Character Invariants for consistent image generation
-    const mustIncludeFeatures: InvariantFeature[] = [];
-    const forbiddenFeatures: string[] = [];
-
-    (avatarData.specialFeatures || []).forEach((feature) => {
-      const featureEn = SPECIAL_FEATURES_MAP[feature] || feature;
-      if (["glasses", "hat", "crown", "scarf", "bow", "earrings"].includes(feature)) {
-        accessories.push(featureEn);
-      } else if (["wings", "tail", "horns"].includes(feature)) {
-        bodyFeatures.push(featureEn);
-      } else {
-        faceFeatures.push(featureEn);
+      // Get English character type
+      let characterTypeEn = CHARACTER_TYPE_MAP[charType] || charType;
+      if (charType === "other" && avatarData.customCharacterType) {
+        characterTypeEn = avatarData.customCharacterType;
       }
 
-      // NEW v2.0: Check if this feature should be an invariant
-      const invariantDef = INVARIANT_FEATURES_MAP[feature];
-      if (invariantDef) {
-        mustIncludeFeatures.push({
-          id: `${feature}_${Date.now()}`,
-          ...invariantDef
-        });
-        // Add forbidden alternative to prevent inconsistencies
-        if (invariantDef.forbiddenAlternative) {
-          forbiddenFeatures.push(invariantDef.forbiddenAlternative);
+      // Get age description
+      const ageDesc = getAgeDescription(avatarData.age, charType);
+
+      // Build consistent descriptors (8-10 tokens for reliable regeneration)
+      const consistentDescriptors: string[] = [];
+
+      // 1. Character type
+      consistentDescriptors.push(characterTypeEn);
+
+      // 2. Age
+      consistentDescriptors.push(`${avatarData.age} years old`);
+      consistentDescriptors.push(ageDesc);
+
+      // 3. Gender
+      consistentDescriptors.push(avatarData.gender);
+
+      // 4. Hair (if applicable)
+      const hairColor = HAIR_COLOR_MAP[avatarData.hairColor] || avatarData.hairColor;
+      const hairStyle = HAIR_STYLE_MAP[avatarData.hairStyle] || avatarData.hairStyle;
+      if (hairColor && hairColor !== "bald" && !isAnimalChar) {
+        consistentDescriptors.push(`${hairColor} ${hairStyle} hair`);
+      }
+
+      // 5. Eyes
+      const eyeColor = EYE_COLOR_MAP[avatarData.eyeColor] || avatarData.eyeColor;
+      consistentDescriptors.push(`${eyeColor} eyes`);
+
+      // 6. Height (for humans)
+      if (isHumanChar && avatarData.height) {
+        consistentDescriptors.push(`${avatarData.height}cm tall`);
+        const heightDesc = getHeightDescription(avatarData.height, avatarData.age);
+        if (heightDesc !== "average height") {
+          consistentDescriptors.push(heightDesc);
         }
       }
-    });
 
-    // NEW v2.0: Also check additionalDescription for invariant-worthy features
-    if (avatarData.additionalDescription) {
-      const descLower = avatarData.additionalDescription.toLowerCase();
-
-      // Check for tooth gap in description
-      if ((descLower.includes('zahnlücke') || descLower.includes('tooth gap'))
-          && !mustIncludeFeatures.some(f => f.id.startsWith('tooth_gap'))) {
-        mustIncludeFeatures.push({
-          id: `tooth_gap_desc_${Date.now()}`,
-          ...INVARIANT_FEATURES_MAP['tooth_gap']
-        });
-        forbiddenFeatures.push('complete teeth, no gap');
+      // 7. Animal-specific
+      if (isAnimalChar) {
+        consistentDescriptors.push("quadruped");
+        consistentDescriptors.push("four paws");
+        consistentDescriptors.push("tail visible");
       }
 
-      // Check for protruding ears in description
-      if ((descLower.includes('abstehende ohren') || descLower.includes('protruding ears'))
-          && !mustIncludeFeatures.some(f => f.id.startsWith('prominent_ears'))) {
-        mustIncludeFeatures.push({
-          id: `prominent_ears_desc_${Date.now()}`,
-          ...INVARIANT_FEATURES_MAP['prominent_ears']
-        });
-        forbiddenFeatures.push('flat ears against head');
+      // 8. Human-specific
+      if (isHumanChar) {
+        consistentDescriptors.push("human");
+        consistentDescriptors.push("natural skin");
       }
-    }
 
-    console.info("[ai.visual-profile] Invariants prepared", {
-      invariantCount: mustIncludeFeatures.length,
-    });
+      // Build skin/fur tone
+      let skinTone: string;
+      if (isHumanChar) {
+        skinTone = SKIN_TONE_MAP[avatarData.skinTone] || avatarData.skinTone || "medium skin";
+      } else if (isAnimalChar) {
+        skinTone = FUR_COLOR_MAP[avatarData.skinTone] || avatarData.skinTone || "natural fur";
+      } else {
+        skinTone = avatarData.skinTone || "natural coloring";
+      }
 
-    // Build the visual profile
-    const visualProfile = {
-      // CRITICAL: Character type and age are explicitly stored
-      characterType: characterTypeEn,
-      speciesCategory: isHumanChar ? "human" : isAnimalChar ? "animal" : "fantasy",
-      locomotion: isAnimalChar ? "quadruped" : "bipedal",
+      // Build accessories list from special features
+      const accessories: string[] = [];
+      const bodyFeatures: string[] = [];
+      const faceFeatures: string[] = [];
 
-      // CRITICAL: Explicit age and gender
-      ageApprox: `${avatarData.age} years old`,
-      ageNumeric: avatarData.age, // NEW: Explicit numeric age for comparisons
-      ageDescription: ageDesc,
-      gender: avatarData.gender,
+      // NEW v2.0: Build Character Invariants for consistent image generation
+      const mustIncludeFeatures: InvariantFeature[] = [];
+      const forbiddenFeatures: string[] = [];
 
-      // CRITICAL: Explicit height (for humans)
-      heightCm: isHumanChar ? avatarData.height : undefined,
-      heightDescription: isHumanChar && avatarData.height
-        ? getHeightDescription(avatarData.height, avatarData.age)
-        : undefined,
+      (avatarData.specialFeatures || []).forEach((feature) => {
+        const featureEn = SPECIAL_FEATURES_MAP[feature] || feature;
+        if (["glasses", "hat", "crown", "scarf", "bow", "earrings"].includes(feature)) {
+          accessories.push(featureEn);
+        } else if (["wings", "tail", "horns"].includes(feature)) {
+          bodyFeatures.push(featureEn);
+        } else {
+          faceFeatures.push(featureEn);
+        }
 
-      // Body build (for humans)
-      bodyBuild: isHumanChar ? (avatarData.bodyBuild || "normal") : undefined,
+        // NEW v2.0: Check if this feature should be an invariant
+        const invariantDef = INVARIANT_FEATURES_MAP[feature];
+        if (invariantDef) {
+          mustIncludeFeatures.push({
+            id: `${feature}_${Date.now()}`,
+            ...invariantDef
+          });
+          // Add forbidden alternative to prevent inconsistencies
+          if (invariantDef.forbiddenAlternative) {
+            forbiddenFeatures.push(invariantDef.forbiddenAlternative);
+          }
+        }
+      });
 
-      // Skin/Fur
-      skin: {
-        tone: skinTone,
-        undertone: null,
-        distinctiveFeatures: faceFeatures.filter((f) => f.includes("freckles") || f.includes("scar")),
-      },
+      // NEW v2.0: Also check additionalDescription for invariant-worthy features
+      if (avatarData.additionalDescription) {
+        const descLower = avatarData.additionalDescription.toLowerCase();
+
+        // Check for tooth gap in description
+        if ((descLower.includes('zahnlücke') || descLower.includes('tooth gap'))
+            && !mustIncludeFeatures.some(f => f.id.startsWith('tooth_gap'))) {
+          mustIncludeFeatures.push({
+            id: `tooth_gap_desc_${Date.now()}`,
+            ...INVARIANT_FEATURES_MAP['tooth_gap']
+          });
+          forbiddenFeatures.push('complete teeth, no gap');
+        }
+
+        // Check for protruding ears in description
+        if ((descLower.includes('abstehende ohren') || descLower.includes('protruding ears'))
+            && !mustIncludeFeatures.some(f => f.id.startsWith('prominent_ears'))) {
+          mustIncludeFeatures.push({
+            id: `prominent_ears_desc_${Date.now()}`,
+            ...INVARIANT_FEATURES_MAP['prominent_ears']
+          });
+          forbiddenFeatures.push('flat ears against head');
+        }
+      }
+
+      console.info("[ai.visual-profile] Invariants prepared", {
+        invariantCount: mustIncludeFeatures.length,
+      });
+
+      // Build the visual profile
+      const visualProfile = {
+        // CRITICAL: Character type and age are explicitly stored
+        characterType: characterTypeEn,
+        speciesCategory: isHumanChar ? "human" : isAnimalChar ? "animal" : "fantasy",
+        locomotion: isAnimalChar ? "quadruped" : "bipedal",
+
+        // CRITICAL: Explicit age and gender
+        ageApprox: `${avatarData.age} years old`,
+        ageNumeric: avatarData.age, // NEW: Explicit numeric age for comparisons
+        ageDescription: ageDesc,
+        gender: avatarData.gender,
+
+        // CRITICAL: Explicit height (for humans)
+        heightCm: isHumanChar ? avatarData.height : undefined,
+        heightDescription: isHumanChar && avatarData.height
+          ? getHeightDescription(avatarData.height, avatarData.age)
+          : undefined,
+
+        // Body build (for humans)
+        bodyBuild: isHumanChar ? (avatarData.bodyBuild || "normal") : undefined,
+
+        // Skin/Fur
+        skin: {
+          tone: skinTone,
+          undertone: null,
+          distinctiveFeatures: faceFeatures.filter((f) => f.includes("freckles") || f.includes("scar")),
+        },
+
+        // Hair
+        hair: {
+          color: hairColor,
+          type: isAnimalChar ? "fur" : hairStyle,
+          length: avatarData.hairStyle === "long" ? "long" : avatarData.hairStyle === "short" ? "short" : "medium",
+          style: hairStyle,
+        },
+
+        // Eyes
+        eyes: {
+          color: eyeColor,
+          shape: "round",
+          size: "medium",
+        },
+
+        // Face
+        face: {
+          shape: isHumanChar ? "round childlike face" : isAnimalChar ? "animal face" : "unique face",
+          nose: isAnimalChar ? "snout" : "small nose",
+          mouth: null,
+          eyebrows: isHumanChar ? "natural eyebrows" : null,
+          freckles: faceFeatures.some((f) => f.includes("freckles")),
+          otherFeatures: faceFeatures.filter((f) => !f.includes("freckles")),
+        },
+
+        // Accessories
+        accessories,
+
+        // Body features (wings, tail, horns)
+        bodyFeatures,
+
+        // Clothing
+        clothingCanonical: {
+          top: null,
+          bottom: null,
+          outfit: isHumanChar ? "casual clothing" : null,
+          colors: [],
+          patterns: [],
+        },
+
+        // Color palette
+        palette: {
+          primary: [hairColor, eyeColor].filter(Boolean),
+          secondary: [],
+        },
+
+        // CRITICAL: Consistent descriptors for image generation
+        consistentDescriptors: consistentDescriptors.slice(0, 10),
+
+        // NEW v2.0: Character Invariants for cross-chapter consistency
+        // These features MUST appear in EVERY generated image
+        mustIncludeFeatures: mustIncludeFeatures.length > 0 ? mustIncludeFeatures : undefined,
+        forbiddenFeatures: forbiddenFeatures.length > 0 ? forbiddenFeatures : undefined,
+
+        // Additional notes
+        additionalNotes: avatarData.additionalDescription || undefined,
+      };
+
+      // Build English description for image generation
+      const descriptionParts: string[] = [];
+
+      // Character basics
+      descriptionParts.push(`${ageDesc} ${avatarData.gender} ${characterTypeEn}`);
+
+      // Age explicitly
+      descriptionParts.push(`${avatarData.age} years old`);
+
+      // Height (humans only)
+      if (isHumanChar && avatarData.height) {
+        descriptionParts.push(`${avatarData.height}cm tall`);
+        const heightDesc = getHeightDescription(avatarData.height, avatarData.age);
+        if (heightDesc !== "average height") {
+          descriptionParts.push(heightDesc);
+        }
+      }
+
+      // Body build
+      if (isHumanChar && avatarData.bodyBuild && avatarData.bodyBuild !== "normal") {
+        descriptionParts.push(`${avatarData.bodyBuild} build`);
+      }
 
       // Hair
-      hair: {
-        color: hairColor,
-        type: isAnimalChar ? "fur" : hairStyle,
-        length: avatarData.hairStyle === "long" ? "long" : avatarData.hairStyle === "short" ? "short" : "medium",
-        style: hairStyle,
-      },
+      if (hairColor && hairColor !== "bald" && !isAnimalChar) {
+        descriptionParts.push(`${hairColor} ${hairStyle} hair`);
+      }
 
       // Eyes
-      eyes: {
-        color: eyeColor,
-        shape: "round",
-        size: "medium",
-      },
+      descriptionParts.push(`${eyeColor} eyes`);
 
-      // Face
-      face: {
-        shape: isHumanChar ? "round childlike face" : isAnimalChar ? "animal face" : "unique face",
-        nose: isAnimalChar ? "snout" : "small nose",
-        mouth: null,
-        eyebrows: isHumanChar ? "natural eyebrows" : null,
-        freckles: faceFeatures.some((f) => f.includes("freckles")),
-        otherFeatures: faceFeatures.filter((f) => !f.includes("freckles")),
-      },
+      // Skin/Fur
+      descriptionParts.push(skinTone);
 
-      // Accessories
-      accessories,
-
-      // Body features (wings, tail, horns)
-      bodyFeatures,
-
-      // Clothing
-      clothingCanonical: {
-        top: null,
-        bottom: null,
-        outfit: isHumanChar ? "casual clothing" : null,
-        colors: [],
-        patterns: [],
-      },
-
-      // Color palette
-      palette: {
-        primary: [hairColor, eyeColor].filter(Boolean),
-        secondary: [],
-      },
-
-      // CRITICAL: Consistent descriptors for image generation
-      consistentDescriptors: consistentDescriptors.slice(0, 10),
-
-      // NEW v2.0: Character Invariants for cross-chapter consistency
-      // These features MUST appear in EVERY generated image
-      mustIncludeFeatures: mustIncludeFeatures.length > 0 ? mustIncludeFeatures : undefined,
-      forbiddenFeatures: forbiddenFeatures.length > 0 ? forbiddenFeatures : undefined,
-
-      // Additional notes
-      additionalNotes: avatarData.additionalDescription || undefined,
-    };
-
-    // Build English description for image generation
-    const descriptionParts: string[] = [];
-
-    // Character basics
-    descriptionParts.push(`${ageDesc} ${avatarData.gender} ${characterTypeEn}`);
-
-    // Age explicitly
-    descriptionParts.push(`${avatarData.age} years old`);
-
-    // Height (humans only)
-    if (isHumanChar && avatarData.height) {
-      descriptionParts.push(`${avatarData.height}cm tall`);
-      const heightDesc = getHeightDescription(avatarData.height, avatarData.age);
-      if (heightDesc !== "average height") {
-        descriptionParts.push(heightDesc);
+      // Special features
+      const allFeatures = [...accessories, ...bodyFeatures, ...faceFeatures];
+      if (allFeatures.length > 0) {
+        descriptionParts.push(allFeatures.join(", "));
       }
+
+      // Additional description
+      if (avatarData.additionalDescription) {
+        descriptionParts.push(avatarData.additionalDescription);
+      }
+
+      const englishDescription = descriptionParts.join(", ");
+
+      console.info("[ai.visual-profile] Structured profile ready", {
+        descriptorCount: visualProfile.consistentDescriptors.length,
+        descriptionLength: englishDescription.length,
+      });
+
+      return {
+        visualProfile,
+        englishDescription,
+      };
+    } catch (error) {
+      await refundMeteredUsage(usageClaim);
+      throw error;
     }
-
-    // Body build
-    if (isHumanChar && avatarData.bodyBuild && avatarData.bodyBuild !== "normal") {
-      descriptionParts.push(`${avatarData.bodyBuild} build`);
-    }
-
-    // Hair
-    if (hairColor && hairColor !== "bald" && !isAnimalChar) {
-      descriptionParts.push(`${hairColor} ${hairStyle} hair`);
-    }
-
-    // Eyes
-    descriptionParts.push(`${eyeColor} eyes`);
-
-    // Skin/Fur
-    descriptionParts.push(skinTone);
-
-    // Special features
-    const allFeatures = [...accessories, ...bodyFeatures, ...faceFeatures];
-    if (allFeatures.length > 0) {
-      descriptionParts.push(allFeatures.join(", "));
-    }
-
-    // Additional description
-    if (avatarData.additionalDescription) {
-      descriptionParts.push(avatarData.additionalDescription);
-    }
-
-    const englishDescription = descriptionParts.join(", ");
-
-    console.info("[ai.visual-profile] Structured profile ready", {
-      descriptorCount: visualProfile.consistentDescriptors.length,
-      descriptionLength: englishDescription.length,
-    });
-
-    return {
-      visualProfile,
-      englishDescription,
-    };
   }
 );

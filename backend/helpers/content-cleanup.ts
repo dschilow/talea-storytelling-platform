@@ -3,6 +3,7 @@ import { ensureAvatarProfileLinksTable } from "../avatar/profile-links";
 import { dokuDB } from "../doku/db";
 import { storyDB } from "../story/db";
 import { userDB } from "../user/db";
+import { recordTrialHistoryForDeletedUser } from "./billing";
 
 export type ProfileContentCleanupSummary = {
   avatarsDeleted: number;
@@ -141,8 +142,11 @@ export async function cleanupProfileContent(params: {
     WHERE profile_id = ${profileId}
   `;
 
+  // Spent coins stay on the account. Deleting the rows would let a user reset
+  // the monthly and daily limits by deleting and recreating a profile.
   await userDB.exec`
-    DELETE FROM quota_ledger
+    UPDATE quota_ledger
+    SET profile_id = NULL
     WHERE user_id = ${userId}
       AND profile_id = ${profileId}
   `;
@@ -257,6 +261,9 @@ export async function cleanupUserContent(userId: string): Promise<UserContentCle
     DELETE FROM generation_usage
     WHERE user_id = ${userId}
   `;
+
+  // Keeps only a hash of the e-mail, so a re-registration gets no second free trial.
+  await recordTrialHistoryForDeletedUser(userId);
 
   const deletedUser = await userDB.queryRow<{ id: string }>`
     DELETE FROM users

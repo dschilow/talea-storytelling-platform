@@ -473,6 +473,7 @@ export default function ModernDokuWizard() {
   const [showMoreCategories, setShowMoreCategories] = useState(false);
   const [dynamicDomainIds, setDynamicDomainIds] = useState<string[]>([]);
   const [credits, setCredits] = useState<DokuCredits | null>(null);
+  const [dailyCredits, setDailyCredits] = useState<DokuCredits | null>(null);
   const [permissions, setPermissions] = useState<BillingPermissions | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState(
@@ -618,6 +619,7 @@ export default function ModernDokuWizard() {
         const profile = await backend.user.me();
         if (profile.preferredLanguage) setLanguage(toDokuLanguage(profile.preferredLanguage));
         setCredits((profile as any).billing?.dokuCredits ?? null);
+        setDailyCredits((profile as any).billing?.dailyDokuCredits ?? null);
         setPermissions((profile as any).billing?.permissions ?? null);
       } catch (error) {
         console.error('[ModernDokuWizard] Failed to load profile:', error);
@@ -656,13 +658,17 @@ export default function ModernDokuWizard() {
   );
 
   const canProceed = activeStep === 0 ? state.topic.trim().length >= 3 : true;
-  const generationBlocked = Boolean(credits && credits.remaining !== null && credits.remaining <= 0);
+  const monthlyBlocked = Boolean(credits && credits.remaining !== null && credits.remaining <= 0);
+  const dailyBlocked = Boolean(dailyCredits && dailyCredits.remaining !== null && dailyCredits.remaining <= 0);
+  const generationBlocked = monthlyBlocked || dailyBlocked;
 
   const createDoku = async () => {
     if (!userId || !state.topic.trim()) return;
     if (generationBlocked) {
-      if (permissions && !permissions.freeTrialActive) {
-        setUpgradeMessage('Deine Probierzeit ist vorbei. Frag deine Eltern, ob sie einen Plan aussuchen möchten.');
+      if (!monthlyBlocked) {
+        setUpgradeMessage('Für heute sind alle Dokus erstellt. Morgen geht es weiter!');
+      } else if (permissions && !permissions.freeTrialActive && credits?.limit !== null && (credits?.limit ?? 0) <= 1) {
+        setUpgradeMessage('Deine kostenlose Doku für diesen Monat ist schon erstellt. Frag deine Eltern, ob sie einen Plan aussuchen möchten.');
       } else {
         setUpgradeMessage('Deine Doku-Münzen für diesen Monat sind aufgebraucht. Frag deine Eltern!');
       }
@@ -707,15 +713,16 @@ export default function ModernDokuWizard() {
         config: generationConfig,
       });
 
-      setCredits((prev) =>
+      const spendOne = (prev: DokuCredits | null) =>
         prev
           ? {
               ...prev,
               used: prev.used + 1,
               remaining: prev.remaining === null ? null : Math.max(0, prev.remaining - 1),
             }
-          : prev
-      );
+          : prev;
+      setCredits(spendOne);
+      setDailyCredits(spendOne);
 
       if (timer) clearInterval(timer);
       setPhase('complete');
@@ -1288,6 +1295,7 @@ export default function ModernDokuWizard() {
                       {credits && (
                         <p className="text-center text-xs" style={{ color: 'var(--talea-text-muted)' }}>
                           Doku-Münzen: {credits.remaining === null ? 'unbegrenzt' : credits.remaining} noch übrig
+                          {dailyCredits && dailyCredits.remaining !== null ? ` · heute noch ${dailyCredits.remaining}` : ''}
                         </p>
                       )}
                     </div>

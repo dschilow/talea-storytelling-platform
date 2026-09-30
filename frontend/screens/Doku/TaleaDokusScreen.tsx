@@ -11,6 +11,7 @@ import {
   Headphones,
   ListPlus,
   Loader2,
+  Lock,
   Mic,
   Pencil,
   Play,
@@ -37,6 +38,7 @@ import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOffline } from '../../contexts/OfflineStorageContext';
 import { useOptionalChildProfiles } from '@/contexts/ChildProfilesContext';
 import ProgressiveImage from '@/components/common/ProgressiveImage';
+import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 import { cn } from '@/lib/utils';
 import {
   TaleaActionButton,
@@ -255,14 +257,14 @@ const AudioDokuCard: React.FC<{
               color: 'white',
             }}
           >
-            <Mic className="h-3 w-3" />
-            Audio
+            {doku.locked ? <Lock className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
+            {doku.locked ? t('doku.audioLockedBadge', 'Mit Abo') : 'Audio'}
           </span>
         </div>
 
         {/* Action icons */}
         <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
-          {canSaveOffline && onToggleOffline && (
+          {canSaveOffline && onToggleOffline && !doku.locked && (
             <button
               type="button"
               onClick={(event) => {
@@ -610,6 +612,7 @@ const TaleaDokusScreen: React.FC = () => {
   const [audioError, setAudioError] = useState<string | null>(null);
   const [publicAccessMessage, setPublicAccessMessage] = useState<string | null>(null);
   const [audioAccessMessage, setAudioAccessMessage] = useState<string | null>(null);
+  const [audioUpgradeMessage, setAudioUpgradeMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('tags') ?? '');
   const [activeTab, setActiveTab] = useState<DokuTab>(
     searchParams.get('mode') === 'audio' ? 'audio' : 'mine'
@@ -820,6 +823,10 @@ const TaleaDokusScreen: React.FC = () => {
 
   const handlePlayAudio = (doku: AudioDoku) => {
     setAudioError(null);
+    if (doku.locked) {
+      setAudioUpgradeMessage(doku.lockReason || t('doku.audioLocked', 'Diese Folge ist in deinem Plan nicht enthalten.'));
+      return;
+    }
     if (!doku.audioUrl) {
       setAudioError(t('doku.noAudioFile', 'Keine Audio-Datei verfügbar'));
       return;
@@ -845,6 +852,10 @@ const TaleaDokusScreen: React.FC = () => {
   };
 
   const handleAddAudioToQueue = (doku: AudioDoku) => {
+    if (doku.locked) {
+      setAudioUpgradeMessage(doku.lockReason || t('doku.audioLocked', 'Diese Folge ist in deinem Plan nicht enthalten.'));
+      return;
+    }
     if (!doku.audioUrl) return;
     audioPlayer.addToPlaylist([
       {
@@ -1044,6 +1055,13 @@ const TaleaDokusScreen: React.FC = () => {
   return (
     <div className="relative min-h-screen pb-28" style={{ color: palette.text, fontFamily: bodyFont }}>
       <DokuBackground isDark={isDark} />
+
+      <UpgradePlanModal
+        open={Boolean(audioUpgradeMessage)}
+        title={t('doku.audioLockedTitle', 'Folge mit Abo freischalten')}
+        message={audioUpgradeMessage ?? ''}
+        onClose={() => setAudioUpgradeMessage(null)}
+      />
 
       <SignedOut>
         <div className={cn(taleaPageShellClass, 'flex min-h-[68vh] items-center justify-center py-10')}>

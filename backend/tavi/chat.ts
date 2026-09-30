@@ -15,9 +15,14 @@ import {
   buildTaviProfilePrompt,
 } from "../helpers/child-profile-personalization";
 import { getProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
-import { TAVI_TOOLS } from "./tavi-tools";
+import { TAVI_CREATION_TOOL_NAMES, TAVI_TOOLS } from "./tavi-tools";
 import { callOpenRouterChatCompletion } from "../story/openrouter-generation";
-import { claimMeteredUsage } from "../helpers/billing";
+import {
+  claimMeteredUsage,
+  getPlanCapabilities,
+  refundMeteredUsage,
+  withMeteredUsage,
+} from "../helpers/billing";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -133,12 +138,20 @@ const TAVI_OPENROUTER_MODEL = "google/gemini-3.1-flash-lite";
 // System prompt
 // ---------------------------------------------------------------------------
 
+const FREE_PLAN_PROMPT_NOTE = `
+
+WICHTIG - Kostenloser Plan:
+Dieser Nutzer hat den kostenlosen Plan. Du kannst hier KEINE Geschichten, Dokus, Avatare oder Bilder selbst erstellen - diese Funktionen stehen dir nicht zur Verfuegung.
+- Wenn der Nutzer etwas erstellen moechte, oeffne den passenden Wizard (open_story_wizard, open_doku_wizard, open_avatar_wizard) mit vorausgefuellten Daten.
+- Erklaere freundlich, dass Tavi mit einem Abo (Starter, Familie oder Premium) Geschichten und Dokus direkt im Chat erstellen kann.`;
+
 function buildSystemPrompt(params: {
   profilePrompt?: string;
   avatarNames: string[];
   language: SupportedLanguage;
+  canCreate: boolean;
 }): string {
-  const { profilePrompt, avatarNames, language } = params;
+  const { profilePrompt, avatarNames, language, canCreate } = params;
 
   const avatarList =
     avatarNames.length > 0
@@ -199,7 +212,7 @@ Regeln:
 - Fuer Geschichten: Nutze immer die Avatare des Nutzers wenn verfuegbar
 - Basiere Altersgruppe und Inhalt auf dem aktiven Kinderprofil
 - Bei Bildgenerierung: Erstelle immer einen detaillierten englischen Prompt
-${avatarList}${languageHint}${profilePrompt ? `\n\nAKTIVES KINDERPROFIL:\n${profilePrompt}\nBegruesse das Kind direkt mit Namen, wenn es natuerlich passt.` : ""}`;
+${avatarList}${languageHint}${canCreate ? "" : FREE_PLAN_PROMPT_NOTE}${profilePrompt ? `\n\nAKTIVES KINDERPROFIL:\n${profilePrompt}\nBegruesse das Kind direkt mit Namen, wenn es natuerlich passt.` : ""}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -452,20 +465,18 @@ async function handleGenerateImage(params: {
     throw new Error("INVALID_IMAGE_PROMPT");
   }
 
-  await claimMeteredUsage({
-    userId,
-    kind: "image",
-    units: 1,
-    clerkToken,
-  });
-
-  const imageResult = await ai.generateImage({
-    prompt,
-    width: 1024,
-    height: 1024,
-    steps: 4,
-    outputFormat: "WEBP",
-  });
+  const imageResult = await withMeteredUsage(
+    { userId, kind: "image", units: 1, clerkToken },
+    () =>
+      ai.generateImage({
+        prompt,
+        width: 1024,
+        height: 1024,
+        steps: 4,
+        outputFormat: "WEBP",
+      }),
+    (result) => Boolean(result.imageUrl)
+  );
 
   return {
     type: "image",
@@ -690,6 +701,16 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
       preferredAvatarIds: activeProfile.preferredAvatarIds,
     });
 
+    // Free accounts chat only: the creation tools are neither offered to the
+    // model nor executed (see the guard in the tool loop).
+    const { taviCanCreate } = await getPlanCapabilities({
+      userId: auth.userID,
+      clerkToken: auth.clerkToken,
+    });
+    const offeredTools = taviCanCreate
+      ? TAVI_TOOLS
+      : TAVI_TOOLS.filter((tool) => !TAVI_CREATION_TOOL_NAMES.has(tool.function.name));
+
     // Build messages array with history
     const messages: OpenAIMessage[] = [
       {
@@ -698,6 +719,7 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
           profilePrompt: taviProfilePrompt,
           avatarNames: avatars.map((a) => a.name),
           language,
+          canCreate: taviCanCreate,
         }),
       },
     ];
@@ -728,7 +750,8 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
       message.substring(0, 100)
     );
 
-    await claimMeteredUsage({
+    // One Tavi message per request; returned below whenever Tavi could not answer.
+    const chatClaim = await claimMeteredUsage({
       userId: auth.userID,
       kind: "chat",
       units: 1,
@@ -739,7 +762,7 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
       const openRouterResult = await callOpenRouterChatCompletion({
         model: TAVI_OPENROUTER_MODEL,
         messages,
-        tools: TAVI_TOOLS,
+        tools: offeredTools,
         toolChoice: "auto",
         maxTokens: 1400,
         temperature: 0.55,
@@ -776,6 +799,7 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
         const actions: TaviChatAction[] = [];
         let textResponse = choice?.message?.content || "";
         const errors: string[] = [];
+        let failedTools = 0;
 
         for (const toolCall of toolCalls) {
           const fnName = toolCall.function.name;
@@ -788,6 +812,13 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
           }
 
           console.log(`Tavi executing tool: ${fnName}`, args);
+
+          if (!taviCanCreate && TAVI_CREATION_TOOL_NAMES.has(fnName)) {
+            errors.push(
+              "Im kostenlosen Plan kann ich nichts direkt erstellen. Nutze den Wizard oder hol dir ein Abo, dann erstelle ich Geschichten und Dokus direkt hier im Chat."
+            );
+            continue;
+          }
 
           try {
             switch (fnName) {
@@ -917,16 +948,27 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
             }
           } catch (err) {
             console.error(`Tavi tool ${fnName} failed:`, err);
+            const errCode = (err as { code?: unknown } | null)?.code;
+            const isLimitError = errCode === "permission_denied" || errCode === "resource_exhausted";
             if (err instanceof Error && err.message === "NO_AVATARS") {
               errors.push(
                 "Du hast noch keine Avatare. Erstelle zuerst einen Avatar, dann kann ich dir eine Geschichte generieren!"
               );
+            } else if (isLimitError && err instanceof Error) {
+              // Limit messages are a valid answer, so the message still counts.
+              errors.push(err.message);
             } else {
+              failedTools += 1;
               errors.push(
                 `Die Aktion konnte leider nicht ausgefuehrt werden. Versuch es gleich nochmal.`
               );
             }
           }
+        }
+
+        // Nothing Tavi tried worked, so the message does not count.
+        if (actions.length === 0 && failedTools > 0) {
+          await refundMeteredUsage(chatClaim);
         }
 
         if (errors.length > 0) {
@@ -941,13 +983,19 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
       }
 
       // No tool calls - just text response
+      const content = choice?.message?.content?.trim();
+      if (!content) {
+        await refundMeteredUsage(chatClaim);
+      }
       const responseText =
-        choice?.message?.content ||
+        content ||
         "Entschuldige, meine magischen Kraefte sind momentan erschoepft! Versuche es gleich nochmal.";
 
       return { response: responseText, tokensUsed };
     } catch (error) {
       console.error("Tavi chat error:", error);
+      // Every path below answers with an error text, so the message is free.
+      await refundMeteredUsage(chatClaim);
 
       if (error instanceof Error) {
         if (error.message.includes("not configured")) {

@@ -1,4 +1,5 @@
 import { api, APIError } from "encore.dev/api";
+import { ensureAdmin } from "../admin/authz";
 import { secret } from "encore.dev/config";
 import { getAuthData } from "~encore/auth";
 import { claimGenerationUsage, claimMeteredUsage } from "../helpers/billing";
@@ -1153,6 +1154,7 @@ interface ComposeStudioEpisodeResponse extends StudioEpisodeWithScenesResponse {
 export const listStudioSeries = api<{}, { series: StudioSeries[] }>(
   { expose: true, method: "GET", path: "/story/studio/series", auth: true },
   async () => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
 
@@ -1180,6 +1182,7 @@ export const listStudioSeries = api<{}, { series: StudioSeries[] }>(
 export const createStudioSeries = api<CreateStudioSeriesRequest, StudioSeries>(
   { expose: true, method: "POST", path: "/story/studio/series", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     const now = new Date();
@@ -1230,6 +1233,7 @@ export const createStudioSeries = api<CreateStudioSeriesRequest, StudioSeries>(
 export const getStudioSeries = api<StudioSeriesPathRequest, StudioSeries>(
   { expose: true, method: "GET", path: "/story/studio/series/:seriesId", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     const row = await getOwnedSeriesOrThrow(req.seriesId, userId);
@@ -1240,6 +1244,7 @@ export const getStudioSeries = api<StudioSeriesPathRequest, StudioSeries>(
 export const updateStudioSeries = api<UpdateStudioSeriesRequest, StudioSeries>(
   { expose: true, method: "PUT", path: "/story/studio/series/:seriesId", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     const existing = await getOwnedSeriesOrThrow(req.seriesId, userId);
@@ -1282,6 +1287,7 @@ export const updateStudioSeries = api<UpdateStudioSeriesRequest, StudioSeries>(
 export const listStudioCharacters = api<StudioSeriesPathRequest, { characters: StudioCharacter[] }>(
   { expose: true, method: "GET", path: "/story/studio/series/:seriesId/characters", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     await getOwnedSeriesOrThrow(req.seriesId, userId);
@@ -1315,6 +1321,7 @@ export const listStudioCharacters = api<StudioSeriesPathRequest, { characters: S
 export const createStudioCharacter = api<CreateStudioCharacterRequest, StudioCharacter>(
   { expose: true, method: "POST", path: "/story/studio/series/:seriesId/characters", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     await getOwnedSeriesOrThrow(req.seriesId, userId);
@@ -1420,6 +1427,7 @@ export const createStudioCharacter = api<CreateStudioCharacterRequest, StudioCha
 export const updateStudioCharacter = api<UpdateStudioCharacterRequest, StudioCharacter>(
   { expose: true, method: "PUT", path: "/story/studio/series/:seriesId/characters/:characterId", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     const existing = await getOwnedCharacterOrThrow(req.seriesId, req.characterId, userId);
@@ -1505,6 +1513,7 @@ export const updateStudioCharacter = api<UpdateStudioCharacterRequest, StudioCha
 export const listStudioEpisodes = api<StudioSeriesPathRequest, { episodes: StudioEpisode[] }>(
   { expose: true, method: "GET", path: "/story/studio/series/:seriesId/episodes", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     await getOwnedSeriesOrThrow(req.seriesId, userId);
@@ -1537,6 +1546,7 @@ export const listStudioEpisodes = api<StudioSeriesPathRequest, { episodes: Studi
 export const createStudioEpisode = api<CreateStudioEpisodeRequest, StudioEpisode>(
   { expose: true, method: "POST", path: "/story/studio/series/:seriesId/episodes", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     await getOwnedSeriesOrThrow(req.seriesId, userId);
@@ -1609,6 +1619,7 @@ export const createStudioEpisode = api<CreateStudioEpisodeRequest, StudioEpisode
 export const getStudioEpisode = api<StudioEpisodePathRequest, StudioEpisode>(
   { expose: true, method: "GET", path: "/story/studio/series/:seriesId/episodes/:episodeId", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     const episode = await getOwnedEpisodeOrThrow(req.seriesId, req.episodeId, userId);
@@ -1619,6 +1630,7 @@ export const getStudioEpisode = api<StudioEpisodePathRequest, StudioEpisode>(
 export const generateStudioEpisodeText = api<GenerateStudioEpisodeTextRequest, StudioEpisode>(
   { expose: true, method: "POST", path: "/story/studio/series/:seriesId/episodes/:episodeId/generate-text", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     const series = await getOwnedSeriesOrThrow(req.seriesId, userId);
@@ -1692,6 +1704,7 @@ export const generateStudioEpisodeText = api<GenerateStudioEpisodeTextRequest, S
 export const updateStudioEpisodeText = api<UpdateStudioEpisodeTextRequest, StudioEpisode>(
   { expose: true, method: "PUT", path: "/story/studio/series/:seriesId/episodes/:episodeId/text", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     await getOwnedEpisodeOrThrow(req.seriesId, req.episodeId, userId);
@@ -1726,6 +1739,7 @@ export const splitStudioEpisodeScenes = api<
 >(
   { expose: true, method: "POST", path: "/story/studio/series/:seriesId/episodes/:episodeId/split-scenes", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     const series = await getOwnedSeriesOrThrow(req.seriesId, userId);
@@ -1826,6 +1840,7 @@ export const splitStudioEpisodeScenes = api<
 export const updateStudioEpisodeScene = api<UpdateStudioSceneRequest, StudioEpisodeScene>(
   { expose: true, method: "PUT", path: "/story/studio/series/:seriesId/episodes/:episodeId/scenes/:sceneId", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     const episode = await getOwnedEpisodeOrThrow(req.seriesId, req.episodeId, userId);
@@ -1888,6 +1903,7 @@ export const generateStudioEpisodeSceneImage = api<
     auth: true,
   },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     const episode = await getOwnedEpisodeOrThrow(req.seriesId, req.episodeId, userId);
@@ -1981,6 +1997,7 @@ export const generateStudioEpisodeImages = api<
 >(
   { expose: true, method: "POST", path: "/story/studio/series/:seriesId/episodes/:episodeId/generate-images", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     const episode = await getOwnedEpisodeOrThrow(req.seriesId, req.episodeId, userId);
@@ -2059,6 +2076,7 @@ export const generateStudioEpisodeImages = api<
 export const composeStudioEpisode = api<StudioEpisodePathRequest, ComposeStudioEpisodeResponse>(
   { expose: true, method: "POST", path: "/story/studio/series/:seriesId/episodes/:episodeId/compose", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     const episode = await getOwnedEpisodeOrThrow(req.seriesId, req.episodeId, userId);
@@ -2094,6 +2112,7 @@ export const composeStudioEpisode = api<StudioEpisodePathRequest, ComposeStudioE
 export const publishStudioEpisode = api<StudioEpisodePathRequest, StudioEpisode>(
   { expose: true, method: "POST", path: "/story/studio/series/:seriesId/episodes/:episodeId/publish", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     const episode = await getOwnedEpisodeOrThrow(req.seriesId, req.episodeId, userId);
@@ -2114,6 +2133,7 @@ export const publishStudioEpisode = api<StudioEpisodePathRequest, StudioEpisode>
 export const listStudioEpisodeScenes = api<StudioEpisodePathRequest, { scenes: StudioEpisodeScene[] }>(
   { expose: true, method: "GET", path: "/story/studio/series/:seriesId/episodes/:episodeId/scenes", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     await getOwnedSeriesOrThrow(req.seriesId, userId);
@@ -2126,6 +2146,7 @@ export const listStudioEpisodeScenes = api<StudioEpisodePathRequest, { scenes: S
 export const createStudioEpisodeScene = api<CreateStudioSceneRequest, StudioEpisodeScene>(
   { expose: true, method: "POST", path: "/story/studio/series/:seriesId/episodes/:episodeId/scenes", auth: true },
   async (req) => {
+    ensureAdmin();
     await ensureStudioTables();
     const userId = requireUserId();
     await getOwnedSeriesOrThrow(req.seriesId, userId);

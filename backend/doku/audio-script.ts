@@ -1,4 +1,5 @@
 import { api, APIError } from "encore.dev/api";
+import { ensureAdmin } from "../admin/authz";
 import { getAuthData } from "~encore/auth";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
@@ -134,6 +135,7 @@ const callOpenAI = async (
 export const generateAudioDokuTopics = api<AudioDokuTopicsRequest, AudioDokuTopicsResponse>(
   { expose: true, method: "POST", path: "/doku/audio-script/topics", auth: true },
   async (req) => {
+    ensureAdmin();
     const auth = getAuthData();
     if (!auth?.userID) {
       throw APIError.unauthenticated("Login required");
@@ -357,6 +359,7 @@ const buildSpeakerCasting = (speakers: string[]): SpeakerCastingEntry[] => {
 export const generateAudioDokuScript = api<AudioDokuScriptRequest, AudioDokuScriptResponse>(
   { expose: true, method: "POST", path: "/doku/audio-script/generate", auth: true },
   async (req) => {
+    ensureAdmin();
     const auth = getAuthData();
     if (!auth?.userID) {
       throw APIError.unauthenticated("Login required");

@@ -1,4 +1,5 @@
 import { APIError } from "encore.dev/api";
+import { refundGenerationUsage } from "../helpers/billing";
 import { storyDB } from "./db";
 
 const STORY_GENERATION_LOCK_KEY = 810_001;
@@ -60,12 +61,14 @@ export async function reserveStoryGenerationCapacity(input: {
     STORY_GENERATION_LOCK_KEY
   );
 
-  await tx.rawExec(
+  // A job stuck this long died with its process; its coin goes back after commit.
+  const staleJobs = await tx.rawQueryAll<{ id: string; user_id: string }>(
     `UPDATE stories
      SET status = 'error',
          updated_at = CURRENT_TIMESTAMP
      WHERE status = 'generating'
-       AND updated_at < $1`,
+       AND updated_at < $1
+     RETURNING id, user_id`,
     staleBefore
   );
 
@@ -95,4 +98,13 @@ export async function reserveStoryGenerationCapacity(input: {
 
   await input.createReservation(tx);
   await tx.commit();
+
+  for (const job of staleJobs) {
+    await refundGenerationUsage({
+      userId: job.user_id,
+      kind: "story",
+      contentRef: job.id,
+      reason: "stale generation",
+    });
+  }
 }

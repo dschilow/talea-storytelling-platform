@@ -5,7 +5,6 @@ import { resolvePlanForUser } from "../helpers/billing";
 import { cleanupProfileContent } from "../helpers/content-cleanup";
 import {
   assertProfilesBelongToUser,
-  countProfilesForUser,
   ensureDefaultProfileForUser,
   getFamilyReserveState,
   getProfileBudgetPolicy,
@@ -299,6 +298,8 @@ async function ensureUserExists(userId: string, fallbackEmail?: string | null): 
   `;
 }
 
+const PROFILE_CREATE_LOCK_NAMESPACE = 810_101;
+
 function startOfMonthUTC(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
@@ -397,14 +398,6 @@ export const createProfile = api<CreateProfileRequest, ChildProfile>(
     await ensureDefaultProfileForUser(auth.userID);
     await reconcileChildAvatarsSafely(auth.userID);
 
-    const { limit } = await getProfileLimitForCurrentUser(auth.userID, auth.clerkToken);
-    const currentCount = await countProfilesForUser(auth.userID);
-    if (currentCount >= limit) {
-      throw APIError.failedPrecondition(
-        `Profile limit reached (${currentCount}/${limit}). Please upgrade or add profile add-ons.`
-      );
-    }
-
     const id = crypto.randomUUID();
     const now = new Date();
     const name = (req.name || "").trim();
@@ -418,7 +411,29 @@ export const createProfile = api<CreateProfileRequest, ChildProfile>(
       throw APIError.invalidArgument("Profile name is required");
     }
 
-    await userDB.exec`
+    const { limit } = await getProfileLimitForCurrentUser(auth.userID, auth.clerkToken);
+    // Count and insert under a per-account lock, so parallel requests cannot
+    // create more profiles than the plan allows.
+    await using tx = await userDB.begin();
+    await tx.rawQueryRow(
+      "SELECT pg_advisory_xact_lock($1, hashtext($2)) IS NOT NULL AS locked",
+      PROFILE_CREATE_LOCK_NAMESPACE,
+      auth.userID
+    );
+    const countRow = await tx.queryRow<{ count: number }>`
+      SELECT COUNT(*)::int AS count
+      FROM child_profiles
+      WHERE user_id = ${auth.userID}
+        AND is_archived = FALSE
+    `;
+    const currentCount = countRow?.count ?? 0;
+    if (currentCount >= limit) {
+      throw APIError.failedPrecondition(
+        `Profil-Limit erreicht (${currentCount}/${limit}). Für mehr Kinderprofile bitte das Abo upgraden.`
+      );
+    }
+
+    await tx.exec`
       INSERT INTO child_profiles (
         id,
         user_id,
@@ -458,6 +473,7 @@ export const createProfile = api<CreateProfileRequest, ChildProfile>(
         ${now}
       )
     `;
+    await tx.commit();
 
     const profiles = await listProfilesForUser(auth.userID);
     const created = profiles.find((entry) => entry.id === id);

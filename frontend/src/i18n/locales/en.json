@@ -989,8 +989,8 @@
     "audioLibraryOfflineFailed": "Offline save failed.",
     "audioLibraryDeleted": "Title removed.",
     "audioLibraryNoAudio": "No saved audio files available.",
-    "billingTitle": "Subscription & Credits",
-    "billingSubtitle": "Monthly credits, usage and plan changes in one place.",
+    "billingTitle": "Subscription & Coins",
+    "billingSubtitle": "Coins, usage and plan changes in one place.",
     "billingRefresh": "Refresh",
     "billingLoading": "Loading billing data...",
     "billingLoadFailed": "Billing data could not be loaded.",
@@ -1003,12 +1003,12 @@
     "billingPlanActive": "Active",
     "billingRemaining": "remaining",
     "billingUsedLimit": "used / limit",
-    "billingCostPerGen": "Cost: {{cost}} credit per generation",
-    "billingTrialActive": "Free trial active: {{days}} days remaining. After that no generation, no community docs and no audio docs.",
-    "billingTrialExpired": "Free trial expired. Upgrade to Starter, Family or Premium to continue generating.",
+    "billingCostPerGen": "Cost: {{cost}} coin per creation, only when it succeeds",
+    "billingTrialActive": "Trial active: {{days}} days left with 3 stories, 3 docs and 25 Tavi messages. Afterwards the free plan keeps 1 story and 1 doc per month.",
+    "billingTrialExpired": "Free plan: 1 story, 1 doc and 10 Tavi messages per month. Get more with Starter, Family or Premium.",
     "billingPlanSwitchTitle": "Switch plan in Clerk Billing",
     "billingPlanSwitchDesc": "Checkout opens in its own window. After a successful switch click 'Refresh' here.",
-    "billingMonthly": "Changeable monthly"
+    "billingMonthly": "Cancel monthly"
   },
   "admin": {
     "title": "Admin Dashboard",
@@ -1618,7 +1618,7 @@
       },
       "premium": {
         "name": "Premium",
-        "price": "€19.99",
+        "price": "€14.99",
         "period": "/month",
         "features": [
           "Everything in Family",

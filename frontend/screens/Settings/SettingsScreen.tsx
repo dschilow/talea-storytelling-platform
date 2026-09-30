@@ -38,12 +38,25 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ProfilesSettingsPanel from './ProfilesSettingsPanel';
+import PlanComparisonTable from '../../components/subscription/PlanComparisonTable';
+import {
+  AUDIO_ACCESS_LABELS,
+  FREE_TRIAL_QUOTAS,
+  FREE_TRIAL_TAVI_MESSAGES,
+  PLAN_AUDIO_LIBRARY_ACCESS,
+  PLAN_DAILY_LIMITS,
+  PLAN_QUOTAS,
+  PLAN_TAVI_CAN_CREATE,
+  PLAN_TAVI_MESSAGES,
+  PLAN_TITLES,
+  type AudioLibraryAccess,
+} from '../../constants/planCatalog';
 import type { GeneratedAudioLibraryEntry } from '../../types/generated-audio';
 import {
   getAllOfflineGeneratedAudios,
   removeGeneratedAudioOffline,
   saveDokuOffline,
-  saveGeneratedAudioOffline,
+  saveGeneratedAudiosOffline,
   saveStoryOffline,
 } from '../../utils/offlineDb';
 import { useOfflineScope } from '../../contexts/OfflineScopeContext';
@@ -68,10 +81,18 @@ type BillingSnapshot = {
   periodStart: Date;
   storyCredits: CreditUsage;
   dokuCredits: CreditUsage;
-  audioCredits: CreditUsage;
+  dailyStoryCredits: CreditUsage;
+  dailyDokuCredits: CreditUsage;
+  chatCredits: CreditUsage;
+  imageCredits: CreditUsage;
+  audioLibrary: {
+    access: AudioLibraryAccess;
+    basicMinAgeDays: number;
+  };
   permissions: {
     canReadCommunityDokus: boolean;
     canUseAudioDokus: boolean;
+    taviCanCreate: boolean;
     freeTrialActive: boolean;
     freeTrialEndsAt: Date | null;
     freeTrialDaysRemaining: number;
@@ -168,55 +189,25 @@ type ParentalControlsSnapshot = {
   };
 };
 
-const PLAN_META: Record<
-  SubscriptionPlan,
-  {
-    title: string;
-    icon: typeof Sparkles;
-    gradient: string;
-    storyLimit: string;
-    dokuLimit: string;
-    audioLimit: string;
-    community: string;
-  }
-> = {
-  free: {
-    title: 'Free',
-    icon: Sparkles,
-    gradient: 'from-[#64748B] to-[#94A3B8]',
-    storyLimit: '3 / Monat (7 Tage Test)',
-    dokuLimit: '3 / Monat (7 Tage Test)',
-    audioLimit: '1 / Monat (nur Test)',
-    community: 'Nur waehrend Testphase',
-  },
-  starter: {
-    title: 'Starter',
-    icon: Sparkles,
-    gradient: 'from-[#FF6B9D] to-[#A989F2]',
-    storyLimit: '10 / Monat',
-    dokuLimit: '10 / Monat',
-    audioLimit: '2 / Monat',
-    community: 'Ja',
-  },
-  familie: {
-    title: 'Familie',
-    icon: Users,
-    gradient: 'from-[#2DD4BF] to-[#0EA5E9]',
-    storyLimit: '25 / Monat',
-    dokuLimit: '25 / Monat',
-    audioLimit: '10 / Monat',
-    community: 'Ja',
-  },
-  premium: {
-    title: 'Premium',
-    icon: Crown,
-    gradient: 'from-[#FF9B5C] to-[#FF6B9D]',
-    storyLimit: '50 / Monat',
-    dokuLimit: '50 / Monat',
-    audioLimit: 'Unbegrenzt',
-    community: 'Ja',
-  },
+const PLAN_META: Record<SubscriptionPlan, { icon: typeof Sparkles; gradient: string }> = {
+  free: { icon: Sparkles, gradient: 'from-[#64748B] to-[#94A3B8]' },
+  starter: { icon: Sparkles, gradient: 'from-[#FF6B9D] to-[#A989F2]' },
+  familie: { icon: Users, gradient: 'from-[#2DD4BF] to-[#0EA5E9]' },
+  premium: { icon: Crown, gradient: 'from-[#FF9B5C] to-[#FF6B9D]' },
 };
+
+// What the current plan includes, derived from the shared plan catalog.
+function includedForPlan(plan: SubscriptionPlan, trialActive: boolean) {
+  const quotas = plan === 'free' && trialActive ? FREE_TRIAL_QUOTAS : PLAN_QUOTAS[plan];
+  const period = plan === 'free' && trialActive ? 'Testphase' : 'Monat';
+  const taviMessages = plan === 'free' && trialActive ? FREE_TRIAL_TAVI_MESSAGES : PLAN_TAVI_MESSAGES[plan];
+  return [
+    { label: 'Stories', value: `${quotas.stories} / ${period} · max. ${PLAN_DAILY_LIMITS[plan].stories} pro Tag` },
+    { label: 'Dokus', value: `${quotas.dokus} / ${period} · max. ${PLAN_DAILY_LIMITS[plan].dokus} pro Tag` },
+    { label: 'Tavi', value: `${taviMessages} Nachrichten${PLAN_TAVI_CAN_CREATE[plan] ? ' · erstellt direkt' : ' · nur Chat'}` },
+    { label: 'Audio-Dokus', value: AUDIO_ACCESS_LABELS[PLAN_AUDIO_LIBRARY_ACCESS[plan]] },
+  ];
+}
 
 const settingsPanelClass = 'talea-settings-panel max-w-full min-w-0 overflow-x-hidden space-y-6 p-4 sm:p-6 lg:p-8';
 
@@ -1019,7 +1010,7 @@ function UsageCard(props: {
         <div className="h-full rounded-full bg-gradient-to-r from-[#A989F2] to-[#FF6B9D]" style={{ width: `${progress}%` }} />
       </div>
 
-      <p className="text-[11px] text-muted-foreground mt-2">{t('settings.billingCostPerGen', 'Kosten: {{cost}} Credit pro Generierung', { cost: props.usage.costPerGeneration })}</p>
+      <p className="text-[11px] text-muted-foreground mt-2">{t('settings.billingCostPerGen', { cost: props.usage.costPerGeneration })}</p>
     </div>
   );
 }
@@ -1281,7 +1272,7 @@ function AudioLibraryPanel() {
           return;
         }
 
-        await Promise.all(group.items.map((item) => saveGeneratedAudioOffline(offlineScope, item)));
+        const savedAudio = await saveGeneratedAudiosOffline(offlineScope, group.items);
 
         if (group.sourceType === 'story') {
           try {
@@ -1312,7 +1303,13 @@ function AudioLibraryPanel() {
           }
           return next;
         });
-        toast.success(t('settings.audioLibraryOfflineSaved', 'Audio + zugehöriger Inhalt offline gespeichert.'));
+        if (savedAudio.failedMedia > 0) {
+          toast.warning(
+            `Nur teilweise offline gespeichert (${savedAudio.failedMedia} Datei${savedAudio.failedMedia === 1 ? '' : 'en'} fehlen). Bitte mit Internet erneut versuchen.`,
+          );
+        } else {
+          toast.success(t('settings.audioLibraryOfflineSaved', 'Audio + zugehöriger Inhalt offline gespeichert.'));
+        }
       } catch (error) {
         console.error('Failed to toggle offline generated audio:', error);
         toast.error(t('settings.audioLibraryOfflineFailed', 'Offline-Speicherung fehlgeschlagen.'));
@@ -1510,6 +1507,7 @@ function BillingPanel() {
   const billing = profile?.billing ?? null;
   const currentPlan = billing?.plan ?? profile?.subscription ?? 'free';
   const currentPlanMeta = PLAN_META[currentPlan];
+  const includedItems = includedForPlan(currentPlan, Boolean(billing?.permissions.freeTrialActive));
   const CurrentPlanIcon = currentPlanMeta.icon;
   const periodStartLabel = useMemo(() => {
     if (!billing?.periodStart) return '-';
@@ -1548,7 +1546,7 @@ function BillingPanel() {
                   </span>
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('settings.billingCurrentPlan', 'Dein Plan')}</p>
-                    <h3 className="text-xl font-bold text-foreground">{currentPlanMeta.title}</h3>
+                    <h3 className="text-xl font-bold text-foreground">{PLAN_TITLES[currentPlan]}</h3>
                     <p className="text-xs text-muted-foreground">{t('settings.billingPeriod', 'Abrechnungsmonat')}: {periodStartLabel}</p>
                   </div>
                 </div>
@@ -1557,19 +1555,14 @@ function BillingPanel() {
                   <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canReadCommunityDokus ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'}`}>
                     {billing.permissions.canReadCommunityDokus ? t('settings.billingCommunityActive', 'Community: aktiv') : t('settings.billingCommunityLocked', 'Community: gesperrt')}
                   </span>
-                  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.permissions.canUseAudioDokus ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-700 dark:text-rose-300'}`}>
-                    {billing.permissions.canUseAudioDokus ? t('settings.billingAudioActive', 'Audio: aktiv') : t('settings.billingAudioLocked', 'Audio: gesperrt')}
+                  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${billing.audioLibrary.access === 'full' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/15 text-amber-700 dark:text-amber-300'}`}>
+                    Audio: {AUDIO_ACCESS_LABELS[billing.audioLibrary.access]}
                   </span>
                 </div>
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-4 sm:grid-cols-4">
-                {[
-                  { label: t('settings.billingIncludedStories', 'Stories'), value: currentPlanMeta.storyLimit },
-                  { label: t('settings.billingIncludedDokus', 'Dokus'), value: currentPlanMeta.dokuLimit },
-                  { label: t('settings.billingIncludedAudio', 'Audio'), value: currentPlanMeta.audioLimit },
-                  { label: t('settings.billingIncludedCommunity', 'Community'), value: currentPlanMeta.community },
-                ].map((item) => (
+                {includedItems.map((item) => (
                   <div key={item.label} className="rounded-xl bg-[var(--talea-surface-inset)]/70 px-3 py-2">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{item.label}</p>
                     <p className="mt-0.5 text-sm font-semibold text-foreground">{item.value}</p>
@@ -1588,8 +1581,8 @@ function BillingPanel() {
                   <Clock3 className="h-4 w-4 shrink-0" />
                   <span>
                     {billing.permissions.freeTrialActive
-                      ? t('settings.billingTrialActive', 'Free-Testphase aktiv: noch {{days}} Tage. Danach keine Generierung, keine Community-Dokus und keine Audio-Dokus.', { days: billing.permissions.freeTrialDaysRemaining })
-                      : t('settings.billingTrialExpired', 'Free-Testphase abgelaufen. Upgrade auf Starter, Familie oder Premium, um weiter zu generieren.')}
+                      ? t('settings.billingTrialActive', { days: billing.permissions.freeTrialDaysRemaining })
+                      : t('settings.billingTrialExpired')}
                   </span>
                 </div>
               )}
@@ -1603,27 +1596,30 @@ function BillingPanel() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <UsageCard
-                title="StoryCredits"
-                subtitle="1 Story = 1 Credit"
+                title="Story-Münzen"
+                subtitle={`1 Story = 1 Münze · heute noch ${billing.dailyStoryCredits.remaining ?? '∞'}`}
                 usage={billing.storyCredits}
                 icon={<BookOpen className="w-4 h-4 text-white" />}
                 accentClass="bg-gradient-to-br from-[#A989F2] to-[#7C6BE3]"
               />
               <UsageCard
-                title="DokuCredits"
-                subtitle="1 Doku = 1 Credit"
+                title="Doku-Münzen"
+                subtitle={`1 Doku = 1 Münze · heute noch ${billing.dailyDokuCredits.remaining ?? '∞'}`}
                 usage={billing.dokuCredits}
                 icon={<FileText className="w-4 h-4 text-white" />}
                 accentClass="bg-gradient-to-br from-[#2DD4BF] to-[#0EA5E9]"
               />
               <UsageCard
-                title="AudioCredits"
-                subtitle="1 Audio-Doku = 1 Credit"
-                usage={billing.audioCredits}
-                icon={<Headphones className="w-4 h-4 text-white" />}
+                title="Tavi-Nachrichten"
+                subtitle={billing.permissions.taviCanCreate ? 'Tavi erstellt auch direkt im Chat' : 'Im kostenlosen Plan nur Chat'}
+                usage={billing.chatCredits}
+                icon={<Sparkles className="w-4 h-4 text-white" />}
                 accentClass="bg-gradient-to-br from-[#FF9B5C] to-[#FF6B9D]"
               />
             </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Münzen gelten für alle Kinderprofile zusammen und werden nur abgezogen, wenn eine Geschichte oder Doku erfolgreich erstellt wurde.
+            </p>
           </div>
 
           {/* Plan vergleichen & wechseln: einzige Stelle, an der alle Pläne gelistet sind */}
@@ -1638,8 +1634,12 @@ function BillingPanel() {
                 </p>
               </div>
               <span className="text-[11px] font-semibold text-[#A989F2] bg-[#A989F2]/10 rounded-full px-3 py-1">
-                {t('settings.billingMonthly', 'Monatlich wechselbar')}
+                {t('settings.billingMonthly', 'Monatlich kündbar')}
               </span>
+            </div>
+
+            <div className="mb-4">
+              <PlanComparisonTable currentPlan={currentPlan} />
             </div>
 
             <div className="rounded-2xl border border-border bg-card/80 p-2 md:p-3">

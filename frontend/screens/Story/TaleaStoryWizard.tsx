@@ -302,6 +302,7 @@ export default function TaleaStoryWizard() {
   const [userLanguage, setUserLanguage] = useState<string>('de');
   const [storyCredits, setStoryCredits] = useState<StoryCredits | null>(null);
   const [billingPermissions, setBillingPermissions] = useState<BillingPermissions | null>(null);
+  const [dailyStoryCredits, setDailyStoryCredits] = useState<StoryCredits | null>(null);
   const [lootArtifact, setLootArtifact] = useState<InventoryItem | null>(null);
   const [showLootModal, setShowLootModal] = useState(false);
   const [pendingStoryId, setPendingStoryId] = useState<string | null>(null);
@@ -416,6 +417,7 @@ export default function TaleaStoryWizard() {
         const profile = await backend.user.me();
         if (!active) return;
         setStoryCredits((profile as any).billing?.storyCredits ?? null);
+        setDailyStoryCredits((profile as any).billing?.dailyStoryCredits ?? null);
         setBillingPermissions((profile as any).billing?.permissions ?? null);
       } catch (error) {
         console.error('[StoryWizard] Failed to load story credits:', error);
@@ -497,11 +499,17 @@ export default function TaleaStoryWizard() {
     }
 
     if (storyCredits && storyCredits.remaining !== null && storyCredits.remaining <= 0) {
-      if (billingPermissions && !billingPermissions.freeTrialActive) {
-        setUpgradeMessage('Deine Probierzeit ist vorbei. Frag deine Eltern, ob sie einen Plan aussuchen möchten.');
+      if (billingPermissions && !billingPermissions.freeTrialActive && storyCredits.limit !== null && storyCredits.limit <= 1) {
+        setUpgradeMessage('Deine kostenlose Geschichte für diesen Monat ist schon erstellt. Frag deine Eltern, ob sie einen Plan aussuchen möchten.');
       } else {
-        setUpgradeMessage('Deine Geschichten-Münzen für diesen Monat sind aufgebraucht. Frag deine Eltern!');
+        setUpgradeMessage('Deine Story-Münzen für diesen Monat sind aufgebraucht. Frag deine Eltern!');
       }
+      setShowUpgradeModal(true);
+      return;
+    }
+
+    if (dailyStoryCredits && dailyStoryCredits.remaining !== null && dailyStoryCredits.remaining <= 0) {
+      setUpgradeMessage('Für heute sind alle Geschichten erstellt. Morgen geht es weiter!');
       setShowUpgradeModal(true);
       return;
     }
@@ -527,15 +535,16 @@ export default function TaleaStoryWizard() {
         profileId: activeProfileId || undefined,
       } as any);
 
-      setStoryCredits((prev) =>
+      const spendOne = (prev: StoryCredits | null) =>
         prev
           ? {
             ...prev,
             used: prev.used + 1,
             remaining: prev.remaining === null ? null : Math.max(0, prev.remaining - 1),
           }
-          : prev
-      );
+          : prev;
+      setStoryCredits(spendOne);
+      setDailyStoryCredits(spendOne);
 
       setGenerationStep('validation');
       onPhaseChange('validation');
@@ -597,9 +606,9 @@ export default function TaleaStoryWizard() {
     );
 
     const blockedMessage = storyGenerationBlocked
-      ? billingPermissions && !billingPermissions.freeTrialActive
-        ? 'Probierzeit vorbei - frag deine Eltern!'
-        : 'Geschichten-Münzen für diesen Monat aufgebraucht.'
+      ? billingPermissions && !billingPermissions.freeTrialActive && storyCredits?.limit !== null && (storyCredits?.limit ?? 0) <= 1
+        ? 'Kostenlose Geschichte für diesen Monat schon erstellt - frag deine Eltern!'
+        : 'Story-Münzen für diesen Monat aufgebraucht.'
       : undefined;
 
     switch (stepKeys[activeStep]) {

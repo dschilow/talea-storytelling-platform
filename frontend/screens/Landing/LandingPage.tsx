@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import LazyImage from './LazyImage';
 import './LandingPage.css';
+import { FREE_TRIAL_DAYS, PLAN_PRICES, PLAN_PROFILE_LIMITS, PLAN_QUOTAS, PLAN_TAVI_MESSAGES, PLAN_TITLES } from '../../constants/planCatalog';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -109,18 +110,35 @@ interface ShowcaseCharacter {
   imageUrl: string;
 }
 
+// Prices and limits come from the shared plan catalog (mirrors what the backend enforces).
+const formatPlanPrice = (value: number) => value.toFixed(2).replace('.', ',');
 const pricingPlans = [
   {
-    name: 'Starter', price: '4,99', icon: Star,
-    features: ['10 KI-Geschichten / Monat', 'Alle Lesemodi', 'Avatar-Erstellung', '1 Avatar inklusive'],
+    name: PLAN_TITLES.starter, price: formatPlanPrice(PLAN_PRICES.starter.monthly), yearly: PLAN_PRICES.starter.yearly, icon: Star,
+    features: [
+      `${PLAN_QUOTAS.starter.stories} Geschichten + ${PLAN_QUOTAS.starter.dokus} Dokus / Monat`,
+      `${PLAN_TAVI_MESSAGES.starter} Tavi-Nachrichten`,
+      'Audio-Dokus: ältere Folgen',
+      `${PLAN_PROFILE_LIMITS.starter} Kinderprofil`,
+    ],
   },
   {
-    name: 'Family', price: '9,99', icon: Crown, featured: true,
-    features: ['25 Geschichten + 25 Dokus', 'Audio-Erlebnis inklusive', 'Quests & Perks', 'Eltern-Dashboard'],
+    name: PLAN_TITLES.familie, price: formatPlanPrice(PLAN_PRICES.familie.monthly), yearly: PLAN_PRICES.familie.yearly, icon: Crown, featured: true,
+    features: [
+      `${PLAN_QUOTAS.familie.stories} Geschichten + ${PLAN_QUOTAS.familie.dokus} Dokus / Monat`,
+      `${PLAN_TAVI_MESSAGES.familie} Tavi-Nachrichten`,
+      'Alle Audio-Dokus',
+      `${PLAN_PROFILE_LIMITS.familie} Kinderprofile + Eltern-Dashboard`,
+    ],
   },
   {
-    name: 'Premium', price: '18,99', icon: Zap,
-    features: ['50 Geschichten + 50 Dokus', 'Tavi KI-Assistent', 'Prioritäts-Generierung', 'Alles aus Family'],
+    name: PLAN_TITLES.premium, price: formatPlanPrice(PLAN_PRICES.premium.monthly), yearly: PLAN_PRICES.premium.yearly, icon: Zap,
+    features: [
+      `${PLAN_QUOTAS.premium.stories} Geschichten + ${PLAN_QUOTAS.premium.dokus} Dokus / Monat`,
+      `${PLAN_TAVI_MESSAGES.premium} Tavi-Nachrichten`,
+      'Alle Audio-Dokus',
+      `Bis zu ${PLAN_PROFILE_LIMITS.premium} Kinderprofile`,
+    ],
   },
 ];
 
@@ -890,7 +908,7 @@ const LandingPage: React.FC = () => {
           </div>
           <span className="section-badge"><Crown size={11} /> Preise</span>
           <h2 className="section-title">Wähle dein Abenteuer-Paket</h2>
-          <p className="section-sub">Starte mit dem Starter-Plan und upgrade jederzeit. Monatlich kündbar.</p>
+          <p className="section-sub">Starte kostenlos mit {FREE_TRIAL_DAYS} Tagen Testphase und upgrade jederzeit. Monatlich kündbar, im Jahresabo 4 Monate geschenkt.</p>
 
           <div className="pricing-grid">
             {pricingPlans.map((plan) => {
@@ -902,6 +920,7 @@ const LandingPage: React.FC = () => {
                   <div className="pricing-icon"><PIcon size={21} /></div>
                   <h3 className="pricing-name">{plan.name}</h3>
                   <p className="pricing-price">{plan.price}€<small> / Monat</small></p>
+                  {plan.yearly && <p className="pricing-yearly">oder {formatPlanPrice(plan.yearly)}€ im Jahr</p>}
                   <div className="pricing-divider" />
                   <ul className="pricing-features">
                     {plan.features.map((f) => <li key={f}><Check size={13} />{f}</li>)}

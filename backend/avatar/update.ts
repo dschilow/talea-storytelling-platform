@@ -13,7 +13,7 @@ import {
 } from "../helpers/bucket-storage";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
-import { claimMeteredUsage } from "../helpers/billing";
+import { claimMeteredUsage, refundMeteredUsage } from "../helpers/billing";
 import {
   assertCanAssignChildAvatar,
   clearChildAvatarLink,
@@ -89,111 +89,113 @@ export const update = api<UpdateAvatarRequest, Avatar>(
     if (JSON.stringify(req).length > 100_000) {
       throw APIError.invalidArgument("Avatar update request is too large.");
     }
-    if (updates.physicalTraits || updates.visualProfile) {
-      await claimMeteredUsage({
-        userId: auth.userID,
-        kind: "chat",
-        units: 1,
-        clerkToken: auth.clerkToken,
-      });
-    }
-
-    const currentPhysicalTraits = JSON.parse(existingAvatar.physical_traits);
-    const currentVisualProfile: AvatarVisualProfile | undefined = existingAvatar.visual_profile ? JSON.parse(existingAvatar.visual_profile) : undefined;
-
-    const currentNarrativeProfile: AvatarNarrativeProfile | undefined = existingAvatar.narrative_profile ? JSON.parse(existingAvatar.narrative_profile) : undefined;
-    const updatedNarrativeProfile = updates.narrativeProfile === undefined
-      ? currentNarrativeProfile
-      : normalizeAvatarNarrativeProfile(updates.narrativeProfile);
-    let updatedPhysicalTraits = updates.physicalTraits
-      ? { ...currentPhysicalTraits, ...updates.physicalTraits }
-      : currentPhysicalTraits;
-
-    // VALIDATION & TRANSLATION: Normalize PhysicalTraits to English
-    if (updates.physicalTraits) {
-      console.log('[update] 🌍 Translating PhysicalTraits to English...');
-      const normalizedTraits = await validateAndNormalizePhysicalTraits(updatedPhysicalTraits);
-      if (normalizedTraits) {
-        updatedPhysicalTraits = normalizedTraits;
-      }
-      console.log('[update] ✅ PhysicalTraits normalized to English');
-    }
-
-    let updatedVisualProfile = updates.visualProfile ?? currentVisualProfile;
-
-    // VALIDATION & TRANSLATION: Normalize visual profile to English
-    if (updates.visualProfile) {
-      const nonEnglishFields = detectNonEnglishFields(updates.visualProfile);
-
-      if (nonEnglishFields.length > 0) {
-        console.log(`[update] Detected non-English fields in update: ${nonEnglishFields.join(', ')}`);
-        console.log('[update] 🌍 Translating visual profile to English...');
-        updatedVisualProfile = await validateAndNormalizeVisualProfile(updates.visualProfile);
-        console.log('[update] ✅ Visual profile normalized to English');
-      } else {
-        console.log('[update] ✅ Visual profile already in English');
-      }
-    }
-
-    const previousAvatarRole = normalizeAvatarRole(existingAvatar.avatar_role);
-    const avatarRole = updates.avatarRole
-      ? normalizeAvatarRole(updates.avatarRole)
-      : previousAvatarRole;
-
-    if (avatarRole === "child" && updates.isPublic === true) {
-      throw APIError.invalidArgument(
-        "A dedicated child avatar is private and cannot be made public.",
-      );
-    }
-    if (
-      avatarRole === "child" &&
-      existingAvatar.profile_id &&
-      existingAvatar.profile_id !== activeProfileId
-    ) {
-      throw APIError.failedPrecondition(
-        "A child avatar must belong directly to the selected child profile. Create a separate profile copy first."
-      );
-    }
-    if (
-      avatarRole === "child" &&
-      !isHumanAvatarInput({
-        physicalTraits: updatedPhysicalTraits,
-        visualProfile: updatedVisualProfile,
-      })
-    ) {
-      throw APIError.invalidArgument("The dedicated child avatar must remain human.");
-    }
-
-    if (avatarRole === "child" && previousAvatarRole !== "child") {
-      await assertCanAssignChildAvatar({
-        userId: auth.userID,
-        profileId: existingAvatar.profile_id || activeProfileId,
-        avatarId: id,
-      });
-    }
-
-    const normalizedImageUrl = updates.imageUrl !== undefined
-      ? (updates.imageUrl
-          ? await normalizeImageUrlForStorage(updates.imageUrl)
-          : null)
-      : undefined;
-    const uploadedImage = normalizedImageUrl
-      ? await maybeUploadImageUrlToBucket(normalizedImageUrl, {
-          prefix: "images/avatars",
-          filenameHint: `avatar-${id}`,
-          uploadMode: "always",
+    // Only appearance changes run the AI translation helpers.
+    const usageClaim = updates.physicalTraits || updates.visualProfile
+      ? await claimMeteredUsage({
+          userId: auth.userID,
+          kind: "assist",
+          units: 1,
+          clerkToken: auth.clerkToken,
         })
       : null;
-    const finalImageUrl = updates.imageUrl === undefined
-      ? undefined
-      : (uploadedImage?.url ?? normalizedImageUrl);
 
-    const now = new Date();
-    const avatarProfileId = avatarRole === "child"
-      ? existingAvatar.profile_id || activeProfileId
-      : existingAvatar.profile_id;
+    try {
+      const currentPhysicalTraits = JSON.parse(existingAvatar.physical_traits);
+      const currentVisualProfile: AvatarVisualProfile | undefined = existingAvatar.visual_profile ? JSON.parse(existingAvatar.visual_profile) : undefined;
 
-    await avatarDB.exec`
+      const currentNarrativeProfile: AvatarNarrativeProfile | undefined = existingAvatar.narrative_profile ? JSON.parse(existingAvatar.narrative_profile) : undefined;
+      const updatedNarrativeProfile = updates.narrativeProfile === undefined
+        ? currentNarrativeProfile
+        : normalizeAvatarNarrativeProfile(updates.narrativeProfile);
+      let updatedPhysicalTraits = updates.physicalTraits
+        ? { ...currentPhysicalTraits, ...updates.physicalTraits }
+        : currentPhysicalTraits;
+
+      // VALIDATION & TRANSLATION: Normalize PhysicalTraits to English
+      if (updates.physicalTraits) {
+        console.log('[update] 🌍 Translating PhysicalTraits to English...');
+        const normalizedTraits = await validateAndNormalizePhysicalTraits(updatedPhysicalTraits);
+        if (normalizedTraits) {
+          updatedPhysicalTraits = normalizedTraits;
+        }
+        console.log('[update] ✅ PhysicalTraits normalized to English');
+      }
+
+      let updatedVisualProfile = updates.visualProfile ?? currentVisualProfile;
+
+      // VALIDATION & TRANSLATION: Normalize visual profile to English
+      if (updates.visualProfile) {
+        const nonEnglishFields = detectNonEnglishFields(updates.visualProfile);
+
+        if (nonEnglishFields.length > 0) {
+          console.log(`[update] Detected non-English fields in update: ${nonEnglishFields.join(', ')}`);
+          console.log('[update] 🌍 Translating visual profile to English...');
+          updatedVisualProfile = await validateAndNormalizeVisualProfile(updates.visualProfile);
+          console.log('[update] ✅ Visual profile normalized to English');
+        } else {
+          console.log('[update] ✅ Visual profile already in English');
+        }
+      }
+
+      const previousAvatarRole = normalizeAvatarRole(existingAvatar.avatar_role);
+      const avatarRole = updates.avatarRole
+        ? normalizeAvatarRole(updates.avatarRole)
+        : previousAvatarRole;
+
+      if (avatarRole === "child" && updates.isPublic === true) {
+        throw APIError.invalidArgument(
+          "A dedicated child avatar is private and cannot be made public.",
+        );
+      }
+      if (
+        avatarRole === "child" &&
+        existingAvatar.profile_id &&
+        existingAvatar.profile_id !== activeProfileId
+      ) {
+        throw APIError.failedPrecondition(
+          "A child avatar must belong directly to the selected child profile. Create a separate profile copy first."
+        );
+      }
+      if (
+        avatarRole === "child" &&
+        !isHumanAvatarInput({
+          physicalTraits: updatedPhysicalTraits,
+          visualProfile: updatedVisualProfile,
+        })
+      ) {
+        throw APIError.invalidArgument("The dedicated child avatar must remain human.");
+      }
+
+      if (avatarRole === "child" && previousAvatarRole !== "child") {
+        await assertCanAssignChildAvatar({
+          userId: auth.userID,
+          profileId: existingAvatar.profile_id || activeProfileId,
+          avatarId: id,
+        });
+      }
+
+      const normalizedImageUrl = updates.imageUrl !== undefined
+        ? (updates.imageUrl
+            ? await normalizeImageUrlForStorage(updates.imageUrl)
+            : null)
+        : undefined;
+      const uploadedImage = normalizedImageUrl
+        ? await maybeUploadImageUrlToBucket(normalizedImageUrl, {
+            prefix: "images/avatars",
+            filenameHint: `avatar-${id}`,
+            uploadMode: "always",
+          })
+        : null;
+      const finalImageUrl = updates.imageUrl === undefined
+        ? undefined
+        : (uploadedImage?.url ?? normalizedImageUrl);
+
+      const now = new Date();
+      const avatarProfileId = avatarRole === "child"
+        ? existingAvatar.profile_id || activeProfileId
+        : existingAvatar.profile_id;
+
+      await avatarDB.exec`
       UPDATE avatars SET
         name = ${updates.name ?? existingAvatar.name},
         profile_id = ${avatarProfileId},
@@ -208,44 +210,48 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       WHERE id = ${id}
     `;
 
-    await syncChildAvatarLink({
-      userId: auth.userID,
-      profileId: avatarProfileId || activeProfileId,
-      avatarId: id,
-      role: avatarRole,
-    });
-
-    if (previousAvatarRole === "child" && avatarRole !== "child") {
-      await clearChildAvatarLink({
+      await syncChildAvatarLink({
         userId: auth.userID,
+        profileId: avatarProfileId || activeProfileId,
         avatarId: id,
+        role: avatarRole,
       });
+
+      if (previousAvatarRole === "child" && avatarRole !== "child") {
+        await clearChildAvatarLink({
+          userId: auth.userID,
+          avatarId: id,
+        });
+      }
+
+      const updated = await avatarDB.queryRow<any>`SELECT * FROM avatars WHERE id = ${id}`;
+      const resolvedImageUrl = await buildAvatarImageUrlForClient(updated.id, updated?.image_url || undefined);
+
+      return {
+        id: updated.id,
+        userId: updated.user_id,
+        profileId: updated.profile_id || activeProfileId,
+        name: updated.name,
+        description: updated.description || undefined,
+        physicalTraits: JSON.parse(updated.physical_traits),
+        personalityTraits: JSON.parse(updated.personality_traits),
+        imageUrl: resolvedImageUrl,
+        visualProfile: updated.visual_profile ? JSON.parse(updated.visual_profile) : undefined,
+        narrativeProfile: updated.narrative_profile ? JSON.parse(updated.narrative_profile) : undefined,
+        creationType: updated.creation_type,
+        isPublic: updated.is_public,
+        avatarRole,
+        sourceType: (updated.source_type as Avatar["sourceType"]) || "profile",
+        sourceAvatarId: updated.source_avatar_id || undefined,
+        originalAvatarId: updated.original_avatar_id || undefined,
+        createdAt: new Date(updated.created_at).toISOString(),
+        updatedAt: new Date(updated.updated_at).toISOString(),
+        inventory: updated.inventory ? JSON.parse(updated.inventory) : [],
+        skills: updated.skills ? JSON.parse(updated.skills) : [],
+      };
+    } catch (error) {
+      await refundMeteredUsage(usageClaim);
+      throw error;
     }
-
-    const updated = await avatarDB.queryRow<any>`SELECT * FROM avatars WHERE id = ${id}`;
-    const resolvedImageUrl = await buildAvatarImageUrlForClient(updated.id, updated?.image_url || undefined);
-
-    return {
-      id: updated.id,
-      userId: updated.user_id,
-      profileId: updated.profile_id || activeProfileId,
-      name: updated.name,
-      description: updated.description || undefined,
-      physicalTraits: JSON.parse(updated.physical_traits),
-      personalityTraits: JSON.parse(updated.personality_traits),
-      imageUrl: resolvedImageUrl,
-      visualProfile: updated.visual_profile ? JSON.parse(updated.visual_profile) : undefined,
-      narrativeProfile: updated.narrative_profile ? JSON.parse(updated.narrative_profile) : undefined,
-      creationType: updated.creation_type,
-      isPublic: updated.is_public,
-      avatarRole,
-      sourceType: (updated.source_type as Avatar["sourceType"]) || "profile",
-      sourceAvatarId: updated.source_avatar_id || undefined,
-      originalAvatarId: updated.original_avatar_id || undefined,
-      createdAt: new Date(updated.created_at).toISOString(),
-      updatedAt: new Date(updated.updated_at).toISOString(),
-      inventory: updated.inventory ? JSON.parse(updated.inventory) : [],
-      skills: updated.skills ? JSON.parse(updated.skills) : [],
-    };
   }
 );
