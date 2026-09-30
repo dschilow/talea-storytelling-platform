@@ -1,1033 +1,332 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useReducedMotion } from 'framer-motion';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import Lenis from 'lenis';
-import { getBackendUrl } from '../../config';
 import {
-  ArrowRight,
-  AudioLines,
-  BookOpenText,
-  Brain,
-  Check,
-  ChevronDown,
-  Crown,
-  Headphones,
-  MessageCircleMore,
-  Rocket,
-  ShieldCheck,
-  Sparkles,
-  Star,
-  Users,
-  Wand2,
-  Zap,
+  ArrowDown, ArrowRight, BookOpenText, Check, ChevronDown, Compass,
+  Crown, Headphones, Heart, MessageCircleMore, Pause, Play, ShieldCheck,
+  Sparkles, Star, Telescope, Users, X,
 } from 'lucide-react';
-import LazyImage from './LazyImage';
+import {
+  AUDIO_ACCESS_LABELS, FREE_TRIAL_DAYS, FREE_TRIAL_QUOTAS, PLAN_AUDIO_LIBRARY_ACCESS,
+  PLAN_DAILY_LIMITS, PLAN_FEATURE_ROWS, PLAN_IMAGES, PLAN_OFFLINE_LIMITS, PLAN_ORDER,
+  PLAN_PRICES, PLAN_PROFILE_LIMITS, PLAN_QUOTAS, PLAN_TAVI_MESSAGES, PLAN_TITLES,
+  formatEuro, type SubscriptionPlan,
+} from '../../constants/planCatalog';
+import JourneyAtmosphere from './JourneyAtmosphere';
+import { NovaRays, SkyClouds, SoundWave, StarTrail } from './JourneyArtwork';
 import './LandingPage.css';
-import { FREE_TRIAL_DAYS, PLAN_PRICES, PLAN_PROFILE_LIMITS, PLAN_QUOTAS, PLAN_TAVI_MESSAGES, PLAN_TITLES } from '../../constants/planCatalog';
 
 gsap.registerPlugin(ScrollTrigger);
-
-/* ═══════════════════════════════════
-   DATA
-   ═══════════════════════════════════ */
-
-const characters = [
-  { name: 'Fuchs', image: '/landing-assets/generated/characters/detektive.webp', mood: 'Detektiv', delay: '0s' },
-  { name: 'Drache', image: '/landing-assets/generated/characters/drache.webp', mood: 'Abenteuer', delay: '0.6s' },
-  { name: 'Goblin', image: '/landing-assets/generated/characters/goblin.webp', mood: 'Schalk', delay: '1.2s' },
-  { name: 'Oma', image: '/landing-assets/generated/characters/oma.webp', mood: 'Weisheit', delay: '1.8s' },
-  { name: 'König', image: '/landing-assets/generated/characters/wilhelm.webp', mood: 'Mentor', delay: '2.4s' },
-  { name: 'Troll', image: '/landing-assets/generated/characters/troll.webp', mood: 'Humor', delay: '3s' },
-  { name: 'Räuber', image: '/landing-assets/generated/characters/rauber.webp', mood: 'Spannung', delay: '3.6s' },
-  { name: 'Hexe', image: '/landing-assets/generated/characters/image.webp', mood: 'Magie', delay: '4.2s' },
-];
-
-const cineScenes = [
+const ASSETS = '/landing-assets/journey';
+const islands = [
   {
-    num: '01',
-    tag: 'Story-Engine',
-    tagIcon: BookOpenText,
-    title: ['Ein Buch.', 'Unendliche', 'Welten.'],
-    desc: 'Dein Kind öffnet ein magisches Buch und taucht ein in eine Welt, die nur für sie geschaffen wurde. Jede Geschichte ist einzigartig.',
-    points: ['KI-generierte Geschichten in Sekunden', 'Genre, Stimmung & Alter frei wählbar', 'Eigene Avatare als Hauptfiguren'],
-    image: '/landing-assets/cine_1_book.png',
+    id: 'geschichten', label: 'Geschichten', place: 'Das Geschichten-Schloss', icon: BookOpenText,
+    title: <>Es war einmal.<br /><em>Und zwar dein Kind.</em></>,
+    description: 'Ein mutiger Weltraumfuchs? Eine Prinzessin, die Drachen rettet? Dein Kind bestimmt die Richtung. Talea macht daraus eine ganz persönliche Geschichte.',
+    features: ['Eigene Helden in jeder Geschichte', 'Alter, Welt und Stimmung selbst wählen', 'Mit Bildern, die die Fantasie weitertragen'],
+    image: `${ASSETS}/story-island.webp`, color: '#f5c98e', note: 'Eine Idee wird ein ganzes Abenteuer.',
   },
   {
-    num: '02',
-    tag: 'Cinematic Reading',
-    tagIcon: Sparkles,
-    title: ['Magie', 'entfaltet', 'sich.'],
-    desc: 'Aus Worten werden Welten. Der cineastische Lesemodus verwandelt jede Geschichte in ein visuelles Erlebnis — Szene für Szene, wie ein Film.',
-    points: ['3 Lesemodi: Cinematic, Klassisch, Scroll', 'Automatisch generierte Szenenbilder', 'Audio-Erzählung zuschaltbar'],
-    image: '/landing-assets/cine_2_magic.png',
+    id: 'avatare', label: 'Avatare', place: 'Das Atelier der Helden', icon: Users,
+    title: <>Kleine Helden.<br /><em>Große Persönlichkeit.</em></>,
+    description: 'Hier entsteht der Held deines Kindes. Mit eigenem Aussehen, einer Persönlichkeit und Erinnerungen, die mit jedem Abenteuer wachsen.',
+    features: ['Aussehen und Persönlichkeit gestalten', 'Mut, Neugier und Empathie entwickeln', 'Erinnerungen, Quests und Schätze sammeln'],
+    image: `${ASSETS}/avatar-island.webp`, color: '#b7dec9', note: 'Jede Geschichte hinterlässt etwas.',
   },
   {
-    num: '03',
-    tag: 'Avatar-System',
-    tagIcon: Users,
-    title: ['Deine Helden', 'erwachen', 'zum Leben.'],
-    desc: 'Avatare entwickeln Persönlichkeit, sammeln Erinnerungen, verdienen Perks und meistern Quests. Jede Story macht sie stärker.',
-    points: ['Avatar-Wizard mit eigenem Profil', 'Persönlichkeit, Tagebuch & Schatzkammer', 'Quest- & Perk-System für Motivation'],
-    image: '/landing-assets/cine_3_avatars.png',
+    id: 'hoeren', label: 'Lesen & Hören', place: 'Der Garten der Geschichten', icon: Headphones,
+    title: <>Augen auf.<br /><em>Oder einfach zu.</em></>,
+    description: 'Lesen wie im Kino. Zuhören wie im Traum. Entdeckt bebilderte Geschichten, einen filmischen Lesemodus und Audio für eure kleinen Auszeiten.',
+    features: ['Filmisch, klassisch oder im Scroll-Modus lesen', 'Geschichten vorlesen lassen', 'Audio-Dokus für neugierige Ohren'],
+    image: `${ASSETS}/audio-island.webp`, color: '#f1b8ae', note: 'Für die Rückbank. Und die Bettkante.',
   },
   {
-    num: '04',
-    tag: 'Abenteuer',
-    tagIcon: Rocket,
-    title: ['In jedem', 'Wald steckt', 'ein Geheimnis.'],
-    desc: 'Verzauberte Wälder, Rätsel und Schätze. Jedes Abenteuer ist einzigartig und auf dein Kind zugeschnitten.',
-    points: ['Sechs Story-Welten von Märchen bis Sci-Fi', 'Artefakte & Schätze zum Sammeln', 'Langfristige Questlinien & Fortschritt'],
-    image: '/landing-assets/cine_4_stories.png',
+    id: 'wissen', label: 'Wissen', place: 'Die Insel der Entdeckungen', icon: Telescope,
+    title: <>Warum? Wieso?<br /><em>Was wäre, wenn?</em></>,
+    description: 'Von Dinosauriern bis zu fernen Planeten: Aus großen Kinderfragen werden verständliche Wissens-Dokus. Und aus neuem Wissen wird das nächste Abenteuer.',
+    features: ['Wissens-Dokus zu eigenen Lieblingsthemen', 'Mit Quizfragen spielerisch weiterdenken', 'Lernpfade und den eigenen Kosmos entdecken'],
+    image: `${ASSETS}/knowledge-island.webp`, color: '#a9cce9', note: 'Neugier ist der schönste Kompass.',
   },
   {
-    num: '05',
-    tag: 'Wissens-Dokus',
-    tagIcon: Brain,
-    title: ['Wissen wird', 'zum größten', 'Abenteuer.'],
-    desc: 'Von Dinosauriern bis Raumfahrt — Audio-Dokus verbinden Quiz und Struktur zu einer Lernstrecke, die Kinder lieben.',
-    points: ['Audio-Dokus für unterwegs & Schlafenszeit', 'Quiz direkt verknüpft mit Erklärungen', 'Didaktische Struktur mit Lernzielen'],
-    image: '/landing-assets/cine_5_dokus.png',
+    id: 'tavi', label: 'Tavi', place: 'Ein Freund für unterwegs', icon: MessageCircleMore,
+    title: <>Tausend Fragen.<br /><em>Ein kleiner Begleiter.</em></>,
+    description: 'Tavi ist euer KI-Assistent in Talea. Er beantwortet Fragen, hilft beim Entdecken und kann in den Bezahlplänen Geschichten und Dokus direkt im Chat erstellen.',
+    features: ['Fragen stellen und Ideen finden', 'Die Talea-Welt gemeinsam entdecken', 'Geschichten und Dokus direkt im Chat starten'],
+    image: `${ASSETS}/tavi-island.webp`, color: '#c9b7ea', note: '„Wohin soll unser nächstes Abenteuer gehen?“',
   },
 ];
 
-const features = [
-  { icon: Wand2, title: 'Story-Wizard', desc: 'Erstelle in 5 Schritten eine perfekte Geschichte mit KI-Unterstützung.', island: '/landing-assets/generated/story-engine-island.webp' },
-  { icon: Users, title: 'Avatar-Atelier', desc: 'Gestalte eigene Helden mit Aussehen, Persönlichkeit und Geschichte — sie wachsen mit jedem Abenteuer.', island: '/landing-assets/generated/avatar-atelier-island.webp' },
-  { icon: Sparkles, title: 'Cinematic Reading', desc: 'Liest sich wie ein Film. Szene für Szene, mit generierten Bildern und Übergängen.', island: '/landing-assets/generated/reading-theater.webp' },
-  { icon: Headphones, title: 'Audio-Erlebnis', desc: 'Alle Inhalte als Hörgeschichte — perfekt für Autofahrten und Schlafenszeit.', island: '/landing-assets/generated/audio-wave-garden.webp' },
-  { icon: AudioLines, title: 'Quiz & Fakten', desc: 'Interaktive Quiz-Bereiche direkt in jeder Doku — Wissen spielerisch prüfen.', island: '/landing-assets/generated/doku-studio-island.webp' },
-  { icon: MessageCircleMore, title: 'Tavi KI-Assistent', desc: 'Stelle Fragen, starte Stories und lass dir Funktionen erklären — direkt aus dem Chat.', island: '/landing-assets/generated/tavi-copilot-orbit.webp' },
-  { icon: ShieldCheck, title: 'Eltern-Dashboard', desc: 'Tabu-Themen, Lernziele und Tageslimits zentral steuern mit PIN-Schutz.', island: '/landing-assets/generated/trust-guardian-arch.webp' },
+const planMeta: Record<SubscriptionPlan, { icon: typeof Star; tagline: string }> = {
+  free: { icon: Compass, tagline: 'Für den ersten Funken Fantasie.' },
+  starter: { icon: Star, tagline: 'Für kleine, tägliche Abenteuer.' },
+  familie: { icon: Heart, tagline: 'Für die ganze Geschichtenfamilie.' },
+  premium: { icon: Crown, tagline: 'Für große Geschichtenfans.' },
+};
+const faqs = [
+  { question: 'Was genau ist Talea?', answer: 'Talea verbindet personalisierte KI-Geschichten, eigene Avatare, Wissens-Dokus, Audio und Quiz in einer App. Ihr gestaltet eure Helden und wählt, was ihr als Nächstes erleben oder lernen möchtet.' },
+  { question: 'Kann ich Talea kostenlos ausprobieren?', answer: `Ja. Nach der Registrierung stehen euch in den ersten ${FREE_TRIAL_DAYS} Tagen ${FREE_TRIAL_QUOTAS.stories} Geschichten und ${FREE_TRIAL_QUOTAS.dokus} Dokus zum Entdecken zur Verfügung. Danach enthält der kostenlose Entdecker-Plan monatlich ${PLAN_QUOTAS.free.stories} Geschichte und ${PLAN_QUOTAS.free.dokus} Doku. Für den kostenlosen Einstieg braucht ihr kein Bezahlabo.` },
+  { question: 'Für welches Alter sind die Geschichten gedacht?', answer: 'Im Geschichten-Wizard wählt ihr die Altersgruppe: 3–5, 6–8, 9–12 oder 13+. Sprache, Länge und Inhalt werden darauf abgestimmt. Gerade bei jüngeren Kindern macht gemeinsames Lesen und Entdecken besonders viel Freude.' },
+  { question: 'Was können Eltern einstellen?', answer: 'Im Elternbereich legt ihr unter anderem Tabu-Themen, Lernziele und Tageslimits fest. Ein PIN schützt die Einstellungen. Im Familien- und Premium-Plan könnt ihr zusätzlich Budgets für einzelne Kinderprofile verwalten.' },
+  { question: 'Wie funktionieren die Kontingente?', answer: 'Eine neu erstellte Geschichte verbraucht eine Story-Münze, eine neue Doku eine Doku-Münze. Die monatlichen Kontingente gelten für alle Kinderprofile zusammen. Bereits gespeicherte Inhalte könnt ihr wieder aufrufen; für neue Inhalte gelten die Kontingente und Tageslimits des gewählten Plans.' },
 ];
 
-interface ShowcaseCharacter {
-  id: string;
-  name: string;
-  role: string;
-  archetype: string;
-  imageUrl: string;
-}
-
-// Prices and limits come from the shared plan catalog (mirrors what the backend enforces).
-const formatPlanPrice = (value: number) => value.toFixed(2).replace('.', ',');
-const pricingPlans = [
-  {
-    name: PLAN_TITLES.starter, price: formatPlanPrice(PLAN_PRICES.starter.monthly), yearly: PLAN_PRICES.starter.yearly, icon: Star,
-    features: [
-      `${PLAN_QUOTAS.starter.stories} Geschichten + ${PLAN_QUOTAS.starter.dokus} Dokus / Monat`,
-      `${PLAN_TAVI_MESSAGES.starter} Tavi-Nachrichten`,
-      'Audio-Dokus: ältere Folgen',
-      `${PLAN_PROFILE_LIMITS.starter} Kinderprofil`,
-    ],
-  },
-  {
-    name: PLAN_TITLES.familie, price: formatPlanPrice(PLAN_PRICES.familie.monthly), yearly: PLAN_PRICES.familie.yearly, icon: Crown, featured: true,
-    features: [
-      `${PLAN_QUOTAS.familie.stories} Geschichten + ${PLAN_QUOTAS.familie.dokus} Dokus / Monat`,
-      `${PLAN_TAVI_MESSAGES.familie} Tavi-Nachrichten`,
-      'Alle Audio-Dokus',
-      `${PLAN_PROFILE_LIMITS.familie} Kinderprofile + Eltern-Dashboard`,
-    ],
-  },
-  {
-    name: PLAN_TITLES.premium, price: formatPlanPrice(PLAN_PRICES.premium.monthly), yearly: PLAN_PRICES.premium.yearly, icon: Zap,
-    features: [
-      `${PLAN_QUOTAS.premium.stories} Geschichten + ${PLAN_QUOTAS.premium.dokus} Dokus / Monat`,
-      `${PLAN_TAVI_MESSAGES.premium} Tavi-Nachrichten`,
-      'Alle Audio-Dokus',
-      `Bis zu ${PLAN_PROFILE_LIMITS.premium} Kinderprofile`,
-    ],
-  },
-];
-
-const trustPoints = [
-  { icon: ShieldCheck, title: 'Eltern-Dashboard mit PIN', desc: 'Tabu-Themen, Lernziele und Tageslimits zentral steuern. Sicherheit fließt direkt in die KI-Generierung ein.' },
-  { icon: Wand2, title: 'KI-Sicherheit eingebaut', desc: 'Tabu-Wörter, Altersfilter und Lernregeln werden direkt in den Prompt eingebettet — präventiv, nicht nachträglich.' },
-  { icon: Rocket, title: 'Wächst mit deiner Familie', desc: 'Avatar-Fortschritt, Lernkreisläufe und Quests sorgen für nachhaltige Nutzung statt kurzfristiger Unterhaltung.' },
-];
-
-const comparisonData = [
-  ['Inhalte', 'Nur Geschichten', 'Nur Lernmodule', 'Stories + Dokus + Audio + Quiz'],
-  ['Personalisierung', 'Gering', 'Mittel', 'Hoch (Avatar, Alter, Stimmung)'],
-  ['Elternkontrolle', 'Oberflächlich', 'Teilweise', 'PIN-Dashboard mit Filtern'],
-  ['Langzeitmotivation', 'Niedrig', 'Mittel', 'Quests, Perks, Memory'],
-  ['Audio', 'Optional', 'Selten', 'Voll integriert'],
-];
-
-/* ═══════════════════════════════════
-   PARTICLE SYSTEM
-   ═══════════════════════════════════ */
-
-interface Particle {
-  x: number; y: number; vx: number; vy: number;
-  size: number; color: string; alpha: number; life: number; maxLife: number;
-}
-
-function spawnFirefly(w: number, h: number): Particle {
-  const colors = [
-    'rgba(232,168,56,0.6)',
-    'rgba(196,120,50,0.5)',
-    'rgba(240,216,168,0.5)',
-    'rgba(136,200,232,0.3)',
-  ];
-  return {
-    x: Math.random() * w, y: Math.random() * h,
-    vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25,
-    size: 1 + Math.random() * 2,
-    color: colors[Math.floor(Math.random() * colors.length)],
-    alpha: 0, life: 250 + Math.random() * 350, maxLife: 600,
-  };
-}
-
-function spawnCursorSparkle(x: number, y: number): Particle {
-  const angle = Math.random() * Math.PI * 2;
-  const speed = 0.4 + Math.random() * 1.2;
-  return {
-    x, y,
-    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 0.4,
-    size: 0.8 + Math.random() * 1.5,
-    color: `hsla(${35 + Math.random() * 20}, 75%, 65%, 0.85)`,
-    alpha: 1, life: 35 + Math.random() * 35, maxLife: 70,
-  };
-}
-
-/* ═══════════════════════════════════
-   COMPONENT
-   ═══════════════════════════════════ */
-
-const LandingPage: React.FC = () => {
+export default function LandingPage() {
   const navigate = useNavigate();
-  const { isSignedIn } = useUser();
-  const startTarget = isSignedIn ? '/' : '/auth';
-
-  /* Refs */
-  const rootRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const cursorDot = useRef<HTMLDivElement>(null);
-  const cursorRing = useRef<HTMLDivElement>(null);
-  const cursorGlow = useRef<HTMLDivElement>(null);
-  const heroRef = useRef<HTMLElement>(null);
-  const sceneRefs = useRef<(HTMLElement | null)[]>([]);
-  const featureRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const progressRef = useRef<HTMLDivElement>(null);
-  const navRef = useRef<HTMLElement>(null);
-
-  const mousePos = useRef({ x: -100, y: -100 });
-  const particles = useRef<Particle[]>([]);
-  const rafId = useRef<number>(0);
+  const prefersReducedMotion = useReducedMotion();
+  const [gentleMode, setGentleMode] = useState(false);
+  const [activeIsland, setActiveIsland] = useState(0);
+  const [annual, setAnnual] = useState(false);
   const [navScrolled, setNavScrolled] = useState(false);
-  const [activeScene, setActiveScene] = useState(-1);
-  const [showStoryArc, setShowStoryArc] = useState(false);
-  const [showcase, setShowcase] = useState<ShowcaseCharacter[]>([]);
-  const storyArcRef = useRef<HTMLDivElement>(null);
+  const [inJourney, setInJourney] = useState(false);
+  const [isCompact, setIsCompact] = useState(() => window.innerWidth < 900);
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const animated = !prefersReducedMotion && !gentleMode;
+  const cinematic = animated && !isCompact;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const runwayRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<gsap.core.Timeline | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const start = useCallback(() => navigate('/auth?mode=signup'), [navigate]);
 
-  /* ── Real characters from the app (public endpoint, graceful fallback) ── */
   useEffect(() => {
-    const controller = new AbortController();
-    fetch(`${getBackendUrl()}/story/character-showcase`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : { characters: [] }))
-      .then((data: { characters?: ShowcaseCharacter[] }) => {
-        const chars = (data.characters ?? []).filter((c) => c.imageUrl);
-        if (chars.length >= 4) setShowcase(chars);
-      })
-      .catch(() => { /* landing page must never fail on this */ });
-    return () => controller.abort();
+    const media = window.matchMedia('(max-width: 899px)');
+    const update = () => setIsCompact(media.matches);
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
   }, []);
 
-  /* Showcase section mounts async and changes page height → recalc pins */
   useEffect(() => {
-    if (showcase.length > 0) {
-      requestAnimationFrame(() => ScrollTrigger.refresh());
-    }
-  }, [showcase]);
-
-  /* ── Lenis + GSAP ScrollTrigger ── */
-  useEffect(() => {
-    const lenis = new Lenis({ duration: 1.3, smoothWheel: true, touchMultiplier: 1.5 });
-
-    lenis.on('scroll', () => { ScrollTrigger.update(); });
-    gsap.ticker.add((time) => { lenis.raf(time * 1000); });
-    gsap.ticker.lagSmoothing(0);
-
-    const handleScroll = () => { setNavScrolled(window.scrollY > 50); };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-
-    return () => {
-      lenis.destroy();
-      gsap.ticker.remove(lenis.raf as any);
-      window.removeEventListener('scroll', handleScroll);
-    };
+    const update = () => setNavScrolled(window.scrollY > 40);
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    return () => window.removeEventListener('scroll', update);
   }, []);
 
-  /* ── GSAP Animations ── */
   useEffect(() => {
-    const mm = gsap.matchMedia();
-    const ctx = gsap.context(() => {
+    if (activeIsland !== 2) { audioRef.current?.pause(); setAudioPlaying(false); }
+    const pauseAudio = () => { if (document.hidden) audioRef.current?.pause(); };
+    document.addEventListener('visibilitychange', pauseAudio);
+    return () => document.removeEventListener('visibilitychange', pauseAudio);
+  }, [activeIsland]);
 
-      /* Scroll progress bar */
-      if (progressRef.current) {
-        gsap.to(progressRef.current, {
-          scaleX: 1, ease: 'none',
-          scrollTrigger: { trigger: 'body', start: 'top top', end: 'bottom bottom', scrub: 0.3 },
-        });
-      }
-
-      /* Hero entrance — cinematic opening shot */
-      const heroTl = gsap.timeline({ delay: 0.25 });
-      heroTl
-        .to('.hero-bg', { opacity: 1, duration: 1.6, ease: 'power2.out' }, 0)
-        .to('.hero-title .word', {
-          opacity: 1, y: 0, rotateX: 0, skewX: 0,
-          duration: 0.85, stagger: 0.1, ease: 'expo.out',
-        }, 0.35)
-        .to('.hero-sub', { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }, '-=0.4')
-        .to('.hero-actions', { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out' }, '-=0.25')
-        .to('.scroll-cue', { opacity: 1, duration: 0.5 }, '-=0.2');
-
-      /* Character parade — heroes assemble on scroll */
-      gsap.fromTo('.parade-section .character-figure',
-        { opacity: 0, y: 45, scale: 0.75 },
-        {
-          opacity: 1, y: 0, scale: 1, duration: 0.65, stagger: 0.09, ease: 'back.out(1.5)',
-          scrollTrigger: { trigger: '.parade-section', start: 'top 78%' },
-        }
-      );
-      gsap.fromTo('.parade-kicker',
-        { opacity: 0, y: 20 },
-        {
-          opacity: 1, y: 0, duration: 0.6, ease: 'power3.out',
-          scrollTrigger: { trigger: '.parade-section', start: 'top 82%' },
-        }
-      );
-
-      /* Journey map — the world reveals itself */
-      gsap.fromTo('.journey-visual img',
-        { opacity: 0, scale: 1.12, y: 40 },
-        {
-          opacity: 1, scale: 1, y: 0, duration: 1.1, ease: 'power3.out',
-          scrollTrigger: { trigger: '.journey-section', start: 'top 70%' },
-        }
-      );
-      gsap.fromTo('.journey-copy > *',
-        { opacity: 0, y: 30 },
-        {
-          opacity: 1, y: 0, duration: 0.6, stagger: 0.1, ease: 'power3.out',
-          scrollTrigger: { trigger: '.journey-section', start: 'top 75%' },
-        }
-      );
-
-      /* Family visual (parents section) */
-      gsap.fromTo('.family-visual',
-        { opacity: 0, y: 50, rotate: 1.5 },
-        {
-          opacity: 1, y: 0, rotate: 0, duration: 0.9, ease: 'power3.out',
-          scrollTrigger: { trigger: '.family-visual', start: 'top 80%' },
-        }
-      );
-
-      /* Cinematic scenes – pinned with parallax scrub */
-      mm.add('(min-width: 769px)', () => {
-        sceneRefs.current.forEach((scene) => {
-          if (!scene) return;
-          const bg = scene.querySelector('.cine-scene-bg img') as HTMLElement;
-          const lines = scene.querySelectorAll('.cine-scene-title .line-inner');
-          const desc = scene.querySelector('.cine-scene-desc') as HTMLElement;
-          const points = scene.querySelectorAll('.cine-scene-points li');
-          const tag = scene.querySelector('.cine-scene-tag') as HTMLElement;
-
-          const tl = gsap.timeline({
-            scrollTrigger: {
-              trigger: scene,
-              start: 'top top',
-              end: '+=160%',
-              pin: true,
-              scrub: 1,
-              anticipatePin: 1,
-            },
-          });
-
-          /* Cinematic camera: slow zoom-in with vertical pan */
-          tl.fromTo(bg,
-            { scale: 1.4, y: 30, filter: 'brightness(0.6) saturate(0.5)' },
-            { scale: 1.05, y: -25, filter: 'brightness(0.9) saturate(0.85)', duration: 1, ease: 'none' }
-          )
-            /* Tag slides in from left */
-            .fromTo(tag, { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.3 }, 0.12)
-            /* Title lines reveal — dramatic stagger */
-            .fromTo(lines, { y: '130%', rotateX: 15 }, { y: '0%', rotateX: 0, duration: 0.5, stagger: 0.1, ease: 'power3.out' }, 0.2)
-            /* Description fades up */
-            .fromTo(desc, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.35 }, 0.5)
-            /* Points slide in one by one */
-            .fromTo(points, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.25, stagger: 0.08 }, 0.6);
-        });
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const runway = runwayRef.current;
+    const stage = stageRef.current;
+    const track = trackRef.current;
+    if (!root || !runway || !stage || !track) return;
+    setInJourney(false);
+    const context = gsap.context(() => {
+      gsap.to('.journey-page-progress', {
+        scaleX: 1, ease: 'none',
+        scrollTrigger: { trigger: root, start: 'top top', end: 'bottom bottom', scrub: true },
       });
-
-      /* Mobile: reveal animations */
-      mm.add('(max-width: 768px)', () => {
-        sceneRefs.current.forEach((scene) => {
-          if (!scene) return;
-          const lines = scene.querySelectorAll('.cine-scene-title .line-inner');
-          const desc = scene.querySelector('.cine-scene-desc');
-          const points = scene.querySelectorAll('.cine-scene-points li');
-
-          gsap.fromTo(lines, { y: '100%' }, {
-            y: '0%', stagger: 0.08, duration: 0.6, ease: 'power3.out',
-            scrollTrigger: { trigger: scene, start: 'top 75%' },
-          });
-          if (desc) gsap.fromTo(desc, { opacity: 0, y: 20 }, {
-            opacity: 1, y: 0, duration: 0.5,
-            scrollTrigger: { trigger: desc, start: 'top 80%' },
-          });
-          gsap.fromTo(points, { opacity: 0, x: -10 }, {
-            opacity: 1, x: 0, stagger: 0.05, duration: 0.4,
-            scrollTrigger: { trigger: scene, start: 'top 60%' },
-          });
-        });
+      if (!animated) return;
+      gsap.from('.opening-copy > *', { y: 24, opacity: 0, duration: 1.1, stagger: 0.12, ease: 'power3.out', clearProps: 'all' });
+      gsap.from('.opening-landscape', { scale: 1.08, duration: 2.2, ease: 'power2.out' });
+      gsap.to('.opening-landscape', {
+        yPercent: 12, scale: 1.08, ease: 'none',
+        scrollTrigger: { trigger: '.journey-opening', start: 'top top', end: 'bottom top', scrub: true },
       });
-
-      /* Horizontal features (desktop) */
-      mm.add('(min-width: 769px)', () => {
-        if (featureRef.current && trackRef.current) {
-          const trackWidth = trackRef.current.scrollWidth - window.innerWidth + 200;
-          gsap.to(trackRef.current, {
-            x: -trackWidth,
-            ease: 'none',
-            scrollTrigger: {
-              trigger: featureRef.current,
-              start: 'top top',
-              end: `+=${trackWidth}`,
-              pin: true,
-              scrub: 1,
-              anticipatePin: 1,
-            },
-          });
-        }
-      });
-
-      /* Chapter cards — cinematic reveal */
-      gsap.utils.toArray<HTMLElement>('.chapter-card').forEach((card) => {
-        const num = card.querySelector('.chapter-number') as HTMLElement;
-        const title = card.querySelector('.chapter-title') as HTMLElement;
-        const sub = card.querySelector('.chapter-subtitle') as HTMLElement;
-        const line = card.querySelector('.chapter-line') as HTMLElement;
-
-        const tl = gsap.timeline({
+      if (cinematic) {
+        const timeline = gsap.timeline({
+          onUpdate: () => {
+            const position = Math.abs(Number(gsap.getProperty(track, 'x'))) / stage.clientWidth;
+            setActiveIsland(Math.min(islands.length - 1, Math.round(position)));
+          },
           scrollTrigger: {
-            trigger: card,
-            start: 'top 70%',
-            end: 'bottom 30%',
-            toggleActions: 'play none none reverse',
+            trigger: runway, start: 'top top', end: 'bottom bottom', scrub: 0.65,
+            invalidateOnRefresh: true,
+            onToggle: self => setInJourney(self.isActive),
           },
         });
-
-        if (num) tl.to(num, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 0);
-        if (line) tl.to(line, { width: '80px', duration: 0.8, ease: 'expo.out' }, 0.1);
-        if (title) tl.to(title, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 0.2);
-        if (sub) tl.to(sub, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.4);
-      });
-
-      /* Story arc visibility */
-      ScrollTrigger.create({
-        trigger: '.cine-scene',
-        start: 'top center',
-        endTrigger: '.final-cta-scene',
-        end: 'top center',
-        onToggle: (self) => setShowStoryArc(self.isActive),
-      });
-
-      /* Track active scene */
-      sceneRefs.current.forEach((scene, i) => {
-        if (!scene) return;
-        ScrollTrigger.create({
-          trigger: scene,
-          start: 'top center',
-          end: 'bottom center',
-          onEnter: () => setActiveScene(i),
-          onEnterBack: () => setActiveScene(i),
+        timeline.to({}, { duration: 0.8 });
+        islands.slice(1).forEach((_, i) => {
+          timeline.to(track, { x: () => -(i + 1) * stage.clientWidth, duration: 0.8, ease: 'power2.inOut' });
+          timeline.to({}, { duration: 0.8 });
         });
-      });
-
-      /* Dividers */
-      gsap.utils.toArray<HTMLElement>('.cine-divider-word').forEach((word) => {
-        gsap.fromTo(word, { opacity: 0, scale: 0.85, y: 25 }, {
-          opacity: 1, scale: 1, y: 0, duration: 0.9, ease: 'power3.out',
-          scrollTrigger: { trigger: word, start: 'top 85%' },
+        timelineRef.current = timeline;
+        gsap.to('.journey-moon', { x: -180, y: 50, ease: 'none', scrollTrigger: { trigger: runway, start: 'top top', end: 'bottom bottom', scrub: true } });
+        gsap.to('.journey-stage > .sky-clouds', { xPercent: -8, ease: 'none', scrollTrigger: { trigger: runway, start: 'top top', end: 'bottom bottom', scrub: true } });
+      } else {
+        gsap.utils.toArray<HTMLElement>('.island-scene').forEach((scene, i) => {
+          gsap.from(scene.querySelector('.island-art'), {
+            y: 35, opacity: 0, duration: 0.9, ease: 'power2.out',
+            scrollTrigger: { trigger: scene, start: 'top 75%', once: true, onEnter: () => setActiveIsland(i), onEnterBack: () => setActiveIsland(i) },
+          });
         });
-      });
-
-      /* Pricing cards */
-      gsap.fromTo('.pricing-card', { opacity: 0, y: 55, rotateX: 8 }, {
-        opacity: 1, y: 0, rotateX: 0, duration: 0.65, stagger: 0.13, ease: 'power3.out',
-        scrollTrigger: { trigger: '.pricing-grid', start: 'top 80%' },
-      });
-
-      /* Trust cards */
-      gsap.fromTo('.trust-card', { opacity: 0, y: 45 }, {
-        opacity: 1, y: 0, duration: 0.55, stagger: 0.1, ease: 'power2.out',
-        scrollTrigger: { trigger: '.trust-grid', start: 'top 80%' },
-      });
-
-      /* Comparison table */
-      gsap.fromTo('.comparison-table tr', { opacity: 0, x: -15 }, {
-        opacity: 1, x: 0, duration: 0.4, stagger: 0.06,
-        scrollTrigger: { trigger: '.comparison-table', start: 'top 80%' },
-      });
-
-    }, rootRef);
-
-    return () => { ctx.revert(); mm.revert(); };
-  }, []);
-
-  /* ── Particle Canvas ── */
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resize();
-    window.addEventListener('resize', resize);
-
-    for (let i = 0; i < 30; i++) {
-      particles.current.push(spawnFirefly(canvas.width, canvas.height));
-    }
-
-    const loop = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      if (mousePos.current.x > 0 && Math.random() > 0.75) {
-        particles.current.push(spawnCursorSparkle(mousePos.current.x, mousePos.current.y));
       }
-
-      const fireflyCount = particles.current.filter(p => p.maxLife > 100).length;
-      if (fireflyCount < 25) {
-        particles.current.push(spawnFirefly(canvas.width, canvas.height));
+      gsap.from('.parents-copy > *', {
+        y: 20, opacity: 0, duration: 0.8, stagger: 0.1, clearProps: 'all',
+        scrollTrigger: { trigger: '#parents', start: 'top 75%', once: true },
+      });
+      {
+        // A single scroll-controlled bloom also works on touch screens.
+        const nova = gsap.timeline({ scrollTrigger: { trigger: '.nova-runway', start: 'top top', end: 'bottom bottom', scrub: 0.5 } });
+        nova.to('.nova-before', { opacity: 0, y: -30, duration: 0.2 }, 0.1)
+          .to('.nova-core', { scale: 2.5, duration: 0.3, ease: 'power2.in' }, 0.05)
+          .fromTo('.nova-rays', { scale: 0.5, opacity: 0 }, { scale: 2.8, opacity: 0.9, duration: 0.4 }, 0.12)
+          .to('.nova-ring', { scale: 18, opacity: 0, duration: 0.5, stagger: 0.04 }, 0.22)
+          .to('.nova-core', { scale: 65, duration: 0.42, ease: 'power3.in' }, 0.3)
+          .to('.nova-wash', { opacity: 1, duration: 0.28 }, 0.4)
+          .to('.nova-stage', { backgroundColor: '#faf6ed', duration: 0.1 }, 0.64)
+          .set(['.nova-core', '.nova-rays'], { opacity: 0 }, 0.68)
+          .to('.nova-wash', { opacity: 0, duration: 0.2 }, 0.72)
+          .fromTo('.nova-after', { y: 35, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25 }, 0.73)
+          .to({}, { duration: 0.15 });
       }
-
-      for (let i = particles.current.length - 1; i >= 0; i--) {
-        const p = particles.current[i];
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life--;
-
-        if (p.maxLife > 100) {
-          const progress = 1 - (p.life / p.maxLife);
-          p.alpha = progress < 0.1 ? progress * 10 : progress > 0.85 ? (1 - progress) * 6.67 : 0.6 + Math.sin(Date.now() * 0.002 + i) * 0.25;
-          p.vx += (Math.random() - 0.5) * 0.015;
-          p.vy += (Math.random() - 0.5) * 0.015;
-          p.vx *= 0.99; p.vy *= 0.99;
-        } else {
-          p.vy += 0.025;
-          p.alpha = Math.max(0, p.life / p.maxLife);
-        }
-
-        if (p.life <= 0) { particles.current.splice(i, 1); continue; }
-
-        ctx.globalAlpha = p.alpha;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-
-        if (p.maxLife > 100 && p.alpha > 0.25) {
-          ctx.globalAlpha = p.alpha * 0.12;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size * 5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      }
-      ctx.globalAlpha = 1;
-      rafId.current = requestAnimationFrame(loop);
-    };
-    loop();
-
+    }, root);
+    let disposed = false;
+    const refresh = () => { if (!disposed) ScrollTrigger.refresh(); };
+    document.fonts.ready.then(refresh);
+    const images = [...root.querySelectorAll('img')];
+    images.forEach(img => img.addEventListener('load', refresh));
+    const frame = requestAnimationFrame(refresh);
     return () => {
-      cancelAnimationFrame(rafId.current);
-      window.removeEventListener('resize', resize);
+      disposed = true;
+      cancelAnimationFrame(frame);
+      images.forEach(img => img.removeEventListener('load', refresh));
+      timelineRef.current = null;
+      context.revert();
     };
-  }, []);
+  }, [animated, cinematic, isCompact]);
 
-  /* ── Custom Cursor ── */
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    mousePos.current = { x: e.clientX, y: e.clientY };
-
-    if (cursorDot.current) {
-      cursorDot.current.style.left = `${e.clientX}px`;
-      cursorDot.current.style.top = `${e.clientY}px`;
+  const goToIsland = useCallback((index: number, immediate = false) => {
+    const behavior = animated && !immediate ? 'smooth' : 'instant';
+    const timeline = timelineRef.current;
+    const trigger = timeline?.scrollTrigger;
+    if (timeline && trigger) {
+      const progress = index === 0 ? 0 : (index * 1.6 + 0.4) / timeline.duration();
+      window.scrollTo({ top: trigger.start + (trigger.end - trigger.start) * progress, behavior });
+    } else {
+      document.getElementById(islands[index].id)?.scrollIntoView({ behavior, block: 'start' });
     }
-    if (cursorRing.current) {
-      gsap.to(cursorRing.current, {
-        left: e.clientX, top: e.clientY,
-        duration: 0.18, ease: 'power2.out',
-      });
-    }
-    if (cursorGlow.current) {
-      gsap.to(cursorGlow.current, {
-        left: e.clientX, top: e.clientY,
-        duration: 0.45, ease: 'power2.out',
-      });
-    }
-  }, []);
-
-  const handleCursorEnter = useCallback(() => {
-    rootRef.current?.classList.add('cursor-active');
-  }, []);
-  const handleCursorLeave = useCallback(() => {
-    rootRef.current?.classList.remove('cursor-active');
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener('mousemove', handleMouseMove);
-
-    const interactives = document.querySelectorAll('a, button, .tilt-card, .pricing-card, .trust-card, .character-figure');
-    interactives.forEach((el) => {
-      el.addEventListener('mouseenter', handleCursorEnter);
-      el.addEventListener('mouseleave', handleCursorLeave);
-    });
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      interactives.forEach((el) => {
-        el.removeEventListener('mouseenter', handleCursorEnter);
-        el.removeEventListener('mouseleave', handleCursorLeave);
-      });
-    };
-  }, [handleMouseMove, handleCursorEnter, handleCursorLeave]);
-
-  /* ── 3D Tilt ── */
-  const handleTilt = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const card = e.currentTarget;
-    const inner = card.querySelector('.tilt-card-inner') as HTMLElement;
-    const shine = card.querySelector('.tilt-card-shine') as HTMLElement;
-    if (!inner) return;
-
-    const rect = card.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;
-    const y = (e.clientY - rect.top) / rect.height - 0.5;
-    inner.style.transform = `rotateY(${x * 14}deg) rotateX(${-y * 14}deg) translateZ(12px)`;
-    if (shine) {
-      shine.style.setProperty('--shine-x', `${(x + 0.5) * 100}%`);
-      shine.style.setProperty('--shine-y', `${(y + 0.5) * 100}%`);
-    }
-  }, []);
-
-  const handleTiltReset = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const inner = e.currentTarget.querySelector('.tilt-card-inner') as HTMLElement;
-    if (inner) inner.style.transform = 'rotateY(0deg) rotateX(0deg) translateZ(0px)';
-  }, []);
-
-  /* ── Magnetic Button ── */
-  const handleMagnet = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    const btn = e.currentTarget;
-    const rect = btn.getBoundingClientRect();
-    const x = e.clientX - rect.left - rect.width / 2;
-    const y = e.clientY - rect.top - rect.height / 2;
-    gsap.to(btn, { x: x * 0.2, y: y * 0.2, duration: 0.3, ease: 'power2.out' });
-  }, []);
-
-  const handleMagnetReset = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
-    gsap.to(e.currentTarget, { x: 0, y: 0, duration: 0.5, ease: 'elastic.out(1, 0.4)' });
-  }, []);
-
-  /* ═══════════════════════════════════
-     RENDER
-     ═══════════════════════════════════ */
+  }, [animated]);
+  const toggleGentleMode = () => {
+    const current = inJourney ? activeIsland : null;
+    setGentleMode(value => !value);
+    if (current !== null) requestAnimationFrame(() => requestAnimationFrame(() => goToIsland(current, true)));
+  };
+  const toggleAudio = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) { try { await audio.play(); } catch { setAudioPlaying(false); } }
+    else audio.pause();
+  };
 
   return (
-    <div ref={rootRef} className="landing-root">
-      {/* Atmosphere */}
-      <div className="film-grain" />
-      <div className="vignette" />
-      <canvas ref={canvasRef} className="particle-canvas" />
-
-      {/* Custom cursor */}
-      <div ref={cursorDot} className="cursor-dot" />
-      <div ref={cursorRing} className="cursor-ring" />
-      <div ref={cursorGlow} className="cursor-glow" />
-
-      {/* Scroll progress */}
-      <div ref={progressRef} className="scroll-progress" style={{ transform: 'scaleX(0)' }} />
-
-      {/* Story Arc — vertical scene navigation */}
-      <div ref={storyArcRef} className={`story-arc${showStoryArc ? ' visible' : ''}`}>
-        {cineScenes.map((scene, i) => (
-          <React.Fragment key={scene.num}>
-            <div className={`story-arc-dot${activeScene === i ? ' active' : ''}${activeScene > i ? ' passed' : ''}`} />
-            {i < cineScenes.length - 1 && (
-              <div className="story-arc-line">
-                <div className="story-arc-progress" style={{ height: activeScene > i ? '100%' : activeScene === i ? '50%' : '0%' }} />
-              </div>
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-
-      {/* ─── NAV ─── */}
-      <header ref={navRef} className={`landing-nav${navScrolled ? ' scrolled' : ''}`}>
-        <button type="button" className="landing-logo"
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          <img src="/talea_logo.png?v=20260209" alt="Talea" />
-          <span>Talea<small>Storytelling Platform</small></span>
-        </button>
-        <nav className="landing-links">
-          <a href="#features">Funktionen</a>
-          <a href="#pricing">Preise</a>
-          <a href="#trust">Sicherheit</a>
-          <button type="button" className="nav-cta" onClick={() => navigate(startTarget)}>
-            App starten <ArrowRight size={13} />
-          </button>
-        </nav>
+    <div ref={rootRef} className="talea-journey" data-motion={animated ? 'full' : 'gentle'} data-cinematic={cinematic ? 'true' : 'false'}>
+      <a className="journey-skip" href="#pricing">Direkt zu den Preisen</a>
+      <div className="journey-page-progress" aria-hidden="true" />
+      <header className={`journey-nav${navScrolled ? ' journey-nav--scrolled' : ''}`}>
+        <a className="journey-brand" href="#intro" aria-label="Talea – zum Anfang"><BookOpenText strokeWidth={1.4} /><span>talea<span className="brand-star">✦</span></span></a>
+        <nav className="journey-nav-links" aria-label="Hauptnavigation"><a href="#journey">Die Reise</a><a href="#parents">Für Eltern</a><a href="#pricing">Preise</a></nav>
+        <div className="journey-nav-actions">
+          <button type="button" className="motion-control" onClick={toggleGentleMode} aria-pressed={gentleMode || !!prefersReducedMotion} aria-label={animated ? 'Weniger Bewegung aktivieren' : 'Volle Animationen aktivieren'} title={animated ? 'Weniger Bewegung' : 'Volle Animationen'} disabled={!!prefersReducedMotion}>{animated ? <Pause size={15} /> : <Play size={15} />}<span>{animated ? 'Film-Modus' : 'Ruhiger Modus'}</span></button>
+          <Link className="journey-login" to="/auth">Anmelden</Link>
+          <button type="button" className="journey-button journey-button--small" onClick={start}>Kostenlos starten<ArrowRight size={15} /></button>
+        </div>
       </header>
-
       <main>
-        {/* ═══════════ HERO ═══════════ */}
-        <section ref={heroRef} className="hero-scene">
-          {/* Cinematic opening shot */}
-          <div className="hero-bg" aria-hidden="true">
-            <img src="/landing-assets/hero.png" alt="" loading="eager" fetchPriority="high" />
-            <div className="hero-bg-overlay" />
+        <section id="intro" className="journey-opening" aria-labelledby="opening-title">
+          <img className="opening-landscape" src={`${ASSETS}/cinematic-world.webp`} alt="Ein leuchtendes Märchenschloss auf einer schwebenden Insel, verbunden mit weiteren Inseln über goldene Sternenpfade." fetchPriority="high" width="1672" height="941" />
+          <div className="opening-shade" aria-hidden="true" /><JourneyAtmosphere animated={animated} />
+          <div className="opening-copy">
+            <p className="journey-eyebrow"><span className="eyebrow-star">✦</span>Eine kleine Idee. Eine unendliche Welt.</p>
+            <h1 id="opening-title">Dein Kind.<br />Die Hauptrolle.<br /><em>Eine ganze Welt.</em></h1>
+            <p className="opening-description">Geschichten, in denen dein Kind der Held ist.<br className="desktop-break" /> Abenteuer, die mit ihm wachsen. Und Wissen,<br className="desktop-break" /> das sich nach Magie anfühlt.</p>
+            <div className="opening-actions"><button type="button" className="journey-button" onClick={() => goToIsland(0)}>Die Welt entdecken<ArrowRight size={18} /></button><button type="button" className="opening-free-link" onClick={start}>Kostenlos ausprobieren</button></div>
+            <p className="opening-reassurance"><ShieldCheck size={13} />Für neugierige Kinder. Mit Eltern an ihrer Seite.</p>
           </div>
-          <div className="hero-ambient" />
-
-          {/* Burst lines */}
-          <div className="hero-burst" aria-hidden="true">
-            {Array.from({ length: 14 }).map((_, i) => (
-              <div
-                key={i}
-                className="hero-burst-line"
-                style={{
-                  transform: `rotate(${i * (360 / 14)}deg)`,
-                  animationDelay: `${i * 0.035}s`,
-                  opacity: 0.35 + (i % 3) * 0.12,
-                }}
-              />
-            ))}
-          </div>
-
-          <p className="hero-kicker"><Sparkles size={13} />KI-Storytelling für Familien</p>
-
-          <h1 className="hero-title">
-            <span className="word">Wo&nbsp;</span>
-            <span className="word">Kinder&nbsp;</span>
-            <span className="word">zu&nbsp;</span>
-            <span className="word word-accent">Helden&nbsp;</span>
-            <span className="word">ihrer&nbsp;</span>
-            <span className="word">eigenen&nbsp;</span>
-            <span className="word">Geschichte&nbsp;</span>
-            <span className="word">werden.</span>
-          </h1>
-
-          <p className="hero-sub gsap-hidden" style={{ transform: 'translateY(20px)' }}>
-            Personalisierte Geschichten, Wissensdokus, Quiz und Audio&#8202;—&#8202;in einer
-            magischen App. Dein Kind erlebt Abenteuer mit eigenen Avataren.
-          </p>
-
-          <div className="hero-actions gsap-hidden" style={{ transform: 'translateY(20px)' }}>
-            <button type="button" className="btn-magic"
-              onMouseMove={handleMagnet} onMouseLeave={handleMagnetReset}
-              onClick={() => navigate(startTarget)}>
-              Abenteuer starten <ArrowRight size={17} />
-            </button>
-            <a href="#features" className="btn-ghost">
-              <ChevronDown size={15} /> Entdecken
-            </a>
-          </div>
-
-          <div className="scroll-cue" style={{ opacity: 0 }}>
-            <span className="scroll-cue-line" />
-            Scrollen
-          </div>
+          <div className="opening-island-label" aria-hidden="true"><span className="map-marker"><Sparkles size={15} /></span><span>Willkommen in Talea<small>Deine Fantasie hat ein Zuhause.</small></span></div>
+          <div className="opening-bottom"><a href="#journey" className="scroll-invitation"><span className="scroll-line" /><span>Scrollen. Staunen. Weiterträumen.</span><ArrowDown size={14} /></a><span className="opening-coordinate">Eine Reise in fünf Kapiteln<span>01 — ∞</span></span></div>
         </section>
-
-        {/* ═══════════ CHARACTER PARADE ═══════════ */}
-        <section className="parade-section">
-          <p className="parade-kicker">Deine Helden warten schon auf dich</p>
-          <div className="character-strip">
-            {characters.map((c) => (
-              <figure key={c.name} className="character-figure" style={{ '--float-delay': c.delay } as React.CSSProperties}>
-                <img src={c.image} alt={c.name} loading="lazy" />
-                <figcaption>
-                  {c.name}
-                  <span className="char-mood">{c.mood}</span>
-                </figcaption>
-              </figure>
-            ))}
-          </div>
+        <section id="journey" className="journey-introduction" aria-labelledby="journey-title">
+          <span className="journey-eyebrow">Die Welt von Talea</span><h2 id="journey-title">Folge dem <em>Funkeln.</em></h2><p>Fünf Inseln. Tausend Möglichkeiten. Eine Welt, die eure ist.</p>
+          <div className="journey-chapter-list">{islands.map((island, i) => <button type="button" key={island.id} onClick={() => goToIsland(i)}><span>0{i + 1}</span>{island.label}<ArrowRight size={12} /></button>)}</div>
         </section>
-
-        {/* ═══════════ CHAPTER I — Intro ═══════════ */}
-        <div className="chapter-card">
-          <span className="chapter-number">Kapitel I</span>
-          <div className="chapter-line" />
-          <h2 className="chapter-title">Es war einmal...</h2>
-          <p className="chapter-subtitle">Eine Geschichte, die nur für dein Kind geschrieben wird</p>
-        </div>
-
-        {/* ═══════════ CINEMATIC SCENES ═══════════ */}
-        {cineScenes.map((scene, idx) => {
-          const TagIcon = scene.tagIcon;
-          const chapterLabels = ['', 'Kapitel II', 'Kapitel III', 'Kapitel IV', 'Kapitel V'];
-          const chapterTitles = ['', 'Die Magie erwacht', 'Helden werden geboren', 'Das Abenteuer ruft', 'Wissen ist Macht'];
-          return (
-            <React.Fragment key={scene.num}>
-              {/* Chapter transition card */}
-              {idx > 0 && (
-                <div className="chapter-card">
-                  <span className="chapter-number">{chapterLabels[idx]}</span>
-                  <div className="chapter-line" />
-                  <h2 className="chapter-title">{chapterTitles[idx]}</h2>
-                </div>
-              )}
-
-              <section
-                ref={(el) => { sceneRefs.current[idx] = el; }}
-                className="cine-scene">
-                {/* Scene counter */}
-                <div className="scene-counter">
-                  <span className="scene-counter-line" />
-                  <span><span className="scene-counter-current">{scene.num}</span> / 05</span>
-                </div>
-
-                <LazyImage wrapperClassName="cine-scene-bg" src={scene.image} alt={`Szene ${scene.num}`} />
-                <div className="cine-scene-overlay" />
-                <div className="spotlight" />
-                <div className="cine-scene-content">
-                  <span className="cine-scene-num">{scene.num}</span>
-                  <span className="cine-scene-tag"><TagIcon size={13} /> {scene.tag}</span>
-                  <h2 className="cine-scene-title">
-                    {scene.title.map((line, li) => (
-                      <span key={li} className="line"><span className="line-inner">{line}</span></span>
-                    ))}
-                  </h2>
-                  <p className="cine-scene-desc">{scene.desc}</p>
-                  <ul className="cine-scene-points">
-                    {scene.points.map((pt) => <li key={pt}>{pt}</li>)}
-                  </ul>
-                </div>
-              </section>
-            </React.Fragment>
-          );
-        })}
-
-        {/* ═══════════ JOURNEY MAP — die Welt von Talea ═══════════ */}
-        <section className="journey-section">
-          <div className="journey-copy">
-            <span className="section-badge"><Rocket size={11} /> Die Welt von Talea</span>
-            <h2 className="section-title">Eine Welt.<br /><em>Unendliche</em> Wege.</h2>
-            <p className="section-sub">
-              Geschichten, Dokus, Audio und Quiz sind keine getrennten Apps — sie sind
-              Inseln einer Welt, verbunden durch die Reise deines Kindes. Jeder Weg
-              führt zu neuem Wissen, jede Insel zu neuen Abenteuern.
-            </p>
-          </div>
-          <div className="journey-visual">
-            <LazyImage src="/landing-assets/generated/journey-map.webp" alt="Die Talea-Weltkarte: Inseln für Geschichten, Audio, Wissen und Quiz — verbunden durch Lernpfade" />
-            <div className="journey-glow" aria-hidden="true" />
-          </div>
-        </section>
-
-        {/* ═══════════ DIVIDER ═══════════ */}
-        <div className="cine-divider">
-          <span className="cine-divider-word" data-text="FEATURES">FEATURES</span>
-        </div>
-
-        {/* ═══════════ HORIZONTAL FEATURES ═══════════ */}
-        <section id="features" ref={featureRef} className="features-horizontal">
-          <div className="features-header">
-            <span className="section-badge"><Sparkles size={11} /> Funktionen</span>
-            <h2 className="section-title">Alles was deine Familie braucht</h2>
-            <p className="section-sub">
-              Jede Funktion fühlt sich an wie eine eigene magische Insel.
-            </p>
-          </div>
-          <div ref={trackRef} className="features-track">
-            {features.map((feat, fi) => {
-              const FIcon = feat.icon;
-              return (
-                <div key={feat.title} className="tilt-card island-card"
-                  onMouseMove={handleTilt} onMouseLeave={handleTiltReset}>
-                  <div className="tilt-card-shine" />
-                  <div className="tilt-card-inner">
-                    <div className="island-visual" style={{ '--bob-delay': `${fi * 0.7}s` } as React.CSSProperties}>
-                      <LazyImage src={feat.island} alt="" />
-                      <span className="island-sparkle" aria-hidden="true" />
-                    </div>
-                    <div className="island-card-body">
-                      <div className="tilt-card-icon"><FIcon size={19} /></div>
-                      <h3>{feat.title}</h3>
-                      <p>{feat.desc}</p>
-                    </div>
+        <section ref={runwayRef} className="journey-runway" aria-label="Die fünf Inseln von Talea">
+          <div ref={stageRef} className="journey-stage">
+            <div className="journey-moon" aria-hidden="true" /><JourneyAtmosphere animated={cinematic} /><StarTrail animated={animated} />
+            <div ref={trackRef} className="journey-track">
+              {islands.map((island, i) => {
+                const Icon = island.icon;
+                return <article id={island.id} key={island.id} className={`island-scene island-scene--${island.id}`} style={{ '--island-accent': island.color } as CSSProperties} inert={cinematic && activeIsland !== i} aria-labelledby={`${island.id}-title`}>
+                  <div className="island-aura" aria-hidden="true" />
+                  <div className="island-art">
+                    <img src={island.image} alt={`${island.place}: eine schwebende Insel mit ${i === 0 ? 'Buch und Märchenschloss' : i === 1 ? 'magischer Werkstatt, Fuchs, Drache und einer kleinen Entdeckerin' : i === 2 ? 'Grammophon und musikalischem Garten' : i === 3 ? 'Observatorium, Teleskop und Planeten' : 'Tavi, dem freundlichen türkisfarbenen Flaschengeist'}.`} width="1000" height="1000" loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
+                    {i === 1 && <div className="island-floating-note"><Heart size={16} /><span>Mit jedem Abenteuer<small>wächst ein bisschen Mut.</small></span></div>}
+                    {i === 3 && <div className="discovery-orbit" aria-hidden="true"><span /><span /><span /></div>}
+                    {i === 4 && <div className="tavi-dialogue"><span><Sparkles size={14} />Tavi</span><p>„Was möchtest du heute entdecken?“</p><i>Dein KI-Begleiter in Talea</i></div>}
                   </div>
-                </div>
-              );
-            })}
+                  <div className="island-copy">
+                    <span className="island-chapter">Kapitel 0{i + 1}<span /><span>{island.place}</span></span>
+                    <span className="island-icon"><Icon size={22} strokeWidth={1.4} /></span>
+                    <h2 id={`${island.id}-title`}>{island.title}</h2><p className="island-description">{island.description}</p>
+                    <ul className="island-features">{island.features.map(feature => <li key={feature}><Check size={15} />{feature}</li>)}</ul>
+                    {i === 2 ? <div className="audio-preview" data-playing={audioPlaying}>
+                      <button type="button" onClick={toggleAudio} aria-label={audioPlaying ? 'Tavi-Hörprobe pausieren' : 'Tavi-Hörprobe abspielen'}>{audioPlaying ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}</button>
+                      <div><span>So klingt euer Begleiter</span><small>Tavi kennenlernen · Hörprobe</small></div><SoundWave />
+                      <audio ref={audioRef} src="/voices/Tavi.mp3" preload="none" onPlay={() => setAudioPlaying(true)} onPause={() => setAudioPlaying(false)} onEnded={() => setAudioPlaying(false)} />
+                    </div> : <p className="island-footnote"><Sparkles size={13} />{island.note}</p>}
+                  </div><span className="island-large-number" aria-hidden="true">0{i + 1}</span>
+                </article>;
+              })}
+            </div>
+            <SkyClouds id="journey" />
+            {cinematic && <nav className="island-navigation" aria-label="Insel-Navigation"><span className="island-navigation-caption"><Compass size={14} />Unsere Reise</span><ol>{islands.map((island, i) => <li key={island.id}><button type="button" className={activeIsland === i ? 'is-active' : ''} onClick={() => goToIsland(i)} aria-current={activeIsland === i ? 'step' : undefined}><span className="island-nav-dot">0{i + 1}</span><span>{island.label}</span></button></li>)}</ol><a href="#pricing" className="journey-skip-film">Zu den Preisen<ArrowRight size={13} /></a></nav>}
           </div>
         </section>
-
-        {/* ═══════════ REAL CHARACTERS — live aus der App ═══════════ */}
-        {showcase.length >= 4 && (
-          <section className="showcase-section">
-            <span className="section-badge"><Users size={11} /> Live aus der App</span>
-            <h2 className="section-title">Diese Helden <em>leben</em> schon in Talea</h2>
-            <p className="section-sub">
-              Echte Charaktere aus dem Talea-Universum — sie warten darauf,
-              mit deinem Kind ihr nächstes Abenteuer zu erleben.
-            </p>
-            <div className="showcase-marquee">
-              <div className="showcase-track">
-                {[...showcase, ...showcase].map((c, i) => (
-                  <figure key={`${c.id}-${i}`} className="showcase-card" aria-hidden={i >= showcase.length}>
-                    <img src={c.imageUrl} alt={i < showcase.length ? `${c.name} — ${c.role}` : ''} loading="lazy" />
-                    <figcaption>
-                      <strong>{c.name}</strong>
-                      <span>{c.role}</span>
-                    </figcaption>
-                  </figure>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-        {/* ═══════════ DIVIDER ═══════════ */}
-        <div className="cine-divider">
-          <span className="cine-divider-word" data-text="PREISE">PREISE</span>
-        </div>
-
-        {/* ═══════════ PRICING ═══════════ */}
-        <section id="pricing" className="pricing-section">
-          <div className="pricing-backdrop" aria-hidden="true">
-            <LazyImage src="/landing-assets/generated/final-panorama.webp" alt="" />
-          </div>
-          <span className="section-badge"><Crown size={11} /> Preise</span>
-          <h2 className="section-title">Wähle dein Abenteuer-Paket</h2>
-          <p className="section-sub">Starte kostenlos mit {FREE_TRIAL_DAYS} Tagen Testphase und upgrade jederzeit. Monatlich kündbar, im Jahresabo 4 Monate geschenkt.</p>
-
-          <div className="pricing-grid">
-            {pricingPlans.map((plan) => {
-              const PIcon = plan.icon;
-              return (
-                <div key={plan.name}
-                  className={`pricing-card${plan.featured ? ' pricing-card--featured' : ''}`}>
-                  {plan.featured && <span className="pricing-badge">Beliebteste Wahl</span>}
-                  <div className="pricing-icon"><PIcon size={21} /></div>
-                  <h3 className="pricing-name">{plan.name}</h3>
-                  <p className="pricing-price">{plan.price}€<small> / Monat</small></p>
-                  {plan.yearly && <p className="pricing-yearly">oder {formatPlanPrice(plan.yearly)}€ im Jahr</p>}
-                  <div className="pricing-divider" />
-                  <ul className="pricing-features">
-                    {plan.features.map((f) => <li key={f}><Check size={13} />{f}</li>)}
-                  </ul>
-                  <button type="button" className="pricing-cta"
-                    onMouseMove={handleMagnet} onMouseLeave={handleMagnetReset}
-                    onClick={() => navigate(startTarget)}>
-                    {plan.featured ? 'Jetzt starten' : 'Plan wählen'} <ArrowRight size={13} />
-                  </button>
-                </div>
-              );
-            })}
+        <section id="parents" className="journey-parents" aria-labelledby="parents-title">
+          <div className="parents-copy"><span className="journey-eyebrow"><ShieldCheck size={14} />Für Eltern</span><h2 id="parents-title">Große Abenteuer.<br /><em>In guten Händen.</em></h2><p>Ihr gebt den Rahmen vor. Eure Kinder füllen ihn mit Fantasie. Talea hilft euch, beides zusammenzubringen.</p><button type="button" className="parents-link" onClick={start}>Gemeinsam losziehen<ArrowRight size={16} /></button></div>
+          <div className="parents-promises">
+            <div><span><ShieldCheck size={22} /></span><div><h3>Eure Regeln reisen mit.</h3><p>Tabu-Themen, Tageslimits und PIN-Schutz für eure Elterneinstellungen.</p></div></div>
+            <div><span><Users size={22} /></span><div><h3>Jedes Kind hat seine Welt.</h3><p>Eigene Kinderprofile, passende Altersgruppen und persönliche Helden.</p></div></div>
+            <div><span><Telescope size={22} /></span><div><h3>Neugier bekommt eine Richtung.</h3><p>Lernziele setzen und Geschichten mit Wissen verbinden.</p></div></div>
           </div>
         </section>
-
-        {/* ═══════════ COMPARISON ═══════════ */}
-        <section className="comparison-section">
-          <span className="section-badge"><Zap size={11} /> Vergleich</span>
-          <h2 className="section-title">Warum Talea anders ist</h2>
-          <div className="comparison-wrap">
-            <table className="comparison-table">
-              <thead>
-                <tr><th>Kriterium</th><th>Story-Apps</th><th>Lern-Apps</th><th>Talea</th></tr>
-              </thead>
-              <tbody>
-                {comparisonData.map((row) => (
-                  <tr key={row[0]}>{row.map((cell, ci) => <td key={ci}>{cell}</td>)}</tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        {/* ═══════════ DIVIDER ═══════════ */}
-        <div className="cine-divider">
-          <span className="cine-divider-word" data-text="SICHERHEIT">SICHERHEIT</span>
-        </div>
-
-        {/* ═══════════ TRUST ═══════════ */}
-        <section id="trust" className="trust-section">
-          <div className="trust-layout">
-            <div className="trust-main">
-              <span className="section-badge"><ShieldCheck size={11} /> Für Eltern</span>
-              <h2 className="section-title">Volle Kontrolle, volle Magie</h2>
-              <p className="section-sub">
-                Talea gibt Eltern echte Werkzeuge — nicht nur einen Kindermodus-Schalter.
-              </p>
-              <div className="trust-grid">
-                {trustPoints.map((tp) => {
-                  const TIcon = tp.icon;
-                  return (
-                    <div key={tp.title} className="trust-card">
-                      <div className="trust-card-icon"><TIcon size={19} /></div>
-                      <h4>{tp.title}</h4>
-                      <p>{tp.desc}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <figure className="family-visual">
-              <LazyImage src="/landing-assets/idea.png" alt="Ein Kind erlebt staunend seine eigene Talea-Geschichte auf dem Tablet" />
-              <figcaption>Große Augen garantiert — jede Geschichte gehört deinem Kind.</figcaption>
-            </figure>
-          </div>
-        </section>
-
-        {/* ═══════════ FINAL CTA ═══════════ */}
-        <section className="final-cta-scene">
-          <div className="final-cta-bg">
-            <img src="/landing-assets/cine_6_outro.png" alt="" />
-          </div>
-          <div className="final-cta-content">
-            <span className="section-badge" style={{ marginBottom: '1.2rem' }}>
-              <Sparkles size={11} /> Bereit?
-            </span>
-            <h2 className="final-cta-title">
-              Die Reise beginnt<br />mit einem Klick.
-            </h2>
-            <p className="section-sub" style={{ margin: '1.2rem auto 2.5rem', maxWidth: 480 }}>
-              Über 50 Charaktere warten darauf, Teil eurer Geschichte zu werden.
-            </p>
-            <div style={{ display: 'flex', gap: '1.2rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button type="button" className="btn-magic"
-                onMouseMove={handleMagnet} onMouseLeave={handleMagnetReset}
-                onClick={() => navigate(startTarget)}>
-                Jetzt starten <ArrowRight size={17} />
-              </button>
-              <button type="button" className="btn-ghost" onClick={() => navigate('/auth')}>
-                Login / Account
-              </button>
-            </div>
-            <div className="final-cta-characters">
-              {characters.slice(0, 6).map((c) => (
-                <img key={c.name} src={c.image} alt={c.name} />
-              ))}
-            </div>
-          </div>
+        <section className="nova-runway" aria-label="Das Finale der Reise"><div className="nova-stage">
+          <div className="nova-before"><span className="journey-eyebrow">Alles beginnt mit einem Funken.</span><h2>Was, wenn daraus<br /><em>eine ganze Welt wird?</em></h2><p>Scroll weiter. Eure Geschichte wartet.</p></div>
+          <div className="nova-star" aria-hidden="true"><div className="nova-core" /><div className="nova-ring" /><div className="nova-ring nova-ring--second" /><NovaRays /></div><div className="nova-wash" aria-hidden="true" />
+          <div className="nova-after"><span className="nova-after-star" aria-hidden="true">✦</span><p>Die nächste Geschichte?</p><h2><em>Die gehört euch.</em></h2><a href="#pricing">Findet euer Abenteuer<ArrowDown size={18} /></a></div>
+        </div></section>
+        <section id="pricing" className="journey-pricing" aria-labelledby="pricing-title">
+          <div className="pricing-heading"><span className="journey-eyebrow"><Sparkles size={14} />Ein Platz für eure Fantasie</span><h2 id="pricing-title">Kleine Preise.<br /><em>Große Geschichten.</em></h2><p>Startet kostenlos. Findet euren Rhythmus.<br />Und wählt den Plan, der zu eurer Familie passt.</p></div>
+          <div className="billing-switch" role="group" aria-label="Abrechnungszeitraum"><button type="button" aria-pressed={!annual} onClick={() => setAnnual(false)}>Monatlich</button><button type="button" aria-pressed={annual} onClick={() => setAnnual(true)}>Jährlich<span>33 % sparen</span></button></div>
+          <div className="journey-plan-grid">{PLAN_ORDER.map(plan => {
+            const Icon = planMeta[plan].icon;
+            const recommended = plan === 'familie';
+            const yearlyPrice = PLAN_PRICES[plan].yearly;
+            const price = annual && yearlyPrice !== null ? yearlyPrice / 12 : PLAN_PRICES[plan].monthly;
+            const features = [
+              `${PLAN_PROFILE_LIMITS[plan]} ${PLAN_PROFILE_LIMITS[plan] === 1 ? 'Kinderprofil' : 'Kinderprofile'}`,
+              `${PLAN_TAVI_MESSAGES[plan]} Tavi-Nachrichten / Monat`, `${PLAN_IMAGES[plan]} KI-Bilder / Monat`,
+              `Audio-Dokus: ${AUDIO_ACCESS_LABELS[PLAN_AUDIO_LIBRARY_ACCESS[plan]]}`,
+              plan === 'familie' || plan === 'premium' ? 'Elternkontrolle mit Profil-Budgets' : 'Basis-Elternkontrolle',
+              PLAN_OFFLINE_LIMITS[plan] ? `Bis zu ${PLAN_OFFLINE_LIMITS[plan]} Inhalte offline / Profil` : null,
+            ].filter((feature): feature is string => !!feature);
+            return <article key={plan} className={`journey-plan${recommended ? ' journey-plan--featured' : ''}`} aria-label={`Plan ${PLAN_TITLES[plan]}`}>
+              {recommended && <div className="journey-plan-badge"><Heart size={12} />Für die ganze Familie</div>}
+              <div className="plan-top"><span className="plan-icon"><Icon size={21} strokeWidth={1.5} /></span><h3>{PLAN_TITLES[plan]}</h3><p>{planMeta[plan].tagline}</p></div>
+              <div className="plan-price"><strong>{price.toLocaleString('de-DE', { minimumFractionDigits: plan === 'free' ? 0 : 2, maximumFractionDigits: 2 })}<span>€</span></strong><span> / Monat</span></div>
+              <p className="plan-billing">{plan === 'free' ? 'Dauerhaft kostenlos' : annual && yearlyPrice !== null ? `${formatEuro(yearlyPrice)} jährlich abgerechnet` : 'Monatlich abgerechnet'}</p>
+              <div className="plan-quota"><div><strong>{PLAN_QUOTAS[plan].stories}</strong><span>Geschichten</span></div><span>+</span><div><strong>{PLAN_QUOTAS[plan].dokus}</strong><span>Dokus</span></div><small>pro Monat · max. je {PLAN_DAILY_LIMITS[plan].stories} pro Tag</small></div>
+              <ul>{features.map(feature => <li key={feature}><Check size={14} />{feature}</li>)}</ul>
+              {plan === 'free' && <p className="free-trial-note">Zum Start: {FREE_TRIAL_QUOTAS.stories} Geschichten + {FREE_TRIAL_QUOTAS.dokus} Dokus in {FREE_TRIAL_DAYS} Tagen.</p>}
+              <button type="button" onClick={start} className="plan-button">{plan === 'free' ? 'Kostenlos starten' : 'Account erstellen'}<ArrowRight size={15} /></button>
+            </article>;
+          })}</div>
+          <p className="pricing-footnote">Nach der Anmeldung wählt ihr euren Plan. Alle Kontingente gelten gemeinsam für eure Kinderprofile.</p>
+          <details className="plan-comparison"><summary>Alle Funktionen vergleichen<ChevronDown size={17} /></summary><div className="plan-comparison-scroll" role="region" aria-label="Planvergleich, horizontal scrollbar" tabIndex={0}><table><caption className="sr-only">Alle Talea-Pläne und ihre Funktionen</caption><thead><tr><th scope="col">Euer Abenteuer enthält</th>{PLAN_ORDER.map(plan => <th key={plan} scope="col">{PLAN_TITLES[plan]}</th>)}</tr></thead><tbody>{PLAN_FEATURE_ROWS.map(row => <tr key={row.label}><th scope="row">{row.label}{row.hint && <small>{row.hint}</small>}</th>{PLAN_ORDER.map(plan => <td key={plan}>{typeof row.values[plan] === 'boolean' ? row.values[plan] ? <Check size={16} aria-label="Enthalten" /> : <X size={15} aria-label="Nicht enthalten" /> : row.values[plan]}</td>)}</tr>)}</tbody></table></div></details>
+          <section className="journey-faq" aria-labelledby="faq-title"><div><span className="journey-eyebrow">Noch ein bisschen neugierig?</span><h2 id="faq-title">Gute Fragen.<br /><em>Klare Antworten.</em></h2></div><div className="faq-list">{faqs.map(faq => <details key={faq.question}><summary>{faq.question}<ChevronDown size={17} /></summary><p>{faq.answer}</p></details>)}</div></section>
+          <div className="journey-last-call"><span aria-hidden="true">✦</span><h2>Eure Fantasie.<br /><em>Ab hier geht’s weiter.</em></h2><button type="button" className="journey-button" onClick={start}>Unser erstes Abenteuer<ArrowRight size={17} /></button><p>Kostenlos anfangen. Gemeinsam weiterträumen.</p></div>
         </section>
       </main>
-
-      {/* Footer */}
-      <footer className="landing-footer">
-        <p>© 2026 Talea · Storytelling Platform · <a href="/auth">Login</a></p>
-      </footer>
+      <footer className="journey-footer"><a className="journey-brand" href="#intro"><BookOpenText strokeWidth={1.4} /><span>talea<span className="brand-star">✦</span></span></a><span>Für kleine Menschen mit großen Ideen.</span><p>© {new Date().getFullYear()} Talea<Link to="/auth">Anmelden</Link><a href="#pricing">Preise</a></p></footer>
     </div>
   );
-};
-
-export default LandingPage;
+}

@@ -702,7 +702,19 @@ export default function App() {
   }
 
   if (!clerkPublishableKey) {
-    return <MissingKeyScreen />;
+    // The public intro needs no authentication service. Keep account and app
+    // routes behind the existing configuration guard when Clerk is unavailable.
+    return (
+      <Router>
+        <React.Suspense fallback={<div className="min-h-screen bg-[#0a172b]" />}>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/landing" element={<LandingPage />} />
+            <Route path="*" element={<MissingKeyScreen />} />
+          </Routes>
+        </React.Suspense>
+      </Router>
+    );
   }
 
   const clerkFallback = (

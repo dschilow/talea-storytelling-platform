@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { SignIn, SignUp } from "@clerk/clerk-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import "./AuthScreen.css";
 
@@ -79,7 +79,12 @@ const clerkAppearance = {
 
 const AuthScreen: React.FC = () => {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState<"signin" | "signup">(() =>
+    searchParams.get("mode") === "signup" || window.location.hash.startsWith("#register")
+      ? "signup"
+      : "signin"
+  );
   const [clerkReady, setClerkReady] = useState(false);
   const [loaderMounted, setLoaderMounted] = useState(true);
   const wrapRef = useRef<HTMLDivElement>(null);
