@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, CheckCircle2, Clock3, GraduationCap, Heart, Sparkles, Users2 } from 'lucide-react';
+import { BookOpen, Clock3, GraduationCap, Heart, Sparkles, Users2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface Props {
@@ -79,7 +79,7 @@ export default function Step6Summary({
   ].filter(Boolean) as string[];
 
   const values: Record<(typeof summaryRows)[number]['key'], string> = {
-    avatars: `${state.selectedAvatars.length} ${t('wizard.summary.avatars')} ${t('wizard.common.selected')}`,
+    avatars: `${state.selectedAvatars.length} ${state.selectedAvatars.length === 1 ? t('wizard.common.avatarSingular') : t('wizard.summary.avatars')} ${t('wizard.common.selected')}`,
     category: categoryLabel,
     ageLength: `${ageLabel} - ${lengthLabel}`,
     feelings: feelingsLabel,
@@ -92,6 +92,18 @@ export default function Step6Summary({
     feelings: t('wizard.summary.feelings'),
   };
 
+  // Unknown "remaining" (older billing payloads) is derived instead of rendering an empty slot.
+  const remainingCredits =
+    storyCredits?.remaining === null
+      ? t('wizard.credits.unlimited')
+      : storyCredits?.remaining ??
+        (storyCredits?.limit != null ? Math.max(0, storyCredits.limit - storyCredits.used) : null);
+
+  const rowClass = 'flex items-center gap-3 px-4 py-3';
+  const iconClass = 'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg';
+  const labelClass = 'w-24 shrink-0 text-[15px] text-[var(--talea-text-secondary)] sm:w-40';
+  const valueClass = 'min-w-0 flex-1 text-right text-[15px] font-medium text-[var(--talea-text-primary)]';
+
   return (
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center">
@@ -101,134 +113,97 @@ export default function Step6Summary({
         <p className="text-sm text-muted-foreground">{t('wizard.subtitles.summary')}</p>
       </motion.div>
 
-      <div className="space-y-3">
-        {summaryRows.map((row, index) => {
+      {/* iOS grouped list: one card, rows divided by hairlines */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="divide-y divide-[var(--talea-border-light)] overflow-hidden rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)]"
+      >
+        {summaryRows.map((row) => {
           const Icon = row.icon;
           return (
-            <motion.div
-              key={row.key}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="flex items-start gap-3 rounded-2xl border border-border bg-card/70 p-4"
-            >
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: `${row.tone}1f` }}>
+            <div key={row.key} className={rowClass}>
+              <span className={iconClass} style={{ background: `color-mix(in srgb, ${row.tone} 14%, transparent)` }}>
                 <Icon className="h-4 w-4" style={{ color: row.tone }} />
               </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{labels[row.key]}</p>
-                <p className="mt-0.5 text-sm text-foreground">{values[row.key]}</p>
-              </div>
-              <CheckCircle2 className="mt-1 h-4 w-4 text-[var(--talea-text-tertiary)]" />
-            </motion.div>
+              <p className={labelClass}>{labels[row.key]}</p>
+              <p className={valueClass}>{values[row.key]}</p>
+            </div>
           );
         })}
 
         {state.broughtArtifact && (
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-start gap-3 rounded-2xl border border-amber-400/40 bg-amber-500/10 p-4"
-          >
+          <div className={rowClass}>
             {state.broughtArtifact.imageUrl ? (
-              <img src={state.broughtArtifact.imageUrl} alt="" className="h-9 w-9 rounded-lg object-cover" />
+              <img src={state.broughtArtifact.imageUrl} alt="" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
             ) : (
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/20 text-lg">
-                {state.broughtArtifact.emoji || '🎁'}
-              </span>
+              <span className={`${iconClass} bg-amber-500/15 text-base`}>{state.broughtArtifact.emoji || '\u{1F381}'}</span>
             )}
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mitgenommener Schatz</p>
-              <p className="mt-0.5 text-sm text-foreground">
-                {state.broughtArtifact.name} reist mit ({state.broughtArtifact.avatarName})
+            <p className={labelClass}>Schatz</p>
+            <p className={valueClass}>
+              {state.broughtArtifact.name}
+              <span className="block text-[13px] font-normal text-[var(--talea-text-tertiary)]">
+                reist mit {state.broughtArtifact.avatarName}
                 {state.broughtArtifact.journeysUntilNextLevel
-                  ? ` — noch ${state.broughtArtifact.journeysUntilNextLevel} ${state.broughtArtifact.journeysUntilNextLevel === 1 ? 'Reise' : 'Reisen'} bis Stufe ${state.broughtArtifact.nextLevel}`
+                  ? ` · noch ${state.broughtArtifact.journeysUntilNextLevel} ${state.broughtArtifact.journeysUntilNextLevel === 1 ? 'Reise' : 'Reisen'} bis Stufe ${state.broughtArtifact.nextLevel}`
                   : ''}
-              </p>
-            </div>
-            <CheckCircle2 className="mt-1 h-4 w-4 text-amber-600" />
-          </motion.div>
+              </span>
+            </p>
+          </div>
         )}
 
         {state.learningMode?.enabled && state.learningMode.subjects.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-start gap-3 rounded-2xl border border-border bg-card/70 p-4"
-          >
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: '#7ba89c1f' }}>
-              <GraduationCap className="h-4 w-4" style={{ color: '#7ba89c' }} />
+          <div className={rowClass}>
+            <span className={iconClass} style={{ background: 'color-mix(in srgb, var(--primary) 14%, transparent)' }}>
+              <GraduationCap className="h-4 w-4 text-[var(--primary)]" />
             </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {t('wizard.steps.learning')}
-              </p>
-              <p className="mt-0.5 text-sm text-foreground">
-                {state.learningMode.subjects
-                  .map((subject) => t(`wizard.learning.subjects.${subject}`))
-                  .join(', ')}
-                {' · '}
+            <p className={labelClass}>{t('wizard.steps.learning')}</p>
+            <p className={valueClass}>
+              {state.learningMode.subjects.map((subject) => t(`wizard.learning.subjects.${subject}`)).join(', ')}
+              <span className="block text-[13px] font-normal text-[var(--talea-text-tertiary)]">
                 {t(`wizard.learning.difficulties.${state.learningMode.difficulty}.title`)}
-              </p>
-              {state.learningMode.learningObjectives.length > 0 && (
-                <p className="mt-0.5 text-xs italic text-muted-foreground">
-                  {state.learningMode.learningObjectives.join(' · ')}
-                </p>
-              )}
-            </div>
-            <CheckCircle2 className="mt-1 h-4 w-4 text-[var(--talea-text-tertiary)]" />
-          </motion.div>
+                {state.learningMode.learningObjectives.length > 0 ? ` · ${state.learningMode.learningObjectives.join(' · ')}` : ''}
+              </span>
+            </p>
+          </div>
         )}
 
         {(activeWishes.length > 0 || state.customWish) && (
-          <div className="rounded-2xl border border-border bg-card/70 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('wizard.titles.wishes')}</p>
-            {activeWishes.length > 0 && (
-              <p className="mt-1 text-sm text-foreground">{activeWishes.join(', ')}</p>
-            )}
-            {state.customWish && (
-              <p className="mt-1 text-sm italic text-muted-foreground">"{state.customWish}"</p>
-            )}
+          <div className={rowClass}>
+            <span className={iconClass} style={{ background: 'color-mix(in srgb, #b98552 14%, transparent)' }}>
+              <Sparkles className="h-4 w-4" style={{ color: '#b98552' }} />
+            </span>
+            <p className={labelClass}>{t('wizard.steps.wishes')}</p>
+            <p className={valueClass}>
+              {activeWishes.join(', ')}
+              {state.customWish ? (
+                <span className="block text-[13px] font-normal italic text-[var(--talea-text-tertiary)]">
+                  &bdquo;{state.customWish}&ldquo;
+                </span>
+              ) : null}
+            </p>
           </div>
         )}
-      </div>
+      </motion.div>
 
       {storyCredits && (
-        <div className="rounded-2xl border border-[var(--talea-border-light)] bg-[rgba(111,174,156,0.08)] p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-foreground/85">{t('wizard.credits.title')}</p>
-          <div className="mt-2 flex items-end justify-between gap-4">
-            <div>
-              <p className="text-2xl font-bold text-foreground">
-                {storyCredits.remaining === null ? t('wizard.credits.unlimited') : storyCredits.remaining}
-              </p>
-              <p className="text-xs text-muted-foreground">{t('wizard.credits.remaining')}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-semibold text-foreground">
-                {storyCredits.used} / {storyCredits.limit === null ? t('wizard.credits.unlimited') : storyCredits.limit}
-              </p>
-              <p className="text-xs text-muted-foreground">{t('wizard.credits.usedTotal')}</p>
-            </div>
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {t('wizard.credits.costPerGen', { count: storyCredits.costPerGeneration })}
-          </p>
-        </div>
+        <p className="text-center text-[13px] text-[var(--talea-text-secondary)]">
+          {t('wizard.credits.costPerGen', { count: storyCredits.costPerGeneration ?? 1 })}
+          {remainingCredits !== null ? <> · {remainingCredits} {t('wizard.credits.remaining')}</> : null}
+        </p>
       )}
 
       <button
         type="button"
         onClick={onGenerate}
         disabled={generateDisabled}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border px-6 py-4 text-base font-bold text-[#233347] shadow-[0_12px_24px_rgba(43,57,77,0.16)] transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
-        style={{ borderColor: '#d4c5b5', background: 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d6e3cf 100%)' }}
+        className="flex min-h-[3.25rem] w-full items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] px-6 text-[17px] font-semibold text-[var(--primary-foreground)] transition-[filter,transform] hover:brightness-[1.06] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
       >
         <Sparkles className="h-5 w-5" />
         {generateDisabled ? t('wizard.credits.notAvailable') : `${t('wizard.buttons.generate')} (1 ${t('wizard.credits.coin')})`}
       </button>
 
-      {generateDisabledMessage && <p className="text-center text-xs text-rose-500">{generateDisabledMessage}</p>}
+      {generateDisabledMessage && <p className="text-center text-[13px] text-[var(--talea-danger)]">{generateDisabledMessage}</p>}
     </div>
   );
 }
-

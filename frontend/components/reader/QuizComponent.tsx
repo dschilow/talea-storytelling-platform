@@ -384,7 +384,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
 
       if (aiResult.alreadyProcessed) {
         const { showWarningToast } = await import('../../utils/toastUtils');
-        showWarningToast('Dieses Quiz wurde fuer diesen Avatar bereits ausgewertet.');
+        showWarningToast('Dieses Quiz wurde für diesen Avatar bereits ausgewertet.');
         setIsSubmitting(false);
         return;
       }
@@ -537,7 +537,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
                 className="mt-4 rounded-2xl border px-3.5 py-3 text-sm"
                 style={{ borderColor: colors.border, background: colors.option, color: colors.body }}
               >
-                <strong>Erklaerung:</strong> {currentQuestion.explanation}
+                <strong>Erklärung:</strong> {currentQuestion.explanation}
               </motion.div>
             )}
 
@@ -550,7 +550,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
                   className="rounded-full border px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
                   style={{ borderColor: colors.border, background: colors.option, color: colors.title }}
                 >
-                  Antwort pruefen
+                  Antwort prüfen
                 </button>
               ) : (
                 <button
@@ -560,7 +560,7 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
                   className="rounded-full px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                   style={{ background: 'linear-gradient(135deg,#6b8fc5 0%,#8f78b4 100%)' }}
                 >
-                  {isLastQuestion ? (isSubmitting ? 'Wird ausgewertet...' : 'Quiz abschliessen') : 'Naechste Frage'}
+                  {isLastQuestion ? (isSubmitting ? 'Wird ausgewertet...' : 'Quiz abschließen') : 'Nächste Frage'}
                 </button>
               )}
             </div>

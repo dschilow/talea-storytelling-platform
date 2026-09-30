@@ -19,7 +19,6 @@ import {
   Search,
   SlidersHorizontal,
   Trash2,
-  Wand2,
   X,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -1061,162 +1060,91 @@ const TaleaDokusScreen: React.FC = () => {
 
       <SignedIn>
         <div className={cn(taleaPageShellClass, 'relative z-10 space-y-5 pt-2 sm:space-y-6 sm:pt-4')}>
-          {/* Header */}
+          {/* Header: large title + count line, like an iOS large-title screen */}
           <motion.header
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between"
+            className="px-1"
           >
-            <div className="min-w-0">
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em]"
-                style={{
-                  borderColor: palette.border,
-                  background: 'var(--talea-surface-inset)',
-                  color: palette.muted,
-                }}
-              >
-                <BookOpen className="h-3 w-3" />
-                Wissen entdecken
-              </span>
+            <div className="flex items-end justify-between gap-4">
               <h1
-                className="mt-2 text-[2.4rem] font-semibold leading-[0.98] sm:text-[2.8rem]"
+                className="min-w-0 text-[2rem] font-bold leading-tight md:text-[2.5rem]"
                 style={{ fontFamily: headingFont, color: palette.text }}
               >
                 Dokus
               </h1>
-              <p className="mt-1 text-sm" style={{ color: palette.muted }}>
-                {t('doku.subtitle', 'Entdecke spannende Wissensartikel und Audio-Geschichten')}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <TaleaActionButton
-                type="button"
-                onClick={() => navigate('/doku/create')}
-                icon={<Wand2 className="h-4 w-4" />}
-              >
-                {t('doku.createNew', 'Neue Doku')}
-              </TaleaActionButton>
-              {isAdmin ? (
+              <div className="flex shrink-0 items-center gap-2 pb-1">
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/createaudiodoku')}
+                    aria-label="Audio-Doku erstellen"
+                    title="Audio-Doku erstellen"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--talea-surface-inset)] text-[var(--primary)] transition hover:brightness-95"
+                  >
+                    <Headphones className="h-4 w-4" />
+                  </button>
+                ) : null}
                 <TaleaActionButton
                   type="button"
-                  variant="secondary"
-                  onClick={() => navigate('/createaudiodoku')}
-                  icon={<Headphones className="h-4 w-4" />}
+                  onClick={() => navigate('/doku/create')}
+                  icon={<Plus className="h-5 w-5" />}
+                  aria-label={t('doku.createNew', 'Neue Doku')}
+                  className="h-10 min-h-10 w-10 rounded-full px-0 sm:w-auto sm:px-4"
                 >
-                  Audio-Doku
+                  <span className="hidden sm:inline">{t('doku.createNew', 'Neue Doku')}</span>
                 </TaleaActionButton>
-              ) : null}
-            </div>
-          </motion.header>
-
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
-            className={cn(
-              'grid divide-x divide-[var(--talea-border-light)] rounded-[1.25rem] bg-[var(--talea-surface-inset)]',
-              remainingDokuLabel === null ? 'grid-cols-1' : 'grid-cols-2'
-            )}
-          >
-            {[
-              { label: t('common.total', 'Gesamt'), value: totalMy, dot: 'var(--primary)' },
-              ...(remainingDokuLabel === null ? [] : [{ label: 'Dokus \u00fcbrig', value: remainingDokuLabel, dot: '#34d399' }]),
-            ].map((item) => (
-              <div key={item.label} className="flex min-w-0 items-center justify-center gap-2 px-2 py-3">
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ background: item.dot }}
-                  aria-hidden="true"
-                />
-                <span className="text-sm font-bold tabular-nums" style={{ color: palette.text }}>
-                  {item.value}
-                </span>
-                <span className="truncate text-[11px] font-medium sm:text-xs" style={{ color: palette.muted }}>
-                  {item.label}
-                </span>
               </div>
-            ))}
-          </motion.div>
+            </div>
+            <p className="mt-1 text-[15px]" style={{ color: palette.muted }}>
+              {totalMy} {totalMy === 1 ? 'Doku' : 'Dokus'}
+              {remainingDokuLabel !== null ? <> · {remainingDokuLabel} übrig in diesem Monat</> : null}
+            </p>
 
-          {/* Segmented Tab Control */}
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-
-            transition={{ duration: 0.4, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
-            className="rounded-[1.5rem] border p-1.5 shadow-[0_8px_24px_rgba(33,44,62,0.08)]"
-            style={{
-              borderColor: palette.border,
-              background: 'var(--talea-surface-primary)',
-            }}
-          >
-            <div className="grid grid-cols-3 gap-1">
+            {/* iOS segmented control */}
+            <div
+              role="tablist"
+              className="mt-4 grid grid-cols-3 rounded-[0.7rem] bg-[var(--talea-surface-inset)] p-0.5 sm:inline-grid sm:min-w-[26rem]"
+            >
               {tabThemes.map((tab) => {
                 const active = activeTab === tab.key;
-                const Icon = tab.icon;
                 return (
-                  <motion.button
+                  <button
                     key={tab.key}
                     type="button"
+                    role="tab"
+                    aria-selected={active}
                     onClick={() => setActiveTab(tab.key)}
-                    whileHover={reduceMotion ? undefined : { scale: 1.01 }}
-                    whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-                    className="relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-[1.1rem] px-1.5 py-2.5 text-xs font-semibold transition-colors sm:flex-row sm:gap-2.5 sm:px-4 sm:py-3 sm:text-sm"
-                    style={{ color: active ? 'white' : palette.muted }}
-                    aria-pressed={active}
-                  >
-                    {active && (
-                      <motion.div
-                        layoutId="doku-active-tab-pill"
-                        transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                        className="absolute inset-0 rounded-[1.1rem] shadow-[0_8px_20px_rgba(33,44,62,0.18)]"
-                        style={{
-                          background: `linear-gradient(135deg, ${tab.accent} 0%, color-mix(in srgb, ${tab.accent} 70%, white) 100%)`,
-                        }}
-                      />
+                    className={cn(
+                      'flex min-w-0 items-center justify-center gap-1.5 rounded-[0.55rem] px-2 py-1.5 text-[14px] font-semibold transition',
+                      active
+                        ? 'bg-[var(--talea-surface-primary)] text-[var(--talea-text-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.12)] dark:bg-[#48484d]'
+                        : 'text-[var(--talea-text-secondary)]'
                     )}
-                    <span className="relative z-10 flex min-w-0 items-center justify-center gap-1.5">
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span className="whitespace-nowrap">{tab.label}</span>
-                    </span>
-                    <span
-                      className={cn(
-                        'relative z-10 inline-flex h-4 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[9px] font-bold sm:h-5 sm:min-w-[1.4rem] sm:text-[10px]',
-                        active ? 'bg-white/25 text-white' : ''
-                      )}
-                      style={
-                        !active
-                          ? {
-                              background: 'var(--talea-surface-inset)',
-                              color: palette.muted,
-                            }
-                          : undefined
-                      }
-                    >
+                  >
+                    <span className="truncate">{tab.label}</span>
+                    <span className="text-[12px] font-medium tabular-nums text-[var(--talea-text-tertiary)]">
                       {counts[tab.key]}
                     </span>
-                  </motion.button>
+                  </button>
                 );
               })}
             </div>
-          </motion.div>
+          </motion.header>
 
-          {/* Filter Bar - kompakt */}
+          {/* Search, then sort + filter as compact pills */}
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-            className="space-y-3"
+            className="space-y-2.5"
           >
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              {/* Search */}
-              <label className="relative flex-1 min-w-0">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-muted)]" />
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+              <label className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-tertiary)]" />
                 <input
-                  type="text"
+                  type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={
@@ -1230,7 +1158,7 @@ const TaleaDokusScreen: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[var(--talea-text-muted)] hover:bg-[var(--talea-surface-inset)]"
+                    className="absolute right-2.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[var(--talea-text-tertiary)] hover:bg-[var(--talea-surface-primary)]"
                     aria-label="Suche löschen"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -1238,61 +1166,53 @@ const TaleaDokusScreen: React.FC = () => {
                 )}
               </label>
 
-              {/* Sort dropdown */}
-              <div className="relative">
-                <select
-                  value={sortMode}
-                  onChange={(e) => setSortMode(e.target.value as DokuSortMode)}
-                  className={cn(taleaInputClass, 'cursor-pointer appearance-none pl-10 pr-10 sm:w-52')}
-                  aria-label={t('common.sort', 'Sortierung')}
-                >
-                  <option value="newest">{t('doku.sortNewest', 'Neueste zuerst')}</option>
-                  <option value="oldest">{t('doku.sortOldest', 'Älteste zuerst')}</option>
-                  <option value="title">{t('doku.sortTitle', 'Titel A-Z')}</option>
-                </select>
-                <SlidersHorizontal className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-muted)]" />
-                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-muted)]" />
-              </div>
+              <div className="flex items-center gap-2">
+                <label className="relative">
+                  <span className="sr-only">{t('common.sort', 'Sortierung')}</span>
+                  <select
+                    value={sortMode}
+                    onChange={(e) => setSortMode(e.target.value as DokuSortMode)}
+                    className="h-9 cursor-pointer appearance-none rounded-full bg-[var(--talea-surface-inset)] pl-3.5 pr-8 text-[14px] font-semibold text-[var(--talea-text-primary)] outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/20"
+                  >
+                    <option value="newest">{t('doku.sortNewest', 'Neueste zuerst')}</option>
+                    <option value="oldest">{t('doku.sortOldest', 'Älteste zuerst')}</option>
+                    <option value="title">{t('doku.sortTitle', 'Titel A-Z')}</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-tertiary)]" />
+                </label>
 
-              {/* Filter toggle button */}
-              <motion.button
-                type="button"
-                onClick={() => setShowAdvancedFilters((v) => !v)}
-                whileHover={reduceMotion ? undefined : { y: -1 }}
-                whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-                className={cn(
-                  'inline-flex h-11 items-center justify-center gap-2 rounded-[1.1rem] border px-4 text-sm font-semibold transition-all',
-                  showAdvancedFilters || hasActiveFilters
-                    ? 'border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]'
-                    : 'border-[var(--talea-border-soft)] bg-white/80 text-[var(--talea-text-primary)] dark:bg-[var(--talea-surface-inset)]'
-                )}
-              >
-                <Filter className="h-4 w-4" />
-                Filter
-                {hasActiveFilters && (
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[10px] font-bold text-white">
-                    !
-                  </span>
-                )}
-              </motion.button>
-
-              {hasActiveFilters && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setSortMode('newest');
-                    setTopicFilter('all');
-                    setAgeGroupFilter('all');
-                    setDepthFilter('all');
-                    setAudioScopeFilter('all');
-                  }}
-                  className="inline-flex h-11 items-center justify-center gap-1 rounded-[1.1rem] px-3 text-xs font-semibold text-[var(--talea-text-muted)] hover:text-[var(--talea-text-primary)]"
+                  onClick={() => setShowAdvancedFilters((v) => !v)}
+                  aria-expanded={showAdvancedFilters}
+                  className={cn(
+                    'inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-semibold transition',
+                    showAdvancedFilters || hasActiveFilters
+                      ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
+                      : 'bg-[var(--talea-surface-inset)] text-[var(--talea-text-primary)]'
+                  )}
                 >
-                  <X className="h-3.5 w-3.5" />
-                  Zurücksetzen
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filter
                 </button>
-              )}
+
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setSortMode('newest');
+                      setTopicFilter('all');
+                      setAgeGroupFilter('all');
+                      setDepthFilter('all');
+                      setAudioScopeFilter('all');
+                    }}
+                    className="h-9 px-2 text-[14px] font-semibold text-[var(--primary)] hover:opacity-75"
+                  >
+                    Zurücksetzen
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Advanced filters panel */}

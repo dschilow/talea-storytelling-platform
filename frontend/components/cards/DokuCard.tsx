@@ -227,36 +227,16 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
             }
           />
 
-          {/* Type-Badge: TEXT */}
-          <div className="absolute left-3 top-3 z-10 flex items-center gap-1.5">
+          {/* Only a status that deviates from "done" is worth a badge. */}
+          {doku.status !== 'complete' ? (
             <span
-              className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] backdrop-blur-md"
-              style={{
-                borderColor: 'var(--talea-media-chrome-border)',
-                background: 'var(--talea-media-chrome-bg)',
-                color: 'var(--talea-media-foreground)',
-              }}
+              className="absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold backdrop-blur-md"
+              style={{ background: 'var(--talea-media-chrome-bg)', color: 'var(--talea-media-foreground)' }}
             >
-              <BookOpen className="h-3 w-3" />
-              Text
-            </span>
-
-            {/* Status-Dot */}
-            <span
-              className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold backdrop-blur-md"
-              style={{
-                borderColor: 'var(--talea-media-chrome-border)',
-                background: 'var(--talea-media-chrome-bg)',
-                color: 'var(--talea-media-foreground)',
-              }}
-            >
-              <span
-                className="inline-block h-1.5 w-1.5 rounded-full"
-                style={{ background: statusColor }}
-              />
+              <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: statusColor }} />
               {statusLabel(doku.status)}
             </span>
-          </div>
+          ) : null}
 
           <TaleaCardMenu actions={menuActions} label={`Aktionen für ${doku.title}`} className="!absolute right-3 top-3" />
 

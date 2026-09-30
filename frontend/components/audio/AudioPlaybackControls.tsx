@@ -61,17 +61,17 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
   const statusText = waitingForConversion
     ? 'Audio wird vorbereitet'
     : isPlaying
-      ? 'Laeuft gerade'
+      ? 'Läuft gerade'
       : 'Bereit zum Starten';
   const hasPrev = showNavigation && currentIndex > 0;
   const hasNext = showNavigation && currentIndex < playlist.length - 1;
 
   const secondaryButtonClass = `${
     isStreaming ? 'h-11 w-11' : isCompact ? 'h-8 w-8' : 'h-10 w-10'
-  } rounded-full border shadow-sm`;
+  } rounded-full border`;
   const playButtonClass = `${
     isStreaming ? 'h-14 w-14' : isCompact ? 'h-10 w-10' : 'h-12 w-12'
-  } rounded-full text-white shadow-lg disabled:opacity-60`;
+  } rounded-full shadow-md disabled:opacity-60`;
   const cueActionsInline = isCompact;
 
   const controlMotion = reduceMotion
@@ -98,9 +98,9 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
         title="Warteschlange"
         className={secondaryButtonClass}
         style={{
-          borderColor: 'var(--talea-border-soft)',
-          background: 'var(--talea-surface-primary)',
-          color: 'var(--talea-text-secondary)',
+          borderColor: 'transparent',
+          background: 'var(--talea-surface-inset)',
+          color: 'var(--talea-text-primary)',
         }}
       >
         <ListMusic size={isStreaming ? 18 : isCompact ? 15 : 17} className="mx-auto" />
@@ -113,7 +113,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
         {...controlMotion}
         type="button"
         onClick={close}
-        title="Schliessen"
+        title="Schließen"
         className={secondaryButtonClass}
         style={{
           borderColor: 'var(--talea-danger-border)',
@@ -134,12 +134,12 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
             type="button"
             onClick={playPrevious}
             disabled={!hasPrev}
-            title="Vorheriger Track"
-            className={`${isCompact ? 'h-7 w-7' : 'h-8 w-8'} rounded-full border shadow-sm disabled:opacity-30`}
+            title="Vorheriger Titel"
+            className={`${isCompact ? 'h-7 w-7' : 'h-8 w-8'} rounded-full border disabled:opacity-30`}
             style={{
-              borderColor: 'var(--talea-border-soft)',
-              background: 'var(--talea-surface-primary)',
-              color: 'var(--talea-text-secondary)',
+              borderColor: 'transparent',
+              background: 'var(--talea-surface-inset)',
+              color: 'var(--talea-text-primary)',
             }}
           >
             <SkipBack size={isCompact ? 13 : 15} className="mx-auto" />
@@ -150,12 +150,12 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
           {...controlMotion}
           type="button"
           onClick={() => handleSkip(-15)}
-          title="15 Sekunden zurueck"
+          title="15 Sekunden zurück"
           className={secondaryButtonClass}
           style={{
-            borderColor: 'var(--talea-border-soft)',
-            background: 'var(--talea-surface-primary)',
-            color: 'var(--talea-text-secondary)',
+            borderColor: 'transparent',
+            background: 'var(--talea-surface-inset)',
+            color: 'var(--talea-text-primary)',
           }}
         >
           <Rewind size={isStreaming ? 19 : isCompact ? 16 : 18} className="mx-auto" />
@@ -168,10 +168,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
           disabled={playDisabled}
           title={waitingForConversion ? 'Wird vorbereitet' : isPlaying ? 'Pause' : 'Play'}
           className={playButtonClass}
-          style={{
-            background:
-              'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 74%, white) 100%)',
-          }}
+          style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
         >
           <AnimatePresence mode="wait" initial={false}>
             {waitingForConversion ? (
@@ -215,9 +212,9 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
           title="15 Sekunden vor"
           className={secondaryButtonClass}
           style={{
-            borderColor: 'var(--talea-border-soft)',
-            background: 'var(--talea-surface-primary)',
-            color: 'var(--talea-text-secondary)',
+            borderColor: 'transparent',
+            background: 'var(--talea-surface-inset)',
+            color: 'var(--talea-text-primary)',
           }}
         >
           <FastForward size={isStreaming ? 19 : isCompact ? 16 : 18} className="mx-auto" />
@@ -229,12 +226,12 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
             type="button"
             onClick={playNext}
             disabled={!hasNext}
-            title="Naechster Track"
-            className={`${isCompact ? 'h-7 w-7' : 'h-8 w-8'} rounded-full border shadow-sm disabled:opacity-30`}
+            title="Nächster Titel"
+            className={`${isCompact ? 'h-7 w-7' : 'h-8 w-8'} rounded-full border disabled:opacity-30`}
             style={{
-              borderColor: 'var(--talea-border-soft)',
-              background: 'var(--talea-surface-primary)',
-              color: 'var(--talea-text-secondary)',
+              borderColor: 'transparent',
+              background: 'var(--talea-surface-inset)',
+              color: 'var(--talea-text-primary)',
             }}
           >
             <SkipForward size={isCompact ? 13 : 15} className="mx-auto" />
@@ -269,8 +266,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
               className={`absolute left-0 ${isStreaming ? 'h-2' : isCompact ? 'h-1.5' : 'h-1.5'} rounded-full`}
               style={{
                 width: `${progressRatio * 100}%`,
-                background:
-                  'linear-gradient(90deg, var(--primary) 0%, var(--talea-accent-sky) 55%, var(--talea-accent-peach) 100%)',
+                background: 'var(--primary)',
               }}
               transition={{ ease: 'easeOut', duration: 0.2 }}
             />

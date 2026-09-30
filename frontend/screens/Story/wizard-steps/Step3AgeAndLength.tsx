@@ -140,11 +140,12 @@ export default function Step3AgeAndLength({
                 onClick={() => updateState({ ageGroup: item.id })}
                 className={cn(
                   'relative rounded-2xl border p-3 text-left transition-colors',
-                  selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+                  selected ? 'bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-primary))] ring-1 ring-[var(--primary)]' : 'bg-[var(--talea-surface-primary)] hover:bg-[var(--talea-surface-inset)]/60'
                 )}
-                style={{ borderColor: selected ? `${item.tone}60` : 'var(--color-border)' }}
+                aria-pressed={selected}
+                style={{ borderColor: selected ? 'var(--primary)' : 'var(--talea-border-light)' }}
               >
-                <div className="mb-2.5 inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl" style={{ background: `${item.tone}1f` }}>
+                <div className="mb-2.5 inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl" style={{ background: `color-mix(in srgb, ${item.tone} 12%, transparent)` }}>
                   <WizardImage
                     url={assetUrl('dokuAge', item.id)}
                     fallback={<Icon className="h-7 w-7" style={{ color: item.tone }} />}
@@ -178,13 +179,14 @@ export default function Step3AgeAndLength({
                 onClick={() => updateState({ length: item.id })}
                 className={cn(
                   'relative rounded-2xl border p-3 text-center transition-colors',
-                  selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+                  selected ? 'bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-primary))] ring-1 ring-[var(--primary)]' : 'bg-[var(--talea-surface-primary)] hover:bg-[var(--talea-surface-inset)]/60'
                 )}
-                style={{ borderColor: selected ? `${item.tone}60` : 'var(--color-border)' }}
+                aria-pressed={selected}
+                style={{ borderColor: selected ? 'var(--primary)' : 'var(--talea-border-light)' }}
               >
                 <div
                   className="mx-auto mb-2.5 inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl"
-                  style={{ background: `${item.tone}1f` }}
+                  style={{ background: `color-mix(in srgb, ${item.tone} 12%, transparent)` }}
                 >
                   <WizardImage
                     url={assetUrl('storyLength', item.id)}
@@ -220,9 +222,10 @@ export default function Step3AgeAndLength({
                   onClick={() => updateState({ aiProvider: 'native', aiModel: model.id })}
                   className={cn(
                     'relative rounded-2xl border p-3 text-left transition-colors',
-                    selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+                    selected ? 'bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-primary))] ring-1 ring-[var(--primary)]' : 'bg-[var(--talea-surface-primary)] hover:bg-[var(--talea-surface-inset)]/60'
                   )}
-                  style={{ borderColor: selected ? `${model.tone}60` : 'var(--color-border)' }}
+                  aria-pressed={selected}
+                  style={{ borderColor: selected ? 'var(--primary)' : 'var(--talea-border-light)' }}
                 >
                   {model.recommended && (
                     <span className="mb-2 inline-flex rounded-full bg-[var(--talea-text-tertiary)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
@@ -248,7 +251,7 @@ export default function Step3AgeAndLength({
               }
               className={cn(
                 'relative rounded-2xl border p-3 text-left transition-colors',
-                activeProvider === 'openrouter' ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+                activeProvider === 'openrouter' ? 'bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-primary))] ring-1 ring-[var(--primary)]' : 'bg-[var(--talea-surface-primary)] hover:bg-[var(--talea-surface-inset)]/60'
               )}
               style={{ borderColor: activeProvider === 'openrouter' ? '#4f9a9a60' : 'var(--color-border)' }}
             >

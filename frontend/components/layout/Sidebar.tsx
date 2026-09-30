@@ -32,6 +32,8 @@ interface NavItem {
   path: string;
   labelKey?: string;
   label?: string;
+  /** Items without a route (Tavi) run an action instead of navigating. */
+  action?: () => void;
 }
 
 const PRIMARY_ITEMS: NavItem[] = [
@@ -40,6 +42,13 @@ const PRIMARY_ITEMS: NavItem[] = [
   { icon: User, imageId: "avatars", labelKey: "navigation.avatars", path: "/avatar" },
   { icon: FlaskConical, imageId: "dokus", label: "Dokus", path: "/doku" },
   { icon: Brain, imageId: "quiz", label: "Quiz", path: "/quiz" },
+  {
+    icon: Bot,
+    imageId: "tavi",
+    label: "Tavi",
+    path: "",
+    action: () => window.dispatchEvent(new Event("tavi:open")),
+  },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
@@ -90,18 +99,13 @@ const Sidebar: React.FC = () => {
   const labelOf = (item: NavItem) => item.label ?? (item.labelKey ? t(item.labelKey) : "");
 
   const isActive = (path: string) => {
+    if (!path) return false;
     if (path === "/") return location.pathname === "/";
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 
   const handleSignOut = async () => {
     await signOut();
-  };
-
-  const handleOpenTavi = () => {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("tavi:open"));
-    }
   };
 
   const { assetUrl } = useWizardAssets();
@@ -112,9 +116,9 @@ const Sidebar: React.FC = () => {
 
     return (
       <button
-        key={item.path}
+        key={item.path || item.label}
         type="button"
-        onClick={() => navigate(item.path)}
+        onClick={() => (item.action ? item.action() : navigate(item.path))}
         className={cn(
           "group flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors duration-150",
           active
@@ -246,25 +250,6 @@ const Sidebar: React.FC = () => {
 
           <div className="mt-3 space-y-0.5 border-t pt-3" style={{ borderColor: "var(--talea-border-light)" }}>
             {renderNavItem(SETTINGS_ITEM)}
-
-            <button
-              type="button"
-              onClick={handleOpenTavi}
-              className="group flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left text-[var(--talea-text-secondary)] transition-colors hover:bg-[var(--talea-surface-inset)] hover:text-[var(--talea-text-primary)]"
-              aria-label="Tavi Assistant"
-            >
-              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center">
-                <Bot className="h-[20px] w-[20px]" />
-              </span>
-              <motion.span
-                initial={false}
-                animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
-                transition={{ duration: 0.15 }}
-                className="overflow-hidden whitespace-nowrap text-[15px] font-medium"
-              >
-                Tavi
-              </motion.span>
-            </button>
 
             <button
               type="button"

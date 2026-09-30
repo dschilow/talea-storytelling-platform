@@ -1,27 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  BookOpen,
-  Brain,
-  ChevronUp,
-  FlaskConical,
-  Home,
-  ListMusic,
-  Loader2,
-  Play,
-  Pause,
-  User,
-  Volume2,
-} from 'lucide-react';
+import React from 'react';
+import { Bot, BookOpen, Brain, FlaskConical, Home, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 import { cn } from '@/lib/utils';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useAudioPlayer } from '@/contexts/AudioPlayerContext';
-import { PlaylistDrawer } from '@/components/audio/PlaylistDrawer';
-import { WaveformEqualizer } from '@/components/audio/WaveformEqualizer';
-import { AudioPlaybackControls } from '@/components/audio/AudioPlaybackControls';
 import { WizardImage } from '@/components/avatar-form/WizardImage';
 import { useWizardAssets } from '@/hooks/useWizardAssets';
 
@@ -29,10 +12,9 @@ interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   /** Wizard-asset id within the "navTab" group; renders a Talea illustration instead of the icon. */
   imageId: string;
-  path?: string;
+  path: string;
   labelKey?: string;
   label?: string;
-  onClick?: () => void;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -43,292 +25,89 @@ const NAV_ITEMS: NavItem[] = [
   { icon: Brain, imageId: 'quiz', label: 'Quiz', path: '/quiz' },
 ];
 
+/**
+ * Mobile tab bar in the current iOS style: a floating glass capsule with the
+ * active tab on its own lighter capsule, and Tavi as a separate round button
+ * next to it (where iOS puts search). Audio lives in GlobalAudioPlayer, which
+ * floats its mini player above this bar.
+ */
 const BottomNav: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { resolvedTheme } = useTheme();
-  const {
-    track,
-    isPlaying,
-    togglePlay,
-    currentTime,
-    duration,
-    isPlaylistActive,
-    playlist,
-    currentIndex,
-    togglePlaylistDrawer,
-    isPlaylistDrawerOpen,
-    waitingForConversion,
-  } = useAudioPlayer();
-
-  const [playerExpanded, setPlayerExpanded] = useState(false);
-  const isDark = resolvedTheme === 'dark';
-  const isVisible = Boolean(track) || waitingForConversion;
-  const currentItem =
-    currentIndex >= 0 && currentIndex < playlist.length ? playlist[currentIndex] : null;
-  const nextItem = useMemo(
-    () =>
-      playlist
-        .slice(currentIndex >= 0 ? currentIndex + 1 : 0)
-        .find((item) => item.conversionStatus !== 'error') || null,
-    [currentIndex, playlist],
-  );
-  const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
-  const queueLabel =
-    currentIndex >= 0 && playlist.length > 0 ? `${currentIndex + 1}/${playlist.length}` : null;
-  const subtitle =
-    currentItem?.parentStoryTitle ||
-    currentItem?.parentDokuTitle ||
-    track?.description ||
-    'Talea Audio';
-
-  useEffect(() => {
-    if (!track && !waitingForConversion) {
-      setPlayerExpanded(false);
-    }
-  }, [track, waitingForConversion]);
-
-  const isActive = (path?: string) => {
-    if (!path) return false;
-    if (path === '/') return location.pathname === '/';
-    return location.pathname === path || location.pathname.startsWith(`${path}/`);
-  };
-
+  const reduceMotion = useReducedMotion();
   const { assetUrl } = useWizardAssets();
+
+  const isActive = (path: string) =>
+    path === '/' ? location.pathname === '/' : location.pathname === path || location.pathname.startsWith(`${path}/`);
   const labelOf = (item: NavItem) => item.label ?? (item.labelKey ? t(item.labelKey) : '');
 
-  const renderNavItem = (item: NavItem) => {
-    const Icon = item.icon;
-    const active = isActive(item.path);
-
-    return (
-      <button
-        key={item.path ?? item.label ?? item.labelKey}
-        type="button"
-        onClick={() => (item.onClick ? item.onClick() : item.path ? navigate(item.path) : undefined)}
-        className="flex min-w-0 flex-col items-center justify-center gap-0.5 pt-1.5"
-        aria-label={labelOf(item)}
-        aria-current={active ? 'page' : undefined}
-      >
-        <span
-          className={cn(
-            'flex h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-[9px] transition-[opacity,filter] duration-200',
-            active ? 'opacity-100' : 'opacity-70 saturate-[0.65]',
-          )}
-        >
-          <WizardImage
-            url={assetUrl('navTab', item.imageId)}
-            fallback={<Icon className={cn('h-6 w-6', active ? 'text-[var(--primary)]' : 'text-[var(--talea-text-tertiary)]')} />}
-            alt=""
-            fallbackClassName="flex h-full w-full items-center justify-center"
-          />
-        </span>
-        <span
-          className={cn(
-            'max-w-full truncate text-[10px] leading-tight',
-            active ? 'font-semibold text-[var(--primary)]' : 'font-medium text-[var(--talea-text-tertiary)]',
-          )}
-        >
-          {labelOf(item)}
-        </span>
-      </button>
-    );
-  };
-
   return (
-    <>
-      <AnimatePresence>{isPlaylistDrawerOpen ? <PlaylistDrawer variant="mobile" /> : null}</AnimatePresence>
-
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] md:hidden">
-        <div className="pointer-events-auto">
-          <AnimatePresence initial={false}>
-            {isVisible ? (
-              <motion.div
-                layout
-                initial={{ y: 14, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 14, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 360, damping: 30 }}
-                className="mx-2 mb-2 overflow-hidden rounded-2xl border border-[var(--talea-border-light)] bg-[var(--talea-glass-bg-alt)] shadow-[var(--talea-shadow-strong)] backdrop-blur-xl backdrop-saturate-150"
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] md:hidden">
+      <div className="pointer-events-auto flex items-center gap-1.5">
+        <nav className="talea-glass flex h-[62px] min-w-0 flex-1 items-center rounded-full p-[3px]" aria-label="Hauptnavigation">
+          {NAV_ITEMS.map((item) => {
+            const active = isActive(item.path);
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.path}
+                type="button"
+                onClick={() => navigate(item.path)}
+                className="relative flex h-full min-w-0 flex-auto flex-col items-center justify-center gap-0.5 rounded-full px-1.5"
+                aria-label={labelOf(item)}
+                aria-current={active ? 'page' : undefined}
               >
-                {/* Header: div statt <button>, weil verschachtelte Buttons
-                    (Play/Chevron im Header) invalides HTML sind und das
-                    Ein-/Ausklappen unzuverlässig machten. */}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setPlayerExpanded((value) => !value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      setPlayerExpanded((value) => !value);
-                    }
-                  }}
-                  className="w-full cursor-pointer select-none px-3 py-2.5 text-left"
-                  aria-expanded={playerExpanded}
-                  aria-label={playerExpanded ? 'Player einklappen' : 'Player ausklappen'}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-[0.9rem] border border-white/10 bg-[var(--talea-surface-inset)]">
-                      {waitingForConversion && !track ? (
-                        <div className="flex h-full w-full items-center justify-center">
-                          <Loader2 className="h-4 w-4 animate-spin text-[var(--primary)]" />
-                        </div>
-                      ) : currentItem?.coverImageUrl || track?.coverImageUrl ? (
-                        <img
-                          src={currentItem?.coverImageUrl || track?.coverImageUrl}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,var(--talea-gradient-secondary)_0%,var(--talea-gradient-lavender)_100%)]">
-                          <Volume2 className="h-4 w-4 text-[var(--talea-text-secondary)]" />
-                        </div>
-                      )}
-                      {isPlaying ? (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/28">
-                          <WaveformEqualizer isPlaying isWaiting={false} isDark={isDark} size="sm" />
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-[var(--talea-text-primary)]">
-                        {waitingForConversion && !track ? 'Audio wird vorbereitet' : currentItem?.title || track?.title}
-                      </p>
-                      <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] font-medium text-[var(--talea-text-secondary)]">
-                        {queueLabel ? (
-                          <span className="shrink-0 rounded-full bg-[var(--talea-surface-inset)] px-1.5 py-px text-[9px] font-semibold text-[var(--talea-text-tertiary)]">
-                            {queueLabel}
-                          </span>
-                        ) : null}
-                        <span className="truncate">{subtitle}</span>
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        togglePlay();
-                      }}
-                      disabled={waitingForConversion && !track}
-                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-md disabled:opacity-50"
-                      style={{
-                        background:
-                          'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 74%, white) 100%)',
-                      }}
-                      aria-label={isPlaying ? 'Pause' : 'Play'}
-                    >
-                      {waitingForConversion && !track ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : isPlaying ? (
-                        <Pause className="h-4 w-4" />
-                      ) : (
-                        <Play className="ml-[1px] h-4 w-4" />
-                      )}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setPlayerExpanded((value) => !value);
-                      }}
-                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border"
-                      style={{
-                        borderColor: 'var(--talea-border-soft)',
-                        background: 'var(--talea-surface-primary)',
-                        color: 'var(--talea-text-secondary)',
-                      }}
-                      aria-expanded={playerExpanded}
-                      aria-label={playerExpanded ? 'Player einklappen' : 'Player ausklappen'}
-                    >
-                      <motion.span
-                        animate={{ rotate: playerExpanded ? 180 : 0 }}
-                        transition={{ duration: 0.22, ease: 'easeOut' }}
-                        className="flex"
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </motion.span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="h-[3px] overflow-hidden bg-[var(--talea-progress-track)]">
-                  <motion.div
-                    className="h-full rounded-full bg-[linear-gradient(90deg,var(--primary)_0%,var(--talea-accent-sky)_55%,var(--talea-accent-peach)_100%)]"
-                    style={{ width: `${progress}%` }}
-                    transition={{ ease: 'easeOut', duration: 0.2 }}
+                {active ? (
+                  <motion.span
+                    layoutId="talea-tab-active"
+                    className="absolute inset-0 rounded-full bg-[color-mix(in_srgb,var(--primary)_14%,var(--talea-surface-primary))]"
+                    transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }}
                   />
-                </div>
+                ) : null}
+                <span
+                  className={cn(
+                    'relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-[8px] transition-[opacity,filter] duration-200',
+                    active ? 'opacity-100' : 'opacity-75 saturate-[0.7]'
+                  )}
+                >
+                  <WizardImage
+                    url={assetUrl('navTab', item.imageId)}
+                    fallback={<Icon className={cn('h-[22px] w-[22px]', active ? 'text-[var(--primary)]' : 'text-[var(--talea-text-secondary)]')} />}
+                    alt=""
+                    fallbackClassName="flex h-full w-full items-center justify-center"
+                  />
+                </span>
+                <span
+                  className={cn(
+                    'relative max-w-full truncate text-[10px] leading-tight tracking-[-0.015em]',
+                    active ? 'font-semibold text-[var(--primary)]' : 'font-medium text-[var(--talea-text-secondary)]'
+                  )}
+                >
+                  {labelOf(item)}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
 
-                <AnimatePresence initial={false}>
-                  {playerExpanded ? (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                      className="overflow-hidden border-t"
-                      style={{ borderColor: 'var(--talea-border-light)' }}
-                    >
-                      <div className="space-y-4 px-4 pb-4 pt-3.5">
-                        <AudioPlaybackControls
-                          variant="streaming"
-                          showClose
-                          showNavigation={isPlaylistActive && playlist.length > 1}
-                          onQueueClick={playlist.length > 0 ? togglePlaylistDrawer : undefined}
-                        />
-
-                        {nextItem ? (
-                          <button
-                            type="button"
-                            onClick={togglePlaylistDrawer}
-                            className="flex w-full items-center gap-3 rounded-[1.1rem] border px-3 py-2.5 text-left"
-                            style={{
-                              borderColor: 'var(--talea-border-light)',
-                              background: 'var(--talea-surface-primary)',
-                            }}
-                          >
-                            <div className="h-10 w-10 shrink-0 overflow-hidden rounded-[0.8rem] bg-[var(--talea-surface-inset)]">
-                              {nextItem.coverImageUrl ? (
-                                <img src={nextItem.coverImageUrl} alt="" className="h-full w-full object-cover" />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center">
-                                  <Volume2 className="h-4 w-4 text-[var(--talea-text-tertiary)]" />
-                                </div>
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-tertiary)]">
-                                Als Nächstes
-                              </p>
-                              <p className="mt-0.5 truncate text-sm font-semibold text-[var(--talea-text-primary)]">
-                                {nextItem.title}
-                              </p>
-                            </div>
-                            <ListMusic className="h-4 w-4 shrink-0 text-[var(--talea-text-tertiary)]" />
-                          </button>
-                        ) : null}
-                      </div>
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-
-          <nav
-            className="border-t border-[var(--talea-border-soft)] bg-[var(--talea-glass-bg)] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150"
-            aria-label="Hauptnavigation"
-          >
-            <div className="grid h-[52px] grid-cols-5">{NAV_ITEMS.map(renderNavItem)}</div>
-          </nav>
-        </div>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event('tavi:open'))}
+          className="talea-glass flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full transition-transform active:scale-95"
+          aria-label="Tavi fragen"
+        >
+          <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-[9px]">
+            <WizardImage
+              url={assetUrl('navTab', 'tavi')}
+              fallback={<Bot className="h-6 w-6 text-[var(--primary)]" />}
+              alt=""
+              fallbackClassName="flex h-full w-full items-center justify-center"
+            />
+          </span>
+        </button>
       </div>
-    </>
+    </div>
   );
 };
 

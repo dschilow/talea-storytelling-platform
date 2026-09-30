@@ -64,12 +64,12 @@ export default function Step4StoryFeeling({ state, updateState }: Props) {
               onClick={() => toggleFeeling(id)}
               className={cn(
                 'relative rounded-2xl border p-4 text-left transition-colors',
-                selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35',
+                selected ? 'bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-primary))] ring-1 ring-[var(--primary)]' : 'bg-[var(--talea-surface-primary)] hover:bg-[var(--talea-surface-inset)]/60',
                 blocked && 'cursor-not-allowed opacity-45'
               )}
-              style={{ borderColor: selected ? `${tone}66` : 'var(--color-border)' }}
+              style={{ borderColor: selected ? 'var(--primary)' : 'var(--talea-border-light)' }}
             >
-              <div className="mb-2.5 inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl" style={{ background: `${tone}1f` }}>
+              <div className="mb-2.5 inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl" style={{ background: `color-mix(in srgb, ${tone} 12%, transparent)` }}>
                 <WizardImage
                   url={assetUrl('storyFeeling', id)}
                   fallback={<Icon className="h-7 w-7" style={{ color: tone }} />}

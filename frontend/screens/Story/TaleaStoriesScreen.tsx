@@ -3,8 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { motion, useReducedMotion, AnimatePresence } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
+  ChevronDown,
   Bookmark,
   BookmarkCheck,
   BookOpen,
@@ -18,7 +19,6 @@ import {
   Trash2,
   Sparkles,
   RefreshCw,
-  Filter,
   LogIn,
 } from "lucide-react";
 
@@ -36,7 +36,6 @@ import { useOffline } from "@/contexts/OfflineStorageContext";
 import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
 import TaleaStudioWorkspace from "./TaleaStudioWorkspace";
 import CharacterOriginsScreen from "../CharacterPool/CharacterOriginsScreen";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { TaleaCardMenu, type TaleaCardMenuAction } from "@/components/talea/TaleaCardMenu";
 import {
   TaleaActionButton,
@@ -45,7 +44,6 @@ import {
   taleaBodyFont,
   taleaChipClass,
   taleaDisplayFont,
-  taleaGlassPanelClass,
   taleaInputClass,
   taleaInsetSurfaceClass,
   taleaPageShellClass,
@@ -219,21 +217,39 @@ const StoryCoverMedia: React.FC<{
   </div>
 );
 
-const FilterSelect: React.FC<{ value: string; onChange: (v: string) => void; options: { label: string; value: string }[]; label: string; allLabel?: string }> = ({ value, onChange, options, label, allLabel }) => (
-  <select
-    value={value}
-    onChange={(e) => onChange(e.target.value)}
-    className={cn(taleaInputClass, "cursor-pointer appearance-none")}
-    aria-label={label}
-  >
-    <option value="all">{allLabel || label}</option>
-    {options.map((opt) => (
-      <option key={opt.value} value={opt.value}>
-        {opt.label}
-      </option>
-    ))}
-  </select>
-);
+/**
+ * Filter as a pill: shows the category until something is picked, then the
+ * picked value, tinted. The transparent native <select> on top opens the
+ * system picker (the wheel on iPhone) instead of a hand-made dropdown.
+ */
+const FilterSelect: React.FC<{ value: string; onChange: (v: string) => void; options: { label: string; value: string }[]; label: string; allLabel?: string; allValue?: string }> = ({ value, onChange, options, label, allLabel, allValue = "all" }) => {
+  const isActive = value !== allValue;
+  const shown = isActive ? options.find((opt) => opt.value === value)?.label ?? label : label;
+  return (
+    <label
+      className={cn(
+        "relative inline-flex h-9 shrink-0 items-center gap-1 rounded-full pl-3.5 pr-2.5 text-[14px] font-semibold transition focus-within:ring-4 focus-within:ring-[var(--primary)]/20",
+        isActive ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "bg-[var(--talea-surface-inset)] text-[var(--talea-text-primary)]"
+      )}
+    >
+      <span className="max-w-[10rem] truncate">{shown}</span>
+      <ChevronDown className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="absolute inset-0 cursor-pointer appearance-none opacity-0"
+        aria-label={label}
+      >
+        {allLabel !== undefined ? <option value={allValue}>{allLabel}</option> : null}
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+};
 
 const StoryStatusChip: React.FC<{ status: Story["status"] }> = ({ status }) => {
   const { t } = useTranslation();
@@ -249,7 +265,7 @@ const StoryStatusChip: React.FC<{ status: Story["status"] }> = ({ status }) => {
 const StoryImageSkipChip: React.FC = () => (
   <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700 shadow-sm dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300">
     <ImageOff className="h-3.5 w-3.5" />
-    Bilder ubersprungen
+    Bilder übersprungen
   </span>
 );
 
@@ -296,7 +312,7 @@ const GridStoryCard: React.FC<{
       )}
       onClick={onRead}
     >
-      <div className={cn("relative aspect-square w-full shrink-0 overflow-hidden bg-[var(--talea-media-skeleton)]", isFeatured && "lg:w-[44%]")}>
+      <div className={cn("relative aspect-square w-full shrink-0 overflow-hidden bg-[var(--talea-media-skeleton)]", isFeatured && "lg:w-[36%]")}>
         <StoryCoverMedia
           src={story.coverImageUrl}
           alt={story.title}
@@ -449,8 +465,6 @@ type StoriesSignedInContentProps = {
   setSearchQuery: (value: string) => void;
   viewMode: ViewMode;
   setViewMode: (value: ViewMode) => void;
-  showFilters: boolean;
-  setShowFilters: (value: boolean) => void;
   sortMode: SortMode;
   setSortMode: (value: SortMode) => void;
   genreFilter: string;
@@ -468,7 +482,6 @@ type StoriesSignedInContentProps = {
   filteredStories: Story[];
   loading: boolean;
   hasActiveFilters: boolean;
-  isDesktop: boolean;
   loadingMore: boolean;
   hasMore: boolean;
   observerTarget: React.RefObject<HTMLDivElement | null>;
@@ -494,8 +507,6 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
   setSearchQuery,
   viewMode,
   setViewMode,
-  showFilters,
-  setShowFilters,
   sortMode,
   setSortMode,
   genreFilter,
@@ -513,7 +524,6 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
   filteredStories,
   loading,
   hasActiveFilters,
-  isDesktop,
   loadingMore,
   hasMore,
   observerTarget,
@@ -537,7 +547,6 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
     : remainingStoryCredits === null ? "\u221e" : remainingStoryCredits;
 
   const shelfStories = filteredStories.slice(featuredStory ? 1 : 0);
-  const showFilterPanel = isDesktop || showFilters;
   const isStudioTabActive = isAdmin && contentTab === "studio";
 
   return (
@@ -564,9 +573,9 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
               icon={<Plus className="h-5 w-5" />}
               onClick={() => goTo("/story")}
               aria-label={t("homeScreen.newStory")}
-              className="h-10 min-h-10 w-10 rounded-full px-0 sm:w-auto sm:px-4 [&>span:empty]:hidden"
+              className="h-10 min-h-10 w-10 rounded-full px-0 sm:w-auto sm:px-4"
             >
-              {isDesktop ? t("homeScreen.newStory") : ""}
+              <span className="hidden sm:inline">{t("homeScreen.newStory")}</span>
             </TaleaActionButton>
           </div>
         </div>
@@ -604,57 +613,64 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
       {contentTab === "characters" ? (
         <CharacterOriginsScreen />
       ) : !isStudioTabActive ? (
-        <div className="flex flex-col gap-6 sm:gap-8 xl:flex-row xl:items-start">
-          <div className="w-full xl:w-[18.5rem] xl:shrink-0 xl:sticky xl:top-24">
-            <div className="flex items-center gap-3 xl:hidden">
-              <TaleaActionButton variant="secondary" className="flex-1" icon={<Filter className="h-4 w-4" />} onClick={() => setShowFilters(!showFilters)}>
-                Filter
-              </TaleaActionButton>
-              <div className={cn(taleaSurfaceClass, "flex gap-1 p-1")}>
-                <button type="button" onClick={() => setViewMode("grid")} className={cn("rounded-full p-3", viewMode === "grid" ? "bg-white/90 text-slate-900 dark:bg-white/10 dark:text-white" : "text-slate-400")}><Grid3X3 className="h-4 w-4" /></button>
-                <button type="button" onClick={() => setViewMode("list")} className={cn("rounded-full p-3", viewMode === "list" ? "bg-white/90 text-slate-900 dark:bg-white/10 dark:text-white" : "text-slate-400")}><LayoutList className="h-4 w-4" /></button>
+        <div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5">
+              <label className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-tertiary)]" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder={t("common.search")}
+                  className={cn(taleaInputClass, "pl-10 pr-4")}
+                />
+              </label>
+              <div role="radiogroup" aria-label="Ansicht" className="flex shrink-0 rounded-[0.7rem] bg-[var(--talea-surface-inset)] p-0.5">
+                {([
+                  { id: "grid", label: "Rasteransicht", icon: <Grid3X3 className="h-4 w-4" /> },
+                  { id: "list", label: "Listenansicht", icon: <LayoutList className="h-4 w-4" /> },
+                ] as Array<{ id: ViewMode; label: string; icon: React.ReactNode }>).map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={viewMode === mode.id}
+                    aria-label={mode.label}
+                    onClick={() => setViewMode(mode.id)}
+                    className={cn(
+                      "inline-flex h-10 w-10 items-center justify-center rounded-[0.55rem] transition",
+                      viewMode === mode.id
+                        ? "bg-[var(--talea-surface-primary)] text-[var(--talea-text-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.12)] dark:bg-[#48484d]"
+                        : "text-[var(--talea-text-tertiary)]"
+                    )}
+                  >
+                    {mode.icon}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <AnimatePresence>
-              {showFilterPanel ? (
-                <motion.div initial={{ opacity: 0, height: isDesktop ? "auto" : 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                  <div className={cn(taleaSurfaceClass, "mt-3 p-4 sm:p-5 xl:mt-0")}>
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Filter</p>
-                      {hasActiveFilters ? (
-                        <button type="button" onClick={onResetFilters} className="text-sm font-semibold text-red-500 dark:text-red-400">
-                          {t("common.cancel", "Zurücksetzen")}
-                        </button>
-                      ) : null}
-                    </div>
-                    <div className="mt-4 space-y-3">
-                      <FilterSelect label={t("common.sort", "Sortierung")} value={sortMode} onChange={(value) => setSortMode(value as SortMode)} options={[{ value: "newest", label: t("storiesScreen.sortNewest") }, { value: "oldest", label: t("storiesScreen.sortOldest") }, { value: "title", label: t("storiesScreen.sortTitle") }]} />
-                      <FilterSelect label={t("storiesScreen.filterGenre")} value={genreFilter} onChange={setGenreFilter} options={genreFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterGenre") })} />
-                      <FilterSelect label={t("storiesScreen.filterAge")} value={ageGroupFilter} onChange={setAgeGroupFilter} options={ageGroupFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterAge") })} />
-                      <FilterSelect label={t("storiesScreen.filterLength")} value={lengthFilter} onChange={setLengthFilter} options={lengthFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterLength") })} />
-                      <FilterSelect label={t("storiesScreen.filterAvatar")} value={avatarFilter} onChange={setAvatarFilter} options={avatarFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterAvatar") })} />
-                    </div>
-                  </div>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className={cn(taleaGlassPanelClass, "flex flex-col gap-3 p-3 lg:flex-row lg:items-center")}>
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder={t("common.search")} className={cn(taleaInputClass, "pl-11 pr-4")} />
-              </div>
-              <div className="hidden items-center gap-3 xl:flex">
-                <span className="whitespace-nowrap text-xs font-semibold text-slate-500 dark:text-slate-400">
-                  {filteredStories.length} Titel
-                </span>
-                <div className="flex gap-1 rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] p-1 dark:border-white/10">
-                  <button type="button" aria-label="Rasteransicht" onClick={() => setViewMode("grid")} className={cn("rounded-full p-2.5", viewMode === "grid" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300")}><Grid3X3 className="h-4 w-4" /></button>
-                  <button type="button" aria-label="Listenansicht" onClick={() => setViewMode("list")} className={cn("rounded-full p-2.5", viewMode === "list" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300")}><LayoutList className="h-4 w-4" /></button>
-                </div>
+            {/* Filter pills: one row, scrolls sideways on narrow screens */}
+            <div className="-mx-4 mt-2.5 overflow-x-auto px-4 [scrollbar-width:none] md:-mx-6 md:px-6 lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden">
+              <div className="flex w-max items-center gap-2">
+                <FilterSelect
+                  label={t("common.sort", "Sortierung")}
+                  value={sortMode}
+                  allValue="newest"
+                  onChange={(value) => setSortMode(value as SortMode)}
+                  options={[{ value: "newest", label: t("storiesScreen.sortNewest") }, { value: "oldest", label: t("storiesScreen.sortOldest") }, { value: "title", label: t("storiesScreen.sortTitle") }]}
+                />
+                <FilterSelect label={t("storiesScreen.filterGenre")} value={genreFilter} onChange={setGenreFilter} options={genreFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterGenre") })} />
+                <FilterSelect label={t("storiesScreen.filterAge")} value={ageGroupFilter} onChange={setAgeGroupFilter} options={ageGroupFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterAge") })} />
+                <FilterSelect label={t("storiesScreen.filterLength")} value={lengthFilter} onChange={setLengthFilter} options={lengthFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterLength") })} />
+                <FilterSelect label={t("storiesScreen.filterAvatar")} value={avatarFilter} onChange={setAvatarFilter} options={avatarFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterAvatar") })} />
+                {hasActiveFilters ? (
+                  <button type="button" onClick={onResetFilters} className="h-9 shrink-0 px-2 text-[14px] font-semibold text-[var(--primary)] hover:opacity-75">
+                    Zurücksetzen
+                  </button>
+                ) : null}
+                <span className="shrink-0 pl-1 text-[13px] text-[var(--talea-text-tertiary)]">{filteredStories.length} Titel</span>
               </div>
             </div>
 
@@ -694,7 +710,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                       />
                     ) : null}
 
-                    <div className={cn(viewMode === "grid" ? "grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3 sm:gap-6" : "flex flex-col gap-5 sm:gap-6")}>
+                    <div className={cn(viewMode === "grid" ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-5" : "flex flex-col gap-3")}>
                       {shelfStories.map((story, index) =>
                         viewMode === "grid" ? (
                           <GridStoryCard
@@ -770,7 +786,6 @@ const TaleaStoriesScreen: React.FC = () => {
   const { isLoaded: authLoaded, isSignedIn } = useUser();
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const isDark = resolvedTheme === "dark";
-  const isDesktop = useMediaQuery("(min-width: 1280px)");
 
   const [stories, setStories] = useState<Story[]>([]);
   const [contentTab, setContentTab] = useState<ContentTab>("stories");
@@ -787,7 +802,6 @@ const TaleaStoriesScreen: React.FC = () => {
   const [sortMode, setSortMode] = useState<SortMode>("newest");
   const [downloadingStoryId, setDownloadingStoryId] = useState<string | null>(null);
   
-  const [showFilters, setShowFilters] = useState(false);
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -944,8 +958,6 @@ const TaleaStoriesScreen: React.FC = () => {
           setSearchQuery={setSearchQuery}
           viewMode={viewMode}
           setViewMode={setViewMode}
-          showFilters={showFilters}
-          setShowFilters={setShowFilters}
           sortMode={sortMode}
           setSortMode={setSortMode}
           genreFilter={genreFilter}
@@ -963,7 +975,6 @@ const TaleaStoriesScreen: React.FC = () => {
           filteredStories={filteredStories}
           loading={loading}
           hasActiveFilters={hasActiveFilters}
-          isDesktop={isDesktop}
           loadingMore={loadingMore}
           hasMore={hasMore}
           observerTarget={observerTarget}

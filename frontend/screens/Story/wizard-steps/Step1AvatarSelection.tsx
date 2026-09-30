@@ -183,11 +183,11 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
                 disabled={isBlocked}
                 className={cn(
                   'relative overflow-hidden rounded-2xl border p-3 text-left transition-colors',
-                  isSelected ? 'bg-accent/55' : 'bg-card/70',
+                  isSelected ? 'bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-primary))] ring-1 ring-[var(--primary)]' : 'bg-[var(--talea-surface-primary)]',
                   isBlocked && 'cursor-not-allowed opacity-45'
                 )}
                 style={{
-                  borderColor: isSelected ? `${accent}66` : 'var(--color-border)',
+                  borderColor: isSelected ? 'var(--primary)' : 'var(--talea-border-light)',
                 }}
               >
                 <div className="mb-3 aspect-square overflow-hidden rounded-xl bg-muted/40">

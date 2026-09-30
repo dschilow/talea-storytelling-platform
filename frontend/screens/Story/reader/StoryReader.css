@@ -45,6 +45,44 @@
   color: var(--rd-text);
 }
 
+/* Knowledge (doku) reader: same layout, cooler teal accent. */
+.rd-scope.rd-knowledge[data-theme='light'] {
+  --rd-accent: #33737e;
+  --rd-line: rgba(51, 115, 126, 0.24);
+}
+
+.rd-scope.rd-knowledge[data-theme='dark'] {
+  --rd-accent: #7fc0cc;
+  --rd-line: rgba(127, 192, 204, 0.2);
+}
+
+.rd-knowledge .rd-progress {
+  background: linear-gradient(90deg, #5d8f98 0%, #7fc0cc 45%, #b5e0e8 100%);
+  box-shadow: 0 0 10px rgba(127, 192, 204, 0.45);
+}
+
+.rd-knowledge .rd-eyebrow-genre {
+  color: #9fd6df;
+}
+
+.rd-knowledge .rd-primary-btn {
+  color: #0b2226;
+  background: linear-gradient(135deg, #7fc0cc 0%, #c3e7ec 100%);
+  box-shadow: 0 12px 30px -8px rgba(127, 192, 204, 0.55);
+}
+
+/* Facts, activities and quizzes sit in the reading column with some air. */
+.rd-interactive {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.rd-interactive:empty {
+  display: none;
+}
+
 .rd-root {
   position: fixed;
   inset: 0;

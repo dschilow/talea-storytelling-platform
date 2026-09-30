@@ -1,11 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  motion,
-  useMotionValueEvent,
-  useScroll,
-  useSpring,
-  useTransform,
-} from 'framer-motion';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { ArrowLeft, ChevronDown, Clock, Headphones } from 'lucide-react';
 
 import type { Avatar, Chapter, Story } from '../../../types/story';
@@ -15,7 +9,8 @@ import { AdminGenerationMetrics } from '../../../components/story/AdminGeneratio
 import { StoryAlreadyReadNote } from '../../../components/story/StoryFinaleSheet';
 import { ReaderChapter } from './ReaderChapter';
 import { ImageLightbox } from './ImageLightbox';
-import { estimateReadingMinutes, formatGenre, TEXT_SCALE_STEPS } from './readerText';
+import { estimateReadingMinutes, formatGenre } from './readerText';
+import { ReaderHeader, ReaderHeroBackdrop, ReaderProgress, ReaderSectionNav, useReaderScroll } from './ReaderChrome';
 import {
   clearChapterPosition,
   readSavedChapter,
@@ -45,19 +40,6 @@ interface StoryReaderViewProps {
   completion: StoryReaderCompletion;
 }
 
-// Fixed positions instead of Math.random(): the hero must look the same on every render.
-const HERO_PARTICLES = [
-  { x: '14%', dur: '13s', delay: '0s' },
-  { x: '31%', dur: '17s', delay: '4s' },
-  { x: '47%', dur: '12s', delay: '8s' },
-  { x: '63%', dur: '16s', delay: '2s' },
-  { x: '79%', dur: '14s', delay: '6s' },
-  { x: '90%', dur: '18s', delay: '10s' },
-] as const;
-
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-
 export const StoryReaderView: React.FC<StoryReaderViewProps> = ({
   story,
   chapters,
@@ -70,17 +52,21 @@ export const StoryReaderView: React.FC<StoryReaderViewProps> = ({
   onNavigate,
   completion,
 }) => {
-  const scrollerRef = useRef<HTMLDivElement>(null);
-  const heroRef = useRef<HTMLElement>(null);
-  const chapterEls = useRef<Array<HTMLElement | null>>([]);
+  const {
+    scrollerRef,
+    heroRef,
+    registerItem: registerChapter,
+    scrollToItem: scrollToChapter,
+    activeIndex: activeChapter,
+    reading,
+    headerHidden,
+    progressScale,
+    progressOpacity,
+  } = useReaderScroll();
 
   const language = story.config.language;
   const { scaleId, scale, setScaleId } = useTextScale();
-  const [sizeMenuOpen, setSizeMenuOpen] = useState(false);
   const [audioOpen, setAudioOpen] = useState(false);
-  const [activeChapter, setActiveChapter] = useState(0);
-  const [reading, setReading] = useState(false);
-  const [headerHidden, setHeaderHidden] = useState(false);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
   const [coverFailed, setCoverFailed] = useState(false);
   const [savedChapter] = useState(() => readSavedChapter(story.id, chapters.length));
@@ -96,54 +82,11 @@ export const StoryReaderView: React.FC<StoryReaderViewProps> = ({
   const unitPlural = unitSingular === 'Seite' ? 'Seiten' : 'Kapitel';
   const unitCount = chapters.length === 1 ? unitSingular : unitPlural;
 
-  // The scroller exists from the first render of this component, so the ref is
-  // always hydrated when useScroll subscribes (the loading screen lives in the parent).
-  const { scrollY, scrollYProgress } = useScroll({ container: scrollerRef });
-  const progressScale = useSpring(scrollYProgress, { stiffness: 120, damping: 34, restDelta: 0.001 });
-  const progressOpacity = useTransform(scrollY, [0, 160], [0, 1]);
-
-  const lastScrollY = useRef(0);
-  useMotionValueEvent(scrollY, 'change', (y) => {
-    const previous = lastScrollY.current;
-    lastScrollY.current = y;
-
-    // Immersive reading: the bar leaves while scrolling down, returns on scroll up.
-    if (y < 120 || y < previous - 6) setHeaderHidden(false);
-    else if (y > previous + 6) {
-      setHeaderHidden(true);
-      setSizeMenuOpen(false);
-    }
-
-    const heroHeight = heroRef.current?.offsetHeight ?? 0;
-    setReading(y > heroHeight * 0.6);
-
-    // The active chapter is the last one whose top edge has passed the upper third.
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-    const line = scroller.getBoundingClientRect().top + scroller.clientHeight * 0.33;
-    let active = 0;
-    chapterEls.current.forEach((element, index) => {
-      if (element && element.getBoundingClientRect().top <= line) active = index;
-    });
-    setActiveChapter(active);
-  });
-
   // Remember where the reader is — but only once they are past the hero, so
   // opening a story never overwrites the spot they are about to resume from.
   useEffect(() => {
     if (reading && !completion.isCompleted) saveChapterPosition(story.id, activeChapter);
   }, [reading, activeChapter, completion.isCompleted, story.id]);
-
-  const registerChapter = useCallback((index: number, element: HTMLElement | null) => {
-    chapterEls.current[index] = element;
-  }, []);
-
-  const scrollToChapter = useCallback((index: number) => {
-    chapterEls.current[index]?.scrollIntoView({
-      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-      block: 'start',
-    });
-  }, []);
 
   const handleStart = () => scrollToChapter(savedChapter ?? 0);
 
@@ -168,89 +111,35 @@ export const StoryReaderView: React.FC<StoryReaderViewProps> = ({
       data-theme={isDark ? 'dark' : 'light'}
       style={{ '--rd-scale': scale } as React.CSSProperties}
     >
-      {/* Reading progress — fades in once the hero is left */}
-      <motion.div
-        className="rd-progress"
-        style={{ scaleX: progressScale, opacity: progressOpacity }}
-        aria-hidden="true"
+      <ReaderProgress scale={progressScale} opacity={progressOpacity} />
+
+      <ReaderHeader
+        title={story.title}
+        meta={reading && chapters.length > 1 ? `${unitSingular} ${activeChapter + 1} von ${chapters.length}` : eyebrow.join(' · ')}
+        backLabel={returnLabel}
+        onBack={() => onNavigate(returnPath)}
+        hidden={headerHidden}
+        scaleId={scaleId}
+        onScaleChange={setScaleId}
       />
 
-      <header className={cn('rd-header', headerHidden && 'rd-header--hidden')}>
-        <button type="button" className="rd-icon-btn" onClick={() => onNavigate(returnPath)} aria-label={returnLabel}>
-          <ArrowLeft className="h-[18px] w-[18px]" aria-hidden="true" />
-        </button>
-
-        <div className="rd-header-title">
-          <span className="rd-header-story">{story.title}</span>
-          <span className="rd-header-meta">
-            {reading && chapters.length > 1 ? `${unitSingular} ${activeChapter + 1} von ${chapters.length}` : eyebrow.join(' · ')}
-          </span>
-        </div>
-
-        <button
-          type="button"
-          className={cn('rd-icon-btn', sizeMenuOpen && 'rd-icon-btn--active')}
-          onClick={() => setSizeMenuOpen((open) => !open)}
-          aria-label="Schriftgröße ändern"
-          aria-haspopup="true"
-          aria-expanded={sizeMenuOpen}
-        >
-          <span className="rd-aa" aria-hidden="true">Aa</span>
-        </button>
-
-        {sizeMenuOpen && (
-          <div className="rd-menu" role="radiogroup" aria-label="Schriftgröße">
-            {TEXT_SCALE_STEPS.map((step, stepIndex) => (
-              <button
-                key={step.id}
-                type="button"
-                role="radio"
-                aria-checked={scaleId === step.id}
-                aria-label={step.label}
-                className={cn('rd-size-btn', scaleId === step.id && 'rd-size-btn--active')}
-                onClick={() => setScaleId(step.id)}
-              >
-                <span style={{ fontSize: `${0.9 + stepIndex * 0.24}rem` }}>Aa</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </header>
-
-      {/* Outside the header on purpose: its transform/backdrop-filter would shrink a fixed child to the header box. */}
-      {sizeMenuOpen && <div className="rd-menu-backdrop" onClick={() => setSizeMenuOpen(false)} aria-hidden="true" />}
-
-      {/* Chapter dots (desktop) */}
       {reading && chapters.length > 1 && (
-        <nav className="rd-chapter-nav" aria-label="Kapitel-Navigation">
-          {chapters.map((chapter, index) => (
-            <button
-              key={chapter.id || index}
-              type="button"
-              onClick={() => scrollToChapter(index)}
-              className={cn('rd-chapter-dot', activeChapter === index && 'rd-chapter-dot--active')}
-              aria-label={`${unitSingular} ${index + 1}${chapter.title ? `: ${chapter.title}` : ''}`}
-              aria-current={activeChapter === index ? 'true' : undefined}
-              title={chapter.title || undefined}
-            />
-          ))}
-        </nav>
+        <ReaderSectionNav
+          ariaLabel="Kapitel-Navigation"
+          activeIndex={activeChapter}
+          onSelect={scrollToChapter}
+          items={chapters.map((chapter, index) => ({
+            key: chapter.id || String(index),
+            label: `${unitSingular} ${index + 1}${chapter.title ? `: ${chapter.title}` : ''}`,
+            title: chapter.title || undefined,
+          }))}
+        />
       )}
 
       <div ref={scrollerRef} className="rd-scroller">
         {/* ── Hero ── */}
         <section ref={heroRef} className="rd-hero">
-          {showCover && <div className="rd-hero-backdrop" style={{ backgroundImage: `url("${coverUrl}")` }} aria-hidden="true" />}
-          <div className="rd-hero-scrim" aria-hidden="true" />
-          <div className="rd-hero-particles" aria-hidden="true">
-            {HERO_PARTICLES.map((particle) => (
-              <i
-                key={particle.x}
-                className="rd-particle"
-                style={{ '--x': particle.x, '--dur': particle.dur, '--delay': particle.delay } as React.CSSProperties}
-              />
-            ))}
-          </div>
+          <ReaderHeroBackdrop coverUrl={showCover ? coverUrl : null} />
 
           <motion.div
             className="rd-hero-inner"

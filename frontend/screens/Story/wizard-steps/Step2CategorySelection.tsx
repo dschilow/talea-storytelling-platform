@@ -58,14 +58,14 @@ export default function Step2CategorySelection({ state, updateState }: Props) {
               aria-pressed={selected}
               className={cn(
                 'relative rounded-2xl border p-4 text-left transition-colors',
-                selected ? 'bg-accent/55 shadow-[0_10px_24px_rgba(41,56,77,0.14)]' : 'bg-card/70 hover:bg-accent/35'
+                selected ? 'bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-primary))] ring-1 ring-[var(--primary)]' : 'bg-[var(--talea-surface-primary)] hover:bg-[var(--talea-surface-inset)]/60'
               )}
-              style={{ borderColor: selected ? `${category.tone}60` : 'var(--color-border)' }}
+              style={{ borderColor: selected ? 'var(--primary)' : 'var(--talea-border-light)' }}
             >
               <div className="mb-3 flex items-center gap-3.5">
                 <div
                   className="inline-flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl"
-                  style={{ background: `${category.tone}1f` }}
+                  style={{ background: `color-mix(in srgb, ${category.tone} 12%, transparent)` }}
                 >
                   <WizardImage
                     url={assetUrl('storyCategory', category.id)}

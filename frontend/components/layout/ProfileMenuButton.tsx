@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bot, Check, Compass, Headphones, Plus, Settings, Star } from "lucide-react";
+import { Check, Compass, Headphones, Plus, Settings, Star } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { type ProfileDetails, useChildProfiles } from "@/contexts/ChildProfilesContext";
 import { useBackend } from "@/hooks/useBackend";
@@ -16,7 +16,7 @@ import { useWelcomeTour } from "@/hooks/useWelcomeTour";
  * button — one icon, one place, fewer floating buttons on screen.
  *
  * Visual: the active profile's round picture, like the account button in iOS
- * apps. The menu also hosts Tavi, which no longer takes a tab-bar slot.
+ * apps.
  */
 
 function profileInitials(name: string): string {
@@ -216,12 +216,6 @@ const ProfileMenuButton: React.FC = () => {
           <div className="my-1.5 h-px bg-[var(--talea-border-light)]" />
 
           <div>
-            <button type="button" role="menuitem" onClick={go(() => window.dispatchEvent(new Event("tavi:open")))} className={menuRow}>
-              <span className={menuIcon}>
-                <Bot className="h-4 w-4" />
-              </span>
-              <span className="font-medium">Tavi fragen</span>
-            </button>
             <button type="button" role="menuitem" onClick={go(togglePlaylistDrawer)} className={menuRow}>
               <span className={menuIcon}>
                 <Headphones className="h-4 w-4" />

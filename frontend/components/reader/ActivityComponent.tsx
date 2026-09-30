@@ -100,7 +100,7 @@ export const ActivityComponent: React.FC<ActivityComponentProps> = ({ section, v
           </div>
           <div>
             <h3 className="text-xl font-semibold" style={{ color: colors.title }}>
-              Aktivitaeten
+              Aktivitäten
             </h3>
             <p className="text-sm" style={{ color: colors.body }}>
               Kleine Aufgaben, um das Thema praktisch zu vertiefen.
@@ -120,7 +120,7 @@ export const ActivityComponent: React.FC<ActivityComponentProps> = ({ section, v
               style={{ borderColor: colors.border, background: colors.itemBg }}
             >
               <h4 className="text-lg font-semibold" style={{ color: colors.title }}>
-                {item.title || `Aktivitaet ${index + 1}`}
+                {item.title || `Aktivität ${index + 1}`}
               </h4>
 
               {item.description && (

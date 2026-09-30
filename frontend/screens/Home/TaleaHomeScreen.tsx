@@ -289,7 +289,7 @@ const StoryImageSkipTag: React.FC = () => (
     className="absolute left-5 top-5 z-20 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700 shadow-sm dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300"
   >
     <ImageOff className="h-3.5 w-3.5" />
-    Bilder ubersprungen
+    Bilder übersprungen
   </motion.span>
 );
 

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
+  ChevronLeft,
   ArrowRight,
   BookOpen,
   Check,
@@ -32,10 +33,8 @@ import {
   TaleaPageBackground,
   TaleaProgressSteps,
   taleaBodyFont,
-  taleaChipClass,
   taleaDisplayFont,
   taleaPageShellClass,
-  taleaSurfaceClass,
 } from '@/components/talea/TaleaPastelPrimitives';
 
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
@@ -153,12 +152,10 @@ const GENERATION_STEPS: { key: GenerationStep; icon: React.FC<{ className?: stri
 const WizardBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => <TaleaPageBackground isDark={isDark} />;
 
 const StepIndicator: React.FC<{ activeStep: number; labels: string[]; palette: Palette }> = ({ activeStep, labels }) => (
-  <div className={cn(taleaSurfaceClass, 'mb-4 px-3 py-3')}>
-    <TaleaProgressSteps
-      steps={labels.map((label, index) => ({ id: `wizard-step-${index}`, label }))}
-      activeIndex={activeStep}
-    />
-  </div>
+  <TaleaProgressSteps
+    steps={labels.map((label, index) => ({ id: `wizard-step-${index}`, label }))}
+    activeIndex={activeStep}
+  />
 );
 
 const GenerationProgress: React.FC<{ currentStep: GenerationStep; palette: Palette }> = ({ currentStep, palette }) => {
@@ -656,54 +653,41 @@ export default function TaleaStoryWizard() {
   }
 
   return (
-    <div className="relative min-h-screen pb-10 pt-2" style={{ fontFamily: bodyFont }}>
+    <div className="relative min-h-screen pb-10 pt-1" style={{ fontFamily: bodyFont }}>
       <WizardBackground isDark={isDark} />
 
       <div className={cn(taleaPageShellClass, 'relative z-10')}>
-        <motion.header
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={cn(taleaSurfaceClass, 'mb-4 flex flex-wrap items-end justify-between gap-4 px-4 py-4 md:px-5')}
-        >
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className={taleaChipClass}>Story Wizard</span>
-              <span className="inline-flex items-center rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-3 py-1 text-[11px] font-medium text-[var(--talea-text-secondary)]">
-                Schritt {activeStep + 1} / {labels.length}
-              </span>
-              {state.developerMode && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-amber-400/60 bg-amber-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-                  <FlaskConical className="h-3 w-3" /> Dev Mode
-                </span>
-              )}
-              {(state.storybookMode || state.bookWorkshopMode) && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-400/60 bg-emerald-400/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                  <BookOpen className="h-3 w-3" /> {state.bookWorkshopMode ? 'Buchwerkstatt' : 'Bilderbuch'}
-                </span>
-              )}
-            </div>
-            <h1 className="mt-3 text-[1.85rem] leading-[0.98] text-[var(--talea-text-primary)] sm:text-[2.25rem]" style={{ fontFamily: headingFont }}>
+        {/* iOS flow: back link, large title, progress — then the step on the page itself. */}
+        <motion.header initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="px-1">
+          <button
+            type="button"
+            onClick={() => navigate('/stories')}
+            className="-ml-1 inline-flex items-center gap-0.5 rounded-lg py-1 pr-2 text-[17px] text-[var(--primary)] hover:opacity-75"
+          >
+            <ChevronLeft className="h-5 w-5" aria-hidden />
+            Bibliothek
+          </button>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="text-[2rem] font-bold leading-tight text-[var(--talea-text-primary)] md:text-[2.5rem]" style={{ fontFamily: headingFont }}>
               Neue Geschichte
             </h1>
+            {state.developerMode && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 px-2.5 py-1 text-[12px] font-semibold text-amber-700 dark:text-amber-300">
+                <FlaskConical className="h-3.5 w-3.5" /> Dev Mode
+              </span>
+            )}
+            {(state.storybookMode || state.bookWorkshopMode) && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2.5 py-1 text-[12px] font-semibold text-emerald-700 dark:text-emerald-300">
+                <BookOpen className="h-3.5 w-3.5" /> {state.bookWorkshopMode ? 'Buchwerkstatt' : 'Bilderbuch'}
+              </span>
+            )}
           </div>
-
-          <TaleaActionButton
-            type="button"
-            variant="secondary"
-            onClick={() => navigate('/stories')}
-            icon={<ArrowLeft className="h-4 w-4" />}
-          >
-            Zur Bibliothek
-          </TaleaActionButton>
+          <div className="mt-4">
+            <StepIndicator activeStep={activeStep} labels={labels} palette={palette} />
+          </div>
         </motion.header>
 
-        <StepIndicator activeStep={activeStep} labels={labels} palette={palette} />
-
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={cn(taleaSurfaceClass, 'p-5 md:p-7')}
-        >
+        <div className="mt-7">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeStep}
@@ -715,36 +699,34 @@ export default function TaleaStoryWizard() {
               {renderStep()}
             </motion.div>
           </AnimatePresence>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="mt-5 flex items-center justify-between gap-4"
-        >
-          <TaleaActionButton
-            type="button"
-            variant="secondary"
-            onClick={activeStep === 0 ? () => navigate('/stories') : handleBack}
-            icon={<ArrowLeft className="h-4 w-4" />}
-          >
-            Zurück
-          </TaleaActionButton>
+        {/* Sticky action bar: "Weiter" is always reachable, above the tab bar on phones. */}
+        <div className="sticky bottom-[calc(max(env(safe-area-inset-bottom),0.75rem)+70px+var(--talea-player-offset,0px))] z-30 mt-6 md:bottom-4">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--talea-border-light)] bg-[var(--talea-glass-bg)] p-2 shadow-[var(--talea-shadow-strong)] backdrop-blur-xl backdrop-saturate-150">
+            <TaleaActionButton
+              type="button"
+              variant="ghost"
+              onClick={activeStep === 0 ? () => navigate('/stories') : handleBack}
+              icon={<ArrowLeft className="h-4 w-4" />}
+            >
+              Zurück
+            </TaleaActionButton>
 
-          {activeStep < labels.length - 1 && (
-            <div className="flex min-w-0 items-center gap-3">
-              {blockedReason() && (
-                <p className="min-w-0 text-right text-xs text-[var(--talea-text-secondary)]">
-                  {blockedReason()}
-                </p>
-              )}
-              <TaleaActionButton type="button" onClick={handleNext} disabled={!canProceed()}>
-                Weiter
-              </TaleaActionButton>
-            </div>
-          )}
-        </motion.div>
+            {activeStep < labels.length - 1 && (
+              <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+                {blockedReason() && (
+                  <p className="hidden min-w-0 truncate text-right text-[13px] text-[var(--talea-text-secondary)] sm:block">
+                    {blockedReason()}
+                  </p>
+                )}
+                <TaleaActionButton type="button" onClick={handleNext} disabled={!canProceed()} className="min-w-[7.5rem]">
+                  Weiter
+                </TaleaActionButton>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <LevelUpModal

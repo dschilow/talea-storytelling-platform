@@ -123,12 +123,12 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
         paddingLeft: "env(safe-area-inset-left)",
         paddingRight: "env(safe-area-inset-right)",
       };
-  // Bottom padding clears the mobile tab bar (52px + home indicator) plus breathing room.
+  // Bottom padding clears the floating tab bar (62px + inset) and, while audio plays, the mini player.
   const contentClassName = isFullBleed
     ? "w-full min-h-screen p-0 m-0 max-w-none"
     : usesImmersiveShell
-      ? "w-full mx-auto max-w-none pb-[calc(env(safe-area-inset-bottom)+5.5rem)] md:pb-12"
-      : `w-full mx-auto px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] md:pb-12 ${
+      ? "w-full mx-auto max-w-none pb-[calc(env(safe-area-inset-bottom)+6rem+var(--talea-player-offset,0px))] md:pb-12"
+      : `w-full mx-auto px-4 pb-[calc(env(safe-area-inset-bottom)+6rem+var(--talea-player-offset,0px))] md:pb-12 ${
           isSettingsRoute ? "max-w-[1520px] md:px-5" : "max-w-[1260px] md:px-8"
         }`;
 

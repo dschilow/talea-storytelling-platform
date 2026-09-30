@@ -101,7 +101,7 @@ export default function Step6LearningMode({ state, updateState }: Props) {
         aria-pressed={learningMode.enabled}
         className={cn(
           'flex w-full items-center justify-between gap-4 rounded-2xl border p-4 text-left transition-colors',
-          learningMode.enabled ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+          learningMode.enabled ? 'bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-primary))] ring-1 ring-[var(--primary)]' : 'bg-[var(--talea-surface-primary)] hover:bg-[var(--talea-surface-inset)]/60'
         )}
         style={{ borderColor: learningMode.enabled ? 'var(--primary)' : 'var(--color-border)' }}
       >
@@ -155,13 +155,13 @@ export default function Step6LearningMode({ state, updateState }: Props) {
                       aria-pressed={selected}
                       className={cn(
                         'relative rounded-2xl border p-3 text-left transition-colors',
-                        selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+                        selected ? 'bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-primary))] ring-1 ring-[var(--primary)]' : 'bg-[var(--talea-surface-primary)] hover:bg-[var(--talea-surface-inset)]/60'
                       )}
-                      style={{ borderColor: selected ? `${subject.tone}66` : 'var(--color-border)' }}
+                      style={{ borderColor: selected ? 'var(--primary)' : 'var(--talea-border-light)' }}
                     >
                       <span
                         className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl"
-                        style={{ background: `${subject.tone}1f` }}
+                        style={{ background: `color-mix(in srgb, ${subject.tone} 12%, transparent)` }}
                       >
                         <Icon className="h-5 w-5" style={{ color: subject.tone }} />
                       </span>
@@ -196,9 +196,9 @@ export default function Step6LearningMode({ state, updateState }: Props) {
                       aria-pressed={selected}
                       className={cn(
                         'rounded-2xl border p-3 text-center transition-colors',
-                        selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+                        selected ? 'bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-primary))] ring-1 ring-[var(--primary)]' : 'bg-[var(--talea-surface-primary)] hover:bg-[var(--talea-surface-inset)]/60'
                       )}
-                      style={{ borderColor: selected ? 'var(--primary)' : 'var(--color-border)' }}
+                      style={{ borderColor: selected ? 'var(--primary)' : 'var(--talea-border-light)' }}
                     >
                       <Icon className="mx-auto mb-2 h-5 w-5 text-[var(--primary)]" />
                       <p className="text-sm font-semibold text-foreground">
@@ -229,9 +229,9 @@ export default function Step6LearningMode({ state, updateState }: Props) {
                       aria-pressed={selected}
                       className={cn(
                         'rounded-2xl border p-3 text-center transition-colors',
-                        selected ? 'bg-accent/55' : 'bg-card/70 hover:bg-accent/35'
+                        selected ? 'bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-primary))] ring-1 ring-[var(--primary)]' : 'bg-[var(--talea-surface-primary)] hover:bg-[var(--talea-surface-inset)]/60'
                       )}
-                      style={{ borderColor: selected ? 'var(--primary)' : 'var(--color-border)' }}
+                      style={{ borderColor: selected ? 'var(--primary)' : 'var(--talea-border-light)' }}
                     >
                       <Icon className="mx-auto mb-2 h-5 w-5 text-[var(--primary)]" />
                       <p className="text-sm font-semibold text-foreground">
