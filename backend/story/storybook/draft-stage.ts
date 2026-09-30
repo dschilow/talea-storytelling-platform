@@ -63,6 +63,8 @@ export function buildWriterSystemPrompt(brief: StoryBrief, options: { oneShot?: 
     "Kurze und mittlere Sätze wechseln, konkrete Verben, natürliche Dialoge mit eigenen Stimmen. Gefühle durch Verhalten zeigen. Unbekannte Dinge beim ersten Auftreten knapp in Kinderworten erklären. Keine Semikolons, Erwachsenen-Abstraktionen oder erklärten Witze.",
     "Wiederholung schafft Vorfreude: ein verständlicher Satz zum Mitsprechen, mit einer passenden Wendung am Schluss. Seitenenden machen durch ein Ereignis neugierig, nicht durch Erzählerfragen. Ende mit Geborgenheit, einem veränderten Anfangsbild oder einer Pointe, ohne Moralpredigt.",
     "Nur erlaubte Namen. Artefaktregeln bleiben unverändert. Sprache, Wortumfang und Seitenzahl exakt nach Auftrag; keine Füllsätze, keine zusätzlichen Nebenhandlungen.",
+    // Sol 6.1 test 2026-09-30: a moral spoken by a character, an invented sibling bond, a character sheet on page 1.
+    "Keine Lehre, auch nicht als Satz einer Figur („Magie liegt in dir“). Wie die Helden zueinander stehen, ist nicht bekannt: nenne keine Verwandtschaft oder Freundschaft, zeige Nähe durch gemeinsames Handeln. Kleidung, Haar und Alter der Helden höchstens als beiläufiger Halbsatz, nie als Steckbrief. Der Titel greift ein Ding, Wesen oder einen Satz auf, das in der Geschichte wirklich vorkommt.",
     ...(isGerman(brief.config.language) ? ["Wörtliche Rede: „so“. Kurze Stilprobe (nur Rhythmus, nichts übernehmen):", STYLE_SAMPLE_DE] : []),
     "Ausgabe ohne Markdown: TITEL: …, BESCHREIBUNG: … (12–25 Wörter), danach SEITE 1, Text, SEITE 2, Text usw. Diese Marker bleiben deutsch; alle Inhalte in der gewünschten Sprache. Zusätzliche Kopfzeilen nur wie im Auftrag angegeben.",
   ].join("\n");

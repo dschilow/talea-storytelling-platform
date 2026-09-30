@@ -6,7 +6,7 @@ import { buildWriterSystemPrompt } from "./draft-stage";
 import { runStorybookTextEngine } from "./engine";
 import { assembleImagePrompt, bindNamesToLooks, describeReferenceLooks, mentionsElement, nameElementsPlainly, negativePromptFor, recomposeShot, runDirectorStage, sanitizeIllustrationPlan, type VisualEntity } from "./illustration-stage";
 import { generateStorybookImages, parseQaReport, publishableImageUrl, qaSeverity, qaSeverityParts, qaStatus, scopeQaReport, type ImageOutcome } from "./images";
-import { CostLedger, resolveStorybookModels, type LlmRequest, type StorybookLlm } from "./llm";
+import { CostLedger, resolveStorybookModels, retryRequestFor, type LlmRequest, type StorybookLlm } from "./llm";
 import { buildOneShotUserPrompt, buildPatchPrompt, mergeStorybookPatch, planFromOneShot } from "./oneshot-stage";
 import { storybookQuality } from "./quality";
 import { ledgerNotes, runReviewStage, sanitizeReview, verifyStorybookRepair } from "./review-stage";
@@ -443,5 +443,27 @@ describe("story 2b414c45: a drawn picture dropped for an unreadable checker repl
     });
     expect(models).toEqual(["luna", "gemini"]);
     expect(result.cover?.status).toBe("passed");
+  });
+});
+
+describe("Sol 6.1 test 2026-09-30", () => {
+  test("an instant empty reply is retried on the same model, a truncated one still falls back", () => {
+    const req = { stage: "oneshot", role: "writer" as const, model: "openai/gpt-6.1-sol", system: "", user: "", json: false, maxTokens: 4000, effort: "low" as const };
+    expect(retryRequestFor(req, new Error("Empty response from openai/gpt-6.1-sol (oneshot, finish_reason=stop, completion_tokens=0).")).model).toBe("openai/gpt-6.1-sol");
+    expect(retryRequestFor(req, new Error("Empty response from x (oneshot, finish_reason=length, completion_tokens=3500).")).model).toBe("openai/gpt-6-luna");
+  });
+  test("the writer is told: no moral, no invented relationship, no character sheet", () => {
+    const prompt = buildWriterSystemPrompt(brief(), { oneShot: true });
+    expect(prompt).toContain("Keine Lehre");
+    expect(prompt).toContain("nenne keine Verwandtschaft");
+    expect(prompt.length).toBeLessThan(4600);
+  });
+});
+
+describe("catchphrase spelling", () => {
+  test("pool spelling errors are corrected before the writer copies them", async () => {
+    const { fixCatchphrase } = await import("./context");
+    expect(fixCatchphrase("Erst qualmts, dann klaerts sich!")).toBe("Erst qualm's, dann klärt's sich!");
+    expect(fixCatchphrase("Fest wie Stein, so soll es sein!")).toBe("Fest wie Stein, so soll es sein!");
   });
 });

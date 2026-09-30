@@ -123,7 +123,7 @@ export function resolveStorybookModels(
 export function fallbackModelFor(model: string): string {
   // A failing premium writer (Sol, Claude) falls back to Luna — it knows the
   // prompts; Flash-Lite wrote a 3.5/10 story after a Sonnet failure.
-  if (/gpt-6-sol/.test(model) || modelFamily(model) === "anthropic") return STORYBOOK_SUPPORT_MODEL;
+  if (/gpt-6(\.\d+)?-sol/.test(model) || modelFamily(model) === "anthropic") return STORYBOOK_SUPPORT_MODEL;
   return modelFamily(model) === "google" ? STORYBOOK_SUPPORT_MODEL : STORYBOOK_FALLBACK_MODEL;
 }
 
@@ -141,6 +141,12 @@ export function retryRequestFor(request: LlmRequest, error: unknown): { request:
   // (batch 2026-09-28T10-41: a "high" draft burnt 36k tokens, wrote nothing).
   if (deep && /timed out|timeout|aborted|Empty response/i.test(message)) {
     return { request: { ...request, effort: "medium" }, model: request.model };
+  }
+  // Sol 6.1 (2026-09-30): once an instant empty reply with ZERO output tokens.
+  // That is a provider blip, not a weak model — the same model answers again
+  // before a lesser family writes the story.
+  if (/Empty response/i.test(message) && /completion_tokens=0(?!\d)/.test(message) && !/gpt-6(\.\d+)?-luna/.test(request.model)) {
+    return { request, model: request.model };
   }
   const truncated = /Truncated/i.test(message);
   return {

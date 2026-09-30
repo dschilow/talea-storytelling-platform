@@ -343,7 +343,8 @@ export async function runOneShotEngine(input: {
     ...(review ? comprehensionGaps(review) : []),
     ...(review ? ledgerNotes(review) : []),
     // Only the problem, never the critic's suggested wording: Luna pasted those in verbatim.
-    ...(review?.mustFix || []).slice(0, 5).map((note) => `Seite ${note.page}: ${note.problem}${note.quote ? ` („${note.quote}“)` : ""}`),
+    // The brief does not say how the heroes relate; a note asking for it made the patch invent "Freunde"/"Geschwister".
+    ...(review?.mustFix || []).filter((note) => !/beziehung|geschwister|brüder|schwestern|verwandt|freunde\?|füreinander/i.test(note.problem)).slice(0, 5).map((note) => `Seite ${note.page}: ${note.problem}${note.quote ? ` („${note.quote}“)` : ""}`),
     ...(review?.languageErrors || []).slice(0, 5).map((error) => `Seite ${error.page}: „${error.quote}“ → ${error.correction}`),
   ];
   let chosen: "draft" | "revision" = "draft";

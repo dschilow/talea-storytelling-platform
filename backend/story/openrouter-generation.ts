@@ -78,6 +78,8 @@ const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
   "aion-labs/aion-3.5-mini": { inputCostPer1M: 0.7, outputCostPer1M: 1.4 },
   "openai/gpt-6-sol": { inputCostPer1M: 2.0, outputCostPer1M: 10.0 },
   "openai/gpt-6-sol-pro": { inputCostPer1M: 2.0, outputCostPer1M: 10.0 },
+  "openai/gpt-6.1-sol": { inputCostPer1M: 2.0, outputCostPer1M: 10.0 },
+  "openai/gpt-6.1-sol-pro": { inputCostPer1M: 2.0, outputCostPer1M: 10.0 },
   "anthropic/claude-sonnet-5.5": { inputCostPer1M: 2.0, outputCostPer1M: 10.0 },
   "openai/gpt-6-luna-pro": { inputCostPer1M: 0.1, outputCostPer1M: 0.5 },
   "openai/gpt-5.6-terra": { inputCostPer1M: 2.5, outputCostPer1M: 15.0 },
