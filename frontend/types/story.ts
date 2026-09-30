@@ -62,6 +62,8 @@ export interface StoryConfig {
   openRouterModel?: string;
   contentType?: 'standard' | 'character_life';
   characterId?: string;
+  /** Language the story was written in (de | en | fr | es | it | nl | ru). */
+  language?: string;
 }
 
 export interface Avatar {

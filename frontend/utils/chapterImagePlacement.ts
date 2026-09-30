@@ -140,7 +140,22 @@ function splitWordChunks(text: string, targetSegments: number): string[] {
   return chunkUnits(words, targetSegments);
 }
 
-export function buildChapterTextSegments(content: string, hasPrimary: boolean, hasScenic: boolean): string[] {
+export interface ChapterTextSegmentOptions {
+  /**
+   * When the text has too few sentences for the images, the legacy behaviour is
+   * to cut at commas or even between arbitrary words so an image can still be
+   * placed inside the chapter. Pass `false` to keep every sentence whole (the
+   * images then follow the text instead of interrupting a sentence).
+   */
+  splitMidSentence?: boolean;
+}
+
+export function buildChapterTextSegments(
+  content: string,
+  hasPrimary: boolean,
+  hasScenic: boolean,
+  { splitMidSentence = true }: ChapterTextSegmentOptions = {},
+): string[] {
   const baseSegments = hasPrimary && hasScenic ? 3 : (hasPrimary || hasScenic ? 2 : 1);
   const initialParagraphs = splitParagraphs(content);
   const joined = initialParagraphs.join(" ").trim();
@@ -157,6 +172,8 @@ export function buildChapterTextSegments(content: string, hasPrimary: boolean, h
   if (sentenceSegments.length >= desiredSegments && preservesSourceText(joined, sentenceSegments)) {
     return sentenceSegments;
   }
+
+  if (!splitMidSentence) return paragraphs.length > 0 ? paragraphs : [joined];
 
   const clauseUnits = splitClauses(joined);
   const clauseSegments = chunkUnits(clauseUnits, desiredSegments);
