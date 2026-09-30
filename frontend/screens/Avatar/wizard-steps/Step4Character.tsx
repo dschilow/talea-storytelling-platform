@@ -12,7 +12,7 @@ export default function Step4Character({ formData, updateFormData }: Step4Charac
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="mb-1 text-2xl font-extrabold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>
+        <h2 className="mb-1 text-2xl font-extrabold text-foreground" style={{ fontFamily: 'var(--talea-font-display)' }}>
           Wer steckt in deinem Avatar?
         </h2>
         <p className="text-sm text-muted-foreground">

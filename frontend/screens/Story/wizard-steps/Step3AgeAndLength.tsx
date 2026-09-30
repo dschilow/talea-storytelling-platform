@@ -117,7 +117,7 @@ export default function Step3AgeAndLength({
   return (
     <div className="space-y-7">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-        <h2 className="mb-1 text-2xl font-bold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>
+        <h2 className="mb-1 text-2xl font-bold text-foreground" style={{ fontFamily: 'var(--talea-font-display)' }}>
           {t('wizard.titles.ageLength')}
         </h2>
         <p className="text-sm text-muted-foreground">{t('wizard.subtitles.ageLength')}</p>

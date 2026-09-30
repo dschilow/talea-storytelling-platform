@@ -1036,8 +1036,9 @@ const TaleaDokusScreen: React.FC = () => {
     discover: totalPublic,
     audio: totalAudio,
   };
+  // Unknown credits are left out — a bare "-" read like a broken value.
   const remainingDokuLabel = billing?.dokuCredits.remaining === undefined
-    ? '-'
+    ? null
     : billing.dokuCredits.remaining === null ? '\u221e' : billing.dokuCredits.remaining;
 
 
@@ -1115,11 +1116,14 @@ const TaleaDokusScreen: React.FC = () => {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
-            className="grid grid-cols-2 divide-x divide-[var(--talea-border-light)] rounded-[1.25rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)]"
+            className={cn(
+              'grid divide-x divide-[var(--talea-border-light)] rounded-[1.25rem] bg-[var(--talea-surface-inset)]',
+              remainingDokuLabel === null ? 'grid-cols-1' : 'grid-cols-2'
+            )}
           >
             {[
               { label: t('common.total', 'Gesamt'), value: totalMy, dot: 'var(--primary)' },
-              { label: 'Dokus \u00fcbrig', value: remainingDokuLabel, dot: '#34d399' },
+              ...(remainingDokuLabel === null ? [] : [{ label: 'Dokus \u00fcbrig', value: remainingDokuLabel, dot: '#34d399' }]),
             ].map((item) => (
               <div key={item.label} className="flex min-w-0 items-center justify-center gap-2 px-2 py-3">
                 <span

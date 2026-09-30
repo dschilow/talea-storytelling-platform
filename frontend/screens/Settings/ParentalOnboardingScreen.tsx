@@ -148,7 +148,7 @@ export default function ParentalOnboardingScreen() {
           </div>
           <div>
             <p className="text-[11px] uppercase tracking-[0.16em] text-[#6e8198]">Erststart</p>
-            <h1 className="text-4xl leading-none text-[#1f2f44] dark:text-[#eaf2ff]" style={{ fontFamily: '"Cormorant Garamond", serif' }}>
+            <h1 className="text-4xl leading-none text-[#1f2f44] dark:text-[#eaf2ff]" style={{ fontFamily: 'var(--talea-font-display)' }}>
               Eltern-Dashboard Setup
             </h1>
           </div>

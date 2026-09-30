@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&display=swap');
+/* Apple devices render SF Pro via the system stack; Manrope is the fallback elsewhere.
+   Cormorant stays for the doku reader until it moves to the new reader styles. */
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 
 @import "tailwindcss";
 
@@ -31,39 +33,35 @@
 }
 
 :root {
-  --radius: 1.25rem;
+  --talea-font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Manrope', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --talea-font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Manrope', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --radius: 1rem;
   --talea-parchment: #fdf8f2;
   --talea-bone: #efe6db;
   --talea-linen: #f7f1e8;
   --talea-almond-cream: #f2e7df;
   --talea-almond-silk: #e1d6ca;
   --talea-ink: #243245;
-  --shadow-soft: 0 8px 30px rgba(87, 71, 58, 0.07), 0 1px 0 rgba(255, 255, 255, 0.75) inset;
-  --shadow-soft-strong: 0 18px 40px rgba(87, 71, 58, 0.1), 0 1px 0 rgba(255, 255, 255, 0.75) inset;
-  --talea-page-solid: #fbf5ef;
-  --talea-page:
-    radial-gradient(circle at 12% 16%, rgba(233, 194, 199, 0.42) 0%, transparent 24%),
-    radial-gradient(circle at 84% 10%, rgba(173, 198, 231, 0.34) 0%, transparent 28%),
-    radial-gradient(circle at 76% 72%, rgba(200, 226, 210, 0.42) 0%, transparent 30%),
-    linear-gradient(180deg, #fffaf4 0%, #faf3eb 48%, #f6efe8 100%);
-  --talea-page-overlay:
-    linear-gradient(rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.42)),
-    radial-gradient(circle at center, rgba(255, 255, 255, 0.16) 0%, transparent 56%);
-  --talea-surface-primary: rgba(255, 252, 248, 0.82);
-  --talea-surface-secondary: rgba(255, 248, 242, 0.6);
-  --talea-surface-elevated: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(254, 248, 242, 0.84) 100%);
-  --talea-surface-inset: rgba(250, 243, 236, 0.78);
-  --talea-panel: rgba(255, 251, 247, 0.86);
-  --talea-option: rgba(255, 249, 244, 0.84);
-  --talea-item-bg: rgba(255, 255, 255, 0.8);
-  --talea-border-light: rgba(76, 60, 48, 0.08);
-  --talea-border-soft: rgba(76, 60, 48, 0.12);
-  --talea-border-strong: rgba(76, 60, 48, 0.18);
-  --talea-border-accent: rgba(123, 168, 156, 0.34);
-  --talea-text-primary: #233248;
-  --talea-text-secondary: #5f7186;
-  --talea-text-tertiary: #8491a4;
-  --talea-text-muted: #a8b2bf;
+  --shadow-soft: 0 1px 2px rgba(40, 30, 20, 0.04);
+  --shadow-soft-strong: 0 4px 14px rgba(40, 30, 20, 0.06);
+  --talea-page-solid: #f5f2ed;
+  --talea-page: linear-gradient(#f5f2ed, #f5f2ed);
+  --talea-page-overlay: linear-gradient(transparent, transparent);
+  --talea-surface-primary: #ffffff;
+  --talea-surface-secondary: rgba(255, 255, 255, 0.72);
+  --talea-surface-elevated: #ffffff;
+  --talea-surface-inset: #efebe4;
+  --talea-panel: #ffffff;
+  --talea-option: #ffffff;
+  --talea-item-bg: #ffffff;
+  --talea-border-light: rgba(60, 50, 40, 0.08);
+  --talea-border-soft: rgba(60, 50, 40, 0.12);
+  --talea-border-strong: rgba(60, 50, 40, 0.2);
+  --talea-border-accent: rgba(63, 120, 105, 0.35);
+  --talea-text-primary: #1d2330;
+  --talea-text-secondary: #5c6675;
+  --talea-text-tertiary: #7a8390;
+  --talea-text-muted: #a3aab4;
   --talea-text-inverse: #ffffff;
   --talea-accent-rose: #dca5aa;
   --talea-accent-lavender: #b5b8dc;
@@ -79,14 +77,14 @@
   --talea-gradient-ocean: linear-gradient(135deg, #e5f1eb 0%, #e5eef9 100%);
   --talea-gradient-lavender: linear-gradient(135deg, #ece8fb 0%, #e6edf9 100%);
   --talea-gradient-nature: linear-gradient(135deg, #e8f1e7 0%, #e0f0ea 100%);
-  --talea-glass-bg: rgba(255, 252, 248, 0.8);
-  --talea-glass-bg-alt: rgba(255, 251, 247, 0.88);
+  --talea-glass-bg: rgba(255, 255, 255, 0.82);
+  --talea-glass-bg-alt: rgba(255, 255, 255, 0.9);
   --talea-glass-bg-warm: rgba(255, 248, 241, 0.84);
-  --talea-glass-border: rgba(80, 64, 52, 0.09);
-  --talea-shadow-soft: 0 12px 36px rgba(78, 60, 48, 0.08), 0 1px 0 rgba(255, 255, 255, 0.75) inset;
-  --talea-shadow-medium: 0 20px 48px rgba(78, 60, 48, 0.12), 0 1px 0 rgba(255, 255, 255, 0.82) inset;
-  --talea-shadow-strong: 0 28px 72px rgba(78, 60, 48, 0.15), 0 1px 0 rgba(255, 255, 255, 0.86) inset;
-  --talea-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  --talea-glass-border: rgba(60, 50, 40, 0.08);
+  --talea-shadow-soft: 0 1px 2px rgba(40, 30, 20, 0.04);
+  --talea-shadow-medium: 0 1px 2px rgba(40, 30, 20, 0.04), 0 4px 14px rgba(40, 30, 20, 0.05);
+  --talea-shadow-strong: 0 12px 40px rgba(40, 30, 20, 0.14);
+  --talea-shadow-inset: inset 0 0 0 0 transparent;
   --talea-media-skeleton: #ece7de;
   --talea-media-foreground: #ffffff;
   --talea-media-overlay: linear-gradient(180deg, transparent 0%, rgba(10, 16, 24, 0.14) 46%, rgba(10, 16, 24, 0.52) 100%);
@@ -107,26 +105,26 @@
   --talea-scrollbar-thumb: rgba(76, 60, 48, 0.16);
 
   /* Light Mode */
-  --background: #fbf5ef;
-  --foreground: #233248;
-  --card: #fffaf5;
+  --background: #f5f2ed;
+  --foreground: #1d2330;
+  --card: #ffffff;
   --card-foreground: #233248;
-  --popover: #fffaf5;
+  --popover: #ffffff;
   --popover-foreground: #233248;
 
-  --primary: #7ba89c;
+  --primary: #3f7869;
   --primary-foreground: #ffffff;
-  --secondary: #f4ede5;
+  --secondary: #efebe4;
   --secondary-foreground: #3e4c5f;
-  --accent: #f7f0e9;
+  --accent: #efebe4;
   --accent-foreground: #3e4c5f;
-  --muted: #f6f1ea;
-  --muted-foreground: #617183;
+  --muted: #efebe4;
+  --muted-foreground: #5c6675;
   --destructive: oklch(0.65 0.2 25);
   --destructive-foreground: oklch(0.99 0 0);
   --border: rgba(76, 60, 48, 0.12);
   --input: rgba(76, 60, 48, 0.08);
-  --ring: #7ba89c;
+  --ring: #3f7869;
 
   --chart-1: #7ba89c;
   --chart-2: #e0af92;
@@ -134,31 +132,31 @@
   --chart-4: #d8bf8f;
   --chart-5: #dca5aa;
 
-  --sidebar: rgba(255, 251, 247, 0.84);
+  --sidebar: rgba(255, 255, 255, 0.86);
   --sidebar-foreground: #3e4c5f;
-  --sidebar-primary: #7ba89c;
+  --sidebar-primary: #3f7869;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: rgba(247, 240, 233, 0.8);
   --sidebar-accent-foreground: #3e4c5f;
-  --sidebar-border: rgba(76, 60, 48, 0.09);
-  --sidebar-ring: #7ba89c;
+  --sidebar-border: rgba(60, 50, 40, 0.08);
+  --sidebar-ring: #3f7869;
 }
 
 .dark {
-  --background: #111822;
-  --foreground: #eef3fb;
-  --card: #1a2330;
+  --background: #0c0c0e;
+  --foreground: #f2f2f5;
+  --card: #1c1c1f;
   --card-foreground: #eef3fb;
-  --popover: #1a2330;
+  --popover: #1c1c1f;
   --popover-foreground: #eef3fb;
 
   --primary: #9ac7b6;
   --primary-foreground: #0f1723;
-  --secondary: #1d2836;
+  --secondary: #1c1c1f;
   --secondary-foreground: #e8edf6;
-  --muted: #1a2431;
-  --muted-foreground: #a1b0c4;
-  --accent: #212d3c;
+  --muted: #1c1c1f;
+  --muted-foreground: #a1a4ad;
+  --accent: #26262a;
   --accent-foreground: #e8edf6;
   --destructive: oklch(0.65 0.2 25);
   --destructive-foreground: oklch(0.99 0 0);
@@ -166,7 +164,7 @@
   --input: rgba(255, 255, 255, 0.07);
   --ring: #9ac7b6;
 
-  --sidebar: rgba(18, 25, 35, 0.78);
+  --sidebar: rgba(22, 22, 25, 0.86);
   --sidebar-foreground: #e8edf6;
   --sidebar-primary: #9ac7b6;
   --sidebar-primary-foreground: #111822;
@@ -174,30 +172,24 @@
   --sidebar-accent-foreground: #e8edf6;
   --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-ring: #9ac7b6;
-  --talea-page-solid: #101722;
-  --talea-page:
-    radial-gradient(circle at 10% 18%, rgba(177, 131, 196, 0.14) 0%, transparent 24%),
-    radial-gradient(circle at 86% 10%, rgba(122, 170, 156, 0.16) 0%, transparent 26%),
-    radial-gradient(circle at 78% 74%, rgba(164, 190, 223, 0.14) 0%, transparent 28%),
-    linear-gradient(180deg, #101722 0%, #0d141d 50%, #0b1119 100%);
-  --talea-page-overlay:
-    linear-gradient(rgba(7, 11, 18, 0.24), rgba(7, 11, 18, 0.24)),
-    radial-gradient(circle at center, rgba(255, 255, 255, 0.02) 0%, transparent 56%);
-  --talea-surface-primary: rgba(19, 27, 37, 0.78);
-  --talea-surface-secondary: rgba(19, 27, 37, 0.56);
-  --talea-surface-elevated: linear-gradient(180deg, rgba(26, 36, 48, 0.95) 0%, rgba(17, 24, 33, 0.86) 100%);
-  --talea-surface-inset: rgba(24, 32, 44, 0.74);
-  --talea-panel: rgba(19, 27, 37, 0.84);
-  --talea-option: rgba(24, 32, 44, 0.82);
-  --talea-item-bg: rgba(25, 34, 46, 0.84);
-  --talea-border-light: rgba(255, 255, 255, 0.07);
-  --talea-border-soft: rgba(255, 255, 255, 0.1);
-  --talea-border-strong: rgba(255, 255, 255, 0.14);
+  --talea-page-solid: #0c0c0e;
+  --talea-page: linear-gradient(#0c0c0e, #0c0c0e);
+  --talea-page-overlay: linear-gradient(transparent, transparent);
+  --talea-surface-primary: #1c1c1f;
+  --talea-surface-secondary: rgba(28, 28, 31, 0.72);
+  --talea-surface-elevated: #1c1c1f;
+  --talea-surface-inset: #2a2a2e;
+  --talea-panel: #1c1c1f;
+  --talea-option: #232327;
+  --talea-item-bg: #232327;
+  --talea-border-light: rgba(255, 255, 255, 0.08);
+  --talea-border-soft: rgba(255, 255, 255, 0.12);
+  --talea-border-strong: rgba(255, 255, 255, 0.18);
   --talea-border-accent: rgba(154, 199, 182, 0.26);
-  --talea-text-primary: #eef3fb;
-  --talea-text-secondary: #a9b7ca;
-  --talea-text-tertiary: #7f8ea2;
-  --talea-text-muted: #58667a;
+  --talea-text-primary: #f2f2f5;
+  --talea-text-secondary: #a1a4ad;
+  --talea-text-tertiary: #7c7f88;
+  --talea-text-muted: #5a5d66;
   --talea-text-inverse: #101722;
   --talea-accent-rose: #e5b0b7;
   --talea-accent-lavender: #b1bbec;
@@ -213,14 +205,14 @@
   --talea-gradient-ocean: linear-gradient(135deg, rgba(154, 199, 182, 0.18) 0%, rgba(176, 200, 231, 0.14) 100%);
   --talea-gradient-lavender: linear-gradient(135deg, rgba(177, 187, 236, 0.18) 0%, rgba(176, 200, 231, 0.14) 100%);
   --talea-gradient-nature: linear-gradient(135deg, rgba(154, 199, 182, 0.18) 0%, rgba(177, 187, 236, 0.12) 100%);
-  --talea-glass-bg: rgba(19, 27, 37, 0.82);
-  --talea-glass-bg-alt: rgba(22, 30, 41, 0.9);
+  --talea-glass-bg: rgba(28, 28, 31, 0.82);
+  --talea-glass-bg-alt: rgba(28, 28, 31, 0.9);
   --talea-glass-bg-warm: rgba(29, 28, 34, 0.82);
   --talea-glass-border: rgba(255, 255, 255, 0.08);
-  --talea-shadow-soft: 0 16px 36px rgba(0, 0, 0, 0.24), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
-  --talea-shadow-medium: 0 24px 48px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
-  --talea-shadow-strong: 0 32px 80px rgba(0, 0, 0, 0.38), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
-  --talea-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --talea-shadow-soft: 0 0 0 0 transparent;
+  --talea-shadow-medium: 0 2px 12px rgba(0, 0, 0, 0.35);
+  --talea-shadow-strong: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --talea-shadow-inset: inset 0 0 0 0 transparent;
   --talea-media-skeleton: #27364b;
   --talea-media-foreground: #ffffff;
   --talea-media-overlay: linear-gradient(180deg, transparent 0%, rgba(3, 7, 12, 0.2) 42%, rgba(3, 7, 12, 0.62) 100%);
@@ -242,7 +234,7 @@
 }
 
 @theme inline {
-  --font-sans: 'Manrope', 'Sora', sans-serif;
+  --font-sans: var(--talea-font-ui);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: var(--radius);
@@ -296,11 +288,14 @@
     background-image: var(--talea-page-overlay), var(--talea-page);
     background-attachment: fixed;
     color: var(--talea-text-primary);
-    font-family: 'Manrope', 'Sora', sans-serif;
+    font-family: var(--talea-font-ui);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     position: relative;
     overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   .dark body {
@@ -310,6 +305,24 @@
 
   #root {
     min-height: 100vh;
+  }
+
+  /* SF-style titles: bold with tight tracking. */
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  /* iOS zooms into any field below 16px on focus. With this rule the viewport
+     no longer needs `user-scalable=no`, so pinch-zoom works again. */
+  @media (max-width: 767px) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']),
+    select,
+    textarea {
+      font-size: max(16px, 1em);
+    }
   }
 
   ::selection {
@@ -738,7 +751,7 @@
 /* Talea settings shell: Clerk stays functional, but visually belongs to the app. */
 .talea-settings-profile {
   color: var(--talea-text-primary);
-  font-family: 'Manrope', 'Sora', sans-serif;
+  font-family: var(--talea-font-ui);
 }
 
 .talea-settings-profile .cl-cardBox,
@@ -804,7 +817,7 @@
 }
 
 .talea-settings-profile .cl-headerTitle {
-  font-family: 'Fraunces', 'Cormorant Garamond', serif !important;
+  font-family: var(--talea-font-display) !important;
   letter-spacing: -0.025em !important;
 }
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Compass, Headphones, Plus, Settings, Star, Users } from "lucide-react";
+import { Bot, Check, Compass, Headphones, Plus, Settings, Star } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { type ProfileDetails, useChildProfiles } from "@/contexts/ChildProfilesContext";
 import { useBackend } from "@/hooks/useBackend";
@@ -15,8 +15,8 @@ import { useWelcomeTour } from "@/hooks/useWelcomeTour";
  * previous separate ProfileSwitcher pill (bottom-left) and Settings gear
  * button — one icon, one place, fewer floating buttons on screen.
  *
- * Visual: the active profile's picture/initials badge, with a small gear
- * overlaid bottom-right so it still reads as "this is also Settings".
+ * Visual: the active profile's round picture, like the account button in iOS
+ * apps. The menu also hosts Tavi, which no longer takes a tab-bar slot.
  */
 
 function profileInitials(name: string): string {
@@ -135,202 +135,115 @@ const ProfileMenuButton: React.FC = () => {
     return null;
   }
 
+  const menuRow =
+    "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left text-[15px] transition-colors hover:bg-[var(--talea-surface-inset)]";
+  const menuIcon =
+    "relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)]";
+
+  const go = (action: () => void) => () => {
+    setOpen(false);
+    action();
+  };
+
+  // Positioned by AppLayout (top bar), never floating over page content.
   return (
-    <div ref={rootRef} className="fixed right-3 top-3 z-[97]">
+    <div ref={rootRef} className="relative z-[97]">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         aria-label={`${selected.name} — Profil, Einstellungen und Wiedergabeliste`}
+        aria-haspopup="menu"
+        aria-expanded={open}
         title={selected.name}
-        className="relative inline-flex h-10 w-10 items-center justify-center rounded-2xl border shadow-[var(--talea-shadow-soft)] backdrop-blur-xl transition-colors"
-        style={{
-          borderColor: "var(--talea-border-light)",
-          background: isDark ? "rgba(19,27,37,0.88)" : "rgba(255,251,247,0.88)",
-        }}
+        className="relative inline-flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-[var(--talea-border-light)] transition-transform active:scale-95"
       >
         <ProfileAvatarBadge
           profile={selected}
           imageUrl={profileImageUrls[selected.id]}
           isLoading={Boolean(selected.childAvatarId && profileImageUrls[selected.id] === undefined)}
           isDark={isDark}
-          className="h-full w-full rounded-2xl text-[12px]"
+          className="h-full w-full rounded-full text-[13px]"
         />
-
-        {/* Small gear overlay so the same icon still reads as "Settings, too". */}
-        <span
-          className="absolute -bottom-1 -right-1 inline-flex h-[18px] w-[18px] items-center justify-center rounded-full border shadow-sm"
-          style={{
-            borderColor: "var(--talea-border-light)",
-            background: isDark ? "rgba(31,44,61,0.95)" : "rgba(255,255,255,0.95)",
-            color: isDark ? "var(--talea-text-primary)" : "var(--talea-text-secondary)",
-          }}
-          aria-hidden="true"
-        >
-          <Settings className="h-[11px] w-[11px]" />
-        </span>
       </button>
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 w-[292px] max-w-[calc(100vw-1.5rem)] rounded-[1.6rem] border p-2 shadow-[var(--talea-shadow-medium)] backdrop-blur-2xl"
-          style={{
-            borderColor: "var(--talea-border-light)",
-            background: isDark ? "rgba(19,27,37,0.96)" : "rgba(255,251,247,0.96)",
-            color: "var(--talea-text-primary)",
-          }}
+          role="menu"
+          className="absolute right-0 top-full mt-2 w-[300px] max-w-[calc(100vw-2rem)] rounded-2xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-1.5 text-[var(--talea-text-primary)] shadow-[var(--talea-shadow-strong)]"
         >
-          <div className="mb-2 px-2 py-1 text-[11px] uppercase tracking-[0.14em] opacity-70">
-            Kinderprofile ({profiles.length}/{profileLimit})
+          <div className="px-2.5 pb-1 pt-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--talea-text-tertiary)]">
+            Kinderprofile · {profiles.length}/{profileLimit}
           </div>
 
-          <div className="space-y-1">
+          <div>
             {profiles.map((profile) => {
               const selectedProfile = profile.id === selected.id;
               return (
                 <button
                   key={profile.id}
                   type="button"
-                  onClick={() => {
-                    setActiveProfileId(profile.id);
-                    setOpen(false);
-                  }}
-                  className={`flex w-full items-center gap-3 rounded-[1.2rem] px-2.5 py-2.5 text-left transition ${
-                    selectedProfile ? "ring-1 ring-[var(--talea-border-accent)]" : ""
-                  }`}
-                  style={{
-                    background: selectedProfile
-                      ? isDark
-                        ? "rgba(154,199,182,0.12)"
-                        : "rgba(123,168,156,0.12)"
-                      : isDark
-                      ? "rgba(24,32,44,0.64)"
-                      : "rgba(255,255,255,0.64)",
-                  }}
+                  role="menuitemradio"
+                  aria-checked={selectedProfile}
+                  onClick={go(() => setActiveProfileId(profile.id))}
+                  className={menuRow}
                 >
                   <ProfileAvatarBadge
                     profile={profile}
                     imageUrl={profileImageUrls[profile.id]}
                     isLoading={Boolean(profile.childAvatarId && profileImageUrls[profile.id] === undefined)}
                     isDark={isDark}
-                    className="h-8 w-8 rounded-xl text-[11px]"
+                    className="h-8 w-8 rounded-full text-[11px]"
                   />
-
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{profile.name}</span>
-                    <span className="block truncate text-xs opacity-70">
+                    <span className="block truncate font-semibold">{profile.name}</span>
+                    <span className="block truncate text-[13px] text-[var(--talea-text-secondary)]">
                       {profile.readingLevel || "Lesestufe offen"}
                     </span>
                   </span>
-
-                  {profile.isDefault && <Star className="h-4 w-4 text-[#F59E0B]" />}
+                  {profile.isDefault && <Star className="h-4 w-4 text-[#F59E0B]" aria-label="Standardprofil" />}
+                  {selectedProfile && <Check className="h-4 w-4 text-[var(--primary)]" aria-hidden />}
                 </button>
               );
             })}
-          </div>
-
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                navigate("/settings");
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-[1rem] border px-3 py-2 text-xs font-semibold"
-              style={{
-                borderColor: "var(--talea-border-light)",
-                background: isDark ? "rgba(24,32,44,0.72)" : "rgba(255,255,255,0.72)",
-              }}
-            >
-              <Users className="h-3.5 w-3.5" />
-              Verwalten
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                navigate("/settings");
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-[1rem] px-3 py-2 text-xs font-semibold text-white"
-              style={{
-                background:
-                  "linear-gradient(135deg,var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 70%, white) 100%)",
-              }}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Neu
+            <button type="button" role="menuitem" onClick={go(() => navigate("/settings"))} className={menuRow}>
+              <span className={menuIcon}>
+                <Plus className="h-4 w-4" />
+              </span>
+              <span className="font-medium text-[var(--primary)]">Profile verwalten</span>
             </button>
           </div>
 
-          <div className="mt-2 space-y-1 border-t pt-2" style={{ borderColor: "var(--talea-border-light)" }}>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                navigate("/settings");
-              }}
-              className="flex w-full items-center gap-3 rounded-[1.2rem] px-2.5 py-2.5 text-left transition"
-              style={{ background: isDark ? "rgba(24,32,44,0.64)" : "rgba(255,255,255,0.64)" }}
-            >
-              <span
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
-                style={{
-                  background: isDark ? "rgba(66,90,118,0.45)" : "var(--talea-surface-inset)",
-                  color: isDark ? "var(--talea-text-primary)" : "var(--talea-text-secondary)",
-                }}
-              >
-                <Settings className="h-4 w-4" />
-              </span>
-              <span className="text-sm font-semibold">Einstellungen</span>
-            </button>
+          <div className="my-1.5 h-px bg-[var(--talea-border-light)]" />
 
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                restartWelcomeTour();
-              }}
-              className="flex w-full items-center gap-3 rounded-[1.2rem] px-2.5 py-2.5 text-left transition"
-              style={{ background: isDark ? "rgba(24,32,44,0.64)" : "rgba(255,255,255,0.64)" }}
-            >
-              <span
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
-                style={{
-                  background: isDark ? "rgba(66,90,118,0.45)" : "var(--talea-surface-inset)",
-                  color: isDark ? "var(--talea-text-primary)" : "var(--talea-text-secondary)",
-                }}
-              >
-                <Compass className="h-4 w-4" />
+          <div>
+            <button type="button" role="menuitem" onClick={go(() => window.dispatchEvent(new Event("tavi:open")))} className={menuRow}>
+              <span className={menuIcon}>
+                <Bot className="h-4 w-4" />
               </span>
-              <span className="text-sm font-semibold">Rundgang starten</span>
+              <span className="font-medium">Tavi fragen</span>
             </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                togglePlaylistDrawer();
-              }}
-              className="flex w-full items-center gap-3 rounded-[1.2rem] px-2.5 py-2.5 text-left transition"
-              style={{ background: isDark ? "rgba(24,32,44,0.64)" : "rgba(255,255,255,0.64)" }}
-            >
-              <span
-                className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
-                style={{
-                  background: isDark ? "rgba(66,90,118,0.45)" : "var(--talea-surface-inset)",
-                  color: isDark ? "var(--talea-text-primary)" : "var(--talea-text-secondary)",
-                }}
-              >
+            <button type="button" role="menuitem" onClick={go(togglePlaylistDrawer)} className={menuRow}>
+              <span className={menuIcon}>
                 <Headphones className="h-4 w-4" />
                 {playlist.length > 0 && (
-                  <span
-                    className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold text-white"
-                    style={{ background: "var(--primary)" }}
-                  >
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--primary)] px-1 text-[9px] font-bold text-[var(--primary-foreground)]">
                     {playlist.length}
                   </span>
                 )}
               </span>
-              <span className="text-sm font-semibold">Wiedergabeliste</span>
+              <span className="font-medium">Wiedergabeliste</span>
+            </button>
+            <button type="button" role="menuitem" onClick={go(restartWelcomeTour)} className={menuRow}>
+              <span className={menuIcon}>
+                <Compass className="h-4 w-4" />
+              </span>
+              <span className="font-medium">Rundgang starten</span>
+            </button>
+            <button type="button" role="menuitem" onClick={go(() => navigate("/settings"))} className={menuRow}>
+              <span className={menuIcon}>
+                <Settings className="h-4 w-4" />
+              </span>
+              <span className="font-medium">Einstellungen</span>
             </button>
           </div>
         </div>

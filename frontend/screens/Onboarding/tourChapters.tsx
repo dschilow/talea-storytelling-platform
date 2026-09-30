@@ -323,7 +323,7 @@ export const StoryChapterDemo: React.FC = () => {
         transition={{ duration: 0.32 }}
         className="mt-3 rounded-xl border-l-2 border-[var(--primary)] bg-[var(--talea-surface-primary)] px-3.5 py-3"
       >
-        <p className="text-[15px] italic leading-relaxed text-[var(--talea-text-primary)]" style={{ fontFamily: '"Fraunces", serif' }}>
+        <p className="text-[15px] italic leading-relaxed text-[var(--talea-text-primary)]" style={{ fontFamily: 'var(--talea-font-display)' }}>
           {active.line}
         </p>
         <p className="mt-1.5 text-[11px] text-[var(--talea-text-tertiary)]">

@@ -18,7 +18,7 @@ export default function Step1Basics({ formData, updateFormData, childMode = fals
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="mb-1 text-2xl font-extrabold text-foreground" style={{ fontFamily: '"Cormorant Garamond", serif' }}>
+        <h2 className="mb-1 text-2xl font-extrabold text-foreground" style={{ fontFamily: 'var(--talea-font-display)' }}>
           {childMode ? 'So erscheint das Kind in Geschichten' : 'Wer soll dein Avatar sein?'}
         </h2>
         <p className="text-sm text-muted-foreground">

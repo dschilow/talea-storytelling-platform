@@ -53,7 +53,7 @@ export default function Step5Preview({
       <div className="text-center">
         <h2
           className="text-2xl font-extrabold text-foreground mb-1"
-          style={{ fontFamily: '"Cormorant Garamond", serif' }}
+          style={{ fontFamily: 'var(--talea-font-display)' }}
         >
           Fast fertig!
         </h2>

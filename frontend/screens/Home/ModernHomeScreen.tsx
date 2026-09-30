@@ -87,7 +87,7 @@ const LandingPage: React.FC = () => {
       >
         <h1
           className="text-5xl sm:text-6xl md:text-7xl font-semibold tracking-tight text-[var(--talea-text-primary)]"
-          style={{ fontFamily: '"Fraunces", serif' }}
+          style={{ fontFamily: 'var(--talea-font-display)' }}
         >
           {t('homePage.landingTitle')}
         </h1>
@@ -151,7 +151,7 @@ const StatCard: React.FC<{ icon: any; label: string; value: number; accent: stri
         <Icon className="h-4.5 w-4.5" style={{ color: accent }} />
       </div>
       <div>
-        <p className="text-2xl font-bold tracking-tight text-[var(--talea-text-primary)]" style={{ fontFamily: '"Fraunces", serif' }}>
+        <p className="text-2xl font-bold tracking-tight text-[var(--talea-text-primary)]" style={{ fontFamily: 'var(--talea-font-display)' }}>
           {value}
         </p>
         <p className="text-[11px] font-medium text-[var(--talea-text-tertiary)] tracking-wide">{label}</p>
@@ -322,7 +322,7 @@ const ModernHomeScreen: React.FC = () => {
             <div>
               <h1
                 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[var(--talea-text-primary)]"
-                style={{ fontFamily: '"Fraunces", serif' }}
+                style={{ fontFamily: 'var(--talea-font-display)' }}
               >
                 {t('homePage.greeting')}
               </h1>
@@ -387,7 +387,7 @@ const ModernHomeScreen: React.FC = () => {
               <div className="flex items-center gap-2.5">
                 <h2
                   className="text-xl font-semibold tracking-tight text-[var(--talea-text-primary)]"
-                  style={{ fontFamily: '"Fraunces", serif' }}
+                  style={{ fontFamily: 'var(--talea-font-display)' }}
                 >
                   {t('homePage.sectionAvatars')}
                 </h2>

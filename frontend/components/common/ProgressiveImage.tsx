@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { cn } from '@/lib/utils';
@@ -26,12 +26,19 @@ export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
   loading = 'lazy',
   fetchPriority = 'auto',
 }) => {
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
+  // State is keyed by the source it belongs to. A reset effect on [src] also ran
+  // on mount — after a cached image had already fired `load` — and left that
+  // image invisible at opacity 0 forever.
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const loaded = Boolean(src) && loadedSrc === src;
+  const error = Boolean(src) && failedSrc === src;
 
+  // Cached images can be complete before React attaches onLoad.
   useEffect(() => {
-    setLoaded(false);
-    setError(false);
+    const img = imgRef.current;
+    if (src && img?.complete && img.naturalWidth > 0) setLoadedSrc(src);
   }, [src]);
 
   const hasSource = Boolean(src);
@@ -42,6 +49,7 @@ export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
     <div className={cn('relative overflow-hidden', containerClassName)}>
       {hasSource && !error && (
         <motion.img
+          ref={imgRef}
           src={src ?? undefined}
           alt={alt}
           loading={loading}
@@ -50,8 +58,8 @@ export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
           initial={{ opacity: 0, scale: 1.03 }}
           animate={loaded ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 1.03 }}
           transition={{ duration: 0.35, ease: 'easeOut', delay: loaded ? 0 : revealDelayMs / 1000 }}
-          onLoad={() => setLoaded(true)}
-          onError={() => setError(true)}
+          onLoad={() => setLoadedSrc(src ?? null)}
+          onError={() => setFailedSrc(src ?? null)}
           className={cn('h-full w-full object-cover', imageClassName)}
         />
       )}

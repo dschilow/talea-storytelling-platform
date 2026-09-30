@@ -3,7 +3,7 @@ import { useLocation, Outlet } from "react-router-dom";
 import { SignedIn } from "@clerk/clerk-react";
 import { AnimatePresence, motion } from "framer-motion";
 
-import Sidebar from "./Sidebar";
+import Sidebar, { SIDEBAR_RAIL, SIDEBAR_WIDE } from "./Sidebar";
 import BottomNav from "./BottomNav";
 import { GlobalAudioPlayer } from "../audio/GlobalAudioPlayer";
 import ProfileMenuButton from "./ProfileMenuButton";
@@ -116,20 +116,21 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
     location.pathname.startsWith("/characters") ||
     location.pathname.startsWith("/artifacts") ||
     location.pathname.startsWith("/logs");
-  const shellStyle = isCosmosFullScreenRoute || isReaderRoute
+  const isFullBleed = isCosmosFullScreenRoute || isReaderRoute;
+  const shellStyle = isFullBleed
     ? undefined
     : {
-        paddingLeft: "max(env(safe-area-inset-left), 0.375rem)",
-        paddingRight: "max(env(safe-area-inset-right), 0.375rem)",
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
       };
-  const contentClassName =
-    isCosmosFullScreenRoute || isReaderRoute
-      ? "w-full min-h-screen p-0 m-0 max-w-none"
-      : usesImmersiveShell
-        ? "w-full mx-auto max-w-none pb-20 pt-0 md:pb-10 md:pt-1"
-        : `w-full mx-auto pb-20 pt-2 md:pb-10 md:pt-3 ${
-            isSettingsRoute ? "max-w-[1520px] md:px-5" : "max-w-[1260px] md:px-8"
-          }`;
+  // Bottom padding clears the mobile tab bar (52px + home indicator) plus breathing room.
+  const contentClassName = isFullBleed
+    ? "w-full min-h-screen p-0 m-0 max-w-none"
+    : usesImmersiveShell
+      ? "w-full mx-auto max-w-none pb-[calc(env(safe-area-inset-bottom)+5.5rem)] md:pb-12"
+      : `w-full mx-auto px-4 pb-[calc(env(safe-area-inset-bottom)+5.5rem)] md:pb-12 ${
+          isSettingsRoute ? "max-w-[1520px] md:px-5" : "max-w-[1260px] md:px-8"
+        }`;
 
   const chrome = !isCosmosFullScreenRoute;
   // Gate helper so the offline shell renders identical chrome without Clerk.
@@ -141,35 +142,36 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
       <Chrome>
         {chrome && (
           <>
-            <div className="hidden md:block w-[88px] flex-shrink-0" />
+            {/* Reserves the sidebar's width: rail below 1280px, labelled sidebar above. */}
+            <div
+              className="hidden md:block flex-shrink-0 w-[var(--talea-sidebar-rail)] xl:w-[var(--talea-sidebar-wide)]"
+              style={{ "--talea-sidebar-rail": `${SIDEBAR_RAIL}px`, "--talea-sidebar-wide": `${SIDEBAR_WIDE}px` } as React.CSSProperties}
+            />
             <Sidebar />
           </>
         )}
       </Chrome>
 
-      <main className="flex-1 min-h-screen transition-all duration-300">
+      {/* min-w-0: horizontal shelves must scroll inside main, not stretch the page. */}
+      <main className="min-w-0 flex-1 min-h-screen">
         <div style={shellStyle} className="w-full">
-          {!isCosmosFullScreenRoute && !isReaderRoute && !usesImmersiveShell ? (
-            <div className="pointer-events-none sticky top-0 z-30 hidden px-1 pt-3 md:block">
-              <div className="pointer-events-auto mx-auto max-w-[1680px]">
-                <div className="relative overflow-hidden rounded-[1.9rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-soft)] backdrop-blur-2xl before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/70 dark:before:bg-white/10">
-                  <div className="flex items-center justify-between gap-6 px-5 py-4 lg:px-6">
-                    <div className="min-w-0">
-                      <span className="inline-flex items-center rounded-full border border-[var(--talea-border-light)] bg-white/72 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] shadow-[0_4px_14px_rgba(91,72,59,0.05)] dark:bg-[var(--talea-surface-inset)]">
-                        {routeMeta.eyebrow}
-                      </span>
-                      <div className="mt-3 flex min-w-0 flex-col gap-1 lg:flex-row lg:items-center lg:gap-3">
-                        <h2
-                          className="text-[1.7rem] font-semibold leading-none text-[var(--talea-text-primary)]"
-                          style={{ fontFamily: '"Fraunces", "Cormorant Garamond", serif' }}
-                        >
-                          {routeMeta.title}
-                        </h2>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          {/* Top row: the account button sits here, like in iOS apps, instead of
+              floating over each page's own header. */}
+          {!isFullBleed ? (
+            <div className="flex h-14 items-center justify-end gap-3 px-4 pt-[env(safe-area-inset-top)] md:px-8">
+              {!usesImmersiveShell ? (
+                <h1
+                  className="mr-auto hidden text-[1.75rem] font-bold text-[var(--talea-text-primary)] md:block"
+                  style={{ fontFamily: "var(--talea-font-display)" }}
+                >
+                  {routeMeta.title}
+                </h1>
+              ) : null}
+              {!offline && chrome ? (
+                <SignedIn>
+                  <ProfileMenuButton />
+                </SignedIn>
+              ) : null}
             </div>
           ) : null}
 
@@ -189,12 +191,6 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
           </div>
         </div>
       </main>
-
-      {!offline && (
-        <SignedIn>
-          {chrome && <ProfileMenuButton />}
-        </SignedIn>
-      )}
 
       <GlobalAudioPlayer />
 

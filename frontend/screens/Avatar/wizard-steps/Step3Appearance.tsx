@@ -24,7 +24,7 @@ export default function Step3Appearance({ formData, updateFormData }: Step3Appea
       <div className="text-center">
         <h2
           className="text-2xl font-extrabold text-foreground mb-1"
-          style={{ fontFamily: '"Cormorant Garamond", serif' }}
+          style={{ fontFamily: 'var(--talea-font-display)' }}
         >
           Aussehen
         </h2>

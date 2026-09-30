@@ -167,7 +167,7 @@ export const GlobalAudioPlayer: React.FC = () => {
                       </div>
                       <h3
                         className="mt-2.5 line-clamp-2 text-[1.5rem] font-semibold leading-tight text-[var(--talea-text-primary)]"
-                        style={{ fontFamily: '"Fraunces", "Cormorant Garamond", serif' }}
+                        style={{ fontFamily: 'var(--talea-font-display)' }}
                       >
                         {title || 'Talea Player'}
                       </h3>

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Bot,
   BookOpen,
   Brain,
   ChevronUp,
@@ -42,14 +41,6 @@ const NAV_ITEMS: NavItem[] = [
   { icon: User, imageId: 'avatars', labelKey: 'navigation.avatars', path: '/avatar' },
   { icon: FlaskConical, imageId: 'dokus', label: 'Dokus', path: '/doku' },
   { icon: Brain, imageId: 'quiz', label: 'Quiz', path: '/quiz' },
-  {
-    icon: Bot,
-    imageId: 'tavi',
-    label: 'Tavi',
-    onClick: () => {
-      window.dispatchEvent(new Event('tavi:open'));
-    },
-  },
 ];
 
 const BottomNav: React.FC = () => {
@@ -113,40 +104,30 @@ const BottomNav: React.FC = () => {
 
     return (
       <button
-        key={item.path ?? item.label ?? item.labelKey ?? 'tavi'}
+        key={item.path ?? item.label ?? item.labelKey}
         type="button"
         onClick={() => (item.onClick ? item.onClick() : item.path ? navigate(item.path) : undefined)}
-        className="relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-[1.1rem] px-0.5 py-1.5"
+        className="flex min-w-0 flex-col items-center justify-center gap-0.5 pt-1.5"
         aria-label={labelOf(item)}
+        aria-current={active ? 'page' : undefined}
       >
-        {active ? (
-          <motion.span
-            layoutId="talea-mobile-active"
-            className="absolute inset-0 rounded-[1.1rem] border border-[var(--talea-border-accent)] bg-[linear-gradient(135deg,rgba(255,255,255,0.76)_0%,rgba(231,239,232,0.88)_46%,rgba(227,235,247,0.82)_100%)] dark:bg-[linear-gradient(135deg,rgba(229,176,183,0.14)_0%,rgba(154,199,182,0.18)_46%,rgba(176,200,231,0.16)_100%)]"
-            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-          />
-        ) : null}
-
-        <div
+        <span
           className={cn(
-            'relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-[0.9rem] border transition-colors duration-200',
-            active
-              ? 'border-white/70 bg-white/82 text-[var(--primary)] shadow-[0_6px_16px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6'
-              : 'border-transparent bg-transparent text-[var(--talea-text-tertiary)]',
+            'flex h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-[9px] transition-[opacity,filter] duration-200',
+            active ? 'opacity-100' : 'opacity-70 saturate-[0.65]',
           )}
         >
           <WizardImage
             url={assetUrl('navTab', item.imageId)}
-            fallback={<Icon className="h-[17px] w-[17px]" />}
-            alt={labelOf(item)}
+            fallback={<Icon className={cn('h-6 w-6', active ? 'text-[var(--primary)]' : 'text-[var(--talea-text-tertiary)]')} />}
+            alt=""
             fallbackClassName="flex h-full w-full items-center justify-center"
           />
-        </div>
-
+        </span>
         <span
           className={cn(
-            'relative max-w-full truncate text-[8.5px] font-medium leading-none tracking-[0.02em] transition-colors duration-200',
-            active ? 'font-semibold text-[var(--primary)]' : 'text-[var(--talea-text-tertiary)]',
+            'max-w-full truncate text-[10px] leading-tight',
+            active ? 'font-semibold text-[var(--primary)]' : 'font-medium text-[var(--talea-text-tertiary)]',
           )}
         >
           {labelOf(item)}
@@ -159,14 +140,8 @@ const BottomNav: React.FC = () => {
     <>
       <AnimatePresence>{isPlaylistDrawerOpen ? <PlaylistDrawer variant="mobile" /> : null}</AnimatePresence>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-2 pb-2.5 md:hidden">
-        <div
-          className="pointer-events-auto overflow-hidden rounded-[2rem] border shadow-[var(--talea-shadow-medium)] backdrop-blur-2xl"
-          style={{
-            borderColor: 'var(--talea-border-light)',
-            background: isDark ? 'rgba(19,27,37,0.92)' : 'rgba(255,251,247,0.92)',
-          }}
-        >
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] md:hidden">
+        <div className="pointer-events-auto">
           <AnimatePresence initial={false}>
             {isVisible ? (
               <motion.div
@@ -175,12 +150,7 @@ const BottomNav: React.FC = () => {
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 14, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 360, damping: 30 }}
-                className="mx-2 mb-1 mt-2 overflow-hidden rounded-[1.5rem] border"
-                style={{
-                  borderColor: 'var(--talea-border-light)',
-                  background:
-                    'linear-gradient(180deg, color-mix(in srgb, var(--talea-surface-primary) 94%, white) 0%, color-mix(in srgb, var(--talea-surface-inset) 92%, transparent) 100%)',
-                }}
+                className="mx-2 mb-2 overflow-hidden rounded-2xl border border-[var(--talea-border-light)] bg-[var(--talea-glass-bg-alt)] shadow-[var(--talea-shadow-strong)] backdrop-blur-xl backdrop-saturate-150"
               >
                 {/* Header: div statt <button>, weil verschachtelte Buttons
                     (Play/Chevron im Header) invalides HTML sind und das
@@ -350,8 +320,11 @@ const BottomNav: React.FC = () => {
             ) : null}
           </AnimatePresence>
 
-          <nav className={cn('px-1.5', isVisible ? 'pb-1 pt-0.5' : 'py-1.5')} aria-label="Mobile Navigation">
-            <div className="flex items-center gap-0.5">{NAV_ITEMS.map(renderNavItem)}</div>
+          <nav
+            className="border-t border-[var(--talea-border-soft)] bg-[var(--talea-glass-bg)] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl backdrop-saturate-150"
+            aria-label="Hauptnavigation"
+          >
+            <div className="grid h-[52px] grid-cols-5">{NAV_ITEMS.map(renderNavItem)}</div>
           </nav>
         </div>
       </div>

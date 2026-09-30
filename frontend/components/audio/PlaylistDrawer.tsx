@@ -548,7 +548,7 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
             </p>
             <h3
               className="mt-2 text-[1.6rem] font-semibold text-[var(--talea-text-primary)]"
-              style={{ fontFamily: '"Fraunces", "Cormorant Garamond", serif' }}
+              style={{ fontFamily: 'var(--talea-font-display)' }}
             >
               {playlist.length} Titel
             </h3>

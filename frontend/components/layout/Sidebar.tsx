@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Brain,
   BookMarked,
@@ -21,7 +21,6 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 import taleaLogo from "@/img/talea_logo.png";
-import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
 import { WizardImage } from "@/components/avatar-form/WizardImage";
 import { useWizardAssets } from "@/hooks/useWizardAssets";
@@ -56,19 +55,37 @@ const SETTINGS_ITEM: NavItem = {
   path: "/settings",
 };
 
+/** Collapsed icon rail and permanently expanded widths — AppLayout reserves the same space. */
+export const SIDEBAR_RAIL = 84;
+export const SIDEBAR_WIDE = 248;
+const WIDE_QUERY = "(min-width: 1280px)";
+
+function useIsWideScreen(): boolean {
+  const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia(WIDE_QUERY).matches);
+  useEffect(() => {
+    const query = window.matchMedia(WIDE_QUERY);
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return wide;
+}
+
 const Sidebar: React.FC = () => {
   const { signOut } = useClerk();
   const { isAdmin } = useOptionalUserAccess();
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { resolvedTheme } = useTheme();
 
   const [expanded, setExpanded] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const isWide = useIsWideScreen();
 
-  const canExpand = useMemo(() => expanded, [expanded]);
-  const isDark = resolvedTheme === "dark";
+  // Wide screens show a permanent labelled sidebar (iPadOS); narrower desktops
+  // keep the icon rail that expands on hover.
+  const canExpand = expanded || isWide;
 
   const labelOf = (item: NavItem) => item.label ?? (item.labelKey ? t(item.labelKey) : "");
 
@@ -99,60 +116,43 @@ const Sidebar: React.FC = () => {
         type="button"
         onClick={() => navigate(item.path)}
         className={cn(
-          "group relative flex w-full items-center gap-3 overflow-hidden rounded-[1.35rem] px-3 py-2.5 text-left transition-all duration-200",
+          "group flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors duration-150",
           active
-            ? "text-[var(--talea-text-primary)]"
-            : "text-[var(--talea-text-secondary)] hover:bg-[var(--talea-surface-inset)]/80 hover:text-[var(--talea-text-primary)]"
+            ? "bg-[color-mix(in_srgb,var(--primary)_13%,transparent)] text-[var(--talea-text-primary)]"
+            : "text-[var(--talea-text-secondary)] hover:bg-[var(--talea-surface-inset)] hover:text-[var(--talea-text-primary)]"
         )}
         aria-label={labelOf(item)}
+        aria-current={active ? "page" : undefined}
       >
-        {active && (
-          <motion.span
-            layoutId="talea-sidebar-active"
-            className="absolute inset-0 rounded-[1.35rem] border border-[var(--talea-border-accent)] bg-[linear-gradient(135deg,rgba(255,255,255,0.75)_0%,rgba(231,239,232,0.88)_46%,rgba(227,235,247,0.84)_100%)] dark:bg-[linear-gradient(135deg,rgba(229,176,183,0.14)_0%,rgba(154,199,182,0.18)_46%,rgba(176,200,231,0.16)_100%)]"
-            transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          />
-        )}
-
-        <div
+        <span
           className={cn(
-            "relative flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-[1.1rem] border transition-colors",
-            active
-              ? "border-white/70 bg-white/80 text-[var(--primary)] shadow-[0_8px_20px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6"
-              : "border-transparent bg-[var(--talea-surface-inset)] text-[var(--talea-text-tertiary)] group-hover:bg-white/75 group-hover:text-[var(--talea-text-secondary)] dark:group-hover:bg-white/6"
+            "flex h-9 w-9 flex-shrink-0 items-center justify-center transition-[opacity,filter]",
+            active ? "opacity-100" : "opacity-70 grayscale-[30%] group-hover:opacity-100 group-hover:grayscale-0"
           )}
         >
           {item.imageId ? (
             <WizardImage
               url={assetUrl("navTab", item.imageId)}
-              fallback={<Icon className="h-[20px] w-[20px] transition-colors" />}
-              alt={labelOf(item)}
+              fallback={<Icon className="h-[20px] w-[20px]" />}
+              alt=""
               fallbackClassName="flex h-full w-full items-center justify-center"
             />
           ) : (
-            <Icon className="h-[20px] w-[20px] transition-colors" />
+            <Icon className={cn("h-[20px] w-[20px]", active && "text-[var(--primary)]")} />
           )}
-        </div>
+        </span>
 
         <motion.span
           initial={false}
           animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
           transition={{ duration: 0.15 }}
           className={cn(
-            "relative overflow-hidden whitespace-nowrap text-[13px] font-medium tracking-[-0.01em]",
-            active ? "font-semibold" : ""
+            "overflow-hidden whitespace-nowrap text-[15px]",
+            active ? "font-semibold" : "font-medium"
           )}
         >
           {labelOf(item)}
         </motion.span>
-
-        {active && canExpand ? (
-          <motion.span
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative ml-auto h-2 w-2 rounded-full bg-[var(--primary)]"
-          />
-        ) : null}
       </button>
     );
   };
@@ -161,78 +161,53 @@ const Sidebar: React.FC = () => {
     <aside className="fixed left-0 top-0 z-40 hidden h-screen md:block">
       <motion.div
         initial={false}
-        animate={{ width: canExpand ? 280 : 88 }}
-        transition={{ type: "spring", stiffness: 400, damping: 32 }}
+        animate={{ width: canExpand ? SIDEBAR_WIDE : SIDEBAR_RAIL }}
+        transition={{ type: "spring", stiffness: 400, damping: 36 }}
         onMouseEnter={() => setExpanded(true)}
         onMouseLeave={() => setExpanded(false)}
-        className="relative mx-3 my-3 flex h-[calc(100vh-1.5rem)] flex-col rounded-[2rem] border px-3 py-3"
-        style={{
-          background: "var(--sidebar)",
-          borderColor: "var(--sidebar-border)",
-          boxShadow: "var(--talea-shadow-medium)",
-          backdropFilter: "blur(24px)",
-        }}
+        className={cn(
+          "relative flex h-screen flex-col border-r px-3 py-4 backdrop-blur-xl backdrop-saturate-150",
+          expanded && !isWide && "shadow-[var(--talea-shadow-strong)]"
+        )}
+        style={{ background: "var(--sidebar)", borderColor: "var(--sidebar-border)" }}
       >
         <div className="relative flex flex-1 flex-col overflow-hidden">
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="mb-4 flex items-center gap-3 rounded-[1.5rem] px-2 py-2 transition-colors hover:bg-[var(--talea-surface-inset)]/80"
+            className="mb-4 flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-[var(--talea-surface-inset)]"
             aria-label="Talea Startseite"
           >
-            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[1.2rem] border border-white/70 bg-white/76 shadow-[0_10px_24px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6">
-              <img src={taleaLogo} alt="Talea" className="h-8 w-8 rounded-[0.9rem] object-cover" />
-            </div>
+            <img src={taleaLogo} alt="" className="h-9 w-9 flex-shrink-0 rounded-[0.7rem] object-cover" />
             <motion.div
               initial={false}
               animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
               transition={{ duration: 0.15 }}
               className="overflow-hidden pr-1"
             >
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-tertiary)]">
-                Talea Workspace
-              </p>
               <p
-                className="text-[1.15rem] font-semibold leading-tight tracking-tight text-[var(--talea-text-primary)]"
-                style={{ fontFamily: '"Fraunces", serif' }}
+                className="text-[1.25rem] font-bold leading-tight tracking-tight text-[var(--talea-text-primary)]"
+                style={{ fontFamily: 'var(--talea-font-display)' }}
               >
                 Talea
               </p>
             </motion.div>
           </button>
 
-          <AnimatePresence initial={false}>
-            {canExpand ? (
-              <motion.button
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                type="button"
-                onClick={() => navigate("/story")}
-                className="mb-4 overflow-hidden rounded-[1.6rem] border border-[var(--talea-border-light)] bg-[linear-gradient(135deg,#f5dfdf_0%,#e7efe8_46%,#e3ebf7_100%)] p-4 text-left shadow-[0_12px_28px_rgba(91,72,59,0.08)] dark:bg-[linear-gradient(135deg,rgba(229,176,183,0.16)_0%,rgba(154,199,182,0.18)_46%,rgba(176,200,231,0.16)_100%)]"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)]">Schnellstart</p>
-                    <p className="mt-2 text-sm font-semibold text-[var(--talea-text-primary)]">Neue Geschichte beginnen</p>
-                  </div>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-[1rem] border border-white/70 bg-white/76 text-[var(--primary)] shadow-[0_8px_20px_rgba(91,72,59,0.08)] dark:border-white/10 dark:bg-white/6">
-                    <Sparkles className="h-4 w-4" />
-                  </div>
-                </div>
-              </motion.button>
-            ) : null}
-          </AnimatePresence>
+          <button
+            type="button"
+            onClick={() => navigate("/story")}
+            className={cn(
+              "mb-4 flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] text-[15px] font-semibold text-[var(--primary-foreground)] transition-[filter] hover:brightness-[1.06]",
+              canExpand ? "px-4" : "px-0"
+            )}
+            aria-label="Neue Geschichte"
+          >
+            <Sparkles className="h-4 w-4 flex-shrink-0" />
+            {canExpand ? <span className="whitespace-nowrap">Neue Geschichte</span> : null}
+          </button>
 
           <div className="flex-1 space-y-1 overflow-y-auto pr-0.5">
-            <motion.p
-              initial={false}
-              animate={{ opacity: canExpand ? 1 : 0, height: canExpand ? "auto" : 0 }}
-              className="mb-2 overflow-hidden px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]"
-            >
-              Navigation
-            </motion.p>
-
             {PRIMARY_ITEMS.map(renderNavItem)}
 
             {isAdmin && (
@@ -275,17 +250,17 @@ const Sidebar: React.FC = () => {
             <button
               type="button"
               onClick={handleOpenTavi}
-              className="group flex w-full items-center gap-3 rounded-[1.35rem] px-3 py-2.5 text-left transition-all duration-200 text-[var(--talea-text-secondary)] hover:bg-[var(--talea-surface-inset)] hover:text-[var(--talea-text-primary)]"
+              className="group flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left text-[var(--talea-text-secondary)] transition-colors hover:bg-[var(--talea-surface-inset)] hover:text-[var(--talea-text-primary)]"
               aria-label="Tavi Assistant"
             >
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[1rem] border border-transparent bg-[var(--talea-surface-inset)] text-[var(--talea-text-tertiary)] transition-colors group-hover:border-white/60 group-hover:bg-white/75 group-hover:text-[var(--talea-text-secondary)] dark:group-hover:border-white/10 dark:group-hover:bg-white/6">
-                <Bot className="h-[18px] w-[18px]" />
-              </div>
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center">
+                <Bot className="h-[20px] w-[20px]" />
+              </span>
               <motion.span
                 initial={false}
                 animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
                 transition={{ duration: 0.15 }}
-                className="overflow-hidden whitespace-nowrap text-[13px] font-medium tracking-[-0.01em]"
+                className="overflow-hidden whitespace-nowrap text-[15px] font-medium"
               >
                 Tavi
               </motion.span>
@@ -294,17 +269,17 @@ const Sidebar: React.FC = () => {
             <button
               type="button"
               onClick={handleSignOut}
-              className="group flex w-full items-center gap-3 rounded-[1.35rem] px-3 py-2.5 text-left transition-all duration-200 text-[var(--talea-text-tertiary)] hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 dark:hover:text-red-400"
+              className="group flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left text-[var(--talea-text-tertiary)] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 dark:hover:text-red-400"
               aria-label={t("navigation.logout")}
             >
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[1rem] border border-transparent bg-[var(--talea-surface-inset)] transition-colors group-hover:bg-red-50 dark:group-hover:bg-red-950/20">
-                <LogOut className="h-[18px] w-[18px] flex-shrink-0" />
-              </div>
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center">
+                <LogOut className="h-[20px] w-[20px]" />
+              </span>
               <motion.span
                 initial={false}
                 animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
                 transition={{ duration: 0.15 }}
-                className="overflow-hidden whitespace-nowrap text-[13px] font-medium tracking-[-0.01em]"
+                className="overflow-hidden whitespace-nowrap text-[15px] font-medium"
               >
                 {t("navigation.logout")}
               </motion.span>

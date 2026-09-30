@@ -355,7 +355,7 @@ const CommunityQuizScreen: React.FC = () => {
                 <p className="text-xs font-semibold uppercase tracking-[0.16em]" style={{ color: colors.muted }}>
                   Community Quiz
                 </p>
-                <h1 className="text-3xl leading-none md:text-4xl" style={{ color: colors.text, fontFamily: '"Cormorant Garamond", serif' }}>
+                <h1 className="text-3xl leading-none md:text-4xl" style={{ color: colors.text, fontFamily: 'var(--talea-font-display)' }}>
                   Wissen testen
                 </h1>
               </div>
@@ -453,8 +453,8 @@ const CommunityQuizScreen: React.FC = () => {
             style={{ borderColor: colors.panelBorder, background: colors.panel }}
           >
             <p style={{ color: colors.muted }}>
-              Das Quiz zieht Fragen aus Community-Dokus. Nach jeder Antwort bekommst du direkt eine Erklaerung und kannst
-              bei Bedarf die Quelle sofort oeffnen.
+              Das Quiz zieht Fragen aus Community-Dokus. Nach jeder Antwort bekommst du direkt eine Erklärung und kannst
+              bei Bedarf die Quelle sofort öffnen.
             </p>
             {isLoadingList && (
               <p className="mt-3 text-xs" style={{ color: colors.muted }}>
@@ -513,7 +513,7 @@ const CommunityQuizScreen: React.FC = () => {
                     <span style={{ color: colors.muted }}>{currentCard.sectionTitle}</span>
                   </div>
 
-                  <h2 className="text-2xl leading-tight md:text-3xl" style={{ color: colors.text, fontFamily: '"Cormorant Garamond", serif' }}>
+                  <h2 className="text-2xl leading-tight md:text-3xl" style={{ color: colors.text, fontFamily: 'var(--talea-font-display)' }}>
                     {currentCard.question}
                   </h2>
 
@@ -583,7 +583,7 @@ const CommunityQuizScreen: React.FC = () => {
                         style={{ borderColor: colors.cardBorder, color: colors.text }}
                       >
                         <ArrowLeft className="h-4 w-4" />
-                        Zurueck
+                        Zurück
                       </button>
 
                       {!isCurrentChecked ? (
@@ -618,7 +618,7 @@ const CommunityQuizScreen: React.FC = () => {
                         style={{ borderColor: colors.cardBorder, color: colors.text }}
                       >
                         <BookOpen className="h-4 w-4" />
-                        Quelle oeffnen
+                        Quelle öffnen
                       </button>
                     </div>
                   </div>
@@ -635,7 +635,7 @@ const CommunityQuizScreen: React.FC = () => {
           >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h2 className="text-3xl md:text-4xl" style={{ color: colors.text, fontFamily: '"Cormorant Garamond", serif' }}>
+                <h2 className="text-3xl md:text-4xl" style={{ color: colors.text, fontFamily: 'var(--talea-font-display)' }}>
                   Quiz abgeschlossen
                 </h2>
                 <p className="mt-1 text-sm" style={{ color: colors.muted }}>

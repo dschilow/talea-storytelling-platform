@@ -4,32 +4,35 @@ import { Check, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export const taleaDisplayFont = '"Fraunces", "Cormorant Garamond", serif';
-export const taleaBodyFont = '"Manrope", "Sora", sans-serif';
+export const taleaDisplayFont = 'var(--talea-font-display)';
+export const taleaBodyFont = 'var(--talea-font-ui)';
 
+// iOS "inset grouped" look: solid card, hairline edge, barely-there shadow.
 export const taleaSurfaceClass =
-  "relative overflow-hidden rounded-[2rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-medium)] backdrop-blur-2xl before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/75 before:opacity-80 after:pointer-events-none after:absolute after:inset-x-8 after:top-0 after:h-24 after:-translate-y-1/2 after:rounded-full after:bg-white/30 after:blur-3xl dark:before:bg-white/10 dark:after:bg-white/6";
+  "relative overflow-hidden rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-soft)]";
 
 export const taleaInsetSurfaceClass =
-  "relative overflow-hidden rounded-[1.6rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] shadow-[0_8px_24px_rgba(91,72,59,0.06)] backdrop-blur-xl before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-white/65 dark:before:bg-white/8";
+  "relative overflow-hidden rounded-[1.125rem] bg-[var(--talea-surface-inset)]";
 
 export const taleaPageShellClass =
-  "mx-auto w-full max-w-[1600px] px-1.5 sm:px-4 md:px-6 lg:px-8 xl:px-10";
+  "mx-auto w-full max-w-[1280px] px-4 md:px-6 lg:px-8";
 
 export const taleaGlassPanelClass =
-  "relative overflow-hidden rounded-[1.8rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-soft)] backdrop-blur-2xl";
+  "relative overflow-hidden rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-soft)]";
 
 export const taleaToolbarClass =
-  "relative flex flex-wrap items-center gap-3 rounded-[1.7rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)]/95 p-3 shadow-[0_10px_28px_rgba(88,67,54,0.06)] backdrop-blur-xl";
+  "relative flex flex-wrap items-center gap-2.5 rounded-[1.25rem] bg-[var(--talea-surface-inset)] p-2";
 
 export const taleaMetricCardClass =
-  "relative overflow-hidden rounded-[1.6rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-4 py-4 shadow-[0_10px_26px_rgba(88,67,54,0.05)] backdrop-blur-xl";
+  "relative overflow-hidden rounded-[1.125rem] bg-[var(--talea-surface-inset)] px-4 py-3.5";
 
+// iOS search/text field: filled, borderless, focus ring only while typing.
 export const taleaInputClass =
-  "h-11 w-full rounded-[1.1rem] border border-[var(--talea-border-soft)] bg-white/80 px-4 text-sm font-medium text-[var(--talea-text-primary)] outline-none transition-all placeholder:text-[var(--talea-text-muted)] focus:border-[var(--primary)] focus:bg-white/95 focus:ring-4 focus:ring-[var(--primary)]/12 dark:bg-[var(--talea-surface-inset)] dark:focus:bg-[var(--talea-surface-primary)]";
+  "h-11 w-full rounded-xl border border-transparent bg-[var(--talea-surface-inset)] px-4 text-[15px] text-[var(--talea-text-primary)] outline-none transition-colors placeholder:text-[var(--talea-text-tertiary)] focus:border-[var(--primary)]/40 focus:ring-4 focus:ring-[var(--primary)]/12";
 
+// Section label ("eyebrow"): plain text like an iOS section header, not a pill.
 export const taleaChipClass =
-  "inline-flex items-center rounded-full border border-[var(--talea-border-light)] bg-white/72 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--talea-text-secondary)] shadow-[0_4px_14px_rgba(91,72,59,0.05)] dark:bg-[var(--talea-surface-inset)]";
+  "inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--talea-text-tertiary)]";
 
 /**
  * One visual language for "this option is picked".
@@ -103,72 +106,15 @@ export function fadeUp(reduceMotion: boolean, delay = 0): MotionProps {
   };
 }
 
-export const TaleaPageBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => {
-  const reduceMotion = useReducedMotion();
-
-  const makeFloat = (
-    duration: number,
-    x: number[],
-    y: number[],
-    scale: number[]
-  ): MotionProps["animate"] =>
-    reduceMotion
-      ? { opacity: 1 }
-      : { x, y, scale };
-
-  const transitionFor = (duration: number, delay = 0) => ({
-    duration,
-    delay,
-    repeat: Infinity,
-    repeatType: "mirror" as const,
-    ease: "easeInOut" as const,
-  });
-
-  return (
-    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
-      <div
-        className={cn(
-          "absolute inset-0 transition-colors duration-500",
-          isDark ? "bg-[var(--talea-page-solid)]" : "bg-[var(--talea-page-solid)]"
-        )}
-      />
-
-      <motion.div
-        animate={makeFloat(20, [0, 20, -8], [0, -14, 6], [1, 1.04, 0.98])}
-        transition={transitionFor(20)}
-        className={cn(
-          "absolute -top-20 right-[-28%] h-[22rem] w-[22rem] rounded-full blur-[100px] sm:-top-24 sm:right-[-8%] sm:h-[34rem] sm:w-[34rem] sm:blur-[120px]",
-          isDark ? "bg-[var(--primary)]/8" : "bg-[var(--primary)]/12"
-        )}
-      />
-      <motion.div
-        animate={makeFloat(24, [0, -18, 10], [0, 16, -10], [1, 0.97, 1.03])}
-        transition={transitionFor(24, 1.5)}
-        className={cn(
-          "absolute left-[-22%] top-[10%] h-[21rem] w-[21rem] rounded-full blur-[100px] sm:left-[-8%] sm:top-[12%] sm:h-[30rem] sm:w-[30rem] sm:blur-[120px]",
-          isDark ? "bg-[var(--talea-accent-sky)]/6" : "bg-[var(--talea-accent-peach)]/10"
-        )}
-      />
-      <motion.div
-        animate={makeFloat(28, [0, 16, -12], [0, -10, 14], [1, 1.05, 0.97])}
-        transition={transitionFor(28, 2.5)}
-        className={cn(
-          "absolute bottom-[-7rem] left-[10%] h-[20rem] w-[20rem] rounded-full blur-[100px] sm:bottom-[-10rem] sm:left-[22%] sm:h-[28rem] sm:w-[28rem] sm:blur-[130px]",
-          isDark ? "bg-[var(--talea-accent-peach)]/5" : "bg-[var(--talea-accent-sky)]/8"
-        )}
-      />
-      <motion.div
-        animate={makeFloat(32, [0, -12, 18], [0, 18, -10], [1, 1.02, 0.96])}
-        transition={transitionFor(32, 0.8)}
-        className={cn(
-          "absolute left-[32%] top-[28%] h-[14rem] w-[14rem] rounded-full blur-[90px] sm:left-[38%] sm:top-[22%] sm:h-[20rem] sm:w-[20rem] sm:blur-[120px]",
-          isDark ? "bg-[var(--talea-accent-lavender)]/7" : "bg-[var(--talea-accent-rose)]/10"
-        )}
-      />
-      <div className="talea-grid-lines absolute inset-0" />
-    </div>
-  );
-};
+/**
+ * Page backdrop. Deliberately calm: a flat, warm grouped-background colour like
+ * iOS Settings or Books. The previous drifting colour blobs and grid kept the
+ * GPU busy on every page and competed with the cover art for attention.
+ * `isDark` is kept for API compatibility — the colour comes from the theme token.
+ */
+export const TaleaPageBackground: React.FC<{ isDark: boolean }> = () => (
+  <div className="pointer-events-none fixed inset-0 -z-10 bg-[var(--talea-page-solid)]" aria-hidden />
+);
 
 type TaleaSurfaceProps = React.HTMLAttributes<HTMLDivElement> & {
   delay?: number;
@@ -217,22 +163,17 @@ export const TaleaActionButton: React.FC<TaleaActionButtonProps> = ({
 
   const variantClassName =
     variant === "primary"
-      ? "border-transparent bg-[linear-gradient(135deg,var(--primary)_0%,color-mix(in_srgb,var(--talea-accent-sky)_68%,white)_100%)] text-white shadow-[0_14px_34px_rgba(123,168,156,0.24)] hover:shadow-[0_18px_38px_rgba(123,168,156,0.3)] dark:text-[var(--talea-text-inverse)]"
+      ? "border-transparent bg-[var(--primary)] text-[var(--primary-foreground)] hover:brightness-[1.06] active:brightness-95"
       : variant === "secondary"
-        ? "border-[var(--talea-border-light)] bg-white/76 text-[var(--talea-text-primary)] shadow-[0_8px_24px_rgba(91,72,59,0.05)] hover:bg-white/92 hover:shadow-[0_12px_30px_rgba(91,72,59,0.08)] dark:bg-[var(--talea-surface-primary)] dark:text-[var(--talea-text-primary)]"
-        : "border-transparent bg-transparent text-[var(--talea-text-secondary)] shadow-none hover:bg-[var(--talea-surface-inset)]";
+        ? "border-transparent bg-[var(--talea-surface-inset)] text-[var(--primary)] hover:brightness-[0.97] dark:hover:brightness-110"
+        : "border-transparent bg-transparent text-[var(--primary)] shadow-none hover:bg-[var(--talea-surface-inset)]";
 
   return (
     <motion.button
-      whileHover={
-        reduceMotion
-          ? undefined
-          : { y: -1, scale: 1.01, transition: { duration: 0.15, ease: "easeOut" } }
-      }
-      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+      whileTap={reduceMotion ? undefined : { scale: 0.97 }}
       type={type}
       className={cn(
-        "inline-flex min-h-10 items-center justify-center gap-2 rounded-[1.1rem] border px-4 py-2.5 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/14 disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-[15px] font-semibold transition-[filter,background-color] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-45",
         variantClassName,
         className
       )}
@@ -251,31 +192,27 @@ export const TaleaSectionHeading: React.FC<{
   actionLabel?: string;
   onAction?: () => void;
 }> = ({ eyebrow, title, subtitle, actionLabel, onAction }) => (
-  <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-    <div className="space-y-2">
-      {eyebrow ? (
-        <span className={taleaChipClass}>
-          {eyebrow}
-        </span>
-      ) : null}
-      <div>
-        <h2
-          className="text-[2rem] font-semibold leading-[1.02] text-[var(--talea-text-primary)] md:text-[2.45rem]"
-          style={{ fontFamily: taleaDisplayFont }}
+  // iOS section header: bold title with a text link on the same line, one quiet line below.
+  <div className="min-w-0">
+    {eyebrow ? <span className={taleaChipClass}>{eyebrow}</span> : null}
+    <div className="mt-0.5 flex items-baseline justify-between gap-4">
+      <h2
+        className="min-w-0 text-[1.375rem] font-bold leading-tight text-[var(--talea-text-primary)] md:text-[1.625rem]"
+        style={{ fontFamily: taleaDisplayFont }}
+      >
+        {title}
+      </h2>
+      {actionLabel && onAction ? (
+        <button
+          type="button"
+          onClick={onAction}
+          className="shrink-0 rounded-lg py-1 text-[15px] font-semibold text-[var(--primary)] hover:opacity-75"
         >
-          {title}
-        </h2>
-        <p className="mt-3 max-w-2xl text-sm font-medium leading-7 text-[var(--talea-text-secondary)] md:text-base">
-          {subtitle}
-        </p>
-      </div>
+          {actionLabel}
+        </button>
+      ) : null}
     </div>
-
-    {actionLabel && onAction ? (
-      <TaleaActionButton variant="secondary" onClick={onAction} className="w-full justify-center sm:w-auto">
-        {actionLabel}
-      </TaleaActionButton>
-    ) : null}
+    <p className="mt-1 max-w-2xl text-[15px] leading-snug text-[var(--talea-text-secondary)]">{subtitle}</p>
   </div>
 );
 
@@ -356,49 +293,34 @@ export const TaleaMetricPill: React.FC<{
   </div>
 );
 
+/**
+ * Wizard progress as one slim segmented bar plus "Schritt 2 von 7 · Label".
+ * A row of seven labelled circles wrapped onto three lines on a phone.
+ */
 export const TaleaProgressSteps: React.FC<{
   steps: Array<{ id: string; label: string }>;
   activeIndex: number;
-}> = ({ steps, activeIndex }) => (
-  <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5">
-    {steps.map((step, index) => {
-      const isDone = index < activeIndex;
-      const isActive = index === activeIndex;
-
-      return (
-        <React.Fragment key={step.id}>
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-all",
-                isDone
-                  ? "bg-[var(--primary)] text-white"
-                  : isActive
-                    ? "border-2 border-[var(--primary)] bg-[var(--primary)]/10 text-[var(--primary)]"
-                    : "border border-[var(--talea-border-light)] bg-white/60 text-[var(--talea-text-muted)] dark:bg-[var(--talea-surface-inset)]"
-              )}
-            >
-              {isDone ? "✓" : index + 1}
-            </span>
-            <span
-              className={cn(
-                "max-w-[5.5rem] text-[11px] font-medium tracking-wide",
-                isActive || isDone ? "text-[var(--talea-text-primary)]" : "text-[var(--talea-text-muted)]"
-              )}
-            >
-              {step.label}
-            </span>
-          </div>
-          {index < steps.length - 1 ? (
-            <span
-              className={cn(
-                "hidden h-px w-5 rounded-full sm:block",
-                isDone ? "bg-[var(--primary)]" : "bg-[var(--talea-border-light)]"
-              )}
-            />
-          ) : null}
-        </React.Fragment>
-      );
-    })}
-  </div>
-);
+}> = ({ steps, activeIndex }) => {
+  const current = steps[Math.min(Math.max(activeIndex, 0), steps.length - 1)];
+  return (
+    <div className="w-full" role="group" aria-label="Fortschritt">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="truncate text-[15px] font-semibold text-[var(--talea-text-primary)]">{current?.label}</span>
+        <span className="shrink-0 text-[13px] font-medium tabular-nums text-[var(--talea-text-tertiary)]">
+          Schritt {activeIndex + 1} von {steps.length}
+        </span>
+      </div>
+      <div className="mt-2.5 flex gap-1" aria-hidden>
+        {steps.map((step, index) => (
+          <span
+            key={step.id}
+            className={cn(
+              "h-1 flex-1 rounded-full transition-colors duration-300",
+              index <= activeIndex ? "bg-[var(--primary)]" : "bg-[var(--talea-progress-track)]"
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};

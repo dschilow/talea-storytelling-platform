@@ -37,6 +37,7 @@ import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
 import TaleaStudioWorkspace from "./TaleaStudioWorkspace";
 import CharacterOriginsScreen from "../CharacterPool/CharacterOriginsScreen";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { TaleaCardMenu, type TaleaCardMenuAction } from "@/components/talea/TaleaCardMenu";
 import {
   TaleaActionButton,
   TaleaLoadingState,
@@ -258,100 +259,73 @@ const GridStoryCard: React.FC<{
   onRead: () => void;
   onDelete: () => void;
   canDownload: boolean;
-  onDownloadPdf: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onDownloadPdf: () => void;
   isDownloading: boolean;
   canSaveOffline?: boolean;
   isSavedOffline?: boolean;
   isSavingOffline?: boolean;
-  onToggleOffline?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onToggleOffline?: () => void;
 }> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => {
   const reduceMotion = useReducedMotion();
   const isFeatured = index === 0;
   const imagesSkipped = wereStoryImagesSkipped(story);
+  const actions: TaleaCardMenuAction[] = [
+    ...(canSaveOffline && story.status === "complete" && onToggleOffline
+      ? [{
+          label: isSavedOffline ? "Offline-Speicherung entfernen" : "Offline speichern",
+          icon: isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />,
+          onSelect: onToggleOffline,
+          disabled: isSavingOffline,
+        }]
+      : []),
+    ...(canDownload && story.status === "complete"
+      ? [{ label: "Als PDF laden", icon: isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />, onSelect: onDownloadPdf, disabled: isDownloading }]
+      : []),
+    { label: "Löschen", icon: <Trash2 className="h-4 w-4" />, onSelect: onDelete, destructive: true },
+  ];
 
   return (
     <motion.article
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-      whileHover={reduceMotion ? undefined : { y: -4 }}
-      whileTap={reduceMotion ? undefined : { scale: 0.99 }}
+      transition={{ delay: Math.min(index, 8) * 0.04, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+      whileTap={reduceMotion ? undefined : { scale: 0.985 }}
       className={cn(
-        "group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-[var(--talea-border-light)] bg-white/70 dark:bg-[var(--talea-surface-primary)] transition-all duration-300 hover:border-transparent hover:shadow-lg",
+        "group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-soft)] transition-shadow hover:shadow-[var(--talea-shadow-medium)]",
         isFeatured && "lg:flex-row"
       )}
       onClick={onRead}
     >
-      <div className={cn("relative w-full shrink-0 p-2", isFeatured && "lg:w-[44%] lg:self-center")}>
-        <div className={cn(taleaInsetSurfaceClass, "relative aspect-square w-full overflow-hidden rounded-[26px] border-0 p-2")}>
-          <StoryCoverMedia
-            src={story.coverImageUrl}
-            alt={story.title}
-            loading={index < 3 ? "eager" : "lazy"}
-            fetchPriority={isFeatured ? "high" : "auto"}
-            revealDelayMs={index * 35}
-            fallbackIconClassName="h-14 w-14"
-          />
+      <div className={cn("relative aspect-square w-full shrink-0 overflow-hidden bg-[var(--talea-media-skeleton)]", isFeatured && "lg:w-[44%]")}>
+        <StoryCoverMedia
+          src={story.coverImageUrl}
+          alt={story.title}
+          loading={index < 3 ? "eager" : "lazy"}
+          fetchPriority={isFeatured ? "high" : "auto"}
+          revealDelayMs={index * 35}
+          fallbackIconClassName="h-14 w-14"
+        />
+        <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
+          {story.status !== "complete" ? <StoryStatusChip status={story.status} /> : null}
+          {imagesSkipped ? <StoryImageSkipChip /> : null}
         </div>
-
-        <div className="absolute left-4 top-4">
-          <StoryStatusChip status={story.status} />
-        </div>
-
-        {imagesSkipped ? (
-          <div className="absolute left-4 top-14">
-            <StoryImageSkipChip />
-          </div>
-        ) : null}
-
-        <div className="absolute right-4 top-4 flex gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-          {canSaveOffline && story.status === "complete" && onToggleOffline && (
-            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onToggleOffline} disabled={isSavingOffline} className="rounded-full border border-white/20 bg-black/35 backdrop-blur-md p-2 text-white hover:bg-black/55 shadow-sm">
-              {isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4 text-emerald-400" /> : <Bookmark className="h-4 w-4" />}
-            </motion.button>
-          )}
-          {canDownload && story.status === "complete" && (
-            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onDownloadPdf} className="rounded-full border border-white/20 bg-black/35 backdrop-blur-md p-2 text-white hover:bg-black/55 shadow-sm">
-              {isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            </motion.button>
-          )}
-          <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} className="rounded-full border border-white/20 bg-[#7d434f]/82 backdrop-blur-md p-2 text-white hover:bg-[#8f4c5a] shadow-sm">
-            <Trash2 className="h-4 w-4" />
-          </motion.button>
-        </div>
+        <TaleaCardMenu actions={actions} label={`Aktionen für ${story.title}`} className="!absolute right-3 top-3" />
       </div>
 
-      <div className={cn("flex flex-1 flex-col p-4 sm:p-5", isFeatured && "lg:justify-between lg:py-6")}>
-        <div>
-          {isFeatured ? (
-            <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--talea-text-secondary)]")}>
-              Empfohlen
-            </span>
-          ) : null}
-          <h3 className={cn("line-clamp-2 font-semibold leading-tight text-slate-900 dark:text-white", isFeatured ? "mt-4 text-[1.85rem] sm:text-[2.2rem]" : "text-xl")} style={{ fontFamily: headingFont }}>
-            {story.title}
-          </h3>
-        </div>
-        <p className={cn("mt-3 flex-1 font-medium leading-7 text-slate-600 dark:text-slate-300", isFeatured ? "line-clamp-4 text-base" : "line-clamp-2 text-sm")}>
+      <div className={cn("flex flex-1 flex-col p-4", isFeatured && "lg:justify-center lg:p-7")}>
+        {isFeatured ? <span className={taleaChipClass}>Zuletzt erstellt</span> : null}
+        <h3
+          className={cn("line-clamp-2 font-semibold leading-snug text-[var(--talea-text-primary)]", isFeatured ? "mt-1 text-[1.375rem] lg:text-[1.75rem]" : "text-[17px]")}
+          style={{ fontFamily: headingFont }}
+        >
+          {story.title}
+        </h3>
+        <p className={cn("mt-1.5 text-[15px] leading-snug text-[var(--talea-text-secondary)]", isFeatured ? "line-clamp-3 lg:line-clamp-4" : "line-clamp-2")}>
           {getStoryPreviewText(story)}
         </p>
-        {imagesSkipped ? (
-          <p className="mt-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
-            Bildgenerierung wurde nach der Qualitatsprufung ubersprungen.
-          </p>
-        ) : null}
-
-        <div className="mt-5 flex flex-col gap-3 border-t border-[var(--talea-border-light)] pt-5 dark:border-white/10">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <StoryParticipantsDialog story={story} maxVisible={isFeatured ? 5 : 4} />
-            <span className="rounded-full border border-white/80 bg-white/86 px-3 py-1 text-xs font-semibold text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">{formatDate(story.createdAt)}</span>
-          </div>
-          {isFeatured ? (
-            <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-300">
-              <Sparkles className="h-4 w-4 text-[var(--primary)] dark:text-[var(--talea-text-secondary)]" />
-              Direkt weiterlesen
-            </div>
-          ) : null}
+        <div className="mt-auto flex items-center justify-between gap-3 pt-3">
+          <StoryParticipantsDialog story={story} maxVisible={isFeatured ? 5 : 3} />
+          <span className="shrink-0 text-[13px] text-[var(--talea-text-tertiary)]">{formatDate(story.createdAt)}</span>
         </div>
       </div>
     </motion.article>
@@ -364,89 +338,56 @@ const ListStoryRow: React.FC<{
   onRead: () => void;
   onDelete: () => void;
   canDownload: boolean;
-  onDownloadPdf: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onDownloadPdf: () => void;
   isDownloading: boolean;
   canSaveOffline?: boolean;
   isSavedOffline?: boolean;
   isSavingOffline?: boolean;
-  onToggleOffline?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onToggleOffline?: () => void;
 }> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => {
   const reduceMotion = useReducedMotion();
   const imagesSkipped = wereStoryImagesSkipped(story);
+  const actions: TaleaCardMenuAction[] = [
+    ...(canSaveOffline && story.status === "complete" && onToggleOffline
+      ? [{
+          label: isSavedOffline ? "Offline-Speicherung entfernen" : "Offline speichern",
+          icon: isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />,
+          onSelect: onToggleOffline,
+          disabled: isSavingOffline,
+        }]
+      : []),
+    ...(canDownload && story.status === "complete"
+      ? [{ label: "Als PDF laden", icon: isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />, onSelect: onDownloadPdf, disabled: isDownloading }]
+      : []),
+    { label: "Löschen", icon: <Trash2 className="h-4 w-4" />, onSelect: onDelete, destructive: true },
+  ];
 
   return (
     <motion.article
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-      whileHover={reduceMotion ? undefined : { y: -2 }}
+      transition={{ delay: Math.min(index, 8) * 0.04, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
       whileTap={reduceMotion ? undefined : { scale: 0.995 }}
       onClick={onRead}
-      className="group cursor-pointer"
+      className="group relative flex cursor-pointer items-center gap-3.5 rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-2.5 pr-3 shadow-[var(--talea-shadow-soft)] transition-shadow hover:shadow-[var(--talea-shadow-medium)] sm:gap-4"
     >
-      <div className="flex flex-col gap-4 overflow-hidden rounded-2xl border border-[var(--talea-border-light)] bg-white/70 dark:bg-[var(--talea-surface-primary)] p-1.5 transition-all duration-300 hover:border-transparent hover:shadow-lg sm:flex-row sm:p-2">
-        <div className={cn(taleaInsetSurfaceClass, "relative aspect-[4/3] shrink-0 overflow-hidden rounded-[26px] border-0 p-2 sm:aspect-auto sm:h-auto sm:w-56 lg:w-64")}>
-          <StoryCoverMedia
-            src={story.coverImageUrl}
-            alt={story.title}
-            revealDelayMs={index * 30}
-            fallbackIconClassName="h-10 w-10"
-          />
-        </div>
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[var(--talea-media-skeleton)] sm:h-24 sm:w-24">
+        <StoryCoverMedia src={story.coverImageUrl} alt={story.title} revealDelayMs={index * 30} fallbackIconClassName="h-8 w-8" />
+      </div>
 
-        <div className="flex flex-1 flex-col px-2 pb-4 sm:px-0 sm:py-4 sm:pr-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-            <h3 className="line-clamp-2 text-2xl font-semibold leading-tight text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>{story.title}</h3>
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <StoryStatusChip status={story.status} />
-              {imagesSkipped ? <StoryImageSkipChip /> : null}
-              
-              <div className="hidden sm:flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                {canSaveOffline && story.status === "complete" && onToggleOffline && (
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onToggleOffline} disabled={isSavingOffline} className="rounded-full border border-white/80 bg-white/86 p-2 text-slate-500 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
-                    {isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4 text-emerald-500" /> : <Bookmark className="h-4 w-4" />}
-                  </motion.button>
-                )}
-                {canDownload && story.status === "complete" && (
-                  <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={onDownloadPdf} className="rounded-full border border-white/80 bg-white/86 p-2 text-slate-500 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
-                    {isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                  </motion.button>
-                )}
-                <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} className="rounded-full border border-[#f1d8de] bg-[#fff4f6] p-2 text-[#a14b5e] dark:border-[#4a2730] dark:bg-[#331921] dark:text-[#ffb3c1]">
-                  <Trash2 className="h-4 w-4" />
-                </motion.button>
-              </div>
-            </div>
-          </div>
-          
-          <p className="mt-3 line-clamp-2 text-base font-medium leading-7 text-slate-600 dark:text-slate-300">{getStoryPreviewText(story)}</p>
-          {imagesSkipped ? (
-            <p className="mt-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
-              Bildgenerierung wurde nach der Qualitatsprufung ubersprungen.
-            </p>
-          ) : null}
-          
-          <div className="mt-auto flex flex-col gap-4 border-t border-[var(--talea-border-light)] pt-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
-            <StoryParticipantsDialog story={story} maxVisible={5} />
-            <span className="self-start rounded-full border border-white/80 bg-white/86 px-3 py-1.5 text-sm font-semibold text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 sm:self-auto">{formatDate(story.createdAt)}</span>
-          </div>
-          <div className="mt-3 flex items-center gap-2 sm:hidden">
-            {canSaveOffline && story.status === "complete" && onToggleOffline && (
-              <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }} type="button" onClick={onToggleOffline} disabled={isSavingOffline} className="rounded-full border border-white/80 bg-white/86 p-2 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
-                {isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4 text-emerald-500" /> : <Bookmark className="h-4 w-4" />}
-              </motion.button>
-            )}
-            {canDownload && story.status === "complete" && (
-              <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }} type="button" onClick={onDownloadPdf} className="rounded-full border border-white/80 bg-white/86 p-2 text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
-                {isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              </motion.button>
-            )}
-            <motion.button whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }} type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} className="rounded-full border border-[#f1d8de] bg-[#fff4f6] p-2 text-[#a14b5e] dark:border-[#4a2730] dark:bg-[#331921] dark:text-[#ffb3c1]">
-              <Trash2 className="h-4 w-4" />
-            </motion.button>
-          </div>
+      <div className="min-w-0 flex-1">
+        <h3 className="line-clamp-2 text-[17px] font-semibold leading-snug text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>
+          {story.title}
+        </h3>
+        <p className="mt-0.5 line-clamp-1 text-[15px] text-[var(--talea-text-secondary)] sm:line-clamp-2">{getStoryPreviewText(story)}</p>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[13px] text-[var(--talea-text-tertiary)]">
+          {story.status !== "complete" ? <StoryStatusChip status={story.status} /> : null}
+          {imagesSkipped ? <StoryImageSkipChip /> : null}
+          <span>{formatDate(story.createdAt)}</span>
         </div>
       </div>
+
+      <TaleaCardMenu actions={actions} label={`Aktionen für ${story.title}`} className="self-start [&>button]:bg-[var(--talea-surface-inset)] [&>button]:text-[var(--talea-text-secondary)] [&>button]:backdrop-blur-none" />
     </motion.article>
   );
 };
@@ -538,7 +479,7 @@ type StoriesSignedInContentProps = {
   isSaving: (storyId: string) => boolean;
   toggleStory: (storyId: string) => void;
   onDeleteStory: (storyId: string, title: string) => void;
-  onDownloadPdf: (storyId: string, status: Story["status"], event: React.MouseEvent<HTMLButtonElement>) => void;
+  onDownloadPdf: (storyId: string, status: Story["status"]) => void;
   onResetFilters: () => void;
   onRefresh: () => void;
   goTo: (path: string) => void;
@@ -590,8 +531,9 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
 }) => {
   const { t } = useTranslation();
   const featuredStory = filteredStories[0];
+  // Unknown credits are not shown at all — a bare "-" read like a broken value.
   const remainingStoryLabel = remainingStoryCredits === undefined
-    ? "-"
+    ? null
     : remainingStoryCredits === null ? "\u221e" : remainingStoryCredits;
 
   const shelfStories = filteredStories.slice(featuredStory ? 1 : 0);
@@ -600,59 +542,64 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
 
   return (
     <div className={cn(taleaPageShellClass, "flex flex-col gap-4 pb-6 pt-2 sm:gap-6 sm:pb-8 sm:pt-6")}>
-      <div className={cn(taleaSurfaceClass, "p-3 sm:p-5 md:px-7 md:py-6")}>
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--talea-text-tertiary)]">
-              Story Stream
-            </p>
-            <h1 className="mt-1 text-[1.9rem] font-semibold leading-[1.05] text-slate-900 dark:text-white sm:text-[2.3rem]" style={{ fontFamily: headingFont }}>
-              {t("story.myStories")}
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">
-              {t("homeScreen.yourStoriesSubtitle")}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <TaleaActionButton variant="secondary" icon={<RefreshCw className="h-4 w-4" />} onClick={onRefresh} aria-label={t("common.refresh")}>
-              <span className="hidden sm:inline">{t("common.refresh")}</span>
-            </TaleaActionButton>
-            <TaleaActionButton icon={<Plus className="h-4 w-4" />} onClick={() => goTo("/story")}>
-              {t("homeScreen.newStory")}
+      <header className="px-1">
+        <div className="flex items-end justify-between gap-4">
+          <h1
+            className="min-w-0 text-[2rem] font-bold leading-tight text-[var(--talea-text-primary)] md:text-[2.5rem]"
+            style={{ fontFamily: headingFont }}
+          >
+            {t("story.myStories")}
+          </h1>
+          <div className="flex shrink-0 items-center gap-2 pb-1">
+            <button
+              type="button"
+              onClick={onRefresh}
+              aria-label={t("common.refresh")}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--talea-surface-inset)] text-[var(--primary)] transition hover:brightness-95"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+            {/* Phone: round "+" like an iOS nav-bar button; wider screens show the label. */}
+            <TaleaActionButton
+              icon={<Plus className="h-5 w-5" />}
+              onClick={() => goTo("/story")}
+              aria-label={t("homeScreen.newStory")}
+              className="h-10 min-h-10 w-10 rounded-full px-0 sm:w-auto sm:px-4 [&>span:empty]:hidden"
+            >
+              {isDesktop ? t("homeScreen.newStory") : ""}
             </TaleaActionButton>
           </div>
         </div>
+        <p className="mt-1 text-[15px] text-[var(--talea-text-secondary)]">
+          {total} {total === 1 ? "Geschichte" : "Geschichten"}
+          {remainingStoryLabel !== null ? <> · {remainingStoryLabel} übrig in diesem Monat</> : null}
+        </p>
 
-        <div className="mt-4 grid gap-3 border-t border-[var(--talea-border-light)] pt-4 dark:border-white/10 lg:grid-cols-[auto_1fr] lg:items-center">
-          <div className="grid grid-flow-col auto-cols-fr rounded-[1.25rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] p-1 dark:border-white/10">
-            <button type="button" onClick={() => setContentTab("stories")} className={cn("rounded-[0.95rem] px-3 py-2 text-sm font-semibold transition sm:px-5", contentTab === "stories" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
-              {t("storiesScreen.storiesTab")}
+        {/* iOS segmented control */}
+        <div role="tablist" className="mt-4 grid grid-flow-col auto-cols-fr rounded-[0.7rem] bg-[var(--talea-surface-inset)] p-0.5 sm:inline-grid sm:min-w-[22rem]">
+          {([
+            { id: "stories", label: t("storiesScreen.storiesTab") },
+            { id: "characters", label: "Charaktere" },
+            ...(isAdmin ? [{ id: "studio", label: t("storiesScreen.studioTab") }] : []),
+          ] as Array<{ id: ContentTab; label: string }>).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={contentTab === tab.id}
+              onClick={() => setContentTab(tab.id)}
+              className={cn(
+                "rounded-[0.55rem] px-3 py-1.5 text-[14px] font-semibold transition",
+                contentTab === tab.id
+                  ? "bg-[var(--talea-surface-primary)] text-[var(--talea-text-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.12)] dark:bg-[#48484d]"
+                  : "text-[var(--talea-text-secondary)]"
+              )}
+            >
+              {tab.label}
             </button>
-            <button type="button" role="tab" aria-selected={contentTab === "characters"} onClick={() => setContentTab("characters")} className={cn("rounded-[0.95rem] px-3 py-2 text-sm font-semibold transition sm:px-5", contentTab === "characters" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
-              Charaktere
-            </button>
-            {isAdmin ? (
-              <button type="button" onClick={() => setContentTab("studio")} className={cn("rounded-[0.95rem] px-3 py-2 text-sm font-semibold transition sm:px-5", contentTab === "studio" ? "bg-white text-[var(--primary)] shadow-sm dark:bg-white/10 dark:text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200")}>
-                {t("storiesScreen.studioTab")}
-              </button>
-            ) : null}
-          </div>
-
-          <div className="grid grid-cols-2 divide-x divide-[var(--talea-border-light)] rounded-[1.25rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] dark:border-white/10">
-            {[
-              { label: t("common.total"), value: total, dot: "bg-[var(--primary)]" },
-              { label: "Storys \u00fcbrig", value: remainingStoryLabel, dot: "bg-emerald-400" },
-            ].map((item) => (
-              <div key={item.label} className="flex min-w-0 items-center justify-center gap-1.5 px-2 py-2.5">
-                <span className={cn("h-2 w-2 rounded-full", item.dot)} aria-hidden />
-                <span className="text-sm font-bold text-slate-900 tabular-nums dark:text-white">{item.value}</span>
-                <span className="truncate text-[10px] font-medium text-slate-500 dark:text-slate-400 sm:text-xs">{item.label}</span>
-              </div>
-            ))}
-          </div>
+          ))}
         </div>
-      </div>
+      </header>
 
       {contentTab === "characters" ? (
         <CharacterOriginsScreen />
@@ -738,15 +685,12 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                         onRead={() => goTo(`/story-reader/${featuredStory.id}`)}
                         onDelete={() => onDeleteStory(featuredStory.id, featuredStory.title)}
                         canDownload={isAdmin}
-                        onDownloadPdf={(event) => onDownloadPdf(featuredStory.id, featuredStory.status, event)}
+                        onDownloadPdf={() => onDownloadPdf(featuredStory.id, featuredStory.status)}
                         isDownloading={downloadingStoryId === featuredStory.id}
                         canSaveOffline={canUseOffline}
                         isSavedOffline={isStorySaved(featuredStory.id)}
                         isSavingOffline={isSaving(featuredStory.id)}
-                        onToggleOffline={(event) => {
-                          event.stopPropagation();
-                          toggleStory(featuredStory.id);
-                        }}
+                        onToggleOffline={() => toggleStory(featuredStory.id)}
                       />
                     ) : null}
 
@@ -760,15 +704,12 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                             onRead={() => goTo(`/story-reader/${story.id}`)}
                             onDelete={() => onDeleteStory(story.id, story.title)}
                             canDownload={isAdmin}
-                            onDownloadPdf={(event) => onDownloadPdf(story.id, story.status, event)}
+                            onDownloadPdf={() => onDownloadPdf(story.id, story.status)}
                             isDownloading={downloadingStoryId === story.id}
                             canSaveOffline={canUseOffline}
                             isSavedOffline={isStorySaved(story.id)}
                             isSavingOffline={isSaving(story.id)}
-                            onToggleOffline={(event) => {
-                              event.stopPropagation();
-                              toggleStory(story.id);
-                            }}
+                            onToggleOffline={() => toggleStory(story.id)}
                           />
                         ) : (
                           <ListStoryRow
@@ -778,15 +719,12 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                             onRead={() => goTo(`/story-reader/${story.id}`)}
                             onDelete={() => onDeleteStory(story.id, story.title)}
                             canDownload={isAdmin}
-                            onDownloadPdf={(event) => onDownloadPdf(story.id, story.status, event)}
+                            onDownloadPdf={() => onDownloadPdf(story.id, story.status)}
                             isDownloading={downloadingStoryId === story.id}
                             canSaveOffline={canUseOffline}
                             isSavedOffline={isStorySaved(story.id)}
                             isSavingOffline={isSaving(story.id)}
-                            onToggleOffline={(event) => {
-                              event.stopPropagation();
-                              toggleStory(story.id);
-                            }}
+                            onToggleOffline={() => toggleStory(story.id)}
                           />
                         )
                       )}
@@ -937,8 +875,7 @@ const TaleaStoriesScreen: React.FC = () => {
     }
   };
 
-  const handleDownloadPdf = async (storyId: string, storyStatus: Story["status"], event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
+  const handleDownloadPdf = async (storyId: string, storyStatus: Story["status"]) => {
     if (!isAdmin || !isPDFExportSupported() || storyStatus !== "complete") return;
     try {
       setDownloadingStoryId(storyId);

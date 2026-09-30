@@ -21,7 +21,7 @@ export type StudioPalette = {
   successText: string;
 };
 
-export const headingFont = '"Cormorant Garamond", "Times New Roman", serif';
+export const headingFont = 'var(--talea-font-display)';
 
 export function buildStudioPalette(isDark: boolean): StudioPalette {
   if (isDark) {

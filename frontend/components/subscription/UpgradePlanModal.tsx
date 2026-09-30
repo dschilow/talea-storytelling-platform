@@ -58,7 +58,7 @@ export default function UpgradePlanModal({
 
             <h3
               className="text-3xl leading-none text-[#1f2f44] dark:text-[#eaf2ff]"
-              style={{ fontFamily: '"Cormorant Garamond", serif' }}
+              style={{ fontFamily: 'var(--talea-font-display)' }}
             >
               {title}
             </h3>
