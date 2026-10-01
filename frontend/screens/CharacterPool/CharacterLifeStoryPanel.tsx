@@ -93,8 +93,6 @@ const CharacterLifeStoryPanel: React.FC<Props> = ({ characterId, characterName, 
       const generated = await backend.story.generateCharacterLifeStory({
         characterId,
         ageGroup: story?.ageGroup || '6-8',
-        aiModel: 'gpt-5.4',
-        aiProvider: 'native',
       });
       setStory(generated as LifeStory);
       toast.success('Lebensgeschichte und Illustrationen wurden als Entwurf erstellt.');
@@ -179,7 +177,7 @@ const CharacterLifeStoryPanel: React.FC<Props> = ({ characterId, characterName, 
               )}
             </div>
             <h3 className="truncate text-xl font-black text-slate-900 dark:text-white">Lebensgeschichte von {characterName}</h3>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Kanonische Geschichte mit fünf Kapiteln, Cover und Kapitelillustrationen.</p>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Spannendes, witziges Abenteuer (bei Magiern & Co. auch wohlig gruselig) mit fünf Kapiteln, Cover und Kapitelillustrationen – geschrieben mit GPT-6.1 Sol.</p>
             <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">Profiländerungen bitte zuerst mit „Speichern“ sichern.</p>
           </div>
         </div>
@@ -211,7 +209,7 @@ const CharacterLifeStoryPanel: React.FC<Props> = ({ characterId, characterName, 
             <BookOpen className="mx-auto mb-3 h-8 w-8 text-violet-500" />
             <p className="font-bold text-slate-800 dark:text-white">Noch keine Lebensgeschichte vorhanden</p>
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Die Premium-Pipeline nutzt Vorgeschichte, Persönlichkeit, Stimme und das kanonische Charakterbild. Das Ergebnis bleibt zunächst unveröffentlicht.
+              Die Premium-Pipeline nutzt Vorgeschichte, Persönlichkeit, Stimme und das kanonische Charakterbild und erzählt das Abenteuer, das die Figur geprägt hat. Das Ergebnis bleibt zunächst unveröffentlicht.
             </p>
           </div>
         </div>

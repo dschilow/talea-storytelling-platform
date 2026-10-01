@@ -2,11 +2,20 @@ import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { storyDB } from "./db";
+import {
+  LIFE_STORY_WRITER_MODEL,
+  buildLifeStoryPrompt,
+  deriveLifeStoryMood,
+  isAntagonisticCharacter,
+  lifeStoryToneConfig,
+  parseJsonObject,
+  type LifeStoryAgeGroup,
+  type LifeStoryCharacter,
+} from "./character-life-story-prompt";
 import { generateStoryDevMode, type DevModeAvatar } from "./dev-mode-generation";
-import type { AIModel, AIProvider, Story, StoryConfig } from "./generate";
+import type { Story, StoryConfig } from "./generate";
 
 type LifeStoryStatus = "generating" | "draft" | "published" | "error";
-type LifeStoryAgeGroup = "3-5" | "6-8" | "9-12" | "13+";
 
 interface CharacterLifeStoryChapter {
   id: string;
@@ -56,25 +65,9 @@ interface LifeStoryRow {
   updated_at: Date;
 }
 
-interface CharacterRow {
+interface CharacterRow extends LifeStoryCharacter {
   id: string;
-  name: string;
-  role: string;
-  archetype: string;
-  emotional_nature: unknown;
-  visual_profile: unknown;
   image_url: string | null;
-  canon_settings: string[] | null;
-  personality_keywords: string[] | null;
-  physical_description: string | null;
-  backstory: string | null;
-  dominant_personality: string | null;
-  secondary_traits: string[] | null;
-  catchphrase: string | null;
-  catchphrase_context: string | null;
-  speech_style: string[] | null;
-  emotional_triggers: string[] | null;
-  quirk: string | null;
 }
 
 interface GetCharacterLifeStoryRequest {
@@ -101,8 +94,7 @@ export interface PublishedCharacterLifeStorySummary {
 interface GenerateCharacterLifeStoryRequest {
   characterId: string;
   ageGroup?: LifeStoryAgeGroup;
-  aiModel?: AIModel;
-  aiProvider?: AIProvider;
+  /** OpenRouter writer; defaults to GPT-6.1 Sol. */
   openRouterModel?: string;
 }
 
@@ -129,18 +121,6 @@ function requireAdmin() {
   if (!auth) throw APIError.unauthenticated("Authentication required");
   if (auth.role !== "admin") throw APIError.permissionDenied("Admin access required");
   return auth;
-}
-
-function parseJsonObject(value: unknown): Record<string, any> {
-  if (!value) return {};
-  if (typeof value === "object" && !Array.isArray(value)) return value as Record<string, any>;
-  if (typeof value !== "string") return {};
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
 }
 
 function countWords(value: string): number {
@@ -223,69 +203,6 @@ async function mapLifeStory(row: LifeStoryRow): Promise<CharacterLifeStory> {
     updatedAt: row.updated_at,
     chapters,
   };
-}
-
-function isAntagonisticCharacter(character: CharacterRow): boolean {
-  const signal = [
-    character.role,
-    character.archetype,
-    character.dominant_personality,
-    ...(character.personality_keywords || []),
-  ].join(" ").toLowerCase();
-  return /(antagon|villain|obstacle|boese|böse|dunkel|grausam|gleichgueltig|gleichgültig)/u.test(signal);
-}
-
-function buildCanonicalPrompt(character: CharacterRow, ageGroup: LifeStoryAgeGroup): string {
-  const visual = parseJsonObject(character.visual_profile);
-  const emotional = parseJsonObject(character.emotional_nature);
-  const settings = (character.canon_settings || []).join(", ") || "eine passende Talea-Welt";
-  const traits = [character.dominant_personality, ...(character.secondary_traits || []), ...(character.personality_keywords || [])]
-    .filter(Boolean)
-    .join(", ");
-  const speech = (character.speech_style || []).join(", ");
-  const triggers = [...(character.emotional_triggers || []), ...(Array.isArray(emotional.triggers) ? emotional.triggers : [])].join(", ");
-  const antagonistRule = isAntagonisticCharacter(character)
-    ? "Die Hauptfigur darf Fehler machen und Schaden verursachen. Zeige ihre Menschlichkeit, ohne ihr Verhalten zu entschuldigen und ohne plötzliche Läuterung."
-    : "Die Hauptfigur soll glaubwürdig scheitern, entscheiden und wachsen; ihre Ecken und Eigenarten bleiben sichtbar.";
-
-  const readerGuidance = ageGroup === "6-8"
-    ? [
-        "ZIELGRUPPE: Kinder von 6 bis 8 Jahren. Schreibe klar, konkret und gut vorlesbar.",
-        "Nutze kurze, aktive Saetze und verstaendliche Woerter. Erklaere ungewohnte Woerter direkt durch die Handlung. Vermeide abstrakte Gedanken, lange Vergleiche und verschachtelte Saetze.",
-        "Beginne innerhalb der ersten zwei Absaetze mit einem sichtbaren Raetsel, einer Gefahr oder einem Problem. Jede Seite braucht einen neuen, klaren Hindernis-, Ueberraschungs- oder Entscheidungsmoment.",
-        "Steigere die Spannung in drei einfachen Stufen: Erst stimmt etwas nicht, dann wird der Preis groesser, dann muss die Hauptfigur handeln. Das Finale braucht Zeitdruck, eine mutige aktive Tat und eine sichtbare Folge.",
-        "Wiederholungen nur als kurzer, merkbarer Refrain. Wiederhole nicht dieselbe Angeberei, Reaktion oder Regel mehrere Absaetze lang.",
-      ]
-    : ["Passe Satzlaenge, Wortwahl und Spannung genau an die angegebene Altersgruppe an."];
-
-  return [
-    "REDAKTIONSAUFTRAG: Schreibe die kanonische, illustrierte Lebensgeschichte dieser Talea-Figur.",
-    "Dies ist eine echte literarische Ursprungsgeschichte, keine Biografie, kein Steckbrief, keine Aufzählung und keine Erklärung an das Publikum.",
-    "Erzähle ausschließlich aus dem Leben der unten definierten Hauptfigur. Andere Figuren dürfen nur als notwendige Nebenfiguren auftreten und keine bekannten Nutzer-Avatare ersetzen.",
-    "Form: exakt 5 Kapitel, insgesamt 1400 bis 1500 deutsche Wörter, mit klarer Ursache-Wirkung-Kette und einem vollständigen emotionalen Bogen.",
-    "KANONISCHER LEBENSBOGEN: Diese Geschichte muss in erlebten Szenen klar beantworten: Woher kommt die Figur? Wer oder was war ihre erste Zugehoerigkeit? Was ist ihr passiert? Was hat sie veraendert? Und warum handelt sie heute genau so?",
-    "Kapitel 1: Zeige Herkunft, fruehen Ort und das erste innere Beduerfnis der Figur. Kapitel 2: Zeige, wie sie zu ihrer ersten Gruppe, Familie, Arbeit oder Aufgabe kam. Kapitel 3: Ein konkretes Ereignis kostet sie etwas und praegt eine heutige Angst, Staerke oder Eigenart. Kapitel 4: Die Figur muss sich sichtbar entscheiden und dabei etwas riskieren. Kapitel 5: Zeige die konkrete Folge: ihren heutigen Ruf, ihre Loyalitaet, ihren Spruch, einen wichtigen Gegenstand oder ihren Platz in der Talea-Welt.",
-    "Ein persoenlicher Gegenstand darf wichtig sein, aber er ist kein Ersatz fuer die Lebensgeschichte: Seine Bedeutung muss aus Herkunft und praegendem Erlebnis entstehen.",
-    ...readerGuidance,
-    "Der vorhandene Backstory-Kanon ist verbindlich. Verwandle ihn in erlebte Szenen mit Handlung, Dialog, Sinneseindrücken und Subtext, statt ihn nachzuerzählen.",
-    "Zeige organisch, wie mindestens eine heutige Eigenschaft, Eigenart oder Haltung entstand. Der Charakter bleibt am Ende eindeutig dieselbe wiedererkennbare Figur.",
-    character.catchphrase
-      ? `Der kanonische Spruch lautet \"${character.catchphrase}\". Verwende ihn höchstens einmal und nur in diesem Kontext: ${character.catchphrase_context || "wenn es emotional passt"}.`
-      : "Erfinde keinen markenartigen Standardspruch.",
-    antagonistRule,
-    "Keine Artefaktbelohnung, keine Lernpunkte, keine Persönlichkeitspunkte, kein Quiz und keine Meta-Hinweise auf App, Prompt oder Generierung.",
-    "Jede Illustration muss dieselbe kanonische Erscheinung zeigen und einen konkreten Wendepunkt des jeweiligen Kapitels darstellen.",
-    "",
-    `KANONISCHE FIGUR: ${character.name}`,
-    `Rolle / Archetyp: ${character.role} / ${character.archetype}`,
-    `Vorgeschichte: ${character.backstory || "Noch knapp definiert; leite nur aus den übrigen kanonischen Feldern ab und widersprich ihnen nicht."}`,
-    `Persönlichkeit: ${traits || emotional.dominant || "komplex und wiedererkennbar"}`,
-    `Emotionale Auslöser: ${triggers || "aus dem Kanon ableiten"}`,
-    `Sprachstil: ${speech || "zur Figur passend und unverwechselbar"}`,
-    `Eigenart: ${character.quirk || "keine zusätzliche Eigenart erfinden, wenn sie nicht aus der Handlung entsteht"}`,
-    `Kanonische Orte: ${settings}`,
-    `Erscheinung: ${character.physical_description || visual.description || "kanonisches Referenzbild verwenden"}`,
-  ].join("\n");
 }
 
 function buildAvatar(character: CharacterRow, imageUrl?: string): DevModeAvatar {
@@ -426,24 +343,23 @@ export const generateCharacterLifeStory = api<GenerateCharacterLifeStoryRequest,
     try {
       const canonicalImageUrl =
         (await resolveImageUrlForClient(character.image_url || undefined)) || character.image_url || undefined;
+      const writerModel = req.openRouterModel?.trim() || LIFE_STORY_WRITER_MODEL;
       const config: StoryConfig = {
         avatarIds: [character.id],
-        genre: isAntagonisticCharacter(character) ? "Dunkel-warme Figurenlegende" : "Magische Figuren-Lebensgeschichte",
+        // Genre, style, tone, suspense and humor follow the character: every Origin is
+        // exciting and funny, wizards and other uncanny figures also pleasantly spooky.
+        ...lifeStoryToneConfig(character, ageGroup),
         setting: (character.canon_settings || [])[0] || "Talea",
         length: "long",
         complexity: ageGroup === "3-5" ? "simple" : ageGroup === "13+" ? "complex" : "medium",
         ageGroup,
-        stylePreset: isAntagonisticCharacter(character) ? "quirky_dark_sweet" : "classic_fantasy",
-        tone: isAntagonisticCharacter(character) ? "wonder" : "warm",
         language: "de",
-        suspenseLevel: ageGroup === "3-5" ? 1 : ageGroup === "6-8" ? 3 : 2,
-        humorLevel: isAntagonisticCharacter(character) ? 1 : 2,
-        pacing: "balanced",
         pov: "personale",
-        customPrompt: buildCanonicalPrompt(character, ageGroup),
-        aiModel: req.aiModel || "gpt-5.4",
-        aiProvider: req.aiProvider || "native",
-        openRouterModel: req.openRouterModel,
+        customPrompt: buildLifeStoryPrompt(character, ageGroup),
+        // On OpenRouter the writer comes from openRouterModel; aiModel is only the native placeholder.
+        aiModel: "gpt-5.4",
+        aiProvider: "openrouter",
+        openRouterModel: writerModel,
         useCharacterPool: false,
         strictQualityGates: false,
         strictReleaseGateMode: "warn",
@@ -470,6 +386,8 @@ export const generateCharacterLifeStory = api<GenerateCharacterLifeStoryRequest,
         contentType: "character_life",
         characterId: character.id,
         canonicalCharacterName: character.name,
+        lifeStoryMood: deriveLifeStoryMood(character).mood,
+        writerModel,
         targetWords: { min: 1400, max: 1500 },
       };
 
