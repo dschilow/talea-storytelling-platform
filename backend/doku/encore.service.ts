@@ -8,6 +8,7 @@ import "./list-public";
 import "./audio-doku";
 import "./audio-script";
 import "./audio-render";
+import "./audio-automation";
 import "./run-migration-sql";
 import "./markRead";
 import "./delete";

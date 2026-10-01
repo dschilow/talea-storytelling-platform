@@ -5,6 +5,7 @@ import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { dokuDB } from "./db";
 import { claimMeteredUsage } from "../helpers/billing";
+import { sanitizeCoverPrompt } from "./cover-prompt";
 
 import { callOpenRouterChatCompletion } from "../story/openrouter-generation";
 import { resolveStorybookReasoning } from "../story/storybook/llm-guards";
@@ -395,11 +396,40 @@ export const generateAudioDokuScript = api<AudioDokuScriptRequest, AudioDokuScri
       clerkToken: auth.clerkToken,
     });
 
+    return await buildAudioDokuScript({
+      topic,
+      ageFrom,
+      ageTo,
+      durationMinutes,
+      speakerNames: cleanedSpeakers,
+    });
+  },
+);
+
+export interface BuildAudioDokuScriptInput {
+  topic: string;
+  ageFrom: number;
+  ageTo: number;
+  durationMinutes: number;
+  speakerNames: string[];
+  /** Appended to the user message, e.g. to tell the writer its previous attempt was too short. */
+  extraNote?: string;
+}
+
+/** Words per minute the script is written for; also the basis of the automation's length gate. */
+export const AUDIO_DOKU_WORDS_PER_MINUTE = 130;
+
+/**
+ * The script generation itself, without auth or billing. Shared by the editor
+ * endpoint above and the automation pipeline (audio-automation.ts).
+ */
+export async function buildAudioDokuScript(input: BuildAudioDokuScriptInput): Promise<AudioDokuScriptResponse> {
+    const { topic, ageFrom, ageTo, durationMinutes, speakerNames: cleanedSpeakers } = input;
     const speakerCount = cleanedSpeakers.length;
 
     // 1 minute audio ≈ 130 words (kid-friendly pace, pauses, emotion tags)
     // 1 script line ≈ 10-12 words → ~11 lines/min
-    const approxWords = durationMinutes * 130;
+    const approxWords = durationMinutes * AUDIO_DOKU_WORDS_PER_MINUTE;
     const minLines = Math.round(durationMinutes * 11);
     const approxLines = Math.max(10, minLines);
     // Checker-Format: kurze Dokus bleiben an einem Ort, lange besuchen mehrere Stationen.
@@ -501,8 +531,9 @@ TEIL 5 — METADATEN
 - title: weckt sofort Neugier, 4-10 Wörter, in der Sprache der Doku. Erwünscht: "Der Feuerwehr-Check: Wie schnell ist schnell?", "Warum...", "Wie kommt...", "Was passiert, wenn...". VERBOTEN: "Alles über X", "Die Geschichte von X", "X erklärt", reine Substantiv-Ketten.
 - ageGroup: Altersbereich z.B. "6-8".
 - category: eine von Abenteuer, Wissen, Natur, Tiere, Geschichte, Entspannung.
-- coverPrompt: ENGLISCH, exakt in diesem Format als ein zusammenhängender Absatz. PFLICHT: ALLE Sprecher-Figuren im Vordergrund sichtbar!
-  "Square 1:1  Theme: <one-line topic theme>. <Detailed visual scene at the main on-location station: environment, atmosphere, lighting, background details, sound visualized as particles/wind/etc>. Foreground: the show's cheerful cartoon hosts (<one short visual description per host, exactly as provided in the user message>) on location, amazed and pointing toward the scene. <Additional detail elements>. Modern clean premium illustration, smooth gradients, soft glow, high contrast, crisp outlines, cinematic depth of field, adventurous but not scary, kid-friendly, ultra-detailed, balanced composition with open space, no writing, no symbols that resemble letters or numbers."
+- coverPrompt: ENGLISCH, ein zusammenhängender Absatz, der NUR eine Szene beschreibt — das Bildmodell zeichnet jedes Wort, das du schreibst. PFLICHT: ALLE Sprecher-Figuren im Vordergrund sichtbar!
+  Aufbau: (1) ERSTER SATZ = die Szene selbst, konkret und bildhaft: Ort, Licht, Stimmung, Handlung (z.B. "A sunlit fire station hall with a shiny red fire engine, warm morning light streaming through open garage doors."). KEIN Etikett wie "Theme:", "Title:" oder "Square 1:1" und KEIN Satz, der das Thema als Überschrift nennt. (2) Weitere Szenen-Details am Hauptort: Atmosphäre, Hintergrund, Geräusche als Partikel/Wind/Dampf sichtbar gemacht. (3) "In the foreground, the show's cheerful cartoon hosts (<one short visual description per host, exactly as provided in the user message>) on location, amazed and pointing toward the scene." (4) Zusätzliche Bilddetails. (5) Letzter Satz nur Stil: "Modern clean premium illustration, smooth gradients, soft glow, crisp outlines, cinematic depth of field, adventurous but not scary, kid-friendly, ultra-detailed, balanced composition with open space."
+  VERBOTEN im coverPrompt: die Wörter text, writing, letters, numbers, words, title, caption, sign, label, logo, banner, poster, book cover, screen display, blackboard — auch nicht verneint ("no text" ZEICHNET Text!). Die Szene enthält keine Schilder, Beschriftungen, Tafeln, Bildschirme mit Inhalt oder bedruckte Kleidung.
 - description: 2-3 Sätze auf Deutsch für die Anzeige neben dem Player: Leitfrage + wohin der Check geht.
 
 Antworte AUSSCHLIESSLICH als JSON-Objekt:
@@ -549,7 +580,7 @@ Anzahl Stationen vor Ort: ${stationCount}
 CHECK-TEAM (exakt diese Namen in Großbuchstaben verwenden; jeder spielt konsequent seine Rolle):
 ${speakerListText}
 
-COVER-PROMPT PFLICHT: ALLE Sprecher MÜSSEN im Vordergrund sichtbar sein.
+COVER-PROMPT PFLICHT: ALLE Sprecher MÜSSEN im Vordergrund sichtbar sein. Der Prompt beschreibt nur die Szene, ohne Etiketten und ohne Wörter über Text/Schrift.
 Sprecher-Beschreibung für Cover: ${hostDesc}
 
 Erstelle das vollständige Skript jetzt nach den oben genannten Regeln.
@@ -567,13 +598,14 @@ WICHTIG: Validiere selbst vor der Ausgabe:
 - Umlaute korrekt (ä, ö, ü, ß), keine ae/oe/ue-Umschreibungen?
 - Audio-Tags sparsam, Geräusch-Tags höchstens 3 insgesamt?
 - Decken die screenplay-Szenen ALLE Skript-Zeilen lückenlos ab, letzte endLine = letzte Skript-Zeile?
-- Coverprompt im exakten Square-1:1-Format und auf Englisch?`;
+- Coverprompt auf Englisch, beginnt direkt mit der Szene (kein "Theme:"/"Square 1:1"), enthält keines der verbotenen Wörter (text, writing, letters, sign, label ...)?${input.extraNote ? `\n\nHINWEIS ZUM VORHERIGEN VERSUCH: ${input.extraNote}` : ""}`;
 
     // Sol 6.1 is a reasoning model: reasoning tokens are INCLUDED in max_completion_tokens.
     // With reasoning_effort "low", the model uses ~2000-4000 reasoning tokens internally.
     // Content budget: 1 script line ≈ 20 tokens JSON-encoded + screenplay/metadata overhead.
     // We need: reasoning reserve (4000) + content (approxLines × 20 + 3000 overhead) → cap at 32000.
-    const completionTokenLimit = Math.min(32000, 4000 + approxLines * 20 + 3000);
+    // German runs ~1.8 tokens/word and a 15-minute doku is ~2000 words plus screenplay JSON: leave room.
+    const completionTokenLimit = Math.min(32000, 6000 + approxLines * 30 + 3000);
 
     const payload: Record<string, unknown> = {
       model: MODEL,
@@ -585,7 +617,7 @@ WICHTIG: Validiere selbst vor der Ausgabe:
       max_completion_tokens: completionTokenLimit,
     };
 
-    const timeoutMs = durationMinutes >= 10 ? 300_000 : 240_000;
+    const timeoutMs = durationMinutes >= 10 ? 420_000 : 240_000;
     const data = await callOpenAI(payload, timeoutMs, "openai-audio-doku-script");
     const choice = data.choices?.[0];
     const content = choice?.message?.content;
@@ -629,9 +661,10 @@ WICHTIG: Validiere selbst vor der Ausgabe:
     const ageGroup =
       (typeof parsed.ageGroup === "string" && parsed.ageGroup.trim()) || `${ageFrom}-${ageTo}`;
     const category = (typeof parsed.category === "string" && parsed.category.trim()) || "Wissen";
+    // Scrub whatever the model still wrote: label sentences and "no text" clauses make the image model draw text.
     const coverPrompt =
-      (typeof parsed.coverPrompt === "string" && parsed.coverPrompt.trim()) ||
-      `Square 1:1  Theme: ${topic}. Modern clean premium illustration, kid-friendly, ultra-detailed, no text, no letters.`;
+      sanitizeCoverPrompt(typeof parsed.coverPrompt === "string" ? parsed.coverPrompt : "") ||
+      `A friendly, colourful, detailed scene that shows the world of "${topic}" with two cheerful cartoon hosts in the foreground, amazed and pointing at it. Modern clean premium illustration, smooth gradients, kid-friendly.`;
     const description =
       (typeof parsed.description === "string" && parsed.description.trim()) ||
       `Eine spannende Audio-Doku über ${topic}.`;
@@ -648,8 +681,7 @@ WICHTIG: Validiere selbst vor der Ausgabe:
       description,
       screenplay,
     };
-  },
-);
+}
 
 /**
  * Normalisiert das Drehbuch:

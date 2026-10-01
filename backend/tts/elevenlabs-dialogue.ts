@@ -527,47 +527,50 @@ function isWavHeader(buf: Buffer): boolean {
   );
 }
 
+/** Lists the account's ElevenLabs voices. No auth: callers (endpoint, automation) gate access themselves. */
+export async function fetchElevenLabsVoices(): Promise<ElevenLabsVoice[]> {
+  const apiKey = getElevenLabsApiKey();
+
+  const response = await fetch(`${ELEVENLABS_API_BASE}/voices`, {
+    method: "GET",
+    headers: {
+      "xi-api-key": apiKey,
+    },
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    log.error(`[ElevenLabs] list voices failed (${response.status}): ${errText}`);
+    throwElevenLabsApiError(response.status, errText, "voice list");
+  }
+
+  const payload = (await response.json()) as {
+    voices?: Array<{
+      voice_id?: string;
+      name?: string;
+      labels?: Record<string, string>;
+      description?: string;
+      preview_url?: string;
+    }>;
+  };
+
+  return (payload.voices ?? [])
+    .filter((voice) => Boolean(voice.voice_id) && Boolean(voice.name))
+    .map((voice) => ({
+      voiceId: voice.voice_id!,
+      name: voice.name!,
+      labels: voice.labels ?? undefined,
+      description: voice.description ?? undefined,
+      previewUrl: voice.preview_url ?? undefined,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export const listElevenLabsVoices = api(
   { expose: true, method: "GET", path: "/tts/elevenlabs/voices", auth: true },
   async (): Promise<ListElevenLabsVoicesResponse> => {
     ensureAdmin();
-    const apiKey = getElevenLabsApiKey();
-
-    const response = await fetch(`${ELEVENLABS_API_BASE}/voices`, {
-      method: "GET",
-      headers: {
-        "xi-api-key": apiKey,
-      },
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      log.error(`[ElevenLabs] list voices failed (${response.status}): ${errText}`);
-      throwElevenLabsApiError(response.status, errText, "voice list");
-    }
-
-    const payload = (await response.json()) as {
-      voices?: Array<{
-        voice_id?: string;
-        name?: string;
-        labels?: Record<string, string>;
-        description?: string;
-        preview_url?: string;
-      }>;
-    };
-
-    const voices: ElevenLabsVoice[] = (payload.voices ?? [])
-      .filter((voice) => Boolean(voice.voice_id) && Boolean(voice.name))
-      .map((voice) => ({
-        voiceId: voice.voice_id!,
-        name: voice.name!,
-        labels: voice.labels ?? undefined,
-        description: voice.description ?? undefined,
-        previewUrl: voice.preview_url ?? undefined,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    return { voices };
+    return { voices: await fetchElevenLabsVoices() };
   }
 );
 

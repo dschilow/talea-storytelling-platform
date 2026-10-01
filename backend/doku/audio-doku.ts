@@ -3,7 +3,7 @@ import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
 import { ai } from "~encore/clients";
 import { ensureAdmin } from "../admin/authz";
-import { normalizeLanguage } from "../story/avatar-image-optimization";
+import { AUDIO_COVER_NEGATIVE_PROMPT, buildAudioCoverPrompt } from "./cover-prompt";
 import {
   maybeUploadImageUrlToBucket,
   resolveImageUrlForClient,
@@ -153,10 +153,31 @@ const normalizeRequiredPatch = (value: string | undefined, fieldName: string): s
   return trimmed;
 };
 
-const buildCoverPrompt = (description: string, title: string): string => {
-  const normalized = normalizeLanguage(description || title);
-  return `Modern educational cover art for an audio documentary: ${normalized}. Soft gradients, friendly illustration, clean composition, no text in the image.`;
+const buildCoverPrompt = buildAudioCoverPrompt;
+
+const COVER_IMAGE_REQUEST = {
+  width: 1024,
+  height: 1024,
+  steps: 4,
+  CFGScale: 4,
+  outputFormat: "JPEG" as const,
+  negativePrompt: AUDIO_COVER_NEGATIVE_PROMPT,
 };
+
+/** One cover render with a retry, shared by the editor and the automation pipeline. */
+export async function generateAudioCoverImage(description: string, title: string): Promise<string> {
+  const prompt = buildCoverPrompt(description, title);
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const img = await ai.generateImage({ prompt, ...COVER_IMAGE_REQUEST });
+      return img.imageUrl;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
+}
 
 type AudioViewer = {
   userId: string;
@@ -244,6 +265,74 @@ const resolveAudioDokuRow = async (row: AudioDokuRow, viewer?: AudioViewer): Pro
     updatedAt: row.updated_at,
   };
 };
+
+/** The two inserts that make an audio doku exist. Shared with the automation pipeline. */
+export async function insertAudioDokuRecord(row: {
+  id: string;
+  userId: string;
+  profileId: string;
+  title: string;
+  description: string;
+  ageGroup?: string;
+  category?: string;
+  coverDescription: string;
+  coverImageUrl?: string;
+  audioUrl: string;
+  isPublic: boolean;
+  now: Date;
+}): Promise<void> {
+  await dokuDB.exec`
+    INSERT INTO audio_dokus (
+      id,
+      user_id,
+      title,
+      description,
+      age_group,
+      category,
+      cover_description,
+      cover_image_url,
+      audio_url,
+      is_public,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      ${row.id},
+      ${row.userId},
+      ${row.title},
+      ${row.description},
+      ${row.ageGroup ?? null},
+      ${row.category ?? null},
+      ${row.coverDescription},
+      ${row.coverImageUrl ?? null},
+      ${row.audioUrl},
+      ${row.isPublic},
+      ${row.now},
+      ${row.now}
+    )
+  `;
+  await dokuDB.exec`
+    INSERT INTO audio_doku_profile_state (
+      profile_id,
+      doku_id,
+      is_favorite,
+      progress_pct,
+      completion_state,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      ${row.profileId},
+      ${row.id},
+      FALSE,
+      0,
+      'not_started',
+      ${row.now},
+      ${row.now}
+    )
+    ON CONFLICT (profile_id, doku_id) DO NOTHING
+  `;
+}
 
 export const createAudioUploadUrl = api<CreateAudioUploadUrlRequest, CreateAudioUploadUrlResponse>(
   { expose: true, method: "POST", path: "/audio-dokus/upload-url", auth: true },
@@ -340,16 +429,7 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
     let coverImageUrl: string | undefined = req.coverImageUrl?.trim() || undefined;
     if (!coverImageUrl) {
       try {
-        const prompt = buildCoverPrompt(coverDescription, title);
-        const img = await ai.generateImage({
-          prompt,
-          width: 1024,
-          height: 1024,
-          steps: 4,
-          CFGScale: 4,
-          outputFormat: "JPEG",
-        });
-        coverImageUrl = img.imageUrl;
+        coverImageUrl = await generateAudioCoverImage(coverDescription, title);
       } catch (error) {
         console.warn("[AudioDoku] Cover generation failed:", error);
         // Continue without cover image if generation fails
@@ -374,57 +454,20 @@ export const createAudioDoku = api<CreateAudioDokuRequest, AudioDoku>(
 
     const isPublic = req.isPublic ?? true;
 
-    await dokuDB.exec`
-      INSERT INTO audio_dokus (
-        id,
-        user_id,
-        title,
-        description,
-        age_group,
-        category,
-        cover_description,
-        cover_image_url,
-        audio_url,
-        is_public,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        ${id},
-        ${auth.userID},
-        ${title},
-        ${description},
-        ${ageGroup ?? null},
-        ${category ?? null},
-        ${coverDescription},
-        ${coverImageUrl ?? null},
-        ${audioUrl},
-        ${isPublic},
-        ${now},
-        ${now}
-      )
-    `;
-    await dokuDB.exec`
-      INSERT INTO audio_doku_profile_state (
-        profile_id,
-        doku_id,
-        is_favorite,
-        progress_pct,
-        completion_state,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        ${activeProfileId},
-        ${id},
-        FALSE,
-        0,
-        'not_started',
-        ${now},
-        ${now}
-      )
-      ON CONFLICT (profile_id, doku_id) DO NOTHING
-    `;
+    await insertAudioDokuRecord({
+      id,
+      userId: auth.userID,
+      profileId: activeProfileId,
+      title,
+      description,
+      ageGroup,
+      category,
+      coverDescription,
+      coverImageUrl,
+      audioUrl,
+      isPublic,
+      now,
+    });
 
     const resolvedCoverImageUrl = await resolveImageUrlForClient(coverImageUrl);
     const resolvedAudioUrl = await resolveObjectUrlForClient(audioUrl);
@@ -461,19 +504,9 @@ export const generateAudioCover = api<GenerateAudioCoverRequest, GenerateAudioCo
     }
 
     const title = req.title?.trim() || "Audio Doku";
-    const prompt = buildCoverPrompt(coverDescription, title);
 
     try {
-      const img = await ai.generateImage({
-        prompt,
-        width: 1024,
-        height: 1024,
-        steps: 4,
-        CFGScale: 4,
-        outputFormat: "JPEG",
-      });
-
-      let coverImageUrl = img.imageUrl;
+      let coverImageUrl = await generateAudioCoverImage(coverDescription, title);
       try {
         const uploadedCover = await maybeUploadImageUrlToBucket(coverImageUrl, {
           prefix: "images/audio-dokus",

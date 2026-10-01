@@ -319,6 +319,26 @@ export const renderAudioDokuMaster = api<
     const auth = getAuthData();
     if (!auth?.userID) throw APIError.unauthenticated("Login required");
 
+    const { audio, ...meta } = await renderAudioDokuMasterBuffer(req);
+    return {
+      audioData: `data:audio/mpeg;base64,${audio.toString("base64")}`,
+      mimeType: "audio/mpeg",
+      ...meta,
+    };
+  },
+);
+
+export type AudioDokuMasterRequest = RenderAudioDokuMasterRequest;
+export type AudioDokuMasterResult = Omit<RenderAudioDokuMasterResponse, "audioData" | "mimeType"> & {
+  audio: Buffer;
+};
+
+/**
+ * The studio-master render itself, without auth. Shared by the editor endpoint above and the
+ * automation pipeline (audio-automation.ts), which stores the MP3 buffer directly instead of
+ * shipping a base64 data URL through an HTTP response.
+ */
+export async function renderAudioDokuMasterBuffer(req: AudioDokuMasterRequest): Promise<AudioDokuMasterResult> {
     const script = (req.script || "").trim();
     if (!script) throw APIError.invalidArgument("script is required");
     if (!req.speakerVoiceMap || Object.keys(req.speakerVoiceMap).length === 0) {
@@ -664,8 +684,7 @@ export const renderAudioDokuMaster = api<
       };
 
       return {
-        audioData: `data:audio/mpeg;base64,${masterBuffer.toString("base64")}`,
-        mimeType: "audio/mpeg",
+        audio: masterBuffer,
         durationSeconds: dialogueDurationSec,
         mode,
         hasWordTiming,
@@ -677,5 +696,4 @@ export const renderAudioDokuMaster = api<
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
     }
-  },
-);
+}
