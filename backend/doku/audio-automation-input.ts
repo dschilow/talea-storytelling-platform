@@ -28,6 +28,8 @@ export interface AutomationGuestSpeaker {
   role?: string;
   gender?: "female" | "male";
   age?: "young" | "adult" | "old";
+  /** Optional ElevenLabs voice id (see GET /voices) to cast this guest explicitly. */
+  voiceId?: string;
 }
 
 export interface AutomationJobItem {
@@ -118,7 +120,11 @@ export function normalizeJobItem(raw: AutomationJobItem, index = 0): NormalizedJ
     const role = typeof guest.role === "string" ? guest.role.replace(/\s+/g, " ").trim().slice(0, 120) : "";
     const gender = guest.gender === "female" || guest.gender === "male" ? guest.gender : undefined;
     const age = guest.age === "young" || guest.age === "adult" || guest.age === "old" ? guest.age : undefined;
-    return { name, role, gender, age } as AutomationGuestSpeaker;
+    const voiceId = typeof guest.voiceId === "string" ? guest.voiceId.trim() : "";
+    if (voiceId && !/^[A-Za-z0-9]{10,40}$/.test(voiceId)) {
+      throw new AutomationInputError(`${where}.extraSpeakers[${g}].voiceId is not a valid voice id.`);
+    }
+    return { name, role, gender, age, voiceId: voiceId || undefined } as AutomationGuestSpeaker;
   });
 
   return { topic, ageFrom, ageTo, durationMinutes, extraSpeakers, autoPublish: raw.autoPublish === true };

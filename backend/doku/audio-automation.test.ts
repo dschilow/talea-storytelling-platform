@@ -1,7 +1,7 @@
 // @ts-ignore Bun's test helpers are runtime-only in the Encore project.
 import { describe, expect, test } from "bun:test";
 import { buildAudioCoverPrompt, sanitizeCoverPrompt } from "./cover-prompt";
-import { castSpeakerVoices, FIXED_SPEAKER_VOICES } from "./voice-casting";
+import { castSpeakerVoices, FIXED_SPEAKER_VOICES, type CastableVoice } from "./voice-casting";
 import { automationKeyMatches, countSpokenWords, normalizeJobItem } from "./audio-automation-input";
 
 describe("cover prompt", () => {
@@ -67,6 +67,26 @@ describe("voice casting", () => {
       picks.add(castSpeakerVoices([{ name: "FÖRSTERIN MARA", gender: "female", age: "adult" }], many)["FÖRSTERIN MARA"]);
     }
     expect(picks.size).toBeGreaterThan(1);
+  });
+
+  test("never auto-casts robot or character voices", () => {
+    const pool: CastableVoice[] = [
+      { voiceId: "robo", name: "Robo Max", labels: { gender: "male", age: "middle_aged", use_case: "characters" }, description: "A robotic voice" },
+      { voiceId: "m1", name: "Max", labels: { gender: "male", age: "middle_aged", language: "de" } },
+    ];
+    for (let i = 0; i < 20; i += 1) {
+      expect(castSpeakerVoices([{ name: "PILOT PAUL", gender: "male", age: "adult" }], pool)["PILOT PAUL"]).toBe("m1");
+    }
+  });
+
+  test("an explicit voice id wins and is not reused", () => {
+    const map = castSpeakerVoices(
+      [{ name: "A", gender: "male", voiceId: "m1" }, { name: "B", gender: "male" }],
+      voices,
+      () => 0,
+    );
+    expect(map.A).toBe("m1");
+    expect(map.B).not.toBe("m1");
   });
 
   test("never gives two guests the same voice", () => {

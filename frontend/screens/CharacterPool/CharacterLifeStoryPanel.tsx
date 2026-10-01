@@ -27,6 +27,12 @@ interface LifeStory {
   wordCount: number;
   version: number;
   lastError?: string;
+  generationMetadata?: {
+    tokensUsed?: { total?: number };
+    totalCostUSD?: number;
+    model?: string;
+    draftIssues?: string[];
+  };
   chapters: LifeStoryChapter[];
 }
 
@@ -206,7 +212,7 @@ const CharacterLifeStoryPanel: React.FC<Props> = ({ characterId, characterName, 
               )}
             </div>
             <h3 className="truncate text-xl font-black text-slate-900 dark:text-white">Lebensgeschichte von {characterName}</h3>
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Spannendes, witziges Abenteuer (bei Magiern & Co. auch wohlig gruselig) mit fünf Kapiteln, Cover und Kapitelillustrationen – geschrieben mit GPT-6.1 Sol.</p>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Spannendes, witziges Abenteuer (bei Magiern & Co. auch wohlig gruselig) mit Einleitung, fünf Kapiteln, Cover und Kapitelillustrationen – geschrieben mit GPT-6.1 Sol.</p>
             <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">Profiländerungen bitte zuerst mit „Speichern“ sichern.</p>
             {story?.status === 'generating' && (
               <p className="mt-1 text-xs font-semibold text-sky-700 dark:text-sky-300" role="status">Läuft im Hintergrund (ca. 5–10 Minuten). Du kannst die Seite offen lassen – sie aktualisiert sich automatisch.</p>
@@ -256,11 +262,21 @@ const CharacterLifeStoryPanel: React.FC<Props> = ({ characterId, characterName, 
           )}
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Metric label="Wörter" value={`${story.wordCount.toLocaleString('de-DE')} / 1.400–1.500`} good={story.wordCount >= 1200 && story.wordCount <= 1700} />
-            <Metric label="Kapitel" value={`${story.chapters.length} / 5`} good={story.chapters.length === 5} />
+            <Metric label="Wörter" value={`${story.wordCount.toLocaleString('de-DE')} / 1.560–1.720`} good={story.wordCount >= 1300 && story.wordCount <= 1900} />
+            <Metric label="Kapitel" value={`${story.chapters.length} / 6 (Einleitung + 5)`} good={story.chapters.length === 6} />
             <Metric label="Illustrationen" value={`${illustratedChapters + (story.coverImageUrl ? 1 : 0)} / ${story.chapters.length + 1}`} good={readyToPublish} />
             <Metric label="Version" value={`v${story.version}`} good />
           </div>
+
+          {story.generationMetadata?.tokensUsed?.total ? (
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              Erzeugt mit {story.generationMetadata.model || 'GPT-6.1 Sol'} · {story.generationMetadata.tokensUsed.total.toLocaleString('de-DE')} Tokens
+              {typeof story.generationMetadata.totalCostUSD === 'number' ? ` · ca. $${story.generationMetadata.totalCostUSD.toFixed(3)} inkl. Bilder` : ''}
+            </p>
+          ) : null}
+          {story.generationMetadata?.draftIssues && story.generationMetadata.draftIssues.length > 0 && (
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">Hinweise zum Text: {story.generationMetadata.draftIssues.join(' · ')}</p>
+          )}
 
           {story.coverImageUrl && (
             <div className="overflow-hidden rounded-2xl border border-white/70 bg-black/5 dark:border-white/10">

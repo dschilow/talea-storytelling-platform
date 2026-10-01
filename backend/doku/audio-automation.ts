@@ -23,6 +23,7 @@ import {
   cancelJob,
   enqueueJobs,
   getJob,
+  listCastingVoices,
   listJobs,
   loadCatalog,
   setAutomationEpisodePublic,
@@ -140,5 +141,23 @@ export const automationPublish = api<PublishRequest, PublishResponse>(
     const result = await setAutomationEpisodePublic(req.id, req.isPublic === true);
     log.info(`[AudioAutomation] ${req.id} public=${result.isPublic}`);
     return result;
+  },
+);
+
+interface VoicesResponse {
+  voices: Array<{
+    voiceId: string;
+    name: string;
+    labels?: Record<string, string>;
+    description?: string;
+    excludedFromAutoCast: boolean;
+  }>;
+}
+
+export const automationVoices = api<AuthedRequest, VoicesResponse>(
+  { expose: true, method: "GET", path: "/automation/audio-dokus/voices", auth: false },
+  async (req) => {
+    await assertAutomationKey(req.key);
+    return { voices: await listCastingVoices() };
   },
 );

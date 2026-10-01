@@ -4,6 +4,7 @@
  *   bun run audio-doku-automation.ts catalog
  *   bun run audio-doku-automation.ts start items.json     # {"items":[{topic, ageFrom, ageTo, durationMinutes, extraSpeakers:[{name, role, gender, age}]}]}
  *   bun run audio-doku-automation.ts status [jobId,jobId]
+ *   bun run audio-doku-automation.ts voices                # ElevenLabs voices the casting sees
  *   bun run audio-doku-automation.ts cancel <jobId>
  *   bun run audio-doku-automation.ts publish <audioDokuId> [true|false]
  *
@@ -62,6 +63,12 @@ if (cmd === "catalog") {
     console.log(`${j.id}  ${j.status}${j.stage ? `/${j.stage}` : ""}  ${j.title ?? j.topic}${j.error ? `  FEHLER: ${j.error}` : ""}${j.audioDokuId ? `  -> ${j.audioDokuId}` : ""}`);
     for (const n of j.notes ?? []) console.log(`    · ${n}`);
   }
+} else if (cmd === "voices") {
+  const data = await call("GET", "/voices");
+  for (const v of data.voices) {
+    const l = v.labels ?? {};
+    console.log(`${v.voiceId}  ${v.excludedFromAutoCast ? "[gesperrt] " : ""}${v.name}  ${[l.gender, l.age, l.accent, l.language, l.use_case].filter(Boolean).join("/")}  ${String(v.description ?? "").replace(/\s+/g, " ").slice(0, 90)}`);
+  }
 } else if (cmd === "cancel" && arg) {
   const j = await call("POST", `/jobs/${arg}/cancel`, {});
   console.log(`${j.id}  ${j.status}`);
@@ -69,6 +76,6 @@ if (cmd === "catalog") {
   const r = await call("POST", `/publish/${arg}`, { isPublic: arg2 !== "false" });
   console.log(`${r.title}: ${r.isPublic ? "öffentlich" : "privat"}`);
 } else {
-  console.error("Befehle: catalog | start <items.json> | status [ids] | cancel <jobId> | publish <audioDokuId> [true|false]");
+  console.error("Befehle: catalog | voices | start <items.json> | status [ids] | cancel <jobId> | publish <audioDokuId> [true|false]");
   process.exit(1);
 }

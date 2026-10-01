@@ -2,17 +2,14 @@ import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { storyDB } from "./db";
+import { generateLifeStory } from "./character-life-story-generation";
 import {
+  LIFE_STORY_TARGET_WORDS,
   LIFE_STORY_WRITER_MODEL,
-  buildLifeStoryPrompt,
-  deriveLifeStoryMood,
-  isAntagonisticCharacter,
-  lifeStoryToneConfig,
   parseJsonObject,
   type LifeStoryAgeGroup,
   type LifeStoryCharacter,
 } from "./character-life-story-prompt";
-import { generateStoryDevMode, type DevModeAvatar } from "./dev-mode-generation";
 import type { Story, StoryConfig } from "./generate";
 
 type LifeStoryStatus = "generating" | "draft" | "published" | "error";
@@ -220,46 +217,6 @@ async function expireStaleGeneration(row: LifeStoryRow): Promise<LifeStoryRow> {
   return (await findLifeStoryRowById(row.id)) ?? row;
 }
 
-function buildAvatar(character: CharacterRow, imageUrl?: string): DevModeAvatar {
-  const visual = parseJsonObject(character.visual_profile);
-  const emotional = parseJsonObject(character.emotional_nature);
-  const personalitySummary = [
-    character.dominant_personality,
-    ...(character.secondary_traits || []),
-    ...(character.personality_keywords || []),
-  ].filter(Boolean).join(", ");
-  return {
-    id: character.id,
-    name: character.name,
-    description: [
-      character.backstory,
-      character.physical_description || visual.description,
-      personalitySummary ? `Persönlichkeit: ${personalitySummary}` : undefined,
-      character.quirk ? `Eigenart: ${character.quirk}` : undefined,
-      character.catchphrase ? `Spruch: ${character.catchphrase}` : undefined,
-    ].filter(Boolean).join("\n"),
-    imageUrl,
-    visualProfile: visual,
-    physicalTraits: {
-      species: visual.species,
-      description: character.physical_description || visual.description,
-      colorPalette: visual.colorPalette,
-    },
-    personalityTraits: {
-      knowledge: { value: 45 },
-      creativity: { value: 50 },
-      vocabulary: { value: 50 },
-      courage: { value: 45 },
-      curiosity: { value: 45 },
-      teamwork: { value: isAntagonisticCharacter(character) ? 20 : 50 },
-      empathy: { value: isAntagonisticCharacter(character) ? 25 : 55 },
-      persistence: { value: 60 },
-      logic: { value: 50 },
-      canonicalSummary: personalitySummary || emotional.dominant,
-    },
-  };
-}
-
 export const getCharacterLifeStory = api<GetCharacterLifeStoryRequest, GetCharacterLifeStoryResponse>(
   { expose: true, method: "GET", path: "/story/character-pool/:characterId/life-story", auth: true },
   async ({ characterId }) => {
@@ -340,60 +297,12 @@ async function runLifeStoryGeneration(input: {
   character: CharacterRow;
   storyId: string;
   ageGroup: LifeStoryAgeGroup;
-  userId: string;
   writerModel: string;
 }): Promise<void> {
-  const { character, storyId, ageGroup, userId, writerModel } = input;
+  const { character, storyId, ageGroup, writerModel } = input;
   try {
-    const canonicalImageUrl =
-      (await resolveImageUrlForClient(character.image_url || undefined)) || character.image_url || undefined;
-    const config: StoryConfig = {
-      avatarIds: [character.id],
-      // Genre, style, tone, suspense and humor follow the character: every Origin is
-      // exciting and funny, wizards and other uncanny figures also pleasantly spooky.
-      ...lifeStoryToneConfig(character, ageGroup),
-      setting: (character.canon_settings || [])[0] || "Talea",
-      length: "long",
-      complexity: ageGroup === "3-5" ? "simple" : ageGroup === "13+" ? "complex" : "medium",
-      ageGroup,
-      language: "de",
-      pov: "personale",
-      customPrompt: buildLifeStoryPrompt(character, ageGroup),
-      // On OpenRouter the writer comes from openRouterModel; aiModel is only the native placeholder.
-      aiModel: "gpt-5.4",
-      aiProvider: "openrouter",
-      openRouterModel: writerModel,
-      useCharacterPool: false,
-      strictQualityGates: false,
-      strictReleaseGateMode: "warn",
-      contentType: "character_life",
-      characterId: character.id,
-    };
-
-    const generated = await generateStoryDevMode({
-      config,
-      userId,
-      storyId,
-      avatars: [buildAvatar(character, canonicalImageUrl)],
-      poolCharacters: [],
-      qualityMode: "premium",
-      chapterCountOverride: 5,
-      disableArtifactSelection: true,
-      disablePersistenceSideEffects: true,
-    });
-
-    if (!generated.chapters.length) throw new Error("Generation returned no chapters");
+    const generated = await generateLifeStory({ character, ageGroup, writerModel, storyId });
     const now = new Date();
-    const wordCount = generated.chapters.reduce((sum, chapter) => sum + countWords(chapter.content), 0);
-    const metadata = {
-      ...generated.metadata,
-      contentType: "character_life",
-      characterId: character.id,
-      canonicalCharacterName: character.name,
-      lifeStoryMood: deriveLifeStoryMood(character).mood,
-      writerModel,
-      targetWords: { min: 1400, max: 1500 },
-    };
 
     await using tx = await storyDB.begin();
     await tx.exec`DELETE FROM character_life_story_chapters WHERE life_story_id = ${storyId}`;
@@ -403,7 +312,7 @@ async function runLifeStoryGeneration(input: {
           id, life_story_id, title, content, image_url, image_prompt,
           chapter_order, created_at, updated_at
         ) VALUES (
-          ${chapter.id || crypto.randomUUID()}, ${storyId}, ${chapter.title}, ${chapter.content},
+          ${chapter.id}, ${storyId}, ${chapter.title}, ${chapter.content},
           ${chapter.imageUrl || null}, ${chapter.imagePrompt || null}, ${chapter.order}, ${now}, ${now}
         )
       `;
@@ -414,16 +323,30 @@ async function runLifeStoryGeneration(input: {
           description = ${generated.description},
           cover_image_url = ${generated.coverImageUrl || null},
           status = 'draft',
-          word_count = ${wordCount},
+          word_count = ${generated.wordCount},
+          target_words = ${LIFE_STORY_TARGET_WORDS.min},
           version = version + 1,
-          generation_metadata = ${JSON.stringify(metadata)}::jsonb,
+          generation_metadata = ${JSON.stringify({
+            ...generated.metadata,
+            contentType: "character_life",
+            characterId: character.id,
+            canonicalCharacterName: character.name,
+            writerModel,
+          })}::jsonb,
           last_error = NULL,
           published_at = NULL,
           updated_at = ${now}
       WHERE id = ${storyId}
     `;
     await tx.commit();
-    console.log("[character-life-story] generation finished", { storyId, characterId: character.id, wordCount, writerModel });
+    console.log("[character-life-story] generation finished", {
+      storyId,
+      characterId: character.id,
+      wordCount: generated.wordCount,
+      writerModel,
+      tokens: (generated.metadata.tokensUsed as { total?: number } | undefined)?.total,
+      costUSD: generated.metadata.totalCostUSD,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[character-life-story] generation failed", { storyId, characterId: character.id, message });
@@ -458,7 +381,7 @@ export const generateCharacterLifeStory = api<GenerateCharacterLifeStoryRequest,
         target_words, created_by_user_id, created_at, updated_at
       ) VALUES (
         ${storyId}, ${character.id}, ${`${character.name}: Die Geschichte davor`}, '',
-        'generating', ${ageGroup}, 1400, ${auth.userID}, ${now}, ${now}
+        'generating', ${ageGroup}, ${LIFE_STORY_TARGET_WORDS.min}, ${auth.userID}, ${now}, ${now}
       )
       ON CONFLICT (character_id) DO UPDATE SET
         status = 'generating',
@@ -474,7 +397,7 @@ export const generateCharacterLifeStory = api<GenerateCharacterLifeStoryRequest,
       throw APIError.failedPrecondition("Für diese Figur läuft bereits eine Generierung. Bitte warte, bis sie fertig ist.");
     }
 
-    void runLifeStoryGeneration({ character, storyId: claimed.id, ageGroup, userId: auth.userID, writerModel });
+    void runLifeStoryGeneration({ character, storyId: claimed.id, ageGroup, writerModel });
 
     const row = await findLifeStoryRowById(claimed.id);
     if (!row) throw APIError.internal("Character life story could not be loaded");

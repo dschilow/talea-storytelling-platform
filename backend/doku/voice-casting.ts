@@ -12,11 +12,14 @@ export interface CastableVoice {
   voiceId: string;
   name: string;
   labels?: Record<string, string>;
+  description?: string;
 }
 
 export interface SpeakerVoiceHint {
   name: string;
   role?: string;
+  /** Explicit ElevenLabs voice id: skips the automatic choice for this speaker. */
+  voiceId?: string;
   gender?: VoiceGender;
   age?: VoiceAge;
 }
@@ -52,6 +55,19 @@ function inferSpeakerAge(hint: SpeakerVoiceHint): VoiceAge | undefined {
 
 const label = (voice: CastableVoice, key: string): string => (voice.labels?.[key] ?? "").toLowerCase();
 
+/**
+ * Robot, alien, monster, cartoon and other character voices carry the same gender/age labels as a
+ * normal narrator and used to win the auto-pick again and again. Experts in a doku are real people.
+ */
+const NOVELTY_VOICE = /(robot|android|cyborg|alien|monster|demon|villain|goblin|troll|cartoon|creature|ghost|zombie|synthetic|computer|ai voice|asmr|whisper|childlike|squeaky)/i;
+const NOVELTY_USE_CASE = /(character|animation|gaming)/i;
+
+export function isNoveltyVoice(voice: CastableVoice): boolean {
+  const text = `${voice.name} ${voice.description ?? ""} ${Object.values(voice.labels ?? {}).join(" ")}`;
+  if (NOVELTY_VOICE.test(text)) return true;
+  return NOVELTY_USE_CASE.test(`${label(voice, "use_case")} ${label(voice, "use case")}`);
+}
+
 function scoreVoice(
   voice: CastableVoice,
   gender: VoiceGender | undefined,
@@ -71,9 +87,10 @@ function scoreVoice(
   if (/(german|deutsch|\bde\b)/.test(language)) score += 2;
 
   const useCase = `${label(voice, "use_case")} ${label(voice, "use case")}`;
-  if (/(conversational|narrat|character|characters)/.test(useCase)) score += 1;
+  if (/(conversational|narrat)/.test(useCase)) score += 1;
 
   if (used.has(voice.voiceId)) score -= 20;
+  if (isNoveltyVoice(voice)) score -= 40;
   return score;
 }
 
@@ -121,6 +138,13 @@ export function castSpeakerVoices(
   const german = voices.filter((voice) => /(german|deutsch|\bde\b)/.test(`${label(voice, "language")} ${label(voice, "accent")}`));
   const pool = german.length >= guests.length + 2 ? german : voices;
   for (const guest of guests) {
+    if (guest.voiceId) {
+      used.add(guest.voiceId);
+      map[guest.name.toUpperCase()] = guest.voiceId;
+    }
+  }
+  for (const guest of guests) {
+    if (guest.voiceId) continue;
     const voiceId = suggestVoiceForSpeaker(guest, pool, used, rng);
     if (!voiceId) throw new Error(`Keine ElevenLabs-Stimme für ${guest.name} gefunden (Stimmenliste leer).`);
     used.add(voiceId);

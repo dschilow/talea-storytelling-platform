@@ -18,7 +18,7 @@ import { fetchElevenLabsVoices } from "../tts/elevenlabs-dialogue";
 import { AUDIO_DOKU_WORDS_PER_MINUTE, buildAudioDokuScript, type AudioDokuScriptResponse } from "./audio-script";
 import { renderAudioDokuMasterBuffer } from "./audio-render";
 import { generateAudioCoverImage, insertAudioDokuRecord } from "./audio-doku";
-import { castSpeakerVoices, type CastableVoice, type SpeakerVoiceHint } from "./voice-casting";
+import { castSpeakerVoices, isNoveltyVoice, type CastableVoice, type SpeakerVoiceHint } from "./voice-casting";
 import {
   AutomationInputError,
   MAX_ITEMS_PER_REQUEST,
@@ -164,9 +164,17 @@ async function loadVoices(): Promise<CastableVoice[]> {
     voiceId: voice.voiceId,
     name: voice.name,
     labels: voice.labels,
+    description: voice.description,
   }));
   voiceCache = { at: Date.now(), voices };
   return voices;
+}
+
+/** The account's ElevenLabs voices as the casting sees them, with the auto-pick's novelty flag. */
+export async function listCastingVoices(): Promise<
+  Array<{ voiceId: string; name: string; labels?: Record<string, string>; description?: string; excludedFromAutoCast: boolean }>
+> {
+  return (await loadVoices()).map((voice) => ({ ...voice, excludedFromAutoCast: isNoveltyVoice(voice) }));
 }
 
 async function resolveOwnerUserId(): Promise<string> {
@@ -252,6 +260,7 @@ async function executeJob(row: JobRow): Promise<void> {
     role: guest.role,
     gender: guest.gender,
     age: guest.age,
+    voiceId: guest.voiceId,
   }));
   const speakerVoiceMap = castSpeakerVoices(hints, await loadVoices());
 

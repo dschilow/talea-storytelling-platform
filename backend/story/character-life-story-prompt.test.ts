@@ -1,10 +1,12 @@
 // @ts-ignore Bun's test helpers are runtime-only in the Encore project.
 import { describe, expect, test } from "bun:test";
 import {
+  LIFE_STORY_CHAPTER_COUNT,
+  LIFE_STORY_SYSTEM_PROMPT,
+  LIFE_STORY_TARGET_WORDS,
   LIFE_STORY_WRITER_MODEL,
   buildLifeStoryPrompt,
   deriveLifeStoryMood,
-  lifeStoryToneConfig,
   type LifeStoryCharacter,
 } from "./character-life-story-prompt";
 
@@ -35,6 +37,9 @@ const wizard = character({
   role: "Magier",
   archetype: "MENTOR",
   dominant_personality: "geheimnisvoll",
+  quirk: "schnuppert an allem, als wäre es frisches Brot",
+  speech_style: ["bedächtig", "rätselhaft"],
+  emotional_triggers: ["Zugluft", "unbezahlte Rechnungen"],
   catchphrase: "Nichts ist, wie es scheint.",
   catchphrase_context: "wenn er etwas verbirgt",
 });
@@ -79,46 +84,60 @@ describe("Ton der Charaktergeschichten", () => {
     const dark = character({ name: "Ritter Kalt", role: "antagonist", archetype: "obstacle", dominant_personality: "grausam" });
     expect(deriveLifeStoryMood(dark).mood).toBe("spooky");
   });
-
-  test("jede Stimmung ist spannend (Spannung 3) und mindestens verspielt", () => {
-    for (const figure of [wizard, character({ name: "Pip", dominant_personality: "playful" }), character({})]) {
-      const config = lifeStoryToneConfig(figure, "6-8");
-      expect(config.suspenseLevel).toBe(3);
-      expect(config.humorLevel).toBeGreaterThanOrEqual(2);
-      expect(config.hasTwist).toBe(true);
-      expect(config.emotionalFlavors).toContain("prickeln");
-      expect(config.emotionalFlavors).toContain("lachfreude");
-    }
-  });
-
-  test("Gruselgenre bleibt über das Abenteuer-Handwerk des Generators erreichbar", () => {
-    // genreCraftGuidance matches on "abenteuer"; a plain "Gruselgeschichte" would fall back to the empty label.
-    expect(lifeStoryToneConfig(wizard, "6-8").genre.toLowerCase()).toContain("abenteuer");
-    expect(lifeStoryToneConfig(wizard, "6-8").stylePreset).toBe("quirky_dark_sweet");
-  });
-
-  test("die Kleinsten bekommen weniger Spannung, aber mehr Humor", () => {
-    const config = lifeStoryToneConfig(wizard, "3-5");
-    expect(config.suspenseLevel).toBe(2);
-    expect(config.humorLevel).toBe(3);
-  });
 });
 
 describe("Prompt der Charaktergeschichten", () => {
   const prompt = buildLifeStoryPrompt(wizard, "6-8");
 
+  test("eine Einleitung plus fünf Abenteuerkapitel", () => {
+    expect(LIFE_STORY_CHAPTER_COUNT).toBe(6);
+    expect(prompt).toContain("KAPITEL 1 — EINLEITUNG");
+    expect(prompt).toContain("KAPITEL 2 BIS 6 — DAS ABENTEUER");
+    for (const chapter of ["Kapitel 2 — Mittendrin", "Kapitel 3 —", "Kapitel 4 —", "Kapitel 5 —", "Kapitel 6 — Finale und Pointe"]) {
+      expect(prompt).toContain(chapter);
+    }
+    expect(prompt).toContain("Genau 6 Kapitel");
+    expect(LIFE_STORY_TARGET_WORDS).toEqual({ min: 1560, max: 1720 });
+  });
+
+  test("die Einleitung stellt die Figur mit Macke, Spruch, Sprechweise und Auslösern vor", () => {
+    const intro = prompt.slice(prompt.indexOf("KAPITEL 1 — EINLEITUNG"), prompt.indexOf("KAPITEL 2 BIS 6"));
+    expect(intro).toContain("Hier lernt der Leser Meister Zorbas kennen");
+    expect(intro).toContain("kein Steckbrief");
+    for (const part of ["wie Meister Zorbas aussieht", "die Macke oder Eigenart in Aktion", "wie Meister Zorbas redet", "auf die Palme bringt oder begeistert"]) {
+      expect(intro).toContain(part);
+    }
+    expect(intro).toContain("den Lieblingsspruch „Nichts ist, wie es scheint.“ wörtlich");
+    expect(intro).toContain("Überleitung");
+  });
+
+  test("Profilfelder stehen als Quelle im Prompt", () => {
+    expect(prompt).toContain("Eigenart / Macke: schnuppert an allem, als wäre es frisches Brot");
+    expect(prompt).toContain("Lieblingsspruch: „Nichts ist, wie es scheint.“ — wenn er etwas verbirgt");
+    expect(prompt).toContain("Sprachstil: bedächtig, rätselhaft");
+    expect(prompt).toContain("Zugluft, unbezahlte Rechnungen");
+  });
+
+  test("der Spruch kommt höchstens zweimal vor: Einleitung und Pointe", () => {
+    expect(prompt).toContain("der zweite und letzte Auftritt des Spruchs");
+  });
+
+  test("ohne Spruch wird keiner erfunden und die Einleitung verlangt keinen", () => {
+    const plain = buildLifeStoryPrompt(character({ name: "Bäcker Braun", role: "support", dominant_personality: "kind" }), "6-8");
+    expect(plain).toContain("Lieblingsspruch: keiner");
+    expect(plain).not.toContain("Lieblingsspruch „");
+    expect(plain).not.toContain("zweite und letzte Auftritt");
+  });
+
   test("verlangt ein Abenteuer statt einer Biografie", () => {
-    expect(prompt).toContain("Abenteuer, das Meister Zorbas zu der Figur gemacht hat");
-    expect(prompt).toContain("KEINE Biografie");
+    expect(prompt).toContain("das Abenteuer, das Meister Zorbas zu der Figur gemacht hat");
+    expect(prompt).toContain("keine Biografie");
     expect(prompt).not.toContain("Lebensbogen");
   });
 
   test("Spannung und Humor stehen im Auftrag und in jedem Kapitel", () => {
     expect(prompt).toContain("spannend, witzig und wohlig gruselig");
-    expect(prompt).toContain("mindestens einen Moment zum Lachen UND einen zum Zittern");
-    for (const chapter of ["Kapitel 1 — Mittendrin", "Kapitel 2 —", "Kapitel 3 —", "Kapitel 4 —", "Kapitel 5 —"]) {
-      expect(prompt).toContain(chapter);
-    }
+    expect(prompt).toContain("mindestens einen Moment zum Lachen und einen zum Zittern");
     expect(prompt).toContain("Haken");
   });
 
@@ -136,14 +155,18 @@ describe("Prompt der Charaktergeschichten", () => {
     expect(plain).toContain("TEMPOREICHES ABENTEUER");
   });
 
-  test("Kanon bleibt verbindlich: Spruch höchstens einmal, Erscheinung und Form", () => {
-    expect(prompt).toContain("Der kanonische Spruch lautet „Nichts ist, wie es scheint.“");
-    expect(prompt).toContain("höchstens einmal");
-    expect(prompt).toContain("exakt 5 Kapitel");
-    expect(prompt).toContain("1400 bis 1500");
+  test("festes Ausgabeformat für den Parser", () => {
+    for (const line of ["TITEL:", "BESCHREIBUNG:", "KAPITEL 1:", "KAPITEL 2:"]) expect(prompt).toContain(line);
+    expect(prompt).toContain("keine Markdown-Zeichen");
   });
 
-  test("echte Umlaute statt ae/ue-Umschrift in den Anweisungen", () => {
-    expect(prompt).not.toMatch(/\b(Saetze|Woerter|Ueberraschung|Raetsel|Hindernis-,\s*Ueber)/);
+  test("echte Umlaute in Prompt und Systemanweisung", () => {
+    expect(prompt).not.toMatch(/\b(Saetze|Woerter|Ueberraschung|Raetsel|fuer|ueber)\b/);
+    expect(LIFE_STORY_SYSTEM_PROMPT).toContain("echten Umlauten");
+  });
+
+  test("bleibt kompakt: der Prompt kostet nur wenige tausend Eingabetokens", () => {
+    // ~4 characters per token in German; the writer's own output dominates the bill.
+    expect(prompt.length).toBeLessThan(9000);
   });
 });
