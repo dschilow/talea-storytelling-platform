@@ -84,18 +84,47 @@ const CharacterLifeStoryPanel: React.FC<Props> = ({ characterId, characterName, 
     story?.coverImageUrl && story.chapters.length > 0 && illustratedChapters === story.chapters.length,
   );
 
+  // The server generates in the background (text and images take minutes, longer than the
+  // proxy keeps a request open); while the status is "generating" the panel polls for the result.
+  const isGenerating = generating || story?.status === 'generating';
+
+  useEffect(() => {
+    if (story?.status !== 'generating') return;
+    let cancelled = false;
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await backend.story.getCharacterLifeStory({ characterId });
+        const next = response.story as LifeStory | undefined;
+        if (cancelled || !next || next.status === 'generating') return;
+        setStory(next);
+        if (next.status === 'error') {
+          toast.error(next.lastError || 'Die Generierung ist fehlgeschlagen.');
+        } else {
+          toast.success('Lebensgeschichte und Illustrationen wurden als Entwurf erstellt.');
+        }
+      } catch (error) {
+        // A dropped poll is harmless; the next one asks again.
+        console.warn('[CharacterLifeStory] status poll failed', error);
+      }
+    }, 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [backend, characterId, story?.status]);
+
   const handleGenerate = async () => {
-    if (story && !window.confirm(`Die bestehende Lebensgeschichte von „${characterName}“ wird durch einen neuen Entwurf ersetzt. Fortfahren?`)) {
+    if (story && story.chapters.length > 0 && !window.confirm(`Die bestehende Lebensgeschichte von „${characterName}“ wird durch einen neuen Entwurf ersetzt. Fortfahren?`)) {
       return;
     }
     try {
       setGenerating(true);
-      const generated = await backend.story.generateCharacterLifeStory({
+      const started = await backend.story.generateCharacterLifeStory({
         characterId,
         ageGroup: story?.ageGroup || '6-8',
       });
-      setStory(generated as LifeStory);
-      toast.success('Lebensgeschichte und Illustrationen wurden als Entwurf erstellt.');
+      setStory(started as LifeStory);
+      toast.info('Generierung gestartet. Text und Bilder brauchen einige Minuten; die Seite aktualisiert sich selbst.');
     } catch (error) {
       console.error('[CharacterLifeStory] generation failed', error);
       toast.error(errorMessage(error));
@@ -179,15 +208,18 @@ const CharacterLifeStoryPanel: React.FC<Props> = ({ characterId, characterName, 
             <h3 className="truncate text-xl font-black text-slate-900 dark:text-white">Lebensgeschichte von {characterName}</h3>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Spannendes, witziges Abenteuer (bei Magiern & Co. auch wohlig gruselig) mit fünf Kapiteln, Cover und Kapitelillustrationen – geschrieben mit GPT-6.1 Sol.</p>
             <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-300">Profiländerungen bitte zuerst mit „Speichern“ sichern.</p>
+            {story?.status === 'generating' && (
+              <p className="mt-1 text-xs font-semibold text-sky-700 dark:text-sky-300" role="status">Läuft im Hintergrund (ca. 5–10 Minuten). Du kannst die Seite offen lassen – sie aktualisiert sich automatisch.</p>
+            )}
           </div>
         </div>
 
         <Button
-          title={generating ? 'Pipeline läuft …' : story ? 'Neu generieren' : 'Lebensgeschichte generieren'}
+          title={isGenerating ? 'Pipeline läuft …' : story ? 'Neu generieren' : 'Lebensgeschichte generieren'}
           onPress={handleGenerate}
-          icon={generating ? <RefreshCcw className="animate-spin" size={17} /> : <Sparkles size={17} />}
+          icon={isGenerating ? <RefreshCcw className="animate-spin" size={17} /> : <Sparkles size={17} />}
           variant="fun"
-          disabled={generating || loading}
+          disabled={isGenerating || loading}
         />
       </div>
 
@@ -290,14 +322,14 @@ const CharacterLifeStoryPanel: React.FC<Props> = ({ characterId, characterName, 
           </div>
 
           <div className="flex flex-wrap items-center gap-3 border-t border-violet-200/60 pt-5 dark:border-white/10">
-            <Button title={saving ? 'Speichert …' : 'Änderungen speichern'} onPress={handleSave} icon={<Save size={16} />} disabled={saving || generating} />
+            <Button title={saving ? 'Speichert …' : 'Änderungen speichern'} onPress={handleSave} icon={<Save size={16} />} disabled={saving || isGenerating} />
             <Button title="Vorschau lesen" onPress={() => navigate(`/character-life-story/${story.id}`)} icon={<Eye size={16} />} variant="secondary" disabled={!story.chapters.length} />
             <Button
               title={publishing ? 'Aktualisiert …' : story.status === 'published' ? 'Veröffentlichung zurücknehmen' : 'Veröffentlichen'}
               onPress={handleStatusChange}
               icon={<CheckCircle2 size={16} />}
               variant={story.status === 'published' ? 'outline' : 'fun'}
-              disabled={publishing || generating || (story.status !== 'published' && !readyToPublish)}
+              disabled={publishing || isGenerating || (story.status !== 'published' && !readyToPublish)}
             />
             {!readyToPublish && story.status !== 'published' && (
               <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">Veröffentlichung erst möglich, wenn Cover und alle Kapitelbilder vorhanden sind.</p>
