@@ -48,11 +48,25 @@ describe("voice casting", () => {
         { name: "TISCHLER OTTO", gender: "male", age: "old" },
       ],
       voices,
+      () => 0,
     );
     expect(map.TAVI).toBe(FIXED_SPEAKER_VOICES.TAVI);
     expect(map.LUMI).toBe(FIXED_SPEAKER_VOICES.LUMI);
     expect(map["FÖRSTERIN MARA"]).toBe("f1");
     expect(map["TISCHLER OTTO"]).toBe("m2");
+  });
+
+  test("varies the guest voice between dokus", () => {
+    const many = Array.from({ length: 8 }, (_, i) => ({
+      voiceId: `f${i}`,
+      name: `F${i}`,
+      labels: { gender: "female", age: "middle_aged", language: "de" },
+    }));
+    const picks = new Set<string>();
+    for (let i = 0; i < 40; i += 1) {
+      picks.add(castSpeakerVoices([{ name: "FÖRSTERIN MARA", gender: "female", age: "adult" }], many)["FÖRSTERIN MARA"]);
+    }
+    expect(picks.size).toBeGreaterThan(1);
   });
 
   test("never gives two guests the same voice", () => {
