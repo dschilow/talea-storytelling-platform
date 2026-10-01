@@ -48,6 +48,46 @@ const clampInt = (value: unknown, min: number, max: number, fallback: number): n
 };
 
 // ---------------------------------------------------------------------------
+// Schema: Encore migration files are not reliably applied on Railway (see CLAUDE.md),
+// so the table is also created idempotently at runtime. Keep in sync with
+// migrations/7_create_audio_doku_jobs.up.sql.
+// ---------------------------------------------------------------------------
+
+let schemaReady: Promise<void> | null = null;
+
+function ensureJobsSchema(): Promise<void> {
+  if (!schemaReady) {
+    schemaReady = (async () => {
+      await dokuDB.exec`
+        CREATE TABLE IF NOT EXISTS audio_doku_jobs (
+          id TEXT PRIMARY KEY,
+          status TEXT NOT NULL DEFAULT 'queued'
+            CHECK (status IN ('queued', 'running', 'done', 'failed', 'cancelled')),
+          stage TEXT,
+          topic TEXT NOT NULL,
+          params JSONB NOT NULL,
+          attempts INTEGER NOT NULL DEFAULT 0,
+          audio_doku_id TEXT,
+          title TEXT,
+          error TEXT,
+          notes JSONB NOT NULL DEFAULT '[]'::jsonb,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          started_at TIMESTAMP,
+          finished_at TIMESTAMP,
+          updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+      await dokuDB.exec`CREATE INDEX IF NOT EXISTS idx_audio_doku_jobs_status_created ON audio_doku_jobs(status, created_at)`;
+      await dokuDB.exec`CREATE INDEX IF NOT EXISTS idx_audio_doku_jobs_audio_doku ON audio_doku_jobs(audio_doku_id)`;
+    })().catch((error) => {
+      schemaReady = null; // retry on the next call
+      throw error;
+    });
+  }
+  return schemaReady;
+}
+
+// ---------------------------------------------------------------------------
 // Job storage
 // ---------------------------------------------------------------------------
 
@@ -350,6 +390,7 @@ export async function pumpAutomationQueue(): Promise<void> {
   if (pumping) return;
   pumping = true;
   try {
+    await ensureJobsSchema();
     await recoverStaleJobs();
     while (activeJobs < MAX_CONCURRENT) {
       const row = await claimNextJob();
@@ -387,6 +428,7 @@ export function startAutomationRunner(): void {
 // ---------------------------------------------------------------------------
 
 export async function loadCatalog(): Promise<{ audioDokus: AutomationCatalogEntry[]; pendingTopics: string[] }> {
+  await ensureJobsSchema();
   const rows = await dokuDB.queryAll<{
     id: string;
     title: string;
@@ -423,6 +465,7 @@ export async function enqueueJobs(items: AutomationJobItem[]): Promise<Automatio
     throw APIError.invalidArgument(`items must contain 1-${MAX_ITEMS_PER_REQUEST} entries.`);
   }
   const normalized = items.map((item, index) => normalizeOrReject(item, index));
+  await ensureJobsSchema();
 
   const open = await dokuDB.queryRow<{ count: number }>`
     SELECT COUNT(*)::int AS count FROM audio_doku_jobs WHERE status IN ('queued', 'running')
@@ -447,6 +490,7 @@ export async function enqueueJobs(items: AutomationJobItem[]): Promise<Automatio
 }
 
 export async function listJobs(ids: string[] = []): Promise<AutomationJobView[]> {
+  await ensureJobsSchema();
   const clean = ids.filter((id) => /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50);
   const rows =
     clean.length > 0
@@ -456,12 +500,14 @@ export async function listJobs(ids: string[] = []): Promise<AutomationJobView[]>
 }
 
 export async function getJob(id: string): Promise<AutomationJobView> {
+  await ensureJobsSchema();
   const row = await dokuDB.queryRow<JobRow>`SELECT * FROM audio_doku_jobs WHERE id = ${id}`;
   if (!row) throw APIError.notFound("Job not found.");
   return toView(row);
 }
 
 export async function cancelJob(id: string): Promise<AutomationJobView> {
+  await ensureJobsSchema();
   const row = await dokuDB.queryRow<JobRow>`
     UPDATE audio_doku_jobs
     SET status = 'cancelled', finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
@@ -475,6 +521,7 @@ export async function cancelJob(id: string): Promise<AutomationJobView> {
 
 /** Only episodes the automation created can be toggled through it. */
 export async function setAutomationEpisodePublic(id: string, isPublic: boolean): Promise<{ id: string; title: string; isPublic: boolean }> {
+  await ensureJobsSchema();
   const owned = await dokuDB.queryRow<{ title: string }>`
     SELECT d.title
     FROM audio_dokus d
