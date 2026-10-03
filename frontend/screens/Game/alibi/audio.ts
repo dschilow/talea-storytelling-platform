@@ -31,11 +31,28 @@ const GAP = 140;
 
 type Listener = () => void;
 
+export type AmbienceName = "evening" | "midnight" | "dawn";
+
+/** Clip-IDs, die ein Teil der Sprechfolge als Aufnahme braucht (für das Vorladen). */
+function partIds(p: SayPart): string[] {
+  if (typeof p === "string") return [p];
+  if ("id" in p) return [p.id];
+  if ("c" in p) return [`character.${p.c.s}.${p.k}`];
+  if ("sfx" in p) return [`fx.${p.sfx}`];
+  if ("fx" in p) return [p.fx];
+  return [];
+}
+
 class AudioDirector {
   clips: Record<string, Clip> = {};
-  soundOn = true;
   privVol = 0.45;
   fast = false;
+  private _soundOn = true;
+  private cache = new Map<string, HTMLAudioElement>();
+  private ambId: AmbienceName | null = null;
+  private ambPaused = false;
+  private ambEl: HTMLAudioElement | null = null;
+  private ambPlaying: string | null = null;
   private available = new Set<string>();
   private manifestLoaded = false;
   private seq = 0;
@@ -68,12 +85,97 @@ class AudioDirector {
       const json = (await res.json()) as { ids?: string[] } | string[];
       const ids = Array.isArray(json) ? json : json.ids ?? [];
       ids.forEach((id) => this.available.add(id));
+      this.preload(ids.filter((id) => id.startsWith("fx.") && !id.startsWith("fx.sight.")));
+      this.syncAmbience();
     } catch {
       /* keine Aufnahmen vorhanden */
     }
   }
   get recordedCount() {
     return this.available.size;
+  }
+  get soundOn() {
+    return this._soundOn;
+  }
+  set soundOn(v: boolean) {
+    this._soundOn = v;
+    this.syncAmbience();
+  }
+
+  /** Lädt Aufnahmen vor dem Abspielen, damit zwischen zwei Clips keine Lücke entsteht. */
+  preload(ids: string[]) {
+    if (this.fast || !this._soundOn) return;
+    for (const id of ids) {
+      if (!this.available.has(id) || this.cache.has(id)) continue;
+      try {
+        const a = new Audio(`${VOICE_BASE}${id}.mp3`);
+        a.preload = "auto";
+        this.cache.set(id, a);
+        if (this.cache.size > 90) {
+          const oldest = this.cache.keys().next().value;
+          if (oldest !== undefined) this.cache.delete(oldest);
+        }
+      } catch {
+        /* ignorieren */
+      }
+    }
+  }
+
+  /** Leise Hintergrundschleife je Akt (evening, midnight, dawn); null beendet sie. */
+  ambience(name: AmbienceName | null) {
+    this.ambId = name;
+    this.syncAmbience();
+  }
+  pauseAmbience(paused: boolean) {
+    this.ambPaused = paused;
+    this.syncAmbience();
+  }
+  private syncAmbience() {
+    const want = this.ambId && !this.ambPaused && this._soundOn && !this.fast && this.available.has(`amb.${this.ambId}`) ? `amb.${this.ambId}` : null;
+    if (want === this.ambPlaying) return;
+    const old = this.ambEl;
+    this.ambEl = null;
+    this.ambPlaying = want;
+    if (old) {
+      AudioDirector.fade(old, 0, 700, () => {
+        try {
+          old.pause();
+        } catch {
+          /* ignorieren */
+        }
+      });
+    }
+    if (!want) return;
+    try {
+      const el = new Audio(`${VOICE_BASE}${want}.mp3`);
+      el.loop = true;
+      el.volume = 0;
+      this.ambEl = el;
+      void el.play().then(() => AudioDirector.fade(el, 1, 1800)).catch(() => {
+        if (this.ambEl === el) {
+          this.ambEl = null;
+          this.ambPlaying = null;
+        }
+      });
+    } catch {
+      this.ambEl = null;
+      this.ambPlaying = null;
+    }
+  }
+  private static fade(el: HTMLAudioElement, to: number, ms: number, done?: () => void) {
+    const from = el.volume, t0 = Date.now();
+    const timer = window.setInterval(() => {
+      const k = Math.min(1, (Date.now() - t0) / ms);
+      try {
+        el.volume = Math.max(0, Math.min(1, from + (to - from) * k));
+      } catch {
+        /* ignorieren */
+      }
+      if (k >= 1) {
+        window.clearInterval(timer);
+        done?.();
+      }
+    }, 50);
   }
 
   /* ---------- Klänge (WebAudio, bis Aufnahmen da sind) ---------- */
@@ -162,7 +264,18 @@ class AudioDirector {
   }
   private playFile(id: string, vol: number): HTMLAudioElement | null {
     try {
-      const a = new Audio(`${VOICE_BASE}${id}.mp3`);
+      const cached = this.cache.get(id);
+      let a: HTMLAudioElement;
+      if (cached && (cached.paused || cached.ended)) {
+        a = cached;
+        a.onended = null;
+        a.onerror = null;
+        try {
+          a.currentTime = 0;
+        } catch {
+          /* noch nicht geladen */
+        }
+      } else a = new Audio(`${VOICE_BASE}${id}.mp3`);
       a.volume = vol;
       void a.play().catch(() => undefined);
       return a;
@@ -239,6 +352,7 @@ class AudioDirector {
         if (my !== this.seq) return resolve(false);
         if (i >= list.length) return finish(true);
         const p = list[i++];
+        this.preload(list.slice(i - 1, i + 3).flatMap(partIds));
         if ("hl" in p) {
           this.setHL(p.hl);
           return next();

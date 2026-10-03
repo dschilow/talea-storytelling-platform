@@ -22,14 +22,25 @@ Die Figuren kommen live aus dem Charakter-Pool (`GET /story/character-pool`, Bil
 
 Erzeugt über Runware mit `bfl:flux@3-image` (Kosten etwa 1,70 $ für 78 Bilder): Titelbilder (Krimi, Quiz), 8 Orte, 32 Erinnerungsbilder, 8 Beuten, 3 Akt-Szenen, 6 Posen von Kommissar Tavi (freigestellt, auf Basis des Tavi-Navigationsbilds als Referenz), 8 Spiel-Icons, 6 Quiz-Kategorien, 3 Medaillen, Serien-Flamme und das Navigations-Icon `game/nav/spiel.webp`.
 
-## Stimmen (nächster Schritt: ElevenLabs)
+## Stimmen und Klänge (ElevenLabs, erzeugt am 2026-10-03)
 
-Das Spiel spricht heute mit der Browser-Stimme. Vorproduzierte Aufnahmen werden automatisch benutzt, sobald sie vorliegen:
+Alle 896 Sprach-Clips und die Klänge liegen unter `frontend/public/game/alibi/voices/` (`<id>.mp3` + `manifest.json`). Das Spiel spielt sie automatisch ab; fehlt eine ID im Manifest, spricht die Browser-Stimme, fehlt ein Klang, läuft der eingebaute Synthese-Klang. Speicherort umstellbar: Dateien in einen Bucket legen und `VITE_ALIBI_VOICE_BASE=https://…/` setzen (mit Schrägstrich am Ende).
 
-1. Clips nach `Stimmen.json` erzeugen (gleiche IDs wie im Spiel, zum Beispiel `num.3`, `w.place.garten`, `character.astra.intro`).
-2. Als `<id>.mp3` ablegen unter `frontend/public/game/alibi/voices/` **oder** in einem Bucket. Dann `VITE_ALIBI_VOICE_BASE=https://…/` setzen (mit Schrägstrich am Ende).
-3. Dort eine `manifest.json` ablegen: `{ "ids": ["kom.welcome", "num.1", …] }`. Nur gelistete IDs werden als Datei geladen, alle anderen spricht weiter der Browser.
-4. Klänge (`fx.stamp`, `fx.bell`, `fx.sight.enten` …) und Ambiente (`amb.evening`, `amb.midnight`, `amb.dawn`) laufen über denselben Mechanismus und ersetzen die eingebauten Synthese-Klänge.
+**Erzeugen** (Werkzeuge in `scripts/game-voices/`, Details dort in der README):
+
+| Schritt | Befehl |
+|---|---|
+| Plan und Zeichenzahl ansehen | `bun scripts/game-voices/generate.mjs --prio 3 --dry` |
+| Sprache erzeugen (wiederaufnehmbar) | `bun scripts/game-voices/generate.mjs --prio 3` |
+| Geräusche und Ambiente | `bun scripts/game-voices/sfx.mjs` |
+| Nur neu schneiden/normalisieren (kostenlos) | `bun scripts/game-voices/generate.mjs --prio 3 --remaster` |
+| Stand prüfen | `bun scripts/game-voices/verify.mjs --loudness` |
+
+- **Tavi** (alle Ansagen, Namen, Zahlen, Orte, Flüstern, Macken) spricht mit der Audio-Doku-Stimme (`8tJgFGd1nr7H5KLTvjjt`, wie `FIXED_SPEAKER_VOICES` im Backend). Flüster-Clips bekommen `[whispers]`.
+- **Figuren**: 89 Figuren auf 48 Stimmen des ElevenLabs-Kontos verteilt (`casting.mjs`), höchstens zwei Figuren pro Stimme, die sich in Alter, Tempo und Typ unterscheiden; dazu kommen pro Figur Charakter-Tags (zum Beispiel `[cackling, theatrical, giggly]`) und ein typisches Geräusch (`[giggles]`, `[grunts]`, …). Je Zeilenart eigene Stimmung: Vorstellung, Schwur (stmt), empört (deny), kleinlaut mit Seufzer (confess), selbstzufrieden (smug).
+- Modell `eleven_v4`, Fallback `eleven_v3`. Schlüssel: Umgebung `ELEVENLABS_API_KEY`, sonst `.env.local`, sonst zur Laufzeit aus den Railway-Variablen (`railway variables --kv`); er wird nie ausgegeben oder gespeichert.
+- Nachbearbeitung mit ffmpeg: Stille vorn/hinten abgeschnitten, −19 LUFS für Sprache, −23 für Geräusche, −34 für Ambiente, Spitzen ≤ −2 dBFS, Mono, 64 kbit/s.
+- Im Spiel (`alibi/audio.ts`): Clips werden drei Schritte vorab geladen (keine Lücken), Geräusche vorab gecacht, Ambiente-Schleife je Akt (Abend, Mitternacht, Morgengrauen) leise im Hintergrund, mit Ein-/Ausblendung, pausiert im Hintergrund-Tab und beim Stummschalten.
 
 ## Tests (2026-10-03)
 

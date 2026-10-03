@@ -1,0 +1,1697 @@
+[
+ {
+  "voice_id": "HNYELfQMgCeL9N0RGyxo",
+  "name": "Lennard - Warm & Trustworthy",
+  "category": "professional",
+  "description": "A warm, grounded male voice with natural authority and effortless clarity. Blends calm confidence with the approachable warmth of a trusted advisor. Defined by precise articulation, a relaxed mid-range baritone, and a steady presence that keeps listeners engaged. Ideal for explainer videos, e-learning, startup demos, documentaries, and podcast narration. Shifts effortlessly between focused, informative delivery and a conversational, friendly tone.\n",
+  "labels": {
+   "gender": "male",
+   "use_case": "informative_educational",
+   "age": "middle_aged",
+   "descriptive": "pleasant",
+   "language": "de",
+   "accent": "standard"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de",
+   "el",
+   "el",
+   "el",
+   "hu",
+   "fr",
+   "fr",
+   "hi",
+   "hi",
+   "hi",
+   "cs",
+   "cs",
+   "no",
+   "no",
+   "no",
+   "vi",
+   "vi",
+   "pl",
+   "pl",
+   "pl",
+   "ro",
+   "ro",
+   "ro",
+   "ru",
+   "ms",
+   "ms",
+   "ms",
+   "uk",
+   "tr",
+   "tr",
+   "tr",
+   "ar",
+   "ar",
+   "ar",
+   "ko",
+   "ko",
+   "it",
+   "it",
+   "it",
+   "es",
+   "es",
+   "es",
+   "nl",
+   "en",
+   "en",
+   "en",
+   "de",
+   "de",
+   "de",
+   "pt",
+   "pt"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/HNYELfQMgCeL9N0RGyxo/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJjdXN0b20iLCJ3b3Jrc3BhY2VfaWQiOiI1OTk2YWQ1NTIxYjA0YzQzYTM5ZjVmYWMzMGU1YWQzNSIsImZpbGVuYW1lIjoieG5oZER0d0J4aUpEaGNjVXdZd0IubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "aHb0rsWUX1Fsr1L8EX7f",
+  "name": "Wally - The Lovable Daydreamer",
+  "category": "professional",
+  "description": "A warm, round, and lively character voice with a soft nasal tone, expressive pacing, and gentle comic timing. Lovable, naive, good-natured, and a little clumsy, with a cozy, mildly grumbling charm. Ideal for video games, animation, NPCs, sidekicks, cartoon characters, comedy, dialogue, and storytelling. Voiced by Christian Plasa.",
+  "labels": {
+   "gender": "male",
+   "use_case": "characters_animation",
+   "descriptive": "excited",
+   "age": "young",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/workspace/d467b4066e25468eb9ca59ef3a82b963/voices/aHb0rsWUX1Fsr1L8EX7f/43zKBbujNex9wwgTdlLe.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_multilingual_v2",
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "vTJTqNHBdjAKhdigDXCC",
+  "name": "Lolo – Laughing Out Loud",
+  "category": "professional",
+  "description": "Use periods .... to prompt the laughter. A joyful cartoon character voice full of giggles, chuckles and playful laughter. Bursting with energy and constant amusement, bringing fun to animated characters and comedy scenes. Perfect for chipmunks, cheeky monkeys, curious squirrels, playful kittens, tiny puppies, cute bunnies, silly sidekicks or NPC / non-player characters in games. Great for real-time gaming, animation and API integration. Love this voice? Find more character voices by Alex Vox.",
+  "labels": {
+   "gender": "neutral",
+   "use_case": "characters_animation",
+   "descriptive": "cute",
+   "age": "young",
+   "language": "de",
+   "accent": "standard"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/workspace/b28cc4a9d0384cf9857840644b429281/voices/vTJTqNHBdjAKhdigDXCC/1NhFpNVZuj37r4Fv31fw.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_multilingual_v2",
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "Nggzl2QAXh3OijoXD116",
+  "name": "Candy - Girly and Sweet",
+  "category": "professional",
+  "description": "Youthful, cute, sassy, energetic, bubbly, expressive, high pitched, excited, happy, sparkly, giggly, whimsical, bright, cheerful, playful, cartoony, fun, lighthearted, kawaii, magical voice. It is perfect for animation, mascots, little animals, girly vibes, characters, and upbeat storytelling.",
+  "labels": {
+   "gender": "female",
+   "use_case": "characters_animation",
+   "age": "young",
+   "descriptive": "cute",
+   "accent": "american",
+   "language": "en"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/Nggzl2QAXh3OijoXD116/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJjdXN0b20iLCJ3b3Jrc3BhY2VfaWQiOiI0YjhlNjQ0NWVmMzE0OTIwOWMwZGQ1MDgwYzdkNGE1NSIsImZpbGVuYW1lIjoiQ3NEajFYZGJOMDd3R1A3RVo3REQubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "7Nj1UduP6iY6hWpEDibS",
+  "name": "Bibi Blume",
+  "category": "professional",
+  "description": "Bibi Blume - Childishly cheeky, warm-hearted, and witty. A lively cartoon voice, character voice for fantasy, radio plays, games, and kids' content.",
+  "labels": {
+   "gender": "neutral",
+   "use_case": "characters_animation",
+   "age": "young",
+   "language": "de",
+   "accent": "standard"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/3lo08Nk2jePsNGtAAbaA5NbrnXn1/voices/7Nj1UduP6iY6hWpEDibS/BTEk1CcDjCGsGGJBSN65.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "8tJgFGd1nr7H5KLTvjjt",
+  "name": "Captain Comedy - Absurd Animated",
+  "category": "professional",
+  "description": "A vibrant and wonderfully unhinged comic voice with the absurd charm of Monty Python and the quick wit of a slightly mad professor. Shifts between polite chaos, sharp humor and playful theatricality while staying clear and expressive. Perfect for cartoons, parody trailers, sketches and humorous storytelling. Works very well in German, English and many other languages, making him an international comic character. Enjoyed this voice? Try other character voices by Alex Vox.\n\n\n",
+  "labels": {
+   "gender": "neutral",
+   "use_case": "characters_animation",
+   "age": "middle_aged",
+   "descriptive": "hyped",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/workspace/906769ced56041d29cb30238e36a5dd1/voices/8tJgFGd1nr7H5KLTvjjt/IsUZiEM8ekOgQ3tkl6LN.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "A1lqj3MviLVQascrd2Wd",
+  "name": "Gaming - Black Mensa Transit",
+  "category": "professional",
+  "description": "Gaming - Black Mensa Transit - The \"Black Mensa\" voice is a precise recreation originally voiced by Christian Plasa in the German synchronization. Created by Christian, this voice captures a calm, precise, and slightly mechanical tone, ideal for futuristic or research-oriented settings. Its neutral yet engaging delivery makes it perfect for professional and immersive content requiring a high-tech, atmospheric feel.",
+  "labels": {
+   "gender": "male",
+   "use_case": "characters_animation",
+   "age": "middle_aged",
+   "descriptive": "robotic",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de",
+   "ru",
+   "uk",
+   "ta",
+   "es"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/A1lqj3MviLVQascrd2Wd/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJjdXN0b20iLCJ3b3Jrc3BhY2VfaWQiOiIzZDU4YzA1MTIyNzY0ZjkwYWIzM2U3NmI4NzQ5NTQ1ZSIsImZpbGVuYW1lIjoiaXU5ZE1qT3duN2VpOXBpbTVpdEUubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_sts_v2",
+   "eleven_turbo_v2_5"
+  ]
+ },
+ {
+  "voice_id": "CVcPLXStXPeDxhrSflDZ",
+  "name": "Jantosch – Inspiring Live Voice",
+  "category": "professional",
+  "description": "Jantosch – Inspiring Live Voice - An experienced and charismatic German live speaker with a rich, vibrant voice, combining energetic presence with a tactful and sincere delivery. He connects authentically with audiences across live events, conferences, and business forums.",
+  "labels": {
+   "gender": "male",
+   "use_case": "characters_animation",
+   "age": "middle_aged",
+   "descriptive": "professional",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de",
+   "hu",
+   "de",
+   "uk",
+   "ro",
+   "nl",
+   "hr",
+   "el",
+   "sk",
+   "sv",
+   "en",
+   "it",
+   "da"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/CVcPLXStXPeDxhrSflDZ/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJjdXN0b20iLCJ3b3Jrc3BhY2VfaWQiOiJiNjZlZWQ5NWRjZTU0N2NhOTdmZmQ5ZGNhYjQ1ZmZiYiIsImZpbGVuYW1lIjoiV0FncGZxanBrZnkwQnR3VXNNZHkubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "DDpANZ8PLYsm2RvgHVlV",
+  "name": "Dobby",
+  "category": "professional",
+  "description": "Dobby - Hi, I’m Dobby – a cheeky little elf with a big voice for ads, podcasts, and anything that needs to stand out.",
+  "labels": {
+   "gender": "neutral",
+   "use_case": "characters_animation",
+   "age": "middle_aged",
+   "descriptive": "cute",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/workspace/c459639d669f4967b47a724b6e974d71/voices/DDpANZ8PLYsm2RvgHVlV/0835472b-e0a4-427f-a490-1e5bd84fa416.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "DsJNFaZXbVnwO9Nycgo3",
+  "name": "Barnaby Bunny  - Funny Easter Character",
+  "category": "professional",
+  "description": "Easter Bunny Barnaby is a fresh, funny, and high-fidelity voice, designed for modern animation, a festive seasonal campaign, or a permanent video game character. Breaking away from the shy bunny trope, Barnaby offers a witty and 'cool' persona, perfect for dynamic protagonists or cheeky sidekicks in your video game or Ads. A unique blend of authority and playfulness. Perfect as Animated Hero, Cheeky Animal, Unique Ad-Voice, Fast-Talking, Witty Protagonist, Easterbunny, and German Character Voice",
+  "labels": {
+   "gender": "male",
+   "use_case": "characters_animation",
+   "age": "young",
+   "descriptive": "sassy",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/workspace/510b0f5851f547e6b6488a71339e6e75/voices/DsJNFaZXbVnwO9Nycgo3/BcvDSfTcr5QySruCUF4m.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_multilingual_v2",
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "E0OS48T5F0KU7O2NInWS",
+  "name": "Lucy Fennek - Audiobook & Calm Narration",
+  "category": "professional",
+  "description": "Lucy Fennek - Audiobook & Calm Narration - Professional Young German Female Narration - This voice, perfectly suited for youth fantasy audiobooks, instantly immerses her listeners into the stories she tells. With calm pacing, yet thrilling subtleness, she creates a packing atmosphere which invigorates your fantasy. ",
+  "labels": {
+   "gender": "female",
+   "use_case": "narrative_story",
+   "age": "young",
+   "descriptive": "soft",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de",
+   "fil",
+   "hu",
+   "tr",
+   "ko",
+   "hr",
+   "ro",
+   "nl",
+   "el",
+   "sv",
+   "fr",
+   "en",
+   "pl",
+   "sk",
+   "ta",
+   "es",
+   "da"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/lMUgP6fKQ5Yf9wu5iDkDJIUwGsV2/voices/E0OS48T5F0KU7O2NInWS/ghPcOb3lqlusQBrRo67n.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "FTNCalFNG5bRnkkaP5Ug",
+  "name": "Otto",
+  "category": "professional",
+  "description": "Otto - A calm male German studio-quality voice. Perfect for German language and English with a German accent. Otto's clear, easy-to-understand narration is excellent for German voiceovers, audiobooks and podcasts, accurate video dubbing, advertising, and social media such as Reels, Stories, and YouTube. ",
+  "labels": {
+   "gender": "male",
+   "use_case": "narrative_story",
+   "age": "middle_aged",
+   "descriptive": "calm",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "hi",
+   "pl",
+   "es",
+   "fr",
+   "id",
+   "uk",
+   "hu",
+   "tr",
+   "ro",
+   "nl",
+   "pt",
+   "cs",
+   "en",
+   "sk",
+   "el",
+   "ta",
+   "fr",
+   "sv",
+   "no"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/custom/voices/FTNCalFNG5bRnkkaP5Ug/MQ8WiEa4ozV4HevPeMba.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_sts_v2",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "R3XXDwKMU2YHwBcuYUH3",
+  "name": "Opa Johann – calm & wise",
+  "category": "professional",
+  "description": "Kind, calm and old male storyteller voice. Warm, gentle, loving, heartfelt, comforting grandpa narrator with cozy, intimate tone. Also good as Santa Claus or Weihnachtsmann. Perfect for audiobooks, storytelling, bedtime stories, documentaries, commercials, RPG & games, NPC dialogue, YouTube, voiceovers, apps, API integration. Ideal for senior characters, immersive & relaxed, conveying authenticity, wisdom, warmth & thoughtful depth. This is one of several character voices by Alex Vox.",
+  "labels": {
+   "gender": "male",
+   "use_case": "narrative_story",
+   "age": "old",
+   "descriptive": "calm",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/R3XXDwKMU2YHwBcuYUH3/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJjdXN0b20iLCJ3b3Jrc3BhY2VfaWQiOiJiMjhjYzRhOWQwMzg0Y2Y5ODU3ODQwNjQ0YjQyOTI4MSIsImZpbGVuYW1lIjoiTUF3R09EbTBBVWxYTEh0SWFwVVoubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "VD1if7jDVYtAKs4P0FIY",
+  "name": "Milly Maple ",
+  "category": "professional",
+  "description": "Milly Maple  - Meet Milly Maple — a bright, cheerful little adventurer bursting with curiosity and wonder. Her voice is light, energetic, and full of heart. She’s the kind of character who sees magic in raindrops, sings to butterflies, and always has one paw in her backpack, ready for the next adventure.\n\nPerfect for children’s stories, playful narration, animated characters, educational games, and anything that needs a dose of charm, positivity, and imagination. But Milly can be sad too! ",
+  "labels": {
+   "gender": "female",
+   "use_case": "characters_animation",
+   "age": "young",
+   "descriptive": "excited",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de",
+   "de",
+   "it",
+   "en",
+   "cs",
+   "pl",
+   "pt",
+   "es",
+   "de",
+   "hi",
+   "de",
+   "tr",
+   "ru",
+   "ko",
+   "sk",
+   "ro",
+   "el",
+   "nl",
+   "sv",
+   "en",
+   "it",
+   "da"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/VD1if7jDVYtAKs4P0FIY/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJjdXN0b20iLCJ3b3Jrc3BhY2VfaWQiOiI0ODhmN2I1YTY4ODI0ZTkxYjM3YTVmNzY2ZWFlMGI4YyIsImZpbGVuYW1lIjoidXY0eWFhd3pqM05hU1dLUGt1bXgubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2",
+   "eleven_v4"
+  ]
+ },
+ {
+  "voice_id": "VNHNa6nN6yJdVF3YRyuF",
+  "name": " Oma Hilde - Es war einmal...",
+  "category": "professional",
+  "description": " Oma Hilde - Once upon a time... - The voice of a wise German Märchenerzählerin (tale-weaver) who has lived a thousand stories. Hilde´s senior, beguiling warmth creates instant trust and nostalgia. She's your guide through enchanted forests and forgotten memories—perfect for audiobooks, cultural content, or anything requiring authentic Germanic grace with a grandmother's loving touch.\n",
+  "labels": {
+   "gender": "female",
+   "use_case": "narrative_story",
+   "age": "old",
+   "descriptive": "wise",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/VNHNa6nN6yJdVF3YRyuF/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJjdXN0b20iLCJ3b3Jrc3BhY2VfaWQiOiI2MzFiZjVhMjBjMmQ0NWZmYWNjMTMxMWViNWRlYzQxZiIsImZpbGVuYW1lIjoibGNoUjFUemc1Y0dQQXRaOVFjenIubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "cqPdIo76zSHFDcSZpFov",
+  "name": "Sabrina – Authentic, Expressive, Engaging",
+  "category": "professional",
+  "description": "Sabrina – Authentic, Expressive & Engaging - Sabrina is a warm and expressive voice that brings your message to life. With a calm, articulate tone and subtle emotional depth, she creates an instant connection with listeners. Perfect for social media, audiobooks, podcasts, narration and storytelling, this voice delivers with clarity, empathy and elegance. A trusted choice for anyone looking to inform, inspire or move their audience. Also ideal for call agents, advertising and e-learning scenarios.",
+  "labels": {
+   "gender": "female",
+   "use_case": "narrative_story",
+   "age": "middle_aged",
+   "descriptive": "pleasant",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/workspace/41cf21e3bb7842a7b146dc8c69543837/voices/cqPdIo76zSHFDcSZpFov/lSBmGUQfhjRp9xPgd4OF.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "dCnu06FiOZma2KVNUoPZ",
+  "name": "Mila Winter – Narration (expressive & assured / ausdrucksstark & selbstsicher)",
+  "category": "professional",
+  "description": "Mila - Female, 20s - 30s, opinionated and confident, yet soft and empathetic, with a relaxed creak at times. Native German.",
+  "labels": {
+   "gender": "female",
+   "use_case": "narrative_story",
+   "age": "young",
+   "descriptive": "confident",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "en",
+   "es",
+   "tr",
+   "hu",
+   "ro",
+   "ru",
+   "nl",
+   "zh",
+   "pt",
+   "ko",
+   "cs",
+   "en",
+   "hr",
+   "ta",
+   "sv"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/dCnu06FiOZma2KVNUoPZ/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJjdXN0b20iLCJ1c2VyX2lkIjoiTzd5OWZPbG1iWVQ5cVFLV2h5SUFPUzNnZWxSMiIsImZpbGVuYW1lIjoiZDhsaW1rTkVMRnRzWVZLRHVnaUYubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_sts_v2",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "dFA3XRddYScy6ylAYTIO",
+  "name": "Helmut - Märchen und Kinderbuch / German Fairytale & Kids Books ",
+  "category": "professional",
+  "description": "Helmut - Fairy Tales & Children's Books - A warm and gentle fairytale narrator—soothing, magical, and perfect for bedtime stories, children’s audiobooks, and fantasy storytelling.",
+  "labels": {
+   "gender": "male",
+   "use_case": "narrative_story",
+   "age": "middle_aged",
+   "descriptive": "calm",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/9hn4cZM0YgOy7lUlOizJ2kifpRu1/voices/dFA3XRddYScy6ylAYTIO/eIP2eCKRKccbEbmE0YPq.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "dfZGXKiIzjizWtJ0NgPy",
+  "name": "Michael Mouse - High Energy Comic Character",
+  "category": "professional",
+  "description": "Michael Mouse - High Energy Comic Character - A male American comic and cartoon character. Voice was trained, reading modern and antique comic literature, emulating famous characters. Perfect for funny, hilarious and silly dialogues. ",
+  "labels": {
+   "gender": "male",
+   "use_case": "characters_animation",
+   "age": "young",
+   "descriptive": "hyped",
+   "accent": "american",
+   "language": "en"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "hi",
+   "de",
+   "es",
+   "it",
+   "el",
+   "bg",
+   "hr",
+   "ar",
+   "da",
+   "ro",
+   "cs",
+   "uk",
+   "sk",
+   "el",
+   "ta",
+   "fr",
+   "sv",
+   "ja",
+   "it",
+   "es",
+   "no"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/custom/voices/dfZGXKiIzjizWtJ0NgPy/TIEhGKc6QwZCPWn1IuBX.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "p2Wol3C7j3rHbfOrbL18",
+  "name": "Oma's Nähkästchen – Kitchen Stories & Anecdotes",
+  "category": "professional",
+  "description": "Oma's Nähkästchen – Kitchen Stories & Anecdotes - A warm, lively voice full of character and life experience. From heartfelt memories to mischievous anecdotes, this grandmotherly voice tells real stories with laughter, warmth, and resilience. Perfect for nostalgic narration, intimate storytelling, or any project that calls for authenticity and a touch of old-world wit. Subtle chair creaks, soft mouth sounds, and natural room tone were intentionally preserved to maintain the intimate charm of true kitchen storytelling.",
+  "labels": {
+   "gender": "female",
+   "use_case": "narrative_story",
+   "age": "old",
+   "descriptive": "gentle",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de",
+   "tr",
+   "ko",
+   "uk"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/p2Wol3C7j3rHbfOrbL18/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJjdXN0b20iLCJ3b3Jrc3BhY2VfaWQiOiJiNjZlZWQ5NWRjZTU0N2NhOTdmZmQ5ZGNhYjQ1ZmZiYiIsImZpbGVuYW1lIjoiNklpOHd3UnZuMzJ6UmR3NWhLZWkubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "pfvZahoGcT3NdpxRuNkg",
+  "name": "Bruno, der Bär – loving and cozy",
+  "category": "professional",
+  "description": "Warm-hearted, large & strong character voice for storytelling, children’s content & emotional brand communication. Perfect as a Non-Playable Character (NPC) with real-time game API integration. Deep, textured, trustworthy tone ideal for animations, interactive apps, educational tools, immersive worlds, character-driven campaigns, mascot development & narrative experiences across global entertainment & advertising platforms. Love this voice? Search for „Alex Vox“ and find more character voices.",
+  "labels": {
+   "gender": "male",
+   "use_case": "characters_animation",
+   "age": "old",
+   "descriptive": "calm",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/pfvZahoGcT3NdpxRuNkg/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJjdXN0b20iLCJ3b3Jrc3BhY2VfaWQiOiJiMjhjYzRhOWQwMzg0Y2Y5ODU3ODQwNjQ0YjQyOTI4MSIsImZpbGVuYW1lIjoianhHdWRnQlFRd3FpcUJ2TGwwNEoubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "q6mfXZhCPNqTDA4sX437",
+  "name": "Mrs. Brülli – Character Voice for Animation & Storytelling",
+  "category": "professional",
+  "description": "Mrs. Brülli – Animation & Storytelling - A whimsical, high-pitched character voice with a bubbly personality and boundless energy. Ideal for animation, children's audiobooks, talking toys, mobile games, and cartoon-style narration. Whether it's a cheerful sidekick, a curious creature, or a mischievous magical being – Mrs. Brülli brings vibrant life to any character-driven performance. Voiced by S. Plasa",
+  "labels": {
+   "gender": "female",
+   "use_case": "characters_animation",
+   "age": "middle_aged",
+   "descriptive": "cute",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/Ohb6qV808yNnmWgAlgDQsz7KxKH3/voices/q6mfXZhCPNqTDA4sX437/omLNwZDqeVIJBZsWTQwE.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_multilingual_v2",
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "qAVuy3NdMTW0CZ8uA7M9",
+  "name": "Julia",
+  "category": "professional",
+  "description": "Julia - A young adult German female storyteller who loves telling stories to little children. ",
+  "labels": {
+   "gender": "female",
+   "use_case": "narrative_story",
+   "age": "young",
+   "descriptive": "pleasant",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/workspace/e2f30b97a1054e3da83a771cef30028b/voices/qAVuy3NdMTW0CZ8uA7M9/r3PjmoefzEiPA9YLM6zx.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_multilingual_v2",
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "re2r5d74PqDzicySNW0I",
+  "name": "Leon Stern - Fiction & Fantasy (Abenteuerromane)",
+  "category": "professional",
+  "description": "Leon Stern - Fiction & Fantasy  - A rich, deep voice for fantasy and epic adventure novels that captivates listeners until the very last second.",
+  "labels": {
+   "gender": "male",
+   "use_case": "narrative_story",
+   "age": "middle_aged",
+   "descriptive": "modulated",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de",
+   "pt",
+   "cs",
+   "es",
+   "it",
+   "hi",
+   "ru",
+   "el",
+   "fil",
+   "tr",
+   "hu",
+   "ro",
+   "ko",
+   "pt",
+   "el",
+   "ta",
+   "sv",
+   "hr",
+   "it",
+   "es",
+   "no"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/custom/voices/re2r5d74PqDzicySNW0I/iNJX2tky9IQZwwbPK4hC.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_sts_v2",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "wloRHjPaKZv3ucH7TQOT",
+  "name": "Jorin Weidenstein - Fairy Tale Uncle",
+  "category": "professional",
+  "description": "Jorin brings stories to life, weaving gentle adventures, timeless wisdom and magical moments into every fairy tale and folktale. Warm and captivating storyteller uncle, perfect for Märchen for young and old. Ideal for children’s stories, bedtime stories, audiobooks, and narrative projects. Ready for international productions, he creates cozy, unforgettable experiences that spark imagination, wonder, and comfort. Loved this voice? Discover more professional voices by Robert Ranger.",
+  "labels": {
+   "gender": "male",
+   "use_case": "narrative_story",
+   "age": "middle_aged",
+   "descriptive": "pleasant",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/workspace/906769ced56041d29cb30238e36a5dd1/voices/wloRHjPaKZv3ucH7TQOT/hV5Va7fkpvRSLwLW973t.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "xLCJR8xcZX2YjImGFyGw",
+  "name": "Skittle Bee - Fresh and Interested",
+  "category": "professional",
+  "description": "Character voice for anime, games, dramas and plays. Fresh, interested, curious, but at the same time cautious, sometimes sad or anxious.",
+  "labels": {
+   "gender": "female",
+   "use_case": "characters_animation",
+   "age": "young",
+   "descriptive": "anxious",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/user_8101kd0xgy2efvpr17qmrjsbp1ws/voices/xLCJR8xcZX2YjImGFyGw/BaUPDEz0RWxqYQuYTzvn.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_multilingual_v2",
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "zndmYEEoWWxRYyEL2ZZY",
+  "name": "Lumi – Playful Cartoon Character Voice",
+  "category": "professional",
+  "description": "Lumi – Playful Cartoon Character Voice - Lumi sparkles with playful energy — bright, curious, and delightfully mischievous. Her voice has that soft, bouncy charm you expect from animated characters: cute, expressive, and full of personality. Perfect for cartoons, character-driven games, kids’ content, storytelling, learning apps, and any scene that needs a lively, adorable boost. Studio recording by Christian Plasa.",
+  "labels": {
+   "gender": "female",
+   "use_case": "characters_animation",
+   "age": "young",
+   "descriptive": "cute",
+   "accent": "standard",
+   "language": "de"
+  },
+  "verified_languages": [
+   "de",
+   "de",
+   "de",
+   "de",
+   "de"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/VxdFSFnnZuYqGRy3FE7MD5gtkdN2/voices/zndmYEEoWWxRYyEL2ZZY/fGpCXnWR2zZ30cZApiAS.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_multilingual_v2",
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_multilingual_sts_v2"
+  ]
+ },
+ {
+  "voice_id": "TmOgotzOZDmhlttFp4Lu",
+  "name": "Jonny",
+  "category": "generated",
+  "description": "A young German school boy, with a clear, enthusiastic tone.\nHigh energy, playful curiosity, and quick reactions. Make the questions pop—like you can’t wait for the answer. Use a cheerful tone, slightly faster pace, and animated emphasis. Keep it wholesome and friendly, with a sense of “Whoa, that’s awesome!”\n",
+  "labels": {
+   "language": "de",
+   "accent": "de-standard"
+  },
+  "verified_languages": [],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/database/workspace/3a3e34f205ed43da9414004a1a7c104a/voices/TmOgotzOZDmhlttFp4Lu/937d4878-d2a9-4c0d-bb6c-656ef658fe7a.mp3",
+  "high_quality_base_model_ids": []
+ },
+ {
+  "voice_id": "hpp4J3VqNfWAUOO0d1Us",
+  "name": "Bella - Professional, Bright, Warm",
+  "category": "premade",
+  "description": "This voice is warm, bright, and professional, characterized by a Standard American accent and a polished, narrative quality. It features a medium-high pitch with crisp diction and a deliberate, rhythmic pace that makes it highly intelligible and engaging for long-form listening.",
+  "labels": {
+   "use_case": "informative_educational",
+   "accent": "american",
+   "gender": "female",
+   "descriptive": "professional",
+   "language": "en",
+   "age": "middle_aged"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/hpp4J3VqNfWAUOO0d1Us/dab0f5ba-3aa4-48a8-9fad-f138fea1126d.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2_5",
+   "eleven_flash_v2_5",
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_multilingual_v2"
+  ]
+ },
+ {
+  "voice_id": "CwhRBWXzGAHq8TQ4Fs17",
+  "name": "Roger - Laid-Back, Casual, Resonant",
+  "category": "premade",
+  "description": "Easy going and perfect for casual conversations.",
+  "labels": {
+   "use_case": "conversational",
+   "accent": "american",
+   "gender": "male",
+   "descriptive": "classy",
+   "language": "en",
+   "age": "middle_aged"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "fr",
+   "de",
+   "nl",
+   "es"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/CwhRBWXzGAHq8TQ4Fs17/58ee3ff5-f6f2-4628-93b8-e38eb31806b0.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "EXAVITQu4vr4xnSDxMaL",
+  "name": "Sarah - Mature, Reassuring, Confident",
+  "category": "premade",
+  "description": "Young adult woman with a confident and warm, mature quality and a reassuring, professional tone.",
+  "labels": {
+   "use_case": "entertainment_tv",
+   "accent": "american",
+   "gender": "female",
+   "descriptive": "professional",
+   "language": "en",
+   "age": "young"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "fr",
+   "ar",
+   "zh",
+   "es",
+   "hi"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/EXAVITQu4vr4xnSDxMaL/01a3e33c-6e99-4ee7-8543-ff2216a32186.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_multilingual_v2",
+   "eleven_turbo_v2_5"
+  ]
+ },
+ {
+  "voice_id": "FGY2WhTYpPnrIDTdsKH5",
+  "name": "Laura - Enthusiast, Quirky Attitude",
+  "category": "premade",
+  "description": "This young adult female voice delivers sunny enthusiasm with a quirky attitude.",
+  "labels": {
+   "use_case": "social_media",
+   "accent": "american",
+   "gender": "female",
+   "descriptive": "sassy",
+   "language": "en",
+   "age": "young"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "fr",
+   "ar",
+   "zh",
+   "de"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/FGY2WhTYpPnrIDTdsKH5/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJwcmVtYWRlIiwiZmlsZW5hbWUiOiI2NzM0MTc1OS1hZDA4LTQxYTUtYmU2ZS1kZTEyZmU0NDg2MTgubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "IKne3meq5aSn9XLyUdCD",
+  "name": "Charlie - Deep, Confident, Energetic",
+  "category": "premade",
+  "description": "A young Australian male with a confident and energetic voice.",
+  "labels": {
+   "use_case": "conversational",
+   "accent": "australian",
+   "gender": "male",
+   "descriptive": "hyped",
+   "language": "en",
+   "age": "young"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "zh",
+   "pt",
+   "fil",
+   "es"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/IKne3meq5aSn9XLyUdCD/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJwcmVtYWRlIiwiZmlsZW5hbWUiOiIxMDJkZTZmMi0yMmVkLTQzZTAtYTFmMS0xMTFmYTc1YzU0ODEubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_v1",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "JBFqnCBsd6RMkjVDRZzb",
+  "name": "George - Warm, Captivating Storyteller",
+  "category": "premade",
+  "description": "Warm resonance that instantly captivates listeners.",
+  "labels": {
+   "use_case": "narrative_story",
+   "accent": "british",
+   "gender": "male",
+   "descriptive": "mature",
+   "language": "en",
+   "age": "middle_aged"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "fr",
+   "ar",
+   "ja",
+   "cs",
+   "fil",
+   "es",
+   "hi"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/JBFqnCBsd6RMkjVDRZzb/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJwcmVtYWRlIiwiZmlsZW5hbWUiOiJlNjIwNmQxYS0wNzIxLTQ3ODctYWFmYi0wNmE2ZTcwNWNhYzUubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "N2lVS1w4EtoT3dr4eOWO",
+  "name": "Callum - Husky Trickster",
+  "category": "premade",
+  "description": "Deceptively gravelly, yet unsettling edge.",
+  "labels": {
+   "use_case": "characters_animation",
+   "gender": "male",
+   "accent": "american",
+   "language": "en",
+   "age": "middle_aged"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "fr",
+   "hi"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/N2lVS1w4EtoT3dr4eOWO/ac833bd8-ffda-4938-9ebc-b0f99ca25481.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_v1",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "SAz9YHcvj6GT2YYXdXww",
+  "name": "River - Relaxed, Neutral, Informative",
+  "category": "premade",
+  "description": "A relaxed, neutral voice ready for narrations or conversational projects.",
+  "labels": {
+   "use_case": "conversational",
+   "accent": "american",
+   "gender": "neutral",
+   "descriptive": "calm",
+   "language": "en",
+   "age": "middle_aged"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "it",
+   "fr",
+   "pt",
+   "zh"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/SAz9YHcvj6GT2YYXdXww/e6c95f0b-2227-491a-b3d7-2249240decb7.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_sts_v2",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "SOYHLrjzK2X1ezoPC6cr",
+  "name": "Harry - Fierce Warrior",
+  "category": "premade",
+  "description": "An animated warrior ready to charge forward.",
+  "labels": {
+   "use_case": "characters_animation",
+   "accent": "american",
+   "gender": "male",
+   "descriptive": "rough",
+   "language": "en",
+   "age": "young"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/SOYHLrjzK2X1ezoPC6cr/86d178f6-f4b6-4e0e-85be-3de19f490794.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_v1",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "TX3LPaxmHKxFdv7VOQHJ",
+  "name": "Liam - Energetic, Social Media Creator",
+  "category": "premade",
+  "description": "A young adult with energy and warmth - suitable for reels and shorts.",
+  "labels": {
+   "use_case": "social_media",
+   "accent": "american",
+   "gender": "male",
+   "descriptive": "confident",
+   "language": "en",
+   "age": "young"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "de",
+   "pt",
+   "cs",
+   "pl",
+   "tr",
+   "hi"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/TX3LPaxmHKxFdv7VOQHJ/63148076-6363-42db-aea8-31424308b92c.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_v1",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "Xb7hH8MSUJpSbSDYk0k2",
+  "name": "Alice - Clear, Engaging Educator",
+  "category": "premade",
+  "description": "Clear and engaging, friendly woman with a British accent suitable for e-learning.",
+  "labels": {
+   "use_case": "informative_educational",
+   "accent": "british",
+   "gender": "female",
+   "descriptive": "professional",
+   "language": "en",
+   "age": "middle_aged"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "it",
+   "fr",
+   "ar",
+   "ja",
+   "pl",
+   "hi"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/Xb7hH8MSUJpSbSDYk0k2/d10f7534-11f6-41fe-a012-2de1e482d336.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "XrExE9yKIg1WjnnlVkGX",
+  "name": "Matilda - Knowledgable, Professional",
+  "category": "premade",
+  "description": "A professional woman with a pleasing alto pitch. Suitable for many use cases.",
+  "labels": {
+   "use_case": "informative_educational",
+   "accent": "american",
+   "gender": "female",
+   "descriptive": "upbeat",
+   "language": "en",
+   "age": "middle_aged"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "it",
+   "fr",
+   "de",
+   "ar",
+   "es"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/XrExE9yKIg1WjnnlVkGX/b930e18d-6b4d-466e-bab2-0ae97c6d8535.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_v1",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "bIHbv24MWmeRgasZH58o",
+  "name": "Will - Relaxed Optimist",
+  "category": "premade",
+  "description": "Conversational and laid back.",
+  "labels": {
+   "use_case": "conversational",
+   "accent": "american",
+   "gender": "male",
+   "descriptive": "chill",
+   "language": "en",
+   "age": "young"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "fr",
+   "de",
+   "pt",
+   "zh",
+   "cs",
+   "fil",
+   "sk",
+   "es",
+   "sv"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/bIHbv24MWmeRgasZH58o/8caf8f3d-ad29-4980-af41-53f20c72d7a4.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "cgSgspJ2msm6clMCkdW9",
+  "name": "Jessica - Playful, Bright, Warm",
+  "category": "premade",
+  "description": "Young and popular, this playful American female voice is perfect for trendy content.",
+  "labels": {
+   "use_case": "conversational",
+   "accent": "american",
+   "gender": "female",
+   "descriptive": "cute",
+   "language": "en",
+   "age": "young"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "fr",
+   "ar",
+   "ja",
+   "zh",
+   "de",
+   "cs",
+   "hi"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/cgSgspJ2msm6clMCkdW9/56a97bf8-b69b-448f-846c-c3a11683d45a.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "cjVigY5qzO86Huf0OWal",
+  "name": "Eric - Smooth, Trustworthy",
+  "category": "premade",
+  "description": "A smooth tenor pitch from a man in his 40s - perfect for agentic use cases.",
+  "labels": {
+   "use_case": "conversational",
+   "accent": "american",
+   "gender": "male",
+   "descriptive": "classy",
+   "language": "en",
+   "age": "middle_aged"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "fr",
+   "pt",
+   "de",
+   "sk",
+   "es"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/cjVigY5qzO86Huf0OWal/d098fda0-6456-4030-b3d8-63aa048c9070.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "iP95p4xoKVk53GoZ742B",
+  "name": "Chris - Charming, Down-to-Earth",
+  "category": "premade",
+  "description": "Natural and real, this down-to-earth voice is great across many use-cases.",
+  "labels": {
+   "use_case": "conversational",
+   "accent": "american",
+   "gender": "male",
+   "descriptive": "casual",
+   "language": "en",
+   "age": "middle_aged"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "fr",
+   "ar",
+   "pt",
+   "sv",
+   "hi"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/iP95p4xoKVk53GoZ742B/3f4bde72-cc48-40dd-829f-57fbf906f4d7.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "nPczCjzI2devNBz1zQrb",
+  "name": "Brian - Deep, Resonant and Comforting",
+  "category": "premade",
+  "description": "Middle-aged man with a resonant and comforting tone. Great for narrations and advertisements.",
+  "labels": {
+   "use_case": "social_media",
+   "accent": "american",
+   "gender": "male",
+   "descriptive": "classy",
+   "language": "en",
+   "age": "middle_aged"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "ar",
+   "zh",
+   "pt",
+   "de",
+   "nl",
+   "sk",
+   "ro",
+   "hi"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/nPczCjzI2devNBz1zQrb/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJwcmVtYWRlIiwiZmlsZW5hbWUiOiIyZGQzZTcyYy00ZmQzLTQyZjEtOTNlYS1hYmM1ZDRlNWFhMWQubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "onwK4e9ZLuTAKqWW03F9",
+  "name": "Daniel - Steady Broadcaster",
+  "category": "premade",
+  "description": "A strong voice perfect for delivering a professional broadcast or news story.",
+  "labels": {
+   "use_case": "informative_educational",
+   "accent": "british",
+   "gender": "male",
+   "descriptive": "formal",
+   "language": "en",
+   "age": "middle_aged"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "de",
+   "tr"
+  ],
+  "preview_url": "https://api.us.elevenlabs.io/v1/voices/onwK4e9ZLuTAKqWW03F9/previews/audio?payload=eyJ2b2ljZV9zb3VyY2UiOiJwcmVtYWRlIiwiZmlsZW5hbWUiOiI3ZWVlMDIzNi0xYTcyLTRiODYtYjMwMy01ZGNhZGMwMDdiYTkubXAzIiwidGltZXN0YW1wIjoxNzkxMDI4ODAwMDAwMDAwfQ%3D%3D",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_multilingual_v1",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "pFZP5JQG7iQjIQuC4Bku",
+  "name": "Lily - Velvety Actress",
+  "category": "premade",
+  "description": "Velvety British female voice delivers news and narrations with warmth and clarity.",
+  "labels": {
+   "use_case": "informative_educational",
+   "accent": "british",
+   "gender": "female",
+   "descriptive": "confident",
+   "language": "en",
+   "age": "middle_aged"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "it",
+   "de",
+   "zh",
+   "cs",
+   "nl",
+   "pl"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/pFZP5JQG7iQjIQuC4Bku/89b68b35-b3dd-4348-a84a-a3c13a3c2b30.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ },
+ {
+  "voice_id": "pNInz6obpgDQGcFmaJgB",
+  "name": "Adam - Dominant, Firm",
+  "category": "premade",
+  "description": "A bright tenor pitch that immediately cuts through. The delivery is brash and openly confident, speaking with unwavering certainty and a slightly aggressive self-assurance.",
+  "labels": {
+   "use_case": "social_media",
+   "gender": "male",
+   "accent": "american",
+   "language": "en",
+   "age": "middle_aged"
+  },
+  "verified_languages": [],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/pNInz6obpgDQGcFmaJgB/d6905d7a-dd26-4187-bfff-1bd3a5ea7cac.mp3",
+  "high_quality_base_model_ids": []
+ },
+ {
+  "voice_id": "pqHfZKP75CvOlQylNhV4",
+  "name": "Bill - Wise, Mature, Balanced",
+  "category": "premade",
+  "description": "Friendly and comforting voice ready to narrate your stories.",
+  "labels": {
+   "use_case": "advertisement",
+   "accent": "american",
+   "gender": "male",
+   "descriptive": "crisp",
+   "language": "en",
+   "age": "old"
+  },
+  "verified_languages": [
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "en",
+   "fr",
+   "ar",
+   "zh",
+   "de",
+   "cs"
+  ],
+  "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/pqHfZKP75CvOlQylNhV4/d782b3ff-84ba-4029-848c-acf01285524d.mp3",
+  "high_quality_base_model_ids": [
+   "eleven_turbo_v2",
+   "eleven_flash_v2",
+   "eleven_turbo_v2_5",
+   "eleven_multilingual_v2",
+   "eleven_flash_v2_5"
+  ]
+ }
+]

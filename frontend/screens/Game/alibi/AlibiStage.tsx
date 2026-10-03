@@ -75,6 +75,7 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
     director.ctx();
     if (import.meta.env.DEV) (window as unknown as { __alibi?: AlibiController }).__alibi = ctrl;
     const onVis = () => {
+      director.pauseAmbience(document.hidden);
       if (document.hidden) {
         director.stop();
         ctrl.pauseTimer();
@@ -85,9 +86,15 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
       document.body.style.overflow = prev;
       document.removeEventListener("visibilitychange", onVis);
       director.stop();
+      director.ambience(null);
       ctrl.pauseTimer();
     };
   }, [ctrl]);
+
+  /* Hintergrundklang: Abend, Mitternacht, Morgengrauen passend zum Akt; in der Befragung bleibt es nachtstill. */
+  useEffect(() => {
+    director.ambience(s.phase === "act" ? (["evening", "midnight", "dawn"] as const)[Math.min(2, s.act)] : s.phase === "round" ? "midnight" : null);
+  }, [s.phase, s.act]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
