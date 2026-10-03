@@ -1,0 +1,209 @@
+/* Spiel-Seite (Mitternachts-Alibi und Quiz). Nur Effekte, die mit Tailwind nicht gut gehen. */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,800;9..144,900&display=swap");
+
+.game-display {
+  font-family: "Fraunces", "Cormorant Garamond", Georgia, serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- Bühne ---------- */
+.alibi-stage {
+  --gold-1: #f8dc8e;
+  --gold-2: #e9a93c;
+  --night: #0b0d1c;
+  --paper: #f3e6c8;
+  --paper-ink: #2c2117;
+  color: #f6efe0;
+  background: var(--night);
+  -webkit-tap-highlight-color: transparent;
+}
+.alibi-stage ::selection {
+  background: rgba(248, 220, 142, 0.35);
+}
+.alibi-scrim {
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(11, 13, 28, 0.15), rgba(11, 13, 28, 0.82) 70%),
+    linear-gradient(180deg, rgba(8, 10, 24, 0.55) 0%, rgba(8, 10, 24, 0.25) 35%, rgba(6, 7, 16, 0.92) 100%);
+}
+.alibi-stage.is-private .alibi-scrim {
+  background:
+    radial-gradient(90% 60% at 50% 20%, rgba(88, 54, 170, 0.35), transparent 70%),
+    linear-gradient(180deg, rgba(12, 6, 30, 0.88), rgba(6, 4, 16, 0.97));
+}
+
+/* Nebel: zwei weiche Schwaden, die langsam wandern */
+.alibi-fog {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 25% at 20% 70%, rgba(190, 200, 235, 0.10), transparent 70%),
+    radial-gradient(35% 22% at 80% 60%, rgba(200, 190, 230, 0.08), transparent 70%);
+  animation: alibi-fog 38s ease-in-out infinite alternate;
+  filter: blur(10px);
+}
+.alibi-fog.b {
+  animation-duration: 52s;
+  animation-direction: alternate-reverse;
+  opacity: 0.8;
+}
+@keyframes alibi-fog {
+  0% { transform: translate3d(-4%, 2%, 0) scale(1); }
+  100% { transform: translate3d(5%, -3%, 0) scale(1.08); }
+}
+
+/* Glühwürmchen */
+.alibi-firefly {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff6c2 0%, rgba(255, 214, 110, 0.85) 40%, transparent 72%);
+  box-shadow: 0 0 12px 3px rgba(255, 210, 110, 0.45);
+  pointer-events: none;
+  animation: alibi-float var(--dur, 9s) ease-in-out infinite, alibi-blink var(--blink, 3.4s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes alibi-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  25% { transform: translate3d(14px, -22px, 0); }
+  50% { transform: translate3d(-10px, -40px, 0); }
+  75% { transform: translate3d(-18px, -14px, 0); }
+}
+@keyframes alibi-blink {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 1; }
+}
+
+/* Glas-Elemente */
+.alibi-glass {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+}
+
+/* Papier (Akten, Karten) */
+.alibi-paper {
+  color: var(--paper-ink);
+  background:
+    radial-gradient(120% 90% at 20% 0%, rgba(255, 255, 255, 0.55), transparent 60%),
+    radial-gradient(100% 80% at 100% 100%, rgba(170, 130, 70, 0.18), transparent 60%),
+    linear-gradient(180deg, #f6ead0, #ead9b4);
+  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(120, 90, 40, 0.18), inset 0 0 40px rgba(150, 110, 50, 0.12);
+}
+.alibi-paper.red {
+  background:
+    radial-gradient(120% 90% at 20% 0%, rgba(255, 255, 255, 0.45), transparent 60%),
+    linear-gradient(180deg, #f6dcd2, #e8bdae);
+  box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.7), inset 0 0 0 2px rgba(192, 57, 43, 0.55);
+}
+
+/* Goldknopf: Glanz läuft regelmäßig darüber */
+.alibi-gold {
+  background: linear-gradient(180deg, #f8dc8e, #e9a93c);
+  color: #2b1c07;
+  box-shadow: 0 12px 30px -8px rgba(233, 169, 60, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(120, 70, 10, 0.25);
+  position: relative;
+  overflow: hidden;
+}
+.alibi-gold::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.55) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: alibi-shine 3.8s ease-in-out infinite;
+  pointer-events: none;
+}
+.alibi-gold:disabled::after {
+  display: none;
+}
+@keyframes alibi-shine {
+  0%, 60% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+
+/* Stempel */
+.alibi-stamp {
+  font-family: "Fraunces", Georgia, serif;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 4px solid currentColor;
+  border-radius: 10px;
+  padding: 0.25em 0.6em;
+  mix-blend-mode: normal;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+/* Glockenschlag-Wellen */
+.alibi-ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 2px solid rgba(248, 220, 142, 0.6);
+  animation: alibi-ripple 1.4s ease-out forwards;
+}
+@keyframes alibi-ripple {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Laborscan */
+.alibi-scan {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(120, 230, 210, 0.0) 40%, rgba(120, 230, 210, 0.35) 50%, rgba(120, 230, 210, 0) 60%, transparent 100%);
+  background-size: 100% 220%;
+  animation: alibi-scan 1.8s ease-in-out 2;
+  pointer-events: none;
+}
+@keyframes alibi-scan {
+  0% { background-position: 0 120%; }
+  100% { background-position: 0 -120%; }
+}
+
+/* Ken-Burns für Titelbilder */
+.game-kenburns {
+  animation: game-kenburns 24s ease-in-out infinite alternate;
+  transform-origin: 60% 40%;
+}
+@keyframes game-kenburns {
+  0% { transform: scale(1.04) translate3d(0, 0, 0); }
+  100% { transform: scale(1.14) translate3d(-2%, 1.5%, 0); }
+}
+
+/* Laufband mit Figuren */
+.game-marquee {
+  animation: game-marquee 46s linear infinite;
+}
+@keyframes game-marquee {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+/* Quiz */
+.quiz-burst {
+  position: absolute;
+  inset: -40%;
+  background: conic-gradient(from 0deg, rgba(255, 255, 255, 0.0), rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.0) 20%);
+  animation: quiz-spin 2.6s linear infinite;
+  pointer-events: none;
+}
+@keyframes quiz-spin {
+  to { transform: rotate(360deg); }
+}
+
+.alibi-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alibi-fog, .alibi-firefly, .alibi-gold::after, .game-kenburns, .game-marquee, .quiz-burst, .alibi-scan {
+    animation: none !important;
+  }
+}

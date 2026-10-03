@@ -52,10 +52,10 @@ function getRouteMeta(pathname: string): RouteMeta {
       },
     },
     {
-      match: (path) => path.startsWith("/quiz"),
+      match: (path) => path.startsWith("/quiz") || path.startsWith("/spiel"),
       meta: {
-        eyebrow: "Quiz Lab",
-        title: "Quiz",
+        eyebrow: "Spielezimmer",
+        title: "Spiel",
       },
     },
     {
@@ -109,6 +109,7 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
     location.pathname.startsWith("/story") ||
     location.pathname.startsWith("/doku") ||
     location.pathname.startsWith("/quiz") ||
+    location.pathname.startsWith("/spiel") ||
     location.pathname.startsWith("/community") ||
     location.pathname.startsWith("/map") ||
     location.pathname.startsWith("/settings") ||

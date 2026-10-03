@@ -52,7 +52,7 @@ const CreateAudioDokuScreen = React.lazy(() => import('./screens/Doku/CreateAudi
 const DokuReaderScreen = React.lazy(() => import('./screens/Doku/DokuReaderScreen'));
 const DokuScrollReaderScreen = React.lazy(() => import('./screens/Doku/DokuScrollReaderScreen'));
 const CinematicDokuViewer = React.lazy(() => import('./screens/Doku/CinematicDokuViewer'));
-const CommunityQuizScreen = React.lazy(() => import('./screens/Quiz/CommunityQuizScreen'));
+const GameHubScreen = React.lazy(() => import('./screens/Game/GameHubScreen'));
 const TaleaLearningPathMapView = React.lazy(() => import('./screens/Journey/TaleaLearningPathMapView'));
 const SettingsScreen = React.lazy(() => import('./screens/Settings/SettingsScreen'));
 const ParentalOnboardingScreen = React.lazy(() => import('./screens/Settings/ParentalOnboardingScreen'));
@@ -222,7 +222,8 @@ const RouterContent = () => {
                 <Route path="/logs" element={<AdminOnlyRoute><LogViewerScreen /></AdminOnlyRoute>} />
                 <Route path="/doku" element={<DokusScreen />} />
                 <Route path="/createaudiodoku" element={<AdminOnlyRoute><CreateAudioDokuScreen /></AdminOnlyRoute>} />
-                <Route path="/quiz" element={<CommunityQuizScreen />} />
+                <Route path="/spiel" element={<GameHubScreen />} />
+                <Route path="/quiz" element={<GameHubScreen />} />
                 <Route path="/characters" element={<AdminOnlyRoute><CharacterPoolScreen /></AdminOnlyRoute>} />
                 <Route path="/artifacts" element={<AdminOnlyRoute><ArtifactPoolScreen /></AdminOnlyRoute>} />
                 <Route path="/fairytales" element={<AdminOnlyRoute><FairyTalesScreen /></AdminOnlyRoute>} />

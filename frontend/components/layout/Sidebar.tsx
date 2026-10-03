@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import {
-  Brain,
   BookMarked,
   BookOpen,
   Bot,
   ChevronDown,
   Code,
   FlaskConical,
+  Gamepad2,
   Gem,
   Home,
   LogOut,
@@ -29,6 +29,10 @@ interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   /** Wizard-asset id within the "navTab" group; renders a Talea illustration instead of the icon. */
   imageId?: string;
+  /** Static illustration (public/) instead of a wizard asset. */
+  imageSrc?: string;
+  /** Further paths that count as this tab (e.g. /quiz for the game room). */
+  aliases?: string[];
   path: string;
   labelKey?: string;
   label?: string;
@@ -41,7 +45,7 @@ const PRIMARY_ITEMS: NavItem[] = [
   { icon: BookOpen, imageId: "stories", labelKey: "navigation.stories", path: "/stories" },
   { icon: User, imageId: "avatars", labelKey: "navigation.avatars", path: "/avatar" },
   { icon: FlaskConical, imageId: "dokus", label: "Dokus", path: "/doku" },
-  { icon: Brain, imageId: "quiz", label: "Quiz", path: "/quiz" },
+  { icon: Gamepad2, imageSrc: "/game/nav/spiel.webp", label: "Spiel", path: "/spiel", aliases: ["/quiz"] },
   {
     icon: Bot,
     imageId: "tavi",
@@ -98,10 +102,10 @@ const Sidebar: React.FC = () => {
 
   const labelOf = (item: NavItem) => item.label ?? (item.labelKey ? t(item.labelKey) : "");
 
-  const isActive = (path: string) => {
+  const isActive = (path: string, aliases: string[] = []) => {
     if (!path) return false;
     if (path === "/") return location.pathname === "/";
-    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+    return [path, ...aliases].some((p) => location.pathname === p || location.pathname.startsWith(`${p}/`));
   };
 
   const handleSignOut = async () => {
@@ -111,7 +115,7 @@ const Sidebar: React.FC = () => {
   const { assetUrl } = useWizardAssets();
 
   const renderNavItem = (item: NavItem) => {
-    const active = isActive(item.path);
+    const active = isActive(item.path, item.aliases);
     const Icon = item.icon;
 
     return (
@@ -134,9 +138,9 @@ const Sidebar: React.FC = () => {
             active ? "opacity-100" : "opacity-70 grayscale-[30%] group-hover:opacity-100 group-hover:grayscale-0"
           )}
         >
-          {item.imageId ? (
+          {item.imageId || item.imageSrc ? (
             <WizardImage
-              url={assetUrl("navTab", item.imageId)}
+              url={item.imageSrc ?? assetUrl("navTab", item.imageId as string)}
               fallback={<Icon className="h-[20px] w-[20px]" />}
               alt=""
               fallbackClassName="flex h-full w-full items-center justify-center"

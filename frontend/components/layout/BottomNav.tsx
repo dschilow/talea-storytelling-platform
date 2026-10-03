@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bot, BookOpen, Brain, FlaskConical, Home, User } from 'lucide-react';
+import { Bot, BookOpen, FlaskConical, Gamepad2, Home, User } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -11,7 +11,11 @@ import { useWizardAssets } from '@/hooks/useWizardAssets';
 interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   /** Wizard-asset id within the "navTab" group; renders a Talea illustration instead of the icon. */
-  imageId: string;
+  imageId?: string;
+  /** Static illustration (public/) instead of a wizard asset. */
+  imageSrc?: string;
+  /** Further paths that count as this tab (e.g. /quiz for the game room). */
+  aliases?: string[];
   path: string;
   labelKey?: string;
   label?: string;
@@ -22,7 +26,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: BookOpen, imageId: 'stories', labelKey: 'navigation.stories', path: '/stories' },
   { icon: User, imageId: 'avatars', labelKey: 'navigation.avatars', path: '/avatar' },
   { icon: FlaskConical, imageId: 'dokus', label: 'Dokus', path: '/doku' },
-  { icon: Brain, imageId: 'quiz', label: 'Quiz', path: '/quiz' },
+  { icon: Gamepad2, imageSrc: '/game/nav/spiel.webp', label: 'Spiel', path: '/spiel', aliases: ['/quiz'] },
 ];
 
 /**
@@ -38,8 +42,10 @@ const BottomNav: React.FC = () => {
   const reduceMotion = useReducedMotion();
   const { assetUrl } = useWizardAssets();
 
-  const isActive = (path: string) =>
-    path === '/' ? location.pathname === '/' : location.pathname === path || location.pathname.startsWith(`${path}/`);
+  const isActive = (path: string, aliases: string[] = []) =>
+    path === '/'
+      ? location.pathname === '/'
+      : [path, ...aliases].some((p) => location.pathname === p || location.pathname.startsWith(`${p}/`));
   const labelOf = (item: NavItem) => item.label ?? (item.labelKey ? t(item.labelKey) : '');
 
   return (
@@ -47,7 +53,7 @@ const BottomNav: React.FC = () => {
       <div className="pointer-events-auto flex items-center gap-1.5">
         <nav className="talea-glass flex h-[62px] min-w-0 flex-1 items-center rounded-full p-[3px]" aria-label="Hauptnavigation">
           {NAV_ITEMS.map((item) => {
-            const active = isActive(item.path);
+            const active = isActive(item.path, item.aliases);
             const Icon = item.icon;
             return (
               <button
@@ -72,7 +78,7 @@ const BottomNav: React.FC = () => {
                   )}
                 >
                   <WizardImage
-                    url={assetUrl('navTab', item.imageId)}
+                    url={item.imageSrc ?? assetUrl('navTab', item.imageId as string)}
                     fallback={<Icon className={cn('h-[22px] w-[22px]', active ? 'text-[var(--primary)]' : 'text-[var(--talea-text-secondary)]')} />}
                     alt=""
                     fallbackClassName="flex h-full w-full items-center justify-center"

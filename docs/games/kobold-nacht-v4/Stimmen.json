@@ -1,0 +1,1686 @@
+{
+  "tavi.accuse.1": {
+    "filename": "tavi.accuse.1.mp3",
+    "voice": "Tavi",
+    "text": "Die verdächtigte Person tritt vor. Steckt Kicher in dir?",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.accuse.2": {
+    "filename": "tavi.accuse.2.mp3",
+    "voice": "Tavi",
+    "text": "Trommelwirbel! Gleich wissen wir es.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.awards": {
+    "filename": "tavi.awards.mp3",
+    "voice": "Tavi",
+    "text": "Und jetzt die Auszeichnungen des Abends!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.board": {
+    "filename": "tavi.board.mp3",
+    "voice": "Tavi",
+    "text": "Das ist Kicherwald. Merkt euch die Gesichter und die Sprüche. Gleich schlüpft Kicher in jemanden hinein.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.call.buch": {
+    "filename": "tavi.call.buch.mp3",
+    "voice": "Tavi",
+    "text": "Bücherwurm, öffne die Augen.",
+    "note": "ruhig, gedämpft, wie eine Durchsage im Dunkeln"
+  },
+  "tavi.call.honig": {
+    "filename": "tavi.call.honig.mp3",
+    "voice": "Tavi",
+    "text": "Honigfalle, öffne die Augen.",
+    "note": "ruhig, gedämpft, wie eine Durchsage im Dunkeln"
+  },
+  "tavi.call.laterne": {
+    "filename": "tavi.call.laterne.mp3",
+    "voice": "Tavi",
+    "text": "Laterne, öffne die Augen.",
+    "note": "ruhig, gedämpft, wie eine Durchsage im Dunkeln"
+  },
+  "tavi.call.schluessel": {
+    "filename": "tavi.call.schluessel.mp3",
+    "voice": "Tavi",
+    "text": "Schlüsselloch, öffne die Augen.",
+    "note": "ruhig, gedämpft, wie eine Durchsage im Dunkeln"
+  },
+  "tavi.call.spur": {
+    "filename": "tavi.call.spur.mp3",
+    "voice": "Tavi",
+    "text": "Spurenleser, öffne die Augen.",
+    "note": "ruhig, gedämpft, wie eine Durchsage im Dunkeln"
+  },
+  "tavi.call.trost": {
+    "filename": "tavi.call.trost.mp3",
+    "voice": "Tavi",
+    "text": "Trostpflaster, öffne die Augen.",
+    "note": "ruhig, gedämpft, wie eine Durchsage im Dunkeln"
+  },
+  "tavi.caught.1": {
+    "filename": "tavi.caught.1.mp3",
+    "voice": "Tavi",
+    "text": "Erwischt! Kicher ist aus der Figur vertrieben. Du hilfst jetzt dem Dorf weiter.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.caught.2": {
+    "filename": "tavi.caught.2.mp3",
+    "voice": "Tavi",
+    "text": "Erwischt! Kicher huscht aus der Figur und ärgert sich schwarz.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.caught.3": {
+    "filename": "tavi.caught.3.mp3",
+    "voice": "Tavi",
+    "text": "Volltreffer! Ein Kobold weniger im Dorf.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.dawn.1": {
+    "filename": "tavi.dawn.1.mp3",
+    "voice": "Tavi",
+    "text": "Der Mond geht unter, die Sonne kommt hoch. Augen auf!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.dawn.2": {
+    "filename": "tavi.dawn.2.mp3",
+    "voice": "Tavi",
+    "text": "Es wird hell. Ihr dürft blinzeln, so viel ihr wollt.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.day.1": {
+    "filename": "tavi.day.1.mp3",
+    "voice": "Tavi",
+    "text": "Jetzt wird beraten. Erzählt, was ihr wisst. Und was ihr nicht wisst, erzählt ihr einfach trotzdem.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.day.2": {
+    "filename": "tavi.day.2.mp3",
+    "voice": "Tavi",
+    "text": "Die Beratung beginnt. Jeder darf alles behaupten. Nur ich lüge nie.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.dick": {
+    "filename": "tavi.dick.mp3",
+    "voice": "Tavi",
+    "text": "Peng! Der Zauber ist abgeprallt. Was für ein Dickkopf!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.door.1": {
+    "filename": "tavi.door.1.mp3",
+    "voice": "Tavi",
+    "text": "Knarrz! Wieder ein Türgriff weniger.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.door.2": {
+    "filename": "tavi.door.2.mp3",
+    "voice": "Tavi",
+    "text": "Knarrz, knarrz. Kicher sammelt fleißig.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.door.last": {
+    "filename": "tavi.door.last.mp3",
+    "voice": "Tavi",
+    "text": "Der allerletzte Türgriff! Jetzt oder nie.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.door.low": {
+    "filename": "tavi.door.low.mp3",
+    "voice": "Tavi",
+    "text": "Nur noch zwei Türgriffe! Jetzt wird es ernst.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.draw.1": {
+    "filename": "tavi.draw.1.mp3",
+    "voice": "Tavi",
+    "text": "Der Zauberhut hat gewählt! Schau, welche Figur zu dir kommt.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.draw.2": {
+    "filename": "tavi.draw.2.mp3",
+    "voice": "Tavi",
+    "text": "Ein Wirbel, ein Funkeln, und schon ist es passiert. Das ist deine Figur!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.draw.3": {
+    "filename": "tavi.draw.3.mp3",
+    "voice": "Tavi",
+    "text": "Der Hut kramt, murmelt und zieht … na, wer ist es?",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.draw.4": {
+    "filename": "tavi.draw.4.mp3",
+    "voice": "Tavi",
+    "text": "Tada! Der Zauberhut hat sich entschieden, und er diskutiert nicht.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.evening.1": {
+    "filename": "tavi.evening.1.mp3",
+    "voice": "Tavi",
+    "text": "Die Sonne geht unter. Alle Frösche werden wieder normal, und Kicher reibt sich die Hände.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.finale": {
+    "filename": "tavi.finale.mp3",
+    "voice": "Tavi",
+    "text": "Jetzt gilt es! Wer jetzt falsch zeigt, verliert das Spiel.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.frog.1": {
+    "filename": "tavi.frog.1.mp3",
+    "voice": "Tavi",
+    "text": "Jemand wacht heute als Frosch auf! Quaken und Zeichensprache sind erlaubt. Beim Abstimmen macht der Frosch Pause.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.frog.2": {
+    "filename": "tavi.frog.2.mp3",
+    "voice": "Tavi",
+    "text": "Quak! Ein Frosch im Dorf. Reden geht nicht mehr, aber quaken darf er, so viel er will.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.frog.3": {
+    "filename": "tavi.frog.3.mp3",
+    "voice": "Tavi",
+    "text": "Es hat gequakt! Ein Frosch sitzt beim Frühstück und weiß nicht, wie ihm geschieht.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.frogtask.01": {
+    "filename": "tavi.frogtask.01.mp3",
+    "voice": "Tavi",
+    "text": "Quake dein Lieblingslied. Die anderen raten, welches.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.frogtask.02": {
+    "filename": "tavi.frogtask.02.mp3",
+    "voice": "Tavi",
+    "text": "Zeige nur mit Quaken und Gesten, wen du verdächtigst.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.frogtask.03": {
+    "filename": "tavi.frogtask.03.mp3",
+    "voice": "Tavi",
+    "text": "Spiele deine Figur ohne Worte vor. Die anderen raten.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.frogtask.04": {
+    "filename": "tavi.frogtask.04.mp3",
+    "voice": "Tavi",
+    "text": "Hüpfe einmal um den Tisch, bevor du dich meldest.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.frogtask.05": {
+    "filename": "tavi.frogtask.05.mp3",
+    "voice": "Tavi",
+    "text": "Quake jedes Mal, wenn du glaubst, dass jemand lügt.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.frogtask.06": {
+    "filename": "tavi.frogtask.06.mp3",
+    "voice": "Tavi",
+    "text": "Erzähle quakend, was du heute Nacht erlebt hast.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.frogtask.07": {
+    "filename": "tavi.frogtask.07.mp3",
+    "voice": "Tavi",
+    "text": "Mach ein Gewitter, nur mit Quaken.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.frogtask.intro": {
+    "filename": "tavi.frogtask.intro.mp3",
+    "voice": "Tavi",
+    "text": "Und für den Frosch gibt es eine Aufgabe.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.honey": {
+    "filename": "tavi.honey.mp3",
+    "voice": "Tavi",
+    "text": "Klatsch! Eine Honigfalle hat den Zauber gestoppt. Die zwei Namen im Morgenbericht sind die Spur. Einer von beiden ist ein Kobold!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.innocent.1": {
+    "filename": "tavi.innocent.1.mp3",
+    "voice": "Tavi",
+    "text": "Unschuldig! Knarrz! Im Durcheinander ist noch ein Türgriff verschwunden.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.innocent.2": {
+    "filename": "tavi.innocent.2.mp3",
+    "voice": "Tavi",
+    "text": "Unschuldig! Knarrz, knarrz! Gleich zwei Türgriffe sind weg!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.innocent.3": {
+    "filename": "tavi.innocent.3.mp3",
+    "voice": "Tavi",
+    "text": "Oje. Falsch gezeigt. Kicher kichert.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.kobold": {
+    "filename": "tavi.kobold.mp3",
+    "voice": "Tavi",
+    "text": "Kobold, öffne die Augen.",
+    "note": "ruhig, gedämpft, wie eine Durchsage im Dunkeln"
+  },
+  "tavi.kobolds": {
+    "filename": "tavi.kobolds.mp3",
+    "voice": "Tavi",
+    "text": "Kobolde, öffnet die Augen.",
+    "note": "ruhig, gedämpft, wie eine Durchsage im Dunkeln"
+  },
+  "tavi.lose.1": {
+    "filename": "tavi.lose.1.mp3",
+    "voice": "Tavi",
+    "text": "Der letzte Türgriff ist weg. Kicher gewinnt! Er tanzt mit seiner Sammlung davon.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.lose.2": {
+    "filename": "tavi.lose.2.mp3",
+    "voice": "Tavi",
+    "text": "Der letzte Türgriff ist weg! Kicher tanzt durchs Dorf. Beim nächsten Mal klappt es bestimmt!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.morning.1": {
+    "filename": "tavi.morning.1.mp3",
+    "voice": "Tavi",
+    "text": "Kikeriki! Alle Augen auf. Schaut euch den Morgenbericht an.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.morning.2": {
+    "filename": "tavi.morning.2.mp3",
+    "voice": "Tavi",
+    "text": "Guten Morgen, Kicherwald! Hat jemand gut geschlafen? Ich vermute nicht.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.morning.3": {
+    "filename": "tavi.morning.3.mp3",
+    "voice": "Tavi",
+    "text": "Die Sonne geht auf, und mit ihr eine Überraschung.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.morning.4": {
+    "filename": "tavi.morning.4.mp3",
+    "voice": "Tavi",
+    "text": "Aufwachen! Kicher war wieder unterwegs.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.murmur.1": {
+    "filename": "tavi.murmur.1.mp3",
+    "voice": "Tavi",
+    "text": "Im Schlaf hat jemand gemurmelt. Hört genau hin! Aber ein Spruch allein beweist noch nichts.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.murmur.2": {
+    "filename": "tavi.murmur.2.mp3",
+    "voice": "Tavi",
+    "text": "Ohren auf! Da murmelt jemand im Traum.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.murmur.3": {
+    "filename": "tavi.murmur.3.mp3",
+    "voice": "Tavi",
+    "text": "Pssst. Hört ihr das? Jemand redet im Schlaf.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.night.1": {
+    "filename": "tavi.night.1.mp3",
+    "voice": "Tavi",
+    "text": "Kicherwald schläft ein. Alle schließen die Augen. Ohren auf!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.night.2": {
+    "filename": "tavi.night.2.mp3",
+    "voice": "Tavi",
+    "text": "Pssst. Die Nacht legt sich übers Dorf. Augen zu, Ohren auf, und nicht blinzeln!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.night.3": {
+    "filename": "tavi.night.3.mp3",
+    "voice": "Tavi",
+    "text": "Der Mond geht auf, und Kicher reibt sich die Hände. Augen zu!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.night.4": {
+    "filename": "tavi.night.4.mp3",
+    "voice": "Tavi",
+    "text": "Gute Nacht, Kicherwald. Wer jetzt blinzelt, den sehe ich. Ich sehe alles!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.night.5": {
+    "filename": "tavi.night.5.mp3",
+    "voice": "Tavi",
+    "text": "Es wird still im Dorf. Fast zu still. Augen zu, Ohren auf.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.nobody.1": {
+    "filename": "tavi.nobody.1.mp3",
+    "voice": "Tavi",
+    "text": "Niemand wird entlarvt. Vorsicht ist besser als ein verlorener Türgriff.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.nobody.2": {
+    "filename": "tavi.nobody.2.mp3",
+    "voice": "Tavi",
+    "text": "Alle zeigen nach oben. Mutig ist das nicht, aber klug.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.pass.1": {
+    "filename": "tavi.pass.1.mp3",
+    "voice": "Tavi",
+    "text": "Gib das Handy an die Person, deren Name auf dem Bildschirm steht. Alle anderen schauen weg.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.pass.2": {
+    "filename": "tavi.pass.2.mp3",
+    "voice": "Tavi",
+    "text": "Handy weiterreichen! Nur wer auf dem Bildschirm steht, schaut hin. Alle anderen: Augen auf den Tisch.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.pass.done": {
+    "filename": "tavi.pass.done.mp3",
+    "voice": "Tavi",
+    "text": "Alle kennen ihre geheime Karte. Legt das Handy in die Mitte. Die erste Nacht beginnt.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.01": {
+    "filename": "tavi.prank.01.mp3",
+    "voice": "Tavi",
+    "text": "Reimtag! Heute wird gereimt! Wer nicht reimt, muss einmal quaken.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.02": {
+    "filename": "tavi.prank.02.mp3",
+    "voice": "Tavi",
+    "text": "Flüstertag! Heute wird nur geflüstert. Wer laut wird, muss quaken.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.03": {
+    "filename": "tavi.prank.03.mp3",
+    "voice": "Tavi",
+    "text": "Heldentag! Sprecht heute wie eure Figur! Mindestens einmal muss der Lieblingsspruch fallen.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.04": {
+    "filename": "tavi.prank.04.mp3",
+    "voice": "Tavi",
+    "text": "Kichererbsen-Tag! Das Wort Kobold ist verboten! Sagt stattdessen Kichererbse.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.05": {
+    "filename": "tavi.prank.05.mp3",
+    "voice": "Tavi",
+    "text": "Roboter-Tag! Heute sprecht ihr wie Roboter. Piep, piep.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.06": {
+    "filename": "tavi.prank.06.mp3",
+    "voice": "Tavi",
+    "text": "Zeitlupen-Tag! Alle reden und bewegen sich in Zeitlupe.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.07": {
+    "filename": "tavi.prank.07.mp3",
+    "voice": "Tavi",
+    "text": "Piraten-Tag! Heute sprecht ihr wie Piraten. Arrr!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.08": {
+    "filename": "tavi.prank.08.mp3",
+    "voice": "Tavi",
+    "text": "Tier-Tag! Hängt an jeden Satz ein Tiergeräusch. Euer Lieblingstier darf es sein.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.09": {
+    "filename": "tavi.prank.09.mp3",
+    "voice": "Tavi",
+    "text": "Namenstausch! Heute heißt jeder wie seine Figur! Redet euch nur mit dem Figurennamen an.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.10": {
+    "filename": "tavi.prank.10.mp3",
+    "voice": "Tavi",
+    "text": "Sing-Tag! Singt heute eure Verdächtigungen. Es muss nicht schön klingen.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.11": {
+    "filename": "tavi.prank.11.mp3",
+    "voice": "Tavi",
+    "text": "Ehrlichkeitsrunde! Reihum sagt jeder in einem Satz, wen er heute verdächtigt. Passen gilt nicht.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.12": {
+    "filename": "tavi.prank.12.mp3",
+    "voice": "Tavi",
+    "text": "Herz-Tag! Beim Sprechen liegt die Hand auf dem Herzen. Wer sie wegnimmt, quakt.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.13": {
+    "filename": "tavi.prank.13.mp3",
+    "voice": "Tavi",
+    "text": "Nicht-Tag! Das Wort nicht ist verboten. Wer es sagt, muss einmal quaken.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.14": {
+    "filename": "tavi.prank.14.mp3",
+    "voice": "Tavi",
+    "text": "Lächel-Tag! Alle müssen beim Reden lächeln, auch wenn sie jemanden verdächtigen.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.15": {
+    "filename": "tavi.prank.15.mp3",
+    "voice": "Tavi",
+    "text": "Fünf-Wörter-Tag! Jeder Satz darf höchstens fünf Wörter haben.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.16": {
+    "filename": "tavi.prank.16.mp3",
+    "voice": "Tavi",
+    "text": "Opa-Tag! Sprecht wie uralte Großeltern. Früher, da gab es noch richtige Kobolde.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.prank.intro": {
+    "filename": "tavi.prank.intro.mp3",
+    "voice": "Tavi",
+    "text": "Kichers Streich des Tages!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.protected.1": {
+    "filename": "tavi.protected.1.mp3",
+    "voice": "Tavi",
+    "text": "Der Froschzauber wurde gestoppt. Das war knapp!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.protected.2": {
+    "filename": "tavi.protected.2.mp3",
+    "voice": "Tavi",
+    "text": "Kicher hat daneben gezaubert. Irgendjemand hat gut aufgepasst.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.redestein": {
+    "filename": "tavi.redestein.mp3",
+    "voice": "Tavi",
+    "text": "Der Redestein ist gelegt. Jetzt hört ihr eine Minute lang nur zu.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.time.10": {
+    "filename": "tavi.time.10.mp3",
+    "voice": "Tavi",
+    "text": "Nur noch zehn Sekunden!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.time.up": {
+    "filename": "tavi.time.up.mp3",
+    "voice": "Tavi",
+    "text": "Die Zeit ist um. Jetzt wird gezeigt!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.vote": {
+    "filename": "tavi.vote.mp3",
+    "voice": "Tavi",
+    "text": "Drei. Zwei. Eins. Zeigt!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.win.1": {
+    "filename": "tavi.win.1.mp3",
+    "voice": "Tavi",
+    "text": "Das Dorf gewinnt! Alle Kobolde sind entzaubert. Kicherwald jubelt!",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "tavi.win.2": {
+    "filename": "tavi.win.2.mp3",
+    "voice": "Tavi",
+    "text": "Geschafft! Alle Kobolde sind entzaubert. Kicherwald schläft heute ruhig.",
+    "note": "warm, neugierig, leicht schelmisch (Erzähler und Moderator)"
+  },
+  "character.amir-sternfinder.quote": {
+    "filename": "character.amir-sternfinder.quote.mp3",
+    "voice": "Amir Sternfinder",
+    "text": "Warte kurz – da ist ein Muster.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.amir-sternfinder.murmur": {
+    "filename": "character.amir-sternfinder.murmur.mp3",
+    "voice": "Amir Sternfinder",
+    "text": "Warte kurz – da ist ein Muster.",
+    "eleven": "[sleepily, mumbling] Warte kurz – da ist ein Muster.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.astra.quote": {
+    "filename": "character.astra.quote.mp3",
+    "voice": "Astra",
+    "text": "Seht ihr? Jeder Stern erzählt eine Geschichte...",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.astra.murmur": {
+    "filename": "character.astra.murmur.mp3",
+    "voice": "Astra",
+    "text": "Seht ihr? Jeder Stern erzählt eine Geschichte...",
+    "eleven": "[sleepily, mumbling] Seht ihr? Jeder Stern erzählt eine Geschichte...",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.astronautin-nova.quote": {
+    "filename": "character.astronautin-nova.quote.mp3",
+    "voice": "Astronautin Nova",
+    "text": "Helm zu, Herz auf, los!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.astronautin-nova.murmur": {
+    "filename": "character.astronautin-nova.murmur.mp3",
+    "voice": "Astronautin Nova",
+    "text": "Helm zu, Herz auf, los!",
+    "eleven": "[sleepily, mumbling] Helm zu, Herz auf, los!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.baecker-braun.quote": {
+    "filename": "character.baecker-braun.quote.mp3",
+    "voice": "Bäcker Braun",
+    "text": "Kommt, probiert mal! Frisch aus dem Ofen!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.baecker-braun.murmur": {
+    "filename": "character.baecker-braun.murmur.mp3",
+    "voice": "Bäcker Braun",
+    "text": "Kommt, probiert mal! Frisch aus dem Ofen!",
+    "eleven": "[sleepily, mumbling] Kommt, probiert mal! Frisch aus dem Ofen!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.baecker-bruno.quote": {
+    "filename": "character.baecker-bruno.quote.mp3",
+    "voice": "Bäcker Bruno",
+    "text": "Frisch aus dem Ofen, frisch fürs Herz!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.baecker-bruno.murmur": {
+    "filename": "character.baecker-bruno.murmur.mp3",
+    "voice": "Bäcker Bruno",
+    "text": "Frisch aus dem Ofen, frisch fürs Herz!",
+    "eleven": "[sleepily, mumbling] Frisch aus dem Ofen, frisch fürs Herz!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.baecker-wilhelm.quote": {
+    "filename": "character.baecker-wilhelm.quote.mp3",
+    "voice": "Bäcker Wilhelm",
+    "text": "Ohne Frühstück kein Abenteuer – hier, nimm ein Brötchen!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.baecker-wilhelm.murmur": {
+    "filename": "character.baecker-wilhelm.murmur.mp3",
+    "voice": "Bäcker Wilhelm",
+    "text": "Ohne Frühstück kein Abenteuer – hier, nimm ein Brötchen!",
+    "eleven": "[sleepily, mumbling] Ohne Frühstück kein Abenteuer – hier, nimm ein Brötchen!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.bauerntochter-greta.quote": {
+    "filename": "character.bauerntochter-greta.quote.mp3",
+    "voice": "Bauerntochter Greta",
+    "text": "Schau mal, die Blumen haben mir den Weg gezeigt!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.bauerntochter-greta.murmur": {
+    "filename": "character.bauerntochter-greta.murmur.mp3",
+    "voice": "Bauerntochter Greta",
+    "text": "Schau mal, die Blumen haben mir den Weg gezeigt!",
+    "eleven": "[sleepily, mumbling] Schau mal, die Blumen haben mir den Weg gezeigt!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.bo-buecherfuchs.quote": {
+    "filename": "character.bo-buecherfuchs.quote.mp3",
+    "voice": "Bo Bücherfuchs",
+    "text": "Eine gute Frage braucht kein Lesezeichen.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.bo-buecherfuchs.murmur": {
+    "filename": "character.bo-buecherfuchs.murmur.mp3",
+    "voice": "Bo Bücherfuchs",
+    "text": "Eine gute Frage braucht kein Lesezeichen.",
+    "eleven": "[sleepily, mumbling] Eine gute Frage braucht kein Lesezeichen.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.bruchkind-brenno.quote": {
+    "filename": "character.bruchkind-brenno.quote.mp3",
+    "voice": "Bruchkind Brenno",
+    "text": "Dann ist es eben kaputt. So ist das.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.bruchkind-brenno.murmur": {
+    "filename": "character.bruchkind-brenno.murmur.mp3",
+    "voice": "Bruchkind Brenno",
+    "text": "Dann ist es eben kaputt. So ist das.",
+    "eleven": "[sleepily, mumbling] Dann ist es eben kaputt. So ist das.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.brumm-der-steinwaechter.quote": {
+    "filename": "character.brumm-der-steinwaechter.quote.mp3",
+    "voice": "Brumm der Steinwächter",
+    "text": "BRUMM. Nicht. Weiter. Gehen.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.brumm-der-steinwaechter.murmur": {
+    "filename": "character.brumm-der-steinwaechter.murmur.mp3",
+    "voice": "Brumm der Steinwächter",
+    "text": "BRUMM. Nicht. Weiter. Gehen.",
+    "eleven": "[sleepily, mumbling] BRUMM. Nicht. Weiter. Gehen.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.der-geraeusche-fresser.quote": {
+    "filename": "character.der-geraeusche-fresser.quote.mp3",
+    "voice": "Der Geräusche-Fresser",
+    "text": "Pssst. Jetzt ist es still. Viel zu still, nicht wahr?",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.der-geraeusche-fresser.murmur": {
+    "filename": "character.der-geraeusche-fresser.murmur.mp3",
+    "voice": "Der Geräusche-Fresser",
+    "text": "Pssst. Jetzt ist es still. Viel zu still, nicht wahr?",
+    "eleven": "[sleepily, mumbling] Pssst. Jetzt ist es still. Viel zu still, nicht wahr?",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.der-leiser-mann.quote": {
+    "filename": "character.der-leiser-mann.quote.mp3",
+    "voice": "Der Leiser-Mann",
+    "text": "Leise. Niemand soll das hören.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.der-leiser-mann.murmur": {
+    "filename": "character.der-leiser-mann.murmur.mp3",
+    "voice": "Der Leiser-Mann",
+    "text": "Leise. Niemand soll das hören.",
+    "eleven": "[sleepily, mumbling] Leise. Niemand soll das hören.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.der-letzte-wehmueter.quote": {
+    "filename": "character.der-letzte-wehmueter.quote.mp3",
+    "voice": "Der Letzte Wehmüter",
+    "text": "Ich bin der Letzte. Ich bleibe hier.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.der-letzte-wehmueter.murmur": {
+    "filename": "character.der-letzte-wehmueter.murmur.mp3",
+    "voice": "Der Letzte Wehmüter",
+    "text": "Ich bin der Letzte. Ich bleibe hier.",
+    "eleven": "[sleepily, mumbling] Ich bin der Letzte. Ich bleibe hier.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.der-mutlosmacher.quote": {
+    "filename": "character.der-mutlosmacher.quote.mp3",
+    "voice": "Der Mutlosmacher",
+    "text": "Kannste eh nicht. Lass nur.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.der-mutlosmacher.murmur": {
+    "filename": "character.der-mutlosmacher.murmur.mp3",
+    "voice": "Der Mutlosmacher",
+    "text": "Kannste eh nicht. Lass nur.",
+    "eleven": "[sleepily, mumbling] Kannste eh nicht. Lass nur.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.der-zeitweber.quote": {
+    "filename": "character.der-zeitweber.quote.mp3",
+    "voice": "Der Zeitweber",
+    "text": "Die Zeit fließt nicht – sie tanzt.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.der-zeitweber.murmur": {
+    "filename": "character.der-zeitweber.murmur.mp3",
+    "voice": "Der Zeitweber",
+    "text": "Die Zeit fließt nicht – sie tanzt.",
+    "eleven": "[sleepily, mumbling] Die Zeit fließt nicht – sie tanzt.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.der-zu-ordentliche.quote": {
+    "filename": "character.der-zu-ordentliche.quote.mp3",
+    "voice": "Der Zu-Ordentliche",
+    "text": "Nicht so. Richtig. So ist das richtig.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.der-zu-ordentliche.murmur": {
+    "filename": "character.der-zu-ordentliche.murmur.mp3",
+    "voice": "Der Zu-Ordentliche",
+    "text": "Nicht so. Richtig. So ist das richtig.",
+    "eleven": "[sleepily, mumbling] Nicht so. Richtig. So ist das richtig.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.detektiv-schnueffel.quote": {
+    "filename": "character.detektiv-schnueffel.quote.mp3",
+    "voice": "Detektiv Schnüffel",
+    "text": "Der kleinste Hinweis spricht am lautesten.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.detektiv-schnueffel.murmur": {
+    "filename": "character.detektiv-schnueffel.murmur.mp3",
+    "voice": "Detektiv Schnüffel",
+    "text": "Der kleinste Hinweis spricht am lautesten.",
+    "eleven": "[sleepily, mumbling] Der kleinste Hinweis spricht am lautesten.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.die-alte-eiche.quote": {
+    "filename": "character.die-alte-eiche.quote.mp3",
+    "voice": "Die Alte Eiche",
+    "text": "Die Wurzeln wissen mehr als die Blätter ahnen.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.die-alte-eiche.murmur": {
+    "filename": "character.die-alte-eiche.murmur.mp3",
+    "voice": "Die Alte Eiche",
+    "text": "Die Wurzeln wissen mehr als die Blätter ahnen.",
+    "eleven": "[sleepily, mumbling] Die Wurzeln wissen mehr als die Blätter ahnen.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.die-besserwisserin-klotilde.quote": {
+    "filename": "character.die-besserwisserin-klotilde.quote.mp3",
+    "voice": "Die Besserwisserin Klotilde",
+    "text": "Eigentlich... müsstest du das wissen.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.die-besserwisserin-klotilde.murmur": {
+    "filename": "character.die-besserwisserin-klotilde.murmur.mp3",
+    "voice": "Die Besserwisserin Klotilde",
+    "text": "Eigentlich... müsstest du das wissen.",
+    "eleven": "[sleepily, mumbling] Eigentlich... müsstest du das wissen.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.die-nebelfee.quote": {
+    "filename": "character.die-nebelfee.quote.mp3",
+    "voice": "Die Nebelfee",
+    "text": "Nicht alles, was verborgen ist, will gefunden werden...",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.die-nebelfee.murmur": {
+    "filename": "character.die-nebelfee.murmur.mp3",
+    "voice": "Die Nebelfee",
+    "text": "Nicht alles, was verborgen ist, will gefunden werden...",
+    "eleven": "[sleepily, mumbling] Nicht alles, was verborgen ist, will gefunden werden...",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.die-nebelhexe.quote": {
+    "filename": "character.die-nebelhexe.quote.mp3",
+    "voice": "Die Nebelhexe",
+    "text": "Hihihi! Das war doch nur ein kleiner Trick... oder?",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.die-nebelhexe.murmur": {
+    "filename": "character.die-nebelhexe.murmur.mp3",
+    "voice": "Die Nebelhexe",
+    "text": "Hihihi! Das war doch nur ein kleiner Trick... oder?",
+    "eleven": "[sleepily, mumbling] Hihihi! Das war doch nur ein kleiner Trick... oder?",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.diener-johann.quote": {
+    "filename": "character.diener-johann.quote.mp3",
+    "voice": "Diener Johann",
+    "text": "Wie Ihr wünscht... obwohl... nein, natürlich wie Ihr wünscht.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.diener-johann.murmur": {
+    "filename": "character.diener-johann.murmur.mp3",
+    "voice": "Diener Johann",
+    "text": "Wie Ihr wünscht... obwohl... nein, natürlich wie Ihr wünscht.",
+    "eleven": "[sleepily, mumbling] Wie Ihr wünscht... obwohl... nein, natürlich wie Ihr wünscht.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.die-stundendiebin.quote": {
+    "filename": "character.die-stundendiebin.quote.mp3",
+    "voice": "Die Stundendiebin",
+    "text": "Eine Minute nur. Du merkst es gar nicht.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.die-stundendiebin.murmur": {
+    "filename": "character.die-stundendiebin.murmur.mp3",
+    "voice": "Die Stundendiebin",
+    "text": "Eine Minute nur. Du merkst es gar nicht.",
+    "eleven": "[sleepily, mumbling] Eine Minute nur. Du merkst es gar nicht.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.drache-fauchi.quote": {
+    "filename": "character.drache-fauchi.quote.mp3",
+    "voice": "Drache Fauchi",
+    "text": "Erst qualmt’s, dann klärt’s sich!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.drache-fauchi.murmur": {
+    "filename": "character.drache-fauchi.murmur.mp3",
+    "voice": "Drache Fauchi",
+    "text": "Erst qualmt’s, dann klärt’s sich!",
+    "eleven": "[sleepily, mumbling] Erst qualmt’s, dann klärt’s sich!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.eichhoernchen-flitz.quote": {
+    "filename": "character.eichhoernchen-flitz.quote.mp3",
+    "voice": "Eichhörnchen Flitz",
+    "text": "Zack, hoch, weg – Flitz regelt das!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.eichhoernchen-flitz.murmur": {
+    "filename": "character.eichhoernchen-flitz.murmur.mp3",
+    "voice": "Eichhörnchen Flitz",
+    "text": "Zack, hoch, weg – Flitz regelt das!",
+    "eleven": "[sleepily, mumbling] Zack, hoch, weg – Flitz regelt das!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.fee-rosalie.quote": {
+    "filename": "character.fee-rosalie.quote.mp3",
+    "voice": "Fee Rosalie",
+    "text": "Ein Flügelschlag, und Mut wird groß!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.fee-rosalie.murmur": {
+    "filename": "character.fee-rosalie.murmur.mp3",
+    "voice": "Fee Rosalie",
+    "text": "Ein Flügelschlag, und Mut wird groß!",
+    "eleven": "[sleepily, mumbling] Ein Flügelschlag, und Mut wird groß!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.feuerwehrfrau-fanni.quote": {
+    "filename": "character.feuerwehrfrau-fanni.quote.mp3",
+    "voice": "Feuerwehrfrau Fanni",
+    "text": "Wasser marsch, Ruhe auch!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.feuerwehrfrau-fanni.murmur": {
+    "filename": "character.feuerwehrfrau-fanni.murmur.mp3",
+    "voice": "Feuerwehrfrau Fanni",
+    "text": "Wasser marsch, Ruhe auch!",
+    "eleven": "[sleepily, mumbling] Wasser marsch, Ruhe auch!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.fluestertante-flora.quote": {
+    "filename": "character.fluestertante-flora.quote.mp3",
+    "voice": "Flüstertante Flora",
+    "text": "Pssst. Das sagen wir niemandem, ja?",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.fluestertante-flora.murmur": {
+    "filename": "character.fluestertante-flora.murmur.mp3",
+    "voice": "Flüstertante Flora",
+    "text": "Pssst. Das sagen wir niemandem, ja?",
+    "eleven": "[sleepily, mumbling] Pssst. Das sagen wir niemandem, ja?",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.frau-gleichgleich.quote": {
+    "filename": "character.frau-gleichgleich.quote.mp3",
+    "voice": "Frau Gleichgleich",
+    "text": "Genau gleich. Immer genau gleich, bitte.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.frau-gleichgleich.murmur": {
+    "filename": "character.frau-gleichgleich.murmur.mp3",
+    "voice": "Frau Gleichgleich",
+    "text": "Genau gleich. Immer genau gleich, bitte.",
+    "eleven": "[sleepily, mumbling] Genau gleich. Immer genau gleich, bitte.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.frau-mueller.quote": {
+    "filename": "character.frau-mueller.quote.mp3",
+    "voice": "Frau Müller",
+    "text": "Wer genau hinhört, dem flüstert der Wind die Antwort zu.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.frau-mueller.murmur": {
+    "filename": "character.frau-mueller.murmur.mp3",
+    "voice": "Frau Müller",
+    "text": "Wer genau hinhört, dem flüstert der Wind die Antwort zu.",
+    "eleven": "[sleepily, mumbling] Wer genau hinhört, dem flüstert der Wind die Antwort zu.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.frau-wellenreiter.quote": {
+    "filename": "character.frau-wellenreiter.quote.mp3",
+    "voice": "Frau Wellenreiter",
+    "text": "Das Meer lehrt Geduld – und wer geduldig ist, findet den Weg.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.frau-wellenreiter.murmur": {
+    "filename": "character.frau-wellenreiter.murmur.mp3",
+    "voice": "Frau Wellenreiter",
+    "text": "Das Meer lehrt Geduld – und wer geduldig ist, findet den Weg.",
+    "eleven": "[sleepily, mumbling] Das Meer lehrt Geduld – und wer geduldig ist, findet den Weg.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.frosch-quak.quote": {
+    "filename": "character.frosch-quak.quote.mp3",
+    "voice": "Frosch Quak",
+    "text": "Quak drauf los, dann klappt das schon!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.frosch-quak.murmur": {
+    "filename": "character.frosch-quak.murmur.mp3",
+    "voice": "Frosch Quak",
+    "text": "Quak drauf los, dann klappt das schon!",
+    "eleven": "[sleepily, mumbling] Quak drauf los, dann klappt das schon!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.funkelflug.quote": {
+    "filename": "character.funkelflug.quote.mp3",
+    "voice": "Funkelflug",
+    "text": "Hups! Das sollte eigentlich nicht brennen...",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.funkelflug.murmur": {
+    "filename": "character.funkelflug.murmur.mp3",
+    "voice": "Funkelflug",
+    "text": "Hups! Das sollte eigentlich nicht brennen...",
+    "eleven": "[sleepily, mumbling] Hups! Das sollte eigentlich nicht brennen...",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.gelehrter-professor-theodor.quote": {
+    "filename": "character.gelehrter-professor-theodor.quote.mp3",
+    "voice": "Gelehrter Professor Theodor",
+    "text": "Moment! Ich habe hier irgendwo eine Notiz dazu... äh... war es dieses Buch?",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.gelehrter-professor-theodor.murmur": {
+    "filename": "character.gelehrter-professor-theodor.murmur.mp3",
+    "voice": "Gelehrter Professor Theodor",
+    "text": "Moment! Ich habe hier irgendwo eine Notiz dazu... äh... war es dieses Buch?",
+    "eleven": "[sleepily, mumbling] Moment! Ich habe hier irgendwo eine Notiz dazu... äh... war es dieses Buch?",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.graf-griesgram.quote": {
+    "filename": "character.graf-griesgram.quote.mp3",
+    "voice": "Graf Griesgram",
+    "text": "Ruhe! Ich brauche absolute... na gut, EINE Frage noch.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.graf-griesgram.murmur": {
+    "filename": "character.graf-griesgram.murmur.mp3",
+    "voice": "Graf Griesgram",
+    "text": "Ruhe! Ich brauche absolute... na gut, EINE Frage noch.",
+    "eleven": "[sleepily, mumbling] Ruhe! Ich brauche absolute... na gut, EINE Frage noch.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.graumund-der-gleichgueltige.quote": {
+    "filename": "character.graumund-der-gleichgueltige.quote.mp3",
+    "voice": "Graumund der Gleichgültige",
+    "text": "Mir doch egal. Macht ihr nur.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.graumund-der-gleichgueltige.murmur": {
+    "filename": "character.graumund-der-gleichgueltige.murmur.mp3",
+    "voice": "Graumund der Gleichgültige",
+    "text": "Mir doch egal. Macht ihr nur.",
+    "eleven": "[sleepily, mumbling] Mir doch egal. Macht ihr nur.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.haendler-gustav.quote": {
+    "filename": "character.haendler-gustav.quote.mp3",
+    "voice": "Händler Gustav",
+    "text": "Nur heute, nur für euch – ein Sonderpreis! Na gut, ZWEI Sonderpreise!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.haendler-gustav.murmur": {
+    "filename": "character.haendler-gustav.murmur.mp3",
+    "voice": "Händler Gustav",
+    "text": "Nur heute, nur für euch – ein Sonderpreis! Na gut, ZWEI Sonderpreise!",
+    "eleven": "[sleepily, mumbling] Nur heute, nur für euch – ein Sonderpreis! Na gut, ZWEI Sonderpreise!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.herr-seitenflug.quote": {
+    "filename": "character.herr-seitenflug.quote.mp3",
+    "voice": "Herr Seitenflug",
+    "text": "Ah! Dazu habe ich ein Buch! Moment... es war hier irgendwo...",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.herr-seitenflug.murmur": {
+    "filename": "character.herr-seitenflug.murmur.mp3",
+    "voice": "Herr Seitenflug",
+    "text": "Ah! Dazu habe ich ein Buch! Moment... es war hier irgendwo...",
+    "eleven": "[sleepily, mumbling] Ah! Dazu habe ich ein Buch! Moment... es war hier irgendwo...",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.hexe-griselda.quote": {
+    "filename": "character.hexe-griselda.quote.mp3",
+    "voice": "Hexe Griselda",
+    "text": "Knusper, knusper... ach, das war eine Andere. Ich bin VIEL schlimmer!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.hexe-griselda.murmur": {
+    "filename": "character.hexe-griselda.murmur.mp3",
+    "voice": "Hexe Griselda",
+    "text": "Knusper, knusper... ach, das war eine Andere. Ich bin VIEL schlimmer!",
+    "eleven": "[sleepily, mumbling] Knusper, knusper... ach, das war eine Andere. Ich bin VIEL schlimmer!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.hexe-kraeuterweis.quote": {
+    "filename": "character.hexe-kraeuterweis.quote.mp3",
+    "voice": "Hexe Kräuterweis",
+    "text": "Jede Wurzel kennt ein Gegenmittel.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.hexe-kraeuterweis.murmur": {
+    "filename": "character.hexe-kraeuterweis.murmur.mp3",
+    "voice": "Hexe Kräuterweis",
+    "text": "Jede Wurzel kennt ein Gegenmittel.",
+    "eleven": "[sleepily, mumbling] Jede Wurzel kennt ein Gegenmittel.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.hirtenjunge-peter.quote": {
+    "filename": "character.hirtenjunge-peter.quote.mp3",
+    "voice": "Hirtenjunge Peter",
+    "text": "Meine Schafe haben es mir erzählt! Die wissen alles!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.hirtenjunge-peter.murmur": {
+    "filename": "character.hirtenjunge-peter.murmur.mp3",
+    "voice": "Hirtenjunge Peter",
+    "text": "Meine Schafe haben es mir erzählt! Die wissen alles!",
+    "eleven": "[sleepily, mumbling] Meine Schafe haben es mir erzählt! Die wissen alles!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.juna-windwaerts.quote": {
+    "filename": "character.juna-windwaerts.quote.mp3",
+    "voice": "Juna Windwärts",
+    "text": "Ein Hindernis ist noch lange kein Ende.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.juna-windwaerts.murmur": {
+    "filename": "character.juna-windwaerts.murmur.mp3",
+    "voice": "Juna Windwärts",
+    "text": "Ein Hindernis ist noch lange kein Ende.",
+    "eleven": "[sleepily, mumbling] Ein Hindernis ist noch lange kein Ende.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.kapitaen-blubbert.quote": {
+    "filename": "character.kapitaen-blubbert.quote.mp3",
+    "voice": "Kapitän Blubbert",
+    "text": "Volle Fahrt durchs Abenteuer!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.kapitaen-blubbert.murmur": {
+    "filename": "character.kapitaen-blubbert.murmur.mp3",
+    "voice": "Kapitän Blubbert",
+    "text": "Volle Fahrt durchs Abenteuer!",
+    "eleven": "[sleepily, mumbling] Volle Fahrt durchs Abenteuer!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.kobold-kicher.quote": {
+    "filename": "character.kobold-kicher.quote.mp3",
+    "voice": "Kobold Kicher",
+    "text": "Hihi – ein Trick, ein Klick, ein Glück!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.koenig-friedrich.quote": {
+    "filename": "character.koenig-friedrich.quote.mp3",
+    "voice": "König Friedrich",
+    "text": "Ordnung ist das Fundament eines jeden Reiches!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.koenig-friedrich.murmur": {
+    "filename": "character.koenig-friedrich.murmur.mp3",
+    "voice": "König Friedrich",
+    "text": "Ordnung ist das Fundament eines jeden Reiches!",
+    "eleven": "[sleepily, mumbling] Ordnung ist das Fundament eines jeden Reiches!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.koenigin-isabella.quote": {
+    "filename": "character.koenigin-isabella.quote.mp3",
+    "voice": "Königin Isabella",
+    "text": "Mit Klugheit und Güte lässt sich jeder Streit lösen.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.koenigin-isabella.murmur": {
+    "filename": "character.koenigin-isabella.murmur.mp3",
+    "voice": "Königin Isabella",
+    "text": "Mit Klugheit und Güte lässt sich jeder Streit lösen.",
+    "eleven": "[sleepily, mumbling] Mit Klugheit und Güte lässt sich jeder Streit lösen.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.koenig-karl-der-weise.quote": {
+    "filename": "character.koenig-karl-der-weise.quote.mp3",
+    "voice": "König Karl der Weise",
+    "text": "Ein kluger Schritt spart hundert hektische.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.koenig-karl-der-weise.murmur": {
+    "filename": "character.koenig-karl-der-weise.murmur.mp3",
+    "voice": "König Karl der Weise",
+    "text": "Ein kluger Schritt spart hundert hektische.",
+    "eleven": "[sleepily, mumbling] Ein kluger Schritt spart hundert hektische.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.koenig-wilhelm.quote": {
+    "filename": "character.koenig-wilhelm.quote.mp3",
+    "voice": "König Wilhelm",
+    "text": "Ein König dient seinem Volk – nicht umgekehrt.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.koenig-wilhelm.murmur": {
+    "filename": "character.koenig-wilhelm.murmur.mp3",
+    "voice": "König Wilhelm",
+    "text": "Ein König dient seinem Volk – nicht umgekehrt.",
+    "eleven": "[sleepily, mumbling] Ein König dient seinem Volk – nicht umgekehrt.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.krummfinger-der-sammler.quote": {
+    "filename": "character.krummfinger-der-sammler.quote.mp3",
+    "voice": "Krummfinger der Sammler",
+    "text": "Meins. Jetzt meins. Immer meins.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.krummfinger-der-sammler.murmur": {
+    "filename": "character.krummfinger-der-sammler.murmur.mp3",
+    "voice": "Krummfinger der Sammler",
+    "text": "Meins. Jetzt meins. Immer meins.",
+    "eleven": "[sleepily, mumbling] Meins. Jetzt meins. Immer meins.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.kuno-knopf.quote": {
+    "filename": "character.kuno-knopf.quote.mp3",
+    "voice": "Kuno Knopf",
+    "text": "Ein guter Flicken darf gesehen werden.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.kuno-knopf.murmur": {
+    "filename": "character.kuno-knopf.murmur.mp3",
+    "voice": "Kuno Knopf",
+    "text": "Ein guter Flicken darf gesehen werden.",
+    "eleven": "[sleepily, mumbling] Ein guter Flicken darf gesehen werden.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.lehrerin-laempel.quote": {
+    "filename": "character.lehrerin-laempel.quote.mp3",
+    "voice": "Lehrerin Lämpel",
+    "text": "Fragen sind der Anfang von Mut.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.lehrerin-laempel.murmur": {
+    "filename": "character.lehrerin-laempel.murmur.mp3",
+    "voice": "Lehrerin Lämpel",
+    "text": "Fragen sind der Anfang von Mut.",
+    "eleven": "[sleepily, mumbling] Fragen sind der Anfang von Mut.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.lumi-nachtlicht.quote": {
+    "filename": "character.lumi-nachtlicht.quote.mp3",
+    "voice": "Lumi Nachtlicht",
+    "text": "Ein kleines Licht reicht für den nächsten Schritt.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.lumi-nachtlicht.murmur": {
+    "filename": "character.lumi-nachtlicht.murmur.mp3",
+    "voice": "Lumi Nachtlicht",
+    "text": "Ein kleines Licht reicht für den nächsten Schritt.",
+    "eleven": "[sleepily, mumbling] Ein kleines Licht reicht für den nächsten Schritt.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.luna.quote": {
+    "filename": "character.luna.quote.mp3",
+    "voice": "Luna",
+    "text": "Miau... ich wusste es natürlich schon die ganze Zeit.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.luna.murmur": {
+    "filename": "character.luna.murmur.mp3",
+    "voice": "Luna",
+    "text": "Miau... ich wusste es natürlich schon die ganze Zeit.",
+    "eleven": "[sleepily, mumbling] Miau... ich wusste es natürlich schon die ganze Zeit.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.magd-elsa.quote": {
+    "filename": "character.magd-elsa.quote.mp3",
+    "voice": "Magd Elsa",
+    "text": "Ich schaffe das schon... ich schaffe das immer.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.magd-elsa.murmur": {
+    "filename": "character.magd-elsa.murmur.mp3",
+    "voice": "Magd Elsa",
+    "text": "Ich schaffe das schon... ich schaffe das immer.",
+    "eleven": "[sleepily, mumbling] Ich schaffe das schon... ich schaffe das immer.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.magierin-luna.quote": {
+    "filename": "character.magierin-luna.quote.mp3",
+    "voice": "Magierin Luna",
+    "text": "Der Kristall zeigt mir... oh, das ist unerwartet.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.magierin-luna.murmur": {
+    "filename": "character.magierin-luna.murmur.mp3",
+    "voice": "Magierin Luna",
+    "text": "Der Kristall zeigt mir... oh, das ist unerwartet.",
+    "eleven": "[sleepily, mumbling] Der Kristall zeigt mir... oh, das ist unerwartet.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.mia-neugier.quote": {
+    "filename": "character.mia-neugier.quote.mp3",
+    "voice": "Mia Neugier",
+    "text": "Warte, ich hab da noch eine Frage!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.mia-neugier.murmur": {
+    "filename": "character.mia-neugier.murmur.mp3",
+    "voice": "Mia Neugier",
+    "text": "Warte, ich hab da noch eine Frage!",
+    "eleven": "[sleepily, mumbling] Warte, ich hab da noch eine Frage!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.mina-mosaik.quote": {
+    "filename": "character.mina-mosaik.quote.mp3",
+    "voice": "Mina Mosaik",
+    "text": "Aus anders wird zusammen.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.mina-mosaik.murmur": {
+    "filename": "character.mina-mosaik.murmur.mp3",
+    "voice": "Mina Mosaik",
+    "text": "Aus anders wird zusammen.",
+    "eleven": "[sleepily, mumbling] Aus anders wird zusammen.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.morpheus.quote": {
+    "filename": "character.morpheus.quote.mp3",
+    "voice": "Morpheus",
+    "text": "Psst... schließ die Augen. Ich zeige dir etwas Schönes.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.morpheus.murmur": {
+    "filename": "character.morpheus.murmur.mp3",
+    "voice": "Morpheus",
+    "text": "Psst... schließ die Augen. Ich zeige dir etwas Schönes.",
+    "eleven": "[sleepily, mumbling] Psst... schließ die Augen. Ich zeige dir etwas Schönes.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.mueller-hans.quote": {
+    "filename": "character.mueller-hans.quote.mp3",
+    "voice": "Müller Hans",
+    "text": "Harte Arbeit lohnt sich immer – irgendwann.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.mueller-hans.murmur": {
+    "filename": "character.mueller-hans.murmur.mp3",
+    "voice": "Müller Hans",
+    "text": "Harte Arbeit lohnt sich immer – irgendwann.",
+    "eleven": "[sleepily, mumbling] Harte Arbeit lohnt sich immer – irgendwann.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.noch-einmal-nick.quote": {
+    "filename": "character.noch-einmal-nick.quote.mp3",
+    "voice": "Noch-Einmal-Nick",
+    "text": "Nur noch einmal. Nur dies eine Mal noch.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.noch-einmal-nick.murmur": {
+    "filename": "character.noch-einmal-nick.murmur.mp3",
+    "voice": "Noch-Einmal-Nick",
+    "text": "Nur noch einmal. Nur dies eine Mal noch.",
+    "eleven": "[sleepily, mumbling] Nur noch einmal. Nur dies eine Mal noch.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.oma-herzlich.quote": {
+    "filename": "character.oma-herzlich.quote.mp3",
+    "voice": "Oma Herzlich",
+    "text": "Setz dich erst, dann wird alles leichter.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.oma-herzlich.murmur": {
+    "filename": "character.oma-herzlich.murmur.mp3",
+    "voice": "Oma Herzlich",
+    "text": "Setz dich erst, dann wird alles leichter.",
+    "eleven": "[sleepily, mumbling] Setz dich erst, dann wird alles leichter.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.pip.quote": {
+    "filename": "character.pip.quote.mp3",
+    "voice": "Pip",
+    "text": "Nüsse! Äh, ich meine... natürlich helfe ich!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.pip.murmur": {
+    "filename": "character.pip.murmur.mp3",
+    "voice": "Pip",
+    "text": "Nüsse! Äh, ich meine... natürlich helfe ich!",
+    "eleven": "[sleepily, mumbling] Nüsse! Äh, ich meine... natürlich helfe ich!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.polizist-peter.quote": {
+    "filename": "character.polizist-peter.quote.mp3",
+    "voice": "Polizist Peter",
+    "text": "Sicherheit zuerst, dann der Rest.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.polizist-peter.murmur": {
+    "filename": "character.polizist-peter.murmur.mp3",
+    "voice": "Polizist Peter",
+    "text": "Sicherheit zuerst, dann der Rest.",
+    "eleven": "[sleepily, mumbling] Sicherheit zuerst, dann der Rest.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.postbote-papierschiff.quote": {
+    "filename": "character.postbote-papierschiff.quote.mp3",
+    "voice": "Postbote Papierschiff",
+    "text": "Jede Nachricht findet ihren Hafen.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.postbote-papierschiff.murmur": {
+    "filename": "character.postbote-papierschiff.murmur.mp3",
+    "voice": "Postbote Papierschiff",
+    "text": "Jede Nachricht findet ihren Hafen.",
+    "eleven": "[sleepily, mumbling] Jede Nachricht findet ihren Hafen.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.prinz-alexander.quote": {
+    "filename": "character.prinz-alexander.quote.mp3",
+    "voice": "Prinz Alexander",
+    "text": "Auf ins Abenteuer – wer kommt mit?",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.prinz-alexander.murmur": {
+    "filename": "character.prinz-alexander.murmur.mp3",
+    "voice": "Prinz Alexander",
+    "text": "Auf ins Abenteuer – wer kommt mit?",
+    "eleven": "[sleepily, mumbling] Auf ins Abenteuer – wer kommt mit?",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.prinzessin-rosalinde.quote": {
+    "filename": "character.prinzessin-rosalinde.quote.mp3",
+    "voice": "Prinzessin Rosalinde",
+    "text": "Stärke kommt nicht vom Schwert, sondern vom Herzen.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.prinzessin-rosalinde.murmur": {
+    "filename": "character.prinzessin-rosalinde.murmur.mp3",
+    "voice": "Prinzessin Rosalinde",
+    "text": "Stärke kommt nicht vom Schwert, sondern vom Herzen.",
+    "eleven": "[sleepily, mumbling] Stärke kommt nicht vom Schwert, sondern vom Herzen.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.professor-lichtweis.quote": {
+    "filename": "character.professor-lichtweis.quote.mp3",
+    "voice": "Professor Lichtweis",
+    "text": "Faszinierend! Das muss ich sofort aufschreiben!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.professor-lichtweis.murmur": {
+    "filename": "character.professor-lichtweis.murmur.mp3",
+    "voice": "Professor Lichtweis",
+    "text": "Faszinierend! Das muss ich sofort aufschreiben!",
+    "eleven": "[sleepily, mumbling] Faszinierend! Das muss ich sofort aufschreiben!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.raeuberhauptmann-rotbart.quote": {
+    "filename": "character.raeuberhauptmann-rotbart.quote.mp3",
+    "voice": "Räuberhauptmann Rotbart",
+    "text": "Kein Schatz ohne Preis!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.raeuberhauptmann-rotbart.murmur": {
+    "filename": "character.raeuberhauptmann-rotbart.murmur.mp3",
+    "voice": "Räuberhauptmann Rotbart",
+    "text": "Kein Schatz ohne Preis!",
+    "eleven": "[sleepily, mumbling] Kein Schatz ohne Preis!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.raeuber-raubauke.quote": {
+    "filename": "character.raeuber-raubauke.quote.mp3",
+    "voice": "Räuber Raubauke",
+    "text": "Erst klauen, dann schauen!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.raeuber-raubauke.murmur": {
+    "filename": "character.raeuber-raubauke.murmur.mp3",
+    "voice": "Räuber Raubauke",
+    "text": "Erst klauen, dann schauen!",
+    "eleven": "[sleepily, mumbling] Erst klauen, dann schauen!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.raeuber-rolf.quote": {
+    "filename": "character.raeuber-rolf.quote.mp3",
+    "voice": "Räuber Rolf",
+    "text": "Her mit dem Gold! Äh... ich meine... das ist eine Weggebühr!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.raeuber-rolf.murmur": {
+    "filename": "character.raeuber-rolf.murmur.mp3",
+    "voice": "Räuber Rolf",
+    "text": "Her mit dem Gold! Äh... ich meine... das ist eine Weggebühr!",
+    "eleven": "[sleepily, mumbling] Her mit dem Gold! Äh... ich meine... das ist eine Weggebühr!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.rika-rindenlauf.quote": {
+    "filename": "character.rika-rindenlauf.quote.mp3",
+    "voice": "Rika Rindenlauf",
+    "text": "Der Wald warnt leise, aber nie zu spät.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.rika-rindenlauf.murmur": {
+    "filename": "character.rika-rindenlauf.murmur.mp3",
+    "voice": "Rika Rindenlauf",
+    "text": "Der Wald warnt leise, aber nie zu spät.",
+    "eleven": "[sleepily, mumbling] Der Wald warnt leise, aber nie zu spät.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.ritter-rostfrei.quote": {
+    "filename": "character.ritter-rostfrei.quote.mp3",
+    "voice": "Ritter Rostfrei",
+    "text": "Helm hoch, Herz höher!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.ritter-rostfrei.murmur": {
+    "filename": "character.ritter-rostfrei.murmur.mp3",
+    "voice": "Ritter Rostfrei",
+    "text": "Helm hoch, Herz höher!",
+    "eleven": "[sleepily, mumbling] Helm hoch, Herz höher!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.samu-sanftpfote.quote": {
+    "filename": "character.samu-sanftpfote.quote.mp3",
+    "voice": "Samu Sanftpfote",
+    "text": "Stark geht auch ganz leise.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.samu-sanftpfote.murmur": {
+    "filename": "character.samu-sanftpfote.murmur.mp3",
+    "voice": "Samu Sanftpfote",
+    "text": "Stark geht auch ganz leise.",
+    "eleven": "[sleepily, mumbling] Stark geht auch ganz leise.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.schattenjunge-finn.quote": {
+    "filename": "character.schattenjunge-finn.quote.mp3",
+    "voice": "Schattenjunge Finn",
+    "text": "Ich kenn dich nicht mehr. Du hast dich verändert.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.schattenjunge-finn.murmur": {
+    "filename": "character.schattenjunge-finn.murmur.mp3",
+    "voice": "Schattenjunge Finn",
+    "text": "Ich kenn dich nicht mehr. Du hast dich verändert.",
+    "eleven": "[sleepily, mumbling] Ich kenn dich nicht mehr. Du hast dich verändert.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.schmied-konrad.quote": {
+    "filename": "character.schmied-konrad.quote.mp3",
+    "voice": "Schmied Konrad",
+    "text": "Was im Feuer geschmiedet wird, hält ewig!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.schmied-konrad.murmur": {
+    "filename": "character.schmied-konrad.murmur.mp3",
+    "voice": "Schmied Konrad",
+    "text": "Was im Feuer geschmiedet wird, hält ewig!",
+    "eleven": "[sleepily, mumbling] Was im Feuer geschmiedet wird, hält ewig!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.schwarzmagier-vardun.quote": {
+    "filename": "character.schwarzmagier-vardun.quote.mp3",
+    "voice": "Schwarzmagier Vardun",
+    "text": "Schatten gehorchen nur den Entschlossenen.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.schwarzmagier-vardun.murmur": {
+    "filename": "character.schwarzmagier-vardun.murmur.mp3",
+    "voice": "Schwarzmagier Vardun",
+    "text": "Schatten gehorchen nur den Entschlossenen.",
+    "eleven": "[sleepily, mumbling] Schatten gehorchen nur den Entschlossenen.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.silberfunke.quote": {
+    "filename": "character.silberfunke.quote.mp3",
+    "voice": "Silberfunke",
+    "text": "Glitzer, Funkel, Sternenstaub – wer mich findet, dem hilft der Traum!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.silberfunke.murmur": {
+    "filename": "character.silberfunke.murmur.mp3",
+    "voice": "Silberfunke",
+    "text": "Glitzer, Funkel, Sternenstaub – wer mich findet, dem hilft der Traum!",
+    "eleven": "[sleepily, mumbling] Glitzer, Funkel, Sternenstaub – wer mich findet, dem hilft der Traum!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.silberhorn-der-hirsch.quote": {
+    "filename": "character.silberhorn-der-hirsch.quote.mp3",
+    "voice": "Silberhorn der Hirsch",
+    "text": "Der Wald vergisst nie, wer ihm Gutes tut.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.silberhorn-der-hirsch.murmur": {
+    "filename": "character.silberhorn-der-hirsch.murmur.mp3",
+    "voice": "Silberhorn der Hirsch",
+    "text": "Der Wald vergisst nie, wer ihm Gutes tut.",
+    "eleven": "[sleepily, mumbling] Der Wald vergisst nie, wer ihm Gutes tut.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.stiefmutter-brunhilde.quote": {
+    "filename": "character.stiefmutter-brunhilde.quote.mp3",
+    "voice": "Stiefmutter Brunhilde",
+    "text": "Schönheit vergeht – aber Macht bleibt!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.stiefmutter-brunhilde.murmur": {
+    "filename": "character.stiefmutter-brunhilde.murmur.mp3",
+    "voice": "Stiefmutter Brunhilde",
+    "text": "Schönheit vergeht – aber Macht bleibt!",
+    "eleven": "[sleepily, mumbling] Schönheit vergeht – aber Macht bleibt!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.tante-sorgenfalt.quote": {
+    "filename": "character.tante-sorgenfalt.quote.mp3",
+    "voice": "Tante Sorgenfalt",
+    "text": "Pass auf. Pass auf. Pass auf.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.tante-sorgenfalt.murmur": {
+    "filename": "character.tante-sorgenfalt.murmur.mp3",
+    "voice": "Tante Sorgenfalt",
+    "text": "Pass auf. Pass auf. Pass auf.",
+    "eleven": "[sleepily, mumbling] Pass auf. Pass auf. Pass auf.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.theo-zeitsam.quote": {
+    "filename": "character.theo-zeitsam.quote.mp3",
+    "voice": "Theo Zeitsam",
+    "text": "Langsam sieht man mehr – meistens.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.theo-zeitsam.murmur": {
+    "filename": "character.theo-zeitsam.murmur.mp3",
+    "voice": "Theo Zeitsam",
+    "text": "Langsam sieht man mehr – meistens.",
+    "eleven": "[sleepily, mumbling] Langsam sieht man mehr – meistens.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.tilda-tueftel.quote": {
+    "filename": "character.tilda-tueftel.quote.mp3",
+    "voice": "Tilda Tüftel",
+    "text": "Wenn es noch nicht klappt, fehlt nur eine Idee!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.tilda-tueftel.murmur": {
+    "filename": "character.tilda-tueftel.murmur.mp3",
+    "voice": "Tilda Tüftel",
+    "text": "Wenn es noch nicht klappt, fehlt nur eine Idee!",
+    "eleven": "[sleepily, mumbling] Wenn es noch nicht klappt, fehlt nur eine Idee!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.troll-grummel.quote": {
+    "filename": "character.troll-grummel.quote.mp3",
+    "voice": "Troll Grummel",
+    "text": "Erst knurren, dann helfen.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.troll-grummel.murmur": {
+    "filename": "character.troll-grummel.murmur.mp3",
+    "voice": "Troll Grummel",
+    "text": "Erst knurren, dann helfen.",
+    "eleven": "[sleepily, mumbling] Erst knurren, dann helfen.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.weise-frau-margarethe.quote": {
+    "filename": "character.weise-frau-margarethe.quote.mp3",
+    "voice": "Weise Frau Margarethe",
+    "text": "Gegen jedes Leid ist ein Kraut gewachsen.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.weise-frau-margarethe.murmur": {
+    "filename": "character.weise-frau-margarethe.murmur.mp3",
+    "voice": "Weise Frau Margarethe",
+    "text": "Gegen jedes Leid ist ein Kraut gewachsen.",
+    "eleven": "[sleepily, mumbling] Gegen jedes Leid ist ein Kraut gewachsen.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.wirtin-martha.quote": {
+    "filename": "character.wirtin-martha.quote.mp3",
+    "voice": "Wirtin Martha",
+    "text": "Setzt euch hin, esst was Warmes – dann sieht die Welt gleich anders aus!",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.wirtin-martha.murmur": {
+    "filename": "character.wirtin-martha.murmur.mp3",
+    "voice": "Wirtin Martha",
+    "text": "Setzt euch hin, esst was Warmes – dann sieht die Welt gleich anders aus!",
+    "eleven": "[sleepily, mumbling] Setzt euch hin, esst was Warmes – dann sieht die Welt gleich anders aus!",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.wolke-wuschel.quote": {
+    "filename": "character.wolke-wuschel.quote.mp3",
+    "voice": "Wolke Wuschel",
+    "text": "Gefühle ziehen weiter, genau wie Wolken.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.wolke-wuschel.murmur": {
+    "filename": "character.wolke-wuschel.murmur.mp3",
+    "voice": "Wolke Wuschel",
+    "text": "Gefühle ziehen weiter, genau wie Wolken.",
+    "eleven": "[sleepily, mumbling] Gefühle ziehen weiter, genau wie Wolken.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.yara-wellenklang.quote": {
+    "filename": "character.yara-wellenklang.quote.mp3",
+    "voice": "Yara Wellenklang",
+    "text": "Hör hin – das Wasser zeigt den Weg.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.yara-wellenklang.murmur": {
+    "filename": "character.yara-wellenklang.murmur.mp3",
+    "voice": "Yara Wellenklang",
+    "text": "Hör hin – das Wasser zeigt den Weg.",
+    "eleven": "[sleepily, mumbling] Hör hin – das Wasser zeigt den Weg.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.zauberer-merlin.quote": {
+    "filename": "character.zauberer-merlin.quote.mp3",
+    "voice": "Zauberer Merlin",
+    "text": "Magie liegt nicht im Zauberstab – sie liegt in dir.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.zauberer-merlin.murmur": {
+    "filename": "character.zauberer-merlin.murmur.mp3",
+    "voice": "Zauberer Merlin",
+    "text": "Magie liegt nicht im Zauberstab – sie liegt in dir.",
+    "eleven": "[sleepily, mumbling] Magie liegt nicht im Zauberstab – sie liegt in dir.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  },
+  "character.zauberer-sternenschweif.quote": {
+    "filename": "character.zauberer-sternenschweif.quote.mp3",
+    "voice": "Zauberer Sternenschweif",
+    "text": "Magie folgt dem, der klar fühlt.",
+    "note": "Lieblingsspruch in der Stimme der Figur"
+  },
+  "character.zauberer-sternenschweif.murmur": {
+    "filename": "character.zauberer-sternenschweif.murmur.mp3",
+    "voice": "Zauberer Sternenschweif",
+    "text": "Magie folgt dem, der klar fühlt.",
+    "eleven": "[sleepily, mumbling] Magie folgt dem, der klar fühlt.",
+    "note": "Derselbe Spruch, verschlafen genuschelt, etwas leiser (Audio-Tag am Anfang)"
+  }
+}
