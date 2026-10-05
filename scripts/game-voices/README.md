@@ -5,7 +5,7 @@ Erzeugt Sprache und Klänge des Spiels ohne Handarbeit. Eingabe: `docs/games/mit
 | Datei | Zweck |
 |---|---|
 | `eleven.mjs` | API-Helfer: Schlüssel holen (Umgebung → `.env.local` → Railway), `ttsClip` (eleven_v4, Fallback v3), `sfxClip` |
-| `casting.mjs` | Besetzung der 89 Figuren (Stimme, Charakter-Tags, typisches Geräusch) und Tag-Bau je Zeilenart |
+| `casting.mjs` | Besetzung der 89 Figuren (Stimme, Charakter-Tags, typisches Geräusch) und Tag-Bau je Zeilenart (intro, stmt, deny, confess, smug, witness) |
 | `generate.mjs` | Sprache erzeugen, schneiden, normalisieren, Manifest schreiben (wiederaufnehmbar) |
 | `sfx.mjs` | Geräusche und Ambiente-Schleifen über `/v1/sound-generation` |
 | `master.mjs` | ffmpeg: Stille kürzen, Lautheit angleichen, Mono 64 kbit/s |
@@ -41,3 +41,7 @@ Abgerechnet werden auch die Audio-Tags. Gesamtlauf am 2026-10-03: 896 Clips, 87 
 - Ergebnis: 704 lange Clips (≥ 4 Wörter) im Mittel 99 % Buchstabenübereinstimmung, keiner unter 85 %. Verbleibende Auffälligkeiten sind Absicht (Quaken, Kichern, „Klopf, klopf“) oder Fehler der Erkennung (zum Beispiel „Kristall“ → „Christian“).
 - Nicht prüfbar ohne Ohren: ob Stimme und Witz zur Figur passen. Dafür bei Gelegenheit einige Figuren anhören und in `casting.mjs` Stimme oder Tags tauschen (der Hash erzeugt dann nur diese Clips neu).
 - Brumm (Steinwächter) und Troll Grummel sprechen sehr langsam (~6 Zeichen/s); gewollt, aber die Zeilen sind dadurch lang.
+
+## Version 3 (2026-10-05)
+
+171 weitere Sprach-Clips (Tathergang, Ermittlung, Siegel, Beute, Gruppen-Aufgaben, Tat-Erzählungen, Epiloge, Elster-Finale, Zeugen-Zeile `character.<slug>.witness` für alle 89 Figuren) und 18 Geräusche (`fx.seal`, `fx.sneak`, `fx.clock`, `fx.loot`, `fx.feather`, `fx.poster`, `fx.dawn`, `fx.rewind`, `fx.drop`, `fx.ooh` und je Fall `fx.th.<fall>`). Gegenprobe mit `check-transcripts.py`: keine gesprochenen Tags, auffällig nur gewollte Wiederholungen („Quak, quak“).

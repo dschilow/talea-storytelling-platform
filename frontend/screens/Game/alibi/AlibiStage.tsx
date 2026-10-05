@@ -14,11 +14,12 @@ import { CaseScreen, CastScreen } from "./ui/CastScreens";
 import { ActScreen } from "./ui/ActScreens";
 import { RoundScreen } from "./ui/RoundScreens";
 import { EndScreen, RevealScreen, VoteScreen } from "./ui/FinaleScreens";
+import { StoryScreen } from "./ui/StoryScreen";
 import { Overlays, type OverlayKind } from "./ui/Overlays";
 
 function backgroundFor(s: AlibiState): string {
   if (s.phase === "act") return IMG.act(s.act);
-  if (s.phase === "round" || s.phase === "vote") return IMG.act(TC);
+  if (s.phase === "round" || s.phase === "vote" || s.phase === "story") return IMG.act(TC);
   return IMG.keyart;
 }
 
@@ -29,7 +30,7 @@ function screenKey(s: AlibiState): string {
     case "act":
       return `act-${s.act}-${s.actSub}-${s.actIdx}`;
     case "round":
-      return `round-${s.round}-${s.roundSub}`;
+      return `round-${s.roundSub}-${s.moves}`;
     case "vote":
       return `vote-${s.attempt}-${s.voteSub}`;
     case "reveal":
@@ -50,17 +51,19 @@ function phaseLabel(s: AlibiState): string {
     case "act":
       return `Akt ${s.act + 1} / ${s.W?.T ?? 3}`;
     case "round":
-      return s.roundSub === "duel" ? "Zeugen-Duell" : "Verhör";
+      return s.roundSub === "duel" || s.roundSub === "duelPick" ? "Zeugen-Duell" : s.roundSub === "seal" ? "Siegelprobe" : s.roundSub === "spur" ? "Labor" : "Ermittlung";
     case "vote":
       return "Anklage";
     case "reveal":
       return "Enthüllung";
+    case "story":
+      return "Tathergang";
     default:
-      return "Abspann";
+      return "Abschluss";
   }
 }
 
-const isPrivate = (s: AlibiState) => s.phase === "act" && s.actSub === "whisper";
+const isPrivate = (s: AlibiState) => s.phase === "act" && (s.actSub === "whisper" || s.actSub === "claim");
 
 /** Vollbild-Bühne des Spiels. Liegt per Portal über der App, damit Navigation und Player nicht stören. */
 export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boolean; onExit: () => void }> = ({ ctrl, startWithTour, onExit }) => {
@@ -73,7 +76,7 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     director.ctx();
-    if (import.meta.env.DEV) (window as unknown as { __alibi?: AlibiController }).__alibi = ctrl;
+    if (import.meta.env.DEV) Object.assign(window as unknown as Record<string, unknown>, { __alibi: ctrl, __alibiDirector: director });
     const onVis = () => {
       director.pauseAmbience(document.hidden);
       if (document.hidden) {
@@ -93,7 +96,7 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
 
   /* Hintergrundklang: Abend, Mitternacht, Morgengrauen passend zum Akt; in der Befragung bleibt es nachtstill. */
   useEffect(() => {
-    director.ambience(s.phase === "act" ? (["evening", "midnight", "dawn"] as const)[Math.min(2, s.act)] : s.phase === "round" ? "midnight" : null);
+    director.ambience(s.phase === "act" ? (["evening", "midnight", "dawn"] as const)[Math.min(2, s.act)] : s.phase === "round" || s.phase === "story" ? "midnight" : null);
   }, [s.phase, s.act]);
 
   useEffect(() => {
@@ -150,8 +153,11 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
     case "reveal":
       content = <RevealScreen ctrl={ctrl} />;
       break;
+    case "story":
+      content = <StoryScreen ctrl={ctrl} />;
+      break;
     default:
-      content = <EndScreen ctrl={ctrl} onExit={() => { director.stop(); onExit(); }} />;
+      content = <EndScreen ctrl={ctrl} onExit={() => { director.stop(); onExit(); }} onVault={() => setOverlay("vault")} />;
   }
 
   const stage = (
@@ -205,6 +211,11 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
             >
               {soundOn ? "🔊" : "🔇"}
             </IconButton>
+            {s.phase === "setup" ? (
+              <IconButton label="Sammlung" a="vaultOpen" onClick={() => setOverlay("vault")}>
+                🏆
+              </IconButton>
+            ) : null}
             <IconButton label="Regeln" a="rules" onClick={() => setOverlay("rules")}>
               📖
             </IconButton>

@@ -6029,8 +6029,8 @@
     "voice": "Kommissar Tavi",
     "kind": "tavi",
     "prio": 1,
-    "text": "Hier seht ihr, was wirklich geschah. Tippt auf den goldenen Knopf für einen neuen Fall.",
-    "eleven": "[friendly, clear, patient] Hier seht ihr, was wirklich geschah. Tippt auf den goldenen Knopf für einen neuen Fall.",
+    "text": "Hier seht ihr eure Beute und wie es weitergeht. Tippt auf den goldenen Knopf für den nächsten Fall.",
+    "eleven": "[friendly, clear, patient] Hier seht ihr eure Beute und wie es weitergeht. Tippt auf den goldenen Knopf für den nächsten Fall.",
     "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
   },
   "kom.help.hand": {
@@ -6047,8 +6047,8 @@
     "voice": "Kommissar Tavi",
     "kind": "tavi",
     "prio": 1,
-    "text": "Such dir einen Ort aus, an dem du angeblich warst. Du darfst auch Figuren antippen, die angeblich bei dir waren. Dann tippe auf den goldenen Knopf.",
-    "eleven": "[friendly, clear, patient] Such dir einen Ort aus, an dem du angeblich warst. Du darfst auch Figuren antippen, die angeblich bei dir waren. Dann tippe auf den goldenen Knopf.",
+    "text": "Such dir einen Ort aus, an dem du angeblich warst. Du darfst auch Figuren antippen, die angeblich bei dir waren. Dann tippe auf das Bild, das du dort angeblich gesehen hast, und auf den goldenen Knopf.",
+    "eleven": "[friendly, clear, patient] Such dir einen Ort aus, an dem du angeblich warst. Du darfst auch Figuren antippen, die angeblich bei dir waren. Dann tippe auf das Bild, das du dort angeblich gesehen hast, und auf den goldenen Knopf.",
     "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
   },
   "kom.help.point": {
@@ -8698,5 +8698,1529 @@
     "eleven": "[whispers] Ich helfe dir kurz. Prüf, ob es stimmt, und gib es ab.",
     "whisper": true,
     "note": "Kommissar Tavi, geflüstert, nah am Mikrofon. Wird im Geheimtelefon leise abgespielt."
+  },
+  "kom.gag.laterne": {
+    "filename": "kom.gag.laterne.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Bevor wir anfangen: Der Turm ist dunkel. Macht alle gleichzeitig ein Laternengesicht! Augen weit auf, Backen rund, und leuchten!",
+    "eleven": "[playful, warm] Bevor wir anfangen: Der Turm ist dunkel. Macht alle gleichzeitig ein Laternengesicht! Augen weit auf, Backen rund, und leuchten!",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.gag.kuchen": {
+    "filename": "kom.gag.kuchen.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Bevor wir anfangen: Zeigt mir alle eure Hände! Hat da jemand Zuckerguss an den Fingern? Abschlecken gilt nicht!",
+    "eleven": "[playful, warm] Bevor wir anfangen: Zeigt mir alle eure Hände! Hat da jemand Zuckerguss an den Fingern? Abschlecken gilt nicht!",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.gag.rezept": {
+    "filename": "kom.gag.rezept.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Bevor wir anfangen: Alle reiben sich den Bauch und sagen zusammen: Mmmh, Linsensuppe! Wer am lautesten schmatzt, kriegt einen Nachschlag.",
+    "eleven": "[playful, warm] Bevor wir anfangen: Alle reiben sich den Bauch und sagen zusammen: Mmmh, Linsensuppe! Wer am lautesten schmatzt, kriegt einen Nachschlag.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.gag.mondstein": {
+    "filename": "kom.gag.mondstein.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Bevor wir anfangen: Der Mondstein summt, wenn jemand die Wahrheit sagt. Summt alle zusammen, so ehrlich ihr könnt!",
+    "eleven": "[playful, warm] Bevor wir anfangen: Der Mondstein summt, wenn jemand die Wahrheit sagt. Summt alle zusammen, so ehrlich ihr könnt!",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.gag.glocke": {
+    "filename": "kom.gag.glocke.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Bevor wir anfangen: Ohne Glocke muss das Dorf selbst läuten. Alle zusammen, so laut ihr könnt: Ding! Dong!",
+    "eleven": "[playful, warm] Bevor wir anfangen: Ohne Glocke muss das Dorf selbst läuten. Alle zusammen, so laut ihr könnt: Ding! Dong!",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.gag.honig": {
+    "filename": "kom.gag.honig.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Bevor wir anfangen: Zeigt mir, wie ihr mit klebrigen Händen ganz unschuldig ausseht. Hände hoch! Hmm. Ich sehe nichts. Noch nicht.",
+    "eleven": "[playful, warm] Bevor wir anfangen: Zeigt mir, wie ihr mit klebrigen Händen ganz unschuldig ausseht. Hände hoch! Hmm. Ich sehe nichts. Noch nicht.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.gag.hufeisen": {
+    "filename": "kom.gag.hufeisen.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Bevor wir anfangen: Ohne Glückshufeisen braucht das Dorf Glück. Drückt alle die Daumen und galoppiert einmal auf der Stelle!",
+    "eleven": "[playful, warm] Bevor wir anfangen: Ohne Glückshufeisen braucht das Dorf Glück. Drückt alle die Daumen und galoppiert einmal auf der Stelle!",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.gag.spieluhr": {
+    "filename": "kom.gag.spieluhr.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Bevor wir anfangen: Die Spieluhr ist verstummt. Summt alle zusammen das Brückenlied. Ihr kennt es nicht? Dann erfindet es!",
+    "eleven": "[playful, warm] Bevor wir anfangen: Die Spieluhr ist verstummt. Summt alle zusammen das Brückenlied. Ihr kennt es nicht? Dann erfindet es!",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.laterne": {
+    "filename": "kom.th.laterne.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Um Mitternacht, beim zwölften Glockenschlag, stieg jemand ganz leise die Wendeltreppe im Uhrturm hinauf. Ein Griff, und die Sternenlaterne war weg. Der Turm wurde dunkel.",
+    "eleven": "[hushed, suspenseful storytelling] Um Mitternacht, beim zwölften Glockenschlag, stieg jemand ganz leise die Wendeltreppe im Uhrturm hinauf. Ein Griff, und die Sternenlaterne war weg. Der Turm wurde dunkel.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.kuchen": {
+    "filename": "kom.th.kuchen.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Um Mitternacht schlich jemand in die Bäckerei. Der Kuchen war drei Stockwerke hoch und roch nach Vanille. Ein Happs, zwei Happs, und dann war er ganz weg.",
+    "eleven": "[hushed, suspenseful storytelling] Um Mitternacht schlich jemand in die Bäckerei. Der Kuchen war drei Stockwerke hoch und roch nach Vanille. Ein Happs, zwei Happs, und dann war er ganz weg.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.rezept": {
+    "filename": "kom.th.rezept.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Um Mitternacht knarrte die Tür vom Wirtshaus. Jemand öffnete ganz vorsichtig die Truhe, klemmte das goldene Rezeptbuch unter den Arm und verschwand.",
+    "eleven": "[hushed, suspenseful storytelling] Um Mitternacht knarrte die Tür vom Wirtshaus. Jemand öffnete ganz vorsichtig die Truhe, klemmte das goldene Rezeptbuch unter den Arm und verschwand.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.mondstein": {
+    "filename": "kom.th.mondstein.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Um Mitternacht huschte jemand zwischen den Bücherregalen hindurch. Die Glashaube klirrte nur ganz leise. Der Mondstein summte ein letztes Mal, dann war er weg.",
+    "eleven": "[hushed, suspenseful storytelling] Um Mitternacht huschte jemand zwischen den Bücherregalen hindurch. Die Glashaube klirrte nur ganz leise. Der Mondstein summte ein letztes Mal, dann war er weg.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.glocke": {
+    "filename": "kom.th.glocke.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Um Mitternacht stand jemand auf Zehenspitzen unter der Marktglocke. Ein Schnitt am Seil, ein Fang mit beiden Armen, und kein einziges Ding, kein Dong.",
+    "eleven": "[hushed, suspenseful storytelling] Um Mitternacht stand jemand auf Zehenspitzen unter der Marktglocke. Ein Schnitt am Seil, ein Fang mit beiden Armen, und kein einziges Ding, kein Dong.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.honig": {
+    "filename": "kom.th.honig.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Um Mitternacht schlich jemand in den Kräutergarten. Die zwei Wachbienen schliefen tief und fest. Ein Griff, ein Schlecker, und der Honigtopf war weg.",
+    "eleven": "[hushed, suspenseful storytelling] Um Mitternacht schlich jemand in den Kräutergarten. Die zwei Wachbienen schliefen tief und fest. Ein Griff, ein Schlecker, und der Honigtopf war weg.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.hufeisen": {
+    "filename": "kom.th.hufeisen.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Um Mitternacht schob jemand einen Hocker vor die Schmiede, stellte sich auf die Zehenspitzen und nahm das Glückshufeisen vom Nagel. Ganz ohne Glück, nur mit Geschick.",
+    "eleven": "[hushed, suspenseful storytelling] Um Mitternacht schob jemand einen Hocker vor die Schmiede, stellte sich auf die Zehenspitzen und nahm das Glückshufeisen vom Nagel. Ganz ohne Glück, nur mit Geschick.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.spieluhr": {
+    "filename": "kom.th.spieluhr.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Um Mitternacht spielte die Spieluhr an der Brücke gerade die erste Strophe. Jemand hob sie vom Haken, und mitten im Lied wurde es still.",
+    "eleven": "[hushed, suspenseful storytelling] Um Mitternacht spielte die Spieluhr an der Brücke gerade die erste Strophe. Jemand hob sie vom Haken, und mitten im Lied wurde es still.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.title": {
+    "filename": "kom.th.title.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und so ist es wirklich passiert. Rückblende!",
+    "eleven": "[dramatic, storytelling] Und so ist es wirklich passiert. Rückblende!",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.evening": {
+    "filename": "kom.th.evening.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Der Abend. Alle waren unterwegs, auch der Dieb. Und am Abend hat noch jeder die Wahrheit gesagt.",
+    "eleven": "[calm, storytelling] Der Abend. Alle waren unterwegs, auch der Dieb. Und am Abend hat noch jeder die Wahrheit gesagt.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.thief": {
+    "filename": "kom.th.thief.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und der Dieb war:",
+    "eleven": "[dramatic] Und der Dieb war:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.claim": {
+    "filename": "kom.th.claim.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Angeblich war der Dieb um Mitternacht hier:",
+    "eleven": "[dry, amused] Angeblich war der Dieb um Mitternacht hier:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.claim.with": {
+    "filename": "kom.th.claim.with.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Angeblich mit dabei:",
+    "eleven": "[dry, amused] Angeblich mit dabei:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.claim.alone": {
+    "filename": "kom.th.claim.alone.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Angeblich ganz allein.",
+    "eleven": "[dry, amused] Angeblich ganz allein.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.claim.saw": {
+    "filename": "kom.th.claim.saw.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und angeblich gesehen:",
+    "eleven": "[dry, amused] Und angeblich gesehen:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.real.saw": {
+    "filename": "kom.th.real.saw.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Dort war aber in Wahrheit:",
+    "eleven": "[triumphant] Dort war aber in Wahrheit:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.lucky": {
+    "filename": "kom.th.lucky.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und das hat sogar gestimmt. Pures Glück!",
+    "eleven": "[surprised] Und das hat sogar gestimmt. Pures Glück!",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.caught": {
+    "filename": "kom.th.caught.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und so habt ihr den Dieb erwischt.",
+    "eleven": "[proud, warm] Und so habt ihr den Dieb erwischt.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.clue.alone": {
+    "filename": "kom.th.clue.alone.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Um Mitternacht hat niemand den Dieb gesehen.",
+    "eleven": "[calm, measured] Um Mitternacht hat niemand den Dieb gesehen.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.clue.conflict": {
+    "filename": "kom.th.clue.conflict.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Die Aussagen haben sich widersprochen.",
+    "eleven": "[calm, measured] Die Aussagen haben sich widersprochen.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.clue.duel": {
+    "filename": "kom.th.clue.duel.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Im Zeugen-Duell passte das Bild nicht.",
+    "eleven": "[calm, measured] Im Zeugen-Duell passte das Bild nicht.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.clue.seal": {
+    "filename": "kom.th.clue.seal.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und das gebrochene Siegel hat alles verraten.",
+    "eleven": "[calm, measured] Und das gebrochene Siegel hat alles verraten.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.clue.lab": {
+    "filename": "kom.th.clue.lab.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und das Labor hat die richtigen Spuren gefunden.",
+    "eleven": "[calm, measured] Und das Labor hat die richtigen Spuren gefunden.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.escaped": {
+    "filename": "kom.th.escaped.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und ihr? Ihr wart ganz nah dran. Aber diesmal war der Dieb schneller.",
+    "eleven": "[sighs, wry] Und ihr? Ihr wart ganz nah dran. Aber diesmal war der Dieb schneller.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.dawn": {
+    "filename": "kom.th.dawn.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Im Morgengrauen versteckte der Dieb die Beute. Und zwar hier:",
+    "eleven": "[hushed, suspenseful storytelling] Im Morgengrauen versteckte der Dieb die Beute. Und zwar hier:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.found": {
+    "filename": "kom.th.found.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und genau dort haben wir sie gefunden.",
+    "eleven": "[proud, warm] Und genau dort haben wir sie gefunden.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.lost": {
+    "filename": "kom.th.lost.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und dort liegt sie wahrscheinlich noch heute.",
+    "eleven": "[sighs, wry] Und dort liegt sie wahrscheinlich noch heute.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.pocket": {
+    "filename": "kom.th.pocket.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und die Beute? Die steckte noch in der Tasche.",
+    "eleven": "[amused] Und die Beute? Die steckte noch in der Tasche.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.away": {
+    "filename": "kom.th.away.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und die Beute ist mit verschwunden.",
+    "eleven": "[sighs, wry] Und die Beute ist mit verschwunden.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.inv.start": {
+    "filename": "kom.inv.start.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Die Ermittlung beginnt! Bis zum Morgengrauen habt ihr nur ein paar Züge. Wählt klug: Zeugen-Duell, Siegel brechen oder Labor.",
+    "eleven": "[energetic, clear] Die Ermittlung beginnt! Bis zum Morgengrauen habt ihr nur ein paar Züge. Wählt klug: Zeugen-Duell, Siegel brechen oder Labor.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.inv.next.1": {
+    "filename": "kom.inv.next.1.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Die Uhr tickt. Was macht ihr als Nächstes?",
+    "eleven": "[calm, measured] Die Uhr tickt. Was macht ihr als Nächstes?",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.inv.next.2": {
+    "filename": "kom.inv.next.2.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Noch ist es dunkel. Weiter geht's.",
+    "eleven": "[calm, measured] Noch ist es dunkel. Weiter geht's.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.inv.next.3": {
+    "filename": "kom.inv.next.3.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Der Dieb wird nervös. Ich sehe es an den Schuhen.",
+    "eleven": "[dry, amused] Der Dieb wird nervös. Ich sehe es an den Schuhen.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.inv.last": {
+    "filename": "kom.inv.last.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Letzter Zug! Danach graut der Morgen.",
+    "eleven": "[urgent] Letzter Zug! Danach graut der Morgen.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.inv.out": {
+    "filename": "kom.inv.out.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Der Morgen graut! Keine Züge mehr. Jetzt wird angeklagt!",
+    "eleven": "[urgent, dramatic] Der Morgen graut! Keine Züge mehr. Jetzt wird angeklagt!",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.duel.pick": {
+    "filename": "kom.duel.pick.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Welches Duell wollt ihr sehen? Tippt auf ein Paar.",
+    "eleven": "[calm, measured] Welches Duell wollt ihr sehen? Tippt auf ein Paar.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.duel.seal": {
+    "filename": "kom.duel.seal.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und jetzt breche ich die Siegel. Mal sehen, was ihr wirklich gesehen habt.",
+    "eleven": "[dramatic] Und jetzt breche ich die Siegel. Mal sehen, was ihr wirklich gesehen habt.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.seal.call": {
+    "filename": "kom.seal.call.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Siegel brechen! Wessen Mitternachts-Aussage soll ich prüfen? Tippt auf eine Figur.",
+    "eleven": "[dramatic] Siegel brechen! Wessen Mitternachts-Aussage soll ich prüfen? Tippt auf eine Figur.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.seal.open": {
+    "filename": "kom.seal.open.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Ich breche das Siegel von:",
+    "eleven": "[dramatic] Ich breche das Siegel von:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.seal.claimed": {
+    "filename": "kom.seal.claimed.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Im Siegel steht:",
+    "eleven": "[calm, measured] Im Siegel steht:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.seal.truth": {
+    "filename": "kom.seal.truth.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und wirklich dort war:",
+    "eleven": "[calm, measured] Und wirklich dort war:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.seal.match": {
+    "filename": "kom.seal.match.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Es passt. Das Siegel hält.",
+    "eleven": "[warm, relieved] Es passt. Das Siegel hält.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.seal.fail": {
+    "filename": "kom.seal.fail.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Es passt nicht! Da hat jemand geflunkert!",
+    "eleven": "[triumphant] Es passt nicht! Da hat jemand geflunkert!",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.ann.quirk": {
+    "filename": "kom.ann.quirk.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und jetzt sag es so, wie es deine Figur tun würde:",
+    "eleven": "[playful, warm] Und jetzt sag es so, wie es deine Figur tun würde:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.loot.new": {
+    "filename": "kom.loot.new.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Die Beute kommt in die Asservatenkammer. Ein neues Beweisstück!",
+    "eleven": "[proud, warm] Die Beute kommt in die Asservatenkammer. Ein neues Beweisstück!",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.loot.again": {
+    "filename": "kom.loot.again.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Das kennen wir schon. Ein zweites Exemplar für die Asservatenkammer.",
+    "eleven": "[amused] Das kennen wir schon. Ein zweites Exemplar für die Asservatenkammer.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.wanted": {
+    "filename": "kom.wanted.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Der Dieb ist entkommen. Ich hänge einen Steckbrief auf. Weit kommt der nicht.",
+    "eleven": "[determined] Der Dieb ist entkommen. Ich hänge einen Steckbrief auf. Weit kommt der nicht.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.feather.1": {
+    "filename": "kom.feather.1.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Moment, was ist das? Am Tatort lag eine schwarze Feder.",
+    "eleven": "[curious, hushed] Moment, was ist das? Am Tatort lag eine schwarze Feder.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.feather.2": {
+    "filename": "kom.feather.2.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Schon wieder eine schwarze Feder. Langsam glaube ich nicht mehr an Zufall.",
+    "eleven": "[curious, hushed] Schon wieder eine schwarze Feder. Langsam glaube ich nicht mehr an Zufall.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.epi.laterne": {
+    "filename": "kom.epi.laterne.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Später in der Nacht landete etwas Schwarzes auf dem Dach der Bäckerei. Es klopfte dreimal mit dem Schnabel ans Fenster. Der Geburtstag des Königs ist morgen. Ob der Kuchen sicher ist?",
+    "eleven": "[mysterious, slow, suspenseful] Später in der Nacht landete etwas Schwarzes auf dem Dach der Bäckerei. Es klopfte dreimal mit dem Schnabel ans Fenster. Der Geburtstag des Königs ist morgen. Ob der Kuchen sicher ist?",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.epi.kuchen": {
+    "filename": "kom.epi.kuchen.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Im Wirtshaus brennt noch Licht. Die Wirtin schwört, sie hat ein Flattern gehört, genau bei der Truhe mit dem goldenen Rezeptbuch. Auf dem Boden: eine schwarze Feder.",
+    "eleven": "[mysterious, slow, suspenseful] Im Wirtshaus brennt noch Licht. Die Wirtin schwört, sie hat ein Flattern gehört, genau bei der Truhe mit dem goldenen Rezeptbuch. Auf dem Boden: eine schwarze Feder.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.epi.rezept": {
+    "filename": "kom.epi.rezept.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "In der Bibliothek summt der Mondstein plötzlich ganz aufgeregt. Jemand hat ein Buch über glänzende Steine ausgeliehen und eine schwarze Feder als Lesezeichen vergessen.",
+    "eleven": "[mysterious, slow, suspenseful] In der Bibliothek summt der Mondstein plötzlich ganz aufgeregt. Jemand hat ein Buch über glänzende Steine ausgeliehen und eine schwarze Feder als Lesezeichen vergessen.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.epi.mondstein": {
+    "filename": "kom.epi.mondstein.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Auf dem Marktplatz schaukelt die Marktglocke, obwohl kein Wind weht. Oben auf dem Glockenbalken sitzt ein schwarzer Schatten mit glänzenden Augen. Er wartet.",
+    "eleven": "[mysterious, slow, suspenseful] Auf dem Marktplatz schaukelt die Marktglocke, obwohl kein Wind weht. Oben auf dem Glockenbalken sitzt ein schwarzer Schatten mit glänzenden Augen. Er wartet.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.epi.glocke": {
+    "filename": "kom.epi.glocke.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Im Kräutergarten summen die Bienen nervös. Zwischen den Lavendelbeeten liegt eine schwarze Feder, direkt neben dem Honigtopf des Jahres. Jemand hat schon einmal Maß genommen.",
+    "eleven": "[mysterious, slow, suspenseful] Im Kräutergarten summen die Bienen nervös. Zwischen den Lavendelbeeten liegt eine schwarze Feder, direkt neben dem Honigtopf des Jahres. Jemand hat schon einmal Maß genommen.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.epi.honig": {
+    "filename": "kom.epi.honig.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "In der Schmiede klappert es leise. Das Glückshufeisen hängt noch über der Tür, aber daneben steckt eine schwarze Feder im Holz. Wie eine Nachricht: Ich komme wieder.",
+    "eleven": "[mysterious, slow, suspenseful] In der Schmiede klappert es leise. Das Glückshufeisen hängt noch über der Tür, aber daneben steckt eine schwarze Feder im Holz. Wie eine Nachricht: Ich komme wieder.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.epi.hufeisen": {
+    "filename": "kom.epi.hufeisen.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "An der alten Brücke spielt die Spieluhr das Brückenlied. Und irgendwo im Dunkeln pfeift jemand die zweite Strophe mit. Ganz falsch. Auf dem Geländer: eine schwarze Feder.",
+    "eleven": "[mysterious, slow, suspenseful] An der alten Brücke spielt die Spieluhr das Brückenlied. Und irgendwo im Dunkeln pfeift jemand die zweite Strophe mit. Ganz falsch. Auf dem Geländer: eine schwarze Feder.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.epi.spieluhr": {
+    "filename": "kom.epi.spieluhr.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Hoch oben auf dem Uhrturm glitzert etwas im Mondlicht. Ein Nest? Voller glänzender Dinge? Und dazwischen schwarze Federn. Kicherwald, wir haben ein Elster-Problem.",
+    "eleven": "[mysterious, slow, suspenseful] Hoch oben auf dem Uhrturm glitzert etwas im Mondlicht. Ein Nest? Voller glänzender Dinge? Und dazwischen schwarze Federn. Kicherwald, wir haben ein Elster-Problem.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.elster.1": {
+    "filename": "kom.elster.1.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Moment. Alle acht Beweisstücke liegen in der Asservatenkammer. Und an jedem Tatort lag eine schwarze Feder.",
+    "eleven": "[hushed, suspenseful] Moment. Alle acht Beweisstücke liegen in der Asservatenkammer. Und an jedem Tatort lag eine schwarze Feder.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.elster.2": {
+    "filename": "kom.elster.2.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Ich bin ihr gefolgt, ganz hinauf auf den Uhrturm. Und da saß sie, in einem Nest voller glänzender Schätze: die Elster Ella!",
+    "eleven": "[dramatic, amazed] Ich bin ihr gefolgt, ganz hinauf auf den Uhrturm. Und da saß sie, in einem Nest voller glänzender Schätze: die Elster Ella!",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.elster.3": {
+    "filename": "kom.elster.3.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Sie hat jedem Dieb zugeflüstert, wie schön das Glänzende glänzt. Aber jetzt ist Schluss. Ella sammelt ab heute nur noch Knöpfe. Und ihr seid Ehrenkommissare von Kicherwald!",
+    "eleven": "[proud, warm, cheerful] Sie hat jedem Dieb zugeflüstert, wie schön das Glänzende glänzt. Aber jetzt ist Schluss. Ella sammelt ab heute nur noch Knöpfe. Und ihr seid Ehrenkommissare von Kicherwald!",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.help.inv": {
+    "filename": "kom.help.inv.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Ihr ermittelt. Jeder Zug kostet Zeit bis zum Morgengrauen. Ein Duell vergleicht zwei Zeugen, das Siegel prüft eine Aussage, das Labor findet eine Spur. Ihr könnt jederzeit anklagen.",
+    "eleven": "[calm, clear] Ihr ermittelt. Jeder Zug kostet Zeit bis zum Morgengrauen. Ein Duell vergleicht zwei Zeugen, das Siegel prüft eine Aussage, das Labor findet eine Spur. Ihr könnt jederzeit anklagen.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.help.seal": {
+    "filename": "kom.help.seal.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Tippt auf die Figur, deren Mitternachts-Aussage ich prüfen soll. Das geht nur einmal pro Fall.",
+    "eleven": "[calm, clear] Tippt auf die Figur, deren Mitternachts-Aussage ich prüfen soll. Das geht nur einmal pro Fall.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.help.story": {
+    "filename": "kom.help.story.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Lehnt euch zurück. Ich erzähle, wie es wirklich passiert ist.",
+    "eleven": "[calm, clear] Lehnt euch zurück. Ich erzähle, wie es wirklich passiert ist.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "w.claim.sight": {
+    "filename": "w.claim.sight.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "flüstern",
+    "prio": 1,
+    "text": "Und was hast du dort gesehen? Tippe auf das Bild.",
+    "eleven": "[whispers] Und was hast du dort gesehen? Tippe auf das Bild.",
+    "whisper": true,
+    "note": "Kommissar Tavi, geflüstert, nah am Mikrofon. Wird im Geheimtelefon leise abgespielt."
+  },
+  "w.culprit.sight": {
+    "filename": "w.culprit.sight.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "flüstern",
+    "prio": 1,
+    "text": "Und was willst du dort gesehen haben? Rate gut, die anderen wissen es vielleicht.",
+    "eleven": "[whispers] Und was willst du dort gesehen haben? Rate gut, die anderen wissen es vielleicht.",
+    "whisper": true,
+    "note": "Kommissar Tavi, geflüstert, nah am Mikrofon. Wird im Geheimtelefon leise abgespielt."
+  },
+  "kom.help.claim": {
+    "filename": "kom.help.claim.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "flüstern",
+    "prio": 1,
+    "text": "Tippe auf den Ort, an dem du warst, auf alle, die bei dir waren, und auf das Bild, das du dort gesehen hast. Dann auf Aussage abgeben.",
+    "eleven": "[whispers] Tippe auf den Ort, an dem du warst, auf alle, die bei dir waren, und auf das Bild, das du dort gesehen hast. Dann auf Aussage abgeben.",
+    "whisper": true,
+    "note": "Kommissar Tavi, geflüstert, nah am Mikrofon. Wird im Geheimtelefon leise abgespielt."
+  },
+  "character.amir-sternfinder.witness": {
+    "filename": "character.amir-sternfinder.witness.mp3",
+    "voice": "Amir Sternfinder",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Und es hat sich angefühlt wie ein Sternbild, das sich ganz langsam zusammensetzt.",
+    "eleven": "[eager, proud] Ich war dort. Und es hat sich angefühlt wie ein Sternbild, das sich ganz langsam zusammensetzt.",
+    "note": "Figur Amir Sternfinder, Zeile „witness“ (Tathergang)"
+  },
+  "character.astra.witness": {
+    "filename": "character.astra.witness.mp3",
+    "voice": "Astra",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Ich habe so hell gefunkelt, dass ich alles gesehen habe.",
+    "eleven": "[eager, proud] Ich war dort! Ich habe so hell gefunkelt, dass ich alles gesehen habe.",
+    "note": "Figur Astra, Zeile „witness“ (Tathergang)"
+  },
+  "character.astronautin-nova.witness": {
+    "filename": "character.astronautin-nova.witness.mp3",
+    "voice": "Astronautin Nova",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Drei, zwei, eins: Beobachtung bestätigt. Ich war dort, Kommissar.",
+    "eleven": "[eager, proud] Drei, zwei, eins: Beobachtung bestätigt. Ich war dort, Kommissar.",
+    "note": "Figur Astronautin Nova, Zeile „witness“ (Tathergang)"
+  },
+  "character.baecker-braun.witness": {
+    "filename": "character.baecker-braun.witness.mp3",
+    "voice": "Bäcker Braun",
+    "kind": "figur",
+    "prio": 1,
+    "text": "So wahr ich Brötchen backe: Ich war genau dort.",
+    "eleven": "[eager, proud] So wahr ich Brötchen backe: Ich war genau dort.",
+    "note": "Figur Bäcker Braun, Zeile „witness“ (Tathergang)"
+  },
+  "character.baecker-bruno.witness": {
+    "filename": "character.baecker-bruno.witness.mp3",
+    "voice": "Bäcker Bruno",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war da! Groß wie ein Ofen. Mich übersieht man nicht.",
+    "eleven": "[eager, proud] Ich war da! Groß wie ein Ofen. Mich übersieht man nicht.",
+    "note": "Figur Bäcker Bruno, Zeile „witness“ (Tathergang)"
+  },
+  "character.baecker-wilhelm.witness": {
+    "filename": "character.baecker-wilhelm.witness.mp3",
+    "voice": "Bäcker Wilhelm",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Ich habe es gesehen. Und gerochen. Es roch nach frischem Brot. Glaube ich.",
+    "eleven": "[eager, proud] Ich war dort! Ich habe es gesehen. Und gerochen. Es roch nach frischem Brot. Glaube ich.",
+    "note": "Figur Bäcker Wilhelm, Zeile „witness“ (Tathergang)"
+  },
+  "character.bauerntochter-greta.witness": {
+    "filename": "character.bauerntochter-greta.witness.mp3",
+    "voice": "Bauerntochter Greta",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort und habe Blumen gepflückt! Die Blumen können es bezeugen.",
+    "eleven": "[eager, proud] Ich war dort und habe Blumen gepflückt! Die Blumen können es bezeugen.",
+    "note": "Figur Bauerntochter Greta, Zeile „witness“ (Tathergang)"
+  },
+  "character.bo-buecherfuchs.witness": {
+    "filename": "character.bo-buecherfuchs.witness.mp3",
+    "voice": "Bo Bücherfuchs",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Ich habe es mir notiert. Seite drei, unten links.",
+    "eleven": "[eager, proud] Ich war dort. Ich habe es mir notiert. Seite drei, unten links.",
+    "note": "Figur Bo Bücherfuchs, Zeile „witness“ (Tathergang)"
+  },
+  "character.bruchkind-brenno.witness": {
+    "filename": "character.bruchkind-brenno.witness.mp3",
+    "voice": "Bruchkind Brenno",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war da. Und diesmal habe ich nichts kaputtgemacht. Ehrlich.",
+    "eleven": "[eager, proud] Ich war da. Und diesmal habe ich nichts kaputtgemacht. Ehrlich.",
+    "note": "Figur Bruchkind Brenno, Zeile „witness“ (Tathergang)"
+  },
+  "character.brumm-der-steinwaechter.witness": {
+    "filename": "character.brumm-der-steinwaechter.witness.mp3",
+    "voice": "Brumm der Steinwächter",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Brumm. War. Dort. Habe. Alles. Gesehen.",
+    "eleven": "[eager, proud] Brumm. War. Dort. Habe. Alles. Gesehen.",
+    "note": "Figur Brumm der Steinwächter, Zeile „witness“ (Tathergang)"
+  },
+  "character.der-geraeusche-fresser.witness": {
+    "filename": "character.der-geraeusche-fresser.witness.mp3",
+    "voice": "Der Geräusche-Fresser",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Pssst. Ich war dort. Ich habe sogar das Geräusch gegessen. Lecker.",
+    "eleven": "[eager, proud] Pssst. Ich war dort. Ich habe sogar das Geräusch gegessen. Lecker.",
+    "note": "Figur Der Geräusche-Fresser, Zeile „witness“ (Tathergang)"
+  },
+  "character.der-leiser-mann.witness": {
+    "filename": "character.der-leiser-mann.witness.mp3",
+    "voice": "Der Leiser-Mann",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Ganz leise. Bitte nicht so laut nachfragen.",
+    "eleven": "[eager, proud] Ich war dort. Ganz leise. Bitte nicht so laut nachfragen.",
+    "note": "Figur Der Leiser-Mann, Zeile „witness“ (Tathergang)"
+  },
+  "character.der-letzte-wehmueter.witness": {
+    "filename": "character.der-letzte-wehmueter.witness.mp3",
+    "voice": "Der Letzte Wehmüter",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Wie früher. Ach, früher war ich viel öfter dort.",
+    "eleven": "[eager, proud] Ich war dort. Wie früher. Ach, früher war ich viel öfter dort.",
+    "note": "Figur Der Letzte Wehmüter, Zeile „witness“ (Tathergang)"
+  },
+  "character.der-mutlosmacher.witness": {
+    "filename": "character.der-mutlosmacher.witness.mp3",
+    "voice": "Der Mutlosmacher",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ja, ich war da. Hat ja eh keiner gemerkt.",
+    "eleven": "[eager, proud] Ja, ich war da. Hat ja eh keiner gemerkt.",
+    "note": "Figur Der Mutlosmacher, Zeile „witness“ (Tathergang)"
+  },
+  "character.der-zeitweber.witness": {
+    "filename": "character.der-zeitweber.witness.mp3",
+    "voice": "Der Zeitweber",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Genau zur richtigen Zeit. Die Zeit lügt nicht.",
+    "eleven": "[eager, proud] Ich war dort. Genau zur richtigen Zeit. Die Zeit lügt nicht.",
+    "note": "Figur Der Zeitweber, Zeile „witness“ (Tathergang)"
+  },
+  "character.der-zu-ordentliche.witness": {
+    "filename": "character.der-zu-ordentliche.witness.mp3",
+    "voice": "Der Zu-Ordentliche",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort und habe nebenbei alles ordentlich ausgerichtet. Sogar die Steine.",
+    "eleven": "[eager, proud] Ich war dort und habe nebenbei alles ordentlich ausgerichtet. Sogar die Steine.",
+    "note": "Figur Der Zu-Ordentliche, Zeile „witness“ (Tathergang)"
+  },
+  "character.detektiv-schnueffel.witness": {
+    "filename": "character.detektiv-schnueffel.witness.mp3",
+    "voice": "Detektiv Schnüffel",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Natürlich war ich dort. Ich bin Detektiv. Ich bin immer irgendwo.",
+    "eleven": "[eager, proud] Natürlich war ich dort. Ich bin Detektiv. Ich bin immer irgendwo.",
+    "note": "Figur Detektiv Schnüffel, Zeile „witness“ (Tathergang)"
+  },
+  "character.die-alte-eiche.witness": {
+    "filename": "character.die-alte-eiche.witness.mp3",
+    "voice": "Die Alte Eiche",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich stand dort. Wie seit dreihundert Jahren.",
+    "eleven": "[eager, proud] Ich stand dort. Wie seit dreihundert Jahren.",
+    "note": "Figur Die Alte Eiche, Zeile „witness“ (Tathergang)"
+  },
+  "character.die-besserwisserin-klotilde.witness": {
+    "filename": "character.die-besserwisserin-klotilde.witness.mp3",
+    "voice": "Die Besserwisserin Klotilde",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Eigentlich habe ich es sofort gewusst. Ich war schließlich dort.",
+    "eleven": "[eager, proud] Eigentlich habe ich es sofort gewusst. Ich war schließlich dort.",
+    "note": "Figur Die Besserwisserin Klotilde, Zeile „witness“ (Tathergang)"
+  },
+  "character.die-nebelfee.witness": {
+    "filename": "character.die-nebelfee.witness.mp3",
+    "voice": "Die Nebelfee",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Man hat mich nur kaum gesehen. Das passiert mir oft.",
+    "eleven": "[eager, proud] Ich war dort! Man hat mich nur kaum gesehen. Das passiert mir oft.",
+    "note": "Figur Die Nebelfee, Zeile „witness“ (Tathergang)"
+  },
+  "character.die-nebelhexe.witness": {
+    "filename": "character.die-nebelhexe.witness.mp3",
+    "voice": "Die Nebelhexe",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Und ich habe ausnahmsweise nichts verzaubert.",
+    "eleven": "[eager, proud] Ich war dort. Und ich habe ausnahmsweise nichts verzaubert.",
+    "note": "Figur Die Nebelhexe, Zeile „witness“ (Tathergang)"
+  },
+  "character.diener-johann.witness": {
+    "filename": "character.diener-johann.witness.mp3",
+    "voice": "Diener Johann",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort, zu Diensten. Sehr wohl.",
+    "eleven": "[eager, proud] Ich war dort, zu Diensten. Sehr wohl.",
+    "note": "Figur Diener Johann, Zeile „witness“ (Tathergang)"
+  },
+  "character.die-stundendiebin.witness": {
+    "filename": "character.die-stundendiebin.witness.mp3",
+    "voice": "Die Stundendiebin",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Tick, tick. Ich habe sogar auf die Uhr geschaut.",
+    "eleven": "[eager, proud] Ich war dort. Tick, tick. Ich habe sogar auf die Uhr geschaut.",
+    "note": "Figur Die Stundendiebin, Zeile „witness“ (Tathergang)"
+  },
+  "character.drache-fauchi.witness": {
+    "filename": "character.drache-fauchi.witness.mp3",
+    "voice": "Drache Fauchi",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war da! Und ich habe nur ganz kleine Rauchkringel gepustet!",
+    "eleven": "[eager, proud] Ich war da! Und ich habe nur ganz kleine Rauchkringel gepustet!",
+    "note": "Figur Drache Fauchi, Zeile „witness“ (Tathergang)"
+  },
+  "character.eichhoernchen-flitz.witness": {
+    "filename": "character.eichhoernchen-flitz.witness.mp3",
+    "voice": "Eichhörnchen Flitz",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Zack, ich war da! Und zack, schon wieder weg! Aber gesehen hab ich's!",
+    "eleven": "[eager, proud] Zack, ich war da! Und zack, schon wieder weg! Aber gesehen hab ich's!",
+    "note": "Figur Eichhörnchen Flitz, Zeile „witness“ (Tathergang)"
+  },
+  "character.fee-rosalie.witness": {
+    "filename": "character.fee-rosalie.witness.mp3",
+    "voice": "Fee Rosalie",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Mit einem Flügelschlag. Oder zwei.",
+    "eleven": "[eager, proud] Ich war dort! Mit einem Flügelschlag. Oder zwei.",
+    "note": "Figur Fee Rosalie, Zeile „witness“ (Tathergang)"
+  },
+  "character.feuerwehrfrau-fanni.witness": {
+    "filename": "character.feuerwehrfrau-fanni.witness.mp3",
+    "voice": "Feuerwehrfrau Fanni",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war vor Ort. Fluchtwege geprüft, alles gesehen.",
+    "eleven": "[eager, proud] Ich war vor Ort. Fluchtwege geprüft, alles gesehen.",
+    "note": "Figur Feuerwehrfrau Fanni, Zeile „witness“ (Tathergang)"
+  },
+  "character.fluestertante-flora.witness": {
+    "filename": "character.fluestertante-flora.witness.mp3",
+    "voice": "Flüstertante Flora",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Pssst. Ich war dort. Aber das bleibt unter uns, ja?",
+    "eleven": "[eager, proud] Pssst. Ich war dort. Aber das bleibt unter uns, ja?",
+    "note": "Figur Flüstertante Flora, Zeile „witness“ (Tathergang)"
+  },
+  "character.frau-gleichgleich.witness": {
+    "filename": "character.frau-gleichgleich.witness.mp3",
+    "voice": "Frau Gleichgleich",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Genau dort. Immer genau dort.",
+    "eleven": "[eager, proud] Ich war dort. Genau dort. Immer genau dort.",
+    "note": "Figur Frau Gleichgleich, Zeile „witness“ (Tathergang)"
+  },
+  "character.frau-mueller.witness": {
+    "filename": "character.frau-mueller.witness.mp3",
+    "voice": "Frau Müller",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort, und der Wind hat mir alles zugeflüstert.",
+    "eleven": "[eager, proud] Ich war dort, und der Wind hat mir alles zugeflüstert.",
+    "note": "Figur Frau Müller, Zeile „witness“ (Tathergang)"
+  },
+  "character.frau-wellenreiter.witness": {
+    "filename": "character.frau-wellenreiter.witness.mp3",
+    "voice": "Frau Wellenreiter",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Erst habe ich zum Horizont geschaut. Dann auf alles andere.",
+    "eleven": "[eager, proud] Ich war dort. Erst habe ich zum Horizont geschaut. Dann auf alles andere.",
+    "note": "Figur Frau Wellenreiter, Zeile „witness“ (Tathergang)"
+  },
+  "character.frosch-quak.witness": {
+    "filename": "character.frosch-quak.witness.mp3",
+    "voice": "Frosch Quak",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Quak! Ich war da! Im Takt! Quak, quak!",
+    "eleven": "[eager, proud] Quak! Ich war da! Im Takt! Quak, quak!",
+    "note": "Figur Frosch Quak, Zeile „witness“ (Tathergang)"
+  },
+  "character.funkelflug.witness": {
+    "filename": "character.funkelflug.witness.mp3",
+    "voice": "Funkelflug",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Hatschi! Oh, entschuldigt, das war nur ein Funke.",
+    "eleven": "[eager, proud] Ich war dort! Hatschi! Oh, entschuldigt, das war nur ein Funke.",
+    "note": "Figur Funkelflug, Zeile „witness“ (Tathergang)"
+  },
+  "character.gelehrter-professor-theodor.witness": {
+    "filename": "character.gelehrter-professor-theodor.witness.mp3",
+    "voice": "Gelehrter Professor Theodor",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort, ganz sicher. Ich habe es irgendwo notiert. Mit Tinte. Viel Tinte.",
+    "eleven": "[eager, proud] Ich war dort, ganz sicher. Ich habe es irgendwo notiert. Mit Tinte. Viel Tinte.",
+    "note": "Figur Gelehrter Professor Theodor, Zeile „witness“ (Tathergang)"
+  },
+  "character.graf-griesgram.witness": {
+    "filename": "character.graf-griesgram.witness.mp3",
+    "voice": "Graf Griesgram",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ja, ja, ich war dort. Und nein, es hat mir keinen Spaß gemacht.",
+    "eleven": "[eager, proud] Ja, ja, ich war dort. Und nein, es hat mir keinen Spaß gemacht.",
+    "note": "Figur Graf Griesgram, Zeile „witness“ (Tathergang)"
+  },
+  "character.graumund-der-gleichgueltige.witness": {
+    "filename": "character.graumund-der-gleichgueltige.witness.mp3",
+    "voice": "Graumund der Gleichgültige",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Mir doch egal.",
+    "eleven": "[eager, proud] Ich war dort. Mir doch egal.",
+    "note": "Figur Graumund der Gleichgültige, Zeile „witness“ (Tathergang)"
+  },
+  "character.haendler-gustav.witness": {
+    "filename": "character.haendler-gustav.witness.mp3",
+    "voice": "Händler Gustav",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Und für euch heute ganz umsonst: die ganze Wahrheit!",
+    "eleven": "[eager, proud] Ich war dort! Und für euch heute ganz umsonst: die ganze Wahrheit!",
+    "note": "Figur Händler Gustav, Zeile „witness“ (Tathergang)"
+  },
+  "character.herr-seitenflug.witness": {
+    "filename": "character.herr-seitenflug.witness.mp3",
+    "voice": "Herr Seitenflug",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Dazu habe ich ein Buch. Moment, es ist hier irgendwo.",
+    "eleven": "[eager, proud] Ich war dort! Dazu habe ich ein Buch. Moment, es ist hier irgendwo.",
+    "note": "Figur Herr Seitenflug, Zeile „witness“ (Tathergang)"
+  },
+  "character.hexe-griselda.witness": {
+    "filename": "character.hexe-griselda.witness.mp3",
+    "voice": "Hexe Griselda",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Mit meinem dritten Auge habe ich alles gesehen. Und mit den anderen zwei.",
+    "eleven": "[eager, proud] Ich war dort! Mit meinem dritten Auge habe ich alles gesehen. Und mit den anderen zwei.",
+    "note": "Figur Hexe Griselda, Zeile „witness“ (Tathergang)"
+  },
+  "character.hexe-kraeuterweis.witness": {
+    "filename": "character.hexe-kraeuterweis.witness.mp3",
+    "voice": "Hexe Kräuterweis",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Es roch nach Lavendel. Und nach Ärger.",
+    "eleven": "[eager, proud] Ich war dort. Es roch nach Lavendel. Und nach Ärger.",
+    "note": "Figur Hexe Kräuterweis, Zeile „witness“ (Tathergang)"
+  },
+  "character.hirtenjunge-peter.witness": {
+    "filename": "character.hirtenjunge-peter.witness.mp3",
+    "voice": "Hirtenjunge Peter",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war da! Und meine Schafe haben es auch gesehen!",
+    "eleven": "[eager, proud] Ich war da! Und meine Schafe haben es auch gesehen!",
+    "note": "Figur Hirtenjunge Peter, Zeile „witness“ (Tathergang)"
+  },
+  "character.juna-windwaerts.witness": {
+    "filename": "character.juna-windwaerts.witness.mp3",
+    "voice": "Juna Windwärts",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Mein Kompass hat genau dahin gezeigt.",
+    "eleven": "[eager, proud] Ich war dort. Mein Kompass hat genau dahin gezeigt.",
+    "note": "Figur Juna Windwärts, Zeile „witness“ (Tathergang)"
+  },
+  "character.kapitaen-blubbert.witness": {
+    "filename": "character.kapitaen-blubbert.witness.mp3",
+    "voice": "Kapitän Blubbert",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ahoi! Ich war dort! An Land, aber trotzdem seefest!",
+    "eleven": "[eager, proud] Ahoi! Ich war dort! An Land, aber trotzdem seefest!",
+    "note": "Figur Kapitän Blubbert, Zeile „witness“ (Tathergang)"
+  },
+  "character.kobold-kicher.witness": {
+    "filename": "character.kobold-kicher.witness.mp3",
+    "voice": "Kobold Kicher",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war da! Klick, klack, und ich habe alles gesehen!",
+    "eleven": "[eager, proud] Ich war da! Klick, klack, und ich habe alles gesehen!",
+    "note": "Figur Kobold Kicher, Zeile „witness“ (Tathergang)"
+  },
+  "character.koenig-friedrich.witness": {
+    "filename": "character.koenig-friedrich.witness.mp3",
+    "voice": "König Friedrich",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Und ein König lügt nicht. Zumindest nicht dienstags.",
+    "eleven": "[eager, proud] Ich war dort. Und ein König lügt nicht. Zumindest nicht dienstags.",
+    "note": "Figur König Friedrich, Zeile „witness“ (Tathergang)"
+  },
+  "character.koenigin-isabella.witness": {
+    "filename": "character.koenigin-isabella.witness.mp3",
+    "voice": "Königin Isabella",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Mit einer Tasse Tee und offenen Augen.",
+    "eleven": "[eager, proud] Ich war dort. Mit einer Tasse Tee und offenen Augen.",
+    "note": "Figur Königin Isabella, Zeile „witness“ (Tathergang)"
+  },
+  "character.koenig-karl-der-weise.witness": {
+    "filename": "character.koenig-karl-der-weise.witness.mp3",
+    "voice": "König Karl der Weise",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Ein kluger Zug, wie sich jetzt zeigt.",
+    "eleven": "[eager, proud] Ich war dort. Ein kluger Zug, wie sich jetzt zeigt.",
+    "note": "Figur König Karl der Weise, Zeile „witness“ (Tathergang)"
+  },
+  "character.koenig-wilhelm.witness": {
+    "filename": "character.koenig-wilhelm.witness.mp3",
+    "voice": "König Wilhelm",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Im Dienste meines Volkes.",
+    "eleven": "[eager, proud] Ich war dort. Im Dienste meines Volkes.",
+    "note": "Figur König Wilhelm, Zeile „witness“ (Tathergang)"
+  },
+  "character.krummfinger-der-sammler.witness": {
+    "filename": "character.krummfinger-der-sammler.witness.mp3",
+    "voice": "Krummfinger der Sammler",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Und ich habe nichts eingesteckt. Fast nichts.",
+    "eleven": "[eager, proud] Ich war dort. Und ich habe nichts eingesteckt. Fast nichts.",
+    "note": "Figur Krummfinger der Sammler, Zeile „witness“ (Tathergang)"
+  },
+  "character.kuno-knopf.witness": {
+    "filename": "character.kuno-knopf.witness.mp3",
+    "voice": "Kuno Knopf",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. So sicher wie ein Knopf an der Mütze.",
+    "eleven": "[eager, proud] Ich war dort. So sicher wie ein Knopf an der Mütze.",
+    "note": "Figur Kuno Knopf, Zeile „witness“ (Tathergang)"
+  },
+  "character.lehrerin-laempel.witness": {
+    "filename": "character.lehrerin-laempel.witness.mp3",
+    "voice": "Lehrerin Lämpel",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort und habe gut aufgepasst. Dafür gibt es eine Glühbirne!",
+    "eleven": "[eager, proud] Ich war dort und habe gut aufgepasst. Dafür gibt es eine Glühbirne!",
+    "note": "Figur Lehrerin Lämpel, Zeile „witness“ (Tathergang)"
+  },
+  "character.lumi-nachtlicht.witness": {
+    "filename": "character.lumi-nachtlicht.witness.mp3",
+    "voice": "Lumi Nachtlicht",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Und ich habe ein kleines bisschen geleuchtet.",
+    "eleven": "[eager, proud] Ich war dort. Und ich habe ein kleines bisschen geleuchtet.",
+    "note": "Figur Lumi Nachtlicht, Zeile „witness“ (Tathergang)"
+  },
+  "character.luna.witness": {
+    "filename": "character.luna.witness.mp3",
+    "voice": "Luna",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Natürlich war ich dort. Ich bin immer dort, wo es spannend wird.",
+    "eleven": "[eager, proud] Natürlich war ich dort. Ich bin immer dort, wo es spannend wird.",
+    "note": "Figur Luna, Zeile „witness“ (Tathergang)"
+  },
+  "character.magd-elsa.witness": {
+    "filename": "character.magd-elsa.witness.mp3",
+    "voice": "Magd Elsa",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort und habe gearbeitet. Wie immer.",
+    "eleven": "[eager, proud] Ich war dort und habe gearbeitet. Wie immer.",
+    "note": "Figur Magd Elsa, Zeile „witness“ (Tathergang)"
+  },
+  "character.magierin-luna.witness": {
+    "filename": "character.magierin-luna.witness.mp3",
+    "voice": "Magierin Luna",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Der Kristall hat es mir schon vorher gezeigt.",
+    "eleven": "[eager, proud] Ich war dort. Der Kristall hat es mir schon vorher gezeigt.",
+    "note": "Figur Magierin Luna, Zeile „witness“ (Tathergang)"
+  },
+  "character.mia-neugier.witness": {
+    "filename": "character.mia-neugier.witness.mp3",
+    "voice": "Mia Neugier",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Und ich habe mir alles auf den Ärmel geschrieben!",
+    "eleven": "[eager, proud] Ich war dort! Und ich habe mir alles auf den Ärmel geschrieben!",
+    "note": "Figur Mia Neugier, Zeile „witness“ (Tathergang)"
+  },
+  "character.mina-mosaik.witness": {
+    "filename": "character.mina-mosaik.witness.mp3",
+    "voice": "Mina Mosaik",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Und jetzt passt ein Steinchen mehr ins Bild.",
+    "eleven": "[eager, proud] Ich war dort. Und jetzt passt ein Steinchen mehr ins Bild.",
+    "note": "Figur Mina Mosaik, Zeile „witness“ (Tathergang)"
+  },
+  "character.morpheus.witness": {
+    "filename": "character.morpheus.witness.mp3",
+    "voice": "Morpheus",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Psst. Ich war dort. Oder habe ich das nur geträumt?",
+    "eleven": "[eager, proud] Psst. Ich war dort. Oder habe ich das nur geträumt?",
+    "note": "Figur Morpheus, Zeile „witness“ (Tathergang)"
+  },
+  "character.mueller-hans.witness": {
+    "filename": "character.mueller-hans.witness.mp3",
+    "voice": "Müller Hans",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Ehrlich, und mit Mehl an den Händen.",
+    "eleven": "[eager, proud] Ich war dort. Ehrlich, und mit Mehl an den Händen.",
+    "note": "Figur Müller Hans, Zeile „witness“ (Tathergang)"
+  },
+  "character.noch-einmal-nick.witness": {
+    "filename": "character.noch-einmal-nick.witness.mp3",
+    "voice": "Noch-Einmal-Nick",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Nur einmal. Na gut, zweimal.",
+    "eleven": "[eager, proud] Ich war dort. Nur einmal. Na gut, zweimal.",
+    "note": "Figur Noch-Einmal-Nick, Zeile „witness“ (Tathergang)"
+  },
+  "character.oma-herzlich.witness": {
+    "filename": "character.oma-herzlich.witness.mp3",
+    "voice": "Oma Herzlich",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort, Schätzchen. Und vorher hatten alle etwas Warmes gegessen.",
+    "eleven": "[eager, proud] Ich war dort, Schätzchen. Und vorher hatten alle etwas Warmes gegessen.",
+    "note": "Figur Oma Herzlich, Zeile „witness“ (Tathergang)"
+  },
+  "character.pip.witness": {
+    "filename": "character.pip.witness.mp3",
+    "voice": "Pip",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Nüsse! Äh, ich meine: Ich war dort! Und ich habe geholfen!",
+    "eleven": "[eager, proud] Nüsse! Äh, ich meine: Ich war dort! Und ich habe geholfen!",
+    "note": "Figur Pip, Zeile „witness“ (Tathergang)"
+  },
+  "character.polizist-peter.witness": {
+    "filename": "character.polizist-peter.witness.mp3",
+    "voice": "Polizist Peter",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war vor Ort. Uhrzeit notiert, auf die Sekunde genau.",
+    "eleven": "[eager, proud] Ich war vor Ort. Uhrzeit notiert, auf die Sekunde genau.",
+    "note": "Figur Polizist Peter, Zeile „witness“ (Tathergang)"
+  },
+  "character.postbote-papierschiff.witness": {
+    "filename": "character.postbote-papierschiff.witness.mp3",
+    "voice": "Postbote Papierschiff",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Die Post kommt immer an. Ich auch.",
+    "eleven": "[eager, proud] Ich war dort. Die Post kommt immer an. Ich auch.",
+    "note": "Figur Postbote Papierschiff, Zeile „witness“ (Tathergang)"
+  },
+  "character.prinz-alexander.witness": {
+    "filename": "character.prinz-alexander.witness.mp3",
+    "voice": "Prinz Alexander",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Mutig, wie es sich gehört!",
+    "eleven": "[eager, proud] Ich war dort! Mutig, wie es sich gehört!",
+    "note": "Figur Prinz Alexander, Zeile „witness“ (Tathergang)"
+  },
+  "character.prinzessin-rosalinde.witness": {
+    "filename": "character.prinzessin-rosalinde.witness.mp3",
+    "voice": "Prinzessin Rosalinde",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Mit einer Blume im Haar und klarem Blick.",
+    "eleven": "[eager, proud] Ich war dort. Mit einer Blume im Haar und klarem Blick.",
+    "note": "Figur Prinzessin Rosalinde, Zeile „witness“ (Tathergang)"
+  },
+  "character.professor-lichtweis.witness": {
+    "filename": "character.professor-lichtweis.witness.mp3",
+    "voice": "Professor Lichtweis",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Faszinierend! Ich war dort und habe alles beobachtet. Wo ist eigentlich meine Brille?",
+    "eleven": "[eager, proud] Faszinierend! Ich war dort und habe alles beobachtet. Wo ist eigentlich meine Brille?",
+    "note": "Figur Professor Lichtweis, Zeile „witness“ (Tathergang)"
+  },
+  "character.raeuberhauptmann-rotbart.witness": {
+    "filename": "character.raeuberhauptmann-rotbart.witness.mp3",
+    "voice": "Räuberhauptmann Rotbart",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Und ausnahmsweise habe ich nichts mitgenommen.",
+    "eleven": "[eager, proud] Ich war dort! Und ausnahmsweise habe ich nichts mitgenommen.",
+    "note": "Figur Räuberhauptmann Rotbart, Zeile „witness“ (Tathergang)"
+  },
+  "character.raeuber-raubauke.witness": {
+    "filename": "character.raeuber-raubauke.witness.mp3",
+    "voice": "Räuber Raubauke",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Aber nur zum Schauen, nicht zum Klauen!",
+    "eleven": "[eager, proud] Ich war dort! Aber nur zum Schauen, nicht zum Klauen!",
+    "note": "Figur Räuber Raubauke, Zeile „witness“ (Tathergang)"
+  },
+  "character.raeuber-rolf.witness": {
+    "filename": "character.raeuber-rolf.witness.mp3",
+    "voice": "Räuber Rolf",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Äh, ganz zufällig. Wirklich.",
+    "eleven": "[eager, proud] Ich war dort. Äh, ganz zufällig. Wirklich.",
+    "note": "Figur Räuber Rolf, Zeile „witness“ (Tathergang)"
+  },
+  "character.rika-rindenlauf.witness": {
+    "filename": "character.rika-rindenlauf.witness.mp3",
+    "voice": "Rika Rindenlauf",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Der Wald hat mich gewarnt.",
+    "eleven": "[eager, proud] Ich war dort. Der Wald hat mich gewarnt.",
+    "note": "Figur Rika Rindenlauf, Zeile „witness“ (Tathergang)"
+  },
+  "character.ritter-rostfrei.witness": {
+    "filename": "character.ritter-rostfrei.witness.mp3",
+    "voice": "Ritter Rostfrei",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Helm hoch, Herz höher!",
+    "eleven": "[eager, proud] Ich war dort! Helm hoch, Herz höher!",
+    "note": "Figur Ritter Rostfrei, Zeile „witness“ (Tathergang)"
+  },
+  "character.samu-sanftpfote.witness": {
+    "filename": "character.samu-sanftpfote.witness.mp3",
+    "voice": "Samu Sanftpfote",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Ganz leise. Ich tue keinem etwas.",
+    "eleven": "[eager, proud] Ich war dort. Ganz leise. Ich tue keinem etwas.",
+    "note": "Figur Samu Sanftpfote, Zeile „witness“ (Tathergang)"
+  },
+  "character.schattenjunge-finn.witness": {
+    "filename": "character.schattenjunge-finn.witness.mp3",
+    "voice": "Schattenjunge Finn",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Mein Schatten kam etwas später.",
+    "eleven": "[eager, proud] Ich war dort. Mein Schatten kam etwas später.",
+    "note": "Figur Schattenjunge Finn, Zeile „witness“ (Tathergang)"
+  },
+  "character.schmied-konrad.witness": {
+    "filename": "character.schmied-konrad.witness.mp3",
+    "voice": "Schmied Konrad",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Hart wie Eisen, ehrlich wie Stahl!",
+    "eleven": "[eager, proud] Ich war dort! Hart wie Eisen, ehrlich wie Stahl!",
+    "note": "Figur Schmied Konrad, Zeile „witness“ (Tathergang)"
+  },
+  "character.schwarzmagier-vardun.witness": {
+    "filename": "character.schwarzmagier-vardun.witness.mp3",
+    "voice": "Schwarzmagier Vardun",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Die Schatten haben mir alles erzählt.",
+    "eleven": "[eager, proud] Ich war dort. Die Schatten haben mir alles erzählt.",
+    "note": "Figur Schwarzmagier Vardun, Zeile „witness“ (Tathergang)"
+  },
+  "character.silberfunke.witness": {
+    "filename": "character.silberfunke.witness.mp3",
+    "voice": "Silberfunke",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war da, glitzerklar, und so ist es wahr!",
+    "eleven": "[eager, proud] Ich war da, glitzerklar, und so ist es wahr!",
+    "note": "Figur Silberfunke, Zeile „witness“ (Tathergang)"
+  },
+  "character.silberhorn-der-hirsch.witness": {
+    "filename": "character.silberhorn-der-hirsch.witness.mp3",
+    "voice": "Silberhorn der Hirsch",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Der Wald vergisst nichts. Ich auch nicht.",
+    "eleven": "[eager, proud] Ich war dort. Der Wald vergisst nichts. Ich auch nicht.",
+    "note": "Figur Silberhorn der Hirsch, Zeile „witness“ (Tathergang)"
+  },
+  "character.stiefmutter-brunhilde.witness": {
+    "filename": "character.stiefmutter-brunhilde.witness.mp3",
+    "voice": "Stiefmutter Brunhilde",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Natürlich. Und ich sah dabei hervorragend aus.",
+    "eleven": "[eager, proud] Ich war dort. Natürlich. Und ich sah dabei hervorragend aus.",
+    "note": "Figur Stiefmutter Brunhilde, Zeile „witness“ (Tathergang)"
+  },
+  "character.tante-sorgenfalt.witness": {
+    "filename": "character.tante-sorgenfalt.witness.mp3",
+    "voice": "Tante Sorgenfalt",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Und ich habe mir die ganze Zeit Sorgen gemacht!",
+    "eleven": "[eager, proud] Ich war dort! Und ich habe mir die ganze Zeit Sorgen gemacht!",
+    "note": "Figur Tante Sorgenfalt, Zeile „witness“ (Tathergang)"
+  },
+  "character.theo-zeitsam.witness": {
+    "filename": "character.theo-zeitsam.witness.mp3",
+    "voice": "Theo Zeitsam",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Etwas später als die anderen, aber ich war dort.",
+    "eleven": "[eager, proud] Ich war dort. Etwas später als die anderen, aber ich war dort.",
+    "note": "Figur Theo Zeitsam, Zeile „witness“ (Tathergang)"
+  },
+  "character.tilda-tueftel.witness": {
+    "filename": "character.tilda-tueftel.witness.mp3",
+    "voice": "Tilda Tüftel",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Und dabei ist mir eine Idee gekommen. Mit Zahnrad.",
+    "eleven": "[eager, proud] Ich war dort! Und dabei ist mir eine Idee gekommen. Mit Zahnrad.",
+    "note": "Figur Tilda Tüftel, Zeile „witness“ (Tathergang)"
+  },
+  "character.troll-grummel.witness": {
+    "filename": "character.troll-grummel.witness.mp3",
+    "voice": "Troll Grummel",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich. War. Dort.",
+    "eleven": "[eager, proud] Ich. War. Dort.",
+    "note": "Figur Troll Grummel, Zeile „witness“ (Tathergang)"
+  },
+  "character.weise-frau-margarethe.witness": {
+    "filename": "character.weise-frau-margarethe.witness.mp3",
+    "voice": "Weise Frau Margarethe",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Und gegen Lügen ist ein Kraut gewachsen.",
+    "eleven": "[eager, proud] Ich war dort. Und gegen Lügen ist ein Kraut gewachsen.",
+    "note": "Figur Weise Frau Margarethe, Zeile „witness“ (Tathergang)"
+  },
+  "character.wirtin-martha.witness": {
+    "filename": "character.wirtin-martha.witness.mp3",
+    "voice": "Wirtin Martha",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort! Und danach gab es für alle eine warme Suppe.",
+    "eleven": "[eager, proud] Ich war dort! Und danach gab es für alle eine warme Suppe.",
+    "note": "Figur Wirtin Martha, Zeile „witness“ (Tathergang)"
+  },
+  "character.wolke-wuschel.witness": {
+    "filename": "character.wolke-wuschel.witness.mp3",
+    "voice": "Wolke Wuschel",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort und bin vor Aufregung ganz rosa geworden.",
+    "eleven": "[eager, proud] Ich war dort und bin vor Aufregung ganz rosa geworden.",
+    "note": "Figur Wolke Wuschel, Zeile „witness“ (Tathergang)"
+  },
+  "character.yara-wellenklang.witness": {
+    "filename": "character.yara-wellenklang.witness.mp3",
+    "voice": "Yara Wellenklang",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Das Wasser hat es mir zugeflüstert.",
+    "eleven": "[eager, proud] Ich war dort. Das Wasser hat es mir zugeflüstert.",
+    "note": "Figur Yara Wellenklang, Zeile „witness“ (Tathergang)"
+  },
+  "character.zauberer-merlin.witness": {
+    "filename": "character.zauberer-merlin.witness.mp3",
+    "voice": "Zauberer Merlin",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort. Und ich habe nur ein ganz kleines bisschen gezaubert.",
+    "eleven": "[eager, proud] Ich war dort. Und ich habe nur ein ganz kleines bisschen gezaubert.",
+    "note": "Figur Zauberer Merlin, Zeile „witness“ (Tathergang)"
+  },
+  "character.zauberer-sternenschweif.witness": {
+    "filename": "character.zauberer-sternenschweif.witness.mp3",
+    "voice": "Zauberer Sternenschweif",
+    "kind": "figur",
+    "prio": 1,
+    "text": "Ich war dort und habe einen Stern an den Himmel gemalt, damit ich es nicht vergesse.",
+    "eleven": "[eager, proud] Ich war dort und habe einen Stern an den Himmel gemalt, damit ich es nicht vergesse.",
+    "note": "Figur Zauberer Sternenschweif, Zeile „witness“ (Tathergang)"
+  },
+  "kom.th.seen": {
+    "filename": "kom.th.seen.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Dort war zu sehen:",
+    "eleven": "[calm, storytelling] Dort war zu sehen:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.meanwhile": {
+    "filename": "kom.th.meanwhile.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Zur selben Zeit, ganz woanders:",
+    "eleven": "[hushed, storytelling] Zur selben Zeit, ganz woanders:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.but.others": {
+    "filename": "kom.th.but.others.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Aber dort waren in Wahrheit ganz andere:",
+    "eleven": "[triumphant] Aber dort waren in Wahrheit ganz andere:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.but.nobody": {
+    "filename": "kom.th.but.nobody.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Aber dort war um Mitternacht in Wahrheit niemand.",
+    "eleven": "[triumphant] Aber dort war um Mitternacht in Wahrheit niemand.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.dawn.others": {
+    "filename": "kom.th.dawn.others.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und direkt daneben, ohne etwas zu merken:",
+    "eleven": "[amused, hushed] Und direkt daneben, ohne etwas zu merken:",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.th.end": {
+    "filename": "kom.th.end.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Und das war die ganze Geschichte dieser Nacht.",
+    "eleven": "[warm, storytelling] Und das war die ganze Geschichte dieser Nacht.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
   }
 }

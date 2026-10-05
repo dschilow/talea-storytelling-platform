@@ -7,8 +7,9 @@ import type { AlibiController } from "../controller";
 import { useAlibiState, usePreviewFaces } from "../hooks";
 import type { LevelId, Player } from "../types";
 import { Face, GhostButton, GoldButton, SightTile, TraitRow } from "./primitives";
+import { VaultView } from "./Vault";
 
-export type OverlayKind = "rules" | "cast" | "tour" | null;
+export type OverlayKind = "rules" | "cast" | "tour" | "vault" | null;
 
 const Sheet: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({ title, onClose, children }) => (
   <motion.div className="absolute inset-0 z-40 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
@@ -44,6 +45,11 @@ export const Overlays: React.FC<{ ctrl: AlibiController; kind: OverlayKind; onCl
     {kind === "cast" ? (
       <Sheet key="cast" title="Die Besetzung" onClose={onClose}>
         <CastSheet ctrl={ctrl} />
+      </Sheet>
+    ) : null}
+    {kind === "vault" ? (
+      <Sheet key="vault" title="Die Sammlung" onClose={onClose}>
+        <VaultView chars={ctrl.chars} />
       </Sheet>
     ) : null}
     {kind === "tour" ? <Tour key="tour" ctrl={ctrl} onClose={onClose} /> : null}
@@ -102,14 +108,15 @@ const Rules: React.FC<{ ctrl: AlibiController; onTour: () => void; onQuit: () =>
       <ol className="list-decimal space-y-1.5 pl-5">
         <li><b className="text-white">Besetzung:</b> Das Handy geht im Kreis, jeder zieht eine Figur und bekommt eine Nummer.</li>
         <li><b className="text-white">Akte:</b> Das Geheimtelefon klingelt reihum. Tavi flüstert jedem, wo er war, wer dabei war und was er gesehen hat. Danach wählt jeder seine Aussage selbst aus (Ort und Begleiter) und sagt sie der Runde mit eigenen Worten. Tavi liest sie nicht vor, nur auf Wunsch. Der Dieb wählt sein Mitternachts-Alibi frei.</li>
-        <li><b className="text-white">Verhör:</b> Dorfkarte vergleichen, Fragekarten, Zeugen-Duelle. Nach jeder Runde meldet das Labor eine Spur.</li>
-        <li><b className="text-white">Anklage:</b> Alle zeigen gleichzeitig auf den Dieb.</li>
+        <li><b className="text-white">Ermittlung:</b> Bis zum Morgengrauen habt ihr nur ein paar Züge: Zeugen-Duell, Siegel brechen (einmal pro Fall) oder Laborspur. Reden und Fragekarten kosten nichts.</li>
+        <li><b className="text-white">Anklage:</b> Alle zeigen gleichzeitig auf den Dieb. Danach erzählt Tavi den Tathergang, und die Beute kommt in eure Sammlung.</li>
       </ol>
       <H>So findet ihr den Dieb</H>
       <ul className="list-disc space-y-1.5 pl-5">
         <li><b className="text-white">Keine Zeugen:</b> Jeder Unschuldige wird um Mitternacht von jemandem bestätigt. Der Dieb nicht.</li>
         <li><b className="text-white">Widersprüche:</b> Sagt jemand „Ich war mit Nummer 3 im Garten“, und Nummer 3 war woanders, stimmt etwas nicht.</li>
-        <li><b className="text-white">Zeugen-Duell:</b> Wer wirklich da war, kennt das Bild. Der Dieb muss raten.</li>
+        <li><b className="text-white">Zeugen-Duell:</b> Wer wirklich da war, kennt das Bild. Der Dieb musste es raten. Tavi bricht die Siegel und vergleicht.</li>
+        <li><b className="text-white">Siegel:</b> Jede Aussage hat eine versiegelte Beobachtung. Passt sie nicht zum Ort, hat jemand geflunkert.</li>
         <li><b className="text-white">Spuren:</b> Farbiger Rand, Größe (Balken), Art oder Geschlecht des Diebs.</li>
       </ul>
       <H>Die Stufen</H>

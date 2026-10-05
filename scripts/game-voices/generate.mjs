@@ -45,7 +45,7 @@ const accountVoices =JSON.parse(readFileSync(path.join(HERE, "voices-account.jso
 /** Plan für einen Eintrag aus Stimmen.json: Stimme + endgültiger Text. */
 function plan(id, entry) {
   if (entry.kind === "figur") {
-    const m = id.match(/^character\.(.+)\.(intro|stmt|deny|confess|smug)$/);
+    const m = id.match(/^character\.(.+)\.(intro|stmt|deny|confess|smug|witness)$/);
     if (!m) throw new Error(`Figuren-ID nicht lesbar: ${id}`);
     const [, slug, line] = m;
     const voice = resolveVoice(CAST[slug]?.[0] ?? (() => { throw new Error(`Figur ohne Besetzung: ${slug}`); })(), accountVoices);

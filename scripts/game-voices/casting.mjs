@@ -130,6 +130,7 @@ export function characterText(slug, kind, text) {
     case "stmt": return `[${persona}, solemn, like swearing an oath] ${text}`;
     case "deny": return `[${persona}, indignant] ${text}`;
     case "confess": return `[sighs] [${persona}, ashamed, quietly] ${text}`;
+    case "witness": return `[${persona}, eager, proud] ${text}`;
     case "smug": return `[${persona}, smug, pleased with itself] ${text}${flavor ? tail : " [chuckles]"}`;
     default: throw new Error(`Unbekannte Zeilenart: ${kind}`);
   }

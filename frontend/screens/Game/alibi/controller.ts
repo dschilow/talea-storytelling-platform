@@ -1,13 +1,14 @@
 /* Mitternachts-Alibi: Spielablauf (Zustandsmaschine). Die Oberfläche liest `state` und ruft Aktionen auf.
  * Ablauf und Sprachfolgen entsprechen dem per Simulation geprüften Prototyp v2. */
 import * as E from "./engine";
-import { CASES, KOM, PLACES, PROMPTS, SIGHTS, pickVar, traitFor, type CaseDef, type Sight, buildClips } from "./content";
+import { CASES, KOM, PLACES, PROMPTS, SIGHTS, SLOTS, nextCaseId, pickVar, traitFor, type CaseDef, type Sight, buildClips } from "./content";
 import { director, type SayPart } from "./audio";
 import type { AlibiCharacter, Claim, Conflict, LevelId, Spur, World } from "./types";
+import { recordGame, type GameRecord } from "./vault";
 
-export type Phase = "setup" | "cast" | "caseIntro" | "act" | "round" | "vote" | "reveal" | "end";
+export type Phase = "setup" | "cast" | "caseIntro" | "act" | "round" | "vote" | "reveal" | "story" | "end";
 export type ActSub = "intro" | "hand" | "whisper" | "claim" | "announce" | "done";
-export type RoundSub = "talk" | "duel" | "spur";
+export type RoundSub = "talk" | "duelPick" | "duel" | "spur" | "seal";
 
 export interface Duel {
   t: number;
@@ -16,8 +17,59 @@ export interface Duel {
   b: number;
   key: string;
   opts: { k: number; s: Sight }[];
-  step: "call" | "count" | "show" | "result";
+  step: "call" | "count" | "show" | "open" | "result";
   res: "same" | "diff" | null;
+  /** versiegelte Beobachtungen der beiden Zeugen (werden beim Öffnen gezeigt) */
+  sa?: string;
+  sb?: string;
+}
+/** Ein Duell, das die Gruppe auswählen kann */
+export interface DuelOption {
+  t: number;
+  place: string;
+  a: number;
+  b: number;
+  key: string;
+}
+/** Siegelprobe: eine Mitternachts-Aussage gegen die Dorfchronik prüfen */
+export interface SealProbe {
+  i: number | null;
+  step: "pick" | "open" | "result";
+  claimed?: string;
+  truth?: string;
+  ok?: boolean;
+}
+export type ClueKind = "seal" | "duel" | "conflict" | "alone" | "lab";
+/** Was die Dorfkarte in einer Szene des Tathergangs zeigt (Kamera, Figuren, Beute, Spur). */
+export interface BoardStory {
+  /** rot hervorgehobene Figur (Dieb) */
+  focus?: number | null;
+  /** golden hervorgehobene Figuren (Zeugen der Szene) */
+  group?: number[];
+  /** alle anderen abblenden */
+  dim?: boolean;
+  /** falsches Alibi: Geisterfigur am behaupteten Ort mit behaupteter und echter Beobachtung */
+  ghost?: { i: number; place: string; claimed?: string; real?: string } | null;
+  /** Beute: bei einer Figur oder an einem Ort; `from` = erst dort, dann bei der Figur */
+  loot?: { player?: number; place?: string; from?: string } | null;
+  /** Fußspur von Ort zu Ort */
+  trail?: { from: string; to: string } | null;
+  /** Kamera fährt zu einem Ort */
+  camera?: { place: string; zoom: number } | null;
+  /** große Beobachtung neben einem Ort */
+  spot?: { place: string; sight: string } | null;
+}
+/** Eine Szene des Tathergangs */
+export interface StoryBeat {
+  kind: "title" | "scene" | "theft" | "lie" | "verdict" | "hide" | "end";
+  t: number;
+  title: string;
+  parts: SayPart[];
+  board: BoardStory;
+  clues?: ClueKind[];
+}
+export interface Reward extends GameRecord {
+  next: CaseDef;
 }
 export interface Award {
   icon: string;
@@ -43,14 +95,19 @@ export interface AlibiState {
   actSub: ActSub;
   actOrder: number[];
   actIdx: number;
-  draft: Claim & { place: string | null };
+  draft: { place: string | null; comp: number[]; sight: string | null };
   /** Fehlversuche beim Auswählen der eigenen Aussage (Unschuldige) und Zähler für das Wackeln */
   claimTries: number;
   claimFlash: number;
   hidden: boolean;
   bell: number;
   newRes: number | null;
-  round: number;
+  /** Ermittlungszüge bis zum Morgengrauen */
+  moves: number;
+  movesTotal: number;
+  duelOpts: DuelOption[];
+  seal: SealProbe | null;
+  sealLog: { i: number; ok: boolean }[];
   spuren: Spur[];
   spurShown: number;
   roundSub: RoundSub;
@@ -70,6 +127,9 @@ export interface AlibiState {
   revealSub: "ask" | "drum" | "shown";
   finalCaught: boolean | null;
   awards: Record<number, Award> | null;
+  story: StoryBeat[];
+  storyIdx: number;
+  reward: Reward | null;
 }
 
 const SETUP_KEY = "talea.alibi.setup.v2";
@@ -77,10 +137,10 @@ const SETUP_KEY = "talea.alibi.setup.v2";
 function initialState(): AlibiState {
   return {
     phase: "setup", W: null, caseDef: null, claims: [], sights: {}, castIdx: 0, castSub: "draw", act: 0, actSub: "intro",
-    actOrder: [], actIdx: 0, draft: { place: null as unknown as string, comp: [] }, claimTries: 0, claimFlash: 0, hidden: false, bell: 0, newRes: null,
-    round: 1, spuren: [], spurShown: 0, roundSub: "talk", talkLeft: 0, talkRun: false, prompt: 0, duel: null, duelLog: [],
+    actOrder: [], actIdx: 0, draft: { place: null, comp: [], sight: null }, claimTries: 0, claimFlash: 0, hidden: false, bell: 0, newRes: null,
+    moves: 0, movesTotal: 0, duelOpts: [], seal: null, sealLog: [], spuren: [], spurShown: 0, roundSub: "talk", talkLeft: 0, talkRun: false, prompt: 0, duel: null, duelLog: [],
     flags: null, tab: E.TC, voteSub: "ready", count: 0, sel: null, accused: null, cleared: [], attempt: 1, revealSub: "ask",
-    finalCaught: null, awards: null,
+    finalCaught: null, awards: null, story: [], storyIdx: 0, reward: null,
   };
 }
 
@@ -93,7 +153,10 @@ export class AlibiController {
   private listeners = new Set<() => void>();
   private timer: number | null = null;
   private introToken = 0;
+  private storyToken = 0;
+  private sealToken = 0;
   private lieTold = false;
+  private sightTold = false;
 
   constructor(chars: AlibiCharacter[]) {
     this.chars = chars;
@@ -181,10 +244,12 @@ export class AlibiController {
     this.set({ phase: "cast", castIdx: 0, castSub: "draw" });
     void this.say(["kom.cast.start"]);
   }
-  private newCase(names: string[]) {
+  private newCase(names: string[], caseId?: string) {
     this.stopTimer();
     this.stopIntro();
-    const cd = this.setup.caseId === "zufall" ? E.pick(CASES) : CASES.find((c) => c.id === this.setup.caseId) || E.pick(CASES);
+    this.storyToken++;
+    const want = caseId || this.setup.caseId;
+    const cd = want === "zufall" ? E.pick(CASES) : CASES.find((c) => c.id === want) || E.pick(CASES);
     const all = Object.keys(PLACES).filter((x) => x !== cd.crime), nPl = names.length <= 6 ? 5 : 6;
     const places = [cd.crime].concat(E.shuffle(all).slice(0, nPl - 1));
     const W = E.generate({ names, pool: this.chars, level: this.setup.level, places, crimePlace: cd.crime });
@@ -224,7 +289,7 @@ export class AlibiController {
     const cd = this.state.caseDef as CaseDef;
     this.set({ phase: "caseIntro" });
     director.sfx("page");
-    void this.say([`kom.case.${cd.id}.intro`]);
+    void this.say([`kom.case.${cd.id}.intro`, { pause: 500 }, `kom.gag.${cd.id}`]);
   }
   toAct() {
     this.set({ phase: "act", act: 0, actSub: "intro", actIdx: 0, bell: 0 });
@@ -284,7 +349,8 @@ export class AlibiController {
   }
   handAnswer() {
     this.lieTold = false;
-    this.set({ actSub: "whisper", hidden: false, claimTries: 0, draft: { place: null as unknown as string, comp: [] } });
+    this.sightTold = false;
+    this.set({ actSub: "whisper", hidden: false, claimTries: 0, draft: { place: null, comp: [], sight: null } });
     director.sfx("page");
     this.whisperSay();
   }
@@ -292,12 +358,22 @@ export class AlibiController {
     this.set({ hidden: !this.state.hidden });
   }
   draftPlace(place: string) {
-    this.set({ draft: { ...this.state.draft, place } });
+    const d = this.state.draft;
+    this.set({ draft: { ...d, place, sight: d.place === place ? d.sight : null } });
     director.sfx("pop");
     if (this.isLie() && !this.lieTold) {
       this.lieTold = true;
-      void this.say([`place.${place}`, "w.culprit.3", "w.culprit.ready"], true);
+      void this.say([`place.${place}`, "w.culprit.3", "w.culprit.sight", "w.culprit.ready"], true);
+    } else if (!this.isLie() && !this.sightTold) {
+      this.sightTold = true;
+      void this.say([`place.${place}`, "w.claim.sight"], true);
     } else void this.say([`place.${place}`], true);
+  }
+  /** Beobachtung zur Aussage: Was hast du dort gesehen? (wird versiegelt) */
+  draftSight(id: string) {
+    this.set({ draft: { ...this.state.draft, sight: id } });
+    director.sfx("pop");
+    void this.say([`w.sight.${id}`, { fx: `fx.sight.${id}` }], true);
   }
   draftComp(id: number) {
     const comp = this.state.draft.comp.slice(), ix = comp.indexOf(id);
@@ -319,7 +395,9 @@ export class AlibiController {
   private annPrompt(i: number, t: number): SayPart[] {
     const parts: SayPart[] = [{ sfx: "type" }];
     if (t === E.TC) parts.push({ c: this.P(i).ch, k: "stmt" });
-    parts.push({ hl: i }, pickVar("kom.ann.say"), { hl: null });
+    parts.push({ hl: i }, pickVar("kom.ann.say"));
+    if (t === E.TC) parts.push("kom.ann.quirk", `character.${this.P(i).ch.s}.quirk`);
+    parts.push({ hl: null });
     return parts;
   }
   /* ---------- Eigene Aussage (Unschuldige) ---------- */
@@ -338,8 +416,8 @@ export class AlibiController {
   /** Prüft die gewählte Aussage gegen das, was dem Spieler geflüstert wurde (Unschuldige sagen die Wahrheit). */
   claimSubmit() {
     const s = this.state, W = s.W as World, i = this.curP(), t = s.act, d = s.draft;
-    const place = W.pos[i][t], comp = W.comp[i][t];
-    const ok = d.place === place && d.comp.length === comp.length && comp.every((x) => d.comp.indexOf(x) >= 0);
+    const place = W.pos[i][t], comp = W.comp[i][t], sight = this.sightAt(t, place).id;
+    const ok = d.place === place && d.sight === sight && d.comp.length === comp.length && comp.every((x) => d.comp.indexOf(x) >= 0);
     if (ok) {
       this.toAnnounce();
       return;
@@ -349,7 +427,7 @@ export class AlibiController {
     director.vibrate([40, 40, 40]);
     if (tries >= 3) {
       // Nach drei Fehlversuchen füllt Tavi die richtige Aussage ein, damit kleine Kinder nicht hängen bleiben.
-      this.set({ claimTries: 0, claimFlash: s.claimFlash + 1, draft: { place, comp: comp.slice() } });
+      this.set({ claimTries: 0, claimFlash: s.claimFlash + 1, draft: { place, comp: comp.slice(), sight } });
       void this.say(["w.claim.help"], true);
     } else {
       this.set({ claimTries: tries, claimFlash: s.claimFlash + 1 });
@@ -358,8 +436,11 @@ export class AlibiController {
   }
   toAnnounce() {
     const s = this.state, W = s.W as World, i = this.curP(), t = s.act;
-    if (this.isLie() && !s.draft.place) return;
-    const claim: Claim = i === W.culprit && t === E.TC ? { place: s.draft.place as string, comp: s.draft.comp.slice() } : { place: W.pos[i][t], comp: W.comp[i][t].slice() };
+    if (this.isLie() && (!s.draft.place || !s.draft.sight)) return;
+    const claim: Claim =
+      i === W.culprit && t === E.TC
+        ? { place: s.draft.place as string, comp: s.draft.comp.slice(), sight: s.draft.sight as string }
+        : { place: W.pos[i][t], comp: W.comp[i][t].slice(), sight: this.sightAt(t, W.pos[i][t]).id };
     const claims = s.claims.map((c) => c.slice());
     claims[i][t] = claim;
     director.stop();
@@ -428,9 +509,24 @@ export class AlibiController {
     const W = this.state.W as World;
     let sp = E.pickSpuren(W, this.state.claims, this.L.spuren);
     if (!sp) sp = this.L.keys.slice(0, this.L.spuren).map((k) => ({ k, v: (this.P(W.culprit).ch as unknown as Record<string, string>)[k] }));
-    const flags = this.computeFlags();
-    this.set({ phase: "round", spuren: sp, spurShown: 0, round: 1, roundSub: "talk", talkLeft: this.L.talk, talkRun: false, flags, tab: E.TC, prompt: this.newPromptIndex() });
-    void this.say((["kom.round.1"] as SayPart[]).concat(this.flagParts(flags)));
+    const flags = this.computeFlags(), moves = this.L.spuren + 2;
+    this.set({ phase: "round", spuren: sp, spurShown: 0, moves, movesTotal: moves, roundSub: "talk", talkLeft: this.L.talk, talkRun: false, flags, tab: E.TC, prompt: this.newPromptIndex(), duelOpts: [], seal: null, sealLog: [] });
+    void this.say((["kom.inv.start"] as SayPart[]).concat(this.flagParts(flags)));
+  }
+  /** Ein Ermittlungszug ist verbraucht: Uhr läuft weiter. */
+  private spendMove() {
+    this.set({ moves: Math.max(0, this.state.moves - 1) });
+    director.sfx("clock");
+  }
+  /** Nach jeder Ermittlung zurück zum Brett, oder bei Morgengrauen direkt zur Anklage. */
+  private afterAction() {
+    const s = this.state;
+    this.set({ roundSub: "talk", duel: null, seal: null, talkLeft: this.L.talk, talkRun: false });
+    if (s.moves <= 0) {
+      this.toVote(true);
+      return;
+    }
+    void this.say([s.moves === 1 ? "kom.inv.last" : pickVar("kom.inv.next")]);
   }
   setTab(t: number) {
     this.set({ tab: t });
@@ -488,33 +584,44 @@ export class AlibiController {
       this.set({ talkRun: false });
     }
   }
-  private pickDuel(): Duel | null {
+  /** Alle möglichen Zeugen-Duelle: zwei Figuren, die zur selben Zeit am selben Ort gewesen sein wollen. */
+  duelOptions(): DuelOption[] {
     const W = this.state.W as World;
-    let pool: Omit<Duel, "opts" | "step" | "res">[] = [];
+    const pool: DuelOption[] = [];
     for (let t = 0; t < W.T; t++)
       E.duels(W, this.state.claims, t).forEach((d) => {
-        const w = E.shuffle(d.who);
+        const w = d.who.slice().sort((x, y) => x - y);
         for (let a = 0; a < w.length; a++)
-          for (let b = a + 1; b < w.length; b++)
-            pool.push({ t, place: d.place, a: w[a], b: w[b], key: `${t}:${d.place}:${Math.min(w[a], w[b])}:${Math.max(w[a], w[b])}` });
+          for (let b = a + 1; b < w.length; b++) pool.push({ t, place: d.place, a: w[a], b: w[b], key: `${t}:${d.place}:${w[a]}:${w[b]}` });
       });
     const seen = new Set(this.state.duelLog.map((d) => `${d.t}:${d.place}:${Math.min(d.a, d.b)}:${Math.max(d.a, d.b)}`));
-    const fresh = pool.filter((x) => !seen.has(x.key));
-    if (fresh.length) pool = fresh;
-    if (!pool.length) return null;
-    const d = E.pick(pool);
-    return { ...d, opts: E.shuffle(SIGHTS[d.place].map((s, k) => ({ k, s }))), step: "call", res: null };
+    // Mitternacht zuerst: dort entscheidet sich der Fall
+    return pool.filter((x) => !seen.has(x.key)).sort((x, y) => (x.t === E.TC ? 0 : 1) - (y.t === E.TC ? 0 : 1) || x.t - y.t);
   }
   callDuel() {
-    const d = this.pickDuel();
-    if (!d) {
+    if (this.state.moves <= 0) return;
+    const opts = this.duelOptions();
+    if (!opts.length) {
       void this.say(["kom.duel.none"]);
       return;
     }
     this.pauseTimer();
+    this.set({ duelOpts: opts, roundSub: "duelPick" });
+    director.sfx("page");
+    void this.say(["kom.duel.pick"]);
+  }
+  pickDuel(key: string) {
+    const o = this.state.duelOpts.find((x) => x.key === key);
+    if (!o) return;
+    this.spendMove();
+    const d: Duel = { ...o, opts: E.shuffle(SIGHTS[o.place].map((s, k) => ({ k, s }))), step: "call", res: null };
     this.set({ duel: d, roundSub: "duel" });
     director.sfx("sting");
     void this.say(([pickVar("kom.duel.call"), "kom.duel.who"] as SayPart[]).concat(this.numList([d.a, d.b], false), [{ hl: null }, `act.${d.t}`, `place.${d.place}`, "kom.duel.ask"]));
+  }
+  duelBack() {
+    director.stop();
+    this.set({ roundSub: "talk", duelOpts: [] });
   }
   sightTap(k: number) {
     const d = this.state.duel;
@@ -540,38 +647,94 @@ export class AlibiController {
     director.sfx("drum");
     director.vibrate([60, 40, 200]);
   }
-  duelRes(res: "same" | "diff") {
-    const d = this.state.duel as Duel;
-    this.set({ duel: { ...d, res, step: "result" }, duelLog: this.state.duelLog.concat([{ a: d.a, b: d.b, res, t: d.t, place: d.place }]) });
+  /** Nach dem Zeigen: Tavi bricht beide Siegel und vergleicht die versiegelten Beobachtungen. */
+  async duelOpen() {
+    const d = this.state.duel;
+    if (!d || d.step !== "show") return;
+    const claims = this.state.claims, sa = claims[d.a][d.t].sight, sb = claims[d.b][d.t].sight;
+    const res: "same" | "diff" = sa && sa === sb ? "same" : "diff";
+    this.set({ duel: { ...d, step: "open", sa, sb, res } });
+    director.sfx("seal");
+    director.vibrate(50);
+    await this.say(["kom.duel.seal"]);
+    await sleep(900);
+    const cur = this.state.duel;
+    if (this.state.phase !== "round" || !cur || cur.key !== d.key || cur.step !== "open") return;
+    this.set({ duel: { ...cur, step: "result" }, duelLog: this.state.duelLog.concat([{ a: d.a, b: d.b, res, t: d.t, place: d.place }]) });
     director.sfx(res === "same" ? "chime" : "sting");
+    director.vibrate(res === "same" ? 40 : [80, 40, 160]);
     void this.say([pickVar(`kom.duel.${res}`)]);
   }
   duelClose() {
     director.stop();
-    this.set({ roundSub: "talk", duel: null });
+    this.afterAction();
   }
   getSpur() {
+    const s = this.state;
+    if (s.moves <= 0 || s.spurShown >= s.spuren.length) return;
     this.pauseTimer();
-    const n = this.state.spurShown + 1, sp = this.state.spuren[n - 1];
+    this.spendMove();
+    const n = s.spurShown + 1, sp = s.spuren[n - 1];
     this.set({ spurShown: n, roundSub: "spur" });
     director.sfx("sparkle");
     director.vibrate(80);
     void this.say([pickVar("kom.spur.next"), `kom.spur.${sp.k}.${sp.v}`]);
   }
   afterSpur() {
-    if (this.state.round < this.L.spuren) {
-      const r = this.state.round + 1;
-      this.set({ round: r, roundSub: "talk", talkLeft: this.L.talk, talkRun: false, prompt: this.newPromptIndex() });
-      void this.say([`kom.round.${Math.min(3, r)}`]);
-    } else this.toVote();
+    director.stop();
+    this.afterAction();
+  }
+
+  /* ---------- Siegelprobe ---------- */
+  get sealUsed() {
+    return this.state.sealLog.length > 0;
+  }
+  startSeal() {
+    if (this.state.moves <= 0 || this.sealUsed) return;
+    this.pauseTimer();
+    this.set({ roundSub: "seal", seal: { i: null, step: "pick" } });
+    director.sfx("page");
+    void this.say(["kom.seal.call"]);
+  }
+  sealSelect(i: number) {
+    const sp = this.state.seal;
+    if (!sp || sp.step !== "pick" || this.state.cleared.indexOf(i) >= 0) return;
+    this.set({ seal: { ...sp, i: sp.i === i ? null : i } });
+    director.sfx("pop");
+  }
+  async sealOpen() {
+    const sp = this.state.seal;
+    if (!sp || sp.step !== "pick" || sp.i === null) return;
+    const my = ++this.sealToken, i = sp.i, c = this.state.claims[i][E.TC];
+    const truth = this.sightAt(E.TC, c.place).id, claimed = c.sight as string, ok = claimed === truth;
+    this.spendMove();
+    this.set({ seal: { i, step: "open", claimed, truth, ok } });
+    director.sfx("seal");
+    director.vibrate(60);
+    await this.say([{ hl: i }, "kom.seal.open", `num.${i + 1}`, `name.${this.P(i).ch.s}`, { hl: null }, "kom.seal.claimed", `sight.${claimed}`, "kom.seal.truth", `sight.${truth}`]);
+    if (my !== this.sealToken || this.state.seal?.step !== "open") return;
+    this.set({ seal: { i, step: "result", claimed, truth, ok }, sealLog: this.state.sealLog.concat([{ i, ok }]) });
+    director.sfx(ok ? "chime" : "sting");
+    director.vibrate(ok ? 40 : [80, 40, 160]);
+    void this.say([ok ? "kom.seal.match" : "kom.seal.fail"]);
+  }
+  sealBack() {
+    director.stop();
+    this.set({ roundSub: "talk", seal: null });
+  }
+  sealClose() {
+    this.sealToken++;
+    director.stop();
+    this.afterAction();
   }
 
   /* ---------- Anklage ---------- */
-  toVote() {
+  toVote(dawn = false) {
     this.stopTimer();
     director.stop();
     this.set({ phase: "vote", voteSub: "ready", sel: null, talkRun: false });
-    void this.say([this.state.attempt === 2 ? "kom.second" : "kom.accuse.1"]);
+    if (dawn) director.sfx("dawn");
+    void this.say(dawn ? ["kom.inv.out", "kom.accuse.1"] : [this.state.attempt === 2 ? "kom.second" : "kom.accuse.1"]);
   }
   async startCount() {
     this.set({ voteSub: "count", count: 3 });
@@ -624,20 +787,163 @@ export class AlibiController {
   }
   afterReveal() {
     const s = this.state, W = s.W as World;
-    if (s.accused === W.culprit) this.toEnd(true);
-    else if (s.attempt >= this.L.tries) this.toEnd(false);
+    if (s.accused === W.culprit) this.toStory(true);
+    else if (s.attempt >= this.L.tries) this.toStory(false);
     else {
       this.set({ attempt: s.attempt + 1 });
       this.toVote();
     }
   }
-  private toEnd(caught: boolean) {
+  /* ---------- Tathergang ---------- */
+  /** Welche Hinweise haben den Dieb verraten? (für die Erzählung, höchstens drei) */
+  private cluesFor(): ClueKind[] {
+    const s = this.state, W = s.W as World, cu = W.culprit, out: ClueKind[] = [];
+    if (s.sealLog.some((x) => x.i === cu && !x.ok)) out.push("seal");
+    if (s.duelLog.some((d) => (d.a === cu || d.b === cu) && d.res === "diff")) out.push("duel");
+    if (E.conflicts(W, s.claims).some((c) => c.t === E.TC && (c.a === cu || c.b === cu))) out.push("conflict");
+    if (E.unvouched(W, s.claims, E.TC).indexOf(cu) >= 0) out.push("alone");
+    if (s.spurShown > 0) out.push("lab");
+    return out.slice(0, 3);
+  }
+  /** Namen für die Erzählung: "Astra und Bäcker Bruno." */
+  private nameList(ids: number[]): SayPart[] {
+    const parts: SayPart[] = [{ hl: ids }];
+    ids.forEach((x, k) => {
+      if (k === ids.length - 1 && ids.length > 1) parts.push("kom.and");
+      parts.push(`name.${this.P(x).ch.s}`);
+    });
+    parts.push({ hl: null });
+    return parts;
+  }
+  /** Wer war wirklich (laut Dorfchronik) zur Zeit t am Ort? */
+  private truthAt(t: number, place: string): number[] {
+    const W = this.state.W as World;
+    return W.players.map((p) => p.id).filter((i) => W.pos[i][t] === place);
+  }
+  /** Szene: Ort, wer dort war, was zu sehen war, und eine Zeugin oder ein Zeuge meldet sich zu Wort. */
+  private sceneParts(t: number, place: string, ids: number[], lead: SayPart[] = []): SayPart[] {
+    const W = this.state.W as World, sg = this.sightAt(t, place).id;
+    const parts: SayPart[] = [...lead, `place.${place}`, ...this.nameList(ids), "kom.th.seen", `sight.${sg}`, { fx: `fx.sight.${sg}` }];
+    const witness = ids.find((x) => x !== W.culprit);
+    if (witness !== undefined) parts.push({ c: this.P(witness).ch, k: "witness" });
+    return parts;
+  }
+  private buildStory(caught: boolean): StoryBeat[] {
+    const s = this.state, W = s.W as World, cd = s.caseDef as CaseDef, cu = W.culprit, th = this.P(cu).ch;
+    const claim = s.claims[cu][E.TC], fake = claim.place, realAtFake = this.sightAt(E.TC, fake).id, clues = this.cluesFor();
+    const evePlace = W.pos[cu][0], eveGroup = this.truthAt(0, evePlace);
+    const zoom = 1.45;
+    const beats: StoryBeat[] = [
+      { kind: "title", t: 0, title: "Der Tathergang", parts: [{ fx: "fx.rewind" }, "kom.th.title"], board: { dim: true } },
+      {
+        kind: "scene",
+        t: 0,
+        title: `${SLOTS[0].icon} Rückblende: der Abend`,
+        parts: this.sceneParts(0, evePlace, eveGroup, ["kom.th.evening"]),
+        board: { group: eveGroup, dim: true, camera: { place: evePlace, zoom }, spot: { place: evePlace, sight: this.sightAt(0, evePlace).id } },
+      },
+      {
+        kind: "theft",
+        t: E.TC,
+        title: `${SLOTS[E.TC].icon} Mitternacht: die Tat`,
+        parts: [{ fx: `fx.th.${cd.id}` }, `kom.th.${cd.id}`, "kom.th.thief", { hl: cu }, `name.${th.s}`, { hl: null }],
+        board: { focus: cu, dim: true, camera: { place: W.crimePlace, zoom }, loot: { player: cu, from: W.crimePlace }, trail: evePlace !== W.crimePlace ? { from: evePlace, to: W.crimePlace } : null },
+      },
+    ];
+    // Zur selben Zeit: eine andere Gruppe (nicht am Tatort, nicht am vorgetäuschten Ort)
+    const others = W.places
+      .filter((p) => p !== W.crimePlace && p !== fake)
+      .map((p) => ({ p, ids: this.truthAt(E.TC, p) }))
+      .filter((x) => x.ids.length)
+      .sort((a, b) => b.ids.length - a.ids.length)[0];
+    if (others)
+      beats.push({
+        kind: "scene",
+        t: E.TC,
+        title: "🌙 Zur selben Zeit",
+        parts: this.sceneParts(E.TC, others.p, others.ids, ["kom.th.meanwhile"]),
+        board: { group: others.ids, dim: true, camera: { place: others.p, zoom }, spot: { place: others.p, sight: this.sightAt(E.TC, others.p).id }, loot: { player: cu } },
+      });
+    // Das falsche Alibi fliegt auf
+    const real = this.truthAt(E.TC, fake);
+    const lie: SayPart[] = ["kom.th.claim", `place.${fake}`];
+    if (claim.comp.length) lie.push("kom.th.claim.with", ...this.nameList(claim.comp));
+    else lie.push("kom.th.claim.alone");
+    lie.push("kom.th.claim.saw", `sight.${claim.sight}`);
+    if (real.length) {
+      lie.push("kom.th.but.others", ...this.nameList(real));
+      lie.push({ c: this.P(real[0]).ch, k: "witness" });
+    } else lie.push("kom.th.but.nobody");
+    if (claim.sight === realAtFake) lie.push("kom.th.lucky");
+    else lie.push("kom.th.real.saw", `sight.${realAtFake}`, { fx: `fx.sight.${realAtFake}` });
+    beats.push({
+      kind: "lie",
+      t: E.TC,
+      title: "🎭 Das falsche Alibi",
+      parts: lie,
+      board: { group: real, dim: true, camera: { place: fake, zoom }, ghost: { i: cu, place: fake, claimed: claim.sight, real: realAtFake }, loot: { player: cu } },
+    });
+    beats.push(
+      caught
+        ? { kind: "verdict", t: E.TC, title: "🔎 So habt ihr den Dieb erwischt", parts: ([{ fx: "fx.ooh" }, "kom.th.caught"] as SayPart[]).concat(clues.map((c) => `kom.th.clue.${c}`)), board: { focus: cu, loot: { player: cu } }, clues }
+        : { kind: "verdict", t: E.TC, title: "💨 Entkommen", parts: ["kom.th.escaped"], board: { focus: cu, loot: { player: cu } }, clues }
+    );
+    if (W.T === 3) {
+      const dawn = W.pos[cu][2], near = this.truthAt(2, dawn).filter((x) => x !== cu);
+      const hide: SayPart[] = [{ sfx: "dawn" }, "kom.th.dawn", `place.${dawn}`, { fx: "fx.drop" }];
+      if (near.length) hide.push("kom.th.dawn.others", ...this.nameList(near));
+      hide.push(caught ? "kom.th.found" : "kom.th.lost");
+      beats.push({ kind: "hide", t: 2, title: `${SLOTS[2].icon} Das Versteck`, parts: hide, board: { focus: cu, group: near, dim: true, camera: { place: dawn, zoom }, loot: { place: dawn }, trail: { from: W.crimePlace, to: dawn } } });
+    } else beats.push({ kind: "hide", t: E.TC, title: "🎒 Die Beute", parts: [caught ? "kom.th.pocket" : "kom.th.away"], board: { focus: cu, dim: true, camera: { place: W.crimePlace, zoom }, loot: { player: cu } } });
+    beats.push({ kind: "end", t: W.T - 1, title: "Ende der Rückblende", parts: ["kom.th.end"], board: { focus: caught ? null : cu } });
+    return beats;
+  }
+  private toStory(caught: boolean) {
     this.stopTimer();
-    const cd = this.state.caseDef as CaseDef, W = this.state.W as World;
-    this.set({ finalCaught: caught, phase: "end", awards: this.makeAwards(caught) });
+    director.stop();
+    const W = this.state.W as World, cd = this.state.caseDef as CaseDef;
+    const rec = recordGame({ caseId: cd.id, caught, thief: this.P(W.culprit).ch.s });
+    const next = CASES.find((c) => c.id === nextCaseId(cd.id)) || CASES[0];
+    this.set({ phase: "story", finalCaught: caught, awards: this.makeAwards(caught), story: this.buildStory(caught), storyIdx: 0, reward: { ...rec, next } });
+    void this.runStory(0);
+  }
+  private async runStory(from: number) {
+    const my = ++this.storyToken;
+    for (let k = from; k < this.state.story.length; k++) {
+      if (my !== this.storyToken || this.state.phase !== "story") return;
+      this.set({ storyIdx: k });
+      await sleep(k === from ? 300 : 650);
+      if (my !== this.storyToken) return;
+      const ok = await this.say(this.state.story[k].parts);
+      if (my !== this.storyToken) return;
+      await sleep(ok ? 450 : 300);
+    }
+    if (my === this.storyToken && this.state.phase === "story") this.toEnd();
+  }
+  storyNext() {
+    const k = this.state.storyIdx + 1;
+    director.stop();
+    if (k >= this.state.story.length) {
+      this.storyToken++;
+      this.toEnd();
+    } else void this.runStory(k);
+  }
+  storySkip() {
+    this.storyToken++;
+    director.stop();
+    this.toEnd();
+  }
+  private toEnd() {
+    this.stopTimer();
+    const s = this.state, cd = s.caseDef as CaseDef, W = s.W as World, r = s.reward as Reward, caught = !!s.finalCaught;
+    this.set({ phase: "end" });
     director.sfx(caught ? "fanfare" : "sad");
     const parts: SayPart[] = caught ? [`kom.case.${cd.id}.solved`] : [{ c: this.P(W.culprit).ch, k: "smug" }, `kom.case.${cd.id}.escaped`];
-    void this.say(parts.concat(["kom.rebuild"]));
+    if (r.elsterNow) parts.push({ sfx: "feather" }, "kom.elster.1", "kom.elster.2", "kom.elster.3");
+    if (caught) parts.push({ sfx: "loot" }, r.newLoot ? "kom.loot.new" : "kom.loot.again", { sfx: "feather" }, r.newFeather ? "kom.feather.1" : "kom.feather.2");
+    else parts.push({ sfx: "poster" }, "kom.wanted");
+    parts.push({ pause: 600 }, `kom.epi.${cd.id}`);
+    void this.say(parts);
   }
   private makeAwards(won: boolean): Record<number, Award> {
     const W = this.state.W as World, cu = W.culprit, out: Record<number, Award> = {};
@@ -666,14 +972,20 @@ export class AlibiController {
     const W = this.state.W as World, won = !!this.state.finalCaught, cul = i === W.culprit;
     return traitFor(cul ? "culprit" : "innocent", cul ? !won : won);
   }
-  again() {
+  again(caseId?: string) {
     director.stop();
     const names = (this.state.W as World).players.map((p) => p.name);
-    this.newCase(names);
+    this.newCase(names, caseId);
     this.set({ phase: "cast", castIdx: 0, castSub: "draw" });
     void this.say(["kom.cast.start"]);
   }
+  /** Der Cliffhanger führt direkt in den nächsten Fall (gleiche Runde, neue Figuren). */
+  nextCase() {
+    const r = this.state.reward;
+    this.again(r ? r.next.id : undefined);
+  }
   quit() {
+    this.storyToken++;
     director.stop();
     this.stopTimer();
     this.stopIntro();
@@ -693,8 +1005,12 @@ export class AlibiController {
         else if (s.actSub === "whisper") {
           id = this.isLie() ? "kom.help.lie" : "kom.help.whisper";
           priv = true;
+        } else if (s.actSub === "claim") {
+          id = "kom.help.claim";
+          priv = true;
         } else id = "kom.help.announce";
-      } else if (s.phase === "round") id = s.roundSub === "duel" ? "kom.help.duel" : "kom.help.talk";
+      } else if (s.phase === "round") id = s.roundSub === "duel" || s.roundSub === "duelPick" ? "kom.help.duel" : s.roundSub === "seal" ? "kom.help.seal" : "kom.help.inv";
+      else if (s.phase === "story") id = "kom.help.story";
       else if (s.phase === "vote") id = s.voteSub === "point" ? "kom.help.point" : "kom.help.vote";
       else if (s.phase === "reveal") id = "kom.help.reveal";
       else id = "kom.help.end";

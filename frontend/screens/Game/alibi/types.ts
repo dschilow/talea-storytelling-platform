@@ -20,6 +20,8 @@ export interface AlibiCharacterText {
   deny: string;
   confess: string;
   smug: string;
+  /** Zeugen-Zeile für den Tathergang */
+  witness: string;
 }
 
 export interface AlibiCharacter extends AlibiCharacterText {
@@ -53,6 +55,8 @@ export interface Player {
 export interface Claim {
   place: string;
   comp: number[];
+  /** versiegelte Beobachtung (Sight-ID): Unschuldige die Wahrheit, der Dieb um Mitternacht geraten */
+  sight?: string;
 }
 
 export interface World {

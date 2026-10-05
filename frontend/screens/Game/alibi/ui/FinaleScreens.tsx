@@ -1,9 +1,9 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 
 import { cn } from "@/lib/utils";
-import { IMG, SLOTS } from "../content";
+import { IMG, SLOTS, cap } from "../content";
 import { TC } from "../engine";
 import { director } from "../audio";
 import type { AlibiController } from "../controller";
@@ -11,6 +11,7 @@ import { useAlibiState } from "../hooks";
 import { BigCount, Eyebrow, Face, GhostButton, GoldButton, PlaceCard, Screen, Title, ringColor } from "./primitives";
 import { SpurChips } from "./RoundScreens";
 import { VillageMap } from "./VillageMap";
+import { ElsterReveal, FeatherTrack, LootShowcase, WantedPoster, epilogText } from "./Vault";
 
 /* ---------- Anklage ---------- */
 export const VoteScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
@@ -173,20 +174,27 @@ export const RevealScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   );
 };
 
-/* ---------- Abspann ---------- */
-export const EndScreen: React.FC<{ ctrl: AlibiController; onExit: () => void }> = ({ ctrl, onExit }) => {
+/* ---------- Abschluss: Beute, Steckbrief, Epilog mit Cliffhanger ---------- */
+export const EndScreen: React.FC<{ ctrl: AlibiController; onExit: () => void; onVault: () => void }> = ({ ctrl, onExit, onVault }) => {
   const s = useAlibiState(ctrl);
-  const W = s.W!, won = !!s.finalCaught, cu = W.culprit, cd = s.caseDef!, cl = s.claims[cu][TC];
+  const W = s.W!, won = !!s.finalCaught, cu = W.culprit, cd = s.caseDef!, r = s.reward!, thief = ctrl.P(cu).ch;
+  const [mapT, setMapT] = useState(TC);
+  const words = epilogText(cd.id).split(" ");
   return (
     <Screen
       dock={
         <>
-          <GoldButton a="again" icon="🎲" onClick={() => ctrl.again()}>
-            Neuer Fall, neue Besetzung
+          <GoldButton a="nextCase" icon="🔎" onClick={() => ctrl.nextCase()}>
+            Nächster Fall: {r.next.title}
           </GoldButton>
-          <GhostButton a="exit" icon="🏠" onClick={onExit}>
-            Zurück zur Spiele-Übersicht
-          </GhostButton>
+          <div className="grid grid-cols-2 gap-2.5">
+            <GhostButton a="vault" icon="🏆" onClick={onVault}>
+              Sammlung
+            </GhostButton>
+            <GhostButton a="exit" icon="🏠" onClick={onExit}>
+              Übersicht
+            </GhostButton>
+          </div>
         </>
       }
     >
@@ -197,7 +205,7 @@ export const EndScreen: React.FC<{ ctrl: AlibiController; onExit: () => void }> 
           initial={{ y: 40, opacity: 0, scale: 0.8 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
           transition={{ type: "spring", stiffness: 200, damping: 14 }}
-          className="h-40 w-auto drop-shadow-[0_14px_30px_rgba(0,0,0,0.6)]"
+          className="h-36 w-auto drop-shadow-[0_14px_30px_rgba(0,0,0,0.6)]"
         />
         <Title size="xl" className={won ? "!text-[#9ff0b9]" : "!text-[#ff9d8c]"}>
           {won ? "Fall gelöst!" : "Der Dieb entkommt!"}
@@ -205,41 +213,78 @@ export const EndScreen: React.FC<{ ctrl: AlibiController; onExit: () => void }> 
         <p className="max-w-[440px] text-[15px] leading-relaxed text-white/80">{won ? cd.solved : cd.escaped}</p>
       </div>
 
-      <div className="flex w-full items-center gap-4 rounded-[24px] bg-white/[0.06] p-3">
-        <Face p={ctrl.P(cu)} size={88} />
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#f8dc8e]/90">Der Dieb war</p>
-          <p className="game-display text-[24px] font-black leading-tight text-white">{ctrl.P(cu).ch.n}</p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[13px] text-white/75">
-            <span>behauptete:</span>
-            <PlaceCard id={cl.place} size="sm" />
-            {cl.comp.length ? cl.comp.map((x) => <Face key={x} p={ctrl.P(x)} size={32} />) : <span className="text-[22px]">🧍</span>}
+      {r.elsterNow ? <ElsterReveal /> : null}
+
+      {won ? (
+        <div className="flex w-full flex-col items-center gap-2">
+          <LootShowcase caseId={cd.id} size={250} />
+          <motion.span
+            initial={{ scale: 0, rotate: -8 }}
+            animate={{ scale: 1, rotate: -3 }}
+            transition={{ delay: 0.9, type: "spring", stiffness: 300, damping: 14 }}
+            className="alibi-stamp bg-black/45 text-[15px] text-[#f8dc8e]"
+          >
+            {r.newLoot ? "Neu in der Sammlung!" : `Schon ${r.copies}× gesammelt`}
+          </motion.span>
+          <p className="game-display text-center text-[22px] font-black text-white">{cap(cd.loot)}</p>
+          <FeatherTrack count={r.feathers} fresh={r.newFeather} />
+        </div>
+      ) : (
+        <div className="flex w-full flex-col items-center gap-3 pt-2">
+          <WantedPoster ch={thief} reward={cap(cd.loot)} />
+          <p className="text-[13.5px] font-semibold text-white/75">{r.newWanted ? "Neuer Steckbrief an der Fahndungswand." : "Schon wieder entwischt! Der Steckbrief hängt noch."}</p>
+        </div>
+      )}
+
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }} className="flex items-center gap-2 rounded-full bg-white/[0.07] px-4 py-2 text-[13.5px] font-bold text-white/85">
+        <span className="text-[18px]">{r.rank.icon}</span>
+        {r.rankUp ? <span className="text-[#f8dc8e]">Neuer Rang: {r.rank.name}!</span> : <span>Rang: {r.rank.name}</span>}
+      </motion.div>
+
+      {/* Epilog mit Cliffhanger */}
+      <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.6, type: "spring", stiffness: 140, damping: 18 }} className="alibi-night-card relative w-full overflow-hidden rounded-[26px] p-5">
+        <motion.img src={IMG.icon("feather")} alt="" initial={{ y: -80, rotate: -70, opacity: 0 }} animate={{ y: 0, rotate: -25, opacity: 0.9 }} transition={{ delay: 2.2, duration: 2.4, ease: "easeOut" }} className="pointer-events-none absolute -right-2 top-2 h-24 w-24 object-contain" />
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#b9a6ff]">Epilog · später in der Nacht</p>
+        <p className="game-display alibi-typewriter mt-2 pr-14 text-[17px] font-semibold italic leading-relaxed text-white/90">
+          {words.map((w, k) => (
+            <span key={k} style={{ animationDelay: `${2 + k * 0.11}s` }}>
+              {w}{" "}
+            </span>
+          ))}
+        </p>
+        <div className="mt-4 flex items-center gap-3 rounded-[18px] bg-black/35 p-2.5">
+          <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-[#f8dc8e]/50">
+            <img src={IMG.loot(r.next.id)} alt="" className="h-full w-full object-cover brightness-[0.35] blur-[2px]" />
+            <span className="absolute inset-0 flex items-center justify-center text-[24px] font-black text-[#f8dc8e]">?</span>
+          </span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#f8dc8e]/85">Nächster Fall</p>
+            <p className="game-display truncate text-[19px] font-black text-white">{r.next.title}</p>
           </div>
         </div>
-        <img src={IMG.loot(cd.id)} alt="" className="h-16 w-16 rounded-full border-2 border-white object-cover" />
-      </div>
+      </motion.div>
 
-      <div className="flex w-full flex-col gap-2">
-        <Eyebrow className="text-center">Die Rekonstruktion: was wirklich geschah</Eyebrow>
-        {Array.from({ length: W.T }, (_, t) => (
-          <details key={t} open={t === TC} className="group rounded-[20px] bg-white/[0.05] p-2">
-            <summary className="flex cursor-pointer list-none items-center justify-between px-2 py-1.5 text-[14px] font-bold text-white/90">
-              <span>
-                {SLOTS[t].icon} {SLOTS[t].name} · {SLOTS[t].time}
-              </span>
-              <span className="text-white/50 transition-transform group-open:rotate-180">⌄</span>
-            </summary>
-            <div className="pt-2">
-              <VillageMap ctrl={ctrl} t={t} truth />
-            </div>
-          </details>
-        ))}
-      </div>
+      <details className="group w-full rounded-[20px] bg-white/[0.05] p-2">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-2 py-1.5 text-[14px] font-bold text-white/90">
+          <span>🗺️ Dorfkarte: was wirklich geschah</span>
+          <span className="text-white/50 transition-transform group-open:rotate-180">⌄</span>
+        </summary>
+        <div className="flex flex-col gap-2 pt-2">
+          <div className="flex justify-center gap-2">
+            {Array.from({ length: W.T }, (_, t) => (
+              <button key={t} type="button" onClick={() => setMapT(t)} className={cn("rounded-full px-3 py-1.5 text-[12.5px] font-bold", t === mapT ? "bg-[#f2b04a] text-[#2b1c07]" : "bg-white/10 text-white/80")}>
+                {SLOTS[t].icon} {SLOTS[t].name}
+              </button>
+            ))}
+          </div>
+          <VillageMap ctrl={ctrl} t={mapT} truth story={{ focus: cu }} />
+        </div>
+      </details>
 
       <div className="flex w-full flex-col gap-2">
         <Eyebrow className="text-center">Die Auszeichnungen</Eyebrow>
         {W.players.map((p, k) => {
-          const a = s.awards?.[p.id], tr = ctrl.traitFor(p.id);
+          const a = s.awards?.[p.id];
           if (!a) return null;
           return (
             <motion.div key={p.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + k * 0.07 }} className="flex items-center gap-3 rounded-[20px] bg-white/[0.06] p-2.5">
@@ -250,9 +295,6 @@ export const EndScreen: React.FC<{ ctrl: AlibiController; onExit: () => void }> 
                   {a.title}
                 </p>
                 <p className="text-[12.5px] text-white/65">{a.why}</p>
-                <p className="mt-0.5 text-[12px] font-semibold text-[#f8dc8e]/90">
-                  {tr.icon} {tr.trait} +1 (Beispiel für den Avatar): {p.ch.n} {tr.why}.
-                </p>
               </div>
             </motion.div>
           );

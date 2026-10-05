@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 
-import { IMG, PLACES, SLOTS, cap } from "../content";
+import { IMG, KOM, PLACES, SLOTS, cap } from "../content";
 import { TC } from "../engine";
 import type { AlibiController } from "../controller";
 import { useAlibiState } from "../hooks";
@@ -194,6 +194,17 @@ export const CaseScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
           ))}
         </div>
       </motion.div>
+      {KOM[`kom.gag.${cd.id}`] ? (
+        <motion.div
+          initial={{ opacity: 0, y: 30, rotate: 3 }}
+          animate={{ opacity: 1, y: 0, rotate: 1 }}
+          transition={{ delay: 1.6, type: "spring", stiffness: 160, damping: 16 }}
+          className="relative w-full overflow-hidden rounded-[22px] border-2 border-dashed border-[#f8dc8e]/60 bg-[#f2b04a]/15 px-4 py-3"
+        >
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#f8dc8e]">🎉 Alle zusammen</p>
+          <p className="mt-1 text-[15px] font-semibold leading-snug text-white/90">{KOM[`kom.gag.${cd.id}`].replace(/^Bevor wir anfangen: /, "")}</p>
+        </motion.div>
+      ) : null}
     </Screen>
   );
 };

@@ -1,6 +1,6 @@
 # Mitternachts-Alibi und Quiz in der Talea-App
 
-Stand: 2026-10-03. Navigationspunkt „Spiel“ (vorher „Quiz“), Route `/spiel`. `/quiz` (Links aus dem Lernpfad) öffnet dieselbe Seite direkt im Quiz-Tab.
+Stand: 2026-10-05. Navigationspunkt „Spiel“ (vorher „Quiz“), Route `/spiel`. `/quiz` (Links aus dem Lernpfad) öffnet dieselbe Seite direkt im Quiz-Tab.
 
 ## Aufbau
 
@@ -18,15 +18,26 @@ Stand: 2026-10-03. Navigationspunkt „Spiel“ (vorher „Quiz“), Route `/spi
 
 Die Figuren kommen live aus dem Charakter-Pool (`GET /story/character-pool`, Bild-URL aus dem Pool). Die Spieltexte je Figur liegen in `data/characters.ts` und werden über den normalisierten Namen zugeordnet (alle 89 Figuren des Pools haben Texte).
 
-## Aussagen macht der Spieler selbst (seit 2026-10-05)
+## Spielablauf ab Version 3 (2026-10-05)
 
-Tavi liest die öffentlichen Aussagen nicht mehr automatisch vor. Ablauf pro Spieler und Akt:
+| Phase | Was passiert | Code |
+|---|---|---|
+| Fall | Tavi erzählt den Fall, danach eine **Gruppen-Aufgabe** für alle (`kom.gag.<fall>`) | `CastScreens.tsx` |
+| Akte | Geheimtelefon → **eigene Aussage** (Ort, Begleiter, **Beobachtung**) → öffentliche Karte | `ActScreens.tsx` |
+| Ermittlung | **Fluchtuhr**: `Labor-Spuren + 2` Züge bis zum Morgengrauen. Je Zug: Zeugen-Duell (Gruppe wählt das Paar), **Siegelprobe** (1× pro Fall) oder Laborspur. Reden kostet nichts. Bei 0 Zügen geht es automatisch zur Anklage. | `RoundScreens.tsx` |
+| Anklage, Enthüllung | wie bisher, zwei Versuche je nach Stufe | `FinaleScreens.tsx` |
+| **Tathergang** | Geschichte mit Kamerafahrten über die Dorfkarte: Abend-Szene mit Zeugen, die Tat (Geräusch je Fall), „zur selben Zeit“, das falsche Alibi fliegt auf (echte Zeugen melden sich in ihrer Stimme), wie der Dieb erwischt wurde, das Versteck | `StoryScreen.tsx`, `controller.buildStory` |
+| **Abschluss** | Beute als drehende 3D-Medaille (WebGL, sonst Bild) oder Steckbrief, Elster-Feder, Rang, **Epilog mit Cliffhanger** und Knopf „Nächster Fall“ | `FinaleScreens.tsx`, `Vault.tsx`, `Loot3D.tsx` |
 
-1. Geheimtelefon (`whisper`): Tavi flüstert Ort, Begleiter und Beobachtung. Der Dieb sieht um Mitternacht stattdessen sein Alibi-Formular (`LieScreen`).
-2. **Eigene Aussage (`claim`)**: Jeder Unschuldige wählt Ort und Begleiter selbst aus, mit derselben Auswahl wie der Dieb (`ClaimPicker`). Prüfung gegen die geflüsterte Wahrheit: bei Abweichung wackelt die Karte, Hinweis „Karte ansehen“, nach drei Fehlversuchen füllt Tavi die richtige Aussage ein. So bleibt „Unschuldige sagen die Wahrheit“ erhalten, und beide Rollen haben ähnlich viele Handgriffe.
-3. Öffentliche Karte (`announce`): zeigt die gewählte Aussage still. Tavi bittet nur: „Sag es der Runde mit deinen eigenen Worten“ (`kom.ann.say.1–3`). Der Knopf „Tavi spricht für mich“ liest sie auf Wunsch vor, ebenso das Antippen einer Figur auf der Dorfkarte.
+**Aussagen:** Tavi liest sie nicht mehr automatisch vor („Sag es der Runde mit deinen eigenen Worten“, Knopf „Tavi spricht für mich“). Um Mitternacht kommt der **Macken-Moment**: Die Figur soll es so sagen, wie sie es tun würde. Unschuldige werden gegen die geflüsterte Wahrheit geprüft (nach drei Fehlversuchen füllt Tavi ein), der Dieb rät seine Beobachtung.
 
-Neue Clips (Stimmen.json): `kom.ann.say.1–3`, `w.claim.1`, `w.claim.wrong`, `w.claim.help`; `kom.tour.3` ergänzt. `kom.ann.end.*` wird nicht mehr gesprochen.
+**Siegel:** Jede Aussage enthält eine versiegelte Beobachtung (`Claim.sight`). Im Duell bricht Tavi beide Siegel und vergleicht automatisch (die Gruppe zeigt vorher trotzdem gleichzeitig). Die Siegelprobe vergleicht eine Mitternachts-Aussage mit der Dorfchronik (Wahrheit am behaupteten Ort): Unschuldige bestehen immer, der Dieb nur mit Glück (1 zu 4).
+
+**Dorfkarte (`VillageMap.tsx`):** CSS-3D-Diorama auf einer gemalten Karte (`public/game/alibi/map/village.webp`, Lage der Orte in `content.ts` `MAP_POS`): geneigtes Brett, aufgestellte Ortsmedaillons und Figuren mit Schatten, Himmel und Licht je Akt (Abendrot, Mond, Morgensonne), Laternenschein, Figuren wandern beim Aktwechsel, neue Aussagen fallen mit Staubwolke ein, Widersprüche als rote Linien (nur Stufen mit Hinweisen), Fußspuren und Kamera im Tathergang.
+
+**Sammlung (`vault.ts`, localStorage `talea.alibi.vault.v1`):** Beutestücke je Fall, Steckbriefe entkommener Diebe, Rang nach gelösten Fällen, Elster-Akte (eine Feder je gelöstem Fall). Sind alle acht Beutestücke gesammelt, wird die Elster Ella enttarnt (Finale mit Nest-Bild). Die Fälle bilden eine Kette (`CASE_CHAIN`), jeder Epilog leitet in den nächsten.
+
+**Neue Inhalte:** 6 Bilder (Karte, Siegel, Feder, Taschenuhr, Asservatenschrank, Tathergang-Buch, Lupe) und Elster und Nest; 171 neue Sprach-Clips (Tathergang, Ermittlung, Siegel, Beute, 8 Gruppen-Aufgaben, 8 Tat-Erzählungen, 8 Epiloge, Elster-Finale, Zeugen-Zeile für alle 89 Figuren) und 18 neue Geräusche (Siegelbruch, Schleichen, Uhr, Beute, Feder, Steckbrief, Hahn, Rückspulen, Plumps, Staunen, je Fall ein Tat-Geräusch).
 
 ## Bilder
 

@@ -2,23 +2,56 @@ import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
-import { IMG } from "./content";
+import { CASES, IMG } from "./content";
+import { featherCount, loadVault, nextRank, rankFor } from "./vault";
 import { AlibiController } from "./controller";
 import { director } from "./audio";
 import { useAlibiCharacters, useAlibiState, usePreviewFaces } from "./hooks";
 import { AlibiStage } from "./AlibiStage";
 
 const FEATURES = [
-  { img: IMG.icon("phone"), title: "Geheimtelefon", text: "Tavi flüstert jedem ins Ohr, wo er war und wen er gesehen hat. Niemand muss lesen können." },
-  { img: IMG.icon("duel"), title: "Zeugen-Duell", text: "Zwei Zeugen zeigen gleichzeitig auf ihr Bild. Wer flunkert, muss raten." },
-  { img: IMG.icon("lab"), title: "Labor-Spuren", text: "Farbe, Größe, Art: Das Labor grenzt den Kreis der Verdächtigen ein." },
+  { img: IMG.icon("phone"), title: "Geheimtelefon", text: "Tavi flüstert jedem ins Ohr, wo er war, wen er gesehen hat und was dort los war. Niemand muss lesen können." },
+  { img: IMG.icon("seal"), title: "Siegel und Duelle", text: "Jede Aussage hat eine versiegelte Beobachtung. Bricht das Siegel, fliegt jede Flunkerei auf." },
+  { img: IMG.icon("story"), title: "Tathergang und Beute", text: "Am Ende erzählt Tavi, wie es wirklich war. Die Beute kommt in eure Sammlung, und der nächste Fall wartet schon." },
 ];
 const STEPS = [
   { img: IMG.icon("file"), title: "Fall eröffnen", text: "Figuren ziehen, Tavi erzählt, was gestohlen wurde." },
-  { img: IMG.icon("phone"), title: "Akte erleben", text: "Abend und Mitternacht: Geheimtelefon und Aussagen." },
-  { img: IMG.icon("map"), title: "Verhören", text: "Dorfkarte vergleichen, Duelle, Spuren." },
-  { img: IMG.icon("vote"), title: "Anklagen", text: "Auf drei zeigen alle auf den Dieb." },
+  { img: IMG.icon("phone"), title: "Akte erleben", text: "Geheimtelefon, dann sagt jeder selbst, wo er war." },
+  { img: IMG.icon("map"), title: "Ermitteln", text: "Wenige Züge bis zum Morgengrauen: Duell, Siegel, Labor." },
+  { img: IMG.icon("vote"), title: "Anklagen", text: "Auf drei zeigen alle auf den Dieb. Dann: der Tathergang." },
 ];
+
+/** Sammlung auf der Startkarte: Rang, Beutestücke, Federn */
+const VaultTeaser: React.FC = () => {
+  const [v] = useState(loadVault);
+  const rank = rankFor(v.solved), next = nextRank(v.solved), feathers = featherCount(v);
+  return (
+    <section className="relative overflow-hidden rounded-[28px] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-5 md:p-6" aria-label="Eure Sammlung">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center">
+        <div className="flex items-center gap-4">
+          <img src={IMG.icon("vault")} alt="" className="h-20 w-20 shrink-0 rounded-[20px] bg-[#f6ead0] object-cover" />
+          <div>
+            <h3 className="text-[18px] font-bold text-[var(--talea-text-primary)]">Eure Sammlung</h3>
+            <p className="text-[13.5px] text-[var(--talea-text-secondary)]">
+              {rank.icon} {rank.name} · {v.solved} gelöst{next ? ` · noch ${next.min - v.solved} bis ${next.name}` : ""}
+            </p>
+            <p className="text-[12.5px] text-[var(--talea-text-secondary)]">🪶 Elster-Akte: {feathers} von {CASES.length} Federn</p>
+          </div>
+        </div>
+        <div className="flex flex-1 flex-wrap items-center gap-2 md:justify-end">
+          {CASES.map((c) => {
+            const n = v.loot[c.id] || 0;
+            return (
+              <span key={c.id} title={n ? c.title : "noch offen"} className={cn("relative h-12 w-12 overflow-hidden rounded-full", n ? "shadow-[0_0_0_3px_#e9a93c]" : "bg-[var(--talea-surface-inset)]")}>
+                <img src={IMG.loot(c.id)} alt="" className={cn("h-full w-full object-cover", !n && "opacity-20 grayscale")} />
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const Badge: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-[12.5px] font-bold text-white backdrop-blur-md">{children}</span>
@@ -100,6 +133,8 @@ export const AlibiLauncher: React.FC = () => {
           </div>
         </section>
       ) : null}
+
+      <VaultTeaser key={open ? "offen" : "zu"} />
 
       <section className="grid gap-3 md:grid-cols-3">
         {FEATURES.map((f, k) => (

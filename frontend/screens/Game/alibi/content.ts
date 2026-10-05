@@ -28,6 +28,22 @@ export const COLORS: Record<string, string> = {
   Grün: "#4f9b60", Lila: "#8d62c9", Schwarz: "#2a2a30", Rosa: "#eb8fb4", Orange: "#ee8a3c",
 };
 
+/** Reihenfolge der Fälle: Jeder Epilog endet mit einem Cliffhanger auf den nächsten. */
+export const CASE_CHAIN = ["laterne", "kuchen", "rezept", "mondstein", "glocke", "honig", "hufeisen", "spieluhr"];
+export const nextCaseId = (id: string) => CASE_CHAIN[(CASE_CHAIN.indexOf(id) + 1) % CASE_CHAIN.length];
+
+/** Lage der Orte auf der Dorfkarte (Prozent der Kartenbreite/-höhe, Mittelpunkt der Lichtung). */
+export const MAP_POS: Record<string, { x: number; y: number }> = {
+  turm: { x: 49.8, y: 11.4 },
+  bibliothek: { x: 21.7, y: 22.8 },
+  wirtshaus: { x: 79.3, y: 22.8 },
+  markt: { x: 49.4, y: 48.8 },
+  baeckerei: { x: 13.2, y: 49.8 },
+  schmiede: { x: 85.2, y: 50.0 },
+  garten: { x: 23.4, y: 79.6 },
+  bruecke: { x: 71.8, y: 79.6 },
+};
+
 /* ---------- Bilder (frontend/public/game) ---------- */
 const ACT_FILES = ["abend", "mitternacht", "morgengrauen"];
 export const IMG = {
@@ -37,7 +53,10 @@ export const IMG = {
   loot: (caseId: string) => `/game/alibi/loot/${caseId}.webp`,
   act: (t: number) => `/game/alibi/acts/${ACT_FILES[t]}.webp`,
   tavi: (pose: "kommissar" | "whisper" | "surprised" | "cheer" | "shrug") => `/game/tavi/${pose}.webp`,
-  icon: (name: "phone" | "lab" | "duel" | "vote" | "map" | "file" | "clue" | "bell") => `/game/alibi/icons/${name}.webp`,
+  icon: (name: "phone" | "lab" | "duel" | "vote" | "map" | "file" | "clue" | "bell" | "seal" | "feather" | "clock" | "vault" | "story" | "seek") => `/game/alibi/icons/${name}.webp`,
+  map: "/game/alibi/map/village.webp",
+  elster: "/game/alibi/elster/elster.webp",
+  nest: "/game/alibi/elster/nest.webp",
 };
 
 export const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -103,7 +122,7 @@ export function buildClips(chars: AlibiCharacter[]): Record<string, Clip> {
   chars.forEach((c) => {
     put(`name.${c.s}`, `${c.n}.`);
     put(`character.${c.s}.quirk`, `${cap(c.q)}.`);
-    (["intro", "stmt", "deny", "confess", "smug"] as const).forEach((k) => put(`character.${c.s}.${k}`, c[k], false, c.n));
+    (["intro", "stmt", "deny", "confess", "smug", "witness"] as const).forEach((k) => put(`character.${c.s}.${k}`, c[k], false, c.n));
   });
   return R;
 }

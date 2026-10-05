@@ -31,9 +31,29 @@ const EXTRA = {
   "fx.pop": "A tiny bubble pop, bright and cute, very short",
   "fx.swoosh": "A quick light swoosh of a card sliding across a table, airy",
   "fx.sparkle": "A short magical sparkle glissando, tiny bells, bright and sweet",
+  // Mitternachts-Alibi 3
+  "fx.seal": "A hard red wax seal cracking and breaking in two, crisp snap, close",
+  "fx.sneak": "Soft sneaky tiptoe footsteps on wooden floor, four steps, playful cartoon",
+  "fx.clock": "One deep heavy grandfather clock tick tock, resonant, close",
+  "fx.loot": "A magical treasure reveal, shimmering chimes rising into a bright warm sparkle, short and joyful",
+  "fx.feather": "A light feather fluttering down through the air, soft whoosh and flutter",
+  "fx.poster": "A paper poster slapped onto a wooden board and pinned with a nail tap",
+  "fx.dawn": "A rooster crowing at dawn followed by a short bright orchestral chord, cartoon",
+  // Tathergang: Geräusche der Tat je Fall und Erzähl-Effekte
+  "fx.th.laterne": "Footsteps climbing a creaky wooden spiral staircase inside a stone tower, echoing, then a soft glass clink",
+  "fx.th.kuchen": "Someone sneakily munching a big fluffy cake, comical chewing sounds and a tiny happy burp",
+  "fx.th.rezept": "An old wooden tavern door creaking open slowly, then a heavy wooden chest lid creaking open",
+  "fx.th.mondstein": "A glass dome lifted off with a delicate clink, then a soft magical humming tone that fades away",
+  "fx.th.glocke": "A rope being cut with a snip, then a heavy brass bell caught in arms with a muffled clong",
+  "fx.th.honig": "Two little bees snoring softly with tiny buzzing snores, then a sticky slurping lick",
+  "fx.th.hufeisen": "A wooden stool scraping on cobblestones, then a metal horseshoe lifted off a nail with a clink",
+  "fx.th.spieluhr": "A delicate music box melody playing and abruptly stopping mid tune",
+  "fx.rewind": "A magical rewind whoosh like time spinning backwards, sparkly and swirling",
+  "fx.drop": "A small cloth sack dropped onto straw, soft thud and rustle",
+  "fx.ooh": "A small group of excited children gasping ooh in surprise",
 };
 /** Dauer in Sekunden je Klang (Standard 2). */
-const DURATION = { "fx.type": 0.8, "fx.tick": 0.8, "fx.stamp": 1.2, "fx.gavel": 1.2, "fx.chime": 2.2, "fx.knock": 1.2, "fx.pop": 0.8, "fx.swoosh": 0.8, "fx.sparkle": 1.5, "fx.page": 1.2, "fx.whoosh": 1.0, "fx.sting": 2.5, "fx.drum": 3, "fx.fanfare": 3.5, "fx.sad": 2.5, "fx.cheer": 3, "fx.boo": 2, "fx.creak": 3, "fx.ring": 3, "fx.bell": 5, "fx.rooster": 3 };
+const DURATION = { "fx.type": 0.8, "fx.tick": 0.8, "fx.stamp": 1.2, "fx.gavel": 1.2, "fx.chime": 2.2, "fx.knock": 1.2, "fx.pop": 0.8, "fx.swoosh": 0.8, "fx.sparkle": 1.5, "fx.page": 1.2, "fx.whoosh": 1.0, "fx.sting": 2.5, "fx.drum": 3, "fx.fanfare": 3.5, "fx.sad": 2.5, "fx.cheer": 3, "fx.boo": 2, "fx.creak": 3, "fx.ring": 3, "fx.bell": 5, "fx.rooster": 3, "fx.seal": 1.2, "fx.sneak": 2.2, "fx.clock": 1.6, "fx.loot": 2.6, "fx.feather": 2, "fx.poster": 1.2, "fx.dawn": 3, "fx.rewind": 1.6, "fx.drop": 1.2, "fx.ooh": 1.8, "fx.th.laterne": 3.5, "fx.th.kuchen": 3, "fx.th.rezept": 3.5, "fx.th.mondstein": 3, "fx.th.glocke": 3, "fx.th.honig": 3.5, "fx.th.hufeisen": 3, "fx.th.spieluhr": 3.5 };
 const LUFS = (id) => (id.startsWith("amb.") ? -34 : id.startsWith("music.") ? -26 : -23);
 
 const prompts = { ...JSON.parse(readFileSync(path.join(REPO_ROOT, "docs", "games", "mitternachts-alibi-v2", "Effekte.json"), "utf8")), ...EXTRA };

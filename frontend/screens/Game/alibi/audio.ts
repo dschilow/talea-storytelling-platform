@@ -8,12 +8,13 @@ import type { Clip } from "./content";
 
 export type SfxName =
   | "stamp" | "type" | "gavel" | "chime" | "tick" | "knock" | "sting" | "drum" | "fanfare" | "sad"
-  | "pop" | "page" | "bell" | "ring" | "whoosh" | "cheer" | "boo" | "swoosh" | "sparkle";
+  | "pop" | "page" | "bell" | "ring" | "whoosh" | "cheer" | "boo" | "swoosh" | "sparkle"
+  | "seal" | "sneak" | "clock" | "loot" | "feather" | "poster" | "dawn";
 
 export type SayPart =
   | string
   | { id: string }
-  | { c: AlibiCharacter; k: "intro" | "stmt" | "deny" | "confess" | "smug" }
+  | { c: AlibiCharacter; k: "intro" | "stmt" | "deny" | "confess" | "smug" | "witness" }
   | { sfx: SfxName; wait?: number }
   | { hl: number | number[] | null }
   | { pause: number }
@@ -241,6 +242,13 @@ class AudioDirector {
     sparkle: () => [1568, 2093, 2637].forEach((f, i) => this.tone(f, i * 0.06, 0.25, "sine", 0.025)),
     cheer: () => { this.noise(0, 0.9, 0.08, 3600); [523, 659, 784, 1047].forEach((f, i) => this.tone(f, i * 0.1, 0.3, "triangle", 0.05)); },
     boo: () => this.tone(160, 0, 0.7, "sawtooth", 0.05, 100),
+    seal: () => { this.noise(0, 0.08, 0.16, 2400); this.tone(180, 0, 0.12, "triangle", 0.08, 90); },
+    sneak: () => [0, 0.32, 0.64, 0.96].forEach((w) => this.tone(140, w, 0.08, "sine", 0.06, 90)),
+    clock: () => { this.tone(900, 0, 0.05, "square", 0.025); this.tone(700, 0.45, 0.05, "square", 0.025); },
+    loot: () => [784, 988, 1175, 1568, 1976].forEach((f, i) => this.tone(f, i * 0.07, 0.4, "sine", 0.05)),
+    feather: () => this.noise(0, 0.9, 0.035, 1800),
+    poster: () => { this.noise(0, 0.12, 0.12, 1200); this.tone(1200, 0.18, 0.05, "square", 0.03); },
+    dawn: () => [523, 659, 784, 1047].forEach((f, i) => this.tone(f, i * 0.05, 1.1, "triangle", 0.05)),
   };
   sfx(name: SfxName) {
     if (!this.soundOn || this.fast) return;

@@ -196,6 +196,190 @@
   to { transform: rotate(360deg); }
 }
 
+/* ---------- Dorfkarte als Diorama ---------- */
+.alibi-board {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.alibi-sky {
+  overflow: hidden;
+  transition: background 1.2s ease;
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent);
+  mask-image: linear-gradient(180deg, #000 55%, transparent);
+}
+.alibi-sky.t0 { background: linear-gradient(180deg, #3a2a5c 0%, #c0627a 55%, #f2a65e 100%); }
+.alibi-sky.t1 { background: linear-gradient(180deg, #050816 0%, #0d1838 60%, #1a2a5a 100%); }
+.alibi-sky.t2 { background: linear-gradient(180deg, #5b6fb3 0%, #f0a6a0 55%, #ffd89a 100%); }
+.alibi-moon, .alibi-sun {
+  position: absolute;
+  border-radius: 9999px;
+  transition: opacity 1.2s ease, transform 1.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.alibi-moon {
+  right: 9%;
+  top: 14%;
+  width: 11%;
+  aspect-ratio: 1;
+  background: radial-gradient(circle at 35% 35%, #fffbe8, #f3e7b6 55%, #d9c98a);
+  box-shadow: 0 0 30px 10px rgba(255, 246, 200, 0.45), 0 0 90px 30px rgba(160, 180, 255, 0.25);
+  opacity: 0;
+  transform: translateY(30%);
+}
+.alibi-sky.t1 .alibi-moon { opacity: 1; transform: translateY(0); }
+.alibi-sky.t0 .alibi-moon { opacity: 0.35; transform: translateY(18%); }
+.alibi-sun {
+  left: 10%;
+  top: 30%;
+  width: 13%;
+  aspect-ratio: 1;
+  background: radial-gradient(circle, #fff7d6, #ffd36e 55%, #ff9f43);
+  box-shadow: 0 0 40px 18px rgba(255, 200, 110, 0.6);
+  opacity: 0;
+  transform: translateY(40%);
+}
+.alibi-sky.t2 .alibi-sun { opacity: 1; transform: translateY(0); }
+.alibi-light {
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  transition: opacity 1.2s ease;
+}
+.alibi-light.t0 { background: linear-gradient(180deg, rgba(255, 158, 88, 0.42) 0%, rgba(150, 80, 150, 0.5) 100%); }
+.alibi-light.t1 { background: radial-gradient(75% 60% at 82% 6%, rgba(150, 170, 255, 0.28), rgba(10, 16, 48, 0.72) 75%); }
+.alibi-light.t2 { background: linear-gradient(180deg, rgba(255, 196, 176, 0.5) 0%, rgba(255, 228, 170, 0.22) 100%); }
+.alibi-board-vignette {
+  pointer-events: none;
+  background: radial-gradient(120% 100% at 50% 45%, transparent 55%, rgba(4, 6, 18, 0.55));
+  box-shadow: inset 0 0 0 3px rgba(248, 220, 142, 0.45), inset 0 0 0 7px rgba(43, 28, 7, 0.55), inset 0 0 40px rgba(0, 0, 0, 0.45);
+  border-radius: 26px;
+}
+.alibi-lantern {
+  width: 26%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255, 210, 120, 0.55), rgba(255, 180, 90, 0.18) 45%, transparent 70%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  transition: opacity 1.2s ease;
+  animation: alibi-flicker 3.6s ease-in-out infinite;
+}
+@keyframes alibi-flicker {
+  0%, 100% { filter: brightness(1); }
+  40% { filter: brightness(1.25); }
+  60% { filter: brightness(0.9); }
+}
+.alibi-ground-ring {
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  pointer-events: none;
+}
+.alibi-ground-ring.alone {
+  border: 2px dashed rgba(255, 200, 90, 0.95);
+  animation: alibi-spin-slow 9s linear infinite;
+}
+@keyframes alibi-spin-slow {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+.alibi-dust {
+  transform: translate(-50%, -50%) scale(0.2);
+  border-radius: 9999px;
+  border: 3px solid rgba(255, 246, 210, 0.9);
+  pointer-events: none;
+  animation: alibi-dust 0.9s ease-out 0.55s forwards;
+  opacity: 0;
+}
+@keyframes alibi-dust {
+  0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0.95; }
+  100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+}
+.alibi-crime-pulse {
+  left: 50%;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(255, 90, 70, 0.55), transparent 65%);
+  animation: alibi-crime 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes alibi-crime {
+  0%, 100% { opacity: 0.45; transform: translateX(-50%) scale(0.92); }
+  50% { opacity: 1; transform: translateX(-50%) scale(1.08); }
+}
+.alibi-plaque {
+  position: relative;
+  z-index: 2;
+  padding: 0.18em 0.75em 0.22em;
+  border-radius: 999px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  color: #2b1c07;
+  background: linear-gradient(180deg, #fbe7b4, #e8b85e);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 1.5px rgba(80, 50, 10, 0.55);
+}
+.alibi-token-shadow {
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), transparent);
+  pointer-events: none;
+}
+.alibi-token {
+  transition: filter 0.5s ease, opacity 0.5s ease;
+}
+.alibi-token.is-dim {
+  filter: grayscale(0.85) brightness(0.65);
+  opacity: 0.6;
+}
+.alibi-ghost {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 0 22px 6px rgba(180, 200, 255, 0.55);
+  animation: alibi-ghost 2.4s ease-in-out infinite;
+}
+@keyframes alibi-ghost {
+  0%, 100% { opacity: 0.85; transform: translateY(0); }
+  50% { opacity: 0.55; transform: translateY(-4px); }
+}
+.alibi-spot {
+  box-shadow: 0 0 0 3px #fff, 0 0 0 5px rgba(43, 28, 7, 0.4), 0 14px 26px rgba(0, 0, 0, 0.55), 0 0 30px rgba(248, 220, 142, 0.6);
+}
+.alibi-dash {
+  animation: alibi-dash 1.2s linear infinite;
+}
+@keyframes alibi-dash {
+  to { stroke-dashoffset: -7.6; }
+}
+
+/* ---------- Siegel, Beute, Epilog ---------- */
+.alibi-rays {
+  position: absolute;
+  inset: -45%;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 226, 150, 0.55) 0deg 9deg, rgba(255, 226, 150, 0) 9deg 22deg);
+  -webkit-mask-image: radial-gradient(circle, #000 18%, transparent 62%);
+  mask-image: radial-gradient(circle, #000 18%, transparent 62%);
+  animation: quiz-spin 14s linear infinite;
+  pointer-events: none;
+}
+.alibi-wanted {
+  color: #3a2410;
+  background:
+    radial-gradient(120% 90% at 30% 10%, rgba(255, 255, 255, 0.5), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(120, 80, 30, 0.04) 0 2px, transparent 2px 5px),
+    linear-gradient(180deg, #f1dfb4, #dcc08a);
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.85), inset 0 0 50px rgba(120, 70, 20, 0.35), inset 0 0 0 1px rgba(90, 55, 15, 0.4);
+}
+.alibi-night-card {
+  background:
+    radial-gradient(90% 70% at 80% 0%, rgba(120, 100, 220, 0.28), transparent 60%),
+    radial-gradient(70% 60% at 0% 100%, rgba(60, 160, 170, 0.18), transparent 60%),
+    linear-gradient(180deg, #141833, #0b0d1c);
+  box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 0.9), inset 0 0 0 1px rgba(248, 220, 142, 0.25);
+}
+.alibi-typewriter span {
+  opacity: 0;
+  animation: alibi-type 0.01s linear forwards;
+}
+@keyframes alibi-type {
+  to { opacity: 1; }
+}
+.alibi-clock-glow {
+  filter: drop-shadow(0 0 10px rgba(255, 210, 120, 0.55));
+}
+
 .alibi-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
@@ -203,7 +387,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .alibi-fog, .alibi-firefly, .alibi-gold::after, .game-kenburns, .game-marquee, .quiz-burst, .alibi-scan {
+  .alibi-fog, .alibi-firefly, .alibi-gold::after, .game-kenburns, .game-marquee, .quiz-burst, .alibi-scan,
+  .alibi-lantern, .alibi-ground-ring.alone, .alibi-crime-pulse, .alibi-ghost, .alibi-dash, .alibi-rays {
     animation: none !important;
   }
 }
