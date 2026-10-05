@@ -64,6 +64,8 @@ export interface StoryBeat {
   kind: "title" | "scene" | "theft" | "lie" | "verdict" | "hide" | "end";
   t: number;
   title: string;
+  /** Spiel-Icon vor dem Titel */
+  icon?: string;
   parts: SayPart[];
   board: BoardStory;
   clues?: ClueKind[];
@@ -834,18 +836,20 @@ export class AlibiController {
     const evePlace = W.pos[cu][0], eveGroup = this.truthAt(0, evePlace);
     const zoom = 1.45;
     const beats: StoryBeat[] = [
-      { kind: "title", t: 0, title: "Der Tathergang", parts: [{ fx: "fx.rewind" }, "kom.th.title"], board: { dim: true } },
+      { kind: "title", t: 0, title: "Der Tathergang", icon: "story", parts: [{ fx: "fx.rewind" }, "kom.th.title"], board: { dim: true } },
       {
         kind: "scene",
         t: 0,
-        title: `${SLOTS[0].icon} Rückblende: der Abend`,
+        title: "Rückblende: der Abend",
+        icon: "evening",
         parts: this.sceneParts(0, evePlace, eveGroup, ["kom.th.evening"]),
         board: { group: eveGroup, dim: true, camera: { place: evePlace, zoom }, spot: { place: evePlace, sight: this.sightAt(0, evePlace).id } },
       },
       {
         kind: "theft",
         t: E.TC,
-        title: `${SLOTS[E.TC].icon} Mitternacht: die Tat`,
+        title: "Mitternacht: die Tat",
+        icon: "midnight",
         parts: [{ fx: `fx.th.${cd.id}` }, `kom.th.${cd.id}`, "kom.th.thief", { hl: cu }, `name.${th.s}`, { hl: null }],
         board: { focus: cu, dim: true, camera: { place: W.crimePlace, zoom }, loot: { player: cu, from: W.crimePlace }, trail: evePlace !== W.crimePlace ? { from: evePlace, to: W.crimePlace } : null },
       },
@@ -860,7 +864,8 @@ export class AlibiController {
       beats.push({
         kind: "scene",
         t: E.TC,
-        title: "🌙 Zur selben Zeit",
+        title: "Zur selben Zeit",
+        icon: "midnight",
         parts: this.sceneParts(E.TC, others.p, others.ids, ["kom.th.meanwhile"]),
         board: { group: others.ids, dim: true, camera: { place: others.p, zoom }, spot: { place: others.p, sight: this.sightAt(E.TC, others.p).id }, loot: { player: cu } },
       });
@@ -879,23 +884,24 @@ export class AlibiController {
     beats.push({
       kind: "lie",
       t: E.TC,
-      title: "🎭 Das falsche Alibi",
+      title: "Das falsche Alibi",
+      icon: "masks",
       parts: lie,
       board: { group: real, dim: true, camera: { place: fake, zoom }, ghost: { i: cu, place: fake, claimed: claim.sight, real: realAtFake }, loot: { player: cu } },
     });
     beats.push(
       caught
-        ? { kind: "verdict", t: E.TC, title: "🔎 So habt ihr den Dieb erwischt", parts: ([{ fx: "fx.ooh" }, "kom.th.caught"] as SayPart[]).concat(clues.map((c) => `kom.th.clue.${c}`)), board: { focus: cu, loot: { player: cu } }, clues }
-        : { kind: "verdict", t: E.TC, title: "💨 Entkommen", parts: ["kom.th.escaped"], board: { focus: cu, loot: { player: cu } }, clues }
+        ? { kind: "verdict", t: E.TC, title: "So habt ihr den Dieb erwischt", icon: "magnifier", parts: ([{ fx: "fx.ooh" }, "kom.th.caught"] as SayPart[]).concat(clues.map((c) => `kom.th.clue.${c}`)), board: { focus: cu, loot: { player: cu } }, clues }
+        : { kind: "verdict", t: E.TC, title: "Entkommen", icon: "footprints", parts: ["kom.th.escaped"], board: { focus: cu, loot: { player: cu } }, clues }
     );
     if (W.T === 3) {
       const dawn = W.pos[cu][2], near = this.truthAt(2, dawn).filter((x) => x !== cu);
       const hide: SayPart[] = [{ sfx: "dawn" }, "kom.th.dawn", `place.${dawn}`, { fx: "fx.drop" }];
       if (near.length) hide.push("kom.th.dawn.others", ...this.nameList(near));
       hide.push(caught ? "kom.th.found" : "kom.th.lost");
-      beats.push({ kind: "hide", t: 2, title: `${SLOTS[2].icon} Das Versteck`, parts: hide, board: { focus: cu, group: near, dim: true, camera: { place: dawn, zoom }, loot: { place: dawn }, trail: { from: W.crimePlace, to: dawn } } });
-    } else beats.push({ kind: "hide", t: E.TC, title: "🎒 Die Beute", parts: [caught ? "kom.th.pocket" : "kom.th.away"], board: { focus: cu, dim: true, camera: { place: W.crimePlace, zoom }, loot: { player: cu } } });
-    beats.push({ kind: "end", t: W.T - 1, title: "Ende der Rückblende", parts: ["kom.th.end"], board: { focus: caught ? null : cu } });
+      beats.push({ kind: "hide", t: 2, title: "Das Versteck", icon: "dawn", parts: hide, board: { focus: cu, group: near, dim: true, camera: { place: dawn, zoom }, loot: { place: dawn }, trail: { from: W.crimePlace, to: dawn } } });
+    } else beats.push({ kind: "hide", t: E.TC, title: "Die Beute", icon: "vault", parts: [caught ? "kom.th.pocket" : "kom.th.away"], board: { focus: cu, dim: true, camera: { place: W.crimePlace, zoom }, loot: { player: cu } } });
+    beats.push({ kind: "end", t: W.T - 1, title: "Ende der Rückblende", icon: "flag", parts: ["kom.th.end"], board: { focus: caught ? null : cu } });
     return beats;
   }
   private toStory(caught: boolean) {
@@ -948,22 +954,22 @@ export class AlibiController {
   private makeAwards(won: boolean): Record<number, Award> {
     const W = this.state.W as World, cu = W.culprit, out: Record<number, Award> = {};
     const pool: Award[] = [
-      { icon: "🔎", title: "Scharfer Blick", why: "Hat jede Kleinigkeit auf der Dorfkarte gesehen." },
-      { icon: "🎭", title: "Beste Rolle", why: "Hat die Figur bis zum Schluss durchgehalten." },
-      { icon: "🧐", title: "Detailverliebt", why: "Hat sich jedes Bild vom Ort gemerkt." },
-      { icon: "🕊️", title: "Stimme der Vernunft", why: "Hat Ruhe in die Verhöre gebracht." },
-      { icon: "⏱️", title: "Schnellster Verdacht", why: "Hatte schon beim ersten Zeugen eine Meinung." },
-      { icon: "☕", title: "Ruhiger Pol", why: "Hat zugehört, während andere durcheinanderredeten." },
-      { icon: "🗝️", title: "Meister der Ausreden", why: "Hat ein Alibi so erzählt, dass man es fast geglaubt hätte." },
-      { icon: "📞", title: "Bester Zuhörer", why: "Hat im Geheimtelefon genau hingehört." },
+      { icon: "aw_sharp", title: "Scharfer Blick", why: "Hat jede Kleinigkeit auf der Dorfkarte gesehen." },
+      { icon: "aw_role", title: "Beste Rolle", why: "Hat die Figur bis zum Schluss durchgehalten." },
+      { icon: "aw_detail", title: "Detailverliebt", why: "Hat sich jedes Bild vom Ort gemerkt." },
+      { icon: "aw_reason", title: "Stimme der Vernunft", why: "Hat Ruhe in die Verhöre gebracht." },
+      { icon: "aw_fast", title: "Schnellster Verdacht", why: "Hatte schon beim ersten Zeugen eine Meinung." },
+      { icon: "aw_calm", title: "Ruhiger Pol", why: "Hat zugehört, während andere durcheinanderredeten." },
+      { icon: "aw_excuse", title: "Meister der Ausreden", why: "Hat ein Alibi so erzählt, dass man es fast geglaubt hätte." },
+      { icon: "aw_listen", title: "Bester Zuhörer", why: "Hat im Geheimtelefon genau hingehört." },
     ];
     const rest = E.shuffle(pool);
     W.players.forEach((p) => {
       if (p.id === cu)
         out[p.id] = won
-          ? { icon: "🪤", title: "Zerknirschter Dieb", why: "Wurde überführt und hat in der Stimme der Figur gestanden." }
-          : { icon: "🏴‍☠️", title: "Meisterdieb", why: "Ist dem Dorf durch die Finger geschlüpft." };
-      else if (this.state.cleared.indexOf(p.id) >= 0) out[p.id] = { icon: "😇", title: "Tapferer Unschuldiger", why: "Wurde fälschlich angeklagt und hat es mit Würde getragen." };
+          ? { icon: "aw_thief", title: "Zerknirschter Dieb", why: "Wurde überführt und hat in der Stimme der Figur gestanden." }
+          : { icon: "aw_master", title: "Meisterdieb", why: "Ist dem Dorf durch die Finger geschlüpft." };
+      else if (this.state.cleared.indexOf(p.id) >= 0) out[p.id] = { icon: "aw_angel", title: "Tapferer Unschuldiger", why: "Wurde fälschlich angeklagt und hat es mit Würde getragen." };
       else out[p.id] = rest.shift() || pool[0];
     });
     return out;

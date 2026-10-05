@@ -5,7 +5,7 @@ import { IMG, KOM, PLACES, SLOTS, cap } from "../content";
 import { TC } from "../engine";
 import type { AlibiController } from "../controller";
 import { useAlibiState } from "../hooks";
-import { Eyebrow, Face, GoldButton, Pips, Screen, Title, TraitRow, ringColor } from "./primitives";
+import { ACT_ICON, Eyebrow, Face, GameIcon, GoldButton, Pips, Screen, Title, TraitRow, ringColor } from "./primitives";
 
 /* ---------- Besetzung: Karte ziehen ---------- */
 export const CastScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
@@ -18,7 +18,7 @@ export const CastScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
     return (
       <Screen
         dock={
-          <GoldButton a="castShow" icon="🃏" onClick={() => ctrl.castShow()}>
+          <GoldButton a="castShow" icon="card" onClick={() => ctrl.castShow()}>
             Karte ziehen
           </GoldButton>
         }
@@ -44,7 +44,7 @@ export const CastScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
                 animate={k === 0 ? { y: [0, -6, 0] } : undefined}
                 transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
               >
-                <span className="text-[64px] drop-shadow-[0_0_24px_rgba(248,220,142,0.6)]">🌙</span>
+                <GameIcon name="midnight" size={84} className="drop-shadow-[0_0_24px_rgba(248,220,142,0.6)]" />
                 <span className="game-display text-[22px] font-black text-[#f8dc8e]">Kicherwald</span>
                 <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/50">Verdächtigenkarte</span>
               </motion.div>
@@ -58,7 +58,7 @@ export const CastScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   return (
     <Screen
       dock={
-        <GoldButton a="castNext" icon="➡️" onClick={() => ctrl.castNext()}>
+        <GoldButton a="castNext" icon="go" onClick={() => ctrl.castNext()}>
           {i < W.N - 1 ? "Weitergeben" : "Alle ansehen"}
         </GoldButton>
       }
@@ -105,7 +105,7 @@ const CastWall: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   return (
     <Screen
       dock={
-        <GoldButton a="toCase" icon="🔎" onClick={() => ctrl.toCase()}>
+        <GoldButton a="toCase" icon="magnifier" onClick={() => ctrl.toCase()}>
           Zum Fall
         </GoldButton>
       }
@@ -142,7 +142,7 @@ export const CaseScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   return (
     <Screen
       dock={
-        <GoldButton a="toAct" icon={SLOTS[0].icon} onClick={() => ctrl.toAct()}>
+        <GoldButton a="toAct" icon="evening" onClick={() => ctrl.toAct()}>
           Der Abend beginnt
         </GoldButton>
       }
@@ -188,7 +188,7 @@ export const CaseScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         <div className="flex flex-wrap justify-center gap-2 pt-1">
           {Array.from({ length: W.T }, (_, t) => (
             <span key={t} className={`rounded-full px-3 py-1 text-[12.5px] font-bold ${t === TC ? "bg-[#c0392b] text-white" : "bg-black/[0.07] text-[#4a3b28]"}`}>
-              {SLOTS[t].icon} {SLOTS[t].name}
+              <GameIcon name={ACT_ICON[t]} size={18} className="mr-1 inline-block align-[-4px]" />{SLOTS[t].name}
               {t === TC ? " · Tatzeit" : ""}
             </span>
           ))}
@@ -201,7 +201,7 @@ export const CaseScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
           transition={{ delay: 1.6, type: "spring", stiffness: 160, damping: 16 }}
           className="relative w-full overflow-hidden rounded-[22px] border-2 border-dashed border-[#f8dc8e]/60 bg-[#f2b04a]/15 px-4 py-3"
         >
-          <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#f8dc8e]">🎉 Alle zusammen</p>
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#f8dc8e]"><GameIcon name="party" size={18} className="mr-1 inline-block align-[-4px]" />Alle zusammen</p>
           <p className="mt-1 text-[15px] font-semibold leading-snug text-white/90">{KOM[`kom.gag.${cd.id}`].replace(/^Bevor wir anfangen: /, "")}</p>
         </motion.div>
       ) : null}

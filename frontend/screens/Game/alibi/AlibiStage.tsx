@@ -8,7 +8,7 @@ import { TC } from "./engine";
 import { director } from "./audio";
 import type { AlibiController, AlibiState } from "./controller";
 import { useAlibiState, useVoice } from "./hooks";
-import { IconButton, StageBackground } from "./ui/primitives";
+import { GameIcon, IconButton, StageBackground } from "./ui/primitives";
 import { SetupScreen } from "./ui/SetupScreen";
 import { CaseScreen, CastScreen } from "./ui/CastScreens";
 import { ActScreen } from "./ui/ActScreens";
@@ -180,49 +180,53 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
               data-a="exit"
               whileTap={{ scale: 0.9 }}
               onClick={requestExit}
-              className={cn("alibi-glass flex h-11 items-center justify-center gap-1.5 rounded-full px-3.5 text-[14px] font-bold", exitArmed && "bg-[#c0392b]/70")}
+              className={cn("alibi-medal-btn alibi-press flex h-11 min-w-11 items-center justify-center gap-1.5 rounded-full px-3 text-[14px] font-bold text-[#f8dc8e]", exitArmed && "!bg-[#8f2a1f]")}
               aria-label="Spiel verlassen"
             >
-              {exitArmed ? "Wirklich verlassen?" : "✕"}
+              {exitArmed ? (
+                "Wirklich verlassen?"
+              ) : (
+                <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" aria-hidden="true">
+                  <path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" />
+                </svg>
+              )}
             </motion.button>
             <motion.span
               key={phaseLabel(s) + isPrivate(s)}
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
-              className={cn("alibi-glass truncate rounded-full px-3 py-2 text-[11px] font-bold uppercase tracking-[0.1em]", isPrivate(s) ? "text-violet-200" : "text-[#f8dc8e]")}
+              className={cn("alibi-medal-btn inline-flex items-center gap-1.5 truncate rounded-full px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.1em]", isPrivate(s) ? "text-violet-200" : "text-[#f8dc8e]")}
             >
-              {isPrivate(s) ? "🤫 Geheim" : phaseLabel(s)}
+              {isPrivate(s) ? (
+                <>
+                  <GameIcon name="secret" size={15} />
+                  Geheim
+                </>
+              ) : (
+                phaseLabel(s)
+              )}
             </motion.span>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <IconButton label="Tavi erklärt diesen Schritt" a="help" onClick={() => ctrl.help()}>
-              ❓
-            </IconButton>
+            <IconButton label="Tavi erklärt diesen Schritt" a="help" icon="help" onClick={() => ctrl.help()} />
             <IconButton
               label={soundOn ? "Ton aus" : "Ton an"}
               a="sound"
               active={soundOn}
+              icon={soundOn ? "speaker" : "mute"}
               onClick={() => {
                 director.soundOn = !director.soundOn;
                 if (!director.soundOn) director.stop();
                 else director.ctx();
                 ctrl.updateSetup({});
               }}
-            >
-              {soundOn ? "🔊" : "🔇"}
-            </IconButton>
+            />
             {s.phase === "setup" ? (
-              <IconButton label="Sammlung" a="vaultOpen" onClick={() => setOverlay("vault")}>
-                🏆
-              </IconButton>
+              <IconButton label="Sammlung" a="vaultOpen" icon="vault" onClick={() => setOverlay("vault")} />
             ) : null}
-            <IconButton label="Regeln" a="rules" onClick={() => setOverlay("rules")}>
-              📖
-            </IconButton>
+            <IconButton label="Regeln" a="rules" icon="rules" onClick={() => setOverlay("rules")} />
             {s.W && s.phase !== "setup" ? (
-              <IconButton label="Besetzung ansehen" a="cast" onClick={() => setOverlay("cast")}>
-                🎭
-              </IconButton>
+              <IconButton label="Besetzung ansehen" a="cast" icon="masks" onClick={() => setOverlay("cast")} />
             ) : null}
           </div>
         </header>

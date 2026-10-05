@@ -26,8 +26,8 @@ const Sheet: React.FC<{ title: string; onClose: () => void; children: React.Reac
     >
       <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
         <h3 className="game-display text-[26px] font-black text-white">{title}</h3>
-        <button type="button" data-a="closeOverlay" onClick={onClose} className="alibi-glass flex h-10 w-10 items-center justify-center rounded-full text-[18px]" aria-label="Schließen">
-          ✕
+        <button type="button" data-a="closeOverlay" onClick={onClose} className="alibi-medal-btn alibi-press flex h-10 w-10 items-center justify-center rounded-full text-[#f8dc8e]" aria-label="Schließen">
+          <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" /></svg>
         </button>
       </div>
       <div className="alibi-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-[max(env(safe-area-inset-bottom),20px)] pt-4">{children}</div>
@@ -88,11 +88,11 @@ const Rules: React.FC<{ ctrl: AlibiController; onTour: () => void; onQuit: () =>
   return (
     <div className="pb-4 text-[14.5px] leading-relaxed text-white/75">
       <div className="flex flex-wrap gap-2">
-        <GhostButton icon="🎬" onClick={onTour}>
+        <GhostButton icon="film" onClick={onTour}>
           Kurz erklärt, mit Stimme
         </GhostButton>
         {s.W ? (
-          <GhostButton icon={armed ? "❗" : "🏠"} a="quit" onClick={() => (armed ? onQuit() : setArmed(true))}>
+          <GhostButton icon={armed ? "lightning" : "home"} a="quit" onClick={() => (armed ? onQuit() : setArmed(true))}>
             {armed ? "Wirklich beenden?" : "Neues Spiel"}
           </GhostButton>
         ) : null}
@@ -164,8 +164,8 @@ const Tour: React.FC<{ ctrl: AlibiController; onClose: () => void }> = ({ ctrl, 
     <motion.div className="absolute inset-0 z-40 flex flex-col bg-[rgba(10,12,28,0.96)] backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
       <div className="flex items-center justify-between px-5 pt-[max(env(safe-area-inset-top),16px)]">
         <span className="text-[12px] font-bold uppercase tracking-[0.22em] text-[#f8dc8e]/85">Kurz erklärt · {k} / 6</span>
-        <button type="button" data-a="closeOverlay" onClick={onClose} className="alibi-glass flex h-10 w-10 items-center justify-center rounded-full" aria-label="Schließen">
-          ✕
+        <button type="button" data-a="closeOverlay" onClick={onClose} className="alibi-medal-btn alibi-press flex h-10 w-10 items-center justify-center rounded-full text-[#f8dc8e]" aria-label="Schließen">
+          <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" strokeWidth={3.2} strokeLinecap="round" /></svg>
         </button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-6">
@@ -183,16 +183,16 @@ const Tour: React.FC<{ ctrl: AlibiController; onClose: () => void }> = ({ ctrl, 
       </div>
       <div className="mx-auto flex w-full max-w-[560px] gap-2.5 px-4 pb-[max(env(safe-area-inset-bottom),18px)] pt-3">
         {k > 1 ? (
-          <GhostButton a="tourPrev" icon="⬅️" onClick={() => setK(k - 1)} size="lg" className="flex-1">
+          <GhostButton a="tourPrev" icon="back" onClick={() => setK(k - 1)} size="lg" className="flex-1">
             Zurück
           </GhostButton>
         ) : null}
         {k < 6 ? (
-          <GoldButton a="tourNext" icon="➡️" onClick={() => setK(k + 1)} className="flex-[2]">
+          <GoldButton a="tourNext" icon="go" onClick={() => setK(k + 1)} className="flex-[2]">
             Weiter
           </GoldButton>
         ) : (
-          <GoldButton a="closeOverlay" icon="🎭" onClick={onClose} className="flex-[2]">
+          <GoldButton a="closeOverlay" icon="masks" onClick={onClose} className="flex-[2]">
             Los geht’s
           </GoldButton>
         )}

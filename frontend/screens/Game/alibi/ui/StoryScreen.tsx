@@ -2,18 +2,18 @@ import React from "react";
 import { motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
-import { COLORS, IMG, SPC_ICON } from "../content";
+import { COLORS, IMG } from "../content";
 import type { AlibiController, ClueKind } from "../controller";
 import { useAlibiState } from "../hooks";
-import { Eyebrow, GhostButton, GoldButton, Screen, SizeBars } from "./primitives";
+import { Eyebrow, GDR_GI, GameIcon, GhostButton, GoldButton, SPC_GI, Screen, SizeBars, type GameIconName } from "./primitives";
 import { VillageMap } from "./VillageMap";
 
 const CLUE: Record<ClueKind, { icon: React.ReactNode; title: string; text: string }> = {
   seal: { icon: <img src={IMG.icon("seal")} alt="" className="h-9 w-9" />, title: "Gebrochenes Siegel", text: "Die Beobachtung passte nicht zum Ort." },
-  duel: { icon: <img src={IMG.icon("duel")} alt="" className="h-9 w-9 rounded-full object-cover" />, title: "Zeugen-Duell", text: "Zwei Zeugen, zwei verschiedene Bilder." },
-  conflict: { icon: <span className="text-[30px]">⚡</span>, title: "Widerspruch", text: "Die Aussagen passten nicht zusammen." },
-  alone: { icon: <span className="text-[30px]">👻</span>, title: "Kein Zeuge", text: "Um Mitternacht hat niemand den Dieb gesehen." },
-  lab: { icon: <img src={IMG.icon("lab")} alt="" className="h-9 w-9 rounded-full object-cover" />, title: "Laborspuren", text: "Die Spuren passten nur auf eine Figur." },
+  duel: { icon: <GameIcon name="duel2" size={40} />, title: "Zeugen-Duell", text: "Zwei Zeugen, zwei verschiedene Bilder." },
+  conflict: { icon: <GameIcon name="lightning" size={38} />, title: "Widerspruch", text: "Die Aussagen passten nicht zusammen." },
+  alone: { icon: <GameIcon name="ghost" size={38} />, title: "Kein Zeuge", text: "Um Mitternacht hat niemand den Dieb gesehen." },
+  lab: { icon: <GameIcon name="lab2" size={40} />, title: "Laborspuren", text: "Die Spuren passten nur auf eine Figur." },
 };
 
 /** Der Tathergang: eine kleine Geschichte mit Kamerafahrten über die Dorfkarte. */
@@ -26,10 +26,10 @@ export const StoryScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
     <Screen
       dock={
         <div className="grid grid-cols-[1fr_1.4fr] gap-2.5">
-          <GhostButton a="storySkip" icon="⏭️" onClick={() => ctrl.storySkip()} size="lg">
+          <GhostButton a="storySkip" icon="skip" onClick={() => ctrl.storySkip()} size="lg">
             Überspringen
           </GhostButton>
-          <GoldButton a="storyNext" icon={last ? "🏁" : "▶️"} onClick={() => ctrl.storyNext()}>
+          <GoldButton a="storyNext" icon={last ? "flag" : "go"} onClick={() => ctrl.storyNext()}>
             {last ? "Zum Abschluss" : "Weiter"}
           </GoldButton>
         </div>
@@ -44,6 +44,7 @@ export const StoryScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
           transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           className="game-display text-center text-[clamp(24px,6.5vw,34px)] font-black leading-tight text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.6)]"
         >
+          {beat.icon ? <GameIcon name={beat.icon as GameIconName} size={34} className="mr-2 inline-block align-[-6px]" /> : null}
           {beat.title}
         </motion.h2>
         <div className="flex items-center gap-1.5" aria-hidden="true">
@@ -79,7 +80,7 @@ export const StoryScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
               {c === "lab" ? (
                 <span className="ml-auto flex items-center gap-2">
                   {s.spuren.slice(0, s.spurShown).map((sp, j) =>
-                    sp.k === "fam" ? <span key={j} className="h-5 w-5 rounded-full border-2 border-white shadow" style={{ background: COLORS[sp.v] }} /> : sp.k === "szc" ? <SizeBars key={j} szc={sp.v} h={18} /> : <span key={j} className="text-[18px]">{sp.k === "spc" ? SPC_ICON[sp.v] : sp.v}</span>
+                    sp.k === "fam" ? <span key={j} className="h-5 w-5 rounded-full border-2 border-white shadow" style={{ background: COLORS[sp.v] }} /> : sp.k === "szc" ? <SizeBars key={j} szc={sp.v} h={18} /> : <GameIcon key={j} name={(sp.k === "spc" ? SPC_GI[sp.v] : GDR_GI[sp.v]) || "gd_n"} size={22} />
                   )}
                 </span>
               ) : null}

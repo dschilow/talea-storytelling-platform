@@ -8,6 +8,7 @@ import { useBackend } from "@/hooks/useBackend";
 import type { Doku } from "@/types/doku";
 import { emitMapProgress } from "../../Journey/TaleaLearningPathProgressStore";
 import { director } from "../alibi/audio";
+import { GameIcon } from "../alibi/ui/primitives";
 import { MAX_DOKUS_TO_SCAN, MAX_QUESTIONS_IN_DECK, extractCardsFromSections, matchesFilter, shuffle, type DeckFilter, type QuizCard } from "./quizDeck";
 
 const CATEGORIES: { id: DeckFilter["perspective"]; label: string; img: string }[] = [
@@ -256,7 +257,7 @@ export const QuizArena: React.FC = () => {
                 </div>
               </div>
               <label className="relative block">
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[16px] opacity-70">🔎</span>
+                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2"><GameIcon name="search" size={22} /></span>
                 <input
                   type="text"
                   value={filters.query}
@@ -273,10 +274,12 @@ export const QuizArena: React.FC = () => {
                   whileTap={{ scale: 0.96 }}
                   onClick={() => void buildDeck()}
                   disabled={listLoading}
-                  className="relative overflow-hidden rounded-full px-9 py-4 text-[17px] font-extrabold text-[#2b1a05] shadow-[0_14px_34px_-10px_rgba(249,199,90,0.8)] disabled:opacity-50"
-                  style={{ background: "linear-gradient(180deg,#ffe08a,#f2b03c)" }}
+                  className="alibi-gold alibi-press relative inline-flex min-h-[60px] items-center gap-3 overflow-hidden rounded-full pl-2.5 pr-9 text-[17px] font-extrabold disabled:opacity-50"
                 >
-                  ▶ Quiz starten
+                  <span className="alibi-jewel flex h-[42px] w-[42px] items-center justify-center rounded-full">
+                    <GameIcon name="go" size={30} />
+                  </span>
+                  <span className="alibi-gold-label">Quiz starten</span>
                 </motion.button>
               </div>
             </div>
@@ -316,7 +319,7 @@ export const QuizArena: React.FC = () => {
                   ) : null}
                 </AnimatePresence>
                 <span className="flex items-center gap-1.5 rounded-full bg-[#f9c75a]/15 px-3.5 py-1.5 text-[15px] font-extrabold text-[#ffe08a]">
-                  ⭐ <AnimatedNumber value={score} />
+                  <GameIcon name="star" size={22} /> <AnimatedNumber value={score} />
                 </span>
               </div>
             </div>
@@ -384,8 +387,8 @@ export const QuizArena: React.FC = () => {
                         {card.explanation ? <p className="mt-1 text-[14px] leading-relaxed text-white/80">{card.explanation}</p> : null}
                       </div>
                       <div className="flex shrink-0 gap-2">
-                        <button type="button" onClick={() => navigate(`/doku-reader/${card.dokuId}`)} className="rounded-full bg-white/[0.1] px-4 py-3 text-[14px] font-bold hover:bg-white/[0.16]">
-                          📖 Quelle
+                        <button type="button" onClick={() => navigate(`/doku-reader/${card.dokuId}`)} className="alibi-btn alibi-press inline-flex items-center gap-1.5 rounded-full px-4 py-2.5 text-[14px] font-bold">
+                          <GameIcon name="book2" size={22} /> Quelle
                         </button>
                         <motion.button
                           type="button"
@@ -437,14 +440,17 @@ export const QuizArena: React.FC = () => {
               </div>
             </div>
             <div className="flex flex-wrap justify-center gap-2.5 pt-2">
-              <motion.button type="button" whileTap={{ scale: 0.96 }} onClick={() => void buildDeck()} className="rounded-full px-7 py-3.5 text-[16px] font-extrabold text-[#2b1a05]" style={{ background: "linear-gradient(180deg,#ffe08a,#f2b03c)" }}>
-                🔁 Nochmal spielen
+              <motion.button type="button" whileTap={{ scale: 0.96 }} onClick={() => void buildDeck()} className="alibi-gold alibi-press inline-flex min-h-[56px] items-center gap-2.5 rounded-full pl-2 pr-7 text-[16px] font-extrabold">
+                <span className="alibi-jewel flex h-[38px] w-[38px] items-center justify-center rounded-full">
+                  <GameIcon name="replay" size={26} />
+                </span>
+                <span className="alibi-gold-label">Nochmal spielen</span>
               </motion.button>
-              <button type="button" onClick={() => setPhase("review")} className="rounded-full bg-white/[0.1] px-6 py-3.5 text-[15px] font-bold hover:bg-white/[0.16]">
-                📋 Antworten ansehen
+              <button type="button" onClick={() => setPhase("review")} className="alibi-btn alibi-press inline-flex min-h-[56px] items-center gap-2 rounded-full px-6 text-[15px] font-bold">
+                <GameIcon name="list" size={26} /> Antworten ansehen
               </button>
-              <button type="button" onClick={() => setPhase("lobby")} className="rounded-full bg-white/[0.1] px-6 py-3.5 text-[15px] font-bold hover:bg-white/[0.16]">
-                🎯 Andere Kategorie
+              <button type="button" onClick={() => setPhase("lobby")} className="alibi-btn alibi-press inline-flex min-h-[56px] items-center gap-2 rounded-full px-6 text-[15px] font-bold">
+                <GameIcon name="target" size={26} /> Andere Kategorie
               </button>
             </div>
           </motion.div>
@@ -471,7 +477,7 @@ export const QuizArena: React.FC = () => {
                   </p>
                   {!ok ? <p className="text-[14px] text-[#7ef0c0]">✓ Richtig: {c.options[c.answerIndex]}</p> : null}
                   <button type="button" onClick={() => navigate(`/doku-reader/${c.dokuId}`)} className="mt-2 text-[13px] font-bold text-[#f9c75a] hover:underline">
-                    📖 Zur Doku „{c.dokuTitle}“
+                    <GameIcon name="book2" size={18} className="mr-1 inline-block align-[-4px]" />Zur Doku „{c.dokuTitle}“
                   </button>
                 </div>
               );

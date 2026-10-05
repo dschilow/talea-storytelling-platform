@@ -100,13 +100,87 @@
   box-shadow: 0 24px 60px -18px rgba(0, 0, 0, 0.7), inset 0 0 0 2px rgba(192, 57, 43, 0.55);
 }
 
-/* Goldknopf: Glanz läuft regelmäßig darüber */
+/* Goldknopf: geprägtes Gold mit Kante, Glanz läuft regelmäßig darüber */
 .alibi-gold {
-  background: linear-gradient(180deg, #f8dc8e, #e9a93c);
-  color: #2b1c07;
-  box-shadow: 0 12px 30px -8px rgba(233, 169, 60, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(120, 70, 10, 0.25);
+  color: #2b1704;
+  background:
+    radial-gradient(120% 150% at 50% -35%, rgba(255, 255, 255, 0.8), transparent 46%),
+    linear-gradient(180deg, #ffeaa8 0%, #f8c95c 40%, #e69d2e 76%, #c97b18 100%);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -3px 0 rgba(122, 64, 6, 0.38),
+    inset 0 0 0 1.5px rgba(112, 62, 8, 0.7),
+    0 5px 0 #8a5212,
+    0 7px 0 rgba(36, 18, 4, 0.55),
+    0 16px 30px -8px rgba(233, 169, 60, 0.6);
+  text-shadow: 0 1px 0 rgba(255, 244, 210, 0.75);
   position: relative;
   overflow: hidden;
+}
+.alibi-gold-label {
+  position: relative;
+  z-index: 1;
+}
+/* Edelstein-Fassung für das Icon im Goldknopf */
+.alibi-jewel {
+  position: relative;
+  z-index: 1;
+  background: radial-gradient(circle at 35% 30%, #fffaf0 0%, #f7e6bd 55%, #e4c27a 100%);
+  box-shadow: inset 0 2px 3px rgba(255, 255, 255, 0.9), inset 0 -3px 5px rgba(140, 86, 20, 0.45), 0 0 0 2px rgba(112, 62, 8, 0.55), 0 2px 4px rgba(60, 30, 4, 0.45);
+}
+/* Dunkler Lackknopf mit Goldrand */
+.alibi-btn {
+  color: #f7edd4;
+  background:
+    radial-gradient(120% 140% at 50% -40%, rgba(255, 255, 255, 0.18), transparent 50%),
+    linear-gradient(180deg, #2f356c 0%, #1d2149 58%, #151836 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 0 1.5px rgba(248, 220, 142, 0.5),
+    0 4px 0 #0a0c20,
+    0 6px 0 rgba(0, 0, 0, 0.35),
+    0 14px 26px -10px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  transition: filter 0.2s ease;
+}
+.alibi-btn:hover:not(:disabled) {
+  filter: brightness(1.14);
+}
+/* Rundes Medaillon (Kopfleiste) */
+.alibi-medal-btn {
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.22), transparent 55%),
+    linear-gradient(180deg, #2a3066, #151838);
+  box-shadow:
+    inset 0 0 0 2px rgba(248, 220, 142, 0.7),
+    inset 0 0 0 4px rgba(20, 22, 50, 0.9),
+    inset 0 1px 0 5px rgba(255, 255, 255, 0.06),
+    0 3px 0 #0a0c20,
+    0 8px 16px -6px rgba(0, 0, 0, 0.7);
+  transition: filter 0.2s ease;
+}
+.alibi-medal-btn:hover {
+  filter: brightness(1.15);
+}
+/* Drücken: der Knopf sinkt auf seine Kante */
+.alibi-press {
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.2s ease;
+}
+.alibi-press:active:not(:disabled) {
+  transform: translateY(3px);
+}
+.alibi-gold.alibi-press:active:not(:disabled) {
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 0 rgba(122, 64, 6, 0.38),
+    inset 0 0 0 1.5px rgba(112, 62, 8, 0.7),
+    0 2px 0 #8a5212,
+    0 3px 0 rgba(36, 18, 4, 0.55),
+    0 8px 16px -8px rgba(233, 169, 60, 0.6);
+}
+.alibi-btn.alibi-press:active:not(:disabled),
+.alibi-medal-btn.alibi-press:active {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 0 0 1.5px rgba(248, 220, 142, 0.5), 0 1px 0 #0a0c20, 0 2px 0 rgba(0, 0, 0, 0.35);
 }
 .alibi-gold::after {
   content: "";

@@ -39,6 +39,12 @@ Die Figuren kommen live aus dem Charakter-Pool (`GET /story/character-pool`, Bil
 
 **Neue Inhalte:** 6 Bilder (Karte, Siegel, Feder, Taschenuhr, Asservatenschrank, Tathergang-Buch, Lupe) und Elster und Nest; 171 neue Sprach-Clips (Tathergang, Ermittlung, Siegel, Beute, 8 Gruppen-Aufgaben, 8 Tat-Erzählungen, 8 Epiloge, Elster-Finale, Zeugen-Zeile für alle 89 Figuren) und 18 neue Geräusche (Siegelbruch, Schleichen, Uhr, Beute, Feder, Steckbrief, Hahn, Rückspulen, Plumps, Staunen, je Fall ein Tat-Geräusch).
 
+## Knöpfe und Icons (seit 2026-10-05)
+
+Keine Emojis mehr in der Spieloberfläche: 81 eigene Icons (`public/game/alibi/ui/*.webp`, freigestellt, 160–256 px, zusammen 0,7 MB) mit FLUX.2 klein (`runware:400@2`, 4 Schritte, 512 px, je etwa 0,08 Cent) im gleichen Stil: Knopf-Symbole, Kopfleiste, Akt-Symbole, 6 Rang-Abzeichen, 11 Auszeichnungen, Stufen, Fragekarten, Spur-Symbole (Art, Geschlecht), Startkarten-Merkmale, Quiz. Verwendung über `GameIcon` (`ui/primitives.tsx`, Namen als Typ `GameIconName`); `GoldButton`/`GhostButton` nehmen den Namen direkt (`icon="magnifier"`).
+
+Knopf-Stil (`game.css`): `.alibi-gold` (geprägtes Gold mit Kante, Icon in Edelstein-Fassung `.alibi-jewel`), `.alibi-btn` (dunkler Lack mit Goldrand), `.alibi-medal-btn` (runde Medaillons der Kopfleiste), `.alibi-press` (Knopf sinkt beim Drücken auf seine Kante).
+
 ## Bilder
 
 Erzeugt über Runware mit `bfl:flux@3-image` (Kosten etwa 1,70 $ für 78 Bilder): Titelbilder (Krimi, Quiz), 8 Orte, 32 Erinnerungsbilder, 8 Beuten, 3 Akt-Szenen, 6 Posen von Kommissar Tavi (freigestellt, auf Basis des Tavi-Navigationsbilds als Referenz), 8 Spiel-Icons, 6 Quiz-Kategorien, 3 Medaillen, Serien-Flamme und das Navigations-Icon `game/nav/spiel.webp`.

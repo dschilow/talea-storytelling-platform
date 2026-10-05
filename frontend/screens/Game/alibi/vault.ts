@@ -24,12 +24,12 @@ export interface Rank {
 }
 
 export const RANKS: Rank[] = [
-  { min: 0, name: "Detektiv-Anwärter", icon: "🔰" },
-  { min: 1, name: "Spürnase", icon: "👃" },
-  { min: 3, name: "Detektiv", icon: "🔎" },
-  { min: 6, name: "Oberdetektiv", icon: "🕵️" },
-  { min: 10, name: "Meisterdetektiv", icon: "🎖️" },
-  { min: 20, name: "Legende von Kicherwald", icon: "👑" },
+  { min: 0, name: "Detektiv-Anwärter", icon: "rank0" },
+  { min: 1, name: "Spürnase", icon: "rank1" },
+  { min: 3, name: "Detektiv", icon: "rank2" },
+  { min: 6, name: "Oberdetektiv", icon: "rank3" },
+  { min: 10, name: "Meisterdetektiv", icon: "rank4" },
+  { min: 20, name: "Legende von Kicherwald", icon: "rank5" },
 ];
 
 export interface GameRecord {

@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { CASES, IMG, KOM } from "../content";
 import type { AlibiCharacter } from "../types";
 import { RANKS, featherCount, loadVault, nextRank, rankFor } from "../vault";
+import { GameIcon, type GameIconName } from "./primitives";
 
 const Loot3D = React.lazy(() => import("./Loot3D"));
 
@@ -128,7 +129,8 @@ export const VaultView: React.FC<{ chars: AlibiCharacter[] }> = ({ chars }) => {
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#f8dc8e]/90">Euer Rang</p>
           <p className="game-display text-[24px] font-black leading-tight text-white">
-            {rank.icon} {rank.name}
+            <GameIcon name={rank.icon as GameIconName} size={34} className="mr-1.5 inline-block align-[-7px]" />
+            {rank.name}
           </p>
           <p className="text-[12.5px] text-white/65">
             {v.solved} gelöst · {v.escaped} entkommen · {v.games} Partien
@@ -174,7 +176,7 @@ export const VaultView: React.FC<{ chars: AlibiCharacter[] }> = ({ chars }) => {
           <p className="text-[13px] text-white/55">Noch kein Dieb entkommen. Weiter so!</p>
         )}
       </div>
-      <p className="text-[11.5px] text-white/40">Die Sammlung liegt auf diesem Gerät. Ränge: {RANKS.map((r) => `${r.icon} ${r.name}`).join(" · ")}.</p>
+      <p className="text-[11.5px] text-white/40">Die Sammlung liegt auf diesem Gerät.</p>
     </div>
   );
 };

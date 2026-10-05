@@ -2,12 +2,12 @@ import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
-import { COLORS, GDR_ICON, IMG, KOM, PLACES, PROMPTS, SIGHTS, SLOTS, SPC_ICON, SPUR_LABEL, cap } from "../content";
+import { COLORS, IMG, KOM, PLACES, PROMPTS, SIGHTS, SLOTS, SPUR_LABEL, cap } from "../content";
 import { TC } from "../engine";
 import type { AlibiController } from "../controller";
 import { useAlibiState } from "../hooks";
 import type { Spur } from "../types";
-import { BigCount, Eyebrow, Face, GhostButton, GoldButton, PlaceCard, Screen, SightTile, SizeBars, Title } from "./primitives";
+import { ACT_ICON, BigCount, Eyebrow, Face, GDR_GI, GameIcon, GhostButton, GoldButton, PROMPT_ICON, PlaceCard, SPC_GI, Screen, SightTile, SizeBars, Title, iconSrc } from "./primitives";
 import { VillageMap } from "./VillageMap";
 
 export const RoundScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
@@ -89,15 +89,15 @@ export const EscapeClock: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         </motion.g>
         <motion.g initial={false} animate={{ x: m.x, y: m.y }} transition={{ type: "spring", stiffness: 70, damping: 14 }}>
           <circle r={13} fill="rgba(10,12,28,0.85)" stroke={low ? "#ff7a5c" : "#f8dc8e"} strokeWidth={2} />
-          <text y={5} textAnchor="middle" fontSize="15">👣</text>
+          <image href={iconSrc("footprints")} x={-9} y={-9} width={18} height={18} />
         </motion.g>
       </svg>
       <div className="relative flex items-center justify-between px-4 pb-2.5 text-[12.5px] font-bold">
-        <span className="text-white/75">🌙<span className="hidden sm:inline"> Mitternacht</span></span>
+        <span className="inline-flex items-center gap-1 text-white/75"><GameIcon name="midnight" size={18} /><span className="hidden sm:inline">Mitternacht</span></span>
         <motion.span key={s.moves} initial={{ scale: 1.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={cn("rounded-full px-3 py-1 text-[13px] font-extrabold", low ? "bg-[#ff6e5a] text-white" : "bg-black/40 text-[#f8dc8e]")}>
           {s.moves === 0 ? "Der Morgen graut!" : s.moves === 1 ? "Letzter Zug!" : `Noch ${s.moves} Züge`}
         </motion.span>
-        <span className="text-white/75"><span className="hidden sm:inline">Morgengrauen </span>🌅</span>
+        <span className="inline-flex items-center gap-1 text-white/75"><span className="hidden sm:inline">Morgengrauen</span><GameIcon name="dawn" size={18} /></span>
       </div>
     </div>
   );
@@ -123,7 +123,7 @@ export const SpurChips: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
 const SpurGlyph: React.FC<{ sp: Spur; small?: boolean }> = ({ sp, small }) => {
   if (sp.k === "fam") return <span className={cn("rounded-full border-2 border-white shadow", small ? "h-4 w-4" : "h-24 w-24 border-[5px]")} style={{ background: COLORS[sp.v] || "#999" }} />;
   if (sp.k === "szc") return <SizeBars szc={sp.v} h={small ? 16 : 76} />;
-  return <span className={small ? "text-[15px] leading-none" : "text-[84px] leading-none"}>{sp.k === "spc" ? SPC_ICON[sp.v] : GDR_ICON[sp.v]}</span>;
+  return <GameIcon name={(sp.k === "spc" ? SPC_GI[sp.v] : GDR_GI[sp.v]) || "gd_n"} size={small ? 20 : 110} />;
 };
 
 /** Beweise auf einen Blick: Duelle und Siegel */
@@ -137,14 +137,14 @@ const Evidence: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         <motion.span key={`d${k}`} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1", d.res === "same" ? "bg-emerald-400/15 ring-1 ring-emerald-300/40" : "bg-rose-400/15 ring-1 ring-rose-300/40")}>
           <Face p={ctrl.P(d.a)} size={24} noNumber />
           <Face p={ctrl.P(d.b)} size={24} noNumber />
-          <span className="text-[14px]">{d.res === "same" ? "✅" : "❌"}</span>
+          <GameIcon name={d.res === "same" ? "check" : "lightning"} size={20} />
         </motion.span>
       ))}
       {s.sealLog.map((x, k) => (
         <motion.span key={`s${k}`} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1", x.ok ? "bg-emerald-400/15 ring-1 ring-emerald-300/40" : "bg-rose-400/15 ring-1 ring-rose-300/40")}>
           <img src={IMG.icon("seal")} alt="" className="h-6 w-6" />
           <Face p={ctrl.P(x.i)} size={24} noNumber />
-          <span className="text-[14px]">{x.ok ? "✅" : "❌"}</span>
+          <GameIcon name={x.ok ? "check" : "lightning"} size={20} />
         </motion.span>
       ))}
     </div>
@@ -161,10 +161,10 @@ const ActionCard: React.FC<{ a: string; img: string; title: string; sub: string;
     onClick={disabled ? undefined : onClick}
     className={cn(
       "relative flex flex-col items-center gap-1 overflow-hidden rounded-[20px] px-1.5 pb-2 pt-2.5 text-center transition-[opacity,filter] disabled:cursor-not-allowed disabled:opacity-40 disabled:grayscale",
-      hot ? "alibi-gold" : "alibi-glass text-white"
+      hot ? "alibi-gold alibi-press" : "alibi-btn alibi-press"
     )}
   >
-    <img src={img} alt="" className="h-12 w-12 rounded-full bg-[#f6ead0] object-cover shadow-md" />
+    <img src={img} alt="" className="h-[52px] w-[52px] object-contain drop-shadow-[0_5px_6px_rgba(0,0,0,0.45)]" />
     <span className="text-[14px] font-extrabold leading-tight">{title}</span>
     <span className={cn("rounded-full px-2 py-0.5 text-[10.5px] font-bold", hot ? "bg-black/15" : "bg-white/10 text-white/75")}>{sub}</span>
   </motion.button>
@@ -179,11 +179,11 @@ const InvestigationScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
       dock={
         <>
           <div className="grid grid-cols-3 gap-2">
-            <ActionCard a="duel" img={IMG.icon("duel")} title="Duell" sub="1 Zug" disabled={noMoves} onClick={() => ctrl.callDuel()} />
+            <ActionCard a="duel" img={iconSrc("duel2")} title="Duell" sub="1 Zug" disabled={noMoves} onClick={() => ctrl.callDuel()} />
             <ActionCard a="seal" img={IMG.icon("seal")} title="Siegel" sub={ctrl.sealUsed ? "verbraucht" : "1 Zug · 1×"} disabled={noMoves || ctrl.sealUsed} onClick={() => ctrl.startSeal()} />
-            <ActionCard a="getSpur" img={IMG.icon("lab")} title="Labor" sub={spurLeft ? `1 Zug · ${spurLeft} übrig` : "alle gefunden"} disabled={noMoves || !spurLeft} hot={!s.spurShown} onClick={() => ctrl.getSpur()} />
+            <ActionCard a="getSpur" img={iconSrc("lab2")} title="Labor" sub={spurLeft ? `1 Zug · ${spurLeft} übrig` : "alle gefunden"} disabled={noMoves || !spurLeft} hot={!s.spurShown} onClick={() => ctrl.getSpur()} />
           </div>
-          <GhostButton a="toVote" icon="👆" onClick={() => ctrl.toVote()}>
+          <GhostButton a="toVote" icon="point" onClick={() => ctrl.toVote()}>
             Jetzt anklagen
           </GhostButton>
         </>
@@ -215,15 +215,15 @@ const InvestigationScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         >
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#a2703a]">Fragekarte</p>
           <div className="mt-2 flex items-center gap-3">
-            <span className="text-[42px] leading-none">{pr.icon}</span>
+            <GameIcon name={PROMPT_ICON[s.prompt] || "pr_voice"} size={54} />
             <p className="text-[15.5px] font-semibold leading-snug text-[#2c2117]">{pr.text}</p>
           </div>
           <div className="mt-3 flex gap-2">
-            <button type="button" data-a="speakPrompt" onClick={() => ctrl.speakPrompt()} className="rounded-full bg-black/[0.07] px-3.5 py-2 text-[13px] font-bold text-[#4a3b28] hover:bg-black/[0.11]">
-              🔊 Vorlesen
+            <button type="button" data-a="speakPrompt" onClick={() => ctrl.speakPrompt()} className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.07] px-3 py-1.5 text-[13px] font-bold text-[#4a3b28] hover:bg-black/[0.11]">
+              <GameIcon name="speaker" size={22} /> Vorlesen
             </button>
-            <button type="button" data-a="newPrompt" onClick={() => ctrl.newPrompt()} className="rounded-full bg-black/[0.07] px-3.5 py-2 text-[13px] font-bold text-[#4a3b28] hover:bg-black/[0.11]">
-              🔄 Neue Karte
+            <button type="button" data-a="newPrompt" onClick={() => ctrl.newPrompt()} className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.07] px-3 py-1.5 text-[13px] font-bold text-[#4a3b28] hover:bg-black/[0.11]">
+              <GameIcon name="newcard" size={22} /> Neue Karte
             </button>
           </div>
         </motion.div>
@@ -238,7 +238,7 @@ const DuelPickScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   return (
     <Screen
       dock={
-        <GhostButton a="duelBack" icon="↩️" onClick={() => ctrl.duelBack()}>
+        <GhostButton a="duelBack" icon="back" onClick={() => ctrl.duelBack()}>
           Zurück, kein Zug verbraucht
         </GhostButton>
       }
@@ -260,11 +260,11 @@ const DuelPickScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
             transition={{ type: "spring", stiffness: 240, damping: 22, delay: k * 0.05 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => ctrl.pickDuel(o.key)}
-            className={cn("alibi-glass flex w-full items-center gap-3 rounded-[22px] p-2.5 text-left transition-colors hover:bg-white/[0.12]", o.t === TC && "ring-1 ring-[#f2b04a]/60")}
+            className={cn("alibi-btn alibi-press flex w-full items-center gap-3 rounded-[22px] p-2.5 text-left", o.t === TC && "ring-1 ring-[#f2b04a]/60")}
           >
             <div className="flex items-center -space-x-2">
               <Face p={ctrl.P(o.a)} size={50} />
-              <img src={IMG.icon("duel")} alt="gegen" className="relative z-10 h-8 w-8 rounded-full object-cover shadow-md" />
+              <GameIcon name="duel2" size={34} className="relative z-10" />
               <Face p={ctrl.P(o.b)} size={50} />
             </div>
             <div className="min-w-0 flex-1">
@@ -272,7 +272,7 @@ const DuelPickScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
                 {o.a + 1} gegen {o.b + 1}
               </p>
               <p className="text-[12.5px] font-semibold text-white/65">
-                {SLOTS[o.t].icon} {SLOTS[o.t].name}
+                <GameIcon name={ACT_ICON[o.t]} size={16} className="mr-1 inline-block align-[-4px]" />{SLOTS[o.t].name}
                 {o.t === TC ? " · Tatzeit" : ""}
               </p>
             </div>
@@ -285,7 +285,7 @@ const DuelPickScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
 };
 
 /* ---------- Versiegelte Karte: Siegel bricht, Bild erscheint ---------- */
-export const SealedCard: React.FC<{ sight?: string; open: boolean; size: number; tone?: "ok" | "bad" | null; delay?: number }> = ({ sight, open, size, tone, delay = 0 }) => {
+export const SealedCard: React.FC<{ sight?: string; open: boolean; size: number; tone?: "ok" | "bad" | null; delay?: number; crack?: boolean }> = ({ sight, open, size, tone, delay = 0, crack = true }) => {
   const half = (side: "l" | "r") => (
     <motion.img
       src={IMG.icon("seal")}
@@ -308,7 +308,7 @@ export const SealedCard: React.FC<{ sight?: string; open: boolean; size: number;
         {sight ? <img src={IMG.sight(sight)} alt="" className="h-full w-full object-cover" /> : null}
       </motion.div>
       {/* Riss im Wachs, kurz bevor es bricht */}
-      {open ? (
+      {open && crack ? (
         <motion.svg viewBox="0 0 100 100" className="pointer-events-none absolute inset-0" initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 0.3, delay: delay + 0.35 }}>
           <motion.path d="M50 20 L44 38 L56 52 L42 70 L50 82" fill="none" stroke="#3a0d08" strokeWidth={2.4} strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.25, delay }} />
         </motion.svg>
@@ -327,19 +327,19 @@ const DuelScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   let dock: React.ReactNode = null;
   if (d.step === "call")
     dock = (
-      <GoldButton a="duelGo" icon="▶️" onClick={() => void ctrl.duelGo()}>
+      <GoldButton a="duelGo" icon="point" onClick={() => void ctrl.duelGo()}>
         Los: drei, zwei, eins
       </GoldButton>
     );
   else if (d.step === "show")
     dock = (
-      <GoldButton a="duelOpen" icon={<img src={IMG.icon("seal")} alt="" className="h-8 w-8" />} onClick={() => void ctrl.duelOpen()}>
+      <GoldButton a="duelOpen" icon="seal" onClick={() => void ctrl.duelOpen()}>
         Siegel brechen
       </GoldButton>
     );
   else if (d.step === "result")
     dock = (
-      <GoldButton a="duelClose" icon="🔎" onClick={() => ctrl.duelClose()}>
+      <GoldButton a="duelClose" icon="magnifier" onClick={() => ctrl.duelClose()}>
         Zurück zur Ermittlung
       </GoldButton>
     );
@@ -353,7 +353,7 @@ const DuelScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         <motion.div initial={{ x: -80, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 200, damping: 16 }}>
           <Face p={ctrl.P(d.a)} size={84} />
         </motion.div>
-        <motion.img src={IMG.icon("duel")} alt="gegen" initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 260, damping: 14, delay: 0.2 }} className="h-14 w-14 rounded-full object-cover shadow-[0_0_30px_rgba(248,220,142,0.5)]" />
+        <motion.img src={iconSrc("duel2")} alt="gegen" initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 260, damping: 14, delay: 0.2 }} className="h-16 w-16 object-contain drop-shadow-[0_0_18px_rgba(248,220,142,0.55)]" />
         <motion.div initial={{ x: 80, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 200, damping: 16 }}>
           <Face p={ctrl.P(d.b)} size={84} />
         </motion.div>
@@ -361,7 +361,7 @@ const DuelScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         <div className="flex flex-col items-center gap-0.5">
           <PlaceCard id={d.place} size="sm" />
           <span className="text-[11.5px] font-bold text-white/70">
-            {SLOTS[d.t].icon} {SLOTS[d.t].name}
+            <GameIcon name={ACT_ICON[d.t]} size={16} className="mr-1 inline-block align-[-4px]" />{SLOTS[d.t].name}
           </span>
         </div>
       </div>
@@ -378,14 +378,14 @@ const DuelScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
             transition={{ duration: 0.6 }}
             className={cn("game-display rounded-[20px] px-6 py-2.5 text-[28px] font-black", d.res === "same" ? "bg-emerald-500/20 text-emerald-200" : "bg-rose-500/20 text-rose-200")}
           >
-            {d.res === "same" ? "✅ Gleiches Bild" : "❌ Verschieden!"}
+            <span className="inline-flex items-center gap-2"><GameIcon name={d.res === "same" ? "check" : "lightning"} size={34} />{d.res === "same" ? "Gleiches Bild" : "Verschieden!"}</span>
           </motion.div>
         ) : d.step === "open" ? (
           <p className="text-[16px] font-extrabold text-white/85">Die Siegel brechen …</p>
         ) : (
           <div className="text-center">
             <p className="text-[17px] font-extrabold text-white">Was habt ihr dort gesehen?</p>
-            <p className="mt-0.5 text-[13px] text-white/65">📱 Handy in die Mitte. Auf drei zeigen beide auf ihr Bild. Dann bricht Tavi die Siegel.</p>
+            <p className="mt-0.5 text-[13px] text-white/65"><GameIcon name="onephone" size={18} className="mr-1 inline-block align-[-4px]" />Handy in die Mitte. Auf drei zeigen beide auf ihr Bild. Dann bricht Tavi die Siegel.</p>
           </div>
         )}
       </div>
@@ -393,7 +393,7 @@ const DuelScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         <div className="flex w-full items-start justify-center gap-5">
           {([d.a, d.b] as const).map((x, k) => (
             <div key={x} className="flex flex-col items-center gap-2">
-              <SealedCard sight={k === 0 ? d.sa : d.sb} open size={140} delay={k * 0.35} tone={d.step === "result" ? (d.res === "same" ? "ok" : "bad") : null} />
+              <SealedCard sight={k === 0 ? d.sa : d.sb} open crack={d.step === "open"} size={140} delay={k * 0.35} tone={d.step === "result" ? (d.res === "same" ? "ok" : "bad") : null} />
               <div className="flex items-center gap-2">
                 <Face p={ctrl.P(x)} size={34} />
                 <span className="max-w-[110px] text-[12.5px] font-bold leading-tight text-white/85">{cap(SIGHTS[d.place].find((sg) => sg.id === (k === 0 ? d.sa : d.sb))?.name || "")}</span>
@@ -428,10 +428,10 @@ const SealScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
       <Screen
         dock={
           <>
-            <GoldButton a="sealOpen" icon={<img src={IMG.icon("seal")} alt="" className="h-8 w-8" />} disabled={sp.i === null} onClick={() => void ctrl.sealOpen()}>
+            <GoldButton a="sealOpen" icon="seal" disabled={sp.i === null} onClick={() => void ctrl.sealOpen()}>
               {sp.i === null ? "Figur antippen" : `Siegel von Nr. ${sp.i + 1} brechen`}
             </GoldButton>
-            <GhostButton a="sealBack" icon="↩️" onClick={() => ctrl.sealBack()}>
+            <GhostButton a="sealBack" icon="back" onClick={() => ctrl.sealBack()}>
               Zurück, kein Zug verbraucht
             </GhostButton>
           </>
@@ -457,12 +457,12 @@ const SealScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
                 transition={{ type: "spring", stiffness: 280, damping: 20, delay: k * 0.04 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => ctrl.sealSelect(p.id)}
-                className={cn("alibi-glass relative flex items-center gap-2 rounded-[20px] p-2 text-left transition-shadow disabled:opacity-40", on && "shadow-[0_0_0_3px_#f2b04a,0_0_30px_rgba(242,176,74,0.55)]")}
+                className={cn("alibi-btn alibi-press relative flex items-center gap-2 rounded-[20px] p-2 text-left disabled:opacity-40", on && "shadow-[0_0_0_3px_#f2b04a,0_0_30px_rgba(242,176,74,0.55)]")}
               >
                 <Face p={p} size={46} />
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 text-[13px] font-extrabold leading-tight text-white">{p.ch.n}</p>
-                  {c ? <p className="truncate text-[12px] text-white/65">🌙 angeblich: {PLACES[c.place].short}</p> : null}
+                  {c ? <p className="truncate text-[12px] text-white/65"><GameIcon name="midnight" size={14} className="mr-1 inline-block align-[-2px]" />angeblich: {PLACES[c.place].short}</p> : null}
                 </div>
                 <img src={IMG.icon("seal")} alt="" className="h-9 w-9 shrink-0" />
               </motion.button>
@@ -477,7 +477,7 @@ const SealScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
     <Screen
       dock={
         sp.step === "result" ? (
-          <GoldButton a="sealClose" icon="🔎" onClick={() => ctrl.sealClose()}>
+          <GoldButton a="sealClose" icon="magnifier" onClick={() => ctrl.sealClose()}>
             Zurück zur Ermittlung
           </GoldButton>
         ) : undefined
@@ -489,7 +489,7 @@ const SealScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
           <Face p={ctrl.P(i)} size={64} />
           <div className="text-left">
             <p className="game-display text-[22px] font-black leading-tight text-white">{ctrl.P(i).ch.n}</p>
-            <p className="text-[13px] font-semibold text-white/70">🌙 Mitternacht, angeblich hier:</p>
+            <p className="text-[13px] font-semibold text-white/70"><GameIcon name="midnight" size={16} className="mr-1 inline-block align-[-3px]" />Mitternacht, angeblich hier:</p>
           </div>
           <PlaceCard id={c.place} size="sm" />
         </div>
@@ -497,7 +497,7 @@ const SealScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
       <div className="flex w-full items-start justify-center gap-4">
         <div className="flex flex-col items-center gap-2">
           <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#f8dc8e]/90">Im Siegel</span>
-          <SealedCard sight={sp.claimed} open={opened} size={136} tone={sp.step === "result" ? (sp.ok ? "ok" : "bad") : null} />
+          <SealedCard sight={sp.claimed} open={opened} crack={sp.step === "open"} size={136} tone={sp.step === "result" ? (sp.ok ? "ok" : "bad") : null} />
           <span className="max-w-[140px] text-center text-[12.5px] font-bold text-white/85">{opened && sp.claimed ? cap(SIGHTS[c.place].find((x) => x.id === sp.claimed)?.name || "") : "…"}</span>
         </div>
         <div className="flex flex-col items-center gap-2">
@@ -529,7 +529,7 @@ const SpurScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   return (
     <Screen
       dock={
-        <GoldButton a="afterSpur" icon="🔎" onClick={() => ctrl.afterSpur()}>
+        <GoldButton a="afterSpur" icon="magnifier" onClick={() => ctrl.afterSpur()}>
           Zurück zur Ermittlung
         </GoldButton>
       }
@@ -544,7 +544,7 @@ const SpurScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         <motion.span initial={{ scale: 2, opacity: 0, rotate: -20 }} animate={{ scale: 1, opacity: 1, rotate: -7 }} transition={{ delay: 0.3, type: "spring", stiffness: 300, damping: 14 }} className="alibi-stamp absolute right-4 top-4 text-[13px] text-[#a4721a]">
           Labor
         </motion.span>
-        <img src={IMG.icon("lab")} alt="" className="mx-auto h-20 w-20 rounded-full object-cover shadow-md" />
+        <img src={iconSrc("lab2")} alt="" className="mx-auto h-24 w-24 object-contain drop-shadow-[0_6px_8px_rgba(0,0,0,0.35)]" />
         <motion.div initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5, type: "spring", stiffness: 220, damping: 12 }} className="my-4 flex justify-center">
           <SpurGlyph sp={sp} />
         </motion.div>

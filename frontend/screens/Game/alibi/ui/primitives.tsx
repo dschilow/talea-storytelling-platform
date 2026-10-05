@@ -6,33 +6,94 @@ import { COLORS, GDR_ICON, IMG, PLACES, SPC_ICON, type Sight } from "../content"
 import { useIsHighlighted, useVoice } from "../hooks";
 import type { AlibiCharacter, Player } from "../types";
 
+/* ---------- Spiel-Icons (generiert, freigestellt: public/game/alibi/ui) ---------- */
+export type GameIconName =
+  | "go" | "back" | "check" | "magnifier" | "home" | "dice" | "ear" | "hide" | "eye" | "quill" | "speech" | "speaker" | "mute"
+  | "point" | "card" | "skip" | "flag" | "party" | "masks" | "lightning" | "ghost" | "pawn" | "secret" | "help" | "rules"
+  | "film" | "footprints" | "replay" | "newcard" | "phone2" | "evening" | "midnight" | "dawn"
+  | "rank0" | "rank1" | "rank2" | "rank3" | "rank4" | "rank5"
+  | "aw_sharp" | "aw_role" | "aw_detail" | "aw_reason" | "aw_fast" | "aw_calm" | "aw_excuse" | "aw_listen" | "aw_thief" | "aw_master" | "aw_angel"
+  | "players" | "age" | "time" | "onephone" | "lvl_mini" | "lvl_junior" | "lvl_detektiv" | "lvl_meister"
+  | "pr_voice" | "pr_ask" | "pr_hand" | "pr_noise" | "pr_eyes" | "pr_compass" | "pr_masks" | "pr_friends" | "pr_point" | "pr_nose"
+  | "sp_mensch" | "sp_tier" | "sp_zauber" | "gd_m" | "gd_w" | "gd_n" | "star" | "target" | "list" | "search" | "book2" | "duel2" | "lab2"
+  // vorhandene Spiel-Bilder
+  | "vault" | "seal" | "feather" | "clock" | "story" | "lab" | "duel" | "map" | "phone";
+
+const LEGACY: Partial<Record<GameIconName, string>> = {
+  vault: "/game/alibi/icons/vault.webp",
+  seal: "/game/alibi/icons/seal.webp",
+  feather: "/game/alibi/icons/feather.webp",
+  clock: "/game/alibi/icons/clock.webp",
+  story: "/game/alibi/icons/story.webp",
+  lab: "/game/alibi/icons/lab.webp",
+  duel: "/game/alibi/icons/duel.webp",
+  map: "/game/alibi/icons/map.webp",
+  phone: "/game/alibi/icons/phone.webp",
+};
+export const iconSrc = (name: GameIconName) => LEGACY[name] || `/game/alibi/ui/${name}.webp`;
+/** Bilder mit cremefarbenem Hintergrund (keine Freistellung) bekommen eine runde Fassung */
+const FRAMED = new Set<GameIconName>(["vault", "story", "lab", "duel", "map", "phone"]);
+
+/** Icons der Akte (Abend, Mitternacht, Morgengrauen) */
+export const ACT_ICON = ["evening", "midnight", "dawn"] as const;
+/** Spur-Symbole: Art und Geschlecht */
+export const SPC_GI: Record<string, GameIconName> = { Mensch: "sp_mensch", Tier: "sp_tier", Zauberwesen: "sp_zauber" };
+export const GDR_GI: Record<string, GameIconName> = { männlich: "gd_m", weiblich: "gd_w", neutral: "gd_n" };
+/** Fragekarten in der Reihenfolge von PROMPTS */
+export const PROMPT_ICON: GameIconName[] = ["pr_voice", "pr_ask", "pr_hand", "pr_noise", "pr_eyes", "pr_compass", "pr_masks", "pr_friends", "pr_point", "pr_nose"];
+
+/** Generiertes Spiel-Icon statt Emoji */
+export const GameIcon: React.FC<{ name: GameIconName; size?: number; className?: string; title?: string }> = ({ name, size = 24, className, title }) => (
+  <img
+    src={iconSrc(name)}
+    alt={title || ""}
+    title={title}
+    width={size}
+    height={size}
+    draggable={false}
+    loading="lazy"
+    decoding="async"
+    className={cn("inline-block shrink-0 select-none object-contain drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]", FRAMED.has(name) && "rounded-full bg-[#f6ead0] object-cover", className)}
+    style={{ width: size, height: size }}
+  />
+);
+
 /* ---------- Knöpfe ---------- */
 type BtnProps = {
   children: React.ReactNode;
   onClick?: () => void;
   disabled?: boolean;
-  icon?: React.ReactNode;
+  /** Spiel-Icon (Name) oder eigenes Element */
+  icon?: GameIconName | React.ReactElement;
   /** Aktionsname, auch für automatische Tests (data-a) */
   a?: string;
   className?: string;
   size?: "md" | "lg";
 };
 
+const BtnIcon: React.FC<{ icon: BtnProps["icon"]; px: number }> = ({ icon, px }) =>
+  typeof icon === "string" ? <GameIcon name={icon} size={px} /> : icon ? <>{icon}</> : null;
+
 export const GoldButton: React.FC<BtnProps> = ({ children, onClick, disabled, icon, a, className, size = "lg" }) => (
   <motion.button
     type="button"
     data-a={a}
-    whileTap={disabled ? undefined : { scale: 0.96 }}
+    whileTap={disabled ? undefined : { scale: 0.985 }}
     onClick={disabled ? undefined : onClick}
     disabled={disabled}
     className={cn(
-      "alibi-gold inline-flex items-center justify-center gap-2.5 rounded-full font-extrabold tracking-[-0.01em] transition-[filter,opacity] duration-200 hover:brightness-[1.06] disabled:cursor-not-allowed disabled:opacity-40",
-      size === "lg" ? "min-h-[58px] px-8 text-[17px]" : "min-h-[48px] px-6 text-[15px]",
+      "alibi-gold alibi-press inline-flex items-center justify-center gap-3 rounded-full font-extrabold tracking-[-0.01em] disabled:cursor-not-allowed disabled:opacity-45 disabled:saturate-50",
+      size === "lg" ? "min-h-[60px] pl-2.5 pr-8 text-[17px]" : "min-h-[50px] pl-2 pr-6 text-[15px]",
+      !icon && (size === "lg" ? "pl-8" : "pl-6"),
       className
     )}
   >
-    {icon ? <span className="flex h-7 w-7 items-center justify-center text-[20px] leading-none">{icon}</span> : null}
-    <span>{children}</span>
+    {icon ? (
+      <span className={cn("alibi-jewel flex shrink-0 items-center justify-center rounded-full", size === "lg" ? "h-[42px] w-[42px]" : "h-[36px] w-[36px]")}>
+        <BtnIcon icon={icon} px={size === "lg" ? 30 : 26} />
+      </span>
+    ) : null}
+    <span className="alibi-gold-label">{children}</span>
   </motion.button>
 );
 
@@ -40,24 +101,25 @@ export const GhostButton: React.FC<BtnProps> = ({ children, onClick, disabled, i
   <motion.button
     type="button"
     data-a={a}
-    whileTap={disabled ? undefined : { scale: 0.96 }}
+    whileTap={disabled ? undefined : { scale: 0.985 }}
     onClick={disabled ? undefined : onClick}
     disabled={disabled}
     className={cn(
-      "alibi-glass inline-flex items-center justify-center gap-2 rounded-full font-bold text-white/90 transition-[background-color,opacity] duration-200 hover:bg-white/[0.13] disabled:cursor-not-allowed disabled:opacity-40",
-      size === "lg" ? "min-h-[56px] px-7 text-[16px]" : "min-h-[46px] px-5 text-[14.5px]",
+      "alibi-btn alibi-press inline-flex items-center justify-center gap-2.5 rounded-full font-bold disabled:cursor-not-allowed disabled:opacity-40",
+      size === "lg" ? "min-h-[56px] px-6 text-[16px]" : "min-h-[48px] px-5 text-[14.5px]",
       className
     )}
   >
-    {icon ? <span className="flex h-6 w-6 items-center justify-center text-[17px] leading-none">{icon}</span> : null}
+    {icon ? <BtnIcon icon={icon} px={size === "lg" ? 30 : 26} /> : null}
     <span>{children}</span>
   </motion.button>
 );
 
-export const IconButton: React.FC<{ label: string; onClick: () => void; children: React.ReactNode; a?: string; active?: boolean }> = ({
+export const IconButton: React.FC<{ label: string; onClick: () => void; children?: React.ReactNode; icon?: GameIconName; a?: string; active?: boolean }> = ({
   label,
   onClick,
   children,
+  icon,
   a,
   active,
 }) => (
@@ -68,12 +130,9 @@ export const IconButton: React.FC<{ label: string; onClick: () => void; children
     data-a={a}
     whileTap={{ scale: 0.9 }}
     onClick={onClick}
-    className={cn(
-      "alibi-glass flex h-11 w-11 items-center justify-center rounded-full text-[18px] transition-colors hover:bg-white/[0.14]",
-      active === false && "opacity-60"
-    )}
+    className={cn("alibi-medal-btn alibi-press flex h-11 w-11 items-center justify-center rounded-full text-[17px] font-black text-[#f8dc8e]", active === false && "opacity-70")}
   >
-    {children}
+    {icon ? <GameIcon name={icon} size={27} /> : children}
   </motion.button>
 );
 
@@ -142,8 +201,8 @@ export const TraitRow: React.FC<{ ch: AlibiCharacter; gender?: boolean; light?: 
   <span className={cn("inline-flex items-center gap-2.5 rounded-full px-3 py-1.5", light ? "bg-black/[0.06]" : "bg-white/[0.08]")}>
     <span className="h-[18px] w-[18px] rounded-full border-2 border-white/90 shadow" style={{ background: ringColor(ch) }} title={ch.fam} aria-label={`Kennfarbe: ${ch.fam}`} />
     <SizeBars szc={ch.szc} h={18} />
-    <span className="text-[17px] leading-none" title={ch.spc} aria-label={`Art: ${ch.spc}`}>{SPC_ICON[ch.spc]}</span>
-    {gender ? <span className="text-[15px] leading-none" title={ch.gdr}>{GDR_ICON[ch.gdr]}</span> : null}
+    <GameIcon name={SPC_GI[ch.spc] || "sp_mensch"} size={22} title={`Art: ${ch.spc}`} />
+    {gender ? <GameIcon name={GDR_GI[ch.gdr] || "gd_n"} size={20} title={ch.gdr} /> : null}
   </span>
 );
 
@@ -254,7 +313,7 @@ export const CaptionBar: React.FC = () => {
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#f8dc8e]/90">
-                {caption.priv ? "🤫 " : ""}
+                {caption.priv ? <GameIcon name="secret" size={14} /> : null}
                 {caption.speaker}
                 <Equalizer />
               </span>

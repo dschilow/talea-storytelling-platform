@@ -8,7 +8,7 @@ import { TC } from "../engine";
 import { director } from "../audio";
 import type { AlibiController } from "../controller";
 import { useAlibiState } from "../hooks";
-import { BigCount, Eyebrow, Face, GhostButton, GoldButton, PlaceCard, Screen, Title, ringColor } from "./primitives";
+import { ACT_ICON, BigCount, Eyebrow, Face, GameIcon, GhostButton, GoldButton, PlaceCard, Screen, Title, ringColor, type GameIconName } from "./primitives";
 import { SpurChips } from "./RoundScreens";
 import { VillageMap } from "./VillageMap";
 import { ElsterReveal, FeatherTrack, LootShowcase, WantedPoster, epilogText } from "./Vault";
@@ -30,7 +30,7 @@ export const VoteScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
     return (
       <Screen
         dock={
-          <GoldButton a="startCount" icon="👆" onClick={() => void ctrl.startCount()}>
+          <GoldButton a="startCount" icon="point" onClick={() => void ctrl.startCount()}>
             Los: drei, zwei, eins
           </GoldButton>
         }
@@ -48,10 +48,10 @@ export const VoteScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
     <Screen
       dock={
         <>
-          <GoldButton a="accuse" icon="👆" disabled={s.sel === null} onClick={() => ctrl.accuse()}>
+          <GoldButton a="accuse" icon="point" disabled={s.sel === null} onClick={() => ctrl.accuse()}>
             {s.sel === null ? "Figur antippen" : `Nummer ${s.sel + 1} anklagen`}
           </GoldButton>
-          <GhostButton a="tie" icon="🔁" onClick={() => ctrl.tie()}>
+          <GhostButton a="tie" icon="replay" onClick={() => ctrl.tie()}>
             Gleichstand: noch einmal zeigen
           </GhostButton>
         </>
@@ -115,11 +115,11 @@ export const RevealScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
     <Screen
       dock={
         m === "ask" ? (
-          <GoldButton a="flip" icon="🃏" onClick={() => void ctrl.flip()}>
+          <GoldButton a="flip" icon="card" onClick={() => void ctrl.flip()}>
             Karte umdrehen
           </GoldButton>
         ) : m === "shown" ? (
-          <GoldButton a="afterReveal" icon={last ? "🔎" : "🔁"} onClick={() => ctrl.afterReveal()}>
+          <GoldButton a="afterReveal" icon={last ? "magnifier" : "replay"} onClick={() => ctrl.afterReveal()}>
             {last ? "Auflösung" : "Zweite Anklage"}
           </GoldButton>
         ) : undefined
@@ -184,14 +184,14 @@ export const EndScreen: React.FC<{ ctrl: AlibiController; onExit: () => void; on
     <Screen
       dock={
         <>
-          <GoldButton a="nextCase" icon="🔎" onClick={() => ctrl.nextCase()}>
+          <GoldButton a="nextCase" icon="magnifier" onClick={() => ctrl.nextCase()}>
             Nächster Fall: {r.next.title}
           </GoldButton>
           <div className="grid grid-cols-2 gap-2.5">
-            <GhostButton a="vault" icon="🏆" onClick={onVault}>
+            <GhostButton a="vault" icon="vault" onClick={onVault}>
               Sammlung
             </GhostButton>
-            <GhostButton a="exit" icon="🏠" onClick={onExit}>
+            <GhostButton a="exit" icon="home" onClick={onExit}>
               Übersicht
             </GhostButton>
           </div>
@@ -237,7 +237,7 @@ export const EndScreen: React.FC<{ ctrl: AlibiController; onExit: () => void; on
       )}
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }} className="flex items-center gap-2 rounded-full bg-white/[0.07] px-4 py-2 text-[13.5px] font-bold text-white/85">
-        <span className="text-[18px]">{r.rank.icon}</span>
+        <GameIcon name={r.rank.icon as GameIconName} size={30} />
         {r.rankUp ? <span className="text-[#f8dc8e]">Neuer Rang: {r.rank.name}!</span> : <span>Rang: {r.rank.name}</span>}
       </motion.div>
 
@@ -266,14 +266,14 @@ export const EndScreen: React.FC<{ ctrl: AlibiController; onExit: () => void; on
 
       <details className="group w-full rounded-[20px] bg-white/[0.05] p-2">
         <summary className="flex cursor-pointer list-none items-center justify-between px-2 py-1.5 text-[14px] font-bold text-white/90">
-          <span>🗺️ Dorfkarte: was wirklich geschah</span>
+          <span className="inline-flex items-center gap-2"><GameIcon name="map" size={26} />Dorfkarte: was wirklich geschah</span>
           <span className="text-white/50 transition-transform group-open:rotate-180">⌄</span>
         </summary>
         <div className="flex flex-col gap-2 pt-2">
           <div className="flex justify-center gap-2">
             {Array.from({ length: W.T }, (_, t) => (
               <button key={t} type="button" onClick={() => setMapT(t)} className={cn("rounded-full px-3 py-1.5 text-[12.5px] font-bold", t === mapT ? "bg-[#f2b04a] text-[#2b1c07]" : "bg-white/10 text-white/80")}>
-                {SLOTS[t].icon} {SLOTS[t].name}
+                <GameIcon name={ACT_ICON[t]} size={18} className="mr-1 inline-block align-[-4px]" />{SLOTS[t].name}
               </button>
             ))}
           </div>
@@ -291,7 +291,7 @@ export const EndScreen: React.FC<{ ctrl: AlibiController; onExit: () => void; on
               <Face p={p} size={52} />
               <div className="min-w-0">
                 <p className="text-[15px] font-extrabold text-white">
-                  <span className="mr-1.5">{a.icon}</span>
+                  <GameIcon name={a.icon as GameIconName} size={26} className="mr-1.5 inline-block align-[-6px]" />
                   {a.title}
                 </p>
                 <p className="text-[12.5px] text-white/65">{a.why}</p>

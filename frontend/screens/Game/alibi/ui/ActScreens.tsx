@@ -6,7 +6,7 @@ import { IMG, PLACES, SIGHTS, SLOTS, cap } from "../content";
 import { TC } from "../engine";
 import type { AlibiController } from "../controller";
 import { useAlibiState, useVoice } from "../hooks";
-import { Eyebrow, Face, GhostButton, GoldButton, PlaceCard, Pips, Screen, Title } from "./primitives";
+import { ACT_ICON, Eyebrow, Face, GameIcon, GhostButton, GoldButton, PlaceCard, Pips, Screen, Title } from "./primitives";
 import { VillageMap } from "./VillageMap";
 
 export const ActScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
@@ -26,7 +26,7 @@ const ActIntro: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   return (
     <Screen
       dock={
-        <GoldButton a="actGo" icon="📞" onClick={() => ctrl.actGo()}>
+        <GoldButton a="actGo" icon="phone2" onClick={() => ctrl.actGo()}>
           Das Geheimtelefon klingelt
         </GoldButton>
       }
@@ -36,7 +36,7 @@ const ActIntro: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
           Akt {t + 1} von {s.W!.T}
         </Eyebrow>
         <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 180, damping: 14 }} className="text-[78px] leading-none drop-shadow-[0_0_30px_rgba(248,220,142,0.5)]">
-          {slot.icon}
+          <GameIcon name={ACT_ICON[t]} size={110} className="drop-shadow-[0_0_30px_rgba(248,220,142,0.55)]" />
         </motion.div>
         <Title size="xl">{t === 0 ? "Der Abend" : slot.name}</Title>
         <p className="text-[15px] font-semibold text-white/70">{slot.time}</p>
@@ -86,7 +86,7 @@ const Handoff: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   return (
     <Screen
       dock={
-        <GoldButton a="handAnswer" icon="📞" onClick={() => ctrl.handAnswer()}>
+        <GoldButton a="handAnswer" icon="phone2" onClick={() => ctrl.handAnswer()}>
           Ich bin’s
         </GoldButton>
       }
@@ -108,7 +108,7 @@ const Handoff: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
           {ctrl.typedName(i) ? ` · ${ctrl.typedName(i)}` : ""}
         </p>
         <div className="alibi-glass flex items-center gap-3 rounded-full px-4 py-2 text-[14px] text-white/85">
-          <span className="text-[20px]">👂</span> Handy ans Ohr! Alle anderen schauen weg.
+          <GameIcon name="ear" size={28} /> Handy ans Ohr! Alle anderen schauen weg.
         </div>
         <Pips total={s.actOrder.length} cur={s.actIdx} />
       </div>
@@ -135,8 +135,9 @@ const PrivateHeader: React.FC<{ culprit?: boolean }> = ({ culprit }) => {
           : null}
         <img src={IMG.tavi("whisper")} alt="" className="relative h-20 w-20 rounded-full bg-[#f6ead0] object-cover object-top shadow-[0_0_30px_rgba(160,120,255,0.5)]" />
       </div>
-      <span className={cn("rounded-full px-3 py-1 text-[11.5px] font-bold uppercase tracking-[0.2em]", culprit ? "bg-[#c0392b]/80 text-white" : "bg-violet-500/30 text-violet-100")}>
-        {culprit ? "🤫 Streng geheim" : "🤫 Nur für dich"}
+      <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11.5px] font-bold uppercase tracking-[0.2em]", culprit ? "bg-[#c0392b]/80 text-white" : "bg-violet-500/30 text-violet-100")}>
+        <GameIcon name="secret" size={16} />
+        {culprit ? "Streng geheim" : "Nur für dich"}
       </span>
     </div>
   );
@@ -150,7 +151,7 @@ const Cover: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => (
     onClick={() => ctrl.toggleHidden()}
     className="flex w-full flex-col items-center gap-2 rounded-[26px] border-2 border-dashed border-white/20 bg-white/[0.04] px-4 py-16 text-[17px] font-bold text-white/85"
   >
-    <span className="text-[56px]">🙈</span>
+    <GameIcon name="hide" size={76} />
     Tippe zum Aufdecken
   </motion.button>
 );
@@ -164,14 +165,14 @@ const WhisperScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
       dock={
         <>
           <div className="grid grid-cols-2 gap-2.5">
-            <GhostButton a="whisperAgain" icon="🔁" onClick={() => ctrl.whisperSay()}>
+            <GhostButton a="whisperAgain" icon="ear" onClick={() => ctrl.whisperSay()}>
               Nochmal
             </GhostButton>
-            <GhostButton a={s.hidden ? "unhide" : "hide"} icon="🙈" onClick={() => ctrl.toggleHidden()}>
+            <GhostButton a={s.hidden ? "unhide" : "hide"} icon={s.hidden ? "eye" : "hide"} onClick={() => ctrl.toggleHidden()}>
               {s.hidden ? "Aufdecken" : "Verdecken"}
             </GhostButton>
           </div>
-          <GoldButton a="toClaim" icon="✍️" onClick={() => ctrl.toClaim()}>
+          <GoldButton a="toClaim" icon="quill" onClick={() => ctrl.toClaim()}>
             Jetzt meine Aussage
           </GoldButton>
         </>
@@ -187,7 +188,7 @@ const WhisperScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
             <div>
               <p className="game-display text-[24px] font-black leading-none text-[#2c2117]">Nummer {i + 1}</p>
               <p className="mt-1 text-[13px] font-semibold text-[#6e5f48]">
-                {SLOTS[t].icon} {SLOTS[t].name}
+                <GameIcon name={ACT_ICON[t]} size={20} className="mr-1 inline-block align-[-4px]" />{SLOTS[t].name}
               </p>
             </div>
           </div>
@@ -196,7 +197,7 @@ const WhisperScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
             <div className="flex min-w-0 flex-col gap-2">
               <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8a6a40]">{comp.length ? "Bei dir" : "Allein"}</span>
               <div className="flex flex-wrap gap-2">
-                {comp.length ? comp.map((c) => <Face key={c} p={ctrl.P(c)} size={52} />) : <span className="text-[44px] leading-none">🧍</span>}
+                {comp.length ? comp.map((c) => <Face key={c} p={ctrl.P(c)} size={52} />) : <GameIcon name="pawn" size={48} title="allein" />}
               </div>
             </div>
           </div>
@@ -217,7 +218,7 @@ const WhisperScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
           </div>
           {loner ? (
             <div className="rounded-[16px] border border-[#e9a93c]/60 bg-[#f2b04a]/20 px-3 py-2 text-[13.5px] font-semibold text-[#5a3c0c]">
-              🤨 Allein um Mitternacht, das sieht verdächtig aus. Aber du bist unschuldig!
+              <GameIcon name="ghost" size={22} className="mr-1 inline-block align-[-5px]" />Allein um Mitternacht, das sieht verdächtig aus. Aber du bist unschuldig!
             </div>
           ) : null}
         </motion.div>
@@ -354,7 +355,7 @@ const ClaimPicker: React.FC<{ ctrl: AlibiController; places: string[]; theme: Pi
           <>
             <span>Du sagst:</span>
             <PlaceCard id={d.place} size="sm" />
-            {d.comp.length ? d.comp.map((x) => <Face key={x} p={ctrl.P(x)} size={36} />) : <span className="text-[26px]">🧍</span>}
+            {d.comp.length ? d.comp.map((x) => <Face key={x} p={ctrl.P(x)} size={36} />) : <GameIcon name="pawn" size={30} title="allein" />}
             {d.sight ? (
               <span className="relative ml-auto h-[52px] w-[52px] overflow-hidden rounded-[12px] shadow-md ring-2 ring-white">
                 <img src={IMG.sight(d.sight)} alt="" className="h-full w-full object-cover" />
@@ -379,14 +380,14 @@ const LieScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
       dock={
         <>
           <div className="grid grid-cols-2 gap-2.5">
-            <GhostButton a="whisperAgain" icon="🔁" onClick={() => ctrl.whisperSay()}>
+            <GhostButton a="whisperAgain" icon="ear" onClick={() => ctrl.whisperSay()}>
               Nochmal
             </GhostButton>
-            <GhostButton a={s.hidden ? "unhide" : "hide"} icon="🙈" onClick={() => ctrl.toggleHidden()}>
+            <GhostButton a={s.hidden ? "unhide" : "hide"} icon={s.hidden ? "eye" : "hide"} onClick={() => ctrl.toggleHidden()}>
               {s.hidden ? "Aufdecken" : "Verdecken"}
             </GhostButton>
           </div>
-          <GoldButton a="toAnnounce" icon="✅" disabled={!d.place || !d.sight} onClick={() => ctrl.toAnnounce()}>
+          <GoldButton a="toAnnounce" icon="check" disabled={!d.place || !d.sight} onClick={() => ctrl.toAnnounce()}>
             Aussage abgeben
           </GoldButton>
         </>
@@ -439,14 +440,14 @@ const ClaimScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
       dock={
         <>
           <div className="grid grid-cols-2 gap-2.5">
-            <GhostButton a="claimPeek" icon="👀" onClick={() => ctrl.claimPeek()} className={s.claimTries > 0 ? "ring-2 ring-[#f8dc8e]" : undefined}>
+            <GhostButton a="claimPeek" icon="eye" onClick={() => ctrl.claimPeek()} className={s.claimTries > 0 ? "ring-2 ring-[#f8dc8e]" : undefined}>
               Karte ansehen
             </GhostButton>
-            <GhostButton a={s.hidden ? "unhide" : "hide"} icon="🙈" onClick={() => ctrl.toggleHidden()}>
+            <GhostButton a={s.hidden ? "unhide" : "hide"} icon={s.hidden ? "eye" : "hide"} onClick={() => ctrl.toggleHidden()}>
               {s.hidden ? "Aufdecken" : "Verdecken"}
             </GhostButton>
           </div>
-          <GoldButton a="claimSubmit" icon="✅" disabled={!d.place || !d.sight} onClick={() => ctrl.claimSubmit()}>
+          <GoldButton a="claimSubmit" icon="check" disabled={!d.place || !d.sight} onClick={() => ctrl.claimSubmit()}>
             Aussage abgeben
           </GoldButton>
         </>
@@ -468,13 +469,13 @@ const ClaimScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
             <div>
               <p className="game-display text-[24px] font-black leading-none text-[#2c2117]">Deine Aussage</p>
               <p className="mt-1 text-[13px] font-semibold text-[#6e5f48]">
-                {SLOTS[t].icon} {SLOTS[t].name}: Wo, mit wem, und was hast du gesehen?
+                <GameIcon name={ACT_ICON[t]} size={20} className="mr-1 inline-block align-[-4px]" />{SLOTS[t].name}: Wo, mit wem, und was hast du gesehen?
               </p>
             </div>
           </div>
           {s.claimTries > 0 ? (
             <div role="status" className="rounded-[16px] border border-[#e9a93c]/60 bg-[#f2b04a]/20 px-3 py-2 text-[13.5px] font-semibold text-[#5a3c0c]">
-              🤔 Das passt nicht zu deiner Karte. Tippe auf „Karte ansehen“ und versuche es noch mal.
+              <GameIcon name="eye" size={20} className="mr-1 inline-block align-[-4px]" />Das passt nicht zu deiner Karte. Tippe auf „Karte ansehen“ und versuche es noch mal.
             </div>
           ) : null}
           <ClaimPicker
@@ -500,10 +501,10 @@ const Announce: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
     <Screen
       dock={
         <>
-          <GhostButton a="replayClaim" icon="🔊" onClick={() => ctrl.replayClaim(i, t)}>
+          <GhostButton a="replayClaim" icon="speaker" onClick={() => ctrl.replayClaim(i, t)}>
             Tavi spricht für mich
           </GhostButton>
-          <GoldButton a="annNext" icon="➡️" onClick={() => ctrl.annNext()}>
+          <GoldButton a="annNext" icon="go" onClick={() => ctrl.annNext()}>
             {last ? "Weiter" : "Weitergeben"}
           </GoldButton>
         </>
@@ -522,7 +523,7 @@ const Announce: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         <PlaceCard id={c.place} size="md" />
         <div className="flex min-w-0 flex-col gap-2">
           <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#f8dc8e]/85">{c.comp.length ? "Dabei" : "Ganz allein"}</span>
-          <div className="flex flex-wrap gap-2">{c.comp.length ? c.comp.map((x) => <Face key={x} p={ctrl.P(x)} size={46} />) : <span className="text-[38px] leading-none">🧍</span>}</div>
+          <div className="flex flex-wrap gap-2">{c.comp.length ? c.comp.map((x) => <Face key={x} p={ctrl.P(x)} size={46} />) : <GameIcon name="pawn" size={42} title="allein" />}</div>
         </div>
       </motion.div>
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="flex w-full items-center gap-3 rounded-[20px] border border-[#f8dc8e]/25 bg-black/30 px-3 py-2.5">
@@ -534,13 +535,13 @@ const Announce: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
       </motion.div>
       {t === TC ? (
         <motion.div initial={{ opacity: 0, scale: 0.9, rotate: -2 }} animate={{ opacity: 1, scale: 1, rotate: -1 }} transition={{ delay: 0.9, type: "spring", stiffness: 220, damping: 16 }} className="alibi-paper w-full rounded-[20px] px-4 py-3 text-left">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#a2703a]">🎭 Macken-Moment</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#a2703a]"><GameIcon name="masks" size={18} className="mr-1 inline-block align-[-4px]" />Macken-Moment</p>
           <p className="game-display mt-1 text-[18px] font-bold leading-snug text-[#2c2117]">Sag es so, wie {ctrl.P(i).ch.n} es tun würde:</p>
           <p className="mt-1 text-[14px] text-[#5c4d38]">{cap(ctrl.P(i).ch.q)}.</p>
         </motion.div>
       ) : null}
       <p className="flex items-center gap-2 text-center text-[14px] font-semibold text-white/80">
-        <span className="text-[20px]">🗣️</span> Sag es der Runde mit deinen eigenen Worten.
+        <GameIcon name="speech" size={28} /> Sag es der Runde mit deinen eigenen Worten.
       </p>
       <VillageMap ctrl={ctrl} t={t} isNew />
     </Screen>
@@ -553,7 +554,7 @@ const ActDone: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   return (
     <Screen
       dock={
-        <GoldButton a="actDoneNext" icon={last ? "🔎" : SLOTS[t + 1].icon} onClick={() => ctrl.actDoneNext()}>
+        <GoldButton a="actDoneNext" icon={last ? "magnifier" : ACT_ICON[t + 1]} onClick={() => ctrl.actDoneNext()}>
           {last ? "Zum Verhör" : t === 0 ? "Weiter zur Mitternacht" : "Weiter zum Morgengrauen"}
         </GoldButton>
       }
@@ -561,7 +562,7 @@ const ActDone: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
       <div className="flex flex-col items-center gap-2 pt-2 text-center">
         <Eyebrow>Dorfkarte</Eyebrow>
         <Title size="md">
-          {SLOTS[t].icon} {t === 0 ? "Der Abend" : SLOTS[t].name} ist notiert
+          <GameIcon name={ACT_ICON[t]} size={20} className="mr-1 inline-block align-[-4px]" />{t === 0 ? "Der Abend" : SLOTS[t].name} ist notiert
         </Title>
         <p className="text-[13.5px] text-white/65">Tippt auf eine Figur, dann wiederholt Tavi ihre Aussage.</p>
       </div>

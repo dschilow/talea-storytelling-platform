@@ -7,7 +7,7 @@ import { LEVELS } from "../engine";
 import type { AlibiController } from "../controller";
 import { useAlibiState, usePreviewFaces } from "../hooks";
 import type { LevelId } from "../types";
-import { Eyebrow, GhostButton, GoldButton, Screen, TaviNote, Title } from "./primitives";
+import { Eyebrow, GameIcon, GhostButton, GoldButton, Screen, TaviNote, Title, type GameIconName } from "./primitives";
 
 const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const rise = { hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 260, damping: 24 } } };
@@ -23,10 +23,10 @@ export const SetupScreen: React.FC<{ ctrl: AlibiController; onTour: () => void }
     <Screen
       dock={
         <>
-          <GoldButton a="begin" icon="🎭" onClick={() => ctrl.begin()}>
+          <GoldButton a="begin" icon="masks" onClick={() => ctrl.begin()}>
             Fall eröffnen
           </GoldButton>
-          <GhostButton a="tour" icon="🎬" onClick={onTour}>
+          <GhostButton a="tour" icon="film" onClick={onTour}>
             Kurz erklärt, mit Stimme
           </GhostButton>
         </>
@@ -55,7 +55,7 @@ export const SetupScreen: React.FC<{ ctrl: AlibiController; onTour: () => void }
                   aria-checked={on}
                   data-count={n}
                   onClick={() => ctrl.updateSetup({ count: n })}
-                  className={cn("game-display relative h-16 rounded-[20px] text-[30px] font-black transition-colors", on ? "text-[#2b1c07]" : "alibi-glass text-white/85 hover:bg-white/[0.12]")}
+                  className={cn("game-display relative h-16 rounded-[20px] text-[30px] font-black transition-colors", on ? "text-[#2b1c07]" : "alibi-btn alibi-press text-white/90")}
                 >
                   {on ? <motion.span layoutId="alibi-count" className="absolute inset-0 rounded-[20px]" style={{ background: "linear-gradient(180deg,#fbe39f,#e9a93c)", boxShadow: "0 10px 26px -8px rgba(233,169,60,0.7)" }} transition={{ type: "spring", stiffness: 420, damping: 32 }} /> : null}
                   <span className="relative">{n}</span>
@@ -98,11 +98,11 @@ export const SetupScreen: React.FC<{ ctrl: AlibiController; onTour: () => void }
                   onClick={() => ctrl.updateSetup({ level: k })}
                   className={cn(
                     "relative flex flex-col items-start gap-1 overflow-hidden rounded-[22px] p-3.5 text-left transition-[background-color,box-shadow] duration-200",
-                    on ? "bg-[rgba(248,220,142,0.16)] shadow-[0_0_0_2px_#f2b04a,0_14px_30px_-12px_rgba(242,176,74,0.6)]" : "alibi-glass hover:bg-white/[0.11]"
+                    on ? "bg-[rgba(248,220,142,0.16)] shadow-[0_0_0_2px_#f2b04a,0_14px_30px_-12px_rgba(242,176,74,0.6)]" : "alibi-btn alibi-press"
                   )}
                 >
                   <span className="flex w-full items-center justify-between">
-                    <span className="text-[30px] leading-none">{li.icon}</span>
+                    <GameIcon name={`lvl_${k}` as GameIconName} size={40} />
                     <span className="rounded-full bg-black/30 px-2 py-0.5 text-[11px] font-bold text-[#f8dc8e]">{li.age}</span>
                   </span>
                   <span className="text-[15.5px] font-extrabold text-white">{li.n}</span>

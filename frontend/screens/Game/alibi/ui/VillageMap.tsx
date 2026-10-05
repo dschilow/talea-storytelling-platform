@@ -7,7 +7,7 @@ import * as E from "../engine";
 import { TC } from "../engine";
 import type { AlibiController, BoardStory } from "../controller";
 import { useAlibiState, useIsHighlighted } from "../hooks";
-import { ringColor } from "./primitives";
+import { ACT_ICON, GameIcon, iconSrc, ringColor } from "./primitives";
 
 /** Plätze rund um einen Ort: erst links/rechts neben dem Schild, dann davor (in Prozent der Kartenbreite). */
 const SLOT_OFFSETS = [
@@ -169,7 +169,7 @@ export const VillageMap: React.FC<{
                   <g key={`c${k}`}>
                     <motion.line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#ff5a46" strokeWidth={0.9} strokeLinecap="round" strokeDasharray="2.2 1.6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.4 + k * 0.2 }} className="alibi-dash" />
                     <circle cx={(a.x + b.x) / 2} cy={(a.y + b.y) / 2} r={2.6} fill="#ff5a46" stroke="#fff" strokeWidth={0.5} />
-                    <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 + 1.25} textAnchor="middle" fontSize="3.4" fill="#fff">⚡</text>
+                    <image href={iconSrc("lightning")} x={(a.x + b.x) / 2 - 2.2} y={(a.y + b.y) / 2 - 2.2} width={4.4} height={4.4} />
                   </g>
                 );
               })}
@@ -310,8 +310,8 @@ export const VillageMap: React.FC<{
       ) : null}
       {flagsOn && (conflicts.length || alone.size) ? (
         <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[12.5px] font-semibold text-white/75">
-          {conflicts.length ? <span>⚡ rote Linie: Aussagen passen nicht zusammen</span> : null}
-          {alone.size ? <span>👻 niemand hat sie gesehen</span> : null}
+          {conflicts.length ? <span className="inline-flex items-center gap-1"><GameIcon name="lightning" size={18} />rote Linie: Aussagen passen nicht zusammen</span> : null}
+          {alone.size ? <span className="inline-flex items-center gap-1"><GameIcon name="ghost" size={18} />niemand hat sie gesehen</span> : null}
         </div>
       ) : null}
     </div>
@@ -406,8 +406,8 @@ const Token: React.FC<{
             >
               {i + 1}
             </span>
-            {alone ? <span className="absolute -left-1 -top-2 text-[15px]" title="niemand hat sie gesehen">👻</span> : null}
-            {bad ? <span className="absolute -right-1.5 -top-2 text-[15px]" title="Widerspruch">⚡</span> : null}
+            {alone ? <GameIcon name="ghost" size={Math.round(px * 0.42)} title="niemand hat sie gesehen" className="absolute -left-1.5 -top-2.5" /> : null}
+            {bad ? <GameIcon name="lightning" size={Math.round(px * 0.42)} title="Widerspruch" className="absolute -right-2 -top-2.5" /> : null}
             {cleared ? <span className="absolute -left-1 -top-2 rounded-full bg-emerald-500 px-1 text-[10px] font-black text-white">✓</span> : null}
             {loot ? (
               <motion.img
@@ -464,11 +464,11 @@ const ActTabs: React.FC<{ ctrl: AlibiController; t: number }> = ({ ctrl, t }) =>
           onClick={() => ctrl.setTab(k)}
           className={cn(
             "relative flex min-w-[96px] flex-col items-center overflow-hidden rounded-2xl px-3 py-1.5 text-[11.5px] font-bold transition-colors",
-            k === t ? "text-[#2b1c07]" : "alibi-glass text-white/80 hover:bg-white/[0.12]"
+            k === t ? "text-[#2b1c07]" : "alibi-btn alibi-press text-white/85"
           )}
         >
           {k === t ? <motion.span layoutId="alibi-tab" className="absolute inset-0 rounded-2xl" style={{ background: "linear-gradient(180deg,#fbe39f,#e9a93c)" }} transition={{ type: "spring", stiffness: 420, damping: 34 }} /> : null}
-          <span className="relative text-[20px] leading-tight">{SLOTS[k].icon}</span>
+          <GameIcon name={ACT_ICON[k]} size={26} className="relative" />
           <span className="relative">{SLOTS[k].name}</span>
         </button>
       ))}

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { CASES, IMG } from "./content";
 import { featherCount, loadVault, nextRank, rankFor } from "./vault";
+import { GameIcon, type GameIconName } from "./ui/primitives";
 import { AlibiController } from "./controller";
 import { director } from "./audio";
 import { useAlibiCharacters, useAlibiState, usePreviewFaces } from "./hooks";
@@ -33,9 +34,10 @@ const VaultTeaser: React.FC = () => {
           <div>
             <h3 className="text-[18px] font-bold text-[var(--talea-text-primary)]">Eure Sammlung</h3>
             <p className="text-[13.5px] text-[var(--talea-text-secondary)]">
-              {rank.icon} {rank.name} · {v.solved} gelöst{next ? ` · noch ${next.min - v.solved} bis ${next.name}` : ""}
+              <GameIcon name={rank.icon as GameIconName} size={22} className="mr-1 inline-block align-[-5px]" />
+              {rank.name} · {v.solved} gelöst{next ? ` · noch ${next.min - v.solved} bis ${next.name}` : ""}
             </p>
-            <p className="text-[12.5px] text-[var(--talea-text-secondary)]">🪶 Elster-Akte: {feathers} von {CASES.length} Federn</p>
+            <p className="text-[12.5px] text-[var(--talea-text-secondary)]"><GameIcon name="feather" size={18} className="mr-1 inline-block align-[-4px]" />Elster-Akte: {feathers} von {CASES.length} Federn</p>
           </div>
         </div>
         <div className="flex flex-1 flex-wrap items-center gap-2 md:justify-end">
@@ -89,10 +91,10 @@ export const AlibiLauncher: React.FC = () => {
             <h2 className="game-display text-[clamp(40px,8vw,72px)] font-black leading-[0.95] drop-shadow-[0_6px_30px_rgba(0,0,0,0.6)]">Mitternachts-Alibi</h2>
             <p className="max-w-[520px] text-[16px] leading-relaxed text-white/85">Einer von euch hat heute Nacht in Kicherwald etwas gestohlen. Alle sagen die Wahrheit, nur einer flunkert. Findet ihn, bevor er entkommt.</p>
             <div className="flex flex-wrap gap-2">
-              <Badge>👥 4–8 Spieler</Badge>
-              <Badge>🐣 ab 5 Jahren</Badge>
-              <Badge>⏱️ 20–30 Minuten</Badge>
-              <Badge>📱 ein Handy</Badge>
+              <Badge><GameIcon name="players" size={22} /> 4–8 Spieler</Badge>
+              <Badge><GameIcon name="age" size={22} /> ab 5 Jahren</Badge>
+              <Badge><GameIcon name="time" size={22} /> 20–30 Minuten</Badge>
+              <Badge><GameIcon name="onephone" size={22} /> ein Handy</Badge>
             </div>
           </motion.div>
           <div className="flex flex-wrap items-center gap-3">
@@ -195,10 +197,12 @@ const LauncherButtons: React.FC<{ ctrl: AlibiController; onPlay: () => void; onT
           director.ctx();
           onPlay();
         }}
-        className="alibi-gold inline-flex min-h-[58px] items-center gap-2.5 rounded-full px-8 text-[17px] font-extrabold"
+        className="alibi-gold alibi-press inline-flex min-h-[60px] items-center gap-3 rounded-full pl-2.5 pr-8 text-[17px] font-extrabold"
       >
-        <span className="text-[20px]">{running ? "▶️" : "🌙"}</span>
-        {running ? "Partie fortsetzen" : "Jetzt spielen"}
+        <span className="alibi-jewel flex h-[40px] w-[40px] items-center justify-center rounded-full">
+          <GameIcon name={running ? "go" : "midnight"} size={28} />
+        </span>
+        <span className="alibi-gold-label">{running ? "Partie fortsetzen" : "Jetzt spielen"}</span>
       </motion.button>
       {running ? (
         <button
@@ -207,13 +211,13 @@ const LauncherButtons: React.FC<{ ctrl: AlibiController; onPlay: () => void; onT
             ctrl.quit();
             onPlay();
           }}
-          className={cn("inline-flex min-h-[56px] items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 text-[15px] font-bold text-white backdrop-blur-md hover:bg-white/20")}
+          className="alibi-btn alibi-press inline-flex min-h-[56px] items-center gap-2 rounded-full px-6 text-[15px] font-bold"
         >
-          🎲 Neu starten
+          <GameIcon name="dice" size={26} /> Neu starten
         </button>
       ) : (
-        <button type="button" onClick={onTour} className="inline-flex min-h-[56px] items-center gap-2 rounded-full border border-white/20 bg-white/10 px-6 text-[15px] font-bold text-white backdrop-blur-md hover:bg-white/20">
-          🎬 So geht’s
+        <button type="button" onClick={onTour} className="alibi-btn alibi-press inline-flex min-h-[56px] items-center gap-2 rounded-full px-6 text-[15px] font-bold">
+          <GameIcon name="film" size={26} /> So geht’s
         </button>
       )}
     </>
