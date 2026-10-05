@@ -18,6 +18,16 @@ Stand: 2026-10-03. Navigationspunkt „Spiel“ (vorher „Quiz“), Route `/spi
 
 Die Figuren kommen live aus dem Charakter-Pool (`GET /story/character-pool`, Bild-URL aus dem Pool). Die Spieltexte je Figur liegen in `data/characters.ts` und werden über den normalisierten Namen zugeordnet (alle 89 Figuren des Pools haben Texte).
 
+## Aussagen macht der Spieler selbst (seit 2026-10-05)
+
+Tavi liest die öffentlichen Aussagen nicht mehr automatisch vor. Ablauf pro Spieler und Akt:
+
+1. Geheimtelefon (`whisper`): Tavi flüstert Ort, Begleiter und Beobachtung. Der Dieb sieht um Mitternacht stattdessen sein Alibi-Formular (`LieScreen`).
+2. **Eigene Aussage (`claim`)**: Jeder Unschuldige wählt Ort und Begleiter selbst aus, mit derselben Auswahl wie der Dieb (`ClaimPicker`). Prüfung gegen die geflüsterte Wahrheit: bei Abweichung wackelt die Karte, Hinweis „Karte ansehen“, nach drei Fehlversuchen füllt Tavi die richtige Aussage ein. So bleibt „Unschuldige sagen die Wahrheit“ erhalten, und beide Rollen haben ähnlich viele Handgriffe.
+3. Öffentliche Karte (`announce`): zeigt die gewählte Aussage still. Tavi bittet nur: „Sag es der Runde mit deinen eigenen Worten“ (`kom.ann.say.1–3`). Der Knopf „Tavi spricht für mich“ liest sie auf Wunsch vor, ebenso das Antippen einer Figur auf der Dorfkarte.
+
+Neue Clips (Stimmen.json): `kom.ann.say.1–3`, `w.claim.1`, `w.claim.wrong`, `w.claim.help`; `kom.tour.3` ergänzt. `kom.ann.end.*` wird nicht mehr gesprochen.
+
 ## Bilder
 
 Erzeugt über Runware mit `bfl:flux@3-image` (Kosten etwa 1,70 $ für 78 Bilder): Titelbilder (Krimi, Quiz), 8 Orte, 32 Erinnerungsbilder, 8 Beuten, 3 Akt-Szenen, 6 Posen von Kommissar Tavi (freigestellt, auf Basis des Tavi-Navigationsbilds als Referenz), 8 Spiel-Icons, 6 Quiz-Kategorien, 3 Medaillen, Serien-Flamme und das Navigations-Icon `game/nav/spiel.webp`.

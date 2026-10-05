@@ -14,6 +14,7 @@ export const ActScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   if (s.actSub === "intro") return <ActIntro ctrl={ctrl} />;
   if (s.actSub === "hand") return <Handoff ctrl={ctrl} />;
   if (s.actSub === "whisper") return ctrl.isLie() ? <LieScreen ctrl={ctrl} /> : <WhisperScreen ctrl={ctrl} />;
+  if (s.actSub === "claim") return <ClaimScreen ctrl={ctrl} />;
   if (s.actSub === "announce") return <Announce ctrl={ctrl} />;
   return <ActDone ctrl={ctrl} />;
 };
@@ -72,7 +73,7 @@ const ActIntro: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
           </div>
         </div>
       ) : (
-        <p className="max-w-[380px] text-center text-[14.5px] leading-relaxed text-white/70">Gleich geht das Geheimtelefon reihum. Jeder erfährt, wo er war, wer bei ihm war und was er dort gesehen hat.</p>
+        <p className="max-w-[380px] text-center text-[14.5px] leading-relaxed text-white/70">Gleich geht das Geheimtelefon reihum. Jeder erfährt, wo er war, wer bei ihm war und was er dort gesehen hat. Danach wählt und sagt jeder seine Aussage selbst.</p>
       )}
     </Screen>
   );
@@ -170,8 +171,8 @@ const WhisperScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
               {s.hidden ? "Aufdecken" : "Verdecken"}
             </GhostButton>
           </div>
-          <GoldButton a="toAnnounce" icon="✅" onClick={() => ctrl.toAnnounce()}>
-            Fertig
+          <GoldButton a="toClaim" icon="✍️" onClick={() => ctrl.toClaim()}>
+            Jetzt meine Aussage
           </GoldButton>
         </>
       }
@@ -225,14 +226,108 @@ const WhisperScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   );
 };
 
+/* ---------- Aussage auswählen (Ort + Begleiter), gemeinsam für Täter-Alibi und Unschuldige ---------- */
+interface PickTheme {
+  label: string;
+  summary: string;
+  placeOn: string;
+  placeOff: string;
+  check: string;
+  compOn: string;
+}
+const THEME_LIE: PickTheme = {
+  label: "text-[#a23a2c]",
+  summary: "text-[#7a3a2c]",
+  placeOn: "shadow-[0_0_0_4px_#c0392b]",
+  placeOff: "shadow-[0_0_0_2px_rgba(0,0,0,0.12)]",
+  check: "bg-[#c0392b]",
+  compOn: "bg-[#c0392b]/25 shadow-[0_0_0_3px_#c0392b]",
+};
+const THEME_TRUTH: PickTheme = {
+  label: "text-[#8a6a40]",
+  summary: "text-[#6e5f48]",
+  placeOn: "shadow-[0_0_0_4px_#7a5cc8]",
+  placeOff: "shadow-[0_0_0_2px_rgba(0,0,0,0.12)]",
+  check: "bg-[#7a5cc8]",
+  compOn: "bg-[#7a5cc8]/20 shadow-[0_0_0_3px_#7a5cc8]",
+};
+
+const ClaimPicker: React.FC<{ ctrl: AlibiController; places: string[]; theme: PickTheme; placeLabel: string; compLabel: string; hint: string }> = ({ ctrl, places, theme, placeLabel, compLabel, hint }) => {
+  const s = useAlibiState(ctrl);
+  const W = s.W!, i = ctrl.curP(), t = s.act, d = s.draft;
+  const claimed: Record<string, number> = {};
+  s.claims.forEach((c) => {
+    if (c[t]) claimed[c[t].place] = (claimed[c[t].place] || 0) + 1;
+  });
+  return (
+    <>
+      <div>
+        <p className={cn("text-[11px] font-bold uppercase tracking-[0.16em]", theme.label)}>{placeLabel}</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {places.map((x) => {
+            const on = d.place === x;
+            return (
+              <motion.button
+                key={x}
+                type="button"
+                data-a="draftPlace"
+                data-v={x}
+                whileTap={{ scale: 0.94 }}
+                onClick={() => ctrl.draftPlace(x)}
+                className={cn("relative overflow-hidden rounded-[16px] text-left transition-shadow", on ? theme.placeOn : theme.placeOff)}
+              >
+                <img src={IMG.place(x)} alt="" className="aspect-square w-full object-cover" />
+                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-1.5 pb-1 pt-4 text-center text-[11.5px] font-extrabold text-white">{PLACES[x].short}</span>
+                {claimed[x] ? <span className="absolute left-1.5 top-1.5 rounded-full bg-black/60 px-1.5 text-[10px] font-bold tracking-[1px] text-white">{"●".repeat(Math.min(4, claimed[x]))}</span> : null}
+                {on ? <motion.span layoutId="alibi-claim-pick" className={cn("absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-[13px] text-white", theme.check)}>✓</motion.span> : null}
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+      <div>
+        <p className={cn("text-[11px] font-bold uppercase tracking-[0.16em]", theme.label)}>{compLabel}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {W.players
+            .filter((p) => p.id !== i)
+            .map((p) => {
+              const on = d.comp.indexOf(p.id) >= 0;
+              return (
+                <motion.button
+                  key={p.id}
+                  type="button"
+                  data-a="draftComp"
+                  data-v={p.id}
+                  aria-pressed={on}
+                  whileTap={{ scale: 0.92 }}
+                  onClick={() => ctrl.draftComp(p.id)}
+                  className={cn("rounded-full p-1 transition-shadow", on && theme.compOn)}
+                >
+                  <Face p={p} size={46} />
+                </motion.button>
+              );
+            })}
+        </div>
+      </div>
+      <div className={cn("flex min-h-[48px] flex-wrap items-center gap-2 rounded-[16px] bg-black/[0.06] px-3 py-2 text-[13px] font-semibold", theme.summary)}>
+        {d.place ? (
+          <>
+            <span>Du sagst:</span>
+            <PlaceCard id={d.place} size="sm" />
+            {d.comp.length ? d.comp.map((x) => <Face key={x} p={ctrl.P(x)} size={36} />) : <span className="text-[26px]">🧍</span>}
+          </>
+        ) : (
+          <span>{hint}</span>
+        )}
+      </div>
+    </>
+  );
+};
+
 /* ---------- Das Alibi des Täters (privat) ---------- */
 const LieScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   const s = useAlibiState(ctrl);
   const W = s.W!, i = ctrl.curP(), d = s.draft;
-  const claimed: Record<string, number> = {};
-  s.claims.forEach((c) => {
-    if (c[TC]) claimed[c[TC].place] = (claimed[c[TC].place] || 0) + 1;
-  });
   return (
     <Screen
       dock={
@@ -273,67 +368,76 @@ const LieScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
               transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
             />
           </div>
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#a23a2c]">Dein Alibi: Wo warst du angeblich?</p>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {W.places
-                .filter((x) => x !== W.crimePlace)
-                .map((x) => {
-                  const on = d.place === x;
-                  return (
-                    <motion.button
-                      key={x}
-                      type="button"
-                      data-a="draftPlace"
-                      data-v={x}
-                      whileTap={{ scale: 0.94 }}
-                      onClick={() => ctrl.draftPlace(x)}
-                      className={cn("relative overflow-hidden rounded-[16px] text-left transition-shadow", on ? "shadow-[0_0_0_4px_#c0392b]" : "shadow-[0_0_0_2px_rgba(0,0,0,0.12)]")}
-                    >
-                      <img src={IMG.place(x)} alt="" className="aspect-square w-full object-cover" />
-                      <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-1.5 pb-1 pt-4 text-center text-[11.5px] font-extrabold text-white">{PLACES[x].short}</span>
-                      {claimed[x] ? <span className="absolute left-1.5 top-1.5 rounded-full bg-black/60 px-1.5 text-[10px] font-bold tracking-[1px] text-white">{"●".repeat(Math.min(4, claimed[x]))}</span> : null}
-                      {on ? <motion.span layoutId="alibi-lie-pick" className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#c0392b] text-[13px] text-white">✓</motion.span> : null}
-                    </motion.button>
-                  );
-                })}
+          <ClaimPicker
+            ctrl={ctrl}
+            places={W.places.filter((x) => x !== W.crimePlace)}
+            theme={THEME_LIE}
+            placeLabel="Dein Alibi: Wo warst du angeblich?"
+            compLabel="Wer war angeblich bei dir? (freiwillig)"
+            hint="Tippe auf einen Ort."
+          />
+        </motion.div>
+      )}
+    </Screen>
+  );
+};
+
+/* ---------- Eigene Aussage der Unschuldigen (privat, danach öffentlich) ---------- */
+const ClaimScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
+  const s = useAlibiState(ctrl);
+  const W = s.W!, i = ctrl.curP(), t = s.act, d = s.draft;
+  const places = W.places.filter((x) => t !== TC || x !== W.crimePlace);
+  return (
+    <Screen
+      dock={
+        <>
+          <div className="grid grid-cols-2 gap-2.5">
+            <GhostButton a="claimPeek" icon="👀" onClick={() => ctrl.claimPeek()} className={s.claimTries > 0 ? "ring-2 ring-[#f8dc8e]" : undefined}>
+              Karte ansehen
+            </GhostButton>
+            <GhostButton a={s.hidden ? "unhide" : "hide"} icon="🙈" onClick={() => ctrl.toggleHidden()}>
+              {s.hidden ? "Aufdecken" : "Verdecken"}
+            </GhostButton>
+          </div>
+          <GoldButton a="claimSubmit" icon="✅" disabled={!d.place} onClick={() => ctrl.claimSubmit()}>
+            Aussage abgeben
+          </GoldButton>
+        </>
+      }
+    >
+      <PrivateHeader />
+      {s.hidden ? (
+        <Cover ctrl={ctrl} />
+      ) : (
+        <motion.div
+          key={s.claimFlash}
+          initial={{ opacity: 0, y: 20 }}
+          animate={s.claimFlash > 0 ? { opacity: 1, y: 0, x: [0, -12, 10, -7, 4, 0] } : { opacity: 1, y: 0 }}
+          transition={{ duration: s.claimFlash > 0 ? 0.45 : 0.3 }}
+          className="alibi-paper flex w-full flex-col gap-4 rounded-[26px] p-4"
+        >
+          <div className="flex items-center gap-3">
+            <Face p={ctrl.P(i)} size={64} />
+            <div>
+              <p className="game-display text-[24px] font-black leading-none text-[#2c2117]">Deine Aussage</p>
+              <p className="mt-1 text-[13px] font-semibold text-[#6e5f48]">
+                {SLOTS[t].icon} {SLOTS[t].name}: Wo warst du, und wer war bei dir?
+              </p>
             </div>
           </div>
-          <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#a23a2c]">Wer war angeblich bei dir? (freiwillig)</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {W.players
-                .filter((p) => p.id !== i)
-                .map((p) => {
-                  const on = d.comp.indexOf(p.id) >= 0;
-                  return (
-                    <motion.button
-                      key={p.id}
-                      type="button"
-                      data-a="draftComp"
-                      data-v={p.id}
-                      aria-pressed={on}
-                      whileTap={{ scale: 0.92 }}
-                      onClick={() => ctrl.draftComp(p.id)}
-                      className={cn("rounded-full p-1 transition-shadow", on ? "bg-[#c0392b]/25 shadow-[0_0_0_3px_#c0392b]" : "")}
-                    >
-                      <Face p={p} size={46} />
-                    </motion.button>
-                  );
-                })}
+          {s.claimTries > 0 ? (
+            <div role="status" className="rounded-[16px] border border-[#e9a93c]/60 bg-[#f2b04a]/20 px-3 py-2 text-[13.5px] font-semibold text-[#5a3c0c]">
+              🤔 Das passt nicht zu deiner Karte. Tippe auf „Karte ansehen“ und versuche es noch mal.
             </div>
-          </div>
-          <div className="flex min-h-[48px] flex-wrap items-center gap-2 rounded-[16px] bg-black/[0.06] px-3 py-2 text-[13px] font-semibold text-[#7a3a2c]">
-            {d.place ? (
-              <>
-                <span>Du sagst:</span>
-                <PlaceCard id={d.place} size="sm" />
-                {d.comp.length ? d.comp.map((x) => <Face key={x} p={ctrl.P(x)} size={36} />) : <span className="text-[26px]">🧍</span>}
-              </>
-            ) : (
-              <span>Tippe auf einen Ort.</span>
-            )}
-          </div>
+          ) : null}
+          <ClaimPicker
+            ctrl={ctrl}
+            places={places}
+            theme={THEME_TRUTH}
+            placeLabel="Wo warst du?"
+            compLabel="Wer war bei dir? (Niemand antippen, wenn du allein warst)"
+            hint="Tippe auf den Ort, an dem du warst."
+          />
         </motion.div>
       )}
     </Screen>
@@ -347,14 +451,19 @@ const Announce: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   return (
     <Screen
       dock={
-        <GoldButton a="annNext" icon="➡️" onClick={() => ctrl.annNext()}>
-          {last ? "Weiter" : "Weitergeben"}
-        </GoldButton>
+        <>
+          <GhostButton a="replayClaim" icon="🔊" onClick={() => ctrl.replayClaim(i, t)}>
+            Tavi spricht für mich
+          </GhostButton>
+          <GoldButton a="annNext" icon="➡️" onClick={() => ctrl.annNext()}>
+            {last ? "Weiter" : "Weitergeben"}
+          </GoldButton>
+        </>
       }
     >
       <div className="flex items-center gap-2 pt-1 text-[11.5px] font-bold uppercase tracking-[0.2em] text-[#f8dc8e]">
         <motion.span className="h-2.5 w-2.5 rounded-full bg-[#ff5a4a]" animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.2, repeat: Infinity }} />
-        Kommissar Tavi spricht
+        Deine Aussage
       </div>
       <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 240, damping: 16 }} className="flex flex-col items-center gap-2">
         <Face p={ctrl.P(i)} size={124} />
@@ -368,6 +477,9 @@ const Announce: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
           <div className="flex flex-wrap gap-2">{c.comp.length ? c.comp.map((x) => <Face key={x} p={ctrl.P(x)} size={46} />) : <span className="text-[38px] leading-none">🧍</span>}</div>
         </div>
       </motion.div>
+      <p className="flex items-center gap-2 text-center text-[14px] font-semibold text-white/80">
+        <span className="text-[20px]">🗣️</span> Sag es der Runde mit deinen eigenen Worten.
+      </p>
       <VillageMap ctrl={ctrl} t={t} isNew />
     </Screen>
   );

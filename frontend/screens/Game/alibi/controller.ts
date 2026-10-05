@@ -6,7 +6,7 @@ import { director, type SayPart } from "./audio";
 import type { AlibiCharacter, Claim, Conflict, LevelId, Spur, World } from "./types";
 
 export type Phase = "setup" | "cast" | "caseIntro" | "act" | "round" | "vote" | "reveal" | "end";
-export type ActSub = "intro" | "hand" | "whisper" | "announce" | "done";
+export type ActSub = "intro" | "hand" | "whisper" | "claim" | "announce" | "done";
 export type RoundSub = "talk" | "duel" | "spur";
 
 export interface Duel {
@@ -44,6 +44,9 @@ export interface AlibiState {
   actOrder: number[];
   actIdx: number;
   draft: Claim & { place: string | null };
+  /** Fehlversuche beim Auswählen der eigenen Aussage (Unschuldige) und Zähler für das Wackeln */
+  claimTries: number;
+  claimFlash: number;
   hidden: boolean;
   bell: number;
   newRes: number | null;
@@ -74,7 +77,7 @@ const SETUP_KEY = "talea.alibi.setup.v2";
 function initialState(): AlibiState {
   return {
     phase: "setup", W: null, caseDef: null, claims: [], sights: {}, castIdx: 0, castSub: "draw", act: 0, actSub: "intro",
-    actOrder: [], actIdx: 0, draft: { place: null as unknown as string, comp: [] }, hidden: false, bell: 0, newRes: null,
+    actOrder: [], actIdx: 0, draft: { place: null as unknown as string, comp: [] }, claimTries: 0, claimFlash: 0, hidden: false, bell: 0, newRes: null,
     round: 1, spuren: [], spurShown: 0, roundSub: "talk", talkLeft: 0, talkRun: false, prompt: 0, duel: null, duelLog: [],
     flags: null, tab: E.TC, voteSub: "ready", count: 0, sel: null, accused: null, cleared: [], attempt: 1, revealSub: "ask",
     finalCaught: null, awards: null,
@@ -281,7 +284,7 @@ export class AlibiController {
   }
   handAnswer() {
     this.lieTold = false;
-    this.set({ actSub: "whisper", hidden: false, draft: { place: null as unknown as string, comp: [] } });
+    this.set({ actSub: "whisper", hidden: false, claimTries: 0, draft: { place: null as unknown as string, comp: [] } });
     director.sfx("page");
     this.whisperSay();
   }
@@ -291,7 +294,7 @@ export class AlibiController {
   draftPlace(place: string) {
     this.set({ draft: { ...this.state.draft, place } });
     director.sfx("pop");
-    if (!this.lieTold) {
+    if (this.isLie() && !this.lieTold) {
       this.lieTold = true;
       void this.say([`place.${place}`, "w.culprit.3", "w.culprit.ready"], true);
     } else void this.say([`place.${place}`], true);
@@ -299,23 +302,59 @@ export class AlibiController {
   draftComp(id: number) {
     const comp = this.state.draft.comp.slice(), ix = comp.indexOf(id);
     if (ix >= 0) comp.splice(ix, 1);
-    else if (comp.length < 3) comp.push(id);
+    else if (comp.length < (this.isLie() ? 3 : (this.state.W as World).N - 1)) comp.push(id);
     this.set({ draft: { ...this.state.draft, comp } });
     director.sfx("pop");
     void this.say([`w.num.${id + 1}`], true);
   }
-  annParts(i: number, t: number, replay: boolean): SayPart[] {
+  /** Aussage vorlesen: nur auf Wunsch (Tippen auf die Dorfkarte oder „Tavi spricht für mich“), nie automatisch. */
+  annParts(i: number, t: number): SayPart[] {
     const c = this.state.claims[i][t];
-    let parts: SayPart[] = [];
-    if (!replay) {
-      parts.push({ sfx: "type" });
-      if (t === E.TC) parts.push({ c: this.P(i).ch, k: "stmt" });
-    }
-    parts.push({ hl: i }, `num.${i + 1}`, `name.${this.P(i).ch.s}`, { hl: null }, `place.${c.place}`);
+    let parts: SayPart[] = [{ hl: i }, `num.${i + 1}`, `name.${this.P(i).ch.s}`, { hl: null }, `place.${c.place}`];
     if (c.comp.length) parts = parts.concat(["kom.ann.with"], this.numList(c.comp, false));
     else parts.push("kom.ann.alone");
-    if (!replay) parts.push({ hl: null }, pickVar("kom.ann.end"));
     return parts;
+  }
+  /** Beim Abgeben liest Tavi die Aussage NICHT vor: Er bittet den Spieler, sie der Runde selbst zu sagen. */
+  private annPrompt(i: number, t: number): SayPart[] {
+    const parts: SayPart[] = [{ sfx: "type" }];
+    if (t === E.TC) parts.push({ c: this.P(i).ch, k: "stmt" });
+    parts.push({ hl: i }, pickVar("kom.ann.say"), { hl: null });
+    return parts;
+  }
+  /* ---------- Eigene Aussage (Unschuldige) ---------- */
+  /** Nach dem Geheimtelefon wählt jeder seine Aussage selbst aus (Ort + Begleiter). Die App sagt sie nicht vor. */
+  toClaim() {
+    const again = !!this.state.draft.place;
+    this.set({ actSub: "claim", hidden: false });
+    director.sfx("page");
+    if (!again) void this.say(["w.claim.1"], true);
+  }
+  /** Zurück zur Geheimkarte (Aussage bleibt stehen). */
+  claimPeek() {
+    this.set({ actSub: "whisper", hidden: false });
+    director.sfx("page");
+  }
+  /** Prüft die gewählte Aussage gegen das, was dem Spieler geflüstert wurde (Unschuldige sagen die Wahrheit). */
+  claimSubmit() {
+    const s = this.state, W = s.W as World, i = this.curP(), t = s.act, d = s.draft;
+    const place = W.pos[i][t], comp = W.comp[i][t];
+    const ok = d.place === place && d.comp.length === comp.length && comp.every((x) => d.comp.indexOf(x) >= 0);
+    if (ok) {
+      this.toAnnounce();
+      return;
+    }
+    const tries = s.claimTries + 1;
+    director.sfx("knock");
+    director.vibrate([40, 40, 40]);
+    if (tries >= 3) {
+      // Nach drei Fehlversuchen füllt Tavi die richtige Aussage ein, damit kleine Kinder nicht hängen bleiben.
+      this.set({ claimTries: 0, claimFlash: s.claimFlash + 1, draft: { place, comp: comp.slice() } });
+      void this.say(["w.claim.help"], true);
+    } else {
+      this.set({ claimTries: tries, claimFlash: s.claimFlash + 1 });
+      void this.say(["w.claim.wrong"], true);
+    }
   }
   toAnnounce() {
     const s = this.state, W = s.W as World, i = this.curP(), t = s.act;
@@ -327,10 +366,10 @@ export class AlibiController {
     this.set({ claims, actSub: "announce", newRes: i });
     director.sfx("stamp");
     director.vibrate(60);
-    void this.say(this.annParts(i, t, false));
+    void this.say(this.annPrompt(i, t));
   }
   replayClaim(i: number, t: number) {
-    if (this.state.claims[i] && this.state.claims[i][t]) void this.say(this.annParts(i, t, true));
+    if (this.state.claims[i] && this.state.claims[i][t]) void this.say(this.annParts(i, t));
   }
   annNext() {
     director.stop();

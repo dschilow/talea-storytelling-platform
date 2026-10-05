@@ -6524,8 +6524,8 @@
     "voice": "Kommissar Tavi",
     "kind": "tavi",
     "prio": 1,
-    "text": "Dann klingelt das Geheimtelefon. Haltet das Handy ans Ohr, und ich flüstere euch zu, wo ihr wart und wen ihr dort gesehen habt.",
-    "eleven": "[friendly, clear, patient] Dann klingelt das Geheimtelefon. Haltet das Handy ans Ohr, und ich flüstere euch zu, wo ihr wart und wen ihr dort gesehen habt.",
+    "text": "Dann klingelt das Geheimtelefon. Haltet das Handy ans Ohr, und ich flüstere euch zu, wo ihr wart und wen ihr dort gesehen habt. Danach wählt ihr eure Aussage selbst aus und sagt sie der Runde.",
+    "eleven": "[friendly, clear, patient] Dann klingelt das Geheimtelefon. Haltet das Handy ans Ohr, und ich flüstere euch zu, wo ihr wart und wen ihr dort gesehen habt. Danach wählt ihr eure Aussage selbst aus und sagt sie der Runde.",
     "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
   },
   "kom.tour.4": {
@@ -8639,6 +8639,63 @@
     "prio": 1,
     "text": "Bei dir waren:",
     "eleven": "[whispers] Bei dir waren:",
+    "whisper": true,
+    "note": "Kommissar Tavi, geflüstert, nah am Mikrofon. Wird im Geheimtelefon leise abgespielt."
+  },
+  "kom.ann.say.1": {
+    "filename": "kom.ann.say.1.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Jetzt du: Sag es der Runde mit deinen eigenen Worten. Wo warst du, und wer war bei dir?",
+    "eleven": "[calm, measured] Jetzt du: Sag es der Runde mit deinen eigenen Worten. Wo warst du, und wer war bei dir?",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.ann.say.2": {
+    "filename": "kom.ann.say.2.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Erzähl es den anderen. Wir hören zu, und ich schreibe mit.",
+    "eleven": "[calm, measured] Erzähl es den anderen. Wir hören zu, und ich schreibe mit.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "kom.ann.say.3": {
+    "filename": "kom.ann.say.3.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "tavi",
+    "prio": 1,
+    "text": "Die Runde hört zu. Sag laut, wo du warst.",
+    "eleven": "[calm, measured] Die Runde hört zu. Sag laut, wo du warst.",
+    "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
+  },
+  "w.claim.1": {
+    "filename": "w.claim.1.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "flüstern",
+    "prio": 1,
+    "text": "Jetzt bist du dran. Tippe auf den Ort, an dem du warst, und auf alle, die bei dir waren.",
+    "eleven": "[whispers] Jetzt bist du dran. Tippe auf den Ort, an dem du warst, und auf alle, die bei dir waren.",
+    "whisper": true,
+    "note": "Kommissar Tavi, geflüstert, nah am Mikrofon. Wird im Geheimtelefon leise abgespielt."
+  },
+  "w.claim.wrong": {
+    "filename": "w.claim.wrong.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "flüstern",
+    "prio": 1,
+    "text": "Hmm, das passt nicht zu dem, was du erfahren hast. Schau noch mal auf deine Karte.",
+    "eleven": "[whispers] Hmm, das passt nicht zu dem, was du erfahren hast. Schau noch mal auf deine Karte.",
+    "whisper": true,
+    "note": "Kommissar Tavi, geflüstert, nah am Mikrofon. Wird im Geheimtelefon leise abgespielt."
+  },
+  "w.claim.help": {
+    "filename": "w.claim.help.mp3",
+    "voice": "Kommissar Tavi",
+    "kind": "flüstern",
+    "prio": 1,
+    "text": "Ich helfe dir kurz. Prüf, ob es stimmt, und gib es ab.",
+    "eleven": "[whispers] Ich helfe dir kurz. Prüf, ob es stimmt, und gib es ab.",
     "whisper": true,
     "note": "Kommissar Tavi, geflüstert, nah am Mikrofon. Wird im Geheimtelefon leise abgespielt."
   }

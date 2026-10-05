@@ -95,13 +95,13 @@ const Rules: React.FC<{ ctrl: AlibiController; onTour: () => void; onQuit: () =>
         <b className="text-white">Worum geht’s?</b> In Kicherwald ist in der Nacht etwas gestohlen worden. Einer von euch war es. Das Dorf gewinnt, wenn es den Dieb anklagt. Der Dieb gewinnt, wenn er unentdeckt bleibt.
       </div>
       <H>Niemand muss lesen können</H>
-      <p>Kommissar Tavi spricht alles, und alles hat ein Bild. Geheimes flüstert er per Geheimtelefon: Handy ans Ohr oder Kopfhörer.</p>
+      <p>Kommissar Tavi erklärt alles, und alles hat ein Bild. Geheimes flüstert er per Geheimtelefon: Handy ans Ohr oder Kopfhörer.</p>
       <H>Das Prinzip</H>
       <p>Die Nacht hat 2 oder 3 Akte. In jedem Akt war jeder an einem Ort, allein oder mit anderen. Wer am selben Ort war, hat sich gesehen und kennt das Bild vom Ort. Um Mitternacht war nur der Dieb am Tatort, und zwar allein.</p>
       <H>Der Ablauf</H>
       <ol className="list-decimal space-y-1.5 pl-5">
         <li><b className="text-white">Besetzung:</b> Das Handy geht im Kreis, jeder zieht eine Figur und bekommt eine Nummer.</li>
-        <li><b className="text-white">Akte:</b> Das Geheimtelefon klingelt reihum. Tavi flüstert jedem, wo er war, wer dabei war und was er gesehen hat. Dann sagt Tavi laut, was die Figur behauptet. Der Dieb wählt sein Mitternachts-Alibi frei.</li>
+        <li><b className="text-white">Akte:</b> Das Geheimtelefon klingelt reihum. Tavi flüstert jedem, wo er war, wer dabei war und was er gesehen hat. Danach wählt jeder seine Aussage selbst aus (Ort und Begleiter) und sagt sie der Runde mit eigenen Worten. Tavi liest sie nicht vor, nur auf Wunsch. Der Dieb wählt sein Mitternachts-Alibi frei.</li>
         <li><b className="text-white">Verhör:</b> Dorfkarte vergleichen, Fragekarten, Zeugen-Duelle. Nach jeder Runde meldet das Labor eine Spur.</li>
         <li><b className="text-white">Anklage:</b> Alle zeigen gleichzeitig auf den Dieb.</li>
       </ol>
