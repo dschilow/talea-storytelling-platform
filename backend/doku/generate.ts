@@ -182,6 +182,24 @@ export interface Doku {
     model?: string;
     processingTime?: number;
     imagesGenerated?: number;
+    /**
+     * Einstellungen der Erzeugung. Muss hier stehen: Encore liefert in Antworten nur Felder aus, die im Typ
+     * deklariert sind. Ohne diesen Eintrag kamen Kategorie/Alter/Tiefe nie im Frontend an (Quiz-Filter leer).
+     */
+    configSnapshot?: {
+      topic?: string;
+      domainId?: string | null;
+      ageGroup?: DokuAgeGroup;
+      depth?: DokuDepth;
+      perspective?: "science" | "history" | "technology" | "nature" | "culture";
+      tone?: "fun" | "neutral" | "curious";
+      length?: "short" | "medium" | "long";
+      includeInteractive?: boolean;
+      quizQuestions?: number;
+      handsOnActivities?: number;
+      language?: string;
+      parentalGuidanceActive?: boolean;
+    };
     totalCost?: {
       text: number;
       images: number;

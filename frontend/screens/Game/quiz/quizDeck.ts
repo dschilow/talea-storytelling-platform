@@ -93,13 +93,42 @@ export const shuffle = <T,>(entries: T[]): T[] => {
   return clone;
 };
 
+type Perspective = Exclude<DeckFilter["perspective"], "all">;
+
+/** Stichwörter, falls eine Doku keine gespeicherte Perspektive hat (ältere Dokus, ältere Backend-Versionen). */
+const KEYWORDS: Record<Perspective, string[]> = {
+  history: ["geschicht", "ritter", "burg", "römer", "roemer", "ägypt", "aegypt", "pyramid", "pharao", "mittelalter", "wikinger", "pirat", "könig", "koenig", "kaiser", "steinzeit", "antike", "griech", "museum", "archäolog", "erfinder"],
+  technology: ["technik", "roboter", "computer", "rakete", "raumfahrt", "auto", "flugzeug", "zug", "eisenbahn", "maschine", "motor", "strom", "elektr", "internet", "handy", "erfindung", "ingenieur", "brücke", "bruecke", "kran", "bagger", "programm", "ki ", "künstliche intelligenz"],
+  nature: ["natur", "tier", "wald", "pflanze", "baum", "blume", "biene", "insekt", "vogel", "fisch", "meer", "ozean", "wal", "hai", "delfin", "hund", "katze", "pferd", "dinosaurier", "dino", "dschungel", "regenwald", "wüste", "berg", "fluss", "jahreszeit", "schmetterling", "ameise", "frosch", "bär", "baer", "löwe", "loewe", "elefant", "pinguin"],
+  culture: ["kultur", "musik", "kunst", "maler", "tanz", "fest", "feier", "weihnacht", "ostern", "märchen", "maerchen", "sprache", "länder", "laender", "religion", "essen", "kochen", "theater", "sport", "olymp", "tradition", "brauch", "instrument"],
+  science: ["wissenschaft", "körper", "koerper", "planet", "weltraum", "sonne", "mond", "stern", "physik", "chemie", "experiment", "licht", "magnet", "wasser", "wetter", "vulkan", "erdbeben", "atom", "zelle", "gehirn", "herz", "blut", "energie", "schwerkraft", "regenbogen", "kristall"],
+};
+const ORDER: Perspective[] = ["history", "technology", "nature", "culture", "science"];
+
+/** Perspektive einer Doku: gespeichert (configSnapshot), sonst aus Titel/Thema geschätzt, sonst „science“ wie im Generator. */
+export const perspectiveOf = (doku: Doku): Perspective => {
+  const stored = doku.metadata?.configSnapshot?.perspective;
+  if (stored) return stored;
+  const text = ` ${doku.title} ${doku.topic} ${doku.summary ?? ""} `.toLowerCase();
+  let best: Perspective = "science", hits = 0;
+  for (const p of ORDER) {
+    const n = KEYWORDS[p].reduce((sum, k) => sum + (text.includes(k) ? 1 : 0), 0);
+    if (n > hits) {
+      hits = n;
+      best = p;
+    }
+  }
+  return best;
+};
+
 export const matchesFilter = (doku: Doku, filters: DeckFilter) => {
   const query = filters.query.trim().toLowerCase();
   const meta = doku.metadata?.configSnapshot;
   const matchesQuery = !query || doku.title.toLowerCase().includes(query) || doku.topic.toLowerCase().includes(query) || (doku.summary ?? "").toLowerCase().includes(query);
   if (!matchesQuery) return false;
-  if (filters.ageGroup !== "all" && meta?.ageGroup !== filters.ageGroup) return false;
-  if (filters.depth !== "all" && meta?.depth !== filters.depth) return false;
-  if (filters.perspective !== "all" && meta?.perspective !== filters.perspective) return false;
+  // Fehlt die Angabe, wird die Doku nicht ausgeschlossen (sonst bliebe das Quiz bei alten Dokus leer)
+  if (filters.ageGroup !== "all" && meta?.ageGroup && meta.ageGroup !== filters.ageGroup) return false;
+  if (filters.depth !== "all" && meta?.depth && meta.depth !== filters.depth) return false;
+  if (filters.perspective !== "all" && perspectiveOf(doku) !== filters.perspective) return false;
   return true;
 };

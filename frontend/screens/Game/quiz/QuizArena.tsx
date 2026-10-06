@@ -86,6 +86,12 @@ export const QuizArena: React.FC = () => {
   const [gain, setGain] = useState(0);
 
   const filtered = useMemo(() => publicDokus.filter((d) => matchesFilter(d, filters)), [filters, publicDokus]);
+  /** Wie viele Dokus je Kategorie zu den übrigen Filtern passen (für die Kacheln) */
+  const perCategory = useMemo(() => {
+    const out: Record<string, number> = {};
+    CATEGORIES.forEach((c) => (out[c.id] = publicDokus.filter((d) => matchesFilter(d, { ...filters, perspective: c.id })).length));
+    return out;
+  }, [filters, publicDokus]);
   const card = deck[idx];
   const picked = card ? answers[card.id] : undefined;
   const answered = picked !== undefined;
@@ -223,18 +229,22 @@ export const QuizArena: React.FC = () => {
                 <p className="mb-2.5 text-[12px] font-bold uppercase tracking-[0.18em] text-white/60">Kategorie</p>
                 <div className="grid grid-cols-3 gap-2.5 md:grid-cols-6">
                   {CATEGORIES.map((c) => {
-                    const on = filters.perspective === c.id;
+                    const on = filters.perspective === c.id, n = perCategory[c.id] ?? 0, empty = !listLoading && publicDokus.length > 0 && n === 0;
                     return (
                       <motion.button
                         key={c.id}
                         type="button"
+                        data-cat={c.id}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setFilters((f) => ({ ...f, perspective: c.id }))}
                         aria-pressed={on}
-                        className={cn("flex flex-col items-center gap-1.5 rounded-[20px] p-2 pb-2.5 transition-[background-color,box-shadow]", on ? "bg-white/[0.16] shadow-[0_0_0_2px_#f9c75a,0_12px_30px_-10px_rgba(249,199,90,0.6)]" : "bg-white/[0.06] hover:bg-white/[0.1]")}
+                        className={cn("relative flex flex-col items-center gap-1.5 rounded-[20px] p-2 pb-2.5 transition-[background-color,box-shadow,opacity]", on ? "bg-white/[0.16] shadow-[0_0_0_2px_#f9c75a,0_12px_30px_-10px_rgba(249,199,90,0.6)]" : "bg-white/[0.06] hover:bg-white/[0.1]", empty && !on && "opacity-45")}
                       >
                         <img src={c.img} alt="" className="aspect-square w-full rounded-[14px] object-cover" />
                         <span className="text-[12.5px] font-bold">{c.label}</span>
+                        {!listLoading && publicDokus.length ? (
+                          <span className={cn("absolute right-1 top-1 min-w-[24px] rounded-full px-1.5 py-0.5 text-center text-[11px] font-black", n ? "bg-[#f9c75a] text-[#2b1a05]" : "bg-black/50 text-white/70")}>{n}</span>
+                        ) : null}
                       </motion.button>
                     );
                   })}
