@@ -35,4 +35,6 @@ RUN python -c "import server; print('model prefetch ok')"
 EXPOSE 8080
 
 # One worker: the model is CPU bound and guarded by a lock. Threads let requests queue cheaply.
-CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-8080} --timeout 600 --workers 1 --threads 8 server:app"]
+# Bind to [::] (dual stack): Railway private networking in this project is IPv6-only,
+# so 0.0.0.0 would make the service unreachable from the backend.
+CMD ["sh", "-c", "exec gunicorn --bind [::]:${PORT:-8080} --timeout 600 --workers 1 --threads 8 server:app"]

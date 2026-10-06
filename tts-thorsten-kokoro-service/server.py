@@ -385,7 +385,35 @@ def _startup():
     log.info("Model ready in %.1fs", time.time() - started)
 
 
+def _network_selfcheck():
+    """Log once whether Railway private networking works (names resolve, peers reachable)."""
+    import socket
+    import urllib.request
+
+    time.sleep(5)
+    own = os.environ.get("RAILWAY_PRIVATE_DOMAIN", "")
+    log.info("selfcheck RAILWAY_PRIVATE_DOMAIN=%r", own)
+    for host in filter(None, [own]):
+        try:
+            addrs = sorted({info[4][0] for info in socket.getaddrinfo(host, None)})
+            log.info("selfcheck dns %s -> %s", host, addrs)
+        except Exception as exc:
+            log.warning("selfcheck dns %s failed: %s", host, exc)
+    # Call ourselves over the private network: proves the [::] bind is reachable for the backend.
+    port = os.environ.get("PORT", "8080")
+    peer_url = os.environ.get("SELFCHECK_PEER_URL", f"http://{own}:{port}/health" if own else "")
+    if not peer_url:
+        return
+    try:
+        with urllib.request.urlopen(peer_url, timeout=5) as resp:
+            log.info("selfcheck peer %s -> HTTP %s", peer_url, resp.status)
+    except Exception as exc:
+        log.warning("selfcheck peer %s failed: %s", peer_url, exc)
+
+
 _startup()
+if os.environ.get("NET_SELFCHECK", "1") != "0" and os.environ.get("RAILWAY_ENVIRONMENT_ID"):
+    threading.Thread(target=_network_selfcheck, daemon=True).start()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", "8080")))
+    app.run(host="::", port=int(os.environ.get("PORT", "8080")))
