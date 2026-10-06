@@ -1,0 +1,38 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_HOME=/opt/hf-cache \
+    CUDA_VISIBLE_DEVICES=""
+
+# espeak-ng: German phonemizer backend. ffmpeg: MP3 encoding. git: German kokoro/misaki forks.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    espeak-ng \
+    ffmpeg \
+    libsndfile1 \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# CPU-only torch keeps the image small
+RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# German forks required by Thorsten-Voice/Kokoro (see model card)
+RUN pip install \
+    "git+https://github.com/semidark/misaki.git@6d252a2e02f3b030f22f56686f1a73786c16ffc8" \
+    "git+https://github.com/semidark/kokoro.git"
+
+COPY server.py .
+
+# Bake the model weights into the image (importing server downloads + warms up the model)
+RUN python -c "import server; print('model prefetch ok')"
+
+EXPOSE 8080
+
+# One worker: the model is CPU bound and guarded by a lock. Threads let requests queue cheaply.
+CMD ["sh", "-c", "exec gunicorn --bind 0.0.0.0:${PORT:-8080} --timeout 600 --workers 1 --threads 8 server:app"]

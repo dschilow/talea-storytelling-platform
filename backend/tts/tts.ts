@@ -11,6 +11,12 @@ import {
   isXaiConfigured,
   type XaiVoicesResponse,
 } from "./xai-tts";
+import {
+  thorstenGenerateSpeech,
+  thorstenGenerateSpeechBatch,
+  thorstenListVoices,
+  isThorstenConfigured,
+} from "./thorsten-tts";
 
 type RunpodEndpointMode = "load_balancer" | "queue";
 type VoiceListMode = "static" | "runpod";
@@ -163,7 +169,7 @@ const COSYVOICE_VOICE_LIST_MODE = QWEN_VOICE_LIST_MODE;
 const COSYVOICE_STATIC_SPEAKERS = QWEN_STATIC_SPEAKERS;
 const COSYVOICE_STATIC_DEFAULT_SPEAKER = QWEN_STATIC_DEFAULT_SPEAKER;
 
-export type TTSProvider = "qwen" | "xai";
+export type TTSProvider = "qwen" | "xai" | "thorsten";
 export type AudioFormat = "wav" | "mp3";
 
 export interface TTSResponse {
@@ -1690,6 +1696,25 @@ export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
           }
         }
 
+        if (req.provider === "thorsten") {
+          try {
+            const result = await thorstenGenerateSpeech({
+              text: req.text,
+              outputFormat: req.outputFormat,
+            });
+            return {
+              audioData: result.audioData,
+              providerUsed: "thorsten" as TTSProvider,
+              mimeType: result.mimeType,
+              outputFormat: result.outputFormat,
+            };
+          } catch (error) {
+            const message = getErrorMessage(error);
+            log.error(`Thorsten TTS generate failed: ${message}`);
+            throw APIError.unavailable(`Thorsten TTS generation failed: ${message}`);
+          }
+        }
+
         try {
           return await withRunpodSlot(() => runpodTtsRequest(req));
         } catch (error) {
@@ -1728,6 +1753,21 @@ async function generateSpeechBatchInternal(req: GenerateSpeechBatchRequest): Pro
       const message = getErrorMessage(error);
       log.error(`xAI TTS batch failed: ${message}`);
       throw APIError.unavailable(`xAI TTS batch generation failed: ${message}`);
+    }
+  }
+
+  // Thorsten (Kokoro) provider: self-hosted CPU service, the service splits sentences itself.
+  if (req.provider === "thorsten") {
+    try {
+      const results = await thorstenGenerateSpeechBatch(
+        req.items.map((item) => ({ id: item.id, text: item.text })),
+        req.outputFormat,
+      );
+      return { results };
+    } catch (error) {
+      const message = getErrorMessage(error);
+      log.error(`Thorsten TTS batch failed: ${message}`);
+      throw APIError.unavailable(`Thorsten TTS batch generation failed: ${message}`);
     }
   }
 
@@ -2144,13 +2184,21 @@ export const listXaiVoices = api<void, XaiVoicesResponse>(
   }
 );
 
-export const getAvailableTtsProviders = api<void, { providers: Array<{ id: TTSProvider; name: string; configured: boolean }> }>(
+export const listThorstenVoices = api<void, XaiVoicesResponse>(
+  { expose: true, method: "GET", path: "/tts/thorsten/voices", auth: true },
+  async () => {
+    return thorstenListVoices();
+  }
+);
+
+export const getAvailableTtsProviders =api<void, { providers: Array<{ id: TTSProvider; name: string; configured: boolean }> }>(
   { expose: true, method: "GET", path: "/tts/providers", auth: true },
   async () => {
     return {
       providers: [
         { id: "qwen" as TTSProvider, name: "Qwen (RunPod)", configured: Boolean(QWEN_RUNPOD_API_URL) },
         { id: "xai" as TTSProvider, name: "xAI Grok (Runware)", configured: isXaiConfigured() },
+        { id: "thorsten" as TTSProvider, name: "Thorsten-Voice (Kokoro)", configured: isThorstenConfigured() },
       ],
     };
   }

@@ -7,7 +7,7 @@
  */
 
 export type TTSVoiceMode = 'default' | 'speaker' | 'dialogue';
-export type TTSProviderType = 'qwen' | 'xai';
+export type TTSProviderType = 'qwen' | 'xai' | 'thorsten';
 
 export interface TTSVoiceSettings {
   mode: TTSVoiceMode;

@@ -17,6 +17,10 @@ import {
   XAI_DEFAULT_VOICE,
 } from '../../constants/xaiVoices';
 import {
+  getThorstenVoiceOptions,
+  THORSTEN_DEFAULT_VOICE,
+} from '../../constants/thorstenVoices';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -91,6 +95,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const { resolvedTheme } = useTheme();
   const qwenSpeakers = useMemo(() => getStaticQwenSpeakers(), []);
   const xaiVoices = useMemo(() => getXaiVoiceOptions(), []);
+  const thorstenVoices = useMemo(() => getThorstenVoiceOptions(), []);
 
   const [ttsProvider, setTtsProvider] = useState<TTSProviderType>('qwen');
   const [isAdding, setIsAdding] = useState(false);
@@ -110,12 +115,21 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const alreadyInPlaylist = playlist.some((item) => item.parentStoryId === storyId);
   const hasLibraryAudio = generatedAudioItems.length > 0;
   const isXai = ttsProvider === 'xai';
-  const availableSpeakers = isXai ? xaiVoices.map((v) => v.id) : qwenSpeakers;
+  const isThorsten = ttsProvider === 'thorsten';
+  const availableSpeakers = isXai
+    ? xaiVoices.map((v) => v.id)
+    : isThorsten
+      ? thorstenVoices.map((v) => v.id)
+      : qwenSpeakers;
+  const voiceOptions = isXai ? xaiVoices : thorstenVoices;
 
   // Switch default voice when provider changes
   useEffect(() => {
     if (ttsProvider === 'xai') {
       setSelectedSpeaker(XAI_DEFAULT_VOICE);
+      setMultiVoiceEnabled(false);
+    } else if (ttsProvider === 'thorsten') {
+      setSelectedSpeaker(THORSTEN_DEFAULT_VOICE);
       setMultiVoiceEnabled(false);
     } else {
       setSelectedSpeaker(QWEN_STATIC_DEFAULT_SPEAKER);
@@ -132,7 +146,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
       ),
     );
 
-    if (!isXai && normalizedSpeaker && multiVoiceEnabled && normalizedDialogueSpeakers.length >= 2) {
+    if (!isXai && !isThorsten && normalizedSpeaker && multiVoiceEnabled && normalizedDialogueSpeakers.length >= 2) {
       return {
         mode: 'dialogue',
         speakerId: normalizedSpeaker,
@@ -149,7 +163,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
       };
     }
     return { ...DEFAULT_TTS_VOICE_SETTINGS, provider: ttsProvider };
-  }, [selectedSpeaker, multiVoiceEnabled, dialogueSpeakers, ttsProvider, isXai]);
+  }, [selectedSpeaker, multiVoiceEnabled, dialogueSpeakers, ttsProvider, isXai, isThorsten]);
 
   const canStartConversion = useMemo(() => {
     if (isAdding) return false;
@@ -239,6 +253,8 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const resetToDefaultVoice = useCallback(() => {
     if (ttsProvider === 'xai') {
       setSelectedSpeaker(XAI_DEFAULT_VOICE);
+    } else if (ttsProvider === 'thorsten') {
+      setSelectedSpeaker(THORSTEN_DEFAULT_VOICE);
     } else {
       setSelectedSpeaker(QWEN_STATIC_DEFAULT_SPEAKER);
     }
@@ -380,10 +396,11 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           <p className="mb-1.5 text-xs font-semibold" style={{ color: isDark ? '#d9e5f8' : '#2a3b52' }}>
             TTS-Anbieter
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {([
               { id: 'qwen' as TTSProviderType, label: 'Qwen (RunPod)', hint: 'Eigener Server' },
               { id: 'xai' as TTSProviderType, label: 'xAI Grok', hint: 'Runware' },
+              { id: 'thorsten' as TTSProviderType, label: 'Thorsten', hint: 'Deutsch, eigener Server' },
             ]).map((p) => {
               const active = ttsProvider === p.id;
               return (
@@ -412,7 +429,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
 
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-xs font-semibold" style={{ color: isDark ? '#d9e5f8' : '#2a3b52' }}>
-            {isXai ? 'xAI Stimme waehlen' : 'Qwen Stimme waehlen'}
+            {isXai ? 'xAI Stimme waehlen' : isThorsten ? 'Thorsten Stimme' : 'Qwen Stimme waehlen'}
           </p>
           <button
             type="button"
@@ -435,8 +452,8 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           >
             {availableSpeakers.length === 0 ? (
               <option value="">Keine Stimmen verfuegbar</option>
-            ) : isXai ? (
-              xaiVoices.map((voice) => (
+            ) : isXai || isThorsten ? (
+              voiceOptions.map((voice) => (
                 <option key={voice.id} value={voice.id}>
                   {voice.name} - {voice.description}
                 </option>
@@ -455,28 +472,30 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
             {isXai
               ? 'xAI Grok TTS laeuft ueber Runware (gleicher Account wie Bildgenerierung).'
-              : 'Qwen-Stimmen sind lokal hinterlegt und sofort verfuegbar. Es wird erst bei echter Audio-Erzeugung RunPod benutzt.'}
+              : isThorsten
+                ? 'Thorsten-Voice (Kokoro) laeuft auf einem eigenen Server und spricht nur Deutsch.'
+                : 'Qwen-Stimmen sind lokal hinterlegt und sofort verfuegbar. Es wird erst bei echter Audio-Erzeugung RunPod benutzt.'}
           </p>
         )}
 
         {selectedSpeaker && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
             Narrator-Stimme: <span className="font-semibold">{selectedSpeaker}</span>
-            {isXai && (
+            {(isXai || isThorsten) && (
               <span className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
                 style={{
                   background: isDark ? 'rgba(134,167,219,0.15)' : 'rgba(124,91,61,0.1)',
                   color: isDark ? '#86a7db' : '#7c5b3d',
                 }}
               >
-                xAI
+                {isThorsten ? 'Thorsten' : 'xAI'}
               </span>
             )}
           </p>
         )}
 
-        {/* Dialogue mode — only for Qwen (xAI doesn't support multi-voice in a single request) */}
-        {!isXai && (
+        {/* Dialogue mode — only for Qwen (xAI/Thorsten have no multi-voice in a single request) */}
+        {!isXai && !isThorsten && (
           <div
             className="mt-3 rounded-xl border p-2"
             style={{
@@ -543,7 +562,9 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#facc15' : '#9a6700' }}>
             {isXai
               ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber xAI Grok TTS (Runware).`
-              : `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber RunPod.`}
+              : isThorsten
+                ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber Thorsten-Voice (Kokoro).`
+                : `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber RunPod.`}
           </p>
         )}
         </>
@@ -624,7 +645,9 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             <DialogDescription style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
               {pendingAction?.voiceSettings?.provider === 'xai'
                 ? 'xAI Grok TTS (Runware) wird erst nach deiner Bestaetigung gestartet.'
-                : 'RunPod wird erst nach deiner Bestaetigung gestartet.'}
+                : pendingAction?.voiceSettings?.provider === 'thorsten'
+                  ? 'Thorsten-Voice (Kokoro) wird erst nach deiner Bestaetigung gestartet.'
+                  : 'RunPod wird erst nach deiner Bestaetigung gestartet.'}
             </DialogDescription>
           </DialogHeader>
 
