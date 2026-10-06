@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { useAuth } from '@clerk/clerk-react';
 import type { PlaylistItem, ConversionStatus } from '../types/playlist';
 import { MAX_PLAYLIST_ITEMS } from '../types/playlist';
-import { splitTextIntoChunks, splitTextIntoChunksForXai } from '../utils/ttsChunking';
+import { splitTextIntoChunks, splitTextIntoChunksForThorsten, splitTextIntoChunksForXai } from '../utils/ttsChunking';
 import { useTTSConversionQueue } from '../hooks/useTTSConversionQueue';
 import { useBackend } from '../hooks/useBackend';
 import { useOfflineScope } from './OfflineScopeContext';
@@ -1214,7 +1214,11 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       // Use ttsText (with xAI expression tags) when available and xAI provider is selected
       const useEnrichedTTS = voiceSettings?.provider === 'xai';
       const splitNarration =
-        voiceSettings?.provider === 'xai' ? splitTextIntoChunksForXai : splitTextIntoChunks;
+        voiceSettings?.provider === 'xai'
+          ? splitTextIntoChunksForXai
+          : voiceSettings?.provider === 'thorsten'
+            ? splitTextIntoChunksForThorsten
+            : splitTextIntoChunks;
 
       for (const chapter of sorted) {
         const chapterChunks: Array<{ text: string; speaker?: string }> = [];
@@ -1323,7 +1327,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const chunks =
         voiceSettings?.provider === 'xai'
           ? splitTextIntoChunksForXai(normalizedText)
-          : splitTextIntoChunks(normalizedText);
+          : voiceSettings?.provider === 'thorsten'
+            ? splitTextIntoChunksForThorsten(normalizedText)
+            : splitTextIntoChunks(normalizedText);
       if (chunks.length === 0) return;
       const { request, cacheSuffix } = buildQueueVoicePayload(voiceSettings);
 

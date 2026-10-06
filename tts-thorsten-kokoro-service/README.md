@@ -9,18 +9,31 @@ Das Backend spricht ihn ueber `provider: "thorsten"` an ([backend/tts/thorsten-t
 | Endpoint | Zweck |
 |---|---|
 | `GET /health` | 200 erst wenn das Modell geladen ist |
-| `POST /tts` | `{"text": "...", "speed": 1.0, "format": "mp3" \| "wav"}` -> Audio-Bytes |
+| `POST /tts` | `{"text": "...", "speed": 0.85, "format": "mp3" \| "wav"}` -> Audio-Bytes |
 
-Der Server normalisiert den Text (Anfuehrungszeichen, Gedankenstriche, Zahlen -> Woerter, xAI-Tags werden entfernt),
-teilt ihn in Saetze und setzt Pausen zwischen Saetzen und Absaetzen.
+Die Ausgabe ist auf Kindergeschichten abgestimmt ([textprep.py](textprep.py), [server.py](server.py)):
+
+- Text: Anfuehrungszeichen, Gedankenstriche, Klammern, Abkuerzungen (z. B., Dr., usw.), Uhrzeiten, Einheiten
+  und Zahlen werden ausgeschrieben; Markdown, Emojis, xAI-Tags und Mehrfach-Satzzeichen fallen weg.
+- Tempo: Default-Speed `0.85` (1.0 klang gehetzt, ca. 190 statt ca. 125 Woerter/min).
+- Rhythmus: ein Modellaufruf pro Satz, Stille des Modells wird abgeschnitten und durch feste Pausen je
+  Satzende ersetzt (Punkt, Frage, Ausruf, Auslassungspunkte, Absatz, Chunk-Ende).
+- Klang: Hochpass 60 Hz und zweistufige EBU-R128-Normalisierung (lineare Verstaerkung) auf -16 LUFS / -1.5 dBTP,
+  damit alle Chunks gleich laut sind.
 
 ## Environment-Variablen (Service)
 
 - `API_KEY` (optional): wenn gesetzt, verlangt `/tts` `Authorization: Bearer <key>`
 - `KOKORO_EPOCH` (1-10, default `5`): Trainings-Checkpoint
-- `KOKORO_DEFAULT_SPEED` (default `1.0`)
+- `KOKORO_DEFAULT_SPEED` (default `0.85`)
 - `KOKORO_CPU_THREADS` (default: min(8, CPU-Kerne))
-- `GROUP_MAX_CHARS` (default `240`), `SENTENCE_PAUSE_S`, `PARAGRAPH_PAUSE_S`, `MP3_BITRATE`, `MAX_QUEUE`
+- `GROUP_MAX_CHARS` (default `220`): laengster Text pro Modellaufruf, laengere Saetze werden an Kommas geteilt
+- Pausen in Sekunden: `SENTENCE_PAUSE_S` (0.45), `QUESTION_PAUSE_S` (0.55), `EXCLAMATION_PAUSE_S` (0.5),
+  `ELLIPSIS_PAUSE_S` (0.8), `COLON_PAUSE_S` (0.35), `CLAUSE_PAUSE_S` (0.15), `PARAGRAPH_PAUSE_S` (1.0),
+  `END_PAUSE_S` (0.8), `LEAD_IN_S` (0.1)
+- Lautheit: `LOUDNORM` (`0` schaltet ab, dann gilt `OUTPUT_GAIN_DB`), `TARGET_LUFS` (-16), `TRUE_PEAK_DB` (-1.5),
+  `HIGHPASS_HZ` (60)
+- `MP3_BITRATE`, `MAX_QUEUE`
 
 ## Environment-Variablen (Backend)
 
@@ -31,6 +44,7 @@ teilt ihn in Saetze und setzt Pausen zwischen Saetzen und Absaetzen.
 ## Lokal testen
 
 ```bash
+python -m unittest test_textprep   # Textaufbereitung, braucht nur num2words
 docker build -f Dockerfile.kokoro -t thorsten-kokoro .
 docker run --rm -p 8080:8080 thorsten-kokoro
 curl -X POST localhost:8080/tts -H "Content-Type: application/json" \

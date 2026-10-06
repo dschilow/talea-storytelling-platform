@@ -27,9 +27,12 @@ RUN pip install \
     "git+https://github.com/semidark/misaki.git@6d252a2e02f3b030f22f56686f1a73786c16ffc8" \
     "git+https://github.com/semidark/kokoro.git"
 
-COPY server.py .
+# Weights before the code, so code changes reuse the cached download layer
+RUN python -c "from huggingface_hub import hf_hub_download as d; [d('Thorsten-Voice/Kokoro', f) for f in ('config.json', 'model.pth', 'voices/thorsten.pt')]"
 
-# Bake the model weights into the image (importing server downloads + warms up the model)
+COPY textprep.py server.py ./
+
+# Import loads and warms up the model once at build time
 RUN python -c "import server; print('model prefetch ok')"
 
 EXPOSE 8080

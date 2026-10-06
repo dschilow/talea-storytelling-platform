@@ -6,21 +6,35 @@ Self-hosted German TTS on CPU. Model: https://huggingface.co/Thorsten-Voice/Koko
 Endpoints
   GET  /health        readiness (200 only once the model is loaded)
   POST /tts           {"text": str, "speed"?: float, "format"?: "mp3"|"wav"} -> audio bytes
+
+Tuned for children's stories: slower default speed, one model call per sentence with
+punctuation-dependent pauses, and loudness-normalised output.
 """
+import json
 import logging
+import math
 import os
-import re
 import subprocess
 import threading
 import time
-import unicodedata
 from io import BytesIO
+from typing import Optional
 
 import numpy as np
 import soundfile as sf
 import torch
 from flask import Flask, Response, jsonify, request
 from huggingface_hub import hf_hub_download
+
+from textprep import Pauses, build_segments, normalize_text
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.environ.get(name, default))
+    except ValueError:
+        return default
+
 
 # -----------------------------------------------------------------------------
 # Configuration
@@ -29,16 +43,29 @@ REPO_ID = "Thorsten-Voice/Kokoro"
 BASE_REPO_ID = "hexgrad/Kokoro-82M"
 SAMPLE_RATE = 24000
 
-CHECKPOINT = os.environ.get("KOKORO_EPOCH", "5").strip()  # 1-10, 5 = repo default
-DEFAULT_SPEED = float(os.environ.get("KOKORO_DEFAULT_SPEED", "1.0"))
+CHECKPOINT = os.environ.get("KOKORO_EPOCH", "5").strip()  # 1-10, 5 = repo default (judged most natural)
+DEFAULT_SPEED = _env_float("KOKORO_DEFAULT_SPEED", 0.85)  # 1.0 is too hurried for children's stories
 MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "6000"))
-GROUP_MAX_CHARS = int(os.environ.get("GROUP_MAX_CHARS", "240"))  # sentences are grouped up to this size
-SENTENCE_PAUSE_S = float(os.environ.get("SENTENCE_PAUSE_S", "0.16"))
-PARAGRAPH_PAUSE_S = float(os.environ.get("PARAGRAPH_PAUSE_S", "0.5"))
+GROUP_MAX_CHARS = int(os.environ.get("GROUP_MAX_CHARS", "220"))  # longest text synthesised in one model call
+PAUSES = Pauses(
+    clause=_env_float("CLAUSE_PAUSE_S", 0.15),
+    colon=_env_float("COLON_PAUSE_S", 0.35),
+    sentence=_env_float("SENTENCE_PAUSE_S", 0.45),
+    exclamation=_env_float("EXCLAMATION_PAUSE_S", 0.5),
+    question=_env_float("QUESTION_PAUSE_S", 0.55),
+    ellipsis=_env_float("ELLIPSIS_PAUSE_S", 0.8),
+    paragraph=_env_float("PARAGRAPH_PAUSE_S", 1.0),
+    end=_env_float("END_PAUSE_S", 0.8),
+)
+LEAD_IN_S = _env_float("LEAD_IN_S", 0.1)
 MP3_BITRATE = os.environ.get("MP3_BITRATE", "128k")
 MAX_QUEUE = int(os.environ.get("MAX_QUEUE", "24"))
 API_KEY = os.environ.get("API_KEY", "").strip()
-OUTPUT_GAIN_DB = float(os.environ.get("OUTPUT_GAIN_DB", "4"))  # raw Kokoro output is quiet; fixed gain keeps chunks consistent
+LOUDNORM = os.environ.get("LOUDNORM", "1").strip() != "0"
+TARGET_LUFS = _env_float("TARGET_LUFS", -16.0)
+TRUE_PEAK_DB = _env_float("TRUE_PEAK_DB", -1.5)
+HIGHPASS_HZ = int(_env_float("HIGHPASS_HZ", 60))
+OUTPUT_GAIN_DB = _env_float("OUTPUT_GAIN_DB", 4)  # fallback when loudness normalisation is off or fails
 CPU_THREADS = int(os.environ.get("KOKORO_CPU_THREADS", str(max(1, min(8, os.cpu_count() or 1)))))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -88,212 +115,135 @@ def _load_pipeline():
 
 
 # -----------------------------------------------------------------------------
-# Text preparation
+# Synthesis + encoding
 # -----------------------------------------------------------------------------
-_INLINE_TAG_RE = re.compile(r"\[[A-Za-z][A-Za-z \-]{1,24}\]")  # e.g. [pause], [laugh] (xAI speech tags)
-_WRAP_TAG_RE = re.compile(r"</?[A-Za-z][A-Za-z\-]{1,24}>")  # e.g. <whisper>...</whisper>
-_CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-_THOUSANDS_RE = re.compile(r"(?<![\d.,])(\d{1,3}(?:\.\d{3})+)(?![\d])")
-_DECIMAL_RE = re.compile(r"(?<![\d])(\d+),(\d+)(?![\d])")
-_NUMBER_RE = re.compile(r"(?<![\w])\d+(?![\w])")
-_YEAR_CONTEXT_RE = re.compile(
-    r"\b(Jahr|Jahre|Jahres|Jahren|im|seit|bis|ab|von|um|vor|nach|anno|Anno|Ende|Anfang|Mitte)\s+(1[1-9]\d\d|20\d\d)(?!\d)"
-)
-_MONTHS = "Januar|Februar|M\u00e4rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember"
-_DATE_RE = re.compile(r"(?<![\d])(\d{1,2})\.\s*(" + _MONTHS + r")\b")
-_ORDINAL_RE = re.compile(r"\b(?i:(am|im|zum|vom|beim|zur|den|dem))\s+(\d{1,2})\.(?=\s+[A-Z\u00c4\u00d6\u00dc])")
-
-try:
-    from num2words import num2words
-except Exception:  # pragma: no cover - optional dependency
-    num2words = None
+def _silence(seconds: float) -> np.ndarray:
+    return np.zeros(max(0, int(SAMPLE_RATE * seconds)), dtype=np.float32)
 
 
-def _spell_number(match: "re.Match[str]") -> str:
-    raw = match.group(0)
-    try:
-        value = int(raw)
-        if num2words is None:
-            return raw
-        return num2words(value, lang="de")
-    except Exception:
-        return raw
-
-
-def _spell_decimal(match: "re.Match[str]") -> str:
-    if num2words is None:
-        return match.group(0)
-    try:
-        whole = num2words(int(match.group(1)), lang="de")
-        frac = " ".join(num2words(int(d), lang="de") for d in match.group(2))
-        return f"{whole} Komma {frac}"
-    except Exception:
-        return match.group(0)
-
-
-def _ordinal(value: int, suffix: str = "n") -> str:
-    if num2words is None:
-        return str(value)
-    try:
-        base = num2words(value, lang="de", to="ordinal")  # e.g. "zweite"
-        return base + suffix if not base.endswith("n") else base
-    except Exception:
-        return str(value)
-
-
-def _cardinal_thousands(match: "re.Match[str]") -> str:
-    digits = match.group(1).replace(".", "")
-    try:
-        return num2words(int(digits), lang="de") if num2words else digits
-    except Exception:
-        return digits
-
-
-def _year_in_context(match: "re.Match[str]") -> str:
-    try:
-        return f"{match.group(1)} {num2words(int(match.group(2)), lang='de', to='year')}"
-    except Exception:
-        return match.group(0)
-
-
-def normalize_text(text: str) -> str:
-    text = unicodedata.normalize("NFC", text or "")
-    text = _CONTROL_RE.sub("", text)
-    text = _INLINE_TAG_RE.sub(" ", text)
-    text = _WRAP_TAG_RE.sub("", text)
-    # Quotes: German/French/typographic -> plain ASCII
-    text = re.sub("[“”„‟«»″〝〞〟＂]", '"', text)
-    text = re.sub("[‘’‚‛‹›′＇]", "'", text)
-    # Dashes become a soft pause, ellipsis stays a pause
-    text = re.sub(r"\s*[–—―]\s*", ", ", text)
-    text = re.sub(r"\s+-\s+", ", ", text)
-    text = text.replace("…", "...")
-    text = text.replace("&", " und ").replace("%", " Prozent").replace("€", " Euro")
-    # Numbers -> German words
-    text = _DATE_RE.sub(lambda m: f"{_ordinal(int(m.group(1)))} {m.group(2)}", text)
-    text = _ORDINAL_RE.sub(lambda m: f"{m.group(1)} {_ordinal(int(m.group(2)))}", text)
-    text = _THOUSANDS_RE.sub(_cardinal_thousands, text)
-    text = _YEAR_CONTEXT_RE.sub(_year_in_context, text)
-    text = _DECIMAL_RE.sub(_spell_decimal, text)
-    text = _NUMBER_RE.sub(_spell_number, text)
-    text = re.sub(r"[ \t]+", " ", text)
-    text = re.sub(r" *\n *", "\n", text)
-    return text.strip()
-
-
-_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?…])[\"')\]]*\s+")
-
-
-def _split_long(sentence: str, limit: int):
-    """Split an over-long sentence at clause boundaries, then at spaces."""
-    if len(sentence) <= limit:
-        return [sentence]
-    parts = re.split(r"(?<=[,;:])\s+", sentence)
-    out, buf = [], ""
-    for part in parts:
-        candidate = f"{buf} {part}".strip() if buf else part
-        if len(candidate) <= limit:
-            buf = candidate
+def _render(text: str, speed: float) -> Optional[np.ndarray]:
+    chunks = []
+    for _, _, audio in _pipeline(text, voice=_voice, speed=speed):
+        if audio is None:
             continue
-        if buf:
-            out.append(buf)
-        if len(part) <= limit:
-            buf = part
-            continue
-        words, cur = part.split(" "), ""
-        for word in words:
-            nxt = f"{cur} {word}".strip()
-            if len(nxt) > limit and cur:
-                out.append(cur)
-                cur = word
-            else:
-                cur = nxt
-        buf = cur
-    if buf:
-        out.append(buf)
+        chunks.append(audio.detach().cpu().numpy() if hasattr(audio, "detach") else np.asarray(audio))
+    if not chunks:
+        return None
+    return np.concatenate(chunks).astype(np.float32)
+
+
+def _trim_silence(samples: np.ndarray, threshold_db: float = -45.0) -> np.ndarray:
+    """Cut the model's variable lead/tail silence so the inserted pauses alone set the rhythm."""
+    frame = int(SAMPLE_RATE * 0.01)
+    frames = samples.size // frame
+    peak = float(np.max(np.abs(samples))) if samples.size else 0.0
+    if frames == 0 or peak <= 0.0:
+        return samples
+    rms = np.sqrt(np.mean(samples[: frames * frame].reshape(frames, frame) ** 2, axis=1))
+    active = np.nonzero(rms > peak * 10 ** (threshold_db / 20.0))[0]
+    if active.size == 0:
+        return samples
+    start = max(0, active[0] * frame - int(SAMPLE_RATE * 0.03))
+    end = min(samples.size, (active[-1] + 1) * frame + int(SAMPLE_RATE * 0.08))  # keep the natural decay
+    return samples[start:end]
+
+
+def _fade(samples: np.ndarray, seconds: float = 0.008) -> np.ndarray:
+    n = min(int(SAMPLE_RATE * seconds), samples.size // 2)
+    if n <= 0:
+        return samples
+    ramp = np.linspace(0.0, 1.0, n, dtype=np.float32)
+    out = samples.copy()
+    out[:n] *= ramp
+    out[-n:] *= ramp[::-1]
     return out
 
 
-def build_segments(text: str):
-    """Return [(text, pause_after_seconds)] with sentences grouped to GROUP_MAX_CHARS."""
-    segments = []
-    paragraphs = [p.strip() for p in re.split(r"\n{1,}", text) if p.strip()]
-    for p_index, paragraph in enumerate(paragraphs):
-        sentences = []
-        for sentence in _SENTENCE_SPLIT_RE.split(paragraph):
-            sentence = sentence.strip()
-            if sentence:
-                sentences.extend(_split_long(sentence, GROUP_MAX_CHARS))
-        group = ""
-        paragraph_segments = []
-        for sentence in sentences:
-            candidate = f"{group} {sentence}".strip() if group else sentence
-            if len(candidate) <= GROUP_MAX_CHARS:
-                group = candidate
-            else:
-                if group:
-                    paragraph_segments.append(group)
-                group = sentence
-        if group:
-            paragraph_segments.append(group)
-        for s_index, segment in enumerate(paragraph_segments):
-            last_in_paragraph = s_index == len(paragraph_segments) - 1
-            last_overall = last_in_paragraph and p_index == len(paragraphs) - 1
-            pause = 0.0 if last_overall else (PARAGRAPH_PAUSE_S if last_in_paragraph else SENTENCE_PAUSE_S)
-            segments.append((segment, pause))
-    return segments
-
-
-# -----------------------------------------------------------------------------
-# Synthesis + encoding
-# -----------------------------------------------------------------------------
 def synthesize(text: str, speed: float) -> np.ndarray:
-    segments = build_segments(normalize_text(text))
+    segments = build_segments(normalize_text(text), PAUSES, GROUP_MAX_CHARS)
     if not segments:
         raise ValueError("Text is empty after normalization.")
 
-    pieces = []
+    pieces = [_silence(LEAD_IN_S)]
+    rendered = 0
     with _infer_lock:
-        for segment_text, pause in segments:
-            chunks = []
-            for _, _, audio in _pipeline(segment_text, voice=_voice, speed=speed):
-                if audio is None:
-                    continue
-                chunks.append(audio.detach().cpu().numpy() if hasattr(audio, "detach") else np.asarray(audio))
-            if not chunks:
-                log.warning("No audio for segment: %r", segment_text[:80])
+        for segment in segments:
+            audio = _render(segment.text, speed)
+            if audio is None:
+                log.warning("No audio for segment: %r", segment.text[:80])
                 continue
-            pieces.append(np.concatenate(chunks).astype(np.float32))
-            if pause > 0:
-                pieces.append(np.zeros(int(SAMPLE_RATE * pause), dtype=np.float32))
-    if not pieces:
+            pieces.append(_fade(_trim_silence(audio)))
+            pieces.append(_silence(segment.pause))
+            rendered += 1
+    if not rendered:
         raise RuntimeError("Model produced no audio.")
     return np.concatenate(pieces)
 
 
-def encode(samples: np.ndarray, fmt: str) -> bytes:
+def _run_ffmpeg(samples: np.ndarray, args: list) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["ffmpeg", "-hide_banner", "-nostats", "-f", "f32le", "-ar", str(SAMPLE_RATE), "-ac", "1", "-i", "pipe:0", *args],
+        input=samples.astype(np.float32).tobytes(),
+        capture_output=True,
+        timeout=180,
+    )
+
+
+def _prefilter() -> str:
+    return f"highpass=f={HIGHPASS_HZ}" if HIGHPASS_HZ > 0 else "anull"
+
+
+def _loudnorm_chain(samples: np.ndarray) -> Optional[str]:
+    """Two-pass EBU R128 normalisation as one linear gain, so every chunk plays equally loud."""
+    target = f"I={TARGET_LUFS}:TP={TRUE_PEAK_DB}:LRA=20"
+    proc = _run_ffmpeg(samples, ["-af", f"{_prefilter()},loudnorm={target}:print_format=json", "-f", "null", "-"])
+    stderr = proc.stderr.decode(errors="ignore")
+    start, end = stderr.rfind("{"), stderr.rfind("}")
+    if proc.returncode != 0 or start < 0 or end < start:
+        log.warning("loudnorm measurement failed: %s", stderr[-300:])
+        return None
+    try:
+        measured = json.loads(stderr[start:end + 1])
+        values = {key: float(measured[key]) for key in ("input_i", "input_tp", "input_lra", "input_thresh", "target_offset")}
+    except (KeyError, ValueError):
+        log.warning("loudnorm measurement unreadable: %s", stderr[start:end + 1][:300])
+        return None
+    if not all(math.isfinite(v) for v in values.values()):
+        return None  # e.g. clips too short to measure
+    return (
+        f"{_prefilter()},loudnorm={target}:measured_I={values['input_i']}:measured_TP={values['input_tp']}"
+        f":measured_LRA={values['input_lra']}:measured_thresh={values['input_thresh']}"
+        f":offset={values['target_offset']}:linear=true,aresample={SAMPLE_RATE}"
+    )
+
+
+def _fixed_gain(samples: np.ndarray) -> np.ndarray:
     gain = 10 ** (OUTPUT_GAIN_DB / 20.0)
     peak = float(np.max(np.abs(samples))) if samples.size else 0.0
     if peak * gain > 0.97:  # never clip
         gain = 0.97 / peak
-    pcm = (np.clip(samples * gain, -1.0, 1.0) * 32767.0).astype(np.int16)
+    return np.clip(samples * gain, -1.0, 1.0).astype(np.float32)
+
+
+def encode(samples: np.ndarray, fmt: str) -> bytes:
+    chain = _loudnorm_chain(samples) if LOUDNORM else None
+    if chain is None:
+        samples, chain = _fixed_gain(samples), _prefilter()
+
     if fmt == "wav":
-        buf = BytesIO()
-        sf.write(buf, pcm, SAMPLE_RATE, format="WAV", subtype="PCM_16")
-        return buf.getvalue()
-    proc = subprocess.run(
-        [
-            "ffmpeg", "-hide_banner", "-loglevel", "error",
-            "-f", "s16le", "-ar", str(SAMPLE_RATE), "-ac", "1", "-i", "pipe:0",
-            "-codec:a", "libmp3lame", "-b:a", MP3_BITRATE, "-f", "mp3", "pipe:1",
-        ],
-        input=pcm.tobytes(),
-        capture_output=True,
-        timeout=120,
-    )
+        proc = _run_ffmpeg(samples, ["-af", chain, "-ar", str(SAMPLE_RATE), "-f", "s16le", "-acodec", "pcm_s16le", "pipe:1"])
+    else:
+        proc = _run_ffmpeg(
+            samples,
+            ["-af", chain, "-ar", str(SAMPLE_RATE), "-codec:a", "libmp3lame", "-b:a", MP3_BITRATE, "-f", "mp3", "pipe:1"],
+        )
     if proc.returncode != 0 or not proc.stdout:
-        raise RuntimeError(f"ffmpeg mp3 encoding failed: {proc.stderr.decode(errors='ignore')[:300]}")
-    return proc.stdout
+        raise RuntimeError(f"ffmpeg {fmt} encoding failed: {proc.stderr.decode(errors='ignore')[-300:]}")
+    if fmt != "wav":
+        return proc.stdout
+    buf = BytesIO()
+    sf.write(buf, np.frombuffer(proc.stdout, dtype=np.int16), SAMPLE_RATE, format="WAV", subtype="PCM_16")
+    return buf.getvalue()
 
 
 # -----------------------------------------------------------------------------
@@ -314,6 +264,8 @@ def health():
         "status": "ok" if ready else "loading",
         "model_loaded": ready,
         "checkpoint": CHECKPOINT,
+        "default_speed": DEFAULT_SPEED,
+        "loudnorm": LOUDNORM,
         "sample_rate": SAMPLE_RATE,
         "queue": _waiting,
     }), (200 if ready else 503)
