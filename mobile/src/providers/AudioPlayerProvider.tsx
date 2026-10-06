@@ -13,7 +13,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
 import { useBackend } from '@/api/backend';
 import { TTSConversionQueue, type QueueItem } from '@/audio/ttsQueue';
-import { splitTextIntoChunks, splitTextIntoChunksForXai } from '@/lib/ttsChunking';
+import { splitTextIntoChunks, splitTextIntoChunksForThorsten, splitTextIntoChunksForXai } from '@/lib/ttsChunking';
 import { storage } from '@/lib/storage';
 import { MAX_PLAYLIST_ITEMS, type ConversionStatus, type PlaylistItem } from '@/types/playlist';
 import {
@@ -601,7 +601,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       const sorted = [...chapters].sort((a, b) => a.order - b.order);
       const { request, cacheSuffix } = buildQueueVoicePayload(voiceSettings);
       const useEnrichedTTS = voiceSettings?.provider === 'xai';
-      const splitNarration = useEnrichedTTS ? splitTextIntoChunksForXai : splitTextIntoChunks;
+      const splitNarration = useEnrichedTTS
+        ? splitTextIntoChunksForXai
+        : voiceSettings?.provider === 'thorsten'
+          ? splitTextIntoChunksForThorsten
+          : splitTextIntoChunks;
 
       const baseNarratorSpeaker = request?.speaker;
       const dialogueVoicePool = voiceSettings?.dialogueSpeakerIds?.filter(Boolean) ?? [];
@@ -709,7 +713,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       }
 
       const chunks =
-        voiceSettings?.provider === 'xai' ? splitTextIntoChunksForXai(normalizedText) : splitTextIntoChunks(normalizedText);
+        voiceSettings?.provider === 'xai'
+          ? splitTextIntoChunksForXai(normalizedText)
+          : voiceSettings?.provider === 'thorsten'
+            ? splitTextIntoChunksForThorsten(normalizedText)
+            : splitTextIntoChunks(normalizedText);
       if (chunks.length === 0) return;
 
       const { request, cacheSuffix } = buildQueueVoicePayload(voiceSettings);

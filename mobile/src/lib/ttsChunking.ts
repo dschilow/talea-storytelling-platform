@@ -164,6 +164,38 @@ export function splitTextIntoChunksForXai(text: string): string[] {
   return splitTextIntoChunks(normalized);
 }
 
+/**
+ * Thorsten (Kokoro) sets its pauses from the text itself: a line break becomes a
+ * paragraph pause and "..." a suspense pause. Same chunk sizes as the default
+ * splitter, but paragraph breaks and ellipses survive.
+ */
+export function splitTextIntoChunksForThorsten(text: string): string[] {
+  const trimmed = normalizeTTSText(text.replace(/\u2026/g, "..."));
+  if (!trimmed) return [];
+
+  const chunks: string[] = [];
+  let current = "";
+  let currentWords = 0;
+
+  for (const paragraph of toParagraphs(trimmed)) {
+    // Only oversized paragraphs are split; their pieces stay one paragraph.
+    splitTextIntoChunks(paragraph).forEach((piece, index) => {
+      const words = piece.split(/\s+/).length;
+      const separator = index === 0 ? "\n" : " ";
+      if (current && (currentWords + words > TARGET_WORDS || current.length + 1 + piece.length > MAX_CHARS)) {
+        chunks.push(current);
+        current = "";
+        currentWords = 0;
+      }
+      current = current ? `${current}${separator}${piece}` : piece;
+      currentWords += words;
+    });
+  }
+
+  if (current) chunks.push(current);
+  return chunks;
+}
+
 function toParagraphs(text: string): string[] {
   const normalizedLines = text.replace(/\r\n?/g, "\n");
   const hasBlankLines = /\n\s*\n/.test(normalizedLines);
