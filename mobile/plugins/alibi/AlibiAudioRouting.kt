@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.*
 import android.os.Build
 import android.os.Handler
+import android.util.Log
 
 /** Receiver selection applies only to communication audio, never WebView media.
  * Does not open the microphone or change the user's system volume. Main thread only. */
@@ -21,10 +22,10 @@ class AlibiAudioRouting(context: Context, private val handler: Handler, private 
   var receiver: AudioDeviceInfo? = null
     private set
   private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
-    if (change < 0) handler.post { if (privateOutput) lost() }
+    if (change < 0) handler.post { if (privateOutput) { Log.w("AlibiAudio", "audio focus lost ($change), ending private output"); lost() } }
   }
   private val deviceListener = if (Build.VERSION.SDK_INT >= 31) AudioManager.OnCommunicationDeviceChangedListener { device ->
-    if (privateOutput && !opening && device?.type != AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) lost()
+    if (privateOutput && !opening && device?.type != AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) { Log.w("AlibiAudio", "communication device changed to ${device?.type}, ending private output"); lost() }
   } else null
 
   init {
@@ -89,6 +90,7 @@ class AlibiAudioRouting(context: Context, private val handler: Handler, private 
     else !audio.isSpeakerphoneOn && !audio.isBluetoothScoOn
 
   private fun fail(message: String) {
+    Log.w("AlibiAudio", "private route failed: $message")
     val jobs = pending.toList(); pending.clear()
     close()
     jobs.forEach { it.second(message) }

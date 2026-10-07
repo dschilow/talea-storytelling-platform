@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import com.facebook.react.bridge.*
@@ -129,7 +130,7 @@ class AlibiSpeechModule(private val context: ReactApplicationContext) : ReactCon
       source(mp)
       mp.setOnCompletionListener { finishMedia(mp) }
       mp.setOnErrorListener { _, _, _ -> finishMedia(mp, "Aufnahme konnte nicht abgespielt werden."); true }
-      val gain = volume.toFloat().coerceIn(0f, if (priv) 0.35f else 1f)
+      val gain = volume.toFloat().coerceIn(0f, 1f)
       mp.setVolume(if (priv) 0f else gain, if (priv) 0f else gain)
       mp.setOnPreparedListener {
         if (player !== mp || token != counter) return@setOnPreparedListener
@@ -145,8 +146,14 @@ class AlibiSpeechModule(private val context: ReactApplicationContext) : ReactCon
               mp.pause()
               mp.setOnSeekCompleteListener { if (player === mp && token == counter) { mp.setVolume(gain, gain); mp.start() } }
               mp.seekTo(0)
-            } else if (attempt < 40 && devices.isEmpty()) handler.postDelayed({ check(attempt + 1) }, 25)
-            else finishMedia(mp, "Geheime Aufnahme bleibt stumm: Hörmuschel nicht aktiv.", "PRIVATE_ROUTE")
+            // The probe is muted, so waiting is safe. Right after start() the
+            // output may still report the previous route (speaker) for a moment;
+            // failing on that first reading silenced every secret on some devices.
+            } else if (attempt < 40) handler.postDelayed({ check(attempt + 1) }, 25)
+            else {
+              Log.w("AlibiAudio", "secret stayed muted, routed to: " + devices.joinToString { "type=${it.type}" })
+              finishMedia(mp, "Geheime Aufnahme bleibt stumm: Hörmuschel nicht aktiv.", "PRIVATE_ROUTE")
+            }
           }
           mp.addOnRoutingChangedListener({ routed ->
             if (player === mp) {

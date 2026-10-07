@@ -104,7 +104,8 @@ timer and cover private information. Android Back closes a game overlay first,
 then uses the game's existing exit confirmation.
 
 Private MP3s and fallback speech use native Android communication audio and the
-built-in earpiece, at a capped quiet volume. On Android 12+ the host waits for
+built-in earpiece at full clip volume (the earpiece itself is the privacy; the call
+volume buttons set loudness). On Android 12+ the host waits for
 `setCommunicationDevice` to confirm that route; MP3 playback verifies the actual
 output while muted before becoming audible (all outputs on Android 16+).
 Private TTS is synthesized to a temporary app-private file and uses the same
