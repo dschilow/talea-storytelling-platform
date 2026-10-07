@@ -9,9 +9,14 @@ import React, {
   type ReactNode,
 } from 'react';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
+import * as FileSystem from 'expo-file-system/legacy';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
 import { useBackend } from '@/api/backend';
+import { useAuth } from '@clerk/clerk-expo';
+import { useOptionalChildProfiles } from '@/providers/ChildProfilesProvider';
+import { useJourneyProgress } from '@/hooks/useJourneyProgress';
+import { useToast } from '@/providers/ToastProvider';
 import { TTSConversionQueue, type QueueItem } from '@/audio/ttsQueue';
 import { splitTextIntoChunks, splitTextIntoChunksForThorsten, splitTextIntoChunksForXai } from '@/lib/ttsChunking';
 import { storage } from '@/lib/storage';
@@ -36,7 +41,6 @@ import {
  *     re-listen costs nothing and works offline.
  */
 
-const PLAYLIST_STORAGE_KEY = 'talea.audio.playlist.v1';
 const KEEP_AWAKE_TAG = 'talea-audio';
 const DIALOGUE_LINE_PATTERN = /^\s*([^:\n]{1,40})\s*:\s*(.+)$/;
 
@@ -50,6 +54,7 @@ export interface AudioTrack {
 
 interface StoredPlaylistState {
   playlist: PlaylistItem[];
+  conversions?: QueueItem[];
   currentIndex: number;
   isPlaylistActive: boolean;
 }
@@ -63,6 +68,8 @@ interface StoryChapterInput {
 }
 
 interface AudioPlayerContextValue {
+  voiceSettings: TTSVoiceSettings;
+  setVoiceSettings: (settings: TTSVoiceSettings) => void;
   track: AudioTrack | null;
   isPlaying: boolean;
   currentTime: number;
@@ -172,7 +179,19 @@ function splitChapterIntoDialogueAwareSegments(content: string): Array<{ text: s
 // ── Provider ───────────────────────────────────────────────────────────────
 
 export function AudioPlayerProvider({ children }: { children: ReactNode }) {
+  const { userId } = useAuth();
+  const profileId = useOptionalChildProfiles()?.activeProfileId;
+  const PLAYLIST_STORAGE_KEY = `talea.audio.playlist.v1:${userId ?? 'guest'}:${profileId ?? 'default'}`;
   const backend = useBackend();
+  const toast = useToast();
+  const journey = useJourneyProgress();
+  const completeAudioRef = useRef(journey.complete);
+  completeAudioRef.current = journey.complete;
+  const completedAudioIds = useRef(new Set<string>());
+  const voiceKey = `${PLAYLIST_STORAGE_KEY}:voices`;
+  const [preferredVoiceSettings, setPreferredVoiceSettings] = useState<TTSVoiceSettings>({ mode: 'default' });
+  useEffect(() => { let cancelled = false; void storage.getJSON<TTSVoiceSettings>(voiceKey, { mode: 'default' }).then((settings) => { if (!cancelled) setPreferredVoiceSettings(settings); }); return () => { cancelled = true; }; }, [voiceKey]);
+  const setVoiceSettings = useCallback((settings: TTSVoiceSettings) => { setPreferredVoiceSettings(settings); void storage.setJSON(voiceKey, settings); }, [voiceKey]);
 
   const [track, setTrack] = useState<AudioTrack | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -193,7 +212,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const currentIndexRef = useRef(-1);
   const autoplayRef = useRef(true);
   const queueRef = useRef<TTSConversionQueue | null>(null);
+  const conversionInputs = useRef(new Map<string, QueueItem>());
+  const playbackRequest = useRef(0);
   const hydratedRef = useRef(false);
+  const [playlistHydrated, setPlaylistHydrated] = useState(false);
 
   playlistRef.current = playlist;
   currentIndexRef.current = currentIndex;
@@ -225,31 +247,37 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   // ── Restore the persisted playlist once at startup ──────────────────────
   useEffect(() => {
     if (hydratedRef.current) return;
-    hydratedRef.current = true;
+    let cancelled = false;
 
     void storage
       .getJSON<StoredPlaylistState | null>(PLAYLIST_STORAGE_KEY, null)
-      .then((stored) => {
+      .then(async (stored) => {
+        if (cancelled) return;
         if (!stored?.playlist?.length) return;
+        for (const conversion of stored.conversions ?? []) conversionInputs.current.set(conversion.id, conversion);
         // Items whose cached audio may have been evicted come back as `pending`;
         // the queue re-resolves them from cache or the library on demand.
-        setPlaylist(
-          stored.playlist.map((item) =>
-            item.audioUrl?.startsWith('file://') ? item : { ...item, audioUrl: undefined, conversionStatus: 'pending' }
-          )
-        );
+        const restored = await Promise.all(stored.playlist.map(async (item): Promise<PlaylistItem> => {
+          if (item.type === 'audio-doku') return item;
+          if (item.audioUrl?.startsWith('file://') && (await FileSystem.getInfoAsync(item.audioUrl).catch(() => ({ exists: false }))).exists) return item;
+          return { ...item, audioUrl: undefined, conversionStatus: 'pending' };
+        }));
+        if (cancelled) return;
+        setPlaylist(restored);
         setCurrentIndex(stored.currentIndex ?? -1);
         setIsPlaylistActive(Boolean(stored.isPlaylistActive));
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => { if (!cancelled) { hydratedRef.current = true; setPlaylistHydrated(true); } });
+    return () => { cancelled = true; };
   }, []);
 
   // ── Persist playlist changes ────────────────────────────────────────────
   useEffect(() => {
-    if (!hydratedRef.current) return;
-    const state: StoredPlaylistState = { playlist, currentIndex, isPlaylistActive };
+    if (!playlistHydrated) return;
+    const state: StoredPlaylistState = { playlist, currentIndex, isPlaylistActive, conversions: playlist.flatMap((item) => { const input = conversionInputs.current.get(item.id); return input ? [input] : []; }) };
     void storage.setJSON(PLAYLIST_STORAGE_KEY, state);
-  }, [playlist, currentIndex, isPlaylistActive]);
+  }, [playlist, currentIndex, isPlaylistActive, playlistHydrated]);
 
   // ── Conversion queue ────────────────────────────────────────────────────
   const handleChunkReady = useCallback((itemId: string, playableUri: string) => {
@@ -306,6 +334,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       setIsPlaying(status.playing ?? false);
       setIsReady(status.isLoaded ?? false);
       setIsBuffering(status.isBuffering ?? false);
+      const item = playlistRef.current[currentIndexRef.current];
+      if (item?.type === 'audio-doku' && !completedAudioIds.current.has(item.id) && (status.didJustFinish || (status.currentTime ?? 0) >= 180)) {
+        completedAudioIds.current.add(item.id);
+        void completeAudioRef.current('audio').catch(() => {});
+      }
 
       if (status.didJustFinish) {
         advanceRef.current();
@@ -339,6 +372,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const playTrack = useCallback(
     (nextTrack: AudioTrack, options?: { autoplay?: boolean }) => {
+      playbackRequest.current += 1;
+      setWaitingForConversion(false);
       const autoplay = options?.autoplay !== false;
       setIsPlaylistActive(false);
       setCurrentIndex(-1);
@@ -389,6 +424,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const close = useCallback(() => {
+    playbackRequest.current += 1;
     playerRef.current?.pause();
     setTrack(null);
     setIsPlaying(false);
@@ -407,6 +443,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       if (index < 0 || index >= items.length) return;
 
       const item = items[index];
+      const requestId = ++playbackRequest.current;
+      currentIndexRef.current = index;
       setCurrentIndex(index);
       setIsPlaylistActive(true);
       autoplayRef.current = autoplay;
@@ -419,17 +457,30 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       });
       setCurrentTime(0);
 
-      if (item.audioUrl) {
+      if (item.type === 'audio-doku') {
+        // Signed library URLs expire; check current access whenever a queued episode starts.
+        playerRef.current?.pause(); setWaitingForConversion(true);
+        void backend.doku.getAudioDoku({ id: item.trackId }).then((fresh) => {
+          if (playbackRequest.current !== requestId || playlistRef.current[index]?.id !== item.id) return;
+          if (fresh.locked || !fresh.audioUrl) throw new Error(fresh.lockReason || 'Diese Hörfolge ist nicht verfügbar.');
+          setPlaylist((current) => current.map((entry) => entry.id === item.id ? { ...entry, audioUrl: fresh.audioUrl, conversionStatus: 'ready' } : entry));
+          setTrack({ id: item.id, title: item.title, description: item.description, coverImageUrl: item.coverImageUrl, audioUrl: fresh.audioUrl });
+          setWaitingForConversion(false); loadSource(fresh.audioUrl, autoplay);
+        }).catch((error) => { if (playbackRequest.current !== requestId) return; setWaitingForConversion(false); setIsPlaying(false); toast.error('Hörfolge nicht verfügbar', error instanceof Error ? error.message : undefined); });
+      } else if (item.audioUrl) {
         setWaitingForConversion(false);
         loadSource(item.audioUrl, autoplay);
       } else {
         // Not converted yet — show the "preparing audio" state and let the
         // readiness effect start playback the moment the chunk lands.
         setWaitingForConversion(true);
+        const input = conversionInputs.current.get(item.id) ?? (item.sourceText ? { id: item.id, text: item.sourceText } : undefined);
+        if (input) queueRef.current?.enqueue([input]);
+        else { setWaitingForConversion(false); toast.error('Hörfassung fehlt', 'Bitte füge diesen Inhalt erneut zur Wiedergabeliste hinzu.'); }
         queueRef.current?.prioritize(item.id);
       }
     },
-    [loadSource]
+    [loadSource, backend.doku, toast]
   );
 
   /** Starts playback as soon as the awaited chunk finishes converting. */
@@ -439,6 +490,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     if (index < 0) return;
 
     const item = playlist[index];
+    if (item?.type === 'audio-doku') return;
     if (item?.audioUrl) {
       setWaitingForConversion(false);
       setTrack({
@@ -591,6 +643,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       autoplay = true,
       voiceSettings?: TTSVoiceSettings
     ) => {
+      voiceSettings ??= preferredVoiceSettings;
       if (playlistRef.current.some((item) => item.parentStoryId === storyId)) {
         // Already queued — just jump to its first chunk.
         const index = playlistRef.current.findIndex((item) => item.parentStoryId === storyId);
@@ -689,9 +742,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       } else {
         addToPlaylist(newItems);
       }
+      queueItems.forEach((item) => conversionInputs.current.set(item.id, item));
       queueRef.current?.enqueue(queueItems);
     },
-    [addAndPlay, addToPlaylist, buildQueueVoicePayload, playIndex]
+    [addAndPlay, addToPlaylist, buildQueueVoicePayload, playIndex, preferredVoiceSettings]
   );
 
   const startDokuConversion = useCallback(
@@ -703,6 +757,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       autoplay = true,
       voiceSettings?: TTSVoiceSettings
     ) => {
+      voiceSettings ??= preferredVoiceSettings;
       const normalizedText = dokuText.trim();
       if (!normalizedText) return;
 
@@ -759,9 +814,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       } else {
         addToPlaylist(newItems);
       }
+      queueItems.forEach((item) => conversionInputs.current.set(item.id, item));
       queueRef.current?.enqueue(queueItems);
     },
-    [addAndPlay, addToPlaylist, buildQueueVoicePayload, playIndex]
+    [addAndPlay, addToPlaylist, buildQueueVoicePayload, playIndex, preferredVoiceSettings]
   );
 
   const hasStoryInPlaylist = useCallback((storyId: string) => playlist.some((item) => item.parentStoryId === storyId), [playlist]);
@@ -777,6 +833,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AudioPlayerContextValue>(
     () => ({
+      voiceSettings: preferredVoiceSettings,
+      setVoiceSettings,
       track,
       isPlaying,
       currentTime,
@@ -814,6 +872,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       hasDokuInPlaylist,
     }),
     [
+      preferredVoiceSettings,
+      setVoiceSettings,
       addAndPlay,
       addToPlaylist,
       clearPlaylist,

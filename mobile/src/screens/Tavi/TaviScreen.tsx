@@ -22,6 +22,7 @@ import { Touchable } from '@/components/ui/Pressable';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import type { TaviChatAction, TaviChatResponse } from '@/types/tavi';
 import type { RootStackParamList } from '@/navigation/types';
+import { resolveWebRoute } from '@/navigation/webRoutes';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -123,7 +124,7 @@ export function TaviScreen() {
           break;
         case 'wizard_prefill':
           if (action.wizardType === 'avatar') navigation.navigate('AvatarWizard');
-          else if (action.wizardType === 'doku') navigation.navigate('DokuWizard');
+          else if (action.wizardType === 'doku') navigation.navigate('DokuWizard', { topic: action.wizardData?.topic, domainId: action.wizardData?.domainId });
           else {
             const data = action.wizardData ?? {};
             navigation.navigate('StoryWizard', {
@@ -133,21 +134,9 @@ export function TaviScreen() {
           }
           break;
         case 'navigate':
-          // Routes arrive as web paths; translate the ones that map cleanly.
-          if (action.route?.startsWith('/story-reader/')) {
-            navigation.navigate('StoryReader', { storyId: action.route.split('/').pop()! });
-          } else if (action.route?.startsWith('/doku-reader/')) {
-            navigation.navigate('DokuReader', { dokuId: action.route.split('/').pop()! });
-          } else if (action.route?.startsWith('/avatar/')) {
-            navigation.navigate('AvatarDetail', { avatarId: action.route.split('/').pop()! });
-          } else if (action.route === '/map') {
-            navigation.navigate('Journey');
-          } else if (action.route === '/cosmos') {
-            navigation.navigate('Cosmos');
-          } else if (action.route === '/quiz') {
-            navigation.navigate('Tabs', { screen: 'Quiz' });
-          } else {
-            toast.info('Nicht verfügbar', 'Diesen Bereich gibt es nur in der Web-App.');
+          { const destination = resolveWebRoute(action.route);
+            if (destination) (navigation.navigate as any)(destination.name, destination.params);
+            else toast.info('Link nicht verfügbar', 'Dieser Link konnte nicht geöffnet werden.');
           }
           break;
         case 'choice':
@@ -380,3 +369,4 @@ const styles = StyleSheet.create({
   sendButton: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   listItem: { flexDirection: 'row', alignItems: 'center' },
 });
+

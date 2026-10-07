@@ -70,3 +70,4 @@ __pycache__/
 # Spiel-Werkzeuge: Rohbilder und Prüfberichte
 scripts/game-art/.cache/
 scripts/game-qa/out/
+.tmp-alibi/

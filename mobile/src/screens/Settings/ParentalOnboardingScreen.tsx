@@ -1,265 +1,118 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, Switch, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Switch, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { KeyRound, ShieldCheck } from 'lucide-react-native';
-
-import { useTheme } from '@/theme/ThemeProvider';
 import { useBackend } from '@/api/backend';
 import { useOptionalUserAccess } from '@/providers/UserAccessProvider';
 import { useToast } from '@/providers/ToastProvider';
+import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { Text } from '@/components/ui/Text';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { Text } from '@/components/ui/Text';
+import { Card } from '@/components/ui/Card';
+import { Chip } from '@/components/ui/Chip';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Stepper } from '@/components/form/Stepper';
-import type { RootStackParamList } from '@/navigation/types';
 
-type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Preset = { id: string; label: string; keywords: string[] };
+type Presets = { blockedThemePresets: Preset[]; blockedWordPresets: Preset[]; goalPresets: Preset[] };
+export type ParentalControls = {
+  enabled: boolean; onboardingCompleted: boolean; hasPin: boolean;
+  blockedThemes: string[]; blockedWords: string[]; learningGoals: string[]; profileKeywords: string[];
+  dailyLimits: { stories: number | null; dokus: number | null };
+};
+const keywords = (text: string) => [...new Set(text.split(',').map((word) => word.trim()).filter(Boolean))];
 
-interface ParentalControls {
-  onboardingCompleted?: boolean;
-  hasPin?: boolean;
-  dailyStoryLimit?: number | null;
-  dailyMinutesLimit?: number | null;
-  requirePinForSettings?: boolean;
-  blockedTopics?: string[];
-}
-
-/**
- * Parental controls setup.
- *
- * Gates the child-facing app on first run (see RootNavigator): a parent decides
- * limits and whether settings need a PIN before a child ever opens the app.
- * The PIN is verified server-side — it is never stored on the device.
- */
+/** Same controls, presets and server-verified PIN contract as web. */
 export function ParentalOnboardingScreen() {
   const { colors, spacing } = useTheme();
-  const navigation = useNavigation<Nav>();
   const backend = useBackend();
+  const navigation = useNavigation();
+  const { refresh } = useOptionalUserAccess();
   const toast = useToast();
-  const { refresh, hasParentalPin } = useOptionalUserAccess();
-
-  const [loading, setLoading] = useState(true);
+  const [controls, setControls] = useState<ParentalControls | null>(null);
+  const [presets, setPresets] = useState<Presets | null>(null);
+  const [error, setError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [textFields, setTextFields] = useState({ blockedThemes: '', blockedWords: '', learningGoals: '', profileKeywords: '' });
 
-  const [pin, setPin] = useState('');
-  const [pinConfirm, setPinConfirm] = useState('');
-  const [requirePinForSettings, setRequirePinForSettings] = useState(true);
-  const [dailyStoryLimit, setDailyStoryLimit] = useState(3);
-  const [dailyMinutesLimit, setDailyMinutesLimit] = useState(45);
-  const [limitsEnabled, setLimitsEnabled] = useState(true);
-  const [blockedTopics, setBlockedTopics] = useState('');
+  async function load() {
+    setError(false);
+    try {
+      const response = await backend.user.getParentalControls();
+      setControls(response.controls);
+      setPresets(response.presets);
+      setTextFields(Object.fromEntries(Object.keys(textFields).map((field) => [field, response.controls[field].join(', ')])) as typeof textFields);
+    } catch { setError(true); }
+  }
+  useEffect(() => { void load(); }, [backend.user]);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const controls = (await (backend.user as any).getParentalControls({})) as ParentalControls;
-        setRequirePinForSettings(controls?.requirePinForSettings ?? true);
-        if (typeof controls?.dailyStoryLimit === 'number') setDailyStoryLimit(controls.dailyStoryLimit);
-        if (typeof controls?.dailyMinutesLimit === 'number') setDailyMinutesLimit(controls.dailyMinutesLimit);
-        setLimitsEnabled(controls?.dailyStoryLimit !== null);
-        setBlockedTopics((controls?.blockedTopics ?? []).join(', '));
-      } catch {
-        // First run — defaults above are the intended starting point.
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [backend.user]);
-
-  const handleSave = useCallback(async () => {
-    const wantsNewPin = pin.length > 0;
-
-    if (wantsNewPin) {
-      if (pin.length < 4) {
-        toast.warning('PIN zu kurz', 'Mindestens 4 Ziffern.');
-        return;
-      }
-      if (pin !== pinConfirm) {
-        toast.warning('PINs stimmen nicht überein');
-        return;
-      }
+  async function save() {
+    if (!controls || saving) return;
+    if (newPin && (!/^\d{4,8}$/.test(newPin) || newPin !== confirmPin)) {
+      toast.warning('PIN prüfen', '4–8 Ziffern und eine identische Bestätigung sind erforderlich.');
+      return;
     }
-
     setSaving(true);
     try {
-      await (backend.user as any).saveParentalControls({
-        onboardingCompleted: true,
-        ...(wantsNewPin ? { pin } : {}),
-        requirePinForSettings,
-        dailyStoryLimit: limitsEnabled ? dailyStoryLimit : null,
-        dailyMinutesLimit: limitsEnabled ? dailyMinutesLimit : null,
-        blockedTopics: blockedTopics
-          .split(',')
-          .map((entry) => entry.trim())
-          .filter(Boolean),
+      const result = await backend.user.saveParentalControls({
+        currentPin: controls.hasPin ? currentPin : undefined, newPin: newPin || undefined,
+        enabled: controls.enabled, onboardingCompleted: true,
+        ...Object.fromEntries(Object.entries(textFields).map(([key, text]) => [key, keywords(text)])),
+        dailyStoryLimit: controls.dailyLimits.stories, dailyDokuLimit: controls.dailyLimits.dokus,
       });
-
+      setControls(result.controls);
+      setCurrentPin(''); setNewPin(''); setConfirmPin('');
       await refresh();
-      toast.success('Elternbereich eingerichtet');
-
-      // On first run this screen IS the root; afterwards it is pushed.
+      toast.success('Elterneinstellungen gespeichert');
       if (navigation.canGoBack()) navigation.goBack();
-    } catch (error) {
-      toast.error('Speichern fehlgeschlagen', error instanceof Error ? error.message : undefined);
-    } finally {
-      setSaving(false);
-    }
-  }, [
-    backend.user,
-    blockedTopics,
-    dailyMinutesLimit,
-    dailyStoryLimit,
-    limitsEnabled,
-    navigation,
-    pin,
-    pinConfirm,
-    refresh,
-    requirePinForSettings,
-    toast,
-  ]);
+    } catch (err) { toast.error('Speichern fehlgeschlagen', err instanceof Error ? err.message : undefined); }
+    finally { setSaving(false); }
+  }
 
-  return (
-    <Screen>
-      <ScreenHeader
-        title="Elternbereich"
-        subtitle="Einmal einrichten — danach kann dein Kind loslegen."
-        showBack={navigation.canGoBack()}
-      />
-
-      <View style={{ gap: spacing.base }}>
-        <Card variant="inset">
-          <View style={{ flexDirection: 'row', gap: spacing.md }}>
-            <ShieldCheck size={20} color={colors.success} />
-            <Text variant="bodySm" tone="secondary" style={{ flex: 1 }}>
-              Diese Einstellungen gelten für alle Kinderprofile. Du kannst sie jederzeit in den Einstellungen ändern.
-            </Text>
-          </View>
-        </Card>
-
-        <Card>
-          <View style={{ gap: spacing.md }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <KeyRound size={17} color={colors.text.secondary} />
-              <Text variant="label" style={{ flex: 1 }}>
-                Eltern-PIN
-              </Text>
-            </View>
-
-            <Text variant="caption" tone="tertiary">
-              {hasParentalPin
-                ? 'Ein PIN ist gesetzt. Lass die Felder leer, um ihn zu behalten.'
-                : 'Schützt Einstellungen und den Elternbereich vor neugierigen Fingern.'}
-            </Text>
-
-            <Input
-              label={hasParentalPin ? 'Neuer PIN (optional)' : 'PIN'}
-              value={pin}
-              onChangeText={setPin}
-              keyboardType="number-pad"
-              secureTextEntry
-              maxLength={8}
-              placeholder="4–8 Ziffern"
-            />
-            <Input
-              label="PIN wiederholen"
-              value={pinConfirm}
-              onChangeText={setPinConfirm}
-              keyboardType="number-pad"
-              secureTextEntry
-              maxLength={8}
-            />
-          </View>
-        </Card>
-
-        <Card padded={false}>
-          <View style={[styles.toggleRow, { padding: spacing.md, gap: spacing.md }]}>
-            <View style={{ flex: 1 }}>
-              <Text variant="label">PIN für Einstellungen</Text>
-              <Text variant="caption" tone="tertiary">
-                Einstellungen und Abo nur nach PIN-Eingabe
-              </Text>
-            </View>
-            <Switch
-              value={requirePinForSettings}
-              onValueChange={setRequirePinForSettings}
-              trackColor={{ false: colors.progressTrack, true: colors.primary }}
-              thumbColor={colors.media.foreground}
-              accessibilityLabel="PIN für Einstellungen"
-            />
-          </View>
-        </Card>
-
-        <Card padded={false}>
-          <View style={[styles.toggleRow, { padding: spacing.md, gap: spacing.md }]}>
-            <View style={{ flex: 1 }}>
-              <Text variant="label">Tageslimits</Text>
-              <Text variant="caption" tone="tertiary">
-                Begrenzt neue Geschichten und Lesezeit pro Tag
-              </Text>
-            </View>
-            <Switch
-              value={limitsEnabled}
-              onValueChange={setLimitsEnabled}
-              trackColor={{ false: colors.progressTrack, true: colors.primary }}
-              thumbColor={colors.media.foreground}
-              accessibilityLabel="Tageslimits"
-            />
-          </View>
-
-          {limitsEnabled ? (
-            <View
-              style={{
-                padding: spacing.md,
-                gap: spacing.base,
-                borderTopWidth: StyleSheet.hairlineWidth,
-                borderTopColor: colors.border.light,
-              }}
-            >
-              <Stepper
-                label="Neue Geschichten pro Tag"
-                value={dailyStoryLimit}
-                min={1}
-                max={20}
-                onChange={setDailyStoryLimit}
-              />
-              <Stepper
-                label="Lesezeit pro Tag"
-                value={dailyMinutesLimit}
-                min={10}
-                max={180}
-                step={5}
-                onChange={setDailyMinutesLimit}
-                unit="Min"
-              />
-            </View>
-          ) : null}
-        </Card>
-
-        <Input
-          label="Themen ausschließen"
-          value={blockedTopics}
-          onChangeText={setBlockedTopics}
-          placeholder="Gewalt, Tod, Trennung"
-          hint="Kommagetrennt — diese Themen kommen in keiner Geschichte vor."
-          multilineRows={2}
-        />
-
-        <Button
-          label="Einrichtung abschließen"
-          onPress={handleSave}
-          loading={saving || loading}
-          size="lg"
-          fullWidth
-        />
-      </View>
-    </Screen>
-  );
+  return <Screen>
+    <ScreenHeader title="Elternbereich" subtitle="Schutz, Tageslimits und Lernziele" showBack={navigation.canGoBack()} />
+    {error ? <EmptyState title="Einstellungen konnten nicht geladen werden" actionLabel="Erneut versuchen" onAction={() => void load()} /> : !controls ?
+      <Text>Lädt …</Text> : <View style={{ gap: spacing.base }}>
+      <Card><View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <Text variant="label" style={{ flex: 1 }}>Inhaltsfilter aktiv</Text>
+        <Switch value={controls.enabled} onValueChange={(enabled) => setControls({ ...controls, enabled })}
+          trackColor={{ true: colors.primary }} accessibilityLabel="Inhaltsfilter aktiv" />
+      </View></Card>
+      {controls.hasPin ? <Input label="Aktuelle Eltern-PIN" value={currentPin} onChangeText={setCurrentPin} secureTextEntry keyboardType="number-pad" maxLength={8} /> : null}
+      <Input label={controls.hasPin ? 'Neue PIN (optional)' : 'Eltern-PIN (4–8 Ziffern)'} value={newPin} onChangeText={setNewPin} secureTextEntry keyboardType="number-pad" maxLength={8} />
+      {newPin ? <Input label="Neue PIN bestätigen" value={confirmPin} onChangeText={setConfirmPin} secureTextEntry keyboardType="number-pad" maxLength={8} /> : null}
+      {(['stories', 'dokus'] as const).map((kind) => <Card key={kind}><View style={{ gap: spacing.md }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text variant="label" style={{ flex: 1 }}>{kind === 'stories' ? 'Geschichtenlimit' : 'Dokulimit'} pro Tag</Text>
+          <Switch value={controls.dailyLimits[kind] !== null} accessibilityLabel={`${kind === 'stories' ? 'Geschichten' : 'Doku'} begrenzen`}
+            onValueChange={(on) => setControls({ ...controls, dailyLimits: { ...controls.dailyLimits, [kind]: on ? 3 : null } })} />
+        </View>
+        {controls.dailyLimits[kind] !== null ? <Stepper label="Neue Inhalte" value={controls.dailyLimits[kind]!} min={0} max={30}
+          onChange={(value) => setControls({ ...controls, dailyLimits: { ...controls.dailyLimits, [kind]: value } })} /> : null}
+      </View></Card>)}
+      {([
+        ['blockedThemes', 'Themen ausschließen', presets?.blockedThemePresets],
+        ['blockedWords', 'Wörter ausschließen', presets?.blockedWordPresets],
+        ['learningGoals', 'Lernziele', presets?.goalPresets],
+        ['profileKeywords', 'Interessen und Hinweise', undefined],
+      ] as const).map(([field, label, options]) => <View key={field} style={{ gap: spacing.sm }}>
+        <Input label={label} value={textFields[field]} onChangeText={(value) => setTextFields({ ...textFields, [field]: value })} multilineRows={2} hint="Kommagetrennt" />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+          {options?.map((preset) => {
+            const existing = keywords(textFields[field]);
+            const selected = preset.keywords.every((word) => existing.includes(word));
+            return <Chip key={preset.id} label={preset.label} selected={selected} onPress={() => setTextFields({ ...textFields,
+              [field]: (selected ? existing.filter((word) => !preset.keywords.includes(word)) : [...new Set([...existing, ...preset.keywords])]).join(', '),
+            })} />;
+          })}
+        </View>
+      </View>)}
+      <Button label="Einstellungen speichern" onPress={() => void save()} loading={saving} fullWidth />
+    </View>}
+  </Screen>;
 }
-
-const styles = StyleSheet.create({
-  toggleRow: { flexDirection: 'row', alignItems: 'center' },
-});

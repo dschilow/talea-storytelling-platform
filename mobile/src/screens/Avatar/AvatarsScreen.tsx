@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet';
 import { HeaderAction, ScreenHeader } from '@/components/ui/ScreenHeader';
 import { AvatarCard } from '@/components/cards/AvatarCard';
+import { Button } from '@/components/ui/Button';
 import { SheetAction } from '@/screens/Story/StoriesScreen';
 import type { Avatar } from '@/types/avatar';
 import type { RootStackParamList } from '@/navigation/types';
@@ -94,10 +95,13 @@ export function AvatarsScreen() {
         refreshing={avatarsQuery.isRefetching}
         onRefresh={() => void avatarsQuery.refetch()}
         ListHeaderComponent={
+          <View style={{ gap: spacing.sm }}>
+          <Button label="Avatar aus Vorlagen übernehmen" variant="secondary" onPress={() => navigation.navigate('AvatarExchange')} />
           <View style={{ flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.xs, paddingVertical: spacing.sm }}>
             {filters.map((entry) => (
               <Chip key={entry.id} label={entry.label} selected={filter === entry.id} onPress={() => setFilter(entry.id)} />
             ))}
+          </View>
           </View>
         }
         renderItem={({ item }) => (
@@ -115,7 +119,7 @@ export function AvatarsScreen() {
               <SkeletonCard height={140} />
               <SkeletonCard height={140} />
             </View>
-          ) : (
+          ) : avatarsQuery.isError ? <EmptyState title="Avatare konnten nicht geladen werden" actionLabel="Erneut versuchen" onAction={() => void avatarsQuery.refetch()} /> : (
             <EmptyState
               icon={<UserPlus size={24} color={colors.accent.lavender} />}
               title={filter === 'all' ? 'Noch kein Avatar' : 'Keine Avatare in diesem Filter'}

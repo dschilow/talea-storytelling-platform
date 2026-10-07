@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -8,6 +8,10 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { Download, Headphones, Lightbulb, List, Sparkles, Wrench } from 'lucide-react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
+import { useBackend } from '@/api/backend';
+import { useInvalidateContent } from '@/hooks/queries';
+import { useJourneyProgress } from '@/hooks/useJourneyProgress';
+import { Button } from '@/components/ui/Button';
 import { useDoku } from '@/hooks/queries';
 import { useAudioPlayer } from '@/providers/AudioPlayerProvider';
 import { useOffline } from '@/providers/OfflineProvider';
@@ -42,21 +46,27 @@ export function DokuReaderScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<ReaderRoute>();
   const toast = useToast();
+  const backend = useBackend();
+  const invalidate = useInvalidateContent();
+  const journey = useJourneyProgress();
+  const [finishing, setFinishing] = useState(false);
+  const [completed, setCompleted] = useState(false);
 
   const { dokuId } = route.params;
   const dokuQuery = useDoku(dokuId);
   const offline = useOffline();
   const { startDokuConversion, hasDokuInPlaylist } = useAudioPlayer();
   const sectionSheetRef = useRef<SheetRef>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const sectionPositions = useRef<Record<number, number>>({});
+  const contentTop = useRef(0);
 
   useKeepAwake('talea-doku-reader');
 
   const offlineCopy = offline.getDoku(dokuId);
   const doku = dokuQuery.data;
 
-  // The offline copy stores prose and images only (facts and interactive blocks
-  // are not mirrored), so it is widened to the full section shape with those
-  // parts absent rather than producing a second, narrower type.
+  // Saved sections retain facts, activities and questions for offline reading.
   const sections = useMemo<DokuSection[]>(() => {
     if (doku?.content?.sections?.length) return doku.content.sections;
     if (offlineCopy) {
@@ -64,7 +74,8 @@ export function DokuReaderScreen() {
         title: section.title,
         content: section.content,
         imageUrl: section.imageUrl,
-        keyFacts: [],
+        keyFacts: section.keyFacts ?? [],
+        interactive: section.interactive,
       }));
     }
     return [];
@@ -95,6 +106,7 @@ export function DokuReaderScreen() {
       topic: doku.topic,
       coverImageUrl: doku.coverImageUrl,
       sections: doku.content.sections.map((section, index) => ({
+        ...section,
         title: section.title,
         content: section.content,
         imageUrl: section.imageUrl,
@@ -133,7 +145,7 @@ export function DokuReaderScreen() {
   }
 
   return (
-    <Screen playerClearance>
+    <Screen playerClearance scrollRef={scrollRef}>
       <ScreenHeader
         title={title}
         subtitle={doku?.topic}
@@ -152,7 +164,7 @@ export function DokuReaderScreen() {
         }
       />
 
-      <View style={{ gap: spacing.xl }}>
+      <View onLayout={(event) => { contentTop.current = event.nativeEvent.layout.y; }} style={{ gap: spacing.xl }}>
         {doku?.coverImageUrl || offlineCopy?.coverImageUrl ? (
           <CoverImage
             uri={offline.resolveImage(doku?.coverImageUrl ?? offlineCopy?.coverImageUrl)}
@@ -171,7 +183,7 @@ export function DokuReaderScreen() {
         ) : null}
 
         {sections.map((section, index) => (
-          <Animated.View key={`${section.title}-${index}`} entering={FadeIn.delay(index * 60).duration(320)} style={{ gap: spacing.md }}>
+          <Animated.View key={`${section.title}-${index}`} onLayout={(event) => { sectionPositions.current[index] = event.nativeEvent.layout.y; }} entering={FadeIn.delay(index * 60).duration(320)} style={{ gap: spacing.md }}>
             <View style={{ gap: 4 }}>
               <Text variant="overline" tone="tertiary">
                 Abschnitt {index + 1}
@@ -251,6 +263,21 @@ export function DokuReaderScreen() {
             ) : null}
           </Animated.View>
         ))}
+        {sections.some((section) => section.interactive?.quiz?.enabled && section.interactive.quiz.questions.length) ?
+          <Button label="Quiz starten" onPress={() => navigation.navigate('DokuQuiz', { dokuId })} /> : null}
+        <Button label={completed ? 'Doku gelesen' : 'Doku beenden'} loading={finishing} disabled={completed || !doku}
+          onPress={async () => {
+            if (!doku || finishing) return;
+            setFinishing(true);
+            try {
+              const result = await backend.doku.markRead({ dokuId, dokuTitle: title, topic: doku.topic,
+                perspective: doku.metadata?.configSnapshot?.perspective, domainId: doku.metadata?.configSnapshot?.domainId });
+              setCompleted(true); invalidate();
+              await journey.complete('doku').catch(() => {});
+              toast.success(result.alreadyCompleted ? 'Schon früher abgeschlossen' : 'Doku abgeschlossen', result.alreadyCompleted ? undefined : `${result.updatedAvatars} Avatare haben dazugelernt.`);
+            } catch (error) { toast.error('Fortschritt nicht gespeichert', error instanceof Error ? error.message : undefined); }
+            finally { setFinishing(false); }
+          }} />
       </View>
 
       <Sheet ref={sectionSheetRef} snapPoints={['50%']} title="Abschnitte" subtitle={title}>
@@ -258,7 +285,7 @@ export function DokuReaderScreen() {
           {sections.map((section, index) => (
             <Touchable
               key={`${section.title}-${index}`}
-              onPress={() => sectionSheetRef.current?.close()}
+              onPress={() => { sectionSheetRef.current?.close(); scrollRef.current?.scrollTo({ y: contentTop.current + (sectionPositions.current[index] ?? 0), animated: true }); }}
               style={[styles.sectionRow, { borderRadius: radius.md, padding: spacing.md, gap: spacing.md }]}
             >
               <Text variant="labelSm" tone="tertiary" style={{ width: 22 }}>

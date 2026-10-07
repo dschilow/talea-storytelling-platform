@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, Switch, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { FlaskConical, Sparkles } from 'lucide-react-native';
@@ -70,13 +70,14 @@ const LENGTHS = [
 export function DokuWizardScreen() {
   const { colors, spacing } = useTheme();
   const navigation = useNavigation<Nav>();
+  const route = useRoute<RouteProp<RootStackParamList, 'DokuWizard'>>();
   const backend = useBackend();
   const toast = useToast();
   const { i18n } = useTranslation();
   const invalidateContent = useInvalidateContent();
   const profileId = useOptionalChildProfiles()?.activeProfileId ?? null;
 
-  const [topic, setTopic] = useState('');
+  const [topic, setTopic] = useState(route.params?.topic ?? '');
   const [ageGroup, setAgeGroup] = useState<DokuConfig['ageGroup']>('6-8');
   const [depth, setDepth] = useState<DokuConfig['depth']>('standard');
   const [perspective, setPerspective] = useState<DokuConfig['perspective']>('science');
@@ -97,6 +98,7 @@ export function DokuWizardScreen() {
       const doku = (await (backend.doku as any).generateDoku({
         config: {
           topic: topic.trim(),
+          domainId: route.params?.domainId,
           depth,
           ageGroup,
           perspective,

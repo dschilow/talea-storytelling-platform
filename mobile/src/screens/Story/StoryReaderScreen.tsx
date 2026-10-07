@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, View } from 'react-native';
+import { useWindowDimensions, ScrollView, StyleSheet, View } from 'react-native';
+import { useAuth } from '@clerk/clerk-expo';
+import { useOptionalChildProfiles } from '@/providers/ChildProfilesProvider';
+import { useBackend } from '@/api/backend';
+import { useJourneyProgress } from '@/hooks/useJourneyProgress';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -31,9 +35,8 @@ import { GrowthSheet } from './GrowthSheet';
 import type { RootStackParamList } from '@/navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-type ReaderRoute = RouteProp<RootStackParamList, 'StoryReader'>;
+type ReaderRoute = RouteProp<RootStackParamList, 'StoryReader' | 'CharacterLifeStory'>;
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const FONT_SCALES = [0.9, 1, 1.15, 1.3] as const;
 
 /**
@@ -49,13 +52,21 @@ const FONT_SCALES = [0.9, 1, 1.15, 1.3] as const;
  * shown with the reason for each one.
  */
 export function StoryReaderScreen() {
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+  const { userId } = useAuth();
+  const profileId = useOptionalChildProfiles()?.activeProfileId;
+  const backend = useBackend();
+  const journey = useJourneyProgress();
   const { colors, spacing, radius, type } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const route = useRoute<ReaderRoute>();
   const toast = useToast();
 
-  const { storyId, startChapter } = route.params;
+  const { storyId } = route.params;
+  const startChapter = 'startChapter' in route.params ? route.params.startChapter : undefined;
+  const progressKey = `${StorageKeys.readingProgress}:${userId}:${profileId}:${storyId}`;
+  const [positionRestored, setPositionRestored] = useState(false);
   const storyQuery = useStory(storyId);
   const markRead = useMarkStoryRead();
   const offline = useOffline();
@@ -100,26 +111,38 @@ export function StoryReaderScreen() {
 
   // Restore the last read position.
   useEffect(() => {
-    if (startChapter !== undefined) return;
+    let cancelled = false;
+    if (startChapter !== undefined) { setPositionRestored(true); return; }
     void storage
-      .getJSON<Record<string, number>>(StorageKeys.readingProgress, {})
-      .then((progress) => {
-        const saved = progress[storyId];
+      .getJSON<number>(progressKey, 0)
+      .then((saved) => {
+        if (cancelled) return;
         if (typeof saved === 'number' && saved > 0) {
           setChapterIndex(saved);
-          // Defer so the pager has laid out before we jump.
-          requestAnimationFrame(() => pagerRef.current?.scrollTo({ x: saved * SCREEN_WIDTH, animated: false }));
         }
+        setPositionRestored(true);
       });
-  }, [startChapter, storyId]);
+    return () => { cancelled = true; };
+  }, [startChapter, progressKey]);
+
+  useEffect(() => {
+    if (!positionRestored || !chapters.length) return;
+    const safeIndex = Math.min(Math.max(0, chapterIndex), chapters.length - 1);
+    if (safeIndex !== chapterIndex) setChapterIndex(safeIndex);
+    requestAnimationFrame(() => pagerRef.current?.scrollTo({ x: safeIndex * SCREEN_WIDTH, animated: false }));
+  }, [SCREEN_WIDTH, chapters.length, positionRestored]);
 
   // Persist position as the reader moves.
   useEffect(() => {
-    if (chapters.length === 0) return;
-    void storage.getJSON<Record<string, number>>(StorageKeys.readingProgress, {}).then((progress) => {
-      void storage.setJSON(StorageKeys.readingProgress, { ...progress, [storyId]: chapterIndex });
-    });
-  }, [chapterIndex, chapters.length, storyId]);
+    if (!positionRestored || chapters.length === 0) return;
+    const timer = setTimeout(() => {
+      void storage.setJSON(progressKey, chapterIndex);
+      if (story?.userId === userId && !(story as any)?.profileState?.completed && (story as any)?.profileState?.completionState !== 'completed' && !hasMarkedRead.current && route.name !== 'CharacterLifeStory') {
+        void backend.story.updateStoryProfileState({ id: storyId, progressPct: Math.round(chapterIndex / chapters.length * 100), completionState: 'in_progress' }).catch(() => {});
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [chapterIndex, chapters.length, positionRestored, progressKey, backend, story?.userId, userId, storyId]);
 
   const goToChapter = useCallback(
     (index: number) => {
@@ -128,10 +151,11 @@ export function StoryReaderScreen() {
       setChapterIndex(index);
       pagerRef.current?.scrollTo({ x: index * SCREEN_WIDTH, animated: true });
     },
-    [chapters.length]
+    [chapters.length, SCREEN_WIDTH]
   );
 
   const handleFinish = useCallback(async () => {
+    if (route.name === 'CharacterLifeStory') { navigation.goBack(); return; }
     if (hasMarkedRead.current) {
       setShowGrowth(true);
       return;
@@ -151,6 +175,7 @@ export function StoryReaderScreen() {
       // first completion. Showing the growth sheet again would promise points
       // the child does not get.
       setIsRepeatRead(outcome.alreadyCompleted);
+      await journey.complete('story').catch(() => {});
     } catch {
       // Progress could not be saved — say so instead of celebrating growth
       // that never happened, and allow a retry.
@@ -159,7 +184,7 @@ export function StoryReaderScreen() {
       return;
     }
     setShowGrowth(true);
-  }, [markRead, story?.config?.avatars, story?.config?.genre, storyId, title, toast]);
+  }, [markRead, story?.config?.avatars, story?.config?.genre, storyId, title, toast, route.name, navigation]);
 
   const handleListen = useCallback(() => {
     if (chapters.length === 0) return;

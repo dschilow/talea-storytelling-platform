@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { IMG } from "../content";
 import { director } from "../audio";
 import { earpiece, earpiecePossible } from "../earpiece";
+import { nativeAudio } from "../native-audio";
 import type { AlibiController } from "../controller";
 import { useAlibiState } from "../hooks";
 import { GameIcon } from "./primitives";
@@ -17,6 +18,7 @@ export const PhoneSetup: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   const st = useEarpieceState();
   const [testing, setTesting] = useState(false);
   const possible = earpiecePossible();
+  const android = !!nativeAudio();
   const mode = ctrl.setup.phone || "whisper";
   const test = async () => {
     setTesting(true);
@@ -35,13 +37,17 @@ export const PhoneSetup: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
           <b className="text-white">Geheimtelefon:</b> Geheimes flüstert Tavi nur dem, der das Handy hält. Niemand muss lesen können.
         </p>
       </div>
-      <div className={cn("grid gap-2", possible ? "grid-cols-2" : "grid-cols-1")} role="radiogroup" aria-label="Wie Tavi flüstert">
+      <div className={cn("grid gap-2", possible && !android ? "grid-cols-2" : "grid-cols-1")} role="radiogroup" aria-label="Wie Tavi flüstert">
         {possible ? (
-          <PhoneOption on={mode === "earpiece"} a="phoneEarpiece" title="Wie telefonieren" text="Ton aus der Hörmuschel oben am iPhone" icon="ear" onClick={() => ctrl.setPhone("earpiece")} />
+          <PhoneOption on={mode === "earpiece"} a="phoneEarpiece" title="Wie telefonieren" text={android ? "Geheime Aussagen nur aus der Hörmuschel oben am Handy" : "Ton aus der Hörmuschel oben am iPhone"} icon="ear" onClick={() => ctrl.setPhone("earpiece")} />
         ) : null}
-        <PhoneOption on={mode === "whisper" || !possible} a="phoneWhisper" title={possible ? "Leise flüstern" : "Leise flüstern (Handy ans Ohr)"} text="ganz leise aus dem Lautsprecher" icon="secret" onClick={() => ctrl.setPhone("whisper")} />
+        {!android ? <PhoneOption on={mode === "whisper" || !possible} a="phoneWhisper" title={possible ? "Leise flüstern" : "Leise flüstern (Handy ans Ohr)"} text="ganz leise aus dem Lautsprecher" icon="secret" onClick={() => ctrl.setPhone("whisper")} /> : null}
       </div>
-      {mode === "earpiece" && possible ? (
+      {android ? <>
+        <p className="text-[12px] leading-snug text-white/65">Halte das Handy wie beim Telefonieren ans Ohr. Öffentliche Aussagen hören alle laut. Während der geheimen Aussage bleibt die Musik still.</p>
+        <WhisperVolume ctrl={ctrl} />
+        {st === "failed" ? <p role="status" className="text-[12px] text-[#ffb4a6]">Hörmuschel nicht verfügbar. Geheime Aussagen bleiben stumm; du kannst sie verdeckt lesen.</p> : null}
+      </> : mode === "earpiece" && possible ? (
         <p className="text-[12px] leading-snug text-white/65">
           Damit das iPhone in den Telefon-Modus schaltet, fragt es einmal nach dem Mikrofon. Tavi hört nicht zu: Das Mikrofon bleibt stumm und wird nach den Akten wieder freigegeben.
           {st === "denied" ? <span className="mt-1 block font-semibold text-[#ffb4a6]">Mikrofon nicht erlaubt: Tavi flüstert stattdessen leise über den Lautsprecher.</span> : null}
@@ -111,13 +117,14 @@ export const WhisperVolume: React.FC<{ ctrl: AlibiController; compact?: boolean 
 export const PhoneHint: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   const st = useEarpieceState();
   const ear = st === "on";
+  const android = !!nativeAudio();
   return (
     <div className="flex w-full flex-col items-center gap-1.5">
       <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-bold", ear ? "bg-emerald-400/15 text-emerald-100" : "bg-white/10 text-white/80")}>
         <GameIcon name="ear" size={18} />
-        {ear ? "Hörmuschel: Handy wie beim Telefonieren ans Ohr" : st === "starting" ? "Telefon-Modus startet …" : "Ganz leise: Lautsprecher ans Ohr halten"}
+        {ear ? "Hörmuschel: Handy wie beim Telefonieren ans Ohr" : st === "starting" ? "Telefon-Modus startet …" : android ? st === "failed" ? "Hörmuschel nicht verfügbar: geheimen Text verdeckt lesen" : "Geheimtelefon: Handy ans Ohr halten" : "Ganz leise: Lautsprecher ans Ohr halten"}
       </span>
-      {!ear && st !== "starting" ? <WhisperVolume ctrl={ctrl} compact /> : null}
+      {(android && ear) || (!android && !ear && st !== "starting") ? <WhisperVolume ctrl={ctrl} compact /> : null}
     </div>
   );
 };

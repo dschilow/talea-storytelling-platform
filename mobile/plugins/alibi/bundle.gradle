@@ -1,0 +1,18 @@
+def alibiMobileRoot = rootDir.getAbsoluteFile().getParentFile()
+def bundleAlibi = tasks.register("bundleAlibi", Exec) {
+    workingDir alibiMobileRoot
+    commandLine "bun", "run", "build:alibi"
+    inputs.dir(new File(alibiMobileRoot, "../frontend/screens/Game/alibi"))
+    inputs.dir(new File(alibiMobileRoot, "../frontend/public/game"))
+    inputs.files(new File(alibiMobileRoot, "../frontend/index.css"), new File(alibiMobileRoot, "../frontend/screens/Game/game.css"), new File(alibiMobileRoot, "../frontend/lib/utils.ts"))
+    inputs.dir(new File(alibiMobileRoot, "alibi-web"))
+    inputs.file(new File(alibiMobileRoot, "src/screens/Game/alibi/protocol.ts"))
+    inputs.file(new File(alibiMobileRoot, "scripts/build-alibi.mjs"))
+    inputs.file(new File(alibiMobileRoot, "package.json"))
+    inputs.file(new File(alibiMobileRoot, "../frontend/package.json"))
+    inputs.files(new File(alibiMobileRoot, "bun.lock"), new File(alibiMobileRoot, "../bun.lock"))
+    outputs.dir(new File(alibiMobileRoot, "android/app/src/main/assets/alibi"))
+}
+tasks.named("preBuild").configure { dependsOn(bundleAlibi) }
+// Keep the custom volume-aware speech module outside generated Android files.
+android.sourceSets.main.java.srcDirs += new File(alibiMobileRoot, "plugins/alibi")

@@ -14,7 +14,7 @@ export type TabParamList = {
   Stories: undefined;
   Avatars: undefined;
   Dokus: undefined;
-  Quiz: undefined;
+  Spiel: { tab?: 'alibi' | 'quiz' } | undefined;
 };
 
 export type RootStackParamList = {
@@ -30,6 +30,7 @@ export type RootStackParamList = {
   AvatarWizard: { childMode?: boolean } | undefined;
   AvatarDetail: { avatarId: string };
   AvatarEdit: { avatarId: string };
+  AvatarExchange: { avatarId?: string } | undefined;
 
   // Story
   StoryWizard: { tags?: string; mapAvatarId?: string; bringArtifact?: string; bringAvatar?: string } | undefined;
@@ -39,15 +40,18 @@ export type RootStackParamList = {
   CharacterLifeStory: { storyId: string };
 
   // Doku
-  DokuWizard: undefined;
+  DokuWizard: { topic?: string; domainId?: string } | undefined;
   DokuReader: { dokuId: string };
-  AudioDokuCreate: undefined;
+  DokuQuiz: { dokuId: string };
+  AudioLibrary: undefined;
+  AudioDokuCreate: { audioDokuId?: string } | undefined;
 
   // Learning / gamification
   Journey: undefined;
   Cosmos: undefined;
   CosmosParent: undefined;
   Treasury: { avatarId?: string } | undefined;
+  Alibi: undefined;
 
   // Utility
   Settings: undefined;
@@ -59,9 +63,12 @@ export type RootStackParamList = {
   // Admin-only
   AdminDashboard: undefined;
   Logs: undefined;
+  AdminAvatars: undefined;
   CharacterPool: undefined;
   ArtifactPool: undefined;
   FairyTales: undefined;
+  FairyTaleEditor: { taleId: string };
+  CharacterLifeEditor: { characterId: string };
 };
 
 declare global {

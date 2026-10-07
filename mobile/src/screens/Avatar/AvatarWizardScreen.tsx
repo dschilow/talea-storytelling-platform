@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { CoverImage } from '@/components/ui/CoverImage';
+import * as ImagePicker from 'expo-image-picker';
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet';
 import { StepIdentity } from './wizard/StepIdentity';
 import { StepBody } from './wizard/StepBody';
@@ -26,6 +28,7 @@ import { AvatarGenerationOverlay } from './wizard/AvatarGenerationOverlay';
 import {
   DEFAULT_AVATAR_FORM_DATA,
   formDataToNarrativeProfile,
+  formDataToDescription,
   formDataToVisualProfile,
   type AvatarFormData,
 } from '@/types/avatarForm';
@@ -58,6 +61,26 @@ export function AvatarWizardScreen() {
   const [form, setForm] = useState<AvatarFormData>(DEFAULT_AVATAR_FORM_DATA);
   const [creating, setCreating] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
+  const [referenceImageUrl, setReferenceImageUrl] = useState<string | undefined>();
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>();
+  const [previewSignature, setPreviewSignature] = useState('');
+  const [generatingPreview, setGeneratingPreview] = useState(false);
+  const signature = JSON.stringify([formDataToVisualProfile(form), referenceImageUrl]);
+
+  async function choosePhoto(camera: boolean) {
+    try {
+    const permission = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) { toast.info('Zugriff erforderlich', 'Bitte erlaube Talea den Zugriff in den Android-Einstellungen.'); return; }
+    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.7, base64: true, allowsEditing: true, aspect: [1, 1] };
+      const picked = camera ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+      if (!picked.canceled && picked.assets[0].base64) setReferenceImageUrl(`data:${picked.assets[0].mimeType ?? 'image/jpeg'};base64,${picked.assets[0].base64}`);
+    } catch (error) { toast.error('Foto konnte nicht geöffnet werden', error instanceof Error ? error.message : undefined); }
+  }
+
+  async function generatePreview() {
+    const result = await backend.ai.generateAvatarImage({ characterType: form.characterType === 'other' ? form.customCharacterType : form.characterType, appearance: formDataToDescription(form), personalityTraits: {}, style: 'disney', referenceImageUrl });
+    setPreviewUrl(result.imageUrl); setPreviewSignature(signature); return result.imageUrl as string;
+  }
 
   // A family's first avatar is the child themself; later ones are companions.
   const isChildMode = route.params?.childMode ?? false;
@@ -104,16 +127,18 @@ export function AvatarWizardScreen() {
 
       const characterType =
         form.characterType === 'other' && form.customCharacterType ? form.customCharacterType : form.characterType;
+      const imageUrl = previewUrl && previewSignature === signature ? previewUrl : await generatePreview();
 
       const created = (await (backend.avatar as any).create({
         name: form.name.trim(),
         description: form.additionalDescription?.trim() || undefined,
         physicalTraits: {
           characterType,
-          appearance: form.additionalDescription?.trim() || undefined,
+          appearance: formDataToDescription(form),
         },
         visualProfile,
         narrativeProfile,
+        imageUrl,
         creationType: 'ai-generated' as const,
         avatarRole: isChildMode ? ('child' as const) : ('companion' as const),
         profileId: childProfiles?.activeProfileId ?? undefined,
@@ -129,7 +154,7 @@ export function AvatarWizardScreen() {
       toast.error('Avatar konnte nicht erstellt werden', error instanceof Error ? error.message : undefined);
       setCreating(false);
     }
-  }, [backend.avatar, childProfiles?.activeProfileId, form, invalidateContent, isChildMode, navigation, toast]);
+  }, [backend.avatar, backend.ai, childProfiles?.activeProfileId, form, invalidateContent, isChildMode, navigation, toast, referenceImageUrl, previewUrl, previewSignature, signature]);
 
   if (creating) {
     return <AvatarGenerationOverlay name={form.name} />;
@@ -164,6 +189,15 @@ export function AvatarWizardScreen() {
       >
         <Animated.View key={step} entering={SlideInRight.duration(240)} exiting={SlideOutLeft.duration(160)}>
           {steps[step]}
+          {step === 2 ? <View style={{ gap: spacing.sm, marginTop: spacing.base }}>
+            <Button label="Foto als Vorlage wählen" variant="secondary" onPress={() => void choosePhoto(false)} />
+            <Button label="Foto aufnehmen" variant="secondary" onPress={() => void choosePhoto(true)} />
+            {referenceImageUrl ? <><CoverImage uri={referenceImageUrl} style={{ height: 180 }} /><Button label="Fotovorlage entfernen" variant="ghost" onPress={() => setReferenceImageUrl(undefined)} /></> : null}
+          </View> : null}
+          {step === LAST_STEP ? <View style={{ gap: spacing.sm, marginTop: spacing.base }}>
+            {previewUrl && previewSignature === signature ? <CoverImage uri={previewUrl} style={{ height: 240 }} /> : null}
+            <Button label="Avatar-Bild als Vorschau erstellen" loading={generatingPreview} variant="secondary" onPress={async () => { if (generatingPreview) return; setGeneratingPreview(true); try { await generatePreview(); } catch (error) { toast.error('Bildgenerierung fehlgeschlagen', error instanceof Error ? error.message : undefined); } finally { setGeneratingPreview(false); } }} />
+          </View> : null}
         </Animated.View>
       </ScrollView>
 
@@ -183,6 +217,7 @@ export function AvatarWizardScreen() {
         {step === LAST_STEP ? (
           <Button
             label="Avatar erschaffen"
+            disabled={generatingPreview}
             onPress={handleCreate}
             icon={<Sparkles size={17} color={colors.primaryForeground} />}
             size="lg"

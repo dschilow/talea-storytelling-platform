@@ -6,7 +6,7 @@ import { HomeScreen } from '@/screens/Home/HomeScreen';
 import { StoriesScreen } from '@/screens/Story/StoriesScreen';
 import { AvatarsScreen } from '@/screens/Avatar/AvatarsScreen';
 import { DokusScreen } from '@/screens/Doku/DokusScreen';
-import { QuizScreen } from '@/screens/Quiz/QuizScreen';
+import { GameHubScreen } from '@/screens/Game/GameHubScreen';
 import { TabBar } from './TabBar';
 import type { TabParamList } from './types';
 
@@ -34,7 +34,7 @@ export function TabNavigator() {
       <Tab.Screen name="Stories" component={StoriesScreen} options={{ tabBarLabel: t('navigation.stories', 'Geschichten') }} />
       <Tab.Screen name="Avatars" component={AvatarsScreen} options={{ tabBarLabel: t('navigation.avatars', 'Avatare') }} />
       <Tab.Screen name="Dokus" component={DokusScreen} options={{ tabBarLabel: 'Dokus' }} />
-      <Tab.Screen name="Quiz" component={QuizScreen} options={{ tabBarLabel: 'Quiz' }} />
+      <Tab.Screen name="Spiel" component={GameHubScreen} options={{ tabBarLabel: 'Spiel' }} />
     </Tab.Navigator>
   );
 }

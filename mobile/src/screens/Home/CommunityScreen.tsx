@@ -24,7 +24,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 interface PublishedLifeStory {
   id: string;
   title: string;
-  summary?: string;
+  description?: string;
   coverImageUrl?: string;
   characterName?: string;
 }
@@ -91,9 +91,9 @@ export function CommunityScreen() {
                         <Text variant="title" numberOfLines={2}>
                           {story.title}
                         </Text>
-                        {story.summary ? (
+                        {story.description ? (
                           <Text variant="caption" tone="secondary" numberOfLines={2}>
-                            {story.summary}
+                            {story.description}
                           </Text>
                         ) : null}
                         {story.characterName ? <Chip label={story.characterName} size="sm" style={{ marginTop: 2 }} /> : null}

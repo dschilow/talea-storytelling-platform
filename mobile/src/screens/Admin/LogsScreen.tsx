@@ -1,126 +1,39 @@
-import React, { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { AlertTriangle, Bug, Info, RefreshCw, XCircle } from 'lucide-react-native';
-
-import { useTheme } from '@/theme/ThemeProvider';
+import { RefreshCw } from 'lucide-react-native';
 import { useBackend } from '@/api/backend';
+import { useTheme } from '@/theme/ThemeProvider';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { Text } from '@/components/ui/Text';
-import { SkeletonText } from '@/components/ui/Skeleton';
+import { Input } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonText } from '@/components/ui/Skeleton';
 import { HeaderAction, ScreenHeader } from '@/components/ui/ScreenHeader';
 
-type LogLevel = 'all' | 'error' | 'warn' | 'info';
-
-interface LogEntry {
-  id?: string;
-  level?: string;
-  source?: string;
-  message?: string;
-  timestamp?: string;
-  metadata?: Record<string, unknown>;
-}
-
-/**
- * Log viewer.
- *
- * Scoped to recent story-pipeline errors — the thing worth checking from a
- * phone. Full log search stays in the web admin.
- */
 export function LogsScreen() {
-  const { colors, spacing } = useTheme();
   const backend = useBackend();
-  const [level, setLevel] = useState<LogLevel>('all');
-
-  const logsQuery = useQuery<LogEntry[]>({
-    queryKey: ['admin-logs'],
-    queryFn: async () => {
-      const response = (await (backend.story as any).debugRecentStories({ limit: 40 })) as {
-        entries?: LogEntry[];
-        stories?: LogEntry[];
-      };
-      return response?.entries ?? response?.stories ?? [];
-    },
-    refetchInterval: 30_000,
+  const { spacing, colors } = useTheme();
+  const [source, setSource] = useState('');
+  const [date, setDate] = useState('');
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const validDate = !date || /^\d{4}-\d{2}-\d{2}$/.test(date);
+  const sources = useQuery({ queryKey: ['admin-log-sources'], queryFn: () => backend.log.getSources() });
+  const logs = useQuery<{ logs: Array<{ id: string; source: string; timestamp: string; request: unknown; response: unknown; metadata?: unknown }>; totalCount: number }>({
+    queryKey: ['admin-logs', source, date], enabled: validDate,
+    queryFn: () => backend.log.list({ source: source || undefined, date: date || undefined, limit: 200 }),
   });
-
-  const entries = logsQuery.data ?? [];
-
-  const filtered = useMemo(() => {
-    if (level === 'all') return entries;
-    return entries.filter((entry) => (entry.level ?? 'info').toLowerCase() === level);
-  }, [entries, level]);
-
-  const levelConfig: Record<string, { color: string; Icon: typeof Info }> = {
-    error: { color: colors.danger, Icon: XCircle },
-    warn: { color: colors.warning, Icon: AlertTriangle },
-    info: { color: colors.primary, Icon: Info },
-  };
-
-  return (
-    <Screen>
-      <ScreenHeader
-        title="Logs"
-        subtitle={`${entries.length} Einträge`}
-        actions={
-          <HeaderAction onPress={() => void logsQuery.refetch()} accessibilityLabel="Aktualisieren">
-            <RefreshCw size={17} color={colors.text.primary} />
-          </HeaderAction>
-        }
-      />
-
-      <View style={{ gap: spacing.base }}>
-        <View style={{ flexDirection: 'row', gap: spacing.xs }}>
-          {(['all', 'error', 'warn', 'info'] as LogLevel[]).map((entry) => (
-            <Chip
-              key={entry}
-              label={entry === 'all' ? 'Alle' : entry.toUpperCase()}
-              selected={level === entry}
-              onPress={() => setLevel(entry)}
-            />
-          ))}
-        </View>
-
-        {logsQuery.isLoading ? (
-          <SkeletonText lines={10} />
-        ) : filtered.length === 0 ? (
-          <EmptyState icon={<Bug size={22} color={colors.text.tertiary} />} title="Keine Einträge" compact />
-        ) : (
-          filtered.map((entry, index) => {
-            const config = levelConfig[(entry.level ?? 'info').toLowerCase()] ?? levelConfig.info;
-            const { Icon } = config;
-
-            return (
-              <Card key={entry.id ?? index} variant="inset">
-                <View style={{ gap: 6 }}>
-                  <View style={[styles.row, { gap: spacing.sm }]}>
-                    <Icon size={14} color={config.color} />
-                    <Text variant="labelSm" style={{ flex: 1 }} numberOfLines={1}>
-                      {entry.source ?? 'system'}
-                    </Text>
-                    {entry.timestamp ? (
-                      <Text variant="caption" tone="muted">
-                        {new Date(entry.timestamp).toLocaleTimeString('de-DE')}
-                      </Text>
-                    ) : null}
-                  </View>
-
-                  <Text variant="mono" tone="secondary" selectable>
-                    {entry.message ?? JSON.stringify(entry.metadata ?? {}, null, 2)}
-                  </Text>
-                </View>
-              </Card>
-            );
-          })
-        )}
-      </View>
-    </Screen>
-  );
+  return <Screen><ScreenHeader title="Logs" subtitle={`${logs.data?.totalCount ?? 0} Einträge · maximal 200 pro Abfrage`} actions={<HeaderAction accessibilityLabel="Aktualisieren" onPress={() => void logs.refetch()}><RefreshCw size={20} color={colors.text.primary} /></HeaderAction>} />
+    <View style={{ gap: spacing.base }}>
+      <Input label="Datum" placeholder="JJJJ-MM-TT · leer für alle" value={date} onChangeText={setDate} autoCapitalize="none" />
+      {!validDate ? <Text tone="danger">Bitte ein Datum im Format JJJJ-MM-TT eingeben.</Text> : null}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}><Chip label="Alle Quellen" selected={!source} onPress={() => setSource('')} />{(sources.data?.sources ?? []).map((item: any) => <Chip key={item.name} label={`${item.name} (${item.count})`} selected={source === item.name} onPress={() => setSource(item.name)} />)}</View>
+      {logs.isLoading ? <SkeletonText lines={8} /> : logs.isError ? <EmptyState title="Logs konnten nicht geladen werden" actionLabel="Erneut versuchen" onAction={() => void logs.refetch()} /> : !logs.data?.logs.length ? <EmptyState title="Keine Einträge" /> : logs.data.logs.map((entry) => <Card key={entry.id} onPress={() => setExpanded(expanded === entry.id ? null : entry.id)}>
+        <Text variant="label">{entry.source}</Text><Text variant="caption" tone="secondary">{new Date(entry.timestamp).toLocaleString('de-DE')}</Text>
+        {expanded === entry.id ? <View style={{ gap: spacing.sm }}><Text variant="labelSm">Anfrage</Text><Text variant="mono" selectable>{JSON.stringify(entry.request, null, 2)}</Text><Text variant="labelSm">Antwort</Text><Text variant="mono" selectable>{JSON.stringify(entry.response, null, 2)}</Text><Text variant="labelSm">Metadaten</Text><Text variant="mono" selectable>{JSON.stringify(entry.metadata ?? {}, null, 2)}</Text></View> : <Text variant="caption" tone="accent">Details anzeigen</Text>}
+      </Card>)}
+    </View>
+  </Screen>;
 }
-
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center' },
-});

@@ -22,29 +22,11 @@ import { SkeletonCard } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import type { RootStackParamList } from '@/navigation/types';
+import { treasuryArtifacts, type TreasuryArtifact as Artifact, type TreasuryOverview, type ShardOffer } from '@/lib/featureModels';
+import { useToast } from '@/providers/ToastProvider';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type TreasuryRoute = RouteProp<RootStackParamList, 'Treasury'>;
-
-interface Artifact {
-  id: string;
-  name: string;
-  description?: string;
-  imageUrl?: string;
-  type?: string;
-  rarity?: string;
-  storyEffect?: string;
-  acquiredAt?: string;
-  sourceStoryId?: string;
-  setId?: string;
-  setName?: string;
-}
-
-interface TreasuryOverview {
-  artifacts?: Artifact[];
-  sets?: { id: string; name: string; ownedCount: number; totalCount: number; crownUnlocked?: boolean }[];
-  crowns?: { id: string; name: string; imageUrl?: string; description?: string }[];
-}
 
 /**
  * Treasury.
@@ -58,6 +40,9 @@ export function TreasuryScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<TreasuryRoute>();
   const backend = useBackend();
+  const toast = useToast();
+  const [offer, setOffer] = useState<ShardOffer | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const avatarsQuery = useAvatars();
   const avatars = avatarsQuery.data ?? [];
@@ -78,9 +63,28 @@ export function TreasuryScreen() {
     enabled: Boolean(activeAvatar?.id),
   });
 
-  const artifacts = treasuryQuery.data?.artifacts ?? [];
+  const artifacts = treasuryArtifacts(treasuryQuery.data);
   const sets = treasuryQuery.data?.sets ?? [];
-  const crowns = treasuryQuery.data?.crowns ?? [];
+  const crowns = artifacts.filter((artifact) => artifact.owned && artifact.isCrown);
+  const visibleOffer = offer ?? treasuryQuery.data?.pendingOffer;
+  const journalQuery = useQuery<{ entries: Array<{ id: string; event: string; note?: string; storyId?: string; storyTitle?: string; createdAt: string }> }>({
+    queryKey: ['artifact-journal', activeAvatar?.id, selectedArtifact?.id],
+    queryFn: () => backend.story.artifactJournal({ avatarId: activeAvatar!.id, artifactId: selectedArtifact!.id }),
+    enabled: Boolean(activeAvatar && selectedArtifact?.owned),
+  });
+  async function choose(artifactId?: string) {
+    if (!activeAvatar || busy) return;
+    setBusy(true);
+    try {
+      if (artifactId && visibleOffer) {
+        await backend.story.redeemShardOffer({ avatarId: activeAvatar.id, offerId: visibleOffer.offerId, artifactId });
+        setOffer(null);
+        await treasuryQuery.refetch();
+        toast.success('Fundstück erhalten');
+      } else setOffer(await backend.story.createShardOffer({ avatarId: activeAvatar.id }));
+    } catch (error) { toast.error('Auswahl fehlgeschlagen', error instanceof Error ? error.message : undefined); }
+    finally { setBusy(false); }
+  }
 
   if (avatarsQuery.isLoading) {
     return (
@@ -118,12 +122,20 @@ export function TreasuryScreen() {
                 key={avatar.id}
                 label={avatar.name}
                 selected={avatar.id === activeAvatar.id}
-                onPress={() => setSelectedAvatarId(avatar.id)}
+                onPress={() => { setSelectedAvatarId(avatar.id); setOffer(null); setSelectedArtifact(null); }}
               />
             ))}
           </View>
         ) : null}
 
+        {treasuryQuery.isError ? <EmptyState title="Schatzkammer konnte nicht geladen werden" actionLabel="Erneut versuchen" onAction={() => void treasuryQuery.refetch()} /> : null}
+        {treasuryQuery.data ? <Card><View style={{ gap: spacing.md }}>
+          <Text variant="label">{treasuryQuery.data.shards} Fundstücke · {treasuryQuery.data.totalOwned} Artefakte gesammelt</Text>
+          {visibleOffer ? <>
+            <Text variant="bodySm">Wähle ein Artefakt für {visibleOffer.cost} Fundstücke:</Text>
+            {visibleOffer.artifacts.map((artifact) => <Button key={artifact.id} label={artifact.name} loading={busy} onPress={() => void choose(artifact.id)} />)}
+          </> : <Button label={`Artefakt auswählen (${treasuryQuery.data.shardsForChoice} Fundstücke)`} disabled={!treasuryQuery.data.choiceReady} loading={busy} onPress={() => void choose()} />}
+        </View></Card> : null}
         {crowns.length > 0 ? (
           <View style={{ gap: spacing.sm }}>
             <Text variant="overline" tone="tertiary">
@@ -152,7 +164,7 @@ export function TreasuryScreen() {
             {sets.map((set) => (
               <Card key={set.id} variant="inset">
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                  <Sparkles size={16} color={set.crownUnlocked ? colors.accent.gold : colors.text.tertiary} />
+                  <Sparkles size={16} color={set.crownOwned ? colors.accent.gold : colors.text.tertiary} />
                   <Text variant="label" style={{ flex: 1 }}>
                     {set.name}
                   </Text>
@@ -195,12 +207,12 @@ export function TreasuryScreen() {
                 accessibilityLabel={artifact.name}
               >
                 <Card padded={false} style={{ overflow: 'hidden' }}>
-                  <CoverImage uri={artifact.imageUrl} style={{ height: 108 }} radius={0} fallbackGradient="warm" />
+                  <CoverImage uri={artifact.owned ? artifact.imageUrl : undefined} style={{ height: 108, opacity: artifact.owned ? 1 : 0.35 }} radius={0} fallbackGradient="warm" />
                   <View style={{ padding: spacing.sm, gap: 3 }}>
                     <Text variant="labelSm" numberOfLines={2}>
                       {artifact.name}
                     </Text>
-                    {artifact.rarity ? <Chip label={artifact.rarity} size="sm" /> : null}
+                    <Chip label={artifact.owned ? `${artifact.rarity} · Level ${artifact.level}` : 'Noch nicht entdeckt'} size="sm" />
                   </View>
                 </Card>
               </Touchable>
@@ -215,9 +227,8 @@ export function TreasuryScreen() {
             <CoverImage uri={selectedArtifact.imageUrl} style={{ height: 190 }} radius={radius.lg} fallbackGradient="warm" />
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
-              {selectedArtifact.type ? <Chip label={selectedArtifact.type} size="sm" /> : null}
+              <Chip label={selectedArtifact.category} size="sm" />
               {selectedArtifact.rarity ? <Chip label={selectedArtifact.rarity} size="sm" tone="accent" /> : null}
-              {selectedArtifact.setName ? <Chip label={selectedArtifact.setName} size="sm" /> : null}
             </View>
 
             {selectedArtifact.description ? (
@@ -226,25 +237,26 @@ export function TreasuryScreen() {
               </Text>
             ) : null}
 
-            {selectedArtifact.storyEffect ? (
+            {selectedArtifact.storyRole ? (
               <Card variant="inset">
                 <Text variant="overline" tone="tertiary" style={{ marginBottom: 4 }}>
                   Wirkung in Geschichten
                 </Text>
                 <Text variant="bodySm" tone="secondary">
-                  {selectedArtifact.storyEffect}
+                  {selectedArtifact.storyRole}
                 </Text>
               </Card>
             ) : null}
 
-            {selectedArtifact.acquiredAt ? (
-              <Text variant="caption" tone="muted">
-                Gefunden am {formatDate(selectedArtifact.acquiredAt)}
-              </Text>
-            ) : null}
+            {selectedArtifact.owned ? <Text variant="caption">Level {selectedArtifact.level} · {selectedArtifact.journeys} Reisen{selectedArtifact.journeysUntilNextLevel ? ` · Noch ${selectedArtifact.journeysUntilNextLevel} bis zum nächsten Level` : ''}</Text> : null}
+            {journalQuery.data?.entries.map((entry) => <Touchable key={entry.id} disabled={!entry.storyId}
+              onPress={() => { detailRef.current?.close(); navigation.navigate('StoryReader', { storyId: entry.storyId! }); }}>
+              <Card variant="inset"><Text variant="labelSm">{entry.storyTitle ?? entry.event}</Text><Text variant="caption">{entry.note} · {formatDate(entry.createdAt)}</Text></Card>
+            </Touchable>)}
 
             <Button
               label="In neue Geschichte mitnehmen"
+              disabled={!selectedArtifact.owned}
               onPress={() => {
                 detailRef.current?.close();
                 navigation.navigate('StoryWizard', {

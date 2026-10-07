@@ -14,6 +14,7 @@ import { useToast } from '@/providers/ToastProvider';
 import { Screen, TAB_BAR_CLEARANCE } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
+import { Input } from '@/components/ui/Input';
 import { CoverImage } from '@/components/ui/CoverImage';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
@@ -26,6 +27,9 @@ import { SheetAction } from '@/screens/Story/StoriesScreen';
 import { dokuPlainText } from '@/lib/content';
 import type { Doku } from '@/types/doku';
 import type { RootStackParamList } from '@/navigation/types';
+import { useBackend } from '@/api/backend';
+import { exportBook } from '@/lib/exportBook';
+import { ContentManagement } from '@/components/ContentManagement';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Tab = 'mine' | 'discover';
@@ -35,8 +39,11 @@ export function DokusScreen() {
   const { colors, spacing, radius } = useTheme();
   const navigation = useNavigation<Nav>();
   const toast = useToast();
+  const backend = useBackend();
 
   const [tab, setTab] = useState<Tab>('mine');
+  const [search, setSearch] = useState('');
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [selected, setSelected] = useState<Doku | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Doku | null>(null);
   const actionSheetRef = useRef<SheetRef>(null);
@@ -48,11 +55,13 @@ export function DokusScreen() {
   const offline = useOffline();
 
   const activeQuery = tab === 'mine' ? myDokus : publicDokus;
-  const dokus = useMemo(() => activeQuery.data ?? [], [activeQuery.data]);
+  const dokus = useMemo(() => (activeQuery.data ?? []).filter((item) => (!onlyFavorites || (item as any).profileState?.isFavorite) && `${item.title} ${item.topic} ${item.summary ?? ''}`.toLowerCase().includes(search.trim().toLowerCase())), [activeQuery.data, search, onlyFavorites]);
 
   const handleListen = useCallback(
-    (doku: Doku) => {
+    async (summary: Doku) => {
       actionSheetRef.current?.close();
+      try {
+      const doku = await backend.doku.getDoku({ id: summary.id }) as Doku;
       const text = dokuPlainText(doku);
       if (!text) {
         toast.warning('Noch kein Inhalt', 'Dieses Doku ist noch nicht fertig.');
@@ -60,13 +69,17 @@ export function DokusScreen() {
       }
       startDokuConversion(doku.id, doku.title, text, doku.coverImageUrl, true);
       toast.info('Hörfassung startet');
+      } catch (error) { toast.error('Hörfassung konnte nicht geladen werden', error instanceof Error ? error.message : undefined); }
     },
-    [startDokuConversion, toast]
+    [backend.doku, startDokuConversion, toast]
   );
 
   const handleSaveOffline = useCallback(
-    async (doku: Doku) => {
+    async (summary: Doku) => {
       actionSheetRef.current?.close();
+      try {
+      if (offline.isDokuSaved(summary.id)) { await offline.removeDoku(summary.id); toast.info('Aus Offline-Bibliothek entfernt'); return; }
+      const doku = await backend.doku.getDoku({ id: summary.id }) as Doku;
       const sections = doku.content?.sections ?? [];
       if (sections.length === 0) {
         toast.warning('Noch nichts zu speichern');
@@ -85,6 +98,7 @@ export function DokusScreen() {
         topic: doku.topic,
         coverImageUrl: doku.coverImageUrl,
         sections: sections.map((section, index) => ({
+          ...section,
           title: section.title,
           content: section.content,
           imageUrl: section.imageUrl,
@@ -92,8 +106,9 @@ export function DokusScreen() {
         })),
       });
       toast.success('Offline gespeichert');
+      } catch (error) { toast.error('Offline-Speichern fehlgeschlagen', error instanceof Error ? error.message : undefined); }
     },
-    [offline, toast]
+    [backend.doku, offline, toast]
   );
 
   const confirmDelete = useCallback(async () => {
@@ -116,16 +131,23 @@ export function DokusScreen() {
         showBack={false}
         large
         actions={
+          <>
+          <HeaderAction onPress={() => navigation.navigate('AudioLibrary')} accessibilityLabel="Hörbibliothek">
+            <Headphones size={19} color={colors.text.primary} />
+          </HeaderAction>
           <HeaderAction onPress={() => navigation.navigate('DokuWizard')} accessibilityLabel="Neues Doku">
             <Plus size={19} color={colors.text.primary} />
           </HeaderAction>
+          </>
         }
       />
 
       <View style={{ flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.base, paddingBottom: spacing.sm }}>
         <Chip label="Meine Dokus" selected={tab === 'mine'} onPress={() => setTab('mine')} />
         <Chip label="Entdecken" selected={tab === 'discover'} onPress={() => setTab('discover')} />
+        <Chip label="Favoriten" selected={onlyFavorites} onPress={() => setOnlyFavorites(!onlyFavorites)} />
       </View>
+      <View style={{ paddingHorizontal: spacing.base, paddingBottom: spacing.sm }}><Input label="Dokus suchen" value={search} onChangeText={setSearch} placeholder="Titel oder Thema" /></View>
 
       <FlashList
         data={dokus}
@@ -170,7 +192,7 @@ export function DokusScreen() {
               <SkeletonCard height={84} />
               <SkeletonCard height={84} />
             </View>
-          ) : (
+          ) : activeQuery.isError ? <EmptyState title="Dokus konnten nicht geladen werden" actionLabel="Erneut versuchen" onAction={() => void activeQuery.refetch()} /> : (
             <EmptyState
               icon={<FlaskConical size={24} color={colors.accent.mint} />}
               title={tab === 'mine' ? 'Noch keine Dokus' : 'Noch nichts zu entdecken'}
@@ -186,7 +208,7 @@ export function DokusScreen() {
         }
       />
 
-      <Sheet ref={actionSheetRef} snapPoints={['38%']} title={selected?.title} scrollable={false}>
+      <Sheet ref={actionSheetRef} snapPoints={['65%']} title={selected?.title}>
         <View style={{ gap: spacing.xs }}>
           <SheetAction
             icon={<BookOpen size={18} color={colors.text.secondary} />}
@@ -206,6 +228,12 @@ export function DokusScreen() {
             label={selected && offline.isDokuSaved(selected.id) ? 'Offline-Kopie entfernen' : 'Offline speichern'}
             onPress={() => selected && void handleSaveOffline(selected)}
           />
+          <SheetAction icon={<Download size={18} color={colors.text.secondary} />} label="Als PDF exportieren" onPress={async () => {
+            actionSheetRef.current?.close(); if (!selected) return;
+            try { const doku = await backend.doku.getDoku({ id: selected.id }) as Doku;
+              await exportBook({ title: doku.title, summary: doku.summary, coverImageUrl: doku.coverImageUrl, sections: doku.content?.sections ?? [] }); }
+            catch (error) { toast.error('PDF-Export fehlgeschlagen', error instanceof Error ? error.message : undefined); }
+          }} />
           {tab === 'mine' ? (
             <SheetAction
               icon={<Trash2 size={18} color={colors.danger} />}
@@ -217,6 +245,7 @@ export function DokusScreen() {
               }}
             />
           ) : null}
+          {selected ? <ContentManagement kind="doku" content={dokus.find((item) => item.id === selected.id) ?? selected} editable={tab === 'mine'} refresh={() => activeQuery.refetch()} /> : null}
         </View>
       </Sheet>
 

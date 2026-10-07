@@ -18,6 +18,8 @@ import { ConfirmSheet } from '@/components/ui/ConfirmSheet';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Stepper } from '@/components/form/Stepper';
+import { ProfileBudgetControls, FamilyReserveControls } from './ProfileBudgetControls';
+import { ProfileAvatarControls } from './ProfileAvatarControls';
 
 const PROFILE_COLORS = ['#7ba89c', '#dca5aa', '#a4bedf', '#e0af92', '#b5b8dc', '#d8bf8f'];
 
@@ -52,6 +54,8 @@ export function ProfilesScreen() {
   const [color, setColor] = useState(PROFILE_COLORS[0]);
   const [interests, setInterests] = useState('');
   const [noGoTopics, setNoGoTopics] = useState('');
+  const [learningGoals, setLearningGoals] = useState('');
+  const [readingLevel, setReadingLevel] = useState('');
 
   const openEditor = useCallback((profile: ProfileDetails | null) => {
     setEditing(profile);
@@ -60,6 +64,8 @@ export function ProfilesScreen() {
     setColor(profile?.avatarColor ?? PROFILE_COLORS[0]);
     setInterests((profile?.interests ?? []).join(', '));
     setNoGoTopics((profile?.noGoTopics ?? []).join(', '));
+    setLearningGoals((profile?.learningGoals ?? []).join(', '));
+    setReadingLevel(profile?.readingLevel ?? '');
     editorRef.current?.expand();
   }, []);
 
@@ -84,6 +90,8 @@ export function ProfilesScreen() {
           avatarColor: color,
           interests: parseList(interests),
           noGoTopics: parseList(noGoTopics),
+          learningGoals: parseList(learningGoals),
+          readingLevel: readingLevel.trim() || null,
         });
         toast.success('Profil aktualisiert');
       } else {
@@ -93,6 +101,8 @@ export function ProfilesScreen() {
           avatarColor: color,
           interests: parseList(interests),
           noGoTopics: parseList(noGoTopics),
+          learningGoals: parseList(learningGoals),
+          readingLevel: readingLevel.trim() || undefined,
         });
         toast.success('Profil angelegt');
       }
@@ -100,7 +110,7 @@ export function ProfilesScreen() {
     } catch (error) {
       toast.error('Speichern fehlgeschlagen', error instanceof Error ? error.message : undefined);
     }
-  }, [age, color, createProfile, editing, interests, name, noGoTopics, toast, updateProfile]);
+  }, [age, color, createProfile, editing, interests, name, noGoTopics, learningGoals, readingLevel, toast, updateProfile]);
 
   const confirmDelete = useCallback(async () => {
     if (!pendingDelete) return;
@@ -121,6 +131,7 @@ export function ProfilesScreen() {
       <ScreenHeader title="Kinderprofile" subtitle={`${profiles.length} von ${profileLimit} Profilen`} />
 
       <View style={{ gap: spacing.base }}>
+        <Card><FamilyReserveControls /></Card>
         {profiles.length === 0 ? (
           <EmptyState
             icon={<Users size={24} color={colors.accent.lavender} />}
@@ -233,7 +244,7 @@ export function ProfilesScreen() {
 
       <Sheet
         ref={editorRef}
-        snapPoints={['72%']}
+        snapPoints={['90%']}
         title={editing ? `${editing.name} bearbeiten` : 'Neues Profil'}
         subtitle="Alter und Interessen helfen Talea, passende Geschichten zu schreiben."
       >
@@ -284,7 +295,11 @@ export function ProfilesScreen() {
             hint="Kommagetrennt — diese Themen kommen nicht vor."
           />
 
+          <Input label="Lernziele" value={learningGoals} onChangeText={setLearningGoals} placeholder="Kommagetrennte Ziele" />
+          <Input label="Leseniveau" value={readingLevel} onChangeText={setReadingLevel} placeholder="z. B. Leseanfänger" />
           <Button label={editing ? 'Speichern' : 'Profil anlegen'} onPress={handleSave} loading={isMutating} fullWidth size="lg" />
+          {editing ? <ProfileAvatarControls profile={profiles.find((profile) => profile.id === editing.id) ?? editing} /> : null}
+          {editing ? <ProfileBudgetControls profile={profiles.find((profile) => profile.id === editing.id) ?? editing} /> : null}
         </View>
       </Sheet>
 

@@ -1,5 +1,7 @@
 /* Geheimtelefon über die Hörmuschel (wie beim Telefonieren) statt über den Lautsprecher.
  *
+ * Android-App: Der native Host wählt die Hörmuschel für Kommunikations-Audio.
+ * Aufnahmen und Ersatzstimme werden dort nativ abgespielt, ohne Mikrofon.
  * Was Browser erlauben (Stand Oktober 2026):
  *  - iPhone (Safari, iOS 16.4+): Mit einer „Telefonat“-Audiositzung (navigator.audioSession.type = "play-and-record")
  *    und einer offenen (stummen) Mikrofonspur leitet iOS den Ton auf die Hörmuschel. Wo HTMLMediaElement.setSinkId
@@ -12,6 +14,8 @@
  * Das Mikrofon wird nie gelesen oder aufgenommen: die Spur ist ausgeschaltet (enabled = false) und dient nur dazu,
  * dass iOS in den Telefon-Modus schaltet. Sie wird freigegeben, sobald kein Geheimes mehr kommt. */
 
+import { nativeAudio } from "./native-audio";
+
 type AudioSessionNav = Navigator & { audioSession?: { type: string } };
 type SinkAudio = HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
 
@@ -22,6 +26,7 @@ const nav = (typeof navigator !== "undefined" ? navigator : undefined) as AudioS
 
 /** Nur das iPhone hat eine Hörmuschel, die Safari erreichen kann (iPad meldet sich als Mac und hat keine). */
 export function earpiecePossible(): boolean {
+  if (nativeAudio()) return true;
   if (!nav) return false;
   const iphone = /iPhone|iPod/.test(nav.userAgent);
   return iphone && !!nav.audioSession && !!nav.mediaDevices?.getUserMedia;
@@ -31,6 +36,9 @@ const canSink = () => typeof HTMLMediaElement !== "undefined" && "setSinkId" in 
 const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
 class Earpiece {
+  constructor() {
+    if (typeof window !== "undefined") window.addEventListener("alibi:audio-route-failed", () => this.setState("failed"));
+  }
   state: EarpieceState = "off";
   private stream: MediaStream | null = null;
   private receiverId: string | null = null;
@@ -64,6 +72,11 @@ class Earpiece {
     this.setState("starting");
     this.opening = (async () => {
       try {
+        if (nativeAudio()) {
+          await nativeAudio()!.privacy(true);
+          this.setState("on");
+          return true;
+        }
         const stream = await nav!.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
         // nie zuhören: Spur aus, sie hält nur die Telefon-Sitzung offen
         stream.getAudioTracks().forEach((t) => (t.enabled = false));
@@ -100,6 +113,11 @@ class Earpiece {
   /** Telefon-Modus beenden: Mikrofon freigeben, Lautsprecher-Sitzung. Wartet, bis iOS umgeschaltet hat. */
   async close(): Promise<void> {
     if (this.opening) await this.opening;
+    if (nativeAudio()) {
+      await nativeAudio()!.privacy(false).catch(() => undefined);
+      if (this.state !== "failed") this.setState("off");
+      return;
+    }
     if (!this.stream && this.state !== "on") return;
     this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;

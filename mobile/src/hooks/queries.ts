@@ -6,6 +6,7 @@ import { useOptionalChildProfiles } from '@/providers/ChildProfilesProvider';
 import type { Avatar } from '@/types/avatar';
 import type { Story } from '@/types/story';
 import type { Doku } from '@/types/doku';
+import { collectPages } from '@/lib/pagination';
 
 /**
  * Data access.
@@ -103,8 +104,10 @@ export function useStories(options?: Partial<UseQueryOptions<Story[]>>) {
   return useQuery<Story[]>({
     queryKey: queryKeys.stories(profileId),
     queryFn: async () => {
-      const response = (await backend.story.list({ userId: user?.id } as never)) as { stories?: Story[] };
-      return response?.stories ?? [];
+      return collectPages<Story>(async (page) => {
+        const response = await backend.story.list(page);
+        return { ...response, items: response.stories ?? [] };
+      });
     },
     enabled: Boolean(user?.id),
     ...options,
@@ -213,8 +216,10 @@ export function useDokus(options?: Partial<UseQueryOptions<Doku[]>>) {
   return useQuery<Doku[]>({
     queryKey: queryKeys.dokus(profileId),
     queryFn: async () => {
-      const response = (await backend.doku.listDokus({} as never)) as { dokus?: Doku[] };
-      return response?.dokus ?? [];
+      return collectPages<Doku>(async (page) => {
+        const response = await backend.doku.listDokus(page);
+        return { ...response, items: response.dokus ?? [] };
+      });
     },
     ...options,
   });
@@ -238,8 +243,10 @@ export function usePublicDokus() {
   return useQuery<Doku[]>({
     queryKey: queryKeys.publicDokus(),
     queryFn: async () => {
-      const response = (await backend.doku.listPublicDokus({} as never)) as { dokus?: Doku[] };
-      return response?.dokus ?? [];
+      return collectPages<Doku>(async (page) => {
+        const response = await backend.doku.listPublicDokus(page);
+        return { ...response, items: response.dokus ?? [] };
+      });
     },
   });
 }
@@ -270,5 +277,6 @@ export function useInvalidateContent() {
     void queryClient.invalidateQueries({ queryKey: queryKeys.stories(profileId) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.avatars(profileId) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.dokus(profileId) });
+    void queryClient.invalidateQueries({ predicate: (query) => /cosmos|treasury|topic|journey/.test(String(query.queryKey[0])) });
   };
 }

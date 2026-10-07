@@ -60,6 +60,11 @@ export const storage = {
     }
   },
 
+  /** Downloads must report a failed disk write instead of promising offline access. */
+  async setJSONOrThrow(key: StorageKey, value: unknown): Promise<void> {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  },
+
   async remove(key: StorageKey): Promise<void> {
     try {
       await AsyncStorage.removeItem(key);

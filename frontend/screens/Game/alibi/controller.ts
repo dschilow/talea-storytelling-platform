@@ -6,6 +6,8 @@ import { director, type SayPart } from "./audio";
 import type { AlibiCharacter, Claim, Conflict, LevelId, Spur, World } from "./types";
 import { recordGame, type GameRecord } from "./vault";
 import { earpiecePossible, type PhoneMode } from "./earpiece";
+import { nativeAudio } from "./native-audio";
+import { resumableState, type AlibiSession } from "./session";
 
 export type Phase = "setup" | "cast" | "caseIntro" | "act" | "round" | "vote" | "reveal" | "story" | "end";
 export type ActSub = "intro" | "hand" | "whisper" | "claim" | "announce" | "done";
@@ -207,6 +209,7 @@ export class AlibiController {
       /* Einstellungen sind ein Komfort */
     }
     if (this.setup.phone === "earpiece" && !earpiecePossible()) this.setup.phone = "whisper";
+    if (nativeAudio()) this.setup.phone = "earpiece";
     director.setPhoneMode(this.setup.phone || "whisper");
     director.whisperVol = this.setup.whisperVol ?? director.whisperVol;
   }
@@ -218,7 +221,7 @@ export class AlibiController {
   }
   /** Flüster-Lautstärke ändern (um `delta`), kurz probehören */
   nudgeWhisper(delta: number) {
-    const v = Math.max(0.06, Math.min(1, Math.round((director.whisperVol + delta) * 100) / 100));
+    const v = Math.max(0.06, Math.min(nativeAudio() ? 0.35 : 1, Math.round((director.whisperVol + delta) * 100) / 100));
     director.whisperVol = v;
     this.updateSetup({ whisperVol: v });
     this.saveSetup();
@@ -243,6 +246,31 @@ export class AlibiController {
     return () => this.listeners.delete(fn);
   };
   getState = () => this.state;
+  /** Android host persistence; ordinary web sessions continue to use memory. */
+  exportSession(): AlibiSession {
+    return { version: 1, state: resumableState(this.state), setup: { ...this.setup, names: [...this.setup.names] }, soundOn: director.soundOn };
+  }
+  restoreSession(session: AlibiSession) {
+    if (session.version !== 1 || !session.state || !session.setup) return;
+    if (!E.LEVELS[session.setup.level] || session.setup.count < 4 || session.setup.count > 8) return;
+    const s = session.state;
+    if (s.phase !== "setup" && (!s.W || !s.caseDef || s.W.players.length !== s.W.N)) return;
+    this.dispose();
+    this.setup = { ...session.setup, phone: earpiecePossible() ? "earpiece" : "whisper" };
+    if (typeof session.soundOn === "boolean") director.soundOn = session.soundOn;
+    director.setPhoneMode(this.setup.phone!);
+    director.whisperVol = Math.max(0.05, Math.min(1, this.setup.whisperVol ?? 0.2));
+    this.state = resumableState(s);
+    this.listeners.forEach(fn => fn());
+  }
+  suspendSession() {
+    this.dispose();
+    this.state = resumableState(this.state);
+    this.listeners.forEach(fn => fn());
+  }
+  resumeSession() {
+    if (this.state.phase === "story") void this.runStory(this.state.storyIdx);
+  }
   /** Ereignisse für Effekte abonnieren */
   onEvent = (fn: (e: GameEvent) => void) => {
     this.eventFns.add(fn);
@@ -875,7 +903,7 @@ export class AlibiController {
     director.vibrate([80, 50, 80, 50, 300]);
     void this.say(["kom.accuse.2"]);
     await sleep(1700);
-    if (this.state.phase !== "reveal") return;
+    if (this.state.phase !== "reveal" || this.state.revealSub !== "drum") return;
     const W = this.state.W as World, i = this.state.accused as number, kob = i === W.culprit;
     this.set({ revealSub: "shown", cleared: kob ? this.state.cleared : this.state.cleared.concat([i]) });
     director.sfx("hood");
@@ -1140,6 +1168,8 @@ export class AlibiController {
     void this.say([{ c: this.P(i).ch, k: "intro" }]);
   }
   dispose() {
+    this.storyToken++;
+    this.sealToken++;
     director.stop();
     director.releasePhone();
     this.stopTimer();

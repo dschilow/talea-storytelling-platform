@@ -110,6 +110,7 @@ export function AvatarDetailScreen() {
       />
 
       <View style={{ paddingHorizontal: spacing.base, gap: spacing.base }}>
+        <Button label="Avatar kopieren oder teilen" variant="secondary" onPress={() => navigation.navigate('AvatarExchange', { avatarId })} />
         {/* Hero */}
         <Animated.View entering={FadeIn.duration(340)}>
           <Card variant="elevated" padded={false}>

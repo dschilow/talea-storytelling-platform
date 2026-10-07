@@ -26,12 +26,12 @@ function playTurn(ctrl: AlibiController) {
   ctrl.claimSubmit();
 }
 
-export async function playTo(ctrl: AlibiController, stop: Stop, opt: { n?: number; level?: LevelId; names?: string[] } = {}) {
+export async function playTo(ctrl: AlibiController, stop: Stop, opt: { n?: number; level?: LevelId; names?: string[]; caseId?: string } = {}) {
   const prevFast = director.fast;
   director.fast = true;
   const done = (s: Stop) => s === stop;
   try {
-    ctrl.updateSetup({ count: opt.n ?? 6, level: opt.level ?? "junior", caseId: "laterne", names: (opt.names ?? []).concat(Array(8).fill("")).slice(0, 8) });
+    ctrl.updateSetup({ count: opt.n ?? 6, level: opt.level ?? "junior", caseId: opt.caseId ?? "laterne", names: (opt.names ?? []).concat(Array(8).fill("")).slice(0, 8) });
     ctrl.begin();
     if (done("cast")) return;
     const W = ctrl.state.W!;

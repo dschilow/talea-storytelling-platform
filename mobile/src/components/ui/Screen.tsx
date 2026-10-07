@@ -18,6 +18,7 @@ export const TAB_BAR_CLEARANCE = 96;
 export const MINI_PLAYER_CLEARANCE = 72;
 
 interface ScreenProps {
+  scrollRef?: React.RefObject<ScrollView | null>;
   children: ReactNode;
   /** Renders content inside a ScrollView. Set false for FlatList-based screens. */
   scroll?: boolean;
@@ -45,6 +46,7 @@ interface ScreenProps {
  * pull-to-refresh wiring every list screen needs.
  */
 export function Screen({
+  scrollRef,
   children,
   scroll = true,
   padded = true,
@@ -70,6 +72,7 @@ export function Screen({
 
   const body = scroll ? (
     <ScrollView
+      ref={scrollRef}
       style={styles.flex}
       contentContainerStyle={[
         padded && { paddingHorizontal: spacing.base },

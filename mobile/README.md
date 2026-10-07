@@ -18,8 +18,8 @@ on API 24+.
 
 ### Gradle troubleshooting
 
-These have all been hit on this project — the fix is always to remove stale
-state, never to change project config.
+These have all been hit on this project. Check the toolchain and stale build
+state before changing application code.
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
@@ -61,14 +61,14 @@ bun run prebuild           # regenerate android/ from app.json after native conf
 with `debug.keystore`. Generate a real upload key and wire it up first.
 
 `android/` is generated from `app.json` — `expo prebuild --clean` overwrites it.
-The one machine-specific line carried in `android/gradle.properties`
-(`systemProp.javax.net.ssl.trustStoreType=Windows-ROOT`, for Gradle downloads
-behind a TLS-intercepting proxy) does not survive that. Move it to
-`~/.gradle/gradle.properties` if you rely on it.
+Machine-specific TLS proxy settings belong in `~/.gradle/gradle.properties`.
+Use `systemProp.javax.net.ssl.trustStoreType=Windows-ROOT` there only with a
+Windows JDK that supplies SunMSCAPI. The Alibi Gradle task and speech package
+are restored by `plugins/with-alibi.js` during prebuild.
 
 ## Staying in sync with the web app
 
-Four things are mirrored from `frontend/` rather than reimplemented, so the two
+Shared sources are mirrored from `frontend/` rather than reimplemented, so the two
 clients cannot drift. Re-run these after backend or shared-type changes:
 
 ```bash
@@ -82,12 +82,66 @@ bun run sync-locales    # locales + ttsChunking + shared domain types
 | `i18n/locales/*.json` | Identical copy in all 7 languages |
 | `ttsChunking.ts` | `normalizeTTSText()` is the fix for the German/multilingual missing-sentence bug; a divergence here silently corrupts audio |
 | `types/{story,avatar,doku,tavi,avatarForm}.ts` | Payload shapes, AI model ids, and the avatar option catalogues |
+| `screens/Game/alibi` + `public/game` | Mitternachts-Alibi is bundled directly from the current web source by every Android build |
 
 `sync-client` also patches the generated client so it stands alone on device:
 it strips the `encore.dev` server-framework import, drops the `import.meta`
 default export, and widens the `~backend/*` payload helpers. See
 [`src/api/backend-modules.d.ts`](src/api/backend-modules.d.ts) for the full
 rationale and how to restore precise end-to-end types.
+
+## Mitternachts-Alibi
+
+Open the game from its Home card or `talea://game`. The APK includes the
+original React game, all eight cases, four difficulties, 4–8 players, voices,
+music, effects, animated village and 3D collection. `AlibiScreen` hosts this
+local bundle in Android System WebView. The native Clerk client retrieves the
+character pool; portraits are cached in the app's documents directory.
+
+Collection, setup, sound preference and resumable game state live in
+AsyncStorage. App switching and the notification shade stop speech and the
+timer and cover private information. Android Back closes a game overlay first,
+then uses the game's existing exit confirmation.
+
+Private MP3s and fallback speech use native Android communication audio and the
+built-in earpiece, at a capped quiet volume. On Android 12+ the host waits for
+`setCommunicationDevice` to confirm that route; MP3 playback verifies the actual
+output while muted before becoming audible (all outputs on Android 16+).
+Private TTS is synthesized to a temporary app-private file and uses the same
+verified receiver player; the file is deleted on completion or cancellation.
+Public speech returns to normal media audio at full clip volume. Music and
+ambience stop during secrets. There is no private loudspeaker fallback: an
+unavailable earpiece leaves the secret silent, with a private reading hint.
+Pause, exit and WebView failure release playback and restore the previous audio
+mode. Volume buttons control call volume during secrets. No microphone is opened
+and the app does not change the user's system volume.
+
+Install both workspaces' dependencies with Bun (repository root and `mobile/`).
+The Android `preBuild` task generates `android/app/src/main/assets/alibi/`;
+generated files stay out of Git. `bun run build:alibi` generates the same pack
+manually. The source and media remain maintained in `frontend/`.
+
+```bash
+cd mobile
+bun run typecheck
+bun test
+bun run build:alibi --qa     # separate test bundle under scripts/game-qa/out/
+bun run test:alibi          # Playwright; set PLAYWRIGHT_PATH if needed
+bun run test:alibi:android  # running emulator, Android SDK 36 and JAVA_HOME
+bun run android:release
+```
+
+The automated bundle checks cover 17 phases at three viewport sizes, every
+player count and difficulty, all eight case rewards, escaped thieves, clues,
+duels, seals, interruption recovery, native MP3/TTS privacy flags, routing failure,
+background silence and byte-for-byte media parity. These use
+Chromium with a fixture native bridge. The Android smoke script builds a separate
+test APK with the same bundle and a fixture pool, checking all 17 phases, local
+MP3 playback and privacy recovery in System WebView. Set `JAVA_HOME` to JDK 17
+and `ANDROID_HOME` to the SDK location. A signed-in device pass checks Clerk
+retrieval, earpiece isolation versus public speakers, audio levels, notification
+shade and system Back. Browser or emulator checks cannot prove physical speaker
+isolation on a particular handset.
 
 ## Architecture
 
@@ -155,7 +209,7 @@ These exist because the platform allows something the web could not do:
 
 ```bash
 bun run typecheck                          # 0 errors
-bun test                                   # personality-trait contract
+bun test                                   # personality traits, Alibi bridge and recovery
 bunx expo export --platform android        # verifies every import resolves
 ```
 
@@ -172,5 +226,5 @@ shapes for traits over time, so this is the one piece of logic worth pinning.
 2. **Push notifications** — not wired up; `expo-notifications` is not installed.
 3. **API payload types** — degraded to `any` at the client boundary; restore by
    generating a self-contained client (see `src/api/backend-modules.d.ts`).
-4. **Test coverage is narrow** — only the trait contract is covered; screens and
-   the TTS queue have no tests.
+4. **Other screen coverage is narrow** — personality traits and the Alibi bundle
+   have automated checks; the remaining screens and the TTS queue have no tests.

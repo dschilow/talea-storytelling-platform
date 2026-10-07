@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import Animated, { LinearTransition } from 'react-native-reanimated';
-import { BookOpen, Brain, FlaskConical, Home, User } from 'lucide-react-native';
+import { BookOpen, Gamepad2, FlaskConical, Home, User } from 'lucide-react-native';
 
 
 import { useTheme } from '@/theme/ThemeProvider';
@@ -21,7 +21,7 @@ const ICONS: Record<keyof TabParamList, typeof Home> = {
   Stories: BookOpen,
   Avatars: User,
   Dokus: FlaskConical,
-  Quiz: Brain,
+  Spiel: Gamepad2,
 };
 
 /** Used only if a screen was registered without a translated `tabBarLabel`. */
@@ -30,7 +30,7 @@ const FALLBACK_LABELS: Record<keyof TabParamList, string> = {
   Stories: 'Geschichten',
   Avatars: 'Avatare',
   Dokus: 'Dokus',
-  Quiz: 'Quiz',
+  Spiel: 'Spiel',
 };
 
 /**

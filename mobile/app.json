@@ -43,6 +43,7 @@
       "bundleIdentifier": "com.talea.app"
     },
     "plugins": [
+      "./plugins/with-alibi",
       "expo-secure-store",
       "expo-font",
       [

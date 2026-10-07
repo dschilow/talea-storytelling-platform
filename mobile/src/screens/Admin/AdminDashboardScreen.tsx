@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
@@ -18,14 +18,18 @@ import { SkeletonCard } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import type { RootStackParamList } from '@/navigation/types';
+import { collectCursorPages } from '@/lib/pagination';
+import { RecordEditor } from './RecordEditor';
+import type { SheetRef } from '@/components/ui/Sheet';
+import { Button } from '@/components/ui/Button';
+import { ConfirmSheet } from '@/components/ui/ConfirmSheet';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 interface AdminStats {
-  userCount?: number;
-  avatarCount?: number;
-  storyCount?: number;
-  dokuCount?: number;
+  totals?: { users: number; avatars: number; stories: number };
+  subscriptions?: Record<string, number>;
+  storiesByStatus?: Record<string, number>;
 }
 
 interface AdminUser {
@@ -52,6 +56,9 @@ export function AdminDashboardScreen() {
   const toast = useToast();
 
   const [search, setSearch] = useState('');
+  const [editing, setEditing] = useState<AdminUser | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<AdminUser | null>(null);
+  const editorRef = useRef<SheetRef>(null);
 
   const statsQuery = useQuery<AdminStats>({
     queryKey: ['admin-stats'],
@@ -61,16 +68,16 @@ export function AdminDashboardScreen() {
   const usersQuery = useQuery<AdminUser[]>({
     queryKey: ['admin-users', search],
     queryFn: async () => {
-      const response = (await (backend.admin as any).listUsers({ q: search || undefined, limit: 40 })) as {
-        users?: AdminUser[];
-      };
-      return response?.users ?? [];
+      return collectCursorPages<AdminUser>(async (cursor) => {
+        const response = await backend.admin.listUsers({ q: search || undefined, limit: 100, cursor });
+        return { items: response.users, nextCursor: response.nextCursor };
+      });
     },
   });
 
   const promote = async (user: AdminUser) => {
     try {
-      await (backend.admin as any).promoteToAdmin({ userId: user.id });
+      await backend.admin.updateUser({ id: user.id, role: 'admin' });
       toast.success(`${user.email ?? user.name ?? 'Nutzer'} ist jetzt Admin`);
       void usersQuery.refetch();
     } catch (error) {
@@ -87,17 +94,19 @@ export function AdminDashboardScreen() {
       <View style={{ gap: spacing.base }}>
         {statsQuery.isLoading ? (
           <SkeletonCard height={90} />
-        ) : (
+        ) : statsQuery.isError ? <EmptyState title="Statistik konnte nicht geladen werden" actionLabel="Erneut versuchen" onAction={() => void statsQuery.refetch()} /> : (
           <View style={[styles.statRow, { gap: spacing.sm }]}>
-            <StatTile value={stats.userCount ?? 0} label="Nutzer" />
-            <StatTile value={stats.avatarCount ?? 0} label="Avatare" />
-            <StatTile value={stats.storyCount ?? 0} label="Geschichten" />
-            <StatTile value={stats.dokuCount ?? 0} label="Dokus" />
+            <StatTile value={stats.totals?.users ?? 0} label="Nutzer" />
+            <StatTile value={stats.totals?.avatars ?? 0} label="Avatare" />
+            <StatTile value={stats.totals?.stories ?? 0} label="Geschichten" />
           </View>
         )}
+        {stats.subscriptions ? <Card><Text variant="bodySm">{Object.entries(stats.subscriptions).map(([key, value]) => `${key}: ${value}`).join(' · ')}</Text><Text variant="bodySm">{Object.entries(stats.storiesByStatus ?? {}).map(([key, value]) => `${key}: ${value}`).join(' · ')}</Text></Card> : null}
 
         <Card padded={false}>
           <AdminLink label="Logs" onPress={() => navigation.navigate('Logs')} />
+          <AdminLink label="Alle Avatare" onPress={() => navigation.navigate('AdminAvatars')} />
+          <AdminLink label="Hör-Dokus" onPress={() => navigation.navigate('AudioLibrary')} />
           <AdminLink label="Charakter-Pool" onPress={() => navigation.navigate('CharacterPool')} />
           <AdminLink label="Artefakt-Pool" onPress={() => navigation.navigate('ArtifactPool')} />
           <AdminLink label="Märchen" onPress={() => navigation.navigate('FairyTales')} last />
@@ -111,7 +120,7 @@ export function AdminDashboardScreen() {
 
         {usersQuery.isLoading ? (
           <SkeletonCard height={70} />
-        ) : (usersQuery.data ?? []).length === 0 ? (
+        ) : usersQuery.isError ? <EmptyState title="Nutzer konnten nicht geladen werden" actionLabel="Erneut versuchen" onAction={() => void usersQuery.refetch()} /> : (usersQuery.data ?? []).length === 0 ? (
           <EmptyState icon={<Users size={22} color={colors.text.tertiary} />} title="Keine Nutzer gefunden" compact />
         ) : (
           <View style={{ gap: spacing.sm }}>
@@ -138,12 +147,25 @@ export function AdminDashboardScreen() {
                       </Touchable>
                     ) : null}
                   </View>
+                  <Button label="Nutzer bearbeiten" variant="secondary" onPress={() => { setEditing(user); editorRef.current?.expand(); }} />
+                  <Button label="Nutzer löschen" variant="secondary" onPress={() => setPendingDelete(user)} />
                 </View>
               </Card>
             ))}
           </View>
         )}
       </View>
+      <RecordEditor sheetRef={editorRef} title="Nutzer bearbeiten" data={editing as unknown as Record<string, unknown> | null} onSave={async (data) => {
+        if (!editing) return;
+        if (!['user', 'admin'].includes(String(data.role)) || !['free', 'starter', 'familie', 'premium'].includes(String(data.subscription))) throw new Error('Rolle oder Tarif ist ungültig.');
+        await backend.admin.updateUser({ id: editing.id, name: data.name, email: data.email, role: data.role, subscription: data.subscription });
+        await Promise.all([usersQuery.refetch(), statsQuery.refetch()]);
+      }} />
+      <ConfirmSheet open={Boolean(pendingDelete)} title="Nutzer löschen?" message={`„${pendingDelete?.email ?? pendingDelete?.name ?? ''}“ und zugehörige Daten werden dauerhaft entfernt.`} destructive confirmLabel="Löschen" onCancel={() => setPendingDelete(null)} onConfirm={async () => {
+        if (!pendingDelete) return;
+        try { await backend.admin.deleteUser({ id: pendingDelete.id }); setPendingDelete(null); await Promise.all([usersQuery.refetch(), statsQuery.refetch()]); }
+        catch (error) { toast.error('Löschen fehlgeschlagen', error instanceof Error ? error.message : undefined); }
+      }} />
     </Screen>
   );
 }

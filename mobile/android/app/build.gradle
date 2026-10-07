@@ -4,6 +4,10 @@ apply plugin: "com.facebook.react"
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
+// A single source of truth: every Android variant contains the current complete
+// web game, including voices, music, effects, art and the collection UI.
+apply from: new File(projectRoot, "plugins/alibi/bundle.gradle")
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.

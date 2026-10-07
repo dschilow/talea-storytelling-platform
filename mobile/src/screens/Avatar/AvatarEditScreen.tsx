@@ -1,232 +1,65 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View } from 'react-native';
-import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, { useEffect, useState } from 'react';
+import { Switch, View } from 'react-native';
+import { useRoute, useNavigation, type RouteProp } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
-import { RefreshCw, Save } from 'lucide-react-native';
-
-import { useTheme } from '@/theme/ThemeProvider';
 import { useBackend } from '@/api/backend';
-import { queryKeys, useAvatar } from '@/hooks/queries';
-import { useOptionalChildProfiles } from '@/providers/ChildProfilesProvider';
+import { useAvatar, useInvalidateContent } from '@/hooks/queries';
 import { useToast } from '@/providers/ToastProvider';
+import { avatarToFormData, toCompleteFormData, getDirtyFormFields, formDataToBackendFormat, mergeAnalyzedVisualProfile } from '@/lib/avatarEditorModel';
+import { formDataToDescription, formDataToNarrativeProfile, AVATAR_NARRATIVE_FORM_FIELDS, AVATAR_VISUAL_FORM_FIELDS, type AvatarFormData } from '@/types/avatarForm';
 import { Screen } from '@/components/ui/Screen';
-import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
-import { Chip } from '@/components/ui/Chip';
-import { CoverImage } from '@/components/ui/CoverImage';
-import { Input } from '@/components/ui/Input';
-import { Text } from '@/components/ui/Text';
-import { SkeletonCard } from '@/components/ui/Skeleton';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { NARRATIVE_TRAIT_OPTIONS } from '@/types/avatarForm';
+import { Text } from '@/components/ui/Text';
+import { Chip } from '@/components/ui/Chip';
+import { Button } from '@/components/ui/Button';
+import { CoverImage } from '@/components/ui/CoverImage';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { StepIdentity } from './wizard/StepIdentity';
+import { StepBody } from './wizard/StepBody';
+import { StepAppearance } from './wizard/StepAppearance';
+import { StepCharacter } from './wizard/StepCharacter';
 import type { RootStackParamList } from '@/navigation/types';
 
-type Nav = NativeStackNavigationProp<RootStackParamList>;
-type EditRoute = RouteProp<RootStackParamList, 'AvatarEdit'>;
-
-const MAX_TRAITS = 4;
-
-/**
- * Avatar editing.
- *
- * Scoped deliberately to name, description and narrative profile. Visual
- * attributes are intentionally not editable here: changing them after images
- * exist would break the cross-story visual consistency the `visualProfile`
- * guarantees. Regenerating the portrait is offered instead.
- */
 export function AvatarEditScreen() {
-  const { colors, spacing, radius } = useTheme();
-  const navigation = useNavigation<Nav>();
-  const route = useRoute<EditRoute>();
-  const backend = useBackend();
-  const toast = useToast();
-  const queryClient = useQueryClient();
-  const profileId = useOptionalChildProfiles()?.activeProfileId ?? null;
-
-  const { avatarId } = route.params;
-  const avatarQuery = useAvatar(avatarId);
-  const avatar = avatarQuery.data;
-
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [dominantPersonality, setDominantPersonality] = useState('');
-  const [quirk, setQuirk] = useState('');
-  const [catchphrase, setCatchphrase] = useState('');
-  const [backstory, setBackstory] = useState('');
-  const [traits, setTraits] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
-
+  const { params } = useRoute<RouteProp<RootStackParamList, 'AvatarEdit'>>();
+  const backend = useBackend(); const toast = useToast(); const navigation = useNavigation();
+  const query = useAvatar(params.avatarId); const invalidate = useInvalidateContent(); const queryClient = useQueryClient();
+  const [form, setForm] = useState<AvatarFormData | null>(null); const [initial, setInitial] = useState<AvatarFormData | null>(null);
+  const [visualProfile, setVisualProfile] = useState<any>(); const [preview, setPreview] = useState<string>();
+  const [isPublic, setIsPublic] = useState(false); const [tab, setTab] = useState(0); const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (!avatar) return;
-    setName(avatar.name ?? '');
-    setDescription(avatar.description ?? '');
-    setDominantPersonality(avatar.narrativeProfile?.dominantPersonality ?? '');
-    setQuirk(avatar.narrativeProfile?.quirk ?? '');
-    setCatchphrase(avatar.narrativeProfile?.catchphrase ?? '');
-    setBackstory(avatar.narrativeProfile?.backstory ?? '');
-    setTraits(avatar.narrativeProfile?.traits ?? []);
-  }, [avatar]);
-
-  const toggleTrait = (traitId: string) => {
-    setTraits((current) => {
-      if (current.includes(traitId)) return current.filter((entry) => entry !== traitId);
-      if (current.length >= MAX_TRAITS) return current;
-      return [...current, traitId];
-    });
-  };
-
-  const invalidate = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: queryKeys.avatar(avatarId, profileId) });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.avatars(profileId) });
-  }, [avatarId, profileId, queryClient]);
-
-  const handleSave = useCallback(async () => {
-    if (name.trim().length < 2) {
-      toast.warning('Name zu kurz', 'Der Name braucht mindestens zwei Zeichen.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await (backend.avatar as any).update({
-        id: avatarId,
-        name: name.trim(),
-        description: description.trim() || undefined,
-        narrativeProfile: {
-          dominantPersonality: dominantPersonality.trim() || undefined,
-          traits,
-          quirk: quirk.trim() || undefined,
-          catchphrase: catchphrase.trim() || undefined,
-          backstory: backstory.trim() || undefined,
-        },
-      });
-      invalidate();
-      toast.success('Gespeichert');
-      navigation.goBack();
-    } catch (error) {
-      toast.error('Speichern fehlgeschlagen', error instanceof Error ? error.message : undefined);
-    } finally {
-      setSaving(false);
-    }
-  }, [avatarId, backend.avatar, backstory, catchphrase, description, dominantPersonality, invalidate, name, navigation, quirk, toast, traits]);
-
-  const handleRegenerateImage = useCallback(async () => {
-    if (!avatar) return;
-    setRegenerating(true);
-    try {
-      // `visualProfile` is present on the API payload but not on the shared
-      // Avatar type (it is an opaque record the image pipeline owns).
-      await (backend.ai as any).generateAvatarImage({
-        avatarId,
-        visualProfile: (avatar as { visualProfile?: Record<string, unknown> }).visualProfile,
-      });
-      invalidate();
-      toast.success('Neues Bild wird gemalt', 'Es erscheint in Kürze im Profil.');
-    } catch (error) {
-      toast.error('Bild konnte nicht erstellt werden', error instanceof Error ? error.message : undefined);
-    } finally {
-      setRegenerating(false);
-    }
-  }, [avatar, avatarId, backend.ai, invalidate, toast]);
-
-  if (avatarQuery.isLoading) {
-    return (
-      <Screen>
-        <ScreenHeader title="Avatar bearbeiten" />
-        <SkeletonCard height={180} />
-      </Screen>
-    );
+    if (!query.data) return;
+    const loaded = toCompleteFormData(avatarToFormData(query.data)); setForm(loaded); setInitial(loaded);
+    setVisualProfile((query.data as any).visualProfile); setPreview(query.data.imageUrl); setIsPublic(Boolean((query.data as any).isPublic));
+  }, [query.data?.id]);
+  if (query.isLoading) return <Screen><ScreenHeader title="Avatar bearbeiten" /><Text>Avatar wird geladen …</Text></Screen>;
+  if (!form || !query.data || !initial) return <Screen><ScreenHeader title="Avatar bearbeiten" /><EmptyState title="Avatar konnte nicht geladen werden" actionLabel="Erneut versuchen" onAction={() => void query.refetch()} /></Screen>;
+  const avatar = query.data; const isChild = avatar.avatarRole === 'child';
+  const update = (patch: Partial<AvatarFormData>) => setForm((current) => current && ({ ...current, ...patch }));
+  async function regenerate() {
+    if (busy || !form) return; setBusy(true);
+    try { const image = await backend.ai.generateAvatarImage({ characterType: form.characterType === 'other' ? form.customCharacterType : form.characterType, appearance: formDataToDescription(form), personalityTraits: {}, style: 'disney', referenceImageUrl: avatar.imageUrl }); setPreview(image.imageUrl); toast.info('Vorschau erstellt', 'Speichere den Avatar, um das neue Bild zu übernehmen.'); }
+    catch (error) { toast.error('Bildgenerierung fehlgeschlagen', error instanceof Error ? error.message : undefined); } finally { setBusy(false); }
   }
-
-  if (!avatar) {
-    return (
-      <Screen>
-        <ScreenHeader title="Avatar bearbeiten" />
-        <EmptyState title="Avatar nicht gefunden" actionLabel="Zurück" onAction={() => navigation.goBack()} />
-      </Screen>
-    );
+  async function save() {
+    if (busy || !form || !initial || form.name.trim().length < 2) return;
+    setBusy(true);
+    try {
+      const dirty = getDirtyFormFields(initial, form);
+      const fields = formDataToBackendFormat(form, isChild, visualProfile, dirty);
+      const visualChanged = AVATAR_VISUAL_FORM_FIELDS.some((field) => dirty.has(field)) || visualProfile !== (avatar as any).visualProfile;
+      await backend.avatar.update({ id: avatar.id, name: fields.name.trim(), description: fields.description, narrativeProfile: formDataToNarrativeProfile(form), isPublic: isChild ? false : isPublic,
+        ...(visualChanged ? { physicalTraits: fields.physicalTraits, visualProfile: fields.visualProfile } : {}), ...(preview !== avatar.imageUrl ? { imageUrl: preview } : {}) });
+      invalidate(); await queryClient.invalidateQueries({ queryKey: ['avatar', avatar.id] }); toast.success('Avatar gespeichert'); navigation.goBack();
+    } catch (error) { toast.error('Speichern fehlgeschlagen', error instanceof Error ? error.message : undefined); } finally { setBusy(false); }
   }
-
-  return (
-    <Screen>
-      <ScreenHeader title="Avatar bearbeiten" subtitle={avatar.name} />
-
-      <View style={{ gap: spacing.base }}>
-        <Card padded={false}>
-          <View style={{ flexDirection: 'row', padding: spacing.base, gap: spacing.base, alignItems: 'center' }}>
-            <CoverImage uri={avatar.imageUrl} style={{ width: 84, height: 84 }} radius={radius.md} fallbackGradient="lavender" />
-            <View style={{ flex: 1, gap: spacing.sm }}>
-              <Text variant="caption" tone="secondary">
-                Aussehen bleibt über alle Geschichten hinweg gleich. Du kannst das Bild neu malen lassen.
-              </Text>
-              <Button
-                label="Bild neu malen"
-                onPress={handleRegenerateImage}
-                variant="secondary"
-                size="sm"
-                loading={regenerating}
-                icon={<RefreshCw size={14} color={colors.text.primary} />}
-              />
-            </View>
-          </View>
-        </Card>
-
-        <Input label="Name" value={name} onChangeText={setName} maxLength={40} autoCapitalize="words" />
-
-        <Input
-          label="Beschreibung"
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Kurze Beschreibung für Bilder und Geschichten"
-          multilineRows={3}
-          maxLength={400}
-        />
-
-        <View style={{ gap: spacing.sm }}>
-          <Text variant="labelSm" tone="secondary">
-            Charakterzüge (max. {MAX_TRAITS})
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
-            {NARRATIVE_TRAIT_OPTIONS.map((option) => (
-              <Chip
-                key={option.id}
-                label={option.label}
-                selected={traits.includes(option.id)}
-                onPress={() => toggleTrait(option.id)}
-              />
-            ))}
-          </View>
-        </View>
-
-        <Input
-          label="Dominante Persönlichkeit"
-          value={dominantPersonality}
-          onChangeText={setDominantPersonality}
-          maxLength={80}
-        />
-        <Input label="Eigenheit" value={quirk} onChangeText={setQuirk} maxLength={120} />
-        <Input label="Lieblingsspruch" value={catchphrase} onChangeText={setCatchphrase} maxLength={120} />
-        <Input
-          label="Hintergrund"
-          value={backstory}
-          onChangeText={setBackstory}
-          multilineRows={4}
-          maxLength={600}
-          showCounter
-        />
-
-        <Button
-          label="Speichern"
-          onPress={handleSave}
-          loading={saving}
-          icon={<Save size={16} color={colors.primaryForeground} />}
-          size="lg"
-          fullWidth
-        />
-      </View>
-    </Screen>
-  );
+  return <Screen><ScreenHeader title="Avatar bearbeiten" /><View style={{ gap: 16 }}><CoverImage uri={preview} style={{ height: 210 }} />
+    <Button label="Bild neu malen" variant="secondary" disabled={busy} onPress={() => void regenerate()} />
+    <Button label="Aussehen aus vorhandenem Bild erkennen" variant="secondary" disabled={busy || !avatar.imageUrl} onPress={async () => { if (busy) return; setBusy(true); try { const analyzed = await backend.ai.analyzeAvatarImage({ imageUrl: avatar.imageUrl!, hints: { name: form.name } }); if (!analyzed.success) throw new Error('Das Bild konnte nicht analysiert werden.'); const merged = mergeAnalyzedVisualProfile(visualProfile, analyzed.visualProfile); setVisualProfile(merged); setForm((current) => { const analyzedForm = toCompleteFormData(avatarToFormData({ ...avatar, visualProfile: merged })); if (current) { analyzedForm.name = current.name; for (const field of AVATAR_NARRATIVE_FORM_FIELDS) (analyzedForm as any)[field] = current[field]; } return analyzedForm; }); } catch (error) { toast.error('Analyse fehlgeschlagen', error instanceof Error ? error.message : undefined); } finally { setBusy(false); } }} />
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{['Name & Typ', 'Alter & Statur', 'Aussehen', 'Charakter'].map((label, index) => <Chip key={label} label={label} selected={tab === index} onPress={() => setTab(index)} />)}</View>
+    {tab === 0 ? <StepIdentity form={form} onChange={update} isChildMode={isChild} /> : tab === 1 ? <StepBody form={form} onChange={update} /> : tab === 2 ? <StepAppearance form={form} onChange={update} /> : <StepCharacter form={form} onChange={update} />}
+    {!isChild ? <View style={{ flexDirection: 'row', alignItems: 'center' }}><Text style={{ flex: 1 }}>Avatar öffentlich sichtbar</Text><Switch value={isPublic} onValueChange={setIsPublic} accessibilityLabel="Avatar öffentlich sichtbar" /></View> : null}
+    <Button label="Speichern" loading={busy} disabled={form.name.trim().length < 2} onPress={() => void save()} />
+  </View></Screen>;
 }
+

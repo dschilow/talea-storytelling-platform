@@ -107,7 +107,7 @@ export function UserAccessProvider({ children }: { children: ReactNode }) {
       setBilling(profile.billing ?? null);
       setParentalOnboardingCompleted(onboardingCompleted);
       setHasParentalPin(Boolean(parentalControls?.hasPin));
-      setServerLanguage(typeof profile.language === 'string' ? profile.language : null);
+      setServerLanguage(typeof profile.preferredLanguage === 'string' ? profile.preferredLanguage : null);
       setServerTheme(
         profile.theme === 'light' || profile.theme === 'dark' || profile.theme === 'system' ? profile.theme : null
       );

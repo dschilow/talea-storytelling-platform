@@ -65,13 +65,16 @@ const Badge: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 let sharedCtrl: AlibiController | null = null;
 
 /** Startkarte des Spiels im Tab „Mitternachts-Alibi“. Öffnet die Vollbild-Bühne. */
-export const AlibiLauncher: React.FC = () => {
+export const AlibiLauncher: React.FC<{ onController?: (ctrl: AlibiController) => void; onStageChange?: (open: boolean) => void }> = ({ onController, onStageChange }) => {
   const { chars, error, retry } = useAlibiCharacters();
   if (chars && !sharedCtrl) sharedCtrl = new AlibiController(chars);
   const ctrl = sharedCtrl;
   const [open, setOpen] = useState<null | { tour: boolean }>(null);
   const faces = usePreviewFaces(chars, 24);
   const strip = useMemo(() => faces.concat(faces), [faces]);
+
+  useEffect(() => { if (ctrl) onController?.(ctrl); }, [ctrl, onController]);
+  useEffect(() => { onStageChange?.(!!open); }, [open, onStageChange]);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;

@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -11,6 +12,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { storage, StorageKeys } from '@/lib/storage';
 import { BACKEND_URL } from '@/config';
+import type { DokuSection } from '@/types/doku';
+import { useAuth } from '@clerk/clerk-expo';
+import { useOptionalChildProfiles } from '@/providers/ChildProfilesProvider';
 
 /**
  * Offline library — the native counterpart to the web's IndexedDB store
@@ -26,7 +30,6 @@ import { BACKEND_URL } from '@/config';
  * dead zones with a bar of signal), so we do a cheap HEAD against the backend.
  */
 
-const IMAGE_DIR = `${FileSystem.documentDirectory}talea-offline/`;
 const CONNECTIVITY_TIMEOUT_MS = 4000;
 const CONNECTIVITY_INTERVAL_MS = 20000;
 
@@ -46,7 +49,7 @@ export interface OfflineDoku {
   title: string;
   topic?: string;
   coverImageUrl?: string;
-  sections: Array<{ title: string; content: string; imageUrl?: string; order: number }>;
+  sections: Array<DokuSection & { order: number }>;
   savedAt: string;
   imageMap: Record<string, string>;
 }
@@ -77,18 +80,19 @@ interface OfflineContextValue {
 const OfflineContext = createContext<OfflineContextValue | undefined>(undefined);
 
 async function probeConnectivity(): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), CONNECTIVITY_TIMEOUT_MS);
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), CONNECTIVITY_TIMEOUT_MS);
     const response = await fetch(`${BACKEND_URL}/health`, { method: 'GET', signal: controller.signal });
-    clearTimeout(timeout);
     return response.ok || response.status < 500;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
-async function ensureImageDir(): Promise<void> {
+async function ensureImageDir(IMAGE_DIR: string): Promise<void> {
   const info = await FileSystem.getInfoAsync(IMAGE_DIR);
   if (!info.exists) {
     await FileSystem.makeDirectoryAsync(IMAGE_DIR, { intermediates: true });
@@ -106,8 +110,8 @@ function imageFileName(url: string): string {
 }
 
 /** Mirrors a batch of remote images, returning a url -> local-uri map. */
-async function mirrorImages(urls: (string | undefined)[]): Promise<Record<string, string>> {
-  await ensureImageDir();
+async function mirrorImages(urls: (string | undefined)[], IMAGE_DIR: string): Promise<Record<string, string>> {
+  await ensureImageDir(IMAGE_DIR);
   const unique = Array.from(new Set(urls.filter((url): url is string => Boolean(url && /^https?:/i.test(url)))));
 
   const entries = await Promise.all(
@@ -131,22 +135,35 @@ async function mirrorImages(urls: (string | undefined)[]): Promise<Record<string
 }
 
 export function OfflineProvider({ children }: { children: ReactNode }) {
+  const { userId } = useAuth();
+  const profileId = useOptionalChildProfiles()?.activeProfileId;
+  const scope = `${userId ?? 'guest'}:${profileId ?? 'default'}`;
+  const IMAGE_DIR = `${FileSystem.documentDirectory}talea-offline/${encodeURIComponent(scope)}/`;
+  const storyKey = `${StorageKeys.offlineStories}:${scope}`;
+  const dokuKey = `${StorageKeys.offlineDokus}:${scope}`;
   const [isOnline, setIsOnline] = useState(true);
   const [isCheckingConnectivity, setIsCheckingConnectivity] = useState(true);
   const [stories, setStories] = useState<OfflineStory[]>([]);
   const [dokus, setDokus] = useState<OfflineDoku[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const writeQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const serializeWrite = useCallback((operation: () => Promise<void>) => {
+    const next = writeQueue.current.then(operation);
+    writeQueue.current = next.catch(() => {});
+    return next;
+  }, []);
 
   // Load the saved library once.
   useEffect(() => {
     void Promise.all([
-      storage.getJSON<OfflineStory[]>(StorageKeys.offlineStories, []),
-      storage.getJSON<OfflineDoku[]>(StorageKeys.offlineDokus, []),
+      storage.getJSON<OfflineStory[]>(storyKey, []),
+      storage.getJSON<OfflineDoku[]>(dokuKey, []),
     ]).then(([savedStories, savedDokus]) => {
       setStories(savedStories);
       setDokus(savedDokus);
     });
-  }, []);
+    if (userId && profileId) void storage.setString(StorageKeys.lastOfflineScope, scope);
+  }, [storyKey, dokuKey, userId, profileId, scope]);
 
   const recheckConnectivity = useCallback(async () => {
     const online = await probeConnectivity();
@@ -164,34 +181,36 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const saveStory = useCallback<OfflineContextValue['saveStory']>(async (story) => {
     setIsSaving(true);
     try {
-      const imageMap = await mirrorImages([story.coverImageUrl, ...story.chapters.map((chapter) => chapter.imageUrl)]);
+      const imageMap = await mirrorImages([story.coverImageUrl, ...story.chapters.map((chapter) => chapter.imageUrl)], IMAGE_DIR);
       const record: OfflineStory = { ...story, savedAt: new Date().toISOString(), imageMap };
 
-      setStories((prev) => {
+      await serializeWrite(async () => {
+        const prev = await storage.getJSON<OfflineStory[]>(storyKey, []);
         const next = [record, ...prev.filter((entry) => entry.id !== story.id)];
-        void storage.setJSON(StorageKeys.offlineStories, next);
-        return next;
+        await storage.setJSONOrThrow(storyKey, next);
+        setStories(next);
       });
     } finally {
       setIsSaving(false);
     }
-  }, []);
+  }, [storyKey, IMAGE_DIR, serializeWrite]);
 
   const saveDoku = useCallback<OfflineContextValue['saveDoku']>(async (doku) => {
     setIsSaving(true);
     try {
-      const imageMap = await mirrorImages([doku.coverImageUrl, ...doku.sections.map((section) => section.imageUrl)]);
+      const imageMap = await mirrorImages([doku.coverImageUrl, ...doku.sections.map((section) => section.imageUrl)], IMAGE_DIR);
       const record: OfflineDoku = { ...doku, savedAt: new Date().toISOString(), imageMap };
 
-      setDokus((prev) => {
+      await serializeWrite(async () => {
+        const prev = await storage.getJSON<OfflineDoku[]>(dokuKey, []);
         const next = [record, ...prev.filter((entry) => entry.id !== doku.id)];
-        void storage.setJSON(StorageKeys.offlineDokus, next);
-        return next;
+        await storage.setJSONOrThrow(dokuKey, next);
+        setDokus(next);
       });
     } finally {
       setIsSaving(false);
     }
-  }, []);
+  }, [dokuKey, IMAGE_DIR, serializeWrite]);
 
   /** Deletes mirrored files that no other saved item still references. */
   const pruneOrphanedImages = useCallback(
@@ -210,33 +229,36 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   );
 
   const removeStory = useCallback(
-    async (storyId: string) => {
-      const removed = stories.find((entry) => entry.id === storyId)?.imageMap ?? {};
-      const next = stories.filter((entry) => entry.id !== storyId);
+    async (storyId: string) => serializeWrite(async () => {
+      const [savedStories, savedDokus] = await Promise.all([storage.getJSON<OfflineStory[]>(storyKey, []), storage.getJSON<OfflineDoku[]>(dokuKey, [])]);
+      const removed = savedStories.find((entry) => entry.id === storyId)?.imageMap ?? {};
+      const next = savedStories.filter((entry) => entry.id !== storyId);
+      await storage.setJSONOrThrow(storyKey, next);
       setStories(next);
-      await storage.setJSON(StorageKeys.offlineStories, next);
-      await pruneOrphanedImages(next, dokus, removed);
-    },
-    [dokus, pruneOrphanedImages, stories]
+      await pruneOrphanedImages(next, savedDokus, removed);
+    }),
+    [pruneOrphanedImages, storyKey, dokuKey, serializeWrite]
   );
 
   const removeDoku = useCallback(
-    async (dokuId: string) => {
-      const removed = dokus.find((entry) => entry.id === dokuId)?.imageMap ?? {};
-      const next = dokus.filter((entry) => entry.id !== dokuId);
+    async (dokuId: string) => serializeWrite(async () => {
+      const [savedStories, savedDokus] = await Promise.all([storage.getJSON<OfflineStory[]>(storyKey, []), storage.getJSON<OfflineDoku[]>(dokuKey, [])]);
+      const removed = savedDokus.find((entry) => entry.id === dokuId)?.imageMap ?? {};
+      const next = savedDokus.filter((entry) => entry.id !== dokuId);
+      await storage.setJSONOrThrow(dokuKey, next);
       setDokus(next);
-      await storage.setJSON(StorageKeys.offlineDokus, next);
-      await pruneOrphanedImages(stories, next, removed);
-    },
-    [dokus, pruneOrphanedImages, stories]
+      await pruneOrphanedImages(savedStories, next, removed);
+    }),
+    [pruneOrphanedImages, storyKey, dokuKey, serializeWrite]
   );
 
-  const clearAll = useCallback(async () => {
+  const clearAll = useCallback(async () => serializeWrite(async () => {
+    await storage.setJSONOrThrow(storyKey, []);
+    await storage.setJSONOrThrow(dokuKey, []);
     setStories([]);
     setDokus([]);
-    await storage.multiRemove([StorageKeys.offlineStories, StorageKeys.offlineDokus]);
     await FileSystem.deleteAsync(IMAGE_DIR, { idempotent: true }).catch(() => {});
-  }, []);
+  }), [storyKey, dokuKey, IMAGE_DIR, serializeWrite]);
 
   const imageLookup = useMemo(() => {
     const map: Record<string, string> = {};
@@ -263,7 +285,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
       bytes = 0;
     }
     return { items: stories.length + dokus.length, bytes };
-  }, [dokus.length, stories.length]);
+  }, [dokus.length, stories.length, IMAGE_DIR]);
 
   const value = useMemo<OfflineContextValue>(
     () => ({

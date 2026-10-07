@@ -16,12 +16,14 @@ import { Input } from '@/components/ui/Input';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
 import type { RootStackParamList } from '@/navigation/types';
+import type { SignInResource } from '@clerk/types';
 
 // Required for the OAuth redirect to hand control back to the app.
 WebBrowser.maybeCompleteAuthSession();
 
 type AuthRoute = RouteProp<RootStackParamList, 'Auth'>;
-type Mode = 'sign-in' | 'sign-up';
+type Mode = 'sign-in' | 'sign-up' | 'reset';
+type Challenge = { stage: 'first' | 'second' | 'reset'; strategy: 'totp' | 'backup_code' | 'phone_code' | 'email_code' | 'reset_password_email_code'; phoneNumberId?: string; emailAddressId?: string };
 
 /**
  * Native authentication.
@@ -46,6 +48,7 @@ export function AuthScreen() {
   const [pendingVerification, setPendingVerification] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [fieldError, setFieldError] = useState<string | null>(null);
+  const [challenge, setChallenge] = useState<Challenge | null>(null);
 
   const { signIn, setActive: setSignInActive, isLoaded: signInLoaded } = useSignIn();
   const { signUp, setActive: setSignUpActive, isLoaded: signUpLoaded } = useSignUp();
@@ -61,17 +64,26 @@ export function AuthScreen() {
     return 'Anmeldung fehlgeschlagen';
   };
 
+  const acceptSignIn = useCallback(async (attempt: SignInResource) => {
+    if (attempt.status === 'complete') { if (!setSignInActive) throw new Error('Anmeldung ist noch nicht bereit.'); await setSignInActive({ session: attempt.createdSessionId }); return; }
+    const second = attempt.status === 'needs_second_factor';
+    const factors = second ? attempt.supportedSecondFactors : attempt.supportedFirstFactors;
+    const factor = factors?.find((f) => f.strategy === 'totp') ?? factors?.find((f) => f.strategy === 'email_code' || f.strategy === 'phone_code') ?? factors?.find((f) => f.strategy === 'backup_code');
+    if (!factor) throw new Error('Die Anmeldung benötigt eine weitere Kontobestätigung. Bitte prüfe deine Kontoeinstellungen.');
+    const next: Challenge = { stage: second ? 'second' : 'first', strategy: factor.strategy as Challenge['strategy'], ...('phoneNumberId' in factor ? { phoneNumberId: factor.phoneNumberId } : {}), ...('emailAddressId' in factor ? { emailAddressId: factor.emailAddressId } : {}) };
+    if (factor.strategy === 'phone_code' || factor.strategy === 'email_code') {
+      if (second) await attempt.prepareSecondFactor(next as any); else await attempt.prepareFirstFactor(next as any);
+    }
+    setVerificationCode(''); setChallenge(next);
+  }, [setSignInActive]);
+
   const handleSignIn = useCallback(async () => {
     if (!signInLoaded) return;
     setFieldError(null);
     setSubmitting(true);
     try {
       const attempt = await signIn.create({ identifier: email.trim(), password });
-      if (attempt.status === 'complete') {
-        await setSignInActive({ session: attempt.createdSessionId });
-      } else {
-        setFieldError('Zusätzliche Bestätigung nötig. Bitte melde dich im Browser an.');
-      }
+      await acceptSignIn(attempt);
     } catch (error) {
       const message = describeError(error);
       setFieldError(message);
@@ -79,7 +91,26 @@ export function AuthScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [email, password, setSignInActive, signIn, signInLoaded, toast]);
+  }, [email, password, acceptSignIn, signIn, signInLoaded, toast]);
+
+  const handleReset = async () => {
+    if (!signInLoaded || submitting) return;
+    setSubmitting(true); setFieldError(null);
+    try { await signIn.create({ strategy: 'reset_password_email_code', identifier: email.trim() }); setVerificationCode(''); setChallenge({ stage: 'reset', strategy: 'reset_password_email_code' }); }
+    catch (error) { setFieldError(describeError(error)); }
+    finally { setSubmitting(false); }
+  };
+
+  const handleChallenge = async () => {
+    if (!signInLoaded || !challenge || submitting) return;
+    setSubmitting(true); setFieldError(null);
+    try {
+      const params = { strategy: challenge.strategy, code: verificationCode.trim(), ...(challenge.stage === 'reset' ? { password } : {}) };
+      const attempt = challenge.stage === 'second' ? await signIn.attemptSecondFactor(params as any) : await signIn.attemptFirstFactor(params as any);
+      await acceptSignIn(attempt);
+    } catch (error) { setFieldError(describeError(error)); }
+    finally { setSubmitting(false); }
+  };
 
   const handleSignUp = useCallback(async () => {
     if (!signUpLoaded) return;
@@ -140,7 +171,7 @@ export function AuthScreen() {
     [startSSOFlow, toast]
   );
 
-  const canSubmit = pendingVerification
+  const canSubmit = pendingVerification || challenge
     ? verificationCode.trim().length >= 4
     : email.trim().length > 3 && password.length >= 8;
 
@@ -174,7 +205,14 @@ export function AuthScreen() {
           contentContainerStyle={{ padding: spacing.base, paddingBottom: insets.bottom + spacing.xxl, gap: spacing.base }}
           keyboardShouldPersistTaps="handled"
         >
-          {pendingVerification ? (
+          {challenge ? <>
+            <Text variant="headingMd">{challenge.stage === 'reset' ? 'Neues Passwort setzen' : 'Anmeldung bestätigen'}</Text>
+            <Input label={challenge.strategy === 'totp' ? 'Code aus deiner Authenticator-App' : challenge.strategy === 'backup_code' ? 'Wiederherstellungscode' : 'Bestätigungscode'} value={verificationCode} onChangeText={setVerificationCode} autoComplete="one-time-code" autoCapitalize="none" error={fieldError ?? undefined} />
+            {challenge.stage === 'reset' ? <Input label="Neues Passwort" value={password} onChangeText={setPassword} secureTextEntry autoComplete="new-password" /> : null}
+            <Button label="Bestätigen" loading={submitting} disabled={!verificationCode.trim() || (challenge.stage === 'reset' && password.length < 8)} onPress={handleChallenge} />
+            {challenge.stage === 'second' && signIn?.supportedSecondFactors?.some((f) => f.strategy === 'backup_code') ? <Button label="Wiederherstellungscode verwenden" variant="secondary" onPress={() => { setChallenge({ stage: 'second', strategy: 'backup_code' }); setVerificationCode(''); }} /> : null}
+            <Button label="Zurück zur Anmeldung" variant="ghost" onPress={() => { setChallenge(null); setMode('sign-in'); setFieldError(null); }} />
+          </> : pendingVerification ? (
             <>
               <Input
                 label="Bestätigungscode"
@@ -189,6 +227,7 @@ export function AuthScreen() {
                 icon={<Lock size={17} color={colors.text.tertiary} />}
               />
               <Button label="Bestätigen" onPress={handleVerify} loading={submitting} disabled={!canSubmit} fullWidth size="lg" />
+              <Button label="Code erneut senden" variant="secondary" disabled={submitting} onPress={async () => { setSubmitting(true); try { await signUp?.prepareEmailAddressVerification({ strategy: 'email_code' }); toast.info('Code erneut gesendet'); } catch (error) { setFieldError(describeError(error)); } finally { setSubmitting(false); } }} />
               <Button
                 label="Zurück zur Registrierung"
                 onPress={() => {
@@ -225,7 +264,7 @@ export function AuthScreen() {
                 icon={<Mail size={17} color={colors.text.tertiary} />}
               />
 
-              <Input
+              {mode !== 'reset' ? <Input
                 label="Passwort"
                 value={password}
                 onChangeText={setPassword}
@@ -236,16 +275,17 @@ export function AuthScreen() {
                 hint={mode === 'sign-up' ? 'Mindestens 8 Zeichen.' : undefined}
                 error={fieldError ?? undefined}
                 icon={<Lock size={17} color={colors.text.tertiary} />}
-              />
+              /> : null}
 
               <Button
-                label={mode === 'sign-in' ? 'Anmelden' : 'Konto erstellen'}
-                onPress={mode === 'sign-in' ? handleSignIn : handleSignUp}
+                label={mode === 'reset' ? 'Passwort zurücksetzen' : mode === 'sign-in' ? 'Anmelden' : 'Konto erstellen'}
+                onPress={mode === 'reset' ? handleReset : mode === 'sign-in' ? handleSignIn : handleSignUp}
                 loading={submitting}
-                disabled={!canSubmit}
+                disabled={mode === 'reset' ? email.trim().length < 4 : !canSubmit}
                 fullWidth
                 size="lg"
               />
+              {mode === 'sign-in' ? <Button label="Passwort vergessen?" variant="ghost" onPress={() => { setMode('reset'); setPassword(''); setFieldError(null); }} /> : null}
 
               <View style={[styles.divider, { gap: spacing.md }]}>
                 <View style={[styles.dividerLine, { backgroundColor: colors.border.soft }]} />

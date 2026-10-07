@@ -1,10 +1,10 @@
 import 'react-native-gesture-handler';
-import React, { useCallback, useEffect, useState, type ReactNode } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DefaultTheme, DarkTheme, type Theme as NavTheme } from '@react-navigation/native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NavigationContainer, DefaultTheme, DarkTheme, useNavigationContainerRef, type Theme as NavTheme } from '@react-navigation/native';
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreenModule from 'expo-splash-screen';
@@ -18,7 +18,12 @@ import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
 import { setFontsReady } from '@/theme/typography';
 import { UserAccessProvider } from '@/providers/UserAccessProvider';
 import { ChildProfilesProvider } from '@/providers/ChildProfilesProvider';
-import { AudioPlayerProvider } from '@/providers/AudioPlayerProvider';
+import { useOptionalChildProfiles } from '@/providers/ChildProfilesProvider';
+import { AudioPlayerProvider, useAudioPlayer } from '@/providers/AudioPlayerProvider';
+import { MiniPlayer } from '@/components/audio/MiniPlayer';
+import { PlaylistSheet } from '@/components/audio/PlaylistSheet';
+import type { SheetRef } from '@/components/ui/Sheet';
+import type { RootStackParamList } from '@/navigation/types';
 import { OfflineProvider } from '@/providers/OfflineProvider';
 import { ToastProvider } from '@/providers/ToastProvider';
 import { LanguageSync } from '@/providers/LanguageSync';
@@ -28,6 +33,7 @@ import { SplashScreen } from '@/screens/Auth/SplashScreen';
 import { linking } from '@/navigation/linking';
 import { restoreStoredLanguage } from '@/i18n';
 import '@/i18n';
+import { ConnectionRecoveryScreen } from '@/screens/Offline/ConnectionRecoveryScreen';
 
 // Hold the native splash until fonts + the stored language are ready, so the
 // first painted frame is already correct instead of flashing a fallback.
@@ -39,7 +45,7 @@ const STARTUP_TIMEOUT_MS = 4000;
 /** How long to wait for Clerk before showing a reachability error. */
 const CLERK_TIMEOUT_MS = 15000;
 
-const queryClient = new QueryClient({
+const createQueryClient = () => new QueryClient({
   defaultOptions: {
     queries: {
       // Story/avatar data changes on user action, not in the background — a
@@ -54,6 +60,7 @@ const queryClient = new QueryClient({
 });
 
 export default function App() {
+  const [authAttempt, setAuthAttempt] = useState(0);
   const [fontsLoaded, fontError] = useFonts({
     Fraunces_600SemiBold,
     Fraunces_700Bold,
@@ -103,21 +110,19 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.flex} onLayout={onLayoutRoot}>
       <SafeAreaProvider>
-        <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={clerkTokenCache}>
-          <QueryClientProvider client={queryClient}>
+        <ClerkProvider key={authAttempt} publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={clerkTokenCache}>
+          <AccountQueryProvider>
             <ThemeProvider>
               <ErrorBoundary>
                 <ToastProvider>
                   <BottomSheetModalProvider>
-                  <ClerkGate>
+                  <ClerkGate retry={() => setAuthAttempt((attempt) => attempt + 1)}>
                     <UserAccessProvider>
                       <ChildProfilesProvider>
-                        <OfflineProvider>
-                          <AudioPlayerProvider>
+                        <ProfileContent>
                             <LanguageSync />
                             <AppShell />
-                          </AudioPlayerProvider>
-                        </OfflineProvider>
+                        </ProfileContent>
                       </ChildProfilesProvider>
                     </UserAccessProvider>
                   </ClerkGate>
@@ -125,11 +130,26 @@ export default function App() {
                 </ToastProvider>
               </ErrorBoundary>
             </ThemeProvider>
-          </QueryClientProvider>
+          </AccountQueryProvider>
         </ClerkProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+/** Account changes dispose cached requests and remount all session-owned state. */
+function AccountQueryProvider({ children }: { children: ReactNode }) {
+  const { userId } = useAuth();
+  const client = useMemo(createQueryClient, [userId]);
+  useEffect(() => () => { client.clear(); }, [client]);
+  return <QueryClientProvider key={userId ?? 'signed-out'} client={client}>{children}</QueryClientProvider>;
+}
+
+function ProfileContent({ children }: { children: ReactNode }) {
+  const { userId } = useAuth();
+  const profile = useOptionalChildProfiles();
+  const scope = `${userId ?? 'guest'}:${profile?.activeProfileId ?? 'default'}`;
+  return <OfflineProvider key={scope}><AudioPlayerProvider>{children}</AudioPlayerProvider></OfflineProvider>;
 }
 
 /**
@@ -141,7 +161,7 @@ export default function App() {
  * This shows the splash while waiting and, past a deadline, an actionable error
  * naming the host that is not responding.
  */
-function ClerkGate({ children }: { children: ReactNode }) {
+function ClerkGate({ children, retry }: { children: ReactNode; retry: () => void }) {
   const { isLoaded } = useAuth();
   const [timedOut, setTimedOut] = useState(false);
 
@@ -152,7 +172,7 @@ function ClerkGate({ children }: { children: ReactNode }) {
   }, [isLoaded]);
 
   if (isLoaded) return <>{children}</>;
-  if (timedOut) return <ClerkErrorScreen />;
+  if (timedOut) return <ConnectionRecoveryScreen retry={retry} />;
   return <SplashScreen message="Anmeldung wird vorbereitet …" />;
 }
 
@@ -195,6 +215,13 @@ function decodeClerkHost(key: string): string | null {
 /** Bridges the Talea theme into React Navigation's own theming. */
 function AppShell() {
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  const audio = useAudioPlayer();
+  const navigationRef = useNavigationContainerRef<RootStackParamList>();
+  const playlistSheetRef = useRef<SheetRef>(null);
+  const [rootRoute, setRootRoute] = useState('Landing');
+  const updateRoute = () => { const state = navigationRef.getRootState(); if (state) setRootRoute(state.routes[state.index ?? 0].name); };
+  const showPlayer = Boolean(audio.track || audio.waitingForConversion) && !['Tabs', 'Landing', 'Auth', 'ParentalOnboarding', 'Alibi'].includes(rootRoute);
 
   const navigationTheme: NavTheme = {
     ...(isDark ? DarkTheme : DefaultTheme),
@@ -212,9 +239,11 @@ function AppShell() {
   return (
     <View style={[styles.flex, { backgroundColor: colors.pageSolid }]}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <NavigationContainer theme={navigationTheme} linking={linking}>
+      <NavigationContainer ref={navigationRef} onReady={updateRoute} onStateChange={updateRoute} theme={navigationTheme} linking={linking}>
         <RootNavigator />
       </NavigationContainer>
+      {showPlayer ? <View style={{ backgroundColor: colors.surface.panel, paddingBottom: insets.bottom }}><MiniPlayer onOpenQueue={() => playlistSheetRef.current?.expand()} /></View> : null}
+      <PlaylistSheet ref={playlistSheetRef} />
     </View>
   );
 }

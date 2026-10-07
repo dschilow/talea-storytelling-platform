@@ -16,6 +16,7 @@ import { useToast } from '@/providers/ToastProvider';
 import { areHapticsEnabled, setHapticsEnabled } from '@/lib/haptics';
 import { clearAudioCache, getAudioCacheSize } from '@/lib/audioCache';
 import { formatBytes } from '@/lib/content';
+import { storage, StorageKeys } from '@/lib/storage';
 import { persistLanguage, SUPPORTED_LANGUAGES, type SupportedLanguage } from '@/i18n';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
@@ -26,6 +27,7 @@ import { Touchable } from '@/components/ui/Pressable';
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import type { RootStackParamList } from '@/navigation/types';
+import { VoiceSettingsPanel } from '@/components/audio/VoiceSettingsPanel';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -221,6 +223,7 @@ export function SettingsScreen() {
         </Section>
 
         {/* Family */}
+        <VoiceSettingsPanel />
         <Section title="Familie">
           <Card padded={false}>
             <NavRow
@@ -242,6 +245,7 @@ export function SettingsScreen() {
         {/* Learning */}
         <Section title="Lernen">
           <Card padded={false}>
+            <NavRow icon={<Sparkles size={17} color={colors.text.secondary} />} label="Hörbibliothek" onPress={() => navigation.navigate('AudioLibrary')} />
             <NavRow
               icon={<Sparkles size={17} color={colors.text.secondary} />}
               label="Wissenskosmos"
@@ -312,9 +316,10 @@ export function SettingsScreen() {
         message="Offline gespeicherte Geschichten bleiben auf diesem Gerät erhalten."
         confirmLabel="Abmelden"
         destructive
-        onConfirm={() => {
+        onConfirm={async () => {
           setConfirmSignOut(false);
-          void signOut();
+          await storage.remove(StorageKeys.lastOfflineScope);
+          await signOut();
         }}
         onCancel={() => setConfirmSignOut(false)}
       />

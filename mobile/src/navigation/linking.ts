@@ -38,6 +38,8 @@ export const linking: LinkingOptions<RootStackParamList> = {
 
       DokuWizard: 'doku/create',
       DokuReader: 'doku-reader/:dokuId',
+      DokuQuiz: 'doku/:dokuId/quiz',
+      AudioLibrary: 'audio-dokus',
       AudioDokuCreate: 'createaudiodoku',
 
       Journey: 'map',
@@ -47,6 +49,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
       Settings: 'settings',
       OfflineLibrary: 'offline',
       Community: 'community',
+      Alibi: 'game',
 
       AdminDashboard: '_admin',
       Logs: 'logs',

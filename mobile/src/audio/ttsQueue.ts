@@ -51,6 +51,7 @@ function delay(ms: number): Promise<void> {
 export class TTSConversionQueue {
   private queue: QueueItem[] = [];
   private activeCount = 0;
+  private readonly activeIds = new Set<string>();
   private cancelled = false;
   private readonly remoteSaved = new Set<string>();
 
@@ -72,10 +73,11 @@ export class TTSConversionQueue {
     if (items.length === 0) return;
     this.cancelled = false;
 
-    const known = new Set(this.queue.map((item) => item.id));
+    const known = new Set([...this.queue.map((item) => item.id), ...this.activeIds]);
     for (const item of items) {
       if (known.has(item.id)) continue;
       this.queue.push(item);
+      known.add(item.id);
       this.callbacks.onStatusChange(item.id, 'pending');
     }
 
@@ -108,6 +110,7 @@ export class TTSConversionQueue {
     while (!this.cancelled && this.activeCount < MAX_CONCURRENT && this.queue.length > 0) {
       const item = this.queue.shift()!;
       this.activeCount += 1;
+      this.activeIds.add(item.id);
 
       void this.process(item)
         .catch((error) => {
@@ -115,6 +118,7 @@ export class TTSConversionQueue {
         })
         .finally(() => {
           this.activeCount -= 1;
+          this.activeIds.delete(item.id);
           if (!this.cancelled && this.queue.length > 0) {
             void this.pump();
           }

@@ -6,6 +6,7 @@
 import type { AlibiCharacter } from "./types";
 import type { Clip } from "./content";
 import { earpiece, earpiecePossible, type PhoneMode } from "./earpiece";
+import { nativeAudio } from "./native-audio";
 
 export type SfxName =
   | "stamp" | "type" | "gavel" | "chime" | "tick" | "knock" | "sting" | "drum" | "fanfare" | "sad"
@@ -86,6 +87,7 @@ class AudioDirector {
   private manifestLoaded = false;
   private seq = 0;
   private active: HTMLAudioElement | null = null;
+  private effects = new Set<HTMLAudioElement>();
   private ac: AudioContext | null = null;
   private listeners = new Set<Listener>();
   caption: Caption | null = null;
@@ -124,6 +126,7 @@ class AudioDirector {
   }
   /** Lautstärke für Geheimes: an der Hörmuschel voll (sie ist von Natur aus leise), über den Lautsprecher geflüstert */
   get privVol() {
+    if (nativeAudio()) return Math.min(0.35, this.whisperVol);
     return earpiece.active ? 1 : this.whisperVol;
   }
 
@@ -136,24 +139,27 @@ class AudioDirector {
     if (this.fast) return;
     if (on) {
       this.privOn = true;
+      if (nativeAudio()) { this.effects.forEach(el => { el.pause(); }); this.effects.clear(); }
       this.syncAmbience();
-      if (this.phoneMode === "earpiece" && this._soundOn && !earpiece.active) await earpiece.open();
+      this.syncMusic();
+      if ((nativeAudio() || this.phoneMode === "earpiece") && this._soundOn && !earpiece.active) await earpiece.open();
       return;
     }
     if (!this.privOn) return;
+    // Finish receiver playback before any public media can resume.
+    if (nativeAudio() || (earpiece.active && !earpiece.routable)) await earpiece.close();
     this.privOn = false;
     this.syncAmbience();
-    if (earpiece.active && !earpiece.routable) await earpiece.close();
+    this.syncMusic();
   }
   /** Keine Geheimnisse mehr (Akte vorbei, Spiel verlassen): Mikrofon freigeben */
   releasePhone() {
     this.privOn = false;
-    this.syncAmbience();
-    void earpiece.close();
+    void earpiece.close().then(() => { this.syncAmbience(); this.syncMusic(); });
   }
   setPhoneMode(mode: PhoneMode) {
-    this.phoneMode = mode;
-    if (mode === "whisper") void earpiece.close();
+    this.phoneMode = nativeAudio() ? "earpiece" : mode;
+    if (this.phoneMode === "whisper") void earpiece.close();
     else earpiece.reset();
     this.emit();
   }
@@ -209,12 +215,13 @@ class AudioDirector {
     return this.ducked ? 0.32 : 0.75;
   }
   private syncMusic() {
-    const want = this.musId && !this.ambPaused && this._soundOn && !this.fast && this.available.has(`music.${this.musId}`) ? `music.${this.musId}` : null;
+    const want = this.musId && !this.ambPaused && !(nativeAudio() && this.privOn) && this._soundOn && !this.fast && this.available.has(`music.${this.musId}`) ? `music.${this.musId}` : null;
     if (want === this.musPlaying) return;
     const old = this.musEl;
     this.musEl = null;
     this.musPlaying = want;
-    if (old) AudioDirector.fade(old, 0, 900, () => {
+    if (old && nativeAudio() && (this.privOn || this.ambPaused || !this._soundOn)) { old.volume = 0; old.pause(); }
+    else if (old) AudioDirector.fade(old, 0, 900, () => {
       try {
         old.pause();
       } catch {
@@ -227,7 +234,7 @@ class AudioDirector {
       el.loop = true;
       el.volume = 0;
       this.musEl = el;
-      void earpiece.route(el, false).then(() => el.play()).then(() => AudioDirector.fade(el, this.musicVol(), 2200)).catch(() => {
+      void earpiece.route(el, false).then(() => this.musEl === el ? el.play() : undefined).then(() => { if (this.musEl === el) AudioDirector.fade(el, this.musicVol(), 2200); }).catch(() => {
         if (this.musEl === el) {
           this.musEl = null;
           this.musPlaying = null;
@@ -245,6 +252,7 @@ class AudioDirector {
   }
   /** Einmaliger Musik-Einsatz (z. B. music.reveal) */
   sting(id: string) {
+    if (nativeAudio() && this.privOn) return;
     if (!this.soundOn || this.fast || !this.available.has(id)) return;
     this.playFile(id, 0.9);
   }
@@ -255,7 +263,8 @@ class AudioDirector {
     this.ambEl = null;
     this.ambPlaying = want;
     if (old) {
-      AudioDirector.fade(old, 0, 700, () => {
+      if (nativeAudio() && (this.privOn || this.ambPaused || !this._soundOn)) { old.volume = 0; old.pause(); }
+      else AudioDirector.fade(old, 0, 700, () => {
         try {
           old.pause();
         } catch {
@@ -269,7 +278,7 @@ class AudioDirector {
       el.loop = true;
       el.volume = 0;
       this.ambEl = el;
-      void earpiece.route(el, false).then(() => el.play()).then(() => AudioDirector.fade(el, 1, 1800)).catch(() => {
+      void earpiece.route(el, false).then(() => this.ambEl === el ? el.play() : undefined).then(() => { if (this.ambEl === el) AudioDirector.fade(el, 1, 1800); }).catch(() => {
         if (this.ambEl === el) {
           this.ambEl = null;
           this.ambPlaying = null;
@@ -378,6 +387,7 @@ class AudioDirector {
     twinkle: () => this.tone(2600, 0, 0.18, "sine", 0.025, 3400),
   };
   sfx(name: SfxName) {
+    if (nativeAudio() && this.privOn) return;
     if (!this.soundOn || this.fast) return;
     const rec = `fx.${name}`;
     if (this.available.has(rec)) {
@@ -399,6 +409,10 @@ class AudioDirector {
   }
   /** Aufnahme abspielen; `priv` = geheim (bei aktiver Hörmuschel dorthin geleitet, sonst Lautsprecher) */
   private playFile(id: string, vol: number, priv = false): HTMLAudioElement | null {
+    if (nativeAudio() && priv) {
+      void nativeAudio()!.play(id, true, vol).catch(() => undefined);
+      return null;
+    }
     try {
       const cached = this.cache.get(id);
       let a: HTMLAudioElement;
@@ -413,6 +427,11 @@ class AudioDirector {
         }
       } else a = new Audio(`${VOICE_BASE}${id}.mp3`);
       a.volume = vol;
+      if (nativeAudio()) {
+        this.effects.add(a);
+        a.addEventListener("ended", () => this.effects.delete(a), { once: true });
+        a.addEventListener("error", () => this.effects.delete(a), { once: true });
+      }
       if (earpiece.routable) void earpiece.route(a, priv).then(() => a.play()).catch(() => undefined);
       else void a.play().catch(() => undefined);
       return a;
@@ -424,6 +443,7 @@ class AudioDirector {
   /* ---------- Sprache ---------- */
   stop() {
     this.seq++;
+    nativeAudio()?.stop();
     if (this.active) {
       try {
         this.active.pause();
@@ -474,6 +494,9 @@ class AudioDirector {
   say(parts: SayPart[], opt: { priv?: boolean } = {}): Promise<boolean> {
     this.stop();
     const my = this.seq, vol = opt.priv ? this.privVol : 1, priv = !!opt.priv;
+    // A restored or repeated private line also quiets background media; it may
+    // not have passed through handAnswer() to reopen the telephone session.
+    if (nativeAudio() && priv) void this.privacy(true);
     this.duck(true);
     const list = parts.filter((p) => p !== null && p !== undefined).map((p) => (typeof p === "string" ? { id: p } : p));
     this.speaking = true;
@@ -526,8 +549,9 @@ class AudioDirector {
           if (my === this.seq) this.cur = null;
           window.setTimeout(next, GAP);
         };
-        const fallback = () => {
+        const fallback = (error?: unknown) => {
           if (my !== this.seq) return resolve(false);
+          if (nativeAudio() && priv && (error as { code?: string })?.code === "PRIVATE_ROUTE") return doneOnce();
           const tts = typeof window.speechSynthesis !== "undefined" ? window.speechSynthesis : null;
           if (!tts) return window.setTimeout(doneOnce, AudioDirector.estimate(text));
           try {
@@ -545,6 +569,10 @@ class AudioDirector {
             }
             u.onend = doneOnce;
             u.onerror = doneOnce;
+            if (nativeAudio()) {
+              void nativeAudio()!.speak(text, u.pitch, u.rate, vol, priv).then(doneOnce, doneOnce);
+              return;
+            }
             tts.speak(u);
             window.setTimeout(doneOnce, AudioDirector.estimate(text) + 5000);
           } catch {
@@ -552,6 +580,10 @@ class AudioDirector {
           }
         };
         if (this.available.has(id)) {
+          if (nativeAudio()) {
+            void nativeAudio()!.play(id, priv, vol).then(doneOnce, fallback);
+            return;
+          }
           const a = this.playFile(id, vol, priv);
           if (!a) return fallback();
           this.active = a;

@@ -25,6 +25,10 @@ import { StoryCard } from '@/components/cards/StoryCard';
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet';
 import type { Story } from '@/types/story';
 import type { RootStackParamList } from '@/navigation/types';
+import { useBackend } from '@/api/backend';
+import { exportBook } from '@/lib/exportBook';
+import { storyChapters } from '@/lib/content';
+import { ContentManagement } from '@/components/ContentManagement';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -53,6 +57,7 @@ export function StoriesScreen() {
   const navigation = useNavigation<Nav>();
   const { t } = useTranslation();
   const toast = useToast();
+  const backend = useBackend();
 
   const storiesQuery = useStories();
   const deleteStory = useDeleteStory();
@@ -63,6 +68,8 @@ export function StoriesScreen() {
   const [showSearch, setShowSearch] = useState(false);
   const [genre, setGenre] = useState<string>('all');
   const [sort, setSort] = useState<SortMode>('recent');
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [onlyUnread, setOnlyUnread] = useState(false);
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Story | null>(null);
 
@@ -74,6 +81,8 @@ export function StoriesScreen() {
     const term = search.trim().toLowerCase();
 
     const matched = stories.filter((story) => {
+      if (onlyFavorites && !(story as any).profileState?.isFavorite) return false;
+      if (onlyUnread && (story as any).profileState?.completionState === 'completed') return false;
       if (genre !== 'all' && story.config?.genre !== genre) return false;
       if (!term) return true;
       return (
@@ -87,7 +96,7 @@ export function StoriesScreen() {
       if (sort === 'title') return a.title.localeCompare(b.title);
       return new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime();
     });
-  }, [genre, search, sort, stories]);
+  }, [genre, search, sort, stories, onlyFavorites, onlyUnread]);
 
   const openActions = useCallback((story: Story) => {
     setSelectedStory(story);
@@ -95,8 +104,11 @@ export function StoriesScreen() {
   }, []);
 
   const handleListen = useCallback(
-    (story: Story) => {
-      const chapters = story.chapters ?? story.pages ?? [];
+    async (summary: Story) => {
+      actionSheetRef.current?.close();
+      try {
+      const story = await backend.story.get({ id: summary.id }) as Story;
+      const chapters = storyChapters(story);
       if (chapters.length === 0) {
         toast.warning('Noch keine Kapitel', 'Diese Geschichte ist noch nicht fertig.');
         return;
@@ -104,14 +116,20 @@ export function StoriesScreen() {
       actionSheetRef.current?.close();
       startStoryConversion(story.id, story.title, chapters, story.coverImageUrl, true);
       toast.info('Hörfassung startet', 'Die ersten Abschnitte werden vorbereitet.');
+      } catch (error) { toast.error('Hörfassung konnte nicht geladen werden', error instanceof Error ? error.message : undefined); }
     },
-    [startStoryConversion, toast]
+    [backend.story, startStoryConversion, toast]
   );
 
   const handleSaveOffline = useCallback(
-    async (story: Story) => {
+    async (summary: Story) => {
       actionSheetRef.current?.close();
-      const chapters = story.chapters ?? story.pages ?? [];
+      try {
+      if (offline.isStorySaved(summary.id)) {
+        await offline.removeStory(summary.id); toast.info('Aus Offline-Bibliothek entfernt'); return;
+      }
+      const story = await backend.story.get({ id: summary.id }) as Story;
+      const chapters = storyChapters(story);
       if (chapters.length === 0) {
         toast.warning('Noch nichts zu speichern', 'Diese Geschichte ist noch nicht fertig.');
         return;
@@ -137,8 +155,9 @@ export function StoriesScreen() {
         })),
       });
       toast.success('Offline gespeichert', 'Diese Geschichte funktioniert jetzt auch ohne Internet.');
+      } catch (error) { toast.error('Offline-Speichern fehlgeschlagen', error instanceof Error ? error.message : undefined); }
     },
-    [offline, toast]
+    [backend.story, offline, toast]
   );
 
   const confirmDelete = useCallback(async () => {
@@ -213,6 +232,8 @@ export function StoriesScreen() {
             ))}
 
             <View style={{ width: spacing.sm }} />
+            <Chip label="Favoriten" selected={onlyFavorites} onPress={() => setOnlyFavorites(!onlyFavorites)} />
+            <Chip label="Ungelesen" selected={onlyUnread} onPress={() => setOnlyUnread(!onlyUnread)} />
             <Chip
               label={sort === 'recent' ? 'Neueste' : 'A–Z'}
               icon={<ArrowUpDown size={11} color={colors.text.secondary} />}
@@ -235,7 +256,7 @@ export function StoriesScreen() {
               <SkeletonCard />
               <SkeletonCard />
             </View>
-          ) : (
+          ) : storiesQuery.isError ? <EmptyState title="Geschichten konnten nicht geladen werden" actionLabel="Erneut versuchen" onAction={() => void storiesQuery.refetch()} /> : (
             <EmptyState
               icon={<BookOpen size={24} color={colors.primary} />}
               title={search || genre !== 'all' ? 'Nichts gefunden' : 'Noch keine Geschichten'}
@@ -258,7 +279,7 @@ export function StoriesScreen() {
         }
       />
 
-      <Sheet ref={actionSheetRef} snapPoints={['42%']} title={selectedStory?.title} scrollable={false}>
+      <Sheet ref={actionSheetRef} snapPoints={['65%']} title={selectedStory?.title}>
         <View style={{ gap: spacing.xs }}>
           <SheetAction
             icon={<BookOpen size={18} color={colors.text.secondary} />}
@@ -279,6 +300,17 @@ export function StoriesScreen() {
             onPress={() => selectedStory && void handleSaveOffline(selectedStory)}
           />
           <SheetAction
+            icon={<Download size={18} color={colors.text.secondary} />}
+            label="Als PDF exportieren"
+            onPress={async () => {
+              actionSheetRef.current?.close();
+              if (!selectedStory) return;
+              try { const story = await backend.story.get({ id: selectedStory.id }) as Story;
+                await exportBook({ title: story.title, summary: story.summary, coverImageUrl: story.coverImageUrl, sections: storyChapters(story) }); }
+              catch (error) { toast.error('PDF-Export fehlgeschlagen', error instanceof Error ? error.message : undefined); }
+            }}
+          />
+          <SheetAction
             icon={<Trash2 size={18} color={colors.danger} />}
             label="Löschen"
             destructive
@@ -287,6 +319,7 @@ export function StoriesScreen() {
               setPendingDelete(selectedStory);
             }}
           />
+          {selectedStory ? <ContentManagement kind="story" content={stories.find((item) => item.id === selectedStory.id) ?? selectedStory} refresh={() => storiesQuery.refetch()} /> : null}
         </View>
       </Sheet>
 

@@ -140,6 +140,14 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
     setOverlay(null);
   };
 
+  // The locally bundled Android host forwards its system Back button here.
+  // Use the same overlay dismissal and two-tap exit as the on-screen controls.
+  useEffect(() => {
+    const back = () => { if (overlay) closeOverlay(); else requestExit(); };
+    window.addEventListener("alibi:back", back);
+    return () => window.removeEventListener("alibi:back", back);
+  }, [overlay, exitArmed, inGame, onExit]);
+
   let content: React.ReactNode;
   switch (s.phase) {
     case "setup":
