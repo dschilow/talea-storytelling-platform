@@ -10,31 +10,19 @@ Endpoints
 Tuned for children's stories: slower default speed, one model call per sentence with
 punctuation-dependent pauses, and loudness-normalised output.
 """
-import json
 import logging
-import math
 import os
-import subprocess
 import threading
 import time
-from io import BytesIO
 from typing import Optional
 
 import numpy as np
-import soundfile as sf
 import torch
 from flask import Flask, Response, jsonify, request
 from huggingface_hub import hf_hub_download
 
-from textprep import Pauses, build_segments, normalize_text
-
-
-def _env_float(name: str, default: float) -> float:
-    try:
-        return float(os.environ.get(name, default))
-    except ValueError:
-        return default
-
+from audioprep import LOUDNORM, assemble, encode, env_float, pauses_from_env
+from textprep import build_segments, normalize_text
 
 # -----------------------------------------------------------------------------
 # Configuration
@@ -44,28 +32,12 @@ BASE_REPO_ID = "hexgrad/Kokoro-82M"
 SAMPLE_RATE = 24000
 
 CHECKPOINT = os.environ.get("KOKORO_EPOCH", "5").strip()  # 1-10, 5 = repo default (judged most natural)
-DEFAULT_SPEED = _env_float("KOKORO_DEFAULT_SPEED", 0.85)  # 1.0 is too hurried for children's stories
+DEFAULT_SPEED = env_float("KOKORO_DEFAULT_SPEED", 0.85)  # 1.0 is too hurried for children's stories
 MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "6000"))
 GROUP_MAX_CHARS = int(os.environ.get("GROUP_MAX_CHARS", "220"))  # longest text synthesised in one model call
-PAUSES = Pauses(
-    clause=_env_float("CLAUSE_PAUSE_S", 0.15),
-    colon=_env_float("COLON_PAUSE_S", 0.35),
-    sentence=_env_float("SENTENCE_PAUSE_S", 0.45),
-    exclamation=_env_float("EXCLAMATION_PAUSE_S", 0.5),
-    question=_env_float("QUESTION_PAUSE_S", 0.55),
-    ellipsis=_env_float("ELLIPSIS_PAUSE_S", 0.8),
-    paragraph=_env_float("PARAGRAPH_PAUSE_S", 1.0),
-    end=_env_float("END_PAUSE_S", 0.8),
-)
-LEAD_IN_S = _env_float("LEAD_IN_S", 0.1)
-MP3_BITRATE = os.environ.get("MP3_BITRATE", "128k")
+PAUSES = pauses_from_env()
 MAX_QUEUE = int(os.environ.get("MAX_QUEUE", "24"))
 API_KEY = os.environ.get("API_KEY", "").strip()
-LOUDNORM = os.environ.get("LOUDNORM", "1").strip() != "0"
-TARGET_LUFS = _env_float("TARGET_LUFS", -16.0)
-TRUE_PEAK_DB = _env_float("TRUE_PEAK_DB", -1.5)
-HIGHPASS_HZ = int(_env_float("HIGHPASS_HZ", 60))
-OUTPUT_GAIN_DB = _env_float("OUTPUT_GAIN_DB", 4)  # fallback when loudness normalisation is off or fails
 CPU_THREADS = int(os.environ.get("KOKORO_CPU_THREADS", str(max(1, min(8, os.cpu_count() or 1)))))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -115,12 +87,8 @@ def _load_pipeline():
 
 
 # -----------------------------------------------------------------------------
-# Synthesis + encoding
+# Synthesis
 # -----------------------------------------------------------------------------
-def _silence(seconds: float) -> np.ndarray:
-    return np.zeros(max(0, int(SAMPLE_RATE * seconds)), dtype=np.float32)
-
-
 def _render(text: str, speed: float) -> Optional[np.ndarray]:
     chunks = []
     for _, _, audio in _pipeline(text, voice=_voice, speed=speed):
@@ -132,118 +100,12 @@ def _render(text: str, speed: float) -> Optional[np.ndarray]:
     return np.concatenate(chunks).astype(np.float32)
 
 
-def _trim_silence(samples: np.ndarray, threshold_db: float = -45.0) -> np.ndarray:
-    """Cut the model's variable lead/tail silence so the inserted pauses alone set the rhythm."""
-    frame = int(SAMPLE_RATE * 0.01)
-    frames = samples.size // frame
-    peak = float(np.max(np.abs(samples))) if samples.size else 0.0
-    if frames == 0 or peak <= 0.0:
-        return samples
-    rms = np.sqrt(np.mean(samples[: frames * frame].reshape(frames, frame) ** 2, axis=1))
-    active = np.nonzero(rms > peak * 10 ** (threshold_db / 20.0))[0]
-    if active.size == 0:
-        return samples
-    start = max(0, active[0] * frame - int(SAMPLE_RATE * 0.03))
-    end = min(samples.size, (active[-1] + 1) * frame + int(SAMPLE_RATE * 0.08))  # keep the natural decay
-    return samples[start:end]
-
-
-def _fade(samples: np.ndarray, seconds: float = 0.008) -> np.ndarray:
-    n = min(int(SAMPLE_RATE * seconds), samples.size // 2)
-    if n <= 0:
-        return samples
-    ramp = np.linspace(0.0, 1.0, n, dtype=np.float32)
-    out = samples.copy()
-    out[:n] *= ramp
-    out[-n:] *= ramp[::-1]
-    return out
-
-
 def synthesize(text: str, speed: float) -> np.ndarray:
     segments = build_segments(normalize_text(text), PAUSES, GROUP_MAX_CHARS)
     if not segments:
         raise ValueError("Text is empty after normalization.")
-
-    pieces = [_silence(LEAD_IN_S)]
-    rendered = 0
     with _infer_lock:
-        for segment in segments:
-            audio = _render(segment.text, speed)
-            if audio is None:
-                log.warning("No audio for segment: %r", segment.text[:80])
-                continue
-            pieces.append(_fade(_trim_silence(audio)))
-            pieces.append(_silence(segment.pause))
-            rendered += 1
-    if not rendered:
-        raise RuntimeError("Model produced no audio.")
-    return np.concatenate(pieces)
-
-
-def _run_ffmpeg(samples: np.ndarray, args: list) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["ffmpeg", "-hide_banner", "-nostats", "-f", "f32le", "-ar", str(SAMPLE_RATE), "-ac", "1", "-i", "pipe:0", *args],
-        input=samples.astype(np.float32).tobytes(),
-        capture_output=True,
-        timeout=180,
-    )
-
-
-def _prefilter() -> str:
-    return f"highpass=f={HIGHPASS_HZ}" if HIGHPASS_HZ > 0 else "anull"
-
-
-def _loudnorm_chain(samples: np.ndarray) -> Optional[str]:
-    """Two-pass EBU R128 normalisation as one linear gain, so every chunk plays equally loud."""
-    target = f"I={TARGET_LUFS}:TP={TRUE_PEAK_DB}:LRA=20"
-    proc = _run_ffmpeg(samples, ["-af", f"{_prefilter()},loudnorm={target}:print_format=json", "-f", "null", "-"])
-    stderr = proc.stderr.decode(errors="ignore")
-    start, end = stderr.rfind("{"), stderr.rfind("}")
-    if proc.returncode != 0 or start < 0 or end < start:
-        log.warning("loudnorm measurement failed: %s", stderr[-300:])
-        return None
-    try:
-        measured = json.loads(stderr[start:end + 1])
-        values = {key: float(measured[key]) for key in ("input_i", "input_tp", "input_lra", "input_thresh", "target_offset")}
-    except (KeyError, ValueError):
-        log.warning("loudnorm measurement unreadable: %s", stderr[start:end + 1][:300])
-        return None
-    if not all(math.isfinite(v) for v in values.values()):
-        return None  # e.g. clips too short to measure
-    return (
-        f"{_prefilter()},loudnorm={target}:measured_I={values['input_i']}:measured_TP={values['input_tp']}"
-        f":measured_LRA={values['input_lra']}:measured_thresh={values['input_thresh']}"
-        f":offset={values['target_offset']}:linear=true,aresample={SAMPLE_RATE}"
-    )
-
-
-def _fixed_gain(samples: np.ndarray) -> np.ndarray:
-    gain = 10 ** (OUTPUT_GAIN_DB / 20.0)
-    peak = float(np.max(np.abs(samples))) if samples.size else 0.0
-    if peak * gain > 0.97:  # never clip
-        gain = 0.97 / peak
-    return np.clip(samples * gain, -1.0, 1.0).astype(np.float32)
-
-
-def encode(samples: np.ndarray, fmt: str) -> bytes:
-    chain = _loudnorm_chain(samples) if LOUDNORM else None
-    if chain is None:
-        samples, chain = _fixed_gain(samples), _prefilter()
-
-    if fmt == "wav":
-        proc = _run_ffmpeg(samples, ["-af", chain, "-ar", str(SAMPLE_RATE), "-f", "s16le", "-acodec", "pcm_s16le", "pipe:1"])
-    else:
-        proc = _run_ffmpeg(
-            samples,
-            ["-af", chain, "-ar", str(SAMPLE_RATE), "-codec:a", "libmp3lame", "-b:a", MP3_BITRATE, "-f", "mp3", "pipe:1"],
-        )
-    if proc.returncode != 0 or not proc.stdout:
-        raise RuntimeError(f"ffmpeg {fmt} encoding failed: {proc.stderr.decode(errors='ignore')[-300:]}")
-    if fmt != "wav":
-        return proc.stdout
-    buf = BytesIO()
-    sf.write(buf, np.frombuffer(proc.stdout, dtype=np.int16), SAMPLE_RATE, format="WAV", subtype="PCM_16")
-    return buf.getvalue()
+        return assemble(segments, lambda segment_text: _render(segment_text, speed), SAMPLE_RATE)
 
 
 # -----------------------------------------------------------------------------
@@ -302,7 +164,7 @@ def tts():
     started = time.time()
     try:
         samples = synthesize(text, speed)
-        body = encode(samples, fmt)
+        body = encode(samples, fmt, SAMPLE_RATE)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:

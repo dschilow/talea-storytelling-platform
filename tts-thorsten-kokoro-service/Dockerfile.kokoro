@@ -30,7 +30,7 @@ RUN pip install \
 # Weights before the code, so code changes reuse the cached download layer
 RUN python -c "from huggingface_hub import hf_hub_download as d; [d('Thorsten-Voice/Kokoro', f) for f in ('config.json', 'model.pth', 'voices/thorsten.pt')]"
 
-COPY textprep.py server.py ./
+COPY textprep.py audioprep.py server.py ./
 
 # Import loads and warms up the model once at build time
 RUN python -c "import server; print('model prefetch ok')"
