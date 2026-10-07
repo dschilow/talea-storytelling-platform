@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -67,6 +68,15 @@ export function UserAccessProvider({ children }: { children: ReactNode }) {
   const backend = useBackend();
   const { isLoaded, isSignedIn } = useUser();
 
+  // `/user/me` is not profile-scoped, so a new client identity (token resolver,
+  // active profile id) must not trigger a reload. Reading it through a ref keeps
+  // `loadProfile` stable.
+  const backendRef = useRef(backend);
+  backendRef.current = backend;
+  // Only the first load may show the full-screen splash; later refreshes happen
+  // behind the visible UI instead of tearing the whole navigator down.
+  const hasLoadedRef = useRef(false);
+
   const [isLoading, setIsLoading] = useState(true);
   const [role, setRole] = useState<UserRole | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionPlan | null>(null);
@@ -91,13 +101,14 @@ export function UserAccessProvider({ children }: { children: ReactNode }) {
 
     if (!isSignedIn) {
       reset();
+      hasLoadedRef.current = false;
       setIsLoading(false);
       return;
     }
 
     try {
-      setIsLoading(true);
-      const profile = (await backend.user.me()) as any;
+      if (!hasLoadedRef.current) setIsLoading(true);
+      const profile = (await backendRef.current.user.me()) as any;
       const parentalControls = profile.parentalControls;
       const onboardingCompleted =
         typeof parentalControls?.onboardingCompleted === 'boolean' ? parentalControls.onboardingCompleted : null;
@@ -115,9 +126,10 @@ export function UserAccessProvider({ children }: { children: ReactNode }) {
       console.error('[UserAccess] Failed to load profile', error);
       reset();
     } finally {
+      hasLoadedRef.current = true;
       setIsLoading(false);
     }
-  }, [backend, isLoaded, isSignedIn, reset]);
+  }, [isLoaded, isSignedIn, reset]);
 
   useEffect(() => {
     void loadProfile();

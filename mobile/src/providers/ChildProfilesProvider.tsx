@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -145,6 +146,11 @@ function pickInitialActiveProfileId(userId: string, profiles: ProfileDetails[]):
 
 export function ChildProfilesProvider({ children }: { children: ReactNode }) {
   const backend = useBackend();
+  // Every call here targets the unscoped `user` service. Reading the client through
+  // a ref keeps `refresh` stable when the active profile id changes — otherwise
+  // refresh (which writes that id) re-runs itself.
+  const backendRef = useRef(backend);
+  backendRef.current = backend;
   const { isLoaded, isSignedIn, user } = useUser();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -170,10 +176,10 @@ export function ChildProfilesProvider({ children }: { children: ReactNode }) {
 
       let nextOverview: ProfilesOverview;
       try {
-        nextOverview = (await backend.user.getProfilesOverview()) as unknown as ProfilesOverview;
+        nextOverview = (await backendRef.current.user.getProfilesOverview()) as unknown as ProfilesOverview;
       } catch (overviewError) {
         // Fallback for partially updated backends: /user/me already carries profiles + limit.
-        const fallback = (await backend.user.me()) as unknown as {
+        const fallback = (await backendRef.current.user.me()) as unknown as {
           subscription?: SubscriptionPlan;
           profileLimit?: number;
           profiles?: ChildProfile[];
@@ -203,7 +209,7 @@ export function ChildProfilesProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [backend, isLoaded, isSignedIn, user?.id]);
+  }, [isLoaded, isSignedIn, user?.id]);
 
   useEffect(() => {
     void refresh();

@@ -20,7 +20,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
           Stories: 'stories',
           Avatars: 'avatar',
           Dokus: 'doku',
-          Quiz: 'quiz',
+          Spiel: 'spiel',
         },
       },
       Auth: 'auth',

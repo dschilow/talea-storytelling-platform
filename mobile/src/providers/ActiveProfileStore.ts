@@ -54,9 +54,16 @@ export function clearStoredActiveProfileId(userId: string | null): void {
 export async function hydrateActiveProfileId(userId: string | null): Promise<string | null> {
   const key = keyFor(userId);
   const stored = await storage.getString(key);
+  // A write that landed while the read was in flight is newer than what was
+  // read. Overwriting it flips the id back, which rebuilds the backend client,
+  // which re-triggers every loader that depends on it.
+  if (cache.has(key)) {
+    hydrated = true;
+    return cache.get(key) ?? null;
+  }
   cache.set(key, stored);
   hydrated = true;
-  notify();
+  if (stored != null) notify();
   return stored;
 }
 
