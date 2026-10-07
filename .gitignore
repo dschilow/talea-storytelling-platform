@@ -63,3 +63,6 @@ AudioDoku/
 # Python bytecode/cache
 __pycache__/
 *.py[cod]
+
+# lokale Spracherkennung für scripts/game-voices/check-transcripts.py
+.venv-whisper/

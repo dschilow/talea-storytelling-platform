@@ -34,12 +34,18 @@ export function getApiKey() {
     }
   }
   if (!key) {
-    try {
-      const out = execSync("railway variables --kv", { cwd: REPO_ROOT, stdio: ["ignore", "pipe", "ignore"], timeout: 60_000 }).toString();
-      const m = out.match(/^ELEVENLABS_API_KEY=(.*)$/m);
-      if (m) key = m[1].trim().replace(/^["']|["']$/g, "");
-    } catch {
-      /* Railway-CLI nicht verfügbar */
+    // Der Schlüssel liegt beim Railway-Dienst „backend 2“ (Produktion); der lokal verlinkte Dienst kann ein anderer sein.
+    for (const cmd of ['railway variables --service "backend 2" --environment production --kv', "railway variables --kv"]) {
+      try {
+        const out = execSync(cmd, { cwd: REPO_ROOT, stdio: ["ignore", "pipe", "ignore"], timeout: 60_000 }).toString();
+        const m = out.match(/^ELEVENLABS_API_KEY=(.*)$/m);
+        if (m) {
+          key = m[1].trim().replace(/^["']|["']$/g, "");
+          break;
+        }
+      } catch {
+        /* Railway-CLI nicht verfügbar oder Dienst nicht gefunden */
+      }
     }
   }
   if (!key) throw new Error("Kein ELEVENLABS_API_KEY gefunden (Umgebung, .env.local oder Railway).");

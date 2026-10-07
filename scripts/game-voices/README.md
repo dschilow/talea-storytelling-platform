@@ -13,7 +13,7 @@ Erzeugt Sprache und Klänge des Spiels ohne Handarbeit. Eingabe: `docs/games/mit
 | `check-transcripts.py` | Lokale Spracherkennung (faster-whisper) gegen den Soll-Text: findet gesprochene Tags, fehlende Sätze |
 | `inspect.mjs` | Stimmen des Kontos auflisten und in `voices-account.json` speichern |
 
-Der Schlüssel liegt nur im Speicher. `.cache/` (Rohdateien, Protokolle, Transkripte) ist nicht eingecheckt.
+Der Schlüssel ist die Railway-Variable `ELEVENLABS_API_KEY` des Dienstes „backend 2“ (Umgebung production), dieselbe, die das Backend für die Audio-Dokus nutzt. Die Skripte lesen sie zur Laufzeit per Railway-CLI (Anmeldung nötig: `railway login`) und halten sie nur im Speicher. Alternativ `ELEVENLABS_API_KEY` als Umgebungsvariable setzen oder in `.env.local` eintragen. `.cache/` (Rohdateien, Protokolle, Transkripte) ist nicht eingecheckt.
 
 ## Typische Abläufe
 

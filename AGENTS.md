@@ -336,6 +336,27 @@ When updating avatar personality traits, you MUST:
 - Story chapter images use canonical avatar appearance from `visualProfile`
 - Image consistency ensured via vision QA system ([backend/story/vision-qa.ts](backend/story/vision-qa.ts:1))
 
+### Game Voices and Sound Effects (ElevenLabs) — any agent can generate them
+
+The game "Mitternachts-Alibi" (`frontend/screens/Game/alibi/`) plays pre-generated MP3s from `frontend/public/game/alibi/voices/<id>.mp3`, listed in `voices/manifest.json`. Missing clips fall back to the browser voice, so new lines must be generated and committed. Tools: `scripts/game-voices/` (full guide in its `README.md`).
+
+**Key:** `ELEVENLABS_API_KEY` in `.env.local` (git-ignored). The scripts read it automatically; fallback is the Railway variable of service "backend 2" (production) via `railway variables`. Never print, log or commit the key.
+
+**Add or change a spoken line:**
+1. Text for the game (caption + browser fallback): `frontend/screens/Game/alibi/data/content-data.ts` → `KOM` (Kommissar Tavi) or `WHISPER` (secret phone, ids `w.*`). Character lines live in `data/characters.ts` (`intro`, `stmt`, `deny`, `confess`, `smug`, `witness`).
+2. Same id in `docs/games/mitternachts-alibi-v2/Stimmen.json`: `{ "filename": "<id>.mp3", "voice": "Kommissar Tavi", "kind": "tavi" | "flüstern" | "figur", "prio": 1, "text": "…", "eleven": "[calm, measured] …" }`. `eleven` is the text sent to ElevenLabs with audio tags in square brackets (`[whispers]` for whisper clips, emotions like `[dramatic]`, `[playful, warm]`). For `kind: "figur"` the tags come from `scripts/game-voices/casting.mjs` (voice + persona per character).
+3. Generate only what changed (hash of voice + text, resumable):
+   ```bash
+   bun scripts/game-voices/generate.mjs --prio 3 --dry        # plan + characters + cost estimate
+   bun scripts/game-voices/generate.mjs --prio 3              # all missing/changed clips
+   bun scripts/game-voices/generate.mjs --ids kom.x,w.y --force --seed 7   # redo single clips (other take)
+   ```
+4. Sound effects: prompt in `docs/games/mitternachts-alibi-v2/Effekte.json` (or `EXTRA` in `scripts/game-voices/sfx.mjs`), then `bun scripts/game-voices/sfx.mjs` (`--only fx.name --force` to redo). Play in code with `director.sfx(...)` / `{ fx: "fx.name" }`.
+5. Check: `bun scripts/game-voices/verify.mjs --loudness` (missing ids, tempo, loudness). Optional listening check without ears: `scripts/game-voices/check-transcripts.py` (local faster-whisper) flags spoken tags and swallowed or repeated sentences; re-roll those with `--force --seed N`.
+6. Commit the new MP3s and `manifest.json` together with the text changes.
+
+Facts: model `eleven_v4` (fallback `eleven_v3`); Tavi always uses the audio-doku voice `8tJgFGd1nr7H5KLTvjjt`; ffmpeg normalizes to −19 LUFS speech / −23 effects / −34 ambience, mono 64 kbit/s. Audio tags count as billed characters. The key cannot read the account balance (`user_read` missing); `generate.mjs` stops cleanly when credits run out.
+
 ## Deployment
 
 The project is deployed on Railway with GitHub Actions building Docker images for backend and direct deployment for frontend. See [README.md](README.md:5) for detailed deployment instructions.
