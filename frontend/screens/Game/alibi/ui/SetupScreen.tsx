@@ -8,6 +8,7 @@ import type { AlibiController } from "../controller";
 import { useAlibiState, usePreviewFaces } from "../hooks";
 import type { LevelId } from "../types";
 import { Eyebrow, GameIcon, GhostButton, GoldButton, Screen, TaviNote, Title, type GameIconName } from "./primitives";
+import { PhoneSetup } from "./PhoneControls";
 
 const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const rise = { hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 260, damping: 24 } } };
@@ -138,11 +139,8 @@ export const SetupScreen: React.FC<{ ctrl: AlibiController; onTour: () => void }
           </div>
         </motion.section>
 
-        <motion.div variants={rise} className="alibi-glass flex w-full items-center gap-3 rounded-[22px] p-3">
-          <img src={IMG.icon("phone")} alt="" className="h-16 w-16 shrink-0 rounded-2xl bg-[#f6ead0] object-cover" />
-          <p className="text-[13.5px] leading-snug text-white/80">
-            <b className="text-white">Geheimtelefon:</b> Geheimes flüstert Tavi ins Ohr. Handy ans Ohr halten oder Kopfhörer benutzen. Niemand muss lesen können.
-          </p>
+        <motion.div variants={rise} className="w-full">
+          <PhoneSetup ctrl={ctrl} />
         </motion.div>
 
         <motion.div variants={rise} className="w-full">

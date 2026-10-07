@@ -11,6 +11,7 @@ import { VillageMap } from "./VillageMap";
 import { TaviSprite } from "../live/TaviSprite";
 import { PlaceStage } from "../live/PlaceStage";
 import { StripWalker } from "../live/StandFigure";
+import { PhoneHint } from "./PhoneControls";
 
 export const ActScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   const s = useAlibiState(ctrl);
@@ -125,7 +126,7 @@ const Handoff: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
 };
 
 /* ---------- Geheimtelefon (privat) ---------- */
-const PrivateHeader: React.FC<{ culprit?: boolean }> = ({ culprit }) => {
+const PrivateHeader: React.FC<{ ctrl: AlibiController; culprit?: boolean }> = ({ ctrl, culprit }) => {
   const { speaking } = useVoice();
   return (
     <div className="flex flex-col items-center gap-2 pt-1">
@@ -149,6 +150,7 @@ const PrivateHeader: React.FC<{ culprit?: boolean }> = ({ culprit }) => {
         <GameIcon name="secret" size={16} />
         {culprit ? "Streng geheim" : "Nur für dich"}
       </span>
+      <PhoneHint ctrl={ctrl} />
     </div>
   );
 };
@@ -188,7 +190,7 @@ const WhisperScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         </>
       }
     >
-      <PrivateHeader />
+      <PrivateHeader ctrl={ctrl} />
       {s.hidden ? (
         <Cover ctrl={ctrl} />
       ) : (
@@ -398,7 +400,7 @@ const LieScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         </>
       }
     >
-      <PrivateHeader culprit />
+      <PrivateHeader ctrl={ctrl} culprit />
       {s.hidden ? (
         <Cover ctrl={ctrl} />
       ) : (
@@ -458,7 +460,7 @@ const ClaimScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         </>
       }
     >
-      <PrivateHeader />
+      <PrivateHeader ctrl={ctrl} />
       {s.hidden ? (
         <Cover ctrl={ctrl} />
       ) : (

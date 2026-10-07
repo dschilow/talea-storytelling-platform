@@ -5,6 +5,7 @@
  * die Browser-Stimme. Privates (Geheimtelefon) läuft mit Flüsterlautstärke. */
 import type { AlibiCharacter } from "./types";
 import type { Clip } from "./content";
+import { earpiece, earpiecePossible, type PhoneMode } from "./earpiece";
 
 export type SfxName =
   | "stamp" | "type" | "gavel" | "chime" | "tick" | "knock" | "sting" | "drum" | "fanfare" | "sad"
@@ -63,8 +64,13 @@ function partIds(p: SayPart): string[] {
 
 class AudioDirector {
   clips: Record<string, Clip> = {};
-  privVol = 0.45;
   fast = false;
+  /** Geheimtelefon: Hörmuschel (iPhone) oder leises Flüstern über den Lautsprecher */
+  phoneMode: PhoneMode = earpiecePossible() ? "earpiece" : "whisper";
+  /** Lautstärke des Flüsterns über den Lautsprecher (0..1) */
+  whisperVol = 0.22;
+  /** gerade geheimer Schritt (Hintergrund still, Geheimes leise oder an der Hörmuschel) */
+  private privOn = false;
   private _soundOn = true;
   private cache = new Map<string, HTMLAudioElement>();
   private ambId: AmbienceName | null = null;
@@ -116,6 +122,42 @@ class AudioDirector {
       /* keine Aufnahmen vorhanden */
     }
   }
+  /** Lautstärke für Geheimes: an der Hörmuschel voll (sie ist von Natur aus leise), über den Lautsprecher geflüstert */
+  get privVol() {
+    return earpiece.active ? 1 : this.whisperVol;
+  }
+
+  /**
+   * Geheimer Schritt beginnt (true) oder endet (false). Schaltet bei Bedarf die Hörmuschel ein (fragt beim ersten
+   * Mal nach dem Mikrofon) und hält den Hintergrund still. Endet der geheime Schritt und kann die Hörmuschel nicht
+   * pro Audio-Element angesteuert werden, wird der Telefon-Modus geschlossen, damit Öffentliches laut kommt.
+   */
+  async privacy(on: boolean): Promise<void> {
+    if (this.fast) return;
+    if (on) {
+      this.privOn = true;
+      this.syncAmbience();
+      if (this.phoneMode === "earpiece" && this._soundOn && !earpiece.active) await earpiece.open();
+      return;
+    }
+    if (!this.privOn) return;
+    this.privOn = false;
+    this.syncAmbience();
+    if (earpiece.active && !earpiece.routable) await earpiece.close();
+  }
+  /** Keine Geheimnisse mehr (Akte vorbei, Spiel verlassen): Mikrofon freigeben */
+  releasePhone() {
+    this.privOn = false;
+    this.syncAmbience();
+    void earpiece.close();
+  }
+  setPhoneMode(mode: PhoneMode) {
+    this.phoneMode = mode;
+    if (mode === "whisper") void earpiece.close();
+    else earpiece.reset();
+    this.emit();
+  }
+
   get recordedCount() {
     return this.available.size;
   }
@@ -185,7 +227,7 @@ class AudioDirector {
       el.loop = true;
       el.volume = 0;
       this.musEl = el;
-      void el.play().then(() => AudioDirector.fade(el, this.musicVol(), 2200)).catch(() => {
+      void earpiece.route(el, false).then(() => el.play()).then(() => AudioDirector.fade(el, this.musicVol(), 2200)).catch(() => {
         if (this.musEl === el) {
           this.musEl = null;
           this.musPlaying = null;
@@ -207,7 +249,7 @@ class AudioDirector {
     this.playFile(id, 0.9);
   }
   private syncAmbience() {
-    const want = this.ambId && !this.ambPaused && this._soundOn && !this.fast && this.available.has(`amb.${this.ambId}`) ? `amb.${this.ambId}` : null;
+    const want = this.ambId && !this.ambPaused && !this.privOn && this._soundOn && !this.fast && this.available.has(`amb.${this.ambId}`) ? `amb.${this.ambId}` : null;
     if (want === this.ambPlaying) return;
     const old = this.ambEl;
     this.ambEl = null;
@@ -227,7 +269,7 @@ class AudioDirector {
       el.loop = true;
       el.volume = 0;
       this.ambEl = el;
-      void el.play().then(() => AudioDirector.fade(el, 1, 1800)).catch(() => {
+      void earpiece.route(el, false).then(() => el.play()).then(() => AudioDirector.fade(el, 1, 1800)).catch(() => {
         if (this.ambEl === el) {
           this.ambEl = null;
           this.ambPlaying = null;
@@ -355,7 +397,8 @@ class AudioDirector {
       /* nicht unterstützt */
     }
   }
-  private playFile(id: string, vol: number): HTMLAudioElement | null {
+  /** Aufnahme abspielen; `priv` = geheim (bei aktiver Hörmuschel dorthin geleitet, sonst Lautsprecher) */
+  private playFile(id: string, vol: number, priv = false): HTMLAudioElement | null {
     try {
       const cached = this.cache.get(id);
       let a: HTMLAudioElement;
@@ -370,7 +413,8 @@ class AudioDirector {
         }
       } else a = new Audio(`${VOICE_BASE}${id}.mp3`);
       a.volume = vol;
-      void a.play().catch(() => undefined);
+      if (earpiece.routable) void earpiece.route(a, priv).then(() => a.play()).catch(() => undefined);
+      else void a.play().catch(() => undefined);
       return a;
     } catch {
       return null;
@@ -462,7 +506,7 @@ class AudioDirector {
         if ("pause" in p) return this.fast ? next() : window.setTimeout(next, p.pause);
         if ("fx" in p) {
           if (!this.fast && this.soundOn && this.available.has(p.fx)) {
-            this.playFile(p.fx, vol);
+            this.playFile(p.fx, vol, priv);
             return window.setTimeout(next, 1500);
           }
           return next();
@@ -508,7 +552,7 @@ class AudioDirector {
           }
         };
         if (this.available.has(id)) {
-          const a = this.playFile(id, vol);
+          const a = this.playFile(id, vol, priv);
           if (!a) return fallback();
           this.active = a;
           if (this.cur) this.cur.el = a;

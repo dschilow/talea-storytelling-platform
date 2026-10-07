@@ -5,6 +5,7 @@ import { CASES, KOM, PLACES, PROMPTS, SIGHTS, SLOTS, nextCaseId, pickVar, traitF
 import { director, type SayPart } from "./audio";
 import type { AlibiCharacter, Claim, Conflict, LevelId, Spur, World } from "./types";
 import { recordGame, type GameRecord } from "./vault";
+import { earpiecePossible, type PhoneMode } from "./earpiece";
 
 export type Phase = "setup" | "cast" | "caseIntro" | "act" | "round" | "vote" | "reveal" | "story" | "end";
 export type ActSub = "intro" | "hand" | "whisper" | "claim" | "announce" | "done";
@@ -103,6 +104,10 @@ export interface SetupState {
   level: LevelId;
   caseId: string;
   names: string[];
+  /** Geheimtelefon: Hörmuschel (iPhone) oder leises Flüstern */
+  phone?: PhoneMode;
+  /** Lautstärke des Flüsterns über den Lautsprecher */
+  whisperVol?: number;
 }
 
 export interface AlibiState {
@@ -183,6 +188,8 @@ export class AlibiController {
 
   constructor(chars: AlibiCharacter[]) {
     this.chars = chars;
+    this.setup.phone = earpiecePossible() ? "earpiece" : "whisper";
+    this.setup.whisperVol = director.whisperVol;
     director.setClips(buildClips(chars));
     void director.loadManifest();
     try {
@@ -193,9 +200,41 @@ export class AlibiController {
         if (o.level && E.LEVELS[o.level]) this.setup.level = o.level;
         if (o.caseId) this.setup.caseId = o.caseId;
         if (Array.isArray(o.names)) this.setup.names = o.names.concat(Array(8).fill("")).slice(0, 8);
+        if (o.phone === "earpiece" || o.phone === "whisper") this.setup.phone = o.phone;
+        if (typeof o.whisperVol === "number") this.setup.whisperVol = Math.max(0.05, Math.min(1, o.whisperVol));
       }
     } catch {
       /* Einstellungen sind ein Komfort */
+    }
+    if (this.setup.phone === "earpiece" && !earpiecePossible()) this.setup.phone = "whisper";
+    director.setPhoneMode(this.setup.phone || "whisper");
+    director.whisperVol = this.setup.whisperVol ?? director.whisperVol;
+  }
+  /** Geheimtelefon umstellen (Einstellung wird gemerkt) */
+  setPhone(mode: PhoneMode) {
+    director.setPhoneMode(mode);
+    this.updateSetup({ phone: mode });
+    this.saveSetup();
+  }
+  /** Flüster-Lautstärke ändern (um `delta`), kurz probehören */
+  nudgeWhisper(delta: number) {
+    const v = Math.max(0.06, Math.min(1, Math.round((director.whisperVol + delta) * 100) / 100));
+    director.whisperVol = v;
+    this.updateSetup({ whisperVol: v });
+    this.saveSetup();
+  }
+  /** Probe: Tavi flüstert einen Satz so, wie er im Geheimtelefon klingt */
+  async phoneTest() {
+    director.ctx();
+    await director.privacy(true);
+    await director.say(["w.remember"], { priv: true });
+    await director.privacy(false);
+  }
+  private saveSetup() {
+    try {
+      window.localStorage.setItem(SETUP_KEY, JSON.stringify(this.setup));
+    } catch {
+      /* ignorieren */
     }
   }
 
@@ -390,12 +429,15 @@ export class AlibiController {
     if (this.isLie()) void this.say(["w.culprit.1", "w.culprit.2"], true);
     else void this.say(this.whisperParts(i, this.state.act), true);
   }
-  handAnswer() {
+  async handAnswer() {
     this.lieTold = false;
     this.sightTold = false;
+    director.stop();
     this.set({ actSub: "whisper", hidden: false, claimTries: 0, draft: { place: null, comp: [], sight: null } });
     director.sfx("page");
-    this.whisperSay();
+    // Geheimtelefon: Hörmuschel einschalten (iPhone) bzw. leise flüstern, bevor Tavi spricht
+    await director.privacy(true);
+    if (this.state.actSub === "whisper" && this.state.phase === "act") this.whisperSay();
   }
   toggleHidden() {
     this.set({ hidden: !this.state.hidden });
@@ -492,7 +534,9 @@ export class AlibiController {
     director.sfx("stamp");
     this.fx({ k: "stamp" });
     director.vibrate(60);
-    void this.say(this.annPrompt(i, t));
+    void director.privacy(false).then(() => {
+      if (this.state.actSub === "announce" && this.state.phase === "act") void this.say(this.annPrompt(i, t));
+    });
   }
   replayClaim(i: number, t: number) {
     if (this.state.claims[i] && this.state.claims[i][t]) void this.say(this.annParts(i, t));
@@ -551,6 +595,7 @@ export class AlibiController {
     return k;
   }
   private startRound() {
+    director.releasePhone();
     const W = this.state.W as World;
     let sp = E.pickSpuren(W, this.state.claims, this.L.spuren);
     if (!sp) sp = this.L.keys.slice(0, this.L.spuren).map((k) => ({ k, v: (this.P(W.culprit).ch as unknown as Record<string, string>)[k] }));
@@ -1057,6 +1102,7 @@ export class AlibiController {
   quit() {
     this.storyToken++;
     director.stop();
+    director.releasePhone();
     this.stopTimer();
     this.stopIntro();
     this.state = initialState();
@@ -1095,6 +1141,7 @@ export class AlibiController {
   }
   dispose() {
     director.stop();
+    director.releasePhone();
     this.stopTimer();
     this.stopIntro();
   }

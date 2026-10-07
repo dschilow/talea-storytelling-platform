@@ -96,3 +96,12 @@ Umgesetzt nach dem ref2game-Skill („KI malt, Code bewegt“). Code in `fronten
 | `AttractBoard.tsx` | selbstlaufende Vorschau auf der Startseite (Abend, Mitternacht mit Dieb, Morgengrauen) |
 
 Werkstatt (nur Entwicklung, nicht im Build): `frontend/alibi-lab.html?stop=round&n=8&long=1` spielt eine Partie mit Testfiguren bis zur genannten Stelle; `?scene=cycle` zeigt den Zyklusbogen der Figur, `?scene=attract` die Vorschau. Prüfung: `node scripts/game-qa/alibi-qa.mjs` (alle Phasen auf Handy und Desktop, Konsole, Überlauf, Fußgleiten, lebender Boden), Trailer: `node scripts/game-qa/trailer.mjs`. Bilder: `scripts/game-art/README.md`.
+
+### Geheimtelefon über die Hörmuschel (2026-10-07)
+
+`frontend/screens/Game/alibi/earpiece.ts`, Einstellung auf dem Startbildschirm (`ui/PhoneControls.tsx`), Steuerung über `director.privacy(on)`:
+
+- **iPhone (Safari ab iOS 16.4):** Modus „Wie telefonieren“. Beim Annehmen des Geheimtelefons schaltet die Seite die Audiositzung auf `play-and-record` und öffnet eine stumme Mikrofonspur (`enabled = false`, nie gelesen). iOS legt den Ton dann auf die Hörmuschel. Gibt es `HTMLMediaElement.setSinkId` und eine Ausgabe namens „Receiver/Hörer“, wird jedes Audio-Element gezielt geleitet (Geheimes an die Hörmuschel, Öffentliches an den Lautsprecher), und die Sitzung bleibt bis zum Ende der Akte offen. Sonst wird sie nach jeder Aussage wieder geschlossen (`playback`, 450 ms Umschaltzeit), damit Öffentliches laut kommt. Lehnt jemand das Mikrofon ab: automatisch Flüstern.
+- **Android und alle anderen:** Browser können dort keinen Ton auf die Hörmuschel legen (kein `setSinkId` auf Android, Plattformgrenze). Modus „Leise flüstern“: Geheimes mit eigener Lautstärke (Standard 0,22, Lauter/Leiser am Geheimtelefon), Hintergrundklang pausiert.
+- Die Hörmuschel auch unter Android ginge nur in einer nativen App (Android `AudioManager` im Kommunikationsmodus). Die Expo-App unter `mobile/` enthält das Spiel bisher nicht.
+- Getestet: Flüstermodus und ein simuliertes iPhone (Playwright mit gefälschtem `navigator.audioSession` und Test-Mikrofon). Ein echtes iPhone wurde nicht getestet.

@@ -86,6 +86,7 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
       director.pauseAmbience(document.hidden);
       if (document.hidden) {
         director.stop();
+        director.releasePhone();
         ctrl.pauseTimer();
       }
     };
@@ -96,6 +97,7 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
       director.stop();
       director.ambience(null);
       director.music(null);
+      director.releasePhone();
       ctrl.pauseTimer();
     };
   }, [ctrl]);
