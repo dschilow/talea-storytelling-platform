@@ -1,5 +1,5 @@
 export type TTSVoiceMode = 'default' | 'speaker' | 'dialogue';
-export type TTSProviderType = 'qwen' | 'xai' | 'thorsten';
+export type TTSProviderType = 'qwen' | 'xai' | 'thorsten' | 'thorsten-cosyvoice';
 
 export interface TTSVoiceSettings {
   mode: TTSVoiceMode;

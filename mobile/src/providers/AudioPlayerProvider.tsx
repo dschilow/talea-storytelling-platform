@@ -603,7 +603,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       const useEnrichedTTS = voiceSettings?.provider === 'xai';
       const splitNarration = useEnrichedTTS
         ? splitTextIntoChunksForXai
-        : voiceSettings?.provider === 'thorsten'
+        : voiceSettings?.provider?.startsWith('thorsten')
           ? splitTextIntoChunksForThorsten
           : splitTextIntoChunks;
 
@@ -715,7 +715,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       const chunks =
         voiceSettings?.provider === 'xai'
           ? splitTextIntoChunksForXai(normalizedText)
-          : voiceSettings?.provider === 'thorsten'
+          : voiceSettings?.provider?.startsWith('thorsten')
             ? splitTextIntoChunksForThorsten(normalizedText)
             : splitTextIntoChunks(normalizedText);
       if (chunks.length === 0) return;

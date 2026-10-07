@@ -115,7 +115,9 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const alreadyInPlaylist = playlist.some((item) => item.parentStoryId === storyId);
   const hasLibraryAudio = generatedAudioItems.length > 0;
   const isXai = ttsProvider === 'xai';
-  const isThorsten = ttsProvider === 'thorsten';
+  const isCosyVoice = ttsProvider === 'thorsten-cosyvoice';
+  const isThorsten = ttsProvider === 'thorsten' || isCosyVoice;
+  const thorstenEngine = isCosyVoice ? 'CosyVoice3' : 'Kokoro';
   const availableSpeakers = isXai
     ? xaiVoices.map((v) => v.id)
     : isThorsten
@@ -128,7 +130,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
     if (ttsProvider === 'xai') {
       setSelectedSpeaker(XAI_DEFAULT_VOICE);
       setMultiVoiceEnabled(false);
-    } else if (ttsProvider === 'thorsten') {
+    } else if (ttsProvider === 'thorsten' || ttsProvider === 'thorsten-cosyvoice') {
       setSelectedSpeaker(THORSTEN_DEFAULT_VOICE);
       setMultiVoiceEnabled(false);
     } else {
@@ -253,7 +255,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const resetToDefaultVoice = useCallback(() => {
     if (ttsProvider === 'xai') {
       setSelectedSpeaker(XAI_DEFAULT_VOICE);
-    } else if (ttsProvider === 'thorsten') {
+    } else if (ttsProvider === 'thorsten' || ttsProvider === 'thorsten-cosyvoice') {
       setSelectedSpeaker(THORSTEN_DEFAULT_VOICE);
     } else {
       setSelectedSpeaker(QWEN_STATIC_DEFAULT_SPEAKER);
@@ -401,6 +403,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
               { id: 'qwen' as TTSProviderType, label: 'Qwen (RunPod)', hint: 'Eigener Server' },
               { id: 'xai' as TTSProviderType, label: 'xAI Grok', hint: 'Runware' },
               { id: 'thorsten' as TTSProviderType, label: 'Thorsten', hint: 'Deutsch, eigener Server' },
+              { id: 'thorsten-cosyvoice' as TTSProviderType, label: 'Thorsten CosyVoice', hint: 'Deutsch, GPU (RunPod)' },
             ]).map((p) => {
               const active = ttsProvider === p.id;
               return (
@@ -472,9 +475,11 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
             {isXai
               ? 'xAI Grok TTS laeuft ueber Runware (gleicher Account wie Bildgenerierung).'
-              : isThorsten
-                ? 'Thorsten-Voice (Kokoro) laeuft auf einem eigenen Server und spricht nur Deutsch.'
-                : 'Qwen-Stimmen sind lokal hinterlegt und sofort verfuegbar. Es wird erst bei echter Audio-Erzeugung RunPod benutzt.'}
+              : isCosyVoice
+                ? 'Thorsten-Voice (CosyVoice3) laeuft auf einer GPU bei RunPod und spricht nur Deutsch. Nach laengerer Pause kann der erste Teil einige Minuten dauern.'
+                : isThorsten
+                  ? 'Thorsten-Voice (Kokoro) laeuft auf einem eigenen Server und spricht nur Deutsch.'
+                  : 'Qwen-Stimmen sind lokal hinterlegt und sofort verfuegbar. Es wird erst bei echter Audio-Erzeugung RunPod benutzt.'}
           </p>
         )}
 
@@ -488,7 +493,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
                   color: isDark ? '#86a7db' : '#7c5b3d',
                 }}
               >
-                {isThorsten ? 'Thorsten' : 'xAI'}
+                {isCosyVoice ? 'CosyVoice' : isThorsten ? 'Thorsten' : 'xAI'}
               </span>
             )}
           </p>
@@ -563,7 +568,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             {isXai
               ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber xAI Grok TTS (Runware).`
               : isThorsten
-                ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber Thorsten-Voice (Kokoro).`
+                ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber Thorsten-Voice (${thorstenEngine}).`
                 : `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber RunPod.`}
           </p>
         )}
@@ -647,7 +652,9 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
                 ? 'xAI Grok TTS (Runware) wird erst nach deiner Bestaetigung gestartet.'
                 : pendingAction?.voiceSettings?.provider === 'thorsten'
                   ? 'Thorsten-Voice (Kokoro) wird erst nach deiner Bestaetigung gestartet.'
-                  : 'RunPod wird erst nach deiner Bestaetigung gestartet.'}
+                  : pendingAction?.voiceSettings?.provider === 'thorsten-cosyvoice'
+                    ? 'Thorsten-Voice (CosyVoice3, RunPod-GPU) wird erst nach deiner Bestaetigung gestartet.'
+                    : 'RunPod wird erst nach deiner Bestaetigung gestartet.'}
             </DialogDescription>
           </DialogHeader>
 

@@ -11,7 +11,8 @@ Das Backend spricht ihn ueber `provider: "thorsten"` an ([backend/tts/thorsten-t
 | `GET /health` | 200 erst wenn das Modell geladen ist |
 | `POST /tts` | `{"text": "...", "speed": 0.85, "format": "mp3" \| "wav"}` -> Audio-Bytes |
 
-Die Ausgabe ist auf Kindergeschichten abgestimmt ([textprep.py](textprep.py), [server.py](server.py)):
+Die Ausgabe ist auf Kindergeschichten abgestimmt ([textprep.py](textprep.py), [audioprep.py](audioprep.py)).
+Beide Module nutzt auch der CosyVoice3-Worker ([runpod/thorsten-cosyvoice3](../runpod/thorsten-cosyvoice3/README.md)):
 
 - Text: Anfuehrungszeichen, Gedankenstriche, Klammern, Abkuerzungen (z. B., Dr., usw.), Uhrzeiten, Einheiten
   und Zahlen werden ausgeschrieben; Markdown, Emojis, xAI-Tags und Mehrfach-Satzzeichen fallen weg.

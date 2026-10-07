@@ -17,6 +17,11 @@ import {
   thorstenListVoices,
   isThorstenConfigured,
 } from "./thorsten-tts";
+import {
+  thorstenCosyVoiceGenerateSpeech,
+  thorstenCosyVoiceGenerateSpeechBatch,
+  isThorstenCosyVoiceConfigured,
+} from "./thorsten-cosyvoice-tts";
 
 type RunpodEndpointMode = "load_balancer" | "queue";
 type VoiceListMode = "static" | "runpod";
@@ -169,7 +174,7 @@ const COSYVOICE_VOICE_LIST_MODE = QWEN_VOICE_LIST_MODE;
 const COSYVOICE_STATIC_SPEAKERS = QWEN_STATIC_SPEAKERS;
 const COSYVOICE_STATIC_DEFAULT_SPEAKER = QWEN_STATIC_DEFAULT_SPEAKER;
 
-export type TTSProvider = "qwen" | "xai" | "thorsten";
+export type TTSProvider = "qwen" | "xai" | "thorsten" | "thorsten-cosyvoice";
 export type AudioFormat = "wav" | "mp3";
 
 export interface TTSResponse {
@@ -1715,6 +1720,25 @@ export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
           }
         }
 
+        if (req.provider === "thorsten-cosyvoice") {
+          try {
+            const result = await thorstenCosyVoiceGenerateSpeech({
+              text: req.text,
+              outputFormat: req.outputFormat,
+            });
+            return {
+              audioData: result.audioData,
+              providerUsed: "thorsten-cosyvoice" as TTSProvider,
+              mimeType: result.mimeType,
+              outputFormat: result.outputFormat,
+            };
+          } catch (error) {
+            const message = getErrorMessage(error);
+            log.error(`Thorsten CosyVoice generate failed: ${message}`);
+            throw APIError.unavailable(`Thorsten CosyVoice generation failed: ${message}`);
+          }
+        }
+
         try {
           return await withRunpodSlot(() => runpodTtsRequest(req));
         } catch (error) {
@@ -1768,6 +1792,21 @@ async function generateSpeechBatchInternal(req: GenerateSpeechBatchRequest): Pro
       const message = getErrorMessage(error);
       log.error(`Thorsten TTS batch failed: ${message}`);
       throw APIError.unavailable(`Thorsten TTS batch generation failed: ${message}`);
+    }
+  }
+
+  // Thorsten CosyVoice3 provider: GPU worker on RunPod, same sentence handling as Kokoro.
+  if (req.provider === "thorsten-cosyvoice") {
+    try {
+      const results = await thorstenCosyVoiceGenerateSpeechBatch(
+        req.items.map((item) => ({ id: item.id, text: item.text })),
+        req.outputFormat,
+      );
+      return { results };
+    } catch (error) {
+      const message = getErrorMessage(error);
+      log.error(`Thorsten CosyVoice batch failed: ${message}`);
+      throw APIError.unavailable(`Thorsten CosyVoice batch generation failed: ${message}`);
     }
   }
 
@@ -2199,6 +2238,11 @@ export const getAvailableTtsProviders =api<void, { providers: Array<{ id: TTSPro
         { id: "qwen" as TTSProvider, name: "Qwen (RunPod)", configured: Boolean(QWEN_RUNPOD_API_URL) },
         { id: "xai" as TTSProvider, name: "xAI Grok (Runware)", configured: isXaiConfigured() },
         { id: "thorsten" as TTSProvider, name: "Thorsten-Voice (Kokoro)", configured: isThorstenConfigured() },
+        {
+          id: "thorsten-cosyvoice" as TTSProvider,
+          name: "Thorsten-Voice (CosyVoice3)",
+          configured: isThorstenCosyVoiceConfigured(),
+        },
       ],
     };
   }

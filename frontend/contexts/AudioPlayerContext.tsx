@@ -1216,7 +1216,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const splitNarration =
         voiceSettings?.provider === 'xai'
           ? splitTextIntoChunksForXai
-          : voiceSettings?.provider === 'thorsten'
+          : voiceSettings?.provider?.startsWith('thorsten')
             ? splitTextIntoChunksForThorsten
             : splitTextIntoChunks;
 
@@ -1327,7 +1327,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const chunks =
         voiceSettings?.provider === 'xai'
           ? splitTextIntoChunksForXai(normalizedText)
-          : voiceSettings?.provider === 'thorsten'
+          : voiceSettings?.provider?.startsWith('thorsten')
             ? splitTextIntoChunksForThorsten(normalizedText)
             : splitTextIntoChunks(normalizedText);
       if (chunks.length === 0) return;
