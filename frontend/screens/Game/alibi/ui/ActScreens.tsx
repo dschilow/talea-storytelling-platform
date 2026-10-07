@@ -8,6 +8,9 @@ import type { AlibiController } from "../controller";
 import { useAlibiState, useVoice } from "../hooks";
 import { ACT_ICON, Eyebrow, Face, GameIcon, GhostButton, GoldButton, PlaceCard, Pips, Screen, Title } from "./primitives";
 import { VillageMap } from "./VillageMap";
+import { TaviSprite } from "../live/TaviSprite";
+import { PlaceStage } from "../live/PlaceStage";
+import { StripWalker } from "../live/StandFigure";
 
 export const ActScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   const s = useAlibiState(ctrl);
@@ -18,6 +21,8 @@ export const ActScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
   if (s.actSub === "announce") return <Announce ctrl={ctrl} />;
   return <ActDone ctrl={ctrl} />;
 };
+
+const THIEF_LOOK = { color: "#353b5c", thief: true };
 
 /* ---------- Akt-Beginn ---------- */
 const ActIntro: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
@@ -48,6 +53,7 @@ const ActIntro: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
             {s.bell > 0 ? <span key={`q${s.bell}`} className="alibi-ripple" style={{ animationDelay: "0.25s" }} /> : null}
             <motion.img
               key={`b${s.bell}`}
+              data-fx="bell"
               src={IMG.icon("bell")}
               alt=""
               className="relative h-[150px] w-[150px] rounded-full object-cover shadow-[0_0_60px_rgba(248,220,142,0.35)]"
@@ -56,6 +62,7 @@ const ActIntro: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
               transition={{ duration: 0.9, ease: "easeOut" }}
             />
           </div>
+          {s.bell > 0 ? <StripWalker H={120} look={THIEF_LOOK} gait="sneak" speed={0.62} pause={2.5} className="-mb-2 w-[min(100vw,560px)] opacity-90" /> : null}
           <div className="flex h-[110px] items-center justify-center">
             {s.bell > 0 ? (
               <motion.span
@@ -94,6 +101,7 @@ const Handoff: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
       <div className="flex flex-col items-center gap-4 pt-4">
         <motion.img
           src={IMG.icon("phone")}
+          data-fx="phone"
           alt=""
           className="h-24 w-24 rounded-[26px] bg-[#f6ead0] object-cover shadow-[0_0_40px_rgba(248,220,142,0.35)]"
           animate={{ rotate: [0, -12, 12, -9, 9, -4, 0] }}
@@ -133,7 +141,9 @@ const PrivateHeader: React.FC<{ culprit?: boolean }> = ({ culprit }) => {
               />
             ))
           : null}
-        <img src={IMG.tavi("whisper")} alt="" className="relative h-20 w-20 rounded-full bg-[#f6ead0] object-cover object-top shadow-[0_0_30px_rgba(160,120,255,0.5)]" />
+        <span className="relative h-20 w-20 overflow-hidden rounded-full bg-[#f6ead0] shadow-[0_0_30px_rgba(160,120,255,0.5)]">
+          <TaviSprite pose="whisper" fit="w" className="absolute left-[-4%] top-[-2%] w-[108%]" />
+        </span>
       </div>
       <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11.5px] font-bold uppercase tracking-[0.2em]", culprit ? "bg-[#c0392b]/80 text-white" : "bg-violet-500/30 text-violet-100")}>
         <GameIcon name="secret" size={16} />
@@ -192,30 +202,25 @@ const WhisperScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <PlaceCard id={pid} size="lg" />
-            <div className="flex min-w-0 flex-col gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8a6a40]">{comp.length ? "Bei dir" : "Allein"}</span>
-              <div className="flex flex-wrap gap-2">
-                {comp.length ? comp.map((c) => <Face key={c} p={ctrl.P(c)} size={52} />) : <GameIcon name="pawn" size={48} title="allein" />}
-              </div>
+          {/* Der Ort als kleine lebendige Bühne: dort warst du, und das hast du gesehen */}
+          <motion.div initial={{ opacity: 0, scale: 0.94, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 200, damping: 18, delay: 0.1 }}>
+            <PlaceStage place={pid} sight={sg.id} act={t} className="aspect-[5/4] w-full rounded-[22px]">
+              <span className="alibi-plaque absolute left-3 top-3 text-[14px]" style={{ boxShadow: `0 0 0 2px ${PLACES[pid].color}, 0 4px 10px rgba(0,0,0,0.45)` }}>
+                {PLACES[pid].short}
+              </span>
+              <span className="absolute bottom-3 left-3 max-w-[58%] rounded-[14px] bg-black/60 px-2.5 py-1.5 text-left text-[12.5px] font-bold leading-tight text-white backdrop-blur-sm">
+                <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-[#f8dc8e]">Das hast du gesehen</span>
+                {cap(sg.name)}
+              </span>
+            </PlaceStage>
+          </motion.div>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8a6a40]">{comp.length ? "Bei dir" : "Allein"}</span>
+            <div className="flex flex-wrap gap-2">
+              {comp.length ? comp.map((c) => <Face key={c} p={ctrl.P(c)} size={48} />) : <GameIcon name="pawn" size={44} title="allein" />}
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-[20px] bg-black/[0.06] p-2.5">
-            <motion.img
-              src={IMG.sight(sg.id)}
-              alt=""
-              className="h-[92px] w-[92px] shrink-0 rounded-[16px] object-cover shadow-md"
-              initial={{ rotate: -8, scale: 0.7 }}
-              animate={{ rotate: 0, scale: 1 }}
-              transition={{ type: "spring", stiffness: 240, damping: 14, delay: 0.25 }}
-            />
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8a6a40]">Das hast du dort gesehen</p>
-              <p className="game-display mt-0.5 text-[21px] font-black leading-tight text-[#2c2117]">{cap(sg.name)}</p>
-              <p className="mt-1 text-[12px] text-[#6e5f48]">Merk es dir gut: Gleich tippst du es selbst an, und es wird versiegelt.</p>
-            </div>
-          </div>
+          <p className="-mt-1 text-[12px] text-[#6e5f48]">Merk dir den Ort, wer bei dir war und was du gesehen hast. Gleich tippst du es selbst an, und es wird versiegelt.</p>
           {loner ? (
             <div className="rounded-[16px] border border-[#e9a93c]/60 bg-[#f2b04a]/20 px-3 py-2 text-[13.5px] font-semibold text-[#5a3c0c]">
               <GameIcon name="ghost" size={22} className="mr-1 inline-block align-[-5px]" />Allein um Mitternacht, das sieht verdächtig aus. Aber du bist unschuldig!
@@ -527,7 +532,7 @@ const Announce: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         </div>
       </motion.div>
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="flex w-full items-center gap-3 rounded-[20px] border border-[#f8dc8e]/25 bg-black/30 px-3 py-2.5">
-        <motion.img src={IMG.icon("seal")} alt="" initial={{ scale: 2.2, rotate: -30, opacity: 0 }} animate={{ scale: 1, rotate: -8, opacity: 1 }} transition={{ delay: 0.7, type: "spring", stiffness: 300, damping: 14 }} className="h-12 w-12 shrink-0 drop-shadow-[0_6px_10px_rgba(0,0,0,0.5)]" />
+        <motion.img data-fx="stamp" src={IMG.icon("seal")} alt="" initial={{ scale: 2.2, rotate: -30, opacity: 0 }} animate={{ scale: 1, rotate: -8, opacity: 1 }} transition={{ delay: 0.7, type: "spring", stiffness: 300, damping: 14 }} className="h-12 w-12 shrink-0 drop-shadow-[0_6px_10px_rgba(0,0,0,0.5)]" />
         <div className="min-w-0 text-left">
           <p className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#f8dc8e]">Beobachtung versiegelt</p>
           <p className="text-[13px] leading-snug text-white/75">Was du gesehen hast, bleibt geheim, bis Tavi das Siegel bricht.</p>

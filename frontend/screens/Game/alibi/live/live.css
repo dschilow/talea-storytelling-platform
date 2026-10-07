@@ -1,0 +1,298 @@
+/* Mitternachts-Alibi – lebendige Teile: Ortsbühne (Geheimtelefon), Beobachtungen als Tiere, Ortseffekte. */
+
+.alibi-placestage {
+  isolation: isolate;
+  background: #0d1230;
+  box-shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.alibi-placestage img { will-change: transform; }
+.ps-tint { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply; transition: background 1.5s ease; }
+.ps-tint.t0 { background: linear-gradient(180deg, rgba(255, 170, 120, 0.25), rgba(170, 90, 140, 0.25)); }
+.ps-tint.t1 { background: linear-gradient(180deg, rgba(40, 50, 110, 0.2), rgba(20, 24, 60, 0.32)); }
+.ps-tint.t2 { background: linear-gradient(180deg, rgba(255, 200, 190, 0.18), rgba(255, 230, 180, 0.08)); }
+.ps-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 95% at 50% 40%, transparent 55%, rgba(6, 8, 22, 0.55));
+}
+.ps-critter { position: absolute; width: 36%; aspect-ratio: 1; }
+.ps-critter.ground { right: 7%; bottom: 7%; }
+.ps-critter.fly { right: 10%; top: 14%; width: 30%; }
+.ps-critter img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.45));
+  transform-origin: 50% 100%;
+}
+.ps-critter-shadow {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: -3%;
+  height: 12%;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.45), transparent);
+  z-index: -1;
+}
+.ps-notes {
+  position: absolute;
+  right: 4%;
+  top: 2%;
+  font-size: 22px;
+  font-weight: 900;
+  color: #fff3c4;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  animation: ps-note 2.2s ease-out infinite;
+}
+@keyframes ps-note {
+  0% { transform: translate(0, 8px) rotate(-10deg); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(14px, -26px) rotate(14deg); opacity: 0; }
+}
+
+/* Bewegungen der Beobachtungen */
+.crit-hop { animation: crit-hop 1.9s cubic-bezier(0.3, 0.7, 0.4, 1) infinite; }
+@keyframes crit-hop {
+  0%, 55%, 100% { transform: translateY(0) scale(1, 1); }
+  8% { transform: translateY(0) scale(1.08, 0.9); }
+  26% { transform: translateY(-22%) scale(0.95, 1.07); }
+  46% { transform: translateY(0) scale(1.07, 0.92); }
+}
+.crit-waddle { animation: crit-waddle 1.1s ease-in-out infinite; }
+@keyframes crit-waddle {
+  0%, 100% { transform: rotate(-6deg) translateY(0); }
+  25% { transform: rotate(0) translateY(-3%); }
+  50% { transform: rotate(6deg) translateY(0); }
+  75% { transform: rotate(0) translateY(-3%); }
+}
+.crit-peek { animation: crit-peek 3.4s ease-in-out infinite; }
+@keyframes crit-peek {
+  0%, 100% { transform: translateY(6%); }
+  30%, 70% { transform: translateY(-4%); }
+  50% { transform: translateY(-4%) rotate(-4deg); }
+}
+.crit-chew { animation: crit-chew 0.5s ease-in-out infinite alternate; }
+@keyframes crit-chew {
+  from { transform: rotate(-1.5deg) scaleY(1); }
+  to { transform: rotate(1.5deg) scaleY(0.98); }
+}
+.crit-crawl { animation: crit-crawl 6s ease-in-out infinite; }
+@keyframes crit-crawl {
+  0%, 100% { transform: translateX(0) scaleX(1); }
+  45% { transform: translateX(-28%) scaleX(1); }
+  50% { transform: translateX(-28%) scaleX(-1); }
+  95% { transform: translateX(0) scaleX(-1); }
+}
+.crit-wiggle { animation: crit-wiggle 1.4s ease-in-out infinite; }
+@keyframes crit-wiggle {
+  0%, 100% { transform: skewX(0) scaleX(1); }
+  30% { transform: skewX(-6deg) scaleX(1.04); }
+  60% { transform: skewX(5deg) scaleX(0.97); }
+}
+.crit-sway { animation: crit-sway 3.2s ease-in-out infinite; }
+@keyframes crit-sway {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+.crit-breathe { animation: crit-breathe 3.6s ease-in-out infinite; }
+@keyframes crit-breathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.03, 1.05); }
+}
+.crit-flutter { animation: crit-flutter 4.2s ease-in-out infinite; transform-origin: 50% 50%; }
+@keyframes crit-flutter {
+  0% { transform: translate(0, 0) rotate(-6deg) scaleX(1); }
+  25% { transform: translate(-30%, 12%) rotate(4deg) scaleX(0.85); }
+  50% { transform: translate(-55%, -6%) rotate(-3deg) scaleX(1); }
+  75% { transform: translate(-24%, -16%) rotate(6deg) scaleX(0.85); }
+  100% { transform: translate(0, 0) rotate(-6deg) scaleX(1); }
+}
+.crit-owl { animation: crit-owl 4.8s ease-in-out infinite; }
+@keyframes crit-owl {
+  0%, 40%, 100% { transform: rotate(0); }
+  48% { transform: rotate(-10deg); }
+  62% { transform: rotate(9deg); }
+  72% { transform: rotate(0); }
+}
+.crit-float { animation: crit-float 4s ease-in-out infinite; }
+@keyframes crit-float {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-9%) rotate(3deg); }
+}
+.crit-bob { animation: crit-bob 2.6s ease-in-out infinite; }
+@keyframes crit-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4%); }
+}
+.crit-shine { animation: crit-shine 2.8s ease-in-out infinite; }
+@keyframes crit-shine {
+  0%, 100% { filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.45)) brightness(1); }
+  50% { filter: drop-shadow(0 0 14px rgba(255, 220, 120, 0.9)) brightness(1.18); }
+}
+.crit-flicker { animation: crit-flicker 1.7s steps(6) infinite; }
+@keyframes crit-flicker {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(255, 190, 90, 0.8)) brightness(1); }
+  33% { filter: drop-shadow(0 0 16px rgba(255, 190, 90, 0.95)) brightness(1.12); }
+  66% { filter: drop-shadow(0 0 7px rgba(255, 190, 90, 0.6)) brightness(0.94); }
+}
+.crit-ring { animation: crit-ring 2.4s linear infinite; }
+@keyframes crit-ring {
+  0%, 60%, 100% { transform: rotate(0); }
+  63% { transform: rotate(-9deg) translateY(-3%); }
+  66% { transform: rotate(9deg); }
+  69% { transform: rotate(-9deg) translateY(-3%); }
+  72% { transform: rotate(9deg); }
+  75% { transform: rotate(-7deg); }
+  78% { transform: rotate(5deg); }
+  81% { transform: rotate(0); }
+}
+.crit-jump { animation: crit-jump 3s ease-in-out infinite; }
+@keyframes crit-jump {
+  0%, 52%, 100% { transform: translate(0, 12%) rotate(10deg); opacity: 0; }
+  58% { opacity: 1; }
+  70% { transform: translate(-18%, -26%) rotate(-12deg); opacity: 1; }
+  86% { transform: translate(-34%, 8%) rotate(-38deg); opacity: 1; }
+  92% { opacity: 0; }
+}
+
+/* Ortseffekte */
+.psfx-embers, .psfx-sparks {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  margin: -2px;
+  border-radius: 9999px;
+  background: #ffd36e;
+  box-shadow: 0 0 8px 3px rgba(255, 130, 40, 0.9);
+  animation: psfx-ember 3s ease-out infinite;
+  opacity: 0;
+}
+.psfx-sparks { width: 3px; height: 3px; animation-name: psfx-spark; }
+@keyframes psfx-ember {
+  0% { transform: translate(0, 0); opacity: 0; }
+  10% { opacity: 1; }
+  100% { transform: translate(10px, -60px); opacity: 0; }
+}
+@keyframes psfx-spark {
+  0% { transform: translate(0, 0); opacity: 1; }
+  100% { transform: translate(22px, 0); opacity: 0; }
+}
+.psfx-smoke, .psfx-steam {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  margin: -22px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(235, 235, 245, 0.6), transparent 70%);
+  animation: psfx-smoke 4s ease-out infinite;
+  opacity: 0;
+}
+.psfx-steam { width: 30px; height: 30px; margin: -15px; }
+@keyframes psfx-smoke {
+  0% { transform: translate(0, 0) scale(0.4); opacity: 0; }
+  15% { opacity: 0.85; }
+  100% { transform: translate(18px, -60px) scale(2.2); opacity: 0; }
+}
+.psfx-fireflies {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px;
+  border-radius: 9999px;
+  background: #fff3a0;
+  box-shadow: 0 0 10px 4px rgba(255, 235, 120, 0.7);
+  animation: psfx-fly 5s ease-in-out infinite;
+}
+@keyframes psfx-fly {
+  0%, 100% { transform: translate(0, 0); opacity: 0.2; }
+  30% { transform: translate(12px, -8px); opacity: 1; }
+  60% { transform: translate(-6px, -16px); opacity: 0.5; }
+  80% { transform: translate(-12px, 4px); opacity: 1; }
+}
+.psfx-pollen, .psfx-dust {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: rgba(255, 246, 210, 0.85);
+  animation: psfx-pollen 6s ease-in-out infinite;
+}
+@keyframes psfx-pollen {
+  0% { transform: translate(0, 0); opacity: 0; }
+  20% { opacity: 0.9; }
+  100% { transform: translate(24px, -30px); opacity: 0; }
+}
+.psfx-stars {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.7);
+  animation: psfx-twinkle 3s ease-in-out infinite;
+}
+@keyframes psfx-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+.psfx-lanterns, .psfx-candles {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  margin: -35px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255, 200, 110, 0.55), transparent 65%);
+  mix-blend-mode: screen;
+  animation: alibi-lflicker 3.7s ease-in-out infinite;
+}
+.psfx-candles { background: radial-gradient(circle, rgba(255, 210, 140, 0.6), transparent 60%); width: 50px; height: 50px; margin: -25px; }
+.psfx-water {
+  position: absolute;
+  left: 0 !important;
+  right: 0;
+  height: 22%;
+  margin-top: -4%;
+  background: repeating-linear-gradient(100deg, rgba(255, 255, 255, 0) 0 18px, rgba(220, 245, 255, 0.28) 18px 21px, rgba(255, 255, 255, 0) 21px 46px);
+  mix-blend-mode: screen;
+  animation: psfx-water 3.2s linear infinite;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 30%, #000 70%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 30%, #000 70%, transparent);
+}
+@keyframes psfx-water {
+  from { background-position: 0 0; }
+  to { background-position: 92px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alibi-placestage *, .ps-notes { animation: none !important; }
+}
+
+/* Enthüllung: Lichtkegel von oben, Lichtfleck am Boden */
+.alibi-spotlight {
+  position: absolute;
+  left: 50%;
+  top: -40px;
+  width: 360px;
+  height: 360px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: radial-gradient(50% 60% at 50% 0%, rgba(255, 240, 200, 0.5), transparent 70%);
+  -webkit-mask-image: linear-gradient(180deg, #000, #000 70%, transparent);
+  mask-image: linear-gradient(180deg, #000, #000 70%, transparent);
+  clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
+}
+.alibi-spot-floor {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 240px;
+  height: 46px;
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgba(255, 240, 200, 0.4), rgba(255, 240, 200, 0.08) 70%, transparent);
+  pointer-events: none;
+}

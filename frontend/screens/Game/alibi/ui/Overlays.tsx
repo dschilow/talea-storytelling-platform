@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { TaviSprite } from "../live/TaviSprite";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { IMG, LEVEL_INFO, SIGHTS } from "../content";
@@ -155,8 +156,8 @@ const Tour: React.FC<{ ctrl: AlibiController; onClose: () => void }> = ({ ctrl, 
   const pics: React.ReactNode[] = [
     <img key={1} src={IMG.keyart} alt="" className="aspect-video w-full rounded-[22px] object-cover shadow-2xl" />,
     <div key={2} className="flex items-end justify-center gap-3">{players.map((p) => <Face key={p.id} p={p} size={p.id === 1 ? 128 : 96} />)}</div>,
-    <div key={3} className="flex items-center justify-center gap-3"><img src={IMG.icon("phone")} alt="" className="h-36 w-36 rounded-[28px] object-cover" /><img src={IMG.tavi("whisper")} alt="" className="h-44 w-auto" /></div>,
-    <div key={4} className="flex items-center justify-center"><img src={IMG.tavi("surprised")} alt="" className="h-52 w-auto" /></div>,
+    <div key={3} className="flex items-center justify-center gap-3"><img src={IMG.icon("phone")} alt="" className="h-36 w-36 rounded-[28px] object-cover" /><TaviSprite pose="whisper" className="h-44" /></div>,
+    <div key={4} className="flex items-center justify-center"><TaviSprite pose="surprised" className="h-52" /></div>,
     <div key={5} className="flex items-center justify-center gap-3">{sights.map((sg, n) => <SightTile key={sg.id} sight={sg} n={n + 1} size={130} />)}</div>,
     <div key={6} className="flex items-center justify-center"><img src={IMG.icon("vote")} alt="" className="h-48 w-48 rounded-full object-cover" /></div>,
   ];

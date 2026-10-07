@@ -51,9 +51,20 @@ const EXTRA = {
   "fx.rewind": "A magical rewind whoosh like time spinning backwards, sparkly and swirling",
   "fx.drop": "A small cloth sack dropped onto straw, soft thud and rustle",
   "fx.ooh": "A small group of excited children gasping ooh in surprise",
+  // Lebendiges Spielbrett und Spielgefühl (2026-10-07)
+  "fx.heart": "Two deep soft heartbeat thumps, tense and cinematic, close",
+  "fx.caw": "A cheeky magpie chattering call, short and bright",
+  "fx.flap": "A bird flying past close by, a few quick wing flaps and a soft whoosh",
+  "fx.splash": "A small cartoon water plop with a gentle splash and tiny ripples",
+  "fx.hood": "A heavy cloth hood pulled off quickly, fabric whoosh and flap",
+  "fx.coins": "A handful of small gold coins spilling and clinking on wood, bright and happy",
+  "fx.bats": "A few small bats squeaking and fluttering past in the night",
+  "fx.impact": "A deep cinematic impact hit with a short dramatic tail, not scary",
+  "fx.relief": "A warm relieved harp glissando going up, gentle and kind",
+  "fx.twinkle": "A tiny magical twinkle like a firefly lighting up, very short",
 };
 /** Dauer in Sekunden je Klang (Standard 2). */
-const DURATION = { "fx.type": 0.8, "fx.tick": 0.8, "fx.stamp": 1.2, "fx.gavel": 1.2, "fx.chime": 2.2, "fx.knock": 1.2, "fx.pop": 0.8, "fx.swoosh": 0.8, "fx.sparkle": 1.5, "fx.page": 1.2, "fx.whoosh": 1.0, "fx.sting": 2.5, "fx.drum": 3, "fx.fanfare": 3.5, "fx.sad": 2.5, "fx.cheer": 3, "fx.boo": 2, "fx.creak": 3, "fx.ring": 3, "fx.bell": 5, "fx.rooster": 3, "fx.seal": 1.2, "fx.sneak": 2.2, "fx.clock": 1.6, "fx.loot": 2.6, "fx.feather": 2, "fx.poster": 1.2, "fx.dawn": 3, "fx.rewind": 1.6, "fx.drop": 1.2, "fx.ooh": 1.8, "fx.th.laterne": 3.5, "fx.th.kuchen": 3, "fx.th.rezept": 3.5, "fx.th.mondstein": 3, "fx.th.glocke": 3, "fx.th.honig": 3.5, "fx.th.hufeisen": 3, "fx.th.spieluhr": 3.5 };
+const DURATION = { "fx.type": 0.8, "fx.tick": 0.8, "fx.stamp": 1.2, "fx.gavel": 1.2, "fx.chime": 2.2, "fx.knock": 1.2, "fx.pop": 0.8, "fx.swoosh": 0.8, "fx.sparkle": 1.5, "fx.page": 1.2, "fx.whoosh": 1.0, "fx.sting": 2.5, "fx.drum": 3, "fx.fanfare": 3.5, "fx.sad": 2.5, "fx.cheer": 3, "fx.boo": 2, "fx.creak": 3, "fx.ring": 3, "fx.bell": 5, "fx.rooster": 3, "fx.seal": 1.2, "fx.sneak": 2.2, "fx.clock": 1.6, "fx.loot": 2.6, "fx.feather": 2, "fx.poster": 1.2, "fx.dawn": 3, "fx.rewind": 1.6, "fx.drop": 1.2, "fx.ooh": 1.8, "fx.th.laterne": 3.5, "fx.th.kuchen": 3, "fx.th.rezept": 3.5, "fx.th.mondstein": 3, "fx.th.glocke": 3, "fx.th.honig": 3.5, "fx.th.hufeisen": 3, "fx.th.spieluhr": 3.5, "fx.heart": 1.4, "fx.caw": 1.2, "fx.flap": 1.4, "fx.splash": 1.0, "fx.hood": 1.0, "fx.coins": 1.8, "fx.bats": 2.2, "fx.impact": 2.2, "fx.relief": 2.2, "fx.twinkle": 0.8, "music.reveal": 6 };
 const LUFS = (id) => (id.startsWith("amb.") ? -34 : id.startsWith("music.") ? -26 : -23);
 
 const prompts = { ...JSON.parse(readFileSync(path.join(REPO_ROOT, "docs", "games", "mitternachts-alibi-v2", "Effekte.json"), "utf8")), ...EXTRA };
@@ -63,7 +74,7 @@ const jobs = Object.entries(prompts)
   .map(([id, prompt]) => ({
     id,
     prompt: prompt.replace(/\s*\((?:about two seconds|used twelve times)[^)]*\)/, "").replace(/,?\s*loopable,?\s*30 seconds/, ", seamless loop"),
-    seconds: id.startsWith("amb.") ? 30 : id.startsWith("music.") ? 30 : DURATION[id] ?? 2.2,
+    seconds: DURATION[id] ?? (id.startsWith("amb.") || id.startsWith("music.") ? 30 : 2.2),
     loop: id.startsWith("amb.") || id.startsWith("music.bed") || id.startsWith("music.tension"),
   }));
 

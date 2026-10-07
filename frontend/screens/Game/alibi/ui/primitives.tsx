@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { COLORS, GDR_ICON, IMG, PLACES, SPC_ICON, type Sight } from "../content";
 import { useIsHighlighted, useVoice } from "../hooks";
+import { TaviSprite } from "../live/TaviSprite";
+import { SpeakingFace, useSpeakingPulse } from "../live/SpeakingFace";
 import type { AlibiCharacter, Player } from "../types";
 
 /* ---------- Spiel-Icons (generiert, freigestellt: public/game/alibi/ui) ---------- */
@@ -158,6 +160,8 @@ export const ringColor = (ch: AlibiCharacter) => COLORS[ch.fam] || "#999";
 /** Porträt mit Kennfarben-Rand und goldener Nummer. Leuchtet auf, wenn Tavi die Nummer sagt. */
 export const Face: React.FC<{ p: Player; size: number; dim?: boolean; className?: string; noNumber?: boolean }> = ({ p, size, dim, className, noNumber }) => {
   const hl = useIsHighlighted(p.id);
+  const imgRef = React.useRef<HTMLImageElement>(null);
+  useSpeakingPulse(imgRef, p.ch.s);
   const border = Math.max(2, Math.round(size / 22));
   const badge = Math.round(Math.max(16, size * 0.32));
   return (
@@ -172,7 +176,7 @@ export const Face: React.FC<{ p: Player; size: number; dim?: boolean; className?
         className={cn("block h-full w-full overflow-hidden rounded-full bg-[#2a2118] transition-[filter,opacity] duration-300", dim && "opacity-40 grayscale")}
         style={{ border: `${border}px solid ${ringColor(p.ch)}`, boxShadow: hl ? "0 0 0 3px #fff6c9, 0 0 28px 6px rgba(248,220,142,0.75)" : "0 0 0 2px rgba(255,255,255,0.85), 0 6px 16px rgba(0,0,0,0.45)" }}
       >
-        <img src={p.ch.img} alt={`Nummer ${p.id + 1}, ${p.ch.n}`} className="h-full w-full object-cover" loading="lazy" decoding="async" draggable={false} />
+        <img ref={imgRef} src={p.ch.img} alt={`Nummer ${p.id + 1}, ${p.ch.n}`} className="h-full w-full object-cover" loading="lazy" decoding="async" draggable={false} />
       </span>
       {!noNumber && size >= 30 ? (
         <span
@@ -308,8 +312,12 @@ export const CaptionBar: React.FC = () => {
               caption.priv ? "border border-violet-300/30 bg-[rgba(52,30,104,0.86)]" : "border border-white/12 bg-[rgba(14,16,34,0.88)]"
             )}
           >
-            <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[#f6ead0]">
-              <img src={IMG.tavi(caption.priv ? "whisper" : "kommissar")} alt="" className="h-full w-full object-cover object-top" />
+            <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[#f6ead0]">
+              {caption.img ? (
+                <SpeakingFace src={caption.img} who={caption.who || ""} className="h-full w-full" />
+              ) : (
+                <TaviSprite pose={caption.priv ? "whisper" : "kommissar"} fit="w" className="absolute left-[-6%] top-[-4%] w-[112%]" />
+              )}
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-[0.18em] text-[#f8dc8e]/90">
@@ -359,6 +367,7 @@ export const BigCount: React.FC<{ n: number | string }> = ({ n }) => (
     <AnimatePresence mode="popLayout">
       <motion.span
         key={String(n)}
+        data-fx="count"
         initial={{ scale: 2.4, opacity: 0, filter: "blur(8px)" }}
         animate={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
         exit={{ scale: 0.6, opacity: 0 }}
@@ -390,7 +399,7 @@ export const Screen: React.FC<{ children: React.ReactNode; dock?: React.ReactNod
 /** Kleine Sprechblase von Tavi im Inhalt (für Hinweise, die auch gelesen werden dürfen) */
 export const TaviNote: React.FC<{ children: React.ReactNode; pose?: Parameters<typeof IMG.tavi>[0] }> = ({ children, pose = "kommissar" }) => (
   <div className="flex w-full items-end gap-3">
-    <img src={IMG.tavi(pose)} alt="" className="h-[92px] w-auto shrink-0 drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]" />
+    <TaviSprite pose={pose} className="h-[92px] drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]" />
     <div className="alibi-glass relative mb-3 flex-1 rounded-[20px] rounded-bl-[6px] px-4 py-3 text-[14.5px] leading-snug text-white/90">{children}</div>
   </div>
 );

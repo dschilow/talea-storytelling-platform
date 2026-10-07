@@ -12,6 +12,7 @@ Erzeugt Sprache und Klänge des Spiels ohne Handarbeit. Eingabe: `docs/games/mit
 | `verify.mjs` | Fehlende IDs, Tempo-Ausreißer, Lautheit, Größe |
 | `check-transcripts.py` | Lokale Spracherkennung (faster-whisper) gegen den Soll-Text: findet gesprochene Tags, fehlende Sätze |
 | `inspect.mjs` | Stimmen des Kontos auflisten und in `voices-account.json` speichern |
+| `envelopes.py` | Lautstärkekurven aller Sprach-Clips (20 Werte/s) nach `voices/lips.json` für Tavis Mundbewegung und sprechende Köpfe; nach jedem neuen Clip erneut laufen lassen |
 
 Der Schlüssel ist die Railway-Variable `ELEVENLABS_API_KEY` des Dienstes „backend 2“ (Umgebung production), dieselbe, die das Backend für die Audio-Dokus nutzt. Die Skripte lesen sie zur Laufzeit per Railway-CLI (Anmeldung nötig: `railway login`) und halten sie nur im Speicher. Alternativ `ELEVENLABS_API_KEY` als Umgebungsvariable setzen oder in `.env.local` eintragen. `.cache/` (Rohdateien, Protokolle, Transkripte) ist nicht eingecheckt.
 
@@ -45,3 +46,10 @@ Abgerechnet werden auch die Audio-Tags. Gesamtlauf am 2026-10-03: 896 Clips, 87 
 ## Version 3 (2026-10-05)
 
 171 weitere Sprach-Clips (Tathergang, Ermittlung, Siegel, Beute, Gruppen-Aufgaben, Tat-Erzählungen, Epiloge, Elster-Finale, Zeugen-Zeile `character.<slug>.witness` für alle 89 Figuren) und 18 Geräusche (`fx.seal`, `fx.sneak`, `fx.clock`, `fx.loot`, `fx.feather`, `fx.poster`, `fx.dawn`, `fx.rewind`, `fx.drop`, `fx.ooh` und je Fall `fx.th.<fall>`). Gegenprobe mit `check-transcripts.py`: keine gesprochenen Tags, auffällig nur gewollte Wiederholungen („Quak, quak“).
+
+## Lebendiges Spielbrett (2026-10-07)
+
+- Neue Klänge in `sfx.mjs` (EXTRA): `fx.heart` (Herzschlag beim letzten Zug), `fx.caw`/`fx.flap` (Elster über dem Dorf), `fx.splash`/`fx.twinkle` (Tippen auf Wasser bzw. Wiese), `fx.hood`, `fx.impact`, `fx.relief`, `fx.coins` (Enthüllung), `fx.bats`. Musik erstmals eingebunden: `music.bed` (Jazz unter Besetzung, Fall, Tathergang), `music.tension` (Ermittlung und Anklage), `music.reveal` (6-s-Einsatz bei der Enthüllung). Die Musik wird leiser, solange gesprochen wird (`director.music`, `duck`).
+- `DURATION` gilt jetzt auch für `music.*` (vorher immer 30 s, darum war `music.reveal` zu lang).
+- `kom.accuse.2` neu: „Trommelwirbel! Gleich fällt die Kapuze.“ (passt zur neuen Enthüllung mit Kapuze statt Karte). Text auch in `content-data.ts` angepasst.
+- Gehört wurde nichts davon (kein Audiozugriff). Ob Musik und Klänge passen, bitte beim ersten Spielen anhören.

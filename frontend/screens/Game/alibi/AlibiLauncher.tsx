@@ -9,6 +9,8 @@ import { AlibiController } from "./controller";
 import { director } from "./audio";
 import { useAlibiCharacters, useAlibiState, usePreviewFaces } from "./hooks";
 import { AlibiStage } from "./AlibiStage";
+import { TaviSprite } from "./live/TaviSprite";
+import { AttractBoard } from "./live/AttractBoard";
 
 const FEATURES = [
   { img: IMG.icon("phone"), title: "Geheimtelefon", text: "Tavi flüstert jedem ins Ohr, wo er war, wen er gesehen hat und was dort los war. Niemand muss lesen können." },
@@ -117,6 +119,18 @@ export const AlibiLauncher: React.FC = () => {
         </div>
       </section>
 
+      {chars && !open ? (
+        <section className="relative overflow-hidden rounded-[32px] bg-[#0b0d1c] p-3 text-white shadow-[0_30px_80px_-30px_rgba(11,13,28,0.85)] md:p-5" aria-label="Kicherwald live">
+          <div className="mb-2 flex items-baseline justify-between px-2">
+            <h3 className="game-display text-[20px] font-black text-[#fbe7b4]">Kicherwald lebt</h3>
+            <span className="text-[12.5px] text-white/60">Tippt auf eine Figur oder aufs Wasser</span>
+          </div>
+          <div className="mx-auto max-w-[620px]">
+            <AttractBoard chars={chars} />
+          </div>
+        </section>
+      ) : null}
+
       {strip.length ? (
         <section className="relative overflow-hidden rounded-[28px] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] py-5" aria-label="Verdächtige aus dem Charakter-Pool">
           <div className="mb-3 flex items-baseline justify-between px-5">
@@ -158,7 +172,7 @@ export const AlibiLauncher: React.FC = () => {
 
       <section className="relative overflow-hidden rounded-[28px] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-5 md:p-7">
         <div className="flex flex-col gap-5 md:flex-row md:items-center">
-          <img src={IMG.tavi("kommissar")} alt="Kommissar Tavi" className="mx-auto h-40 w-auto shrink-0 md:mx-0" />
+          <TaviSprite pose="kommissar" alt="Kommissar Tavi" className="mx-auto h-40 md:mx-0" />
           <div className="flex-1">
             <h3 className="text-[20px] font-bold text-[var(--talea-text-primary)]">So läuft ein Abend mit Kommissar Tavi</h3>
             <ol className="mt-4 grid gap-3 sm:grid-cols-2">

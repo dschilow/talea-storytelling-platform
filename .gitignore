@@ -66,3 +66,7 @@ __pycache__/
 
 # lokale Spracherkennung für scripts/game-voices/check-transcripts.py
 .venv-whisper/
+
+# Spiel-Werkzeuge: Rohbilder und Prüfberichte
+scripts/game-art/.cache/
+scripts/game-qa/out/

@@ -34,14 +34,14 @@ export const nextCaseId = (id: string) => CASE_CHAIN[(CASE_CHAIN.indexOf(id) + 1
 
 /** Lage der Orte auf der Dorfkarte (Prozent der Kartenbreite/-höhe, Mittelpunkt der Lichtung). */
 export const MAP_POS: Record<string, { x: number; y: number }> = {
-  turm: { x: 49.8, y: 11.4 },
-  bibliothek: { x: 21.7, y: 22.8 },
-  wirtshaus: { x: 79.3, y: 22.8 },
-  markt: { x: 49.4, y: 48.8 },
-  baeckerei: { x: 13.2, y: 49.8 },
-  schmiede: { x: 85.2, y: 50.0 },
-  garten: { x: 23.4, y: 79.6 },
-  bruecke: { x: 71.8, y: 79.6 },
+  turm: { x: 49.9, y: 11.7 },
+  bibliothek: { x: 22.0, y: 22.8 },
+  wirtshaus: { x: 79.0, y: 23.1 },
+  markt: { x: 49.7, y: 48.7 },
+  baeckerei: { x: 13.7, y: 50.0 },
+  schmiede: { x: 85.2, y: 50.1 },
+  garten: { x: 23.9, y: 79.4 },
+  bruecke: { x: 71.8, y: 79.4 },
 };
 
 /* ---------- Bilder (frontend/public/game) ---------- */

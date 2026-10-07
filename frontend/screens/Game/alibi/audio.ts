@@ -9,7 +9,10 @@ import type { Clip } from "./content";
 export type SfxName =
   | "stamp" | "type" | "gavel" | "chime" | "tick" | "knock" | "sting" | "drum" | "fanfare" | "sad"
   | "pop" | "page" | "bell" | "ring" | "whoosh" | "cheer" | "boo" | "swoosh" | "sparkle"
-  | "seal" | "sneak" | "clock" | "loot" | "feather" | "poster" | "dawn";
+  | "seal" | "sneak" | "clock" | "loot" | "feather" | "poster" | "dawn"
+  | "heart" | "caw" | "flap" | "splash" | "hood" | "coins" | "bats" | "impact" | "relief" | "twinkle";
+
+export type MusicName = "bed" | "tension";
 
 export type SayPart =
   | string
@@ -23,6 +26,20 @@ export type SayPart =
 export interface Caption {
   speaker: string;
   text: string;
+  priv: boolean;
+  /** Bild und Slug der sprechenden Figur (leer = Tavi) */
+  img?: string;
+  who?: string;
+}
+
+/** Was gerade gesprochen wird (für Mundbewegung und sprechende Köpfe) */
+export interface Speaking {
+  id: string;
+  /** Figur (Slug) oder null = Tavi */
+  ch: string | null;
+  el: HTMLAudioElement | null;
+  /** Startzeit (performance.now) für die Browser-Stimme ohne Aufnahme */
+  t0: number;
   priv: boolean;
 }
 
@@ -54,6 +71,11 @@ class AudioDirector {
   private ambPaused = false;
   private ambEl: HTMLAudioElement | null = null;
   private ambPlaying: string | null = null;
+  private musId: MusicName | null = null;
+  private musEl: HTMLAudioElement | null = null;
+  private musPlaying: string | null = null;
+  /** Musik leiser, solange gesprochen wird */
+  private ducked = false;
   private available = new Set<string>();
   private manifestLoaded = false;
   private seq = 0;
@@ -63,6 +85,8 @@ class AudioDirector {
   caption: Caption | null = null;
   highlight: number[] = [];
   speaking = false;
+  /** aktueller Sprech-Clip (null = Stille) */
+  cur: Speaking | null = null;
 
   subscribe = (fn: Listener) => {
     this.listeners.add(fn);
@@ -101,6 +125,7 @@ class AudioDirector {
   set soundOn(v: boolean) {
     this._soundOn = v;
     this.syncAmbience();
+    this.syncMusic();
   }
 
   /** Lädt Aufnahmen vor dem Abspielen, damit zwischen zwei Clips keine Lücke entsteht. */
@@ -130,6 +155,56 @@ class AudioDirector {
   pauseAmbience(paused: boolean) {
     this.ambPaused = paused;
     this.syncAmbience();
+    this.syncMusic();
+  }
+
+  /** Musik-Schleife je Phase (bed: Jazz unter Besetzung und Tathergang, tension: Ermittlung); null beendet sie. */
+  music(name: MusicName | null) {
+    this.musId = name;
+    this.syncMusic();
+  }
+  private musicVol() {
+    return this.ducked ? 0.32 : 0.75;
+  }
+  private syncMusic() {
+    const want = this.musId && !this.ambPaused && this._soundOn && !this.fast && this.available.has(`music.${this.musId}`) ? `music.${this.musId}` : null;
+    if (want === this.musPlaying) return;
+    const old = this.musEl;
+    this.musEl = null;
+    this.musPlaying = want;
+    if (old) AudioDirector.fade(old, 0, 900, () => {
+      try {
+        old.pause();
+      } catch {
+        /* ignorieren */
+      }
+    });
+    if (!want) return;
+    try {
+      const el = new Audio(`${VOICE_BASE}${want}.mp3`);
+      el.loop = true;
+      el.volume = 0;
+      this.musEl = el;
+      void el.play().then(() => AudioDirector.fade(el, this.musicVol(), 2200)).catch(() => {
+        if (this.musEl === el) {
+          this.musEl = null;
+          this.musPlaying = null;
+        }
+      });
+    } catch {
+      this.musEl = null;
+      this.musPlaying = null;
+    }
+  }
+  private duck(on: boolean) {
+    if (this.ducked === on) return;
+    this.ducked = on;
+    if (this.musEl) AudioDirector.fade(this.musEl, this.musicVol(), on ? 250 : 900);
+  }
+  /** Einmaliger Musik-Einsatz (z. B. music.reveal) */
+  sting(id: string) {
+    if (!this.soundOn || this.fast || !this.available.has(id)) return;
+    this.playFile(id, 0.9);
   }
   private syncAmbience() {
     const want = this.ambId && !this.ambPaused && this._soundOn && !this.fast && this.available.has(`amb.${this.ambId}`) ? `amb.${this.ambId}` : null;
@@ -249,6 +324,16 @@ class AudioDirector {
     feather: () => this.noise(0, 0.9, 0.035, 1800),
     poster: () => { this.noise(0, 0.12, 0.12, 1200); this.tone(1200, 0.18, 0.05, "square", 0.03); },
     dawn: () => [523, 659, 784, 1047].forEach((f, i) => this.tone(f, i * 0.05, 1.1, "triangle", 0.05)),
+    heart: () => { this.tone(62, 0, 0.16, "sine", 0.2, 45); this.tone(58, 0.26, 0.2, "sine", 0.16, 42); },
+    caw: () => [1200, 1500, 1100].forEach((f, i) => this.tone(f, i * 0.09, 0.08, "sawtooth", 0.03, f * 0.8)),
+    flap: () => [0, 0.11, 0.22].forEach((w) => this.noise(w, 0.07, 0.05, 1500)),
+    splash: () => { this.tone(420, 0, 0.12, "sine", 0.06, 160); this.noise(0.03, 0.25, 0.05, 2500); },
+    hood: () => { this.noise(0, 0.35, 0.09, 2200); this.tone(260, 0, 0.3, "sine", 0.03, 700); },
+    coins: () => [1900, 2300, 2100, 2600, 2000].forEach((f, i) => this.tone(f, i * 0.06, 0.2, "triangle", 0.03)),
+    bats: () => [2400, 2900, 2600].forEach((f, i) => this.tone(f, i * 0.14, 0.05, "square", 0.012)),
+    impact: () => { this.noise(0, 0.6, 0.18, 400); this.tone(55, 0, 1.2, "sine", 0.22, 35); },
+    relief: () => [392, 494, 587, 784, 988].forEach((f, i) => this.tone(f, i * 0.07, 0.6, "sine", 0.04)),
+    twinkle: () => this.tone(2600, 0, 0.18, "sine", 0.025, 3400),
   };
   sfx(name: SfxName) {
     if (!this.soundOn || this.fast) return;
@@ -310,6 +395,8 @@ class AudioDirector {
         /* ignorieren */
       }
     }
+    this.cur = null;
+    this.duck(false);
     this.setHL(null);
     this.setCaption(null);
     this.speaking = false;
@@ -343,12 +430,15 @@ class AudioDirector {
   say(parts: SayPart[], opt: { priv?: boolean } = {}): Promise<boolean> {
     this.stop();
     const my = this.seq, vol = opt.priv ? this.privVol : 1, priv = !!opt.priv;
+    this.duck(true);
     const list = parts.filter((p) => p !== null && p !== undefined).map((p) => (typeof p === "string" ? { id: p } : p));
     this.speaking = true;
     return new Promise((resolve) => {
       let i = 0;
       const finish = (ok: boolean) => {
         if (my === this.seq) {
+          this.duck(false);
+          this.cur = null;
           this.setHL(null);
           this.setCaption(null);
           this.speaking = false;
@@ -381,13 +471,15 @@ class AudioDirector {
         const id = ch ? `character.${ch.s}.${(p as { k: string }).k}` : (p as { id: string }).id;
         const clip = this.clips[id];
         const text = clip ? clip.text : "";
-        this.setCaption(text ? { speaker: ch ? ch.n : priv ? "Tavi flüstert" : "Kommissar Tavi", text, priv } : null);
+        this.setCaption(text ? { speaker: ch ? ch.n : priv ? "Tavi flüstert" : "Kommissar Tavi", text, priv, img: ch ? ch.img : undefined, who: ch ? ch.s : undefined } : null);
+        this.cur = text ? { id, ch: ch ? ch.s : null, el: null, t0: performance.now(), priv } : null;
         if (this.fast) return next();
         if (!this.soundOn || !text) return window.setTimeout(next, AudioDirector.estimate(text));
         let done = false;
         const doneOnce = () => {
           if (done) return;
           done = true;
+          if (my === this.seq) this.cur = null;
           window.setTimeout(next, GAP);
         };
         const fallback = () => {
@@ -419,6 +511,7 @@ class AudioDirector {
           const a = this.playFile(id, vol);
           if (!a) return fallback();
           this.active = a;
+          if (this.cur) this.cur.el = a;
           a.onended = doneOnce;
           a.onerror = fallback;
         } else fallback();

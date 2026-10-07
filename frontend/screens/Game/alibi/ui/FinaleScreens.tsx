@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 
 import { cn } from "@/lib/utils";
-import { IMG, SLOTS, cap } from "../content";
+import { COLORS, IMG, SLOTS, cap } from "../content";
 import { TC } from "../engine";
 import { director } from "../audio";
 import type { AlibiController } from "../controller";
@@ -11,6 +11,8 @@ import { useAlibiState } from "../hooks";
 import { ACT_ICON, BigCount, Eyebrow, Face, GameIcon, GhostButton, GoldButton, PlaceCard, Screen, Title, ringColor, type GameIconName } from "./primitives";
 import { SpurChips } from "./RoundScreens";
 import { VillageMap } from "./VillageMap";
+import { TaviSprite } from "../live/TaviSprite";
+import { StandFigure } from "../live/StandFigure";
 import { ElsterReveal, FeatherTrack, LootShowcase, WantedPoster, epilogText } from "./Vault";
 
 /* ---------- Anklage ---------- */
@@ -116,7 +118,7 @@ export const RevealScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
       dock={
         m === "ask" ? (
           <GoldButton a="flip" icon="card" onClick={() => void ctrl.flip()}>
-            Karte umdrehen
+            Kapuze runter!
           </GoldButton>
         ) : m === "shown" ? (
           <GoldButton a="afterReveal" icon={last ? "magnifier" : "replay"} onClick={() => ctrl.afterReveal()}>
@@ -131,39 +133,62 @@ export const RevealScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
           Nummer {i + 1}, {p.ch.n}, tritt vor.
         </Title>
       </div>
-      <div style={{ perspective: 1300 }} className="w-full max-w-[290px]">
-        <motion.div
-          className="relative aspect-[3/4] w-full"
-          style={{ transformStyle: "preserve-3d" }}
-          animate={m === "shown" ? { rotateY: 180 } : m === "drum" ? { rotateY: 0, x: [0, -4, 4, -3, 3, 0], rotate: [0, -1.5, 1.5, -1, 1, 0] } : { rotateY: 0 }}
-          transition={m === "shown" ? { duration: 0.9, ease: [0.2, 0.7, 0.2, 1] } : m === "drum" ? { duration: 0.18, repeat: Infinity } : { duration: 0.3 }}
-        >
-          <div className="alibi-paper absolute inset-0 flex flex-col items-center gap-2 rounded-[24px] p-3" style={{ backfaceVisibility: "hidden" }}>
-            <img src={p.ch.img} alt="" className="aspect-square w-full rounded-[16px] object-cover" style={{ boxShadow: `0 0 0 4px ${ringColor(p.ch)}` }} />
-            <span className="game-display text-[24px] font-black text-[#2c2117]">{p.ch.n}</span>
-            <span className="text-[13px] font-semibold text-[#6e5f48]">Nummer {i + 1}</span>
-          </div>
-          <div
-            className="alibi-paper absolute inset-0 flex flex-col items-center gap-2 rounded-[24px] p-3"
-            style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", boxShadow: kob ? "0 0 60px rgba(255,90,70,0.6)" : "0 0 60px rgba(121,200,149,0.5)" }}
+      {/* Die angeklagte Figur tritt ins Licht, die Kapuze fällt */}
+      <div className="relative mt-3 flex w-full max-w-[340px] justify-center" data-fx="reveal" style={{ height: 290 }}>
+        <motion.span
+          className="alibi-spotlight"
+          animate={{ opacity: m === "shown" ? 1 : m === "drum" ? [0.65, 0.95, 0.7] : 0.75 }}
+          transition={m === "drum" ? { duration: 0.42, repeat: Infinity } : { duration: 0.6 }}
+          style={{ background: m === "shown" ? (kob ? "radial-gradient(50% 60% at 50% 0%, rgba(255,120,90,0.55), transparent 70%)" : "radial-gradient(50% 60% at 50% 0%, rgba(150,255,180,0.45), transparent 70%)") : undefined }}
+        />
+        <span className="alibi-spot-floor" />
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2">
+          <StandFigure
+            H={250}
+            look={{ color: COLORS[p.ch.fam] || "#9aa1a8" }}
+            pose={{ shiver: m === "drum" ? 1 : 0, cheer: m === "shown" && !kob ? 1 : 0, reach: m === "shown" && kob ? 0.35 : 0 }}
+            head={
+              <span className="block h-full w-full overflow-hidden rounded-full bg-[#2a2118]" style={{ boxShadow: `0 0 0 4px ${ringColor(p.ch)}, 0 0 0 7px rgba(255,255,255,0.85), 0 10px 22px rgba(0,0,0,0.55)` }}>
+                <img src={p.ch.img} alt={p.ch.n} className="h-full w-full object-cover" />
+              </span>
+            }
+            overHead={
+              <motion.img
+                src="/game/alibi/live/parts/hood.webp"
+                alt=""
+                className="absolute max-w-none drop-shadow-[0_10px_16px_rgba(0,0,0,0.55)]"
+                style={{ width: "150%", left: "-25%", top: "-36%" }}
+                initial={false}
+                animate={m === "shown" ? { y: -300, x: 90, rotate: 38, opacity: 0 } : m === "drum" ? { y: [0, -3, 0], rotate: [0, -2, 2, 0], opacity: 1 } : { y: 0, x: 0, rotate: 0, opacity: 1 }}
+                transition={m === "shown" ? { duration: 0.85, ease: [0.25, 0.1, 0.4, 1], opacity: { delay: 0.45, duration: 0.4 } } : m === "drum" ? { duration: 0.3, repeat: Infinity } : { duration: 0.3 }}
+              />
+            }
+          />
+        </div>
+        {/* Beim Dieb fällt die Beute aus dem Mantel */}
+        {m === "shown" && kob ? (
+          <motion.img
+            src={IMG.loot(s.caseDef!.id)}
+            alt=""
+            className="absolute left-1/2 h-16 w-16 rounded-full border-2 border-white bg-[#f6ead0] object-cover shadow-[0_0_30px_rgba(248,220,142,0.9)]"
+            initial={{ x: "-50%", y: 170, scale: 0.3, opacity: 0 }}
+            animate={{ x: ["-50%", "-10%", "40%"], y: [170, 150, 236], scale: 1, opacity: 1, rotate: [0, 120, 250] }}
+            transition={{ delay: 0.9, duration: 0.9, ease: "easeOut" }}
+          />
+        ) : null}
+        {m === "shown" ? (
+          <motion.span
+            initial={{ scale: 3, opacity: 0, rotate: -4 }}
+            animate={{ scale: 1, opacity: 1, rotate: -9 }}
+            transition={{ delay: 0.75, type: "spring", stiffness: 380, damping: 15 }}
+            className={cn("alibi-stamp absolute left-1/2 top-[58%] z-10 -translate-x-1/2 bg-black/60 text-[28px]", kob ? "text-[#ff6e5a]" : "text-[#7be39b]")}
           >
-            <img src={p.ch.img} alt="" className="aspect-square w-full rounded-[16px] object-cover" />
-            <span className="game-display text-[24px] font-black text-[#2c2117]">{p.ch.n}</span>
-            <span className="text-[13px] font-semibold text-[#6e5f48]">Nummer {i + 1}</span>
-            {m === "shown" ? (
-              <motion.span
-                initial={{ scale: 3, opacity: 0, rotate: -4 }}
-                animate={{ scale: 1, opacity: 1, rotate: -9 }}
-                transition={{ delay: 0.75, type: "spring", stiffness: 380, damping: 15 }}
-                className={cn("alibi-stamp absolute left-1/2 top-[44%] -translate-x-1/2 bg-black/55 text-[28px]", kob ? "text-[#ff6e5a]" : "text-[#7be39b]")}
-              >
-                {kob ? "Überführt" : "Unschuldig"}
-              </motion.span>
-            ) : null}
-          </div>
-        </motion.div>
+            {kob ? "Überführt" : "Unschuldig"}
+          </motion.span>
+        ) : null}
       </div>
-      {m === "drum" ? <p className="text-[15px] font-bold text-white/80">Trommelwirbel …</p> : null}
+      {m === "drum" ? <p className="text-[15px] font-bold text-white/80">Trommelwirbel … wer steckt unter der Kapuze?</p> : null}
+      {m === "ask" ? <p className="text-[14px] font-semibold text-white/70">Unter der Kapuze steht {p.ch.n}. War es wirklich der Dieb?</p> : null}
       {m === "shown" ? (
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }} className="alibi-glass w-full rounded-[22px] px-4 py-3">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#f8dc8e]/90">{p.ch.n}</p>
@@ -199,14 +224,9 @@ export const EndScreen: React.FC<{ ctrl: AlibiController; onExit: () => void; on
       }
     >
       <div className="flex flex-col items-center gap-2 pt-2 text-center">
-        <motion.img
-          src={IMG.tavi(won ? "cheer" : "shrug")}
-          alt=""
-          initial={{ y: 40, opacity: 0, scale: 0.8 }}
-          animate={{ y: 0, opacity: 1, scale: 1 }}
-          transition={{ type: "spring", stiffness: 200, damping: 14 }}
-          className="h-36 w-auto drop-shadow-[0_14px_30px_rgba(0,0,0,0.6)]"
-        />
+        <motion.div initial={{ y: 40, opacity: 0, scale: 0.8 }} animate={{ y: 0, opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 200, damping: 14 }}>
+          <TaviSprite pose={won ? "cheer" : "shrug"} className="h-36 drop-shadow-[0_14px_30px_rgba(0,0,0,0.6)]" />
+        </motion.div>
         <Title size="xl" className={won ? "!text-[#9ff0b9]" : "!text-[#ff9d8c]"}>
           {won ? "Fall gelöst!" : "Der Dieb entkommt!"}
         </Title>
@@ -217,7 +237,9 @@ export const EndScreen: React.FC<{ ctrl: AlibiController; onExit: () => void; on
 
       {won ? (
         <div className="flex w-full flex-col items-center gap-2">
-          <LootShowcase caseId={cd.id} size={250} />
+          <div data-fx="loot">
+            <LootShowcase caseId={cd.id} size={250} />
+          </div>
           <motion.span
             initial={{ scale: 0, rotate: -8 }}
             animate={{ scale: 1, rotate: -3 }}
@@ -227,11 +249,15 @@ export const EndScreen: React.FC<{ ctrl: AlibiController; onExit: () => void; on
             {r.newLoot ? "Neu in der Sammlung!" : `Schon ${r.copies}× gesammelt`}
           </motion.span>
           <p className="game-display text-center text-[22px] font-black text-white">{cap(cd.loot)}</p>
-          <FeatherTrack count={r.feathers} fresh={r.newFeather} />
+          <div data-fx="feather" className="w-full">
+            <FeatherTrack count={r.feathers} fresh={r.newFeather} />
+          </div>
         </div>
       ) : (
         <div className="flex w-full flex-col items-center gap-3 pt-2">
-          <WantedPoster ch={thief} reward={cap(cd.loot)} />
+          <div data-fx="poster">
+            <WantedPoster ch={thief} reward={cap(cd.loot)} />
+          </div>
           <p className="text-[13.5px] font-semibold text-white/75">{r.newWanted ? "Neuer Steckbrief an der Fahndungswand." : "Schon wieder entwischt! Der Steckbrief hängt noch."}</p>
         </div>
       )}

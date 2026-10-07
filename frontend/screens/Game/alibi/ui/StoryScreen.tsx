@@ -55,7 +55,7 @@ export const StoryScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
       </div>
 
       <div className="relative w-full">
-        <VillageMap ctrl={ctrl} t={beat.t} truth story={beat.board} />
+        <VillageMap ctrl={ctrl} t={beat.t} truth story={beat.board} storyKind={beat.kind} />
         {beat.kind === "title" ? (
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8 }} className="absolute inset-0 flex flex-col items-center justify-center gap-3">
             <div className="relative">

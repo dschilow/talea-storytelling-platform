@@ -71,6 +71,7 @@ export const CastScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
           initial={{ rotateY: -100, opacity: 0, scale: 0.9 }}
           animate={{ rotateY: 0, opacity: 1, scale: 1 }}
           transition={{ type: "spring", stiffness: 140, damping: 16 }}
+          data-fx="cast"
           className="alibi-paper flex flex-col items-center gap-3 rounded-[28px] p-4 pb-5"
         >
           <div className="relative w-full overflow-hidden rounded-[20px]" style={{ boxShadow: `0 0 0 5px ${ringColor(ch)}, 0 0 0 8px rgba(255,255,255,0.9)` }}>

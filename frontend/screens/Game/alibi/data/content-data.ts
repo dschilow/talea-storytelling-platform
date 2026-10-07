@@ -521,7 +521,7 @@ export const KOM = {
   "kom.accuse.1": "Jetzt ist es Zeit für die Anklage. Wer war es? Auf drei zeigt ihr alle auf euren Verdächtigen.",
   "kom.vote": "Drei. Zwei. Eins. Zeigt!",
   "kom.reveal.ask": "Tritt vor. Ist das der Dieb? Tippt auf den goldenen Knopf, dann dreht sich die Karte um.",
-  "kom.accuse.2": "Trommelwirbel! Die Karte wird umgedreht.",
+  "kom.accuse.2": "Trommelwirbel! Gleich fällt die Kapuze.",
   "kom.guilty.1": "Schuldig! Der Dieb ist überführt.",
   "kom.guilty.2": "Erwischt! Das war der Dieb.",
   "kom.guilty.3": "Und der Vorhang fällt: Das ist der Dieb.",

@@ -87,7 +87,7 @@ export const EscapeClock: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         <motion.g style={{ transformOrigin: `${P2.x}px ${P2.y}px`, transformBox: "view-box" }} animate={{ scale: low ? [1, 1.18, 1] : 1 }} transition={{ duration: 1.2, repeat: low ? Infinity : 0 }}>
           <circle cx={P2.x} cy={P2.y} r={12} fill="url(#ec-sun)" />
         </motion.g>
-        <motion.g initial={false} animate={{ x: m.x, y: m.y }} transition={{ type: "spring", stiffness: 70, damping: 14 }}>
+        <motion.g data-fx="clock" initial={false} animate={{ x: m.x, y: m.y }} transition={{ type: "spring", stiffness: 70, damping: 14 }}>
           <circle r={13} fill="rgba(10,12,28,0.85)" stroke={low ? "#ff7a5c" : "#f8dc8e"} strokeWidth={2} />
           <image href={iconSrc("footprints")} x={-9} y={-9} width={18} height={18} />
         </motion.g>
@@ -285,7 +285,7 @@ const DuelPickScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
 };
 
 /* ---------- Versiegelte Karte: Siegel bricht, Bild erscheint ---------- */
-export const SealedCard: React.FC<{ sight?: string; open: boolean; size: number; tone?: "ok" | "bad" | null; delay?: number; crack?: boolean }> = ({ sight, open, size, tone, delay = 0, crack = true }) => {
+export const SealedCard: React.FC<{ sight?: string; open: boolean; size: number; tone?: "ok" | "bad" | null; delay?: number; crack?: boolean; fx?: string }> = ({ sight, open, size, tone, delay = 0, crack = true, fx }) => {
   const half = (side: "l" | "r") => (
     <motion.img
       src={IMG.icon("seal")}
@@ -298,7 +298,7 @@ export const SealedCard: React.FC<{ sight?: string; open: boolean; size: number;
     />
   );
   return (
-    <div className="relative" style={{ width: size, height: size }}>
+    <div className="relative" data-fx={fx} style={{ width: size, height: size }}>
       <motion.div
         className={cn("absolute inset-0 overflow-hidden rounded-[20px] bg-[#f6ead0]", tone === "ok" && "ring-4 ring-emerald-400", tone === "bad" && "ring-4 ring-[#ff5a46]")}
         initial={false}
@@ -373,6 +373,7 @@ const DuelScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         ) : d.step === "result" ? (
           <motion.div
             key="res"
+            data-fx="result"
             initial={{ scale: 0.6, opacity: 0 }}
             animate={d.res === "diff" ? { scale: 1, opacity: 1, x: [0, -10, 10, -6, 6, 0] } : { scale: 1, opacity: 1 }}
             transition={{ duration: 0.6 }}
@@ -393,7 +394,7 @@ const DuelScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
         <div className="flex w-full items-start justify-center gap-5">
           {([d.a, d.b] as const).map((x, k) => (
             <div key={x} className="flex flex-col items-center gap-2">
-              <SealedCard sight={k === 0 ? d.sa : d.sb} open crack={d.step === "open"} size={140} delay={k * 0.35} tone={d.step === "result" ? (d.res === "same" ? "ok" : "bad") : null} />
+              <SealedCard fx={k === 0 ? "seal-a" : "seal-b"} sight={k === 0 ? d.sa : d.sb} open crack={d.step === "open"} size={140} delay={k * 0.35} tone={d.step === "result" ? (d.res === "same" ? "ok" : "bad") : null} />
               <div className="flex items-center gap-2">
                 <Face p={ctrl.P(x)} size={34} />
                 <span className="max-w-[110px] text-[12.5px] font-bold leading-tight text-white/85">{cap(SIGHTS[d.place].find((sg) => sg.id === (k === 0 ? d.sa : d.sb))?.name || "")}</span>
@@ -497,7 +498,7 @@ const SealScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
       <div className="flex w-full items-start justify-center gap-4">
         <div className="flex flex-col items-center gap-2">
           <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#f8dc8e]/90">Im Siegel</span>
-          <SealedCard sight={sp.claimed} open={opened} crack={sp.step === "open"} size={136} tone={sp.step === "result" ? (sp.ok ? "ok" : "bad") : null} />
+          <SealedCard fx="seal-a" sight={sp.claimed} open={opened} crack={sp.step === "open"} size={136} tone={sp.step === "result" ? (sp.ok ? "ok" : "bad") : null} />
           <span className="max-w-[140px] text-center text-[12.5px] font-bold text-white/85">{opened && sp.claimed ? cap(SIGHTS[c.place].find((x) => x.id === sp.claimed)?.name || "") : "…"}</span>
         </div>
         <div className="flex flex-col items-center gap-2">
@@ -510,6 +511,7 @@ const SealScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
       </div>
       {sp.step === "result" ? (
         <motion.div
+          data-fx="result"
           initial={{ scale: 2.6, opacity: 0, rotate: -12 }}
           animate={{ scale: 1, opacity: 1, rotate: -6 }}
           transition={{ type: "spring", stiffness: 320, damping: 14 }}
@@ -545,7 +547,7 @@ const SpurScreen: React.FC<{ ctrl: AlibiController }> = ({ ctrl }) => {
           Labor
         </motion.span>
         <img src={iconSrc("lab2")} alt="" className="mx-auto h-24 w-24 object-contain drop-shadow-[0_6px_8px_rgba(0,0,0,0.35)]" />
-        <motion.div initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5, type: "spring", stiffness: 220, damping: 12 }} className="my-4 flex justify-center">
+        <motion.div data-fx="spur" initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.5, type: "spring", stiffness: 220, damping: 12 }} className="my-4 flex justify-center">
           <SpurGlyph sp={sp} />
         </motion.div>
         <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#8a6a40]">

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { MotionConfig, motion } from "framer-motion";
 
@@ -16,6 +16,9 @@ import { RoundScreen } from "./ui/RoundScreens";
 import { EndScreen, RevealScreen, VoteScreen } from "./ui/FinaleScreens";
 import { StoryScreen } from "./ui/StoryScreen";
 import { Overlays, type OverlayKind } from "./ui/Overlays";
+import { FxLayer } from "./live/FxLayer";
+import { useJuice } from "./live/Juice";
+import "./live/live.css";
 
 function backgroundFor(s: AlibiState): string {
   if (s.phase === "act") return IMG.act(s.act);
@@ -71,6 +74,8 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
   const { soundOn } = useVoice();
   const [overlay, setOverlay] = useState<OverlayKind>(startWithTour ? "tour" : null);
   const [exitArmed, setExitArmed] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  useJuice(ctrl);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -90,6 +95,7 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
       document.removeEventListener("visibilitychange", onVis);
       director.stop();
       director.ambience(null);
+      director.music(null);
       ctrl.pauseTimer();
     };
   }, [ctrl]);
@@ -97,6 +103,8 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
   /* Hintergrundklang: Abend, Mitternacht, Morgengrauen passend zum Akt; in der Befragung bleibt es nachtstill. */
   useEffect(() => {
     director.ambience(s.phase === "act" ? (["evening", "midnight", "dawn"] as const)[Math.min(2, s.act)] : s.phase === "round" || s.phase === "story" ? "midnight" : null);
+    // Musik: Jazz unter Besetzung, Fall und Tathergang; Spannung in Ermittlung und Anklage; still im Geheimtelefon und bei der Enthüllung
+    director.music(s.phase === "cast" || s.phase === "caseIntro" || s.phase === "story" ? "bed" : s.phase === "round" || s.phase === "vote" ? "tension" : null);
   }, [s.phase, s.act]);
 
   useEffect(() => {
@@ -231,7 +239,7 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
           </div>
         </header>
 
-        <main className="relative z-10 min-h-0 flex-1">
+        <main ref={mainRef} className="relative z-10 min-h-0 flex-1">
           {/* Nur Einblenden: Bei schnellen Wechseln darf nie ein alter Bildschirm in einer Ausblendung hängen bleiben. */}
           <motion.div
             key={screenKey(s)}
@@ -244,6 +252,7 @@ export const AlibiStage: React.FC<{ ctrl: AlibiController; startWithTour?: boole
           </motion.div>
         </main>
 
+        <FxLayer target={mainRef} />
         <Overlays
           ctrl={ctrl}
           kind={overlay}

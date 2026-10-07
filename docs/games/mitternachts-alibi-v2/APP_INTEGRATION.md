@@ -75,3 +75,24 @@ Alle 896 Sprach-Clips und die Klänge liegen unter `frontend/public/game/alibi/v
 - Quiz: Lobby, Fragen, Serien-Bonus, Ergebnis, Antwortübersicht in Hell und Dunkel, mobil und Desktop.
 - Produktions-Build und TypeScript: keine neuen Fehler (die 118 vorhandenen TS-Fehler stammen aus anderen Dateien).
 - Nicht getestet: echte Geräte (iOS/Android), echte Stimmen, echtes Backend mit Login.
+
+
+## Lebendiges Spielbrett (v4, 2026-10-07)
+
+Umgesetzt nach dem ref2game-Skill („KI malt, Code bewegt“). Code in `frontend/screens/Game/alibi/live/`:
+
+| Datei | Was |
+|---|---|
+| `ticker.ts` | ein gemeinsamer Animationstakt (läuft nur, wenn jemand zuhört und die Seite sichtbar ist) |
+| `ground.ts`, `LivingGround.tsx` | Kartenboden als WebGL2-Shader: Wasser fließt, Bäume und Weizen im Wind mit Böen, Licht je Akt, Lichtinseln an den Orten, Glühwürmchen fliehen vor dem Finger, Wellenringe; pausiert außerhalb des Bildes, senkt die Auflösung auf langsamen Geräten; ohne WebGL2 das stille Bild |
+| `roads.ts` | Wegenetz (Dijkstra über die gemessenen Wegkurven) |
+| `figure.ts`, `Walker.tsx`, `walkers.ts` | Figuren mit Gelenken: Porträt als Kopf, Mantel in der Kennfarbe, Zwei-Knochen-Beine, Arme; Gangphase aus der Strecke, Füße verankert (gemessenes Gleiten 0), Gehen/Rennen/Schleichen, Gesten (Greifen, Jubeln, Zittern); Laufzustand je Partie außerhalb von React, darum laufen Figuren beim Akt-Wechsel und im Tathergang über die Wege |
+| `Landmark.tsx`, `landmarks.ts` | Gebäude als Aufsteller (stehen mit der Bildunterkante auf dem Boden; 3D-Aufsteller werden nach Tiefe sortiert, Stehplätze darum vor der Vorderkante), Fensterlicht je Akt, Rauch, Dampf, Funken, Glockenringe |
+| `BoardLife.tsx` | Elster (Flügel als Gelenk, antippen: sie schreckt auf), Fledermäuse nachts, Vögel am Abend, unregelmäßige Abstände |
+| `TaviSprite.tsx`, `lips.ts`, `SpeakingFace.tsx` | Tavi blinzelt, atmet, bewegt den Mund nach der Lautstärke der Aufnahme (`voices/lips.json`, keine WebAudio-Umleitung); sprechende Figuren wippen im Takt |
+| `fx.ts`, `FxLayer.tsx`, `Juice.tsx` | Partikel, Wackeln, Blitz, Trefferpause, Randpuls; Juice-Tabelle: jedes Spielereignis (`controller.onEvent`) antwortet sofort, kurz und lang |
+| `PlaceStage.tsx`, `live.css` | Ortsbühne im Geheimtelefon: Szene mit Parallaxe, Ortseffekte, die Beobachtung als lebendes Tier oder Ding |
+| `StandFigure.tsx` | große Einzelfigur (Enthüllung mit fallender Kapuze) und Kapuzengestalt, die um Mitternacht durchs Bild schleicht |
+| `AttractBoard.tsx` | selbstlaufende Vorschau auf der Startseite (Abend, Mitternacht mit Dieb, Morgengrauen) |
+
+Werkstatt (nur Entwicklung, nicht im Build): `frontend/alibi-lab.html?stop=round&n=8&long=1` spielt eine Partie mit Testfiguren bis zur genannten Stelle; `?scene=cycle` zeigt den Zyklusbogen der Figur, `?scene=attract` die Vorschau. Prüfung: `node scripts/game-qa/alibi-qa.mjs` (alle Phasen auf Handy und Desktop, Konsole, Überlauf, Fußgleiten, lebender Boden), Trailer: `node scripts/game-qa/trailer.mjs`. Bilder: `scripts/game-art/README.md`.

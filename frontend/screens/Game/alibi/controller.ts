@@ -70,6 +70,26 @@ export interface StoryBeat {
   board: BoardStory;
   clues?: ClueKind[];
 }
+/** Momente, auf die die Oberfläche mit Effekten antwortet (Juice-Tabelle in live/Juice.tsx) */
+export type GameEvent =
+  | { k: "cast" }
+  | { k: "bell"; n: number }
+  | { k: "ring" }
+  | { k: "stamp" }
+  | { k: "claimWrong" }
+  | { k: "count"; n: number }
+  | { k: "show" }
+  | { k: "sealBreak"; duel: boolean }
+  | { k: "duelResult"; same: boolean }
+  | { k: "sealResult"; ok: boolean }
+  | { k: "spur" }
+  | { k: "move"; left: number; total: number }
+  | { k: "dawn" }
+  | { k: "drum" }
+  | { k: "reveal"; guilty: boolean }
+  | { k: "story"; kind: StoryBeat["kind"] }
+  | { k: "end"; won: boolean; newLoot: boolean; feather: boolean };
+
 export interface Reward extends GameRecord {
   next: CaseDef;
 }
@@ -153,6 +173,7 @@ export class AlibiController {
   setup: SetupState = { count: 5, level: "mini", caseId: "zufall", names: Array(8).fill("") };
   chars: AlibiCharacter[];
   private listeners = new Set<() => void>();
+  private eventFns = new Set<(e: GameEvent) => void>();
   private timer: number | null = null;
   private introToken = 0;
   private storyToken = 0;
@@ -183,6 +204,23 @@ export class AlibiController {
     return () => this.listeners.delete(fn);
   };
   getState = () => this.state;
+  /** Ereignisse für Effekte abonnieren */
+  onEvent = (fn: (e: GameEvent) => void) => {
+    this.eventFns.add(fn);
+    return () => {
+      this.eventFns.delete(fn);
+    };
+  };
+  private fx(e: GameEvent) {
+    if (director.fast) return;
+    this.eventFns.forEach((fn) => {
+      try {
+        fn(e);
+      } catch (err) {
+        console.error("[Alibi] Effekt", err);
+      }
+    });
+  }
   private set(patch: Partial<AlibiState>) {
     this.state = { ...this.state, ...patch };
     this.listeners.forEach((fn) => fn());
@@ -278,6 +316,7 @@ export class AlibiController {
     const i = this.state.castIdx, ch = this.P(i).ch;
     this.set({ castSub: "shown" });
     director.sfx("page");
+    this.fx({ k: "cast" });
     void this.say([{ hl: i }, `num.${i + 1}`, { c: ch, k: "intro" }, "kom.cast.macke", `character.${ch.s}.quirk`]);
   }
   castNext() {
@@ -310,6 +349,7 @@ export class AlibiController {
       for (let n = 1; n <= 12; n++) {
         this.set({ bell: n });
         director.sfx("bell");
+        this.fx({ k: "bell", n });
         director.vibrate(30);
         await sleep(950);
         if (my !== this.introToken) return;
@@ -332,6 +372,7 @@ export class AlibiController {
     this.set({ actSub: "hand", actOrder: order.slice(start).concat(order.slice(0, start)), actIdx: 0, hidden: false });
     director.sfx("ring");
     director.vibrate([60, 40, 60]);
+    this.fx({ k: "ring" });
     void this.say(this.handParts(true));
   }
   private whisperParts(i: number, t: number): SayPart[] {
@@ -426,6 +467,7 @@ export class AlibiController {
     }
     const tries = s.claimTries + 1;
     director.sfx("knock");
+    this.fx({ k: "claimWrong" });
     director.vibrate([40, 40, 40]);
     if (tries >= 3) {
       // Nach drei Fehlversuchen füllt Tavi die richtige Aussage ein, damit kleine Kinder nicht hängen bleiben.
@@ -448,6 +490,7 @@ export class AlibiController {
     director.stop();
     this.set({ claims, actSub: "announce", newRes: i });
     director.sfx("stamp");
+    this.fx({ k: "stamp" });
     director.vibrate(60);
     void this.say(this.annPrompt(i, t));
   }
@@ -519,6 +562,7 @@ export class AlibiController {
   private spendMove() {
     this.set({ moves: Math.max(0, this.state.moves - 1) });
     director.sfx("clock");
+    this.fx({ k: "move", left: this.state.moves, total: this.state.movesTotal });
   }
   /** Nach jeder Ermittlung zurück zum Brett, oder bei Morgengrauen direkt zur Anklage. */
   private afterAction() {
@@ -641,12 +685,14 @@ export class AlibiController {
       this.set({ count: n });
       director.sfx("knock");
       director.vibrate(40);
+      this.fx({ k: "count", n });
       await sleep(900);
       const cur = this.state.duel;
       if (this.state.phase !== "round" || !cur || cur.key !== d.key || cur.step !== "count") return;
     }
     this.set({ duel: { ...(this.state.duel as Duel), step: "show" } });
     director.sfx("drum");
+    this.fx({ k: "show" });
     director.vibrate([60, 40, 200]);
   }
   /** Nach dem Zeigen: Tavi bricht beide Siegel und vergleicht die versiegelten Beobachtungen. */
@@ -657,6 +703,7 @@ export class AlibiController {
     const res: "same" | "diff" = sa && sa === sb ? "same" : "diff";
     this.set({ duel: { ...d, step: "open", sa, sb, res } });
     director.sfx("seal");
+    this.fx({ k: "sealBreak", duel: true });
     director.vibrate(50);
     await this.say(["kom.duel.seal"]);
     await sleep(900);
@@ -665,6 +712,7 @@ export class AlibiController {
     this.set({ duel: { ...cur, step: "result" }, duelLog: this.state.duelLog.concat([{ a: d.a, b: d.b, res, t: d.t, place: d.place }]) });
     director.sfx(res === "same" ? "chime" : "sting");
     director.vibrate(res === "same" ? 40 : [80, 40, 160]);
+    this.fx({ k: "duelResult", same: res === "same" });
     void this.say([pickVar(`kom.duel.${res}`)]);
   }
   duelClose() {
@@ -679,6 +727,7 @@ export class AlibiController {
     const n = s.spurShown + 1, sp = s.spuren[n - 1];
     this.set({ spurShown: n, roundSub: "spur" });
     director.sfx("sparkle");
+    this.fx({ k: "spur" });
     director.vibrate(80);
     void this.say([pickVar("kom.spur.next"), `kom.spur.${sp.k}.${sp.v}`]);
   }
@@ -712,12 +761,14 @@ export class AlibiController {
     this.spendMove();
     this.set({ seal: { i, step: "open", claimed, truth, ok } });
     director.sfx("seal");
+    this.fx({ k: "sealBreak", duel: false });
     director.vibrate(60);
     await this.say([{ hl: i }, "kom.seal.open", `num.${i + 1}`, `name.${this.P(i).ch.s}`, { hl: null }, "kom.seal.claimed", `sight.${claimed}`, "kom.seal.truth", `sight.${truth}`]);
     if (my !== this.sealToken || this.state.seal?.step !== "open") return;
     this.set({ seal: { i, step: "result", claimed, truth, ok }, sealLog: this.state.sealLog.concat([{ i, ok }]) });
     director.sfx(ok ? "chime" : "sting");
     director.vibrate(ok ? 40 : [80, 40, 160]);
+    this.fx({ k: "sealResult", ok });
     void this.say([ok ? "kom.seal.match" : "kom.seal.fail"]);
   }
   sealBack() {
@@ -735,7 +786,10 @@ export class AlibiController {
     this.stopTimer();
     director.stop();
     this.set({ phase: "vote", voteSub: "ready", sel: null, talkRun: false });
-    if (dawn) director.sfx("dawn");
+    if (dawn) {
+      director.sfx("dawn");
+      this.fx({ k: "dawn" });
+    }
     void this.say(dawn ? ["kom.inv.out", "kom.accuse.1"] : [this.state.attempt === 2 ? "kom.second" : "kom.accuse.1"]);
   }
   async startCount() {
@@ -745,11 +799,13 @@ export class AlibiController {
       this.set({ count: n });
       director.sfx("knock");
       director.vibrate(40);
+      this.fx({ k: "count", n });
       await sleep(900);
       if (this.state.phase !== "vote" || this.state.voteSub !== "count") return;
     }
     this.set({ voteSub: "point", sel: null });
     director.sfx("drum");
+    this.fx({ k: "show" });
     director.vibrate([60, 40, 200]);
     void this.say(["kom.help.point"]);
   }
@@ -770,13 +826,19 @@ export class AlibiController {
   async flip() {
     this.set({ revealSub: "drum" });
     director.sfx("drum");
+    this.fx({ k: "drum" });
     director.vibrate([80, 50, 80, 50, 300]);
     void this.say(["kom.accuse.2"]);
     await sleep(1700);
     if (this.state.phase !== "reveal") return;
     const W = this.state.W as World, i = this.state.accused as number, kob = i === W.culprit;
     this.set({ revealSub: "shown", cleared: kob ? this.state.cleared : this.state.cleared.concat([i]) });
-    director.sfx("stamp");
+    director.sfx("hood");
+    director.sting("music.reveal");
+    window.setTimeout(() => director.sfx("stamp"), 700);
+    window.setTimeout(() => director.sfx(kob ? "impact" : "relief"), 760);
+    if (kob) window.setTimeout(() => director.sfx("coins"), 1150);
+    this.fx({ k: "reveal", guilty: kob });
     if (kob) {
       window.setTimeout(() => director.sfx("cheer"), 500);
       director.vibrate([200, 80, 200]);
@@ -918,6 +980,7 @@ export class AlibiController {
     for (let k = from; k < this.state.story.length; k++) {
       if (my !== this.storyToken || this.state.phase !== "story") return;
       this.set({ storyIdx: k });
+      this.fx({ k: "story", kind: this.state.story[k].kind });
       await sleep(k === from ? 300 : 650);
       if (my !== this.storyToken) return;
       const ok = await this.say(this.state.story[k].parts);
@@ -944,6 +1007,7 @@ export class AlibiController {
     const s = this.state, cd = s.caseDef as CaseDef, W = s.W as World, r = s.reward as Reward, caught = !!s.finalCaught;
     this.set({ phase: "end" });
     director.sfx(caught ? "fanfare" : "sad");
+    this.fx({ k: "end", won: caught, newLoot: !!r.newLoot, feather: !!r.newFeather });
     const parts: SayPart[] = caught ? [`kom.case.${cd.id}.solved`] : [{ c: this.P(W.culprit).ch, k: "smug" }, `kom.case.${cd.id}.escaped`];
     if (r.elsterNow) parts.push({ sfx: "feather" }, "kom.elster.1", "kom.elster.2", "kom.elster.3");
     if (caught) parts.push({ sfx: "loot" }, r.newLoot ? "kom.loot.new" : "kom.loot.again", { sfx: "feather" }, r.newFeather ? "kom.feather.1" : "kom.feather.2");

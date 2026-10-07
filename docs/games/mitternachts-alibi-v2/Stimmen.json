@@ -5291,8 +5291,8 @@
     "voice": "Kommissar Tavi",
     "kind": "tavi",
     "prio": 1,
-    "text": "Trommelwirbel! Die Karte wird umgedreht.",
-    "eleven": "[calm, measured] Trommelwirbel! Die Karte wird umgedreht.",
+    "text": "Trommelwirbel! Gleich fällt die Kapuze.",
+    "eleven": "[calm, measured] Trommelwirbel! [slight pause] Gleich fällt die Kapuze.",
     "note": "Erzähler. Ruhige, warme Männerstimme wie im Hörspiel, trockener Humor, keine Albernheit."
   },
   "kom.act.0.1": {
