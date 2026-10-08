@@ -31,6 +31,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SkeletonText } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { OverlayGradient } from '@/components/ui/Gradient';
+import { IconButton } from '@/components/ui/IconButton';
 import { GrowthSheet } from './GrowthSheet';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -57,7 +58,7 @@ export function StoryReaderScreen() {
   const profileId = useOptionalChildProfiles()?.activeProfileId;
   const backend = useBackend();
   const journey = useJourneyProgress();
-  const { colors, spacing, radius, type } = useTheme();
+  const { colors, spacing, radius, type, shadows } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const route = useRoute<ReaderRoute>();
@@ -304,17 +305,18 @@ export function StoryReaderScreen() {
               {entry.imageUrl ? (
                 <CoverImage
                   uri={offline.resolveImage(entry.imageUrl)}
-                  style={{ height: 240 }}
-                  radius={radius.lg}
+                  style={[{ height: 260 }, shadows.soft]}
+                  radius={radius.xl}
                   fallbackGradient="sunset"
                 />
               ) : null}
 
-              <View style={{ gap: 4 }}>
-                <Text variant="overline" tone="tertiary">
+              <View style={{ gap: spacing.sm }}>
+                <Text variant="overline" tone="accent">
                   Kapitel {index + 1} von {chapters.length}
                 </Text>
-                <Text variant="displaySm">{entry.title}</Text>
+                <Text variant="displayLg">{entry.title}</Text>
+                <View style={[styles.ornament, { backgroundColor: colors.gold }]} />
               </View>
 
               <View style={{ gap: spacing.base }}>
@@ -383,12 +385,18 @@ export function StoryReaderScreen() {
           exiting={FadeOut.duration(160)}
           style={[
             styles.bottomBar,
+            shadows.float,
             {
-              paddingBottom: insets.bottom + spacing.md,
+              bottom: insets.bottom + spacing.sm,
+              left: spacing.md,
+              right: spacing.md,
+              borderRadius: radius.xl,
+              borderWidth: 1,
+              borderColor: colors.border.light,
               paddingHorizontal: spacing.base,
               paddingTop: spacing.md,
+              paddingBottom: spacing.md,
               backgroundColor: colors.surface.panel,
-              borderTopColor: colors.border.light,
               gap: spacing.sm,
             },
           ]}
@@ -512,21 +520,10 @@ function ChromeButton({
   disabled?: boolean;
   accessibilityLabel: string;
 }) {
-  const { colors, radius } = useTheme();
-
   return (
-    <Touchable
-      onPress={onPress}
-      disabled={disabled}
-      style={[
-        styles.chromeButton,
-        { borderRadius: radius.pill, backgroundColor: colors.surface.primary, borderColor: colors.border.light },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-    >
+    <IconButton onPress={onPress} disabled={disabled} accessibilityLabel={accessibilityLabel} size={40}>
       {children}
-    </Touchable>
+    </IconButton>
   );
 }
 
@@ -541,14 +538,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 10,
   },
-  chromeButton: {
-    width: 38,
-    height: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopWidth: StyleSheet.hairlineWidth },
+  bottomBar: { position: 'absolute' },
+  ornament: { width: 44, height: 3, borderRadius: 2 },
   bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   chapterRow: { flexDirection: 'row', alignItems: 'center' },
 });

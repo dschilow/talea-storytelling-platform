@@ -21,7 +21,7 @@ interface SuggestionDrawerProps {
 export const SuggestionDrawer: React.FC<SuggestionDrawerProps> = ({
   open,
   title = "Weiterlernen",
-  subtitle = "Passende Themenvorschlaege",
+  subtitle = "Passende Themenvorschläge",
   items,
   isLoading = false,
   isRefreshing = false,
@@ -68,7 +68,7 @@ export const SuggestionDrawer: React.FC<SuggestionDrawerProps> = ({
               <div className="sticky top-0 z-10 mb-3 flex items-start justify-between gap-3 rounded-2xl bg-[rgba(10,12,30,0.88)] pb-2 pt-0.5">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">
-                    AI Topic Suggestions
+                    Themen-Ideen
                   </p>
                   <h3 className="mt-1 text-lg font-extrabold text-white">{title}</h3>
                   <p className="text-xs text-white/65">{subtitle}</p>
@@ -95,7 +95,7 @@ export const SuggestionDrawer: React.FC<SuggestionDrawerProps> = ({
                 </button>
                 <span className="inline-flex items-center gap-1 text-xs text-white/55">
                   <Sparkles className="h-3.5 w-3.5" />
-                  {items.length} Themen verfuegbar
+                  {items.length} Themen verfügbar
                 </span>
               </div>
 

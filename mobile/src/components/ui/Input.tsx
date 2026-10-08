@@ -44,15 +44,21 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   },
   ref
 ) {
-  const { colors, spacing, radius, type } = useTheme();
+  const { colors, spacing, radius, type, isDark } = useTheme();
   const [focused, setFocused] = useState(false);
 
-  const borderColor = error ? colors.dangerBorder : focused ? colors.border.accent : colors.border.soft;
+  const borderColor = error ? colors.danger : focused ? colors.primary : colors.border.soft;
+  // A soft halo around the focused field — clearer than a colour change alone.
+  const ring = error
+    ? { boxShadow: `0px 0px 0px 4px ${colors.dangerSoft}` }
+    : focused
+      ? { boxShadow: `0px 0px 0px 4px ${isDark ? 'rgba(168, 141, 255, 0.22)' : 'rgba(112, 71, 235, 0.14)'}` }
+      : null;
 
   return (
-    <View style={[{ gap: spacing.xs }, containerStyle]}>
+    <View style={[{ gap: spacing.xs + 2 }, containerStyle]}>
       {label ? (
-        <Text variant="labelSm" tone="secondary">
+        <Text variant="labelSm" tone="secondary" style={{ marginLeft: 4 }}>
           {label}
         </Text>
       ) : null}
@@ -61,15 +67,16 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         style={[
           styles.field,
           {
-            borderRadius: radius.md,
+            borderRadius: radius.md + 2,
             borderColor,
-            borderWidth: focused || error ? 1.4 : StyleSheet.hairlineWidth,
-            backgroundColor: colors.surface.inset,
-            paddingHorizontal: spacing.md,
-            minHeight: multilineRows ? 22 * multilineRows + 24 : 50,
+            borderWidth: 1.5,
+            backgroundColor: colors.surface.primary,
+            paddingHorizontal: spacing.base,
+            minHeight: multilineRows ? 22 * multilineRows + 28 : 54,
             alignItems: multilineRows ? 'flex-start' : 'center',
             paddingVertical: multilineRows ? spacing.md : 0,
           },
+          ring,
         ]}
       >
         {icon ? <View style={{ marginRight: spacing.sm }}>{icon}</View> : null}

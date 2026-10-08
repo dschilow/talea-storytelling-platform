@@ -1,15 +1,40 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, BookOpen, Brain, Clock3, Sparkles, ZoomIn } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Brain,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Cloud,
+  Crown,
+  HelpCircle,
+  Mountain,
+  Orbit,
+  Sparkles,
+  Sprout,
+  Star,
+  Waves,
+  Wind,
+  ZoomIn,
+} from "lucide-react";
 import type { CosmosDomain, DomainProgress, TopicIsland } from "./CosmosTypes";
 import type { TopicTimelineDTO } from "./apiCosmosClient";
 import { getStageLabel, getStageColor } from "./CosmosProgressMapper";
-import { LEARNING_STAGES } from "./CosmosTypes";
-import { getDomainLearningPreset } from "./CosmosAssetsRegistry";
+import {
+  MAX_EVOLUTION_STAGE,
+  STAR_POINT_RULES,
+  getStageCopy,
+  type PlanetEvolution,
+} from "./CosmosEvolution";
+import { MOON_STAGE_COLORS } from "./CosmosPlanetThemes";
+import { formatTopicTitle } from "./CosmosPlanetDomain";
 
 interface Props {
   domain: CosmosDomain | null;
   progress: DomainProgress | null;
+  evolution: PlanetEvolution | null;
   activeIslands: TopicIsland[];
   otherTopics: TopicIsland[];
   selectedTopic: TopicIsland | null;
@@ -37,9 +62,12 @@ interface Props {
   onSelectTopic: (topic: TopicIsland) => void;
 }
 
+const STAGE_ICONS = [Star, Mountain, Wind, Waves, Cloud, Sprout, Sparkles, Orbit, Crown];
+
 export const CosmosHudOverlay: React.FC<Props> = ({
   domain,
   progress,
+  evolution,
   activeIslands,
   otherTopics,
   selectedTopic,
@@ -60,26 +88,9 @@ export const CosmosHudOverlay: React.FC<Props> = ({
   onStartTopicQuiz,
   onSelectTopic,
 }) => {
-  if (!domain || !progress) return null;
-
-  const stageLabel = getStageLabel(progress.stage);
-  const stageColor = getStageColor(progress.stage);
-  const topicsExploredDisplay = Math.max(
-    Number(progress.topicsExplored || 0),
-    activeIslands.length
-  );
-  const evidenceLine = progress.recentHighlight || "Neue Lernspur gesammelt.";
-  const stages = Object.entries(LEARNING_STAGES) as [string, { label: string }][];
-  const currentStageIdx = stages.findIndex(([key]) => key === progress.stage);
-  const evolutionPips = Math.max(
-    1,
-    Math.min(10, Math.round((Number(progress.planetLevel || 1) / 50) * 10))
-  );
-  const detailCards = getDetailCards(domain.id, progress);
-  const dueRecall =
-    selectedTopicTimeline?.recallTasks.find((task) => task.status === "pending") ||
-    null;
   const [selectedTimelineDocId, setSelectedTimelineDocId] = React.useState<string | null>(null);
+  const [showPointRules, setShowPointRules] = React.useState(false);
+
   React.useEffect(() => {
     const firstId = selectedTopicTimeline?.docs?.[0]?.contentId || null;
     setSelectedTimelineDocId((current) => {
@@ -90,18 +101,23 @@ export const CosmosHudOverlay: React.FC<Props> = ({
       return firstId;
     });
   }, [selectedTopicTimeline]);
+
+  if (!domain || !progress || !evolution) return null;
+
+  const stageColor = getStageColor(progress.stage);
+  const moonCount = Math.max(Number(progress.topicsExplored || 0), activeIslands.length);
+  const isStardust = evolution.stage === 0;
   const selectedTimelineEntry =
     selectedTopicTimeline?.docs?.find((entry) => entry.contentId === selectedTimelineDocId) ||
     selectedTopicTimeline?.docs?.[0] ||
     null;
-  const canOpenTimelineContent = Boolean(selectedTimelineEntry);
-  const canOpenQuiz =
-    Boolean(selectedTimelineEntry) && selectedTimelineEntry?.type === "doku";
+  const firstDoku = selectedTopicTimeline?.docs?.find((entry) => entry.type === "doku") || null;
+  const dueRecall =
+    selectedTopicTimeline?.recallTasks.find((task) => task.status === "pending") || null;
   const showTopicInsights = isDetailMode && !isTransitioning;
   const bottomInset = isDetailMode
     ? "max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem))"
-    : "max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))";
-  const sideInset = "max(0.75rem, calc(env(safe-area-inset-left, 0px) + 0.5rem))";
+    : "max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))";
 
   return (
     <AnimatePresence>
@@ -111,26 +127,17 @@ export const CosmosHudOverlay: React.FC<Props> = ({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
           transition={{ type: "spring", stiffness: 220, damping: 28, mass: 0.95 }}
-          className={[
-            "absolute z-30",
-            isDetailMode
-              ? "left-4 right-4 bottom-4 md:left-auto md:right-6 md:w-[26rem] md:max-w-[26rem]"
-              : "bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-xl",
-          ].join(" ")}
-          style={
-            isDetailMode
-              ? { bottom: bottomInset, left: sideInset, right: sideInset }
-              : { bottom: bottomInset }
-          }
+          className="absolute left-3 right-3 z-30 md:left-auto md:right-6 md:w-[26rem] md:max-w-[26rem]"
+          style={{ bottom: bottomInset }}
         >
           <div
             className={[
-              "relative rounded-3xl border border-white/10 p-5 backdrop-blur-xl",
-              isDetailMode ? "max-h-[58vh] overflow-y-auto md:max-h-[72vh]" : "",
+              "relative overflow-y-auto rounded-3xl border border-white/10 p-4 md:p-5 backdrop-blur-xl md:max-h-[78vh]",
+              isDetailMode ? "max-h-[58vh]" : "max-h-[50vh]",
             ].join(" ")}
             style={{
-              background: "linear-gradient(135deg, rgba(15,15,35,0.92) 0%, rgba(25,20,50,0.95) 100%)",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)",
+              background: "linear-gradient(135deg, rgba(13,14,34,0.93) 0%, rgba(24,19,50,0.95) 100%)",
+              boxShadow: `0 20px 60px rgba(0,0,0,0.5), 0 0 48px ${domain.color}1f, inset 0 1px 0 rgba(255,255,255,0.06)`,
             }}
           >
             <AnimatePresence mode="wait" initial={false}>
@@ -141,306 +148,339 @@ export const CosmosHudOverlay: React.FC<Props> = ({
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
               >
-            <button
-              onClick={isDetailMode ? onBackFromDetail : onClose}
-              className="absolute top-4 right-4 flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-white/60 hover:text-white/90 hover:bg-white/10 transition-colors"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              {isDetailMode ? "Fokus" : "Zurueck"}
-            </button>
-
-            <div className="flex items-center gap-3 mb-4">
-              <div
-                className="flex h-12 w-12 items-center justify-center rounded-2xl text-2xl"
-                style={{
-                  background: `${domain.color}20`,
-                  border: `2px solid ${domain.color}40`,
-                }}
-              >
-                {domain.icon}
-              </div>
-              <div>
-                <h3 className="text-lg font-extrabold text-white">{domain.label}</h3>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span
-                    className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-bold"
+                {/* Header */}
+                <div className="mb-3 flex items-center gap-3 pr-20">
+                  <div
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-2xl"
                     style={{
-                      background: `${stageColor}20`,
-                      color: stageColor,
-                      border: `1px solid ${stageColor}30`,
+                      background: `radial-gradient(circle at 35% 30%, ${domain.color}55, ${domain.color}14)`,
+                      border: `1.5px solid ${domain.color}66`,
+                      boxShadow: `0 0 18px ${domain.color}33`,
                     }}
                   >
-                    <Sparkles className="h-3 w-3" />
-                    {stageLabel}
-                  </span>
-                  <span className="text-[11px] text-white/40">
-                    Level {progress.planetLevel || 1} - {topicsExploredDisplay} Themen
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {canFocusCycle && (
-              <div className="mb-4 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={onFocusPrev}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-xs font-bold text-white/85 hover:bg-white/14 transition-colors"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  Vorheriger
-                </button>
-                <button
-                  type="button"
-                  onClick={onFocusNext}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-white/8 px-3 py-2 text-xs font-bold text-white/85 hover:bg-white/14 transition-colors"
-                >
-                  Naechster
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-
-            <div className="mb-4">
-              <div className="flex gap-1 mb-1.5">
-                {stages.map(([key], idx) => (
-                  <div
-                    key={key}
-                    className="flex-1 h-1.5 rounded-full"
-                    style={{ background: idx <= currentStageIdx ? stageColor : "rgba(255,255,255,0.08)" }}
-                  />
-                ))}
-              </div>
-              <div className="flex justify-between text-[9px] text-white/30 font-semibold">
-                {stages.map(([key, { label }]) => (
-                  <span key={key}>{label}</span>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-white/50 font-bold uppercase tracking-wide">
-                  Evolutionspfad
-                </span>
-                <span className="text-[10px] text-white/35">Planet-Level</span>
-              </div>
-              <div className="grid grid-cols-10 gap-1">
-                {Array.from({ length: 10 }).map((_, idx) => (
-                  <div
-                    key={`evo_${idx}`}
-                    className="h-1.5 rounded-full"
-                    style={{
-                      background: idx < evolutionPips ? stageColor : "rgba(255,255,255,0.08)",
-                      boxShadow: idx < evolutionPips ? `0 0 8px ${stageColor}55` : "none",
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="rounded-xl bg-white/5 p-3">
-                <div className="flex items-center gap-1.5 text-[10px] text-white/50 font-bold uppercase tracking-wide mb-1">
-                  <Brain className="h-3 w-3" />
-                  Wissenstiefe
-                </div>
-                <div className="text-sm font-extrabold text-white">
-                  {progress.masteryText || getMasteryDescriptor(progress.mastery)}
-                </div>
-              </div>
-              <div className="rounded-xl bg-white/5 p-3">
-                <div className="flex items-center gap-1.5 text-[10px] text-white/50 font-bold uppercase tracking-wide mb-1">
-                  <Sparkles className="h-3 w-3" />
-                  Lernsicherheit
-                </div>
-                <div className="text-sm font-extrabold text-white">
-                  {progress.confidenceText || getConfidenceDescriptor(progress.confidence)}
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-4 rounded-xl bg-white/5 p-3 text-xs text-white/65 border border-white/5">
-              {evidenceLine}
-            </div>
-
-            {showTopicInsights && (
-              <div className="mb-4 space-y-3">
-                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-xs font-bold uppercase tracking-wide text-white/60">
-                      Topic-Inseln
-                    </h4>
-                    {isLoadingTopics && (
-                      <span className="text-[11px] text-white/45">laedt...</span>
-                    )}
+                    {domain.icon}
                   </div>
-                  <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1">
-                    {(activeIslands || []).map((topic) => (
-                      <button
-                        key={topic.topicId}
-                        type="button"
-                        onClick={() => onSelectTopic(topic)}
-                        className="w-full text-left rounded-lg px-2.5 py-2 text-xs transition-colors border"
+                  <div className="min-w-0">
+                    <h3 className="truncate text-lg font-extrabold text-white">{domain.label}</h3>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] font-extrabold"
                         style={{
-                          borderColor: selectedTopic?.topicId === topic.topicId ? `${stageColor}66` : "rgba(255,255,255,0.12)",
-                          background: selectedTopic?.topicId === topic.topicId ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
-                          color: "rgba(255,255,255,0.9)",
+                          background: `${domain.color}22`,
+                          color: domain.color,
+                          border: `1px solid ${domain.color}44`,
                         }}
                       >
-                        <div className="font-semibold">{formatTopicLabel(topic.topicTitle)}</div>
-                        <div className="text-[11px] text-white/55">
-                          {getStageLabel(topic.stage)} - {topic.masteryLabel} - {topic.docsCount} Inhalte
-                        </div>
-                      </button>
-                    ))}
-                    {activeIslands.length === 0 && !isLoadingTopics && (
-                      <div className="text-xs text-white/45">Noch keine aktiven Topics.</div>
-                    )}
+                        <Sparkles className="h-3 w-3" />
+                        {isStardust ? "Sternenstaub" : `Stufe ${evolution.stage} · ${evolution.current.name}`}
+                      </span>
+                      <span className="text-[11px] font-semibold text-white/45">
+                        {moonCount === 1 ? "1 Wissensmond" : `${moonCount} Wissensmonde`}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {selectedTopic && (
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-sm font-bold text-white">
-                          {formatTopicLabel(selectedTopic.topicTitle)}
-                        </h4>
-                        <p className="text-[11px] text-white/55">
-                          {getStageLabel(selectedTopic.stage)} - {selectedTopic.masteryLabel} - {selectedTopic.confidenceLabel}
-                        </p>
-                      </div>
-                      {selectedTopic.recallDueAt && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/20 border border-amber-300/35 px-2 py-1 text-[10px] font-bold text-amber-100">
-                          <Clock3 className="h-3 w-3" />
-                          Recall faellig
-                        </span>
+                <div className="absolute right-3 top-3 flex items-center gap-1">
+                  {canFocusCycle && (
+                    <>
+                      <IconButton label="Vorheriger Planet" onClick={onFocusPrev}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </IconButton>
+                      <IconButton label="Nächster Planet" onClick={onFocusNext}>
+                        <ChevronRight className="h-4 w-4" />
+                      </IconButton>
+                    </>
+                  )}
+                  <IconButton label={isDetailMode ? "Zurück zum Planeten" : "Zurück zur Übersicht"} onClick={isDetailMode ? onBackFromDetail : onClose}>
+                    <ArrowLeft className="h-4 w-4" />
+                  </IconButton>
+                </div>
+
+                {isStardust ? (
+                  <div
+                    className="mb-4 rounded-2xl border p-3.5 text-sm font-semibold leading-relaxed text-white/80"
+                    style={{ borderColor: `${domain.color}33`, background: `${domain.color}12` }}
+                  >
+                    Diese Welt ist noch Sternenstaub. Lies eine erste Doku über{" "}
+                    <span className="font-extrabold text-white">{domain.label}</span>, dann entsteht hier dein Planet!
+                  </div>
+                ) : (
+                  <EvolutionTrack domain={domain} evolution={evolution} />
+                )}
+
+                {/* Star points to the next stage */}
+                <div className="mb-4">
+                  <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-white/80">
+                      {evolution.next ? (
+                        <>
+                          Noch <span style={{ color: domain.color }}>{evolution.pointsToNext} ⭐</span> bis{" "}
+                          <span className="text-white">„{evolution.next.name}“</span>
+                        </>
+                      ) : (
+                        "Höchste Stufe erreicht – eine echte Sternenwelt!"
                       )}
-                    </div>
-
-                    <div className="rounded-lg bg-black/20 border border-white/10 p-2.5 text-xs text-white/75">
-                      <div className="font-semibold mb-1">Letzte Dokus/Stories</div>
-                      <div className="space-y-1.5">
-                        {(selectedTopicTimeline?.docs || []).slice(0, 5).map((entry) => (
-                          <button
-                            key={entry.contentId}
-                            type="button"
-                            onClick={() => setSelectedTimelineDocId(entry.contentId)}
-                            className="w-full flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors"
-                            style={{
-                              background:
-                                selectedTimelineEntry?.contentId === entry.contentId
-                                  ? "rgba(255,255,255,0.12)"
-                                  : "rgba(255,255,255,0.04)",
-                              border:
-                                selectedTimelineEntry?.contentId === entry.contentId
-                                  ? `1px solid ${stageColor}66`
-                                  : "1px solid rgba(255,255,255,0.08)",
-                            }}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowPointRules((value) => !value)}
+                      className="inline-flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[10px] font-bold text-white/50 hover:bg-white/10 hover:text-white/80"
+                      aria-expanded={showPointRules}
+                    >
+                      <HelpCircle className="h-3.5 w-3.5" />
+                      Sternenpunkte
+                    </button>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                    <motion.div
+                      className="h-full rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.round(evolution.progressToNext * 100)}%` }}
+                      transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+                      style={{
+                        background: `linear-gradient(90deg, ${domain.emissiveColor}, ${domain.color})`,
+                        boxShadow: `0 0 12px ${domain.color}88`,
+                      }}
+                    />
+                  </div>
+                  <AnimatePresence initial={false}>
+                    {showPointRules && (
+                      <motion.ul
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="mt-2 grid grid-cols-1 gap-1.5 overflow-hidden sm:grid-cols-3"
+                      >
+                        {STAR_POINT_RULES.map((rule) => (
+                          <li
+                            key={rule.label}
+                            className="flex items-center justify-between gap-2 rounded-lg bg-white/5 px-2 py-1.5 text-[11px] text-white/70"
                           >
-                            <span className="truncate">{entry.title}</span>
-                            <span className="text-[10px] text-white/45 uppercase">{entry.type}</span>
-                          </button>
+                            <span>{rule.label}</span>
+                            <span className="font-extrabold text-amber-200">{rule.points}</span>
+                          </li>
                         ))}
-                        {isLoadingTopicTimeline && (
-                          <div className="text-[11px] text-white/45">Timeline wird geladen...</div>
-                        )}
-                        {!isLoadingTopicTimeline && (selectedTopicTimeline?.docs?.length || 0) === 0 && (
-                          <div className="text-[11px] text-white/45">Noch keine Inhalte gespeichert.</div>
+                      </motion.ul>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {!isStardust && (
+                  <div className={["mb-4 grid-cols-2 gap-2.5", isDetailMode ? "grid" : "hidden md:grid"].join(" ")}>
+                    <div className="rounded-xl bg-white/5 p-2.5">
+                      <div className="mb-0.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-white/50">
+                        <Brain className="h-3 w-3" />
+                        Wissenstiefe
+                      </div>
+                      <div className="text-sm font-extrabold text-white">
+                        {progress.masteryText || getMasteryDescriptor(progress.mastery)}
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-white/5 p-2.5">
+                      <div className="mb-0.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-white/50">
+                        <Sparkles className="h-3 w-3" />
+                        Lernsicherheit
+                      </div>
+                      <div className="text-sm font-extrabold text-white">
+                        {progress.confidenceText || getConfidenceDescriptor(progress.confidence)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!isStardust && progress.recentHighlight && (
+                  <div
+                    className={[
+                      "mb-4 rounded-xl border border-white/5 bg-white/5 p-2.5 text-xs text-white/65",
+                      isDetailMode ? "block" : "hidden md:block",
+                    ].join(" ")}
+                  >
+                    {progress.recentHighlight}
+                  </div>
+                )}
+
+                {showTopicInsights && (
+                  <div className="mb-4 space-y-3">
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <h4 className="text-xs font-bold uppercase tracking-wide text-white/60">
+                          Wissensmonde
+                        </h4>
+                        {isLoadingTopics && <span className="text-[11px] text-white/45">lädt …</span>}
+                      </div>
+                      <div className="max-h-32 space-y-1.5 overflow-y-auto pr-1">
+                        {activeIslands.map((topic) => {
+                          const isSelected = selectedTopic?.topicId === topic.topicId;
+                          const moonColor = MOON_STAGE_COLORS[topic.stage] ?? domain.color;
+                          return (
+                            <button
+                              key={topic.topicId}
+                              type="button"
+                              onClick={() => onSelectTopic(topic)}
+                              className="flex w-full items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors"
+                              style={{
+                                borderColor: isSelected ? `${moonColor}88` : "rgba(255,255,255,0.12)",
+                                background: isSelected ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)",
+                              }}
+                            >
+                              <span
+                                aria-hidden
+                                className="h-3 w-3 shrink-0 rounded-full"
+                                style={{ background: moonColor, boxShadow: `0 0 8px ${moonColor}` }}
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-semibold text-white/90">
+                                  {formatTopicTitle(topic.topicTitle)}
+                                </span>
+                                <span className="block text-[11px] text-white/55">
+                                  {getStageLabel(topic.stage)} · {topic.docsCount} {topic.docsCount === 1 ? "Inhalt" : "Inhalte"}
+                                </span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                        {activeIslands.length === 0 && !isLoadingTopics && (
+                          <div className="text-xs text-white/45">Noch keine Wissensmonde.</div>
                         )}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onStartTopicDoku(selectedTopic, selectedTimelineEntry)}
-                        disabled={!canOpenTimelineContent}
-                        className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white/90 hover:bg-white/15 transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
-                      >
-                        {selectedTimelineEntry?.type === "story"
-                          ? "Story starten"
-                          : "Doku starten"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onStartTopicQuiz(selectedTopic, selectedTimelineEntry)}
-                        disabled={!canOpenQuiz}
-                        className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white/90 hover:bg-white/15 transition-colors disabled:opacity-45 disabled:cursor-not-allowed"
-                      >
-                        Quiz starten
-                      </button>
-                    </div>
+                    {selectedTopic && (
+                      <div className="space-y-2 rounded-xl border border-white/10 bg-white/5 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h4 className="text-sm font-bold text-white">
+                              {formatTopicTitle(selectedTopic.topicTitle)}
+                            </h4>
+                            <p className="text-[11px] text-white/55">
+                              {getStageLabel(selectedTopic.stage)} · {selectedTopic.masteryLabel} · {selectedTopic.confidenceLabel}
+                            </p>
+                          </div>
+                          {selectedTopic.recallDueAt && (
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-300/35 bg-amber-500/20 px-2 py-1 text-[10px] font-bold text-amber-100">
+                              <Clock3 className="h-3 w-3" />
+                              Wiederholung fällig
+                            </span>
+                          )}
+                        </div>
 
-                    {dueRecall && (
-                      <button
-                        type="button"
-                        className="w-full rounded-xl border border-amber-300/40 bg-amber-500/15 px-3 py-2 text-xs font-bold text-amber-100 hover:bg-amber-500/20 transition-colors"
-                      >
-                        Kurzer Recall (30-60s)
-                      </button>
+                        <div className="rounded-lg border border-white/10 bg-black/20 p-2.5 text-xs text-white/75">
+                          <div className="mb-1 font-semibold">Deine Dokus und Geschichten</div>
+                          <div className="space-y-1.5">
+                            {(selectedTopicTimeline?.docs || []).slice(0, 5).map((entry) => (
+                              <button
+                                key={entry.contentId}
+                                type="button"
+                                onClick={() => setSelectedTimelineDocId(entry.contentId)}
+                                className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left transition-colors"
+                                style={{
+                                  background:
+                                    selectedTimelineEntry?.contentId === entry.contentId
+                                      ? "rgba(255,255,255,0.12)"
+                                      : "rgba(255,255,255,0.04)",
+                                  border:
+                                    selectedTimelineEntry?.contentId === entry.contentId
+                                      ? `1px solid ${stageColor}66`
+                                      : "1px solid rgba(255,255,255,0.08)",
+                                }}
+                              >
+                                <span className="truncate">{entry.title}</span>
+                                <span className="text-[10px] uppercase text-white/45">
+                                  {entry.type === "story" ? "Geschichte" : "Doku"}
+                                </span>
+                              </button>
+                            ))}
+                            {isLoadingTopicTimeline && (
+                              <div className="text-[11px] text-white/45">wird geladen …</div>
+                            )}
+                            {!isLoadingTopicTimeline && (selectedTopicTimeline?.docs?.length || 0) === 0 && (
+                              <div className="text-[11px] text-white/45">Noch keine Inhalte gespeichert.</div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onStartTopicDoku(selectedTopic, selectedTimelineEntry)}
+                            disabled={!selectedTimelineEntry}
+                            className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white/90 transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-45"
+                          >
+                            {selectedTimelineEntry?.type === "story" ? "Geschichte öffnen" : "Doku öffnen"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onStartTopicQuiz(selectedTopic, selectedTimelineEntry)}
+                            disabled={selectedTimelineEntry?.type !== "doku"}
+                            className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white/90 transition-colors hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-45"
+                          >
+                            Quiz starten
+                          </button>
+                        </div>
+
+                        {dueRecall && firstDoku && (
+                          <button
+                            type="button"
+                            onClick={() => onStartTopicQuiz(selectedTopic, firstDoku)}
+                            className="w-full rounded-xl border border-amber-300/40 bg-amber-500/15 px-3 py-2 text-xs font-bold text-amber-100 transition-colors hover:bg-amber-500/20"
+                          >
+                            Kurz wiederholen im Quiz
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {otherTopics.length > 0 && (
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                        <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-white/60">
+                          Weitere Themen ({otherTopics.length})
+                        </h4>
+                        <div className="max-h-24 space-y-1 overflow-y-auto pr-1">
+                          {otherTopics.map((topic) => (
+                            <button
+                              key={topic.topicId}
+                              type="button"
+                              onClick={() => onSelectTopic(topic)}
+                              className="w-full rounded-md px-2 py-1.5 text-left text-xs text-white/75 transition-colors hover:bg-white/8"
+                            >
+                              {formatTopicTitle(topic.topicTitle)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
 
-                {otherTopics.length > 0 && (
-                  <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                    <h4 className="text-xs font-bold uppercase tracking-wide text-white/60 mb-2">
-                      Weitere Topics ({otherTopics.length})
-                    </h4>
-                    <div className="max-h-24 overflow-y-auto space-y-1 pr-1">
-                      {otherTopics.map((topic) => (
-                        <button
-                          key={topic.topicId}
-                          type="button"
-                          onClick={() => onSelectTopic(topic)}
-                          className="w-full text-left rounded-md px-2 py-1.5 text-xs text-white/75 hover:bg-white/8 transition-colors"
-                        >
-                          {formatTopicLabel(topic.topicTitle)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 gap-2">
-                  {detailCards.map((card) => (
-                    <div
-                      key={card}
-                      className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/75"
+                <div className={isStardust ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 gap-2"}>
+                  {!isStardust && (
+                    <button
+                      type="button"
+                      onClick={isDetailMode ? onBackFromDetail : onOpenDetail}
+                      className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl px-3 py-3 text-sm font-extrabold text-white/85 transition-all hover:bg-white/12 active:scale-[0.98]"
+                      style={{
+                        background: "rgba(255,255,255,0.08)",
+                        border: "1px solid rgba(255,255,255,0.14)",
+                      }}
                     >
-                      {card}
-                    </div>
-                  ))}
+                      <ZoomIn className="h-4 w-4" />
+                      {isDetailMode ? "Zum Planeten" : "Monde ansehen"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onOpenSuggestions(domain.id)}
+                    className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-2xl px-3 py-3 text-sm font-extrabold text-white transition-all hover:brightness-110 active:scale-[0.98]"
+                    style={{
+                      background: `linear-gradient(135deg, ${domain.color}, ${domain.emissiveColor})`,
+                      boxShadow: `0 8px 24px ${domain.color}40`,
+                    }}
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    {isStardust ? "Erste Doku finden" : "Weiterlernen"}
+                  </button>
                 </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={isDetailMode ? onBackFromDetail : onOpenDetail}
-                className="w-full flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-extrabold text-white/85 transition-all hover:bg-white/12 active:scale-[0.98]"
-                style={{
-                  background: "rgba(255,255,255,0.08)",
-                  border: "1px solid rgba(255,255,255,0.14)",
-                }}
-              >
-                <ZoomIn className="h-4 w-4" />
-                {isDetailMode ? "Zur Fokusansicht" : "Planet Detail"}
-              </button>
-              <button
-                onClick={() => onOpenSuggestions(domain.id)}
-                className="w-full flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-extrabold text-white transition-all hover:brightness-110 active:scale-[0.98]"
-                style={{
-                  background: `linear-gradient(135deg, ${domain.color}, ${domain.emissiveColor})`,
-                  boxShadow: `0 8px 24px ${domain.color}40`,
-                }}
-              >
-                <BookOpen className="h-4 w-4" />
-                Weiterlernen
-              </button>
-            </div>
               </motion.div>
             </AnimatePresence>
           </div>
@@ -449,6 +489,61 @@ export const CosmosHudOverlay: React.FC<Props> = ({
     </AnimatePresence>
   );
 };
+
+const IconButton: React.FC<{ label: string; onClick?: () => void; children: React.ReactNode }> = ({
+  label,
+  onClick,
+  children,
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label={label}
+    title={label}
+    className="flex h-8 w-8 items-center justify-center rounded-xl text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+  >
+    {children}
+  </button>
+);
+
+/** Eight milestones; reached ones glow, the next one waits with its name. */
+const EvolutionTrack: React.FC<{ domain: CosmosDomain; evolution: PlanetEvolution }> = ({ domain, evolution }) => (
+  <div className="mb-3">
+    <div className="relative flex items-center justify-between px-1">
+      <div className="absolute left-4 right-4 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-white/10" />
+      <div
+        className="absolute left-4 top-1/2 h-0.5 -translate-y-1/2 rounded-full"
+        style={{
+          width: `calc((100% - 2rem) * ${Math.min(1, (evolution.stage - 1 + evolution.progressToNext) / (MAX_EVOLUTION_STAGE - 1))})`,
+          background: `linear-gradient(90deg, ${domain.emissiveColor}, ${domain.color})`,
+          boxShadow: `0 0 8px ${domain.color}`,
+        }}
+      />
+      {Array.from({ length: MAX_EVOLUTION_STAGE }).map((_, index) => {
+        const stage = index + 1;
+        const Icon = STAGE_ICONS[stage];
+        const reached = stage <= evolution.stage;
+        const isCurrent = stage === evolution.stage;
+        const isNext = stage === evolution.stage + 1;
+        return (
+          <div
+            key={stage}
+            title={`Stufe ${stage}: ${getStageCopy(stage, domain.planetType).name}`}
+            className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border transition-all"
+            style={{
+              background: reached ? `radial-gradient(circle at 35% 30%, ${domain.color}, ${domain.emissiveColor})` : "rgba(15,17,40,0.95)",
+              borderColor: reached ? `${domain.color}` : isNext ? `${domain.color}88` : "rgba(255,255,255,0.14)",
+              boxShadow: isCurrent ? `0 0 0 3px ${domain.color}33, 0 0 16px ${domain.color}aa` : "none",
+              borderStyle: isNext ? "dashed" : "solid",
+            }}
+          >
+            <Icon className="h-3.5 w-3.5" style={{ color: reached ? "#0b1020" : isNext ? domain.color : "rgba(255,255,255,0.3)" }} />
+          </div>
+        );
+      })}
+    </div>
+  </div>
+);
 
 function getMasteryDescriptor(mastery: number): string {
   if (mastery >= 80) return "Experte";
@@ -463,28 +558,3 @@ function getConfidenceDescriptor(confidence: number): string {
   if (confidence >= 20) return "Meist sicher";
   return "Gerade entdeckt";
 }
-
-function getDetailCards(domainId: string, progress: DomainProgress): string[] {
-  const preset = getDomainLearningPreset(domainId);
-  return [
-    `Weiterlernen: ${preset.topic}`,
-    progress.topicsExplored > 0
-      ? `${progress.topicsExplored} Themen bereits erkundet`
-      : "Starte mit einem ersten Thema",
-    progress.stage === "retained"
-      ? "Pro Tipp: Transferfragen fuer neue Situationen"
-      : "Empfehlung: Kurzer Recall in 3-7 Tagen",
-  ];
-}
-
-function formatTopicLabel(value: string): string {
-  const raw = String(value || "").trim();
-  if (!raw) return "Unbenanntes Thema";
-  const looksSlugLike = raw.includes("_") || raw.includes("-");
-  if (!looksSlugLike) return raw;
-  return raw
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-

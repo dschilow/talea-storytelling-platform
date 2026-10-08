@@ -1,128 +1,139 @@
 /**
- * CosmosOrbitRig.tsx - Orbit path visualizer
- * Draws faint orbit circles for each domain planet.
+ * CosmosOrbitRig.tsx - Orbit paths with a glowing trail behind every planet.
+ *
+ * Each orbit is one thin line whose brightness fades along the path behind the
+ * planet (read from the shared orbit angles), like a comet tail.
  */
 
-import React, { useMemo } from 'react';
-import { Line } from '@react-three/drei';
+import React, { useEffect, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { CameraMode, CosmosDomain } from './CosmosTypes';
+import { getOrbitConfig, getOrbitPosition, type OrbitLayout } from './CosmosOrbit';
 
 interface Props {
   domains: CosmosDomain[];
   cameraMode: CameraMode;
   focusedDomainId?: string | null;
+  orbitLayout?: OrbitLayout;
+  orbitAngles: React.MutableRefObject<Map<string, number>>;
 }
 
-export const CosmosOrbitRig: React.FC<Props> = ({ domains, cameraMode, focusedDomainId }) => {
-  const orbits = useMemo(() => {
-    return domains.map((domain) => {
-      const seed = hashString(domain.id);
-      const inclination = (((seed % 18) - 9) * Math.PI) / 180;
-      const eccentricity = 0.82 + (((seed >> 3) % 16) / 100);
-      const phase = ((seed >> 8) % 628) / 100;
-      const orbitConfig: OrbitConfig = {
-        inclination,
-        eccentricity,
-        phase,
-      };
-      const segments = 120;
-      const points: [number, number, number][] = [];
-      for (let i = 0; i <= segments; i++) {
-        const angle = (i / segments) * Math.PI * 2;
-        points.push(getOrbitPosition(angle, domain.orbitRadius, orbitConfig));
-      }
-      const orbitColor = new THREE.Color(domain.color)
-        .lerp(new THREE.Color('#9fb2d6'), 0.72)
-        .getStyle();
-      return { id: domain.id, points, color: orbitColor, radius: domain.orbitRadius };
-    });
-  }, [domains]);
+const SEGMENTS = 256;
 
-  const focusedIndex = focusedDomainId
-    ? Math.max(0, domains.findIndex((domain) => domain.id === focusedDomainId))
-    : -1;
-  const minRadius = Math.min(...domains.map((domain) => domain.orbitRadius));
-  const maxRadius = Math.max(...domains.map((domain) => domain.orbitRadius));
+const ORBIT_VERTEX = /* glsl */ `
+attribute float aAngle;
+varying float vAngle;
+void main() {
+  vAngle = aAngle;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+const ORBIT_FRAGMENT = /* glsl */ `
+uniform vec3 uColor;
+uniform float uPlanetAngle;
+uniform float uBase;
+uniform float uTrail;
+varying float vAngle;
+const float TAU = 6.28318530718;
+void main() {
+  float behind = mod(uPlanetAngle - vAngle, TAU) / TAU;
+  float trail = pow(1.0 - behind, 7.0);
+  float alpha = uBase + uTrail * trail;
+  gl_FragColor = vec4(uColor * (1.0 + trail * 0.6), alpha);
+  #include <colorspace_fragment>
+}
+`;
+
+export const CosmosOrbitRig: React.FC<Props> = ({
+  domains,
+  cameraMode,
+  focusedDomainId,
+  orbitLayout = { scale: 1, stretch: 1 },
+  orbitAngles,
+}) => {
+  const orbits = useMemo(
+    () =>
+      domains.map((domain) => {
+        const config = getOrbitConfig(domain.id);
+        const positions = new Float32Array((SEGMENTS + 1) * 3);
+        const angles = new Float32Array(SEGMENTS + 1);
+        for (let i = 0; i <= SEGMENTS; i += 1) {
+          const angle = (i / SEGMENTS) * Math.PI * 2;
+          const [x, y, z] = getOrbitPosition(angle, domain.orbitRadius * orbitLayout.scale, config, orbitLayout.stretch);
+          positions[i * 3] = x;
+          positions[i * 3 + 1] = y;
+          positions[i * 3 + 2] = z;
+          angles[i] = angle;
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('aAngle', new THREE.BufferAttribute(angles, 1));
+        const material = new THREE.ShaderMaterial({
+          uniforms: {
+            uColor: { value: new THREE.Color(domain.color).lerp(new THREE.Color('#c7d2fe'), 0.45) },
+            uPlanetAngle: { value: domain.startAngle },
+            uBase: { value: 0.05 },
+            uTrail: { value: 0.4 },
+          },
+          vertexShader: ORBIT_VERTEX,
+          fragmentShader: ORBIT_FRAGMENT,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        });
+        const line = new THREE.Line(geometry, material);
+        line.frustumCulled = false;
+        return { id: domain.id, line, material, geometry };
+      }),
+    [domains, orbitLayout.scale, orbitLayout.stretch]
+  );
+
+  useEffect(
+    () => () => {
+      for (const orbit of orbits) {
+        orbit.geometry.dispose();
+        orbit.material.dispose();
+      }
+    },
+    [orbits]
+  );
+
+  const focusedIndex = focusedDomainId ? domains.findIndex((domain) => domain.id === focusedDomainId) : -1;
+
+  useFrame(() => {
+    orbits.forEach((orbit, index) => {
+      const angle = orbitAngles.current.get(orbit.id);
+      if (angle !== undefined) {
+        // The shader expects the angle on the drawn circle (0..2PI).
+        orbit.material.uniforms.uPlanetAngle.value = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      }
+
+      const isFocused = orbit.id === focusedDomainId;
+      const isNeighbor = focusedIndex >= 0 && Math.abs(index - focusedIndex) === 1;
+      let base = 0.05;
+      let trail = 0.42;
+      if (cameraMode === 'focus') {
+        base = isFocused ? 0.07 : isNeighbor ? 0.02 : 0;
+        trail = isFocused ? 0.3 : isNeighbor ? 0.1 : 0;
+      } else if (cameraMode === 'detail') {
+        base = isFocused ? 0.05 : 0;
+        trail = isFocused ? 0.18 : 0;
+      } else if (focusedDomainId && !isFocused) {
+        base = 0.035;
+      }
+      orbit.line.visible = base > 0 || trail > 0;
+      orbit.material.uniforms.uBase.value = base;
+      orbit.material.uniforms.uTrail.value = trail;
+    });
+  });
 
   return (
     <group>
-      {orbits.map(({ id, points, color, radius }, index) => {
-        const isFocused = focusedDomainId === id;
-        const hasFocused = Boolean(focusedDomainId);
-        const indexDistance = focusedIndex >= 0 ? Math.abs(index - focusedIndex) : Number.MAX_SAFE_INTEGER;
-        const isNeighbor = indexDistance === 1;
-        const isVisibleInMode =
-          cameraMode === 'system' ||
-          isFocused ||
-          (cameraMode === 'focus' && isNeighbor);
-
-        if (!isVisibleInMode) return null;
-
-        const orbitDepthFade =
-          maxRadius > minRadius
-            ? THREE.MathUtils.lerp(1, 0.38, (radius - minRadius) / (maxRadius - minRadius))
-            : 1;
-
-        const baseOpacity =
-          cameraMode === 'detail'
-            ? isFocused
-              ? 0.13
-              : 0
-            : cameraMode === 'focus'
-            ? isFocused
-              ? 0.11
-              : 0.022
-            : isFocused
-            ? 0.1
-            : hasFocused
-            ? 0.024
-            : 0.042;
-
-        const opacity = baseOpacity * orbitDepthFade;
-        const width = isFocused ? 1.05 : 0.55;
-
-        return (
-          <Line
-            key={id}
-            points={points}
-            color={color}
-            lineWidth={width}
-            transparent
-            opacity={opacity}
-          />
-        );
-      })}
+      {orbits.map((orbit) => (
+        <primitive key={orbit.id} object={orbit.line} />
+      ))}
     </group>
   );
 };
-
-type OrbitConfig = {
-  inclination: number;
-  eccentricity: number;
-  phase: number;
-};
-
-function getOrbitPosition(
-  angle: number,
-  orbitRadius: number,
-  orbitConfig: OrbitConfig
-): [number, number, number] {
-  const x = Math.cos(angle) * orbitRadius;
-  const z = Math.sin(angle) * orbitRadius * orbitConfig.eccentricity;
-  const y =
-    Math.sin(angle + orbitConfig.phase) *
-    orbitRadius *
-    Math.sin(orbitConfig.inclination) *
-    0.22;
-  return [x, y, z];
-}
-
-function hashString(value: string): number {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(index);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}

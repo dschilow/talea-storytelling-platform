@@ -159,7 +159,7 @@ export function AlibiScreen() {
         allowUniversalAccessFromFileURLs={false} mediaPlaybackRequiresUserAction={false}
         setSupportMultipleWindows={false} javaScriptCanOpenWindowsAutomatically={false}
         geolocationEnabled={false} mediaCapturePermissionGrantType="deny"
-        webviewDebuggingEnabled={__DEV__} overScrollMode="never" style={styles.webview}
+        webviewDebuggingEnabled={true} overScrollMode="never" style={styles.webview}
       />
       {(!ready || !active || error) ? (
         <View style={styles.cover}>

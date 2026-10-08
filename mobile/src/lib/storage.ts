@@ -20,6 +20,7 @@ export const StorageKeys = {
   developerMode: 'talea_developer_mode',
   lastStoryWizardState: 'talea_story_wizard_draft',
   parentalUnlockedUntil: 'talea_parental_unlocked_until',
+  wizardAssets: 'talea_wizard_assets_manifest',
 } as const;
 
 export type StorageKey = (typeof StorageKeys)[keyof typeof StorageKeys] | (string & {});

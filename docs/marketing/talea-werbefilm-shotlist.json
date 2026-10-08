@@ -1,0 +1,745 @@
+{
+  "title": "Talea – Wo ihr zur Geschichte werdet",
+  "version": "1.0",
+  "date": "2026-10-08",
+  "language": "de-DE",
+  "deliverables": {
+    "main": {
+      "duration_seconds": 90,
+      "aspect_ratio": "9:16",
+      "resolution": [
+        1080,
+        1920
+      ],
+      "fps": 24
+    },
+    "reel": {
+      "duration_seconds": 30,
+      "aspect_ratio": "9:16",
+      "resolution": [
+        1080,
+        1920
+      ],
+      "fps": 24
+    },
+    "website_variant": "16:9 separat umkomponieren; dieselbe Tonspur verwenden"
+  },
+  "source_review": {
+    "audio": "Logs/video/Audio_Talea.mp3",
+    "duration_seconds": 36.519,
+    "method": "Lokale automatische Transkription; keine subjektive Beurteilung der Stimmfarbe oder Mischung.",
+    "video_sample": "Logs/video/talea-release-mirelo-audio.mp4",
+    "video_method": "Sechs Einzelbilder bei etwa 0, 6, 12, 18, 24 und 30 Sekunden. Kein vollständiger Echtzeit-Bewegungscheck.",
+    "transcript": "Logs/video/talea-review/reference-transcript.json",
+    "notes": "Automatische Erkennung schreibt im Schluss den Markennamen als „Thaler“; gemeint ist nach Projektkontext Talea. Keine wortgenaue auditive Verifikation dieser Stelle."
+  },
+  "characters": {
+    "mila": {
+      "name": "Mila",
+      "age": 7,
+      "description_de": "Braune Haut, große braune Augen, schwarze Locken in zwei kleinen seitlichen Buns. Zuhause senfgelber Baumwollpyjama. Im Abenteuer dieselbe Figur mit pflaumenrosa Umhang, kleinem goldenen Verschluss und senfgelbem Oberteil. Wach, neugierig, hilfsbereit; natürliche Kindergestik.",
+      "description_en": "Seven-year-old girl with warm brown skin, large brown eyes and black curly hair in two small side buns. Mustard yellow cotton pajamas at home. In the fantasy world the same face and hairstyle, with a dusty plum-pink cape, a small gold clasp and a mustard shirt. Curious, observant and kind."
+    },
+    "ben": {
+      "name": "Ben",
+      "age": 8,
+      "description_de": "Helle Haut, grüne Augen, kurze kastanienbraune Locken. Zuhause mintgrüner Pyjama mit hellem Rand. Im Abenteuer salbeigrüne Tunika, brauner Schulterriemen und kleiner türkisfarbener Anhänger. Humor durch Reaktion und Timing, nicht durch Auslachen.",
+      "description_en": "Eight-year-old boy with fair skin, green eyes and short chestnut curls. Mint-green pajamas with pale piping at home. In the fantasy world a sage-green tunic, brown shoulder strap and small turquoise pendant. Playful, attentive, never mocking."
+    },
+    "mother": {
+      "name": "Mama",
+      "description_de": "Etwa Mitte dreißig, warme braune Haut, dunkle lockige Haare locker zusammengebunden, cremefarbene Strickjacke. Zugewandt und gelassen. Sie bleibt im echten Zuhause und begleitet die App-Nutzung.",
+      "description_en": "Mother in her mid-thirties with warm brown skin, dark curly hair loosely tied back, a cream knit cardigan and relaxed posture. Warm, attentive, present with her children in the real home."
+    },
+    "tavi": {
+      "name": "Tavi",
+      "description_de": "Bestehendes Talea-Maskottchen als 3D-Figur: türkisfarbene Haut, rote Kopfbedeckung mit goldener Fassung und blauer Feder, goldene Armreifen und Ohrringe, schwebender geschwungener Unterkörper. Kleine goldene Lampe. Runde freundliche Gesichtszüge; lebhafte Augen und kleine Gesten. Referenz frontend/public/tavi.png.",
+      "description_en": "Use the supplied Talea Tavi reference: friendly turquoise genie, rounded face, expressive eyes, red turban with gold setting and a blue feather, gold wrist cuffs and small hoop earrings, floating curved lower body, small golden lamp. Translate the existing mascot into polished three-dimensional character animation while preserving its recognizable design."
+    },
+    "fips": {
+      "name": "Fips",
+      "description_de": "Kleiner himmelblauer Drache, etwa bis Milas Hüfte, cremefarbener Bauch, zwei kurze stumpfe Hörner, kleine dunkelblaue Flügel, blaue Augen, weiche runde Schnauze. Eine winzige rote Laterne mit warmem Licht. Schüchtern, freundlich; niest genau drei kleine goldene Funken. Keine bedrohliche Gestaltung.",
+      "description_en": "Small sky-blue dragon about the height of Mila's hip, cream belly, two short blunt horns, small deep-blue wings, blue eyes and a soft rounded muzzle. A tiny red lantern with warm light is his recurring prop. Shy and lovable, with one gentle comic sneeze producing three small golden sparks."
+    }
+  },
+  "master_video_prompt": "Original high-end theatrical 3D family animation for the Talea universe. Rounded appealing characters, nuanced facial acting, believable eye lines, restrained squash and stretch, soft hair and cloth detail, physically plausible materials, warm volumetric lighting, readable silhouettes and cinematic depth. Cozy mustard-and-teal family home contrasted with floating storybook islands above peach clouds, a golden-lit castle, giant books, gardens and a starlit observatory. Warm gold magical light connects the scenes. Match the supplied Talea character and world references and the approved character sheets. Keep identity, wardrobe within each setting and props consistent. Compose primarily for a vertical 9:16 frame with clear foreground, middle ground and background. One principal action and one simple camera movement per generated clip. Preserve natural child proportions and gentle family-friendly emotion. Deliver a clean visual plate without dialogue, captions, UI lettering, logos or watermarks; record voices and composite real app screens and typography in editing.",
+  "negative_prompt": "Identity drift, changing facial features, changing costumes within a setting, extra fingers or limbs, fused hands, duplicate characters, unstable eyes, warped books or tablets, unreadable generated typography, fabricated app interfaces, flickering lighting, plastic skin, frightening monsters, explosive effects, aggressive camera shake, extreme motion blur, a busy frame without a clear focal point.",
+  "production": {
+    "generated_clip_target_seconds": 5,
+    "recommendation": "Pro Einstellung einen separaten Clip im vom verwendeten Modell unterstützten Format erzeugen. Bei Bedarf längere Clips erzeugen und auf die fünf Sekunden des Schnittplans kürzen. Keine 90-Sekunden-Eingabe als garantierte Ein-Klick-Produktion behandeln.",
+    "voice": "Die Sprachspur wird mit ElevenLabs erzeugt. Erzählerin, Mama, Mila, Ben, Tavi und Fips erhalten jeweils eine fest zugeordnete Stimme. Jeden Einsatz als separaten Clip erzeugen. Nur gesprochenen Text übergeben; Rollennamen, Zeitangaben und Regiehinweise getrennt halten. Tavi möglichst mit bestehender Markenstimme. Fertige Stimmclips als Zeitreferenz für Animation und Schnitt verwenden; Musik und Geräusche als separate Spuren führen.",
+    "app_screens": "Alle UI-Platten sind Produktionsaufgaben und noch keine aufgenommenen Dateien. Reale aktuelle Talea-Aufnahmen mit fiktiven Testdaten einsetzen; keine generierten Schriftflächen als Produktbeleg. Fips als gespeicherte Fantasiefigur anlegen und in beiden Beispielgeschichten auswählen, damit seine Wiederkehr einen tatsächlich wiederverwendeten Helden zeigt.",
+    "audio_mix": "Dialog verständlich im Vordergrund. Musik bei Sprache absenken; Geräusche unter Sprache. Als Ausgangspunkt etwa -16 LUFS integrated und maximal -1 dBTP, anschließend per Ohr und Telefonlautsprecher prüfen.",
+    "budget": "Diese Dateien sind Drehbuch und Plan. Es wurden keine kostenpflichtigen Video-, Bild-, Musik- oder Sprachgenerierungen gestartet."
+  },
+  "shots": [
+    {
+      "title": "Es war einmal … ich!",
+      "feature": "Gemeinsamer Familienmoment; Kind als Held",
+      "visual": "Ein gemütliches Kinderzimmer am Abend. Mama sitzt mit Mila und Ben unter einer Decke, das Tablet liegt gut sichtbar in ihren Händen. Mama beginnt zu lesen. Mila richtet sich blitzschnell auf, hebt den Finger und unterbricht mit einem strahlenden Blick. Ben zieht schmunzelnd eine Augenbraue hoch. Auf dem Tablet steht bereits Talea; der echte Bildschirm wird im Schnitt eingesetzt.",
+      "camera": "Halbnaher Dreier, sanfter Push-in auf Milas Reaktion. Erster Kinderblick innerhalb der ersten Sekunde.",
+      "voices": [
+        {
+          "speaker": "Mama",
+          "local_start_seconds": 0.3,
+          "local_end_seconds": 1.7,
+          "text": "Es war einmal …",
+          "recording_direction": "Natürlich gesprochen, kurze echte Reaktion."
+        },
+        {
+          "speaker": "Mila",
+          "local_start_seconds": 1.9,
+          "local_end_seconds": 2.5,
+          "text": "Ich!",
+          "recording_direction": "Natürlich gesprochen, kurze echte Reaktion."
+        }
+      ],
+      "overlay": "Keine zusätzliche Texteinblendung; Talea über den echten App-Bildschirm erkennbar.",
+      "sound": "Deckenrascheln, leises Seitenumblättern, drei einzelne Celesta-Töne. Bei „Ich!“ ein kleiner musikalischer Stopp.",
+      "transition": "Milas ausgestreckter Finger führt in den nächsten Bildschirm-Detailshot.",
+      "prompt": "Medium close shot of Mila, Ben and their mother under a blanket in the cozy evening room. The mother holds a landscape tablet and starts reading. Mila suddenly raises one finger with delighted confidence; Ben gives a small amused eyebrow reaction. Slowly push toward Mila. Tablet display is a neutral clean plate for real app-screen compositing.",
+      "ui": "UI01_AVATAR_AUSWAHL",
+      "id": "S01",
+      "start_seconds": 0,
+      "end_seconds": 5,
+      "duration_seconds": 5,
+      "start_frame": 0,
+      "end_frame_exclusive": 120
+    },
+    {
+      "title": "Eure eigenen Helden",
+      "feature": "Avatar auswählen oder gestalten",
+      "visual": "Detail des Tablets: Die echte Avatar-Auswahl wird gezeigt. Mila tippt auf ihren eigenen Helden. Nur dieser eine Schritt ist zu sehen. Ein goldener Lichtsaum verbindet die gewählte Figur mit ihrem Blick; er ist die filmische Fantasie des Kindes.",
+      "camera": "Ruhiger Over-Shoulder aus Milas Perspektive, Finger und Bildschirm zentral.",
+      "voices": [
+        {
+          "speaker": "Erzählerin",
+          "local_start_seconds": 0.3,
+          "local_end_seconds": 4.7,
+          "text": "In Talea beginnt euer Abenteuer mit euren eigenen Helden.",
+          "recording_direction": "Warm, klar, neugierig. Kein pathetischer Werbeton."
+        }
+      ],
+      "overlay": "„Eigene Helden gestalten“",
+      "sound": "Ein weicher UI-Ton. Die Celesta bekommt eine warme Streicherbegleitung.",
+      "transition": "Match Cut vom Avatarbild auf dieselbe Figur in der Werkstatt.",
+      "prompt": "Steady over-the-shoulder close shot behind Mila, looking at a tablet held by her mother. Mila makes one deliberate tap with one index finger. A soft golden rim light reflects on her cheek after the tap. Keep hands anatomically correct and the tablet screen a neutral clean plate for an actual Talea capture.",
+      "ui": "UI01_AVATAR_AUSWAHL",
+      "id": "S02",
+      "start_seconds": 5,
+      "end_seconds": 10,
+      "duration_seconds": 5,
+      "start_frame": 120,
+      "end_frame_exclusive": 240
+    },
+    {
+      "title": "Das Atelier der Helden",
+      "feature": "Aussehen und Persönlichkeit der Avatare",
+      "visual": "Im magischen Atelier tritt Mila als ihr Abenteuer-Avatar aus einem runden goldenen Spiegel. Ben steht neben ihr bereits in seiner grünen Tunika. Mila fängt ihren rosa Umhang, bevor er ihr über die Augen rutscht, und schiebt ihn mit einem kleinen Lachen zurück. Die Gesichter bleiben dieselben wie zuhause.",
+      "camera": "Halbtotale, langsame seitliche Fahrt. Umhanggag ohne schnellen Morph-Effekt.",
+      "voices": [
+        {
+          "speaker": "Erzählerin",
+          "local_start_seconds": 0.3,
+          "local_end_seconds": 4.3,
+          "text": "Gestaltet ihr Aussehen. Gebt ihnen eine Persönlichkeit.",
+          "recording_direction": "Warm, klar, neugierig. Kein pathetischer Werbeton."
+        }
+      ],
+      "overlay": "„Aussehen · Persönlichkeit“",
+      "sound": "Kurzes Stoffflattern und ein freundliches Holzbläser-Motiv.",
+      "transition": "Die goldene Spiegelfassung wird zum Rahmen des Tablets.",
+      "prompt": "In a softly lit magical character atelier, fantasy Mila steps one pace in front of a round gold mirror beside fantasy Ben. Her dusty plum cape briefly folds over her eyes; she gently catches and lowers it with a small laugh. Slow lateral camera move. Use the exact approved fantasy costumes and the same faces as the home scenes.",
+      "id": "S03",
+      "start_seconds": 10,
+      "end_seconds": 15,
+      "duration_seconds": 5,
+      "start_frame": 240,
+      "end_frame_exclusive": 360
+    },
+    {
+      "title": "Eine Idee bekommt Flügel",
+      "feature": "Geschichten konfigurieren",
+      "visual": "Zurück am Tablet, echte Geschichte-Erstellen-Oberfläche. Ein vorhandener Held, eine passende Welt und ein Thema werden als kurze, gut lesbare Aufnahme gezeigt. Mila formuliert ihre Idee, während Mama den Wunsch in die dafür vorhandene Eingabe einträgt. Die kreative Idee ist die Motivation für die gesamte folgende Reise.",
+      "camera": "Naher Zweier von Mila und Mama; dann kurzer echter Bildschirm-Inset. Kein AI-generiertes Formular.",
+      "voices": [
+        {
+          "speaker": "Mila",
+          "local_start_seconds": 0.5,
+          "local_end_seconds": 4.3,
+          "text": "Ein Drache … der Angst im Dunkeln hat.",
+          "recording_direction": "Natürlich gesprochen, kurze echte Reaktion."
+        }
+      ],
+      "overlay": "„Eure Idee. Eure Geschichte.“",
+      "sound": "Milas hörbares Nachdenken, ein leichter Flügelschlag als Vorahnung.",
+      "transition": "Der Druck auf „Erstellen“ führt über einen sichtbaren Filmschnitt in eine fertige Geschichte.",
+      "prompt": "Close two-shot of Mila and her mother in the cozy room. Mila looks upward while imagining a shy dragon, then looks eagerly toward the tablet. The mother listens with a small encouraging smile. Slow gentle push-in. Leave the tablet display a neutral compositing plate.",
+      "ui": "UI02_STORY_WIZARD",
+      "id": "S04",
+      "start_seconds": 15,
+      "end_seconds": 20,
+      "duration_seconds": 5,
+      "start_frame": 360,
+      "end_frame_exclusive": 480
+    },
+    {
+      "title": "Die Geschichte öffnet sich",
+      "feature": "Personalisierte KI-Geschichte mit Bildern",
+      "visual": "Ein echtes fertiges Talea-Cover mit dem Beispielhelden geht in ein schwebendes Buch über. Seine Seiten öffnen sich; zwischen zwei Seiten leuchtet die Silhouette einer Insel. Überblenden und ein kurzer Zeitsprung trennen Erstellung und fertiges Ergebnis. Dieser Übergang stellt das Eintauchen in die Geschichte dar.",
+      "camera": "Langsame Fahrt zum geöffneten Buch, danach Match Cut statt komplexem Durchflug.",
+      "voices": [
+        {
+          "speaker": "Erzählerin",
+          "local_start_seconds": 0.4,
+          "local_end_seconds": 4.4,
+          "text": "Talea macht mit KI daraus eure persönliche Geschichte.",
+          "recording_direction": "Warm, klar, neugierig. Kein pathetischer Werbeton."
+        }
+      ],
+      "overlay": "„Persönliche KI-Geschichten mit Bildern“",
+      "sound": "Buchseiten, ein aufsteigendes Harfen-Arpeggio, anschwellende Streicher.",
+      "transition": "Goldenes Licht füllt kurz das Bild und gibt die Inselwelt frei.",
+      "prompt": "An ornate original storybook floats above a table in the magical atelier. Its cover opens once and two pages reveal a softly glowing miniature floating island between them. Slowly move the camera toward the open book. Keep page surfaces free of readable generated text. The real Talea cover will be composited before this shot.",
+      "ui": "UI03_FERTIGE_GESCHICHTE",
+      "id": "S05",
+      "start_seconds": 20,
+      "end_seconds": 25,
+      "duration_seconds": 5,
+      "start_frame": 480,
+      "end_frame_exclusive": 600
+    },
+    {
+      "title": "Willkommen in Talea",
+      "feature": "Die Fantasiewelt der Geschichten",
+      "visual": "Große Enthüllung: Mila und Ben stehen auf einem sicheren breiten Balkon über pfirsichfarbenen Wolken. In der Ferne leuchten das Geschichten-Schloss, ein Büchergarten und eine Sternwarte. Tavi schwebt neben ihnen und öffnet mit einer kleinen Verbeugung die Hand zur Aussicht. Drei warme Funken ziehen denselben Weg wie die Brücken.",
+      "camera": "Totale, langsamer Bogen von den Kindern zur Aussicht. Keine Loopingfahrt.",
+      "voices": [
+        {
+          "speaker": "Tavi",
+          "local_start_seconds": 0.9,
+          "local_end_seconds": 2.8,
+          "text": "Willkommen in Talea!",
+          "recording_direction": "Warm, beweglich, humorvoll. Bestehende Tavi-Stimme bevorzugen."
+        }
+      ],
+      "overlay": "„Talea“ klein im Schnitt; Landschaft bleibt frei.",
+      "sound": "Die Musik öffnet sich mit weichen Hörnern. Ein sanftes Luftgeräusch und Tavis Lampenklang.",
+      "transition": "Einer der drei Funken führt an den Rand eines warm beleuchteten Waldes.",
+      "prompt": "Wide vertical establishing shot of fantasy Mila and Ben on a broad safe balcony above peach clouds. Original floating islands hold a glowing story castle, a garden of giant books and a starlit observatory. Tavi floats beside them and presents the view with one gracious hand gesture. Slow restrained camera arc; child-height perspective and clear silhouettes.",
+      "id": "S06",
+      "start_seconds": 25,
+      "end_seconds": 30,
+      "duration_seconds": 5,
+      "start_frame": 600,
+      "end_frame_exclusive": 720
+    },
+    {
+      "title": "Ein Drache braucht Licht",
+      "feature": "Emotionale Qualität der Geschichte",
+      "visual": "Am Waldrand kauert Fips hinter einem Blatt. Seine rote Laterne ist dunkel. Als Ben neben ihm in die Hocke geht, versucht Fips, sich hinter dem viel zu kleinen Blatt unsichtbar zu machen. Die Kinder reagieren freundlich. Das Bild bleibt warm; der Wald ist abenteuerlich und gut lesbar.",
+      "camera": "Halbnah, auf Augenhöhe des kleinen Drachen. Eine kleine seitliche Enthüllung.",
+      "voices": [
+        {
+          "speaker": "Ben",
+          "local_start_seconds": 1.4,
+          "local_end_seconds": 4.5,
+          "text": "Du brauchst wohl ein Nachtlicht.",
+          "recording_direction": "Natürlich gesprochen, kurze echte Reaktion."
+        }
+      ],
+      "overlay": "Keine.",
+      "sound": "Rascheln des Blatts, ein einzelner Fagottton, kleines unsicheres Schnaufen.",
+      "transition": "Ben schaut zu Mila; sie tritt in der nächsten Einstellung näher.",
+      "prompt": "At the edge of a warm luminous forest, Fips the small sky-blue dragon tries to hide behind a leaf smaller than his face, holding his unlit tiny red lantern. Fantasy Ben gently crouches nearby with a kind, curious expression. Small sideways reveal at the dragon's eye level. Gentle comic embarrassment, no threatening darkness.",
+      "id": "S07",
+      "start_seconds": 30,
+      "end_seconds": 35,
+      "duration_seconds": 5,
+      "start_frame": 720,
+      "end_frame_exclusive": 840
+    },
+    {
+      "title": "Wir gehen zusammen",
+      "feature": "Zusammenhalt als Handlung der Geschichte",
+      "visual": "Mila kniet neben Fips und hält einen kleinen goldenen Lichtfunken über seine rote Laterne. Ihr warmes Licht geht an und spiegelt sich in seinen Augen. Fips kommt langsam hinter dem Blatt hervor. Ein kurzer Blickkontakt trägt den Moment; die Kamera lässt ihm Zeit. Die Laterne bleibt in Fips' Händen.",
+      "camera": "Ruhiger naher Zweier von Mila und Fips; leichter Push-in.",
+      "voices": [
+        {
+          "speaker": "Mila",
+          "local_start_seconds": 0.8,
+          "local_end_seconds": 3.4,
+          "text": "Komm. Wir gehen zusammen.",
+          "recording_direction": "Natürlich gesprochen, kurze echte Reaktion."
+        }
+      ],
+      "overlay": "Keine.",
+      "sound": "Musik wird klein: wenige warme Klaviernoten, ruhiges Atmen, leiser Lampenton.",
+      "transition": "Fips' erster Schritt setzt sich in der nächsten Einstellung fort.",
+      "prompt": "Close two-shot of fantasy Mila kneeling beside Fips. She gently holds one small golden light spark above the tiny red lantern in his hands; the lantern begins to glow warmly. He slowly emerges from behind the leaf and meets her eyes. Very slow push-in. Prioritize subtle eye movement and an earned trusting expression. Keep the same red lantern with Fips, no second lantern.",
+      "id": "S08",
+      "start_seconds": 35,
+      "end_seconds": 40,
+      "duration_seconds": 5,
+      "start_frame": 840,
+      "end_frame_exclusive": 960
+    },
+    {
+      "title": "Ein kleiner Schritt bleibt",
+      "feature": "Avatar-Entwicklung und Erinnerungen",
+      "visual": "Fips macht einen mutigen Schritt neben Mila. Er schnuppert an einem Lichtfunken, niest und pustet genau drei winzige goldene Funken aus. Ben zuckt kurz zusammen, dann lachen die Kinder erleichtert. Ein kurzer echter Ausschnitt des Avatarprofils mit Entwicklung und Erinnerungen folgt als Schnitt; die Werte beziehen sich auf den Avatar.",
+      "camera": "Halbtotale, statisch für gut lesbares komisches Timing. UI-Ausschnitt als separates Schnittbild.",
+      "voices": [
+        {
+          "speaker": "Erzählerin",
+          "local_start_seconds": 0.2,
+          "local_end_seconds": 4.6,
+          "text": "Eure Helden sammeln Erinnerungen und entwickeln sich weiter.",
+          "recording_direction": "Warm, klar, neugierig. Kein pathetischer Werbeton."
+        }
+      ],
+      "overlay": "„Helden entwickeln sich weiter“",
+      "sound": "Ein weiches „Hatschi“, drei kleine Glockenklänge, kurzes Kinderlachen.",
+      "transition": "Der letzte Funke wird zum hellen Fenster eines Zugabteils.",
+      "prompt": "Static medium-wide shot in the luminous forest. Fips stands beside fantasy Mila, sniffs one floating gold spark, then gives one gentle sneeze producing exactly three tiny golden sparks. Ben makes a brief surprised blink before a relieved smile. Let the comic beat settle. No explosion, no extra sparks or duplicate characters.",
+      "ui": "UI04_AVATAR_ERINNERUNGEN",
+      "id": "S09",
+      "start_seconds": 40,
+      "end_seconds": 45,
+      "duration_seconds": 5,
+      "start_frame": 960,
+      "end_frame_exclusive": 1080
+    },
+    {
+      "title": "Der Held kommt wieder",
+      "feature": "Wiederkehrende Figuren in weiteren Geschichten",
+      "visual": "Ein eindeutig neues Abenteuer: Ein heller fantasievoller Reisezug fährt durch eine Wolkenlandschaft. Mila begegnet Fips wieder am offenen Abteilfenster. Fips hält stolz dieselbe winzige rote Laterne hoch. Der Wiedererkennungsblick ist sofort verständlich. Das ist ein Beispiel für die Erzählwelt, keine zugesicherte wortgenaue Fortsetzung.",
+      "camera": "Naher Zweier am Fenster, ruhige Fahrt parallel zum Zug. Ein klarer Schnitt markiert den anderen Tag.",
+      "voices": [
+        {
+          "speaker": "Fips",
+          "local_start_seconds": 0.6,
+          "local_end_seconds": 4.2,
+          "text": "Du wieder! Die Laterne hab ich noch.",
+          "recording_direction": "Weiche kleine Charakterstimme, deutlich und freundlich."
+        }
+      ],
+      "overlay": "„Neue Abenteuer. Vertraute Helden.“",
+      "sound": "Sanftes Zugrollen, das Laternenmotiv aus Szene 8 kehrt zurück.",
+      "transition": "Das Zugfenster wird zur Bildseite im Story-Reader.",
+      "prompt": "Close two-shot at the window of a whimsical sky train in a distinctly new daytime adventure. The same fantasy Mila recognizes the same Fips, who proudly raises his identical tiny red lantern with an affectionate smile. Gentle camera tracking parallel to the train. Preserve dragon proportions, lantern design and Mila's identity.",
+      "id": "S10",
+      "start_seconds": 45,
+      "end_seconds": 50,
+      "duration_seconds": 5,
+      "start_frame": 1080,
+      "end_frame_exclusive": 1200
+    },
+    {
+      "title": "Geschichten sehen und lesen",
+      "feature": "Bebilderter Reader",
+      "visual": "Echte Talea-Leseansicht auf dem Tablet: Cover und eine bebilderte Seite sind jeweils ausreichend lange zu erkennen. Das Bildmotiv passt zum gerade gezeigten Drachen. Mama deutet auf einen Satz; Mila folgt ihm mit dem Blick. Um das Gerät liegt ein sehr zurückhaltender warmer Lichtschein.",
+      "camera": "Ruhiger Over-Shoulder; echter Bildschirm in den Tablet-Rahmen eingesetzt.",
+      "voices": [
+        {
+          "speaker": "Erzählerin",
+          "local_start_seconds": 0.3,
+          "local_end_seconds": 4.7,
+          "text": "Gemeinsam lesen. Mit Bildern, die eure Geschichte lebendig machen.",
+          "recording_direction": "Warm, klar, neugierig. Kein pathetischer Werbeton."
+        }
+      ],
+      "overlay": "„Lesen mit Bildern“",
+      "sound": "Umblättern und eine ruhige Variation des Titelmotivs.",
+      "transition": "Der Finger wandert zum echten „Vorlesen lassen“-Bereich.",
+      "prompt": "Steady over-the-shoulder shot of the mother and Mila sharing a tablet in the cozy room. The mother points gently to one line while Mila follows the screen attentively. Soft warm reflected light and an intimate composition. Neutral tablet clean plate for real story-reader footage.",
+      "ui": "UI05_STORY_READER",
+      "id": "S11",
+      "start_seconds": 50,
+      "end_seconds": 55,
+      "duration_seconds": 5,
+      "start_frame": 1200,
+      "end_frame_exclusive": 1320
+    },
+    {
+      "title": "Geschichten hören",
+      "feature": "Vorlesen lassen",
+      "visual": "Der echte Audiobereich erscheint kurz, danach liegt das Tablet sicher auf einem Kissen. Die Kinder lehnen sich an Mama und hören zu. Ben schließt die Augen; Mila lächelt über eine Stelle in der Geschichte. Der Film gönnt sich eine kurze Ruhe nach der großen Fantasiereise.",
+      "camera": "Halbnaher Dreier, fast statisch, nur eine minimale Einwärtsbewegung.",
+      "voices": [
+        {
+          "speaker": "Erzählerin",
+          "local_start_seconds": 0.5,
+          "local_end_seconds": 3.8,
+          "text": "Oder zurücklehnen und Geschichten vorlesen lassen.",
+          "recording_direction": "Warm, klar, neugierig. Kein pathetischer Werbeton."
+        }
+      ],
+      "overlay": "„Auch zum Zuhören“",
+      "sound": "Warme Vorleseatmosphäre; Musik tritt zurück. Kein zusätzlicher konkurrierender Sprechertext.",
+      "transition": "Ein Stern über dem Bett führt zur nächsten Kinderfrage.",
+      "prompt": "Intimate medium shot of Mila and Ben leaning against their mother, listening comfortably in the same room. The tablet rests safely on a cushion with its display outside the focal plane. Ben closes his eyes, Mila gives a quiet delighted smile. Almost still camera, soft practical lighting and natural breathing.",
+      "ui": "UI06_STORY_AUDIO",
+      "id": "S12",
+      "start_seconds": 55,
+      "end_seconds": 60,
+      "duration_seconds": 5,
+      "start_frame": 1320,
+      "end_frame_exclusive": 1440
+    },
+    {
+      "title": "Eine Frage öffnet die nächste Tür",
+      "feature": "Tavi als KI-Begleiter für Fragen",
+      "visual": "Mila blickt vom Fenster zum kleinen Tavi, der als sichtbar fantastische Projektion neben dem Tablet schwebt. Über der Familie ist ein Sternbild im Bildraum angedeutet. Tavi hebt einen Finger und zeigt auf eine kleine Sternwarte, die als nächste Erzählinsel erscheint.",
+      "camera": "Naher Zweier von Mila und Tavi, Blickachse klar; keine hektische Sternenfahrt.",
+      "voices": [
+        {
+          "speaker": "Mila",
+          "local_start_seconds": 0.4,
+          "local_end_seconds": 2.6,
+          "text": "Warum funkeln Sterne eigentlich?",
+          "recording_direction": "Natürlich gesprochen, kurze echte Reaktion."
+        },
+        {
+          "speaker": "Tavi",
+          "local_start_seconds": 3,
+          "local_end_seconds": 4.6,
+          "text": "Finden wir’s heraus!",
+          "recording_direction": "Warm, beweglich, humorvoll. Bestehende Tavi-Stimme bevorzugen."
+        }
+      ],
+      "overlay": "„Fragen stellen mit Tavi“",
+      "sound": "Ein neugieriges Holzbläsermotiv und ein sanfter Sternenton.",
+      "transition": "Tavis Fingerbewegung verbindet das Sternbild mit einer echten Wissens-Doku.",
+      "prompt": "Close two-shot of Mila looking curiously toward Tavi floating as a clearly imaginative companion beside the tablet. A subtle constellation glows above them. Tavi gives a thoughtful expression and points once toward a small distant observatory. Slow gentle camera move, clear eye contact, consistent Tavi reference design.",
+      "id": "S13",
+      "start_seconds": 60,
+      "end_seconds": 65,
+      "duration_seconds": 5,
+      "start_frame": 1440,
+      "end_frame_exclusive": 1560
+    },
+    {
+      "title": "Wissen wird eine Entdeckung",
+      "feature": "Wissens-Dokus und Themenwahl",
+      "visual": "Die Sternwarte öffnet sich zu einer ruhigen Sicht auf den Nachthimmel. Ein echter Ausschnitt einer Talea-Doku zu Sternen liegt als klarer Bildschirm-Inset darüber. Ein zweiter kurzer Ausschnitt zeigt den Tavi-Chat mit einer passenden, vorhandenen Antwort. Zwei statt vieler kleiner Fenster; Text bleibt lesbar.",
+      "camera": "Langsamer Tilt zum Sternenhimmel; UI-Aufnahmen anschließend als ruhige Schnitte.",
+      "voices": [
+        {
+          "speaker": "Erzählerin",
+          "local_start_seconds": 0.3,
+          "local_end_seconds": 4.7,
+          "text": "Tavi hilft beim Entdecken. Dokus erklären eure Lieblingsthemen.",
+          "recording_direction": "Warm, klar, neugierig. Kein pathetischer Werbeton."
+        }
+      ],
+      "overlay": "„Wissens-Dokus entdecken“",
+      "sound": "Ein helles Sternwartenmotiv; keine lauten Weltraumeffekte.",
+      "transition": "Ein runder Stern wird zur Antwortmarkierung im Quiz.",
+      "prompt": "Inside an original warm-lit observatory on a floating island, a telescope faces a peaceful night sky through an open dome. Slowly tilt upward from the telescope to the stars. Leave a calm central compositing area for a real Talea knowledge-document capture; no generated text or invented UI.",
+      "ui": "UI07_DOKU_UND_TAVI",
+      "id": "S14",
+      "start_seconds": 65,
+      "end_seconds": 70,
+      "duration_seconds": 5,
+      "start_frame": 1560,
+      "end_frame_exclusive": 1680
+    },
+    {
+      "title": "Rätseln, raten, lachen",
+      "feature": "Wissens-Quiz und Spielebereich",
+      "visual": "Echtes Wissens-Quiz: eine einfache Frage, eine gewählte Antwort und die tatsächliche Rückmeldung. Danach kurzer Blick auf den realen Spielebereich mit seinen vorhandenen Formaten. Zurück bei der Familie klatschen Mila und Ben sich ab. Bei einer Darstellung von Mitternachts-Alibi muss dessen tatsächliche Spielerzahl erkennbar bleiben.",
+      "camera": "Statische App-Aufnahme, danach ein kurzer naher Reaktionsshot. Drei klar getrennte Schnitte.",
+      "voices": [
+        {
+          "speaker": "Erzählerin",
+          "local_start_seconds": 0.2,
+          "local_end_seconds": 4.6,
+          "text": "Mit Quizfragen und Spielen entdeckt ihr gemeinsam noch mehr.",
+          "recording_direction": "Warm, klar, neugierig. Kein pathetischer Werbeton."
+        }
+      ],
+      "overlay": "„Quiz & Spiele“",
+      "sound": "Ein leiser echter oder passender Bestätigungston, weiches Abklatschen, Musik bekommt kurz mehr Rhythmus.",
+      "transition": "Die runde Quizmarkierung führt in das Symbol für Elterneinstellungen.",
+      "prompt": "Close reaction shot of Mila and Ben in the home after a shared quiz moment. They exchange one gentle high-five and a delighted smile. Static camera, believable hands and compact readable staging. Actual quiz and game-hub footage will be separate cuts, not AI-generated interface content.",
+      "ui": "UI08_QUIZ_UND_SPIELE",
+      "id": "S15",
+      "start_seconds": 70,
+      "end_seconds": 75,
+      "duration_seconds": 5,
+      "start_frame": 1680,
+      "end_frame_exclusive": 1800
+    },
+    {
+      "title": "Eltern geben den Rahmen",
+      "feature": "Elternbereich, Themen, Tageslimits und PIN",
+      "visual": "Mama setzt im echten Elternbereich ein Tageslimit oder zeigt eine vorhandene Einstellung. Ein kurzer Blick auf den PIN-Schutz schließt die Aufnahme ab. Der Schnitt bleibt auf einer realen Funktion. Im Hintergrund malen die Kinder zufrieden ihren kleinen Drachen weiter.",
+      "camera": "Nahaufnahme von Mamas Hand und Tablet; anschließend warmer Blick zu den Kindern.",
+      "voices": [
+        {
+          "speaker": "Erzählerin",
+          "local_start_seconds": 0.3,
+          "local_end_seconds": 4.6,
+          "text": "Themen und Tageslimits legt ihr im Elternbereich fest.",
+          "recording_direction": "Warm, klar, neugierig. Kein pathetischer Werbeton."
+        }
+      ],
+      "overlay": "„Eltern bestimmen den Rahmen“",
+      "sound": "Ruhiger Bestätigungston, Musik wird wieder weicher und vertrauter.",
+      "transition": "Mamas Blick führt in das gemeinsame Schlussbild.",
+      "prompt": "Warm close shot of the mother holding the tablet in the home. She makes one calm deliberate tap, then looks affectionately toward her children drawing nearby. Keep the screen neutral for the actual parental-settings capture. Quiet practical light, no magical shield or visual claim of guaranteed protection.",
+      "ui": "UI09_ELTERNBEREICH",
+      "id": "S16",
+      "start_seconds": 75,
+      "end_seconds": 80,
+      "duration_seconds": 5,
+      "start_frame": 1800,
+      "end_frame_exclusive": 1920
+    },
+    {
+      "title": "Kommt Fips morgen wieder?",
+      "feature": "Wiederkehrgrund und gemeinsames Ritual",
+      "visual": "Die Familie sitzt wieder eng zusammen. Auf dem Tablet schläft Fips neben seiner kleinen roten Laterne. Mila schaut zu Mama; Mama erwidert ihren Blick und legt den Arm etwas enger um beide Kinder. Ben drückt ein selbstgemaltes Drachenbild an die Decke. Der letzte Funke des Abenteuers spiegelt sich klein im Tabletglas.",
+      "camera": "Intimer ruhiger Dreier, dann ein sanfter Rückzug. Der Film endet emotional bei der Familie.",
+      "voices": [
+        {
+          "speaker": "Mila",
+          "local_start_seconds": 0.4,
+          "local_end_seconds": 2.6,
+          "text": "Kommt Fips morgen wieder?",
+          "recording_direction": "Natürlich gesprochen, kurze echte Reaktion."
+        },
+        {
+          "speaker": "Mama",
+          "local_start_seconds": 3.1,
+          "local_end_seconds": 4.6,
+          "text": "Er wartet schon.",
+          "recording_direction": "Natürlich gesprochen, kurze echte Reaktion."
+        }
+      ],
+      "overlay": "Keine.",
+      "sound": "Die drei Celesta-Töne vom Anfang kehren zurück; leises Deckenrascheln.",
+      "transition": "Der kleine Lichtpunkt wird Teil des Talea-Endbilds.",
+      "prompt": "Intimate medium shot of the same mother, Mila and Ben cuddled under their blanket in the cozy room. Mila looks up at her mother with hopeful curiosity; the mother answers with a warm smile and gently draws both children closer. Ben holds a small childlike dragon drawing. Slow restrained camera pullback. The tablet display is a compositing plate.",
+      "id": "S17",
+      "start_seconds": 80,
+      "end_seconds": 85,
+      "duration_seconds": 5,
+      "start_frame": 1920,
+      "end_frame_exclusive": 2040
+    },
+    {
+      "title": "Das Tor bleibt offen",
+      "feature": "Marke und kostenloser Einstieg",
+      "visual": "Die schwebende Talea-Welt liegt ruhig im Hintergrund. Originales Talea-Logo und Webadresse erscheinen im Schnitt und bleiben volle fünf Sekunden stehen. Ein goldener Funke setzt sich über die Wortmarke. Darunter genau ein klarer Aufruf.",
+      "camera": "Fast statisches Endbild mit sehr langsamer Parallaxe.",
+      "voices": [
+        {
+          "speaker": "Erzählerin",
+          "local_start_seconds": 0.3,
+          "local_end_seconds": 3.8,
+          "text": "Talea. Wo ihr zur Geschichte werdet.",
+          "recording_direction": "Warm, klar, neugierig. Kein pathetischer Werbeton."
+        }
+      ],
+      "overlay": "Original-Logo · „Kostenlos ausprobieren“ · „talea.website“; optionale kleine Zeile „Zum Start: 3 Geschichten in 7 Tagen“ nur nach erneuter Angebotsprüfung.",
+      "sound": "Warme musikalische Auflösung, ein einzelner goldener Glockenton. Kein neuer Gag in den letzten zwei Sekunden.",
+      "transition": "Sanftes Ende auf der Wortmarke; für Loop-Version Übergang zurück zur warmen Zimmerlampe.",
+      "prompt": "Calm original Talea floating-island landscape above peach clouds, glowing story castle and gentle golden light, composed with generous clean negative space in the center for the supplied original logo and a call to action added in editing. Almost still camera with very slow parallax. No generated lettering or logos.",
+      "ui": "ORIGINAL_LOGO",
+      "id": "S18",
+      "start_seconds": 85,
+      "end_seconds": 90,
+      "duration_seconds": 5,
+      "start_frame": 2040,
+      "end_frame_exclusive": 2160
+    }
+  ],
+  "reel_cut": [
+    {
+      "start_seconds": 0,
+      "end_seconds": 5,
+      "source_ranges": [
+        [
+          0,
+          5
+        ]
+      ],
+      "voice": [
+        [
+          "Mama",
+          "Es war einmal …"
+        ],
+        [
+          "Mila",
+          "Ich!"
+        ]
+      ],
+      "overlay": "Dein Kind als Held"
+    },
+    {
+      "start_seconds": 5,
+      "end_seconds": 10,
+      "source_ranges": [
+        [
+          5,
+          10
+        ]
+      ],
+      "voice": [
+        [
+          "Erzählerin",
+          "Mit Talea gestaltet ihr eure eigenen Helden."
+        ]
+      ],
+      "overlay": "Eigene Helden"
+    },
+    {
+      "start_seconds": 10,
+      "end_seconds": 15,
+      "source_ranges": [
+        [
+          20,
+          25
+        ]
+      ],
+      "voice": [
+        [
+          "Erzählerin",
+          "Und erstellt mit KI persönliche Geschichten mit Bildern."
+        ]
+      ],
+      "overlay": "Persönliche Geschichten"
+    },
+    {
+      "start_seconds": 15,
+      "end_seconds": 20,
+      "source_ranges": [
+        [
+          50,
+          52.5
+        ],
+        [
+          55,
+          57.5
+        ]
+      ],
+      "voice": [
+        [
+          "Erzählerin",
+          "Zum gemeinsamen Lesen, Zuhören und Staunen."
+        ]
+      ],
+      "overlay": "Lesen & Hören"
+    },
+    {
+      "start_seconds": 20,
+      "end_seconds": 25,
+      "source_ranges": [
+        [
+          65,
+          67.5
+        ],
+        [
+          70,
+          72.5
+        ]
+      ],
+      "voice": [
+        [
+          "Erzählerin",
+          "Mit Wissen, Quiz und Tavi an eurer Seite."
+        ]
+      ],
+      "overlay": "Wissen & Quiz"
+    },
+    {
+      "start_seconds": 25,
+      "end_seconds": 30,
+      "source_ranges": [
+        [
+          85,
+          90
+        ]
+      ],
+      "voice": [
+        [
+          "Erzählerin",
+          "Talea. Kostenlos ausprobieren auf talea.website."
+        ]
+      ],
+      "overlay": "Kostenlos ausprobieren · talea.website"
+    }
+  ],
+  "claims": [
+    "Personalisierte KI-Geschichten mit Bildern",
+    "Eigene Avatare, Persönlichkeit und Erinnerungen",
+    "Lesen und Vorlesen lassen",
+    "Wissens-Dokus",
+    "Tavi als Hilfe für Fragen",
+    "Wissens-Quiz und tatsächlicher Spielebereich",
+    "Elternbereich mit Themen, Tageslimits und PIN",
+    "Kostenloser Einstieg, mit begrenzten Kontingenten"
+  ],
+  "avoid_claims": [
+    "Jede Leserentscheidung verzweigt eine bereits laufende Geschichte, solange diese Funktion nicht nachgewiesen ist",
+    "Garantierte Lernfortschritte oder Schlafverbesserung",
+    "Garantiert fehlerfreie oder vollständig sichere KI-Inhalte",
+    "Alle Funktionen oder Generierungen unbegrenzt kostenlos",
+    "Alle Spiele für jede Altersgruppe und Spielerzahl",
+    "KI-Geschichten erscheinen garantiert sofort"
+  ],
+  "ui_capture_tasks": [
+    {
+      "id": "UI01_AVATAR_AUSWAHL",
+      "target": "Avatar-Auswahl oder Avatar-Wizard",
+      "notes": "Fiktive Namen und Profile, keine echten Kinderbilder oder Kontodaten."
+    },
+    {
+      "id": "UI02_STORY_WIZARD",
+      "target": "Story-Wizard",
+      "notes": "Nur tatsächlich verfügbare Felder zeigen. Die Drachenidee in einem passenden vorhandenen Feld oder über angebotene Optionen darstellen."
+    },
+    {
+      "id": "UI03_FERTIGE_GESCHICHTE",
+      "target": "Fertiges Story-Cover",
+      "notes": "Bereits vorhandene oder später eigens freigegebene Beispielgeschichte. Erstellung und Ergebnis durch Filmschnitt trennen."
+    },
+    {
+      "id": "UI04_AVATAR_ERINNERUNGEN",
+      "target": "Avatarprofil",
+      "notes": "Nur echte Werte und vorhandene Erinnerungen; keine erfundenen Mutpunkte oder reale Kinderbewertung."
+    },
+    {
+      "id": "UI05_STORY_READER",
+      "target": "Reader mit Bildern",
+      "notes": "Mindestens ein gut lesbares Beispiel, das die tatsächliche Darstellungsqualität zeigt."
+    },
+    {
+      "id": "UI06_STORY_AUDIO",
+      "target": "Vorlesen-lassen-Bereich",
+      "notes": "Den tatsächlich nutzbaren Ablauf und die geltenden Planbedingungen prüfen."
+    },
+    {
+      "id": "UI07_DOKU_UND_TAVI",
+      "target": "Doku und Tavi-Chat",
+      "notes": "Eine sachlich geprüfte Doku und eine passende aktuelle Chatantwort; keine kostenlose Chat-Erstellung von Geschichten behaupten."
+    },
+    {
+      "id": "UI08_QUIZ_UND_SPIELE",
+      "target": "Wissens-Quiz und GameHub",
+      "notes": "Quizantwort und Rückmeldung, tatsächliche Namen und beim Alibi-Spiel 4–8 Spieler berücksichtigen."
+    },
+    {
+      "id": "UI09_ELTERNBEREICH",
+      "target": "Elterneinstellungen",
+      "notes": "Ein Tageslimit oder Thema plus PIN-Schutz mit fiktiven Daten zeigen."
+    },
+    {
+      "id": "ORIGINAL_LOGO",
+      "target": "frontend/public/talea_logo.png",
+      "notes": "Original im Schnitt einsetzen, nicht vom Videomodell neu schreiben lassen."
+    }
+  ]
+}

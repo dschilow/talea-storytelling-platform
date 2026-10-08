@@ -9,13 +9,19 @@ import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreenModule from 'expo-splash-screen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useFonts, Fraunces_600SemiBold, Fraunces_700Bold } from '@expo-google-fonts/fraunces';
-import { Manrope_400Regular, Manrope_500Medium, Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold } from '@expo-google-fonts/manrope';
+import {
+  useFonts,
+  Fraunces_600SemiBold,
+  Fraunces_600SemiBold_Italic,
+  Fraunces_700Bold,
+  Fraunces_800ExtraBold,
+} from '@expo-google-fonts/fraunces';
+import { Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold, Nunito_900Black } from '@expo-google-fonts/nunito';
+import { Literata_400Regular, Literata_400Regular_Italic } from '@expo-google-fonts/literata';
 
 import { CLERK_PUBLISHABLE_KEY } from '@/config';
 import { clerkTokenCache } from '@/providers/clerkTokenCache';
 import { ThemeProvider, useTheme } from '@/theme/ThemeProvider';
-import { setFontsReady } from '@/theme/typography';
 import { UserAccessProvider } from '@/providers/UserAccessProvider';
 import { ChildProfilesProvider } from '@/providers/ChildProfilesProvider';
 import { useOptionalChildProfiles } from '@/providers/ChildProfilesProvider';
@@ -63,12 +69,16 @@ export default function App() {
   const [authAttempt, setAuthAttempt] = useState(0);
   const [fontsLoaded, fontError] = useFonts({
     Fraunces_600SemiBold,
+    Fraunces_600SemiBold_Italic,
     Fraunces_700Bold,
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    Manrope_800ExtraBold,
+    Fraunces_800ExtraBold,
+    Nunito_500Medium,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+    Nunito_800ExtraBold,
+    Nunito_900Black,
+    Literata_400Regular,
+    Literata_400Regular_Italic,
   });
   const [languageRestored, setLanguageRestored] = useState(false);
   // Hard deadline on the startup gate. Whatever happens to fonts or storage,
@@ -86,10 +96,6 @@ export default function App() {
   // deliberate fallback in `theme/typography.ts`.
   const fontsSettled = fontsLoaded || Boolean(fontError);
   const startupComplete = (fontsSettled && languageRestored) || startupDeadlineReached;
-
-  useEffect(() => {
-    if (fontsLoaded) setFontsReady(true);
-  }, [fontsLoaded]);
 
   const onLayoutRoot = useCallback(() => {
     if (startupComplete) {
@@ -112,7 +118,7 @@ export default function App() {
       <SafeAreaProvider>
         <ClerkProvider key={authAttempt} publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={clerkTokenCache}>
           <AccountQueryProvider>
-            <ThemeProvider>
+            <ThemeProvider fontsReady={fontsLoaded}>
               <ErrorBoundary>
                 <ToastProvider>
                   <BottomSheetModalProvider>
@@ -140,7 +146,18 @@ export default function App() {
 /** Account changes dispose cached requests and remount all session-owned state. */
 function AccountQueryProvider({ children }: { children: ReactNode }) {
   const { userId } = useAuth();
-  const client = useMemo(createQueryClient, [userId]);
+  const client = useMemo(() => {
+    const next = createQueryClient();
+    // Dev-only design preview: render the signed-in screens from fixtures.
+    // The inline condition lets Metro drop this branch from release bundles.
+    if (__DEV__ && process.env.EXPO_PUBLIC_DESIGN_PREVIEW === '1') {
+      next.setDefaultOptions({
+        queries: { ...next.getDefaultOptions().queries, staleTime: Infinity, gcTime: Infinity, retry: false, refetchOnMount: false },
+      });
+      require('./src/dev/previewFixtures').seedPreviewData(next);
+    }
+    return next;
+  }, [userId]);
   useEffect(() => () => { client.clear(); }, [client]);
   return <QueryClientProvider key={userId ?? 'signed-out'} client={client}>{children}</QueryClientProvider>;
 }

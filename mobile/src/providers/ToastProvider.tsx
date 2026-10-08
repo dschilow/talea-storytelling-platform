@@ -115,7 +115,7 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
     success: { color: colors.success, background: colors.successSoft, Icon: CheckCircle2 },
     error: { color: colors.danger, background: colors.dangerSoft, Icon: XCircle },
     warning: { color: colors.warning, background: colors.warningSoft, Icon: AlertTriangle },
-    info: { color: colors.primary, background: colors.surface.inset, Icon: Info },
+    info: { color: colors.primary, background: colors.primarySoft, Icon: Info },
   };
 
   const { color, background, Icon } = config[toast.kind];
@@ -127,18 +127,19 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
       layout={LinearTransition.springify().damping(22)}
       style={[
         styles.toast,
-        shadows.strong,
+        shadows.float,
         {
           borderRadius: radius.lg,
-          backgroundColor: colors.pageSolid,
-          borderColor: colors.border.soft,
+          backgroundColor: colors.surface.primary,
+          borderColor: colors.border.light,
           padding: spacing.md,
+          paddingRight: spacing.sm,
           gap: spacing.md,
         },
       ]}
     >
-      <View style={[styles.iconShell, { backgroundColor: background, borderRadius: radius.sm }]}>
-        <Icon size={18} color={color} />
+      <View style={[styles.iconShell, { backgroundColor: background, borderRadius: 14 }]}>
+        <Icon size={19} color={color} strokeWidth={2.3} />
       </View>
 
       <View style={styles.body}>
@@ -183,7 +184,7 @@ export function useToast(): ToastContextValue {
 
 const styles = StyleSheet.create({
   viewport: { position: 'absolute', left: 0, right: 0, zIndex: 100 },
-  toast: { flexDirection: 'row', alignItems: 'center', borderWidth: StyleSheet.hairlineWidth },
-  iconShell: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  toast: { flexDirection: 'row', alignItems: 'center', borderWidth: 1 },
+  iconShell: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, gap: 2 },
 });

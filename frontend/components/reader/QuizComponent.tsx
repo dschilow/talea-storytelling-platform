@@ -13,12 +13,10 @@ import { emitMapProgress } from '../../screens/Journey/TaleaLearningPathProgress
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import {
   buildTopicId,
-  inferDifficultyFromQuestion,
   inferDomainFromDokuTopic,
-  inferSkillTypeFromQuestion,
   submitCosmosQuiz,
-  type CosmosSkillType,
 } from '../../screens/Cosmos/apiTrackingClient';
+import { calculateScore, normalizeDomainHint, normalizeQuestions, type NormalizedQuestion } from './quizModel';
 
 interface QuizComponentProps {
   section: DokuSection;
@@ -36,133 +34,6 @@ interface QuizComponentProps {
   onPersonalityChange?: (changes: Array<{ trait: string; change: number }>) => void;
   variant?: 'page' | 'inline';
 }
-
-type NormalizedQuestion = {
-  id: string;
-  question: string;
-  options: string[];
-  answerIndex: number;
-  skillType: CosmosSkillType;
-  difficulty: number;
-  explanation?: string;
-};
-
-const normalizeText = (value: unknown): string => {
-  if (typeof value === 'string') {
-    return value.replace(/\s+/g, ' ').replace(/^[-*\u2022\u00b7]\s*/, '').trim();
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(normalizeText).filter(Boolean).join(', ');
-  }
-
-  if (value && typeof value === 'object') {
-    const source = value as Record<string, unknown>;
-    const candidate =
-      source.text ??
-      source.label ??
-      source.title ??
-      source.value ??
-      source.answer ??
-      source.option ??
-      source.description;
-
-    if (candidate != null) {
-      return normalizeText(candidate);
-    }
-  }
-
-  if (value == null) {
-    return '';
-  }
-
-  return String(value).trim();
-};
-
-const normalizeQuestions = (rawQuestions: unknown[]): NormalizedQuestion[] => {
-  const normalized: NormalizedQuestion[] = [];
-
-  rawQuestions.forEach((entry, entryIndex) => {
-    if (!entry || typeof entry !== 'object') {
-      return;
-    }
-
-    const source = entry as Record<string, unknown>;
-    const question = normalizeText(source.question ?? source.prompt ?? source.title);
-    const rawOptions = Array.isArray(source.options)
-      ? source.options
-      : Array.isArray(source.answers)
-        ? source.answers
-        : [];
-
-    const options = rawOptions.map(normalizeText).filter((option) => option.length > 0);
-    if (!question || options.length < 2) {
-      return;
-    }
-
-    const rawIndex = Number(
-      source.answerIndex ?? source.correctIndex ?? source.correctOption ?? source.correctAnswerIndex,
-    );
-    let answerIndex = Number.isFinite(rawIndex) ? rawIndex : -1;
-
-    if (answerIndex < 0 || answerIndex >= options.length) {
-      const answerText = normalizeText(source.correctAnswer ?? source.answer ?? source.correct);
-      if (answerText) {
-        answerIndex = options.findIndex(
-          (option) => option.toLowerCase().trim() === answerText.toLowerCase().trim(),
-        );
-      }
-    }
-
-    if (answerIndex < 0 || answerIndex >= options.length) {
-      answerIndex = 0;
-    }
-
-    const explanation = normalizeText(source.explanation ?? source.reason ?? source.hint);
-    const skillTypeRaw = normalizeText(source.skillType ?? source.skill_type).toUpperCase();
-    const skillType: CosmosSkillType =
-      skillTypeRaw === 'REMEMBER' ||
-      skillTypeRaw === 'UNDERSTAND' ||
-      skillTypeRaw === 'COMPARE' ||
-      skillTypeRaw === 'TRANSFER' ||
-      skillTypeRaw === 'EXPLAIN'
-        ? (skillTypeRaw as CosmosSkillType)
-        : inferSkillTypeFromQuestion(question);
-    const parsedDifficulty = Number(source.difficulty);
-    const difficulty = Number.isFinite(parsedDifficulty)
-      ? Math.max(1, Math.min(5, parsedDifficulty))
-      : inferDifficultyFromQuestion(question, options.length);
-
-    normalized.push({
-      id: normalizeText(source.id) || `q_${entryIndex}`,
-      question,
-      options,
-      answerIndex,
-      skillType,
-      difficulty,
-      explanation: explanation || undefined,
-    });
-  });
-
-  return normalized;
-};
-
-const calculateScore = (questions: NormalizedQuestion[], selectedAnswers: Array<number | null>) => {
-  const correctAnswers = questions.reduce((count, question, index) => {
-    return selectedAnswers[index] === question.answerIndex ? count + 1 : count;
-  }, 0);
-
-  const percentage = questions.length > 0 ? Math.round((correctAnswers / questions.length) * 100) : 0;
-
-  return { correctAnswers, percentage };
-};
-
-const normalizeDomainHint = (value?: string | null): string | null => {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (!normalized) return null;
-  if (normalized === "art") return "arts";
-  return normalized;
-};
 
 export const QuizComponent: React.FC<QuizComponentProps> = ({
   section,

@@ -17,7 +17,7 @@ export const SKILL_TYPES: Record<SkillType, { label: string; description: string
   REMEMBER: { label: "Erinnern", description: "Fakten abrufen" },
   UNDERSTAND: { label: "Verstehen", description: "Ursache/Wirkung erkennen" },
   COMPARE: { label: "Vergleichen", description: "Einordnen und unterscheiden" },
-  APPLY: { label: "Anwenden", description: "Wissen auf neue Situationen uebertragen" },
+  APPLY: { label: "Anwenden", description: "Wissen auf neue Situationen übertragen" },
   TRANSFER: { label: "Transfer", description: "Wissen flexibel einsetzen" },
 };
 

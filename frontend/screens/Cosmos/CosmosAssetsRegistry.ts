@@ -103,14 +103,14 @@ export const COSMOS_DOMAINS: CosmosDomain[] = [
 ];
 
 const DOMAIN_LEARNING_PRESETS: Record<string, DomainLearningPreset> = {
-  nature: { topic: "Tierische Superkraefte", perspective: "nature" },
+  nature: { topic: "Tierische Superkräfte", perspective: "nature" },
   space: { topic: "Unser Sonnensystem", perspective: "science" },
-  history: { topic: "Das alte Aegypten", perspective: "history" },
+  history: { topic: "Das alte Ägypten", perspective: "history" },
   tech: { topic: "Wie Roboter lernen", perspective: "technology" },
-  body: { topic: "So funktioniert dein Koerper", perspective: "science" },
-  earth: { topic: "Warum sich das Klima veraendert", perspective: "science" },
-  arts: { topic: "Wie Musik Gefuehle ausloest", perspective: "culture" },
-  logic: { topic: "Logikraetsel fuer Detektive", perspective: "science" },
+  body: { topic: "So funktioniert dein Körper", perspective: "science" },
+  earth: { topic: "Warum sich das Klima verändert", perspective: "science" },
+  arts: { topic: "Wie Musik Gefühle auslöst", perspective: "culture" },
+  logic: { topic: "Logikrätsel für Detektive", perspective: "science" },
 };
 
 const EXTRA_ICONS = ["🪐", "🛰️", "🌌", "✨", "🧠", "🔬", "📡", "🌠"];

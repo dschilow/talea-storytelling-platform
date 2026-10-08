@@ -1,9 +1,11 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
+import { Check } from 'lucide-react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
+import { TaleaArt } from '@/components/ui/TaleaArt';
 import type { Feeling } from '../storyWizardModel';
 
 interface StepFeelingProps {
@@ -27,12 +29,12 @@ const FEELINGS: { id: Feeling; emoji: string; label: string; description: string
  * precedence so the preview and the result agree.
  */
 export function StepFeeling({ feelings, onToggle }: StepFeelingProps) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing, radius, shadows } = useTheme();
 
   return (
     <View style={{ gap: spacing.base, paddingTop: spacing.sm }}>
       <View style={{ gap: 4 }}>
-        <Text variant="headingSm">Wie soll sich die Geschichte anfühlen?</Text>
+        <Text variant="displaySm">Wie soll sich die Geschichte anfühlen?</Text>
         <Text variant="bodySm" tone="secondary">
           Mehrfachauswahl möglich — die erste Wahl prägt den Ton am stärksten.
         </Text>
@@ -45,24 +47,34 @@ export function StepFeeling({ feelings, onToggle }: StepFeelingProps) {
             <Touchable
               key={entry.id}
               onPress={() => onToggle(entry.id)}
+              pressScale={0.98}
               style={[
                 styles.row,
+                selected ? shadows.soft : null,
                 {
-                  borderRadius: radius.md,
-                  padding: spacing.md,
+                  borderRadius: radius.lg,
+                  padding: spacing.sm + 2,
+                  paddingRight: spacing.md,
                   gap: spacing.md,
-                  backgroundColor: selected ? colors.surface.item : colors.surface.inset,
-                  borderColor: selected ? colors.border.accent : colors.border.light,
-                  borderWidth: selected ? 1.6 : StyleSheet.hairlineWidth,
+                  backgroundColor: selected ? colors.primarySoft : colors.surface.primary,
+                  borderColor: selected ? colors.primary : colors.border.light,
+                  borderWidth: selected ? 2 : 1,
                 },
               ]}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: selected }}
               accessibilityLabel={entry.label}
             >
-              <Text variant="headingSm">{entry.emoji}</Text>
-              <View style={{ flex: 1 }}>
-                <Text variant="label" tone={selected ? 'accent' : 'primary'}>
+              <View style={[styles.artShell, { borderRadius: radius.md, backgroundColor: colors.surface.inset }]}>
+                <TaleaArt
+                  group="storyFeeling"
+                  id={entry.id}
+                  size={52}
+                  fallback={<Text style={{ fontSize: 24, lineHeight: 30 }}>{entry.emoji}</Text>}
+                />
+              </View>
+              <View style={{ flex: 1, gap: 1 }}>
+                <Text variant="title" tone={selected ? 'accent' : 'primary'}>
                   {entry.label}
                 </Text>
                 <Text variant="caption" tone="tertiary">
@@ -73,17 +85,13 @@ export function StepFeeling({ feelings, onToggle }: StepFeelingProps) {
                 style={[
                   styles.checkbox,
                   {
-                    borderRadius: 6,
+                    borderRadius: 13,
                     borderColor: selected ? colors.primary : colors.border.strong,
-                    backgroundColor: selected ? colors.primary : 'transparent',
+                    backgroundColor: selected ? colors.primary : colors.surface.primary,
                   },
                 ]}
               >
-                {selected ? (
-                  <Text variant="caption" style={{ color: colors.primaryForeground, fontSize: 11, lineHeight: 13 }}>
-                    ✓
-                  </Text>
-                ) : null}
+                {selected ? <Check size={14} color={colors.primaryForeground} strokeWidth={3} /> : null}
               </View>
             </Touchable>
           );
@@ -95,5 +103,6 @@ export function StepFeeling({ feelings, onToggle }: StepFeelingProps) {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
-  checkbox: { width: 22, height: 22, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  artShell: { width: 60, height: 60, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  checkbox: { width: 26, height: 26, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
 });

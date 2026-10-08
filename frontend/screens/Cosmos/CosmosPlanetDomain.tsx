@@ -1,21 +1,47 @@
-﻿/**
- * CosmosPlanetDomain.tsx - High-fidelity domain planet
+/**
+ * CosmosPlanetDomain.tsx - One evolving Lernkosmos planet.
  *
- * Uses real NASA/Solar System Scope textures (CC BY 4.0) for photo-realistic
- * planet surfaces, with procedural bump/roughness/cloud/night maps for depth.
- * Each planetType maps to a different real texture; domain color tinting
- * ensures uniqueness even for same-type planets.
- *
- * Texture credits: Solar System Scope (https://www.solarsystemscope.com/textures/)
- * License: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+ * The look comes entirely from the planet's evolution (CosmosEvolution):
+ * stardust -> rock -> air -> oceans -> clouds -> life -> lights -> ring -> aurora.
+ * Every layer is a GPU shader driven by uniforms, so a level-up can be played
+ * as a live transformation. Every explored topic orbits the planet as a moon.
  */
 
-import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react';
-import { useFrame, ThreeEvent, useLoader } from '@react-three/fiber';
-import { Sphere, Html, Billboard } from '@react-three/drei';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
+import { Billboard, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import type { CameraMode, CosmosDomain, DomainProgress, TopicIsland } from './CosmosTypes';
-import { mapProgressToVisuals } from './CosmosProgressMapper';
+import { computePlanetEvolution, featuresFromEvo } from './CosmosEvolution';
+import { getPlanetTheme, MOON_STAGE_COLORS } from './CosmosPlanetThemes';
+import {
+  getNoiseSeedOffset,
+  getOrbitConfig,
+  getOrbitPosition,
+  getPlanetObliquity,
+  hashString,
+  type OrbitLayout,
+} from './CosmosOrbit';
+import {
+  ATMOSPHERE_FRAGMENT,
+  ATMOSPHERE_VERTEX,
+  CLOUD_FRAGMENT,
+  DUST_FRAGMENT,
+  DUST_VERTEX,
+  MOON_FRAGMENT,
+  PLANET_FRAGMENT,
+  RING_FRAGMENT,
+  RING_VERTEX,
+  SPHERE_VERTEX,
+} from './CosmosShaders';
+
+export interface PlanetGrowthOverride {
+  fromEvo: number;
+  toEvo: number;
+  fromTopics: number;
+  /** 0 holds the old look (camera still flying in); a new value plays the growth. */
+  startToken: number;
+}
 
 interface Props {
   domain: CosmosDomain;
@@ -25,147 +51,31 @@ interface Props {
   cameraMode?: CameraMode;
   islands?: TopicIsland[];
   selectedTopicId?: string | null;
-  textureSize?: number;
+  /** 1 = high quality noise, 0 = mobile-safe. */
+  detail?: number;
+  orbitLayout?: OrbitLayout;
   feedbackPulseNonce?: number;
+  growth?: PlanetGrowthOverride | null;
+  orbitAngles?: React.MutableRefObject<Map<string, number>>;
   onSelect: (domainId: string, focusPosition: [number, number, number]) => void;
   onPositionUpdate?: (domainId: string, position: [number, number, number]) => void;
   onSelectIsland?: (topic: TopicIsland) => void;
 }
 
-const MAX_LIFE_PARTICLES = 10;
-const MAX_TOPIC_MOONS = 8;
-type PlanetMapSet = {
-  surfaceMap: THREE.CanvasTexture;
-  bumpMap: THREE.CanvasTexture;
-  roughnessMap: THREE.CanvasTexture;
-  cloudMap: THREE.CanvasTexture;
-  nightMap: THREE.CanvasTexture;
+const SUN_POSITION = new THREE.Vector3(0, 0, 0);
+const DEFAULT_LAYOUT: OrbitLayout = { scale: 1, stretch: 1 };
+export const PLANET_GROWTH_DURATION = 3.2;
+const MAX_MOONS = 8;
+const RING_INNER = 1.45;
+const RING_OUTER = 2.35;
+const ATMOSPHERE_SHELL = 1.26;
+
+const MOON_SIZE: Record<TopicIsland['stage'], number> = {
+  discovered: 0.07,
+  understood: 0.082,
+  apply: 0.094,
+  retained: 0.108,
 };
-
-const PLANET_MAP_CACHE = new Map<string, PlanetMapSet>();
-const RING_MAP_CACHE = new Map<string, THREE.CanvasTexture>();
-
-// NASA texture paths per planet type (Solar System Scope, CC BY 4.0)
-// Each planetType maps to a unique texture â€” no duplicates!
-function getNasaTexturePath(planetType: CosmosDomain['planetType'], _seed: number): string {
-  const base = '/textures/planets/';
-  switch (planetType) {
-    case 'oceanic': return base + 'earth_daymap.jpg';      // Erde & Klima â†’ Earth
-    case 'lush': return base + 'jupiter.jpg';              // Natur & Tiere â†’ Jupiter
-    case 'terrestrial': return base + 'moon.jpg';          // Mensch & KÃ¶rper â†’ Moon
-    case 'desert': return base + 'mars.jpg';               // Geschichte â†’ Mars
-    case 'icy': return base + 'neptune.jpg';               // Weltraum â†’ Neptune
-    case 'volcanic': return base + 'venus_surface.jpg';    // Logik & RÃ¤tsel â†’ Venus
-    case 'gaseous': return base + 'saturn.jpg';            // Technik â†’ Saturn
-    case 'crystalline': return base + 'mercury.jpg';       // Kunst & Musik â†’ Mercury
-    default: return base + 'moon.jpg';
-  }
-}
-
-function getNasaNightTexturePath(planetType: CosmosDomain['planetType']): string | null {
-  // Only Erde & Klima (oceanic) gets real city-lights night map
-  if (planetType === 'oceanic') {
-    return '/textures/planets/earth_nightmap.jpg';
-  }
-  return null;
-}
-
-function getNasaCloudTexturePath(planetType: CosmosDomain['planetType']): string | null {
-  // Only Erde & Klima (oceanic) gets real cloud texture
-  if (planetType === 'oceanic') {
-    return '/textures/planets/earth_clouds.jpg';
-  }
-  return null;
-}
-
-function getCachedPlanetMaps(
-  baseHex: string,
-  seed: number,
-  planetType: CosmosDomain['planetType'],
-  detailFactor: number,
-  textureSize: number
-): PlanetMapSet {
-  const quantizedDetail = Math.round(detailFactor * 4) / 4;
-  // Version 5: 3D spherical noise (no equator seam), 2048px default.
-  const key = `V5|${baseHex}|${seed}|${planetType}|${quantizedDetail}|${textureSize}`;
-  const existing = PLANET_MAP_CACHE.get(key);
-  if (existing) return existing;
-  const created = createPlanetMaps(baseHex, seed, planetType, quantizedDetail, textureSize);
-  PLANET_MAP_CACHE.set(key, created);
-  return created;
-}
-
-function getCachedRingMap(color: string, seed: number, textureSize: number): THREE.CanvasTexture {
-  const key = `${color}|${seed}|${textureSize}`;
-  const existing = RING_MAP_CACHE.get(key);
-  if (existing) return existing;
-  const created = createRingTexture(color, seed, textureSize);
-  RING_MAP_CACHE.set(key, created);
-  return created;
-}
-
-const ATMOSPHERE_VERTEX = `
-  varying vec3 vNormal;
-  varying vec3 vViewDir;
-  varying vec3 vWorldPos;
-  void main() {
-    vec4 world = modelMatrix * vec4(position, 1.0);
-    vWorldPos = world.xyz;
-    vNormal = normalize(mat3(modelMatrix) * normal);
-    vViewDir = normalize(cameraPosition - world.xyz);
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-const ATMOSPHERE_FRAGMENT = `
-  varying vec3 vNormal;
-  varying vec3 vViewDir;
-  varying vec3 vWorldPos;
-  uniform vec3 uColor;
-  uniform float uOpacity;
-  uniform vec3 uSunPos;
-
-  void main() {
-    vec3 n = normalize(vNormal);
-    vec3 viewDir = normalize(vViewDir);
-    vec3 sunDir = normalize(uSunPos - vWorldPos);
-
-    // Fresnel rim
-    float fresnel = max(0.0, dot(n, viewDir));
-    float rim = pow(1.0 - fresnel, 3.8);
-
-    // Terminator transition (Sun Illumination)
-    float sunAlignment = dot(n, sunDir);
-    float dayLight = smoothstep(-0.15, 0.35, sunAlignment);
-
-    // Forward/Back-Scattering (Mie)
-    float sunView = max(0.0, dot(-viewDir, sunDir));
-    float mie = pow(sunView, 12.0) * 1.5;
-
-    // Atmospheric Scattering (Rayleigh)
-    vec3 rayleighColor = uColor * vec3(1.2, 1.5, 2.0); // Shift blue
-    vec3 rayleigh = rayleighColor * rim * dayLight * 2.5;
-    
-    // Twilight color band
-    float twilightBand = smoothstep(-0.25, 0.15, sunAlignment) * (1.0 - smoothstep(0.0, 0.3, sunAlignment));
-    vec3 twilightColor = mix(uColor, vec3(1.0, 0.45, 0.15), 0.7); // Orange/red sunset
-    vec3 twilight = twilightColor * rim * twilightBand * 2.0;
-
-    // Mie contribution (sunset / sunrise glows brilliantly when backlit)
-    vec3 mieGlow = vec3(1.0, 0.9, 0.8) * mie * rim * (dayLight + twilightBand);
-
-    vec3 finalGlow = rayleigh + twilight + mieGlow;
-    
-    // Night-side ambient glow (very faint)
-    float nightGlow = pow(1.0 - fresnel, 6.0) * 0.12 * (1.0 - dayLight);
-    vec3 nightColor = uColor * nightGlow;
-    
-    finalGlow += nightColor;
-
-    float alpha = length(finalGlow) * uOpacity;
-    gl_FragColor = vec4(finalGlow, smoothstep(0.0, 1.0, alpha));
-  }
-`;
 
 export const CosmosPlanetDomain: React.FC<Props> = ({
   domain,
@@ -175,8 +85,11 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   cameraMode = 'system',
   islands = [],
   selectedTopicId = null,
-  textureSize = 2048,
+  detail = 1,
+  orbitLayout = DEFAULT_LAYOUT,
   feedbackPulseNonce = 0,
+  growth = null,
+  orbitAngles,
   onSelect,
   onPositionUpdate,
   onSelectIsland,
@@ -184,1620 +97,727 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const groupRef = useRef<THREE.Group>(null!);
   const planetRef = useRef<THREE.Mesh>(null!);
   const cloudRef = useRef<THREE.Mesh>(null!);
-  const satelliteRefs = useRef<Array<THREE.Group | null>>([]);
-  const topicMoonRefs = useRef<Array<THREE.Group | null>>([]);
-  const lifeParticleRefs = useRef<Array<THREE.Mesh | null>>([]);
-  const selectionHaloRef = useRef<THREE.Mesh>(null!);
-  const islandAnchorRef = useRef<THREE.Group>(null!);
+  const ringRef = useRef<THREE.Mesh>(null!);
+  const atmosphereRef = useRef<THREE.Mesh>(null!);
+  const dustRef = useRef<THREE.Points>(null!);
+  const hitRef = useRef<THREE.Mesh>(null!);
+  const haloRef = useRef<THREE.Mesh>(null!);
+  const labelAnchorRef = useRef<THREE.Group>(null!);
+  const planetRadiusRef = useRef(0.5);
   const feedbackPulseRef = useRef(0);
-  const [labelExpanded, setLabelExpanded] = useState(false);
+  const growthStartRef = useRef<number | null>(null);
+  const growthTokenRef = useRef(0);
+  const moonRevealRef = useRef<number>(-Infinity);
+  const gl = useThree((state) => state.gl);
+  const compactLabel = useThree((state) => state.size.width < 640);
 
-  const visuals = useMemo(() => mapProgressToVisuals(progress), [progress]);
-  const mapDetailLevel = useMemo(
-    () => Math.round(visuals.surfaceDetail * 6) / 6,
-    [visuals.surfaceDetail]
+  const theme = useMemo(() => getPlanetTheme(domain.planetType), [domain.planetType]);
+  const orbitConfig = useMemo(() => getOrbitConfig(domain.id), [domain.id]);
+  const obliquity = useMemo(() => getPlanetObliquity(domain.id), [domain.id]);
+  const pole = useMemo(
+    () => new THREE.Vector3(0, 1, 0).applyEuler(new THREE.Euler(...obliquity)).normalize(),
+    [obliquity]
+  );
+  const evolution = useMemo(
+    () => computePlanetEvolution(progress, domain.planetType),
+    [domain.planetType, progress]
+  );
+  const angleRef = useRef(domain.startAngle);
+  const displayEvoRef = useRef(growth ? growth.fromEvo : evolution.evo);
+
+  const initialPosition = useMemo<[number, number, number]>(
+    () => getOrbitPosition(domain.startAngle, domain.orbitRadius * orbitLayout.scale, orbitConfig, orbitLayout.stretch),
+    // Only the first frame uses it; afterwards useFrame drives the position.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
   );
 
-  const orbitConfig = useMemo(() => {
-    const seed = hashString(domain.id);
-    const inclination = (((seed % 18) - 9) * Math.PI) / 180;
-    const eccentricity = 0.82 + (((seed >> 3) % 16) / 100);
-    const phase = ((seed >> 8) % 628) / 100;
-    return {
-      seed,
-      inclination,
-      eccentricity,
-      phase,
-    };
-  }, [domain.id]);
+  const surfaceMaterial = useMemo(() => {
+    const seed = getNoiseSeedOffset(domain.id);
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uSeedOffset: { value: new THREE.Vector3(seed[0], seed[1], seed[2]) },
+        uSunPos: { value: SUN_POSITION },
+        uBumpScale: { value: 0.07 },
+        uDetail: { value: 1 },
+        uObjectToWorld: { value: new THREE.Matrix3() },
+        uForm: { value: 0 },
+        uAtmosphere: { value: 0 },
+        uWater: { value: 0 },
+        uLife: { value: 0 },
+        uLights: { value: 0 },
+        uGlow: { value: 0 },
+        uRockLow: { value: new THREE.Color(theme.rockLow) },
+        uRockHigh: { value: new THREE.Color(theme.rockHigh) },
+        uSand: { value: new THREE.Color(theme.sand) },
+        uOceanShallow: { value: new THREE.Color(theme.oceanShallow) },
+        uOceanDeep: { value: new THREE.Color(theme.oceanDeep) },
+        uLifeA: { value: new THREE.Color(theme.lifeA) },
+        uLifeB: { value: new THREE.Color(theme.lifeB) },
+        uSnow: { value: new THREE.Color(theme.snow) },
+        uLightColor: { value: new THREE.Color(theme.lights) },
+        uAtmoColor: { value: new THREE.Color(theme.atmosphere) },
+        uGlowColor: { value: new THREE.Color(domain.color) },
+        uIce: { value: theme.ice },
+        uSeaLevel: { value: theme.seaLevel },
+        uSeams: { value: theme.seams },
+        uSeamGrid: { value: theme.seamGrid },
+        uDunes: { value: theme.dunes },
+        uIridescence: { value: theme.iridescence },
+        uOceanGlow: { value: theme.oceanGlow },
+        uHeartbeat: { value: theme.heartbeat },
+      },
+      vertexShader: SPHERE_VERTEX,
+      fragmentShader: PLANET_FRAGMENT,
+    });
+  }, [domain.color, domain.id, theme]);
 
-  const initialPosition = useMemo<[number, number, number]>(() => {
-    const angle = domain.startAngle;
-    return getOrbitPosition(angle, domain.orbitRadius, orbitConfig);
-  }, [
-    domain.orbitRadius,
-    domain.startAngle,
-    orbitConfig.eccentricity,
-    orbitConfig.inclination,
-    orbitConfig.phase,
-  ]);
+  const cloudMaterial = useMemo(() => {
+    const seed = getNoiseSeedOffset(domain.id);
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uSeedOffset: { value: new THREE.Vector3(seed[2], seed[0], seed[1]) },
+        uSunPos: { value: SUN_POSITION },
+        uCoverage: { value: 0 },
+        uOpacity: { value: 0 },
+        uCloudColor: { value: new THREE.Color(theme.cloud) },
+      },
+      vertexShader: SPHERE_VERTEX,
+      fragmentShader: CLOUD_FRAGMENT,
+      transparent: true,
+      depthWrite: false,
+    });
+  }, [domain.id, theme]);
 
-  const maps = useMemo(
+  const atmosphereMaterial = useMemo(
     () =>
-      getCachedPlanetMaps(
-        domain.color,
-        orbitConfig.seed,
-        domain.planetType,
-        mapDetailLevel,
-        textureSize
-      ),
-    [domain.color, domain.planetType, mapDetailLevel, orbitConfig.seed, textureSize]
-  );
-
-  // Load real NASA surface texture for photo-realistic appearance
-  const nasaTexturePath = useMemo(
-    () => getNasaTexturePath(domain.planetType, orbitConfig.seed),
-    [domain.planetType, orbitConfig.seed]
-  );
-  const nasaSurfaceTexture = useLoader(THREE.TextureLoader, nasaTexturePath);
-  useMemo(() => {
-    nasaSurfaceTexture.colorSpace = THREE.SRGBColorSpace;
-    nasaSurfaceTexture.minFilter = THREE.LinearMipmapLinearFilter;
-    nasaSurfaceTexture.magFilter = THREE.LinearFilter;
-    nasaSurfaceTexture.generateMipmaps = true;
-    nasaSurfaceTexture.wrapS = THREE.RepeatWrapping;
-    nasaSurfaceTexture.wrapT = THREE.RepeatWrapping;
-  }, [nasaSurfaceTexture]);
-
-  // Load real NASA night map if available (Earth has city lights)
-  const nasaNightPath = useMemo(
-    () => getNasaNightTexturePath(domain.planetType),
-    [domain.planetType]
-  );
-  const nasaNightTexture = useLoader(
-    THREE.TextureLoader,
-    nasaNightPath || nasaTexturePath // fallback to surface (won't be used)
-  );
-  useMemo(() => {
-    if (nasaNightPath) {
-      nasaNightTexture.colorSpace = THREE.SRGBColorSpace;
-      nasaNightTexture.minFilter = THREE.LinearMipmapLinearFilter;
-      nasaNightTexture.generateMipmaps = true;
-    }
-  }, [nasaNightTexture, nasaNightPath]);
-
-  // Load real cloud texture if available
-  const nasaCloudPath = useMemo(
-    () => getNasaCloudTexturePath(domain.planetType),
-    [domain.planetType]
-  );
-  const nasaCloudTexture = useLoader(
-    THREE.TextureLoader,
-    nasaCloudPath || nasaTexturePath // fallback to surface (won't be used)
-  );
-
-  // Subtle domain-color tint so same-type planets look unique
-  const surfaceTint = useMemo(() => {
-    const base = new THREE.Color(domain.color);
-    // Lerp towards white to keep it subtle â€” just enough to distinguish domains
-    return base.lerp(new THREE.Color('#ffffff'), 0.65);
-  }, [domain.color]);
-
-  const planetMaterial = useMemo(
-    () =>
-      new THREE.MeshPhysicalMaterial({
-        color: surfaceTint,
-        map: nasaSurfaceTexture,
-        bumpMap: maps.bumpMap,
-        bumpScale: 0.62 + visuals.surfaceDetail * 0.95,
-        roughnessMap: maps.roughnessMap,
-        roughness:
-          progress.stage === 'discovered'
-            ? 0.92
-            : Math.max(0.22, 0.74 - visuals.surfaceDetail * 0.4),
-        metalness: 0.015 + visuals.developmentLevel * 0.03,
-        clearcoat:
-          progress.stage === 'discovered'
-            ? 0.02
-            : 0.09 + visuals.developmentLevel * 0.34,
-        clearcoatRoughness:
-          progress.stage === 'discovered'
-            ? 0.85
-            : 0.48 - visuals.developmentLevel * 0.14,
-        emissiveMap: nasaNightPath ? nasaNightTexture : maps.nightMap,
-        emissive: new THREE.Color('#ffffff'),
-        emissiveIntensity: 0.018,
-        envMapIntensity: 0.26 + visuals.developmentLevel * 0.34,
-        sheen: 0.12 + visuals.developmentLevel * 0.26,
-        sheenRoughness: 0.72,
-        sheenColor: new THREE.Color(domain.color).multiplyScalar(0.5),
-        iridescence: visuals.developmentLevel * 0.15,
-        iridescenceIOR: 1.3,
-      }),
-    [
-      domain.color,
-      surfaceTint,
-      maps.bumpMap,
-      maps.nightMap,
-      maps.roughnessMap,
-      nasaSurfaceTexture,
-      nasaNightTexture,
-      nasaNightPath,
-      progress.stage,
-      visuals.developmentLevel,
-      visuals.surfaceDetail,
-    ]
-  );
-
-  const cloudMaterial = useMemo(
-    () =>
-      new THREE.MeshPhysicalMaterial({
-        map: nasaCloudPath ? nasaCloudTexture : maps.cloudMap,
-        alphaMap: nasaCloudPath ? nasaCloudTexture : maps.cloudMap,
-        color: getCloudTint(domain.planetType),
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uCenter: { value: new THREE.Vector3() },
+          uPlanetRadius: { value: 0.5 },
+          uShellRadius: { value: 0.5 * ATMOSPHERE_SHELL },
+          uSunPos: { value: SUN_POSITION },
+          uColor: { value: new THREE.Color(theme.atmosphere) },
+          uStrength: { value: 0 },
+          uAurora: { value: 0 },
+          uAuroraA: { value: new THREE.Color('#5dffb4') },
+          uAuroraB: { value: new THREE.Color(domain.color) },
+          uPole: { value: pole },
+          uTime: { value: 0 },
+        },
+        vertexShader: ATMOSPHERE_VERTEX,
+        fragmentShader: ATMOSPHERE_FRAGMENT,
         transparent: true,
-        opacity: visuals.cloudOpacity,
         depthWrite: false,
-        roughness: 0.68,
-        metalness: 0.02,
-        clearcoat: 0.12,
+        blending: THREE.AdditiveBlending,
       }),
-    [domain.planetType, maps.cloudMap, nasaCloudTexture, nasaCloudPath, visuals.cloudOpacity]
+    [domain.color, pole, theme]
   );
 
-  // Real textures for satellites + topic markers
-  const [
-    satSolarTex,
-    satMetalTex,
-    satGoldTex,
-    moonTex,
-    markerMarsTex,
-    markerEarthTex,
-    markerJupiterTex,
-    markerNeptuneTex,
-  ] = useLoader(THREE.TextureLoader, [
-    '/textures/satellite/solar_panel.jpg',
-    '/textures/satellite/metal_body.jpg',
-    '/textures/satellite/gold_foil.jpg',
-    '/textures/planets/moon.jpg',
-    '/textures/planets/mars.jpg',
-    '/textures/planets/earth_daymap.jpg',
-    '/textures/planets/jupiter.jpg',
-    '/textures/planets/neptune.jpg',
-  ]);
-  useMemo(() => {
-    for (const t of [satSolarTex, satMetalTex, satGoldTex]) {
-      t.colorSpace = THREE.SRGBColorSpace;
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.minFilter = THREE.LinearMipmapLinearFilter;
-      t.generateMipmaps = true;
-    }
-    satSolarTex.repeat.set(2, 1);
-    satMetalTex.repeat.set(1, 2);
-    satGoldTex.repeat.set(2, 2);
-    for (const t of [moonTex, markerMarsTex, markerEarthTex, markerJupiterTex, markerNeptuneTex]) {
-      t.colorSpace = THREE.SRGBColorSpace;
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.minFilter = THREE.LinearMipmapLinearFilter;
-      t.magFilter = THREE.LinearFilter;
-      t.generateMipmaps = true;
-      t.repeat.set(1, 1);
-    }
-  }, [
-    satSolarTex,
-    satMetalTex,
-    satGoldTex,
-    moonTex,
-    markerMarsTex,
-    markerEarthTex,
-    markerJupiterTex,
-    markerNeptuneTex,
-  ]);
-
-  const lifeParticleSeeds = useMemo(
+  const ringMaterial = useMemo(
     () =>
-      Array.from({ length: MAX_LIFE_PARTICLES }, (_, index) => {
-        const phase = ((orbitConfig.seed + index * 37) % 628) / 100;
-        const offset = ((orbitConfig.seed + index * 91) % 100) / 100;
-        return { phase, offset };
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uInner: { value: RING_INNER },
+          uOuter: { value: RING_OUTER },
+          uColorA: { value: new THREE.Color(theme.ring[0]) },
+          uColorB: { value: new THREE.Color(theme.ring[1]) },
+          uOpacity: { value: 0 },
+          uCenter: { value: new THREE.Vector3() },
+          uPlanetRadius: { value: 0.5 },
+          uSunPos: { value: SUN_POSITION },
+          uSeed: { value: (orbitConfig.seed % 1000) / 37 },
+          uTime: { value: 0 },
+        },
+        vertexShader: RING_VERTEX,
+        fragmentShader: RING_FRAGMENT,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
       }),
-    [orbitConfig.seed]
+    [orbitConfig.seed, theme]
   );
 
-  // Life particles disabled - too noisy for a clean space aesthetic
-  const activeLifeParticles = 0;
-  const shouldShowIslands =
-    isFocused &&
-    (cameraMode === 'focus' || cameraMode === 'detail') &&
-    !isTransitioning;
-  const renderDetailedIslandMeshes = cameraMode === 'detail' && !isTransitioning;
-  const visibleIslands = useMemo(
-    () => (shouldShowIslands ? islands.slice(0, 20) : []),
-    [islands, shouldShowIslands]
-  );
-  // Topic moons only unlock with planet evolution (stage/level gating from mapper),
-  // never directly from early topic count alone.
-  const topicMoonCount = Math.min(
-    MAX_TOPIC_MOONS,
-    Math.min(visuals.stageMoonCount, Math.max(0, (progress.topicsExplored || 0) - 1))
-  );
-  const topicMoonSeeds = useMemo(
+  const dust = useMemo(() => {
+    const count = 240;
+    const positions = new Float32Array(count * 3);
+    const sizes = new Float32Array(count);
+    const phases = new Float32Array(count);
+    const speeds = new Float32Array(count);
+    let s = orbitConfig.seed || 1;
+    const rand = () => {
+      s = (s * 16807) % 2147483647;
+      return (s - 1) / 2147483646;
+    };
+    for (let i = 0; i < count; i += 1) {
+      const r = 0.3 + Math.pow(rand(), 0.75) * 0.95;
+      positions[i * 3] = r;
+      positions[i * 3 + 1] = (rand() - 0.5) * 0.16 * (1.3 - r);
+      positions[i * 3 + 2] = 0;
+      sizes[i] = 1.2 + rand() * 3.2;
+      phases[i] = rand() * Math.PI * 2;
+      speeds[i] = 0.32 / Math.sqrt(r);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+    geometry.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
+    geometry.setAttribute('aSpeed', new THREE.BufferAttribute(speeds, 1));
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uPixelRatio: { value: 1 },
+        uContract: { value: 0 },
+        uColor: { value: new THREE.Color(domain.color) },
+        uOpacity: { value: 1 },
+      },
+      vertexShader: DUST_VERTEX,
+      fragmentShader: DUST_FRAGMENT,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    return { geometry, material };
+  }, [domain.color, orbitConfig.seed]);
+
+  const haloMaterial = useMemo(
     () =>
-      Array.from({ length: topicMoonCount }, (_, index) => {
-        const phase = ((orbitConfig.seed + index * 53) % 628) / 100;
-        const offset = ((orbitConfig.seed + index * 73) % 100) / 100;
-        return { phase, offset };
+      new THREE.MeshBasicMaterial({
+        color: domain.color,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
       }),
-    [orbitConfig.seed, topicMoonCount]
+    [domain.color]
   );
+
+  useEffect(() => {
+    surfaceMaterial.uniforms.uDetail.value = detail;
+  }, [detail, surfaceMaterial]);
+
+  useEffect(() => {
+    dust.material.uniforms.uPixelRatio.value = gl.getPixelRatio();
+  }, [dust.material, gl]);
+
+  useEffect(() => {
+    if (feedbackPulseNonce > 0) feedbackPulseRef.current = 1;
+  }, [feedbackPulseNonce]);
+
+  useEffect(
+    () => () => {
+      surfaceMaterial.dispose();
+      cloudMaterial.dispose();
+      atmosphereMaterial.dispose();
+      ringMaterial.dispose();
+      haloMaterial.dispose();
+      dust.material.dispose();
+      dust.geometry.dispose();
+    },
+    [atmosphereMaterial, cloudMaterial, dust, haloMaterial, ringMaterial, surfaceMaterial]
+  );
+
+  // New moons of a growth celebration stay hidden until the planet has grown.
+  useEffect(() => {
+    if (!growth) {
+      moonRevealRef.current = -Infinity;
+      growthStartRef.current = null;
+      return;
+    }
+    if (growth.startToken === 0) {
+      moonRevealRef.current = Infinity;
+      growthStartRef.current = null;
+    }
+  }, [growth]);
 
   const handleClick = useCallback(
-    (e: ThreeEvent<MouseEvent>) => {
-      e.stopPropagation();
-      const currentPosition = groupRef.current?.position;
-      if (!currentPosition) {
-        onSelect(domain.id, [0, 0, 0]);
-        return;
-      }
-      onSelect(domain.id, [currentPosition.x, currentPosition.y, currentPosition.z]);
+    (event: ThreeEvent<MouseEvent>) => {
+      event.stopPropagation();
+      const p = groupRef.current?.position;
+      onSelect(domain.id, p ? [p.x, p.y, p.z] : [0, 0, 0]);
     },
     [domain.id, onSelect]
   );
 
-  useEffect(() => {
-    if (feedbackPulseNonce > 0) {
-      feedbackPulseRef.current = 1;
+  useFrame((state, delta) => {
+    const group = groupRef.current;
+    if (!group) return;
+    const t = state.clock.elapsedTime;
+    const dt = Math.min(delta, 0.05);
+
+    // Orbit: focused planets hold still so the camera can frame them.
+    if (!isFocused) angleRef.current += domain.orbitSpeed * dt;
+    const position = getOrbitPosition(
+      angleRef.current,
+      domain.orbitRadius * orbitLayout.scale,
+      orbitConfig,
+      orbitLayout.stretch
+    );
+    group.position.set(position[0], position[1], position[2]);
+    orbitAngles?.current.set(domain.id, angleRef.current);
+    onPositionUpdate?.(domain.id, position);
+
+    // Evolution: either the celebration timeline or a soft approach to the target.
+    let evo: number;
+    let growthGlow = 0;
+    if (growth) {
+      if (growth.startToken > 0) {
+        if (growthTokenRef.current !== growth.startToken || growthStartRef.current === null) {
+          growthTokenRef.current = growth.startToken;
+          growthStartRef.current = t;
+          moonRevealRef.current = t + PLANET_GROWTH_DURATION * 0.62;
+        }
+        const k = Math.min(1, (t - growthStartRef.current) / PLANET_GROWTH_DURATION);
+        evo = growth.fromEvo + (growth.toEvo - growth.fromEvo) * easeInOutCubic(k);
+        growthGlow = Math.sin(Math.PI * k) * 0.85;
+      } else {
+        evo = growth.fromEvo;
+      }
+      displayEvoRef.current = evo;
+    } else {
+      displayEvoRef.current += (evolution.evo - displayEvoRef.current) * (1 - Math.exp(-dt * 2.2));
+      evo = displayEvoRef.current;
     }
-  }, [feedbackPulseNonce]);
 
-  useEffect(() => {
-    return () => {
-      planetMaterial.dispose();
-      cloudMaterial.dispose();
-    };
-  }, [cloudMaterial, planetMaterial]);
+    const features = featuresFromEvo(evo);
+    const radius = features.radius * (0.3 + 0.7 * features.form);
+    planetRadiusRef.current = radius;
 
-  const baseRadius = 0.52;
-  // Keep geometry resolution stable to avoid focus <-> detail hitching.
-  const planetSegments = 96;
-  const cloudSegments = 72;
+    feedbackPulseRef.current = Math.max(0, feedbackPulseRef.current - dt * 1.1);
+    const pulse = feedbackPulseRef.current;
 
-  useFrame(({ clock }, delta) => {
-    if (!groupRef.current) return;
-    const t = clock.getElapsedTime();
-    feedbackPulseRef.current = Math.max(0, feedbackPulseRef.current - delta * 1.2);
-    const feedbackPulse = feedbackPulseRef.current;
-
-    if (!isFocused) {
-      const angle = domain.startAngle + t * domain.orbitSpeed;
-      const orbitPosition = getOrbitPosition(angle, domain.orbitRadius, orbitConfig);
-      groupRef.current.position.set(
-        orbitPosition[0],
-        orbitPosition[1],
-        orbitPosition[2]
-      );
-    }
-
-    if (onPositionUpdate) {
-      const p = groupRef.current.position;
-      onPositionUpdate(domain.id, [p.x, p.y, p.z]);
-    }
+    const surface = surfaceMaterial.uniforms;
+    surface.uTime.value = t;
+    surface.uForm.value = features.form;
+    surface.uAtmosphere.value = features.atmosphere;
+    surface.uWater.value = features.water;
+    surface.uLife.value = features.life;
+    surface.uLights.value = features.lights;
+    surface.uGlow.value = (isFocused ? 0.16 : 0) + pulse * 0.9 + growthGlow;
 
     if (planetRef.current) {
-      planetRef.current.rotation.y += 0.002 + visuals.developmentLevel * 0.0014;
-      planetRef.current.rotation.x += 0.00045;
-
-      if (islandAnchorRef.current) {
-        islandAnchorRef.current.rotation.copy(planetRef.current.rotation);
-      }
+      planetRef.current.scale.setScalar(radius);
+      planetRef.current.rotation.y += dt * (0.07 + evo * 0.008);
+      planetRef.current.updateMatrixWorld();
+      surface.uObjectToWorld.value.setFromMatrix4(planetRef.current.matrixWorld);
     }
 
     if (cloudRef.current) {
-      // Dynamic cloud drift: slightly different rotation speeds than planet
-      cloudRef.current.rotation.y += 0.0022;
-      cloudRef.current.rotation.z += 0.0007;
-      cloudRef.current.rotation.x += Math.sin(t * 0.1) * 0.0002; // Tiny wobble
-    }
-
-    if (selectionHaloRef.current) {
-      const haloVisible = isFocused || feedbackPulse > 0.02;
-      selectionHaloRef.current.visible = haloVisible;
-      if (haloVisible) {
-        const pulse = 1 + Math.sin(t * 2.1) * 0.03 + feedbackPulse * 0.22;
-        selectionHaloRef.current.scale.setScalar(pulse);
-        const haloMaterial = selectionHaloRef.current.material as THREE.MeshBasicMaterial;
-        haloMaterial.opacity = isFocused
-          ? 0.72 + feedbackPulse * 0.2
-          : 0.2 + feedbackPulse * 0.5;
+      const visible = features.clouds > 0.01;
+      cloudRef.current.visible = visible;
+      if (visible) {
+        cloudRef.current.scale.setScalar(radius * 1.022);
+        cloudRef.current.rotation.y += dt * (0.085 + evo * 0.008);
+        const cloud = cloudMaterial.uniforms;
+        cloud.uTime.value = t;
+        cloud.uCoverage.value = 0.35 + features.clouds * 0.45 + features.life * 0.1;
+        cloud.uOpacity.value = features.clouds;
       }
     }
 
-    // ðŸŒ Physics Update: Kepler-inspired orbital speeds (1/sqrt(radius))
-    // Farther objects move slower, creating a realistic celestial rhythm
-
-    topicMoonRefs.current.forEach((moon, index) => {
-      if (!moon || index >= topicMoonCount) return;
-      const seed = topicMoonSeeds[index];
-      const planetRadius = baseRadius * visuals.scale;
-      // Wide orbit: clearly separated from atmosphere and ring zone
-      const radius = planetRadius * (26.0 + index * 3.5);
-
-      // Keplerian speed: slower for outer orbits
-      const keplerSpeed = 0.52 / Math.sqrt(radius);
-      const angle = t * keplerSpeed * (0.8 + seed.offset * 0.45) + seed.phase;
-
-      // Elliptical touch: slight X/Z variation
-      const ecc = 1.0 + (seed.offset - 0.5) * 0.12;
-      moon.position.x = Math.cos(angle) * radius * ecc;
-      moon.position.z = Math.sin(angle) * radius;
-      moon.position.y = Math.sin(angle * 0.75 + seed.phase) * (planetRadius * 0.85);
-      moon.rotation.y += 0.008;
-    });
-
-    satelliteRefs.current.forEach((satellite, index) => {
-      if (!satellite) return;
-      if ((progress.topicsExplored || 0) < 1) {
-        satellite.visible = false;
-        return;
+    if (atmosphereRef.current) {
+      const visible = features.atmosphere > 0.01 || features.aurora > 0.01;
+      atmosphereRef.current.visible = visible;
+      if (visible) {
+        atmosphereRef.current.scale.setScalar(radius * ATMOSPHERE_SHELL);
+        const atmosphere = atmosphereMaterial.uniforms;
+        atmosphere.uCenter.value.copy(group.position);
+        atmosphere.uPlanetRadius.value = radius;
+        atmosphere.uShellRadius.value = radius * ATMOSPHERE_SHELL;
+        atmosphere.uStrength.value = features.atmosphere * (1 + growthGlow * 0.6 + pulse * 0.4);
+        atmosphere.uAurora.value = features.aurora;
+        atmosphere.uTime.value = t;
       }
-      satellite.visible = true;
-      const planetRadius = baseRadius * visuals.scale;
-      // Deep space probe distance: far beyond any moon/ring zone
-      const radius = planetRadius * (50.0 + index * 5.0);
+    }
 
-      // Far satellites move very slow (realism)
-      const keplerSpeed = 0.46 / Math.sqrt(radius);
-      const angle = t * keplerSpeed * (0.7 + index * 0.12) + index * 1.37;
+    if (ringRef.current) {
+      const visible = features.ring > 0.01;
+      ringRef.current.visible = visible;
+      if (visible) {
+        ringRef.current.scale.setScalar(radius * (0.85 + features.ring * 0.15));
+        ringRef.current.rotation.z += dt * 0.02;
+        const ring = ringMaterial.uniforms;
+        ring.uOpacity.value = features.ring;
+        ring.uCenter.value.copy(group.position);
+        ring.uPlanetRadius.value = radius;
+        ring.uTime.value = t;
+      }
+    }
 
-      const eccScale = 1.0 + (index % 3 === 0 ? 0.15 : 0.05);
-      satellite.position.x = Math.cos(angle) * radius * eccScale;
-      satellite.position.z = Math.sin(angle) * radius;
-      satellite.position.y = Math.sin(angle * 0.42) * (planetRadius * (1.2 + index * 0.45));
-      // Satellites tilt towards their flight path
-      satellite.lookAt(0, 0, 0);
-    });
+    if (dustRef.current) {
+      const dustOpacity = 1 - features.form;
+      dustRef.current.visible = dustOpacity > 0.01;
+      if (dustOpacity > 0.01) {
+        const material = dust.material.uniforms;
+        material.uTime.value = t;
+        material.uOpacity.value = dustOpacity * (0.75 + pulse * 0.5);
+        material.uContract.value = Math.min(1, features.form * 1.4);
+        dustRef.current.scale.setScalar(features.radius * 1.5);
+      }
+    }
 
-    lifeParticleRefs.current.forEach((particle, index) => {
-      if (!particle || index >= activeLifeParticles) return;
-      const seed = lifeParticleSeeds[index];
-      const angle = t * (1.8 + seed.offset * 1.2) + seed.phase;
-      const radius = 0.92 + visuals.scale * 0.38 + seed.offset * 0.36;
-      particle.position.x = Math.cos(angle) * radius;
-      particle.position.z = Math.sin(angle) * radius;
-      particle.position.y = Math.sin(angle * 1.7 + seed.phase) * 0.3;
-      particle.scale.setScalar(0.6 + Math.sin(t * 3 + seed.phase) * 0.08);
-    });
+    if (hitRef.current) {
+      hitRef.current.scale.setScalar(Math.max(radius * 1.45, 0.95));
+    }
 
-    const shouldExpandLabel = cameraMode === 'system';
-    if (shouldExpandLabel !== labelExpanded) {
-      setLabelExpanded(shouldExpandLabel);
+    if (haloRef.current) {
+      const strength = Math.max(pulse, growthGlow);
+      haloRef.current.visible = strength > 0.01;
+      if (strength > 0.01) {
+        haloRef.current.scale.setScalar(radius * (1.55 + Math.sin(t * 2) * 0.03 + pulse * 0.5));
+        haloMaterial.opacity = strength * 0.55;
+      }
+    }
+
+    if (labelAnchorRef.current) {
+      labelAnchorRef.current.position.y = -(Math.max(radius, features.radius * 0.8) + 0.42);
     }
   });
+
+  const moonTopics = isFocused && islands.length > 0 ? islands.slice(0, MAX_MOONS) : null;
+  const moonCount = moonTopics ? moonTopics.length : Math.min(MAX_MOONS, Math.max(0, progress.topicsExplored || 0));
+  const showPlanetLabel = cameraMode === 'system';
+  const moonsInteractive = isFocused && cameraMode !== 'system';
 
   return (
     <group ref={groupRef} position={initialPosition}>
-      {/* ðŸŒ Planet Group with axial tilt (Obliquity) */}
-      <group rotation={getPlanetObliquity(domain.id)}>
-        <Sphere
-          ref={planetRef}
-          args={[baseRadius * visuals.scale, planetSegments, planetSegments]}
-          material={planetMaterial}
-          onClick={handleClick}
-          onPointerOver={(e) => {
-            e.stopPropagation();
-            document.body.style.cursor = 'pointer';
-          }}
-          onPointerOut={() => {
-            document.body.style.cursor = 'auto';
-          }}
-        >
-        </Sphere>
-
-        <Sphere
-          ref={cloudRef}
-          args={[baseRadius * visuals.scale * 1.03, cloudSegments, cloudSegments]}
-          material={cloudMaterial}
-        />
-
+      <group rotation={obliquity}>
+        <mesh ref={planetRef} material={surfaceMaterial}>
+          <sphereGeometry args={[1, 128, 96]} />
+        </mesh>
+        <mesh ref={cloudRef} material={cloudMaterial} visible={false}>
+          <sphereGeometry args={[1, 96, 72]} />
+        </mesh>
+        <mesh ref={ringRef} material={ringMaterial} rotation={[-Math.PI / 2, 0, 0]} visible={false}>
+          <ringGeometry args={[RING_INNER, RING_OUTER, 160, 1]} />
+        </mesh>
       </group>
 
-      {/* Planet rings gated behind mastery level 3+ - off by default */}
+      <mesh ref={atmosphereRef} material={atmosphereMaterial} visible={false}>
+        <sphereGeometry args={[1, 64, 48]} />
+      </mesh>
 
+      <points ref={dustRef} geometry={dust.geometry} material={dust.material} frustumCulled={false} />
 
+      <Billboard follow>
+        <mesh ref={haloRef} material={haloMaterial} visible={false}>
+          <ringGeometry args={[1, 1.035, 96]} />
+        </mesh>
+      </Billboard>
 
-      {/* Topic Moons: Real moon texture + colored atmosphere + ring */}
-      {Array.from({ length: topicMoonCount }).map((_, index) => {
-        const moonSize = 0.055 + index * 0.006;
-        const moonSeed = orbitConfig.seed + index * 137;
-        const ringTilt = (moonSeed % 6) * (Math.PI / 6);
-        return (
-          <group
-            key={`topic_moon_${index}`}
-            ref={(node) => { topicMoonRefs.current[index] = node as unknown as THREE.Group; }}
-          >
-            {/* Real NASA moon texture */}
-            <Sphere args={[moonSize, 32, 32]}>
-              <meshPhysicalMaterial
-                map={moonTex}
-                color="#d0cfc8"
-                roughness={0.85}
-                metalness={0.02}
-                bumpMap={moonTex}
-                bumpScale={0.08}
-                clearcoat={0.06}
-              />
-            </Sphere>
-
-            {/* Colored atmosphere rim in domain color */}
-            <Sphere args={[moonSize * 1.08, 16, 16]}>
-              <meshBasicMaterial
-                color={domain.color}
-                transparent
-                opacity={0.18}
-                depthWrite={false}
-                blending={THREE.AdditiveBlending}
-                side={THREE.BackSide}
-              />
-            </Sphere>
-
-            {/* Bright orbital ring */}
-            <mesh rotation={[Math.PI / 2 + ringTilt * 0.3, ringTilt, 0]}>
-              <ringGeometry args={[moonSize * 1.5, moonSize * 1.62, 48]} />
-              <meshBasicMaterial
-                color={domain.color}
-                transparent
-                opacity={0.7}
-                depthWrite={false}
-                blending={THREE.AdditiveBlending}
-                side={THREE.DoubleSide}
-              />
-            </mesh>
-          </group>
-        );
-      })}
-
-      {/* Satellites: Realistic space probes with real CC0 textures */}
-      {Array.from({ length: visuals.satelliteCount }).map((_, index) => {
-        const satSeed = orbitConfig.seed + index * 211;
-        const accentColor = index % 2 === 0 ? '#ff6b35' : '#00d4ff';
-        return (
-          <group
-            key={`sat_main_${index}`}
-            ref={(node) => { satelliteRefs.current[index] = node as unknown as THREE.Group; }}
-          >
-            <group scale={0.016}>
-              {/* Main bus â€” textured metal body */}
-              <mesh>
-                <cylinderGeometry args={[0.5, 0.6, 1.4, 8]} />
-                <meshPhysicalMaterial
-                  map={satMetalTex}
-                  metalness={0.82}
-                  roughness={0.22}
-                  clearcoat={0.35}
-                  clearcoatRoughness={0.1}
-                />
-              </mesh>
-
-              {/* Gold foil thermal insulation band */}
-              <mesh position={[0, -0.3, 0]}>
-                <cylinderGeometry args={[0.63, 0.63, 0.28, 8]} />
-                <meshPhysicalMaterial
-                  map={satGoldTex}
-                  metalness={0.55}
-                  roughness={0.38}
-                  clearcoat={0.3}
-                />
-              </mesh>
-
-              {/* Solar panel LEFT â€” real PV texture */}
-              <mesh position={[1.85, 0, 0]}>
-                <boxGeometry args={[2.4, 0.03, 1.0]} />
-                <meshPhysicalMaterial
-                  map={satSolarTex}
-                  emissiveMap={satSolarTex}
-                  emissive="#0a2060"
-                  emissiveIntensity={0.25}
-                  metalness={0.5}
-                  roughness={0.18}
-                  clearcoat={0.9}
-                  clearcoatRoughness={0.05}
-                />
-              </mesh>
-
-              {/* Solar panel RIGHT */}
-              <mesh position={[-1.85, 0, 0]}>
-                <boxGeometry args={[2.4, 0.03, 1.0]} />
-                <meshPhysicalMaterial
-                  map={satSolarTex}
-                  emissiveMap={satSolarTex}
-                  emissive="#0a2060"
-                  emissiveIntensity={0.25}
-                  metalness={0.5}
-                  roughness={0.18}
-                  clearcoat={0.9}
-                  clearcoatRoughness={0.05}
-                />
-              </mesh>
-
-              {/* Panel arm left */}
-              <mesh position={[0.68, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.04, 0.04, 0.34, 6]} />
-                <meshStandardMaterial map={satMetalTex} metalness={0.9} roughness={0.25} />
-              </mesh>
-              {/* Panel arm right */}
-              <mesh position={[-0.68, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.04, 0.04, 0.34, 6]} />
-                <meshStandardMaterial map={satMetalTex} metalness={0.9} roughness={0.25} />
-              </mesh>
-
-              {/* Parabolic dish â€” polished metal */}
-              <group position={[0, 0.9, 0.22]} rotation={[0.42, 0, 0]}>
-                <mesh>
-                  <sphereGeometry args={[0.42, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.52]} />
-                  <meshPhysicalMaterial
-                    map={satMetalTex}
-                    metalness={0.95}
-                    roughness={0.08}
-                    side={THREE.DoubleSide}
-                    clearcoat={0.7}
-                    clearcoatRoughness={0.04}
-                    color="#e0e8f0"
-                  />
-                </mesh>
-                {/* Feed horn */}
-                <mesh position={[0, 0.32, 0]}>
-                  <cylinderGeometry args={[0.022, 0.034, 0.38, 6]} />
-                  <meshStandardMaterial map={satMetalTex} metalness={0.9} roughness={0.2} />
-                </mesh>
-              </group>
-
-              {/* Antenna boom */}
-              <mesh position={[0.32, 0.92, -0.22]}>
-                <cylinderGeometry args={[0.014, 0.014, 0.88, 4]} />
-                <meshStandardMaterial color="#c8c8c8" metalness={0.85} roughness={0.25} />
-              </mesh>
-              {/* Beacon light */}
-              <mesh position={[0.32, 1.36, -0.22]}>
-                <sphereGeometry args={[0.045, 8, 8]} />
-                <meshBasicMaterial color={accentColor} />
-              </mesh>
-
-              {/* Thruster cluster */}
-              {satSeed % 2 === 0 && (
-                <group position={[0, -0.78, 0]}>
-                  {([[0.22, 0.22], [-0.22, 0.22], [0, -0.22]] as [number, number][]).map(([tx, tz], ti) => (
-                    <mesh key={ti} position={[tx, 0, tz]}>
-                      <coneGeometry args={[0.09, 0.18, 6]} />
-                      <meshPhysicalMaterial map={satMetalTex} metalness={0.88} roughness={0.18} />
-                    </mesh>
-                  ))}
-                </group>
-              )}
-            </group>
-          </group>
-        );
-      })}
-
-      {/* Life particles (if enabled) */}
-      {activeLifeParticles > 0 && Array.from({ length: activeLifeParticles }).map((_, index) => (
-        <Sphere
-          key={`life_${index}`}
-          ref={(node) => {
-            lifeParticleRefs.current[index] = node as unknown as THREE.Mesh;
-          }}
-          args={[0.028, 8, 8]}
-        >
-          <meshBasicMaterial
-            color={domain.emissiveColor}
-            transparent
-            opacity={0.65}
-            blending={THREE.AdditiveBlending}
-            depthWrite={false}
-          />
-        </Sphere>
-      ))}
-
-      <group ref={islandAnchorRef}>
-        {visibleIslands.map((topic, index) => {
-          const topicOrbitRadius =
-            cameraMode === 'detail'
-              ? baseRadius * visuals.scale * 1.95
-              : baseRadius * visuals.scale * 2.15;
-          const pos = latLonToPlanetPosition(topic.lat, topic.lon, topicOrbitRadius);
-          const isSelected = selectedTopicId === topic.topicId;
-          const stage = topic.stage;
-
-          const markerColor =
-            stage === 'retained'
-              ? '#fbbf24'
-              : stage === 'apply'
-                ? '#4ade80'
-                : stage === 'understood'
-                  ? '#38bdf8'
-                  : domain.color;
-
-          const markerTexture =
-            stage === 'retained'
-              ? markerJupiterTex
-              : stage === 'apply'
-                ? markerEarthTex
-                : stage === 'understood'
-                  ? markerMarsTex
-                  : markerNeptuneTex;
-
-          const r =
-            stage === 'retained'
-              ? 0.056
-              : stage === 'apply'
-                ? 0.05
-                : stage === 'understood'
-                  ? 0.044
-                  : 0.038;
-
-          const bodyRadius = r * 0.5;
-          const bodyLength = r * 2.6;
-          const panelLength = r * 4.4;
-          const panelHeight = r * 0.9;
-          const panelThickness = r * 0.12;
-          const panelOffsetX = r * 2.35;
-          const dishRadius = r * 1.05;
-          const dishDepth = r * 0.26;
-          const markerTilt = ((index % 7) - 3) * 0.08;
-
-          return (
-            <group
-              key={`island_${topic.topicId}_${index}`}
-              position={[pos.x, pos.y, pos.z]}
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelectIsland?.(topic);
-              }}
-              onPointerOver={(event) => {
-                event.stopPropagation();
-                document.body.style.cursor = 'pointer';
-              }}
-              onPointerOut={() => {
-                document.body.style.cursor = 'auto';
-              }}
-            >
-              {renderDetailedIslandMeshes ? (
-                <group rotation={[markerTilt, index * 0.7, -markerTilt * 0.6]}>
-                  <mesh>
-                    <cylinderGeometry args={[bodyRadius, bodyRadius, bodyLength, 20]} />
-                    <meshStandardMaterial map={satMetalTex} roughness={0.4} metalness={0.85} />
-                  </mesh>
-
-                  <mesh position={[0, bodyLength * 0.66, 0]}>
-                    <coneGeometry args={[bodyRadius * 1.02, bodyLength * 0.42, 18]} />
-                    <meshStandardMaterial map={satMetalTex} roughness={0.38} metalness={0.8} />
-                  </mesh>
-
-                  <mesh position={[0, -bodyLength * 0.66, 0]}>
-                    <cylinderGeometry args={[bodyRadius * 0.62, bodyRadius * 0.48, bodyLength * 0.34, 16]} />
-                    <meshStandardMaterial map={satGoldTex} roughness={0.35} metalness={0.92} />
-                  </mesh>
-
-                  <mesh position={[0, bodyLength * 0.2, bodyRadius * 1.02]}>
-                    <torusGeometry args={[bodyRadius * 1.06, bodyRadius * 0.03, 8, 28]} />
-                    <meshStandardMaterial map={satMetalTex} roughness={0.45} metalness={0.78} />
-                  </mesh>
-
-                  <mesh position={[0, -bodyLength * 0.08, bodyRadius * 1.02]}>
-                    <torusGeometry args={[bodyRadius * 1.05, bodyRadius * 0.028, 8, 28]} />
-                    <meshStandardMaterial map={satMetalTex} roughness={0.45} metalness={0.78} />
-                  </mesh>
-
-                  <mesh position={[panelOffsetX, 0, 0]}>
-                    <boxGeometry args={[panelLength, panelThickness, panelHeight]} />
-                    <meshStandardMaterial
-                      map={satSolarTex}
-                      emissive={markerColor}
-                      emissiveIntensity={0.14}
-                      roughness={0.56}
-                      metalness={0.72}
-                    />
-                  </mesh>
-
-                  <mesh position={[-panelOffsetX, 0, 0]}>
-                    <boxGeometry args={[panelLength, panelThickness, panelHeight]} />
-                    <meshStandardMaterial
-                      map={satSolarTex}
-                      emissive={markerColor}
-                      emissiveIntensity={0.14}
-                      roughness={0.56}
-                      metalness={0.72}
-                    />
-                  </mesh>
-
-                  <mesh position={[0, bodyLength * 1.03, 0]}>
-                    <cylinderGeometry args={[dishRadius * 0.22, dishRadius * 0.22, r * 0.45, 12]} />
-                    <meshStandardMaterial map={satMetalTex} roughness={0.38} metalness={0.82} />
-                  </mesh>
-
-                  <mesh position={[0, bodyLength * 1.24, 0]} rotation={[Math.PI, 0, 0]}>
-                    <cylinderGeometry args={[dishRadius, dishRadius * 0.25, dishDepth, 24, 1, false]} />
-                    <meshStandardMaterial color='#f3f4f6' roughness={0.28} metalness={0.62} side={THREE.DoubleSide} />
-                  </mesh>
-
-                  <mesh position={[0, bodyLength * 0.02, bodyRadius * 1.36]}>
-                    <planeGeometry args={[r * 1.08, r * 1.08]} />
-                    <meshBasicMaterial
-                      map={markerTexture}
-                      transparent
-                      opacity={0.9}
-                      depthWrite={false}
-                      side={THREE.DoubleSide}
-                    />
-                  </mesh>
-
-                  <Sphere args={[r * 0.24, 12, 12]} position={[0, -bodyLength * 0.82, 0]}>
-                    <meshBasicMaterial
-                      color={markerColor}
-                      transparent
-                      opacity={0.9}
-                      depthWrite={false}
-                      blending={THREE.AdditiveBlending}
-                    />
-                  </Sphere>
-                </group>
-              ) : (
-                <group>
-                  <Sphere args={[r * 0.8, 14, 14]}>
-                    <meshStandardMaterial
-                      map={markerTexture}
-                      color="#eef2ff"
-                      roughness={0.46}
-                      metalness={0.12}
-                      emissive={markerColor}
-                      emissiveIntensity={0.1}
-                    />
-                  </Sphere>
-                  <mesh rotation={[Math.PI / 2, 0, 0]}>
-                    <ringGeometry args={[r * 1.2, r * 1.45, 32]} />
-                    <meshBasicMaterial
-                      color={markerColor}
-                      transparent
-                      opacity={0.46}
-                      depthWrite={false}
-                      blending={THREE.AdditiveBlending}
-                      side={THREE.DoubleSide}
-                    />
-                  </mesh>
-                </group>
-              )}
-
-              {isSelected && (
-                <Billboard follow>
-                  <mesh>
-                    <ringGeometry args={[r * 4.1, r * 4.5, 40]} />
-                    <meshBasicMaterial
-                      color='#ffffff'
-                      transparent
-                      opacity={0.88}
-                      depthWrite={false}
-                      blending={THREE.AdditiveBlending}
-                      side={THREE.DoubleSide}
-                    />
-                  </mesh>
-                </Billboard>
-              )}
-            </group>
-          );
-        })}
-      </group>
-
-      <Html
-        position={[0, baseRadius * visuals.scale + 0.6, 0]}
-        center
-        distanceFactor={14}
-        zIndexRange={[6, 0]}
-        style={{
-          pointerEvents: 'none',
-          userSelect: 'none',
-          zIndex: 1,
-          opacity: cameraMode === 'system' && labelExpanded ? 1 : 0,
-          transition: 'opacity 0.22s ease',
+      {/* Generous, invisible hit area: small fingers should not miss a planet. */}
+      <mesh
+        ref={hitRef}
+        onClick={handleClick}
+        onPointerOver={(event) => {
+          event.stopPropagation();
+          document.body.style.cursor = 'pointer';
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = 'auto';
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-          {/* Replaced raw emoji with elegant label box */}
-          {cameraMode === 'system' && (
-            <div className="flex flex-col items-center bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 800,
-                  color: 'white',
-                  textShadow: '0 1px 4px rgba(0,0,0,0.85)',
-                  whiteSpace: 'nowrap',
-                  fontFamily: '"Nunito", sans-serif',
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase'
-                }}
-              >
-                {domain.label}
-              </span>
+        <sphereGeometry args={[1, 16, 12]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
 
-            </div>
-          )}
-        </div>
-      </Html>
-    </group >
+      {Array.from({ length: moonCount }).map((_, index) => {
+        const topic = moonTopics?.[index] ?? null;
+        const isNew = Boolean(growth) && index >= (growth?.fromTopics ?? Infinity);
+        return (
+          <TopicMoon
+            key={topic ? `moon_${topic.topicId}` : `moon_${index}`}
+            index={index}
+            seed={hashString(`${domain.id}:moon:${index}`)}
+            topic={topic}
+            color={topic ? MOON_STAGE_COLORS[topic.stage] ?? domain.color : domain.color}
+            planetRadiusRef={planetRadiusRef}
+            revealRef={isNew ? moonRevealRef : null}
+            interactive={moonsInteractive}
+            selected={Boolean(topic && topic.topicId === selectedTopicId)}
+            showLabels={moonsInteractive && !isTransitioning}
+            onSelect={onSelectIsland}
+          />
+        );
+      })}
+
+      <group ref={labelAnchorRef}>
+        <Html
+          center
+          zIndexRange={[12, 0]}
+          style={{
+            pointerEvents: 'none',
+            userSelect: 'none',
+            opacity: showPlanetLabel ? 1 : 0,
+            transition: 'opacity 0.3s ease',
+          }}
+        >
+          <PlanetLabel
+            domain={domain}
+            stage={evolution.stage}
+            stageName={evolution.current.name}
+            compact={compactLabel}
+          />
+        </Html>
+      </group>
+    </group>
   );
 };
 
-function createPlanetMaps(
-  baseHex: string,
-  seed: number,
-  planetType: CosmosDomain['planetType'],
-  detailFactor: number,
-  textureSize: number
-): {
-  surfaceMap: THREE.CanvasTexture;
-  bumpMap: THREE.CanvasTexture;
-  roughnessMap: THREE.CanvasTexture;
-  cloudMap: THREE.CanvasTexture;
-  nightMap: THREE.CanvasTexture;
-} {
-  const profile = getPlanetTypeProfile(planetType);
-  const size = textureSize;
-  const surfaceCanvas = document.createElement('canvas');
-  const bumpCanvas = document.createElement('canvas');
-  const roughCanvas = document.createElement('canvas');
-  const cloudCanvas = document.createElement('canvas');
-  surfaceCanvas.width = surfaceCanvas.height = size;
-  bumpCanvas.width = bumpCanvas.height = size;
-  roughCanvas.width = roughCanvas.height = size;
-  cloudCanvas.width = cloudCanvas.height = size;
-  const nightCanvas = document.createElement('canvas');
-  nightCanvas.width = nightCanvas.height = size;
+const PlanetLabel: React.FC<{ domain: CosmosDomain; stage: number; stageName: string; compact: boolean }> = ({
+  domain,
+  stage,
+  stageName,
+  compact,
+}) => (
+  <div
+    className="flex flex-col items-center gap-0.5 whitespace-nowrap"
+    style={{ fontFamily: '"Nunito", sans-serif' }}
+  >
+    <span
+      className={[
+        'rounded-full border border-white/15 bg-black/45 font-extrabold tracking-wide text-white backdrop-blur-md',
+        compact ? 'px-2 py-px text-[10px]' : 'px-2.5 py-0.5 text-[11px]',
+      ].join(' ')}
+      style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}
+    >
+      <span aria-hidden className="mr-1">
+        {domain.icon}
+      </span>
+      {compact ? domain.label.split(' & ')[0] : domain.label}
+    </span>
+    <span
+      className={compact ? 'text-[9px] font-bold' : 'text-[10px] font-bold'}
+      style={{
+        color: stage === 0 ? 'rgba(226,232,240,0.6)' : domain.color,
+        textShadow: '0 1px 3px rgba(0,0,0,0.9)',
+      }}
+    >
+      {stage === 0 ? 'Unentdeckt' : compact ? `Stufe ${stage}` : `Stufe ${stage} · ${stageName}`}
+    </span>
+  </div>
+);
 
-  const surfaceCtx = surfaceCanvas.getContext('2d');
-  const bumpCtx = bumpCanvas.getContext('2d');
-  const roughCtx = roughCanvas.getContext('2d');
-  const cloudCtx = cloudCanvas.getContext('2d');
-  const nightCtx = nightCanvas.getContext('2d');
-  if (!surfaceCtx || !bumpCtx || !roughCtx || !cloudCtx || !nightCtx) {
-    throw new Error('Could not create 2D canvas context for planet maps');
-  }
+interface MoonProps {
+  index: number;
+  seed: number;
+  topic: TopicIsland | null;
+  color: string;
+  planetRadiusRef: React.MutableRefObject<number>;
+  /** Clock time from which a new moon pops in; null = always visible. */
+  revealRef: React.MutableRefObject<number> | null;
+  interactive: boolean;
+  selected: boolean;
+  showLabels: boolean;
+  onSelect?: (topic: TopicIsland) => void;
+}
 
-  const surfaceData = surfaceCtx.createImageData(size, size);
-  const bumpData = bumpCtx.createImageData(size, size);
-  const roughData = roughCtx.createImageData(size, size);
-  const cloudData = cloudCtx.createImageData(size, size);
-  const nightData = nightCtx.createImageData(size, size);
+const TopicMoon: React.FC<MoonProps> = ({
+  index,
+  seed,
+  topic,
+  color,
+  planetRadiusRef,
+  revealRef,
+  interactive,
+  selected,
+  showLabels,
+  onSelect,
+}) => {
+  const orbitRef = useRef<THREE.Group>(null!);
+  const bodyRef = useRef<THREE.Mesh>(null!);
+  const [hovered, setHovered] = useState(false);
+  const size = topic ? MOON_SIZE[topic.stage] ?? 0.08 : 0.072;
 
-  const baseColor = new THREE.Color(baseHex);
-  const baseR = Math.floor(baseColor.r * 255);
-  const baseG = Math.floor(baseColor.g * 255);
-  const baseB = Math.floor(baseColor.b * 255);
-  const biomePalette = getBiomePalette(planetType, baseColor);
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uColor: { value: new THREE.Color(color) },
+          uSunPos: { value: SUN_POSITION },
+          uSeed: { value: (seed % 1000) / 61 },
+          uGlow: { value: 0 },
+        },
+        vertexShader: SPHERE_VERTEX,
+        fragmentShader: MOON_FRAGMENT,
+      }),
+    // Colour updates go through the uniform below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [seed]
+  );
+  const glowMaterial = useMemo(
+    () =>
+      new THREE.SpriteMaterial({
+        map: getGlowTexture(),
+        color,
+        transparent: true,
+        opacity: 0.5,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
-  const hasContinents = planetType === 'terrestrial' || planetType === 'lush' || planetType === 'oceanic';
-  const TWO_PI = Math.PI * 2;
+  useEffect(() => {
+    material.uniforms.uColor.value.set(color);
+    glowMaterial.color.set(color);
+  }, [color, glowMaterial, material]);
 
-  for (let y = 0; y < size; y += 1) {
-    // UV â†’ spherical coordinates (seamless, no equator seam)
-    const ny = y / size;
-    const phi = ny * Math.PI; // 0 = north pole, PI = south pole
-    const sinPhi = Math.sin(phi);
-    const cosPhi = Math.cos(phi);
-    const latitude = Math.abs(ny * 2 - 1);
-    const climateBand = 1 - smoothstep(0.68, 0.98, latitude);
+  useEffect(() => {
+    material.uniforms.uGlow.value = selected || hovered ? 0.6 : 0;
+    glowMaterial.opacity = selected || hovered ? 0.85 : 0.5;
+  }, [glowMaterial, hovered, material, selected]);
 
-    for (let x = 0; x < size; x += 1) {
-      const i = (y * size + x) * 4;
-      const nx = x / size;
-      const theta = nx * TWO_PI; // 0 â†’ 2PI longitude
+  useEffect(
+    () => () => {
+      material.dispose();
+      glowMaterial.dispose();
+    },
+    [glowMaterial, material]
+  );
 
-      // 3D point on unit sphere â€” all noise sampled here, no UV seams
-      const sx = Math.cos(theta) * sinPhi;
-      const sy = cosPhi;
-      const sz = Math.sin(theta) * sinPhi;
+  const orbit = useMemo(() => {
+    const r1 = hash01(seed, 1);
+    const r2 = hash01(seed, 2);
+    const r3 = hash01(seed, 3);
+    return {
+      tiltX: (r1 - 0.5) * 1.2,
+      tiltZ: (r2 - 0.5) * 0.9,
+      phase: r3 * Math.PI * 2,
+      speedJitter: 0.8 + r1 * 0.45,
+    };
+  }, [seed]);
 
-      // Terrain noise in 3D (seamless)
-      const bs = profile.baseScale;
-      const rs = profile.ridgeScale;
-      const n1 = fbm3D(sx * bs, sy * bs, sz * bs, seed, 6);
-      const n2 = fbm3D(sx * rs, sy * rs, sz * rs, seed + 71, 4);
-      const micro = fbm3D(sx * 32, sy * 32, sz * 32, seed + 911, 2);
-      const ridge = Math.pow(Math.abs(0.5 - n2) * 2.0, profile.ridgePower);
+  useFrame(({ clock }, delta) => {
+    const group = orbitRef.current;
+    if (!group) return;
+    const t = clock.elapsedTime;
+    const radius = planetRadiusRef.current * 1.5 + 0.25 + index * 0.17;
+    const angle = t * (0.5 / Math.sqrt(radius)) * orbit.speedJitter + orbit.phase;
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    const y1 = -z * Math.sin(orbit.tiltX);
+    const z1 = z * Math.cos(orbit.tiltX);
+    group.position.set(
+      x * Math.cos(orbit.tiltZ) - y1 * Math.sin(orbit.tiltZ),
+      x * Math.sin(orbit.tiltZ) + y1 * Math.cos(orbit.tiltZ),
+      z1
+    );
 
-      const altitude = clamp01((n1 * profile.heightWeight + ridge * profile.ridgeWeight) * 1.4 - 0.2);
-
-      // Continental plates (3D seamless)
-      const tectonicNoise = fbm3D(sx * 2.6, sy * 2.6, sz * 2.6, seed + 219, 5);
-      const archipelagoNoise = fbm3D(sx * 5.5, sy * 5.5, sz * 5.5, seed + 577, 4);
-      const coastDetailNoise = fbm3D(sx * 12, sy * 12, sz * 12, seed + 743, 3);
-      const continentalSignal = tectonicNoise * 0.58 + archipelagoNoise * 0.28 + coastDetailNoise * 0.14;
-      const continentalBase = smoothstep(0.42, 0.62, continentalSignal + (altitude - 0.5) * 0.18);
-      const erosionNoise = fbm3D(sx * 8.5, sy * 8.5, sz * 8.5, seed + 887, 3);
-      const erosionCut = smoothstep(0.42, 0.78, erosionNoise);
-      const regionMask = hasContinents
-        ? clamp01(continentalBase - erosionCut * 0.24 + (0.48 - latitude) * 0.06)
-        : 0;
-
-      const gasBand = planetType === 'gaseous' ? (Math.sin((ny * 42 + n1 * 8) * Math.PI) * 0.5 + 0.5) * (0.28 + n2 * 0.35) : 0;
-      const lavaCrack = planetType === 'volcanic' ? smoothstep(0.62, 0.92, n2) : 0;
-      const mountainMask = hasContinents
-        ? regionMask * smoothstep(0.48, 0.82, altitude + ridge * 0.28 + micro * 0.08)
-        : 0;
-      const oceanMask = hasContinents ? clamp01(1 - regionMask) : 0;
-      const shallowOceanMask = hasContinents
-        ? clamp01(oceanMask * smoothstep(0.18, 0.58, 1 - altitude + ridge * 0.12))
-        : 0;
-      const deepOceanMask = hasContinents
-        ? clamp01(oceanMask * smoothstep(0.32, 0.72, 1 - altitude + ridge * 0.22))
-        : 0;
-      const landMask = hasContinents ? clamp01(regionMask - mountainMask * 0.56) : 0;
-      const coastMask = hasContinents
-        ? clamp01(
-            smoothstep(0.22, 0.52, 1 - Math.abs(regionMask - 0.5) * 2) *
-            (0.52 + (1 - altitude) * 0.38)
-          )
-        : 0;
-
-      const shade = profile.shadeMin + altitude * profile.shadeRange;
-      const tint = profile.tintBase + n2 * profile.tintRange;
-      const structureBoost = 0.74 + altitude * 0.82 + ridge * 0.18;
-
-      if (hasContinents) {
-        const weightSum = Math.max(
-          0.0001,
-          deepOceanMask + shallowOceanMask + landMask + mountainMask + coastMask * 0.42
-        );
-        const rBiome =
-          (biomePalette.oceanDeep[0] * deepOceanMask +
-            biomePalette.oceanShallow[0] * shallowOceanMask +
-            biomePalette.land[0] * landMask +
-            biomePalette.mountain[0] * mountainMask +
-            biomePalette.coast[0] * coastMask * 0.42) /
-          weightSum;
-        const gBiome =
-          (biomePalette.oceanDeep[1] * deepOceanMask +
-            biomePalette.oceanShallow[1] * shallowOceanMask +
-            biomePalette.land[1] * landMask +
-            biomePalette.mountain[1] * mountainMask +
-            biomePalette.coast[1] * coastMask * 0.42) /
-          weightSum;
-        const bBiome =
-          (biomePalette.oceanDeep[2] * deepOceanMask +
-            biomePalette.oceanShallow[2] * shallowOceanMask +
-            biomePalette.land[2] * landMask +
-            biomePalette.mountain[2] * mountainMask +
-            biomePalette.coast[2] * coastMask * 0.42) /
-          weightSum;
-        const oceanContrast = 0.84 + deepOceanMask * 0.24 + shallowOceanMask * 0.14;
-        const landContrast = 0.92 + landMask * 0.2 + coastMask * 0.18 + climateBand * 0.06;
-        const mountainContrast = 1 + mountainMask * 0.35;
-        const terrainContrast =
-          0.9 +
-          (oceanContrast * oceanMask + landContrast * landMask + mountainContrast * mountainMask + coastMask * 0.3) *
-            0.45;
-
-        surfaceData.data[i] = clamp255(rBiome * shade * tint * structureBoost * terrainContrast);
-        surfaceData.data[i + 1] = clamp255(
-          gBiome *
-            shade *
-            (profile.greenShift + n1 * 0.11 - deepOceanMask * 0.16 + landMask * 0.06) *
-            structureBoost *
-            terrainContrast
-        );
-        surfaceData.data[i + 2] = clamp255(
-          bBiome *
-            shade *
-            (profile.blueShift + ridge * 0.1 + deepOceanMask * 0.38 + shallowOceanMask * 0.2) *
-            structureBoost *
-            terrainContrast
-        );
-      } else {
-        surfaceData.data[i] = clamp255(baseR * shade * tint * profile.redShift * structureBoost);
-        surfaceData.data[i + 1] = clamp255(baseG * shade * (profile.greenShift + n1 * 0.15) * structureBoost);
-        surfaceData.data[i + 2] = clamp255(baseB * shade * (profile.blueShift + ridge * 0.15) * structureBoost);
-      }
-      surfaceData.data[i + 3] = 255;
-
-      const terrainHeight = clamp01(
-        altitude * 0.58 +
-          mountainMask * 0.72 +
-          ridge * 0.22 -
-          deepOceanMask * 0.24 +
-          coastMask * 0.08
-      );
-      const bump = clamp255(terrainHeight * 255);
-      bumpData.data[i] = bump;
-      bumpData.data[i + 1] = bump;
-      bumpData.data[i + 2] = bump;
-      bumpData.data[i + 3] = 255;
-
-      const rough = clamp255(
-        (
-          profile.roughnessBase +
-          ridge * 0.52 +
-          n1 * 0.16 +
-          micro * 0.1 -
-          regionMask * 0.12 -
-          gasBand * 0.12 +
-          mountainMask * 0.12 -
-          deepOceanMask * 0.24
-        ) * 255
-      );
-      roughData.data[i] = rough;
-      roughData.data[i + 1] = rough;
-      roughData.data[i + 2] = rough;
-      roughData.data[i + 3] = 255;
-
-      // Clouds also seamless in 3D
-      const cs = profile.cloudScale;
-      const cloudNoise = fbm3D(sx * cs, sy * cs, sz * cs, seed + 133, 5);
-      const cloudSwirl = fbm3D(sx * cs * 1.8, sy * cs * 1.8, sz * cs * 1.8, seed + 337, 3);
-      const cloudAlpha = clamp255(Math.max(0, cloudNoise + cloudSwirl * 0.2 - profile.cloudThreshold) * profile.cloudGain);
-      cloudData.data[i] = 255;
-      cloudData.data[i + 1] = 255;
-      cloudData.data[i + 2] = 255;
-      cloudData.data[i + 3] = cloudAlpha;
-
-      // Night-side lights
-      let rN = 0, gN = 0, bN = 0;
-      if (hasContinents) {
-        const cityNoise = fbm3D(sx * 18.2, sy * 18.2, sz * 18.2, seed + 888, 3);
-        if (regionMask > 0.4 && cityNoise > 0.65 && altitude < 0.65 && detailFactor > 0.05) {
-          const glow = Math.pow((cityNoise - 0.65) * 2.8, 2.0) * 255 * Math.min(1.0, detailFactor * 2.2);
-          rN = glow * 0.98; gN = glow * 0.94; bN = glow * 1.0;
-        }
-      } else if (planetType === 'volcanic' && lavaCrack > 0) {
-        const lava = lavaCrack * 220;
-        rN = lava; gN = lava * 0.28; bN = lava * 0.04;
-      } else if (planetType === 'crystalline' && ridge > 0.6) {
-        const crystal = ridge * 100 * detailFactor;
-        rN = crystal * 0.4; gN = crystal * 0.8; bN = crystal;
-      }
-      nightData.data[i] = clamp255(rN);
-      nightData.data[i + 1] = clamp255(gN);
-      nightData.data[i + 2] = clamp255(bN);
-      nightData.data[i + 3] = 255;
+    let scale = 1;
+    if (revealRef) {
+      const since = t - revealRef.current;
+      scale = since <= 0 ? 0 : since >= 0.7 ? 1 : easeOutBack(since / 0.7);
     }
-  }
-
-  surfaceCtx.putImageData(surfaceData, 0, 0);
-  bumpCtx.putImageData(bumpData, 0, 0);
-  roughCtx.putImageData(roughData, 0, 0);
-  cloudCtx.putImageData(cloudData, 0, 0);
-  nightCtx.putImageData(nightData, 0, 0);
-
-  const surfaceMap = new THREE.CanvasTexture(surfaceCanvas);
-  const bumpMap = new THREE.CanvasTexture(bumpCanvas);
-  const roughnessMap = new THREE.CanvasTexture(roughCanvas);
-  const cloudMap = new THREE.CanvasTexture(cloudCanvas);
-  const nightMap = new THREE.CanvasTexture(nightCanvas);
-
-  [surfaceMap, bumpMap, roughnessMap, cloudMap, nightMap].forEach((texture) => {
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(1, 1);
-    texture.minFilter = THREE.LinearMipmapLinearFilter;
-    texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = true;
-    texture.needsUpdate = true;
+    group.scale.setScalar(scale);
+    if (bodyRef.current) bodyRef.current.rotation.y += Math.min(delta, 0.05) * 0.6;
   });
-  surfaceMap.colorSpace = THREE.SRGBColorSpace;
-  nightMap.colorSpace = THREE.SRGBColorSpace;
 
-  return { surfaceMap, bumpMap, roughnessMap, cloudMap, nightMap };
-}
+  return (
+    <group ref={orbitRef}>
+      <mesh ref={bodyRef} material={material} scale={size}>
+        <sphereGeometry args={[1, 32, 24]} />
+      </mesh>
+      <sprite material={glowMaterial} scale={size * 6.5} />
 
-interface PlanetTypeProfile {
-  baseScale: number;
-  ridgeScale: number;
-  ridgePower: number;
-  heightWeight: number;
-  ridgeWeight: number;
-  shadeMin: number;
-  shadeRange: number;
-  tintBase: number;
-  tintRange: number;
-  redShift: number;
-  greenShift: number;
-  blueShift: number;
-  roughnessBase: number;
-  cloudScale: number;
-  cloudThreshold: number;
-  cloudGain: number;
-}
+      {interactive && topic && (
+        <mesh
+          scale={Math.max(size * 3.2, 0.2)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect?.(topic);
+          }}
+          onPointerOver={(event) => {
+            event.stopPropagation();
+            setHovered(true);
+            document.body.style.cursor = 'pointer';
+          }}
+          onPointerOut={() => {
+            setHovered(false);
+            document.body.style.cursor = 'auto';
+          }}
+        >
+          <sphereGeometry args={[1, 12, 8]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      )}
 
-type BiomePalette = {
-  oceanDeep: [number, number, number];
-  oceanShallow: [number, number, number];
-  land: [number, number, number];
-  mountain: [number, number, number];
-  coast: [number, number, number];
+      {selected && (
+        <Billboard follow>
+          <mesh>
+            <ringGeometry args={[size * 2.3, size * 2.6, 48]} />
+            <meshBasicMaterial
+              color="#ffffff"
+              transparent
+              opacity={0.9}
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+            />
+          </mesh>
+        </Billboard>
+      )}
+
+      {topic && showLabels && (selected || hovered) && (
+        <Html center position={[0, -size * 3.4, 0]} zIndexRange={[14, 0]} style={{ pointerEvents: 'none' }}>
+          <span
+            className="whitespace-nowrap rounded-full border border-white/20 bg-black/55 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-md"
+            style={{ fontFamily: '"Nunito", sans-serif', boxShadow: `0 0 12px ${color}55` }}
+          >
+            {formatTopicTitle(topic.topicTitle)}
+          </span>
+        </Html>
+      )}
+    </group>
+  );
 };
 
-function getBiomePalette(
-  planetType: CosmosDomain['planetType'],
-  baseColor: THREE.Color
-): BiomePalette {
-  if (planetType === 'lush') {
-    return {
-      oceanDeep: [18, 72, 142],
-      oceanShallow: [46, 130, 188],
-      land: [52, 146, 72],
-      mountain: [132, 150, 120],
-      coast: [208, 198, 140],
-    };
-  }
-  if (planetType === 'oceanic') {
-    return {
-      oceanDeep: [12, 64, 130],
-      oceanShallow: [62, 154, 214],
-      land: [72, 150, 108],
-      mountain: [150, 168, 154],
-      coast: [220, 206, 162],
-    };
-  }
-  if (planetType === 'terrestrial') {
-    return {
-      oceanDeep: [16, 64, 128],
-      oceanShallow: [62, 138, 196],
-      land: [114, 146, 90],
-      mountain: [146, 138, 128],
-      coast: [216, 198, 154],
-    };
-  }
+let glowTexture: THREE.CanvasTexture | null = null;
 
-  const baseR = Math.round(baseColor.r * 255);
-  const baseG = Math.round(baseColor.g * 255);
-  const baseB = Math.round(baseColor.b * 255);
-  return {
-    oceanDeep: [Math.max(0, baseR - 68), Math.max(0, baseG - 50), Math.min(255, baseB + 48)],
-    oceanShallow: [Math.max(0, baseR - 32), Math.max(0, baseG - 22), Math.min(255, baseB + 36)],
-    land: [baseR, baseG, baseB],
-    mountain: [Math.min(255, baseR + 38), Math.min(255, baseG + 34), Math.min(255, baseB + 28)],
-    coast: [Math.min(255, baseR + 74), Math.min(255, baseG + 62), Math.min(255, baseB + 36)],
-  };
-}
-
-function getPlanetTypeProfile(type: CosmosDomain['planetType']): PlanetTypeProfile {
-  switch (type) {
-    case 'oceanic':
-      return {
-        baseScale: 3.8,
-        ridgeScale: 9.5,
-        ridgePower: 1.2,
-        heightWeight: 0.74,
-        ridgeWeight: 0.26,
-        shadeMin: 0.58,
-        shadeRange: 0.56,
-        tintBase: 0.9,
-        tintRange: 0.2,
-        redShift: 0.9,
-        greenShift: 0.9,
-        blueShift: 1.12,
-        roughnessBase: 0.22,
-        cloudScale: 5.4,
-        cloudThreshold: 0.5,
-        cloudGain: 680,
-      };
-    case 'icy':
-      return {
-        baseScale: 5.0,
-        ridgeScale: 13.5,
-        ridgePower: 1.34,
-        heightWeight: 0.66,
-        ridgeWeight: 0.34,
-        shadeMin: 0.68,
-        shadeRange: 0.5,
-        tintBase: 0.98,
-        tintRange: 0.13,
-        redShift: 0.92,
-        greenShift: 1.04,
-        blueShift: 1.12,
-        roughnessBase: 0.4,
-        cloudScale: 7.0,
-        cloudThreshold: 0.6,
-        cloudGain: 460,
-      };
-    case 'lush':
-      return {
-        baseScale: 4.2,
-        ridgeScale: 10.0,
-        ridgePower: 1.0,
-        heightWeight: 0.8,
-        ridgeWeight: 0.2,
-        shadeMin: 0.6,
-        shadeRange: 0.56,
-        tintBase: 0.84,
-        tintRange: 0.24,
-        redShift: 0.9,
-        greenShift: 1.08,
-        blueShift: 0.9,
-        roughnessBase: 0.3,
-        cloudScale: 6.0,
-        cloudThreshold: 0.52,
-        cloudGain: 640,
-      };
-    case 'desert':
-      return {
-        baseScale: 5.3,
-        ridgeScale: 15.0,
-        ridgePower: 1.4,
-        heightWeight: 0.62,
-        ridgeWeight: 0.38,
-        shadeMin: 0.62,
-        shadeRange: 0.48,
-        tintBase: 0.93,
-        tintRange: 0.16,
-        redShift: 1.08,
-        greenShift: 0.95,
-        blueShift: 0.84,
-        roughnessBase: 0.52,
-        cloudScale: 5.0,
-        cloudThreshold: 0.66,
-        cloudGain: 380,
-      };
-    case 'volcanic':
-      return {
-        baseScale: 6.2,
-        ridgeScale: 17.0,
-        ridgePower: 1.56,
-        heightWeight: 0.58,
-        ridgeWeight: 0.42,
-        shadeMin: 0.46,
-        shadeRange: 0.64,
-        tintBase: 0.86,
-        tintRange: 0.23,
-        redShift: 1.16,
-        greenShift: 0.78,
-        blueShift: 0.72,
-        roughnessBase: 0.62,
-        cloudScale: 4.2,
-        cloudThreshold: 0.72,
-        cloudGain: 320,
-      };
-    case 'gaseous':
-      return {
-        baseScale: 2.8,
-        ridgeScale: 7.0,
-        ridgePower: 0.9,
-        heightWeight: 0.86,
-        ridgeWeight: 0.14,
-        shadeMin: 0.66,
-        shadeRange: 0.42,
-        tintBase: 0.95,
-        tintRange: 0.18,
-        redShift: 0.96,
-        greenShift: 0.98,
-        blueShift: 1.02,
-        roughnessBase: 0.15,
-        cloudScale: 3.8,
-        cloudThreshold: 0.45,
-        cloudGain: 720,
-      };
-    case 'crystalline':
-      return {
-        baseScale: 6.8,
-        ridgeScale: 19.0,
-        ridgePower: 1.7,
-        heightWeight: 0.55,
-        ridgeWeight: 0.45,
-        shadeMin: 0.63,
-        shadeRange: 0.52,
-        tintBase: 0.98,
-        tintRange: 0.2,
-        redShift: 1.02,
-        greenShift: 0.95,
-        blueShift: 1.08,
-        roughnessBase: 0.35,
-        cloudScale: 7.5,
-        cloudThreshold: 0.63,
-        cloudGain: 460,
-      };
-    case 'terrestrial':
-    default:
-      return {
-        baseScale: 4.5,
-        ridgeScale: 11.0,
-        ridgePower: 1.2,
-        heightWeight: 0.76,
-        ridgeWeight: 0.24,
-        shadeMin: 0.62,
-        shadeRange: 0.55,
-        tintBase: 0.88,
-        tintRange: 0.22,
-        redShift: 1,
-        greenShift: 0.92,
-        blueShift: 0.9,
-        roughnessBase: 0.32,
-        cloudScale: 6.2,
-        cloudThreshold: 0.55,
-        cloudGain: 620,
-      };
-  }
-}
-
-function getCloudTint(type: CosmosDomain['planetType']): string {
-  switch (type) {
-    case 'volcanic':
-      return '#f6d8c3';
-    case 'desert':
-      return '#f4e4d3';
-    case 'icy':
-      return '#eef6ff';
-    case 'oceanic':
-      return '#e4f2ff';
-    case 'gaseous':
-      return '#f7ecff';
-    case 'crystalline':
-      return '#efe8ff';
-    case 'lush':
-      return '#eaf7ef';
-    case 'terrestrial':
-    default:
-      return '#eaf2ff';
-  }
-}
-
-function createAtmosphereShellMaterial(
-  color: THREE.ColorRepresentation,
-  opacity: number,
-  power: number,
-  intensity: number
-): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      uColor: { value: new THREE.Color(color) },
-      uOpacity: { value: opacity },
-      uPower: { value: power },
-      uIntensity: { value: intensity },
-      uSunPos: { value: new THREE.Vector3(0, 0, 0) },
-    },
-    vertexShader: ATMOSPHERE_VERTEX,
-    fragmentShader: ATMOSPHERE_FRAGMENT,
-    transparent: true,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
-}
-
-function createPlanetGlowTexture(color: string, size = 256): THREE.CanvasTexture {
+function getGlowTexture(): THREE.CanvasTexture {
+  if (glowTexture) return glowTexture;
+  const size = 64;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
-  const center = size / 2;
-
-  const baseColor = new THREE.Color(color);
-  const r = Math.round(baseColor.r * 255);
-  const g = Math.round(baseColor.g * 255);
-  const b = Math.round(baseColor.b * 255);
-
-  const grad = ctx.createRadialGradient(center, center, 0, center, center, center);
-  grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.6)`);
-  grad.addColorStop(0.15, `rgba(${r}, ${g}, ${b}, 0.35)`);
-  grad.addColorStop(0.35, `rgba(${r}, ${g}, ${b}, 0.12)`);
-  grad.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, 0.03)`);
-  grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.0)`);
-
-  ctx.fillStyle = grad;
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(0.25, 'rgba(255,255,255,0.45)');
+  gradient.addColorStop(0.6, 'rgba(255,255,255,0.08)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.needsUpdate = true;
-  return tex;
+  glowTexture = new THREE.CanvasTexture(canvas);
+  return glowTexture;
 }
 
-function createRingTexture(color: string, seed: number, textureSize: number): THREE.CanvasTexture {
-  const size = textureSize;
-  const canvas = document.createElement('canvas');
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    throw new Error('Could not create 2D context for ring texture');
-  }
-
-  const base = new THREE.Color(color);
-  const center = size * 0.5;
-  const maxR = size * 0.5;
-  const image = ctx.createImageData(size, size);
-
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const dx = x - center;
-      const dy = y - center;
-      const radius = Math.sqrt(dx * dx + dy * dy) / maxR;
-      const i = (y * size + x) * 4;
-
-      if (radius < 0.36 || radius > 0.98) {
-        image.data[i + 3] = 0;
-        continue;
-      }
-
-      const stripeNoise = fbm2D(radius * 14 + 0.5, (Math.atan2(dy, dx) + Math.PI) * 0.8, seed + 211, 3);
-      const bandNoise = fbm2D(radius * 25, radius * 3 + 1.2, seed + 377, 2);
-      const edgeFade = smoothstep(0.36, 0.45, radius) * (1 - smoothstep(0.9, 0.98, radius));
-      const alpha = clamp01(edgeFade * (0.34 + stripeNoise * 0.52 + bandNoise * 0.2));
-      const brightness = 0.78 + stripeNoise * 0.38;
-
-      image.data[i] = clamp255(base.r * 255 * brightness);
-      image.data[i + 1] = clamp255(base.g * 255 * brightness);
-      image.data[i + 2] = clamp255(base.b * 255 * (0.94 + bandNoise * 0.18));
-      image.data[i + 3] = clamp255(alpha * 255);
-    }
-  }
-
-  ctx.putImageData(image, 0, 0);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.generateMipmaps = true;
-  texture.needsUpdate = true;
-  return texture;
+export function formatTopicTitle(value: string): string {
+  const raw = String(value || '').trim();
+  if (!raw) return 'Unbenanntes Thema';
+  if (!raw.includes('_') && !raw.includes('-')) return raw;
+  return raw.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-function fbm2D(x: number, y: number, seed: number, octaves: number): number {
-  let amplitude = 0.5;
-  let frequency = 1;
-  let value = 0;
-  let max = 0;
-
-  for (let octave = 0; octave < octaves; octave += 1) {
-    value += noise2D(x * frequency, y * frequency, seed + octave * 31) * amplitude;
-    max += amplitude;
-    amplitude *= 0.5;
-    frequency *= 2;
-  }
-
-  return max > 0 ? value / max : 0;
+/** Well-mixed 0..1 value; neighbouring seeds give unrelated results. */
+function hash01(seed: number, salt: number): number {
+  let h = (seed ^ Math.imul(salt, 0x9e3779b1)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-// Fast integer hash for grid corners
-function hash2D(ix: number, iy: number, seed: number): number {
-  const n = Math.sin(ix * 127.1 + iy * 311.7 + seed * 0.037) * 43758.5453123;
-  return n - Math.floor(n);
+function easeInOutCubic(value: number): number {
+  const t = Math.max(0, Math.min(1, value));
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-// Interpolated value noise â€” produces smooth, coherent shapes (continents, mountains)
-function noise2D(x: number, y: number, seed: number): number {
-  const ix = Math.floor(x);
-  const iy = Math.floor(y);
-  const fx = x - ix;
-  const fy = y - iy;
-
-  // Hermite smoothstep for C1-continuous interpolation
-  const sx = fx * fx * (3 - 2 * fx);
-  const sy = fy * fy * (3 - 2 * fy);
-
-  // Hash four grid corners
-  const n00 = hash2D(ix, iy, seed);
-  const n10 = hash2D(ix + 1, iy, seed);
-  const n01 = hash2D(ix, iy + 1, seed);
-  const n11 = hash2D(ix + 1, iy + 1, seed);
-
-  // Bilinear interpolation
-  const nx0 = n00 + sx * (n10 - n00);
-  const nx1 = n01 + sx * (n11 - n01);
-  return nx0 + sy * (nx1 - nx0);
+function easeOutBack(value: number): number {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  const t = value - 1;
+  return 1 + c3 * t * t * t + c1 * t * t;
 }
-
-// 3D hash for trilinear noise â€” avoids all UV seam issues
-function hash3D(ix: number, iy: number, iz: number, seed: number): number {
-  const n = Math.sin(ix * 127.1 + iy * 311.7 + iz * 74.7 + seed * 0.037) * 43758.5453123;
-  return n - Math.floor(n);
-}
-
-// Trilinear interpolated 3D value noise â€” seamless on sphere surface
-function noise3D(x: number, y: number, z: number, seed: number): number {
-  const ix = Math.floor(x);
-  const iy = Math.floor(y);
-  const iz = Math.floor(z);
-  const fx = x - ix;
-  const fy = y - iy;
-  const fz = z - iz;
-
-  const sx = fx * fx * (3 - 2 * fx);
-  const sy = fy * fy * (3 - 2 * fy);
-  const sz = fz * fz * (3 - 2 * fz);
-
-  const n000 = hash3D(ix, iy, iz, seed);
-  const n100 = hash3D(ix + 1, iy, iz, seed);
-  const n010 = hash3D(ix, iy + 1, iz, seed);
-  const n110 = hash3D(ix + 1, iy + 1, iz, seed);
-  const n001 = hash3D(ix, iy, iz + 1, seed);
-  const n101 = hash3D(ix + 1, iy, iz + 1, seed);
-  const n011 = hash3D(ix, iy + 1, iz + 1, seed);
-  const n111 = hash3D(ix + 1, iy + 1, iz + 1, seed);
-
-  const nx00 = n000 + sx * (n100 - n000);
-  const nx10 = n010 + sx * (n110 - n010);
-  const nx01 = n001 + sx * (n101 - n001);
-  const nx11 = n011 + sx * (n111 - n011);
-
-  const nxy0 = nx00 + sy * (nx10 - nx00);
-  const nxy1 = nx01 + sy * (nx11 - nx01);
-
-  return nxy0 + sz * (nxy1 - nxy0);
-}
-
-// 3D FBM for seamless spherical sampling
-function fbm3D(x: number, y: number, z: number, seed: number, octaves: number): number {
-  let amplitude = 0.5;
-  let frequency = 1;
-  let value = 0;
-  let max = 0;
-
-  for (let octave = 0; octave < octaves; octave += 1) {
-    value += noise3D(x * frequency, y * frequency, z * frequency, seed + octave * 31) * amplitude;
-    max += amplitude;
-    amplitude *= 0.5;
-    frequency *= 2;
-  }
-
-  return max > 0 ? value / max : 0;
-}
-
-function clamp255(value: number): number {
-  return Math.max(0, Math.min(255, Math.round(value)));
-}
-
-function clamp01(value: number): number {
-  return Math.max(0, Math.min(1, value));
-}
-
-function smoothstep(min: number, max: number, value: number): number {
-  if (value <= min) return 0;
-  if (value >= max) return 1;
-  const t = (value - min) / (max - min);
-  return t * t * (3 - 2 * t);
-}
-
-function getPlanetObliquity(domainId: string): [number, number, number] {
-  const seed = hashString(`${domainId}:obliquity`);
-  const tiltX = (((seed % 28) + 5) * Math.PI) / 180;
-  const tiltZ = ((((seed >> 5) % 18) - 9) * Math.PI) / 180;
-  return [tiltX, 0, tiltZ];
-}
-
-type OrbitConfig = {
-  seed: number;
-  inclination: number;
-  eccentricity: number;
-  phase: number;
-};
-
-function getOrbitPosition(
-  angle: number,
-  orbitRadius: number,
-  orbitConfig: OrbitConfig
-): [number, number, number] {
-  const x = Math.cos(angle) * orbitRadius;
-  const z = Math.sin(angle) * orbitRadius * orbitConfig.eccentricity;
-  const y =
-    Math.sin(angle + orbitConfig.phase) *
-    orbitRadius *
-    Math.sin(orbitConfig.inclination) *
-    0.22;
-  return [x, y, z];
-}
-
-function hashString(value: string): number {
-  let hash = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(index);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
-function latLonToPlanetPosition(lat: number, lon: number, radius: number): THREE.Vector3 {
-  const latRad = (lat * Math.PI) / 180;
-  const lonRad = (lon * Math.PI) / 180;
-  const x = radius * Math.cos(latRad) * Math.cos(lonRad);
-  const y = radius * Math.sin(latRad);
-  const z = radius * Math.cos(latRad) * Math.sin(lonRad);
-  return new THREE.Vector3(x, y, z);
-}
-
-// â”€â”€â”€ (Satellite textures loaded via useLoader in component) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

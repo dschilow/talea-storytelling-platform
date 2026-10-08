@@ -90,6 +90,7 @@ class AlibiSpeechModule(private val context: ReactApplicationContext) : ReactCon
 
   @ReactMethod
   fun privacy(on: Boolean, promise: Promise) {
+    Log.i("AlibiAudio", "privacy on=$on")
     handler.post {
       if (!on) {
         if (playbackPrivate) stopInternal()
@@ -101,6 +102,7 @@ class AlibiSpeechModule(private val context: ReactApplicationContext) : ReactCon
 
   @ReactMethod
   fun play(clip: String, volume: Double, priv: Boolean, promise: Promise) {
+    Log.i("AlibiAudio", "play $clip priv=$priv volume=$volume")
     handler.post {
       stopInternal()
       if (clip.length > 180 || !Regex("[\\p{L}\\p{N}_-]+(?:\\.[\\p{L}\\p{N}_-]+)+").matches(clip)) {
@@ -124,10 +126,13 @@ class AlibiSpeechModule(private val context: ReactApplicationContext) : ReactCon
       val mp = MediaPlayer()
       player = mp
       mp.setAudioAttributes(routing.attributes(priv))
+      source(mp)
+      // Only after setDataSource: before it the native player does not exist yet
+      // and setPreferredDevice() returns false (NO_INIT) on every real device.
       if (priv && Build.VERSION.SDK_INT >= 28 && !mp.setPreferredDevice(routing.receiver)) {
+        Log.w("AlibiAudio", "setPreferredDevice(earpiece) rejected")
         finishMedia(mp, "Hörmuschel nicht verfügbar.", "PRIVATE_ROUTE"); return
       }
-      source(mp)
       mp.setOnCompletionListener { finishMedia(mp) }
       mp.setOnErrorListener { _, _, _ -> finishMedia(mp, "Aufnahme konnte nicht abgespielt werden."); true }
       val gain = volume.toFloat().coerceIn(0f, 1f)
@@ -144,6 +149,7 @@ class AlibiSpeechModule(private val context: ReactApplicationContext) : ReactCon
             if (devices.isNotEmpty() && devices.all { it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE }) {
               // Rewind the muted route probe so the first words are preserved.
               mp.pause()
+              Log.i("AlibiAudio", "earpiece confirmed after $attempt checks, gain=$gain")
               mp.setOnSeekCompleteListener { if (player === mp && token == counter) { mp.setVolume(gain, gain); mp.start() } }
               mp.seekTo(0)
             // The probe is muted, so waiting is safe. Right after start() the
@@ -175,6 +181,7 @@ class AlibiSpeechModule(private val context: ReactApplicationContext) : ReactCon
   }
 
   private fun finishMedia(mp: MediaPlayer, error: String? = null, code: String = "AUDIO_PLAYBACK") {
+    Log.i("AlibiAudio", "finish error=$error current=${player === mp}")
     if (player !== mp) return
     player = null
     mp.release()

@@ -14,6 +14,8 @@ interface TouchableProps extends Omit<PressableProps, 'style' | 'children'> {
   pressScale?: number;
   /** Opacity applied while pressed. */
   pressOpacity?: number;
+  /** Opacity while disabled. Filled controls that restyle themselves pass 1. */
+  disabledOpacity?: number;
   /** Haptic fired on press-in. Pass null to stay silent. */
   hapticIntent?: HapticIntent | null;
 }
@@ -29,8 +31,9 @@ interface TouchableProps extends Omit<PressableProps, 'style' | 'children'> {
 export function Touchable({
   children,
   style,
-  pressScale = 0.97,
-  pressOpacity = 0.9,
+  pressScale = 0.965,
+  pressOpacity = 0.92,
+  disabledOpacity = 0.45,
   hapticIntent = 'selection',
   onPressIn,
   onPressOut,
@@ -57,7 +60,7 @@ export function Touchable({
         pressed.value = 0;
         onPressOut?.(event);
       }}
-      style={[style, animatedStyle, disabled && { opacity: 0.45 }]}
+      style={[style, animatedStyle, disabled && disabledOpacity < 1 ? { opacity: disabledOpacity } : null]}
     >
       {children}
     </AnimatedPressable>

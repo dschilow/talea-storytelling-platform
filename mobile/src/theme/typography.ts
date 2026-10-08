@@ -1,23 +1,30 @@
 import { Platform, type TextStyle } from 'react-native';
 
 /**
- * Typography scale.
+ * Typography.
  *
- * The web uses Fraunces (display serif) + Manrope (body sans) loaded from Google
- * Fonts. We bundle the same two families through @expo-google-fonts so the app
- * reads identically offline. `fontsReady` is false until they load; every text
- * style then falls back to the platform stack, which keeps first paint instant
- * instead of blocking on font loading.
+ * Three families, each with one job:
+ *   - Fraunces  — the storybook voice: screen titles, story titles, big numbers.
+ *   - Nunito    — the interface: rounded, friendly and very legible for children.
+ *   - Literata  — sustained reading in the story and doku readers.
+ *
+ * All are bundled through @expo-google-fonts so the app reads identically
+ * offline. Until they load, every role resolves to the platform stack so the
+ * first frame is never blocked on font I/O.
  */
 
 export const FONT_FAMILY = {
-  display: 'Fraunces_600SemiBold',
-  displayBold: 'Fraunces_700Bold',
-  body: 'Manrope_500Medium',
-  bodyRegular: 'Manrope_400Regular',
-  bodySemibold: 'Manrope_600SemiBold',
-  bodyBold: 'Manrope_700Bold',
-  bodyExtraBold: 'Manrope_800ExtraBold',
+  display: 'Fraunces_700Bold',
+  displaySemibold: 'Fraunces_600SemiBold',
+  displayBlack: 'Fraunces_800ExtraBold',
+  displayItalic: 'Fraunces_600SemiBold_Italic',
+  body: 'Nunito_600SemiBold',
+  bodyRegular: 'Nunito_500Medium',
+  bodySemibold: 'Nunito_700Bold',
+  bodyBold: 'Nunito_800ExtraBold',
+  bodyExtraBold: 'Nunito_900Black',
+  reading: 'Literata_400Regular',
+  readingItalic: 'Literata_400Regular_Italic',
 } as const;
 
 export type FontRole = keyof typeof FONT_FAMILY;
@@ -31,29 +38,34 @@ const FALLBACK = Platform.select({
 
 let fontsReady = false;
 
+/**
+ * Must be called before the theme is built (ThemeProvider does it during
+ * render) — an effect would run after the first theme was already computed
+ * with fallback families, and nothing would re-resolve it.
+ */
 export function setFontsReady(ready: boolean) {
   fontsReady = ready;
 }
 
-/**
- * Resolves a font role to an actual family name, falling back to the platform
- * stack while the bundled fonts are still loading (or if loading failed).
- */
-export function fontFamily(role: FontRole): string {
-  if (fontsReady) return FONT_FAMILY[role];
-  return role.startsWith('display') ? FALLBACK.display : FALLBACK.body;
+export function areFontsReady(): boolean {
+  return fontsReady;
 }
 
-/**
- * Because `fontFamily()` is resolution-time, text styles are built as functions
- * rather than a frozen StyleSheet. Components read them through `useTypography()`
- * which re-evaluates once fonts finish loading.
- */
+/** Resolves a font role, falling back to the platform stack while loading. */
+export function fontFamily(role: FontRole): string {
+  if (fontsReady) return FONT_FAMILY[role];
+  return role.startsWith('display') || role.startsWith('reading') ? FALLBACK.display : FALLBACK.body;
+}
+
 export interface TypeScale {
+  /** Hero headlines (landing, celebrations). */
+  hero: TextStyle;
   displayXl: TextStyle;
   displayLg: TextStyle;
   displayMd: TextStyle;
   displaySm: TextStyle;
+  /** Serif italic accent for single emphasised words. */
+  displayItalic: TextStyle;
   headingLg: TextStyle;
   headingMd: TextStyle;
   headingSm: TextStyle;
@@ -65,6 +77,8 @@ export interface TypeScale {
   labelSm: TextStyle;
   caption: TextStyle;
   overline: TextStyle;
+  /** Big tabular numbers: levels, scores, counters. */
+  stat: TextStyle;
   /** Reader body copy — larger line height for sustained reading. */
   reading: TextStyle;
   readingLg: TextStyle;
@@ -74,40 +88,46 @@ export interface TypeScale {
 
 export function buildTypeScale(): TypeScale {
   const display = fontFamily('display');
-  const displayBold = fontFamily('displayBold');
+  const displaySemibold = fontFamily('displaySemibold');
+  const displayBlack = fontFamily('displayBlack');
+  const displayItalic = fontFamily('displayItalic');
   const body = fontFamily('bodyRegular');
   const bodyMedium = fontFamily('body');
   const bodySemibold = fontFamily('bodySemibold');
   const bodyBold = fontFamily('bodyBold');
+  const reading = fontFamily('reading');
 
   return {
-    displayXl: { fontFamily: displayBold, fontSize: 40, lineHeight: 46, letterSpacing: -0.6 },
-    displayLg: { fontFamily: displayBold, fontSize: 34, lineHeight: 40, letterSpacing: -0.5 },
-    displayMd: { fontFamily: display, fontSize: 28, lineHeight: 34, letterSpacing: -0.4 },
-    displaySm: { fontFamily: display, fontSize: 23, lineHeight: 29, letterSpacing: -0.2 },
+    hero: { fontFamily: displayBlack, fontSize: 40, lineHeight: 44, letterSpacing: -1.2 },
+    displayXl: { fontFamily: displayBlack, fontSize: 34, lineHeight: 39, letterSpacing: -1 },
+    displayLg: { fontFamily: display, fontSize: 30, lineHeight: 35, letterSpacing: -0.8 },
+    displayMd: { fontFamily: display, fontSize: 25, lineHeight: 30, letterSpacing: -0.55 },
+    displaySm: { fontFamily: display, fontSize: 21, lineHeight: 26, letterSpacing: -0.35 },
+    displayItalic: { fontFamily: displayItalic, fontSize: 21, lineHeight: 26, letterSpacing: -0.3 },
 
-    headingLg: { fontFamily: bodyBold, fontSize: 24, lineHeight: 30, letterSpacing: -0.3 },
-    headingMd: { fontFamily: bodyBold, fontSize: 20, lineHeight: 26, letterSpacing: -0.2 },
-    headingSm: { fontFamily: bodySemibold, fontSize: 17, lineHeight: 23, letterSpacing: -0.1 },
-    title: { fontFamily: bodySemibold, fontSize: 15.5, lineHeight: 21, letterSpacing: -0.1 },
+    headingLg: { fontFamily: bodyBold, fontSize: 21, lineHeight: 27, letterSpacing: -0.3 },
+    headingMd: { fontFamily: bodyBold, fontSize: 18.5, lineHeight: 24, letterSpacing: -0.2 },
+    headingSm: { fontFamily: bodyBold, fontSize: 16.5, lineHeight: 22, letterSpacing: -0.1 },
+    title: { fontFamily: bodyBold, fontSize: 15.5, lineHeight: 20.5, letterSpacing: -0.1 },
 
     bodyLg: { fontFamily: body, fontSize: 16.5, lineHeight: 25 },
     body: { fontFamily: body, fontSize: 15, lineHeight: 22.5 },
-    bodySm: { fontFamily: body, fontSize: 13.5, lineHeight: 20 },
+    bodySm: { fontFamily: body, fontSize: 13.5, lineHeight: 19.5 },
 
-    label: { fontFamily: bodySemibold, fontSize: 14, lineHeight: 19, letterSpacing: 0.1 },
-    labelSm: { fontFamily: bodySemibold, fontSize: 12.5, lineHeight: 17, letterSpacing: 0.1 },
-    caption: { fontFamily: bodyMedium, fontSize: 12, lineHeight: 16, letterSpacing: 0.1 },
+    label: { fontFamily: bodySemibold, fontSize: 14.5, lineHeight: 19 },
+    labelSm: { fontFamily: bodySemibold, fontSize: 13, lineHeight: 17 },
+    caption: { fontFamily: bodyMedium, fontSize: 12, lineHeight: 16 },
     overline: {
-      fontFamily: bodySemibold,
-      fontSize: 10.5,
+      fontFamily: bodyBold,
+      fontSize: 11,
       lineHeight: 14,
-      letterSpacing: 1.6,
+      letterSpacing: 1.5,
       textTransform: 'uppercase',
     },
+    stat: { fontFamily: displaySemibold, fontSize: 24, lineHeight: 28, letterSpacing: -0.4, fontVariant: ['tabular-nums'] },
 
-    reading: { fontFamily: body, fontSize: 17, lineHeight: 29 },
-    readingLg: { fontFamily: body, fontSize: 19, lineHeight: 32 },
+    reading: { fontFamily: reading, fontSize: 18, lineHeight: 30.5 },
+    readingLg: { fontFamily: reading, fontSize: 20, lineHeight: 33.5 },
 
     mono: {
       fontFamily: Platform.select({ android: 'monospace', ios: 'Menlo', default: 'monospace' }),

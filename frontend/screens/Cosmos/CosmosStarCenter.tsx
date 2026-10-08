@@ -6,12 +6,13 @@
 
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame, ThreeEvent, useLoader } from '@react-three/fiber';
-import { Sphere, Billboard } from '@react-three/drei';
+import { Sphere, Billboard, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import type { CameraMode } from './CosmosTypes';
 
 interface Props {
   avatarImageUrl?: string;
+  childName?: string;
   cameraMode: CameraMode;
   godRaysDuration?: number;
   onSelect?: () => void;
@@ -269,8 +270,10 @@ const CORONA_FRAGMENT = `
   }
 `;
 
+const STAR_RADIUS = 0.95;
+
 export const CosmosStarCenter: React.FC<Props> = ({
-  avatarImageUrl,
+  childName,
   cameraMode,
   godRaysDuration = 1.6,
   onSelect,
@@ -345,14 +348,14 @@ export const CosmosStarCenter: React.FC<Props> = ({
     }
     if (glowSpriteRef.current) {
       const glowPulse = 1 + Math.sin(t * 0.72) * 0.016;
-      glowSpriteRef.current.scale.setScalar(2.64 * glowPulse);
+      glowSpriteRef.current.scale.setScalar(STAR_RADIUS * 4.6 * glowPulse);
       const mat = glowSpriteRef.current.material as THREE.MeshBasicMaterial;
       mat.opacity = (0.18 + Math.sin(t * 0.72) * 0.02) * raysVisible;
     }
     if (coronaSpriteRef.current) {
       coronaSpriteRef.current.rotation.z += 0.0001;
       const coronaPulse = 1 + Math.sin(t * 0.43) * 0.011;
-      coronaSpriteRef.current.scale.setScalar(2.9 * coronaPulse);
+      coronaSpriteRef.current.scale.setScalar(STAR_RADIUS * 5.1 * coronaPulse);
       const mat = coronaSpriteRef.current.material as THREE.MeshBasicMaterial;
       mat.opacity = (0.16 + Math.sin(t * 0.63) * 0.014) * raysVisible;
     }
@@ -381,7 +384,7 @@ export const CosmosStarCenter: React.FC<Props> = ({
       {/* Main star body with animated surface shader */}
       <Sphere
         ref={meshRef}
-        args={[0.55, 72, 72]}
+        args={[STAR_RADIUS, 72, 72]}
         material={starMaterial}
         onClick={handleStarClick}
         onPointerOver={(event) => {
@@ -415,6 +418,28 @@ export const CosmosStarCenter: React.FC<Props> = ({
         distance={56}
         decay={1.2}
       />
+
+      <Html
+        position={[0, -(STAR_RADIUS + 0.75), 0]}
+        center
+        zIndexRange={[12, 0]}
+        style={{
+          pointerEvents: 'none',
+          userSelect: 'none',
+          opacity: cameraMode === 'system' ? 1 : 0,
+          transition: 'opacity 0.3s ease',
+        }}
+      >
+        <div className="flex flex-col items-center whitespace-nowrap" style={{ fontFamily: '"Nunito", sans-serif' }}>
+          <span
+            className="text-[12px] font-extrabold text-amber-100"
+            style={{ textShadow: '0 0 10px rgba(251,191,36,0.75), 0 1px 3px rgba(0,0,0,0.9)' }}
+          >
+            {childName ? `⭐ ${childName}` : '⭐ Dein Stern'}
+          </span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-amber-200/60">Wissensstern</span>
+        </div>
+      </Html>
 
       {/* Ambient fill */}
       <ambientLight intensity={0.045} color="#9bb3ff" />

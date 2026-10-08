@@ -45,7 +45,7 @@ export const ParentEvidenceHighlights: React.FC<Props> = ({
           domainLabel: domain?.label || entry.domainId,
           text: entry.summary,
           evidenceBasis: `${entry.eventType.toUpperCase()} · ${new Date(entry.timestamp).toLocaleDateString("de-DE")}`,
-          recommendation: "Naechster Schritt: kurze Wiederholung und Transferfrage im selben Themenfeld.",
+          recommendation: "Nächster Schritt: kurze Wiederholung und Transferfrage im selben Themenfeld.",
           stageColor: getStageColor(stage),
         });
       }
@@ -64,7 +64,7 @@ export const ParentEvidenceHighlights: React.FC<Props> = ({
       const stageColor = getStageColor(dp.stage);
 
       let text = `${name} hat erste Lernspuren in "${domain.label}" gesammelt.`;
-      let evidenceBasis = `${dp.topicsExplored} Thema${dp.topicsExplored !== 1 ? "n" : ""} mit Aktivitaet.`;
+      let evidenceBasis = `${dp.topicsExplored} Thema${dp.topicsExplored !== 1 ? "n" : ""} mit Aktivität.`;
       let recommendation = "Breite Themenvielfalt anbieten, um Interessen zu entdecken.";
 
       if (dp.stage === "retained") {
@@ -73,10 +73,10 @@ export const ParentEvidenceHighlights: React.FC<Props> = ({
         recommendation = "Vertiefte Themen und Transferaufgaben in neue Kontexte anbieten.";
       } else if (dp.stage === "apply") {
         text = `${name} kann Inhalte in "${domain.label}" bereits anwenden.`;
-        evidenceBasis = `Stufe "${stageLabel}" erreicht, Quiz-Serien zeigen belastbares Verstaendnis.`;
+        evidenceBasis = `Stufe "${stageLabel}" erreicht, Quiz-Serien zeigen belastbares Verständnis.`;
         recommendation = "Recall-Fenster nutzen, damit das Wissen langfristig sitzt.";
       } else if (dp.stage === "understood") {
-        text = `${name} versteht zentrale Zusammenhaenge in "${domain.label}".`;
+        text = `${name} versteht zentrale Zusammenhänge in "${domain.label}".`;
         evidenceBasis = `Stufe "${stageLabel}" erreicht, mehrere Quiz-Sessions mit guter Genauigkeit.`;
         recommendation = "Mit Vergleichs- und Anwendungsfragen weiter vertiefen.";
       }
@@ -98,7 +98,7 @@ export const ParentEvidenceHighlights: React.FC<Props> = ({
         icon: "🌱",
         domainLabel: "Startbereit",
         text: `${name}s Lernkosmos wartet auf die ersten Lernschritte.`,
-        evidenceBasis: "Noch keine Lernaktivitaeten aufgezeichnet.",
+        evidenceBasis: "Noch keine Lernaktivitäten aufgezeichnet.",
         recommendation: "Eine erste Doku oder Story starten.",
         stageColor: "#94a3b8",
       });

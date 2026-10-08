@@ -272,6 +272,15 @@ export function overallAvatarLevel(avatar: Avatar | null | undefined): number {
   return Math.max(1, Math.floor(total / 40) + 1);
 }
 
+/**
+ * Progress (0..1) towards the next level on the 40-points-per-level curve that
+ * `overallAvatarLevel` derives from. Drives the level rings.
+ */
+export function avatarLevelProgress(avatar: Avatar | null | undefined): number {
+  const total = readTraits(avatar).reduce((sum, trait) => sum + trait.value, 0);
+  return (total % 40) / 40;
+}
+
 /** Sum across all nine base traits — the "experience" number. */
 export function totalTraitPoints(avatar: Avatar | null | undefined): number {
   return readTraits(avatar).reduce((sum, trait) => sum + trait.value, 0);

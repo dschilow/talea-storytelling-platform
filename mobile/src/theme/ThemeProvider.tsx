@@ -12,6 +12,7 @@ import * as SystemUI from 'expo-system-ui';
 
 import { storage, StorageKeys } from '@/lib/storage';
 import {
+  brand,
   darkPalette,
   darkShadows,
   lightPalette,
@@ -20,22 +21,24 @@ import {
   shadows,
   spacing,
   zIndex,
+  type Shadow,
+  type ShadowKey,
   type ThemeMode,
   type ThemePalette,
-  type Shadow,
 } from './tokens';
-import { buildTypeScale, type TypeScale } from './typography';
+import { buildTypeScale, setFontsReady, type TypeScale } from './typography';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 
 export interface Theme {
   colors: ThemePalette;
+  brand: typeof brand;
   type: TypeScale;
   spacing: typeof spacing;
   radius: typeof radius;
   motion: typeof motion;
   zIndex: typeof zIndex;
-  shadows: Record<'none' | 'soft' | 'medium' | 'strong' | 'float', Shadow>;
+  shadows: Record<ShadowKey, Shadow>;
   isDark: boolean;
   mode: ThemeMode;
 }
@@ -43,9 +46,6 @@ export interface Theme {
 interface ThemeContextValue extends Theme {
   preference: ThemePreference;
   setPreference: (preference: ThemePreference) => void;
-  /** Bumped once bundled fonts resolve so the type scale re-evaluates. */
-  fontsLoaded: boolean;
-  setFontsLoaded: (loaded: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -53,6 +53,7 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 function buildTheme(mode: ThemeMode): Theme {
   return {
     colors: mode === 'dark' ? darkPalette : lightPalette,
+    brand,
     type: buildTypeScale(),
     spacing,
     radius,
@@ -64,10 +65,19 @@ function buildTheme(mode: ThemeMode): Theme {
   };
 }
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
+interface ThemeProviderProps {
+  children: ReactNode;
+  /** True once the bundled font families are registered. */
+  fontsReady: boolean;
+}
+
+export function ThemeProvider({ children, fontsReady }: ThemeProviderProps) {
   const systemScheme = useColorScheme();
   const [preference, setPreferenceState] = useState<ThemePreference>('system');
-  const [fontsLoaded, setFontsLoaded] = useState(false);
+
+  // Set synchronously, before the type scale below is built — the `Text`
+  // primitive's weight overrides read the same flag.
+  setFontsReady(fontsReady);
 
   // Restore the stored preference before first paint of any themed surface.
   useEffect(() => {
@@ -101,11 +111,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       ...buildTheme(mode),
       preference,
       setPreference,
-      fontsLoaded,
-      setFontsLoaded,
     }),
-    // `fontsLoaded` is a dependency because the type scale resolves font families eagerly.
-    [mode, preference, setPreference, fontsLoaded]
+    // `fontsReady` is a dependency because the type scale resolves families eagerly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mode, preference, setPreference, fontsReady]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

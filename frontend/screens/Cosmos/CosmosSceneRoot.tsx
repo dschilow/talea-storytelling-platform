@@ -2,24 +2,26 @@
  * CosmosSceneRoot.tsx - Main R3F scene for the "Mein Lernkosmos"
  *
  * Assembles: starfield + star + orbits + planets + camera + HUD.
- * Includes quality tiers for mobile-safe rendering and AAA mode.
+ * When planets grew since the last visit, the camera flies to each of them and
+ * plays the growth live (see CosmosSeenState / CosmosCelebration).
  */
 
 import React, { useState, useCallback, useMemo, Suspense, useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Bloom, EffectComposer } from '@react-three/postprocessing';
-import { Environment } from '@react-three/drei';
 import { AnimatePresence, motion } from 'framer-motion';
 import * as THREE from 'three';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { CosmosStarCenter } from './CosmosStarCenter';
-import { CosmosPlanetDomain } from './CosmosPlanetDomain';
+import { CosmosPlanetDomain, PLANET_GROWTH_DURATION, type PlanetGrowthOverride } from './CosmosPlanetDomain';
 import { CosmosOrbitRig } from './CosmosOrbitRig';
 import { CosmosCameraController } from './CosmosCameraController';
 import { CosmosStarfield } from './CosmosStarfield';
+import { CosmosShootingStars } from './CosmosShootingStars';
 import { CosmosDeepSpaceBackdrop } from './CosmosDeepSpaceBackdrop';
 import { CosmosHudOverlay } from './CosmosHudOverlay';
+import { CelebrationBurst, CelebrationCard, fireStarConfetti, playGrowthChime } from './CosmosCelebration';
 import {
   fetchDomainTopics,
   fetchTopicTimeline,
@@ -34,10 +36,16 @@ import {
 } from './CosmosAssetsRegistry';
 import type { CameraMode, CosmosState, DomainProgress, TopicIsland } from './CosmosTypes';
 import type { CosmosQualityPreference } from './CosmosQuality';
+import { getQualityConfig } from './CosmosQuality';
+import { computePlanetEvolution, featuresFromEvo } from './CosmosEvolution';
+import { getOrbitLayoutScale } from './CosmosOrbit';
 import {
-  getQualityConfig,
-  getTextureSizeForPlanet,
-} from './CosmosQuality';
+  buildSeenKey,
+  diffGrowth,
+  loadSeenSnapshot,
+  saveSeenSnapshot,
+  type GrowthEvent,
+} from './CosmosSeenState';
 import { useTopicSuggestions } from './useTopicSuggestions';
 import { triggerHaptic } from '../../utils/haptics';
 
@@ -53,7 +61,11 @@ interface Props {
   onFocusAvailabilityChange?: (hasFocusedDomain: boolean) => void;
   showInternalModeTabs?: boolean;
   onSceneReady?: () => void;
+  /** Planet to fly to once the scene is ready (e.g. /cosmos?planet=nature). */
+  initialFocusDomainId?: string | null;
 }
+
+type GrowthPhase = 'idle' | 'flying' | 'growing' | 'card';
 
 const emptyProgress = (domainId: string): DomainProgress => ({
   domainId,
@@ -76,6 +88,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   onFocusAvailabilityChange,
   showInternalModeTabs = true,
   onSceneReady,
+  initialFocusDomainId = null,
 }) => {
   const navigate = useNavigate();
   const { getToken } = useAuth();
@@ -95,9 +108,29 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   const [forceStandardQuality, setForceStandardQuality] = useState(false);
   const [isChildInfoVisible, setIsChildInfoVisible] = useState(false);
   const [isSuggestionDrawerOpen, setIsSuggestionDrawerOpen] = useState(false);
+  const [sceneReady, setSceneReady] = useState(false);
+  const [showIntro, setShowIntro] = useState(false);
+  const [growthQueue, setGrowthQueue] = useState<GrowthEvent[]>([]);
+  const [growthIndex, setGrowthIndex] = useState(0);
+  const [growthPhase, setGrowthPhase] = useState<GrowthPhase>('idle');
+  const [growthToken, setGrowthToken] = useState(0);
+  const [burst, setBurst] = useState<{ nonce: number; position: [number, number, number]; color: string; radius: number }>({
+    nonce: 0,
+    position: [0, 0, 0],
+    color: '#ffffff',
+    radius: 1,
+  });
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window === 'undefined' ? 1280 : window.innerWidth,
+    height: typeof window === 'undefined' ? 800 : window.innerHeight,
+  }));
   const domainPositionMapRef = useRef<Map<string, [number, number, number]>>(new Map());
+  const orbitAnglesRef = useRef<Map<string, number>>(new Map());
   const topicTimelineCacheRef = useRef<Map<string, TopicTimelineDTO>>(new Map());
   const lastAppliedModeOverrideRef = useRef<CameraMode | null>(null);
+  const growthCheckedKeyRef = useRef<string | null>(null);
+  const initialFocusDoneRef = useRef(false);
+  const flightRef = useRef<{ sawTransition: boolean; startedAt: number }>({ sawTransition: false, startedAt: 0 });
   const [effectsEnabled] = useState(() => {
     if (typeof window === 'undefined') return true;
     return !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -107,6 +140,15 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     () => getQualityConfig(forceStandardQuality || compact ? 'standard' : qualityPreference),
     [compact, forceStandardQuality, qualityPreference]
   );
+  const planetDetail = quality.tier === 'aaa' ? 1 : 0;
+  const seenKey = buildSeenKey(activeChildId, activeAvatarId);
+  const isCelebrating = growthPhase !== 'idle';
+
+  useEffect(() => {
+    const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const triggerSceneFade = useCallback(() => {
     setTransitionFadeKey((value) => value + 1);
@@ -129,13 +171,37 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     () => resolveCosmosDomains(cosmosState.domains.map((entry) => entry.domainId)),
     [cosmosState.domains]
   );
-  const visibleDomains = sceneDomains;
+  const orbitScale = getOrbitLayoutScale(viewport.width, viewport.height);
+  const systemRadius = useMemo(
+    () => Math.max(...sceneDomains.map((domain) => domain.orbitRadius)) * orbitScale,
+    [orbitScale, sceneDomains]
+  );
 
   const focusedDomain = focusedDomainId
     ? getDomainById(focusedDomainId, sceneDomains) ?? null
     : null;
   const focusedProgress = focusedDomainId ? getProgress(focusedDomainId) : null;
+  const focusedEvolution = useMemo(
+    () => (focusedDomain && focusedProgress ? computePlanetEvolution(focusedProgress, focusedDomain.planetType) : null),
+    [focusedDomain, focusedProgress]
+  );
   const canCycleDomains = sceneDomains.length > 1;
+  const currentGrowth = isCelebrating ? growthQueue[growthIndex] ?? null : null;
+
+  const growthOverrides = useMemo(() => {
+    const overrides = new Map<string, PlanetGrowthOverride>();
+    if (!isCelebrating) return overrides;
+    growthQueue.forEach((event, index) => {
+      if (index < growthIndex) return;
+      overrides.set(event.domainId, {
+        fromEvo: event.fromEvo,
+        toEvo: event.toEvo,
+        fromTopics: event.fromTopics,
+        startToken: index === growthIndex && growthPhase !== 'flying' ? growthToken : 0,
+      });
+    });
+    return overrides;
+  }, [growthIndex, growthPhase, growthQueue, growthToken, isCelebrating]);
 
   const {
     suggestions,
@@ -151,8 +217,28 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     childId: activeChildId || undefined,
     profileId: activeChildId || undefined,
     avatarId: activeAvatarId || undefined,
-    enabled: !compact && Boolean(focusedDomainId) && cameraMode !== 'system',
+    enabled: !compact && !isCelebrating && Boolean(focusedDomainId) && cameraMode !== 'system',
   });
+
+  const focusDomain = useCallback(
+    (domainId: string, position?: [number, number, number]) => {
+      const domain = getDomainById(domainId, sceneDomains);
+      if (!domain) return;
+      const livePosition = position ?? domainPositionMapRef.current.get(domainId);
+      setIsChildInfoVisible(false);
+      setIsSuggestionDrawerOpen(false);
+      setFocusedDomainId(domainId);
+      setFocusedPosition(
+        livePosition ?? [
+          Math.cos(domain.startAngle) * domain.orbitRadius * orbitScale,
+          0,
+          Math.sin(domain.startAngle) * domain.orbitRadius * orbitScale,
+        ]
+      );
+      setCameraMode((current) => (current === 'detail' ? 'detail' : 'focus'));
+    },
+    [orbitScale, sceneDomains]
+  );
 
   const handleSelectPlanet = useCallback(
     (domainId: string, position: [number, number, number]) => {
@@ -160,16 +246,20 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         navigate('/cosmos');
         return;
       }
+      if (isCelebrating) return;
+      if (domainId !== focusedDomainId) {
+        setActiveIslands([]);
+        setOtherTopics([]);
+        setSelectedTopic(null);
+        setSelectedTopicTimeline(null);
+      }
       triggerSceneFade();
       triggerHaptic('selection');
       playFocusSound();
-      setIsChildInfoVisible(false);
-      setIsSuggestionDrawerOpen(false);
-      setFocusedDomainId(domainId);
-      setFocusedPosition(position);
+      focusDomain(domainId, position);
       setCameraMode('focus');
     },
-    [compact, navigate]
+    [compact, focusDomain, focusedDomainId, isCelebrating, navigate, triggerSceneFade]
   );
 
   const handleResetFocus = useCallback(() => {
@@ -198,6 +288,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     if (!cameraModeOverride) return;
     if (lastAppliedModeOverrideRef.current === cameraModeOverride) return;
     lastAppliedModeOverrideRef.current = cameraModeOverride;
+    if (isCelebrating) return;
 
     if (cameraModeOverride === 'system') {
       handleResetFocus();
@@ -206,17 +297,18 @@ export const CosmosSceneRoot: React.FC<Props> = ({
 
     if (!focusedDomainId) return;
     setCameraMode(cameraModeOverride);
-  }, [cameraModeOverride, focusedDomainId, handleResetFocus]);
+  }, [cameraModeOverride, focusedDomainId, handleResetFocus, isCelebrating]);
 
   const handleSelectStar = useCallback(() => {
     if (compact) {
       navigate('/cosmos');
       return;
     }
+    if (isCelebrating) return;
     triggerHaptic('selection');
     setIsSuggestionDrawerOpen(false);
     setIsChildInfoVisible(true);
-  }, [compact, navigate]);
+  }, [compact, isCelebrating, navigate]);
 
   const handleOpenDetail = useCallback(() => {
     if (!focusedDomainId) return;
@@ -235,7 +327,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
 
   const handleCycleDomain = useCallback(
     (direction: 1 | -1) => {
-      if (sceneDomains.length < 2) return;
+      if (sceneDomains.length < 2 || isCelebrating) return;
 
       const currentIndex = Math.max(
         0,
@@ -249,26 +341,13 @@ export const CosmosSceneRoot: React.FC<Props> = ({
       triggerSceneFade();
       triggerHaptic('selection');
       playFocusSound();
-      setIsChildInfoVisible(false);
-      setIsSuggestionDrawerOpen(false);
-      setFocusedDomainId(nextDomain.id);
-      const livePosition = domainPositionMapRef.current.get(nextDomain.id);
-      if (livePosition) {
-        setFocusedPosition(livePosition);
-      } else {
-        setFocusedPosition([
-          Math.cos(nextDomain.startAngle) * nextDomain.orbitRadius,
-          0,
-          Math.sin(nextDomain.startAngle) * nextDomain.orbitRadius,
-        ]);
-      }
       setActiveIslands([]);
       setOtherTopics([]);
       setSelectedTopic(null);
       setSelectedTopicTimeline(null);
-      setCameraMode((current) => (current === 'system' ? 'focus' : current));
+      focusDomain(nextDomain.id);
     },
-    [focusedDomainId, sceneDomains, triggerSceneFade]
+    [focusDomain, focusedDomainId, isCelebrating, sceneDomains, triggerSceneFade]
   );
 
   const handleDomainPositionUpdate = useCallback(
@@ -353,6 +432,110 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     triggerHaptic('tap');
     setSelectedTopic(topic);
   }, []);
+
+  // ---------------------------------------------------------------- growth
+  const finishGrowth = useCallback(() => {
+    saveSeenSnapshot(seenKey, cosmosState);
+    setGrowthPhase('idle');
+    setGrowthQueue([]);
+    setGrowthIndex(0);
+  }, [cosmosState, seenKey]);
+
+  // Once per child: compare with the last visit and queue the growth moments.
+  useEffect(() => {
+    if (compact || !sceneReady || cosmosState.domains.length === 0) return;
+    if (growthCheckedKeyRef.current === seenKey) return;
+    growthCheckedKeyRef.current = seenKey;
+
+    const snapshot = loadSeenSnapshot(seenKey);
+    if (!snapshot) {
+      saveSeenSnapshot(seenKey, cosmosState);
+      setShowIntro(true);
+      return;
+    }
+    const events = diffGrowth(snapshot, cosmosState);
+    if (events.length === 0) {
+      saveSeenSnapshot(seenKey, cosmosState);
+      return;
+    }
+    setGrowthQueue(events);
+    setGrowthIndex(0);
+    setGrowthPhase('flying');
+  }, [compact, cosmosState, sceneReady, seenKey]);
+
+  // Fly to the planet of the current growth moment.
+  useEffect(() => {
+    if (growthPhase !== 'flying') return;
+    const event = growthQueue[growthIndex];
+    if (!event || !getDomainById(event.domainId, sceneDomains)) {
+      finishGrowth();
+      return;
+    }
+    flightRef.current = { sawTransition: false, startedAt: performance.now() };
+    setActiveIslands([]);
+    setOtherTopics([]);
+    setSelectedTopic(null);
+    setSelectedTopicTimeline(null);
+    triggerSceneFade();
+    focusDomain(event.domainId);
+    setCameraMode('focus');
+  }, [finishGrowth, focusDomain, growthIndex, growthPhase, growthQueue, sceneDomains, triggerSceneFade]);
+
+  const startGrowing = useCallback(() => {
+    const event = growthQueue[growthIndex];
+    const domain = event ? getDomainById(event.domainId, sceneDomains) : null;
+    if (!event || !domain) return;
+    const position = domainPositionMapRef.current.get(domain.id) ?? [0, 0, 0];
+    setGrowthToken((value) => value + 1);
+    setGrowthPhase('growing');
+    setBurst((current) => ({
+      nonce: current.nonce + 1,
+      position,
+      color: domain.color,
+      radius: featuresFromEvo(event.toEvo).radius,
+    }));
+    playGrowthChime();
+    triggerHaptic('success');
+    if (event.toStage > event.fromStage) fireStarConfetti(domain.color);
+  }, [growthIndex, growthQueue, sceneDomains]);
+
+  // Start growing once the camera has arrived (with a fallback if no flight happened).
+  useEffect(() => {
+    if (growthPhase !== 'flying') return;
+    if (isCameraTransitioning) {
+      flightRef.current.sawTransition = true;
+      return;
+    }
+    const elapsed = performance.now() - flightRef.current.startedAt;
+    const wait = flightRef.current.sawTransition ? Math.max(0, 700 - elapsed) : 1800;
+    const timer = window.setTimeout(startGrowing, wait);
+    return () => window.clearTimeout(timer);
+  }, [growthPhase, isCameraTransitioning, startGrowing]);
+
+  useEffect(() => {
+    if (growthPhase !== 'growing') return;
+    const timer = window.setTimeout(() => setGrowthPhase('card'), PLANET_GROWTH_DURATION * 650);
+    return () => window.clearTimeout(timer);
+  }, [growthPhase]);
+
+  const handleGrowthNext = useCallback(() => {
+    if (growthIndex < growthQueue.length - 1) {
+      setGrowthIndex((value) => value + 1);
+      setGrowthPhase('flying');
+      return;
+    }
+    finishGrowth();
+  }, [finishGrowth, growthIndex, growthQueue.length]);
+
+  // Deep link: /cosmos?planet=<domainId> flies there once nothing else is playing.
+  useEffect(() => {
+    if (compact || !sceneReady || initialFocusDoneRef.current || !initialFocusDomainId) return;
+    if (growthCheckedKeyRef.current !== seenKey || isCelebrating) return;
+    initialFocusDoneRef.current = true;
+    if (!getDomainById(initialFocusDomainId, sceneDomains)) return;
+    const timer = window.setTimeout(() => focusDomain(initialFocusDomainId), 450);
+    return () => window.clearTimeout(timer);
+  }, [compact, focusDomain, initialFocusDomainId, isCelebrating, sceneDomains, sceneReady, seenKey]);
 
   useEffect(() => {
     let active = true;
@@ -487,7 +670,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
+      if (event.key !== 'Escape' || isCelebrating) return;
       if (cameraMode === 'detail') {
         handleBackFromDetail();
         return;
@@ -498,11 +681,18 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [cameraMode, handleBackFromDetail, handleResetFocus]);
+  }, [cameraMode, handleBackFromDetail, handleResetFocus, isCelebrating]);
+
+  const handleSceneReady = useCallback(() => {
+    setSceneReady(true);
+    onSceneReady?.();
+  }, [onSceneReady]);
 
   if (!webglSupported) {
     return <CosmosFallbackList cosmosState={cosmosState} />;
   }
+
+  const currentGrowthDomain = currentGrowth ? getDomainById(currentGrowth.domainId, sceneDomains) ?? null : null;
 
   return (
     <div className="relative w-full" style={{ height }}>
@@ -511,7 +701,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           position: compact ? [8, 8, 17] : [16, 9, 30],
           fov: 46,
           near: 0.1,
-          far: 260,
+          far: 400,
         }}
         dpr={quality.dprRange}
         gl={{
@@ -520,7 +710,6 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           powerPreference: 'high-performance',
         }}
         onCreated={({ gl }) => {
-          (gl as any).useLegacyLights = false;
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = quality.toneMappingExposure;
@@ -538,13 +727,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         }}
         style={{ background: 'transparent' }}
         onPointerMissed={() => {
-          if (cameraMode !== 'system') {
-            handleResetFocus();
-            return;
-          }
-          if (isChildInfoVisible) setIsChildInfoVisible(false);
-        }}
-        onDoubleClick={() => {
+          if (isCelebrating) return;
           if (cameraMode !== 'system') {
             handleResetFocus();
             return;
@@ -553,17 +736,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         }}
       >
         <Suspense fallback={null}>
-          <fog attach="fog" args={['#060715', 44, 130]} />
-          <directionalLight position={[12, 7, 9]} intensity={0.2} color="#fff4dd" />
-          <directionalLight position={[-10, -4, -11]} intensity={0.07} color="#7ea9ff" />
-
-          {quality.useHdri && (
-            quality.hdriFile ? (
-              <Environment files={quality.hdriFile} background={false} />
-            ) : (
-              <Environment preset={quality.hdriPreset ?? 'night'} background={false} />
-            )
-          )}
+          <fog attach="fog" args={['#060715', 80, 260]} />
 
           <CosmosDeepSpaceBackdrop
             enabledNebulaBillboards={quality.enableNebulaBillboards}
@@ -572,14 +745,14 @@ export const CosmosSceneRoot: React.FC<Props> = ({
 
           <CosmosStarfield
             count={compact ? Math.round(quality.baseStarCount * 0.55) : quality.baseStarCount}
-            radius={70}
+            radius={90}
             driftSpeed={0.00045}
             sizeRange={[0.7, 2.1]}
             twinkleStrength={1}
           />
           <CosmosStarfield
             count={compact ? Math.round(quality.midStarCount * 0.5) : quality.midStarCount}
-            radius={94}
+            radius={120}
             driftSpeed={0.00022}
             sizeRange={[0.45, 1.3]}
             twinkleStrength={0.72}
@@ -587,17 +760,19 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           />
           <CosmosStarfield
             count={compact ? Math.round(quality.farStarCount * 0.45) : quality.farStarCount}
-            radius={128}
+            radius={150}
             driftSpeed={0.0001}
             sizeRange={[0.35, 0.95]}
             twinkleStrength={0.4}
             opacity={0.45}
           />
+          {!compact && effectsEnabled && <CosmosShootingStars />}
 
-          {onSceneReady && <SceneReadyProbe onReady={onSceneReady} />}
+          <SceneReadyProbe onReady={handleSceneReady} />
 
           <CosmosStarCenter
             avatarImageUrl={cosmosState.avatarImageUrl}
+            childName={cosmosState.childName}
             cameraMode={cameraMode}
             godRaysDuration={quality.godRaysIntroDuration}
             onSelect={handleSelectStar}
@@ -607,9 +782,11 @@ export const CosmosSceneRoot: React.FC<Props> = ({
             domains={sceneDomains}
             cameraMode={cameraMode}
             focusedDomainId={focusedDomainId}
+            orbitScale={orbitScale}
+            orbitAngles={orbitAnglesRef}
           />
 
-          {visibleDomains.map((domain) => (
+          {sceneDomains.map((domain) => (
             <CosmosPlanetDomain
               key={domain.id}
               domain={domain}
@@ -619,8 +796,11 @@ export const CosmosSceneRoot: React.FC<Props> = ({
               cameraMode={cameraMode}
               islands={cameraMode !== 'system' && focusedDomainId === domain.id ? activeIslands : []}
               selectedTopicId={selectedTopic?.topicId}
-              textureSize={getTextureSizeForPlanet(quality, cameraMode, focusedDomainId === domain.id)}
+              detail={planetDetail}
+              orbitScale={orbitScale}
               feedbackPulseNonce={pulseDomainId === domain.id ? pulseNonce : 0}
+              growth={growthOverrides.get(domain.id) ?? null}
+              orbitAngles={orbitAnglesRef}
               onSelect={handleSelectPlanet}
               onPositionUpdate={handleDomainPositionUpdate}
               onSelectIsland={handleSelectIsland}
@@ -628,10 +808,20 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           ))}
 
           {!compact && (
+            <CelebrationBurst
+              position={burst.position}
+              color={burst.color}
+              radius={burst.radius}
+              nonce={burst.nonce}
+            />
+          )}
+
+          {!compact && (
           <CosmosCameraController
             mode={cameraMode}
             focusedDomain={focusedDomain}
             focusedPosition={focusedPosition}
+            systemRadius={systemRadius}
             onTransitionStateChange={setIsCameraTransitioning}
           />
           )}
@@ -670,13 +860,14 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         <CosmosHudOverlay
           domain={focusedDomain}
           progress={focusedProgress}
+          evolution={focusedEvolution}
           activeIslands={activeIslands}
           otherTopics={otherTopics}
           selectedTopic={selectedTopic}
           selectedTopicTimeline={selectedTopicTimeline}
           isLoadingTopics={isLoadingTopics}
           isLoadingTopicTimeline={isLoadingTopicTimeline}
-          isVisible={cameraMode === 'focus' || cameraMode === 'detail'}
+          isVisible={!isCelebrating && (cameraMode === 'focus' || cameraMode === 'detail')}
           isTransitioning={isCameraTransitioning}
           isDetailMode={cameraMode === 'detail'}
           onClose={handleResetFocus}
@@ -692,11 +883,72 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         />
       )}
 
+      {!compact && (
+        <CelebrationCard
+          domain={currentGrowthDomain}
+          event={currentGrowth}
+          visible={growthPhase === 'card'}
+          index={growthIndex}
+          total={growthQueue.length}
+          onNext={handleGrowthNext}
+        />
+      )}
+
+      {!compact && isCelebrating && growthPhase !== 'card' && (
+        <button
+          type="button"
+          onClick={finishGrowth}
+          className="absolute right-3 z-40 rounded-xl border border-white/15 bg-black/35 px-3 py-1.5 text-[11px] font-bold text-white/70 backdrop-blur hover:text-white"
+          style={{ bottom: 'max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))' }}
+        >
+          Überspringen
+        </button>
+      )}
+
+      {!compact && (
+        <AnimatePresence>
+          {showIntro && !isCelebrating && (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              transition={{ type: 'spring', stiffness: 240, damping: 26, delay: 0.6 }}
+              className="absolute left-1/2 z-40 w-[min(92vw,26rem)] -translate-x-1/2"
+              style={{ bottom: 'max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 1rem))' }}
+            >
+              <div
+                className="rounded-3xl border border-white/12 p-5 text-center backdrop-blur-xl"
+                style={{
+                  background: 'linear-gradient(160deg, rgba(14,16,40,0.94) 0%, rgba(24,18,52,0.96) 100%)',
+                  boxShadow: '0 24px 70px rgba(0,0,0,0.55), 0 0 60px rgba(168,85,247,0.18)',
+                }}
+              >
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-purple-200/70">
+                  Willkommen
+                </p>
+                <h3 className="mt-1 text-xl font-extrabold text-white">Dein Lernkosmos</h3>
+                <p className="mt-2 text-sm font-semibold leading-relaxed text-white/75">
+                  Jede Welt wächst, wenn du lernst: aus Sternenstaub werden Planeten mit Ozeanen,
+                  Wolken und Leben. Jedes Thema kreist als Mond um seinen Planeten.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowIntro(false)}
+                  className="mt-4 w-full rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 px-4 py-3 text-sm font-extrabold text-white shadow-lg shadow-purple-500/30 active:scale-[0.98]"
+                >
+                  Los geht's!
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
+
       {!compact && focusedDomain && (
         <SuggestionDrawer
           open={isSuggestionDrawerOpen}
           title={`Weiterlernen in ${focusedDomain.label}`}
-          subtitle="Waehle ein Thema oder lass die KI ein neues finden."
+          subtitle="Wähle ein Thema oder lass dir ein neues vorschlagen."
           items={suggestions?.items || []}
           isLoading={isLoadingSuggestions}
           isRefreshing={isRefreshingSuggestions}
@@ -725,28 +977,38 @@ export const CosmosSceneRoot: React.FC<Props> = ({
             }}
           >
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/55">
-                  Zentralstern
-                </p>
-                <h3 className="mt-0.5 text-lg font-extrabold text-white">
-                  {cosmosState.childName || 'Dein Kind'}
-                </h3>
-                <p className="mt-1 text-xs text-white/65">
-                  Dieser Stern repraesentiert den aktuellen Lernfortschritt des Kindes.
-                </p>
+              <div className="flex items-center gap-3">
+                {cosmosState.avatarImageUrl && (
+                  <img
+                    src={cosmosState.avatarImageUrl}
+                    alt=""
+                    className="h-12 w-12 rounded-2xl border border-amber-200/40 object-cover"
+                    style={{ boxShadow: '0 0 18px rgba(251,191,36,0.35)' }}
+                  />
+                )}
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-200/70">
+                    Dein Wissensstern
+                  </p>
+                  <h3 className="mt-0.5 text-lg font-extrabold text-white">
+                    {cosmosState.childName || 'Du'}
+                  </h3>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsChildInfoVisible(false)}
                 className="rounded-lg border border-white/20 px-2.5 py-1 text-[11px] font-bold text-white/70 hover:text-white hover:bg-white/10 transition-colors"
               >
-                Schliessen
+                Schließen
               </button>
             </div>
+            <p className="mt-2 text-xs text-white/65">
+              Alle Welten kreisen um deinen Stern. Je mehr du lernst, desto größer werden sie.
+            </p>
 
             <div className="mt-4 grid grid-cols-3 gap-2">
-              <InfoPill label="Stories" value={cosmosState.totalStoriesRead} />
+              <InfoPill label="Geschichten" value={cosmosState.totalStoriesRead} />
               <InfoPill label="Dokus" value={cosmosState.totalDokusRead} />
               <InfoPill
                 label="Aktive Welten"
@@ -772,18 +1034,18 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         >
           <ZoomButton
             active={cameraMode === 'system'}
-            label="System"
+            label="Übersicht"
             onClick={handleResetFocus}
           />
           <ZoomButton
             active={cameraMode === 'focus'}
-            label="Fokus"
+            label="Planet"
             disabled={!focusedDomainId}
             onClick={() => focusedDomainId && setCameraMode('focus')}
           />
           <ZoomButton
             active={cameraMode === 'detail'}
-            label="Detail"
+            label="Monde"
             disabled={!focusedDomainId}
             onClick={() => focusedDomainId && setCameraMode('detail')}
           />
@@ -907,7 +1169,7 @@ const CosmosFallbackList: React.FC<{ cosmosState: CosmosState }> = ({
     <div className="grid grid-cols-2 gap-3 p-4">
       {resolveCosmosDomains(cosmosState.domains.map((entry) => entry.domainId)).map((domain) => {
         const progress = cosmosState.domains.find((d) => d.domainId === domain.id);
-        const mastery = progress?.mastery ?? 0;
+        const evolution = computePlanetEvolution(progress ?? emptyProgress(domain.id), domain.planetType);
 
         return (
           <button
@@ -925,11 +1187,14 @@ const CosmosFallbackList: React.FC<{ cosmosState: CosmosState }> = ({
           >
             <span className="text-3xl">{domain.icon}</span>
             <span className="text-sm font-bold text-white">{domain.label}</span>
+            <span className="text-[11px] font-semibold text-white/60">
+              {evolution.stage === 0 ? 'Unentdeckt' : `Stufe ${evolution.stage} · ${evolution.current.name}`}
+            </span>
             <div className="h-1.5 w-full rounded-full bg-white/10">
               <div
                 className="h-full rounded-full"
                 style={{
-                  width: `${mastery}%`,
+                  width: `${Math.round(evolution.progressToNext * 100)}%`,
                   background: domain.color,
                 }}
               />

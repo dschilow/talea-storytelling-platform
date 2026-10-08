@@ -53,7 +53,7 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet(
   { children, snapPoints, title, subtitle, scrollable = true, onClose, ...rest },
   ref
 ) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const modalRef = useRef<BottomSheetModal>(null);
 
@@ -71,9 +71,9 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet(
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={0.55} pressBehavior="close" />
+      <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} opacity={isDark ? 0.7 : 0.42} pressBehavior="close" />
     ),
-    []
+    [isDark]
   );
 
   const Container = scrollable ? BottomSheetScrollView : BottomSheetView;
@@ -86,22 +86,23 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet(
       backdropComponent={renderBackdrop}
       onDismiss={onClose}
       backgroundStyle={{
-        backgroundColor: colors.pageSolid,
-        borderTopLeftRadius: radius.xxl,
-        borderTopRightRadius: radius.xxl,
+        backgroundColor: isDark ? colors.surface.primary : colors.pageSolid,
+        borderTopLeftRadius: SHEET_RADIUS,
+        borderTopRightRadius: SHEET_RADIUS,
       }}
-      handleIndicatorStyle={{ backgroundColor: colors.border.strong, width: 40 }}
-      style={styles.sheet}
+      handleStyle={{ paddingTop: 12, paddingBottom: 6 }}
+      handleIndicatorStyle={{ backgroundColor: colors.border.strong, width: 44, height: 5, borderRadius: 3 }}
+      style={[styles.sheet, { borderTopLeftRadius: SHEET_RADIUS, borderTopRightRadius: SHEET_RADIUS }]}
       {...rest}
     >
       <Container
         style={styles.flex}
         contentContainerStyle={
-          scrollable ? { paddingHorizontal: spacing.base, paddingBottom: insets.bottom + spacing.xl } : undefined
+          scrollable ? { paddingHorizontal: spacing.lg, paddingBottom: insets.bottom + spacing.xl } : undefined
         }
       >
         {!scrollable ? (
-          <View style={{ paddingHorizontal: spacing.base, paddingBottom: insets.bottom + spacing.xl, flex: 1 }}>
+          <View style={{ paddingHorizontal: spacing.lg, paddingBottom: insets.bottom + spacing.xl, flex: 1 }}>
             {title ? <SheetHeader title={title} subtitle={subtitle} /> : null}
             {children}
           </View>
@@ -119,10 +120,10 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet(
 export function SheetHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   const { spacing } = useTheme();
   return (
-    <View style={{ paddingBottom: spacing.base, gap: 2 }}>
-      <Text variant="headingSm">{title}</Text>
+    <View style={{ paddingTop: spacing.xs, paddingBottom: spacing.lg, gap: 4 }}>
+      <Text variant="displaySm">{title}</Text>
       {subtitle ? (
-        <Text variant="bodySm" tone="secondary">
+        <Text variant="bodySm" tone="secondary" numberOfLines={2}>
           {subtitle}
         </Text>
       ) : null}
@@ -130,14 +131,12 @@ export function SheetHeader({ title, subtitle }: { title: string; subtitle?: str
   );
 }
 
+const SHEET_RADIUS = 32;
+
 const styles = StyleSheet.create({
   sheet: {
-    // Matches the elevation of the tab bar so the sheet reads as being above it.
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.16,
-    shadowRadius: 24,
-    elevation: 24,
+    // Lifts the sheet off the page it covers.
+    boxShadow: '0px -8px 32px rgba(20, 12, 48, 0.18)',
   },
   flex: { flex: 1 },
 });

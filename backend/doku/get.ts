@@ -1,6 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import type { Doku, DokuSection } from "./generate";
+import { toDokuContent } from "./doku-prompt";
 import { getAuthData } from "~encore/auth";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { assertCommunityDokuAccess } from "../helpers/billing";
@@ -129,7 +130,7 @@ export const getDoku = api<GetDokuParams, Doku>(
       title: row.title || parsed.title || row.topic,
       topic: row.topic,
       summary: summary ?? "",
-      content: { sections: resolvedSections },
+      content: toDokuContent(parsed, resolvedSections),
       coverImageUrl,
       profileState: profileState
         ? {

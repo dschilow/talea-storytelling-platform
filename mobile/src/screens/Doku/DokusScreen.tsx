@@ -4,7 +4,7 @@ import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { BookOpen, Download, FlaskConical, Headphones, Plus, Trash2 } from 'lucide-react-native';
+import { BookOpen, Download, FlaskConical, Headphones, Heart, Plus, Search, Trash2 } from 'lucide-react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { useDeleteDoku, useDokus, usePublicDokus } from '@/hooks/queries';
@@ -14,6 +14,7 @@ import { useToast } from '@/providers/ToastProvider';
 import { Screen, TAB_BAR_CLEARANCE } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Input } from '@/components/ui/Input';
 import { CoverImage } from '@/components/ui/CoverImage';
 import { Text } from '@/components/ui/Text';
@@ -126,8 +127,8 @@ export function DokusScreen() {
   return (
     <Screen scroll={false} padded={false} tabBarClearance playerClearance>
       <ScreenHeader
+        eyebrow="Wissen zum Staunen"
         title="Dokus"
-        subtitle="Wissen zum Entdecken"
         showBack={false}
         large
         actions={
@@ -142,12 +143,25 @@ export function DokusScreen() {
         }
       />
 
-      <View style={{ flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.base, paddingBottom: spacing.sm }}>
-        <Chip label="Meine Dokus" selected={tab === 'mine'} onPress={() => setTab('mine')} />
-        <Chip label="Entdecken" selected={tab === 'discover'} onPress={() => setTab('discover')} />
-        <Chip label="Favoriten" selected={onlyFavorites} onPress={() => setOnlyFavorites(!onlyFavorites)} />
+      <View style={{ paddingHorizontal: spacing.lg, gap: spacing.md, paddingBottom: spacing.sm }}>
+        <SegmentedControl<Tab>
+          segments={[
+            { id: 'mine', label: 'Meine Dokus' },
+            { id: 'discover', label: 'Entdecken' },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+        <Input value={search} onChangeText={setSearch} placeholder="Titel oder Thema suchen" icon={<Search size={17} color={colors.text.tertiary} />} />
+        <View style={{ flexDirection: 'row' }}>
+          <Chip
+            label="Nur Favoriten"
+            selected={onlyFavorites}
+            onPress={() => setOnlyFavorites(!onlyFavorites)}
+            icon={<Heart size={13} color={onlyFavorites ? colors.primaryForeground : colors.accent.rose} fill={onlyFavorites ? colors.primaryForeground : 'transparent'} />}
+          />
+        </View>
       </View>
-      <View style={{ paddingHorizontal: spacing.base, paddingBottom: spacing.sm }}><Input label="Dokus suchen" value={search} onChangeText={setSearch} placeholder="Titel oder Thema" /></View>
 
       <FlashList
         data={dokus}
@@ -167,7 +181,7 @@ export function DokusScreen() {
             >
               <Card padded={false}>
                 <View style={{ flexDirection: 'row', padding: spacing.sm, gap: spacing.md, alignItems: 'center' }}>
-                  <CoverImage uri={item.coverImageUrl} style={{ width: 84, height: 84 }} radius={radius.md} fallbackGradient="nature" />
+                  <CoverImage uri={item.coverImageUrl} style={{ width: 92, height: 92 }} radius={radius.lg} fallbackGradient="nature" />
                   <View style={{ flex: 1, gap: 4 }}>
                     <Text variant="title" numberOfLines={2}>
                       {item.title}

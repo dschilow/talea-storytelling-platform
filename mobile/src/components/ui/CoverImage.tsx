@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Image, type ImageContentFit } from 'expo-image';
-import { ImageOff } from 'lucide-react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import type { ThemePalette } from '@/theme/tokens';
+import { SparkleGlyph } from '@/components/fx/Sparkles';
 import { Skeleton } from './Skeleton';
 import { Gradient, OverlayGradient } from './Gradient';
 
@@ -21,14 +21,16 @@ interface CoverImageProps {
   /** Placeholder gradient shown when there is no image at all. */
   fallbackGradient?: keyof ThemePalette['gradient'];
   transitionMs?: number;
+  /**
+   * Stable disk-cache key. Signed URLs change on every request; keying the
+   * cache by the object path keeps a re-signed image a cache hit.
+   */
+  cacheKey?: string;
 }
 
 /**
  * Cover/hero imagery with the three states the content lists actually hit:
- * loading (shimmer), loaded, and missing (branded gradient + icon).
- *
- * expo-image handles disk + memory caching and the cross-fade, which matters a
- * lot here — story covers are large AI-generated PNGs and the lists scroll fast.
+ * loading (shimmer), loaded (cross-fade), and missing (branded wash + sparkle).
  */
 export function CoverImage({
   uri,
@@ -38,8 +40,9 @@ export function CoverImage({
   radius,
   children,
   accessibilityLabel,
-  fallbackGradient = 'secondary',
-  transitionMs = 260,
+  fallbackGradient = 'primary',
+  transitionMs = 320,
+  cacheKey,
 }: CoverImageProps) {
   const { colors, radius: radii } = useTheme();
   const [loading, setLoading] = useState(Boolean(uri));
@@ -54,13 +57,15 @@ export function CoverImage({
         <>
           <Gradient token={colors.gradient[fallbackGradient]} style={StyleSheet.absoluteFill} />
           <View style={styles.center}>
-            <ImageOff size={22} color={colors.text.tertiary} />
+            <View style={[styles.fallbackBadge, { backgroundColor: colors.surface.secondary }]}>
+              <SparkleGlyph size={20} color={colors.primary} />
+            </View>
           </View>
         </>
       ) : (
         <>
           <Image
-            source={{ uri }}
+            source={cacheKey ? { uri, cacheKey } : { uri }}
             style={StyleSheet.absoluteFill}
             contentFit={contentFit}
             transition={transitionMs}
@@ -77,8 +82,11 @@ export function CoverImage({
       )}
 
       {overlay !== 'none' ? (
-        <OverlayGradient colors={overlay === 'strong' ? colors.media.overlayStrong : colors.media.overlay} style={StyleSheet.absoluteFill}
-          pointerEvents="none" />
+        <OverlayGradient
+          colors={overlay === 'strong' ? colors.media.overlayStrong : colors.media.overlay}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
       ) : null}
 
       {children}
@@ -89,4 +97,5 @@ export function CoverImage({
 const styles = StyleSheet.create({
   container: { overflow: 'hidden' },
   center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  fallbackBadge: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
 });

@@ -5,17 +5,19 @@
  * Shows the full 3D solar system with HUD overlay.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { CosmosSceneRoot } from './CosmosSceneRoot';
 import { useCosmosState } from './useCosmosState';
 import type { CameraMode } from './CosmosTypes';
 
 const CosmosScreen: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { cosmosState, isLoading, activeAvatarId, activeChildId } = useCosmosState();
+  const initialPlanet = useMemo(() => new URLSearchParams(location.search).get('planet'), [location.search]);
   const [cameraMode, setCameraMode] = useState<CameraMode>('system');
   const [hasFocusedDomain, setHasFocusedDomain] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
@@ -44,23 +46,23 @@ const CosmosScreen: React.FC = () => {
             className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs md:text-sm font-bold text-white/70 hover:text-white hover:bg-white/10 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            Zurueck
+            Zurück
           </button>
 
           <div className="ml-auto flex items-center gap-1 rounded-xl border border-white/15 bg-black/35 px-1.5 py-1 backdrop-blur">
             <HeaderModeButton
-              label="System"
+              label="Übersicht"
               active={cameraMode === 'system'}
               onClick={() => setCameraMode('system')}
             />
             <HeaderModeButton
-              label="Fokus"
+              label="Planet"
               active={cameraMode === 'focus'}
               disabled={!hasFocusedDomain}
               onClick={() => setCameraMode('focus')}
             />
             <HeaderModeButton
-              label="Detail"
+              label="Monde"
               active={cameraMode === 'detail'}
               disabled={!hasFocusedDomain}
               onClick={() => setCameraMode('detail')}
@@ -91,6 +93,7 @@ const CosmosScreen: React.FC = () => {
             onFocusAvailabilityChange={setHasFocusedDomain}
             showInternalModeTabs={false}
             onSceneReady={() => setSceneReady(true)}
+            initialFocusDomainId={initialPlanet}
           />
         )}
 

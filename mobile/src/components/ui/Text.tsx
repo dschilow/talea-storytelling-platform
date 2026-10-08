@@ -1,12 +1,24 @@
 import React from 'react';
-import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
+import { Platform, Text as RNText, type TextProps as RNTextProps } from 'react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { fontFamily } from '@/theme/typography';
 import type { TypeScale } from '@/theme/typography';
 
 export type TextVariant = keyof TypeScale;
-export type TextTone = 'primary' | 'secondary' | 'tertiary' | 'muted' | 'inverse' | 'accent' | 'danger' | 'success' | 'warning';
+export type TextTone =
+  | 'primary'
+  | 'secondary'
+  | 'tertiary'
+  | 'muted'
+  | 'inverse'
+  | 'accent'
+  | 'danger'
+  | 'success'
+  | 'warning'
+  | 'gold'
+  /** White text placed over imagery or brand fills. */
+  | 'media';
 export type TextWeight = 'regular' | 'medium' | 'semibold' | 'bold' | 'extrabold';
 
 const WEIGHT_TO_ROLE = {
@@ -24,6 +36,9 @@ interface TextProps extends RNTextProps {
   weight?: TextWeight;
   center?: boolean;
 }
+
+/** Android pads text boxes with the font's full ascent/descent unless told not to. */
+const ANDROID_TRIM = Platform.OS === 'android' ? { includeFontPadding: false } : null;
 
 /**
  * Typed text primitive. Every string in the app renders through this, so the
@@ -43,12 +58,15 @@ export function Text({ variant = 'body', tone = 'primary', weight, center, style
     danger: theme.colors.danger,
     success: theme.colors.success,
     warning: theme.colors.warning,
+    gold: theme.colors.gold,
+    media: theme.colors.media.foreground,
   };
 
   return (
     <RNText
       {...rest}
       style={[
+        ANDROID_TRIM,
         theme.type[variant],
         { color: toneColor[tone] },
         weight ? { fontFamily: fontFamily(WEIGHT_TO_ROLE[weight]) } : null,

@@ -39,6 +39,8 @@ interface ScreenProps {
   header?: ReactNode;
   /** Pinned to the bottom, above the tab bar. */
   footer?: ReactNode;
+  /** Slow aurora drift behind the content — for hero screens only. */
+  ambient?: boolean;
 }
 
 /**
@@ -60,6 +62,7 @@ export function Screen({
   scrollViewProps,
   header,
   footer,
+  ambient = false,
 }: ScreenProps) {
   const { colors, spacing } = useTheme();
   const insets = useSafeAreaInsets();
@@ -102,7 +105,7 @@ export function Screen({
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.pageSolid }, style]}>
-      <PageBackground />
+      <PageBackground animated={ambient} />
       <View style={[styles.flex, topInset && { paddingTop: insets.top }]}>
         {header}
         {body}
