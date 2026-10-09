@@ -29,12 +29,12 @@ const FEELINGS: { id: Feeling; emoji: string; label: string; description: string
  * precedence so the preview and the result agree.
  */
 export function StepFeeling({ feelings, onToggle }: StepFeelingProps) {
-  const { colors, spacing, radius, shadows } = useTheme();
+  const { colors, spacing, radius } = useTheme();
 
   return (
     <View style={{ gap: spacing.base, paddingTop: spacing.sm }}>
       <View style={{ gap: 4 }}>
-        <Text variant="displaySm">Wie soll sich die Geschichte anfühlen?</Text>
+        <Text variant="displayLg">Wie soll sich die Geschichte anfühlen?</Text>
         <Text variant="bodySm" tone="secondary">
           Mehrfachauswahl möglich — die erste Wahl prägt den Ton am stärksten.
         </Text>
@@ -50,15 +50,14 @@ export function StepFeeling({ feelings, onToggle }: StepFeelingProps) {
               pressScale={0.98}
               style={[
                 styles.row,
-                selected ? shadows.soft : null,
                 {
                   borderRadius: radius.lg,
                   padding: spacing.sm + 2,
                   paddingRight: spacing.md,
                   gap: spacing.md,
                   backgroundColor: selected ? colors.primarySoft : colors.surface.primary,
-                  borderColor: selected ? colors.primary : colors.border.light,
-                  borderWidth: selected ? 2 : 1,
+                  borderColor: selected ? colors.primary : 'transparent',
+                  borderWidth: 2,
                 },
               ]}
               accessibilityRole="checkbox"

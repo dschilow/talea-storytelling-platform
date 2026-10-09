@@ -9,14 +9,7 @@ import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreenModule from 'expo-splash-screen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import {
-  useFonts,
-  Fraunces_600SemiBold,
-  Fraunces_600SemiBold_Italic,
-  Fraunces_700Bold,
-  Fraunces_800ExtraBold,
-} from '@expo-google-fonts/fraunces';
-import { Nunito_500Medium, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold, Nunito_900Black } from '@expo-google-fonts/nunito';
+import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { Literata_400Regular, Literata_400Regular_Italic } from '@expo-google-fonts/literata';
 
 import { CLERK_PUBLISHABLE_KEY } from '@/config';
@@ -27,6 +20,7 @@ import { ChildProfilesProvider } from '@/providers/ChildProfilesProvider';
 import { useOptionalChildProfiles } from '@/providers/ChildProfilesProvider';
 import { AudioPlayerProvider, useAudioPlayer } from '@/providers/AudioPlayerProvider';
 import { MiniPlayer } from '@/components/audio/MiniPlayer';
+import { Glass } from '@/components/ui/Glass';
 import { PlaylistSheet } from '@/components/audio/PlaylistSheet';
 import type { SheetRef } from '@/components/ui/Sheet';
 import type { RootStackParamList } from '@/navigation/types';
@@ -68,15 +62,10 @@ const createQueryClient = () => new QueryClient({
 export default function App() {
   const [authAttempt, setAuthAttempt] = useState(0);
   const [fontsLoaded, fontError] = useFonts({
-    Fraunces_600SemiBold,
-    Fraunces_600SemiBold_Italic,
-    Fraunces_700Bold,
-    Fraunces_800ExtraBold,
-    Nunito_500Medium,
-    Nunito_600SemiBold,
-    Nunito_700Bold,
-    Nunito_800ExtraBold,
-    Nunito_900Black,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
     Literata_400Regular,
     Literata_400Regular_Italic,
   });
@@ -146,18 +135,7 @@ export default function App() {
 /** Account changes dispose cached requests and remount all session-owned state. */
 function AccountQueryProvider({ children }: { children: ReactNode }) {
   const { userId } = useAuth();
-  const client = useMemo(() => {
-    const next = createQueryClient();
-    // Dev-only design preview: render the signed-in screens from fixtures.
-    // The inline condition lets Metro drop this branch from release bundles.
-    if (__DEV__ && process.env.EXPO_PUBLIC_DESIGN_PREVIEW === '1') {
-      next.setDefaultOptions({
-        queries: { ...next.getDefaultOptions().queries, staleTime: Infinity, gcTime: Infinity, retry: false, refetchOnMount: false },
-      });
-      require('./src/dev/previewFixtures').seedPreviewData(next);
-    }
-    return next;
-  }, [userId]);
+  const client = useMemo(createQueryClient, [userId]);
   useEffect(() => () => { client.clear(); }, [client]);
   return <QueryClientProvider key={userId ?? 'signed-out'} client={client}>{children}</QueryClientProvider>;
 }
@@ -259,7 +237,13 @@ function AppShell() {
       <NavigationContainer ref={navigationRef} onReady={updateRoute} onStateChange={updateRoute} theme={navigationTheme} linking={linking}>
         <RootNavigator />
       </NavigationContainer>
-      {showPlayer ? <View style={{ backgroundColor: colors.surface.panel, paddingBottom: insets.bottom }}><MiniPlayer onOpenQueue={() => playlistSheetRef.current?.expand()} /></View> : null}
+      {showPlayer ? (
+        <View style={{ position: 'absolute', left: 16, right: 16, bottom: insets.bottom + 8 }}>
+          <Glass blur borderRadius={26}>
+            <MiniPlayer onOpenQueue={() => playlistSheetRef.current?.expand()} />
+          </Glass>
+        </View>
+      ) : null}
       <PlaylistSheet ref={playlistSheetRef} />
     </View>
   );
@@ -293,9 +277,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 28,
     gap: 14,
-    backgroundColor: '#fbf5ef',
+    backgroundColor: '#F2F2F7',
   },
-  configErrorTitle: { fontSize: 21, fontWeight: '700', color: '#233248', textAlign: 'center' },
-  configErrorBody: { fontSize: 15, lineHeight: 23, color: '#5f7186', textAlign: 'center', maxWidth: 380 },
-  configErrorCode: { fontFamily: 'monospace', fontSize: 13, color: '#233248' },
+  configErrorTitle: { fontSize: 22, fontWeight: '700', color: '#000000', textAlign: 'center' },
+  configErrorBody: { fontSize: 15, lineHeight: 22, color: 'rgba(60, 60, 67, 0.62)', textAlign: 'center', maxWidth: 380 },
+  configErrorCode: { fontFamily: 'monospace', fontSize: 13, color: '#000000' },
 });

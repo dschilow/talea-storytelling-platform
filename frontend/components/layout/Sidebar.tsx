@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   BookMarked,
+  Bell,
   BookOpen,
   Bot,
   ChevronDown,
@@ -24,6 +25,7 @@ import taleaLogo from "@/img/talea_logo.png";
 import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
 import { WizardImage } from "@/components/avatar-form/WizardImage";
 import { useWizardAssets } from "@/hooks/useWizardAssets";
+import { useNotifications } from "@/contexts/NotificationsContext";
 
 interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
@@ -46,6 +48,7 @@ const PRIMARY_ITEMS: NavItem[] = [
   { icon: User, imageId: "avatars", labelKey: "navigation.avatars", path: "/avatar" },
   { icon: FlaskConical, imageId: "dokus", label: "Dokus", path: "/doku" },
   { icon: Gamepad2, imageSrc: "/game/nav/spiel.webp", label: "Spiel", path: "/spiel", aliases: ["/quiz"] },
+  { icon: Bell, label: "Mitteilungen", path: "/mitteilungen" },
   {
     icon: Bot,
     imageId: "tavi",
@@ -91,6 +94,7 @@ const Sidebar: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const unreadCount = useNotifications()?.summary?.unreadCount ?? 0;
 
   const [expanded, setExpanded] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
@@ -129,12 +133,12 @@ const Sidebar: React.FC = () => {
             ? "bg-[color-mix(in_srgb,var(--primary)_13%,transparent)] text-[var(--talea-text-primary)]"
             : "text-[var(--talea-text-secondary)] hover:bg-[var(--talea-surface-inset)] hover:text-[var(--talea-text-primary)]"
         )}
-        aria-label={labelOf(item)}
+        aria-label={item.path === '/mitteilungen' && unreadCount ? `Mitteilungen, ${unreadCount} ungelesen` : labelOf(item)}
         aria-current={active ? "page" : undefined}
       >
         <span
           className={cn(
-            "flex h-9 w-9 flex-shrink-0 items-center justify-center transition-[opacity,filter]",
+            "relative flex h-9 w-9 flex-shrink-0 items-center justify-center transition-[opacity,filter]",
             active ? "opacity-100" : "opacity-70 grayscale-[30%] group-hover:opacity-100 group-hover:grayscale-0"
           )}
         >
@@ -147,6 +151,9 @@ const Sidebar: React.FC = () => {
             />
           ) : (
             <Icon className={cn("h-[20px] w-[20px]", active && "text-[var(--primary)]")} />
+          )}
+          {item.path === '/mitteilungen' && unreadCount > 0 && !canExpand && (
+            <span aria-hidden="true" className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-[var(--primary)]" />
           )}
         </span>
 
@@ -161,6 +168,9 @@ const Sidebar: React.FC = () => {
         >
           {labelOf(item)}
         </motion.span>
+        {item.path === '/mitteilungen' && unreadCount > 0 && canExpand && (
+          <span aria-hidden="true" className="ml-auto rounded-full bg-[var(--primary)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--primary-foreground)]">{unreadCount > 99 ? '99+' : unreadCount}</span>
+        )}
       </button>
     );
   };

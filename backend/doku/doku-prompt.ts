@@ -453,7 +453,8 @@ function normalizeActivity(value: unknown): DokuActivityItem | null {
 function normalizeGuess(value: unknown): DokuGuess | undefined {
   if (!value || typeof value !== "object") return undefined;
   const source = value as Record<string, unknown>;
-  const question = flat(source.question, 300);
+  // The reader shows a "Rate mal!" sticker; the question must not repeat it.
+  const question = flat(source.question, 300).replace(/^rate mal(?: mit)?\s*[:!,–-]\s*/i, "");
   const options = (Array.isArray(source.options) ? source.options : [])
     .map((option) => flat(option, 120))
     .filter(Boolean)

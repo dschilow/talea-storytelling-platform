@@ -16,10 +16,8 @@ import { Sheet, type SheetRef } from '@/components/ui/Sheet';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet';
-import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { HeaderAction, ScreenHeader } from '@/components/ui/ScreenHeader';
 import { AvatarCard } from '@/components/cards/AvatarCard';
-import { FloatingAction } from '@/components/ui/FloatingAction';
-import { Gradient } from '@/components/ui/Gradient';
 import { TaleaArt } from '@/components/ui/TaleaArt';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
@@ -32,7 +30,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 type RoleFilter = 'all' | 'child' | 'companion' | 'shared';
 
 export function AvatarsScreen() {
-  const { colors, spacing, radius, shadows } = useTheme();
+  const { colors, spacing, radius } = useTheme();
   const navigation = useNavigation<Nav>();
   const { t } = useTranslation();
   const toast = useToast();
@@ -85,13 +83,23 @@ export function AvatarsScreen() {
 
   return (
     <Screen scroll={false} padded={false} tabBarClearance playerClearance>
-      <ScreenHeader eyebrow="Deine Helden" title={t('navigation.avatars', 'Avatare')} subtitle={summary} showBack={false} large />
+      <ScreenHeader
+        title={t('navigation.avatars', 'Avatare')}
+        subtitle={summary}
+        showBack={false}
+        large
+        actions={
+          <HeaderAction onPress={() => navigation.navigate('AvatarWizard')} accessibilityLabel="Neuer Avatar">
+            <Plus size={22} color={colors.text.primary} />
+          </HeaderAction>
+        }
+      />
 
       <FlashList
         data={filtered}
         keyExtractor={(avatar) => avatar.id}
         numColumns={2}
-        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: TAB_BAR_CLEARANCE + spacing.huge + spacing.xl }}
+        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: TAB_BAR_CLEARANCE + spacing.xl }}
         showsVerticalScrollIndicator={false}
         refreshing={avatarsQuery.isRefetching}
         onRefresh={() => void avatarsQuery.refetch()}
@@ -100,15 +108,14 @@ export function AvatarsScreen() {
             <Touchable
               onPress={() => navigation.navigate('AvatarExchange')}
               pressScale={0.98}
-              style={[styles.templates, shadows.soft, { borderRadius: radius.lg, borderColor: colors.border.light }]}
+              style={[styles.templates, { borderRadius: radius.lg, backgroundColor: colors.surface.primary }]}
               accessibilityRole="button"
               accessibilityLabel="Avatar aus Vorlagen übernehmen"
             >
-              <Gradient token={colors.gradient.primary} style={[StyleSheet.absoluteFill, { borderRadius: radius.lg }]} />
               <View style={styles.templateFaces}>
                 {(['fox', 'unicorn', 'robot'] as const).map((id, index) => (
                   <View key={id} style={[styles.templateFace, { marginLeft: index === 0 ? 0 : -16, zIndex: 3 - index, borderColor: colors.surface.primary }]}>
-                    <TaleaArt group="character" id={id} size={46} fallback={<Sparkles size={18} color={colors.primary} />} />
+                    <TaleaArt group="character" id={id} size={40} fallback={<Sparkles size={18} color={colors.primary} />} />
                   </View>
                 ))}
               </View>
@@ -118,7 +125,7 @@ export function AvatarsScreen() {
                   Fertige Helden übernehmen oder teilen
                 </Text>
               </View>
-              <ChevronRight size={18} color={colors.primary} />
+              <ChevronRight size={18} color={colors.text.muted} strokeWidth={2.4} />
             </Touchable>
 
             <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
@@ -129,7 +136,7 @@ export function AvatarsScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={{ flex: 1, padding: spacing.xs + 2 }}>
+          <View style={{ flex: 1, paddingHorizontal: spacing.sm, paddingBottom: spacing.lg }}>
             <AvatarCard
               avatar={item}
               onPress={() => navigation.navigate('AvatarDetail', { avatarId: item.id })}
@@ -158,12 +165,6 @@ export function AvatarsScreen() {
             />
           )
         }
-      />
-
-      <FloatingAction
-        label="Neuer Held"
-        icon={<Plus size={20} color={colors.primaryForeground} strokeWidth={2.6} />}
-        onPress={() => navigation.navigate('AvatarWizard')}
       />
 
       <Sheet ref={actionSheetRef} snapPoints={['52%']} title={selected?.name} scrollable={false}>
@@ -226,7 +227,7 @@ export function AvatarsScreen() {
 }
 
 const styles = StyleSheet.create({
-  templates: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderWidth: 1, overflow: 'hidden' },
+  templates: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 12, overflow: 'hidden' },
   templateFaces: { flexDirection: 'row' },
-  templateFace: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  templateFace: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
 });

@@ -7,7 +7,7 @@ const VERSION_KEY = 'talea.welcomeTour.version';
  * Bump when the tour gains a chapter worth re-showing to existing users.
  * Users who finished an older version get the tour offered once more.
  */
-export const WELCOME_TOUR_VERSION = 1;
+export const WELCOME_TOUR_VERSION = 2;
 
 function readCompletedVersion(): number | null {
   if (typeof window === 'undefined') return null;

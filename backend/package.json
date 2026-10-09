@@ -4,6 +4,7 @@
   "type": "module",
   "packageManager": "bun",
   "scripts": {
+    "test": "bun test",
     "build": "cd ../frontend && bun install && vite build --outDir=../backend/frontend/dist"
   },
   "dependencies": {

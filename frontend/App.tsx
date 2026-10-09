@@ -14,6 +14,7 @@ import { ThemeProvider, OfflineThemeProvider } from './contexts/ThemeContext';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
 import { UserAccessProvider, useOptionalUserAccess } from './contexts/UserAccessContext';
 import { ChildProfilesProvider } from './contexts/ChildProfilesContext';
+import { NotificationsProvider } from './contexts/NotificationsContext';
 import { OfflineStorageProvider } from './contexts/OfflineStorageContext';
 import { OfflineScopeProvider } from './contexts/OfflineScopeContext';
 import { OfflineClerkProvider } from './contexts/OfflineClerkProvider';
@@ -55,6 +56,7 @@ const CinematicDokuViewer = React.lazy(() => import('./screens/Doku/CinematicDok
 const GameHubScreen = React.lazy(() => import('./screens/Game/GameHubScreen'));
 const TaleaLearningPathMapView = React.lazy(() => import('./screens/Journey/TaleaLearningPathMapView'));
 const SettingsScreen = React.lazy(() => import('./screens/Settings/SettingsScreen'));
+const NotificationsScreen = React.lazy(() => import('./screens/Notifications/NotificationsScreen'));
 const ParentalOnboardingScreen = React.lazy(() => import('./screens/Settings/ParentalOnboardingScreen'));
 const CharacterPoolScreen = React.lazy(() => import('./screens/CharacterPool/CharacterPoolScreen'));
 const ArtifactPoolScreen = React.lazy(() => import('./screens/ArtifactPool/ArtifactPoolScreen'));
@@ -232,6 +234,7 @@ const RouterContent = () => {
                 <Route path="/doku-reader-old/:dokuId" element={<DokuReaderScreen />} />
                 <Route path="/auth" element={<Navigate to="/" replace />} />
                 <Route path="/settings" element={<SettingsScreen />} />
+                <Route path="/mitteilungen" element={<NotificationsScreen />} />
                 <Route path="/cosmos" element={<CosmosScreen />} />
                 <Route path="/cosmos/parent" element={<ParentDashboardRoot />} />
                 <Route path="/map" element={<TaleaLearningPathMapView />} />
@@ -738,7 +741,9 @@ export default function App() {
                   <AudioPlayerProvider>
                     <OfflineStorageProvider>
                       <AgentProvider>
-                        <AppContent />
+                        <NotificationsProvider>
+                          <AppContent />
+                        </NotificationsProvider>
                       </AgentProvider>
                     </OfflineStorageProvider>
                   </AudioPlayerProvider>

@@ -21,8 +21,6 @@ import { Sheet, type SheetRef } from '@/components/ui/Sheet';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { HeaderAction, ScreenHeader } from '@/components/ui/ScreenHeader';
-import { FloatingAction } from '@/components/ui/FloatingAction';
-import { genreMeta } from '@/lib/genres';
 import { StoryCard } from '@/components/cards/StoryCard';
 import { ConfirmSheet } from '@/components/ui/ConfirmSheet';
 import type { Story } from '@/types/story';
@@ -183,12 +181,12 @@ export function StoriesScreen() {
   return (
     <Screen scroll={false} padded={false} tabBarClearance playerClearance>
       <ScreenHeader
-        eyebrow="Deine Bibliothek"
         title={t('navigation.stories', 'Geschichten')}
         subtitle={librarySummary}
         showBack={false}
         large
         actions={
+          <>
           <HeaderAction
             onPress={() => {
               setShowSearch((value) => !value);
@@ -196,8 +194,12 @@ export function StoriesScreen() {
             }}
             accessibilityLabel={showSearch ? 'Suche schließen' : 'Suchen'}
           >
-            {showSearch ? <X size={19} color={colors.text.primary} /> : <Search size={19} color={colors.text.primary} />}
+            {showSearch ? <X size={20} color={colors.text.primary} /> : <Search size={20} color={colors.text.primary} />}
           </HeaderAction>
+          <HeaderAction onPress={() => navigation.navigate('StoryWizard')} accessibilityLabel="Neue Geschichte">
+            <Plus size={22} color={colors.text.primary} />
+          </HeaderAction>
+          </>
         }
       />
 
@@ -218,7 +220,7 @@ export function StoriesScreen() {
         data={filtered}
         keyExtractor={(story) => story.id}
         numColumns={2}
-        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: TAB_BAR_CLEARANCE + spacing.huge + spacing.xl }}
+        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: TAB_BAR_CLEARANCE + spacing.xl }}
         showsVerticalScrollIndicator={false}
         refreshing={storiesQuery.isRefetching}
         onRefresh={() => void storiesQuery.refetch()}
@@ -231,25 +233,16 @@ export function StoriesScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: spacing.sm, gap: spacing.sm, paddingTop: spacing.xs, paddingBottom: spacing.md }}
           >
-            {GENRE_FILTERS.map((filter) => {
-              const meta = genreMeta(filter.id);
-              return (
-                <Chip
-                  key={filter.id}
-                  label={filter.label}
-                  selected={genre === filter.id}
-                  onPress={() => setGenre(filter.id)}
-                  icon={meta && genre !== filter.id ? <View style={[styles.dot, { backgroundColor: meta.hue }]} /> : undefined}
-                />
-              );
-            })}
+            {GENRE_FILTERS.map((filter) => (
+              <Chip key={filter.id} label={filter.label} selected={genre === filter.id} onPress={() => setGenre(filter.id)} />
+            ))}
 
             <View style={[styles.divider, { backgroundColor: colors.border.soft }]} />
             <Chip
               label="Favoriten"
               selected={onlyFavorites}
               onPress={() => setOnlyFavorites(!onlyFavorites)}
-              icon={<Heart size={13} color={onlyFavorites ? colors.primaryForeground : colors.accent.rose} fill={onlyFavorites ? colors.primaryForeground : 'transparent'} />}
+              icon={<Heart size={13} color={onlyFavorites ? (colors.mode === 'dark' ? '#000000' : '#FFFFFF') : colors.text.primary} fill={onlyFavorites ? (colors.mode === 'dark' ? '#000000' : '#FFFFFF') : 'transparent'} />}
             />
             <Chip label="Ungelesen" selected={onlyUnread} onPress={() => setOnlyUnread(!onlyUnread)} />
             <Chip
@@ -260,7 +253,7 @@ export function StoriesScreen() {
           </ScrollView>
         }
         renderItem={({ item }) => (
-          <View style={{ flex: 1, padding: spacing.xs + 2 }}>
+          <View style={{ flex: 1, paddingHorizontal: spacing.sm, paddingBottom: spacing.lg }}>
             <StoryCard
               story={item}
               onPress={() => navigation.navigate('StoryReader', { storyId: item.id })}
@@ -296,12 +289,6 @@ export function StoriesScreen() {
             />
           )
         }
-      />
-
-      <FloatingAction
-        label="Neue Geschichte"
-        icon={<Plus size={20} color={colors.primaryForeground} strokeWidth={2.6} />}
-        onPress={() => navigation.navigate('StoryWizard')}
       />
 
       <Sheet ref={actionSheetRef} snapPoints={['65%']} title={selectedStory?.title}>
@@ -384,14 +371,13 @@ export function SheetAction({
           paddingVertical: spacing.md,
           paddingHorizontal: spacing.md,
           gap: spacing.md,
-          backgroundColor: destructive ? colors.dangerSoft : colors.surface.primary,
-          borderColor: destructive ? 'transparent' : colors.border.light,
+          backgroundColor: colors.surface.primary,
         },
       ]}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <View style={[styles.sheetIcon, { backgroundColor: destructive ? 'transparent' : colors.primarySoft }]}>{icon}</View>
+      <View style={styles.sheetIcon}>{icon}</View>
       <Text variant="label" tone={destructive ? 'danger' : 'primary'} style={{ flex: 1 }}>
         {label}
       </Text>
@@ -400,8 +386,8 @@ export function SheetAction({
 }
 
 const styles = StyleSheet.create({
-  sheetAction: { flexDirection: 'row', alignItems: 'center', borderWidth: 1 },
-  sheetIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  sheetAction: { flexDirection: 'row', alignItems: 'center', minHeight: 52 },
+  sheetIcon: { width: 28, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 8, height: 8, borderRadius: 4 },
   divider: { width: 1, height: 22, alignSelf: 'center', marginHorizontal: 2 },
 });

@@ -2,6 +2,8 @@
 
 Vollständiges Drehbuch und Produktionsplan. Stand: 8. Oktober 2026.
 
+Für die konkreten Eingaben im Bild- und Videogenerator siehe die [Schritt-für-Schritt-Anleitung mit kopierfertigen Prompts](talea-video-generierung-schritt-fuer-schritt.de.md). Sie erklärt auch Startbilder, Fortsetzungen und die vereinfachte Produktion mit echten App-Aufnahmen.
+
 Hauptfassung: 90 Sekunden, primär 9:16 für Instagram, 1080 × 1920, 24 Bilder pro Sekunde. Ein 30-Sekunden-Schnitt ist unten ausgearbeitet. Für eine 16:9-Websitefassung werden die Einstellungen separat umkomponiert. Die Aufnahmeplanung besteht aus 18 einzelnen Einstellungen à fünf Sekunden.
 
 **Die Filmidee**

@@ -12,6 +12,8 @@ import { motion } from 'framer-motion';
 import { Sparkles, ArrowRight, Telescope } from 'lucide-react';
 import type { CosmosState } from './CosmosTypes';
 import { resolveCosmosDomains } from './CosmosAssetsRegistry';
+import { computePlanetEvolution } from './CosmosEvolution';
+import { countUnseenGrowth } from './CosmosSeenState';
 
 interface Props {
   isDark: boolean;
@@ -53,8 +55,12 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
   const navigate = useNavigate();
 
   const activeDomains = useMemo(
-    () => cosmosState.domains.filter((d) => d.mastery > 0).length,
+    () => cosmosState.domains.filter((d) => computePlanetEvolution(d).stage > 0).length,
     [cosmosState.domains]
+  );
+  const grownWorlds = useMemo(
+    () => (cosmosState.seenKey ? countUnseenGrowth(cosmosState.seenKey, cosmosState) : 0),
+    [cosmosState]
   );
   const resolvedDomains = useMemo(
     () => resolveCosmosDomains(cosmosState.domains.map((entry) => entry.domainId)),
@@ -65,13 +71,13 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
   const planetDots = useMemo(() => {
     return resolvedDomains.slice(0, 10).map((domain, idx) => {
       const progress = cosmosState.domains.find(d => d.domainId === domain.id);
-      const mastery = progress?.mastery ?? 0;
+      const stage = progress ? computePlanetEvolution(progress, domain.planetType).stage : 0;
       const angle = (idx / Math.max(1, Math.min(10, resolvedDomains.length))) * Math.PI * 2;
       const radius = 25 + idx * 3;
       return {
         id: domain.id,
         color: domain.color,
-        size: 6 + (mastery / 100) * 10, // 6–16px
+        size: stage === 0 ? 4 : 7 + stage * 1.2, // stardust 4px, Sternenwelt ~17px
         x: 50 + Math.cos(angle) * radius,
         y: 50 + Math.sin(angle) * radius,
         delay: idx * 0.4,
@@ -139,6 +145,18 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
         ))}
       </div>
 
+      {grownWorlds > 0 && (
+        <motion.span
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: [1, 1.08, 1], opacity: 1 }}
+          transition={{ scale: { duration: 1.6, repeat: Infinity }, opacity: { duration: 0.3 } }}
+          className="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-300 to-pink-400 px-2.5 py-1 text-[11px] font-extrabold text-[#1b1030] shadow-lg shadow-amber-500/30"
+        >
+          <Sparkles className="h-3 w-3" />
+          {grownWorlds === 1 ? 'Eine Welt ist gewachsen!' : `${grownWorlds} Welten sind gewachsen!`}
+        </motion.span>
+      )}
+
       {/* Bottom gradient overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -163,8 +181,8 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
             <p className="mt-1 flex items-center gap-1.5 text-[12px] font-semibold text-white/50">
               <Telescope className="h-3 w-3" />
               {activeDomains > 0
-                ? `${activeDomains} Welten aktiv`
-                : '8 Welten warten'}
+                ? `${activeDomains} ${activeDomains === 1 ? 'Welt wächst' : 'Welten wachsen'}`
+                : `${resolvedDomains.length} Welten warten auf dich`}
             </p>
           </div>
 

@@ -59,16 +59,7 @@ export function MiniPlayer({ onOpenQueue }: { onOpenQueue: () => void }) {
       entering={FadeIn.duration(220)}
       exiting={FadeOut.duration(160)}
       layout={LinearTransition.springify().damping(24)}
-      style={[
-        styles.container,
-        {
-          marginHorizontal: spacing.sm,
-          marginBottom: spacing.xs,
-          borderRadius: radius.xl,
-          borderColor: colors.border.light,
-          backgroundColor: colors.surface.panel,
-        },
-      ]}
+      style={styles.container}
     >
       <Touchable
         onPress={() => setExpanded((value) => !value)}
@@ -206,7 +197,7 @@ export function MiniPlayer({ onOpenQueue }: { onOpenQueue: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  container: { borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  container: { overflow: 'hidden' },
   row: { flexDirection: 'row', alignItems: 'center' },
   artwork: { width: 44, height: 44 },
   artworkInner: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },

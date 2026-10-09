@@ -8,22 +8,22 @@ import { Touchable } from './Pressable';
 
 interface SectionHeaderProps {
   title: string;
-  /** Small line under the title. */
+  /** Small secondary line under the title. */
   caption?: string;
   actionLabel?: string;
   onAction?: () => void;
 }
 
-/** Section title in the storybook serif, with an optional "see all" link. */
+/** Section title (iOS Title 2) with an optional plain "see all" link. */
 export function SectionHeader({ title, caption, actionLabel, onAction }: SectionHeaderProps) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing } = useTheme();
 
   return (
     <View style={[styles.row, { paddingHorizontal: spacing.lg, gap: spacing.md }]}>
       <View style={styles.titles}>
-        <Text variant="displaySm">{title}</Text>
+        <Text variant="displayMd">{title}</Text>
         {caption ? (
-          <Text variant="caption" tone="tertiary">
+          <Text variant="bodySm" tone="secondary">
             {caption}
           </Text>
         ) : null}
@@ -32,14 +32,14 @@ export function SectionHeader({ title, caption, actionLabel, onAction }: Section
         <Touchable
           onPress={onAction}
           hapticIntent="light"
-          style={[styles.action, { borderRadius: radius.pill, backgroundColor: colors.primarySoft }]}
+          style={styles.action}
           accessibilityRole="button"
           accessibilityLabel={`${title}: ${actionLabel}`}
         >
-          <Text variant="labelSm" tone="accent">
+          <Text variant="bodySm" tone="accent">
             {actionLabel}
           </Text>
-          <ChevronRight size={14} color={colors.primary} strokeWidth={2.6} />
+          <ChevronRight size={16} color={colors.primary} strokeWidth={2.4} />
         </Touchable>
       ) : null}
     </View>
@@ -48,6 +48,6 @@ export function SectionHeader({ title, caption, actionLabel, onAction }: Section
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-end' },
-  titles: { flex: 1, gap: 2 },
-  action: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingLeft: 12, paddingRight: 8, height: 30 },
+  titles: { flex: 1, gap: 1 },
+  action: { flexDirection: 'row', alignItems: 'center', gap: 1, paddingVertical: 4, paddingLeft: 8 },
 });

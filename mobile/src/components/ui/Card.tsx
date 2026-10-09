@@ -15,19 +15,16 @@ interface CardProps {
   onPress?: () => void;
   onLongPress?: () => void;
   style?: StyleProp<ViewStyle>;
-  /** Shadow ramp key; defaults to `soft` for surface, `medium` for elevated. */
+  /** Shadow ramp key; cards sit flat on the grouped page by default. */
   elevation?: 'none' | 'soft' | 'medium' | 'strong';
-  /** Gradient wash for the `tinted` variant. */
+  /** Colour wash for the `tinted` variant. */
   tint?: keyof ThemePalette['gradient'];
   accessibilityLabel?: string;
 }
 
 /**
- * The card surface used across the app.
- *
- * Opaque fills with soft ink-tinted shadows. `boxShadow` is painted as the
- * view's own background, so clipping children to the rounded corners does not
- * cut the shadow off.
+ * Content card. Like iOS grouped content: an opaque rounded surface sitting
+ * flat on the grey page — no border, no shadow unless it floats.
  */
 export function Card({
   children,
@@ -42,7 +39,7 @@ export function Card({
 }: CardProps) {
   const { colors, radius, spacing, shadows } = useTheme();
 
-  const shadowKey = elevation ?? (variant === 'elevated' ? 'medium' : variant === 'surface' || variant === 'tinted' ? 'soft' : 'none');
+  const shadowKey = elevation ?? (variant === 'elevated' ? 'medium' : 'none');
   const flat = StyleSheet.flatten(style) ?? {};
   const cornerRadius = typeof flat.borderRadius === 'number' ? flat.borderRadius : radius.lg;
 
@@ -50,8 +47,6 @@ export function Card({
     {
       overflow: 'hidden',
       borderRadius: cornerRadius,
-      borderWidth: variant === 'outline' ? 1.5 : variant === 'inset' ? 0 : 1,
-      borderColor: variant === 'outline' ? colors.border.strong : colors.border.light,
       backgroundColor:
         variant === 'inset'
           ? colors.surface.inset
@@ -59,6 +54,7 @@ export function Card({
             ? 'transparent'
             : colors.surface.primary,
     },
+    variant === 'outline' && { borderWidth: 1, borderColor: colors.border.soft },
     padded && { padding: spacing.base },
     shadows[shadowKey],
     style,
@@ -66,20 +62,21 @@ export function Card({
 
   const body = (
     <>
-      {variant === 'tinted' || variant === 'elevated' ? (
-        <Gradient
-          token={variant === 'tinted' ? colors.gradient[tint] : colors.surface.elevated}
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        />
-      ) : null}
+      {variant === 'tinted' ? <Gradient token={colors.gradient[tint]} style={StyleSheet.absoluteFill} pointerEvents="none" /> : null}
       {children}
     </>
   );
 
   if (onPress || onLongPress) {
     return (
-      <Touchable onPress={onPress} onLongPress={onLongPress} style={base} accessibilityRole="button" accessibilityLabel={accessibilityLabel}>
+      <Touchable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        pressScale={0.98}
+        style={base}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+      >
         {body}
       </Touchable>
     );

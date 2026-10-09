@@ -34,12 +34,12 @@ const CATEGORIES: {
 
 /** Step 2 — the genre, which drives the backend's narrative template. */
 export function StepCategory({ value, onChange, onPickFairyTale }: StepCategoryProps) {
-  const { colors, spacing, radius, shadows } = useTheme();
+  const { colors, spacing, radius } = useTheme();
 
   return (
     <View style={{ gap: spacing.base, paddingTop: spacing.sm }}>
       <View style={{ gap: 4 }}>
-        <Text variant="displaySm">Worum soll es gehen?</Text>
+        <Text variant="displayLg">Worum soll es gehen?</Text>
         <Text variant="bodySm" tone="secondary">
           Das Thema bestimmt Ton, Figuren und Welt der Geschichte.
         </Text>
@@ -55,11 +55,10 @@ export function StepCategory({ value, onChange, onPickFairyTale }: StepCategoryP
               pressScale={0.96}
               style={[
                 styles.tile,
-                selected ? shadows.glow : shadows.soft,
                 {
                   borderRadius: radius.xl,
-                  borderColor: selected ? colors.primary : colors.border.light,
-                  borderWidth: selected ? 2 : 1,
+                  borderColor: selected ? colors.primary : 'transparent',
+                  borderWidth: 2,
                   backgroundColor: colors.surface.primary,
                 },
               ]}
@@ -109,7 +108,7 @@ export function StepCategory({ value, onChange, onPickFairyTale }: StepCategoryP
 
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  tile: { width: '48%', overflow: 'hidden', borderWidth: 1 },
+  tile: { width: '48%', overflow: 'hidden' },
   art: { height: 116, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   check: { position: 'absolute', top: 10, right: 10, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
 });

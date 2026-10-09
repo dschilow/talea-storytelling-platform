@@ -61,9 +61,9 @@ export function OptionGrid({ options, value, onSelect, columns = 3, swatches, mu
                 paddingVertical: spacing.md,
                 paddingHorizontal: spacing.xs,
                 gap: 6,
-                backgroundColor: selected ? colors.surface.item : colors.surface.inset,
-                borderColor: selected ? colors.border.accent : colors.border.light,
-                borderWidth: selected ? 1.6 : StyleSheet.hairlineWidth,
+                backgroundColor: colors.surface.primary,
+                borderColor: selected ? colors.primary : 'transparent',
+                borderWidth: 2,
               },
             ]}
             accessibilityRole={multi ? 'checkbox' : 'radio'}

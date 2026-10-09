@@ -18,27 +18,27 @@ interface ChipProps {
 }
 
 /**
- * Compact status/filter pill.
+ * Capsule label / filter.
  *
- * Filter chips sit on white with a hairline; selected chips flip to solid brand
- * violet. Status tones are soft tints with a matching ink, and `media` is a
- * frosted dark pill for use on top of cover art.
+ * Filters rest on the neutral system fill; a selected filter inverts to the
+ * label colour (black on light, white on dark), the way Apple's apps mark the
+ * active scope. Status tones are soft tints of the system colours.
  */
 export function Chip({ label, icon, tone = 'neutral', selected, onPress, style, size = 'md' }: ChipProps) {
-  const { colors, radius, shadows } = useTheme();
+  const { colors, radius, isDark } = useTheme();
 
-  const toneStyles: Record<ChipTone, { bg: string; border: string; text: string }> = {
-    neutral: { bg: colors.surface.primary, border: colors.border.soft, text: colors.text.secondary },
-    accent: { bg: colors.primarySoft, border: 'transparent', text: colors.primary },
-    success: { bg: colors.successSoft, border: 'transparent', text: colors.success },
-    warning: { bg: colors.warningSoft, border: 'transparent', text: colors.warning },
-    danger: { bg: colors.dangerSoft, border: 'transparent', text: colors.danger },
-    gold: { bg: colors.goldSoft, border: 'transparent', text: colors.gold },
-    media: { bg: colors.media.chromeBg, border: colors.media.chromeBorder, text: colors.media.foreground },
+  const toneStyles: Record<ChipTone, { bg: string; text: string }> = {
+    neutral: { bg: colors.surface.inset, text: colors.text.primary },
+    accent: { bg: colors.primarySoft, text: colors.primary },
+    success: { bg: colors.successSoft, text: colors.success },
+    warning: { bg: colors.warningSoft, text: colors.warning },
+    danger: { bg: colors.dangerSoft, text: colors.danger },
+    gold: { bg: colors.goldSoft, text: isDark ? colors.system.yellow : '#8A5A00' },
+    media: { bg: colors.media.chromeBg, text: colors.media.foreground },
   };
 
   const resolved = selected
-    ? { bg: colors.primary, border: colors.primary, text: colors.primaryForeground }
+    ? { bg: colors.text.primary, text: isDark ? '#000000' : '#FFFFFF' }
     : toneStyles[tone];
   const small = size === 'sm';
 
@@ -47,15 +47,12 @@ export function Chip({ label, icon, tone = 'neutral', selected, onPress, style, 
       style={[
         styles.chip,
         {
-          height: small ? 24 : 36,
+          height: small ? 24 : 34,
           borderRadius: radius.pill,
           backgroundColor: resolved.bg,
-          borderColor: resolved.border,
-          borderWidth: resolved.border === 'transparent' ? 0 : small ? StyleSheet.hairlineWidth : 1,
           paddingHorizontal: small ? 9 : 14,
           gap: small ? 4 : 6,
         },
-        selected && !small ? shadows.glow : null,
         style,
       ]}
     >
@@ -69,16 +66,12 @@ export function Chip({ label, icon, tone = 'neutral', selected, onPress, style, 
   if (!onPress) return body;
 
   return (
-    <Touchable onPress={onPress} pressScale={0.94} accessibilityRole="button" accessibilityState={{ selected }}>
+    <Touchable onPress={onPress} pressScale={0.95} accessibilityRole="button" accessibilityState={{ selected }}>
       {body}
     </Touchable>
   );
 }
 
 const styles = StyleSheet.create({
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-  },
+  chip: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' },
 });

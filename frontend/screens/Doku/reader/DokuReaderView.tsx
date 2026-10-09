@@ -1,28 +1,30 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, ChevronDown, Clock, LoaderCircle, Sparkles, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, LoaderCircle, Sparkles } from 'lucide-react';
 
-import type { Doku, DokuSection } from '../../../types/doku';
+import type { Doku } from '../../../types/doku';
 import { cn } from '../../../lib/utils';
-import { QuizComponent } from '../../../components/reader/QuizComponent';
-import { FactsComponent } from '../../../components/reader/FactsComponent';
-import { ActivityComponent } from '../../../components/reader/ActivityComponent';
 import { ImageLightbox } from '../../Story/reader/ImageLightbox';
-import { canUseDropCap, estimateReadingMinutes } from '../../Story/reader/readerText';
-import {
-  ReaderHeader,
-  ReaderHeroBackdrop,
-  ReaderProgress,
-  ReaderSectionNav,
-  useReaderScroll,
-} from '../../Story/reader/ReaderChrome';
+import { estimateReadingMinutes } from '../../Story/reader/readerText';
+import { ReaderHeader, ReaderProgress, ReaderSectionNav, useReaderScroll } from '../../Story/reader/ReaderChrome';
 import {
   clearChapterPosition,
   readSavedChapter,
   saveChapterPosition,
   useTextScale,
 } from '../../Story/reader/useReaderStorage';
+import {
+  GuessCard,
+  GuessReveal,
+  RecapChecklist,
+  ReportAssignment,
+  ReportChapter,
+  splitParagraphs,
+  TaviLine,
+  WowList,
+} from './DokuReport';
 import '../../Story/reader/StoryReader.css';
+import './DokuReport.css';
 
 export interface DokuReaderCompletion {
   isCompleted: boolean;
@@ -42,16 +44,10 @@ interface DokuReaderViewProps {
   completion: DokuReaderCompletion;
 }
 
-const REVEAL = { duration: 0.55, ease: [0.2, 0.65, 0.3, 0.9] as [number, number, number, number] };
-
-function splitParagraphs(text: string): string[] {
-  return String(text || '')
-    .replace(/\r\n?/g, '\n')
-    .split(/\n{2,}/)
-    .map((paragraph) => paragraph.replace(/\s*\n\s*/g, ' ').trim())
-    .filter(Boolean);
-}
-
+/**
+ * Doku reader in the reportage format (see DokuReport.tsx). Shares the scroll
+ * chrome with the story reader; the look is its own (DokuReport.css).
+ */
 export const DokuReaderView: React.FC<DokuReaderViewProps> = ({
   doku,
   dokuId,
@@ -61,7 +57,16 @@ export const DokuReaderView: React.FC<DokuReaderViewProps> = ({
   onNavigate,
   completion,
 }) => {
-  const sections = useMemo(() => doku.content?.sections ?? [], [doku.content?.sections]);
+  const content = doku.content;
+  const sections = useMemo(() => content?.sections ?? [], [content?.sections]);
+  const hook = useMemo(() => splitParagraphs(content?.hook ?? ''), [content?.hook]);
+  const guess = content?.guess;
+  const recap = content?.recap ?? [];
+  // Older dokus carry a closing image ("finale") and loose wow facts instead of the recap.
+  const closing = content?.closingLine || content?.finale || '';
+  const wowFallback = recap.length === 0 ? content?.wowFacts ?? [] : [];
+  const stations = sections.filter((section) => section.kind === 'station' || Boolean(section.place)).length;
+
   // Separate key space from stories so a doku never resumes at a story's chapter.
   const positionKey = `doku:${doku.id}`;
   const {
@@ -79,10 +84,16 @@ export const DokuReaderView: React.FC<DokuReaderViewProps> = ({
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
   const [coverFailed, setCoverFailed] = useState(false);
   const [savedSection] = useState(() => readSavedChapter(positionKey, sections.length));
+  const [guessPick, setGuessPick] = useState<number | null>(null);
 
   const coverUrl = !coverFailed ? doku.coverImageUrl || sections.find((section) => section.imageUrl)?.imageUrl || null : null;
   const minutes = useMemo(() => estimateReadingMinutes(sections), [sections]);
-  const eyebrow = [doku.topic || 'Wissen', `${sections.length} ${sections.length === 1 ? 'Abschnitt' : 'Abschnitte'}`, `ca. ${minutes} Min.`];
+  const eyebrow = [
+    doku.topic || 'Wissen',
+    stations > 0 ? `${stations} ${stations === 1 ? 'Station' : 'Stationen'}` : `${sections.length} Kapitel`,
+    `ca. ${minutes} Min.`,
+  ];
+  const hasIntro = hook.length > 0 || Boolean(guess);
 
   useEffect(() => {
     if (reading && !completion.isCompleted) saveChapterPosition(positionKey, activeIndex);
@@ -101,9 +112,23 @@ export const DokuReaderView: React.FC<DokuReaderViewProps> = ({
   const openLightbox = useCallback((src: string, alt: string) => setLightbox({ src, alt }), []);
   const closeLightbox = useCallback(() => setLightbox(null), []);
 
+  const startReading = () => {
+    if (savedSection !== null) return scrollToItem(savedSection);
+    if (hasIntro) {
+      document.getElementById('rp-start')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    scrollToItem(0);
+  };
+
+  const quizContext = useMemo(
+    () => ({ avatarId, dokuTitle: doku.title, dokuId, dokuTopic: doku.topic, dokuMetadata: doku.metadata }),
+    [avatarId, doku.title, dokuId, doku.topic, doku.metadata],
+  );
+
   return (
     <div
-      className="rd-root rd-scope rd-knowledge"
+      className="rd-root rd-scope rd-knowledge rp-root"
       data-theme={isDark ? 'dark' : 'light'}
       style={{ '--rd-scale': scale } as React.CSSProperties}
     >
@@ -111,7 +136,7 @@ export const DokuReaderView: React.FC<DokuReaderViewProps> = ({
 
       <ReaderHeader
         title={doku.title}
-        meta={reading && sections.length > 1 ? `Abschnitt ${activeIndex + 1} von ${sections.length}` : eyebrow.join(' · ')}
+        meta={reading && sections.length > 1 ? `Kapitel ${activeIndex + 1} von ${sections.length}` : eyebrow.join(' · ')}
         backLabel="Zurück zu Dokus"
         onBack={() => onNavigate('/doku')}
         hidden={headerHidden}
@@ -121,230 +146,120 @@ export const DokuReaderView: React.FC<DokuReaderViewProps> = ({
 
       {reading && sections.length > 1 && (
         <ReaderSectionNav
-          ariaLabel="Abschnitt-Navigation"
+          ariaLabel="Kapitel-Navigation"
           activeIndex={activeIndex}
           onSelect={scrollToItem}
           items={sections.map((section, index) => ({
             key: `${section.title}-${index}`,
-            label: `Abschnitt ${index + 1}: ${section.title}`,
+            label: `Kapitel ${index + 1}: ${section.title}`,
             title: section.title,
           }))}
         />
       )}
 
       <div ref={scrollerRef} className="rd-scroller">
-        <section ref={heroRef} className="rd-hero">
-          <ReaderHeroBackdrop coverUrl={coverUrl} />
+        <section ref={heroRef} className="rp-hero">
           <motion.div
-            className="rd-hero-inner"
+            className="rp-hero-inner"
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.2, 0.65, 0.3, 0.9] }}
           >
+            <p className="rp-stamp-pill">Reportage</p>
             {coverUrl && (
-              <img src={coverUrl} alt={`Titelbild: ${doku.title}`} className="rd-hero-cover" onError={() => setCoverFailed(true)} />
+              <div className="rp-polaroid">
+                <span className="rp-tape" aria-hidden="true" />
+                <img src={coverUrl} alt={`Titelbild: ${doku.title}`} onError={() => setCoverFailed(true)} />
+              </div>
             )}
-            <p className="rd-eyebrow">
-              {eyebrow.map((part, i) => (
-                <React.Fragment key={part}>
-                  {i > 0 && <span className="rd-eyebrow-sep" aria-hidden="true">·</span>}
-                  <span className={i === 0 ? 'rd-eyebrow-genre' : undefined}>
-                    {i === eyebrow.length - 1 && <Clock className="rd-eyebrow-icon" aria-hidden="true" />}
-                    {part}
-                  </span>
-                </React.Fragment>
-              ))}
-            </p>
-            <h1 className="rd-hero-title">{doku.title}</h1>
-            {doku.summary && <p className="rd-hero-summary">{doku.summary}</p>}
-            <motion.button
-              type="button"
-              onClick={() => scrollToItem(savedSection ?? 0)}
-              whileTap={{ scale: 0.97 }}
-              className="rd-primary-btn"
-            >
-              {savedSection !== null ? `Weiterlesen · Abschnitt ${savedSection + 1}` : 'Wissen entdecken'}
+            <p className="rp-eyebrow">{eyebrow.join(' · ')}</p>
+            <h1 className="rp-hero-title">{doku.title}</h1>
+            {doku.summary && <p className="rp-hero-summary">{doku.summary}</p>}
+            {content?.mainQuestion && <ReportAssignment question={content.mainQuestion} />}
+            <button type="button" onClick={startReading} className="rp-primary-btn">
+              {savedSection !== null ? `Weiterlesen · Kapitel ${savedSection + 1}` : 'Check starten'}
               <ChevronDown className="h-4 w-4" aria-hidden="true" />
-            </motion.button>
+            </button>
           </motion.div>
         </section>
 
-        <article className="rd-article">
+        {hasIntro && (
+          <div id="rp-start" className="rp-article">
+            {hook.length > 0 && (
+              <div className="rp-intro">
+                <p className="rp-kicker">Der Einstieg</p>
+                {hook.map((paragraph, index) => (
+                  <p key={index} className="rp-intro-text">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            )}
+            {guess && <GuessCard guess={guess} picked={guessPick} onPick={setGuessPick} />}
+          </div>
+        )}
+
+        <article className="rp-article">
           {sections.map((section, index) => (
-            <DokuSectionView
+            <ReportChapter
               key={`${section.title}-${index}`}
               section={section}
               index={index}
               total={sections.length}
-              doku={doku}
-              dokuId={dokuId}
-              avatarId={avatarId}
-              isLast={index === sections.length - 1}
-              completion={completion}
+              quiz={quizContext}
               onOpenImage={openLightbox}
               registerElement={registerItem}
             />
           ))}
         </article>
 
-        <section className="rd-finale">
-          <motion.div
-            className="rd-finale-inner"
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <span className="rd-ornament" aria-hidden="true">
-              <span className="rd-ornament-line" />
-              <span className="rd-ornament-diamond" />
-              <span className="rd-ornament-line" />
-            </span>
-            <h2 className="rd-finale-title">Ende</h2>
-            <p className="rd-finale-text">Du kannst jederzeit weitere Dokus starten oder diese erneut lesen.</p>
-            <button type="button" onClick={() => onNavigate('/doku')} className="rd-secondary-btn">
-              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-              Zurück zur Übersicht
-            </button>
-          </motion.div>
+        <section className="rp-finale" aria-label="Abschluss">
+          <div className="rp-finale-inner">
+            {guess && <GuessReveal guess={guess} picked={guessPick} />}
+            {recap.length > 0 && <RecapChecklist points={recap} />}
+            {closing && <TaviLine text={closing} label={content?.closingLine ? 'Tavi zum Schluss' : 'Zum Schluss'} />}
+            {wowFallback.length > 0 && <WowList facts={wowFallback.map((fact) => ({ title: 'Staunen', fact }))} />}
+
+            <div className="rp-complete">
+              <button
+                type="button"
+                onClick={completion.onComplete}
+                disabled={completion.isCompleted || completion.isCompleting}
+                aria-busy={completion.isCompleting}
+                className={cn('rp-complete-btn', completion.isCompleted && 'rp-complete-btn--done')}
+              >
+                {completion.isCompleting ? (
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : completion.isCompleted ? (
+                  <Check className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <Sparkles className="h-4 w-4" aria-hidden="true" />
+                )}
+                {completion.isCompleted
+                  ? 'Abgeschlossen'
+                  : completion.isCompleting
+                    ? 'Fortschritt wird gespeichert …'
+                    : completion.error
+                      ? 'Speichern erneut versuchen'
+                      : 'Doku abschließen'}
+              </button>
+              {completion.error && !completion.isCompleted && (
+                <p role="alert" className="rp-complete-error">
+                  {completion.error}
+                </p>
+              )}
+            </div>
+            <div className="rp-back">
+              <button type="button" onClick={() => onNavigate('/doku')} className="rp-btn rp-btn--ghost">
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Zurück zur Übersicht
+              </button>
+            </div>
+          </div>
         </section>
       </div>
 
       <ImageLightbox src={lightbox?.src ?? null} alt={lightbox?.alt ?? ''} onClose={closeLightbox} />
     </div>
-  );
-};
-
-const DokuSectionView: React.FC<{
-  section: DokuSection;
-  index: number;
-  total: number;
-  doku: Doku;
-  dokuId: string;
-  avatarId?: string;
-  isLast: boolean;
-  completion: DokuReaderCompletion;
-  onOpenImage: (src: string, alt: string) => void;
-  registerElement: (index: number, element: HTMLElement | null) => void;
-}> = ({ section, index, total, doku, dokuId, avatarId, isLast, completion, onOpenImage, registerElement }) => {
-  const paragraphs = useMemo(() => splitParagraphs(section.content), [section.content]);
-  const [imageFailed, setImageFailed] = useState(false);
-  const imageAlt = `${section.title} – Illustration`;
-
-  return (
-    <section
-      id={`section-${index}`}
-      ref={(element) => registerElement(index, element)}
-      className="rd-chapter"
-      aria-labelledby={`section-${index}-title`}
-    >
-      <motion.header
-        className="rd-chapter-head"
-        initial={{ opacity: 0, y: 14 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.6 }}
-        transition={REVEAL}
-      >
-        <span className="rd-chapter-kicker">
-          Abschnitt {index + 1} von {total}
-        </span>
-        <h2 id={`section-${index}-title`} className="rd-chapter-title">
-          {section.title}
-        </h2>
-        <span className="rd-ornament" aria-hidden="true">
-          <span className="rd-ornament-line" />
-          <span className="rd-ornament-diamond" />
-          <span className="rd-ornament-line" />
-        </span>
-      </motion.header>
-
-      {/* Only a section's own picture — repeating the cover in every section added nothing. */}
-      {section.imageUrl && !imageFailed ? (
-        <motion.figure
-          className="rd-figure"
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.15 }}
-          transition={REVEAL}
-        >
-          <button type="button" className="rd-figure-btn" onClick={() => onOpenImage(section.imageUrl!, imageAlt)} aria-label={`${imageAlt} – vergrößern`}>
-            <img
-              src={section.imageUrl}
-              alt=""
-              className="rd-figure-img rd-figure-img--loaded"
-              loading={index === 0 ? 'eager' : 'lazy'}
-              decoding="async"
-              onError={() => setImageFailed(true)}
-            />
-          </button>
-        </motion.figure>
-      ) : null}
-
-      <div className="rd-prose">
-        {paragraphs.map((paragraph, paragraphIndex) => (
-          <motion.p
-            key={paragraphIndex}
-            className={cn('rd-paragraph', paragraphIndex === 0 && canUseDropCap(paragraph) && 'rd-dropcap')}
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '0px 0px -6% 0px' }}
-            transition={REVEAL}
-          >
-            {paragraph}
-          </motion.p>
-        ))}
-      </div>
-
-      <div className="rd-interactive">
-        <FactsComponent section={section} variant="inline" />
-        <ActivityComponent section={section} variant="inline" />
-        <QuizComponent
-          section={section}
-          dokuTitle={doku.title}
-          dokuId={dokuId}
-          avatarId={avatarId}
-          dokuTopic={doku.topic}
-          dokuMetadata={doku.metadata}
-          variant="inline"
-          onPersonalityChange={(changes) => {
-            import('../../../utils/toastUtils').then(({ showPersonalityUpdateToast }) => {
-              showPersonalityUpdateToast(changes);
-            });
-          }}
-        />
-      </div>
-
-      {isLast && (
-        <div className="rd-complete">
-          <button
-            type="button"
-            onClick={completion.onComplete}
-            disabled={completion.isCompleted || completion.isCompleting}
-            aria-busy={completion.isCompleting}
-            className={cn('rd-complete-btn', completion.isCompleted && 'rd-complete-btn--done')}
-          >
-            {completion.isCompleting ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : completion.isCompleted ? (
-              <Check className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-            )}
-            {completion.isCompleted
-              ? 'Abgeschlossen'
-              : completion.isCompleting
-                ? 'Fortschritt wird gespeichert …'
-                : completion.error
-                  ? 'Speichern erneut versuchen'
-                  : 'Doku abschließen'}
-          </button>
-          {completion.error && !completion.isCompleted && (
-            <p role="alert" className="rd-complete-error">
-              {completion.error}
-            </p>
-          )}
-        </div>
-      )}
-    </section>
   );
 };

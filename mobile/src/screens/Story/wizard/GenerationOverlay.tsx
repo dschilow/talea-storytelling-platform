@@ -1,30 +1,25 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeepAwake } from 'expo-keep-awake';
-import Animated, {
-  Easing,
-  FadeIn,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from 'react-native-reanimated';
-import { CheckCircle2, FileText, Image as ImageIcon, RefreshCw, Sparkles, Users } from 'lucide-react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
+import { Check, RefreshCw } from 'lucide-react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { PageBackground } from '@/components/ui/PageBackground';
-import { ProgressBar } from '@/components/ui/ProgressBar';
+import { ProgressRing } from '@/components/ui/ProgressRing';
+import { ListSection } from '@/components/ui/List';
 import { Text } from '@/components/ui/Text';
 
 export type GenerationPhase = 'profiles' | 'memories' | 'text' | 'validation' | 'images' | 'complete' | 'recovering';
 
-const PHASES: { key: Exclude<GenerationPhase, 'recovering'>; Icon: typeof Users; label: string; description: string }[] = [
-  { key: 'profiles', Icon: Users, label: 'Avatare vorbereiten', description: 'Ich schaue mir deine Avatare genau an' },
-  { key: 'memories', Icon: Sparkles, label: 'Erinnerungen sammeln', description: 'Was haben deine Avatare schon erlebt?' },
-  { key: 'text', Icon: FileText, label: 'Geschichte schreiben', description: 'Deine Geschichte entsteht gerade' },
-  { key: 'validation', Icon: CheckCircle2, label: 'Alles prüfen', description: 'Passt die Geschichte zusammen?' },
-  { key: 'images', Icon: ImageIcon, label: 'Bilder malen', description: 'Die Bilder für deine Geschichte entstehen' },
-  { key: 'complete', Icon: CheckCircle2, label: 'Fertig!', description: 'Deine Geschichte ist bereit' },
+const PHASES: { key: Exclude<GenerationPhase, 'recovering'>; label: string; description: string }[] = [
+  { key: 'profiles', label: 'Avatare vorbereiten', description: 'Ich schaue mir deine Avatare genau an' },
+  { key: 'memories', label: 'Erinnerungen sammeln', description: 'Was haben deine Avatare schon erlebt?' },
+  { key: 'text', label: 'Geschichte schreiben', description: 'Deine Geschichte entsteht gerade' },
+  { key: 'validation', label: 'Alles prüfen', description: 'Passt die Geschichte zusammen?' },
+  { key: 'images', label: 'Bilder malen', description: 'Die Bilder für deine Geschichte entstehen' },
+  { key: 'complete', label: 'Fertig!', description: 'Deine Geschichte ist bereit' },
 ];
 
 interface GenerationOverlayProps {
@@ -34,15 +29,17 @@ interface GenerationOverlayProps {
 }
 
 /**
- * Full-screen generation state.
+ * Full-screen generation state, calm like a system setup screen: one progress
+ * ring, a title, and the steps ticking off.
  *
- * Generation legitimately takes minutes, so this keeps the screen awake and
- * narrates what the pipeline is doing. The recovery phase is deliberately
- * reassuring rather than an error: the story is almost always still being
- * written server-side, and the user has already been charged for it.
+ * Generation legitimately takes minutes, so this keeps the screen awake. The
+ * recovery phase is deliberately reassuring rather than an error: the story is
+ * almost always still being written server-side, and the user has already been
+ * charged for it.
  */
 export function GenerationOverlay({ phase, recoveryAttempt }: GenerationOverlayProps) {
-  const { colors, spacing, radius } = useTheme();
+  const { colors, spacing } = useTheme();
+  const insets = useSafeAreaInsets();
   useKeepAwake('talea-generation');
 
   const isRecovering = phase === 'recovering';
@@ -50,13 +47,17 @@ export function GenerationOverlay({ phase, recoveryAttempt }: GenerationOverlayP
   const progress = isRecovering ? 0.55 : (currentIndex + 1) / PHASES.length;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.pageSolid }]}>
+    <View style={styles.container}>
       <PageBackground />
 
-      <View style={[styles.content, { padding: spacing.xl, gap: spacing.xl }]}>
+      <View style={[styles.content, { paddingTop: insets.top + spacing.huge, paddingHorizontal: spacing.lg, gap: spacing.xl }]}>
         <Animated.View entering={FadeIn.duration(400)} style={{ alignItems: 'center', gap: spacing.md }}>
-          <PulsingOrb />
-          <Text variant="displaySm" center>
+          <ProgressRing progress={progress} size={128} strokeWidth={8}>
+            <Text variant="displayMd" style={{ fontVariant: ['tabular-nums'] }}>
+              {Math.round(progress * 100)} %
+            </Text>
+          </ProgressRing>
+          <Text variant="displayLg" center style={{ marginTop: spacing.sm }}>
             {isRecovering ? 'Fast geschafft' : 'Deine Geschichte entsteht'}
           </Text>
           <Text variant="bodySm" tone="secondary" center style={{ maxWidth: 300 }}>
@@ -66,107 +67,58 @@ export function GenerationOverlay({ phase, recoveryAttempt }: GenerationOverlayP
           </Text>
         </Animated.View>
 
-        <View style={{ alignSelf: 'stretch', gap: spacing.md }}>
-          <ProgressBar progress={progress} height={7} />
+        <ListSection separatorInset={56}>
+          {PHASES.map((entry, index) => {
+            const isActive = !isRecovering && index === currentIndex;
+            const isDone = !isRecovering && index < currentIndex;
 
-          <View style={{ gap: spacing.sm }}>
-            {PHASES.map((entry, index) => {
-              const isActive = !isRecovering && index === currentIndex;
-              const isDone = !isRecovering && index < currentIndex;
-              const { Icon } = entry;
-
-              return (
-                <View
-                  key={entry.key}
-                  style={[
-                    styles.phaseRow,
-                    {
-                      borderRadius: radius.md,
-                      padding: spacing.md,
-                      gap: spacing.md,
-                      backgroundColor: isActive ? colors.surface.item : 'transparent',
-                      borderColor: isActive ? colors.border.accent : 'transparent',
-                      borderWidth: isActive ? 1.4 : StyleSheet.hairlineWidth,
-                      opacity: isDone ? 0.55 : isActive ? 1 : 0.4,
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.phaseIcon,
-                      {
-                        borderRadius: radius.sm,
-                        backgroundColor: isDone || isActive ? colors.successSoft : colors.surface.inset,
-                      },
-                    ]}
-                  >
-                    {isDone ? (
-                      <CheckCircle2 size={16} color={colors.success} />
-                    ) : (
-                      <Icon size={16} color={isActive ? colors.primary : colors.text.tertiary} />
-                    )}
-                  </View>
-
-                  <View style={{ flex: 1 }}>
-                    <Text variant="label" tone={isActive ? 'accent' : 'primary'}>
-                      {entry.label}
-                    </Text>
-                    {isActive ? (
-                      <Text variant="caption" tone="secondary">
-                        {entry.description}
-                      </Text>
-                    ) : null}
-                  </View>
+            return (
+              <View key={entry.key} style={[styles.row, { paddingHorizontal: spacing.base, gap: spacing.md }]}>
+                <View style={styles.status}>
+                  {isDone ? (
+                    <View style={[styles.done, { backgroundColor: colors.system.green }]}>
+                      <Check size={14} color="#FFFFFF" strokeWidth={3} />
+                    </View>
+                  ) : isActive ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <View style={[styles.pending, { borderColor: colors.border.strong }]} />
+                  )}
                 </View>
-              );
-            })}
+                <View style={{ flex: 1 }}>
+                  <Text variant="bodyLg" tone={isDone || isActive ? 'primary' : 'tertiary'}>
+                    {entry.label}
+                  </Text>
+                  {isActive ? (
+                    <Text variant="caption" tone="secondary">
+                      {entry.description}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            );
+          })}
+        </ListSection>
+
+        {isRecovering && recoveryAttempt ? (
+          <View style={[styles.recoveryRow, { gap: spacing.sm }]}>
+            <RefreshCw size={14} color={colors.text.tertiary} />
+            <Text variant="caption" tone="tertiary">
+              Versuch {recoveryAttempt} — ich warte weiter
+            </Text>
           </View>
-
-          {isRecovering && recoveryAttempt ? (
-            <View style={[styles.recoveryRow, { gap: spacing.sm }]}>
-              <RefreshCw size={14} color={colors.text.tertiary} />
-              <Text variant="caption" tone="tertiary">
-                Versuch {recoveryAttempt} — ich warte weiter
-              </Text>
-            </View>
-          ) : null}
-        </View>
+        ) : null}
       </View>
-    </View>
-  );
-}
-
-/** Breathing orb; a calmer signal of "working" than a spinner for a minutes-long wait. */
-function PulsingOrb() {
-  const { colors } = useTheme();
-  const scale = useSharedValue(1);
-  const glow = useSharedValue(0.4);
-
-  useEffect(() => {
-    scale.value = withRepeat(withTiming(1.12, { duration: 1600, easing: Easing.inOut(Easing.sin) }), -1, true);
-    glow.value = withRepeat(withTiming(0.85, { duration: 1600, easing: Easing.inOut(Easing.sin) }), -1, true);
-  }, [glow, scale]);
-
-  const orbStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value, transform: [{ scale: scale.value * 1.35 }] }));
-
-  return (
-    <View style={styles.orbContainer}>
-      <Animated.View style={[styles.orbGlow, glowStyle, { backgroundColor: colors.successSoft }]} />
-      <Animated.View style={[styles.orb, orbStyle, { backgroundColor: colors.primary }]}>
-        <Sparkles size={26} color={colors.primaryForeground} />
-      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  orbContainer: { width: 110, height: 110, alignItems: 'center', justifyContent: 'center' },
-  orb: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
-  orbGlow: { position: 'absolute', width: 100, height: 100, borderRadius: 50 },
-  phaseRow: { flexDirection: 'row', alignItems: 'center' },
-  phaseIcon: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  content: { flex: 1 },
+  row: { flexDirection: 'row', alignItems: 'center', minHeight: 50, paddingVertical: 8 },
+  status: { width: 28, alignItems: 'center' },
+  done: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  pending: { width: 22, height: 22, borderRadius: 11, borderWidth: 2 },
   recoveryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
 });

@@ -55,7 +55,7 @@ export function StepSummary({ state, avatars, storyCredits, onEditStep }: StepSu
   return (
     <View style={{ gap: spacing.base, paddingTop: spacing.sm }}>
       <View style={{ gap: 4 }}>
-        <Text variant="headingSm">Alles bereit?</Text>
+        <Text variant="displayLg">Alles bereit?</Text>
         <Text variant="bodySm" tone="secondary">
           Prüfe deine Auswahl — danach schreibt Talea die Geschichte.
         </Text>

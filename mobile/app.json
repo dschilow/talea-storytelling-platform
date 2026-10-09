@@ -11,9 +11,9 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FBF5EF",
+      "backgroundColor": "#F2F2F7",
       "dark": {
-        "backgroundColor": "#101722"
+        "backgroundColor": "#000000"
       }
     },
     "android": {
@@ -52,8 +52,8 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#FBF5EF",
-          "dark": { "backgroundColor": "#101722" }
+          "backgroundColor": "#F2F2F7",
+          "dark": { "backgroundColor": "#000000" }
         }
       ],
       [

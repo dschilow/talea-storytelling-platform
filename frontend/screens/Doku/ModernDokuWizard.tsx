@@ -27,6 +27,7 @@ import { ageToAgeGroup } from '@/lib/child-profile-defaults';
 import { cn } from '@/lib/utils';
 import { WizardImage } from '../../components/avatar-form/WizardImage';
 import { useWizardAssets, type WizardAssetGroup } from '../../hooks/useWizardAssets';
+import { createStoryGenerationId, shouldAttemptStoryGenerationRecovery } from '../Story/storyGenerateWithModelFallback';
 import {
   TaleaActionButton,
   TaleaPageBackground,
@@ -73,7 +74,12 @@ type BillingPermissions = {
   freeTrialDaysRemaining: number;
 };
 
-type GenerationPhase = 'text' | 'cover' | 'sections' | 'personality' | 'complete';
+type GenerationPhase = 'text' | 'check' | 'images' | 'complete';
+
+// The doku pipeline writes (~50 s), then checks facts and draws pictures in parallel (~40 s).
+const PHASE_START_SECONDS: Array<[GenerationPhase, number]> = [['check', 45], ['images', 60]];
+const RECOVERY_POLL_MS = 4000;
+const RECOVERY_ATTEMPTS = 60;
 
 const wizardSteps = [
   { id: 'topic', label: 'Thema' },
@@ -288,11 +294,10 @@ const lengthOptions = [
 ] as const;
 
 const phaseLabels: Record<GenerationPhase, string> = {
-  text: 'Deine Doku wird geschrieben',
-  cover: 'Das Titelbild wird gemalt',
-  sections: 'Bilder für die Kapitel entstehen',
-  personality: 'Dein Avatar lernt etwas dazu!',
-  complete: 'Fertig!',
+  text: 'Tavi ist unterwegs und schreibt mit',
+  check: 'Die Fakten werden nachgeprüft',
+  images: 'Die Bilder werden gemalt',
+  complete: 'Fertig gecheckt!',
 };
 
 const toPerspective = (candidate?: string | null): DokuPerspective | null => {
@@ -468,6 +473,7 @@ export default function ModernDokuWizard() {
   const [activeStep, setActiveStep] = useState(shouldJumpToSummary ? 4 : 0);
   const [generating, setGenerating] = useState(false);
   const [phase, setPhase] = useState<GenerationPhase>('text');
+  const [generationError, setGenerationError] = useState<string | null>(null);
   const [language, setLanguage] = useState<DokuApiLanguage>('de');
   const [selectedDomainId, setSelectedDomainId] = useState<string>(initialDomainId);
   const [showMoreCategories, setShowMoreCategories] = useState(false);
@@ -662,6 +668,21 @@ export default function ModernDokuWizard() {
   const dailyBlocked = Boolean(dailyCredits && dailyCredits.remaining !== null && dailyCredits.remaining <= 0);
   const generationBlocked = monthlyBlocked || dailyBlocked;
 
+  /** Polls the doku the cut-off request is still writing; null when it failed or never finished. */
+  const waitForGeneratedDoku = async (dokuId: string): Promise<{ id: string } | null> => {
+    for (let attempt = 0; attempt < RECOVERY_ATTEMPTS; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, RECOVERY_POLL_MS));
+      try {
+        const doku = await backend.doku.getDoku({ id: dokuId, profileId: activeProfileId || undefined });
+        if (doku.status === 'complete') return doku;
+        if (doku.status === 'error') return null;
+      } catch {
+        // Not saved yet or a short network hiccup: keep waiting.
+      }
+    }
+    return null;
+  };
+
   const createDoku = async () => {
     if (!userId || !state.topic.trim()) return;
     if (generationBlocked) {
@@ -680,14 +701,13 @@ export default function ModernDokuWizard() {
     try {
       setGenerating(true);
       setPhase('text');
+      setGenerationError(null);
+      const startedAt = Date.now();
       timer = setInterval(() => {
-        setPhase((prev) => {
-          if (prev === 'text') return 'cover';
-          if (prev === 'cover') return 'sections';
-          if (prev === 'sections') return 'personality';
-          return prev;
-        });
-      }, 3200);
+        const elapsed = (Date.now() - startedAt) / 1000;
+        const reached = PHASE_START_SECONDS.filter(([, start]) => elapsed >= start).pop();
+        if (reached) setPhase(reached[0]);
+      }, 1000);
 
       const effectiveDomainId =
         normalizeSuggestionDomain(suggestionDomainId || selectedDomainId) ||
@@ -707,11 +727,23 @@ export default function ModernDokuWizard() {
         domainId: effectiveDomainId,
       } as any;
 
-      const created = await backend.doku.generateDoku({
-        userId,
-        profileId: activeProfileId || undefined,
-        config: generationConfig,
-      });
+      // Generation outlasts Railway's ~60 s edge timeout. With our own id the
+      // finished doku can still be picked up after the request was cut off.
+      const dokuId = createStoryGenerationId();
+      let created: { id: string } | null = null;
+      try {
+        created = await backend.doku.generateDoku({
+          userId,
+          profileId: activeProfileId || undefined,
+          config: generationConfig,
+          dokuId,
+        });
+      } catch (requestError) {
+        if (!shouldAttemptStoryGenerationRecovery(requestError)) throw requestError;
+        console.warn('[ModernDokuWizard] request cut off, waiting for the doku in the background', requestError);
+        created = await waitForGeneratedDoku(dokuId);
+        if (!created) throw requestError;
+      }
 
       const spendOne = (prev: DokuCredits | null) =>
         prev
@@ -737,7 +769,7 @@ export default function ModernDokuWizard() {
         setUpgradeMessage(error.message);
         setShowUpgradeModal(true);
       } else {
-        alert('Das hat leider nicht geklappt. Versuch es einfach nochmal!');
+        setGenerationError('Das hat leider nicht geklappt. Deine Münze bekommst du zurück. Versuch es gleich nochmal!');
       }
     } finally {
       if (timer) clearInterval(timer);
@@ -790,7 +822,7 @@ export default function ModernDokuWizard() {
               }}
             >
               <Wand2 className="h-3 w-3" />
-              Doku Wizard
+              Doku-Reportage
             </span>
             <h1
               className="mt-2 text-[2.2rem] font-semibold leading-[0.98] sm:text-[2.6rem]"
@@ -799,7 +831,7 @@ export default function ModernDokuWizard() {
                 fontFamily: taleaDisplayFont,
               }}
             >
-              Neue Doku zaubern
+              Neuen Check starten
             </h1>
           </div>
 
@@ -844,7 +876,7 @@ export default function ModernDokuWizard() {
                     <div className="space-y-6">
                       <StepTitle
                         eyebrow="Schritt 1"
-                        title="Was möchtest du entdecken?"
+                        title="Was willst du heute checken?"
                         subtitle="Wähle eine Themen-Welt und finde dein perfektes Doku-Thema."
                       />
 
@@ -1289,8 +1321,22 @@ export default function ModernDokuWizard() {
                         }}
                       >
                         <Sparkles className="h-5 w-5" />
-                        {generationBlocked ? 'Gerade nicht möglich' : 'Doku zaubern! (1 Münze)'}
+                        {generationBlocked ? 'Gerade nicht möglich' : 'Check starten! (1 Münze)'}
                       </motion.button>
+
+                      {generationError && (
+                        <p
+                          role="alert"
+                          className="rounded-2xl border px-4 py-3 text-sm font-semibold"
+                          style={{
+                            borderColor: 'color-mix(in srgb, #d9534f 45%, transparent)',
+                            background: 'color-mix(in srgb, #d9534f 10%, var(--talea-surface-primary))',
+                            color: 'var(--talea-text-primary)',
+                          }}
+                        >
+                          {generationError}
+                        </p>
+                      )}
 
                       {credits && (
                         <p className="text-center text-xs" style={{ color: 'var(--talea-text-muted)' }}>
@@ -1391,7 +1437,7 @@ const GenerationView: React.FC<{ phase: GenerationPhase; reduceMotion: boolean }
   phase,
   reduceMotion,
 }) => {
-  const phases: GenerationPhase[] = ['text', 'cover', 'sections', 'personality', 'complete'];
+  const phases: GenerationPhase[] = ['text', 'check', 'images', 'complete'];
   const currentIdx = phases.indexOf(phase);
 
   return (
@@ -1429,6 +1475,9 @@ const GenerationView: React.FC<{ phase: GenerationPhase; reduceMotion: boolean }
           >
             {phaseLabels[phase]}
           </h2>
+          <p className="mt-2 text-sm" style={{ color: 'var(--talea-text-muted)' }}>
+            Eine gute Reportage braucht etwa ein bis zwei Minuten.
+          </p>
 
           {/* Loading dots */}
           <div className="mt-3 flex items-center gap-1.5" aria-hidden>

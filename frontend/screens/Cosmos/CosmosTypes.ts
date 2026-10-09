@@ -100,6 +100,8 @@ export interface CosmosState {
   domains: DomainProgress[];
   totalStoriesRead: number;
   totalDokusRead: number;
+  /** localStorage key of the last-seen snapshot (see CosmosSeenState). */
+  seenKey?: string;
 }
 
 export interface PlanetVisuals {

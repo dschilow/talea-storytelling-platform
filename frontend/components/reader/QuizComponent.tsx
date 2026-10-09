@@ -5,8 +5,6 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 
 import type { DokuSection } from '../../types/doku';
-import { useAvatarMemory } from '../../hooks/useAvatarMemory';
-import { usePersonalityAI } from '../../hooks/usePersonalityAI';
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
 import { emitMapProgress } from '../../screens/Journey/TaleaLearningPathProgressStore';
@@ -16,7 +14,7 @@ import {
   inferDomainFromDokuTopic,
   submitCosmosQuiz,
 } from '../../screens/Cosmos/apiTrackingClient';
-import { calculateScore, normalizeDomainHint, normalizeQuestions, type NormalizedQuestion } from './quizModel';
+import { calculateScore, normalizeDomainHint, normalizeQuestions } from './quizModel';
 
 interface QuizComponentProps {
   section: DokuSection;
@@ -42,7 +40,6 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
   dokuId,
   dokuTopic,
   dokuMetadata,
-  onPersonalityChange,
   variant = 'page',
 }) => {
   const location = useLocation();
@@ -51,8 +48,6 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
   const { getToken } = useAuth();
   const childProfiles = useOptionalChildProfiles();
   const activeChildId = childProfiles?.activeProfileId;
-  const { addMemory, updatePersonality } = useAvatarMemory();
-  const { analyzeQuizCompletion } = usePersonalityAI();
   const { resolvedTheme } = useTheme();
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -218,86 +213,6 @@ export const QuizComponent: React.FC<QuizComponentProps> = ({
     // Keeping quiz feedback deterministic avoids a paid AI call and prevents
     // the browser from writing arbitrary personality points or duplicate memories.
     setIsSubmitting(false);
-    return;
-
-    if (!effectiveAvatarId || !dokuTitle || !dokuId) {
-      setIsSubmitting(false);
-      return;
-    }
-
-    try {
-      const avatar = await backend.avatar.get({
-        id: effectiveAvatarId,
-        profileId: activeChildId || undefined,
-      });
-      if (!avatar) {
-        setIsSubmitting(false);
-        return;
-      }
-
-      const questionPayload = questions.map((question, index) => ({
-        question: question.question,
-        correctAnswer: question.options[question.answerIndex],
-        userAnswer:
-          selectedAnswers[index] != null
-            ? question.options[selectedAnswers[index] as number]
-            : 'Keine Antwort',
-        isCorrect: selectedAnswers[index] === question.answerIndex,
-      }));
-
-      const aiResult = await analyzeQuizCompletion(
-        avatar,
-        dokuId,
-        section.title,
-        questionPayload,
-        percentage
-      );
-
-      if (aiResult.alreadyProcessed) {
-        const { showWarningToast } = await import('../../utils/toastUtils');
-        showWarningToast('Dieses Quiz wurde für diesen Avatar bereits ausgewertet.');
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (aiResult.success && aiResult.changes.length > 0) {
-        const personalityChanges = aiResult.changes.map((change) => ({
-          trait: change.trait,
-          change: change.change,
-        }));
-
-        const experience = `Quiz zu "${section.title}" in "${dokuTitle}" mit ${percentage}% abgeschlossen.`;
-
-        await addMemory(effectiveAvatarId, {
-          storyId: dokuId,
-          storyTitle: `Quiz: ${dokuTitle}`,
-          experience,
-          emotionalImpact: percentage >= 70 ? 'positive' : percentage >= 40 ? 'neutral' : 'negative',
-          contentType: 'quiz',
-          personalityChanges,
-        });
-
-        await updatePersonality(
-          effectiveAvatarId,
-          personalityChanges,
-          `Quiz-Auswertung "${section.title}" (${percentage}% korrekt)`,
-          dokuId
-        );
-
-        if (onPersonalityChange) {
-          onPersonalityChange(personalityChanges);
-        } else {
-          const { showPersonalityUpdateToast } = await import('../../utils/toastUtils');
-          showPersonalityUpdateToast(personalityChanges);
-        }
-      }
-    } catch (error) {
-      console.error('Quiz evaluation failed:', error);
-      const { showErrorToast } = await import('../../utils/toastUtils');
-      showErrorToast('Fehler bei der Quiz-Auswertung.');
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   const handleNext = async () => {

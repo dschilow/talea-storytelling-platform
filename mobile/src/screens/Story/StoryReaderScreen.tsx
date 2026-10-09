@@ -32,6 +32,8 @@ import { SkeletonText } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { OverlayGradient } from '@/components/ui/Gradient';
 import { IconButton } from '@/components/ui/IconButton';
+import { Glass } from '@/components/ui/Glass';
+import { withAlpha } from '@/theme/tokens';
 import { GrowthSheet } from './GrowthSheet';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -316,7 +318,6 @@ export function StoryReaderScreen() {
                   Kapitel {index + 1} von {chapters.length}
                 </Text>
                 <Text variant="displayLg">{entry.title}</Text>
-                <View style={[styles.ornament, { backgroundColor: colors.gold }]} />
               </View>
 
               <View style={{ gap: spacing.base }}>
@@ -383,50 +384,37 @@ export function StoryReaderScreen() {
         <Animated.View
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(160)}
-          style={[
-            styles.bottomBar,
-            shadows.float,
-            {
-              bottom: insets.bottom + spacing.sm,
-              left: spacing.md,
-              right: spacing.md,
-              borderRadius: radius.xl,
-              borderWidth: 1,
-              borderColor: colors.border.light,
-              paddingHorizontal: spacing.base,
-              paddingTop: spacing.md,
-              paddingBottom: spacing.md,
-              backgroundColor: colors.surface.panel,
-              gap: spacing.sm,
-            },
-          ]}
+          style={[styles.bottomBar, { bottom: insets.bottom + spacing.sm, left: spacing.lg, right: spacing.lg }]}
         >
-          <ProgressBar progress={(chapterIndex + 1) / chapters.length} height={4} />
-
-          <View style={styles.bottomRow}>
-            <ChromeButton
+          <Glass blur borderRadius={30} style={[styles.bottomRow, { paddingHorizontal: spacing.xs, height: 60 }]}>
+            <IconButton
+              variant="plain"
               onPress={() => goToChapter(chapterIndex - 1)}
               disabled={chapterIndex === 0}
               accessibilityLabel="Vorheriges Kapitel"
             >
-              <ChevronLeft size={20} color={chapterIndex === 0 ? colors.text.muted : colors.text.primary} />
-            </ChromeButton>
+              <ChevronLeft size={24} color={chapterIndex === 0 ? colors.text.muted : colors.text.primary} />
+            </IconButton>
 
-            <Text variant="caption" tone="secondary">
-              {chapterIndex + 1} / {chapters.length}
-            </Text>
+            <View style={{ flex: 1, gap: 6, paddingHorizontal: spacing.sm }}>
+              <Text variant="caption" tone="secondary" center>
+                Kapitel {chapterIndex + 1} von {chapters.length}
+              </Text>
+              <ProgressBar progress={(chapterIndex + 1) / chapters.length} height={4} animated={false} />
+            </View>
 
-            <ChromeButton
+            <IconButton
+              variant={isLastChapter ? 'brand' : 'plain'}
               onPress={() => (isLastChapter ? void handleFinish() : goToChapter(chapterIndex + 1))}
               accessibilityLabel={isLastChapter ? 'Geschichte beenden' : 'Nächstes Kapitel'}
             >
               {isLastChapter ? (
-                <Check size={20} color={colors.primary} />
+                <Check size={20} color={colors.primaryForeground} strokeWidth={2.6} />
               ) : (
-                <ChevronRight size={20} color={colors.text.primary} />
+                <ChevronRight size={24} color={colors.text.primary} />
               )}
-            </ChromeButton>
-          </View>
+            </IconButton>
+          </Glass>
         </Animated.View>
       ) : null}
 
@@ -497,7 +485,7 @@ function ReaderChrome({
       exiting={FadeOut.duration(160)}
       style={[styles.topBar, { paddingTop: insetTop + spacing.sm, paddingHorizontal: spacing.base, gap: spacing.sm }]}
     >
-      <OverlayGradient colors={colors.media.overlay} style={StyleSheet.absoluteFill} />
+      <OverlayGradient colors={[colors.pageSolid, withAlpha(colors.pageSolid, 0.9), withAlpha(colors.pageSolid, 0)]} style={StyleSheet.absoluteFill} />
       <ChromeButton onPress={onClose} accessibilityLabel="Schließen">
         <X size={18} color={colors.text.primary} />
       </ChromeButton>
@@ -536,10 +524,9 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 10,
+    paddingBottom: 26,
   },
   bottomBar: { position: 'absolute' },
-  ornament: { width: 44, height: 3, borderRadius: 2 },
   bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   chapterRow: { flexDirection: 'row', alignItems: 'center' },
 });

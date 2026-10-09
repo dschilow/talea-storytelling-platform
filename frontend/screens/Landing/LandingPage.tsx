@@ -20,6 +20,7 @@ import './LandingPage.css';
 
 gsap.registerPlugin(ScrollTrigger);
 const ASSETS = '/landing-assets/journey';
+const AUDIO_DOKU_PREVIEW = '/audio-doku/Talea_intro-preview.mp3';
 const islands = [
   {
     id: 'geschichten', label: 'Geschichten', place: 'Das Geschichten-Schloss', icon: BookOpenText,
@@ -82,6 +83,8 @@ export default function LandingPage() {
   const [inJourney, setInJourney] = useState(false);
   const [isCompact, setIsCompact] = useState(() => window.innerWidth < 900);
   const [audioPlaying, setAudioPlaying] = useState(false);
+  const [audioDokuPlaying, setAudioDokuPlaying] = useState(false);
+  const [audioDokuError, setAudioDokuError] = useState(false);
   const animated = !prefersReducedMotion && !gentleMode;
   const cinematic = animated && !isCompact;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -90,6 +93,7 @@ export default function LandingPage() {
   const trackRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const audioDokuRef = useRef<HTMLAudioElement>(null);
   const start = useCallback(() => navigate('/auth?mode=signup'), [navigate]);
 
   useEffect(() => {
@@ -108,7 +112,12 @@ export default function LandingPage() {
 
   useEffect(() => {
     if (activeIsland !== 2) { audioRef.current?.pause(); setAudioPlaying(false); }
-    const pauseAudio = () => { if (document.hidden) audioRef.current?.pause(); };
+    const pauseAudio = () => {
+      if (document.hidden) {
+        audioRef.current?.pause();
+        audioDokuRef.current?.pause();
+      }
+    };
     document.addEventListener('visibilitychange', pauseAudio);
     return () => document.removeEventListener('visibilitychange', pauseAudio);
   }, [activeIsland]);
@@ -217,6 +226,22 @@ export default function LandingPage() {
     if (audio.paused) { try { await audio.play(); } catch { setAudioPlaying(false); } }
     else audio.pause();
   };
+  const toggleAudioDoku = async () => {
+    const audio = audioDokuRef.current;
+    if (!audio) return;
+    if (!audio.paused) {
+      audio.pause();
+      return;
+    }
+    setAudioDokuError(false);
+    if (audio.error) audio.load();
+    try {
+      await audio.play();
+    } catch (error) {
+      setAudioDokuPlaying(false);
+      if (!(error instanceof DOMException && error.name === 'AbortError')) setAudioDokuError(true);
+    }
+  };
 
   return (
     <div ref={rootRef} className="talea-journey" data-motion={animated ? 'full' : 'gentle'} data-cinematic={cinematic ? 'true' : 'false'}>
@@ -224,7 +249,7 @@ export default function LandingPage() {
       <div className="journey-page-progress" aria-hidden="true" />
       <header className={`journey-nav${navScrolled ? ' journey-nav--scrolled' : ''}`}>
         <a className="journey-brand" href="#intro" aria-label="Talea – zum Anfang"><BookOpenText strokeWidth={1.4} /><span>talea<span className="brand-star">✦</span></span></a>
-        <nav className="journey-nav-links" aria-label="Hauptnavigation"><a href="#journey">Die Reise</a><a href="#parents">Für Eltern</a><a href="#pricing">Preise</a></nav>
+        <nav className="journey-nav-links" aria-label="Hauptnavigation"><a href="#journey">Die Reise</a><a href="#audio-dokus">Audio-Dokus</a><a href="#parents">Für Eltern</a><a href="#pricing">Preise</a></nav>
         <div className="journey-nav-actions">
           <button type="button" className="motion-control" onClick={toggleGentleMode} aria-pressed={gentleMode || !!prefersReducedMotion} aria-label={animated ? 'Weniger Bewegung aktivieren' : 'Volle Animationen aktivieren'} title={animated ? 'Weniger Bewegung' : 'Volle Animationen'} disabled={!!prefersReducedMotion}>{animated ? <Pause size={15} /> : <Play size={15} />}<span>{animated ? 'Film-Modus' : 'Ruhiger Modus'}</span></button>
           <Link className="journey-login" to="/auth">Anmelden</Link>
@@ -248,6 +273,7 @@ export default function LandingPage() {
         <section id="journey" className="journey-introduction" aria-labelledby="journey-title">
           <span className="journey-eyebrow">Die Welt von Talea</span><h2 id="journey-title">Folge dem <em>Funkeln.</em></h2><p>Fünf Inseln. Tausend Möglichkeiten. Eine Welt, die eure ist.</p>
           <div className="journey-chapter-list">{islands.map((island, i) => <button type="button" key={island.id} onClick={() => goToIsland(i)}><span>0{i + 1}</span>{island.label}<ArrowRight size={12} /></button>)}</div>
+          <a className="journey-audio-invitation" href="#audio-dokus"><Headphones size={16} />Neugierig auf unsere Audio-Dokus? Jetzt reinhören<ArrowDown size={14} /></a>
         </section>
         <section ref={runwayRef} className="journey-runway" aria-label="Die fünf Inseln von Talea">
           <div ref={stageRef} className="journey-stage">
@@ -271,7 +297,7 @@ export default function LandingPage() {
                     {i === 2 ? <div className="audio-preview" data-playing={audioPlaying}>
                       <button type="button" onClick={toggleAudio} aria-label={audioPlaying ? 'Tavi-Hörprobe pausieren' : 'Tavi-Hörprobe abspielen'}>{audioPlaying ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}</button>
                       <div><span>So klingt euer Begleiter</span><small>Tavi kennenlernen · Hörprobe</small></div><SoundWave />
-                      <audio ref={audioRef} src="/voices/Tavi.mp3" preload="none" onPlay={() => setAudioPlaying(true)} onPause={() => setAudioPlaying(false)} onEnded={() => setAudioPlaying(false)} />
+                      <audio ref={audioRef} src="/voices/Tavi.mp3" preload="none" onPlay={() => { audioDokuRef.current?.pause(); setAudioPlaying(true); }} onPause={() => setAudioPlaying(false)} onEnded={() => setAudioPlaying(false)} />
                     </div> : <p className="island-footnote"><Sparkles size={13} />{island.note}</p>}
                   </div><span className="island-large-number" aria-hidden="true">0{i + 1}</span>
                 </article>;
@@ -280,6 +306,42 @@ export default function LandingPage() {
             <SkyClouds id="journey" />
             {cinematic && <nav className="island-navigation" aria-label="Insel-Navigation"><span className="island-navigation-caption"><Compass size={14} />Unsere Reise</span><ol>{islands.map((island, i) => <li key={island.id}><button type="button" className={activeIsland === i ? 'is-active' : ''} onClick={() => goToIsland(i)} aria-current={activeIsland === i ? 'step' : undefined}><span className="island-nav-dot">0{i + 1}</span><span>{island.label}</span></button></li>)}</ol><a href="#pricing" className="journey-skip-film">Zu den Preisen<ArrowRight size={13} /></a></nav>}
           </div>
+        </section>
+        <section id="audio-dokus" className="journey-audio-dokus" aria-labelledby="audio-dokus-title">
+          <div className="audio-doku-copy">
+            <span className="journey-eyebrow"><Headphones size={14} />Audio-Dokus für neugierige Ohren</span>
+            <h2 id="audio-dokus-title">Große Fragen.<br /><em>Spannend erzählt.</em></h2>
+            <p>Wie lebten die Dinosaurier? Was gibt es im Weltall zu entdecken? Unsere Audio-Dokus erklären spannende Themen kindgerecht und nehmen dein Kind mit auf eine Wissensreise – einfach zuhören und Neues entdecken.</p>
+            <ul className="audio-doku-features">
+              <li><Check size={15} />Wissen verständlich und lebendig erzählt</li>
+              <li><Check size={15} />Für kleine Hörpausen zuhause und unterwegs</li>
+            </ul>
+            <button type="button" className="parents-link" onClick={start}>Mit Talea weiterentdecken<ArrowRight size={16} /></button>
+          </div>
+          <figure className="audio-doku-player">
+            <img src={`${ASSETS}/audio-island.webp`} alt="" width="1000" height="1000" loading="lazy" decoding="async" />
+            <figcaption className="sr-only">
+              <h3 id="audio-doku-preview-title">Reinhören in die Talea-Welt</h3>
+              <p id="audio-doku-preview-description">Talea-Intro · Hörprobe ohne Anmeldung</p>
+            </figcaption>
+            <div className="audio-preview audio-preview--doku" data-playing={audioDokuPlaying}>
+              <button type="button" onClick={toggleAudioDoku} aria-label={audioDokuPlaying ? 'Audio-Doku-Hörprobe pausieren' : 'Audio-Doku-Hörprobe abspielen'} aria-pressed={audioDokuPlaying} aria-describedby="audio-doku-preview-description">{audioDokuPlaying ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}</button>
+              <div><span>So klingen unsere Audio-Dokus</span><small>Talea kennenlernen · Hörprobe</small></div><SoundWave />
+              <audio
+                ref={audioDokuRef}
+                src={AUDIO_DOKU_PREVIEW}
+                preload="none"
+                aria-labelledby="audio-doku-preview-title"
+                onPlay={() => { audioRef.current?.pause(); setAudioDokuPlaying(true); }}
+                onPause={() => setAudioDokuPlaying(false)}
+                onEnded={() => setAudioDokuPlaying(false)}
+                onLoadStart={() => setAudioDokuError(false)}
+                onError={() => { setAudioDokuPlaying(false); setAudioDokuError(true); }}
+              />
+            </div>
+            {audioDokuError && <p className="audio-doku-error" role="status">Die Hörprobe konnte nicht geladen werden. Öffne die MP3 über den Link darunter direkt.</p>}
+            <a className="audio-doku-direct-link" href={AUDIO_DOKU_PREVIEW} target="_blank" rel="noopener noreferrer">Hörprobe als MP3 öffnen<ArrowRight size={14} /><span className="sr-only"> (öffnet in einem neuen Tab)</span></a>
+          </figure>
         </section>
         <section id="parents" className="journey-parents" aria-labelledby="parents-title">
           <div className="parents-copy"><span className="journey-eyebrow"><ShieldCheck size={14} />Für Eltern</span><h2 id="parents-title">Große Abenteuer.<br /><em>In guten Händen.</em></h2><p>Ihr gebt den Rahmen vor. Eure Kinder füllen ihn mit Fantasie. Talea hilft euch, beides zusammenzubringen.</p><button type="button" className="parents-link" onClick={start}>Gemeinsam losziehen<ArrowRight size={16} /></button></div>

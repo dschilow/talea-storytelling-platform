@@ -4,7 +4,7 @@ import { Image, type ImageContentFit } from 'expo-image';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import type { ThemePalette } from '@/theme/tokens';
-import { SparkleGlyph } from '@/components/fx/Sparkles';
+import { ImageIcon } from 'lucide-react-native';
 import { Skeleton } from './Skeleton';
 import { Gradient, OverlayGradient } from './Gradient';
 
@@ -57,9 +57,7 @@ export function CoverImage({
         <>
           <Gradient token={colors.gradient[fallbackGradient]} style={StyleSheet.absoluteFill} />
           <View style={styles.center}>
-            <View style={[styles.fallbackBadge, { backgroundColor: colors.surface.secondary }]}>
-              <SparkleGlyph size={20} color={colors.primary} />
-            </View>
+            <ImageIcon size={26} color={colors.text.muted} strokeWidth={1.8} />
           </View>
         </>
       ) : (
@@ -97,5 +95,4 @@ export function CoverImage({
 const styles = StyleSheet.create({
   container: { overflow: 'hidden' },
   center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  fallbackBadge: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
 });

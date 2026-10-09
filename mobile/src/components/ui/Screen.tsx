@@ -11,7 +11,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/theme/ThemeProvider';
+import { withAlpha } from '@/theme/tokens';
 import { PageBackground } from './PageBackground';
+import { OverlayGradient } from './Gradient';
 
 /** Extra bottom padding so content clears the tab bar + mini player. */
 export const TAB_BAR_CLEARANCE = 96;
@@ -39,8 +41,6 @@ interface ScreenProps {
   header?: ReactNode;
   /** Pinned to the bottom, above the tab bar. */
   footer?: ReactNode;
-  /** Slow aurora drift behind the content — for hero screens only. */
-  ambient?: boolean;
 }
 
 /**
@@ -62,7 +62,6 @@ export function Screen({
   scrollViewProps,
   header,
   footer,
-  ambient = false,
 }: ScreenProps) {
   const { colors, spacing } = useTheme();
   const insets = useSafeAreaInsets();
@@ -105,16 +104,26 @@ export function Screen({
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.pageSolid }, style]}>
-      <PageBackground animated={ambient} />
+      <PageBackground />
       <View style={[styles.flex, topInset && { paddingTop: insets.top }]}>
         {header}
         {body}
         {footer ? <View style={{ paddingBottom: insets.bottom }}>{footer}</View> : null}
       </View>
+      {topInset ? (
+        // Content scrolls under the status bar; fade it out there the way the
+        // iOS navigation bar material does.
+        <OverlayGradient
+          colors={[colors.pageSolid, withAlpha(colors.pageSolid, 0.85), withAlpha(colors.pageSolid, 0)]}
+          style={[styles.statusScrim, { height: insets.top + 14 }]}
+          pointerEvents="none"
+        />
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  statusScrim: { position: 'absolute', top: 0, left: 0, right: 0 },
 });

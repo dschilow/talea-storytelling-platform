@@ -1,306 +1,217 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import * as Dialog from '@radix-ui/react-dialog';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, Check, Compass, Map, Pause, Sparkles, Volume2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import { cn } from '@/lib/utils';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
-import { TaleaActionButton, taleaDisplayFont } from '@/components/talea/TaleaPastelPrimitives';
-import {
-  AvatarChapterDemo,
-  CHAPTERS,
-  DokuChapterBody,
-  ParentsChapterBody,
-  ReadingChapterDemo,
-  StoryChapterDemo,
-  TreasureChapterBody,
-  type ChapterId,
-} from './tourChapters';
+import { CHAPTERS, tourAudio, tourImage, type ChapterMeta } from './tourChapters';
+import './WelcomeTour.css';
 
 interface Props {
   onFinish: () => void;
-  /** Called when the user dismisses early; also counts as "seen". */
   onDismiss: () => void;
 }
 
-const SWIPE_THRESHOLD = 60;
+function TourIllustration({ chapter }: { chapter: ChapterMeta }) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className="tour-illustration" aria-busy={!loaded && !failed}>
+      {!loaded && !failed && <div className="tour-image-placeholder" aria-hidden="true"><BookOpen size={40} /><span>Das Bild kommt gleich …</span></div>}
+      {failed ? (
+        <div className="tour-image-placeholder" role="img" aria-label={chapter.imageAlt}><BookOpen size={48} /><span>{chapter.imageAlt}</span></div>
+      ) : (
+        <img src={tourImage(chapter.id)} alt={chapter.imageAlt} width="768" height="768" decoding="async" fetchPriority="high" onLoad={() => setLoaded(true)} onError={() => setFailed(true)} className={loaded ? 'is-loaded' : ''} />
+      )}
+    </div>
+  );
+}
 
 export default function WelcomeTour({ onFinish, onDismiss }: Props) {
   const navigate = useNavigate();
-  const reduce = useReducedMotion();
+  const reduceMotion = useReducedMotion();
   const childProfiles = useOptionalChildProfiles();
-  const childName = childProfiles?.activeProfile?.name?.trim() || null;
-
+  const childName = childProfiles?.activeProfile?.name?.trim();
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(1);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const [overview, setOverview] = useState(false);
+  const [discovery, setDiscovery] = useState<number | null>(null);
+  const [narrationEnabled, setNarrationEnabled] = useState(false);
+  const [narrationPlaying, setNarrationPlaying] = useState(false);
+  const [audioError, setAudioError] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
-
+  const overviewHeadingRef = useRef<HTMLHeadingElement>(null);
+  const stageRef = useRef<HTMLElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const chapter = CHAPTERS[index];
-  const isFirst = index === 0;
   const isLast = index === CHAPTERS.length - 1;
 
-  const go = useCallback(
-    (next: number) => {
-      if (next < 0 || next >= CHAPTERS.length) return;
-      setDirection(next > index ? 1 : -1);
-      setIndex(next);
-    },
-    [index]
-  );
-
-  const finishToAvatar = () => {
-    onFinish();
-    navigate('/avatar/create');
-  };
-
-  // Keyboard: arrows page through, Escape leaves.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onDismiss();
-        return;
-      }
-      if (event.key === 'ArrowRight') go(index + 1);
-      if (event.key === 'ArrowLeft') go(index - 1);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [go, index, onDismiss]);
-
-  // The tour covers the whole app — stop the page behind it from scrolling.
-  useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, []);
-
-  // Move focus to the new chapter heading so screen readers follow along.
-  useEffect(() => {
-    headingRef.current?.focus();
+  const go = useCallback((next: number) => {
+    if (next < 0 || next >= CHAPTERS.length) return;
+    audioRef.current?.pause();
+    setDirection(next >= index ? 1 : -1);
+    setDiscovery(null);
+    setAudioError(false);
+    setOverview(false);
+    setIndex(next);
+    stageRef.current?.scrollTo({ top: 0 });
   }, [index]);
 
-  // Keep tab focus inside the dialog.
-  useEffect(() => {
-    const node = dialogRef.current;
-    if (!node) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Tab') return;
-      const focusables = node.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusables.length === 0) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    node.addEventListener('keydown', onKeyDown);
-    return () => node.removeEventListener('keydown', onKeyDown);
-  }, []);
-
-  const greeting = useMemo(() => {
-    if (!childName) return 'Willkommen bei Talea';
-    return `Willkommen, ${childName}`;
-  }, [childName]);
-
-  const body: Record<ChapterId, React.ReactNode> = {
-    welcome: null,
-    avatar: <AvatarChapterDemo />,
-    story: <StoryChapterDemo />,
-    reading: <ReadingChapterDemo />,
-    doku: <DokuChapterBody />,
-    treasure: <TreasureChapterBody />,
-    parents: <ParentsChapterBody />,
-    start: null,
+  const leaveTo = (path: string) => {
+    audioRef.current?.pause();
+    onFinish();
+    navigate(path);
   };
 
-  // A page turn rather than a slide — the guide reads as a picture book.
-  const pageVariants = reduce
-    ? {
-        enter: { opacity: 0 },
-        center: { opacity: 1 },
-        exit: { opacity: 0 },
+  // Narration starts only after the child chooses it; then it follows page turns.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    let cancelled = false;
+    audio.pause();
+    audio.currentTime = 0;
+    setNarrationPlaying(false);
+    if (narrationEnabled && !overview && !document.hidden) {
+      document.querySelectorAll<HTMLMediaElement>('audio, video').forEach(media => {
+        if (media !== audio && !media.paused) media.pause();
+      });
+      void audio.play().catch(error => {
+        if (cancelled || error?.name === 'AbortError') return;
+        setAudioError(true);
+        setNarrationEnabled(false);
+      });
+    }
+    return () => { cancelled = true; audio.pause(); };
+  }, [chapter.id, narrationEnabled, overview]);
+
+  useEffect(() => {
+    const pauseWhenHidden = () => {
+      if (document.hidden) {
+        audioRef.current?.pause();
+        setNarrationEnabled(false);
       }
-    : {
-        enter: (dir: number) => ({ opacity: 0, x: dir * 46, rotateY: dir * 6 }),
-        center: { opacity: 1, x: 0, rotateY: 0 },
-        exit: (dir: number) => ({ opacity: 0, x: dir * -46, rotateY: dir * -6 }),
-      };
+    };
+    document.addEventListener('visibilitychange', pauseWhenHidden);
+    return () => document.removeEventListener('visibilitychange', pauseWhenHidden);
+  }, []);
+
+  useEffect(() => {
+    stageRef.current?.scrollTo({ top: 0 });
+    if (overview) overviewHeadingRef.current?.focus({ preventScroll: true });
+  }, [overview]);
+
+  // Only warm the next picture, rather than downloading the whole tour on login.
+  useEffect(() => {
+    const next = CHAPTERS[index + 1];
+    if (next) { const image = new Image(); image.src = tourImage(next.id); }
+  }, [index]);
+
+  const activeDiscovery = discovery === null ? null : chapter.discoveries[discovery];
 
   return (
-    <div
-      className="fixed inset-0 z-[120] flex flex-col overflow-hidden bg-[var(--talea-page-solid)]"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Willkommens-Guide"
-      ref={dialogRef}
-    >
-      {/* Ambient wash — warm paper, not a flat backdrop. */}
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <div className="absolute -left-[18%] top-[-12%] h-[32rem] w-[32rem] rounded-full bg-[var(--primary)]/12 blur-[130px]" />
-        <div className="absolute -right-[14%] top-[22%] h-[28rem] w-[28rem] rounded-full bg-[var(--talea-accent-peach)]/16 blur-[130px]" />
-        <div className="absolute bottom-[-14%] left-[26%] h-[26rem] w-[26rem] rounded-full bg-[var(--talea-accent-sky)]/12 blur-[120px]" />
-      </div>
-
-      {/* Header: progress + exit */}
-      <header className="relative z-10 flex items-center gap-4 px-4 pt-4 sm:px-8 sm:pt-6">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          {CHAPTERS.map((entry, i) => (
-            <button
-              key={entry.id}
-              type="button"
-              onClick={() => go(i)}
-              aria-label={`Kapitel ${i + 1}: ${entry.eyebrow}`}
-              aria-current={i === index ? 'step' : undefined}
-              className="group relative h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--talea-border-light)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/18"
-            >
-              <motion.span
-                className="absolute inset-y-0 left-0 rounded-full bg-[var(--primary)]"
-                initial={false}
-                animate={{ width: i < index ? '100%' : i === index ? '100%' : '0%', opacity: i <= index ? 1 : 0 }}
-                transition={reduce ? { duration: 0.01 } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-              />
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--talea-text-secondary)] transition-colors hover:text-[var(--talea-text-primary)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/18"
+    <Dialog.Root open onOpenChange={open => { if (!open) onDismiss(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="tour-overlay" />
+        <Dialog.Content
+          className="welcome-tour"
+          onOpenAutoFocus={event => {
+            previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            event.preventDefault();
+            headingRef.current?.focus({ preventScroll: true });
+          }}
+          onCloseAutoFocus={event => {
+            event.preventDefault();
+            if (previousFocusRef.current?.isConnected) previousFocusRef.current.focus({ preventScroll: true });
+          }}
+          onKeyDown={event => {
+            if (overview || event.altKey || event.ctrlKey || event.metaKey) return;
+            if ((event.target as HTMLElement).closest('input, textarea, select, [role="tablist"]')) return;
+            if (event.key === 'ArrowRight') { event.preventDefault(); go(index + 1); }
+            if (event.key === 'ArrowLeft') { event.preventDefault(); go(index - 1); }
+          }}
+          aria-describedby="tour-description"
         >
-          <X className="h-3.5 w-3.5" aria-hidden />
-          Überspringen
-        </button>
-      </header>
+          <header className="tour-header">
+            <span className="tour-brand"><Compass size={22} /><span>Tavi zeigt dir Talea<small>Deine Entdeckungsreise</small></span></span>
+            <div className="tour-header-actions">
+              <button type="button" className="tour-tool-button" onClick={() => { setAudioError(false); setNarrationEnabled(value => !value); }} aria-pressed={narrationEnabled} disabled={overview} aria-label={narrationEnabled ? 'Vorlesen ausschalten' : 'Tavi liest diese und die nächsten Seiten vor'}>
+                {narrationPlaying ? <Pause size={18} /> : <Volume2 size={18} />}<span data-short={narrationEnabled ? 'Stopp' : 'Vorlesen'}>{narrationEnabled ? 'Ton aus' : 'Tavi erzählt'}</span>
+              </button>
+              <button type="button" className="tour-tool-button" onClick={() => setOverview(value => !value)} aria-expanded={overview} aria-controls="tour-stage"><Map size={18} /><span data-short={overview ? 'Zurück' : 'Orte'}>{overview ? 'Zur Seite' : 'Alle Orte'}</span></button>
+              <Dialog.Close asChild><button type="button" className="tour-close" aria-label="Rundgang schließen und später selbst entdecken"><X size={20} /></button></Dialog.Close>
+            </div>
+          </header>
+          <progress className="tour-progress" max={CHAPTERS.length} value={index + 1} aria-label="Fortschritt im Rundgang" />
 
-      {/* Stage */}
-      <div className="relative z-10 flex flex-1 items-center justify-center overflow-y-auto px-4 py-6 sm:px-8">
-        <div className="w-full max-w-2xl" style={{ perspective: 1400 }}>
-          <AnimatePresence mode="wait" custom={direction}>
-            <motion.article
-              key={chapter.id}
-              custom={direction}
-              variants={pageVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={reduce ? { duration: 0.12 } : { duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
-              drag={reduce ? false : 'x'}
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.16}
-              onDragEnd={(_, info) => {
-                if (info.offset.x < -SWIPE_THRESHOLD) go(index + 1);
-                if (info.offset.x > SWIPE_THRESHOLD) go(index - 1);
-              }}
-              className="relative"
-            >
-              <p className="relative text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--primary)]">
-                {chapter.numeral ? `Kapitel ${chapter.numeral}` : chapter.eyebrow}
-              </p>
-
-              <h1
-                ref={headingRef}
-                tabIndex={-1}
-                className="relative mt-3 text-[2rem] leading-[1.04] tracking-[-0.01em] text-[var(--talea-text-primary)] outline-none sm:text-[2.9rem]"
-                style={{ fontFamily: taleaDisplayFont }}
-              >
-                {chapter.id === 'welcome' ? greeting : chapter.title}
-              </h1>
-
-              <p className="relative mt-3.5 max-w-xl text-[15px] leading-[1.7] text-[var(--talea-text-secondary)]">
-                {chapter.id === 'welcome' ? CHAPTERS[0].lede : chapter.lede}
-              </p>
-
-              {/* The cover doubles as a table of contents: it tells the reader
-                  up front how long this is and what it covers. */}
-              {chapter.id === 'welcome' && (
-                <ol className="relative mt-7 grid gap-x-8 gap-y-0.5 sm:grid-cols-2">
-                  {CHAPTERS.filter((entry) => entry.numeral).map((entry, i) => (
-                    <motion.li
-                      key={entry.id}
-                      initial={reduce ? false : { opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.22 + i * 0.07, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                      className="flex items-baseline gap-3 border-b border-dashed border-[var(--talea-border-light)] py-2.5"
-                    >
-                      <span
-                        className="w-7 shrink-0 text-sm text-[var(--primary)]"
-                        style={{ fontFamily: taleaDisplayFont }}
-                      >
-                        {entry.numeral}
-                      </span>
-                      <span className="text-[15px] text-[var(--talea-text-primary)]">{entry.eyebrow}</span>
-                    </motion.li>
+          <main id="tour-stage" ref={stageRef} className="tour-stage">
+            {overview ? (
+              <section id="tour-map" className="tour-overview" aria-labelledby="tour-overview-title">
+                <Dialog.Title asChild><h1 id="tour-overview-title" ref={overviewHeadingRef} tabIndex={-1}>Wo möchtest du hin?</h1></Dialog.Title>
+                <Dialog.Description id="tour-description">Tippe auf ein Bild. Tavi zeigt dir diesen Ort.</Dialog.Description>
+                <nav className="tour-place-grid" aria-label="Orte im Rundgang">
+                  {CHAPTERS.slice(1, -1).map((entry, i) => (
+                    <button type="button" key={entry.id} onClick={() => go(i + 1)} aria-label={`${entry.label} im Rundgang entdecken`} aria-current={entry.id === chapter.id ? 'step' : undefined}>
+                      <img src={tourImage(entry.id)} alt="" width="768" height="768" loading="lazy" />
+                      <span>{entry.label}</span><ArrowRight size={16} aria-hidden="true" />
+                    </button>
                   ))}
-                </ol>
-              )}
-
-              {body[chapter.id] && <div className="relative mt-6">{body[chapter.id]}</div>}
-
-              {chapter.id === 'start' && (
-                <motion.div
-                  initial={reduce ? false : { opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.18 }}
-                  className="relative mt-7"
+                </nav>
+              </section>
+            ) : (
+              <AnimatePresence mode="wait" custom={direction}>
+                <motion.article
+                  key={chapter.id}
+                  custom={direction}
+                  variants={{ enter: (dir: number) => ({ opacity: reduceMotion ? 1 : 0, x: reduceMotion ? 0 : dir * 18 }), center: { opacity: 1, x: 0 }, exit: (dir: number) => ({ opacity: reduceMotion ? 1 : 0, x: reduceMotion ? 0 : dir * -12 }) }}
+                  initial="enter" animate="center" exit="exit"
+                  transition={{ duration: reduceMotion ? 0 : 0.2 }}
+                  onAnimationComplete={() => headingRef.current?.focus({ preventScroll: true })}
+                  className="tour-book" data-tour-chapter={chapter.id}
+                  style={{ '--tour-accent': chapter.accent } as CSSProperties}
                 >
-                  <TaleaActionButton
-                    onClick={finishToAvatar}
-                    icon={<Sparkles className="h-4 w-4" />}
-                    className="w-full justify-center py-3.5 text-base sm:w-auto sm:px-8"
-                  >
-                    Ersten Avatar erstellen
-                  </TaleaActionButton>
-                  <button
-                    type="button"
-                    onClick={onFinish}
-                    className="mt-3 block text-sm text-[var(--talea-text-secondary)] underline underline-offset-4 transition-colors hover:text-[var(--talea-text-primary)] focus-visible:outline-none"
-                  >
-                    Erstmal selbst umsehen
-                  </button>
-                </motion.div>
-              )}
-            </motion.article>
-          </AnimatePresence>
-        </div>
-      </div>
+                  <div className="tour-picture-page"><TourIllustration chapter={chapter} /><span className="tour-picture-caption" aria-hidden="true">{chapter.label}<span>✦</span></span></div>
+                  <div className="tour-copy-page">
+                    <p className="tour-eyebrow">{chapter.id === 'welcome' && childName ? `Hallo, ${childName}!` : chapter.label}</p>
+                    <Dialog.Title asChild><h1 ref={headingRef} tabIndex={-1}>{chapter.title}</h1></Dialog.Title>
+                    <Dialog.Description id="tour-description" className="tour-lede">{chapter.lede}</Dialog.Description>
 
-      {/* Footer nav */}
-      <footer className="relative z-10 flex items-center justify-between gap-4 px-4 pb-6 sm:px-8 sm:pb-8">
-        <TaleaActionButton
-          variant="secondary"
-          onClick={() => go(index - 1)}
-          disabled={isFirst}
-          icon={<ArrowLeft className="h-4 w-4" />}
-          className={cn(isFirst && 'invisible')}
-        >
-          Zurück
-        </TaleaActionButton>
+                    <div className="tour-discoveries" role="group" aria-label="Kleine Entdeckungen zum Antippen">
+                      {chapter.discoveries.map((entry, i) => (
+                        <button key={entry.label} type="button" aria-pressed={!entry.chapter && discovery === i} onClick={() => {
+                          if (entry.chapter) go(CHAPTERS.findIndex(candidate => candidate.id === entry.chapter));
+                          else setDiscovery(i);
+                        }}>
+                          <span className="tour-discovery-symbol" aria-hidden="true">{entry.symbol}</span><span>{entry.label}</span>
+                          {discovery === i && <Check size={14} className="tour-discovery-check" aria-hidden="true" />}
+                        </button>
+                      ))}
+                    </div>
+                    <p className={`tour-discovery-caption${activeDiscovery ? ' is-discovered' : ''}`} role="status">{activeDiscovery?.explanation ?? (chapter.id === 'welcome' || isLast ? 'Such dir einen Ort aus oder blättere weiter.' : 'Tippe auf ein Bildchen und entdecke mehr.')}</p>
 
-        <span className="text-xs tabular-nums text-[var(--talea-text-tertiary)]">
-          {index + 1} / {CHAPTERS.length}
-        </span>
+                    {isLast && <button type="button" className="tour-start-button" onClick={() => leaveTo('/avatar/create')}><Sparkles size={18} />Ersten Helden gestalten<ArrowRight size={18} /></button>}
+                    <details className="tour-more" key={`${chapter.id}-details`}>
+                      <summary>{chapter.id === 'parents' ? 'Für Eltern: gut zu wissen' : 'Wo finde ich das? Mehr entdecken'}</summary>
+                      <p>{chapter.details}</p>
+                      {chapter.location && <p className="tour-location"><Compass size={15} />{chapter.location}</p>}
+                      {chapter.destination && <button type="button" className="tour-location-link" onClick={() => leaveTo(chapter.destination!)}>Diesen Bereich öffnen<ArrowRight size={15} /></button>}
+                    </details>
+                  </div>
+                </motion.article>
+              </AnimatePresence>
+            )}
+          </main>
 
-        {!isLast ? (
-          <TaleaActionButton onClick={() => go(index + 1)} icon={<ArrowRight className="h-4 w-4" />}>
-            {isFirst ? 'Los geht’s' : 'Weiter'}
-          </TaleaActionButton>
-        ) : (
-          <TaleaActionButton variant="secondary" onClick={onFinish}>
-            Fertig
-          </TaleaActionButton>
-        )}
-      </footer>
-    </div>
+          {audioError && <p className="tour-audio-error" role="status">Tavis Stimme lädt gerade nicht. Du kannst die Bilder trotzdem weiterentdecken.</p>}
+          <footer className="tour-footer">
+            <button type="button" className="tour-back-button" onClick={() => go(index - 1)} disabled={index === 0 || overview}><ArrowLeft size={18} /><span>Zurück</span></button>
+            <span className="tour-page-number">{index + 1}<span> / {CHAPTERS.length}</span></span>
+            <button type="button" className="tour-next-button" onClick={() => { if (overview) setOverview(false); else if (isLast) onFinish(); else go(index + 1); }}><span>{overview ? 'Zur Seite' : isLast ? 'Selbst entdecken' : index === 0 ? 'Komm mit!' : 'Weiter'}</span><ArrowRight size={18} /></button>
+          </footer>
+          <audio ref={audioRef} src={tourAudio(chapter.id)} preload="none" onPlay={() => setNarrationPlaying(true)} onPause={() => setNarrationPlaying(false)} onEnded={() => setNarrationPlaying(false)} onError={() => { setAudioError(true); setNarrationPlaying(false); setNarrationEnabled(false); }} />
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

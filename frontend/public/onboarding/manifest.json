@@ -1,0 +1,293 @@
+{
+  "version": 2,
+  "chapters": {
+    "welcome": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "4c84c052d3a31442ee0c43831fdaf34e42bc4b1f2e621a6bcb595dbf9872819d",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: A welcoming cover: Tavi waves hello beside the curly-haired child and orange fox at the entrance to a magical treehouse village. A storybook cottage, telescope observatory and friendly board-game meadow are clearly visible. They are about to set off together.",
+        "file": "images/welcome.webp",
+        "cost": 0.024
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "ec5d3bf4950604647395b5465e7942e85dcf2ef85ad918f5efa0e44c810dfccc",
+        "text": "Hallo! Ich bin Tavi. Schön, dass du da bist! In Talea kannst du Geschichten erfinden, Wissen entdecken und spielen. Tippe auf Weiter, oder such dir in Alle Orte ein Ziel aus. Wenn du möchtest, lese ich dir jede Seite vor.",
+        "file": "audio/welcome.mp3",
+        "duration": 15.131111,
+        "characters": 238
+      }
+    },
+    "home": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "6f837f429808d287c65c24f0c4fa615b60b7ec43fcf31e03b3f18f176fbc3fb7",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: Show the home base inside a cozy magical treehouse, as an easy-to-read cutaway. The child picks up a familiar adventure book, the fox waits on a cushion, a shelf holds illustrated science books and a tiny model solar system. On a peg hang two distinct children's little backpacks, conveying separate profiles. Tavi points out the three places.",
+        "file": "images/home.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "4a51b0b780a42972a66487c83bb20c7c0d56410eb7546c0bfe4227c514527219",
+        "text": "Das ist dein Zuhause in Talea. Auf der Startseite findest du deine letzten Geschichten, deine Helden und deine Dokus wieder. Die Bilder im Menü zeigen dir den Weg. Die Glocke meldet neue Inhalte und Nachrichten. Über das Profilbild wählst du dein eigenes Kinderprofil.",
+        "file": "audio/home.mp3",
+        "duration": 16.434014,
+        "characters": 285
+      }
+    },
+    "avatar": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "ca2523ae92deaf2fe44693ed88c877e535e483de8f4d2f0a5f63610f3d42c801",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: The child is designing their own heroes in a magical art workshop: a living cheerful orange fox with teal neckerchief and a tiny friendly sage-green dragon stand beside the child in front of a dressing mirror. Tavi offers a paint palette and brush. A small diary and a growing seedling visibly connect heroes to learning and memories.",
+        "file": "images/avatar.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "8f13bc11232506e3bdb090d786aed3a6c6adfb8bfcc2496781afaef9f9cb3d24",
+        "text": "Wer soll dein Held sein? Ein Fuchs, ein Drache oder du selbst? In Avatare gestaltest du sein Aussehen und gibst ihm einen Namen. In Geschichten kann er mutiger, neugieriger und hilfsbereiter werden. Sein Tagebuch erinnert an eure Erlebnisse.",
+        "file": "audio/avatar.mp3",
+        "duration": 15.58068,
+        "characters": 258
+      }
+    },
+    "story": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "3d15fdfdde2c40ed852c0b558dd72e5d208bfa7b5bf23fc90d85aeb2c85a830e",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: The child and fox hold an open book. Three vivid miniature worlds grow from its pages: a fairytale castle on the left, an adventurous green forest in the middle, and a little rocket with planets on the right. Tavi gently guides the story sparks into the book. Concrete visual meaning: choosing heroes, a world, and a personal idea creates a story.",
+        "file": "images/story.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "74e5a4641a0aa6d85ad1c47e228d241c956e7bc0bde213a16d5288b1d84dca16",
+        "text": "Jetzt bist du dran! Wähle deine Helden und eine Welt für eure Geschichte. Soll sie lustig, spannend oder gemütlich sein? Du kannst einen eigenen Wunsch erzählen, etwas Neues lernen oder ein Märchen als Vorlage nehmen. Talea schreibt daraus euer Abenteuer.",
+        "file": "audio/story.mp3",
+        "duration": 16.131859,
+        "characters": 272
+      }
+    },
+    "library": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "94857570d8419dc96f4c8cf0e29621fef53135d4d1ad6211db131a9888ee717e",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: A cozy children's library: the child and fox pull out a richly illustrated fox-adventure book. Other recognizable book covers show a dragon and an explorer. Tavi holds a magnifying glass beside the shelf. Book spines have illustrations and color bands, absolutely no writing. The picture clearly means finding and reopening saved adventures.",
+        "file": "images/library.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "5a5842de16cb9e8ac76c716cc072a3c6c773dd140a013a4130eb634750615924",
+        "text": "Deine Abenteuer verschwinden nicht! In Geschichten findest du deine Bücher wieder. Such nach einem Titel oder wähle eine Welt und einen Helden als Filter. Im Reiter Charaktere kannst du auch die Geschichten anderer Figuren kennenlernen.",
+        "file": "audio/library.mp3",
+        "duration": 13.632585,
+        "characters": 253
+      }
+    },
+    "doku": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "6689b7fae5c4d99bf47c7e0887bc8d240f88db4dd671598197d17884bab2c37e",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: A curious child investigates three concrete wonders on a nature-and-science discovery table: a friendly little dinosaur model and fossil, a telescope and constellation globe, and a simple colorful gear machine. The fox looks through a magnifying glass. Tavi explains patiently at eye level. Scientific discovery, gentle wonder, not school exams.",
+        "file": "images/doku.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "7d54a3e56fe1206199826b0a8dc12ed4f28bd31a7d2cf3467a88381a04f28f95",
+        "text": "Warum leuchten die Sterne? Wie lebten die Dinosaurier? In Dokus finden wir Antworten auf deine Fragen. Wähle ein Thema oder entdecke eine Doku, die schon da ist. Bilder, kleine Fragen und Mitmach-Ideen helfen dir beim Verstehen.",
+        "file": "audio/doku.mp3",
+        "duration": 14.440952,
+        "characters": 245
+      }
+    },
+    "reading": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "9693a19a600595ea40907aa28a113cb3315ea2fdfb5717f424306cd5343f28f1",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: One cohesive picture containing three large readable adjacent vignettes: on the left the child and fox admire a luminous cinematic picture of their adventure; in the middle the same child quietly reads an open illustrated book; on the right the same child relaxes with headphones, eyes gently closed. Tavi connects the scenes with a soft ribbon of story sparks. No screens containing fake UI.",
+        "file": "images/reading.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "41205335cb6676719aa6ab71e8f428f6c8db047df18f1009af7332ae71c6ece3",
+        "text": "Wie möchtest du dein Abenteuer erleben? Im Kino-Modus siehst du große Bilder. In der Buchansicht liest du Kapitel für Kapitel. Du kannst auch durch die Geschichte scrollen. Mit dem Audio-Player lässt du dir vorlesen, wenn Audio für dein Abenteuer bereitsteht.",
+        "file": "audio/reading.mp3",
+        "duration": 14.938322,
+        "characters": 276
+      }
+    },
+    "journey": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "0fd2c967f82839e92e0bc027fdb1476bd46971bc104d7e27fdf3baad853ab421",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: A beautifully legible adventure map in a landscaped storybook world, viewed from a slight overhead angle. The child and fox walk one curved dotted path from a book cottage to a telescope stop and then a puzzle island with a little treasure chest. Tavi points at the nearest open stop. Only three main stations, one coherent path, absolutely no labels or writing.",
+        "file": "images/journey.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "efccd5f7f9135b4d5a54e21f644a9b910b865adeeda09455acffada7f12ab91b",
+        "text": "Auf der Reisekarte wartet dein nächster Schritt! Wähle einen offenen Stopp. Dort kannst du eine Geschichte lesen, eine Doku entdecken oder ein Quiz spielen. Danach schaust du, wohin dein Weg weiterführt und welche Belohnungen auf dich warten.",
+        "file": "audio/journey.mp3",
+        "duration": 14.117347,
+        "characters": 259
+      }
+    },
+    "audio": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "b246976aaa324f42af248bbd2d660607bb7afbfd63ac11fa09d175e5d7fcacca",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: The child and fox wear comfortable headphones in a peaceful listening nook beside a warm wooden gramophone. From its horn float delicate visual storytelling scenes: a friendly dinosaur, an ocean with fish, and a small planet. Tavi conducts the narration gently. Make listening, rather than reading or screens, the obvious focus.",
+        "file": "images/audio.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "d0372db405ab167ac536137e80c34280e5f9b7043354750c92c186dfea694dc3",
+        "text": "Kopfhörer auf, wir gehen auf Wissensreise! In Dokus findest du die Hörwelt mit Audio-Dokus. Wähle eine Folge und tippe auf Play. Mit Pause hältst du an. Deine Wiedergabeliste findest du über das Profilbild. Manche Folgen gehören zu eurem Familienabo.",
+        "file": "audio/audio.mp3",
+        "duration": 16.83288,
+        "characters": 267
+      }
+    },
+    "cosmos": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "298ee7d357276ff2bd9120df35791c7d1510ee18baa95ab9c20ca2cc62bbb010",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: The child, fox and Tavi float safely in a whimsical knowledge solar system. Three distinct colorful large planets stand for nature, dinosaurs and technology; tiny topic moons orbit them. The child touches a glowing planet and a small illustrated book appears near it. Wonder-filled educational universe, gentle indigo backdrop with lavender and gold highlights, no spacesuit helmet obscuring faces.",
+        "file": "images/cosmos.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "1f6ff4d92173b95b6fe82b8ac5d33a1c34bff1b5463f211faa947724d6c37e39",
+        "text": "Dein Wissen bekommt eine eigene Sternenwelt! Im Lernkosmos steht jeder Planet für ein Wissensgebiet. Kleine Monde zeigen einzelne Themen. Tippe auf einen Planeten und schau, was du schon entdeckt hast. Dort findest du auch Dokus und Quiz zum Wiederholen.",
+        "file": "audio/cosmos.mp3",
+        "duration": 15.394172,
+        "characters": 271
+      }
+    },
+    "games": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "d04a70da186daaf48407241b922e14f118b806cb1aa563fe0cd1d05e2c46d30e",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: A friendly family puzzle afternoon: four family members, including the main curly-haired child, sit around a board depicting a cozy village with animal character pieces. Tavi acts as a friendly detective with a magnifying glass, keeping his red turban. A smaller visual vignette shows the child doing a colorful illustrated quiz about dinosaurs. Cooperative, playful, no scary crime, no weapons.",
+        "file": "images/games.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "853d7935f81836dd26398745d721a8596f06792c8f09f9f981fc70581c410ce1",
+        "text": "Jetzt wird geknobelt! Im Bereich Spiel wartet ein Wissens-Quiz mit Fragen aus den Dokus. Das kannst du allein spielen. Für Mitternachts-Alibi holst du deine Familie oder Freunde dazu: Vier bis acht Spieler suchen mit Kommissar Tavi nach dem Dieb.",
+        "file": "audio/games.mp3",
+        "duration": 15.509478,
+        "characters": 263
+      }
+    },
+    "treasure": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "539f13df64597e2725cdc75d69e7dffc94618c00b27325a49d563bfe96c8c5c8",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: The child and orange fox open a wooden treasure chest and admire a golden compass, a softly glowing feather and a diary with large painted adventure pictures. Beside the chest a small backpack has room for the compass, conveying taking a treasure on the next adventure. Tavi smiles approvingly. Objects are large, clear and countable.",
+        "file": "images/treasure.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "89b90c013abb979cad1cb89690b2cbac499ba9efdf5c18d958c2c1ebcdd0d0a0",
+        "text": "Was hast du im Abenteuer gefunden? In der Schatzkammer deines Helden liegen seine Fundstücke. Vielleicht ein Kompass oder eine Zauberfeder! Einen Schatz kannst du beim nächsten Geschichtenstart mitnehmen. Im Tagebuch schaust du auf eure Erlebnisse zurück.",
+        "file": "audio/treasure.mp3",
+        "duration": 14.55127,
+        "characters": 272
+      }
+    },
+    "tavi": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "41c7826fe85ede01f207c86e1d178a62525dcb04f88111cd79975e17632a087c",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: An intimate, friendly conversation: the child and fox sit beside Tavi at eye level on cushions. Three picture-only thought bubbles contain a question about a star, an open adventure book, and a new lightbulb idea. Tavi listens warmly with open hands. No text in bubbles. The picture makes a helpful chat companion understandable without reading.",
+        "file": "images/tavi.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "536ebb75a2539ace7b4a1727b2a8440eb3696cca4d7c11d156ff916a5cb1b540",
+        "text": "Eine Frage? Ich bin da! Öffne Tavi im Menü und schreib mir, was du wissen möchtest. Wir finden zusammen eine Idee für deine nächste Geschichte oder Doku. Wenn euer Familienplan es erlaubt, kann ich auch direkt im Chat etwas für dich erstellen.",
+        "file": "audio/tavi.mp3",
+        "duration": 14.076349,
+        "characters": 260
+      }
+    },
+    "parents": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "8123a230a6946e44c627dd499e572a13666cbc92e7c4933c95a35b3095fd6e1b",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: A warm family scene: one caring parent and two children sit together preparing their adventure corner. Two small shelves, one mint and one peach, hold each child's own hero figures and books. Tavi offers a golden key to the parent, symbolizing protected grown-up settings. Welcoming and reassuring, no stern discipline, no barriers around children.",
+        "file": "images/parents.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "cd45e40e2d82f759dcd3aec9d9e9335e64a851a8764f231a6a2d32ea0f46b327",
+        "text": "Jeder hat seine eigene Welt! Über dein Profil findest du deine Helden und deinen Lernfortschritt. Deine Eltern helfen bei Themen, Lernzielen und Grenzen. Die Elterneinstellungen sind mit einer PIN geschützt. In Einstellungen könnt ihr auch gemeinsam eure Darstellung und euer Konto anpassen.",
+        "file": "audio/parents.mp3",
+        "duration": 17.587732,
+        "characters": 308
+      }
+    },
+    "start": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "ced4a1de59b1eab802e6f58e75ab8664f349e9da881dde738de59bfa436b86c5",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: A joyful final spread: the curly-haired child, orange fox and Tavi walk through an open garden gate toward a gently glowing storybook village. A castle, observatory with planets, discovery trail and cozy library wait in the distance. They carry a little backpack and book. A hopeful first step, a clear winding path forward, same characters as the welcome cover.",
+        "file": "images/start.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "7b421d05202cee10f36e1abf89095e167666a236606580755c8ce606f911e4e8",
+        "text": "Jetzt kennst du die Wege in Talea! Welches Abenteuer wird deins? Gestalte deinen ersten Helden oder schau dich selbst um. Wenn du mich später noch einmal brauchst, findest du den Rundgang im Profilmenü. Ich freue mich auf unsere Abenteuer!",
+        "file": "audio/start.mp3",
+        "duration": 14.701497,
+        "characters": 256
+      }
+    },
+    "offline": {
+      "image": {
+        "model": "bfl:flux@3-image",
+        "hash": "58c989040825012713ffecaa5d1d16e8e483ba605d7f0dcde750ed932daebab3",
+        "prompt": "Create a premium children's picture-book illustration for the Talea app, ages 4-9. Soft hand-painted gouache and watercolor, fine warm ink outlines, visible paper texture, rounded shapes, clear readable faces, expressive actions, gentle natural light, mint, warm apricot, dusty lavender and cream palette. Rich but calm composition with one main action, large objects and generous breathing room. Use the referenced Tavi CHARACTER ONLY: a friendly teal genie with red turban, teal feather, gold jewel, gold wrist cuffs and a small golden lamp. Discard the reference checkerboard background entirely. Main child throughout: warm medium-brown skin, curly dark hair, mustard-yellow overalls over a cream shirt, teal shoes. Fox throughout: cheerful orange fox, cream muzzle, teal neckerchief. Repaint all characters in this gouache style, not glossy 3D. Keep complete faces and key objects in the central 80% of the square composition. No written words, no letters, no numbers, no logos, no borders, no UI mockups, no checkerboard.\n\nSCENE: A coherent two-scene story: on the left the child and fox pack an illustrated adventure book and headphones in a backpack at home; on the right the same child reads happily with headphones in a train seat while green countryside passes outside. Tavi waves from the window. The packed book and headphones visibly carry into the second scene. Travel and prepared offline adventures, no technical symbols or UI.",
+        "file": "images/offline.webp",
+        "cost": 0.048
+      },
+      "audio": {
+        "model": "eleven_v4",
+        "voice": "8tJgFGd1nr7H5KLTvjjt",
+        "hash": "d7efc4ffdfdfb35525de4c495783810b14bae2296f783345123b3a369f2009fc",
+        "text": "Dein Abenteuer reist mit! Speichere passende Geschichten und Dokus vorher mit Internet über Offline speichern. Dann kannst du sie auf diesem Gerät ohne Netz öffnen. Zum Zuhören brauchst du auch das gespeicherte Audio. Neue Geschichten und neue Dokus brauchen weiterhin Internet.",
+        "file": "audio/offline.mp3",
+        "duration": 17.150907,
+        "characters": 295
+      }
+    }
+  }
+}

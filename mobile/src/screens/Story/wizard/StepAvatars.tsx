@@ -51,7 +51,7 @@ export function StepAvatars({ avatars, loading, selected, onToggle, onCreateAvat
   return (
     <View style={{ gap: spacing.base, paddingTop: spacing.sm }}>
       <View style={{ gap: 4 }}>
-        <Text variant="headingSm">Wer erlebt das Abenteuer?</Text>
+        <Text variant="displayLg">Wer erlebt das Abenteuer?</Text>
         <Text variant="bodySm" tone="secondary">
           Nur ausgewählte Avatare sammeln aus dieser Geschichte neue Eigenschaften.
         </Text>

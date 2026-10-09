@@ -1,16 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
-import { PartyPopper, TrendingUp } from 'lucide-react-native';
+import Animated, { ZoomIn } from 'react-native-reanimated';
+import { PartyPopper } from 'lucide-react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { traitHue, withAlpha } from '@/theme/tokens';
 import { Button } from '@/components/ui/Button';
-import { Gradient } from '@/components/ui/Gradient';
 import { Sheet, type SheetRef } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
-import { Glow } from '@/components/fx/Glow';
-import { SparkleField } from '@/components/fx/Sparkles';
+import { ListSection } from '@/components/ui/List';
 import type { TraitChange } from '@/lib/personality';
 
 interface GrowthSheetProps {
@@ -28,16 +26,16 @@ interface GrowthSheetProps {
 /**
  * Post-story growth summary.
  *
- * This is the payoff of the whole loop, so it shows each changed trait in its
- * own colour with the delta AND the reason the AI gave for the change — a change
- * without an explanation is meaningless to a child, and the trait contract
- * requires the description to be carried through to the UI.
+ * This is the payoff of the whole loop, so it lists each changed trait with its
+ * delta AND the reason the AI gave for the change — a change without an
+ * explanation is meaningless to a child, and the trait contract requires the
+ * description to be carried through to the UI.
  *
  * A story that produced no changes still gets an honest, non-disappointing
  * message rather than an empty sheet.
  */
 export function GrowthSheet({ open, storyTitle, developments, isRepeat = false, onClose }: GrowthSheetProps) {
-  const { colors, spacing, radius, shadows } = useTheme();
+  const { colors, spacing } = useTheme();
   const sheetRef = useRef<SheetRef>(null);
 
   useEffect(() => {
@@ -49,89 +47,59 @@ export function GrowthSheet({ open, storyTitle, developments, isRepeat = false, 
   const total = hasChanges ? developments.reduce((sum, change) => sum + change.change, 0) : 0;
 
   return (
-    <Sheet
-      ref={sheetRef}
-      snapPoints={hasChanges ? ['64%', '90%'] : ['46%']}
-      title="Geschichte beendet"
-      subtitle={storyTitle}
-      onClose={onClose}
-    >
+    <Sheet ref={sheetRef} snapPoints={hasChanges ? ['64%', '90%'] : ['44%']} onClose={onClose}>
       <View style={{ gap: spacing.lg }}>
         <View style={[styles.hero, { gap: spacing.sm }]}>
-          <View style={styles.orbStage}>
-            <Glow color="rgba(244, 172, 50, 0.42)" size={190} />
-            <SparkleField width={150} height={130} count={8} color={colors.gold} seed={41} minSize={6} maxSize={12} />
-            <Animated.View entering={ZoomIn.springify().damping(11)} style={[styles.orb, shadows.glow]}>
-              <Gradient token={colors.gradient.gold} style={[StyleSheet.absoluteFill, { borderRadius: 40 }]} />
-              <PartyPopper size={34} color="#4A2F00" strokeWidth={2.2} />
-            </Animated.View>
-          </View>
-          <Text variant="displaySm" center>
-            {isRepeat ? 'Schön, nochmal!' : hasChanges ? 'Deine Helden sind gewachsen!' : 'Gut gelesen!'}
+          <Animated.View entering={ZoomIn.springify().damping(13)} style={[styles.badge, { backgroundColor: colors.system.orange }]}>
+            <PartyPopper size={32} color="#FFFFFF" strokeWidth={2} />
+          </Animated.View>
+          <Text variant="displayLg" center>
+            {isRepeat ? 'Schön, nochmal!' : hasChanges ? 'Deine Helden sind gewachsen' : 'Gut gelesen!'}
           </Text>
           <Text variant="bodySm" tone="secondary" center style={{ maxWidth: 320 }}>
             {isRepeat
               ? 'Diese Geschichte kennst du schon — deine Punkte und Schätze hast du beim ersten Mal bekommen.'
               : hasChanges
-                ? `+${total} Punkte verteilt auf ${developments.length} ${developments.length === 1 ? 'Eigenschaft' : 'Eigenschaften'}. Hier ist, warum.`
+                ? `„${storyTitle}“ brachte +${total} Punkte.`
                 : 'Diesmal gab es keine neuen Eigenschaften — die nächste Geschichte bringt bestimmt welche.'}
           </Text>
         </View>
 
         {hasChanges ? (
-          <View style={{ gap: spacing.sm }}>
+          <ListSection separatorInset={66}>
             {developments.map((change, index) => {
               const hue = traitHue(change.trait);
               return (
-                <Animated.View key={`${change.trait}-${change.subcategory ?? ''}-${index}`} entering={FadeInDown.delay(index * 70)}>
-                  <View
-                    style={[
-                      styles.changeRow,
-                      shadows.soft,
-                      {
-                        borderRadius: radius.lg,
-                        padding: spacing.md,
-                        gap: spacing.md,
-                        backgroundColor: colors.surface.primary,
-                        borderColor: withAlpha(hue, 0.28),
-                      },
-                    ]}
-                  >
-                    <View style={[styles.emojiShell, { borderRadius: radius.md, backgroundColor: withAlpha(hue, 0.14) }]}>
-                      <Text style={{ fontSize: 21, lineHeight: 26 }}>{change.emoji}</Text>
-                    </View>
-
-                    <View style={{ flex: 1, gap: 3 }}>
-                      <View style={styles.changeHeader}>
-                        <Text variant="title" style={{ flex: 1 }} numberOfLines={2}>
-                          {change.label}
-                        </Text>
-                        <View style={[styles.delta, { backgroundColor: withAlpha(hue, 0.14), borderRadius: radius.pill }]}>
-                          <TrendingUp size={12} color={hue} strokeWidth={2.6} />
-                          <Text variant="labelSm" weight="extrabold" style={{ color: hue }}>
-                            {change.change > 0 ? `+${change.change}` : change.change}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {change.description ? (
-                        <Text variant="bodySm" tone="secondary" style={{ fontStyle: 'italic' }}>
-                          „{change.description}“
-                        </Text>
-                      ) : (
-                        <Text variant="caption" tone="muted">
-                          Ohne Begründung erhalten
-                        </Text>
-                      )}
-                    </View>
+                <View key={`${change.trait}-${change.subcategory ?? ''}-${index}`} style={[styles.row, { padding: spacing.base, gap: spacing.md }]}>
+                  <View style={[styles.icon, { backgroundColor: withAlpha(hue, 0.14) }]}>
+                    <Text style={{ fontSize: 19, lineHeight: 24 }}>{change.emoji}</Text>
                   </View>
-                </Animated.View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <View style={styles.header}>
+                      <Text variant="title" style={{ flex: 1 }} numberOfLines={2}>
+                        {change.label}
+                      </Text>
+                      <Text variant="title" style={{ color: change.change > 0 ? colors.success : colors.danger }}>
+                        {change.change > 0 ? `+${change.change}` : change.change}
+                      </Text>
+                    </View>
+                    {change.description ? (
+                      <Text variant="bodySm" tone="secondary">
+                        {change.description}
+                      </Text>
+                    ) : (
+                      <Text variant="caption" tone="tertiary">
+                        Ohne Begründung erhalten
+                      </Text>
+                    )}
+                  </View>
+                </View>
               );
             })}
-          </View>
+          </ListSection>
         ) : null}
 
-        <Button label="Weiter" onPress={onClose} fullWidth size="lg" />
+        <Button label="Fertig" onPress={onClose} fullWidth size="lg" />
       </View>
     </Sheet>
   );
@@ -139,17 +107,8 @@ export function GrowthSheet({ open, storyTitle, developments, isRepeat = false, 
 
 const styles = StyleSheet.create({
   hero: { alignItems: 'center', paddingTop: 4 },
-  orbStage: { width: 96, height: 96, alignItems: 'center', justifyContent: 'center' },
-  orb: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  changeRow: { flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1 },
-  emojiShell: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  changeHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  delta: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 4 },
+  badge: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'flex-start' },
+  icon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

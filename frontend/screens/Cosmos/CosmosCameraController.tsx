@@ -15,6 +15,7 @@ import { useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { CameraMode, CosmosDomain } from './CosmosTypes';
+import { SYSTEM_VIEW_AZIMUTH } from './CosmosOrbit';
 
 interface Props {
   mode: CameraMode;
@@ -22,6 +23,10 @@ interface Props {
   focusedPosition?: [number, number, number] | null;
   /** Largest orbit radius in scene units (after layout scaling). */
   systemRadius?: number;
+  /** Orbit stretch towards the camera (portrait layout, see getOrbitLayout). */
+  systemStretch?: number;
+  /** The growth card replaces the HUD at the bottom centre. */
+  celebrating?: boolean;
   onTransitionStateChange?: (isTransitioning: boolean) => void;
 }
 
@@ -46,6 +51,8 @@ export const CosmosCameraController: React.FC<Props> = ({
   focusedDomain,
   focusedPosition,
   systemRadius = 19,
+  systemStretch = 1,
+  celebrating = false,
   onTransitionStateChange,
 }) => {
   const controlsRef = useRef<any>(null);
@@ -55,8 +62,8 @@ export const CosmosCameraController: React.FC<Props> = ({
   const fov = isPortrait ? PORTRAIT_FOV : LANDSCAPE_FOV;
 
   const systemPosition = useMemo(
-    () => computeSystemCameraPosition(size.width, size.height, fov, systemRadius),
-    [fov, size.height, size.width, systemRadius]
+    () => computeSystemCameraPosition(size.width, size.height, fov, systemRadius, systemStretch),
+    [fov, size.height, size.width, systemRadius, systemStretch]
   );
   const systemDistance = systemPosition.length();
 
@@ -107,7 +114,7 @@ export const CosmosCameraController: React.FC<Props> = ({
 
       // Three-quarter view from the sunlit side: day side, terminator and the
       // night lights are all visible. The HUD offset is handled by the view offset.
-      const viewDir = new THREE.Vector3().addScaledVector(fromStar, -0.5).addScaledVector(side, 0.86).normalize();
+      const viewDir = new THREE.Vector3().addScaledVector(fromStar, -0.3).addScaledVector(side, 0.95).normalize();
       const distance = mode === 'detail' ? (isPortrait ? 5.4 : 4.4) : isPortrait ? 10.5 : 8.2;
       const height = mode === 'detail' ? (isPortrait ? 1.6 : 1.25) : isPortrait ? 3.2 : 2.35;
 
@@ -140,7 +147,7 @@ export const CosmosCameraController: React.FC<Props> = ({
   }, [camera, focusedDomain, focusedPosition, isPortrait, mode, reportTransitionState, systemDistance, systemPosition]);
 
   useFrame(({ clock }) => {
-    const offsetTarget = getFocusViewOffset(mode, Boolean(focusedDomain), size.width, size.height);
+    const offsetTarget = getFocusViewOffset(mode, Boolean(focusedDomain), celebrating, size.width, size.height);
     const offset = viewOffsetRef.current;
     offset.x += (offsetTarget.x - offset.x) * 0.08;
     offset.y += (offsetTarget.y - offset.y) * 0.08;
@@ -197,7 +204,7 @@ export const CosmosCameraController: React.FC<Props> = ({
       maxDistance={maxDistance}
       minPolarAngle={minPolarAngle}
       maxPolarAngle={maxPolarAngle}
-      autoRotate={mode === 'system' && autoRotateEnabled}
+      autoRotate={mode === 'system' && autoRotateEnabled && systemStretch === 1}
       autoRotateSpeed={0.08}
       enableDamping
       dampingFactor={0.1}
@@ -222,8 +229,15 @@ export const CosmosCameraController: React.FC<Props> = ({
  * HUD leaves free: beside the docked panel on wide screens, above the bottom
  * sheet on phones.
  */
-function getFocusViewOffset(mode: CameraMode, hasFocus: boolean, width: number, height: number) {
+function getFocusViewOffset(
+  mode: CameraMode,
+  hasFocus: boolean,
+  celebrating: boolean,
+  width: number,
+  height: number
+) {
   if (mode === 'system' || !hasFocus) return { x: 0, y: 0 };
+  if (celebrating) return { x: 0, y: height * 0.17 };
   if (width >= 768) {
     const panel = Math.min(416, width * 0.4) + 24;
     return { x: panel / 2, y: 0 };
@@ -240,12 +254,15 @@ function computeSystemCameraPosition(
   width: number,
   height: number,
   fovDeg: number,
-  systemRadius: number
+  systemRadius: number,
+  stretch: number
 ): THREE.Vector3 {
   const aspect = Math.max(0.3, width / Math.max(1, height));
   const portrait = aspect < 1;
-  const elevation = THREE.MathUtils.degToRad(portrait ? 46 : 16);
-  const azimuth = Math.atan2(16, 30);
+  const elevation = THREE.MathUtils.degToRad(portrait ? 56 : 24);
+  const azimuth = SYSTEM_VIEW_AZIMUTH;
+  const viewAxisX = Math.sin(azimuth);
+  const viewAxisZ = Math.cos(azimuth);
   const direction = new THREE.Vector3(
     Math.sin(azimuth) * Math.cos(elevation),
     Math.sin(elevation),
@@ -264,7 +281,12 @@ function computeSystemCameraPosition(
     const rel = new THREE.Vector3();
     for (let i = 0; i < 64; i += 1) {
       const angle = (i / 64) * Math.PI * 2;
-      rel.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius).sub(cameraPos);
+      let x = Math.cos(angle) * radius;
+      let z = Math.sin(angle) * radius;
+      const along = x * viewAxisX + z * viewAxisZ;
+      x += (stretch - 1) * along * viewAxisX;
+      z += (stretch - 1) * along * viewAxisZ;
+      rel.set(x, 0, z).sub(cameraPos);
       const depth = rel.dot(forward);
       if (depth <= 0.1) return false;
       if (Math.abs(rel.dot(right)) / depth > tanX) return false;

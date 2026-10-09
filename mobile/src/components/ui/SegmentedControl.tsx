@@ -23,10 +23,10 @@ interface SegmentedControlProps<T extends string> {
  * wherever a screen has two or three views of the same content.
  */
 export function SegmentedControl<T extends string>({ segments, value, onChange, style }: SegmentedControlProps<T>) {
-  const { colors, radius, shadows, motion, isDark } = useTheme();
+  const { colors, radius, motion, isDark } = useTheme();
   const [width, setWidth] = useState(0);
   const index = Math.max(0, segments.findIndex((segment) => segment.id === value));
-  const segmentWidth = width > 0 ? (width - 8) / segments.length : 0;
+  const segmentWidth = width > 0 ? (width - 6) / segments.length : 0;
   const x = useSharedValue(0);
 
   useEffect(() => {
@@ -48,9 +48,9 @@ export function SegmentedControl<T extends string>({ segments, value, onChange, 
             {
               width: segmentWidth,
               borderRadius: radius.pill,
-              backgroundColor: isDark ? colors.surface.item : colors.surface.primary,
+              backgroundColor: isDark ? '#636366' : colors.surface.primary,
             },
-            shadows.soft,
+            styles.thumbShadow,
             thumbStyle,
           ]}
         />
@@ -67,7 +67,7 @@ export function SegmentedControl<T extends string>({ segments, value, onChange, 
             accessibilityState={{ selected: active }}
             accessibilityLabel={segment.label}
           >
-            <Text variant="labelSm" tone={active ? 'primary' : 'tertiary'} numberOfLines={1}>
+            <Text variant="labelSm" tone={active ? 'primary' : 'secondary'} numberOfLines={1}>
               {segment.label}
             </Text>
           </Touchable>
@@ -78,7 +78,8 @@ export function SegmentedControl<T extends string>({ segments, value, onChange, 
 }
 
 const styles = StyleSheet.create({
-  track: { flexDirection: 'row', padding: 4, height: 46 },
-  thumb: { position: 'absolute', top: 4, bottom: 4, left: 4 },
+  track: { flexDirection: 'row', padding: 3, height: 38 },
+  thumb: { position: 'absolute', top: 3, bottom: 3, left: 3 },
+  thumbShadow: { boxShadow: '0px 3px 8px rgba(0, 0, 0, 0.12), 0px 1px 1px rgba(0, 0, 0, 0.04)' },
   segment: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

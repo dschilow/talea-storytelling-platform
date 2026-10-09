@@ -163,13 +163,30 @@ src/
 
 ### Design system
 
-`theme/tokens.ts` is a 1:1 port of the `--talea-*` CSS custom properties, with
-web-only constructs translated: CSS gradients become `<Gradient token={…}>`
-colour stops, `box-shadow` becomes paired `shadow*`/`elevation` values, and
-`color-mix()` results are pre-resolved. Light and dark are both complete.
+The app follows Apple's current platform design (iOS 26) rather than the web's
+pastel theme, so it deliberately does not mirror the `--talea-*` CSS tokens:
+
+- **Colour** — `theme/tokens.ts` uses the iOS system palette: grouped grey
+  page (`#F2F2F7` / black), borderless white (`#1C1C1E`) cards, the system
+  label/fill colours, and one accent (system blue). Colour comes from story
+  covers and avatar portraits, not from the chrome. Each personality trait has
+  a fixed system colour (`traitHues`).
+- **Type** — Inter (the freely licensed stand-in for SF Pro, which may not ship
+  on Android) on the iOS text-style ramp: Large Title 34, Title 1–3, Headline
+  17, Subheadline 15, Footnote 13. Literata is reserved for reading text.
+- **Glass** — `components/ui/Glass.tsx` is the material for chrome that floats
+  over content: tab bar, toolbar buttons, reader bars, banners. Large surfaces
+  use a real backdrop blur (`expo-blur`'s `dimezisBlurView`); small controls
+  use the tinted fill only.
+- **Patterns** — large left-aligned titles (`ScreenHeader large`), inset
+  grouped lists with coloured squircle icons (`components/ui/List.tsx`),
+  Books-style shelves (`Rail`), capsule buttons and filters, sheets with large
+  corner radii.
 
 Screens never hard-code a colour, font size or radius — everything goes through
-`useTheme()` and the `Text` primitive.
+`useTheme()` and the `Text` primitive. Depth is `boxShadow` (New
+Architecture); Android `elevation` is avoided because it draws its shadow
+through translucent fills.
 
 ### Behaviour ported from the web
 

@@ -1,9 +1,9 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { BookOpen, ChevronDown, Gem, Pencil, Share2, Sparkles, Wand2 } from 'lucide-react-native';
+import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { BookOpen, ChevronDown, Gem, Pencil, Share2, Wand2 } from 'lucide-react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { traitHue, withAlpha } from '@/theme/tokens';
@@ -19,22 +19,16 @@ import {
 import { formatDate } from '@/lib/content';
 import { haptic } from '@/lib/haptics';
 import { Screen } from '@/components/ui/Screen';
-import { Card } from '@/components/ui/Card';
-import { Chip } from '@/components/ui/Chip';
 import { CoverImage } from '@/components/ui/CoverImage';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { ProgressRing } from '@/components/ui/ProgressRing';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
-import { Button } from '@/components/ui/Button';
 import { Skeleton, SkeletonText } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { HeaderAction, ScreenHeader } from '@/components/ui/ScreenHeader';
-import { Glow } from '@/components/fx/Glow';
-import { SparkleField } from '@/components/fx/Sparkles';
-import { useAmbientMotion } from '@/components/fx/useAmbientMotion';
-import { LevelBadge } from '@/components/cards/AvatarCard';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { ListRow, ListSection } from '@/components/ui/List';
 import type { AvatarMemory } from '@/types/avatar';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -42,21 +36,21 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 type DetailRoute = RouteProp<RootStackParamList, 'AvatarDetail'>;
 type Tab = 'traits' | 'memories' | 'profile';
 
-const PORTRAIT = 176;
+const PORTRAIT = 132;
 
 /**
- * Avatar profile.
+ * Avatar profile, laid out like a contact card: portrait, name, a row of
+ * actions, a summary, then the details.
  *
- * The traits tab is the heart of it: nine base traits, always all nine even at
- * zero, each in its own colour and expandable to reveal the subcategories the
- * AI has created (and only those — a subcategory that was never awarded does
- * not exist), each with the reason it was awarded.
+ * The traits list is the heart of it: nine base traits, always all nine even at
+ * zero, each expandable to reveal the subcategories the AI has created (and
+ * only those — a subcategory that was never awarded does not exist), each with
+ * the reason it was awarded.
  */
 export function AvatarDetailScreen() {
-  const { colors, spacing, isDark } = useTheme();
+  const { colors, spacing } = useTheme();
   const navigation = useNavigation<Nav>();
   const route = useRoute<DetailRoute>();
-  const ambient = useAmbientMotion();
 
   const { avatarId } = route.params;
   const avatarQuery = useAvatar(avatarId);
@@ -71,8 +65,6 @@ export function AvatarDetailScreen() {
   const levelProgress = avatarLevelProgress(avatar);
   const totalPoints = totalTraitPoints(avatar);
   const memories = (memoriesQuery.data ?? []) as AvatarMemory[];
-  const topTrait = useMemo(() => [...traits].sort((a, b) => b.value - a.value)[0], [traits]);
-  const heroHue = topTrait && topTrait.value > 0 ? traitHue(topTrait.id) : colors.primary;
 
   const toggleTrait = useCallback((traitId: string) => {
     haptic('selection');
@@ -108,75 +100,47 @@ export function AvatarDetailScreen() {
   }
 
   return (
-    <Screen padded={false} ambient>
-      <ScreenHeader
-        actions={
-          <>
-            <HeaderAction onPress={() => navigation.navigate('Treasury', { avatarId })} accessibilityLabel="Schatzkammer">
-              <Gem size={18} color={colors.gold} />
-            </HeaderAction>
-            <HeaderAction onPress={() => navigation.navigate('AvatarExchange', { avatarId })} accessibilityLabel="Avatar kopieren oder teilen">
-              <Share2 size={17} color={colors.text.primary} />
-            </HeaderAction>
-            <HeaderAction onPress={() => navigation.navigate('AvatarEdit', { avatarId })} accessibilityLabel="Bearbeiten">
-              <Pencil size={17} color={colors.text.primary} />
-            </HeaderAction>
-          </>
-        }
-      />
+    <Screen padded={false}>
+      <ScreenHeader />
 
-      {/* Hero */}
-      <Animated.View entering={FadeIn.duration(420)} style={[styles.hero, { paddingHorizontal: spacing.lg }]}>
-        <View style={styles.portraitStage}>
-          <Glow color={withAlpha(heroHue, isDark ? 0.5 : 0.34)} size={PORTRAIT * 2} style={{ top: -PORTRAIT / 2 + 10, left: -PORTRAIT / 2 + 10 }} />
-          <SparkleField width={PORTRAIT + 20} height={PORTRAIT + 20} count={7} color={colors.gold} seed={13} active={ambient} />
-          <ProgressRing progress={levelProgress} size={PORTRAIT + 20} strokeWidth={5} delay={250}>
-            <View style={[styles.portrait, { borderColor: colors.surface.primary, backgroundColor: colors.surface.primary }]}>
-              <CoverImage uri={avatar.imageUrl} style={StyleSheet.absoluteFill} radius={PORTRAIT / 2} fallbackGradient="lavender" />
-            </View>
-          </ProgressRing>
-          <View style={styles.levelAnchor}>
-            <LevelBadge level={level} />
-          </View>
-        </View>
-
-        <View style={{ alignItems: 'center', gap: spacing.sm, marginTop: spacing.lg }}>
-          <Text variant="displayXl" center numberOfLines={2}>
-            {avatar.name}
+      <Animated.View entering={FadeIn.duration(300)} style={[styles.hero, { paddingHorizontal: spacing.lg, gap: spacing.xs }]}>
+        <ProgressRing progress={levelProgress} size={PORTRAIT + 14} strokeWidth={3} delay={200}>
+          <CoverImage uri={avatar.imageUrl} style={styles.portrait} radius={PORTRAIT / 2} fallbackGradient="lavender" />
+        </ProgressRing>
+        <Text variant="displayLg" center numberOfLines={2} style={{ marginTop: spacing.md }}>
+          {avatar.name}
+        </Text>
+        <Text variant="bodySm" tone="secondary" center>
+          {avatar.avatarRole === 'child' ? 'Kind-Avatar' : 'Begleiter'}
+          {avatar.isShared ? ' · Geteilt' : ''} · seit {formatDate(avatar.createdAt)}
+        </Text>
+        {avatar.description ? (
+          <Text variant="bodySm" tone="secondary" center style={{ maxWidth: 320, marginTop: spacing.xs }}>
+            {avatar.description}
           </Text>
-          <View style={styles.chips}>
-            <Chip label={avatar.avatarRole === 'child' ? 'Kind-Avatar' : 'Begleiter'} size="sm" tone="accent" />
-            {avatar.isShared ? <Chip label="Geteilt" size="sm" tone="neutral" /> : null}
-            <Chip label={`seit ${formatDate(avatar.createdAt)}`} size="sm" tone="neutral" />
-          </View>
-          {avatar.description ? (
-            <Text variant="bodySm" tone="secondary" center style={{ maxWidth: 330 }}>
-              {avatar.description}
-            </Text>
-          ) : null}
-        </View>
+        ) : null}
       </Animated.View>
 
-      {/* Stats */}
-      <Animated.View entering={FadeInDown.delay(120).springify().damping(18)} style={[styles.stats, { paddingHorizontal: spacing.lg, gap: spacing.sm, marginTop: spacing.lg }]}>
-        <Stat label="Level" value={String(level)} hue={colors.gold} />
-        <Stat label="Erfahrung" value={String(totalPoints)} suffix="XP" hue={colors.primary} />
-        <Stat label="Erinnerungen" value={String(memories.length)} hue={colors.accent.rose} />
-      </Animated.View>
+      <View style={[styles.actions, { paddingHorizontal: spacing.lg, gap: spacing.sm, marginTop: spacing.lg }]}>
+        <ActionTile label="Geschichte" Icon={Wand2} onPress={() => navigation.navigate('StoryWizard', { mapAvatarId: avatarId })} />
+        <ActionTile label="Schätze" Icon={Gem} onPress={() => navigation.navigate('Treasury', { avatarId })} />
+        <ActionTile label="Teilen" Icon={Share2} onPress={() => navigation.navigate('AvatarExchange', { avatarId })} />
+        <ActionTile label="Bearbeiten" Icon={Pencil} onPress={() => navigation.navigate('AvatarEdit', { avatarId })} />
+      </View>
 
-      <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.lg, gap: spacing.lg }}>
-        <Button
-          label={`Abenteuer mit ${avatar.name}`}
-          onPress={() => navigation.navigate('StoryWizard', { mapAvatarId: avatarId })}
-          icon={<Wand2 size={18} color={colors.primaryForeground} />}
-          size="lg"
-          fullWidth
-        />
+      <View style={[styles.summary, { marginHorizontal: spacing.lg, marginTop: spacing.md, backgroundColor: colors.surface.primary }]}>
+        <Summary label="Level" value={String(level)} />
+        <View style={[styles.summaryDivider, { backgroundColor: colors.border.light }]} />
+        <Summary label="Erfahrung" value={`${totalPoints}`} unit="XP" />
+        <View style={[styles.summaryDivider, { backgroundColor: colors.border.light }]} />
+        <Summary label="Erinnerungen" value={String(memories.length)} />
+      </View>
 
+      <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.xl }}>
         <SegmentedControl<Tab>
           segments={[
             { id: 'traits', label: 'Eigenschaften' },
-            { id: 'memories', label: memories.length ? `Erinnerungen · ${memories.length}` : 'Erinnerungen' },
+            { id: 'memories', label: 'Erinnerungen' },
             { id: 'profile', label: 'Steckbrief' },
           ]}
           value={tab}
@@ -184,32 +148,32 @@ export function AvatarDetailScreen() {
         />
       </View>
 
-      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.base, gap: spacing.sm }}>
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.base }}>
         {tab === 'traits' ? (
-          <>
-            <Text variant="caption" tone="tertiary" style={{ marginBottom: spacing.xs }}>
-              Alle Avatare starten bei 0. Unterkategorien entstehen erst, wenn Talea sie in einer Geschichte vergibt.
-            </Text>
-            {traits.map((trait, index) => (
-              <TraitRow key={trait.id} trait={trait} index={index} expanded={expandedTrait === trait.id} onToggle={() => toggleTrait(trait.id)} />
+          <ListSection
+            separatorInset={68}
+            footer="Alle Avatare starten bei 0. Unterkategorien entstehen erst, wenn Talea sie in einer Geschichte vergibt."
+          >
+            {traits.map((trait) => (
+              <TraitRow key={trait.id} trait={trait} expanded={expandedTrait === trait.id} onToggle={() => toggleTrait(trait.id)} />
             ))}
-          </>
+          </ListSection>
         ) : tab === 'memories' ? (
           memoriesQuery.isLoading ? (
             <SkeletonText lines={6} />
           ) : memories.length === 0 ? (
             <EmptyState
-              icon={<BookOpen size={26} color={colors.primary} />}
+              icon={<BookOpen size={30} color={colors.text.tertiary} />}
               title="Noch keine Erinnerungen"
               description="Nach der ersten gelesenen Geschichte sammelt dieser Avatar Erinnerungen."
               compact
             />
           ) : (
-            <View style={{ gap: spacing.sm }}>
+            <ListSection>
               {memories.map((memory, index) => (
-                <MemoryRow key={memory.id ?? index} memory={memory} index={index} last={index === memories.length - 1} />
+                <MemoryRow key={memory.id ?? index} memory={memory} />
               ))}
-            </View>
+            </ListSection>
           )
         ) : (
           <ProfileTab avatar={avatar} />
@@ -219,236 +183,189 @@ export function AvatarDetailScreen() {
   );
 }
 
-function Stat({ label, value, suffix, hue }: { label: string; value: string; suffix?: string; hue: string }) {
-  const { colors, radius, shadows } = useTheme();
+function ActionTile({ label, Icon, onPress }: { label: string; Icon: typeof Wand2; onPress: () => void }) {
+  const { colors, radius } = useTheme();
   return (
-    <View style={[styles.stat, shadows.soft, { borderRadius: radius.lg, backgroundColor: colors.surface.primary, borderColor: colors.border.light }]}>
-      <View style={styles.statValueRow}>
-        <Text variant="stat" style={{ color: hue }}>
-          {value}
-        </Text>
-        {suffix ? (
-          <Text variant="caption" weight="extrabold" style={{ color: hue, marginBottom: 3 }}>
-            {suffix}
+    <Touchable
+      onPress={onPress}
+      pressScale={0.95}
+      style={[styles.actionTile, { borderRadius: radius.md, backgroundColor: colors.surface.primary }]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Icon size={21} color={colors.primary} strokeWidth={2} />
+      <Text variant="caption" weight="semibold" tone="accent" numberOfLines={1}>
+        {label}
+      </Text>
+    </Touchable>
+  );
+}
+
+function Summary({ label, value, unit }: { label: string; value: string; unit?: string }) {
+  return (
+    <View style={styles.summaryItem}>
+      <Text variant="caption" tone="secondary">
+        {label}
+      </Text>
+      <View style={styles.summaryValue}>
+        <Text variant="stat">{value}</Text>
+        {unit ? (
+          <Text variant="labelSm" tone="secondary" style={{ marginBottom: 4 }}>
+            {unit}
           </Text>
         ) : null}
       </View>
-      <Text variant="caption" tone="tertiary">
-        {label}
-      </Text>
     </View>
   );
 }
 
-function TraitRow({ trait, index, expanded, onToggle }: { trait: TraitView; index: number; expanded: boolean; onToggle: () => void }) {
-  const { colors, spacing, radius, shadows } = useTheme();
+function TraitRow({ trait, expanded, onToggle }: { trait: TraitView; expanded: boolean; onToggle: () => void }) {
+  const { colors, spacing } = useTheme();
   const max = traitMaxValue(trait.id);
   const hasSubcategories = trait.subcategories.length > 0;
   const hue = traitHue(trait.id);
-  const active = trait.value > 0;
   const rotation = useSharedValue(expanded ? 180 : 0);
 
-  React.useEffect(() => {
-    rotation.value = withSpring(expanded ? 180 : 0, { damping: 16, stiffness: 220 });
+  useEffect(() => {
+    rotation.value = withSpring(expanded ? 180 : 0, { damping: 18, stiffness: 240 });
   }, [expanded, rotation]);
 
   const chevronStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
 
   return (
-    <Animated.View entering={FadeInDown.delay(index * 45).duration(360)}>
-      <View style={[shadows.soft, { borderRadius: radius.lg, backgroundColor: colors.surface.primary, borderWidth: 1, borderColor: expanded ? withAlpha(hue, 0.4) : colors.border.light, overflow: 'hidden' }]}>
-        <Touchable
-          onPress={onToggle}
-          disabled={!hasSubcategories}
-          disabledOpacity={1}
-          hapticIntent={hasSubcategories ? 'selection' : null}
-          pressScale={hasSubcategories ? 0.985 : 1}
-          style={{ padding: spacing.md, gap: spacing.sm + 2 }}
-          accessibilityRole={hasSubcategories ? 'button' : 'text'}
-          accessibilityLabel={`${trait.label}: ${trait.value} von ${max}`}
-          accessibilityState={{ expanded: hasSubcategories ? expanded : undefined }}
-        >
-          <View style={styles.traitHeader}>
-            <View style={[styles.traitIcon, { backgroundColor: withAlpha(hue, active ? 0.14 : 0.07) }]}>
-              <Text style={{ fontSize: 20, lineHeight: 26, opacity: active ? 1 : 0.55 }}>{trait.emoji}</Text>
-            </View>
-            <View style={{ flex: 1, gap: 1 }}>
-              <Text variant="title">{trait.label}</Text>
-              <Text variant="caption" tone="tertiary" numberOfLines={1}>
-                {trait.description}
-              </Text>
-            </View>
-            <View style={styles.traitValue}>
-              <Text variant="stat" style={{ color: active ? hue : colors.text.muted, fontSize: 21, lineHeight: 24 }}>
-                {trait.value}
-              </Text>
-              <Text variant="caption" tone="muted" style={{ fontSize: 10.5 }}>
-                / {max}
-              </Text>
-            </View>
+    <View>
+      <Touchable
+        onPress={onToggle}
+        disabled={!hasSubcategories}
+        disabledOpacity={1}
+        hapticIntent={hasSubcategories ? 'selection' : null}
+        pressScale={1}
+        pressOpacity={hasSubcategories ? 0.6 : 1}
+        style={[styles.traitRow, { paddingHorizontal: spacing.base, gap: spacing.md }]}
+        accessibilityRole={hasSubcategories ? 'button' : 'text'}
+        accessibilityLabel={`${trait.label}: ${trait.value} von ${max}`}
+        accessibilityState={{ expanded: hasSubcategories ? expanded : undefined }}
+      >
+        <View style={[styles.traitIcon, { backgroundColor: withAlpha(hue, 0.14) }]}>
+          <Text style={{ fontSize: 19, lineHeight: 24 }}>{trait.emoji}</Text>
+        </View>
+        <View style={{ flex: 1, gap: 6 }}>
+          <View style={styles.traitTitleRow}>
+            <Text variant="bodyLg" style={{ flex: 1 }}>
+              {trait.label}
+            </Text>
+            <Text variant="bodyLg" tone={trait.value > 0 ? 'primary' : 'muted'} style={{ fontVariant: ['tabular-nums'] }}>
+              {trait.value}
+            </Text>
             {hasSubcategories ? (
               <Animated.View style={chevronStyle}>
-                <ChevronDown size={18} color={colors.text.tertiary} />
+                <ChevronDown size={18} color={colors.text.muted} strokeWidth={2.4} />
               </Animated.View>
             ) : null}
           </View>
-
-          <ProgressBar progress={max > 0 ? Math.min(1, trait.value / max) : 0} height={7} color={hue} delay={index * 60} />
-
+          <ProgressBar progress={max > 0 ? Math.min(1, trait.value / max) : 0} height={4} color={hue} />
           {hasSubcategories && !expanded ? (
-            <View style={styles.subPreview}>
-              <Sparkles size={11} color={hue} />
-              <Text variant="caption" style={{ color: hue }} weight="bold" numberOfLines={1}>
-                {trait.subcategories.map((sub) => sub.label).join(' · ')}
-              </Text>
-            </View>
+            <Text variant="caption" tone="secondary" numberOfLines={1}>
+              {trait.subcategories.map((sub) => sub.label).join(', ')}
+            </Text>
           ) : null}
-        </Touchable>
+        </View>
+      </Touchable>
 
-        {expanded && hasSubcategories ? (
-          <Animated.View
-            entering={FadeIn.duration(220)}
-            style={[styles.subList, { borderTopColor: colors.border.light, backgroundColor: withAlpha(hue, 0.04), padding: spacing.md, gap: spacing.md }]}
-          >
-            {trait.subcategories.map((subcategory) => (
-              <View key={subcategory.key} style={{ gap: 5 }}>
-                <View style={styles.subHeader}>
-                  <View style={[styles.subDot, { backgroundColor: hue }]} />
-                  <Text variant="labelSm" style={{ flex: 1 }}>
-                    {subcategory.label}
-                  </Text>
-                  <Text variant="labelSm" weight="extrabold" style={{ color: hue }}>
-                    +{subcategory.value}
-                  </Text>
-                </View>
-                <ProgressBar progress={Math.min(1, subcategory.value / 1000)} height={4} color={hue} />
-                {subcategory.description ? (
-                  <Text variant="caption" tone="secondary" style={{ fontStyle: 'italic' }}>
-                    „{subcategory.description}“
-                  </Text>
-                ) : null}
+      {expanded && hasSubcategories ? (
+        <Animated.View entering={FadeIn.duration(200)} style={{ paddingLeft: 68, paddingRight: spacing.base, paddingBottom: spacing.md, gap: spacing.md }}>
+          {trait.subcategories.map((subcategory) => (
+            <View key={subcategory.key} style={{ gap: 4 }}>
+              <View style={styles.traitTitleRow}>
+                <Text variant="label" style={{ flex: 1 }}>
+                  {subcategory.label}
+                </Text>
+                <Text variant="label" style={{ color: hue }}>
+                  +{subcategory.value}
+                </Text>
               </View>
-            ))}
-          </Animated.View>
-        ) : null}
-      </View>
-    </Animated.View>
+              {subcategory.description ? (
+                <Text variant="caption" tone="secondary">
+                  {subcategory.description}
+                </Text>
+              ) : null}
+            </View>
+          ))}
+        </Animated.View>
+      ) : null}
+    </View>
   );
 }
 
-function MemoryRow({ memory, index, last }: { memory: AvatarMemory; index: number; last: boolean }) {
+function MemoryRow({ memory }: { memory: AvatarMemory }) {
   const { colors, spacing } = useTheme();
-
-  const impactColor =
-    memory.emotionalImpact === 'positive' ? colors.success : memory.emotionalImpact === 'negative' ? colors.danger : colors.text.tertiary;
-  const tierLabel = memory.memoryTier === 'core' ? 'Kernerinnerung' : memory.memoryTier === 'working' ? 'Frisch' : 'Erlebnis';
+  const changes = (memory.personalityChanges ?? []).map((change) => `${change.trait} ${change.change > 0 ? '+' : ''}${change.change}`).join(' · ');
 
   return (
-    <Animated.View entering={FadeInDown.delay(index * 60).duration(360)} style={styles.memoryRow}>
-      <View style={styles.timeline}>
-        <View style={[styles.timelineDot, { backgroundColor: impactColor, boxShadow: `0px 0px 0px 4px ${withAlpha(impactColor, 0.16)}` }]} />
-        {!last ? <View style={[styles.timelineLine, { backgroundColor: colors.border.soft }]} /> : null}
+    <View style={{ padding: spacing.base, gap: 4 }}>
+      <View style={styles.traitTitleRow}>
+        <Text variant="caption" tone="secondary" style={{ flex: 1 }}>
+          {formatDate(memory.createdAt ?? memory.timestamp)}
+        </Text>
+        {memory.memoryTier === 'core' ? (
+          <Text variant="caption" weight="semibold" style={{ color: colors.system.orange }}>
+            Kernerinnerung
+          </Text>
+        ) : null}
       </View>
-      <Card style={{ flex: 1, marginBottom: spacing.xs }}>
-        <View style={{ gap: 6 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text variant="caption" tone="tertiary" style={{ flex: 1 }}>
-              {formatDate(memory.createdAt ?? memory.timestamp)}
-            </Text>
-            <Chip label={tierLabel} size="sm" tone={memory.memoryTier === 'core' ? 'gold' : 'neutral'} />
-          </View>
-          <Text variant="title" numberOfLines={2}>
-            {memory.storyTitle}
-          </Text>
-          <Text variant="bodySm" tone="secondary">
-            {memory.summary ?? memory.experience}
-          </Text>
-          {memory.personalityChanges?.length ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: 2 }}>
-              {memory.personalityChanges.map((change, changeIndex) => (
-                <Chip
-                  key={`${change.trait}-${changeIndex}`}
-                  label={`${change.trait} ${change.change > 0 ? '+' : ''}${change.change}`}
-                  size="sm"
-                  tone={change.change > 0 ? 'success' : 'danger'}
-                />
-              ))}
-            </View>
-          ) : null}
-        </View>
-      </Card>
-    </Animated.View>
+      <Text variant="title" numberOfLines={2}>
+        {memory.storyTitle}
+      </Text>
+      <Text variant="bodySm" tone="secondary">
+        {memory.summary ?? memory.experience}
+      </Text>
+      {changes ? (
+        <Text variant="caption" weight="semibold" style={{ color: colors.success, marginTop: 2 }}>
+          {changes}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
 function ProfileTab({ avatar }: { avatar: NonNullable<ReturnType<typeof useAvatar>['data']> }) {
-  const { spacing } = useTheme();
   const narrative = avatar.narrativeProfile;
   const config = avatar.config;
 
   const entries: { label: string; value?: string }[] = [
+    { label: 'Charakterzüge', value: narrative?.traits?.join(', ') },
     { label: 'Dominante Persönlichkeit', value: narrative?.dominantPersonality },
     { label: 'Eigenheit', value: narrative?.quirk },
-    { label: 'Lieblingsspruch', value: narrative?.catchphrase },
+    { label: 'Lieblingsspruch', value: narrative?.catchphrase ? `„${narrative.catchphrase}“` : undefined },
     { label: 'Hintergrund', value: narrative?.backstory },
     { label: 'Alter', value: config?.age },
     { label: 'Aussehen', value: config?.appearance },
     { label: 'Hobbys', value: config?.hobbies },
   ].filter((entry) => Boolean(entry.value));
 
-  if (entries.length === 0 && !narrative?.traits?.length) {
+  if (entries.length === 0) {
     return <EmptyState title="Kein Steckbrief" description="Für diesen Avatar wurden keine Profildaten hinterlegt." compact />;
   }
 
   return (
-    <View style={{ gap: spacing.sm }}>
-      {narrative?.traits?.length ? (
-        <Card variant="tinted" tint="primary">
-          <Text variant="overline" tone="accent" style={{ marginBottom: spacing.sm }}>
-            Charakterzüge
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
-            {narrative.traits.map((trait) => (
-              <Chip key={trait} label={trait} size="sm" />
-            ))}
-          </View>
-        </Card>
-      ) : null}
-
-      {entries.map((entry, index) => (
-        <Animated.View key={entry.label} entering={FadeInDown.delay(index * 50).duration(320)}>
-          <Card>
-            <Text variant="overline" tone="tertiary">
-              {entry.label}
-            </Text>
-            <Text variant={entry.label === 'Lieblingsspruch' ? 'displayItalic' : 'body'} style={{ marginTop: 6 }}>
-              {entry.label === 'Lieblingsspruch' ? `„${entry.value}“` : entry.value}
-            </Text>
-          </Card>
-        </Animated.View>
+    <ListSection>
+      {entries.map((entry) => (
+        <ListRow key={entry.label} title={entry.value ?? ''} subtitle={entry.label} trailing={null} />
       ))}
-    </View>
+    </ListSection>
   );
 }
 
 const styles = StyleSheet.create({
-  hero: { alignItems: 'center', paddingTop: 4 },
-  portraitStage: { width: PORTRAIT + 20, height: PORTRAIT + 20, alignItems: 'center', justifyContent: 'center' },
-  portrait: { width: PORTRAIT, height: PORTRAIT, borderRadius: PORTRAIT / 2, borderWidth: 4, overflow: 'hidden' },
-  levelAnchor: { position: 'absolute', bottom: -10 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' },
-  stats: { flexDirection: 'row' },
-  stat: { flex: 1, alignItems: 'center', paddingVertical: 12, borderWidth: 1, gap: 1 },
-  statValueRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 3 },
-  traitHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  traitIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  traitValue: { alignItems: 'flex-end', minWidth: 44 },
-  subPreview: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: -2 },
-  subList: { borderTopWidth: StyleSheet.hairlineWidth },
-  subHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  subDot: { width: 6, height: 6, borderRadius: 3 },
-  memoryRow: { flexDirection: 'row', gap: 12 },
-  timeline: { width: 14, alignItems: 'center', paddingTop: 20 },
-  timelineDot: { width: 12, height: 12, borderRadius: 6 },
-  timelineLine: { flex: 1, width: 2, marginTop: 6, borderRadius: 1 },
+  hero: { alignItems: 'center' },
+  portrait: { width: PORTRAIT, height: PORTRAIT },
+  actions: { flexDirection: 'row' },
+  actionTile: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4, height: 64 },
+  summary: { flexDirection: 'row', borderRadius: 22, paddingVertical: 14 },
+  summaryItem: { flex: 1, alignItems: 'center', gap: 2 },
+  summaryValue: { flexDirection: 'row', alignItems: 'flex-end', gap: 3 },
+  summaryDivider: { width: StyleSheet.hairlineWidth, marginVertical: 4 },
+  traitRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  traitIcon: { width: 40, height: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  traitTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

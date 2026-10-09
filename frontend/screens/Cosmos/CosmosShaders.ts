@@ -141,6 +141,7 @@ uniform float uWater;
 uniform float uLife;
 uniform float uLights;
 uniform float uGlow;
+uniform float uDim;
 
 uniform vec3 uRockLow;
 uniform vec3 uRockHigh;
@@ -354,6 +355,8 @@ void main() {
   color += emissive;
   // A world that is still forming reads as a dim, dusty core.
   color = mix(color * 0.35 + uGlowColor * 0.04, color, uForm);
+  // Planets in the background of a focused one step back.
+  color *= 1.0 - uDim * 0.72;
 
   gl_FragColor = vec4(color, 1.0);
   #include <tonemapping_fragment>

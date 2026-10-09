@@ -12,6 +12,7 @@
   --rp-font-display: 'Bricolage Grotesque', 'Literata', Georgia, sans-serif;
   --rp-font-body: var(--rd-font-body);
   --rp-font-ui: var(--rd-font-ui);
+  --rd-font-display: var(--rp-font-display);
   --rp-hi: #ffd43b;
   --rp-hi-ink: #1d2a2f;
   background-color: var(--rp-paper);
@@ -518,23 +519,6 @@
 .rp-paragraph {
   margin: 0 0 1.25em;
   text-wrap: pretty;
-}
-
-.rp-dropcap {
-  display: flow-root;
-}
-
-.rp-dropcap:first-letter {
-  float: left;
-  padding: 0.06em 0.1em 0 0;
-  font-family: var(--rp-font-display);
-  font-weight: 800;
-  font-size: 3.6em;
-  line-height: 0.8;
-  color: var(--rp-ink);
-  background: var(--rp-hi);
-  border-radius: 6px;
-  margin-right: 0.08em;
 }
 
 /* ── Wow cards ─────────────────────────────────────────────────── */

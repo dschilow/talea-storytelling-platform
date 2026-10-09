@@ -47,13 +47,9 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   const { colors, spacing, radius, type, isDark } = useTheme();
   const [focused, setFocused] = useState(false);
 
-  const borderColor = error ? colors.danger : focused ? colors.primary : colors.border.soft;
-  // A soft halo around the focused field — clearer than a colour change alone.
-  const ring = error
-    ? { boxShadow: `0px 0px 0px 4px ${colors.dangerSoft}` }
-    : focused
-      ? { boxShadow: `0px 0px 0px 4px ${isDark ? 'rgba(168, 141, 255, 0.22)' : 'rgba(112, 71, 235, 0.14)'}` }
-      : null;
+  // iOS text fields: a quiet system fill, no border; focus is shown by the
+  // accent caret and a hairline in the accent colour.
+  const borderColor = error ? colors.danger : focused ? colors.primary : 'transparent';
 
   return (
     <View style={[{ gap: spacing.xs + 2 }, containerStyle]}>
@@ -67,16 +63,15 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         style={[
           styles.field,
           {
-            borderRadius: radius.md + 2,
+            borderRadius: radius.sm,
             borderColor,
             borderWidth: 1.5,
-            backgroundColor: colors.surface.primary,
-            paddingHorizontal: spacing.base,
-            minHeight: multilineRows ? 22 * multilineRows + 28 : 54,
+            backgroundColor: isDark ? colors.surface.inset : colors.surface.primary,
+            paddingHorizontal: spacing.md,
+            minHeight: multilineRows ? 22 * multilineRows + 28 : 48,
             alignItems: multilineRows ? 'flex-start' : 'center',
             paddingVertical: multilineRows ? spacing.md : 0,
           },
-          ring,
         ]}
       >
         {icon ? <View style={{ marginRight: spacing.sm }}>{icon}</View> : null}

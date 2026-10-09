@@ -105,6 +105,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
   const labelAnchorRef = useRef<THREE.Group>(null!);
   const planetRadiusRef = useRef(0.5);
   const feedbackPulseRef = useRef(0);
+  const dimRef = useRef(0);
   const growthStartRef = useRef<number | null>(null);
   const growthTokenRef = useRef(0);
   const moonRevealRef = useRef<number>(-Infinity);
@@ -148,6 +149,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         uLife: { value: 0 },
         uLights: { value: 0 },
         uGlow: { value: 0 },
+        uDim: { value: 0 },
         uRockLow: { value: new THREE.Color(theme.rockLow) },
         uRockHigh: { value: new THREE.Color(theme.rockHigh) },
         uSand: { value: new THREE.Color(theme.sand) },
@@ -388,6 +390,10 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
 
     feedbackPulseRef.current = Math.max(0, feedbackPulseRef.current - dt * 1.1);
     const pulse = feedbackPulseRef.current;
+    const dimTarget = cameraMode !== 'system' && !isFocused ? 1 : 0;
+    dimRef.current += (dimTarget - dimRef.current) * (1 - Math.exp(-Math.min(delta, 0.5) * 4));
+    const dim = dimRef.current;
+    const keep = 1 - dim * 0.7;
 
     const surface = surfaceMaterial.uniforms;
     surface.uTime.value = t;
@@ -396,6 +402,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
     surface.uWater.value = features.water;
     surface.uLife.value = features.life;
     surface.uLights.value = features.lights;
+    surface.uDim.value = dim;
     surface.uGlow.value = (isFocused ? 0.16 : 0) + pulse * 0.9 + growthGlow;
 
     if (planetRef.current) {
@@ -414,7 +421,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         const cloud = cloudMaterial.uniforms;
         cloud.uTime.value = t;
         cloud.uCoverage.value = 0.35 + features.clouds * 0.45 + features.life * 0.1;
-        cloud.uOpacity.value = features.clouds;
+        cloud.uOpacity.value = features.clouds * keep;
       }
     }
 
@@ -427,7 +434,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         atmosphere.uCenter.value.copy(group.position);
         atmosphere.uPlanetRadius.value = radius;
         atmosphere.uShellRadius.value = radius * ATMOSPHERE_SHELL;
-        atmosphere.uStrength.value = features.atmosphere * (1 + growthGlow * 0.6 + pulse * 0.4);
+        atmosphere.uStrength.value = features.atmosphere * keep * (1 + growthGlow * 0.6 + pulse * 0.4);
         atmosphere.uAurora.value = features.aurora;
         atmosphere.uTime.value = t;
       }
@@ -440,7 +447,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
         ringRef.current.scale.setScalar(radius * (0.85 + features.ring * 0.15));
         ringRef.current.rotation.z += dt * 0.02;
         const ring = ringMaterial.uniforms;
-        ring.uOpacity.value = features.ring;
+        ring.uOpacity.value = features.ring * keep;
         ring.uCenter.value.copy(group.position);
         ring.uPlanetRadius.value = radius;
         ring.uTime.value = t;
@@ -453,7 +460,7 @@ export const CosmosPlanetDomain: React.FC<Props> = ({
       if (dustOpacity > 0.01) {
         const material = dust.material.uniforms;
         material.uTime.value = t;
-        material.uOpacity.value = dustOpacity * (0.75 + pulse * 0.5);
+        material.uOpacity.value = dustOpacity * keep * (0.75 + pulse * 0.5);
         material.uContract.value = Math.min(1, features.form * 1.4);
         dustRef.current.scale.setScalar(features.radius * 1.5);
       }

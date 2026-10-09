@@ -17,6 +17,7 @@ import type { CosmosState, DomainProgress, LearningStage } from "./CosmosTypes";
 import { computeStage } from "./CosmosProgressMapper";
 import { COSMOS_DOMAINS } from "./CosmosAssetsRegistry";
 import { fetchCosmosState, type CosmosDomainProgressDTO } from "./apiCosmosClient";
+import { buildSeenKey } from "./CosmosSeenState";
 
 const KNOWN_STAGES = new Set<LearningStage>([
   "discovered",
@@ -323,8 +324,11 @@ export function useCosmosState() {
       domains,
       totalStoriesRead,
       totalDokusRead,
+      seenKey: avatarData?.id ? buildSeenKey(activeProfileId, avatarData.id) : undefined,
     };
   }, [
+    activeProfileId,
+    avatarData?.id,
     avatarData?.imageUrl,
     avatarData?.progression?.stats?.dokusRead,
     avatarData?.progression?.stats?.storiesRead,

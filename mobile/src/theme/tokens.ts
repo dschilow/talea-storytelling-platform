@@ -1,14 +1,15 @@
 /**
  * Talea design tokens for React Native.
  *
- * The palette is built from the brand mark: the logo's cyan → violet → magenta
- * sweep is the "magic" accent, Tavi's lamp gold marks rewards, and deep ink
- * carries the text. Light mode is a warm watercolour-paper page (it matches the
- * pre-generated Talea illustrations); dark mode is a midnight storybook.
+ * The visual language follows Apple's current platform design (iOS 26):
+ * neutral system backgrounds, borderless content cards, one clear accent, and
+ * translucent "glass" for chrome that floats over content (tab bar, toolbar
+ * buttons, sheets, banners). Colour comes from the content — story covers and
+ * avatar portraits — not from the interface.
  *
- * Surfaces are opaque on purpose: Android draws `elevation` shadows *through*
- * translucent fills, which showed up as grey boxes behind text. Depth comes from
- * `boxShadow` (New Architecture), which also allows coloured glows.
+ * Values mirror the iOS system palette (systemGroupedBackground, label,
+ * secondaryLabel, separator, the system fills and colours) so the app reads as
+ * native-quality rather than themed.
  */
 
 export type ThemeMode = 'light' | 'dark';
@@ -28,84 +29,97 @@ export interface Shadow {
   boxShadow: string;
 }
 
-/** A soft radial glow painted behind page content. Sizes are in dp. */
-export interface Glow {
-  color: string;
-  size: number;
-  top: number;
-  left: number;
-}
-
-/** 135deg in CSS == top-left to bottom-right. */
 const DIAGONAL = { start: { x: 0, y: 0 }, end: { x: 1, y: 1 } } as const;
-/** 180deg in CSS == top to bottom. */
 const VERTICAL = { start: { x: 0.5, y: 0 }, end: { x: 0.5, y: 1 } } as const;
-/** 90deg in CSS == left to right. */
-const HORIZONTAL = { start: { x: 0, y: 0.5 }, end: { x: 1, y: 0.5 } } as const;
 
-/** Brand constants shared by both modes. */
+/** Constant brand values shared by both modes. */
 export const brand = {
-  cyan: '#19B8F2',
-  violet: '#7047EB',
-  magenta: '#E84A9E',
-  gold: '#F4AC32',
-  goldLight: '#FFD36B',
-  ink: '#1D1838',
-  midnight: '#100C22',
-  /** Text and icons placed on brand fills. */
+  /** Text and icons placed on accent fills. */
   onBrand: '#FFFFFF',
 } as const;
 
+/** iOS system colours (light / dark). */
+export const system = {
+  light: {
+    blue: '#007AFF',
+    green: '#34C759',
+    indigo: '#5856D6',
+    orange: '#FF9500',
+    pink: '#FF2D55',
+    red: '#FF3B30',
+    teal: '#30B0C7',
+    cyan: '#32ADE6',
+    mint: '#00C7BE',
+    yellow: '#FFCC00',
+    brown: '#A2845E',
+    gray: '#8E8E93',
+  },
+  dark: {
+    blue: '#0A84FF',
+    green: '#30D158',
+    indigo: '#5E5CE6',
+    orange: '#FF9F0A',
+    pink: '#FF375F',
+    red: '#FF453A',
+    teal: '#40C8E0',
+    cyan: '#64D2FF',
+    mint: '#63E6E2',
+    yellow: '#FFD60A',
+    brown: '#AC8E68',
+    gray: '#8E8E93',
+  },
+} as const;
+
 /**
- * One hue per base trait, so a trait reads the same everywhere (avatar profile,
- * growth sheet, cards). Ids match backend/constants/personalityTraits.ts.
+ * One system colour per base trait, so a trait reads the same everywhere
+ * (avatar profile, growth sheet, cards). Ids match
+ * backend/constants/personalityTraits.ts.
  */
 export const traitHues: Record<string, string> = {
-  knowledge: '#2F8FEF',
-  creativity: '#E04DA3',
-  vocabulary: '#7B55F0',
-  courage: '#F07A2E',
-  curiosity: '#14AFAE',
-  teamwork: '#22A866',
-  empathy: '#EE5A7E',
-  persistence: '#D9971A',
-  logic: '#4E62E6',
+  knowledge: system.light.blue,
+  creativity: system.light.pink,
+  vocabulary: system.light.mint,
+  courage: system.light.orange,
+  curiosity: system.light.teal,
+  teamwork: system.light.green,
+  empathy: system.light.red,
+  persistence: system.light.brown,
+  logic: system.light.indigo,
 };
 
 export function traitHue(traitId: string): string {
-  return traitHues[traitId.split('.')[0]] ?? brand.violet;
+  return traitHues[traitId.split('.')[0]] ?? system.light.blue;
 }
 
 export interface ThemePalette {
   mode: ThemeMode;
 
-  /** Flat page colour, used behind the gradient layer and for native chrome. */
+  /** The page (systemGroupedBackground). */
   pageSolid: string;
-  /** The page wash. Rendered by <PageBackground>. */
-  pageGradient: Gradient;
-  /** Soft radial glows layered over the page wash. */
-  glows: readonly Glow[];
 
   surface: {
-    /** Cards and sheets. */
+    /** Cards, grouped list cells, sheets. */
     primary: string;
-    /** Quiet translucent fill for chrome over imagery. */
+    /** Glass tint over imagery. */
     secondary: string;
     elevated: Gradient;
-    /** Recessed fields: inputs, segmented tracks, list wells. */
+    /** Fills: search fields, segmented tracks, neutral capsules. */
     inset: string;
-    /** Floating chrome (tab bar, reader bars). */
+    /** Glass tint for floating chrome (tab bar, toolbars). */
     panel: string;
     option: string;
-    /** Selected / highlighted item tint. */
+    /** Selected row tint. */
     item: string;
   };
 
   border: {
+    /** Hairline separators. */
     light: string;
     soft: string;
     strong: string;
     accent: string;
+    /** The bright rim on glass. */
+    glass: string;
   };
 
   text: {
@@ -113,9 +127,12 @@ export interface ThemePalette {
     secondary: string;
     tertiary: string;
     muted: string;
-    /** Text on brand / accent fills — white in both modes. */
+    /** Text on accent fills — white in both modes. */
     inverse: string;
   };
+
+  /** The system colour set for the current mode. */
+  system: Record<keyof (typeof system)['light'], string>;
 
   accent: {
     rose: string;
@@ -126,6 +143,7 @@ export interface ThemePalette {
     gold: string;
   };
 
+  /** Soft colour washes, used only behind illustrations and empty covers. */
   gradient: {
     primary: Gradient;
     secondary: Gradient;
@@ -135,14 +153,10 @@ export interface ThemePalette {
     ocean: Gradient;
     lavender: Gradient;
     nature: Gradient;
-    /** Filled call-to-action. */
     action: Gradient;
     progress: Gradient;
-    /** The full logo sweep: cyan → violet → magenta. */
     magic: Gradient;
-    /** Rewards, levels, treasures. */
     gold: Gradient;
-    /** Deep hero surfaces (home hero, generation, landing). */
     night: Gradient;
   };
 
@@ -161,7 +175,7 @@ export interface ThemePalette {
 
   primary: string;
   primaryForeground: string;
-  /** Soft tint of the primary colour for selected states. */
+  /** Tinted fill of the accent, for secondary buttons and selections. */
   primarySoft: string;
   ring: string;
 
@@ -176,249 +190,220 @@ export interface ThemePalette {
   goldSoft: string;
 
   progressTrack: string;
-  /** Semi-transparent scrim behind modals and sheets. */
   scrim: string;
-  /** Tint used by <BlurView>. */
   blurTint: 'light' | 'dark';
 
   chart: readonly [string, string, string, string, string];
 }
 
-const sharedGradients = {
-  action: { colors: ['#8452F6', '#6A3FE6', '#C9449F'], locations: [0, 0.55, 1], ...DIAGONAL },
-  magic: { colors: [brand.cyan, brand.violet, brand.magenta], locations: [0, 0.5, 1], ...DIAGONAL },
-  gold: { colors: ['#FFD875', '#F4AC32'], ...DIAGONAL },
-  night: { colors: ['#2A1C63', '#1A1340', '#3B1745'], locations: [0, 0.55, 1], ...DIAGONAL },
-} as const satisfies Record<string, Gradient>;
+const solid = (color: string): Gradient => ({ colors: [color, color], ...VERTICAL });
+const wash = (from: string, to: string): Gradient => ({ colors: [from, to], ...DIAGONAL });
 
 export const lightPalette: ThemePalette = {
   mode: 'light',
-
-  pageSolid: '#FBF7F1',
-  pageGradient: {
-    colors: ['#FFFBF6', '#FBF6EF', '#F7F0E8'],
-    locations: [0, 0.5, 1],
-    ...VERTICAL,
-  },
-  glows: [
-    { color: 'rgba(140, 108, 255, 0.20)', size: 460, top: -200, left: -180 },
-    { color: 'rgba(255, 168, 118, 0.20)', size: 420, top: -160, left: 170 },
-    { color: 'rgba(84, 190, 255, 0.12)', size: 520, top: 430, left: -220 },
-  ],
+  pageSolid: '#F2F2F7',
 
   surface: {
     primary: '#FFFFFF',
-    secondary: 'rgba(255, 255, 255, 0.78)',
-    elevated: { colors: ['#FFFFFF', '#FFFCF8'], ...VERTICAL },
-    inset: '#F3EDE5',
-    panel: 'rgba(255, 253, 250, 0.94)',
+    secondary: 'rgba(255, 255, 255, 0.72)',
+    elevated: solid('#FFFFFF'),
+    inset: 'rgba(118, 118, 128, 0.12)',
+    panel: 'rgba(250, 250, 252, 0.72)',
     option: '#FFFFFF',
-    item: '#F3EEFF',
+    item: 'rgba(0, 122, 255, 0.08)',
   },
 
   border: {
-    light: 'rgba(43, 31, 72, 0.07)',
-    soft: 'rgba(43, 31, 72, 0.11)',
-    strong: 'rgba(43, 31, 72, 0.18)',
-    accent: 'rgba(112, 71, 235, 0.55)',
+    light: 'rgba(60, 60, 67, 0.12)',
+    soft: 'rgba(60, 60, 67, 0.2)',
+    strong: 'rgba(60, 60, 67, 0.3)',
+    accent: 'rgba(0, 122, 255, 0.55)',
+    glass: 'rgba(255, 255, 255, 0.85)',
   },
 
   text: {
-    primary: '#1D1838',
-    secondary: '#56506F',
-    tertiary: '#8A849F',
-    muted: '#B6B0C6',
+    primary: '#000000',
+    secondary: 'rgba(60, 60, 67, 0.62)',
+    tertiary: 'rgba(60, 60, 67, 0.48)',
+    muted: 'rgba(60, 60, 67, 0.3)',
     inverse: '#FFFFFF',
   },
 
+  system: system.light,
+
   accent: {
-    rose: '#EE5A7E',
-    lavender: '#7B55F0',
-    mint: '#18B489',
-    sky: '#2F8FEF',
-    peach: '#F07A2E',
-    gold: '#E9A126',
+    rose: system.light.pink,
+    lavender: system.light.indigo,
+    mint: system.light.mint,
+    sky: system.light.cyan,
+    peach: system.light.orange,
+    gold: system.light.yellow,
   },
 
   gradient: {
-    primary: { colors: ['#EEE6FF', '#FCE6F1', '#FFEFDD'], locations: [0, 0.5, 1], ...DIAGONAL },
-    secondary: { colors: ['#E3F2FF', '#ECE6FF'], ...DIAGONAL },
-    warm: { colors: ['#FFE9D6', '#FFE1EA'], ...DIAGONAL },
-    cool: { colors: ['#E1F0FF', '#E8E4FF'], ...DIAGONAL },
-    sunset: { colors: ['#FFE2D2', '#FBDDEE', '#E9E0FF'], locations: [0, 0.5, 1], ...DIAGONAL },
-    ocean: { colors: ['#D9F4EF', '#DCEAFF'], ...DIAGONAL },
-    lavender: { colors: ['#EBE4FF', '#F8E5F8'], ...DIAGONAL },
-    nature: { colors: ['#DFF5E6', '#EAF4D8'], ...DIAGONAL },
-    action: sharedGradients.action,
-    progress: { colors: [brand.cyan, brand.violet, brand.magenta], locations: [0, 0.55, 1], ...HORIZONTAL },
-    magic: sharedGradients.magic,
-    gold: sharedGradients.gold,
-    night: sharedGradients.night,
+    primary: wash('#EAF2FF', '#F4F0FF'),
+    secondary: wash('#E8F4FF', '#EEF6F4'),
+    warm: wash('#FFF1E3', '#FFE8EA'),
+    cool: wash('#E8F1FF', '#ECEFFF'),
+    sunset: wash('#FFEDE2', '#FCE8F0'),
+    ocean: wash('#E3F6F5', '#E6F0FF'),
+    lavender: wash('#EFEFFF', '#F7EEFA'),
+    nature: wash('#E7F7EA', '#F0F6E2'),
+    action: solid(system.light.blue),
+    progress: solid(system.light.blue),
+    magic: solid(system.light.blue),
+    gold: solid(system.light.yellow),
+    night: solid('#1C1C1E'),
   },
 
   media: {
-    skeleton: '#EEE7DE',
-    shimmer: 'rgba(255, 255, 255, 0.65)',
+    skeleton: '#E5E5EA',
+    shimmer: 'rgba(255, 255, 255, 0.55)',
     foreground: '#FFFFFF',
-    overlay: ['rgba(18, 12, 38, 0)', 'rgba(18, 12, 38, 0.16)', 'rgba(18, 12, 38, 0.62)'],
-    overlayStrong: ['rgba(14, 9, 30, 0)', 'rgba(14, 9, 30, 0.28)', 'rgba(14, 9, 30, 0.84)'],
-    chromeBg: 'rgba(20, 14, 40, 0.42)',
-    chromeBorder: 'rgba(255, 255, 255, 0.28)',
-    controlBg: 'rgba(20, 14, 40, 0.36)',
-    controlBorder: 'rgba(255, 255, 255, 0.26)',
+    overlay: ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.12)', 'rgba(0, 0, 0, 0.55)'],
+    overlayStrong: ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.25)', 'rgba(0, 0, 0, 0.78)'],
+    chromeBg: 'rgba(30, 30, 30, 0.38)',
+    chromeBorder: 'rgba(255, 255, 255, 0.3)',
+    controlBg: 'rgba(30, 30, 30, 0.32)',
+    controlBorder: 'rgba(255, 255, 255, 0.28)',
   },
 
-  primary: brand.violet,
+  primary: system.light.blue,
   primaryForeground: brand.onBrand,
-  primarySoft: '#EFE9FF',
-  ring: brand.violet,
+  primarySoft: 'rgba(0, 122, 255, 0.12)',
+  ring: system.light.blue,
 
-  danger: '#D8434A',
-  dangerBorder: 'rgba(216, 67, 74, 0.32)',
-  dangerSoft: '#FDECEC',
-  success: '#12976D',
-  successSoft: '#E3F6EE',
-  warning: '#C97A06',
-  warningSoft: '#FFF2DC',
-  gold: '#E9A126',
-  goldSoft: '#FFF3D9',
+  danger: system.light.red,
+  dangerBorder: 'rgba(255, 59, 48, 0.4)',
+  dangerSoft: 'rgba(255, 59, 48, 0.12)',
+  success: '#248A3D',
+  successSoft: 'rgba(52, 199, 89, 0.15)',
+  warning: '#C93400',
+  warningSoft: 'rgba(255, 149, 0, 0.15)',
+  gold: system.light.orange,
+  goldSoft: 'rgba(255, 204, 0, 0.2)',
 
-  progressTrack: 'rgba(43, 31, 72, 0.08)',
-  scrim: 'rgba(22, 15, 44, 0.46)',
+  progressTrack: 'rgba(120, 120, 128, 0.16)',
+  scrim: 'rgba(0, 0, 0, 0.32)',
   blurTint: 'light',
 
-  chart: [brand.violet, brand.cyan, brand.magenta, '#F4AC32', '#18B489'],
+  chart: [system.light.blue, system.light.orange, system.light.green, system.light.pink, system.light.teal],
 };
 
 export const darkPalette: ThemePalette = {
   mode: 'dark',
-
-  pageSolid: '#100C22',
-  pageGradient: {
-    colors: ['#171132', '#100C22', '#0B0819'],
-    locations: [0, 0.5, 1],
-    ...VERTICAL,
-  },
-  glows: [
-    { color: 'rgba(118, 78, 255, 0.30)', size: 460, top: -210, left: -170 },
-    { color: 'rgba(232, 74, 158, 0.16)', size: 400, top: -150, left: 190 },
-    { color: 'rgba(25, 184, 242, 0.12)', size: 520, top: 440, left: -230 },
-  ],
+  pageSolid: '#000000',
 
   surface: {
-    primary: '#1A1534',
-    secondary: 'rgba(26, 21, 52, 0.78)',
-    elevated: { colors: ['#221B43', '#1A1534'], ...VERTICAL },
-    inset: '#221C40',
-    panel: 'rgba(23, 18, 46, 0.94)',
-    option: '#1E1839',
-    item: '#2A2156',
+    primary: '#1C1C1E',
+    secondary: 'rgba(28, 28, 30, 0.72)',
+    elevated: solid('#2C2C2E'),
+    inset: 'rgba(118, 118, 128, 0.24)',
+    panel: 'rgba(28, 28, 30, 0.68)',
+    option: '#2C2C2E',
+    item: 'rgba(10, 132, 255, 0.18)',
   },
 
   border: {
-    light: 'rgba(255, 255, 255, 0.07)',
-    soft: 'rgba(255, 255, 255, 0.11)',
-    strong: 'rgba(255, 255, 255, 0.18)',
-    accent: 'rgba(168, 140, 255, 0.62)',
+    light: 'rgba(84, 84, 88, 0.45)',
+    soft: 'rgba(84, 84, 88, 0.65)',
+    strong: 'rgba(84, 84, 88, 0.85)',
+    accent: 'rgba(10, 132, 255, 0.6)',
+    glass: 'rgba(255, 255, 255, 0.16)',
   },
 
   text: {
-    primary: '#F6F3FF',
-    secondary: '#BFB8DC',
-    tertiary: '#8F88B1',
-    muted: '#615A86',
+    primary: '#FFFFFF',
+    secondary: 'rgba(235, 235, 245, 0.62)',
+    tertiary: 'rgba(235, 235, 245, 0.46)',
+    muted: 'rgba(235, 235, 245, 0.3)',
     inverse: '#FFFFFF',
   },
 
+  system: system.dark,
+
   accent: {
-    rose: '#FF7FA0',
-    lavender: '#A88DFF',
-    mint: '#43D7AC',
-    sky: '#5DB7FF',
-    peach: '#FF9F66',
-    gold: '#FFC75A',
+    rose: system.dark.pink,
+    lavender: system.dark.indigo,
+    mint: system.dark.mint,
+    sky: system.dark.cyan,
+    peach: system.dark.orange,
+    gold: system.dark.yellow,
   },
 
   gradient: {
-    primary: { colors: ['#2B1F5E', '#38194D', '#3D2336'], locations: [0, 0.5, 1], ...DIAGONAL },
-    secondary: { colors: ['#132E4C', '#271F57'], ...DIAGONAL },
-    warm: { colors: ['#3E2430', '#3A1F42'], ...DIAGONAL },
-    cool: { colors: ['#15294C', '#251F55'], ...DIAGONAL },
-    sunset: { colors: ['#3F2234', '#33204F', '#1F2453'], locations: [0, 0.5, 1], ...DIAGONAL },
-    ocean: { colors: ['#103638', '#132B4C'], ...DIAGONAL },
-    lavender: { colors: ['#2A2156', '#3B1F4D'], ...DIAGONAL },
-    nature: { colors: ['#123526', '#1C3424'], ...DIAGONAL },
-    action: sharedGradients.action,
-    progress: { colors: ['#3CC9FF', '#9573FF', '#FF62B1'], locations: [0, 0.55, 1], ...HORIZONTAL },
-    magic: { colors: ['#3CC9FF', '#9573FF', '#FF62B1'], locations: [0, 0.5, 1], ...DIAGONAL },
-    gold: sharedGradients.gold,
-    night: { colors: ['#2C1E68', '#1B1442', '#40194A'], locations: [0, 0.55, 1], ...DIAGONAL },
+    primary: wash('#1A2433', '#221E2E'),
+    secondary: wash('#16263A', '#16282A'),
+    warm: wash('#2E2318', '#2E1C20'),
+    cool: wash('#182233', '#1E1E33'),
+    sunset: wash('#2E2018', '#2C1A24'),
+    ocean: wash('#132A2A', '#152236'),
+    lavender: wash('#1F1F33', '#2A1E2E'),
+    nature: wash('#16291A', '#22281A'),
+    action: solid(system.dark.blue),
+    progress: solid(system.dark.blue),
+    magic: solid(system.dark.blue),
+    gold: solid(system.dark.yellow),
+    night: solid('#1C1C1E'),
   },
 
   media: {
-    skeleton: '#221C40',
-    shimmer: 'rgba(255, 255, 255, 0.07)',
+    skeleton: '#2C2C2E',
+    shimmer: 'rgba(255, 255, 255, 0.06)',
     foreground: '#FFFFFF',
-    overlay: ['rgba(8, 5, 20, 0)', 'rgba(8, 5, 20, 0.24)', 'rgba(8, 5, 20, 0.7)'],
-    overlayStrong: ['rgba(6, 4, 16, 0)', 'rgba(6, 4, 16, 0.34)', 'rgba(6, 4, 16, 0.88)'],
-    chromeBg: 'rgba(10, 7, 24, 0.5)',
-    chromeBorder: 'rgba(255, 255, 255, 0.16)',
-    controlBg: 'rgba(10, 7, 24, 0.46)',
+    overlay: ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.2)', 'rgba(0, 0, 0, 0.65)'],
+    overlayStrong: ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.32)', 'rgba(0, 0, 0, 0.85)'],
+    chromeBg: 'rgba(30, 30, 30, 0.5)',
+    chromeBorder: 'rgba(255, 255, 255, 0.18)',
+    controlBg: 'rgba(30, 30, 30, 0.46)',
     controlBorder: 'rgba(255, 255, 255, 0.16)',
   },
 
-  primary: '#A88DFF',
+  primary: system.dark.blue,
   primaryForeground: brand.onBrand,
-  primarySoft: '#2A2156',
-  ring: '#A88DFF',
+  primarySoft: 'rgba(10, 132, 255, 0.2)',
+  ring: system.dark.blue,
 
-  danger: '#FF7B7F',
-  dangerBorder: 'rgba(255, 123, 127, 0.4)',
-  dangerSoft: '#3A1D2C',
-  success: '#43D7AC',
-  successSoft: '#13332E',
-  warning: '#FFB54D',
-  warningSoft: '#3A2B18',
-  gold: '#FFC75A',
-  goldSoft: '#3A2E17',
+  danger: system.dark.red,
+  dangerBorder: 'rgba(255, 69, 58, 0.45)',
+  dangerSoft: 'rgba(255, 69, 58, 0.18)',
+  success: system.dark.green,
+  successSoft: 'rgba(48, 209, 88, 0.18)',
+  warning: system.dark.orange,
+  warningSoft: 'rgba(255, 159, 10, 0.18)',
+  gold: system.dark.orange,
+  goldSoft: 'rgba(255, 214, 10, 0.18)',
 
-  progressTrack: 'rgba(255, 255, 255, 0.10)',
-  scrim: 'rgba(4, 2, 12, 0.66)',
+  progressTrack: 'rgba(120, 120, 128, 0.32)',
+  scrim: 'rgba(0, 0, 0, 0.55)',
   blurTint: 'dark',
 
-  chart: ['#A88DFF', '#3CC9FF', '#FF62B1', '#FFC75A', '#43D7AC'],
+  chart: [system.dark.blue, system.dark.orange, system.dark.green, system.dark.pink, system.dark.teal],
 };
 
 export type ShadowKey = 'none' | 'soft' | 'medium' | 'strong' | 'float' | 'glow';
 
 /**
- * Elevation ramp as `boxShadow` (rendered natively on Android 9+ with the New
- * Architecture). Shadows are tinted with the ink hue rather than black, which
- * is what makes them read as soft light instead of grime.
+ * Elevation as `boxShadow`. Grouped content sits flat on the page (iOS cards
+ * have no shadow); only floating chrome and imagery get depth.
  */
 export const shadows: Record<ShadowKey, Shadow> = {
   none: { boxShadow: 'none' },
-  soft: { boxShadow: '0px 2px 6px rgba(43, 28, 92, 0.05), 0px 8px 22px rgba(43, 28, 92, 0.07)' },
-  medium: { boxShadow: '0px 3px 8px rgba(43, 28, 92, 0.06), 0px 14px 34px rgba(43, 28, 92, 0.11)' },
-  strong: { boxShadow: '0px 6px 14px rgba(43, 28, 92, 0.08), 0px 22px 48px rgba(43, 28, 92, 0.16)' },
-  float: { boxShadow: '0px 10px 24px rgba(43, 28, 92, 0.12), 0px 30px 64px rgba(43, 28, 92, 0.2)' },
-  glow: { boxShadow: '0px 10px 28px rgba(112, 71, 235, 0.38)' },
+  soft: { boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.04), 0px 6px 16px rgba(0, 0, 0, 0.05)' },
+  medium: { boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.06), 0px 12px 28px rgba(0, 0, 0, 0.1)' },
+  strong: { boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.08), 0px 18px 40px rgba(0, 0, 0, 0.14)' },
+  float: { boxShadow: '0px 6px 16px rgba(0, 0, 0, 0.08), 0px 20px 44px rgba(0, 0, 0, 0.12)' },
+  glow: { boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.06), 0px 10px 24px rgba(0, 0, 0, 0.1)' },
 };
 
-/** Dark mode needs deeper shadows to read against the midnight page. */
 export const darkShadows: Record<ShadowKey, Shadow> = {
   none: { boxShadow: 'none' },
-  soft: { boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.28), 0px 10px 26px rgba(0, 0, 0, 0.3)' },
-  medium: { boxShadow: '0px 4px 10px rgba(0, 0, 0, 0.32), 0px 16px 38px rgba(0, 0, 0, 0.4)' },
-  strong: { boxShadow: '0px 8px 18px rgba(0, 0, 0, 0.36), 0px 26px 54px rgba(0, 0, 0, 0.5)' },
-  float: { boxShadow: '0px 12px 28px rgba(0, 0, 0, 0.4), 0px 34px 70px rgba(0, 0, 0, 0.55)' },
-  glow: { boxShadow: '0px 10px 30px rgba(149, 115, 255, 0.45)' },
+  soft: { boxShadow: 'none' },
+  medium: { boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.45)' },
+  strong: { boxShadow: '0px 12px 32px rgba(0, 0, 0, 0.55)' },
+  float: { boxShadow: '0px 12px 36px rgba(0, 0, 0, 0.6)' },
+  glow: { boxShadow: '0px 8px 24px rgba(0, 0, 0, 0.5)' },
 };
-
-/** Coloured glow for an arbitrary hue (trait badges, category tiles). */
-export function glowShadow(color: string, strength = 0.35, blur = 24, y = 10): Shadow {
-  return { boxShadow: `0px ${y}px ${blur}px ${withAlpha(color, strength)}` };
-}
 
 /** Applies an alpha to a #RRGGBB colour. Other formats are returned unchanged. */
 export function withAlpha(color: string, alpha: number): string {
@@ -446,15 +431,15 @@ export const spacing = {
   huge: 56,
 } as const;
 
-/** Generous, soft corners — the storybook look relies on them. */
+/** Continuous, generous corners in the iOS 26 manner. */
 export const radius = {
   none: 0,
   xs: 8,
   sm: 12,
   md: 16,
   base: 20,
-  lg: 24,
-  xl: 28,
+  lg: 22,
+  xl: 26,
   xxl: 34,
   pill: 999,
 } as const;
@@ -466,12 +451,9 @@ export const motion = {
   base: 260,
   slow: 420,
   page: 520,
-  /** Pressables and small layout shifts. */
-  spring: { damping: 22, stiffness: 340, mass: 0.8 },
-  /** Sliding indicators and sheets. */
-  springSoft: { damping: 24, stiffness: 210, mass: 0.9 },
-  /** Celebrations, badges popping in. */
-  springBouncy: { damping: 12, stiffness: 230, mass: 0.8 },
+  spring: { damping: 24, stiffness: 360, mass: 0.8 },
+  springSoft: { damping: 26, stiffness: 240, mass: 0.9 },
+  springBouncy: { damping: 15, stiffness: 240, mass: 0.8 },
 } as const;
 
 export const zIndex = {

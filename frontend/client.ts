@@ -776,6 +776,15 @@ export namespace avatar {
  * Import the endpoint handlers to derive the types for the client.
  */
 import {
+    automationCancelJob as api_doku_audio_automation_automationCancelJob,
+    automationCatalog as api_doku_audio_automation_automationCatalog,
+    automationGetJob as api_doku_audio_automation_automationGetJob,
+    automationListJobs as api_doku_audio_automation_automationListJobs,
+    automationPublish as api_doku_audio_automation_automationPublish,
+    automationStartJobs as api_doku_audio_automation_automationStartJobs,
+    automationVoices as api_doku_audio_automation_automationVoices
+} from "~backend/doku/audio-automation";
+import {
     createAudioDoku as api_doku_audio_doku_createAudioDoku,
     createAudioUploadUrl as api_doku_audio_doku_createAudioUploadUrl,
     deleteAudioDoku as api_doku_audio_doku_deleteAudioDoku,
@@ -810,6 +819,13 @@ export namespace doku {
         constructor(baseClient: BaseClient) {
             this.baseClient = baseClient
             this.addDokuToProfile = this.addDokuToProfile.bind(this)
+            this.automationCancelJob = this.automationCancelJob.bind(this)
+            this.automationCatalog = this.automationCatalog.bind(this)
+            this.automationGetJob = this.automationGetJob.bind(this)
+            this.automationListJobs = this.automationListJobs.bind(this)
+            this.automationPublish = this.automationPublish.bind(this)
+            this.automationStartJobs = this.automationStartJobs.bind(this)
+            this.automationVoices = this.automationVoices.bind(this)
             this.createAudioDoku = this.createAudioDoku.bind(this)
             this.createAudioUploadUrl = this.createAudioUploadUrl.bind(this)
             this.deleteAudioDoku = this.deleteAudioDoku.bind(this)
@@ -842,6 +858,97 @@ export namespace doku {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/doku/${encodeURIComponent(params.id)}/add-to-profile`, {method: "POST", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_profile_state_addDokuToProfile>
+        }
+
+        public async automationCancelJob(params: RequestType<typeof api_doku_audio_automation_automationCancelJob>): Promise<ResponseType<typeof api_doku_audio_automation_automationCancelJob>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "x-automation-key": params.key,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/automation/audio-dokus/jobs/${encodeURIComponent(params.id)}/cancel`, {headers, method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_automation_automationCancelJob>
+        }
+
+        public async automationCatalog(params: RequestType<typeof api_doku_audio_automation_automationCatalog>): Promise<ResponseType<typeof api_doku_audio_automation_automationCatalog>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "x-automation-key": params.key,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/automation/audio-dokus/catalog`, {headers, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_automation_automationCatalog>
+        }
+
+        public async automationGetJob(params: RequestType<typeof api_doku_audio_automation_automationGetJob>): Promise<ResponseType<typeof api_doku_audio_automation_automationGetJob>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "x-automation-key": params.key,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/automation/audio-dokus/jobs/${encodeURIComponent(params.id)}`, {headers, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_automation_automationGetJob>
+        }
+
+        public async automationListJobs(params: RequestType<typeof api_doku_audio_automation_automationListJobs>): Promise<ResponseType<typeof api_doku_audio_automation_automationListJobs>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "x-automation-key": params.key,
+            })
+
+            const query = makeRecord<string, string | string[]>({
+                ids: params.ids,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/automation/audio-dokus/jobs`, {headers, query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_automation_automationListJobs>
+        }
+
+        public async automationPublish(params: RequestType<typeof api_doku_audio_automation_automationPublish>): Promise<ResponseType<typeof api_doku_audio_automation_automationPublish>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "x-automation-key": params.key,
+            })
+
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                isPublic: params.isPublic,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/automation/audio-dokus/publish/${encodeURIComponent(params.id)}`, {headers, method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_automation_automationPublish>
+        }
+
+        public async automationStartJobs(params: RequestType<typeof api_doku_audio_automation_automationStartJobs>): Promise<ResponseType<typeof api_doku_audio_automation_automationStartJobs>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "x-automation-key": params.key,
+            })
+
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                items: params.items,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/automation/audio-dokus/jobs`, {headers, method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_automation_automationStartJobs>
+        }
+
+        public async automationVoices(params: RequestType<typeof api_doku_audio_automation_automationVoices>): Promise<ResponseType<typeof api_doku_audio_automation_automationVoices>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "x-automation-key": params.key,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/automation/audio-dokus/voices`, {headers, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_automation_automationVoices>
         }
 
         public async createAudioDoku(params: RequestType<typeof api_doku_audio_doku_createAudioDoku>): Promise<ResponseType<typeof api_doku_audio_doku_createAudioDoku>> {
@@ -1863,8 +1970,6 @@ export namespace story {
             // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
             const body: Record<string, any> = {
                 ageGroup:        params.ageGroup,
-                aiModel:         params.aiModel,
-                aiProvider:      params.aiProvider,
                 openRouterModel: params.openRouterModel,
             }
 
@@ -2415,6 +2520,7 @@ import {
     getAvailableTtsProviders as api_tts_tts_getAvailableTtsProviders,
     listCosyVoiceVoices as api_tts_tts_listCosyVoiceVoices,
     listQwenVoices as api_tts_tts_listQwenVoices,
+    listThorstenVoices as api_tts_tts_listThorstenVoices,
     listXaiVoices as api_tts_tts_listXaiVoices
 } from "~backend/tts/tts";
 
@@ -2434,6 +2540,7 @@ export namespace tts {
             this.listCosyVoiceVoices = this.listCosyVoiceVoices.bind(this)
             this.listElevenLabsVoices = this.listElevenLabsVoices.bind(this)
             this.listQwenVoices = this.listQwenVoices.bind(this)
+            this.listThorstenVoices = this.listThorstenVoices.bind(this)
             this.listXaiVoices = this.listXaiVoices.bind(this)
         }
 
@@ -2494,6 +2601,12 @@ export namespace tts {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_listQwenVoices>
         }
 
+        public async listThorstenVoices(): Promise<ResponseType<typeof api_tts_tts_listThorstenVoices>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/tts/thorsten/voices`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_tts_tts_listThorstenVoices>
+        }
+
         public async listXaiVoices(): Promise<ResponseType<typeof api_tts_tts_listXaiVoices>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/tts/xai/voices`, {method: "GET", body: undefined})
@@ -2505,6 +2618,15 @@ export namespace tts {
 /**
  * Import the endpoint handlers to derive the types for the client.
  */
+import {
+    deleteAnnouncement as api_user_notifications_deleteAnnouncement,
+    listNotifications as api_user_notifications_listNotifications,
+    markNotificationsRead as api_user_notifications_markNotificationsRead,
+    notificationSummary as api_user_notifications_notificationSummary,
+    publishAnnouncement as api_user_notifications_publishAnnouncement,
+    setNotificationState as api_user_notifications_setNotificationState,
+    updateNotificationPreferences as api_user_notifications_updateNotificationPreferences
+} from "~backend/user/notifications";
 import {
     create as api_user_profile_create,
     get as api_user_profile_get,
@@ -2534,16 +2656,23 @@ export namespace user {
             this.baseClient = baseClient
             this.create = this.create.bind(this)
             this.createProfile = this.createProfile.bind(this)
+            this.deleteAnnouncement = this.deleteAnnouncement.bind(this)
             this.deleteProfile = this.deleteProfile.bind(this)
             this.get = this.get.bind(this)
             this.getParentalControls = this.getParentalControls.bind(this)
             this.getProfilesOverview = this.getProfilesOverview.bind(this)
+            this.listNotifications = this.listNotifications.bind(this)
             this.listProfiles = this.listProfiles.bind(this)
+            this.markNotificationsRead = this.markNotificationsRead.bind(this)
             this.me = this.me.bind(this)
+            this.notificationSummary = this.notificationSummary.bind(this)
+            this.publishAnnouncement = this.publishAnnouncement.bind(this)
             this.saveFamilyReserve = this.saveFamilyReserve.bind(this)
             this.saveParentalControls = this.saveParentalControls.bind(this)
             this.saveProfileBudget = this.saveProfileBudget.bind(this)
+            this.setNotificationState = this.setNotificationState.bind(this)
             this.updateLanguage = this.updateLanguage.bind(this)
+            this.updateNotificationPreferences = this.updateNotificationPreferences.bind(this)
             this.updateProfile = this.updateProfile.bind(this)
             this.updateTheme = this.updateTheme.bind(this)
             this.verifyParentalPin = this.verifyParentalPin.bind(this)
@@ -2563,6 +2692,12 @@ export namespace user {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/user/profiles`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profiles_createProfile>
+        }
+
+        public async deleteAnnouncement(params: { id: string }): Promise<ResponseType<typeof api_user_notifications_deleteAnnouncement>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/notifications/announcements/${encodeURIComponent(params.id)}`, {method: "DELETE", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_notifications_deleteAnnouncement>
         }
 
         public async deleteProfile(params: { profileId: string }): Promise<ResponseType<typeof api_user_profiles_deleteProfile>> {
@@ -2592,10 +2727,32 @@ export namespace user {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profiles_getProfilesOverview>
         }
 
+        public async listNotifications(params: RequestType<typeof api_user_notifications_listNotifications>): Promise<ResponseType<typeof api_user_notifications_listNotifications>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                archived:   params.archived === undefined ? undefined : String(params.archived),
+                kind:       params.kind === undefined ? undefined : String(params.kind),
+                limit:      params.limit === undefined ? undefined : String(params.limit),
+                offset:     params.offset === undefined ? undefined : String(params.offset),
+                q:          params.q,
+                unreadOnly: params.unreadOnly === undefined ? undefined : String(params.unreadOnly),
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/notifications`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_notifications_listNotifications>
+        }
+
         public async listProfiles(): Promise<ResponseType<typeof api_user_profiles_listProfiles>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/user/profiles`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profiles_listProfiles>
+        }
+
+        public async markNotificationsRead(params: RequestType<typeof api_user_notifications_markNotificationsRead>): Promise<ResponseType<typeof api_user_notifications_markNotificationsRead>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/notifications/read-all`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_notifications_markNotificationsRead>
         }
 
         /**
@@ -2606,6 +2763,18 @@ export namespace user {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/user/me`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_me>
+        }
+
+        public async notificationSummary(): Promise<ResponseType<typeof api_user_notifications_notificationSummary>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/notifications/summary`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_notifications_notificationSummary>
+        }
+
+        public async publishAnnouncement(params: RequestType<typeof api_user_notifications_publishAnnouncement>): Promise<ResponseType<typeof api_user_notifications_publishAnnouncement>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/notifications/announcements`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_notifications_publishAnnouncement>
         }
 
         public async saveFamilyReserve(params: RequestType<typeof api_user_profiles_saveFamilyReserve>): Promise<ResponseType<typeof api_user_profiles_saveFamilyReserve>> {
@@ -2635,6 +2804,12 @@ export namespace user {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profiles_saveProfileBudget>
         }
 
+        public async setNotificationState(params: RequestType<typeof api_user_notifications_setNotificationState>): Promise<ResponseType<typeof api_user_notifications_setNotificationState>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/notifications/state`, {method: "PATCH", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_notifications_setNotificationState>
+        }
+
         /**
          * Updates the authenticated user's preferred language.
          */
@@ -2642,6 +2817,12 @@ export namespace user {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/user/language`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_profile_updateLanguage>
+        }
+
+        public async updateNotificationPreferences(params: RequestType<typeof api_user_notifications_updateNotificationPreferences>): Promise<ResponseType<typeof api_user_notifications_updateNotificationPreferences>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/user/notifications/preferences`, {method: "PUT", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_user_notifications_updateNotificationPreferences>
         }
 
         public async updateProfile(params: RequestType<typeof api_user_profiles_updateProfile>): Promise<ResponseType<typeof api_user_profiles_updateProfile>> {

@@ -8,6 +8,7 @@ import { haptic } from '@/lib/haptics';
 import { useTheme } from '@/theme/ThemeProvider';
 import { Text } from '@/components/ui/Text';
 import { Touchable } from '@/components/ui/Pressable';
+import { Glass } from '@/components/ui/Glass';
 
 /**
  * Toasts — the native replacement for the web's `sonner` notifications.
@@ -109,7 +110,7 @@ function ToastViewport({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id:
 }
 
 function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
-  const { colors, spacing, radius, shadows } = useTheme();
+  const { colors, spacing, radius } = useTheme();
 
   const config: Record<ToastKind, { color: string; background: string; Icon: typeof Info }> = {
     success: { color: colors.success, background: colors.successSoft, Icon: CheckCircle2 },
@@ -125,53 +126,44 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
       entering={FadeInUp.springify().damping(20)}
       exiting={FadeOutUp.duration(180)}
       layout={LinearTransition.springify().damping(22)}
-      style={[
-        styles.toast,
-        shadows.float,
-        {
-          borderRadius: radius.lg,
-          backgroundColor: colors.surface.primary,
-          borderColor: colors.border.light,
-          padding: spacing.md,
-          paddingRight: spacing.sm,
-          gap: spacing.md,
-        },
-      ]}
+      style={styles.toastShell}
     >
-      <View style={[styles.iconShell, { backgroundColor: background, borderRadius: 14 }]}>
-        <Icon size={19} color={color} strokeWidth={2.3} />
-      </View>
+      <Glass blur borderRadius={radius.xl} style={[styles.toast, { padding: spacing.md, paddingRight: spacing.sm, gap: spacing.md }]}>
+        <View style={[styles.iconShell, { backgroundColor: background, borderRadius: 19 }]}>
+          <Icon size={20} color={color} strokeWidth={2.2} />
+        </View>
 
-      <View style={styles.body}>
-        <Text variant="label" numberOfLines={2}>
-          {toast.message}
-        </Text>
-        {toast.description ? (
-          <Text variant="caption" tone="secondary" numberOfLines={3}>
-            {toast.description}
+        <View style={styles.body}>
+          <Text variant="label" numberOfLines={2}>
+            {toast.message}
           </Text>
-        ) : null}
-      </View>
+          {toast.description ? (
+            <Text variant="caption" tone="secondary" numberOfLines={3}>
+              {toast.description}
+            </Text>
+          ) : null}
+        </View>
 
-      {toast.actionLabel && toast.onAction ? (
-        <Touchable
-          onPress={() => {
-            toast.onAction?.();
-            onDismiss(toast.id);
-          }}
-          style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }}
-        >
-          <Text variant="labelSm" tone="accent">
-            {toast.actionLabel}
-          </Text>
-        </Touchable>
-      ) : (
-        <Touchable onPress={() => onDismiss(toast.id)} style={{ padding: spacing.xs }} hapticIntent={null}>
-          <Text variant="caption" tone="tertiary">
-            ✕
-          </Text>
-        </Touchable>
-      )}
+        {toast.actionLabel && toast.onAction ? (
+          <Touchable
+            onPress={() => {
+              toast.onAction?.();
+              onDismiss(toast.id);
+            }}
+            style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }}
+          >
+            <Text variant="labelSm" tone="accent">
+              {toast.actionLabel}
+            </Text>
+          </Touchable>
+        ) : (
+          <Touchable onPress={() => onDismiss(toast.id)} style={{ padding: spacing.xs }} hapticIntent={null}>
+            <Text variant="caption" tone="tertiary">
+              ✕
+            </Text>
+          </Touchable>
+        )}
+      </Glass>
     </Animated.View>
   );
 }
@@ -184,7 +176,8 @@ export function useToast(): ToastContextValue {
 
 const styles = StyleSheet.create({
   viewport: { position: 'absolute', left: 0, right: 0, zIndex: 100 },
-  toast: { flexDirection: 'row', alignItems: 'center', borderWidth: 1 },
+  toastShell: {},
+  toast: { flexDirection: 'row', alignItems: 'center' },
   iconShell: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, gap: 2 },
 });

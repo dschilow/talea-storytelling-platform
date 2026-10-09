@@ -91,7 +91,7 @@ export const Sheet = forwardRef<SheetRef, SheetProps>(function Sheet(
         borderTopRightRadius: SHEET_RADIUS,
       }}
       handleStyle={{ paddingTop: 12, paddingBottom: 6 }}
-      handleIndicatorStyle={{ backgroundColor: colors.border.strong, width: 44, height: 5, borderRadius: 3 }}
+      handleIndicatorStyle={{ backgroundColor: colors.text.muted, width: 36, height: 5, borderRadius: 3 }}
       style={[styles.sheet, { borderTopLeftRadius: SHEET_RADIUS, borderTopRightRadius: SHEET_RADIUS }]}
       {...rest}
     >
@@ -131,12 +131,12 @@ export function SheetHeader({ title, subtitle }: { title: string; subtitle?: str
   );
 }
 
-const SHEET_RADIUS = 32;
+const SHEET_RADIUS = 38;
 
 const styles = StyleSheet.create({
   sheet: {
     // Lifts the sheet off the page it covers.
-    boxShadow: '0px -8px 32px rgba(20, 12, 48, 0.18)',
+    boxShadow: '0px -6px 30px rgba(0, 0, 0, 0.14)',
   },
   flex: { flex: 1 },
 });

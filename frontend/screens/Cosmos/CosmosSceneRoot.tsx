@@ -38,7 +38,7 @@ import type { CameraMode, CosmosState, DomainProgress, TopicIsland } from './Cos
 import type { CosmosQualityPreference } from './CosmosQuality';
 import { getQualityConfig } from './CosmosQuality';
 import { computePlanetEvolution, featuresFromEvo } from './CosmosEvolution';
-import { getOrbitLayoutScale } from './CosmosOrbit';
+import { getOrbitLayout } from './CosmosOrbit';
 import {
   buildSeenKey,
   diffGrowth,
@@ -171,7 +171,11 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     () => resolveCosmosDomains(cosmosState.domains.map((entry) => entry.domainId)),
     [cosmosState.domains]
   );
-  const orbitScale = getOrbitLayoutScale(viewport.width, viewport.height);
+  const orbitLayout = useMemo(
+    () => getOrbitLayout(viewport.width, viewport.height),
+    [viewport.height, viewport.width]
+  );
+  const orbitScale = orbitLayout.scale;
   const systemRadius = useMemo(
     () => Math.max(...sceneDomains.map((domain) => domain.orbitRadius)) * orbitScale,
     [orbitScale, sceneDomains]
@@ -186,6 +190,33 @@ export const CosmosSceneRoot: React.FC<Props> = ({
     [focusedDomain, focusedProgress]
   );
   const canCycleDomains = sceneDomains.length > 1;
+
+  // The world closest to its next stage (or the first undiscovered one) is the
+  // suggested next step in the overview.
+  const nextStep = useMemo(() => {
+    let best: { domainId: string; evolution: ReturnType<typeof computePlanetEvolution> } | null = null;
+    let firstUndiscovered: string | null = null;
+    for (const domain of sceneDomains) {
+      const evolution = computePlanetEvolution(getProgress(domain.id), domain.planetType);
+      if (evolution.stage === 0) {
+        firstUndiscovered = firstUndiscovered ?? domain.id;
+        continue;
+      }
+      if (!evolution.next) continue;
+      if (!best || evolution.pointsToNext < best.evolution.pointsToNext) {
+        best = { domainId: domain.id, evolution };
+      }
+    }
+    if (best) return { domainId: best.domainId, evolution: best.evolution };
+    if (firstUndiscovered) {
+      const domain = getDomainById(firstUndiscovered, sceneDomains);
+      return domain
+        ? { domainId: domain.id, evolution: computePlanetEvolution(getProgress(domain.id), domain.planetType) }
+        : null;
+    }
+    return null;
+  }, [getProgress, sceneDomains]);
+  const nextStepDomain = nextStep ? getDomainById(nextStep.domainId, sceneDomains) ?? null : null;
   const currentGrowth = isCelebrating ? growthQueue[growthIndex] ?? null : null;
 
   const growthOverrides = useMemo(() => {
@@ -782,7 +813,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
             domains={sceneDomains}
             cameraMode={cameraMode}
             focusedDomainId={focusedDomainId}
-            orbitScale={orbitScale}
+            orbitLayout={orbitLayout}
             orbitAngles={orbitAnglesRef}
           />
 
@@ -797,7 +828,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
               islands={cameraMode !== 'system' && focusedDomainId === domain.id ? activeIslands : []}
               selectedTopicId={selectedTopic?.topicId}
               detail={planetDetail}
-              orbitScale={orbitScale}
+              orbitLayout={orbitLayout}
               feedbackPulseNonce={pulseDomainId === domain.id ? pulseNonce : 0}
               growth={growthOverrides.get(domain.id) ?? null}
               orbitAngles={orbitAnglesRef}
@@ -822,6 +853,8 @@ export const CosmosSceneRoot: React.FC<Props> = ({
             focusedDomain={focusedDomain}
             focusedPosition={focusedPosition}
             systemRadius={systemRadius}
+            systemStretch={orbitLayout.stretch}
+            celebrating={isCelebrating}
             onTransitionStateChange={setIsCameraTransitioning}
           />
           )}
@@ -903,6 +936,65 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         >
           Überspringen
         </button>
+      )}
+
+      {!compact && (
+        <AnimatePresence>
+          {nextStep &&
+            nextStepDomain &&
+            cameraMode === 'system' &&
+            !isCelebrating &&
+            !showIntro &&
+            !isChildInfoVisible &&
+            sceneReady && (
+              <motion.button
+                key="cosmos-next-step"
+                type="button"
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 16 }}
+                transition={{ type: 'spring', stiffness: 240, damping: 26, delay: 0.4 }}
+                onClick={() =>
+                  handleSelectPlanet(
+                    nextStepDomain.id,
+                    domainPositionMapRef.current.get(nextStepDomain.id) ?? [0, 0, 0]
+                  )
+                }
+                className="absolute left-1/2 z-30 flex w-[min(92vw,24rem)] -translate-x-1/2 items-center gap-3 rounded-2xl border px-3.5 py-3 text-left backdrop-blur-xl active:scale-[0.98]"
+                style={{
+                  bottom: 'max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem))',
+                  borderColor: `${nextStepDomain.color}44`,
+                  background: 'linear-gradient(135deg, rgba(13,14,34,0.88) 0%, rgba(24,19,50,0.9) 100%)',
+                  boxShadow: `0 16px 44px rgba(0,0,0,0.45), 0 0 30px ${nextStepDomain.color}22`,
+                }}
+              >
+                <span
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl"
+                  style={{ background: `${nextStepDomain.color}26`, border: `1px solid ${nextStepDomain.color}55` }}
+                >
+                  {nextStepDomain.icon}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[10px] font-extrabold uppercase tracking-[0.16em] text-white/50">
+                    Dein nächster Schritt
+                  </span>
+                  <span className="block truncate text-sm font-extrabold text-white">
+                    {nextStep.evolution.stage === 0
+                      ? `Entdecke ${nextStepDomain.label}`
+                      : `${nextStepDomain.label}: noch ${nextStep.evolution.pointsToNext} ⭐`}
+                  </span>
+                  <span className="block truncate text-[11px] font-semibold" style={{ color: nextStepDomain.color }}>
+                    {nextStep.evolution.stage === 0
+                      ? 'Aus Sternenstaub wird ein Planet'
+                      : `bis Stufe ${nextStep.evolution.stage + 1}: ${nextStep.evolution.next?.name ?? ''}`}
+                  </span>
+                </span>
+                <span className="text-lg text-white/50" aria-hidden>
+                  ›
+                </span>
+              </motion.button>
+            )}
+        </AnimatePresence>
       )}
 
       {!compact && (

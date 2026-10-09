@@ -66,17 +66,13 @@ const ProtectedCosmosParent = withParentalGate(CosmosParentScreen);
 const ProtectedAvatarExchange = withParentalGate(AvatarExchangeScreen);
 
 export function RootNavigator() {
-  const auth = useAuth();
-  const { isLoaded, userId } = auth;
+  const { isLoaded, isSignedIn, userId } = useAuth();
   const { isAdmin, role, refresh, parentalOnboardingCompleted, isLoading } = useOptionalUserAccess();
-  // Dev-only design preview renders the signed-in routes from fixtures.
-  const designPreview = __DEV__ && process.env.EXPO_PUBLIC_DESIGN_PREVIEW === '1';
-  const isSignedIn = Boolean(auth.isSignedIn) || designPreview;
 
-  if (!isLoaded || (isSignedIn && isLoading && !designPreview)) {
+  if (!isLoaded || (isSignedIn && isLoading)) {
     return <SplashScreen />;
   }
-  if (isSignedIn && !role && !designPreview) return <ConnectionRecoveryScreen userId={userId} retry={() => void refresh()} />;
+  if (isSignedIn && !role) return <ConnectionRecoveryScreen userId={userId} retry={() => void refresh()} />;
 
   return (
     <Stack.Navigator

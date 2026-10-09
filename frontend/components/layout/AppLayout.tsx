@@ -7,6 +7,7 @@ import Sidebar, { SIDEBAR_RAIL, SIDEBAR_WIDE } from "./Sidebar";
 import BottomNav from "./BottomNav";
 import { GlobalAudioPlayer } from "../audio/GlobalAudioPlayer";
 import ProfileMenuButton from "./ProfileMenuButton";
+import NotificationsButton from "./NotificationsButton";
 import { cn } from "@/lib/utils";
 
 type RouteMeta = {
@@ -73,6 +74,10 @@ function getRouteMeta(pathname: string): RouteMeta {
       },
     },
     {
+      match: (path) => path.startsWith("/mitteilungen"),
+      meta: { eyebrow: "Neues aus Talea", title: "Mitteilungen" },
+    },
+    {
       match: (path) => path.startsWith("/settings"),
       meta: {
         eyebrow: "Settings",
@@ -113,6 +118,7 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
     location.pathname.startsWith("/community") ||
     location.pathname.startsWith("/map") ||
     location.pathname.startsWith("/settings") ||
+    location.pathname.startsWith("/mitteilungen") ||
     location.pathname.startsWith("/fairytales") ||
     location.pathname.startsWith("/characters") ||
     location.pathname.startsWith("/artifacts") ||
@@ -170,6 +176,7 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
               ) : null}
               {!offline && chrome ? (
                 <SignedIn>
+                  <NotificationsButton />
                   <ProfileMenuButton />
                 </SignedIn>
               ) : null}

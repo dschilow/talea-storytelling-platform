@@ -613,6 +613,7 @@ const TaleaDokusScreen: React.FC = () => {
   const [publicAccessMessage, setPublicAccessMessage] = useState<string | null>(null);
   const [audioAccessMessage, setAudioAccessMessage] = useState<string | null>(null);
   const [audioUpgradeMessage, setAudioUpgradeMessage] = useState<string | null>(null);
+  const openedNotificationEpisode = useRef<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('tags') ?? '');
   const [activeTab, setActiveTab] = useState<DokuTab>(
     searchParams.get('mode') === 'audio' ? 'audio' : 'mine'
@@ -623,6 +624,17 @@ const TaleaDokusScreen: React.FC = () => {
   const [depthFilter, setDepthFilter] = useState('all');
   const [audioScopeFilter, setAudioScopeFilter] = useState<AudioScope>('all');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  // A notification opens the episode's existing detail view; playback still
+  // goes through the usual subscription and audio-access checks.
+  useEffect(() => {
+    const episodeId = searchParams.get('episode');
+    if (searchParams.get('mode') === 'audio') setActiveTab('audio');
+    if (!episodeId || loadingAudio || openedNotificationEpisode.current === episodeId) return;
+    const episode = audioDokus.find((item) => item.id === episodeId);
+    openedNotificationEpisode.current = episodeId;
+    if (episode) setAudioModal(episode);
+  }, [searchParams, loadingAudio, audioDokus]);
 
   const myObserverRef = useRef<HTMLDivElement>(null);
   const publicObserverRef = useRef<HTMLDivElement>(null);

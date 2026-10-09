@@ -127,7 +127,6 @@ export function DokusScreen() {
   return (
     <Screen scroll={false} padded={false} tabBarClearance playerClearance>
       <ScreenHeader
-        eyebrow="Wissen zum Staunen"
         title="Dokus"
         showBack={false}
         large
@@ -158,7 +157,7 @@ export function DokusScreen() {
             label="Nur Favoriten"
             selected={onlyFavorites}
             onPress={() => setOnlyFavorites(!onlyFavorites)}
-            icon={<Heart size={13} color={onlyFavorites ? colors.primaryForeground : colors.accent.rose} fill={onlyFavorites ? colors.primaryForeground : 'transparent'} />}
+            icon={<Heart size={13} color={onlyFavorites ? (colors.mode === 'dark' ? '#000000' : '#FFFFFF') : colors.text.primary} fill={onlyFavorites ? (colors.mode === 'dark' ? '#000000' : '#FFFFFF') : 'transparent'} />}
           />
         </View>
       </View>
