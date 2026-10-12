@@ -14,6 +14,7 @@ import {
   buildTTSChunkCacheKey,
   buildTTSRequestCacheSuffix,
   buildTTSRequestOptions,
+  usesChapterChunks,
   usesSentenceLevelChunks,
 } from '../types/ttsVoice';
 
@@ -1215,7 +1216,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       // Use ttsText (with xAI expression tags) when available and xAI provider is selected
       const useEnrichedTTS = voiceSettings?.provider === 'xai';
       const splitNarration =
-        voiceSettings?.provider === 'xai'
+        usesChapterChunks(voiceSettings?.provider)
           ? splitTextIntoChunksForXai
           : usesSentenceLevelChunks(voiceSettings?.provider)
             ? splitTextIntoChunksForThorsten
@@ -1326,7 +1327,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (alreadyExists) return;
 
       const chunks =
-        voiceSettings?.provider === 'xai'
+        usesChapterChunks(voiceSettings?.provider)
           ? splitTextIntoChunksForXai(normalizedText)
           : usesSentenceLevelChunks(voiceSettings?.provider)
             ? splitTextIntoChunksForThorsten(normalizedText)

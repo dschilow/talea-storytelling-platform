@@ -25,6 +25,10 @@ import {
   MOSS_DEFAULT_VOICE,
 } from '../../constants/mossVoices';
 import {
+  getOpenRouterVoiceOptions,
+  OPENROUTER_DEFAULT_VOICE,
+} from '../../constants/openrouterVoices';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -101,6 +105,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const xaiVoices = useMemo(() => getXaiVoiceOptions(), []);
   const thorstenVoices = useMemo(() => getThorstenVoiceOptions(), []);
   const mossVoices = useMemo(() => getMossVoiceOptions(), []);
+  const openRouterVoices = useMemo(() => getOpenRouterVoiceOptions(), []);
 
   const [ttsProvider, setTtsProvider] = useState<TTSProviderType>('qwen');
   const [isAdding, setIsAdding] = useState(false);
@@ -120,19 +125,29 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const alreadyInPlaylist = playlist.some((item) => item.parentStoryId === storyId);
   const hasLibraryAudio = generatedAudioItems.length > 0;
   const isXai = ttsProvider === 'xai';
+  const isOpenRouter = ttsProvider === 'openrouter';
   const isCosyVoice = ttsProvider === 'thorsten-cosyvoice';
   const isMoss = ttsProvider === 'moss-nano';
   // Self-hosted German providers (one narrator voice each, no dialogue mode)
   const isThorsten = ttsProvider === 'thorsten' || isCosyVoice || isMoss;
+  // Providers with a fixed voice catalog and no Qwen dialogue mode
+  const hasVoiceCatalog = isXai || isOpenRouter || isThorsten;
   const thorstenEngine = isMoss ? 'MOSS-TTS-Nano' : isCosyVoice ? 'CosyVoice3' : 'Kokoro';
   // CosyVoice has only the Thorsten voice; the Kokoro service offers more German voices.
-  const voiceOptions = isXai ? xaiVoices : isMoss ? mossVoices : isCosyVoice ? thorstenVoices.slice(0, 1) : thorstenVoices;
-  const availableSpeakers = isXai || isThorsten ? voiceOptions.map((v) => v.id) : qwenSpeakers;
+  const voiceOptions = isXai
+    ? xaiVoices
+    : isOpenRouter
+      ? openRouterVoices
+      : isMoss ? mossVoices : isCosyVoice ? thorstenVoices.slice(0, 1) : thorstenVoices;
+  const availableSpeakers = hasVoiceCatalog ? voiceOptions.map((v) => v.id) : qwenSpeakers;
 
   // Switch default voice when provider changes
   useEffect(() => {
     if (ttsProvider === 'xai') {
       setSelectedSpeaker(XAI_DEFAULT_VOICE);
+      setMultiVoiceEnabled(false);
+    } else if (ttsProvider === 'openrouter') {
+      setSelectedSpeaker(OPENROUTER_DEFAULT_VOICE);
       setMultiVoiceEnabled(false);
     } else if (ttsProvider === 'moss-nano') {
       setSelectedSpeaker(MOSS_DEFAULT_VOICE);
@@ -155,7 +170,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
       ),
     );
 
-    if (!isXai && !isThorsten && normalizedSpeaker && multiVoiceEnabled && normalizedDialogueSpeakers.length >= 2) {
+    if (!hasVoiceCatalog && normalizedSpeaker && multiVoiceEnabled && normalizedDialogueSpeakers.length >= 2) {
       return {
         mode: 'dialogue',
         speakerId: normalizedSpeaker,
@@ -172,7 +187,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
       };
     }
     return { ...DEFAULT_TTS_VOICE_SETTINGS, provider: ttsProvider };
-  }, [selectedSpeaker, multiVoiceEnabled, dialogueSpeakers, ttsProvider, isXai, isThorsten]);
+  }, [selectedSpeaker, multiVoiceEnabled, dialogueSpeakers, ttsProvider, hasVoiceCatalog]);
 
   const canStartConversion = useMemo(() => {
     if (isAdding) return false;
@@ -262,6 +277,8 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const resetToDefaultVoice = useCallback(() => {
     if (ttsProvider === 'xai') {
       setSelectedSpeaker(XAI_DEFAULT_VOICE);
+    } else if (ttsProvider === 'openrouter') {
+      setSelectedSpeaker(OPENROUTER_DEFAULT_VOICE);
     } else if (ttsProvider === 'moss-nano') {
       setSelectedSpeaker(MOSS_DEFAULT_VOICE);
     } else if (ttsProvider === 'thorsten' || ttsProvider === 'thorsten-cosyvoice') {
@@ -411,6 +428,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             {([
               { id: 'qwen' as TTSProviderType, label: 'Qwen (RunPod)', hint: 'Eigener Server' },
               { id: 'xai' as TTSProviderType, label: 'xAI Grok', hint: 'Runware' },
+              { id: 'openrouter' as TTSProviderType, label: 'OpenRouter', hint: 'Gemini, MAI, Fish' },
               { id: 'thorsten' as TTSProviderType, label: 'Thorsten', hint: 'Deutsch, eigener Server' },
               { id: 'thorsten-cosyvoice' as TTSProviderType, label: 'Thorsten CosyVoice', hint: 'Deutsch, GPU (RunPod)' },
               { id: 'moss-nano' as TTSProviderType, label: 'MOSS Nano', hint: 'Deutsch, eigener Server' },
@@ -442,7 +460,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
 
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-xs font-semibold" style={{ color: isDark ? '#d9e5f8' : '#2a3b52' }}>
-            {isXai ? 'xAI Stimme waehlen' : isThorsten ? 'Thorsten Stimme' : 'Qwen Stimme waehlen'}
+            {isXai ? 'xAI Stimme waehlen' : isOpenRouter ? 'OpenRouter Modell & Stimme' : isThorsten ? 'Thorsten Stimme' : 'Qwen Stimme waehlen'}
           </p>
           <button
             type="button"
@@ -465,7 +483,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           >
             {availableSpeakers.length === 0 ? (
               <option value="">Keine Stimmen verfuegbar</option>
-            ) : isXai || isThorsten ? (
+            ) : hasVoiceCatalog ? (
               voiceOptions.map((voice) => (
                 <option key={voice.id} value={voice.id}>
                   {voice.name} - {voice.description}
@@ -485,8 +503,10 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
             {isXai
               ? 'xAI Grok TTS laeuft ueber Runware (gleicher Account wie Bildgenerierung).'
+              : isOpenRouter
+                ? 'OpenRouter-Modelle (Gemini, Microsoft MAI, Fish Audio), abgerechnet ueber den OpenRouter-Account. Preise je Stimme in der Auswahl.'
               : isMoss
-                ? 'MOSS-TTS-Nano laeuft auf einem eigenen Server (nur CPU) und spricht Deutsch mit einer geklonten Thorsten-Stimme.'
+                ? 'MOSS-TTS-Nano laeuft auf einem eigenen Server (nur CPU) und spricht Deutsch mit einer geklonten Stimme.'
               : isCosyVoice
                 ? 'Thorsten-Voice (CosyVoice3) laeuft auf einer GPU bei RunPod und spricht nur Deutsch. Nach laengerer Pause kann der erste Teil einige Minuten dauern.'
                 : isThorsten
@@ -498,21 +518,21 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
         {selectedSpeaker && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
             Narrator-Stimme: <span className="font-semibold">{selectedSpeaker}</span>
-            {(isXai || isThorsten) && (
+            {hasVoiceCatalog && (
               <span className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
                 style={{
                   background: isDark ? 'rgba(134,167,219,0.15)' : 'rgba(124,91,61,0.1)',
                   color: isDark ? '#86a7db' : '#7c5b3d',
                 }}
               >
-                {isMoss ? 'MOSS' : isCosyVoice ? 'CosyVoice' : isThorsten ? 'Thorsten' : 'xAI'}
+                {isOpenRouter ? 'OpenRouter' : isMoss ? 'MOSS' : isCosyVoice ? 'CosyVoice' : isThorsten ? 'Thorsten' : 'xAI'}
               </span>
             )}
           </p>
         )}
 
-        {/* Dialogue mode — only for Qwen (xAI/Thorsten have no multi-voice in a single request) */}
-        {!isXai && !isThorsten && (
+        {/* Dialogue mode — only for Qwen (the catalog providers have no multi-voice in a single request) */}
+        {!hasVoiceCatalog && (
           <div
             className="mt-3 rounded-xl border p-2"
             style={{
@@ -579,6 +599,8 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#facc15' : '#9a6700' }}>
             {isXai
               ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber xAI Grok TTS (Runware).`
+              : isOpenRouter
+                ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber OpenRouter.`
               : isThorsten
                 ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber Thorsten-Voice (${thorstenEngine}).`
                 : `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber RunPod.`}
@@ -662,6 +684,8 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             <DialogDescription style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
               {pendingAction?.voiceSettings?.provider === 'xai'
                 ? 'xAI Grok TTS (Runware) wird erst nach deiner Bestaetigung gestartet.'
+                : pendingAction?.voiceSettings?.provider === 'openrouter'
+                  ? 'OpenRouter TTS wird erst nach deiner Bestaetigung gestartet.'
                 : pendingAction?.voiceSettings?.provider === 'moss-nano'
                   ? 'MOSS-TTS-Nano (eigener Server) wird erst nach deiner Bestaetigung gestartet.'
                 : pendingAction?.voiceSettings?.provider === 'thorsten'
@@ -683,6 +707,8 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             <p className="mt-2 text-xs" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
               {pendingAction?.voiceSettings?.provider === 'xai'
                 ? `Es werden Audios fuer ${chapters.length} Kapitel ueber xAI Grok TTS (Runware) erzeugt.`
+                : pendingAction?.voiceSettings?.provider === 'openrouter'
+                  ? `Es werden Audios fuer ${chapters.length} Kapitel ueber OpenRouter erzeugt (kostenpflichtig je Zeichen).`
                 : `Es werden Audios fuer ${chapters.length} Kapitel erzeugt und dabei kostenpflichtige RunPod-Aufrufe ausgeloest.`}
             </p>
             {pendingAction?.voiceSettings?.speakerId && (

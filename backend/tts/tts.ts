@@ -27,6 +27,11 @@ import {
   mossGenerateSpeechBatch,
   isMossConfigured,
 } from "./moss-tts";
+import {
+  openRouterGenerateSpeech,
+  openRouterGenerateSpeechBatch,
+  isOpenRouterTtsConfigured,
+} from "./openrouter-tts";
 
 type RunpodEndpointMode = "load_balancer" | "queue";
 type VoiceListMode = "static" | "runpod";
@@ -179,7 +184,7 @@ const COSYVOICE_VOICE_LIST_MODE = QWEN_VOICE_LIST_MODE;
 const COSYVOICE_STATIC_SPEAKERS = QWEN_STATIC_SPEAKERS;
 const COSYVOICE_STATIC_DEFAULT_SPEAKER = QWEN_STATIC_DEFAULT_SPEAKER;
 
-export type TTSProvider = "qwen" | "xai" | "thorsten" | "thorsten-cosyvoice" | "moss-nano";
+export type TTSProvider = "qwen" | "xai" | "thorsten" | "thorsten-cosyvoice" | "moss-nano" | "openrouter";
 export type AudioFormat = "wav" | "mp3";
 
 export interface TTSResponse {
@@ -1765,6 +1770,26 @@ export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
           }
         }
 
+        if (req.provider === "openrouter") {
+          try {
+            const result = await openRouterGenerateSpeech({
+              text: req.text,
+              voice: req.speaker,
+              outputFormat: req.outputFormat,
+            });
+            return {
+              audioData: result.audioData,
+              providerUsed: "openrouter" as TTSProvider,
+              mimeType: result.mimeType,
+              outputFormat: result.outputFormat,
+            };
+          } catch (error) {
+            const message = getErrorMessage(error);
+            log.error(`OpenRouter TTS generate failed: ${message}`);
+            throw APIError.unavailable(`OpenRouter TTS generation failed: ${message}`);
+          }
+        }
+
         try {
           return await withRunpodSlot(() => runpodTtsRequest(req));
         } catch (error) {
@@ -1850,6 +1875,22 @@ async function generateSpeechBatchInternal(req: GenerateSpeechBatchRequest): Pro
       const message = getErrorMessage(error);
       log.error(`MOSS TTS batch failed: ${message}`);
       throw APIError.unavailable(`MOSS TTS batch generation failed: ${message}`);
+    }
+  }
+
+  // OpenRouter provider: model + voice come from the voice id (e.g. "gemini-lite:sulafat").
+  if (req.provider === "openrouter") {
+    try {
+      const results = await openRouterGenerateSpeechBatch(
+        req.items.map((item) => ({ id: item.id, text: item.text })),
+        req.outputFormat,
+        req.speaker,
+      );
+      return { results };
+    } catch (error) {
+      const message = getErrorMessage(error);
+      log.error(`OpenRouter TTS batch failed: ${message}`);
+      throw APIError.unavailable(`OpenRouter TTS batch generation failed: ${message}`);
     }
   }
 
@@ -2287,6 +2328,7 @@ export const getAvailableTtsProviders =api<void, { providers: Array<{ id: TTSPro
           configured: isThorstenCosyVoiceConfigured(),
         },
         { id: "moss-nano" as TTSProvider, name: "MOSS-TTS-Nano", configured: isMossConfigured() },
+        { id: "openrouter" as TTSProvider, name: "OpenRouter (Gemini, MAI, Fish)", configured: isOpenRouterTtsConfigured() },
       ],
     };
   }

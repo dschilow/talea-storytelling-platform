@@ -23,6 +23,17 @@ export function VoiceSettingsPanel() {
         { id: 'martin', name: 'Martin' },
         { id: 'victoria', name: 'Victoria' },
       ];
+      if (provider === 'openrouter') return [
+        { id: 'gemini-lite:sulafat', name: 'Gemini Lite - Sulafat' },
+        { id: 'gemini-lite:achird', name: 'Gemini Lite - Achird' },
+        { id: 'gemini-lite:kore', name: 'Gemini Lite - Kore' },
+        { id: 'gemini-lite:charon', name: 'Gemini Lite - Charon' },
+        { id: 'gemini-flash:sulafat', name: 'Gemini Flash - Sulafat' },
+        { id: 'gemini-flash:achird', name: 'Gemini Flash - Achird' },
+        { id: 'mai:klaus', name: 'Microsoft MAI - Klaus' },
+        { id: 'mai:mia', name: 'Microsoft MAI - Mia' },
+        { id: 'fish:captain', name: 'Fish Audio - Captain Comedy' },
+      ];
       if (provider === 'moss-nano') return [
         { id: 'captain_comedy', name: 'Captain Comedy (MOSS)' },
         { id: 'thorsten_neutral', name: 'Thorsten (MOSS)' },

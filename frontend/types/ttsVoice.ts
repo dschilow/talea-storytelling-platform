@@ -1,9 +1,14 @@
 export type TTSVoiceMode = 'default' | 'speaker' | 'dialogue';
-export type TTSProviderType = 'qwen' | 'xai' | 'thorsten' | 'thorsten-cosyvoice' | 'moss-nano';
+export type TTSProviderType = 'qwen' | 'xai' | 'thorsten' | 'thorsten-cosyvoice' | 'moss-nano' | 'openrouter';
 
 /** Self-hosted German providers: the service sets its pauses from the text, so chunks follow sentences. */
 export function usesSentenceLevelChunks(provider?: TTSProviderType): boolean {
   return provider === 'thorsten' || provider === 'thorsten-cosyvoice' || provider === 'moss-nano';
+}
+
+/** Cloud models that keep voice and pacing steadier when a whole chapter goes out in one request. */
+export function usesChapterChunks(provider?: TTSProviderType): boolean {
+  return provider === 'xai' || provider === 'openrouter';
 }
 
 export interface TTSVoiceSettings {
