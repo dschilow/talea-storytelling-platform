@@ -27,12 +27,15 @@ RUN pip install \
     "git+https://github.com/semidark/misaki.git@6d252a2e02f3b030f22f56686f1a73786c16ffc8" \
     "git+https://github.com/semidark/kokoro.git"
 
-# Weights before the code, so code changes reuse the cached download layer (~1.3 GB for all four voices)
+# Weights before the code, so code changes reuse the cached download layer
 RUN python -c "from huggingface_hub import hf_hub_download as d; \
 [d('Thorsten-Voice/Kokoro', f) for f in ('config.json', 'model.pth', 'voices/thorsten.pt')]; \
-[d('hexgrad/Kokoro-82M', f) for f in ('config.json', 'kokoro-v1_0.pth')]; \
-d('cryptomilk/kokoro-german-kerstin', 'voices/df_kerstin.pt'); \
-[d('kikiri-tts/kikiri-german-' + v, f) for v in ('martin', 'victoria') for f in ('kikiri_german_%s_ep10.pth' % v, 'voices/%s.pt' % v)]"
+d('hexgrad/Kokoro-82M', 'config.json'); \
+d('cryptomilk/kokoro-german-kerstin', 'voices/df_kerstin.pt')"
+
+# Kerstin ships only raw training checkpoints: convert Stage 2 to Kokoro weights (downloads ~1.9 GB once)
+COPY convert_stage2.py .
+RUN python convert_stage2.py cryptomilk/kokoro-german-kerstin data/kikiri_german_kerstin_stage2_ep10.pth /opt/kokoro-voices/kerstin.pth
 
 COPY textprep.py audioprep.py server.py ./
 

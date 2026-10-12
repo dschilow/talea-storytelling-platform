@@ -2,10 +2,12 @@
 
 Self-hosted German TTS on CPU. Model: https://huggingface.co/Thorsten-Voice/Kokoro
 (fine-tune of Kokoro-82M on the public-domain Thorsten-Voice dataset, Apache 2.0).
-More German Kokoro voices for comparison (all Apache 2.0, same German G2P fork):
-  kerstin   voicepack for base Kokoro-82M, trained on the CC0 Kerstin dataset (real recordings)
-  martin    kikiri-tts fine-tune, trained on synthetic (TTS-generated) data
-  victoria  kikiri-tts fine-tune, trained on synthetic (TTS-generated) data
+Second voice for comparison (Apache 2.0, same German G2P fork):
+  kerstin   kikiri-tts fine-tune on the CC0 Kerstin dataset (real recordings); her repo ships only raw training
+            checkpoints, converted at image build by convert_stage2.py. Her voicepack on the base Kokoro-82M
+            weights (as her model card shows) has a strong accent: base Kokoro never learned German.
+The kikiri-tts voices martin/victoria (trained on a few hundred synthetic sentences) were tried and dropped:
+they sound accented.
 
 Endpoints
   GET  /health        readiness (200 only once the models are loaded)
@@ -57,7 +59,7 @@ app = Flask(__name__)
 class VoiceSource(NamedTuple):
     repo: str
     config: Optional[str]  # None: config.json of the Kokoro-82M base
-    model: Optional[str]  # None: base Kokoro-82M weights (voicepack-only voice)
+    model: Optional[str]  # file in the repo, or an absolute local path (converted at image build)
     voicepack: str
 
 
@@ -69,10 +71,9 @@ def _checkpoint_files(epoch: str):
 
 VOICE_SOURCES: Dict[str, VoiceSource] = {
     "thorsten": VoiceSource(REPO_ID, "config.json", *_checkpoint_files(CHECKPOINT)),
-    "kerstin": VoiceSource("cryptomilk/kokoro-german-kerstin", None, None, "voices/df_kerstin.pt"),
-    "martin": VoiceSource("kikiri-tts/kikiri-german-martin", None, "kikiri_german_martin_ep10.pth", "voices/martin.pt"),
-    "victoria": VoiceSource(
-        "kikiri-tts/kikiri-german-victoria", None, "kikiri_german_victoria_ep10.pth", "voices/victoria.pt"
+    "kerstin": VoiceSource(
+        "cryptomilk/kokoro-german-kerstin", None,
+        os.environ.get("KERSTIN_MODEL_PATH", "/opt/kokoro-voices/kerstin.pth"), "voices/df_kerstin.pt",
     ),
 }
 DEFAULT_VOICE = "thorsten"
@@ -93,7 +94,9 @@ def _load_pipeline(source: VoiceSource):
                                   filename=source.config or "config.json")
     model_kwargs = {"repo_id": BASE_REPO_ID, "config": config_path}
     if source.model:
-        model_kwargs["model"] = hf_hub_download(repo_id=source.repo, filename=source.model)
+        model_kwargs["model"] = (
+            source.model if os.path.isabs(source.model) else hf_hub_download(repo_id=source.repo, filename=source.model)
+        )
     voice_path = hf_hub_download(repo_id=source.repo, filename=source.voicepack)
 
     kmodel = KModel(**model_kwargs).to("cpu").eval()

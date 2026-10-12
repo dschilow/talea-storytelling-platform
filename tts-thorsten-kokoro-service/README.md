@@ -19,13 +19,16 @@ Alle laufen mit derselben deutschen G2P (semidark-Forks), Auswahl per `voice`:
 | `voice` | Quelle | Trainingsdaten | Whisper-Test* |
 |---|---|---|---|
 | `thorsten` (Standard) | [Thorsten-Voice/Kokoro](https://huggingface.co/Thorsten-Voice/Kokoro) | echte Aufnahmen, Thorsten-Datensatz (CC0) | 1,00 |
-| `kerstin` | [cryptomilk/kokoro-german-kerstin](https://huggingface.co/cryptomilk/kokoro-german-kerstin) (Voicepack auf Kokoro-82M) | echte Aufnahmen, [Kerstin-Datensatz](https://github.com/rhasspy/dataset-voice-kerstin) (CC0) | 0,93 |
-| `martin` | [kikiri-tts/kikiri-german-martin](https://huggingface.co/kikiri-tts/kikiri-german-martin) | synthetisch (TTS-generiert, Herkunft offen) | 1,00 |
-| `victoria` | [kikiri-tts/kikiri-german-victoria](https://huggingface.co/kikiri-tts/kikiri-german-victoria) | synthetisch (TTS-generiert, Herkunft offen) | 0,96 |
+| `kerstin` | [cryptomilk/kokoro-german-kerstin](https://huggingface.co/cryptomilk/kokoro-german-kerstin), Stage-2-Checkpoint | echte Aufnahmen, [Kerstin-Datensatz](https://github.com/rhasspy/dataset-voice-kerstin) (CC0) | 0,99 |
 
 \* Wortaehnlichkeit faster-whisper `small` gegen den Solltext (3 Saetze Kindergeschichte), 2026-10-12.
-Alle Modelle Apache 2.0. Bei `martin`/`victoria` ist unklar, mit welchem TTS die Trainingsdaten erzeugt wurden.
-`KOKORO_VOICES` (z. B. `thorsten,kerstin`) begrenzt, welche geladen werden; jede Stimme kostet ca. 0,3-0,5 GB RAM.
+Beide Modelle Apache 2.0. `KOKORO_VOICES` (z. B. `thorsten`) begrenzt, welche geladen werden (je ca. 0,4 GB RAM).
+
+Kerstin-Falle: Ihre Modellkarte zeigt nur das Voicepack auf den Basisgewichten von Kokoro-82M. Das Basismodell kann
+kein Deutsch, das klingt nach starkem Akzent (Whisper 0,90). Ihr eigentliches Modell liegt nur als roher
+Trainings-Checkpoint im Repo; [convert_stage2.py](convert_stage2.py) wandelt ihn beim Image-Build um (Verfahren aus
+kikiri-tts `scripts/test_inference.py`). Die kikiri-Stimmen `martin`/`victoria` (wenige hundert synthetische Saetze,
+trainiert vor den deutschen G2P-Overrides) klangen ebenfalls nach Akzent und wurden wieder entfernt.
 
 Die Ausgabe ist auf Kindergeschichten abgestimmt ([textprep.py](textprep.py), [audioprep.py](audioprep.py)).
 Beide Module nutzt auch der CosyVoice3-Worker ([runpod/thorsten-cosyvoice3](../runpod/thorsten-cosyvoice3/README.md)):

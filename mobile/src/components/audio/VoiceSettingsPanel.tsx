@@ -20,8 +20,6 @@ export function VoiceSettingsPanel() {
       if (provider === 'thorsten') return [
         { id: 'thorsten', name: 'Thorsten' },
         { id: 'kerstin', name: 'Kerstin' },
-        { id: 'martin', name: 'Martin' },
-        { id: 'victoria', name: 'Victoria' },
       ];
       if (provider === 'openrouter') return [
         { id: 'gemini-lite:sulafat', name: 'Gemini Lite - Sulafat' },
