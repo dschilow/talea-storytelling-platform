@@ -125,7 +125,8 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   // Self-hosted German providers (one narrator voice each, no dialogue mode)
   const isThorsten = ttsProvider === 'thorsten' || isCosyVoice || isMoss;
   const thorstenEngine = isMoss ? 'MOSS-TTS-Nano' : isCosyVoice ? 'CosyVoice3' : 'Kokoro';
-  const voiceOptions = isXai ? xaiVoices : isMoss ? mossVoices : thorstenVoices;
+  // CosyVoice has only the Thorsten voice; the Kokoro service offers more German voices.
+  const voiceOptions = isXai ? xaiVoices : isMoss ? mossVoices : isCosyVoice ? thorstenVoices.slice(0, 1) : thorstenVoices;
   const availableSpeakers = isXai || isThorsten ? voiceOptions.map((v) => v.id) : qwenSpeakers;
 
   // Switch default voice when provider changes

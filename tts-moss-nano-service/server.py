@@ -4,6 +4,11 @@ Self-hosted multilingual TTS on CPU (ONNX Runtime). Model: https://huggingface.c
 (0.1B parameters, Apache 2.0, 48 kHz). MOSS-TTS-Nano has no German built-in voices, so every voice is a voice
 clone of a short reference clip from voices/<name>.wav (the default is the CC-licensed Thorsten-Voice dataset).
 
+With voices/<name>.txt (the exact transcript of the clip) the voice runs in "continuation" mode: the prompt holds
+transcript + target text and the reference audio as the start of the answer, the model just keeps talking.
+Measured with Whisper on German story text: continuation 0.85 word similarity vs. 0.70 for plain voice cloning
+(the upstream ONNX runtime only implements the latter, so the prompt rows are built here).
+
 Endpoints
   GET  /health        readiness (200 only once the model is loaded)
   GET  /voices        voice ids found in voices/
@@ -17,7 +22,7 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, NamedTuple, Optional
 
 import numpy as np
 import soundfile as sf
@@ -31,8 +36,14 @@ from textprep import build_segments, normalize_text
 # -----------------------------------------------------------------------------
 MODEL_DIR = Path(os.environ.get("MOSS_MODEL_DIR", "/opt/moss-models"))
 VOICES_DIR = Path(os.environ.get("MOSS_VOICES_DIR", str(Path(__file__).parent / "voices")))
-DEFAULT_VOICE = os.environ.get("MOSS_DEFAULT_VOICE", "thorsten_neutral").strip()
+DEFAULT_VOICE = os.environ.get("MOSS_DEFAULT_VOICE", "captain_comedy").strip()
 SAMPLE_MODE = os.environ.get("MOSS_SAMPLE_MODE", "fixed").strip()  # greedy | fixed | full (see upstream README)
+# continuation (needs voices/<name>.txt, falls back to voice_clone without it) | voice_clone
+MODE = os.environ.get("MOSS_MODE", "continuation").strip()
+CODEC_FRAME_RATE = 12.5  # MOSS-Audio-Tokenizer-Nano: 48 kHz audio -> 12.5 frames per second
+# Continuation decodes the tail of the reference in front of the new frames, so the codec starts in context.
+# The whole clip (~140 frames) per sentence would multiply decode time; 2 s are enough context.
+DECODE_CONTEXT_FRAMES = int(os.environ.get("MOSS_DECODE_CONTEXT_FRAMES", "25"))
 STREAMING_DECODE = os.environ.get("MOSS_STREAMING_DECODE", "0").strip() == "1"  # measured ~2x slower on CPU
 MAX_NEW_FRAMES = int(os.environ.get("MOSS_MAX_NEW_FRAMES", "375"))  # 12.5 frames per second of audio
 FRAMES_PER_CHAR_CAP = env_float("MOSS_FRAMES_PER_CHAR_CAP", 2.0)  # German speech needs ~1 frame per character
@@ -57,9 +68,14 @@ WARMUP_TEXT = (
 
 app = Flask(__name__)
 
+class Voice(NamedTuple):
+    codes: List[List[int]]  # reference clip as codec frames
+    transcript: Optional[str]  # exact words of the clip; enables continuation mode
+
+
 _runtime = None
 _sample_rate = 48000
-_voices: Dict[str, List[List[int]]] = {}
+_voices: Dict[str, Voice] = {}
 _infer_lock = threading.Lock()
 _waiting = 0
 _waiting_lock = threading.Lock()
@@ -89,12 +105,15 @@ def _build_runtime_class():
     return Runtime
 
 
-def _load_voices(runtime) -> Dict[str, List[List[int]]]:
-    voices: Dict[str, List[List[int]]] = {}
+def _load_voices(runtime) -> Dict[str, Voice]:
+    voices: Dict[str, Voice] = {}
     for path in sorted(VOICES_DIR.glob("*.wav")):
         started = time.time()
-        voices[path.stem] = runtime.encode_reference_audio(path)
-        log.info("voice %s: %d reference frames (%.1fs)", path.stem, len(voices[path.stem]), time.time() - started)
+        transcript_path = path.with_suffix(".txt")
+        transcript = transcript_path.read_text(encoding="utf-8").strip() if transcript_path.exists() else None
+        voices[path.stem] = Voice(runtime.encode_reference_audio(path), transcript or None)
+        log.info("voice %s: %d reference frames, %s (%.1fs)", path.stem, len(voices[path.stem].codes),
+                 "continuation" if transcript and MODE == "continuation" else "voice_clone", time.time() - started)
     if not voices:
         raise RuntimeError(f"No reference clips (*.wav) found in {VOICES_DIR}")
     return voices
@@ -112,25 +131,56 @@ def _mono(waveform: np.ndarray) -> np.ndarray:
     return audio.mean(axis=1) if audio.ndim == 2 else audio
 
 
-def _render_chunk(text: str, codes: List[List[int]]) -> Optional[np.ndarray]:
+def _continuation_rows(voice: Voice, text: str) -> Dict[str, List[List[int]]]:
+    """Prompt layout of the upstream PyTorch continuation mode (modeling_moss_tts_nano.build_inference_input_ids):
+    user turn with "Reference(s): None" and transcript + target text, then the reference audio as the start of
+    the assistant's answer."""
+    templates, config = _runtime.manifest["prompt_templates"], _runtime.manifest["tts_config"]
+    prompt = [
+        *templates["user_prompt_prefix_token_ids"],
+        *_runtime.encode_text("None"),
+        *templates["user_prompt_after_reference_token_ids"],
+        *_runtime.encode_text(f"{voice.transcript} {text}"),
+        *templates["assistant_prompt_prefix_token_ids"],
+    ]
+    rows = [
+        *_runtime.build_text_rows(prompt),
+        *_runtime.build_text_rows([int(config["audio_start_token_id"])]),
+        *_runtime.build_audio_prefix_rows(voice.codes, int(config["audio_assistant_slot_token_id"])),
+    ]
+    return {"inputIds": rows, "attentionMask": [[1 for _ in rows]]}
+
+
+def _generate(text: str, voice: Voice):
+    """-> (audio, generated frame count)"""
+    if voice.transcript and MODE == "continuation":
+        frames = _runtime.generate_audio_frames(_continuation_rows(voice, text))
+        # Decode with the end of the reference in front (the codec needs the context), then cut it off.
+        context = voice.codes[-DECODE_CONTEXT_FRAMES:] if DECODE_CONTEXT_FRAMES > 0 else voice.codes
+        audio = _mono(_runtime.decode_full_audio_safe([*context, *frames]))
+        return audio[int(round(len(context) * _sample_rate / CODEC_FRAME_RATE)):], len(frames)
+    result = _runtime.synthesize_single_chunk(text=text, prompt_audio_codes=voice.codes, streaming=STREAMING_DECODE)
+    return _mono(result["waveform"]), len(result["generated_frames"])
+
+
+def _render_chunk(text: str, voice: Voice) -> Optional[np.ndarray]:
     """One model call. A chunk that hits the frame cap never found its end token (rambling): re-roll it."""
     cap = _frame_cap(text)
     _runtime.manifest["generation_defaults"]["max_new_frames"] = cap
     best = None
     for attempt in range(1, MAX_RETRIES + 2):
-        result = _runtime.synthesize_single_chunk(text=text, prompt_audio_codes=codes, streaming=STREAMING_DECODE)
-        audio = _mono(result["waveform"])
+        audio, frame_count = _generate(text, voice)
         best = audio if audio.size else best
-        if len(result["generated_frames"]) < cap and audio.size:
+        if frame_count < cap and audio.size:
             return audio
         log.warning("chunk hit frame cap %d (attempt %d/%d): %r", cap, attempt, MAX_RETRIES + 1, text[:80])
     return best
 
 
-def _render(text: str, codes: List[List[int]]) -> Optional[np.ndarray]:
+def _render(text: str, voice: Voice) -> Optional[np.ndarray]:
     pieces: List[np.ndarray] = []
     for chunk in _runtime.split_voice_clone_text(text, max_tokens=MAX_TEXT_TOKENS):
-        audio = _render_chunk(chunk, codes)
+        audio = _render_chunk(chunk, voice)
         if audio is None or audio.size == 0:
             continue
         if pieces:
@@ -143,11 +193,11 @@ def synthesize(text: str, voice: str, seed: Optional[int]) -> np.ndarray:
     segments = build_segments(normalize_text(text), PAUSES, GROUP_MAX_CHARS)
     if not segments:
         raise ValueError("Text is empty after normalization.")
-    codes = _voices[voice]
+    selected = _voices[voice]
     with _infer_lock:
         if seed is not None:
             _runtime.rng = np.random.default_rng(seed)
-        return assemble(segments, lambda segment_text: _render(segment_text, codes), _sample_rate)
+        return assemble(segments, lambda segment_text: _render(segment_text, selected), _sample_rate)
 
 
 # -----------------------------------------------------------------------------
@@ -169,6 +219,8 @@ def health():
         "model_loaded": ready,
         "voices": sorted(_voices),
         "default_voice": DEFAULT_VOICE,
+        "mode": MODE,
+        "continuation_voices": sorted(name for name, v in _voices.items() if v.transcript),
         "sample_mode": SAMPLE_MODE,
         "streaming_decode": STREAMING_DECODE,
         "cpu_threads": CPU_THREADS,

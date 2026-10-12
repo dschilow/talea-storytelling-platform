@@ -12,10 +12,11 @@ const MOSS_MAX_CONCURRENT = 2; // CPU bound: the service processes one request a
 const MOSS_MAX_TEXT_CHARS = 6_000;
 
 export const MOSS_VOICES = [
+  { id: "captain_comedy", name: "Captain Comedy (MOSS)", description: "Erzaehlstimme, Klon aus ElevenLabs-Referenz" },
   { id: "thorsten_neutral", name: "Thorsten (MOSS)", description: "Hochdeutsch, geklonte Stimme" },
 ] as const;
 
-export const MOSS_DEFAULT_VOICE = "thorsten_neutral";
+export const MOSS_DEFAULT_VOICE = "captain_comedy";
 
 export interface MossTtsRequest {
   text: string;

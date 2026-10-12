@@ -2,10 +2,14 @@
 
 Self-hosted German TTS on CPU. Model: https://huggingface.co/Thorsten-Voice/Kokoro
 (fine-tune of Kokoro-82M on the public-domain Thorsten-Voice dataset, Apache 2.0).
+More German Kokoro voices for comparison (all Apache 2.0, same German G2P fork):
+  kerstin   voicepack for base Kokoro-82M, trained on the CC0 Kerstin dataset (real recordings)
+  martin    kikiri-tts fine-tune, trained on synthetic (TTS-generated) data
+  victoria  kikiri-tts fine-tune, trained on synthetic (TTS-generated) data
 
 Endpoints
-  GET  /health        readiness (200 only once the model is loaded)
-  POST /tts           {"text": str, "speed"?: float, "format"?: "mp3"|"wav"} -> audio bytes
+  GET  /health        readiness (200 only once the models are loaded)
+  POST /tts           {"text": str, "voice"?: str, "speed"?: float, "format"?: "mp3"|"wav"} -> audio bytes
 
 Tuned for children's stories: slower default speed, one model call per sentence with
 punctuation-dependent pauses, and loudness-normalised output.
@@ -14,7 +18,7 @@ import logging
 import os
 import threading
 import time
-from typing import Optional
+from typing import Dict, NamedTuple, Optional, Tuple
 
 import numpy as np
 import torch
@@ -31,7 +35,7 @@ REPO_ID = "Thorsten-Voice/Kokoro"
 BASE_REPO_ID = "hexgrad/Kokoro-82M"
 SAMPLE_RATE = 24000
 
-CHECKPOINT = os.environ.get("KOKORO_EPOCH", "5").strip()  # 1-10, 5 = repo default (judged most natural)
+CHECKPOINT = os.environ.get("KOKORO_EPOCH", "5").strip()  # Thorsten only: 1-10, 5 = repo default (most natural)
 DEFAULT_SPEED = env_float("KOKORO_DEFAULT_SPEED", 0.85)  # 1.0 is too hurried for children's stories
 MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "6000"))
 GROUP_MAX_CHARS = int(os.environ.get("GROUP_MAX_CHARS", "220"))  # longest text synthesised in one model call
@@ -50,11 +54,11 @@ app = Flask(__name__)
 # -----------------------------------------------------------------------------
 # Model loading (mirrors the official inference.py of Thorsten-Voice/Kokoro)
 # -----------------------------------------------------------------------------
-_pipeline = None
-_voice = None
-_infer_lock = threading.Lock()
-_waiting = 0
-_waiting_lock = threading.Lock()
+class VoiceSource(NamedTuple):
+    repo: str
+    config: Optional[str]  # None: config.json of the Kokoro-82M base
+    model: Optional[str]  # None: base Kokoro-82M weights (voicepack-only voice)
+    voicepack: str
 
 
 def _checkpoint_files(epoch: str):
@@ -63,15 +67,36 @@ def _checkpoint_files(epoch: str):
     return f"model_ep{epoch}.pth", f"voices/thorsten_ep{epoch}.pt"
 
 
-def _load_pipeline():
+VOICE_SOURCES: Dict[str, VoiceSource] = {
+    "thorsten": VoiceSource(REPO_ID, "config.json", *_checkpoint_files(CHECKPOINT)),
+    "kerstin": VoiceSource("cryptomilk/kokoro-german-kerstin", None, None, "voices/df_kerstin.pt"),
+    "martin": VoiceSource("kikiri-tts/kikiri-german-martin", None, "kikiri_german_martin_ep10.pth", "voices/martin.pt"),
+    "victoria": VoiceSource(
+        "kikiri-tts/kikiri-german-victoria", None, "kikiri_german_victoria_ep10.pth", "voices/victoria.pt"
+    ),
+}
+DEFAULT_VOICE = "thorsten"
+ENABLED_VOICES = [
+    name for name in os.environ.get("KOKORO_VOICES", ",".join(VOICE_SOURCES)).split(",") if name in VOICE_SOURCES
+] or [DEFAULT_VOICE]
+
+_voices: Dict[str, Tuple[object, object]] = {}  # name -> (pipeline, voicepack)
+_infer_lock = threading.Lock()
+_waiting = 0
+_waiting_lock = threading.Lock()
+
+
+def _load_pipeline(source: VoiceSource):
     from kokoro import KModel, KPipeline
 
-    model_file, voice_file = _checkpoint_files(CHECKPOINT)
-    config_path = hf_hub_download(repo_id=REPO_ID, filename="config.json")
-    model_path = hf_hub_download(repo_id=REPO_ID, filename=model_file)
-    voice_path = hf_hub_download(repo_id=REPO_ID, filename=voice_file)
+    config_path = hf_hub_download(repo_id=source.repo if source.config else BASE_REPO_ID,
+                                  filename=source.config or "config.json")
+    model_kwargs = {"repo_id": BASE_REPO_ID, "config": config_path}
+    if source.model:
+        model_kwargs["model"] = hf_hub_download(repo_id=source.repo, filename=source.model)
+    voice_path = hf_hub_download(repo_id=source.repo, filename=source.voicepack)
 
-    kmodel = KModel(repo_id=BASE_REPO_ID, config=config_path, model=model_path).to("cpu").eval()
+    kmodel = KModel(**model_kwargs).to("cpu").eval()
     pipeline = KPipeline(lang_code="d", repo_id=BASE_REPO_ID, model=kmodel)
 
     original_g2p = pipeline.g2p
@@ -89,9 +114,10 @@ def _load_pipeline():
 # -----------------------------------------------------------------------------
 # Synthesis
 # -----------------------------------------------------------------------------
-def _render(text: str, speed: float) -> Optional[np.ndarray]:
+def _render(voice_name: str, text: str, speed: float) -> Optional[np.ndarray]:
+    pipeline, voicepack = _voices[voice_name]
     chunks = []
-    for _, _, audio in _pipeline(text, voice=_voice, speed=speed):
+    for _, _, audio in pipeline(text, voice=voicepack, speed=speed):
         if audio is None:
             continue
         chunks.append(audio.detach().cpu().numpy() if hasattr(audio, "detach") else np.asarray(audio))
@@ -100,12 +126,12 @@ def _render(text: str, speed: float) -> Optional[np.ndarray]:
     return np.concatenate(chunks).astype(np.float32)
 
 
-def synthesize(text: str, speed: float) -> np.ndarray:
+def synthesize(text: str, speed: float, voice_name: str = DEFAULT_VOICE) -> np.ndarray:
     segments = build_segments(normalize_text(text), PAUSES, GROUP_MAX_CHARS)
     if not segments:
         raise ValueError("Text is empty after normalization.")
     with _infer_lock:
-        return assemble(segments, lambda segment_text: _render(segment_text, speed), SAMPLE_RATE)
+        return assemble(segments, lambda segment_text: _render(voice_name, segment_text, speed), SAMPLE_RATE)
 
 
 # -----------------------------------------------------------------------------
@@ -121,10 +147,12 @@ def _authorized() -> bool:
 
 @app.route("/health", methods=["GET"])
 def health():
-    ready = _pipeline is not None
+    ready = DEFAULT_VOICE in _voices
     return jsonify({
         "status": "ok" if ready else "loading",
         "model_loaded": ready,
+        "voices": [name for name in ENABLED_VOICES if name in _voices],
+        "default_voice": DEFAULT_VOICE,
         "checkpoint": CHECKPOINT,
         "default_speed": DEFAULT_SPEED,
         "loudnorm": LOUDNORM,
@@ -138,7 +166,7 @@ def tts():
     global _waiting
     if not _authorized():
         return jsonify({"error": "unauthorized"}), 401
-    if _pipeline is None:
+    if DEFAULT_VOICE not in _voices:
         return jsonify({"error": "model not loaded"}), 503
 
     payload = request.get_json(silent=True) or {}
@@ -151,6 +179,9 @@ def tts():
     fmt = str(payload.get("format") or "mp3").lower()
     if fmt not in ("mp3", "wav"):
         return jsonify({"error": "format must be mp3 or wav"}), 400
+    voice = str(payload.get("voice") or DEFAULT_VOICE)
+    if voice not in _voices:
+        return jsonify({"error": f"unknown voice '{voice}'", "voices": sorted(_voices)}), 400
     try:
         speed = float(payload.get("speed") or DEFAULT_SPEED)
     except (TypeError, ValueError):
@@ -163,7 +194,7 @@ def tts():
         _waiting += 1
     started = time.time()
     try:
-        samples = synthesize(text, speed)
+        samples = synthesize(text, speed, voice)
         body = encode(samples, fmt, SAMPLE_RATE)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -176,8 +207,8 @@ def tts():
 
     duration = len(samples) / SAMPLE_RATE
     elapsed = time.time() - started
-    log.info("tts ok: %d chars -> %.1fs audio in %.1fs (x%.1f realtime, %s)",
-             len(text), duration, elapsed, duration / max(elapsed, 0.001), fmt)
+    log.info("tts ok: %d chars -> %.1fs audio in %.1fs (x%.1f realtime, %s, voice=%s)",
+             len(text), duration, elapsed, duration / max(elapsed, 0.001), fmt, voice)
     return Response(
         body,
         mimetype="audio/mpeg" if fmt == "mp3" else "audio/wav",
@@ -189,13 +220,14 @@ def tts():
 
 
 def _startup():
-    global _pipeline, _voice
     started = time.time()
-    log.info("Loading Thorsten-Voice Kokoro (checkpoint=%s, threads=%d)...", CHECKPOINT, CPU_THREADS)
-    pipeline, voice = _load_pipeline()
-    _pipeline, _voice = pipeline, voice
-    # Warm-up so the first real request does not pay one-time costs.
-    synthesize("Hallo, hier spricht Thorsten.", DEFAULT_SPEED)
+    log.info("Loading Kokoro voices %s (thorsten checkpoint=%s, threads=%d)...", ENABLED_VOICES, CHECKPOINT, CPU_THREADS)
+    for name in ENABLED_VOICES:
+        voice_started = time.time()
+        _voices[name] = _load_pipeline(VOICE_SOURCES[name])
+        # Warm-up so the first real request does not pay one-time costs.
+        synthesize("Hallo, hier spricht eine Probe-Stimme.", DEFAULT_SPEED, name)
+        log.info("voice %s ready in %.1fs", name, time.time() - voice_started)
     log.info("Model ready in %.1fs", time.time() - started)
 
 

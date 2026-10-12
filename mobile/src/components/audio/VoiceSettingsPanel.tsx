@@ -16,8 +16,17 @@ export function VoiceSettingsPanel() {
   const providers = useQuery({ queryKey: ['tts-providers'], queryFn: () => backend.tts.getAvailableTtsProviders() });
   const voices = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['tts-voices', provider], queryFn: async () => {
-      if (provider === 'thorsten' || provider === 'thorsten-cosyvoice') return [{ id: 'thorsten', name: 'Thorsten' }];
-      if (provider === 'moss-nano') return [{ id: 'thorsten_neutral', name: 'Thorsten (MOSS)' }];
+      if (provider === 'thorsten-cosyvoice') return [{ id: 'thorsten', name: 'Thorsten' }];
+      if (provider === 'thorsten') return [
+        { id: 'thorsten', name: 'Thorsten' },
+        { id: 'kerstin', name: 'Kerstin' },
+        { id: 'martin', name: 'Martin' },
+        { id: 'victoria', name: 'Victoria' },
+      ];
+      if (provider === 'moss-nano') return [
+        { id: 'captain_comedy', name: 'Captain Comedy (MOSS)' },
+        { id: 'thorsten_neutral', name: 'Thorsten (MOSS)' },
+      ];
       if (provider === 'xai') return (await backend.tts.listXaiVoices()).voices;
       return (await backend.tts.listQwenVoices()).availableSpeakers.map((id: string) => ({ id, name: id }));
     },

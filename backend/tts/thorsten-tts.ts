@@ -13,14 +13,24 @@ const THORSTEN_MAX_TEXT_CHARS = 6_000;
 
 export const THORSTEN_VOICES = [
   { id: "thorsten", name: "Thorsten", description: "Hochdeutsch, ruhig und klar" },
+  { id: "kerstin", name: "Kerstin", description: "Weiblich, echte Aufnahmen (Test)" },
+  { id: "martin", name: "Martin", description: "Maennlich, synthetisch trainiert (Test)" },
+  { id: "victoria", name: "Victoria", description: "Weiblich, synthetisch trainiert (Test)" },
 ] as const;
 
 export const THORSTEN_DEFAULT_VOICE = "thorsten";
 
 export interface ThorstenTtsRequest {
   text: string;
+  voice?: string;
   outputFormat?: AudioFormat;
   speed?: number;
+}
+
+// The player sends the picked voice as `speaker`; unknown ids fall back to the service default (thorsten).
+function resolveVoice(requested?: string): string | undefined {
+  const wanted = (requested || "").trim();
+  return THORSTEN_VOICES.some((voice) => voice.id === wanted) ? wanted : undefined;
 }
 
 export interface ThorstenTtsResponse {
@@ -87,6 +97,7 @@ async function callThorstenTts(req: ThorstenTtsRequest): Promise<ThorstenTtsResp
   const mimeType = format === "wav" ? "audio/wav" : "audio/mpeg";
   const apiKey = (process.env.THORSTEN_TTS_API_KEY || "").trim();
   const speed = req.speed ?? resolveSpeed();
+  const voice = resolveVoice(req.voice);
 
   let lastError: Error | null = null;
 
@@ -100,7 +111,7 @@ async function callThorstenTts(req: ThorstenTtsRequest): Promise<ThorstenTtsResp
           "Content-Type": "application/json",
           ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
         },
-        body: JSON.stringify({ text, format, ...(speed ? { speed } : {}) }),
+        body: JSON.stringify({ text, format, ...(speed ? { speed } : {}), ...(voice ? { voice } : {}) }),
         signal: controller.signal,
       });
 
@@ -160,6 +171,7 @@ export async function thorstenGenerateSpeech(req: ThorstenTtsRequest): Promise<T
 export async function thorstenGenerateSpeechBatch(
   items: Array<{ id: string; text: string }>,
   outputFormat?: AudioFormat,
+  voice?: string,
 ): Promise<TTSBatchResultItem[]> {
   if (items.length === 0) return [];
 
@@ -170,7 +182,7 @@ export async function thorstenGenerateSpeechBatch(
         return { id: item.id, audio: null, error: "Text is required." } as TTSBatchResultItem;
       }
       try {
-        const response = await thorstenGenerateSpeech({ text, outputFormat });
+        const response = await thorstenGenerateSpeech({ text, voice, outputFormat });
         return { id: item.id, audio: response.audioData, error: null } as TTSBatchResultItem;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

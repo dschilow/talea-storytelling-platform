@@ -1710,6 +1710,7 @@ export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
           try {
             const result = await thorstenGenerateSpeech({
               text: req.text,
+              voice: req.speaker,
               outputFormat: req.outputFormat,
             });
             return {
@@ -1811,6 +1812,7 @@ async function generateSpeechBatchInternal(req: GenerateSpeechBatchRequest): Pro
       const results = await thorstenGenerateSpeechBatch(
         req.items.map((item) => ({ id: item.id, text: item.text })),
         req.outputFormat,
+        req.speaker,
       );
       return { results };
     } catch (error) {

@@ -9,7 +9,23 @@ Das Backend spricht ihn ueber `provider: "thorsten"` an ([backend/tts/thorsten-t
 | Endpoint | Zweck |
 |---|---|
 | `GET /health` | 200 erst wenn das Modell geladen ist |
-| `POST /tts` | `{"text": "...", "speed": 0.85, "format": "mp3" \| "wav"}` -> Audio-Bytes |
+| `POST /tts` | `{"text": "...", "voice": "thorsten", "speed": 0.85, "format": "mp3" \| "wav"}` -> Audio-Bytes |
+
+## Stimmen
+
+Kokoro klont keine Stimmen aus einem Hoerbeispiel: jede Stimme ist ein eigenes Feintuning bzw. ein Voicepack.
+Alle laufen mit derselben deutschen G2P (semidark-Forks), Auswahl per `voice`:
+
+| `voice` | Quelle | Trainingsdaten | Whisper-Test* |
+|---|---|---|---|
+| `thorsten` (Standard) | [Thorsten-Voice/Kokoro](https://huggingface.co/Thorsten-Voice/Kokoro) | echte Aufnahmen, Thorsten-Datensatz (CC0) | 1,00 |
+| `kerstin` | [cryptomilk/kokoro-german-kerstin](https://huggingface.co/cryptomilk/kokoro-german-kerstin) (Voicepack auf Kokoro-82M) | echte Aufnahmen, [Kerstin-Datensatz](https://github.com/rhasspy/dataset-voice-kerstin) (CC0) | 0,93 |
+| `martin` | [kikiri-tts/kikiri-german-martin](https://huggingface.co/kikiri-tts/kikiri-german-martin) | synthetisch (TTS-generiert, Herkunft offen) | 1,00 |
+| `victoria` | [kikiri-tts/kikiri-german-victoria](https://huggingface.co/kikiri-tts/kikiri-german-victoria) | synthetisch (TTS-generiert, Herkunft offen) | 0,96 |
+
+\* Wortaehnlichkeit faster-whisper `small` gegen den Solltext (3 Saetze Kindergeschichte), 2026-10-12.
+Alle Modelle Apache 2.0. Bei `martin`/`victoria` ist unklar, mit welchem TTS die Trainingsdaten erzeugt wurden.
+`KOKORO_VOICES` (z. B. `thorsten,kerstin`) begrenzt, welche geladen werden; jede Stimme kostet ca. 0,3-0,5 GB RAM.
 
 Die Ausgabe ist auf Kindergeschichten abgestimmt ([textprep.py](textprep.py), [audioprep.py](audioprep.py)).
 Beide Module nutzt auch der CosyVoice3-Worker ([runpod/thorsten-cosyvoice3](../runpod/thorsten-cosyvoice3/README.md)):

@@ -7,11 +7,27 @@ und gleiche Nachbearbeitung, damit sich beide im Story-Player direkt vergleichen
 Das Backend spricht den Service ueber `provider: "moss-nano"` an ([backend/tts/moss-tts.ts](../backend/tts/moss-tts.ts)).
 
 MOSS-TTS-Nano bringt keine deutschen Stimmen mit, jede Stimme ist ein **Klon eines kurzen Referenz-Clips** aus
-[voices/](voices/). Der mitgelieferte Clip `thorsten_neutral.wav` (9,8 s) besteht aus zwei Saetzen des
-[Thorsten-Voice-Datensatzes](https://huggingface.co/datasets/Thorsten-Voice/TV-24kHz-Neutral) (Thorsten Mueller,
-laut Dataset-Karte CC-BY-4.0, Namensnennung: "Thorsten-Voice / Thorsten Mueller"). Dieselbe Stimme wie bei Kokoro,
-so entscheidet nur das Modell. Weitere Stimmen: einfach eine `*.wav` (mono/stereo, 5-15 s, saubere Aufnahme) nach
-`voices/` legen, die Datei heisst dann `voice`-ID.
+[voices/](voices/): `<id>.wav` (mono/stereo, ca. 10-15 s, saubere Aufnahme) plus `<id>.txt` mit der **exakten
+Abschrift**. Mit Abschrift laeuft die Stimme im Continuation-Modus (siehe unten), ohne im schwaecheren Voice-Clone-Modus.
+
+| `voice` | Referenz | Whisper-Test* |
+|---|---|---|
+| `captain_comedy` (Standard) | ElevenLabs-Stimme "Captain Comedy" (`8tJgFGd1nr7H5KLTvjjt`, = Tavi), mit `eleven_v4` erzeugt | 0,95 |
+| `thorsten_neutral` | zwei Saetze aus dem [Thorsten-Voice-Datensatz](https://huggingface.co/datasets/Thorsten-Voice/TV-44kHz-Full) (CC0) | 0,85 |
+
+\* Wortaehnlichkeit faster-whisper `small` gegen den Solltext (3 Saetze Kindergeschichte, Mittel aus 3 Seeds),
+2026-10-12. Echte Aufnahme und Kokoro/Thorsten erreichen 1,00.
+
+Die Referenz entscheidet viel: die saubere, ruhig erzaehlende Studio-Stimme bringt das kleine Modell von 0,85 auf 0,95.
+`captain_comedy.wav` ist ElevenLabs-Ausgabe; ob die ElevenLabs-Bedingungen (bzw. die des Stimmen-Erstellers) das
+Klonen in ein anderes TTS erlauben, ist vor einem produktiven Einsatz zu klaeren.
+
+### Continuation statt Voice-Clone
+
+Der Upstream-ONNX-Code kann nur "voice_clone" (Referenz-Audio ohne Text). Die PyTorch-Version kennt zusaetzlich
+"continuation": Abschrift + Zieltext im Prompt, das Referenz-Audio als Anfang der Antwort, das Modell spricht weiter.
+`server.py` baut diesen Prompt fuer ONNX nach (`_continuation_rows`). Gemessen (Thorsten-Referenz): voice_clone 0,70,
+continuation 0,85. Das Sprachfeld der Prompt-Vorlage (`- Language:`) auf `de` zu setzen brachte nichts.
 
 ## API
 
@@ -19,7 +35,7 @@ so entscheidet nur das Modell. Weitere Stimmen: einfach eine `*.wav` (mono/stere
 |---|---|
 | `GET /health` | 200 erst wenn Modell und Referenz-Clips geladen sind |
 | `GET /voices` | verfuegbare Stimmen-IDs |
-| `POST /tts` | `{"text": "...", "voice"?: "thorsten_neutral", "seed"?: 7, "format": "mp3" \| "wav"}` -> Audio-Bytes |
+| `POST /tts` | `{"text": "...", "voice"?: "captain_comedy", "seed"?: 7, "format": "mp3" \| "wav"}` -> Audio-Bytes |
 
 Die Antwort enthaelt `X-Audio-Duration` und `X-Processing-Seconds`, daraus ergibt sich der Echtzeitfaktor.
 Der Service loggt ihn bei jeder Anfrage (`x2.1 realtime` = 2,1-fach schneller als Echtzeit).
@@ -38,7 +54,8 @@ Unterschiede zu Kokoro:
 ## Environment-Variablen (Service)
 
 - `API_KEY` (optional): wenn gesetzt, verlangt `/tts` `Authorization: Bearer <key>`
-- `MOSS_DEFAULT_VOICE` (default `thorsten_neutral`)
+- `MOSS_DEFAULT_VOICE` (default `captain_comedy`)
+- `MOSS_MODE` (`continuation` default, braucht `voices/<id>.txt` | `voice_clone`)
 - `MOSS_CPU_THREADS` (default: min(4, CPU-Kerne)). Gemessen (Desktop-CPU, Docker): 1 Thread Echtzeitfaktor 1,4 /
   2 Threads 1,0 / 4 Threads 0,8, mehr bringt nichts. Railway meldet die Host-Kerne, bei kleinerem vCPU-Limit absenken.
 - `MOSS_SAMPLE_MODE` (`fixed` | `greedy` | `full`, default `fixed`), `MOSS_STREAMING_DECODE` (`0` default, `1` = der
