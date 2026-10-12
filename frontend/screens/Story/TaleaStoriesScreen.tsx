@@ -418,7 +418,7 @@ const PremiumStoriesSignedOut: React.FC = () => {
           <div className={cn(taleaInsetSurfaceClass, "flex flex-col justify-between gap-6 p-6 sm:gap-8 sm:p-8 md:p-10")}>
             <div>
               <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--talea-text-secondary)]")}>
-                <img src={taleaLogo} alt="Talea Logo" className="mr-3 h-7 w-7 rounded-2xl object-cover" />
+                <img src={taleaLogo} alt="Talea Logo" className="mr-3 h-7 w-7 object-contain" />
                 Story Stream
               </span>
               <h1 className="mt-6 text-[2.45rem] font-semibold leading-[1.04] text-slate-900 dark:text-white sm:mt-8 md:text-[3.8rem]" style={{ fontFamily: headingFont }}>

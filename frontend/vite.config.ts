@@ -43,7 +43,7 @@ export default defineConfig({
     VitePWA({
       injectRegister: false,
       registerType: 'autoUpdate',
-      includeAssets: ['talea_logo.png', 'tavi.png', 'loading-animation.lottie'],
+      includeAssets: ['talea_logo.png', 'favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'tavi.png', 'loading-animation.lottie'],
       manifest: {
         name: 'Talea - KI-Storytelling',
         short_name: 'Talea',

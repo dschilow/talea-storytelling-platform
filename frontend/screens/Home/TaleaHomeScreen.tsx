@@ -155,7 +155,7 @@ const SignedOutStart: React.FC = () => {
                 transition={{ type: "spring", delay: 0.2 }}
                 className="inline-flex w-fit items-center gap-3 rounded-full border-4 border-white/80 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-2.5 shadow-xl"
               >
-                <img src={taleaLogo} alt="Talea Logo" className="h-8 w-8 rounded-xl object-cover" />
+                <img src={taleaLogo} alt="Talea Logo" className="h-8 w-8 object-contain" />
                 <p className="text-sm font-extrabold tracking-widest text-indigo-500 dark:text-indigo-300">TALEA STUDIO</p>
               </motion.div>
               <motion.h1
@@ -547,7 +547,7 @@ const PremiumSignedOutStart: React.FC = () => {
           <div className={cn(taleaInsetSurfaceClass, "flex flex-col justify-between gap-6 p-6 sm:gap-8 sm:p-8 md:p-10")}>
             <div>
               <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>
-                <img src={taleaLogo} alt="Talea Logo" className="mr-3 h-8 w-8 rounded-2xl object-cover" />
+                <img src={taleaLogo} alt="Talea Logo" className="mr-3 h-8 w-8 object-contain" />
                 Talea Kinderatelier
               </span>
               <h1

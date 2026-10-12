@@ -194,7 +194,7 @@ const Sidebar: React.FC = () => {
             className="mb-4 flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-[var(--talea-surface-inset)]"
             aria-label="Talea Startseite"
           >
-            <img src={taleaLogo} alt="" className="h-9 w-9 flex-shrink-0 rounded-[0.7rem] object-cover" />
+            <img src={taleaLogo} alt="" className="h-9 w-9 flex-shrink-0 object-contain" />
             <motion.div
               initial={false}
               animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}

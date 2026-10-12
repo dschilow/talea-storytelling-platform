@@ -1,0 +1,46 @@
+{
+  "brand": "talea",
+  "palette": {
+    "terracotta": "#C76B50",
+    "shade": "#A9513B",
+    "light": "#D78061",
+    "cream": "#FFF7EC",
+    "ink": "#3E281F"
+  },
+  "svg_files": [
+    "talea-icon-primary.svg",
+    "talea-stacked-primary.svg",
+    "talea-horizontal-primary.svg",
+    "talea-icon-flat.svg",
+    "talea-stacked-flat.svg",
+    "talea-horizontal-flat.svg",
+    "talea-icon-dark.svg",
+    "talea-stacked-dark.svg",
+    "talea-horizontal-dark.svg",
+    "talea-icon-white.svg",
+    "talea-stacked-white.svg",
+    "talea-horizontal-white.svg",
+    "talea-icon-small-primary.svg",
+    "talea-icon-small-dark.svg",
+    "talea-icon-small-white.svg",
+    "talea-wordmark-dark.svg",
+    "talea-wordmark-terracotta.svg",
+    "talea-wordmark-white.svg",
+    "talea-app-icon.svg"
+  ],
+  "source": "Selected user-provided design, reconstructed as clean vector paths; no embedded raster image or font dependency. The wordmark is a clean reconstruction of the selected lettering.",
+  "wordmark_bounds": [
+    348,
+    874,
+    906,
+    1060
+  ],
+  "art_bounds": [
+    294,
+    160,
+    977,
+    860
+  ],
+  "small_icon": "Thin page turn removed; facial paths enlarged by 8%.",
+  "monochrome": "Face and page spaces are transparent; features and book use a single solid ink colour."
+}

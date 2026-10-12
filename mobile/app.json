@@ -22,7 +22,7 @@
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#8B5CF6"
+        "backgroundColor": "#FFF7EC"
       },
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [

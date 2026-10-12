@@ -154,7 +154,7 @@ const AuthScreen: React.FC = () => {
 
       <div className="auth-card">
         <div className="auth-brand">
-          <img src="/talea_logo.png?v=20260209" alt="Talea" />
+          <img src="/talea_logo.png?v=20261012" alt="Talea" />
           <span className="auth-brand-name">
             Talea<small>Storytelling Platform</small>
           </span>
