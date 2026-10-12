@@ -12,8 +12,6 @@ interface NavItem {
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   /** Wizard-asset id within the "navTab" group; renders a Talea illustration instead of the icon. */
   imageId?: string;
-  /** Static illustration (public/) instead of a wizard asset. */
-  imageSrc?: string;
   /** Further paths that count as this tab (e.g. /quiz for the game room). */
   aliases?: string[];
   path: string;
@@ -26,7 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: BookOpen, imageId: 'stories', labelKey: 'navigation.stories', path: '/stories' },
   { icon: User, imageId: 'avatars', labelKey: 'navigation.avatars', path: '/avatar' },
   { icon: FlaskConical, imageId: 'dokus', label: 'Dokus', path: '/doku' },
-  { icon: Gamepad2, imageSrc: '/game/nav/spiel.webp', label: 'Spiel', path: '/spiel', aliases: ['/quiz'] },
+  { icon: Gamepad2, imageId: 'quiz', label: 'Spiel', path: '/spiel', aliases: ['/quiz'] },
 ];
 
 /**
@@ -78,7 +76,7 @@ const BottomNav: React.FC = () => {
                   )}
                 >
                   <WizardImage
-                    url={item.imageSrc ?? assetUrl('navTab', item.imageId as string)}
+                    url={assetUrl('navTab', item.imageId as string)}
                     fallback={<Icon className={cn('h-[22px] w-[22px]', active ? 'text-[var(--primary)]' : 'text-[var(--talea-text-secondary)]')} />}
                     alt=""
                     fallbackClassName="flex h-full w-full items-center justify-center"

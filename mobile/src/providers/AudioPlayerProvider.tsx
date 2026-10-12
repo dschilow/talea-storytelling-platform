@@ -25,6 +25,7 @@ import {
   buildTTSChunkCacheKey,
   buildTTSRequestCacheSuffix,
   buildTTSRequestOptions,
+  usesSentenceLevelChunks,
   type TTSRequestOptions,
   type TTSVoiceSettings,
 } from '@/types/ttsVoice';
@@ -656,7 +657,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       const useEnrichedTTS = voiceSettings?.provider === 'xai';
       const splitNarration = useEnrichedTTS
         ? splitTextIntoChunksForXai
-        : voiceSettings?.provider?.startsWith('thorsten')
+        : usesSentenceLevelChunks(voiceSettings?.provider)
           ? splitTextIntoChunksForThorsten
           : splitTextIntoChunks;
 
@@ -770,7 +771,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       const chunks =
         voiceSettings?.provider === 'xai'
           ? splitTextIntoChunksForXai(normalizedText)
-          : voiceSettings?.provider?.startsWith('thorsten')
+          : usesSentenceLevelChunks(voiceSettings?.provider)
             ? splitTextIntoChunksForThorsten(normalizedText)
             : splitTextIntoChunks(normalizedText);
       if (chunks.length === 0) return;

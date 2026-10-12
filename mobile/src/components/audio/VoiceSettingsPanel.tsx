@@ -17,6 +17,7 @@ export function VoiceSettingsPanel() {
   const voices = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['tts-voices', provider], queryFn: async () => {
       if (provider === 'thorsten' || provider === 'thorsten-cosyvoice') return [{ id: 'thorsten', name: 'Thorsten' }];
+      if (provider === 'moss-nano') return [{ id: 'thorsten_neutral', name: 'Thorsten (MOSS)' }];
       if (provider === 'xai') return (await backend.tts.listXaiVoices()).voices;
       return (await backend.tts.listQwenVoices()).availableSpeakers.map((id: string) => ({ id, name: id }));
     },

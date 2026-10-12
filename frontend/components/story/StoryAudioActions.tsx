@@ -21,6 +21,10 @@ import {
   THORSTEN_DEFAULT_VOICE,
 } from '../../constants/thorstenVoices';
 import {
+  getMossVoiceOptions,
+  MOSS_DEFAULT_VOICE,
+} from '../../constants/mossVoices';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -96,6 +100,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const qwenSpeakers = useMemo(() => getStaticQwenSpeakers(), []);
   const xaiVoices = useMemo(() => getXaiVoiceOptions(), []);
   const thorstenVoices = useMemo(() => getThorstenVoiceOptions(), []);
+  const mossVoices = useMemo(() => getMossVoiceOptions(), []);
 
   const [ttsProvider, setTtsProvider] = useState<TTSProviderType>('qwen');
   const [isAdding, setIsAdding] = useState(false);
@@ -116,19 +121,20 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const hasLibraryAudio = generatedAudioItems.length > 0;
   const isXai = ttsProvider === 'xai';
   const isCosyVoice = ttsProvider === 'thorsten-cosyvoice';
-  const isThorsten = ttsProvider === 'thorsten' || isCosyVoice;
-  const thorstenEngine = isCosyVoice ? 'CosyVoice3' : 'Kokoro';
-  const availableSpeakers = isXai
-    ? xaiVoices.map((v) => v.id)
-    : isThorsten
-      ? thorstenVoices.map((v) => v.id)
-      : qwenSpeakers;
-  const voiceOptions = isXai ? xaiVoices : thorstenVoices;
+  const isMoss = ttsProvider === 'moss-nano';
+  // Self-hosted German providers (one narrator voice each, no dialogue mode)
+  const isThorsten = ttsProvider === 'thorsten' || isCosyVoice || isMoss;
+  const thorstenEngine = isMoss ? 'MOSS-TTS-Nano' : isCosyVoice ? 'CosyVoice3' : 'Kokoro';
+  const voiceOptions = isXai ? xaiVoices : isMoss ? mossVoices : thorstenVoices;
+  const availableSpeakers = isXai || isThorsten ? voiceOptions.map((v) => v.id) : qwenSpeakers;
 
   // Switch default voice when provider changes
   useEffect(() => {
     if (ttsProvider === 'xai') {
       setSelectedSpeaker(XAI_DEFAULT_VOICE);
+      setMultiVoiceEnabled(false);
+    } else if (ttsProvider === 'moss-nano') {
+      setSelectedSpeaker(MOSS_DEFAULT_VOICE);
       setMultiVoiceEnabled(false);
     } else if (ttsProvider === 'thorsten' || ttsProvider === 'thorsten-cosyvoice') {
       setSelectedSpeaker(THORSTEN_DEFAULT_VOICE);
@@ -255,6 +261,8 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
   const resetToDefaultVoice = useCallback(() => {
     if (ttsProvider === 'xai') {
       setSelectedSpeaker(XAI_DEFAULT_VOICE);
+    } else if (ttsProvider === 'moss-nano') {
+      setSelectedSpeaker(MOSS_DEFAULT_VOICE);
     } else if (ttsProvider === 'thorsten' || ttsProvider === 'thorsten-cosyvoice') {
       setSelectedSpeaker(THORSTEN_DEFAULT_VOICE);
     } else {
@@ -404,6 +412,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
               { id: 'xai' as TTSProviderType, label: 'xAI Grok', hint: 'Runware' },
               { id: 'thorsten' as TTSProviderType, label: 'Thorsten', hint: 'Deutsch, eigener Server' },
               { id: 'thorsten-cosyvoice' as TTSProviderType, label: 'Thorsten CosyVoice', hint: 'Deutsch, GPU (RunPod)' },
+              { id: 'moss-nano' as TTSProviderType, label: 'MOSS Nano', hint: 'Deutsch, eigener Server' },
             ]).map((p) => {
               const active = ttsProvider === p.id;
               return (
@@ -475,6 +484,8 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
             {isXai
               ? 'xAI Grok TTS laeuft ueber Runware (gleicher Account wie Bildgenerierung).'
+              : isMoss
+                ? 'MOSS-TTS-Nano laeuft auf einem eigenen Server (nur CPU) und spricht Deutsch mit einer geklonten Thorsten-Stimme.'
               : isCosyVoice
                 ? 'Thorsten-Voice (CosyVoice3) laeuft auf einer GPU bei RunPod und spricht nur Deutsch. Nach laengerer Pause kann der erste Teil einige Minuten dauern.'
                 : isThorsten
@@ -493,7 +504,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
                   color: isDark ? '#86a7db' : '#7c5b3d',
                 }}
               >
-                {isCosyVoice ? 'CosyVoice' : isThorsten ? 'Thorsten' : 'xAI'}
+                {isMoss ? 'MOSS' : isCosyVoice ? 'CosyVoice' : isThorsten ? 'Thorsten' : 'xAI'}
               </span>
             )}
           </p>
@@ -650,6 +661,8 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             <DialogDescription style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
               {pendingAction?.voiceSettings?.provider === 'xai'
                 ? 'xAI Grok TTS (Runware) wird erst nach deiner Bestaetigung gestartet.'
+                : pendingAction?.voiceSettings?.provider === 'moss-nano'
+                  ? 'MOSS-TTS-Nano (eigener Server) wird erst nach deiner Bestaetigung gestartet.'
                 : pendingAction?.voiceSettings?.provider === 'thorsten'
                   ? 'Thorsten-Voice (Kokoro) wird erst nach deiner Bestaetigung gestartet.'
                   : pendingAction?.voiceSettings?.provider === 'thorsten-cosyvoice'

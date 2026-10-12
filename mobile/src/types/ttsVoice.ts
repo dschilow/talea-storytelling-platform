@@ -7,7 +7,12 @@
  */
 
 export type TTSVoiceMode = 'default' | 'speaker' | 'dialogue';
-export type TTSProviderType = 'qwen' | 'xai' | 'thorsten' | 'thorsten-cosyvoice';
+export type TTSProviderType = 'qwen' | 'xai' | 'thorsten' | 'thorsten-cosyvoice' | 'moss-nano';
+
+/** Self-hosted German providers: the service sets its pauses from the text, so chunks follow sentences. */
+export function usesSentenceLevelChunks(provider?: TTSProviderType): boolean {
+  return provider === 'thorsten' || provider === 'thorsten-cosyvoice' || provider === 'moss-nano';
+}
 
 export interface TTSVoiceSettings {
   mode: TTSVoiceMode;

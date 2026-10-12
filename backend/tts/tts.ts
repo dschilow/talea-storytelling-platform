@@ -22,6 +22,11 @@ import {
   thorstenCosyVoiceGenerateSpeechBatch,
   isThorstenCosyVoiceConfigured,
 } from "./thorsten-cosyvoice-tts";
+import {
+  mossGenerateSpeech,
+  mossGenerateSpeechBatch,
+  isMossConfigured,
+} from "./moss-tts";
 
 type RunpodEndpointMode = "load_balancer" | "queue";
 type VoiceListMode = "static" | "runpod";
@@ -174,7 +179,7 @@ const COSYVOICE_VOICE_LIST_MODE = QWEN_VOICE_LIST_MODE;
 const COSYVOICE_STATIC_SPEAKERS = QWEN_STATIC_SPEAKERS;
 const COSYVOICE_STATIC_DEFAULT_SPEAKER = QWEN_STATIC_DEFAULT_SPEAKER;
 
-export type TTSProvider = "qwen" | "xai" | "thorsten" | "thorsten-cosyvoice";
+export type TTSProvider = "qwen" | "xai" | "thorsten" | "thorsten-cosyvoice" | "moss-nano";
 export type AudioFormat = "wav" | "mp3";
 
 export interface TTSResponse {
@@ -1739,6 +1744,26 @@ export const generateSpeech = api<GenerateSpeechRequest, TTSResponse>(
           }
         }
 
+        if (req.provider === "moss-nano") {
+          try {
+            const result = await mossGenerateSpeech({
+              text: req.text,
+              voice: req.speaker,
+              outputFormat: req.outputFormat,
+            });
+            return {
+              audioData: result.audioData,
+              providerUsed: "moss-nano" as TTSProvider,
+              mimeType: result.mimeType,
+              outputFormat: result.outputFormat,
+            };
+          } catch (error) {
+            const message = getErrorMessage(error);
+            log.error(`MOSS TTS generate failed: ${message}`);
+            throw APIError.unavailable(`MOSS TTS generation failed: ${message}`);
+          }
+        }
+
         try {
           return await withRunpodSlot(() => runpodTtsRequest(req));
         } catch (error) {
@@ -1807,6 +1832,22 @@ async function generateSpeechBatchInternal(req: GenerateSpeechBatchRequest): Pro
       const message = getErrorMessage(error);
       log.error(`Thorsten CosyVoice batch failed: ${message}`);
       throw APIError.unavailable(`Thorsten CosyVoice batch generation failed: ${message}`);
+    }
+  }
+
+  // MOSS-TTS-Nano provider: self-hosted CPU service, the service splits sentences itself.
+  if (req.provider === "moss-nano") {
+    try {
+      const results = await mossGenerateSpeechBatch(
+        req.items.map((item) => ({ id: item.id, text: item.text })),
+        req.outputFormat,
+        req.speaker,
+      );
+      return { results };
+    } catch (error) {
+      const message = getErrorMessage(error);
+      log.error(`MOSS TTS batch failed: ${message}`);
+      throw APIError.unavailable(`MOSS TTS batch generation failed: ${message}`);
     }
   }
 
@@ -2243,6 +2284,7 @@ export const getAvailableTtsProviders =api<void, { providers: Array<{ id: TTSPro
           name: "Thorsten-Voice (CosyVoice3)",
           configured: isThorstenCosyVoiceConfigured(),
         },
+        { id: "moss-nano" as TTSProvider, name: "MOSS-TTS-Nano", configured: isMossConfigured() },
       ],
     };
   }

@@ -14,6 +14,7 @@ import {
   buildTTSChunkCacheKey,
   buildTTSRequestCacheSuffix,
   buildTTSRequestOptions,
+  usesSentenceLevelChunks,
 } from '../types/ttsVoice';
 
 const PLAYLIST_STORAGE_KEY = 'talea.audio.playlist.v1';
@@ -1216,7 +1217,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const splitNarration =
         voiceSettings?.provider === 'xai'
           ? splitTextIntoChunksForXai
-          : voiceSettings?.provider?.startsWith('thorsten')
+          : usesSentenceLevelChunks(voiceSettings?.provider)
             ? splitTextIntoChunksForThorsten
             : splitTextIntoChunks;
 
@@ -1327,7 +1328,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const chunks =
         voiceSettings?.provider === 'xai'
           ? splitTextIntoChunksForXai(normalizedText)
-          : voiceSettings?.provider?.startsWith('thorsten')
+          : usesSentenceLevelChunks(voiceSettings?.provider)
             ? splitTextIntoChunksForThorsten(normalizedText)
             : splitTextIntoChunks(normalizedText);
       if (chunks.length === 0) return;

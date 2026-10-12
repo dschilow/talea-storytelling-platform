@@ -1,0 +1,46 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_HOME=/opt/hf-cache \
+    CUDA_VISIBLE_DEVICES=""
+
+# ffmpeg: MP3 encoding + loudness. libsndfile1: wav I/O. git: pip install of the pinned MOSS-TTS-Nano commit.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libsndfile1 \
+    git \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# CPU-only torch/torchaudio: upstream onnx_tts_runtime imports them for resampling the reference clip.
+RUN pip install torch==2.7.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cpu
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# MOSS-TTS-Nano (Apache 2.0) at a pinned commit. --no-deps: its pyproject pins transformers and
+# WeTextProcessing, which the ONNX path does not use (text preparation is done in textprep.py).
+RUN pip install --no-deps "git+https://github.com/OpenMOSS/MOSS-TTS-Nano.git@8b7bcc9341b3b4ef3a3a58ba1338a7d85ff133eb"
+
+# Weights before the code, so code changes reuse the cached download layer (~760 MB).
+# Layout is what the upstream manifest expects: the codec lives in a sibling directory.
+RUN python -c "\
+from huggingface_hub import snapshot_download as s; \
+s('OpenMOSS-Team/MOSS-TTS-Nano-100M-ONNX', local_dir='/opt/moss-models/MOSS-TTS-Nano-100M-ONNX', allow_patterns=['*.onnx', '*.data', '*.json', 'tokenizer.model']); \
+s('OpenMOSS-Team/MOSS-Audio-Tokenizer-Nano-ONNX', local_dir='/opt/moss-models/MOSS-Audio-Tokenizer-Nano-ONNX', allow_patterns=['*.onnx', '*.data', '*.json'])"
+
+COPY textprep.py audioprep.py server.py ./
+COPY voices ./voices
+
+# Import loads the model, encodes the reference clips and renders a warm-up sentence once at build time
+RUN python -c "import server; print('model prefetch ok')"
+
+EXPOSE 8080
+
+# One worker: the model is CPU bound and guarded by a lock. Threads let requests queue cheaply.
+# Bind to [::] (dual stack): Railway private networking in this project is IPv6-only,
+# so 0.0.0.0 would make the service unreachable from the backend.
+CMD ["sh", "-c", "exec gunicorn --bind [::]:${PORT:-8080} --timeout 600 --workers 1 --threads 8 server:app"]
