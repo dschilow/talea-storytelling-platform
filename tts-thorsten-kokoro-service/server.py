@@ -2,19 +2,20 @@
 
 Self-hosted German TTS on CPU. Model: https://huggingface.co/Thorsten-Voice/Kokoro
 (fine-tune of Kokoro-82M on the public-domain Thorsten-Voice dataset, Apache 2.0).
-Second voice for comparison (Apache 2.0, same German G2P fork):
-  kerstin   kikiri-tts fine-tune on the CC0 Kerstin dataset (real recordings); her repo ships only raw training
-            checkpoints, converted at image build by convert_stage2.py. Her voicepack on the base Kokoro-82M
-            weights (as her model card shows) has a strong accent: base Kokoro never learned German.
-The kikiri-tts voices martin/victoria (trained on a few hundred synthetic sentences) were tried and dropped:
-they sound accented.
+Other German Kokoro voices were tried on 2026-10-12 and dropped after listening: kikiri-tts martin/victoria
+(synthetic training data) and Kerstin (CC0 dataset) sounded accented or tinny next to Thorsten.
 
 Endpoints
   GET  /health        readiness (200 only once the models are loaded)
   POST /tts           {"text": str, "voice"?: str, "speed"?: float, "format"?: "mp3"|"wav"} -> audio bytes
 
 Tuned for children's stories: slower default speed, one model call per sentence with
-punctuation-dependent pauses, and loudness-normalised output.
+punctuation-dependent pauses, length-compensated tempo and loudness-normalised output.
+
+Tempo compensation: Kokoro speaks long inputs much faster than short ones (measured on a story chapter at speed
+0.85: 3.6 syllables/s for sentences under 60 phonemes, 5.3 for 120+, correlation +0.84), so a story sped up and
+slowed down sentence by sentence. KPipeline accepts speed as a function of the phoneme count; the service scales
+the requested speed by (1 + k*ref) / (1 + k*len): spread 0.77 -> 0.43 syllables/s, correlation +0.84 -> -0.05.
 """
 import logging
 import os
@@ -38,9 +39,18 @@ BASE_REPO_ID = "hexgrad/Kokoro-82M"
 SAMPLE_RATE = 24000
 
 CHECKPOINT = os.environ.get("KOKORO_EPOCH", "5").strip()  # Thorsten only: 1-10, 5 = repo default (most natural)
-DEFAULT_SPEED = env_float("KOKORO_DEFAULT_SPEED", 0.85)  # 1.0 is too hurried for children's stories
+# With tempo compensation 0.95 gives ~4.2 syllables/s on a story chapter (0.85 measured 3.8: too slow per the user,
+# 2026-10-12); without compensation 0.85 used to be the default because 1.0 sounded hurried.
+DEFAULT_SPEED = env_float("KOKORO_DEFAULT_SPEED", 0.95)
 MAX_TEXT_CHARS = int(os.environ.get("MAX_TEXT_CHARS", "6000"))
 GROUP_MAX_CHARS = int(os.environ.get("GROUP_MAX_CHARS", "220"))  # longest text synthesised in one model call
+# Length compensation, fitted on Thorsten (rate ~ 2.95 + 0.0186 * phonemes syllables/s at speed 0.85, k = 0.0063),
+# then tuned down to 0.0048 where the rate no longer depends on length (0.0063 overcompensated: corr -0.25)
+TEMPO_COMPENSATION = os.environ.get("KOKORO_TEMPO_COMPENSATION", "1").strip() != "0"
+TEMPO_SLOPE = env_float("KOKORO_TEMPO_SLOPE", 0.0048)
+TEMPO_REF_PHONEMES = env_float("KOKORO_TEMPO_REF_PHONEMES", 50)  # inputs of this length keep the requested speed
+TEMPO_MIN_FACTOR = env_float("KOKORO_TEMPO_MIN_FACTOR", 0.72)  # never stretch a long sentence further than this
+TEMPO_MAX_FACTOR = env_float("KOKORO_TEMPO_MAX_FACTOR", 1.2)
 PAUSES = pauses_from_env()
 MAX_QUEUE = int(os.environ.get("MAX_QUEUE", "24"))
 API_KEY = os.environ.get("API_KEY", "").strip()
@@ -71,10 +81,6 @@ def _checkpoint_files(epoch: str):
 
 VOICE_SOURCES: Dict[str, VoiceSource] = {
     "thorsten": VoiceSource(REPO_ID, "config.json", *_checkpoint_files(CHECKPOINT)),
-    "kerstin": VoiceSource(
-        "cryptomilk/kokoro-german-kerstin", None,
-        os.environ.get("KERSTIN_MODEL_PATH", "/opt/kokoro-voices/kerstin.pth"), "voices/df_kerstin.pt",
-    ),
 }
 DEFAULT_VOICE = "thorsten"
 ENABLED_VOICES = [
@@ -117,10 +123,22 @@ def _load_pipeline(source: VoiceSource):
 # -----------------------------------------------------------------------------
 # Synthesis
 # -----------------------------------------------------------------------------
+def _tempo(speed: float):
+    """Kokoro calls this with the phoneme count of each model input (KPipeline.infer)."""
+    if not TEMPO_COMPENSATION:
+        return speed
+
+    def for_length(phonemes: int) -> float:
+        factor = (1 + TEMPO_SLOPE * TEMPO_REF_PHONEMES) / (1 + TEMPO_SLOPE * phonemes)
+        return speed * min(TEMPO_MAX_FACTOR, max(TEMPO_MIN_FACTOR, factor))
+
+    return for_length
+
+
 def _render(voice_name: str, text: str, speed: float) -> Optional[np.ndarray]:
     pipeline, voicepack = _voices[voice_name]
     chunks = []
-    for _, _, audio in pipeline(text, voice=voicepack, speed=speed):
+    for _, _, audio in pipeline(text, voice=voicepack, speed=_tempo(speed)):
         if audio is None:
             continue
         chunks.append(audio.detach().cpu().numpy() if hasattr(audio, "detach") else np.asarray(audio))

@@ -33,6 +33,7 @@ import {
   type AutomationJobView,
 } from "./audio-automation-core";
 import { AUTOMATION_MIN_KEY_LENGTH as MIN_KEY_LENGTH, automationKeyMatches } from "./audio-automation-input";
+import { loadShowcaseCovers, type ShowcaseCover } from "./showcase-covers";
 
 const FAILED_AUTH_DELAY_MS = 1000;
 
@@ -141,6 +142,21 @@ export const automationPublish = api<PublishRequest, PublishResponse>(
     const result = await setAutomationEpisodePublic(req.id, req.isPublic === true);
     log.info(`[AudioAutomation] ${req.id} public=${result.isPublic}`);
     return result;
+  },
+);
+
+interface ShowcaseCoversResponse {
+  audioDokus: ShowcaseCover[];
+  dokus: ShowcaseCover[];
+  stories: ShowcaseCover[];
+}
+
+// Covers that may appear in advertising (promo video cover wall); see showcase-covers.ts.
+export const automationShowcaseCovers = api<AuthedRequest, ShowcaseCoversResponse>(
+  { expose: true, method: "GET", path: "/automation/showcase/covers", auth: false },
+  async (req) => {
+    await assertAutomationKey(req.key);
+    return await loadShowcaseCovers();
   },
 );
 

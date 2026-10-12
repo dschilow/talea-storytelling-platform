@@ -14,9 +14,13 @@ export function usesSentenceLevelChunks(provider?: TTSProviderType): boolean {
   return provider === 'thorsten' || provider === 'thorsten-cosyvoice' || provider === 'moss-nano';
 }
 
-/** Cloud models that keep voice and pacing steadier when a whole chapter goes out in one request. */
+/**
+ * xAI keeps voice and pacing steadier when a whole chapter goes out in one request. Not OpenRouter/Gemini:
+ * measured 2026-10-12, Gemini speeds up within a 1,800-char chapter (4.3 -> 5.6 syllables/s) but stays
+ * steady in ~600-char pieces, so it gets the default chunks.
+ */
 export function usesChapterChunks(provider?: TTSProviderType): boolean {
-  return provider === 'xai' || provider === 'openrouter';
+  return provider === 'xai';
 }
 
 export interface TTSVoiceSettings {

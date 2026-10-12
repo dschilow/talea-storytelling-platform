@@ -17,10 +17,7 @@ export function VoiceSettingsPanel() {
   const voices = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['tts-voices', provider], queryFn: async () => {
       if (provider === 'thorsten-cosyvoice') return [{ id: 'thorsten', name: 'Thorsten' }];
-      if (provider === 'thorsten') return [
-        { id: 'thorsten', name: 'Thorsten' },
-        { id: 'kerstin', name: 'Kerstin' },
-      ];
+      if (provider === 'thorsten') return [{ id: 'thorsten', name: 'Thorsten' }];
       if (provider === 'openrouter') return [
         { id: 'gemini-lite:sulafat', name: 'Gemini Lite - Sulafat' },
         { id: 'gemini-lite:achird', name: 'Gemini Lite - Achird' },

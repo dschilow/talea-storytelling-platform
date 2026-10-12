@@ -13,7 +13,6 @@ const THORSTEN_MAX_TEXT_CHARS = 6_000;
 
 export const THORSTEN_VOICES = [
   { id: "thorsten", name: "Thorsten", description: "Hochdeutsch, ruhig und klar" },
-  { id: "kerstin", name: "Kerstin", description: "Weiblich, Hochdeutsch (Test)" },
 ] as const;
 
 export const THORSTEN_DEFAULT_VOICE = "thorsten";

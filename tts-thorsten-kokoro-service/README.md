@@ -9,33 +9,35 @@ Das Backend spricht ihn ueber `provider: "thorsten"` an ([backend/tts/thorsten-t
 | Endpoint | Zweck |
 |---|---|
 | `GET /health` | 200 erst wenn das Modell geladen ist |
-| `POST /tts` | `{"text": "...", "voice": "thorsten", "speed": 0.85, "format": "mp3" \| "wav"}` -> Audio-Bytes |
+| `POST /tts` | `{"text": "...", "voice": "thorsten", "speed": 0.95, "format": "mp3" \| "wav"}` -> Audio-Bytes |
 
 ## Stimmen
 
-Kokoro klont keine Stimmen aus einem Hoerbeispiel: jede Stimme ist ein eigenes Feintuning bzw. ein Voicepack.
-Alle laufen mit derselben deutschen G2P (semidark-Forks), Auswahl per `voice`:
+Nur `thorsten`. Kokoro klont keine Stimmen aus einem Hoerbeispiel: jede Stimme ist ein eigenes Feintuning.
+Am 2026-10-12 getestet und nach dem Hoertest wieder entfernt: kikiri-tts `martin`/`victoria` (synthetische
+Trainingsdaten, Akzent) und `kerstin` (CC0-Datensatz, klang blechern; Achtung: ihre Modellkarte zeigt nur das
+Voicepack auf den Basisgewichten von Kokoro-82M, die kein Deutsch koennen; ihr eigentliches Modell liegt als roher
+Stage-2-Checkpoint im Repo und muss mit kikiri-tts `convert_checkpoint` umgewandelt werden).
 
-| `voice` | Quelle | Trainingsdaten | Whisper-Test* |
-|---|---|---|---|
-| `thorsten` (Standard) | [Thorsten-Voice/Kokoro](https://huggingface.co/Thorsten-Voice/Kokoro) | echte Aufnahmen, Thorsten-Datensatz (CC0) | 1,00 |
-| `kerstin` | [cryptomilk/kokoro-german-kerstin](https://huggingface.co/cryptomilk/kokoro-german-kerstin), Stage-2-Checkpoint | echte Aufnahmen, [Kerstin-Datensatz](https://github.com/rhasspy/dataset-voice-kerstin) (CC0) | 0,99 |
+## Tempo-Ausgleich
 
-\* Wortaehnlichkeit faster-whisper `small` gegen den Solltext (3 Saetze Kindergeschichte), 2026-10-12.
-Beide Modelle Apache 2.0. `KOKORO_VOICES` (z. B. `thorsten`) begrenzt, welche geladen werden (je ca. 0,4 GB RAM).
+Kokoro spricht lange Eingaben deutlich schneller als kurze. Gemessen an einem Kapitel (Tempo 0,85): unter 60 Phonemen
+3,6 Silben/s, ab 120 Phonemen 5,3 Silben/s (Korrelation +0,84) - eine Geschichte wurde dadurch satzweise schneller
+und langsamer. `KPipeline` nimmt das Tempo auch als Funktion der Phonemzahl; der Service skaliert das angefragte Tempo
+mit `(1 + k*ref) / (1 + k*len)` (k = 0,0048, ref = 50 Phoneme, Faktor begrenzt auf 0,72-1,2). Ergebnis: Streuung
+0,77 -> 0,43 Silben/s, kurze Saetze 3,8 / lange 3,6 Silben/s (Korrelation -0,05 statt +0,84). Abschalten mit `KOKORO_TEMPO_COMPENSATION=0`;
+Stellschrauben `KOKORO_TEMPO_SLOPE`, `KOKORO_TEMPO_REF_PHONEMES`, `KOKORO_TEMPO_MIN_FACTOR`, `KOKORO_TEMPO_MAX_FACTOR`.
 
-Kerstin-Falle: Ihre Modellkarte zeigt nur das Voicepack auf den Basisgewichten von Kokoro-82M. Das Basismodell kann
-kein Deutsch, das klingt nach starkem Akzent (Whisper 0,90). Ihr eigentliches Modell liegt nur als roher
-Trainings-Checkpoint im Repo; [convert_stage2.py](convert_stage2.py) wandelt ihn beim Image-Build um (Verfahren aus
-kikiri-tts `scripts/test_inference.py`). Die kikiri-Stimmen `martin`/`victoria` (wenige hundert synthetische Saetze,
-trainiert vor den deutschen G2P-Overrides) klangen ebenfalls nach Akzent und wurden wieder entfernt.
+Grenze: Ausdruck (Emotion, Maerchen-Ton) kann dieses Modell nicht. Thorsten-Kokoro ist auf neutral vorgelesene
+Einzelsaetze trainiert und klingt deshalb eher nach Ansage.
 
 Die Ausgabe ist auf Kindergeschichten abgestimmt ([textprep.py](textprep.py), [audioprep.py](audioprep.py)).
 Beide Module nutzt auch der CosyVoice3-Worker ([runpod/thorsten-cosyvoice3](../runpod/thorsten-cosyvoice3/README.md)):
 
 - Text: Anfuehrungszeichen, Gedankenstriche, Klammern, Abkuerzungen (z. B., Dr., usw.), Uhrzeiten, Einheiten
   und Zahlen werden ausgeschrieben; Markdown, Emojis, xAI-Tags und Mehrfach-Satzzeichen fallen weg.
-- Tempo: Default-Speed `0.85` (1.0 klang gehetzt, ca. 190 statt ca. 125 Woerter/min).
+- Tempo: Default-Speed `0.95` mit Tempo-Ausgleich, ca. 4,2 Silben/s im Kapitel (0,85 mit Ausgleich = 3,8 war dem
+  User zu langsam; ohne Ausgleich klang 1.0 gehetzt).
 - Rhythmus: ein Modellaufruf pro Satz, Stille des Modells wird abgeschnitten und durch feste Pausen je
   Satzende ersetzt (Punkt, Frage, Ausruf, Auslassungspunkte, Absatz, Chunk-Ende).
 - Klang: Hochpass 60 Hz und zweistufige EBU-R128-Normalisierung (lineare Verstaerkung) auf -16 LUFS / -1.5 dBTP,
@@ -45,7 +47,7 @@ Beide Module nutzt auch der CosyVoice3-Worker ([runpod/thorsten-cosyvoice3](../r
 
 - `API_KEY` (optional): wenn gesetzt, verlangt `/tts` `Authorization: Bearer <key>`
 - `KOKORO_EPOCH` (1-10, default `5`): Trainings-Checkpoint
-- `KOKORO_DEFAULT_SPEED` (default `0.85`)
+- `KOKORO_DEFAULT_SPEED` (default `0.95`)
 - `KOKORO_CPU_THREADS` (default: min(8, CPU-Kerne))
 - `GROUP_MAX_CHARS` (default `220`): laengster Text pro Modellaufruf, laengere Saetze werden an Kommas geteilt
 - Pausen in Sekunden: `SENTENCE_PAUSE_S` (0.45), `QUESTION_PAUSE_S` (0.55), `EXCLAMATION_PAUSE_S` (0.5),
