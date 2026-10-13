@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 import taleaLogo from "@/img/talea_logo.png";
+import { TaleaWordmark } from "@/components/talea/TaleaWordmark";
 import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
 import { WizardImage } from "@/components/avatar-form/WizardImage";
 import { useWizardAssets } from "@/hooks/useWizardAssets";
@@ -201,12 +202,7 @@ const Sidebar: React.FC = () => {
               transition={{ duration: 0.15 }}
               className="overflow-hidden pr-1"
             >
-              <p
-                className="text-[1.25rem] font-bold leading-tight tracking-tight text-[var(--talea-text-primary)]"
-                style={{ fontFamily: 'var(--talea-font-display)' }}
-              >
-                Talea
-              </p>
+              <TaleaWordmark className="h-[1.15rem] text-[var(--talea-text-primary)]" />
             </motion.div>
           </button>
 

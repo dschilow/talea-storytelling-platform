@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { SignIn, SignUp } from "@clerk/clerk-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Sparkles } from "lucide-react";
+import { TaleaWordmark } from "@/components/talea/TaleaWordmark";
 import "./AuthScreen.css";
 
 /**
@@ -154,9 +155,10 @@ const AuthScreen: React.FC = () => {
 
       <div className="auth-card">
         <div className="auth-brand">
-          <img src="/talea_logo.png?v=20261012" alt="Talea" />
+          <img src="/talea_logo.png?v=20261013" alt="" />
           <span className="auth-brand-name">
-            Talea<small>Storytelling Platform</small>
+            <TaleaWordmark className="auth-brand-wordmark" title="Talea" />
+            <small>Storytelling Platform</small>
           </span>
         </div>
 
