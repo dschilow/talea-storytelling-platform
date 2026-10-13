@@ -33,7 +33,7 @@ import {
   type AutomationJobView,
 } from "./audio-automation-core";
 import { AUTOMATION_MIN_KEY_LENGTH as MIN_KEY_LENGTH, automationKeyMatches } from "./audio-automation-input";
-import { loadShowcaseCovers, type ShowcaseCover } from "./showcase-covers";
+import { loadShowcaseCovers, type ShowcaseCharacter, type ShowcaseCover } from "./showcase-covers";
 
 const FAILED_AUTH_DELAY_MS = 1000;
 
@@ -149,9 +149,11 @@ interface ShowcaseCoversResponse {
   audioDokus: ShowcaseCover[];
   dokus: ShowcaseCover[];
   stories: ShowcaseCover[];
+  // declared here as well: Encore drops response fields the type does not name
+  characters: ShowcaseCharacter[];
 }
 
-// Covers that may appear in advertising (promo video cover wall); see showcase-covers.ts.
+// Covers and story characters that may appear in advertising (promo video); see showcase-covers.ts.
 export const automationShowcaseCovers = api<AuthedRequest, ShowcaseCoversResponse>(
   { expose: true, method: "GET", path: "/automation/showcase/covers", auth: false },
   async (req) => {

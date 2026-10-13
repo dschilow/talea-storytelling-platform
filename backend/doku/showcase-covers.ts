@@ -28,10 +28,28 @@ export interface ShowcaseCover {
   createdAt: Date;
 }
 
+/** A character from the shared story character pool (system-made, never a child's avatar). */
+export interface ShowcaseCharacter {
+  id: string;
+  name: string;
+  role: string;
+  archetype: string;
+  imageUrl: string;
+}
+
 export interface ShowcaseCovers {
   audioDokus: ShowcaseCover[];
   dokus: ShowcaseCover[];
   stories: ShowcaseCover[];
+  characters: ShowcaseCharacter[];
+}
+
+interface CharacterRow {
+  id: string;
+  name: string;
+  role: string;
+  archetype: string;
+  image_url: string;
 }
 
 interface CoverRow {
@@ -94,9 +112,25 @@ export async function loadShowcaseCovers(): Promise<ShowcaseCovers> {
         LIMIT ${MAX_PER_KIND}
       `;
 
+  // Every active pool character with a portrait (the cast of the stories, shown as an ensemble in the promo)
+  const characterRows = await storyDB.queryAll<CharacterRow>`
+    SELECT id, name, role, archetype, image_url
+    FROM character_pool
+    WHERE is_active = true AND image_url IS NOT NULL AND image_url <> ''
+    ORDER BY total_usage_count DESC, name ASC
+    LIMIT ${MAX_PER_KIND}
+  `;
+  const characters: ShowcaseCharacter[] = [];
+  for (const row of characterRows) {
+    const imageUrl = await resolveImageUrlForClient(row.image_url, COVER_URL_TTL_SECONDS);
+    if (!imageUrl) continue;
+    characters.push({ id: row.id, name: row.name, role: row.role, archetype: row.archetype, imageUrl });
+  }
+
   return {
     audioDokus: await toCovers(audioDokus),
     dokus: await toCovers(dokus),
     stories: await toCovers(stories),
+    characters,
   };
 }
