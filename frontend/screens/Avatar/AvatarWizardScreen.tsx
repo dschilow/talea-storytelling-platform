@@ -121,7 +121,7 @@ const AvatarWizardScreen: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const taviPrefillAppliedRef = React.useRef(false);
   const latestPromptSignatureRef = React.useRef('');
-  const generatedPreviewSignatureRef = React.useRef<string | undefined>();
+  const generatedPreviewSignatureRef = React.useRef<string | undefined>(undefined);
   const visualPromptSignature = useMemo(
     () => getAvatarVisualPromptSignature(formData, referenceImageUrl),
     [formData, referenceImageUrl]
@@ -169,11 +169,12 @@ const AvatarWizardScreen: React.FC = () => {
     if (!effectiveChildMode || !targetProfile || targetProfile.age == null) {
       return;
     }
+    const profileAge = targetProfile.age;
 
     setFormData((prev) => ({
       ...prev,
       name: targetProfile.name,
-      age: targetProfile.age,
+      age: profileAge,
       characterType: 'human',
       customCharacterType: undefined,
       skinTone: prev.skinTone || 'medium',
@@ -458,7 +459,7 @@ const AvatarWizardScreen: React.FC = () => {
         >
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className={taleaChipClass}>Avatar Wizard</span>
+              <span className={taleaChipClass}>{t('avatar.wizard.createTitle', 'Avatar erstellen')}</span>
               <span className="inline-flex items-center rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-3 py-1 text-[11px] font-medium text-[var(--talea-text-secondary)]">
                 {t('avatar.wizard.stepOf', 'Schritt {{current}} von {{total}}', {
                   current: activeStep + 1,
@@ -467,7 +468,7 @@ const AvatarWizardScreen: React.FC = () => {
               </span>
             </div>
             <h1
-              className="mt-3 text-[1.85rem] leading-[0.98] text-[var(--talea-text-primary)] sm:text-[2.25rem]"
+              className="mt-3 text-[1.85rem] font-semibold leading-tight text-[var(--talea-text-primary)] sm:text-[2.25rem]"
               style={{ fontFamily: headingFont }}
             >
               {effectiveChildMode

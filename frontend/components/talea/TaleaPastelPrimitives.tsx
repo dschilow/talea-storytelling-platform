@@ -1,5 +1,5 @@
 import React from "react";
-import { motion, useReducedMotion, type MotionProps } from "framer-motion";
+import { motion, useReducedMotion, type HTMLMotionProps, type MotionProps } from "framer-motion";
 import { Check, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -28,7 +28,7 @@ export const taleaMetricCardClass =
 
 // iOS search/text field: filled, borderless, focus ring only while typing.
 export const taleaInputClass =
-  "h-11 w-full rounded-xl border border-transparent bg-[var(--talea-surface-inset)] px-4 text-[15px] text-[var(--talea-text-primary)] outline-none transition-colors placeholder:text-[var(--talea-text-tertiary)] focus:border-[var(--primary)]/40 focus:ring-4 focus:ring-[var(--primary)]/12";
+  "h-11 w-full rounded-xl border border-transparent bg-[var(--talea-surface-inset)] px-4 text-[15px] text-[var(--talea-text-primary)] outline-none transition-colors placeholder:text-[var(--talea-text-tertiary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]";
 
 // Section label ("eyebrow"): plain text like an iOS section header, not a pill.
 export const taleaChipClass =
@@ -45,7 +45,7 @@ export const taleaChipClass =
 export function taleaSelectableClass(selected: boolean, disabled = false): string {
   return cn(
     "relative rounded-2xl border text-left transition-colors duration-200",
-    "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/18",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--talea-surface-primary)]",
     selected
       ? "border-[var(--primary)] bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] shadow-[0_8px_22px_color-mix(in_srgb,var(--primary)_16%,transparent)]"
       : "border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] hover:border-[var(--talea-border-strong)] hover:bg-[var(--talea-surface-inset)]",
@@ -77,7 +77,7 @@ export const TaleaSelectedBadge: React.FC<{ className?: string; label?: string }
       exit={reduceMotion ? undefined : { scale: 0 }}
       transition={{ type: "spring", stiffness: 520, damping: 30 }}
       className={cn(
-        "absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)] text-white shadow-sm",
+        "absolute right-2 top-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm",
         className
       )}
       title={label}
@@ -90,7 +90,7 @@ export const TaleaSelectedBadge: React.FC<{ className?: string; label?: string }
 
 const enterEase = [0.25, 0.1, 0.25, 1] as const;
 
-export function fadeUp(reduceMotion: boolean, delay = 0): MotionProps {
+export function fadeUp(reduceMotion: boolean | null, delay = 0): MotionProps {
   if (reduceMotion) {
     return {
       initial: { opacity: 1 },
@@ -116,7 +116,8 @@ export const TaleaPageBackground: React.FC<{ isDark: boolean }> = () => (
   <div className="pointer-events-none fixed inset-0 -z-10 bg-[var(--talea-page-solid)]" aria-hidden />
 );
 
-type TaleaSurfaceProps = React.HTMLAttributes<HTMLDivElement> & {
+type TaleaSurfaceProps = Omit<HTMLMotionProps<"div">, "children"> & {
+  children?: React.ReactNode;
   delay?: number;
   hoverable?: boolean;
 };
@@ -134,8 +135,8 @@ export const TaleaSurface: React.FC<TaleaSurfaceProps> = ({
     <motion.div
       {...fadeUp(reduceMotion, delay)}
       whileHover={
-        hoverable && !reduceMotion
-          ? { y: -4, scale: 1.005, transition: { duration: 0.2, ease: "easeOut" } }
+        hoverable && props.onClick && !reduceMotion
+          ? { y: -3, transition: { duration: 0.2, ease: "easeOut" } }
           : undefined
       }
       className={cn(taleaSurfaceClass, className)}
@@ -146,7 +147,8 @@ export const TaleaSurface: React.FC<TaleaSurfaceProps> = ({
   );
 };
 
-type TaleaActionButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+type TaleaActionButtonProps = Omit<HTMLMotionProps<"button">, "children"> & {
+  children?: React.ReactNode;
   variant?: "primary" | "secondary" | "ghost";
   icon?: React.ReactNode;
 };
@@ -163,17 +165,17 @@ export const TaleaActionButton: React.FC<TaleaActionButtonProps> = ({
 
   const variantClassName =
     variant === "primary"
-      ? "border-transparent bg-[var(--primary)] text-[var(--primary-foreground)] hover:brightness-[1.06] active:brightness-95"
+      ? "border-transparent [background:var(--talea-gradient-brand)] text-[var(--primary-foreground)] hover:brightness-[1.04] active:brightness-95"
       : variant === "secondary"
         ? "border-transparent bg-[var(--talea-surface-inset)] text-[var(--primary)] hover:brightness-[0.97] dark:hover:brightness-110"
         : "border-transparent bg-transparent text-[var(--primary)] shadow-none hover:bg-[var(--talea-surface-inset)]";
 
   return (
     <motion.button
-      whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+      whileTap={reduceMotion || props.disabled ? undefined : { scale: 0.98 }}
       type={type}
       className={cn(
-        "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-[15px] font-semibold transition-[filter,background-color] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/20 disabled:cursor-not-allowed disabled:opacity-45",
+        "inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-[15px] font-semibold transition-[filter,background-color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--talea-surface-primary)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45",
         variantClassName,
         className
       )}
@@ -206,7 +208,7 @@ export const TaleaSectionHeading: React.FC<{
         <button
           type="button"
           onClick={onAction}
-          className="shrink-0 rounded-lg py-1 text-[15px] font-semibold text-[var(--primary)] hover:opacity-75"
+          className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-1 text-[15px] font-semibold text-[var(--primary)] hover:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
         >
           {actionLabel}
         </button>

@@ -67,7 +67,7 @@ const Card: React.FC<CardProps> = ({
   const sharedClassName = cn(
     "group before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.72),transparent_40%),linear-gradient(180deg,rgba(255,255,255,0.18),transparent_26%)] before:opacity-100 before:transition-opacity after:pointer-events-none after:absolute after:left-5 after:right-5 after:top-0 after:h-px after:bg-white/70 after:content-[''] dark:before:bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.09),transparent_38%),linear-gradient(180deg,rgba(255,255,255,0.05),transparent_24%)] dark:after:bg-white/10",
     onPress &&
-      "cursor-pointer touch-manipulation hover:-translate-y-1 hover:shadow-[var(--talea-shadow-strong)] active:translate-y-0 active:scale-[0.992] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f2e7fb] dark:focus-visible:ring-[#243753]",
+      "cursor-pointer touch-manipulation hover:-translate-y-1 hover:shadow-[var(--talea-shadow-strong)] active:translate-y-0 active:scale-[0.992] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--talea-surface-primary)]",
     className
   );
 

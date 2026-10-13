@@ -75,7 +75,7 @@ export const ModernBadge: React.FC<ModernBadgeProps> = ({
     borderRadius: '12px',
     fontSize: '12px',
     fontWeight: '600',
-    fontFamily: '"Nunito", sans-serif',
+    fontFamily: 'var(--talea-font-ui)',
   };
 
   return (

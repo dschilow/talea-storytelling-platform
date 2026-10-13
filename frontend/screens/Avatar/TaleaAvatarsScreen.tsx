@@ -56,7 +56,7 @@ function getPalette(_isDark: boolean): Palette {
     text: "var(--talea-text-primary)",
     textMuted: "var(--talea-text-secondary)",
     soft: "var(--talea-surface-inset)",
-    action: "linear-gradient(135deg,var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 72%, white) 100%)",
+    action: "var(--talea-gradient-brand)",
     actionText: "var(--primary-foreground)",
   };
 }

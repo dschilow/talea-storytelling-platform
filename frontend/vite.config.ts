@@ -38,18 +38,29 @@ export default defineConfig({
     },
   },
   plugins: [
+    {
+      name: 'talea-dev-runtime-config',
+      // Production generates this file in docker-entrypoint.sh. A missing
+      // classic script falls back to Vite's module HTML during development.
+      configureServer(server) {
+        server.middlewares.use('/config.js', (_request, response) => {
+          response.setHeader('Content-Type', 'application/javascript');
+          response.end('window.ENV = window.ENV || {};');
+        });
+      },
+    },
     tailwindcss(),
     react(),
     VitePWA({
       injectRegister: false,
       registerType: 'autoUpdate',
-      includeAssets: ['talea_logo.png', 'favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'tavi.png', 'loading-animation.lottie'],
+      includeAssets: ['talea_logo.png', 'favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'brand/*.svg', 'fonts/*.ttf', 'tavi.png', 'loading-animation.lottie'],
       manifest: {
-        name: 'Talea - KI-Storytelling',
+        name: 'Talea – Deine Geschichtenwelt',
         short_name: 'Talea',
-        description: 'KI-gestuetzte Storytelling-Plattform fuer Kinder',
-        theme_color: '#f5f2ed',
-        background_color: '#f5f2ed',
+        description: 'Persönliche Geschichten und Wissenswelten für Kinder zum Lesen und Hören',
+        theme_color: '#FFF7EC',
+        background_color: '#FFF7EC',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
@@ -86,10 +97,9 @@ export default defineConfig({
           'pwa-maskable-512x512.png',
           'talea_logo.png',
           'loading-animation.lottie',
-          // Bundled chrome image (imported by the sidebar). The other hashed
-          // images in assets/ are 1 MB+ Lernpfad maps for an online-only screen
-          // and stay runtime-cached.
-          'assets/talea_logo-*.png',
+          // Small brand vectors and the display face remain available offline.
+          'brand/*.svg',
+          'fonts/*.ttf',
         ],
         globIgnores: [
           // CRITICAL: config.js is generated dynamically at container startup

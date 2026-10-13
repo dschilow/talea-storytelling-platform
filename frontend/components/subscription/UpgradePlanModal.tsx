@@ -1,5 +1,5 @@
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Crown, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -17,6 +17,7 @@ export default function UpgradePlanModal({
   onClose,
 }: UpgradePlanModalProps) {
   const navigate = useNavigate();
+  const reduceMotion = useReducedMotion();
 
   const openBilling = () => {
     onClose();
@@ -35,47 +36,49 @@ export default function UpgradePlanModal({
             onClick={onClose}
           />
           <motion.div
-            className="fixed inset-x-3 top-1/2 z-[170] mx-auto w-full max-w-md -translate-y-1/2 rounded-3xl border border-[var(--talea-border-soft)] bg-[#fff8ef] p-5 shadow-[0_24px_48px_rgba(56,42,28,0.25)] dark:border-[#3f556f] dark:bg-[#152233]"
-            initial={{ opacity: 0, scale: 0.96, y: 16 }}
+            className="fixed inset-x-3 top-1/2 z-[170] mx-auto max-w-md -translate-y-1/2 rounded-3xl border border-[var(--talea-border-soft)] bg-[var(--talea-surface-primary)] p-5 shadow-[var(--talea-shadow-strong)]"
+            initial={reduceMotion ? false : { opacity: 0, scale: 0.98, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.97, y: 10 }}
-            transition={{ type: "spring", stiffness: 340, damping: 28 }}
+            exit={reduceMotion ? undefined : { opacity: 0, scale: 0.98, y: 4 }}
+            transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 340, damping: 28 }}
             role="dialog"
             aria-modal="true"
+            aria-labelledby="talea-upgrade-title"
           >
             <button
               type="button"
               onClick={onClose}
-              className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--talea-border-soft)] bg-white text-[#4a3d31] dark:border-[#4d6682] dark:bg-[#1c2c42] dark:text-[#dbe9fa]"
+              className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--talea-border-soft)] bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
               aria-label="Schließen"
             >
               <X className="h-4 w-4" />
             </button>
 
-            <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[var(--primary)] via-[var(--talea-border-light)] to-[var(--talea-border-soft)] text-[#2f3f55]">
+            <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)]">
               <Crown className="h-6 w-6" />
             </div>
 
             <h3
-              className="text-3xl leading-none text-[#1f2f44] dark:text-[#eaf2ff]"
+              id="talea-upgrade-title"
+              className="pr-8 text-3xl leading-tight text-[var(--talea-text-primary)]"
               style={{ fontFamily: 'var(--talea-font-display)' }}
             >
               {title}
             </h3>
-            <p className="mt-2 text-sm text-[#4d5f73] dark:text-[#9eb2cc]">{message}</p>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--talea-text-secondary)]">{message}</p>
 
             <div className="mt-5 flex items-center gap-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex flex-1 items-center justify-center rounded-xl border border-[var(--talea-border-soft)] bg-white px-4 py-2.5 text-sm font-semibold text-[#2d3d52] dark:border-[#4d6682] dark:bg-[#1c2c42] dark:text-[#dbe9fa]"
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-2xl border border-[var(--talea-border-soft)] bg-[var(--talea-surface-inset)] px-4 py-2.5 text-sm font-semibold text-[var(--talea-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
               >
                 Später
               </button>
               <button
                 type="button"
                 onClick={openBilling}
-                className="inline-flex flex-1 items-center justify-center rounded-xl bg-gradient-to-r from-[var(--primary)] via-[var(--talea-border-light)] to-[#d5e3cf] px-4 py-2.5 text-sm font-bold text-[#203048]"
+                className="inline-flex min-h-11 flex-1 items-center justify-center rounded-2xl [background:var(--talea-gradient-brand)] px-4 py-2.5 text-sm font-semibold text-[var(--primary-foreground)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
               >
                 Plan wechseln
               </button>

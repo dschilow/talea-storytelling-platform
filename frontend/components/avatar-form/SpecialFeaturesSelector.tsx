@@ -76,7 +76,7 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => toggleFeature(featureId)}
-                  className="flex items-center gap-1.5 rounded-full bg-[var(--primary)] px-3 py-1.5 text-sm font-medium text-white shadow-md transition-colors hover:bg-[var(--primary)]/80"
+                  className="flex items-center gap-1.5 rounded-full bg-[var(--primary)] px-3 py-1.5 text-sm font-medium text-[var(--primary-foreground)] shadow-md transition-colors hover:bg-[var(--primary)]/80"
                 >
                   <span>{feature.icon}</span>
                   <span>{feature.labelDe}</span>

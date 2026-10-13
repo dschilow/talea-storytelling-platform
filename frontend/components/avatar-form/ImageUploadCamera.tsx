@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Upload, Camera, X, Image as ImageIcon } from 'lucide-react';
 
 interface ImageUploadCameraProps {
@@ -79,6 +79,8 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const reduceMotion = useReducedMotion();
+  const buttonFocusClass = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]';
 
   // Start camera stream
   const startCamera = async () => {
@@ -176,12 +178,10 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
         <div className="flex gap-3">
           <motion.button
             type="button"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={reduceMotion ? undefined : { y: -2 }}
+            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
             onClick={() => fileInputRef.current?.click()}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-colors ${
-              'border border-[var(--talea-border-light)] bg-[var(--primary)]/12 text-[var(--primary)] hover:bg-[var(--primary)]/20'
-            }`}
+            className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-[var(--talea-border-light)] bg-[var(--talea-accent-terracotta-soft)] px-4 py-3 text-[var(--primary)] transition-colors hover:brightness-[1.04] ${buttonFocusClass}`}
           >
             <Upload className="w-5 h-5" />
             <span className="font-medium">Bild hochladen</span>
@@ -189,12 +189,10 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
 
           <motion.button
             type="button"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={reduceMotion ? undefined : { y: -2 }}
+            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
             onClick={startCamera}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-colors ${
-              'border border-[var(--talea-border-light)] bg-[var(--talea-accent-peach)]/30 text-[var(--talea-text-primary)] hover:bg-[var(--talea-accent-peach)]/45'
-            }`}
+            className={`flex min-h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-4 py-3 text-[var(--talea-text-primary)] transition-colors hover:bg-[var(--talea-surface-primary)] ${buttonFocusClass}`}
           >
             <Camera className="w-5 h-5" />
             <span className="font-medium">Foto aufnehmen</span>
@@ -215,9 +213,9 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
       <AnimatePresence>
         {showCamera && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={reduceMotion ? false : { opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
+            exit={reduceMotion ? undefined : { opacity: 0, scale: 0.98 }}
             className="space-y-3"
           >
             <div className="relative rounded-2xl overflow-hidden bg-black">
@@ -233,23 +231,22 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
             <div className="flex gap-3">
               <motion.button
                 type="button"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={reduceMotion ? undefined : { y: -2 }}
+                whileTap={reduceMotion ? undefined : { scale: 0.98 }}
                 onClick={capturePhoto}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl font-semibold"
-                style={{ background: 'linear-gradient(135deg, var(--primary), var(--talea-accent-rose))' }}
+                className={`flex-1 flex min-h-11 items-center justify-center gap-2 rounded-2xl px-4 py-3 font-semibold text-[var(--primary-foreground)] ${buttonFocusClass}`}
+                style={{ background: 'var(--talea-gradient-brand)' }}
               >
                 <Camera className="w-5 h-5" />
                 <span>Foto aufnehmen</span>
               </motion.button>
               <motion.button
                 type="button"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={reduceMotion ? undefined : { y: -2 }}
+                whileTap={reduceMotion ? undefined : { scale: 0.98 }}
                 onClick={stopCamera}
-                className={`px-4 py-3 rounded-xl transition-colors ${
-                  'bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)] hover:bg-[var(--talea-surface-primary)]'
-                }`}
+                aria-label="Kamera schließen"
+                className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)] transition-colors hover:bg-[var(--talea-surface-primary)] ${buttonFocusClass}`}
               >
                 <X className="w-5 h-5" />
               </motion.button>
@@ -262,9 +259,9 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
       <AnimatePresence>
         {currentImage && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={reduceMotion ? false : { opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
+            exit={reduceMotion ? undefined : { opacity: 0, scale: 0.98 }}
             className="relative"
           >
             <div className={`relative rounded-2xl overflow-hidden border-4 border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)]`}>
@@ -276,10 +273,11 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
               <div className="absolute top-2 right-2 flex gap-2">
                 <motion.button
                   type="button"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={reduceMotion ? undefined : { y: -2 }}
+                  whileTap={reduceMotion ? undefined : { scale: 0.98 }}
                   onClick={onClearImage}
-                  className="p-2 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition-colors"
+                  aria-label="Referenzbild entfernen"
+                  className={`inline-flex h-11 w-11 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-md transition-colors hover:bg-destructive/90 ${buttonFocusClass}`}
                 >
                   <X className="w-4 h-4" />
                 </motion.button>
@@ -289,12 +287,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
               'bg-[var(--talea-surface-inset)] text-[var(--talea-text-tertiary)]'
             }`}>
               <ImageIcon className={`w-4 h-4 text-[var(--primary)]`} />
-              <div className="flex-1">
-                <div>Dieses Foto wird als Referenz fuer die AI-Bildgenerierung verwendet</div>
-                <div className={`font-medium mt-0.5 text-[var(--primary)]`}>
-                  Optimiert: max. 1024px, JPEG-Komprimierung
-                </div>
-              </div>
+              <p className="flex-1">Dein Foto dient als Vorlage für deinen Avatar.</p>
             </div>
           </motion.div>
         )}

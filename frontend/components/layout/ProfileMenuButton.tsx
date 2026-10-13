@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Compass, Headphones, Plus, Settings, Star } from "lucide-react";
-import { useTheme } from "@/contexts/ThemeContext";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { type ProfileDetails, useChildProfiles } from "@/contexts/ChildProfilesContext";
 import { useBackend } from "@/hooks/useBackend";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
@@ -30,7 +30,6 @@ type ProfileAvatarBadgeProps = {
   profile: Pick<ProfileDetails, "name" | "avatarColor">;
   imageUrl: string | null | undefined;
   isLoading: boolean;
-  isDark: boolean;
   className: string;
 };
 
@@ -38,7 +37,6 @@ const ProfileAvatarBadge: React.FC<ProfileAvatarBadgeProps> = ({
   profile,
   imageUrl,
   isLoading,
-  isDark,
   className,
 }) => {
   const [imageFailed, setImageFailed] = useState(false);
@@ -50,7 +48,9 @@ const ProfileAvatarBadge: React.FC<ProfileAvatarBadgeProps> = ({
   return (
     <span
       className={`inline-flex shrink-0 items-center justify-center overflow-hidden font-bold text-white ${className}`}
-      style={{ background: profile.avatarColor || (isDark ? "#506d91" : "var(--primary)") }}
+      style={{
+        background: profile.avatarColor || "var(--talea-brand-terracotta)",
+      }}
       aria-hidden="true"
     >
       {imageUrl && !imageFailed ? (
@@ -75,7 +75,7 @@ const ProfileMenuButton: React.FC = () => {
   const [profileImageUrls, setProfileImageUrls] = useState<Record<string, string | null>>({});
   const navigate = useNavigate();
   const backend = useBackend();
-  const { resolvedTheme } = useTheme();
+  const reduceMotion = useReducedMotion();
   const { isLoading, profiles, profileLimit, activeProfileId, activeProfile, setActiveProfileId } =
     useChildProfiles();
   const { playlist, togglePlaylistDrawer } = useAudioPlayer();
@@ -83,18 +83,37 @@ const ProfileMenuButton: React.FC = () => {
 
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const isDark = resolvedTheme === "dark";
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const onPointerDown = (event: MouseEvent) => {
+    const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current) return;
       if (rootRef.current.contains(event.target as Node)) return;
       setOpen(false);
     };
 
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      menuRef.current?.querySelector<HTMLButtonElement>('button[aria-checked="true"], button[role="menuitem"]')?.focus();
+    });
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+    document.addEventListener("keydown", onEscape);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onEscape);
+    };
+  }, [open]);
 
   useEffect(() => {
     let active = true;
@@ -136,40 +155,71 @@ const ProfileMenuButton: React.FC = () => {
   }
 
   const menuRow =
-    "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left text-[15px] transition-colors hover:bg-[var(--talea-surface-inset)]";
+    "flex min-h-11 w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left text-[15px] transition-colors hover:bg-[var(--talea-surface-inset)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]";
   const menuIcon =
     "relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)]";
 
   const go = (action: () => void) => () => {
     setOpen(false);
+    triggerRef.current?.focus();
     action();
   };
 
   // Positioned by AppLayout (top bar), never floating over page content.
   return (
     <div ref={rootRef} className="relative z-[97]">
-      <button
+      <motion.button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((prev) => !prev)}
         aria-label={`${selected.name} — Profil, Einstellungen und Wiedergabeliste`}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-controls={open ? "talea-profile-menu" : undefined}
         title={selected.name}
-        className="relative inline-flex h-10 w-10 items-center justify-center rounded-full ring-1 ring-[var(--talea-border-light)] transition-transform active:scale-95"
+        className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border-2 border-[var(--talea-surface-primary)] ring-1 ring-[var(--talea-border-light)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+        whileTap={reduceMotion ? undefined : { scale: 0.94 }}
+        transition={{ type: "spring", stiffness: 460, damping: 30 }}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            setOpen(true);
+          }
+        }}
       >
         <ProfileAvatarBadge
           profile={selected}
           imageUrl={profileImageUrls[selected.id]}
           isLoading={Boolean(selected.childAvatarId && profileImageUrls[selected.id] === undefined)}
-          isDark={isDark}
           className="h-full w-full rounded-full text-[13px]"
         />
-      </button>
+      </motion.button>
 
+      <AnimatePresence initial={false}>
       {open && (
-        <div
+        <motion.div
+          ref={menuRef}
+          id="talea-profile-menu"
           role="menu"
-          className="absolute right-0 top-full mt-2 w-[300px] max-w-[calc(100vw-2rem)] rounded-2xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-1.5 text-[var(--talea-text-primary)] shadow-[var(--talea-shadow-strong)]"
+          aria-label="Profil und Einstellungen"
+          initial={reduceMotion ? false : { opacity: 0, y: -5, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={reduceMotion ? undefined : { opacity: 0, y: -3, scale: 0.98 }}
+          transition={{ duration: reduceMotion ? 0 : 0.16, ease: "easeOut" }}
+          className="absolute right-0 top-full mt-3 w-[300px] max-w-[calc(100vw-2rem)] origin-top-right rounded-3xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-2 text-[var(--talea-text-primary)] shadow-[var(--talea-shadow-strong)]"
+          onKeyDown={(event) => {
+            if (event.key === "Tab") {
+              setOpen(false);
+              return;
+            }
+            if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+            event.preventDefault();
+            const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button[role^="menuitem"]'));
+            const index = items.indexOf(document.activeElement as HTMLButtonElement);
+            const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1
+              : (index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+            items[next]?.focus();
+          }}
         >
           <div className="px-2.5 pb-1 pt-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--talea-text-tertiary)]">
             Kinderprofile · {profiles.length}/{profileLimit}
@@ -183,15 +233,15 @@ const ProfileMenuButton: React.FC = () => {
                   key={profile.id}
                   type="button"
                   role="menuitemradio"
+                  tabIndex={-1}
                   aria-checked={selectedProfile}
                   onClick={go(() => setActiveProfileId(profile.id))}
-                  className={menuRow}
+                  className={`${menuRow} ${selectedProfile ? "bg-[var(--talea-accent-terracotta-soft)]" : ""}`}
                 >
                   <ProfileAvatarBadge
                     profile={profile}
                     imageUrl={profileImageUrls[profile.id]}
                     isLoading={Boolean(profile.childAvatarId && profileImageUrls[profile.id] === undefined)}
-                    isDark={isDark}
                     className="h-8 w-8 rounded-full text-[11px]"
                   />
                   <span className="min-w-0 flex-1">
@@ -205,7 +255,7 @@ const ProfileMenuButton: React.FC = () => {
                 </button>
               );
             })}
-            <button type="button" role="menuitem" onClick={go(() => navigate("/settings"))} className={menuRow}>
+            <button type="button" role="menuitem" tabIndex={-1} onClick={go(() => navigate("/settings"))} className={menuRow}>
               <span className={menuIcon}>
                 <Plus className="h-4 w-4" />
               </span>
@@ -216,7 +266,7 @@ const ProfileMenuButton: React.FC = () => {
           <div className="my-1.5 h-px bg-[var(--talea-border-light)]" />
 
           <div>
-            <button type="button" role="menuitem" onClick={go(togglePlaylistDrawer)} className={menuRow}>
+            <button type="button" role="menuitem" tabIndex={-1} onClick={go(togglePlaylistDrawer)} className={menuRow}>
               <span className={menuIcon}>
                 <Headphones className="h-4 w-4" />
                 {playlist.length > 0 && (
@@ -227,21 +277,22 @@ const ProfileMenuButton: React.FC = () => {
               </span>
               <span className="font-medium">Wiedergabeliste</span>
             </button>
-            <button type="button" role="menuitem" onClick={go(restartWelcomeTour)} className={menuRow}>
+            <button type="button" role="menuitem" tabIndex={-1} onClick={go(restartWelcomeTour)} className={menuRow}>
               <span className={menuIcon}>
                 <Compass className="h-4 w-4" />
               </span>
               <span className="font-medium">Rundgang starten</span>
             </button>
-            <button type="button" role="menuitem" onClick={go(() => navigate("/settings"))} className={menuRow}>
+            <button type="button" role="menuitem" tabIndex={-1} onClick={go(() => navigate("/settings"))} className={menuRow}>
               <span className={menuIcon}>
                 <Settings className="h-4 w-4" />
               </span>
               <span className="font-medium">Einstellungen</span>
             </button>
           </div>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 };

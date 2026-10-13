@@ -95,7 +95,7 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
                 flex items-center gap-1.5
                 disabled:cursor-not-allowed disabled:opacity-45
                 ${Math.abs(age - preset.value) < 1
-                  ? 'bg-[var(--primary)] text-white shadow-md'
+                  ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-md'
                   : 'bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)] hover:bg-[var(--primary)]/12 hover:text-[var(--talea-text-primary)]'
                 }
               `}

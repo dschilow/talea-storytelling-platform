@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion, type HTMLMotionProps } from 'framer-motion';
 import { colors } from '../../utils/constants/colors';
 
-interface ModernCardProps {
+interface ModernCardProps extends Omit<HTMLMotionProps<'div'>, 'children' | 'onClick'> {
   children: React.ReactNode;
   className?: string;
   hover?: boolean;
@@ -11,7 +11,9 @@ interface ModernCardProps {
 }
 
 export const ModernCard = React.forwardRef<HTMLDivElement, ModernCardProps>(
-  ({ children, className = '', hover = true, gradient, onClick }, ref) => {
+  ({ children, className = '', hover = true, gradient, onClick, onKeyDown, style, role, tabIndex, ...props }, ref) => {
+    const reduceMotion = useReducedMotion();
+    const actionable = Boolean(onClick);
     const cardStyle: React.CSSProperties = {
       background: gradient ? colors.gradients[gradient] : colors.background.card,
       border: `2px solid ${colors.border.light}`,
@@ -19,32 +21,32 @@ export const ModernCard = React.forwardRef<HTMLDivElement, ModernCardProps>(
       overflow: 'hidden',
       position: 'relative',
       cursor: onClick ? 'pointer' : 'default',
+      fontFamily: 'var(--talea-font-ui)',
     };
 
-    if (hover) {
-      return (
-        <motion.div
-          ref={ref}
-          style={cardStyle}
-          className={className}
-          onClick={onClick}
-          whileHover={{
-            y: -8,
-            boxShadow: colors.effects.shadow.xl,
-            borderColor: colors.border.accent,
-          }}
-          whileTap={{ scale: 0.98 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-        >
-          {children}
-        </motion.div>
-      );
-    }
-
     return (
-      <div ref={ref} style={cardStyle} className={className} onClick={onClick}>
+      <motion.div
+        {...props}
+        ref={ref}
+        style={{ ...cardStyle, ...style }}
+        className={`${actionable ? 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]' : ''} ${className}`}
+        role={actionable ? 'button' : role}
+        tabIndex={actionable ? (tabIndex ?? 0) : tabIndex}
+        onClick={onClick}
+        onKeyDown={(event) => {
+          onKeyDown?.(event);
+          if (event.defaultPrevented || event.target !== event.currentTarget || !onClick) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onClick();
+          }
+        }}
+        whileHover={actionable && hover && !reduceMotion ? { y: -3, borderColor: colors.border.accent } : undefined}
+        whileTap={actionable && !reduceMotion ? { scale: 0.99 } : undefined}
+        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+      >
         {children}
-      </div>
+      </motion.div>
     );
   }
 );
@@ -87,6 +89,7 @@ export const ModernCardDescription: React.FC<{ children: React.ReactNode; classN
       fontSize: '14px',
       color: colors.text.secondary,
       lineHeight: '1.6',
+      fontFamily: 'var(--talea-font-ui)',
     }}
     className={className}
   >

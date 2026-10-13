@@ -38,6 +38,7 @@ import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOffline } from '../../contexts/OfflineStorageContext';
 import { useOptionalChildProfiles } from '@/contexts/ChildProfilesContext';
 import ProgressiveImage from '@/components/common/ProgressiveImage';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 import { cn } from '@/lib/utils';
 import {
@@ -124,7 +125,7 @@ function getPalette(_isDark: boolean): Palette {
     text: 'var(--talea-text-primary)',
     muted: 'var(--talea-text-secondary)',
     soft: 'var(--talea-surface-inset)',
-    primary: 'linear-gradient(135deg,var(--primary) 0%, color-mix(in srgb, var(--talea-accent-sky) 72%, white) 100%)',
+    primary: 'var(--talea-gradient-brand)',
     primaryText: 'var(--primary-foreground)',
   };
 }
@@ -165,15 +166,17 @@ const AudioDokuCard: React.FC<{
   onToggleOffline,
 }) => {
   const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 18 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.025, 0.4), duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -6 }}
+      whileHover={reduceMotion ? undefined : { y: -6 }}
       onClick={onPlay}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           onPlay();
@@ -231,11 +234,11 @@ const AudioDokuCard: React.FC<{
               {[3, 5, 7, 4, 8, 6, 9, 5, 7, 4, 6, 8, 5, 4, 6].map((h, i) => (
                 <motion.span
                   key={i}
-                  initial={{ scaleY: 0.4 }}
-                  animate={{ scaleY: [0.4, 1, 0.5, 0.8, 0.4] }}
+                  initial={reduceMotion ? false : { scaleY: 0.4 }}
+                  animate={reduceMotion ? { scaleY: 1 } : { scaleY: [0.4, 1, 0.5, 0.8, 0.4] }}
                   transition={{
                     duration: 1.4,
-                    repeat: Infinity,
+                    repeat: reduceMotion ? 0 : Infinity,
                     delay: i * 0.06,
                     ease: 'easeInOut',
                   }}
@@ -247,14 +250,14 @@ const AudioDokuCard: React.FC<{
           </div>
         </div>
 
-        {/* AUDIO-Badge mit Lavender-Akzent */}
+        {/* Opaque badge stays readable over every cover image. */}
         <div className="absolute left-3 top-3 z-10">
           <span
-            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] backdrop-blur-md"
+            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold"
             style={{
-              borderColor: 'color-mix(in srgb, var(--talea-accent-lavender) 60%, white)',
-              background: 'color-mix(in srgb, var(--talea-accent-lavender) 88%, transparent)',
-              color: 'white',
+              borderColor: 'var(--talea-brand-cream)',
+              background: 'var(--talea-brand-cream)',
+              color: 'var(--talea-brand-brown)',
             }}
           >
             {doku.locked ? <Lock className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
@@ -285,7 +288,7 @@ const AudioDokuCard: React.FC<{
               }
             >
               {isSavingOffline ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 motion-safe:animate-spin" />
               ) : isSavedOffline ? (
                 <BookmarkCheck className="h-4 w-4" />
               ) : (
@@ -334,15 +337,15 @@ const AudioDokuCard: React.FC<{
         </div>
 
         {/* Big Play button on hover */}
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
           <motion.div
-            initial={{ scale: 0.85 }}
-            whileHover={{ scale: 1 }}
+            initial={reduceMotion ? false : { scale: 0.85 }}
+            whileHover={reduceMotion ? undefined : { scale: 1 }}
             className="inline-flex h-16 w-16 items-center justify-center rounded-full border-2 shadow-[0_18px_40px_rgba(0,0,0,0.3)]"
             style={{
-              borderColor: 'rgba(255,255,255,0.6)',
-              background: 'color-mix(in srgb, var(--talea-accent-lavender) 90%, transparent)',
-              color: 'white',
+              borderColor: 'var(--talea-brand-cream)',
+              background: 'var(--primary)',
+              color: 'var(--primary-foreground)',
             }}
           >
             <Play className="h-6 w-6 translate-x-[2px]" fill="currentColor" />
@@ -351,7 +354,7 @@ const AudioDokuCard: React.FC<{
           {onAddToQueue && (
             <button
               type="button"
-              className="pointer-events-auto absolute bottom-4 right-4 inline-flex h-10 w-10 items-center justify-center rounded-full border backdrop-blur-md transition-transform hover:scale-110"
+              className="pointer-events-auto absolute bottom-4 right-4 inline-flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-md transition-transform motion-safe:hover:scale-105"
               onClick={(e) => {
                 e.stopPropagation();
                 onAddToQueue();
@@ -421,22 +424,19 @@ const AudioModal: React.FC<{
   palette: Palette;
 }> = ({ doku, onClose, onPlay, isPlaying, audioError, palette }) => {
   const { t } = useTranslation();
+  const returnFocusRef = useRef<HTMLElement | null>(
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/55 p-4 backdrop-blur-md"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.94, y: 16 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.94, y: 16 }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg overflow-hidden rounded-3xl border"
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent
+        className="block max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto rounded-3xl border p-0 motion-reduce:animate-none [&>button]:hidden"
         style={{ borderColor: palette.border, background: palette.panel }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (returnFocusRef.current?.isConnected) returnFocusRef.current.focus({ preventScroll: true });
+        }}
       >
         <div
           className="relative aspect-square w-full overflow-hidden"
@@ -471,8 +471,9 @@ const AudioModal: React.FC<{
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="absolute right-3 top-3 z-10 rounded-full border p-2 backdrop-blur-md"
+            className="absolute right-3 top-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--talea-brand-terracotta)]"
             style={{
               borderColor: 'var(--talea-media-chrome-border)',
               background: 'var(--talea-media-chrome-bg)',
@@ -485,11 +486,11 @@ const AudioModal: React.FC<{
 
           <div className="absolute left-3 top-3 z-10">
             <span
-              className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] backdrop-blur-md"
+              className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold"
               style={{
-                borderColor: 'color-mix(in srgb, var(--talea-accent-lavender) 60%, white)',
-                background: 'color-mix(in srgb, var(--talea-accent-lavender) 88%, transparent)',
-                color: 'white',
+                borderColor: 'var(--talea-brand-cream)',
+                background: 'var(--talea-brand-cream)',
+                color: 'var(--talea-brand-brown)',
               }}
             >
               <Mic className="h-3 w-3" />
@@ -499,15 +500,16 @@ const AudioModal: React.FC<{
         </div>
 
         <div className="space-y-4 p-5">
-          <h3 className="text-xl font-semibold" style={{ color: palette.text, fontFamily: headingFont }}>
+          <DialogTitle className="text-xl font-semibold leading-tight" style={{ color: palette.text, fontFamily: headingFont }}>
             {doku.title}
-          </h3>
-          <p className="text-sm leading-relaxed" style={{ color: palette.muted }}>
+          </DialogTitle>
+          <DialogDescription className="text-sm leading-relaxed" style={{ color: palette.muted }}>
             {doku.description}
-          </p>
+          </DialogDescription>
 
           {audioError && (
             <div
+              role="status"
               className="rounded-xl border p-3 text-sm"
               style={{
                 borderColor: 'var(--talea-danger-border)',
@@ -526,12 +528,11 @@ const AudioModal: React.FC<{
               <button
                 type="button"
                 onClick={onPlay}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold shadow-md transition-transform hover:scale-[1.02]"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold shadow-md transition-colors hover:brightness-95"
                 style={{
                   borderColor: 'transparent',
-                  background:
-                    'linear-gradient(135deg, var(--talea-accent-lavender) 0%, color-mix(in srgb, var(--talea-accent-rose) 70%, white) 100%)',
-                  color: 'white',
+                  background: palette.primary,
+                  color: palette.primaryText,
                 }}
               >
                 <Play className="h-4 w-4" fill="currentColor" />
@@ -540,41 +541,44 @@ const AudioModal: React.FC<{
             )}
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Skeleton
 // ────────────────────────────────────────────────────────────────────────────────
-const SectionLoading: React.FC<{ palette: Palette }> = ({ palette }) => (
-  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-    {Array.from({ length: 8 }).map((_, i) => (
-      <motion.div
-        key={i}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24, delay: i * 0.04 }}
-        className="overflow-hidden rounded-[1.75rem] border"
-        style={{ borderColor: palette.border, background: palette.panel }}
-      >
-        <div className="relative aspect-square w-full animate-pulse overflow-hidden" style={{ background: palette.soft }}>
-          <motion.div
-            className="absolute inset-y-0 -left-1/3 w-1/3 bg-white/30 dark:bg-white/10"
-            animate={{ x: ['0%', '420%'] }}
-            transition={{ duration: 1.25, repeat: Infinity, ease: 'easeInOut', delay: i * 0.05 }}
-          />
-        </div>
-        <div className="space-y-3 p-4">
-          <div className="h-5 w-4/5 animate-pulse rounded" style={{ background: palette.soft }} />
-          <div className="h-4 w-full animate-pulse rounded" style={{ background: palette.soft }} />
-          <div className="h-4 w-3/4 animate-pulse rounded" style={{ background: palette.soft }} />
-        </div>
-      </motion.div>
-    ))}
-  </div>
-);
+const SectionLoading: React.FC<{ palette: Palette }> = ({ palette }) => {
+  const reduceMotion = useReducedMotion();
+  return (
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <motion.div
+          key={i}
+          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.24, delay: i * 0.04 }}
+          className="overflow-hidden rounded-[1.75rem] border"
+          style={{ borderColor: palette.border, background: palette.panel }}
+        >
+          <div className="relative aspect-square w-full motion-safe:animate-pulse overflow-hidden" style={{ background: palette.soft }}>
+            <motion.div
+              className="absolute inset-y-0 -left-1/3 w-1/3 bg-white/30 dark:bg-white/10"
+              animate={reduceMotion ? undefined : { x: ['0%', '420%'] }}
+              transition={{ duration: 1.25, repeat: reduceMotion ? 0 : Infinity, ease: 'easeInOut', delay: i * 0.05 }}
+            />
+          </div>
+          <div className="space-y-3 p-4">
+            <div className="h-5 w-4/5 motion-safe:animate-pulse rounded" style={{ background: palette.soft }} />
+            <div className="h-4 w-full motion-safe:animate-pulse rounded" style={{ background: palette.soft }} />
+            <div className="h-4 w-3/4 motion-safe:animate-pulse rounded" style={{ background: palette.soft }} />
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  );
+};
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Main Screen
@@ -696,7 +700,6 @@ const TaleaDokusScreen: React.FC = () => {
         const res = await backend.doku.listAudioDokus({
           limit: AUDIO_DOKU_LIST_PAGE_SIZE,
           offset,
-          profileId: activeProfileId || undefined,
         });
         const page = (res.audioDokus || []) as any[];
         allAudioDokus.push(...page);
@@ -1111,7 +1114,7 @@ const TaleaDokusScreen: React.FC = () => {
                     onClick={() => navigate('/createaudiodoku')}
                     aria-label="Audio-Doku erstellen"
                     title="Audio-Doku erstellen"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--talea-surface-inset)] text-[var(--primary)] transition hover:brightness-95"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[var(--talea-surface-inset)] text-[var(--primary)] transition hover:brightness-95"
                   >
                     <Headphones className="h-4 w-4" />
                   </button>
@@ -1121,7 +1124,7 @@ const TaleaDokusScreen: React.FC = () => {
                   onClick={() => navigate('/doku/create')}
                   icon={<Plus className="h-5 w-5" />}
                   aria-label={t('doku.createNew', 'Neue Doku')}
-                  className="h-10 min-h-10 w-10 rounded-full px-0 sm:w-auto sm:px-4"
+                  className="h-11 min-h-11 w-11 rounded-full px-0 sm:w-auto sm:px-4"
                 >
                   <span className="hidden sm:inline">{t('doku.createNew', 'Neue Doku')}</span>
                 </TaleaActionButton>
@@ -1135,21 +1138,35 @@ const TaleaDokusScreen: React.FC = () => {
             {/* iOS segmented control */}
             <div
               role="tablist"
+              aria-label={t('doku.viewTabs', 'Doku-Ansichten')}
               className="mt-4 grid grid-cols-3 rounded-[0.7rem] bg-[var(--talea-surface-inset)] p-0.5 sm:inline-grid sm:min-w-[26rem]"
             >
-              {tabThemes.map((tab) => {
+              {tabThemes.map((tab, index) => {
                 const active = activeTab === tab.key;
                 return (
                   <button
                     key={tab.key}
                     type="button"
                     role="tab"
+                    id={`doku-tab-${tab.key}`}
+                    aria-controls={`doku-panel-${tab.key}`}
                     aria-selected={active}
+                    tabIndex={active ? 0 : -1}
                     onClick={() => setActiveTab(tab.key)}
+                    onKeyDown={(event) => {
+                      const nextIndex = event.key === 'ArrowRight' ? (index + 1) % tabThemes.length
+                        : event.key === 'ArrowLeft' ? (index - 1 + tabThemes.length) % tabThemes.length
+                          : event.key === 'Home' ? 0 : event.key === 'End' ? tabThemes.length - 1 : null;
+                      if (nextIndex === null) return;
+                      event.preventDefault();
+                      const nextTab = tabThemes[nextIndex];
+                      setActiveTab(nextTab.key);
+                      document.getElementById(`doku-tab-${nextTab.key}`)?.focus();
+                    }}
                     className={cn(
-                      'flex min-w-0 items-center justify-center gap-1.5 rounded-[0.55rem] px-2 py-1.5 text-[14px] font-semibold transition',
+                      'flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-[0.55rem] px-2 py-1.5 text-[14px] font-semibold transition',
                       active
-                        ? 'bg-[var(--talea-surface-primary)] text-[var(--talea-text-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.12)] dark:bg-[#48484d]'
+                        ? 'bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)] shadow-[0_1px_3px_rgba(62,40,31,0.1)]'
                         : 'text-[var(--talea-text-secondary)]'
                     )}
                   >
@@ -1188,7 +1205,7 @@ const TaleaDokusScreen: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[var(--talea-text-tertiary)] hover:bg-[var(--talea-surface-primary)]"
+                    className="absolute right-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[var(--talea-text-tertiary)] hover:bg-[var(--talea-surface-primary)]"
                     aria-label="Suche löschen"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -1196,13 +1213,13 @@ const TaleaDokusScreen: React.FC = () => {
                 )}
               </label>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <label className="relative">
                   <span className="sr-only">{t('common.sort', 'Sortierung')}</span>
                   <select
                     value={sortMode}
                     onChange={(e) => setSortMode(e.target.value as DokuSortMode)}
-                    className="h-9 cursor-pointer appearance-none rounded-full bg-[var(--talea-surface-inset)] pl-3.5 pr-8 text-[14px] font-semibold text-[var(--talea-text-primary)] outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/20"
+                    className="h-11 cursor-pointer appearance-none rounded-full bg-[var(--talea-surface-inset)] pl-3.5 pr-8 text-[14px] font-semibold text-[var(--talea-text-primary)] outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/20"
                   >
                     <option value="newest">{t('doku.sortNewest', 'Neueste zuerst')}</option>
                     <option value="oldest">{t('doku.sortOldest', 'Älteste zuerst')}</option>
@@ -1216,7 +1233,7 @@ const TaleaDokusScreen: React.FC = () => {
                   onClick={() => setShowAdvancedFilters((v) => !v)}
                   aria-expanded={showAdvancedFilters}
                   className={cn(
-                    'inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-semibold transition',
+                    'inline-flex h-11 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-semibold transition',
                     showAdvancedFilters || hasActiveFilters
                       ? 'bg-[var(--primary)] text-[var(--primary-foreground)]'
                       : 'bg-[var(--talea-surface-inset)] text-[var(--talea-text-primary)]'
@@ -1237,7 +1254,7 @@ const TaleaDokusScreen: React.FC = () => {
                       setDepthFilter('all');
                       setAudioScopeFilter('all');
                     }}
-                    className="h-9 px-2 text-[14px] font-semibold text-[var(--primary)] hover:opacity-75"
+                    className="h-11 px-2 text-[14px] font-semibold text-[var(--primary)] hover:opacity-75"
                   >
                     Zurücksetzen
                   </button>
@@ -1317,6 +1334,9 @@ const TaleaDokusScreen: React.FC = () => {
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
+              id={`doku-panel-${activeTab}`}
+              role="tabpanel"
+              aria-labelledby={`doku-tab-${activeTab}`}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
@@ -1478,18 +1498,19 @@ const TaleaDokusScreen: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        <AnimatePresence>
-          {audioModal && (
-            <AudioModal
-              doku={audioModal}
-              onClose={() => setAudioModal(null)}
-              onPlay={() => handlePlayAudio(audioModal)}
-              isPlaying={audioPlayer.track?.id === audioModal.id}
-              audioError={audioError}
-              palette={palette}
-            />
-          )}
-        </AnimatePresence>
+        {audioModal && (
+          <AudioModal
+            doku={audioModal}
+            onClose={() => {
+              if (audioPlayer.track?.id === `audiodoku-${audioModal.id}`) audioPlayer.pause();
+              setAudioModal(null);
+            }}
+            onPlay={() => handlePlayAudio(audioModal)}
+            isPlaying={audioPlayer.track?.id === `audiodoku-${audioModal.id}`}
+            audioError={audioError}
+            palette={palette}
+          />
+        )}
       </SignedIn>
     </div>
   );

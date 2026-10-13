@@ -14,17 +14,49 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function readSavedTheme(): Theme {
+  try {
+    const saved = localStorage.getItem('talea_theme');
+    return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system';
+  } catch {
+    return 'system';
+  }
+}
+
+function saveTheme(theme: Theme): void {
+  try {
+    localStorage.setItem('talea_theme', theme);
+  } catch {
+    // Appearance still works when the browser blocks persistent storage.
+  }
+}
+
+function systemTheme(): ResolvedTheme {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function syncThemeAppearance(resolved: ResolvedTheme): void {
+  const root = document.documentElement;
+  root.classList.remove('light', 'dark');
+  root.classList.add(resolved);
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (meta) meta.content = resolved === 'dark' ? '#211710' : '#FFF7EC';
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const backend = useBackend();
   const { user, isLoaded } = useUser();
 
-  const [theme, setThemeState] = useState<Theme>('dark');
-  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('dark');
+  const [theme, setThemeState] = useState<Theme>(readSavedTheme);
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
+    const saved = readSavedTheme();
+    return saved === 'system' ? systemTheme() : saved;
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   // Get system theme preference
   const getSystemTheme = (): ResolvedTheme => {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    return systemTheme();
   };
 
   // Resolve theme (system → actual light/dark)
@@ -37,9 +69,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Apply theme to document
   const applyTheme = (resolved: ResolvedTheme) => {
-    const root = window.document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(resolved);
+    syncThemeAppearance(resolved);
     setResolvedTheme(resolved);
   };
 
@@ -49,8 +79,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       try {
         if (!backend || !isLoaded || !user) {
           // Not logged in → use localStorage or system
-          const savedTheme = localStorage.getItem('talea_theme') as Theme | null;
-          const initialTheme = savedTheme || 'system';
+          const initialTheme = readSavedTheme();
           setThemeState(initialTheme);
           applyTheme(resolveTheme(initialTheme));
           setIsLoading(false);
@@ -59,17 +88,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
         // Logged in → load from backend
         const profile = await backend.user.me();
-        const userTheme = profile.theme || 'system';
+        const userTheme = profile.theme === 'light' || profile.theme === 'dark' ? profile.theme : 'system';
         setThemeState(userTheme);
         applyTheme(resolveTheme(userTheme));
 
         // Also save to localStorage for faster initial load
-        localStorage.setItem('talea_theme', userTheme);
+        saveTheme(userTheme);
       } catch (err) {
         console.error('Failed to load theme:', err);
         // Fallback to localStorage or system
-        const savedTheme = localStorage.getItem('talea_theme') as Theme | null;
-        const fallbackTheme = savedTheme || 'system';
+        const fallbackTheme = readSavedTheme();
         setThemeState(fallbackTheme);
         applyTheme(resolveTheme(fallbackTheme));
       } finally {
@@ -100,7 +128,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       applyTheme(resolveTheme(newTheme));
 
       // Save to localStorage
-      localStorage.setItem('talea_theme', newTheme);
+      saveTheme(newTheme);
 
       // Save to backend if logged in
       if (backend && user) {
@@ -133,19 +161,17 @@ export function useTheme() {
  */
 export function OfflineThemeProvider({ children }: { children: ReactNode }) {
   const getSystemTheme = (): ResolvedTheme =>
-    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    systemTheme();
 
   const resolveTheme = (t: Theme): ResolvedTheme =>
     t === 'system' ? getSystemTheme() : t;
 
-  const savedTheme = (localStorage.getItem('talea_theme') as Theme | null) || 'system';
+  const savedTheme = readSavedTheme();
   const [theme, setThemeState] = useState<Theme>(savedTheme);
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(resolveTheme(savedTheme));
 
   useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(resolvedTheme);
+    syncThemeAppearance(resolvedTheme);
   }, [resolvedTheme]);
 
   useEffect(() => {
@@ -159,7 +185,7 @@ export function OfflineThemeProvider({ children }: { children: ReactNode }) {
   const setTheme = async (newTheme: Theme) => {
     setThemeState(newTheme);
     setResolvedTheme(resolveTheme(newTheme));
-    localStorage.setItem('talea_theme', newTheme);
+    saveTheme(newTheme);
   };
 
   return (

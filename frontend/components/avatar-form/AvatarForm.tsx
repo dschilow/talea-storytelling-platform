@@ -333,7 +333,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
-                Aktuelles Prompt-Preview
+                Deine Avatar-Vorschau
               </p>
               <button
                 type="button"
@@ -383,16 +383,16 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
                   type="button"
                   onClick={() => onPreview(formData, referenceImageUrl)}
                   disabled={isGeneratingPreview || !formData.name.trim()}
-                  className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-white disabled:opacity-55"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition-[filter] hover:brightness-[1.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] disabled:pointer-events-none disabled:opacity-55"
                   style={{
                     borderColor: 'transparent',
-                    background: 'linear-gradient(135deg,var(--primary) 0%,var(--talea-border-light) 56%,var(--talea-border-soft) 100%)',
-                    color: '#3a322d',
+                    background: 'var(--talea-gradient-brand)',
+                    color: 'var(--primary-foreground)',
                   }}
                 >
                   {isGeneratingPreview ? (
                     <>
-                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-transparent border-t-white border-r-white" />
+                      <span className="h-3.5 w-3.5 rounded-full border-2 border-transparent border-t-current border-r-current motion-safe:animate-spin" aria-hidden="true" />
                       Generiere...
                     </>
                   ) : (
@@ -413,7 +413,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" style={{ fontFamily: 'var(--talea-font-ui)' }}>
       {/* Name (always visible above the steps) */}
       <div className="space-y-2">
         <label htmlFor="avatar-name" className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>

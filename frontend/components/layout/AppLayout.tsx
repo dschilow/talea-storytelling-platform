@@ -1,7 +1,7 @@
 import React from "react";
-import { useLocation, Outlet } from "react-router-dom";
+import { useLocation, Outlet, Link } from "react-router-dom";
 import { SignedIn } from "@clerk/clerk-react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import Sidebar, { SIDEBAR_RAIL, SIDEBAR_WIDE } from "./Sidebar";
 import BottomNav from "./BottomNav";
@@ -9,6 +9,7 @@ import { GlobalAudioPlayer } from "../audio/GlobalAudioPlayer";
 import ProfileMenuButton from "./ProfileMenuButton";
 import NotificationsButton from "./NotificationsButton";
 import { cn } from "@/lib/utils";
+import { TaleaLogo } from "@/components/brand/TaleaLogo";
 
 type RouteMeta = {
   eyebrow: string;
@@ -20,35 +21,35 @@ function getRouteMeta(pathname: string): RouteMeta {
     {
       match: (path) => path === "/",
       meta: {
-        eyebrow: "Talea Home",
+        eyebrow: "Deine Geschichtenwelt",
         title: "Atelier",
       },
     },
     {
       match: (path) => path.startsWith("/stories"),
       meta: {
-        eyebrow: "Story Library",
+        eyebrow: "Deine Geschichten",
         title: "Bibliothek",
       },
     },
     {
       match: (path) => path.startsWith("/story"),
       meta: {
-        eyebrow: "Story Studio",
-        title: "Story Wizard",
+        eyebrow: "Geschichtenwerkstatt",
+        title: "Neue Geschichte",
       },
     },
     {
       match: (path) => path.startsWith("/avatar"),
       meta: {
-        eyebrow: "Character Atelier",
+        eyebrow: "Deine Heldinnen und Helden",
         title: "Avatare",
       },
     },
     {
       match: (path) => path.startsWith("/doku"),
       meta: {
-        eyebrow: "Knowledge Studio",
+        eyebrow: "Wissen entdecken",
         title: "Dokus",
       },
     },
@@ -62,7 +63,7 @@ function getRouteMeta(pathname: string): RouteMeta {
     {
       match: (path) => path.startsWith("/map"),
       meta: {
-        eyebrow: "Learning Journey",
+        eyebrow: "Deine Lernreise",
         title: "Lernpfad",
       },
     },
@@ -80,7 +81,7 @@ function getRouteMeta(pathname: string): RouteMeta {
     {
       match: (path) => path.startsWith("/settings"),
       meta: {
-        eyebrow: "Settings",
+        eyebrow: "Dein Talea",
         title: "Einstellungen",
       },
     },
@@ -88,9 +89,13 @@ function getRouteMeta(pathname: string): RouteMeta {
 
   return matches.find((entry) => entry.match(pathname))?.meta ?? {
     eyebrow: "Talea",
-    title: "Workspace",
+    title: "Talea",
   };
 }
+
+// A stable gate preserves navigation and account state across route changes.
+const ChromeGate: React.FC<{ offline: boolean; children: React.ReactNode }> = ({ offline, children }) =>
+  offline ? <>{children}</> : <SignedIn>{children}</SignedIn>;
 
 /**
  * `offline` renders the exact same shell without the Clerk `SignedIn` gate.
@@ -101,6 +106,7 @@ function getRouteMeta(pathname: string): RouteMeta {
  */
 const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
   const location = useLocation();
+  const reduceMotion = useReducedMotion();
   const isCosmosFullScreenRoute = location.pathname.startsWith("/cosmos");
   const isSettingsRoute = location.pathname.startsWith("/settings");
   const isReaderRoute =
@@ -140,13 +146,9 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
         }`;
 
   const chrome = !isCosmosFullScreenRoute;
-  // Gate helper so the offline shell renders identical chrome without Clerk.
-  const Chrome: React.FC<{ children: React.ReactNode }> = ({ children }) =>
-    offline ? <>{children}</> : <SignedIn>{children}</SignedIn>;
-
   return (
     <div className="min-h-screen text-foreground flex flex-col md:flex-row">
-      <Chrome>
+      <ChromeGate offline={offline}>
         {chrome && (
           <>
             {/* Reserves the sidebar's width: rail below 1280px, labelled sidebar above. */}
@@ -157,7 +159,7 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
             <Sidebar />
           </>
         )}
-      </Chrome>
+      </ChromeGate>
 
       {/* min-w-0: horizontal shelves must scroll inside main, not stretch the page. */}
       <main className="min-w-0 flex-1 min-h-screen">
@@ -165,7 +167,14 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
           {/* Top row: the account button sits here, like in iOS apps, instead of
               floating over each page's own header. */}
           {!isFullBleed ? (
-            <div className="flex h-14 items-center justify-end gap-3 px-4 pt-[env(safe-area-inset-top)] md:px-8">
+            <div className="flex h-[calc(4rem+env(safe-area-inset-top))] items-center justify-end gap-2.5 px-4 pt-[env(safe-area-inset-top)] md:h-[calc(3.5rem+env(safe-area-inset-top))] md:px-8">
+              <Link
+                to="/"
+                aria-label="Talea Startseite"
+                className="mr-auto rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)] md:hidden"
+              >
+                <TaleaLogo variant="compact" className="h-9 w-auto" alt="" />
+              </Link>
               {!usesImmersiveShell ? (
                 <h1
                   className="mr-auto hidden text-[1.75rem] font-bold text-[var(--talea-text-primary)] md:block"
@@ -187,10 +196,10 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={location.pathname}
-                initial={isReaderRoute ? false : { opacity: 0, y: 12 }}
+                initial={isReaderRoute || reduceMotion ? false : { opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={isReaderRoute ? undefined : { opacity: 0, y: -8 }}
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                exit={isReaderRoute || reduceMotion ? undefined : { opacity: 0, y: -6 }}
+                transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
                 className="min-h-full"
               >
                 <Outlet />
@@ -202,7 +211,7 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
 
       <GlobalAudioPlayer />
 
-      <Chrome>{chrome && <BottomNav />}</Chrome>
+      <ChromeGate offline={offline}>{chrome && <BottomNav />}</ChromeGate>
     </div>
   );
 };

@@ -66,12 +66,10 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
   const hasPrev = showNavigation && currentIndex > 0;
   const hasNext = showNavigation && currentIndex < playlist.length - 1;
 
-  const secondaryButtonClass = `${
-    isStreaming ? 'h-11 w-11' : isCompact ? 'h-8 w-8' : 'h-10 w-10'
-  } rounded-full border`;
+  const secondaryButtonClass = 'h-11 w-11 shrink-0 rounded-full border';
   const playButtonClass = `${
-    isStreaming ? 'h-14 w-14' : isCompact ? 'h-10 w-10' : 'h-12 w-12'
-  } rounded-full shadow-md disabled:opacity-60`;
+    isStreaming ? 'h-14 w-14' : isCompact ? 'h-11 w-11' : 'h-12 w-12'
+  } shrink-0 rounded-full shadow-md disabled:opacity-60`;
   const cueActionsInline = isCompact;
 
   const controlMotion = reduceMotion
@@ -127,7 +125,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
 
   return (
     <div className={isStreaming ? 'space-y-4' : isFull ? 'space-y-3.5' : 'space-y-2.5'}>
-      <div className={isStreaming ? 'flex items-center justify-center gap-2.5 sm:gap-3' : 'flex items-center gap-1.5'}>
+      <div className={isStreaming ? 'flex flex-wrap items-center justify-center gap-2.5 sm:gap-3' : 'flex flex-wrap items-center gap-1.5'}>
         {showNavigation ? (
           <motion.button
             {...controlMotion}
@@ -135,7 +133,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
             onClick={playPrevious}
             disabled={!hasPrev}
             title="Vorheriger Titel"
-            className={`${isCompact ? 'h-7 w-7' : 'h-8 w-8'} rounded-full border disabled:opacity-30`}
+            className="h-11 w-11 shrink-0 rounded-full border disabled:opacity-30"
             style={{
               borderColor: 'transparent',
               background: 'var(--talea-surface-inset)',
@@ -179,7 +177,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
                 exit={{ scale: 0.7, opacity: 0 }}
                 className="block"
               >
-                <Loader2 size={isStreaming ? 22 : isCompact ? 18 : 20} className="mx-auto animate-spin" />
+                <Loader2 size={isStreaming ? 22 : isCompact ? 18 : 20} className="mx-auto motion-safe:animate-spin" />
               </motion.span>
             ) : isPlaying ? (
               <motion.span
@@ -227,7 +225,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
             onClick={playNext}
             disabled={!hasNext}
             title="Nächster Titel"
-            className={`${isCompact ? 'h-7 w-7' : 'h-8 w-8'} rounded-full border disabled:opacity-30`}
+            className="h-11 w-11 shrink-0 rounded-full border disabled:opacity-30"
             style={{
               borderColor: 'transparent',
               background: 'var(--talea-surface-inset)',
@@ -315,7 +313,7 @@ export const AudioPlaybackControls: React.FC<AudioPlaybackControlsProps> = ({
               {track?.description || statusText}
             </p>
 
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <span
                 className="rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em]"
                 style={{

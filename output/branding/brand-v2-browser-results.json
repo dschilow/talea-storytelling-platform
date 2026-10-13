@@ -1,0 +1,157 @@
+[
+  {
+    "name": "home-desktop",
+    "pass": true,
+    "detail": {
+      "width": 1440,
+      "scrollWidth": 1440,
+      "nestedButtons": 0,
+      "headings": [
+        "Guten Tag,Mila.",
+        "Deine Geschichten",
+        "Avatare",
+        "Doku Highlights"
+      ],
+      "theme": "light",
+      "fontLoaded": true
+    },
+    "errors": []
+  },
+  {
+    "name": "home-mobile-dark",
+    "pass": true,
+    "detail": {
+      "width": 390,
+      "scrollWidth": 390,
+      "nestedButtons": 0,
+      "headings": [
+        "Guten Tag,Mila.",
+        "Deine Geschichten",
+        "Avatare",
+        "Doku Highlights"
+      ],
+      "theme": "dark",
+      "fontLoaded": true
+    },
+    "errors": []
+  },
+  {
+    "name": "home-empty",
+    "pass": true,
+    "detail": {
+      "width": 390,
+      "scrollWidth": 390,
+      "nestedButtons": 0,
+      "headings": [
+        "Guten Tag,Mila.",
+        "Deine Geschichten",
+        "Avatare",
+        "Doku Highlights"
+      ],
+      "theme": "light",
+      "fontLoaded": true
+    },
+    "errors": []
+  },
+  {
+    "name": "home-error-retry",
+    "pass": true,
+    "detail": {
+      "width": 390,
+      "scrollWidth": 390,
+      "nestedButtons": 0,
+      "headings": [],
+      "theme": "light",
+      "fontLoaded": true
+    },
+    "errors": []
+  },
+  {
+    "name": "stories-mobile-dark",
+    "pass": true,
+    "detail": {
+      "width": 390,
+      "scrollWidth": 390,
+      "nestedButtons": 0,
+      "headings": [
+        "Meine Geschichten"
+      ],
+      "theme": "dark",
+      "fontLoaded": true
+    },
+    "errors": []
+  },
+  {
+    "name": "avatars-mobile-dark",
+    "pass": true,
+    "detail": {
+      "width": 390,
+      "scrollWidth": 390,
+      "nestedButtons": 0,
+      "headings": [
+        "Avatare",
+        "Das bin ich",
+        "Begleiter & Familie"
+      ],
+      "theme": "dark",
+      "fontLoaded": true
+    },
+    "errors": []
+  },
+  {
+    "name": "doku-mobile-dark",
+    "pass": true,
+    "detail": {
+      "width": 390,
+      "scrollWidth": 390,
+      "nestedButtons": 0,
+      "headings": [
+        "Dokus"
+      ],
+      "theme": "dark",
+      "fontLoaded": true
+    },
+    "errors": []
+  },
+  {
+    "name": "profile-menu-keyboard",
+    "pass": true,
+    "detail": {
+      "firstFocus": "menuitemradio",
+      "focusRestored": true,
+      "closed": true
+    },
+    "errors": []
+  },
+  {
+    "name": "card-menu-keyboard",
+    "pass": true,
+    "detail": {
+      "geometry": {
+        "x": 55,
+        "y": 451.5625,
+        "width": 240,
+        "height": 58
+      },
+      "focusRestored": true,
+      "closed": true
+    },
+    "errors": []
+  },
+  {
+    "name": "stories-tabs-keyboard",
+    "pass": true,
+    "detail": {
+      "width": 320,
+      "scrollWidth": 320,
+      "nestedButtons": 0,
+      "headings": [
+        "Meine Geschichten",
+        "Die Geschichten hinter den Figuren"
+      ],
+      "theme": "dark",
+      "fontLoaded": true
+    },
+    "errors": []
+  }
+]

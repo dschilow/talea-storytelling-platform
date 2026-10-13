@@ -710,7 +710,7 @@ export default function App() {
     // routes behind the existing configuration guard when Clerk is unavailable.
     return (
       <Router>
-        <React.Suspense fallback={<div className="min-h-screen bg-[#0a172b]" />}>
+        <React.Suspense fallback={<div className="min-h-screen bg-[var(--talea-page-solid)]" />}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/landing" element={<LandingPage />} />

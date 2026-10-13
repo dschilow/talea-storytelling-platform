@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
@@ -29,7 +29,7 @@ import { wereStoryImagesSkipped } from "../../utils/storyQualityGate";
 import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDialog";
 import ProgressiveImage from "@/components/common/ProgressiveImage";
 import { cn } from "@/lib/utils";
-import taleaLogo from "@/img/talea_logo.png";
+import { TaleaLogo } from "@/components/brand/TaleaLogo";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
 import { useOffline } from "@/contexts/OfflineStorageContext";
@@ -209,7 +209,7 @@ const StoryCoverMedia: React.FC<{
       containerClassName="relative h-full w-full"
       imageClassName="object-contain transition-transform duration-700 ease-out group-hover:scale-[1.03]"
       fallback={
-        <div className="flex h-full w-full items-center justify-center bg-[var(--talea-gradient-nature)] text-[var(--talea-text-tertiary)]">
+        <div className="flex h-full w-full items-center justify-center [background:var(--talea-gradient-nature)] text-[var(--talea-text-tertiary)]">
           <BookOpen className={fallbackIconClassName} />
         </div>
       }
@@ -228,7 +228,7 @@ const FilterSelect: React.FC<{ value: string; onChange: (v: string) => void; opt
   return (
     <label
       className={cn(
-        "relative inline-flex h-9 shrink-0 items-center gap-1 rounded-full pl-3.5 pr-2.5 text-[14px] font-semibold transition focus-within:ring-4 focus-within:ring-[var(--primary)]/20",
+        "relative inline-flex h-11 shrink-0 items-center gap-1 rounded-full pl-3.5 pr-2.5 text-[14px] font-semibold transition focus-within:ring-2 focus-within:ring-[var(--primary)] focus-within:ring-offset-2 focus-within:ring-offset-[var(--talea-page-solid)]",
         isActive ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "bg-[var(--talea-surface-inset)] text-[var(--talea-text-primary)]"
       )}
     >
@@ -418,13 +418,13 @@ const PremiumStoriesSignedOut: React.FC = () => {
           <div className={cn(taleaInsetSurfaceClass, "flex flex-col justify-between gap-6 p-6 sm:gap-8 sm:p-8 md:p-10")}>
             <div>
               <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--talea-text-secondary)]")}>
-                <img src={taleaLogo} alt="Talea Logo" className="mr-3 h-7 w-7 object-contain" />
+                <TaleaLogo variant="small" className="mr-3 h-7 w-7" alt="" />
                 Story Stream
               </span>
-              <h1 className="mt-6 text-[2.45rem] font-semibold leading-[1.04] text-slate-900 dark:text-white sm:mt-8 md:text-[3.8rem]" style={{ fontFamily: headingFont }}>
+              <h1 className="mt-6 text-[2.45rem] font-semibold leading-[1.04] text-[var(--talea-text-primary)] sm:mt-8 md:text-[3.8rem]" style={{ fontFamily: headingFont }}>
                 Alle Geschichten an einem Ort.
               </h1>
-              <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
+              <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-[var(--talea-text-secondary)] md:text-lg">
                 Weiterlesen, neue Abenteuer starten und alles nach Genre, Alter oder Figuren filtern.
               </p>
             </div>
@@ -446,7 +446,7 @@ const PremiumStoriesSignedOut: React.FC = () => {
               "Stories, Audio und Dokus direkt nebeneinander",
             ].map((item) => (
               <div key={item} className={cn(taleaSurfaceClass, "p-5 sm:p-6")}>
-                <p className="text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">{item}</p>
+                <p className="text-sm font-medium leading-7 text-[var(--talea-text-secondary)]">{item}</p>
               </div>
             ))}
           </div>
@@ -548,6 +548,25 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
 
   const shelfStories = filteredStories.slice(featuredStory ? 1 : 0);
   const isStudioTabActive = isAdmin && contentTab === "studio";
+  const tabGroupId = useId();
+  const tabRefs = useRef<Partial<Record<ContentTab, HTMLButtonElement | null>>>({});
+  const contentTabs: Array<{ id: ContentTab; label: string }> = [
+    { id: "stories", label: t("storiesScreen.storiesTab") },
+    { id: "characters", label: "Charaktere" },
+    ...(isAdmin ? [{ id: "studio" as const, label: t("storiesScreen.studioTab") }] : []),
+  ];
+
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let next: number;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (index + 1) % contentTabs.length;
+    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (index - 1 + contentTabs.length) % contentTabs.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = contentTabs.length - 1;
+    else return;
+    event.preventDefault();
+    setContentTab(contentTabs[next].id);
+    tabRefs.current[contentTabs[next].id]?.focus();
+  };
 
   return (
     <div className={cn(taleaPageShellClass, "flex flex-col gap-4 pb-6 pt-2 sm:gap-6 sm:pb-8 sm:pt-6")}>
@@ -564,7 +583,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
               type="button"
               onClick={onRefresh}
               aria-label={t("common.refresh")}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--talea-surface-inset)] text-[var(--primary)] transition hover:brightness-95"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[var(--talea-surface-inset)] text-[var(--primary)] transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
             >
               <RefreshCw className="h-4 w-4" />
             </button>
@@ -573,7 +592,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
               icon={<Plus className="h-5 w-5" />}
               onClick={() => goTo("/story")}
               aria-label={t("homeScreen.newStory")}
-              className="h-10 min-h-10 w-10 rounded-full px-0 sm:w-auto sm:px-4"
+              className="h-11 min-h-11 w-11 rounded-full px-0 sm:w-auto sm:px-4"
             >
               <span className="hidden sm:inline">{t("homeScreen.newStory")}</span>
             </TaleaActionButton>
@@ -585,22 +604,23 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
         </p>
 
         {/* iOS segmented control */}
-        <div role="tablist" className="mt-4 grid grid-flow-col auto-cols-fr rounded-[0.7rem] bg-[var(--talea-surface-inset)] p-0.5 sm:inline-grid sm:min-w-[22rem]">
-          {([
-            { id: "stories", label: t("storiesScreen.storiesTab") },
-            { id: "characters", label: "Charaktere" },
-            ...(isAdmin ? [{ id: "studio", label: t("storiesScreen.studioTab") }] : []),
-          ] as Array<{ id: ContentTab; label: string }>).map((tab) => (
+        <div role="tablist" aria-label="Bibliotheksbereiche" className="mt-4 grid grid-flow-col auto-cols-fr rounded-[0.7rem] bg-[var(--talea-surface-inset)] p-0.5 sm:inline-grid sm:min-w-[22rem]">
+          {contentTabs.map((tab, index) => (
             <button
               key={tab.id}
+              ref={(node) => { tabRefs.current[tab.id] = node; }}
+              id={`${tabGroupId}-${tab.id}`}
               type="button"
               role="tab"
+              tabIndex={contentTab === tab.id ? 0 : -1}
               aria-selected={contentTab === tab.id}
+              aria-controls={`${tabGroupId}-panel`}
               onClick={() => setContentTab(tab.id)}
+              onKeyDown={(event) => handleTabKeyDown(event, index)}
               className={cn(
-                "rounded-[0.55rem] px-3 py-1.5 text-[14px] font-semibold transition",
+                "min-h-11 rounded-[0.55rem] px-3 py-1.5 text-[14px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]",
                 contentTab === tab.id
-                  ? "bg-[var(--talea-surface-primary)] text-[var(--talea-text-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.12)] dark:bg-[#48484d]"
+                  ? "bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)] shadow-[var(--talea-shadow-soft)]"
                   : "text-[var(--talea-text-secondary)]"
               )}
             >
@@ -610,6 +630,13 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
         </div>
       </header>
 
+      <div
+        id={`${tabGroupId}-panel`}
+        role="tabpanel"
+        aria-labelledby={`${tabGroupId}-${contentTab}`}
+        tabIndex={0}
+        className="min-w-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)]"
+      >
       {contentTab === "characters" ? (
         <CharacterOriginsScreen />
       ) : !isStudioTabActive ? (
@@ -623,6 +650,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder={t("common.search")}
+                  aria-label={t("storiesScreen.searchStories", "Geschichten durchsuchen")}
                   className={cn(taleaInputClass, "pl-10 pr-4")}
                 />
               </label>
@@ -639,9 +667,9 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                     aria-label={mode.label}
                     onClick={() => setViewMode(mode.id)}
                     className={cn(
-                      "inline-flex h-10 w-10 items-center justify-center rounded-[0.55rem] transition",
+                      "inline-flex h-11 w-11 items-center justify-center rounded-[0.55rem] transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]",
                       viewMode === mode.id
-                        ? "bg-[var(--talea-surface-primary)] text-[var(--talea-text-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.12)] dark:bg-[#48484d]"
+                        ? "bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)] shadow-[var(--talea-shadow-soft)]"
                         : "text-[var(--talea-text-tertiary)]"
                     )}
                   >
@@ -653,7 +681,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
 
             {/* Filter pills: one row, scrolls sideways on narrow screens */}
             <div className="-mx-4 mt-2.5 overflow-x-auto px-4 [scrollbar-width:none] md:-mx-6 md:px-6 lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden">
-              <div className="flex w-max items-center gap-2">
+              <div className="flex w-max items-center gap-2 py-1">
                 <FilterSelect
                   label={t("common.sort", "Sortierung")}
                   value={sortMode}
@@ -666,7 +694,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                 <FilterSelect label={t("storiesScreen.filterLength")} value={lengthFilter} onChange={setLengthFilter} options={lengthFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterLength") })} />
                 <FilterSelect label={t("storiesScreen.filterAvatar")} value={avatarFilter} onChange={setAvatarFilter} options={avatarFilterOptions} allLabel={t("storiesScreen.filterAll", { label: t("storiesScreen.filterAvatar") })} />
                 {hasActiveFilters ? (
-                  <button type="button" onClick={onResetFilters} className="h-9 shrink-0 px-2 text-[14px] font-semibold text-[var(--primary)] hover:opacity-75">
+                  <button type="button" onClick={onResetFilters} className="h-11 shrink-0 rounded-lg px-2 text-[14px] font-semibold text-[var(--primary)] hover:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]">
                     Zurücksetzen
                   </button>
                 ) : null}
@@ -680,10 +708,10 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                   <LoadingState />
                 ) : filteredStories.length === 0 ? (
                   <div className={cn(taleaInsetSurfaceClass, "p-8 text-center sm:p-10")}>
-                    <h3 className="text-[2rem] font-semibold text-slate-900 dark:text-white" style={{ fontFamily: headingFont }}>
+                    <h3 className="text-[2rem] font-semibold text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>
                       {hasActiveFilters ? t("storiesScreen.noFilterResults") : t("storiesScreen.noStories")}
                     </h3>
-                    <p className="mt-3 text-sm font-medium leading-7 text-slate-600 dark:text-slate-300">
+                    <p className="mt-3 text-sm font-medium leading-7 text-[var(--talea-text-secondary)]">
                       {hasActiveFilters ? t("storiesScreen.noFilterResultsDesc") : t("storiesScreen.noStoriesDesc")}
                     </p>
                     <div className="mt-6 flex justify-center">
@@ -753,7 +781,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
             {hasMore && !loading ? (
               <div ref={observerTarget} className="mt-12 flex justify-center">
                 {loadingMore ? (
-                  <div className={cn(taleaSurfaceClass, "inline-flex items-center gap-3 px-6 py-4 text-sm font-semibold text-slate-700 dark:text-slate-100")}>
+                  <div className={cn(taleaSurfaceClass, "inline-flex items-center gap-3 px-6 py-4 text-sm font-semibold text-[var(--talea-text-secondary)]")}>
                     <Clock3 className="h-4 w-4 animate-spin" />
                     Mehr Stories laden...
                   </div>
@@ -771,6 +799,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

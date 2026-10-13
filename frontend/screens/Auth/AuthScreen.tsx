@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { SignIn, SignUp } from "@clerk/clerk-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Sparkles } from "lucide-react";
-import { TaleaWordmark } from "@/components/talea/TaleaWordmark";
+import { ArrowLeft, RefreshCw, Sparkles } from "lucide-react";
 import "./AuthScreen.css";
 
 /**
@@ -23,15 +22,15 @@ const CLERK_READY_SELECTOR =
   'input, button, [class*="cl-formButtonPrimary"], [class*="cl-socialButtonsBlockButton"], [class*="cl-formFieldInput"]';
 const clerkAppearance = {
   variables: {
-    colorPrimary: "#e8a838",
+    colorPrimary: "#B95134",
     colorBackground: "transparent",
-    colorText: "#eee8e0",
-    colorTextSecondary: "rgba(238, 232, 224, 0.7)",
-    colorInputBackground: "rgba(255, 255, 255, 0.04)",
-    colorInputText: "#eee8e0",
-    colorNeutral: "#eee8e0",
-    borderRadius: "12px",
-    fontFamily: "'Space Grotesk', system-ui, sans-serif",
+    colorText: "#3E281F",
+    colorTextSecondary: "#786052",
+    colorInputBackground: "#FFF7EC",
+    colorInputText: "#3E281F",
+    colorNeutral: "#3E281F",
+    borderRadius: "14px",
+    fontFamily: "var(--talea-font-ui)",
   },
   elements: {
     rootBox: { width: "100%" },
@@ -45,36 +44,36 @@ const clerkAppearance = {
     header: { display: "none" },
     footer: {
       background: "transparent",
-      "& a": { color: "#e8a838" },
+      "& a": { color: "#9D4026" },
     },
     /* We render our own German mode toggle below the widget — Clerk's English
        "Don't have an account? Sign up" would duplicate it (and its link only
        changes the hash, not our `mode` state). */
     footerAction: { display: "none" },
     socialButtonsBlockButton: {
-      background: "rgba(255, 255, 255, 0.04)",
-      border: "1px solid rgba(232, 168, 56, 0.22)",
-      color: "#eee8e0",
+      background: "#FFF7EC",
+      border: "1px solid #DDC8B9",
+      color: "#3E281F",
       "&:hover": {
-        background: "rgba(232, 168, 56, 0.1)",
-        borderColor: "rgba(232, 168, 56, 0.4)",
+        background: "#F8E9DC",
+        borderColor: "#B95134",
       },
     },
-    dividerLine: { background: "rgba(255, 255, 255, 0.1)" },
-    dividerText: { color: "rgba(238, 232, 224, 0.5)" },
+    dividerLine: { background: "#E4D3C4" },
+    dividerText: { color: "#786052" },
     formFieldInput: {
-      background: "rgba(255, 255, 255, 0.04)",
-      border: "1px solid rgba(255, 255, 255, 0.12)",
-      color: "#eee8e0",
+      background: "#FFF7EC",
+      border: "1px solid #DDC8B9",
+      color: "#3E281F",
     },
     formButtonPrimary: {
-      background: "linear-gradient(135deg, #e8a838, #c47832)",
-      color: "#1a140e",
+      background: "#B95134",
+      color: "#FFF7EC",
       fontWeight: 700,
       textTransform: "none" as const,
-      "&:hover": { filter: "brightness(1.05)" },
+      "&:hover": { background: "#9D4026" },
     },
-    footerActionLink: { color: "#e8a838" },
+    footerActionLink: { color: "#9D4026" },
   },
 } as const;
 
@@ -88,18 +87,21 @@ const AuthScreen: React.FC = () => {
   );
   const [clerkReady, setClerkReady] = useState(false);
   const [loaderMounted, setLoaderMounted] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   /* Fade the loader out once Clerk paints its widget into the mount area. */
   useEffect(() => {
     setClerkReady(false);
     setLoaderMounted(true);
+    setLoadError(false);
     const wrap = wrapRef.current;
     if (!wrap) return;
 
     let done = false;
     const finish = () => {
       done = true;
+      setLoadError(false);
       setClerkReady(true);
     };
 
@@ -123,8 +125,10 @@ const AuthScreen: React.FC = () => {
     const poll = window.setInterval(() => {
       if (check()) window.clearInterval(poll);
     }, 150);
-    // Safety net: never keep the loader up longer than this, whatever happens.
-    const fallback = window.setTimeout(finish, 2500);
+    // Keep watching after a slow load so a late Clerk form can recover by itself.
+    const fallback = window.setTimeout(() => {
+      if (!done) setLoadError(true);
+    }, 12000);
 
     return () => {
       observer.disconnect();
@@ -142,12 +146,10 @@ const AuthScreen: React.FC = () => {
 
   return (
     <div className="auth-root">
-      {/* Ambient cinematic backdrop */}
+      {/* The folded-book mark quietly frames the warm paper background. */}
       <div className="auth-bg" aria-hidden="true">
-        <img src="/landing-assets/hero.png" alt="" />
+        <img src="/brand/talea-icon-primary.svg" alt="" />
       </div>
-      <div className="auth-orb auth-orb--1" aria-hidden="true" />
-      <div className="auth-orb auth-orb--2" aria-hidden="true" />
 
       <button type="button" className="auth-back" onClick={() => navigate("/")}>
         <ArrowLeft size={14} /> Zurück
@@ -155,11 +157,7 @@ const AuthScreen: React.FC = () => {
 
       <div className="auth-card">
         <div className="auth-brand">
-          <img src="/talea_logo.png?v=20261013" alt="" />
-          <span className="auth-brand-name">
-            <TaleaWordmark className="auth-brand-wordmark" title="Talea" />
-            <small>Storytelling Platform</small>
-          </span>
+          <img src="/brand/talea-horizontal-primary.svg" alt="Talea" width="232" height="76" />
         </div>
 
         <div className="auth-header">
@@ -178,10 +176,10 @@ const AuthScreen: React.FC = () => {
           </p>
         </div>
 
-        <div className={`auth-clerk-wrap${clerkReady ? " is-ready" : ""}`} ref={wrapRef}>
+        <div className={`auth-clerk-wrap${clerkReady ? " is-ready" : ""}`} aria-busy={!clerkReady && !loadError}>
           {/* Branded loader — visible until Clerk's widget mounts, then removed */}
-          {loaderMounted && (
-            <div className={`auth-loading${clerkReady ? " is-hidden" : ""}`} aria-hidden={clerkReady}>
+          {loaderMounted && !loadError && (
+            <div className={`auth-loading${clerkReady ? " is-hidden" : ""}`} role="status" aria-live="polite" aria-hidden={clerkReady}>
               <div className="auth-spinner" />
               <span>Anmeldung wird geladen…</span>
               <div className="auth-skeleton-btns">
@@ -191,6 +189,18 @@ const AuthScreen: React.FC = () => {
             </div>
           )}
 
+          {loadError && (
+            <div className="auth-load-error" role="alert">
+              <p>Die Anmeldung braucht gerade länger als erwartet.</p>
+              <span>Prüfe deine Verbindung und lade die Seite erneut.</span>
+              <button type="button" onClick={() => window.location.reload()}>
+                <RefreshCw size={16} aria-hidden="true" /> Erneut laden
+              </button>
+            </div>
+          )}
+
+          {/* Readiness checks only inspect Clerk, never the retry button above. */}
+          <div className="auth-widget-mount" ref={wrapRef}>
           {mode === "signin" ? (
             <SignIn
               appearance={clerkAppearance}
@@ -208,6 +218,7 @@ const AuthScreen: React.FC = () => {
               redirectUrl="/"
             />
           )}
+          </div>
         </div>
 
         <div className="auth-toggle">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 interface WaveformEqualizerProps {
   isPlaying: boolean;
@@ -19,19 +19,16 @@ const BAR_CONFIGS = [
 export const WaveformEqualizer: React.FC<WaveformEqualizerProps> = ({
   isPlaying,
   isWaiting = false,
-  isDark,
   size = 'md',
 }) => {
   const isMd = size === 'md';
   const barCount = isMd ? 5 : 3;
   const containerH = isMd ? 'h-6' : 'h-4';
   const barWidth = isMd ? 'w-[2.5px]' : 'w-[2px]';
-
-  const gradientFrom = isDark ? '#7f9dc0' : '#6fae9c';
-  const gradientTo = isDark ? '#6fae9c' : '#7f9dc0';
+  const reduceMotion = useReducedMotion();
 
   return (
-    <div className={`flex ${containerH} items-end gap-[2px]`}>
+    <div className={`flex ${containerH} items-end gap-[2px]`} aria-hidden="true">
       {BAR_CONFIGS.slice(0, barCount).map((cfg, i) => {
         const restH = isMd ? 4 : 3;
         const scale = isMd ? 1 : 0.7;
@@ -41,16 +38,19 @@ export const WaveformEqualizer: React.FC<WaveformEqualizerProps> = ({
             key={i}
             className={`${barWidth} rounded-full`}
             style={{
-              background: `linear-gradient(to top, ${gradientFrom}, ${gradientTo})`,
+              background: 'var(--talea-gradient-brand)',
             }}
             animate={
-              isWaiting
+              reduceMotion
+                ? { height: isPlaying ? cfg.midH * scale : restH, opacity: isWaiting ? 0.5 : isPlaying ? 1 : 0.5 }
+                : isWaiting
                 ? {
                     height: [restH, cfg.midH * scale * 0.6, restH],
                     opacity: [0.35, 0.7, 0.35],
                   }
                 : isPlaying
                   ? {
+                      opacity: 1,
                       height: [
                         cfg.midH * scale,
                         cfg.maxH * scale,
@@ -62,7 +62,9 @@ export const WaveformEqualizer: React.FC<WaveformEqualizerProps> = ({
                   : { height: restH, opacity: 0.5 }
             }
             transition={
-              isWaiting
+              reduceMotion
+                ? { duration: 0 }
+                : isWaiting
                 ? {
                     duration: 1.4,
                     repeat: Infinity,

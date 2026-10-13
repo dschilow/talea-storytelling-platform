@@ -1,5 +1,6 @@
 {
   "common": {
+    "actions": "Aktionen",
     "loading": "Lädt...",
     "close": "Schließen",
     "back": "Zurück",
@@ -49,6 +50,7 @@
   },
   "navigation": {
     "home": "Start",
+    "read": "Lesen",
     "avatars": "Avatare",
     "stories": "Geschichten",
     "doku": "Wissens-Dokus",
@@ -1407,18 +1409,19 @@
     "ageYears": "{{age}}+ Jahre"
   },
   "homeScreen": {
-    "loadingTitle": "Talea richtet die Startseite neu ein",
-    "loadingSubtitle": "Die Geschichten, Helden und Dokus werden gerade in ihre neuen Bereiche sortiert.",
+    "imagesSkipped": "Bilder übersprungen",
+    "loadingTitle": "Deine Geschichtenwelt wird geladen",
+    "loadingSubtitle": "Gleich sind eure Geschichten, Figuren und Wissenswelten bereit.",
     "greeting": {
       "morning": "Guten Morgen",
       "day": "Guten Tag",
       "evening": "Guten Abend"
     },
     "defaultUser": "Entdecker",
-    "statsStories": "Stories",
+    "statsStories": "Geschichten",
     "statsAvatars": "Avatare",
     "statsDokus": "Dokus",
-    "newStory": "Neue Story",
+    "newStory": "Neue Geschichte",
     "library": "Bibliothek",
     "knowledgeJourney": "Wissensreise",
     "yourStories": "Deine Geschichten",
@@ -1434,13 +1437,13 @@
     "yourDokusSubtitle": "Neue Themen entdecken, weiterlesen und direkt in Audio wechseln.",
     "allDokus": "Alle Dokus",
     "noStoriesTitle": "Hier erscheint eure erste Geschichte",
-    "noStoriesDesc": "Sobald eine Story angelegt ist, kannst du sie hier direkt wieder öffnen.",
-    "createFirstStory": "Erste Story erstellen",
-    "noAvatarsTitle": "Der erste Held darf den neuen Kartenstil eröffnen",
-    "noAvatarsDesc": "Lege einen Avatar an, damit Home zu einer echten Charaktergalerie wird.",
+    "noStoriesDesc": "Erfindet gemeinsam ein Abenteuer. Hier könnt ihr es jederzeit weiterlesen oder anhören.",
+    "createFirstStory": "Erste Geschichte erstellen",
+    "noAvatarsTitle": "Wer erlebt euer nächstes Abenteuer?",
+    "noAvatarsDesc": "Erstelle euren ersten Avatar und mach dein Kind zur Hauptfigur.",
     "createAvatar": "Avatar erstellen",
     "noDokusTitle": "Hier wächst bald eine kleine Wissensbibliothek",
-    "noDokusDesc": "Sobald die erste Doku erstellt ist, erscheint sie in derselben Kartenlogik wie die Stories.",
+    "noDokusDesc": "Entdeckt ein Lieblingsthema. Eure Dokus warten hier zum Lesen und Hören.",
     "createFirstDoku": "Erste Doku erstellen",
     "status": {
       "complete": "Fertig",
@@ -1462,16 +1465,16 @@
     "featureWorld": "Eigene Welt",
     "featureWorldDesc": "Avatare, Geschichten und Dokus stehen in einer gemeinsamen Familienbibliothek.",
     "featureForKids": "Für Kinder gemacht",
-    "featureForKidsDesc": "Große Karten, klare Wege und ruhige Motion machen die App einfacher zu benutzen.",
+    "featureForKidsDesc": "Persönliche Abenteuer, spannende Fragen und Zeit zum gemeinsamen Entdecken.",
     "childProfileLabel": "Kinderprofil",
-    "aiFigureLabel": "AI-Figur",
+    "aiFigureLabel": "KI-Figur",
     "photoFigureLabel": "Fotofigur",
     "newHero": "Neuer Held",
     "adventureBegins": "Das Abenteuer beginnt",
     "discoverWorld": "ENTDECKE DEINE WELT",
-    "featureStreams": "Story-Streams mit Teilnehmern",
+    "featureStreams": "Eure Geschichten zum Lesen und Hören",
     "featureAvatarAccess": "Schneller Zugriff auf Avatare",
-    "featureDokuStyle": "Dokus im gleichen Stil"
+    "featureDokuStyle": "Wissen für neugierige Kinder"
   },
   "avatarScreen": {
     "title": "Avatare",

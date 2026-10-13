@@ -49,6 +49,7 @@ const glass = tokenGroup("var(--talea-glass-bg)", {
 
 const gradientMap = {
   primary: "var(--talea-gradient-primary)",
+  brand: "var(--talea-gradient-brand)",
   secondary: "var(--talea-gradient-secondary)",
   warm: "var(--talea-gradient-warm)",
   cool: "var(--talea-gradient-cool)",
@@ -61,16 +62,16 @@ const gradientMap = {
 
 export const colors = {
   primary: {
-    50: "#eef8f5",
-    100: "#ddf1ea",
-    200: "#c3e3d7",
-    300: "#a6d2c4",
-    400: "#8ac0af",
-    500: "#6fae9c",
-    600: "#589583",
-    700: "#47786a",
-    800: "#385e54",
-    900: "#2a4540",
+    50: "#fff7ec",
+    100: "#fae5d9",
+    200: "#f4cdb9",
+    300: "#eeb096",
+    400: "#db8262",
+    500: "#b95134",
+    600: "#a3462b",
+    700: "#9d4026",
+    800: "#783322",
+    900: "#3e281f",
   },
 
   gray: {
@@ -233,10 +234,10 @@ export const colors = {
   glass,
 
   semantic: {
-    success: "#6fae9c",
-    warning: "#c5a46e",
-    error: "#d17986",
-    info: "#7f9dc0",
+    success: "var(--talea-success)",
+    warning: "var(--talea-warning)",
+    error: "var(--talea-danger)",
+    info: "var(--talea-accent-sky)",
   },
 
   gradients: gradientMap,
@@ -256,9 +257,9 @@ export const colors = {
   textSecondary: "var(--talea-text-secondary)",
   textInverse: "var(--talea-text-inverse)",
   borderSoft: "var(--talea-border-light)",
-  accentStart: "var(--talea-accent-mint)",
-  accentEnd: "var(--talea-accent-sky)",
-  accentSoft: "rgba(111, 174, 156, 0.12)",
+  accentStart: "var(--talea-accent-terracotta)",
+  accentEnd: "var(--talea-accent-peach)",
+  accentSoft: "var(--talea-accent-terracotta-soft)",
   blue: "var(--talea-accent-sky)",
   green: "var(--talea-accent-mint)",
   purple: "var(--talea-accent-sky)",

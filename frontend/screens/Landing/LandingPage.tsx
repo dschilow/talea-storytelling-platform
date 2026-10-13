@@ -15,6 +15,7 @@ import {
   formatEuro, type SubscriptionPlan,
 } from '../../constants/planCatalog';
 import JourneyAtmosphere from './JourneyAtmosphere';
+import LandingFilm from './LandingFilm';
 import { NovaRays, SkyClouds, SoundWave, StarTrail } from './JourneyArtwork';
 import './LandingPage.css';
 
@@ -182,7 +183,7 @@ export default function LandingPage() {
           .to('.nova-ring', { scale: 18, opacity: 0, duration: 0.5, stagger: 0.04 }, 0.22)
           .to('.nova-core', { scale: 65, duration: 0.42, ease: 'power3.in' }, 0.3)
           .to('.nova-wash', { opacity: 1, duration: 0.28 }, 0.4)
-          .to('.nova-stage', { backgroundColor: '#faf6ed', duration: 0.1 }, 0.64)
+          .to('.nova-stage', { backgroundColor: '#FFF7EC', duration: 0.1 }, 0.64)
           .set(['.nova-core', '.nova-rays'], { opacity: 0 }, 0.68)
           .to('.nova-wash', { opacity: 0, duration: 0.2 }, 0.72)
           .fromTo('.nova-after', { y: 35, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25 }, 0.73)
@@ -248,8 +249,8 @@ export default function LandingPage() {
       <a className="journey-skip" href="#pricing">Direkt zu den Preisen</a>
       <div className="journey-page-progress" aria-hidden="true" />
       <header className={`journey-nav${navScrolled ? ' journey-nav--scrolled' : ''}`}>
-        <a className="journey-brand" href="#intro" aria-label="Talea – zum Anfang"><BookOpenText strokeWidth={1.4} /><span>talea<span className="brand-star">✦</span></span></a>
-        <nav className="journey-nav-links" aria-label="Hauptnavigation"><a href="#journey">Die Reise</a><a href="#audio-dokus">Audio-Dokus</a><a href="#parents">Für Eltern</a><a href="#pricing">Preise</a></nav>
+        <a className="journey-brand" href="#intro" aria-label="Talea – zum Anfang"><img src="/brand/talea-horizontal-compact.svg" alt="Talea" width="160" height="52" /></a>
+        <nav className="journey-nav-links" aria-label="Hauptnavigation"><a href="#film">Der Film</a><a href="#journey">Die Reise</a><a href="#audio-dokus">Audio-Dokus</a><a href="#parents">Für Eltern</a><a href="#pricing">Preise</a></nav>
         <div className="journey-nav-actions">
           <button type="button" className="motion-control" onClick={toggleGentleMode} aria-pressed={gentleMode || !!prefersReducedMotion} aria-label={animated ? 'Weniger Bewegung aktivieren' : 'Volle Animationen aktivieren'} title={animated ? 'Weniger Bewegung' : 'Volle Animationen'} disabled={!!prefersReducedMotion}>{animated ? <Pause size={15} /> : <Play size={15} />}<span>{animated ? 'Film-Modus' : 'Ruhiger Modus'}</span></button>
           <Link className="journey-login" to="/auth">Anmelden</Link>
@@ -270,6 +271,7 @@ export default function LandingPage() {
           <div className="opening-island-label" aria-hidden="true"><span className="map-marker"><Sparkles size={15} /></span><span>Willkommen in Talea<small>Deine Fantasie hat ein Zuhause.</small></span></div>
           <div className="opening-bottom"><a href="#journey" className="scroll-invitation"><span className="scroll-line" /><span>Scrollen. Staunen. Weiterträumen.</span><ArrowDown size={14} /></a><span className="opening-coordinate">Eine Reise in fünf Kapiteln<span>01 — ∞</span></span></div>
         </section>
+        <LandingFilm onPlay={() => { audioRef.current?.pause(); audioDokuRef.current?.pause(); }} />
         <section id="journey" className="journey-introduction" aria-labelledby="journey-title">
           <span className="journey-eyebrow">Die Welt von Talea</span><h2 id="journey-title">Folge dem <em>Funkeln.</em></h2><p>Fünf Inseln. Tausend Möglichkeiten. Eine Welt, die eure ist.</p>
           <div className="journey-chapter-list">{islands.map((island, i) => <button type="button" key={island.id} onClick={() => goToIsland(i)}><span>0{i + 1}</span>{island.label}<ArrowRight size={12} /></button>)}</div>
@@ -388,7 +390,7 @@ export default function LandingPage() {
           <div className="journey-last-call"><span aria-hidden="true">✦</span><h2>Eure Fantasie.<br /><em>Ab hier geht’s weiter.</em></h2><button type="button" className="journey-button" onClick={start}>Unser erstes Abenteuer<ArrowRight size={17} /></button><p>Kostenlos anfangen. Gemeinsam weiterträumen.</p></div>
         </section>
       </main>
-      <footer className="journey-footer"><a className="journey-brand" href="#intro"><BookOpenText strokeWidth={1.4} /><span>talea<span className="brand-star">✦</span></span></a><span>Für kleine Menschen mit großen Ideen.</span><p>© {new Date().getFullYear()} Talea<Link to="/auth">Anmelden</Link><a href="#pricing">Preise</a></p></footer>
+      <footer className="journey-footer"><a className="journey-brand" href="#intro" aria-label="Talea – zum Anfang"><img src="/brand/talea-horizontal-compact.svg" alt="Talea" width="160" height="52" /></a><span>Für kleine Menschen mit großen Ideen.</span><p>© {new Date().getFullYear()} Talea<Link to="/auth">Anmelden</Link><a href="#pricing">Preise</a></p></footer>
     </div>
   );
 }

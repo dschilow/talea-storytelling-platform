@@ -1,0 +1,274 @@
+../backend/admin/avatars_list.ts(42,11): error TS2322: Type '{ id: any; userId: any; name: any; description: any; physicalTraits: any; personalityTraits: any; imageUrl: string | undefined; visualProfile: any; creationType: any; isPublic: any; originalAvatarId: any; createdAt: any; updatedAt: any; }[]' is not assignable to type 'Avatar[]'.
+  Type '{ id: any; userId: any; name: any; description: any; physicalTraits: any; personalityTraits: any; imageUrl: string | undefined; visualProfile: any; creationType: any; isPublic: any; originalAvatarId: any; createdAt: any; updatedAt: any; }' is missing the following properties from type 'Avatar': inventory, skills
+../backend/admin/avatars_update.ts(28,3): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(options: APIOptions, fn: (params: AdminUpdateAvatarRequest) => Promise<Avatar>): (params: AdminUpdateAvatarRequest) => Promise<...>', gave the following error.
+    Argument of type '(req: AdminUpdateAvatarRequest) => Promise<{ id: any; userId: any; name: any; description: any; physicalTraits: any; personalityTraits: any; imageUrl: string | undefined; ... 5 more ...; updatedAt: any; }>' is not assignable to parameter of type '(params: AdminUpdateAvatarRequest) => Promise<Avatar>'.
+      Type 'Promise<{ id: any; userId: any; name: any; description: any; physicalTraits: any; personalityTraits: any; imageUrl: string | undefined; visualProfile: any; creationType: any; isPublic: any; originalAvatarId: any; createdAt: any; updatedAt: any; }>' is not assignable to type 'Promise<Avatar>'.
+        Type '{ id: any; userId: any; name: any; description: any; physicalTraits: any; personalityTraits: any; imageUrl: string | undefined; visualProfile: any; creationType: any; isPublic: any; originalAvatarId: any; createdAt: any; updatedAt: any; }' is missing the following properties from type 'Avatar': inventory, skills
+  Overload 2 of 2, '(options: APIOptions, fn: (params: AdminUpdateAvatarRequest) => Avatar): (params: AdminUpdateAvatarRequest) => Promise<...>', gave the following error.
+    Argument of type '(req: AdminUpdateAvatarRequest) => Promise<{ id: any; userId: any; name: any; description: any; physicalTraits: any; personalityTraits: any; imageUrl: string | undefined; ... 5 more ...; updatedAt: any; }>' is not assignable to parameter of type '(params: AdminUpdateAvatarRequest) => Avatar'.
+      Type 'Promise<{ id: any; userId: any; name: any; description: any; physicalTraits: any; personalityTraits: any; imageUrl: string | undefined; visualProfile: any; creationType: any; isPublic: any; originalAvatarId: any; createdAt: any; updatedAt: any; }>' is missing the following properties from type 'Avatar': id, userId, name, physicalTraits, and 7 more.
+../backend/avatar/debugPersonality.ts(152,36): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'PersonalityTraits'.
+  No index signature with a parameter of type 'string' was found on type 'PersonalityTraits'.
+../backend/avatar/debugPersonality.ts(152,76): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'PersonalityTraits'.
+  No index signature with a parameter of type 'string' was found on type 'PersonalityTraits'.
+../backend/avatar/debugPersonality.ts(152,110): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'PersonalityTraits'.
+  No index signature with a parameter of type 'string' was found on type 'PersonalityTraits'.
+../backend/avatar/run-migration-sql.ts(47,29): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+../backend/avatar/share.ts(471,3): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(options: APIOptions, fn: (params: ShareAvatarParams & ShareAvatarRequest) => Promise<ShareAvatarResponse>): (params: ShareAvatarParams & ShareAvatarRequest) => Promise<...>', gave the following error.
+    Argument of type '(req: ShareAvatarParams & ShareAvatarRequest) => Promise<{ share: AvatarShareEntry | undefined; copiedAvatarId: string | null; copiedToProfileId: string | null; copiedAvatarName: string | null; alreadyCopied: boolean; }>' is not assignable to parameter of type '(params: ShareAvatarParams & ShareAvatarRequest) => Promise<ShareAvatarResponse>'.
+      Type 'Promise<{ share: AvatarShareEntry | undefined; copiedAvatarId: string | null; copiedToProfileId: string | null; copiedAvatarName: string | null; alreadyCopied: boolean; }>' is not assignable to type 'Promise<ShareAvatarResponse>'.
+        Type '{ share: AvatarShareEntry | undefined; copiedAvatarId: string | null; copiedToProfileId: string | null; copiedAvatarName: string | null; alreadyCopied: boolean; }' is not assignable to type 'ShareAvatarResponse'.
+          Types of property 'share' are incompatible.
+            Type 'AvatarShareEntry | undefined' is not assignable to type 'AvatarShareEntry'.
+              Type 'undefined' is not assignable to type 'AvatarShareEntry'.
+  Overload 2 of 2, '(options: APIOptions, fn: (params: ShareAvatarParams & ShareAvatarRequest) => ShareAvatarResponse): (params: ShareAvatarParams & ShareAvatarRequest) => Promise<...>', gave the following error.
+    Argument of type '(req: ShareAvatarParams & ShareAvatarRequest) => Promise<{ share: AvatarShareEntry | undefined; copiedAvatarId: string | null; copiedToProfileId: string | null; copiedAvatarName: string | null; alreadyCopied: boolean; }>' is not assignable to parameter of type '(params: ShareAvatarParams & ShareAvatarRequest) => ShareAvatarResponse'.
+      Type 'Promise<{ share: AvatarShareEntry | undefined; copiedAvatarId: string | null; copiedToProfileId: string | null; copiedAvatarName: string | null; alreadyCopied: boolean; }>' is missing the following properties from type 'ShareAvatarResponse': share, copiedAvatarId, copiedToProfileId, copiedAvatarName, alreadyCopied
+../backend/avatar/share.ts(499,7): error TS18047: 'contact' is possibly 'null'.
+../backend/avatar/share.ts(501,17): error TS18047: 'contact' is possibly 'null'.
+../backend/avatar/share.ts(502,35): error TS18047: 'contact' is possibly 'null'.
+../backend/avatar/share.ts(502,61): error TS18047: 'contact' is possibly 'null'.
+../backend/avatar/share.ts(505,36): error TS18047: 'contact' is possibly 'null'.
+../backend/avatar/share.ts(511,9): error TS18047: 'resolvedTargetUser' is possibly 'null'.
+../backend/avatar/share.ts(516,7): error TS18047: 'resolvedTargetUser' is possibly 'null'.
+../backend/avatar/share.ts(516,7): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+../backend/avatar/share.ts(517,7): error TS18047: 'resolvedTargetUser' is possibly 'null'.
+../backend/avatar/share.ts(517,34): error TS18047: 'contact' is possibly 'null'.
+../backend/avatar/share.ts(517,58): error TS18047: 'contact' is possibly 'null'.
+../backend/avatar/share.ts(520,9): error TS18047: 'contact' is possibly 'null'.
+../backend/avatar/share.ts(520,36): error TS18047: 'resolvedTargetUser' is possibly 'null'.
+../backend/avatar/share.ts(523,32): error TS18047: 'resolvedTargetUser' is possibly 'null'.
+../backend/avatar/share.ts(525,22): error TS18047: 'contact' is possibly 'null'.
+../backend/avatar/share.ts(543,28): error TS18047: 'contact' is possibly 'null'.
+../backend/avatar/share.ts(556,22): error TS18047: 'existingCopy' is possibly 'null'.
+../backend/avatar/share.ts(560,29): error TS18047: 'existingAvatar' is possibly 'null'.
+../backend/avatar/share.ts(560,56): error TS18047: 'resolvedTargetUser' is possibly 'null'.
+../backend/avatar/share.ts(561,26): error TS18047: 'existingAvatar' is possibly 'null'.
+../backend/avatar/share.ts(562,28): error TS18047: 'existingAvatar' is possibly 'null'.
+../backend/avatar/share.ts(563,29): error TS18047: 'existingAvatar' is possibly 'null'.
+../backend/avatar/share.ts(598,13): error TS18047: 'resolvedTargetUser' is possibly 'null'.
+../backend/avatar/share.ts(637,11): error TS18047: 'contact' is possibly 'null'.
+../backend/avatar/share.ts(638,11): error TS18047: 'contact' is possibly 'null'.
+../backend/avatar/share.ts(639,11): error TS18047: 'resolvedTargetUser' is possibly 'null'.
+../backend/avatar/simple-portrait-generator.ts(48,17): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ alexander: { hair: string; eyes: string; clothing: string; }; adrian: { hair: string; eyes: string; clothing: string; }; }'.
+  No index signature with a parameter of type 'string' was found on type '{ alexander: { hair: string; eyes: string; clothing: string; }; adrian: { hair: string; eyes: string; clothing: string; }; }'.
+../backend/avatar/upgradePersonalityTraits.ts(57,10): error TS2352: Conversion of type 'Record<string, PersonalityTrait>' to type 'PersonalityTraits' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'Record<string, PersonalityTrait>' is missing the following properties from type 'PersonalityTraits': knowledge, creativity, vocabulary, courage, and 5 more.
+../backend/constants/personalityTraits.ts(139,10): error TS2352: Conversion of type '{ [k: string]: { value: number; subcategories: {}; }; }' to type 'PersonalityTraits' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ [k: string]: { value: number; subcategories: {}; }; }' is missing the following properties from type 'PersonalityTraits': knowledge, creativity, vocabulary, courage, and 5 more.
+../backend/doku/run-migration-sql.ts(39,27): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+../backend/story/pipeline/schema-validator.ts(73,31): error TS2702: 'Ajv2020' only refers to a type, but is being used as a namespace here.
+../backend/story/run-migration-sql.ts(43,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'TemplateStringsArray'.
+components/avatar/PersonalityRadarChart.tsx(64,18): error TS18046: 'sum' is of type 'unknown'.
+components/avatar/PersonalityRadarChart.tsx(107,49): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'number'.
+components/avatar/PersonalityRadarChart.tsx(109,11): error TS2322: Type '{ rawValue: unknown; normalizedValue: number; id: string; label: string; short: string; color: string; }[]' is not assignable to type 'RadarTrait[]'.
+  Type '{ rawValue: unknown; normalizedValue: number; id: string; label: string; short: string; color: string; }' is not assignable to type 'RadarTrait'.
+    Type '{ rawValue: unknown; normalizedValue: number; id: string; label: string; short: string; color: string; }' is not assignable to type '{ rawValue: number; normalizedValue: number; }'.
+      Types of property 'rawValue' are incompatible.
+        Type 'unknown' is not assignable to type 'number'.
+components/avatar/PersonalityRadarChart.tsx(111,38): error TS18046: 'rawValue' is of type 'unknown'.
+components/cards/AvatarPlayfulCard.tsx(239,15): error TS2322: Type '(e: React.MouseEvent) => void' is not assignable to type '() => void'.
+  Target signature provides too few arguments. Expected 1 or more, but got 0.
+components/cards/AvatarPlayfulCard.tsx(248,15): error TS2322: Type '(e: React.MouseEvent) => void' is not assignable to type '() => void'.
+  Target signature provides too few arguments. Expected 1 or more, but got 0.
+components/cards/DokuPlayfulCard.tsx(306,15): error TS2322: Type '(e: React.MouseEvent) => void' is not assignable to type '() => void'.
+  Target signature provides too few arguments. Expected 1 or more, but got 0.
+components/cards/DokuPlayfulCard.tsx(315,15): error TS2322: Type '(e: React.MouseEvent) => void' is not assignable to type '() => void'.
+  Target signature provides too few arguments. Expected 1 or more, but got 0.
+components/cards/StoryPlayfulCard.tsx(240,15): error TS2322: Type '(e: React.MouseEvent) => void' is not assignable to type '() => void'.
+  Target signature provides too few arguments. Expected 1 or more, but got 0.
+components/cards/StoryPlayfulCard.tsx(249,15): error TS2322: Type '(e: React.MouseEvent) => void' is not assignable to type '() => void'.
+  Target signature provides too few arguments. Expected 1 or more, but got 0.
+components/common/PersonalityDevelopment.tsx(68,29): error TS2322: Type 'string' is not assignable to type 'never'.
+components/common/PersonalityDevelopment.tsx(137,19): error TS2322: Type 'string' is not assignable to type 'never'.
+components/talea/TaleaPastelPrimitives.tsx(134,6): error TS2322: Type '{ children: ReactI18NextChildren | Iterable<ReactI18NextChildren>; defaultChecked?: boolean | undefined; defaultValue?: string | ... 2 more ... | undefined; ... 331 more ...; "data-framer-appear-id"?: string | undefined; }' is not assignable to type 'Omit<HTMLMotionProps<"div">, "ref">'.
+  Types of property 'onDrag' are incompatible.
+    Type 'DragEventHandler<HTMLDivElement> | ((event: MouseEvent | PointerEvent | TouchEvent, info: PanInfo) => void) | undefined' is not assignable to type '((event: MouseEvent | PointerEvent | TouchEvent, info: PanInfo) => void) | undefined'.
+      Type 'DragEventHandler<HTMLDivElement>' is not assignable to type '(event: MouseEvent | PointerEvent | TouchEvent, info: PanInfo) => void'.
+        Types of parameters 'event' and 'event' are incompatible.
+          Type 'MouseEvent | PointerEvent | TouchEvent' is not assignable to type 'DragEvent<HTMLDivElement>'.
+            Type 'MouseEvent' is missing the following properties from type 'DragEvent<HTMLDivElement>': dataTransfer, nativeEvent, isDefaultPrevented, isPropagationStopped, persist
+components/talea/TaleaPastelPrimitives.tsx(135,18): error TS2345: Argument of type 'boolean | null' is not assignable to parameter of type 'boolean'.
+  Type 'null' is not assignable to type 'boolean'.
+components/talea/TaleaPastelPrimitives.tsx(172,6): error TS2322: Type '{ children: (ReactNode | Element)[]; disabled?: boolean | undefined; form?: string | undefined; formAction?: string | ((formData: FormData) => void | Promise<...>) | undefined; ... 284 more ...; className: string; }' is not assignable to type 'Omit<HTMLMotionProps<"button">, "ref">'.
+  Types of property 'onDrag' are incompatible.
+    Type 'DragEventHandler<HTMLButtonElement> | undefined' is not assignable to type '((event: MouseEvent | PointerEvent | TouchEvent, info: PanInfo) => void) | undefined'.
+      Type 'DragEventHandler<HTMLButtonElement>' is not assignable to type '(event: MouseEvent | PointerEvent | TouchEvent, info: PanInfo) => void'.
+        Types of parameters 'event' and 'event' are incompatible.
+          Type 'MouseEvent | PointerEvent | TouchEvent' is not assignable to type 'DragEvent<HTMLButtonElement>'.
+            Type 'MouseEvent' is missing the following properties from type 'DragEvent<HTMLButtonElement>': dataTransfer, nativeEvent, isDefaultPrevented, isPropagationStopped, persist
+components/talea/TaleaPastelPrimitives.tsx(233,20): error TS2345: Argument of type 'boolean | null' is not assignable to parameter of type 'boolean'.
+  Type 'null' is not assignable to type 'boolean'.
+components/ui/audio-upload-card.tsx(216,13): error TS2322: Type '{ scale: number; transition: { duration: number; }; } | ({ scale: number; transition: { ease: string; }; } | { scale: number; transition: { duration: number; ease: number[]; }; })[]' is not assignable to type 'boolean | TargetAndTransition | VariantLabels | LegacyAnimationControls | undefined'.
+  Type '({ scale: number; transition: { ease: string; }; } | { scale: number; transition: { duration: number; ease: number[]; }; })[]' is not assignable to type 'boolean | TargetAndTransition | VariantLabels | LegacyAnimationControls | undefined'.
+    Type '({ scale: number; transition: { ease: string; }; } | { scale: number; transition: { duration: number; ease: number[]; }; })[]' is not assignable to type 'string[]'.
+      Type '{ scale: number; transition: { ease: string; }; } | { scale: number; transition: { duration: number; ease: number[]; }; }' is not assignable to type 'string'.
+        Type '{ scale: number; transition: { ease: string; }; }' is not assignable to type 'string'.
+components/ui/modern-button.tsx(123,8): error TS2322: Type '{ children: (false | "" | 0 | 0n | Element | null | undefined)[]; disabled?: boolean | undefined; form?: string | undefined; formAction?: string | ((formData: FormData) => void | Promise<...>) | undefined; ... 287 more ...; transition: { ...; }; }' is not assignable to type 'Omit<HTMLMotionProps<"button">, "ref">'.
+  Types of property 'onDrag' are incompatible.
+    Type 'DragEventHandler<HTMLButtonElement> | undefined' is not assignable to type '((event: MouseEvent | PointerEvent | TouchEvent, info: PanInfo) => void) | undefined'.
+      Type 'DragEventHandler<HTMLButtonElement>' is not assignable to type '(event: MouseEvent | PointerEvent | TouchEvent, info: PanInfo) => void'.
+        Types of parameters 'event' and 'event' are incompatible.
+          Type 'MouseEvent | PointerEvent | TouchEvent' is not assignable to type 'DragEvent<HTMLButtonElement>'.
+            Type 'MouseEvent' is missing the following properties from type 'DragEvent<HTMLButtonElement>': dataTransfer, nativeEvent, isDefaultPrevented, isPropagationStopped, persist
+hooks/useAvatarMemory.ts(52,45): error TS2339: Property 'addMemory' does not exist on type 'ServiceClient'.
+hooks/useAvatarMemory.ts(94,45): error TS2339: Property 'updatePersonality' does not exist on type 'ServiceClient'.
+screens/Admin/AdminDashboard.tsx(14,25): error TS2694: Namespace '"C:/MyProjects/Talea/talea-storytelling-platform/frontend/client".user' has no exported member 'UserProfile'.
+screens/Admin/AdminDashboard.tsx(15,22): error TS2694: Namespace '"C:/MyProjects/Talea/talea-storytelling-platform/frontend/client".avatar' has no exported member 'Avatar'.
+screens/Admin/AdminDashboard.tsx(82,16): error TS2345: Argument of type 'OmitCookie<AdminStats>' is not assignable to parameter of type 'SetStateAction<AdminStats | null>'.
+  Type 'OmitCookie<AdminStats>' is not assignable to type 'AdminStats'.
+    The types of 'recentActivity.latestUser' are incompatible between these types.
+      Type '{ id: string; name: string; createdAt: Date; } | null | undefined' is not assignable to type '{ id: string; name: string; createdAt: string; } | null | undefined'.
+        Type '{ id: string; name: string; createdAt: Date; }' is not assignable to type '{ id: string; name: string; createdAt: string; }'.
+          Types of property 'createdAt' are incompatible.
+            Type 'Date' is not assignable to type 'string'.
+screens/Admin/AdminDashboard.tsx(196,38): error TS2322: Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'Color | undefined'.
+  Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string & {}'.
+    Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string'.
+screens/Admin/AdminDashboard.tsx(231,38): error TS2322: Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'Color | undefined'.
+  Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string & {}'.
+    Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string'.
+screens/Admin/AdminDashboard.tsx(244,54): error TS2339: Property 'error' does not exist on type '{ primary: { 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }; gray: { 50: string; 100: string; 200: string; 300: string; 400: string; ... 4 more ...; 900: string; }; ... 41 more ...; orange: string; }'.
+screens/Admin/AdminDashboard.tsx(254,15): error TS2322: Type '{ title: string; onPress: () => Promise<void>; loading: boolean; icon: Element; variant: "fun"; }' is not assignable to type 'IntrinsicAttributes & ButtonProps'.
+  Property 'loading' does not exist on type 'IntrinsicAttributes & ButtonProps'.
+screens/Admin/AdminDashboard.tsx(267,49): error TS2322: Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'Color | undefined'.
+  Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string & {}'.
+    Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string'.
+screens/Admin/AdminDashboard.tsx(278,48): error TS2339: Property 'buttonBackground' does not exist on type 'TokenGroup<{ background: string; backgroundAlt: string; warmBackground: string; border: string; shadow: string; shadowStrong: string; }>'.
+screens/Admin/AdminDashboard.tsx(304,45): error TS2322: Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'Color | undefined'.
+  Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string & {}'.
+    Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string'.
+screens/Admin/AdminDashboard.tsx(322,50): error TS2551: Property 'cardBackground' does not exist on type 'TokenGroup<{ background: string; backgroundAlt: string; warmBackground: string; border: string; shadow: string; shadowStrong: string; }>'. Did you mean 'background'?
+screens/Admin/AdminDashboard.tsx(331,23): error TS2322: Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'Background<string | number> | undefined'.
+  Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string & {}'.
+    Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string'.
+screens/Admin/AdminDashboard.tsx(378,107): error TS2551: Property 'badgeBackground' does not exist on type 'TokenGroup<{ background: string; backgroundAlt: string; warmBackground: string; border: string; shadow: string; shadowStrong: string; }>'. Did you mean 'background'?
+screens/Admin/AdminDashboard.tsx(382,80): error TS2322: Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'Color | undefined'.
+  Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string & {}'.
+    Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string'.
+screens/Admin/AdminDashboard.tsx(394,60): error TS2339: Property 'buttonBackground' does not exist on type 'TokenGroup<{ background: string; backgroundAlt: string; warmBackground: string; border: string; shadow: string; shadowStrong: string; }>'.
+screens/Admin/AdminDashboard.tsx(429,48): error TS2339: Property 'buttonBackground' does not exist on type 'TokenGroup<{ background: string; backgroundAlt: string; warmBackground: string; border: string; shadow: string; shadowStrong: string; }>'.
+screens/Admin/AdminDashboard.tsx(462,50): error TS2551: Property 'cardBackground' does not exist on type 'TokenGroup<{ background: string; backgroundAlt: string; warmBackground: string; border: string; shadow: string; shadowStrong: string; }>'. Did you mean 'background'?
+screens/Admin/AdminDashboard.tsx(471,23): error TS2322: Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'Background<string | number> | undefined'.
+  Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string & {}'.
+    Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string'.
+screens/Admin/AdminDashboard.tsx(491,50): error TS2551: Property 'cardBackground' does not exist on type 'TokenGroup<{ background: string; backgroundAlt: string; warmBackground: string; border: string; shadow: string; shadowStrong: string; }>'. Did you mean 'background'?
+screens/Admin/AdminDashboard.tsx(518,48): error TS2339: Property 'buttonBackground' does not exist on type 'TokenGroup<{ background: string; backgroundAlt: string; warmBackground: string; border: string; shadow: string; shadowStrong: string; }>'.
+screens/Admin/AdminDashboard.tsx(540,32): error TS2551: Property 'cardBackground' does not exist on type 'TokenGroup<{ background: string; backgroundAlt: string; warmBackground: string; border: string; shadow: string; shadowStrong: string; }>'. Did you mean 'background'?
+screens/ArtifactPool/ArtifactPoolScreen.tsx(13,31): error TS2694: Namespace '"C:/MyProjects/Talea/talea-storytelling-platform/frontend/client".story' has no exported member 'ArtifactTemplate'.
+screens/ArtifactPool/ArtifactPoolScreen.tsx(479,74): error TS2554: Expected 0 arguments, but got 1.
+screens/Avatar/AIGeneratedTab.tsx(57,56): error TS2339: Property 'error' does not exist on type '{ primary: { 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }; gray: { 50: string; 100: string; 200: string; 300: string; 400: string; ... 4 more ...; 900: string; }; ... 41 more ...; orange: string; }'.
+screens/Avatar/AIGeneratedTab.tsx(261,38): error TS2322: Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'Color | undefined'.
+  Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string & {}'.
+    Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string'.
+screens/Avatar/AIGeneratedTab.tsx(310,39): error TS2322: Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'Color | undefined'.
+  Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string & {}'.
+    Type '{ 50: string; 100: string; 200: string; 300: string; 400: string; 500: string; 600: string; 700: string; 800: string; 900: string; }' is not assignable to type 'string'.
+screens/Avatar/AIGeneratedTab.tsx(389,17): error TS2322: Type '{ title: string; onPress: () => Promise<void>; loading: boolean; icon: Element; variant: "ghost"; }' is not assignable to type 'IntrinsicAttributes & ButtonProps'.
+  Property 'loading' does not exist on type 'IntrinsicAttributes & ButtonProps'.
+screens/Avatar/AIGeneratedTab.tsx(452,11): error TS2322: Type '{ title: string; onPress: () => Promise<void>; loading: boolean; fullWidth: true; icon: Element; variant: "fun"; size: "lg"; }' is not assignable to type 'IntrinsicAttributes & ButtonProps'.
+  Property 'loading' does not exist on type 'IntrinsicAttributes & ButtonProps'.
+screens/Avatar/AvatarWizardScreen.tsx(124,46): error TS2554: Expected 1 arguments, but got 0.
+screens/Avatar/AvatarWizardScreen.tsx(173,17): error TS2345: Argument of type '(prev: AvatarFormData) => { name: string; age: number | undefined; characterType: "human"; customCharacterType: undefined; skinTone: string; gender: "male" | "female"; ... 11 more ...; backstory: string; }' is not assignable to parameter of type 'SetStateAction<AvatarFormData>'.
+  Type '(prev: AvatarFormData) => { name: string; age: number | undefined; characterType: "human"; customCharacterType: undefined; skinTone: string; gender: "male" | "female"; ... 11 more ...; backstory: string; }' is not assignable to type '(prevState: AvatarFormData) => AvatarFormData'.
+    Call signature return types '{ name: string; age: number | undefined; characterType: "human"; customCharacterType: undefined; skinTone: string; gender: "male" | "female"; height: number; bodyBuild: "slim" | "normal" | "sturdy"; ... 9 more ...; backstory: string; }' and 'AvatarFormData' are incompatible.
+      The types of 'age' are incompatible between these types.
+        Type 'number | undefined' is not assignable to type 'number'.
+          Type 'undefined' is not assignable to type 'number'.
+screens/Avatar/EditAvatarScreen.tsx(393,30): error TS2554: Expected 1 arguments, but got 0.
+screens/Avatar/EditAvatarScreen.tsx(488,17): error TS2345: Argument of type '(previous: AvatarFormData) => { name: string; age: number | undefined; characterType: "human"; customCharacterType: undefined; gender: "male" | "female"; height: number; ... 11 more ...; backstory: string; }' is not assignable to parameter of type 'SetStateAction<AvatarFormData>'.
+  Type '(previous: AvatarFormData) => { name: string; age: number | undefined; characterType: "human"; customCharacterType: undefined; gender: "male" | "female"; height: number; ... 11 more ...; backstory: string; }' is not assignable to type '(prevState: AvatarFormData) => AvatarFormData'.
+    Call signature return types '{ name: string; age: number | undefined; characterType: "human"; customCharacterType: undefined; gender: "male" | "female"; height: number; bodyBuild: "slim" | "normal" | "sturdy"; hairColor: "none" | ... 5 more ... | "colorful"; ... 9 more ...; backstory: string; }' and 'AvatarFormData' are incompatible.
+      The types of 'age' are incompatible between these types.
+        Type 'number | undefined' is not assignable to type 'number'.
+          Type 'undefined' is not assignable to type 'number'.
+screens/Avatar/EditAvatarScreen.tsx(589,9): error TS2740: Type 'AvatarVisualProfileRecord' is missing the following properties from type 'AvatarVisualProfile': ageApprox, gender, skin, hair, and 4 more.
+screens/Avatar/EditAvatarScreen.tsx(637,9): error TS2740: Type 'AvatarVisualProfileRecord' is missing the following properties from type 'AvatarVisualProfile': ageApprox, gender, skin, hair, and 4 more.
+screens/Avatar/PhotoUploadTab.tsx(110,9): error TS2739: Type 'PersonalityTraits' is missing the following properties from type 'PersonalityTraits': knowledge, vocabulary, teamwork, persistence, logic
+screens/Avatar/PhotoUploadTab.tsx(344,11): error TS2322: Type '{ title: string; onPress: () => Promise<void>; loading: boolean; size: "lg"; className: string; }' is not assignable to type 'IntrinsicAttributes & ButtonProps'.
+  Property 'loading' does not exist on type 'IntrinsicAttributes & ButtonProps'.
+screens/Doku/CreateAudioDokuScreen.tsx(776,19): error TS2345: Argument of type 'Uint8Array<ArrayBufferLike>[]' is not assignable to parameter of type 'BlobPart[]'.
+  Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'BlobPart'.
+    Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'ArrayBufferView<ArrayBuffer>'.
+      Types of property 'buffer' are incompatible.
+        Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+          Type 'SharedArrayBuffer' is missing the following properties from type 'ArrayBuffer': resizable, resize, detached, transfer, transferToFixedLength
+screens/Doku/DokusScreen.tsx(100,11): error TS2353: Object literal may only specify known properties, and 'profileId' does not exist in type 'OmitCookie<ListAudioDokusRequest>'.
+screens/Doku/TaleaDokusScreen.tsx(699,11): error TS2353: Object literal may only specify known properties, and 'profileId' does not exist in type 'OmitCookie<ListAudioDokusRequest>'.
+screens/FairyTales/FairyTalesScreen.tsx(133,16): error TS2345: Argument of type 'FairyTale[]' is not assignable to parameter of type 'SetStateAction<FairyTale[]>'.
+  Type 'import("C:/MyProjects/Talea/talea-storytelling-platform/backend/fairytales/types").FairyTale[]' is not assignable to type 'FairyTale[]'.
+    Type 'import("C:/MyProjects/Talea/talea-storytelling-platform/backend/fairytales/types").FairyTale' is not assignable to type 'FairyTale'.
+      Types of property 'originalLanguage' are incompatible.
+        Type 'string | null | undefined' is not assignable to type 'string | undefined'.
+          Type 'null' is not assignable to type 'string | undefined'.
+screens/FairyTales/FairyTalesScreen.tsx(176,22): error TS2345: Argument of type '(prev: Record<string, { roles: FairyTaleRole[]; scenes: FairyTaleScene[]; }>) => { [x: string]: { roles: FairyTaleRole[]; scenes: FairyTaleScene[]; } | { ...; }; }' is not assignable to parameter of type 'SetStateAction<Record<string, { roles: FairyTaleRole[]; scenes: FairyTaleScene[]; }>>'.
+  Type '(prev: Record<string, { roles: FairyTaleRole[]; scenes: FairyTaleScene[]; }>) => { [x: string]: { roles: FairyTaleRole[]; scenes: FairyTaleScene[]; } | { ...; }; }' is not assignable to type '(prevState: Record<string, { roles: FairyTaleRole[]; scenes: FairyTaleScene[]; }>) => Record<string, { roles: FairyTaleRole[]; scenes: FairyTaleScene[]; }>'.
+    Type '{ [x: string]: { roles: FairyTaleRole[]; scenes: FairyTaleScene[]; } | { roles: FairyTaleRole[]; scenes: FairyTaleScene[]; }; }' is not assignable to type 'Record<string, { roles: FairyTaleRole[]; scenes: FairyTaleScene[]; }>'.
+      'string' index signatures are incompatible.
+        Type '{ roles: FairyTaleRole[]; scenes: FairyTaleScene[]; } | { roles: FairyTaleRole[]; scenes: FairyTaleScene[]; }' is not assignable to type '{ roles: FairyTaleRole[]; scenes: FairyTaleScene[]; }'.
+          Type '{ roles: import("C:/MyProjects/Talea/talea-storytelling-platform/backend/fairytales/types").FairyTaleRole[]; scenes: import("C:/MyProjects/Talea/talea-storytelling-platform/backend/fairytales/types").FairyTaleScene[]; }' is not assignable to type '{ roles: FairyTaleRole[]; scenes: FairyTaleScene[]; }'.
+            Types of property 'roles' are incompatible.
+              Type 'import("C:/MyProjects/Talea/talea-storytelling-platform/backend/fairytales/types").FairyTaleRole[]' is not assignable to type 'FairyTaleRole[]'.
+                Type 'import("C:/MyProjects/Talea/talea-storytelling-platform/backend/fairytales/types").FairyTaleRole' is not assignable to type 'FairyTaleRole'.
+                  Types of property 'roleType' are incompatible.
+                    Type 'import("C:/MyProjects/Talea/talea-storytelling-platform/backend/fairytales/types").RoleType' is not assignable to type 'RoleType'.
+                      Type '"secondary"' is not assignable to type 'RoleType'.
+screens/FairyTales/FairyTalesScreen.tsx(748,30): error TS2551: Property 'headingXs' does not exist on type '{ displayXl: { fontSize: string; fontWeight: string; lineHeight: string; letterSpacing: string; fontFamily: string; }; displayLg: { fontSize: string; fontWeight: string; lineHeight: string; letterSpacing: string; fontFamily: string; }; ... 9 more ...; tiny: { ...; }; }'. Did you mean 'headingSm'?
+screens/Home/ModernHomeScreen.tsx(119,13): error TS2322: Type '{ hidden: { opacity: number; y: number; }; visible: (i: number) => { opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }; }' is not assignable to type 'Variants'.
+  Property 'visible' is incompatible with index signature.
+    Type '(i: number) => { opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type 'Variant'.
+      Type '(i: number) => { opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type 'TargetResolver'.
+        Type '{ opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type 'string | TargetAndTransition'.
+          Type '{ opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type 'TargetAndTransition'.
+            Type '{ opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type '{ transition?: Transition<any> | undefined; transitionEnd?: ResolvedValues | undefined; }'.
+              Types of property 'transition' are incompatible.
+                Type '{ delay: number; duration: number; ease: number[]; }' is not assignable to type 'Transition<any> | undefined'.
+                  Type '{ delay: number; duration: number; ease: number[]; }' is not assignable to type 'TransitionWithValueOverrides<any>'.
+                    Type '{ delay: number; duration: number; ease: number[]; }' is not assignable to type 'ValueAnimationTransition<any>'.
+                      Types of property 'ease' are incompatible.
+                        Type 'number[]' is not assignable to type 'Easing | Easing[] | undefined'.
+                          Type 'number[]' is not assignable to type 'EasingFunction | Easing[]'.
+                            Type 'number[]' is not assignable to type 'Easing[]'.
+                              Type 'number' is not assignable to type 'Easing'.
+screens/Home/ModernHomeScreen.tsx(143,5): error TS2322: Type '{ hidden: { opacity: number; y: number; }; visible: (i: number) => { opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }; }' is not assignable to type 'Variants'.
+  Property 'visible' is incompatible with index signature.
+    Type '(i: number) => { opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type 'Variant'.
+      Type '(i: number) => { opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type 'TargetResolver'.
+        Type '{ opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type 'string | TargetAndTransition'.
+          Type '{ opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type 'TargetAndTransition'.
+            Type '{ opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type '{ transition?: Transition<any> | undefined; transitionEnd?: ResolvedValues | undefined; }'.
+              Types of property 'transition' are incompatible.
+                Type '{ delay: number; duration: number; ease: number[]; }' is not assignable to type 'Transition<any> | undefined'.
+                  Type '{ delay: number; duration: number; ease: number[]; }' is not assignable to type 'TransitionWithValueOverrides<any>'.
+                    Type '{ delay: number; duration: number; ease: number[]; }' is not assignable to type 'ValueAnimationTransition<any>'.
+                      Types of property 'ease' are incompatible.
+                        Type 'number[]' is not assignable to type 'Easing | Easing[] | undefined'.
+                          Type 'number[]' is not assignable to type 'EasingFunction | Easing[]'.
+                            Type 'number[]' is not assignable to type 'Easing[]'.
+                              Type 'number' is not assignable to type 'Easing'.
+screens/Home/ModernHomeScreen.tsx(194,5): error TS2322: Type '{ hidden: { opacity: number; y: number; }; visible: (i: number) => { opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }; }' is not assignable to type 'Variants'.
+  Property 'visible' is incompatible with index signature.
+    Type '(i: number) => { opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type 'Variant'.
+      Type '(i: number) => { opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type 'TargetResolver'.
+        Type '{ opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type 'string | TargetAndTransition'.
+          Type '{ opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type 'TargetAndTransition'.
+            Type '{ opacity: number; y: number; transition: { delay: number; duration: number; ease: number[]; }; }' is not assignable to type '{ transition?: Transition<any> | undefined; transitionEnd?: ResolvedValues | undefined; }'.
+              Types of property 'transition' are incompatible.
+                Type '{ delay: number; duration: number; ease: number[]; }' is not assignable to type 'Transition<any> | undefined'.
+                  Type '{ delay: number; duration: number; ease: number[]; }' is not assignable to type 'TransitionWithValueOverrides<any>'.
+                    Type '{ delay: number; duration: number; ease: number[]; }' is not assignable to type 'ValueAnimationTransition<any>'.
+                      Types of property 'ease' are incompatible.
+                        Type 'number[]' is not assignable to type 'Easing | Easing[] | undefined'.
+                          Type 'number[]' is not assignable to type 'EasingFunction | Easing[]'.
+                            Type 'number[]' is not assignable to type 'Easing[]'.
+                              Type 'number' is not assignable to type 'Easing'.
+screens/Journey/components/GameMapNode.tsx(306,13): error TS2322: Type 'string' is not assignable to type 'never'.
+screens/Journey/components/GameMapNode.tsx(307,13): error TS2322: Type '{ color: string; filter: string; }' is not assignable to type 'never'.
+screens/Journey/hooks/useMapSegmentGenerator.ts(447,13): error TS2353: Object literal may only specify known properties, and 'profileId' does not exist in type 'OmitCookie<ListAudioDokusRequest>'.
+screens/Journey/TaleaMapNodeSheet.tsx(124,19): error TS2322: Type 'string' is not assignable to type 'never'.
+screens/Journey/TaleaMapNodeSheet.tsx(124,39): error TS2322: Type '{ color: string; }' is not assignable to type 'never'.
+screens/Story/ModernStoryWizard.tsx(362,36): error TS2741: Property 'broughtArtifact' is missing in type 'WizardState' but required in type '{ selectedAvatars: string[]; rhymes: boolean; moral: boolean; avatarIsHero: boolean; famousCharacters: boolean; happyEnd: boolean; surpriseEnd: boolean; customWish: string; broughtArtifact: BroughtArtifactSelection | null; }'.
+utils/pdfExport.ts(987,7): error TS2774: This condition will always return true since this function is always defined. Did you mean to call it instead?

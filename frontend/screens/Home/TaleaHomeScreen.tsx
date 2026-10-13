@@ -1,57 +1,27 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SignedIn, SignedOut, UserButton, useUser } from "@clerk/clerk-react";
+import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
-import { motion, useReducedMotion, AnimatePresence, Variants } from "framer-motion";
+import { toast } from "sonner";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import {
-  ArrowRight,
-  Bookmark,
-  BookmarkCheck,
-  BookOpen,
-  Clock3,
-  ImageOff,
-  Library,
-  LogIn,
-  Plus,
-  RefreshCw,
-  Trash2,
-  UserPlus,
-  WandSparkles,
-  Sparkles,
-  Star,
-  Zap,
-  Swords,
-  ScrollText
+  ArrowRight, Bookmark, BookmarkCheck, BookOpen, Clock3, ImageOff,
+  Library, LogIn, Plus, RefreshCw, Sparkles, Trash2, UserPlus, WandSparkles,
 } from "lucide-react";
 
 import { useBackend } from "../../hooks/useBackend";
 import type { Story, StoryConfig } from "../../types/story";
 import { wereStoryImagesSkipped } from "../../utils/storyQualityGate";
 import { cn } from "@/lib/utils";
-import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDialog";
-import taleaLogo from "@/img/talea_logo.png";
+import { TaleaLogo } from "@/components/brand/TaleaLogo";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
-import CosmosHomeCard from '../Cosmos/CosmosHomeCard';
-import { useCosmosState } from '../Cosmos/useCosmosState';
-// TaviHomeGreeting moved from hero area — can be re-added as floating element
-// import { TaviHomeGreeting } from '../../agents';
+import CosmosHomeCard from "../Cosmos/CosmosHomeCard";
+import { useCosmosState } from "../Cosmos/useCosmosState";
 import { useOffline } from "@/contexts/OfflineStorageContext";
 import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
-import {
-  TaleaActionButton,
-  TaleaLoadingState,
-  TaleaPageBackground,
-  TaleaSectionHeading,
-  taleaBodyFont,
-  taleaChipClass,
-  taleaDisplayFont,
-  taleaInsetSurfaceClass,
-  taleaPageShellClass,
-  taleaSurfaceClass,
+  TaleaActionButton, TaleaLoadingState, TaleaPageBackground, TaleaSectionHeading,
+  taleaBodyFont, taleaDisplayFont, taleaPageShellClass, taleaSurfaceClass,
 } from "@/components/talea/TaleaPastelPrimitives";
 import { TaleaCardMenu, type TaleaCardMenuAction } from "@/components/talea/TaleaCardMenu";
 
@@ -74,223 +44,55 @@ interface Doku {
 
 const headingFont = taleaDisplayFont;
 const bodyFont = taleaBodyFont;
-
-function formatDate(value: string, locale?: string) {
-  return new Date(value).toLocaleDateString(locale || "de-DE", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
+const focusClass = "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--talea-page-solid)]";
+const enterEase = [0.22, 1, 0.36, 1] as const;
 
 function getDateLocale(i18nLang: string): string {
   const map: Record<string, string> = {
     de: "de-DE", en: "en-GB", fr: "fr-FR", es: "es-ES", it: "it-IT", nl: "nl-NL", ru: "ru-RU",
   };
-  return map[i18nLang] || "de-DE";
+  return map[i18nLang.split("-")[0]] || "de-DE";
+}
+
+function formatDate(value: string, locale = "de-DE") {
+  return new Date(value).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" });
 }
 
 function normalizeDate(value: string | Date): string {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  return value;
+  return value instanceof Date ? value.toISOString() : value;
 }
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.1,
-    },
-  },
+  show: { opacity: 1, transition: { staggerChildren: 0.06 } },
 };
-
 const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 30, scale: 0.9 },
-  show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", bounce: 0.5, duration: 0.6 } },
+  hidden: { opacity: 0, y: 14 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: enterEase } },
 };
 
-const KidsAppBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => (
-  <TaleaPageBackground isDark={isDark} />
-);
+const KidsAppBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => <TaleaPageBackground isDark={isDark} />;
 
 const LoadingState: React.FC = () => {
   const { t } = useTranslation();
   return (
     <TaleaLoadingState
-      title={t("homeScreen.loadingTitle", "Talea richtet die Startseite neu ein")}
-      subtitle={t("homeScreen.loadingSubtitle", "Die Geschichten, Helden und Dokus werden gerade in ihre neuen Bereiche sortiert.")}
-      icon={<WandSparkles className="h-9 w-9" />}
+      title={t("homeScreen.loadingTitle")}
+      subtitle={t("homeScreen.loadingSubtitle")}
+      icon={<WandSparkles className="h-9 w-9" aria-hidden />}
     />
   );
 };
 
-const SignedOutStart: React.FC = () => {
-  const navigate = useNavigate();
-  const { t } = useTranslation();
-
-  const features = [
-    { icon: "📚", textKey: "homeScreen.featureStreams", color: "text-cyan-600 dark:text-cyan-300", bg: "bg-cyan-100 dark:bg-cyan-900/50" },
-    { icon: "🦸‍♀️", textKey: "homeScreen.featureAvatarAccess", color: "text-pink-600 dark:text-pink-300", bg: "bg-pink-100 dark:bg-pink-900/50" },
-    { icon: "💡", textKey: "homeScreen.featureDokuStyle", color: "text-yellow-600 dark:text-yellow-300", bg: "bg-yellow-100 dark:bg-yellow-900/50" },
-  ];
-
-  return (
-    <div className="flex min-h-[80vh] items-center justify-center px-5 py-10">
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: "spring", bounce: 0.5 }}
-        className="w-full max-w-4xl"
-      >
-        <Card className="overflow-hidden rounded-[3rem] border-[6px] border-white/80 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 shadow-[0_20px_60px_-15px_rgba(236,72,153,0.3)] dark:shadow-[0_20px_60px_-15px_rgba(99,102,241,0.3)] backdrop-blur-2xl">
-          <CardContent className="p-0 grid md:grid-cols-[1.4fr_1fr]">
-            <div className="p-10 md:p-14 flex flex-col justify-center">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", delay: 0.2 }}
-                className="inline-flex w-fit items-center gap-3 rounded-full border-4 border-white/80 dark:border-slate-700 bg-white dark:bg-slate-800 px-5 py-2.5 shadow-xl"
-              >
-                <img src={taleaLogo} alt="Talea Logo" className="h-8 w-8 object-contain" />
-                <p className="text-sm font-extrabold tracking-widest text-indigo-500 dark:text-indigo-300">TALEA STUDIO</p>
-              </motion.div>
-              <motion.h1
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-                className="mt-8 text-5xl font-black leading-tight text-slate-800 dark:text-slate-100 md:text-6xl"
-                style={{ fontFamily: headingFont }}
-              >
-                {t("homeScreen.signedOutTitle", "Geschichten, Figuren und Wissen an einem Ort.")}
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="mt-6 max-w-xl text-lg font-bold leading-relaxed text-slate-500 dark:text-slate-400"
-              >
-                {t("home.subtitle", "Organisiere Avatare, Geschichten und Dokus in einer wunderbaren Umgebung für die besten Leseabenteuer.")}
-              </motion.p>
-              <motion.button
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                whileHover={{ scale: 1.05, y: -4, rotate: -2 }}
-                whileTap={{ scale: 0.95 }}
-                type="button"
-                onClick={() => navigate("/auth")}
-                className="mt-10 inline-flex w-fit items-center gap-3 rounded-[2rem] bg-gradient-to-br from-pink-500 to-purple-600 px-10 py-5 text-xl font-black text-white shadow-xl shadow-pink-300/50 dark:shadow-purple-900/50 border-4 border-white/20"
-              >
-                <LogIn className="h-6 w-6" />
-                {t("homeScreen.adventureBegins", "Das Abenteuer beginnt")}
-              </motion.button>
-            </div>
-
-            <div className="bg-gradient-to-br from-pink-100 to-cyan-100 dark:from-slate-800 dark:to-indigo-950 p-10 flex flex-col justify-center relative overflow-hidden">
-              <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/40 dark:bg-white/5 rounded-full blur-3xl"></div>
-              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-pink-300/30 dark:bg-purple-500/20 rounded-full blur-3xl"></div>
-
-              <div className="relative z-10">
-                <p className="text-center text-sm font-black tracking-widest text-pink-500 dark:text-indigo-300 mb-8">
-                  {t("homeScreen.discoverWorld", "ENTDECKE DEINE WELT")}
-                </p>
-                <ul className="flex flex-col gap-5 text-base font-extrabold text-slate-700 dark:text-slate-200">
-                  {features.map((item, i) => (
-                    <motion.li
-                      key={item.textKey}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.5 + i * 0.1 }}
-                      whileHover={{ scale: 1.03, x: 8 }}
-                      className="flex items-center gap-4 rounded-[1.5rem] border-4 border-white/80 dark:border-slate-700 bg-white/70 dark:bg-slate-800 px-5 py-4 shadow-lg backdrop-blur-md cursor-default"
-                    >
-                      <span className={cn("flex h-12 w-12 items-center justify-center rounded-[1rem] shadow-inner text-xl", item.bg, item.color)}>
-                        {item.icon}
-                      </span>
-                      {t(item.textKey)}
-                    </motion.li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </div>
-  );
-};
-
-const SectionHeading: React.FC<{
-  title: string;
-  subtitle: string;
-  icon?: React.ReactNode;
-  actionLabel?: string;
-  onAction?: () => void;
-}> = ({ title, subtitle, icon, actionLabel, onAction }) => (
-  <div className="mb-8 flex flex-wrap items-end justify-between gap-4 pl-2">
-    <div className="flex items-center gap-4">
-      {icon && (
-        <div className="hidden md:flex h-14 w-14 items-center justify-center rounded-[1.5rem] bg-white/80 dark:bg-slate-800 border-4 border-white dark:border-slate-700 shadow-lg text-pink-500 dark:text-indigo-400">
-          {icon}
-        </div>
-      )}
-      <div>
-        <h2
-          className="text-3xl font-black text-slate-800 dark:text-slate-100 md:text-4xl flex items-center gap-3"
-          style={{ fontFamily: headingFont }}
-        >
-          {title}
-        </h2>
-        <p className="mt-1.5 text-base font-extrabold text-slate-500 dark:text-slate-400">{subtitle}</p>
-      </div>
-    </div>
-    {actionLabel && onAction && (
-      <motion.button
-        whileHover={{ scale: 1.05, y: -2 }}
-        whileTap={{ scale: 0.95 }}
-        type="button"
-        onClick={onAction}
-        className="inline-flex items-center gap-2 rounded-[1.5rem] border-4 border-white/80 dark:border-slate-700 bg-white/80 dark:bg-slate-800 px-6 py-3 text-sm font-black text-slate-700 dark:text-slate-200 shadow-lg backdrop-blur-md transition-all hover:bg-cyan-50 dark:hover:bg-slate-700/80 hover:text-cyan-600 dark:hover:text-cyan-300 hover:border-cyan-200 dark:hover:border-cyan-900"
-      >
-        {actionLabel}
-        <ArrowRight className="h-5 w-5" />
-      </motion.button>
-    )}
+/** The supplied book mark is the illustration: a familiar face, with room to breathe. */
+const BrandBook: React.FC<{ compact?: boolean }> = ({ compact = false }) => (
+  <div aria-hidden className={cn("relative flex items-center justify-center", compact ? "h-48 sm:h-60" : "min-h-64 sm:min-h-80 lg:min-h-[25rem]")}>
+    <div className={cn("absolute rounded-full bg-[var(--talea-accent-terracotta-soft)]", compact ? "h-44 w-44 sm:h-56 sm:w-56" : "h-60 w-60 sm:h-80 sm:w-80")} />
+    <div className="absolute bottom-[16%] left-[15%] h-12 w-12 -rotate-12 rounded-2xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] sm:h-16 sm:w-16" />
+    <Sparkles className="absolute right-[17%] top-[12%] h-7 w-7 rotate-12 text-[var(--primary)]" strokeWidth={1.5} />
+    <img src="/brand/talea-icon-primary.svg" alt="" width="320" height="320" className={cn("relative -rotate-[8deg] object-contain drop-shadow-[0_12px_14px_rgba(62,40,31,0.10)]", compact ? "h-40 w-40 sm:h-52 sm:w-52" : "h-56 w-56 sm:h-72 sm:w-72")} />
+    <BookOpen className="absolute bottom-[10%] right-[12%] h-7 w-7 rotate-12 text-[var(--talea-text-secondary)]" strokeWidth={1.5} />
   </div>
-);
-
-const StoryStatusTag: React.FC<{ status: Story["status"] }> = ({ status }) => {
-  const { t } = useTranslation();
-  if (status === "complete") return null;
-
-  const label = t(`homeScreen.status.${status}`, status);
-  return (
-    <motion.span
-      initial={{ scale: 0 }}
-      animate={{ scale: 1 }}
-      className={cn(
-        "absolute right-5 top-5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm z-20",
-        status === "generating" && "border-transparent bg-[#fde9cf] text-slate-900 dark:bg-[#493419] dark:text-white",
-        status === "error" && "border-transparent bg-[#f9d8dd] text-slate-900 dark:bg-[#4d1f29] dark:text-white"
-      )}
-    >
-      {label}
-    </motion.span>
-  );
-};
-
-const StoryImageSkipTag: React.FC = () => (
-  <motion.span
-    initial={{ scale: 0 }}
-    animate={{ scale: 1 }}
-    className="absolute left-5 top-5 z-20 inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700 shadow-sm dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300"
-  >
-    <ImageOff className="h-3.5 w-3.5" />
-    Bilder übersprungen
-  </motion.span>
 );
 
 const StoryCard: React.FC<{
@@ -304,560 +106,217 @@ const StoryCard: React.FC<{
   index: number;
 }> = ({ story, onRead, onDelete, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline, index }) => {
   const reduceMotion = useReducedMotion();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const imagesSkipped = wereStoryImagesSkipped(story);
-  const genre = String(story.config?.genre || "").replace(/[-_]+/g, " ").trim();
-
+  const genreKey = String(story.config?.genre || "");
+  const genre = genreKey
+    ? t(`storiesScreen.genre.${genreKey}`, { defaultValue: genreKey.replace(/[-_]+/g, " ") })
+    : "";
   const actions: TaleaCardMenuAction[] = [
-    ...(canSaveOffline && story.status === "complete" && onToggleOffline
-      ? [{
-          label: isSavedOffline ? t("homeScreen.offlineRemove") : t("homeScreen.offlineSave"),
-          icon: isSavingOffline ? <Clock3 className="h-4 w-4 animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />,
-          onSelect: onToggleOffline,
-          disabled: isSavingOffline,
-        }]
-      : []),
+    ...(canSaveOffline && story.status === "complete" && onToggleOffline ? [{
+      label: isSavedOffline ? t("homeScreen.offlineRemove") : t("homeScreen.offlineSave"),
+      icon: isSavingOffline ? <Clock3 className="h-4 w-4 motion-safe:animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />,
+      onSelect: onToggleOffline,
+      disabled: isSavingOffline,
+    }] : []),
     { label: t("homeScreen.deleteStory"), icon: <Trash2 className="h-4 w-4" />, onSelect: onDelete, destructive: true },
   ];
-
   return (
-    <motion.article
-      variants={itemVariants}
-      whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-      className="group relative w-[min(68vw,15.5rem)] shrink-0 snap-start sm:w-[15.5rem]"
-    >
-      <button
-        type="button"
-        onClick={onRead}
-        className="block w-full text-left focus-visible:outline-none"
-        aria-label={story.title}
-      >
-        <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-[var(--talea-media-skeleton)] shadow-[var(--talea-shadow-medium)] ring-1 ring-[var(--talea-border-light)] group-focus-visible:ring-4 group-focus-visible:ring-[var(--primary)]/30">
+    <motion.article variants={itemVariants} whileHover={reduceMotion ? undefined : { y: -3 }} className="group relative w-[min(68vw,15rem)] shrink-0 snap-start sm:w-56 lg:w-60">
+      <button type="button" onClick={onRead} className={cn("block w-full rounded-2xl text-left", focusClass)} aria-label={[story.title, story.status !== "complete" ? t(`homeScreen.status.${story.status}`) : null, imagesSkipped ? t("homeScreen.imagesSkipped", "Bilder übersprungen") : null].filter(Boolean).join(" · ")}>
+        <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-[var(--talea-media-skeleton)] shadow-[var(--talea-shadow-medium)] ring-1 ring-[var(--talea-border-light)]">
           {story.coverImageUrl ? (
-            <img
-              src={story.coverImageUrl}
-              alt=""
-              loading={index < 3 ? "eager" : "lazy"}
-              decoding="async"
-              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-            />
+            <img src={story.coverImageUrl} alt="" loading={index < 3 ? "eager" : "lazy"} decoding="async" className="h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.03]" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center text-[var(--talea-text-tertiary)]">
-              <BookOpen className="h-12 w-12" />
-            </div>
+            <div className="flex h-full items-center justify-center text-[var(--primary)]"><BookOpen className="h-12 w-12" aria-hidden /></div>
           )}
-          <StoryStatusTag status={story.status} />
-          {imagesSkipped ? <StoryImageSkipTag /> : null}
+          {story.status !== "complete" && (
+            <span className={cn("absolute bottom-3 left-3 rounded-full bg-[var(--talea-surface-primary)] px-3 py-1.5 text-xs font-semibold", story.status === "error" ? "text-[var(--talea-danger)]" : "text-[var(--talea-text-primary)]")}>
+              {t(`homeScreen.status.${story.status}`)}
+            </span>
+          )}
+          {imagesSkipped && <span className="absolute bottom-3 right-3 rounded-full bg-[var(--talea-surface-primary)] p-2 text-[var(--talea-text-secondary)]" title={t("homeScreen.imagesSkipped", "Bilder übersprungen")}><ImageOff className="h-4 w-4" aria-hidden /></span>}
         </div>
-        <h3
-          className="mt-2.5 line-clamp-2 text-[15px] font-semibold leading-snug text-[var(--talea-text-primary)]"
-          style={{ fontFamily: headingFont }}
-        >
-          {story.title}
-        </h3>
-        <p className="mt-0.5 truncate text-[13px] text-[var(--talea-text-secondary)]">
-          {[genre, formatDate(story.createdAt)].filter(Boolean).join(" · ")}
-        </p>
+        <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-snug text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>{story.title}</h3>
+        <p className="mt-1 truncate text-xs text-[var(--talea-text-secondary)]">{[genre, formatDate(story.createdAt, getDateLocale(i18n.language))].filter(Boolean).join(" · ")}</p>
       </button>
-
-      <TaleaCardMenu actions={actions} label={`Aktionen für ${story.title}`} className="!absolute right-2 top-2" />
+      <TaleaCardMenu actions={actions} label={`${t("common.actions", "Aktionen")}: ${story.title}`} className="!absolute right-2 top-2" />
     </motion.article>
   );
 };
 
-
-const AvatarTile: React.FC<{
-  avatar: Avatar;
-  onOpen: () => void;
-  onDelete: () => void;
-}> = ({ avatar, onOpen, onDelete }) => (
-  <motion.article
-    variants={itemVariants}
-    whileTap={{ scale: 0.97 }}
-    role="button"
-    tabIndex={0}
-    onClick={onOpen}
-    onKeyDown={(event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        onOpen();
-      }
-    }}
-    className={cn(taleaSurfaceClass, "group relative flex h-[10.5rem] w-[8.5rem] flex-shrink-0 flex-col items-center justify-center p-3 text-center sm:h-52 sm:w-40 sm:p-4")}
-  >
-    <div className="relative mx-auto mb-3 inline-block">
-      <div className="h-[5.5rem] w-[5.5rem] overflow-hidden rounded-full ring-1 ring-[var(--talea-border-light)] sm:h-28 sm:w-28">
-        <img
-          src={
-            avatar.imageUrl ||
-            `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(avatar.name)}`
-          }
-          alt={avatar.name}
-          className="h-full w-full rounded-full object-cover transition-transform duration-500 group-hover:scale-110"
-        />
-      </div>
-    </div>
-
-    <p className="w-full truncate px-2 text-[15px] font-semibold text-[var(--talea-text-primary)]">{avatar.name}</p>
-    <p className="mt-0.5 text-[13px] text-[var(--talea-text-tertiary)]">
-      {avatar.avatarRole === "child" ? "Kinderprofil" : avatar.creationType === "ai-generated" ? "AI-Figur" : "Fotofigur"}
-    </p>
-    
-    <div className="absolute -top-3 -left-3 opacity-0 transition-all duration-300 scale-50 group-hover:opacity-100 group-hover:scale-100 z-10">
-      <motion.button
-        whileHover={{ scale: 1.15, rotate: -10 }}
-        whileTap={{ scale: 0.9 }}
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onDelete();
-        }}
-        className="rounded-full border border-[#f1d8de] bg-[#fff4f6] p-2.5 text-[#a14b5e] shadow-xl dark:border-[#4a2730] dark:bg-[#331921] dark:text-[#ffb3c1]"
-        aria-label={`${avatar.name} löschen`}
-      >
-        <Trash2 className="h-4 w-4" />
-      </motion.button>
-    </div>
-  </motion.article>
-);
-
-const dokuStatusLabel: Record<Doku["status"], string> = {
-  complete: "Fertig",
-  generating: "Wird erstellt",
-  error: "Fehler",
+const AvatarTile: React.FC<{ avatar: Avatar; onOpen: () => void; onDelete: () => void }> = ({ avatar, onOpen, onDelete }) => {
+  const { t } = useTranslation();
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.article variants={itemVariants} whileHover={reduceMotion ? undefined : { y: -3 }} className={cn(taleaSurfaceClass, "group w-36 shrink-0 overflow-visible sm:w-40")}>
+      <button type="button" onClick={onOpen} className={cn("flex min-h-48 w-full flex-col items-center justify-center px-3 pb-4 pt-7 text-center", focusClass)}>
+        <div className="mb-3 h-24 w-24 overflow-hidden rounded-full bg-[var(--talea-surface-inset)] ring-4 ring-[var(--talea-surface-inset)]">
+          {avatar.imageUrl ? <img src={avatar.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-105" /> : <UserPlus className="mx-auto mt-7 h-10 w-10 text-[var(--primary)]" aria-hidden />}
+        </div>
+        <h3 className="w-full truncate text-base font-semibold text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>{avatar.name}</h3>
+        <p className="mt-1 text-xs text-[var(--talea-text-secondary)]">{t(avatar.avatarRole === "child" ? "homeScreen.childProfileLabel" : avatar.creationType === "ai-generated" ? "homeScreen.aiFigureLabel" : "homeScreen.photoFigureLabel")}</p>
+      </button>
+      <TaleaCardMenu actions={[{ label: t("homeScreen.deleteAvatar"), icon: <Trash2 className="h-4 w-4" />, onSelect: onDelete, destructive: true }]} label={`${t("common.actions", "Aktionen")}: ${avatar.name}`} className="!absolute right-1 top-1" />
+    </motion.article>
+  );
 };
 
-const DokuBentoTicket: React.FC<{
-  doku: Doku;
-  onRead: () => void;
-  onDelete: () => void;
-}> = ({ doku, onRead, onDelete }) => (
-  <motion.article
-    variants={itemVariants}
-    whileHover={{ y: -4, scale: 1.015, transition: { type: "spring", stiffness: 300, damping: 22 } }}
-    whileTap={{ scale: 0.98 }}
-    className={cn(taleaSurfaceClass, "group relative cursor-pointer overflow-hidden p-3 transition-colors hover:bg-[var(--talea-surface-inset)]/40 sm:p-4")}
-    role="button"
-    tabIndex={0}
-    onClick={onRead}
-    onKeyDown={(event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        onRead();
-      }
-    }}
-  >
-    <div className="flex items-center gap-3.5">
-      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[var(--talea-media-skeleton)] sm:h-[4.5rem] sm:w-[4.5rem]">
-        {doku.coverImageUrl ? (
-          <img src={doku.coverImageUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#f9ead0_0%,#dcecfb_100%)] text-slate-500 dark:bg-[linear-gradient(135deg,rgba(91,77,52,0.5)_0%,rgba(58,82,115,0.38)_100%)] dark:text-slate-100">
-            <Library className="h-8 w-8" />
-          </div>
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex justify-between items-start gap-2">
-          <div>
-            <p className="line-clamp-2 text-[17px] font-semibold leading-snug text-[var(--talea-text-primary)]">{doku.title}</p>
-            {doku.topic && doku.topic !== doku.title ? (
-              <p className="mt-0.5 line-clamp-1 text-[13px] text-[var(--talea-text-secondary)]">{doku.topic}</p>
-            ) : null}
-          </div>
-          <motion.button
-            whileHover={{ scale: 1.15, rotate: 10 }}
-            whileTap={{ scale: 0.9 }}
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onDelete();
-            }}
-            className="z-10 shrink-0 rounded-full border border-[#f1d8de] bg-[#fff4f6] p-2.5 text-[#a14b5e] opacity-0 transition-opacity group-hover:opacity-100 dark:border-[#4a2730] dark:bg-[#331921] dark:text-[#ffb3c1]"
-            aria-label="Doku loeschen"
-          >
-            <Trash2 className="h-4 w-4" />
-          </motion.button>
+const DokuBentoTicket: React.FC<{ doku: Doku; onRead: () => void; onDelete: () => void }> = ({ doku, onRead, onDelete }) => {
+  const { t, i18n } = useTranslation();
+  const reduceMotion = useReducedMotion();
+  return (
+    <motion.article variants={itemVariants} whileHover={reduceMotion ? undefined : { y: -2 }} className={cn(taleaSurfaceClass, "group")}>
+      <button type="button" onClick={onRead} className={cn("flex min-h-28 w-full items-center gap-4 p-4 pr-12 text-left sm:p-5 sm:pr-14", focusClass)}>
+        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[var(--talea-surface-inset)] sm:h-24 sm:w-24">
+          {doku.coverImageUrl ? <img src={doku.coverImageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Library className="mx-auto mt-6 h-8 w-8 text-[var(--primary)] sm:mt-8" aria-hidden />}
         </div>
+        <div className="min-w-0">
+          <h3 className="line-clamp-2 text-base font-semibold leading-snug text-[var(--talea-text-primary)] sm:text-lg" style={{ fontFamily: headingFont }}>{doku.title}</h3>
+          {doku.topic && doku.topic !== doku.title && <p className="mt-1 line-clamp-1 text-sm text-[var(--talea-text-secondary)]">{doku.topic}</p>}
+          <p className="mt-2 text-xs text-[var(--talea-text-secondary)]">
+            {doku.status !== "complete" && <span className={doku.status === "error" ? "font-semibold text-[var(--talea-danger)]" : "font-semibold"}>{t(`homeScreen.status.${doku.status}`)} · </span>}
+            {formatDate(doku.createdAt, getDateLocale(i18n.language))}
+          </p>
+        </div>
+      </button>
+      <TaleaCardMenu actions={[{ label: t("homeScreen.deleteDoku"), icon: <Trash2 className="h-4 w-4" />, onSelect: onDelete, destructive: true }]} label={`${t("common.actions", "Aktionen")}: ${doku.title}`} className="!absolute right-2 top-2" />
+    </motion.article>
+  );
+};
 
-        <p className="mt-1.5 text-[13px] text-[var(--talea-text-tertiary)]">
-          {doku.status !== "complete" ? (
-            <span className={doku.status === "error" ? "font-semibold text-[var(--talea-danger)]" : "font-semibold text-[var(--talea-warning)]"}>
-              {dokuStatusLabel[doku.status]} ·{" "}
-            </span>
-          ) : null}
-          {formatDate(doku.createdAt)}
-        </p>
-      </div>
+const EmptyStateContainer: React.FC<{ title: string; description: string; icon: React.ReactNode; actionLabel: string; onAction: () => void }> = ({ title, description, icon, actionLabel, onAction }) => (
+  <div className={cn(taleaSurfaceClass, "flex flex-col items-start gap-5 p-6 sm:flex-row sm:items-center sm:p-8")}>
+    <div aria-hidden className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)]">{icon}</div>
+    <div className="min-w-0 flex-1">
+      <h3 className="text-xl font-medium text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>{title}</h3>
+      <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--talea-text-secondary)]">{description}</p>
     </div>
-  </motion.article>
-);
-
-const EmptyStateContainer: React.FC<{
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  actionLabel?: string;
-  onAction?: () => void;
-  colorClass: string;
-}> = ({ title, description, icon, actionLabel, onAction, colorClass }) => (
-  <motion.div variants={itemVariants}>
-    <Card className={cn(taleaSurfaceClass, "overflow-hidden border-0")}>
-      <CardContent className="p-3 sm:p-4">
-        <div className={cn(taleaInsetSurfaceClass, "flex flex-col items-center justify-center p-6 text-center sm:p-8 md:p-10")}>
-        <motion.div 
-          animate={{ y: [0, -10, 0] }}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          className={cn("mb-5 flex h-20 w-20 items-center justify-center rounded-[24px] shadow-inner sm:mb-6 sm:h-24 sm:w-24", colorClass)}
-        >
-          {icon}
-        </motion.div>
-        <h3 className="text-[2rem] font-semibold leading-tight text-slate-900 dark:text-white sm:text-[2.4rem]" style={{ fontFamily: headingFont }}>
-          {title}
-        </h3>
-        <p className="mx-auto mt-4 max-w-xl text-sm font-medium leading-7 text-slate-600 dark:text-slate-300 sm:text-base">{description}</p>
-        {actionLabel && onAction && (
-          <div className="mt-7">
-            <TaleaActionButton type="button" onClick={onAction} icon={<ArrowRight className="h-4 w-4" />}>
-            {actionLabel}
-            </TaleaActionButton>
-          </div>
-        )}
-        </div>
-      </CardContent>
-    </Card>
-  </motion.div>
+    <TaleaActionButton variant="secondary" onClick={onAction} icon={<ArrowRight className="h-4 w-4" />}>{actionLabel}</TaleaActionButton>
+  </div>
 );
 
 const PremiumSignedOutStart: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
-
   return (
-    <div className="flex min-h-[78vh] items-center justify-center px-3 py-8 sm:px-4 sm:py-10">
-      <motion.div
-        initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        className={cn(taleaSurfaceClass, "w-full max-w-6xl overflow-hidden p-2 sm:p-3 md:p-4")}
-      >
-        <div className="grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
-          <div className={cn(taleaInsetSurfaceClass, "flex flex-col justify-between gap-6 p-6 sm:gap-8 sm:p-8 md:p-10")}>
-            <div>
-              <span className={cn(taleaChipClass, "border-white/80 bg-white/86 text-[var(--talea-text-secondary)] dark:border-white/10 dark:bg-white/5 dark:text-[var(--primary)]")}>
-                <img src={taleaLogo} alt="Talea Logo" className="mr-3 h-8 w-8 object-contain" />
-                Talea Kinderatelier
-              </span>
-              <h1
-                className="mt-6 max-w-3xl text-[2.45rem] font-semibold leading-[1.04] text-slate-900 dark:text-white sm:mt-8 md:text-[4rem]"
-                style={{ fontFamily: headingFont }}
-              >
-                Geschichten, Figuren und Wissen an einem Ort.
-              </h1>
-              <p className="mt-5 max-w-2xl text-base font-medium leading-8 text-slate-600 dark:text-slate-300 md:text-lg">
-                {t(
-                  "home.subtitle",
-                  "Entdecke neue Geschichten, wechsle zwischen Avataren und starte Dokus oder Audio ohne Umwege."
-                )}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <TaleaActionButton icon={<LogIn className="h-4 w-4" />} onClick={() => navigate("/auth")}>
-                Zum Familienzugang
-              </TaleaActionButton>
-              <TaleaActionButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => navigate("/auth")}>
-                Geschichten entdecken
-              </TaleaActionButton>
-            </div>
-          </div>
-
-          <div className="grid gap-4">
-            {[
-              {
-                title: "Weiterhoeren",
-                text: "Stories und Audio bleiben griffbereit und koennen direkt fortgesetzt werden.",
-                tone: "from-[#f6dce7] to-[#faebd0]",
-              },
-              {
-                title: "Eigene Welt",
-                text: "Avatare, Geschichten und Dokus stehen in einer gemeinsamen Familienbibliothek.",
-                tone: "from-[#dff0ff] to-[#e2f4ec]",
-              },
-              {
-                title: "Fuer Kinder gemacht",
-                text: "Groesse Karten, klare Wege und ruhige Motion machen die App einfacher zu benutzen.",
-                tone: "from-[#f3e4fb] to-[#eee1d2]",
-              },
-            ].map((item) => (
-              <div key={item.title} className={cn(taleaSurfaceClass, "relative overflow-hidden p-5 sm:p-6")}>
-                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-75", item.tone)} />
-                <div className="relative z-10">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--talea-text-secondary)] dark:text-[var(--primary)]">Talea</p>
-                  <h2
-                    className="mt-3 text-[1.7rem] font-semibold leading-tight text-slate-900 dark:text-white"
-                    style={{ fontFamily: headingFont }}
-                  >
-                    {item.title}
-                  </h2>
-                  <p className="mt-3 text-sm font-medium leading-6 text-slate-600 dark:text-slate-300">{item.text}</p>
-                </div>
-              </div>
-            ))}
+    <div className={cn(taleaPageShellClass, "py-5 sm:py-8")}>
+      <motion.section initial={reduceMotion ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: enterEase }} className="relative grid overflow-hidden rounded-[2rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="relative z-10 p-6 sm:p-10 lg:p-14">
+          <TaleaLogo variant="horizontal" className="h-14 w-auto sm:h-16" />
+          <p className="mt-8 text-xs font-semibold uppercase tracking-[0.15em] text-[var(--primary)]">{t("homeScreen.discoverWorld")}</p>
+          <h1 className="mt-4 max-w-xl text-[2.45rem] font-medium leading-[1.08] tracking-[-0.025em] text-[var(--talea-text-primary)] sm:text-[3.4rem] xl:text-[4rem]" style={{ fontFamily: headingFont }}>{t("homeScreen.signedOutTitle")}</h1>
+          <p className="mt-5 max-w-lg text-base leading-7 text-[var(--talea-text-secondary)] sm:text-lg sm:leading-8">{t("homePage.landingSubtitle")}</p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <TaleaActionButton onClick={() => navigate("/auth")} icon={<ArrowRight className="h-4 w-4" />}>{t("homeScreen.adventureBegins")}</TaleaActionButton>
+            <TaleaActionButton variant="secondary" onClick={() => navigate("/auth")} icon={<LogIn className="h-4 w-4" />}>{t("auth.signIn")}</TaleaActionButton>
           </div>
         </div>
-      </motion.div>
+        <div className="flex flex-col justify-center bg-[var(--talea-surface-inset)] px-4 pb-6 lg:py-10">
+          <BrandBook />
+          <p className="px-4 text-center text-lg font-medium text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>{t("homeScreen.featureWorld")}</p>
+          <p className="mx-auto mt-2 max-w-xs px-4 text-center text-sm leading-6 text-[var(--talea-text-secondary)]">{t("homeScreen.featureWorldDesc")}</p>
+        </div>
+      </motion.section>
+      <div className="mt-5 grid gap-4 sm:mt-6 sm:grid-cols-3">
+        {[
+          { icon: UserPlus, title: "homePage.featureAvatarTitle", desc: "homePage.featureAvatarDesc" },
+          { icon: BookOpen, title: "homePage.featureStoryTitle", desc: "homePage.featureStoryDesc" },
+          { icon: Library, title: "homePage.featureDokuTitle", desc: "homePage.featureDokuDesc" },
+        ].map(({ icon: Icon, title, desc }, index) => (
+          <motion.div key={title} initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduceMotion ? 0 : 0.12 + index * 0.07, duration: 0.35, ease: enterEase }} className={cn(taleaSurfaceClass, "flex items-center gap-4 p-5 sm:flex-col sm:items-start sm:p-6")}>
+            <div aria-hidden className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)]"><Icon className="h-5 w-5" strokeWidth={1.7} /></div>
+            <div><h2 className="text-lg font-medium text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>{t(title)}</h2><p className="mt-1.5 text-sm leading-6 text-[var(--talea-text-secondary)]">{t(desc)}</p></div>
+          </motion.div>
+        ))}
+      </div>
     </div>
   );
 };
 
 type HomeSignedInContentProps = {
-  isDark: boolean;
-  greeting: string;
-  userName?: string | null;
-  stories: Story[];
-  storiesTotal: number;
-  avatars: Avatar[];
-  dokus: Doku[];
-  dokusTotal: number;
-  createAvatarPath: string;
-  refreshing: boolean;
-  onRefresh: () => void;
-  goTo: (path: string) => void;
-  onDeleteStory: (storyId: string, title: string) => void;
-  onDeleteAvatar: (avatar: Avatar) => void;
+  isDark: boolean; greeting: string; userName?: string | null;
+  stories: Story[]; storiesTotal: number; avatars: Avatar[]; dokus: Doku[]; dokusTotal: number;
+  createAvatarPath: string; refreshing: boolean; onRefresh: () => void; goTo: (path: string) => void;
+  onDeleteStory: (storyId: string, title: string) => void; onDeleteAvatar: (avatar: Avatar) => void;
   onDeleteDoku: (dokuId: string, title: string) => void;
-  canUseOffline: boolean;
-  isStorySaved: (storyId: string) => boolean;
-  isSaving: (storyId: string) => boolean;
-  toggleStory: (storyId: string) => void;
-  cosmosState: ReturnType<typeof useCosmosState>["cosmosState"];
+  canUseOffline: boolean; isStorySaved: (storyId: string) => boolean; isSaving: (storyId: string) => boolean;
+  toggleStory: (storyId: string) => void; cosmosState: ReturnType<typeof useCosmosState>["cosmosState"];
 };
 
 const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
-  isDark,
-  greeting,
-  userName,
-  stories,
-  storiesTotal,
-  avatars,
-  dokus,
-  dokusTotal,
-  createAvatarPath,
-  refreshing,
-  onRefresh,
-  goTo,
-  onDeleteStory,
-  onDeleteAvatar,
-  onDeleteDoku,
-  canUseOffline,
-  isStorySaved,
-  isSaving,
-  toggleStory,
-  cosmosState,
+  isDark, greeting, userName, stories, storiesTotal, avatars, dokus, dokusTotal, createAvatarPath,
+  refreshing, onRefresh, goTo, onDeleteStory, onDeleteAvatar, onDeleteDoku, canUseOffline,
+  isStorySaved, isSaving, toggleStory, cosmosState,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const reduceMotion = useReducedMotion();
+  const reveal = {
+    initial: reduceMotion ? false as const : { opacity: 0, y: 16 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true, amount: 0.12 },
+    transition: { duration: 0.4, ease: enterEase },
+  };
   return (
-  <motion.div
-    variants={containerVariants}
-    initial="hidden"
-    animate="show"
-    className={cn(taleaPageShellClass, "space-y-7 pt-1 sm:space-y-9")}
-  >
-    {/* -- Large title + quick actions (iOS "Today" style) -- */}
-    <motion.header variants={itemVariants} className="px-1">
-      <p className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[var(--talea-text-tertiary)]">
-        {new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}
-      </p>
-      <h1
-        className="mt-0.5 text-[2rem] font-bold leading-tight text-[var(--talea-text-primary)] md:text-[2.5rem]"
-        style={{ fontFamily: headingFont }}
-      >
-        {greeting}, <span className="text-[var(--primary)]">{userName || t("homeScreen.defaultUser")}</span>
-      </h1>
-    </motion.header>
-
-    <motion.section variants={itemVariants} className={cn(taleaSurfaceClass, "p-3 sm:p-4")}>
-      <div className="grid grid-cols-3 divide-x divide-[var(--talea-border-light)]">
-        {[
-          { label: t("homeScreen.statsStories"), value: storiesTotal, path: "/stories" },
-          { label: t("homeScreen.statsAvatars"), value: avatars.length, path: "/avatar" },
-          { label: t("homeScreen.statsDokus"), value: dokusTotal, path: "/doku" },
-        ].map((stat) => (
-          <button
-            key={stat.label}
-            type="button"
-            onClick={() => goTo(stat.path)}
-            className="flex flex-col items-center gap-0.5 py-1 transition-opacity hover:opacity-75"
-          >
-            <span className="text-[1.375rem] font-bold tabular-nums text-[var(--talea-text-primary)]">{stat.value}</span>
-            <span className="text-[13px] text-[var(--talea-text-secondary)]">{stat.label}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[var(--talea-border-light)] pt-3 sm:grid-cols-3">
-        <TaleaActionButton className="col-span-2 sm:col-span-1" icon={<WandSparkles className="h-4 w-4" />} onClick={() => goTo("/story")}>
-          {t("homeScreen.newStory")}
-        </TaleaActionButton>
-        <TaleaActionButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => goTo("/stories")}>
-          {t("homeScreen.library")}
-        </TaleaActionButton>
-        <TaleaActionButton variant="secondary" icon={<Library className="h-4 w-4" />} onClick={() => goTo("/doku/create")}>
-          {t("homeScreen.knowledgeJourney")}
-        </TaleaActionButton>
-      </div>
-    </motion.section>
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="space-y-3"
-    >
-      <TaleaSectionHeading
-        eyebrow={t("homeScreen.yourStoriesEyebrow")}
-        title={t("homeScreen.yourStories")}
-        subtitle={t("homeScreen.yourStoriesSubtitle")}
-        actionLabel={t("homeScreen.allStories")}
-        onAction={() => goTo("/stories")}
-      />
-
-      {stories.length === 0 ? (
-        <EmptyStateContainer
-          title={t("homeScreen.noStoriesTitle")}
-          description={t("homeScreen.noStoriesDesc")}
-          icon={<BookOpen className="h-12 w-12 text-blue-500 dark:text-indigo-300" />}
-          colorClass="bg-blue-100 dark:bg-slate-700"
-          actionLabel={t("homeScreen.createFirstStory")}
-          onAction={() => goTo("/story")}
-        />
-      ) : (
-        // Shelf like Apple Books "Weiterlesen": swipe sideways, snaps to each cover.
-        <div className="-mx-4 overflow-x-auto px-4 pb-2 [scrollbar-width:none] md:-mx-6 md:px-6 lg:-mx-8 lg:px-8 [&::-webkit-scrollbar]:hidden">
-          <div className="flex snap-x snap-mandatory gap-3.5 sm:gap-4">
-            {stories.slice(0, 8).map((story, index) => (
-              <StoryCard
-                key={story.id}
-                story={story}
-                index={index}
-                onRead={() => goTo(`/story-reader/${story.id}`)}
-                onDelete={() => onDeleteStory(story.id, story.title)}
-                canSaveOffline={canUseOffline}
-                isSavedOffline={isStorySaved(story.id)}
-                isSavingOffline={isSaving(story.id)}
-                onToggleOffline={() => toggleStory(story.id)}
-              />
-            ))}
+    <motion.div variants={containerVariants} initial={reduceMotion ? false : "hidden"} animate="show" className={cn(taleaPageShellClass, "space-y-8 pt-3 sm:space-y-10 sm:pt-5")}>
+      <motion.header variants={itemVariants} className="relative overflow-hidden rounded-[1.75rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] sm:rounded-[2rem]">
+        <div className="grid lg:grid-cols-[1.25fr_0.75fr]">
+          <div className="relative z-10 p-6 sm:p-8 lg:p-10">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--talea-text-secondary)]">{new Intl.DateTimeFormat(getDateLocale(i18n.language), { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</p>
+              <button type="button" onClick={onRefresh} disabled={refreshing} aria-label={t("common.refresh")} aria-busy={refreshing} className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)] transition-colors hover:text-[var(--primary)] disabled:opacity-50", focusClass)}><RefreshCw className={cn("h-4 w-4", refreshing && "motion-safe:animate-spin")} aria-hidden /></button>
+            </div>
+            <h1 className="mt-5 text-[2.15rem] font-medium leading-[1.1] tracking-[-0.025em] text-[var(--talea-text-primary)] sm:text-[2.8rem] lg:text-[3.25rem]" style={{ fontFamily: headingFont }}>{greeting},<br /><span className="text-[var(--primary)]">{userName || t("homeScreen.defaultUser")}.</span></h1>
+            <p className="mt-4 text-base leading-relaxed text-[var(--talea-text-secondary)]">{t("home.subtitle")}</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <TaleaActionButton icon={<WandSparkles className="h-4 w-4" />} onClick={() => goTo("/story")}>{t("homeScreen.newStory")}</TaleaActionButton>
+              <TaleaActionButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => goTo("/stories")}>{t("homeScreen.library")}</TaleaActionButton>
+            </div>
           </div>
+          <div className="hidden items-center justify-center bg-[var(--talea-surface-inset)] lg:flex"><div className="w-full max-w-sm"><BrandBook compact /></div></div>
         </div>
-      )}
-    </motion.section>
+        <div className="grid grid-cols-3 border-t border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-3 py-3 sm:px-6">
+          {[
+            { label: t("homeScreen.statsStories"), value: storiesTotal, path: "/stories" },
+            { label: t("homeScreen.statsAvatars"), value: avatars.length, path: "/avatar" },
+            { label: t("homeScreen.statsDokus"), value: dokusTotal, path: "/doku" },
+          ].map((stat) => <button key={stat.path} type="button" onClick={() => goTo(stat.path)} className={cn("flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[var(--talea-text-secondary)] transition-colors hover:bg-[var(--talea-surface-primary)] sm:flex-row sm:gap-3", focusClass)}><span className="text-xl font-semibold tabular-nums text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>{stat.value}</span><span className="text-xs sm:text-sm">{stat.label}</span></button>)}
+        </div>
+      </motion.header>
 
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-      className="space-y-3"
-    >
-      <TaleaSectionHeading
-        eyebrow={t("homeScreen.yourAvatarsEyebrow")}
-        title={t("homeScreen.yourAvatars")}
-        subtitle={t("homeScreen.yourAvatarsSubtitle")}
-        actionLabel={t("homeScreen.allAvatars")}
-        onAction={() => goTo("/avatar")}
-      />
-
-      {avatars.length === 0 ? (
-        <EmptyStateContainer
-          title={t("homeScreen.noAvatarsTitle")}
-          description={t("homeScreen.noAvatarsDesc")}
-          icon={<UserPlus className="h-12 w-12 text-pink-500 dark:text-pink-300" />}
-          colorClass="bg-pink-100 dark:bg-slate-700"
-          actionLabel={t("homeScreen.createAvatar")}
-          onAction={() => goTo(createAvatarPath)}
-        />
-      ) : (
-        <div className="-mx-3 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
-          <div className="flex gap-3.5 pb-4 sm:gap-4">
-            <button type="button" onClick={() => goTo(createAvatarPath)} className="flex h-[10.5rem] w-[8.5rem] shrink-0 flex-col items-center justify-center gap-3 rounded-[1.375rem] border-2 border-dashed border-[var(--talea-border-strong)] text-center transition-colors hover:bg-[var(--talea-surface-primary)] sm:h-52 sm:w-40">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--primary-foreground)]">
-                <Plus className="h-6 w-6" />
-              </span>
-              <p className="text-[15px] font-semibold text-[var(--primary)]">{t("homeScreen.newHero")}</p>
-            </button>
-
-            {avatars.map((avatar) => (
-              <AvatarTile
-                key={avatar.id}
-                avatar={avatar}
-                onOpen={() => goTo(`/avatar/edit/${avatar.id}`)}
-                onDelete={() => onDeleteAvatar(avatar)}
-              />
-            ))}
+      <motion.section {...reveal} className="space-y-5">
+        <TaleaSectionHeading eyebrow={t("homeScreen.yourStoriesEyebrow")} title={t("homeScreen.yourStories")} subtitle={t("homeScreen.yourStoriesSubtitle")} actionLabel={t("homeScreen.allStories")} onAction={() => goTo("/stories")} />
+        {stories.length === 0 ? <EmptyStateContainer title={t("homeScreen.noStoriesTitle")} description={t("homeScreen.noStoriesDesc")} icon={<BookOpen className="h-7 w-7" />} actionLabel={t("homeScreen.createFirstStory")} onAction={() => goTo("/story")} /> : (
+          <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 pt-1 [scrollbar-width:thin] [scrollbar-color:var(--talea-border-strong)_transparent] md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+            {stories.slice(0, 8).map((story, index) => <StoryCard key={story.id} story={story} index={index} onRead={() => goTo(`/story-reader/${story.id}`)} onDelete={() => onDeleteStory(story.id, story.title)} canSaveOffline={canUseOffline} isSavedOffline={isStorySaved(story.id)} isSavingOffline={isSaving(story.id)} onToggleOffline={() => toggleStory(story.id)} />)}
           </div>
-        </div>
-      )}
-    </motion.section>
+        )}
+      </motion.section>
 
-    <motion.section
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.5, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-      className="space-y-3"
-    >
-      <TaleaSectionHeading
-        eyebrow={t("homeScreen.yourDokusEyebrow")}
-        title={t("homeScreen.yourDokus")}
-        subtitle={t("homeScreen.yourDokusSubtitle")}
-        actionLabel={t("homeScreen.allDokus")}
-        onAction={() => goTo("/doku")}
-      />
-
-      {dokus.length === 0 ? (
-        <EmptyStateContainer
-          title={t("homeScreen.noDokusTitle")}
-          description={t("homeScreen.noDokusDesc")}
-          icon={<Library className="h-12 w-12 text-yellow-500 dark:text-yellow-300" />}
-          colorClass="bg-yellow-100 dark:bg-slate-700"
-          actionLabel={t("homeScreen.createFirstDoku")}
-          onAction={() => goTo("/doku/create")}
-        />
-      ) : (
-        <div className="grid gap-5 sm:gap-6 xl:grid-cols-[1.22fr_0.98fr]">
-          <DokuBentoTicket
-            doku={dokus[0]}
-            onRead={() => goTo(`/doku-reader/${dokus[0].id}`)}
-            onDelete={() => onDeleteDoku(dokus[0].id, dokus[0].title)}
-          />
-
-          <div className="grid gap-4">
-            {dokus.slice(1, 3).map((doku) => (
-              <DokuBentoTicket
-                key={doku.id}
-                doku={doku}
-                onRead={() => goTo(`/doku-reader/${doku.id}`)}
-                onDelete={() => onDeleteDoku(doku.id, doku.title)}
-              />
-            ))}
+      <motion.section {...reveal} className="space-y-5">
+        <TaleaSectionHeading eyebrow={t("homeScreen.yourAvatarsEyebrow")} title={t("homeScreen.yourAvatars")} subtitle={t("homeScreen.yourAvatarsSubtitle")} actionLabel={t("homeScreen.allAvatars")} onAction={() => goTo("/avatar")} />
+        {avatars.length === 0 ? <EmptyStateContainer title={t("homeScreen.noAvatarsTitle")} description={t("homeScreen.noAvatarsDesc")} icon={<UserPlus className="h-7 w-7" />} actionLabel={t("homeScreen.createAvatar")} onAction={() => goTo(createAvatarPath)} /> : (
+          <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 pt-1 [scrollbar-width:thin] [scrollbar-color:var(--talea-border-strong)_transparent] md:mx-0 md:px-0">
+            <button type="button" onClick={() => goTo(createAvatarPath)} className={cn("flex min-h-48 w-36 shrink-0 snap-start flex-col items-center justify-center gap-3 rounded-[1.375rem] border-2 border-dashed border-[var(--talea-border-strong)] px-3 text-center transition-colors hover:bg-[var(--talea-surface-primary)] sm:w-40", focusClass)}><span className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)]"><Plus className="h-6 w-6" aria-hidden /></span><span className="text-sm font-semibold text-[var(--primary)]">{t("homeScreen.newHero")}</span></button>
+            {avatars.map((avatar) => <AvatarTile key={avatar.id} avatar={avatar} onOpen={() => goTo(`/avatar/edit/${avatar.id}`)} onDelete={() => onDeleteAvatar(avatar)} />)}
           </div>
-        </div>
-      )}
-    </motion.section>
+        )}
+      </motion.section>
 
-    {/* -- Cosmos -- */}
-    <motion.section variants={itemVariants} className={cn(taleaSurfaceClass, "overflow-hidden p-0")}>
-      <CosmosHomeCard isDark={isDark} cosmosState={cosmosState} />
-    </motion.section>
-
-  </motion.div>
+      <motion.section {...reveal} className="space-y-5">
+        <TaleaSectionHeading eyebrow={t("homeScreen.yourDokusEyebrow")} title={t("homeScreen.yourDokus")} subtitle={t("homeScreen.yourDokusSubtitle")} actionLabel={t("homeScreen.allDokus")} onAction={() => goTo("/doku")} />
+        {dokus.length === 0 ? <EmptyStateContainer title={t("homeScreen.noDokusTitle")} description={t("homeScreen.noDokusDesc")} icon={<Library className="h-7 w-7" />} actionLabel={t("homeScreen.createFirstDoku")} onAction={() => goTo("/doku/create")} /> : (
+          <div className="grid gap-4 md:grid-cols-2">
+            <button type="button" onClick={() => goTo("/doku/create")} className={cn("flex min-h-28 items-center gap-4 rounded-[1.375rem] border border-dashed border-[var(--talea-border-strong)] p-5 text-left transition-colors hover:bg-[var(--talea-surface-primary)]", focusClass)}><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)]"><Plus className="h-6 w-6" aria-hidden /></span><span className="flex-1 text-lg font-medium text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>{t("homeScreen.knowledgeJourney")}</span><ArrowRight className="h-5 w-5 text-[var(--primary)]" aria-hidden /></button>
+            {dokus.slice(0, 3).map((doku) => <DokuBentoTicket key={doku.id} doku={doku} onRead={() => goTo(`/doku-reader/${doku.id}`)} onDelete={() => onDeleteDoku(doku.id, doku.title)} />)}
+          </div>
+        )}
+      </motion.section>
+      <motion.section {...reveal} className={cn(taleaSurfaceClass, "overflow-hidden p-0")}><CosmosHomeCard isDark={isDark} cosmosState={cosmosState} /></motion.section>
+    </motion.div>
   );
 };
-
 const TaleaHomeScreen: React.FC = () => {
   const navigate = useNavigate();
   const backend = useBackend();
@@ -868,7 +327,6 @@ const TaleaHomeScreen: React.FC = () => {
   const { t } = useTranslation();
   const { resolvedTheme } = useTheme();
   const { canUseOffline, isStorySaved, isSaving, toggleStory } = useOffline();
-  const reduceMotion = useReducedMotion();
   const isDark = resolvedTheme === "dark";
   const { cosmosState } = useCosmosState();
 
@@ -879,6 +337,11 @@ const TaleaHomeScreen: React.FC = () => {
   const [dokusTotal, setDokusTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [hasLoadedData, setHasLoadedData] = useState(false);
+  const loadRequest = useRef(0);
+  const currentProfileId = useRef(activeProfileId);
+  currentProfileId.current = activeProfileId;
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
@@ -900,14 +363,20 @@ const TaleaHomeScreen: React.FC = () => {
       : "/avatar/create?mode=child";
   }, [activeProfile, activeProfileId]);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (showLoading = true) => {
+    const request = ++loadRequest.current;
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+        setHasLoadedData(false);
+      }
+      setLoadError(false);
       const [avatarsResponse, storiesResponse, dokusResponse] = await Promise.all([
         backend.avatar.list({ profileId: activeProfileId || undefined }),
         backend.story.list({ limit: 12, offset: 0, profileId: activeProfileId || undefined }),
         backend.doku.listDokus({ limit: 8, offset: 0, profileId: activeProfileId || undefined }),
       ]);
+      if (request !== loadRequest.current) return;
 
       const normalizedAvatars: Avatar[] = (avatarsResponse.avatars || []).map((avatar) => ({
         id: avatar.id,
@@ -969,10 +438,13 @@ const TaleaHomeScreen: React.FC = () => {
       setDokus(normalizedDokus);
       setStoriesTotal(storiesResponse.total ?? normalizedStories.length);
       setDokusTotal(dokusResponse.total ?? normalizedDokus.length);
+      setHasLoadedData(true);
     } catch (error) {
+      if (request !== loadRequest.current) return;
       console.error("Error loading home data:", error);
+      setLoadError(true);
     } finally {
-      setLoading(false);
+      if (request === loadRequest.current) setLoading(false);
     }
   }, [backend, activeProfileId]);
 
@@ -982,11 +454,14 @@ const TaleaHomeScreen: React.FC = () => {
     }
 
     if (!isSignedIn || !user) {
+      loadRequest.current += 1;
       setAvatars([]);
       setStories([]);
       setDokus([]);
       setStoriesTotal(0);
       setDokusTotal(0);
+      setLoadError(false);
+      setHasLoadedData(false);
       setLoading(false);
       return;
     }
@@ -996,43 +471,58 @@ const TaleaHomeScreen: React.FC = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await loadData(!hasLoadedData);
     setRefreshing(false);
   };
 
   const handleDeleteAvatar = useCallback(async (avatar: Avatar) => {
     if (!window.confirm(`"${avatar.name}" ${t("common.deleteConfirm")}`)) return;
+    const request = loadRequest.current;
+    const profileId = activeProfileId;
 
     try {
       await backend.avatar.deleteAvatar({ id: avatar.id, profileId: activeProfileId || undefined });
+      if (request !== loadRequest.current || profileId !== currentProfileId.current) return;
       if (avatar.avatarRole === "child" || avatar.id === activeProfile?.childAvatarId) {
         await childProfiles?.refresh();
       }
+      if (request !== loadRequest.current || profileId !== currentProfileId.current) return;
       setAvatars((prev) => prev.filter((item) => item.id !== avatar.id));
     } catch (error) {
       console.error("Error deleting avatar:", error);
+      if (request === loadRequest.current && profileId === currentProfileId.current) toast.error(t("errors.generic"));
     }
-  }, [activeProfile?.childAvatarId, activeProfileId, backend.avatar, childProfiles]);
+  }, [activeProfile?.childAvatarId, activeProfileId, backend.avatar, childProfiles, t]);
 
   const handleDeleteStory = async (storyId: string, storyTitle: string) => {
     if (!window.confirm(`${t("common.delete", "Loeschen")} "${storyTitle}"?`)) return;
+    const request = loadRequest.current;
+    const profileId = activeProfileId;
 
     try {
       await backend.story.deleteStory({ id: storyId, profileId: activeProfileId || undefined });
+      if (request !== loadRequest.current || profileId !== currentProfileId.current) return;
       setStories((prev) => prev.filter((story) => story.id !== storyId));
+      setStoriesTotal((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error("Error deleting story:", error);
+      if (request === loadRequest.current && profileId === currentProfileId.current) toast.error(t("errors.generic"));
     }
   };
 
   const handleDeleteDoku = async (dokuId: string, dokuTitle: string) => {
     if (!window.confirm(`${t("common.delete", "Loeschen")} "${dokuTitle}"?`)) return;
+    const request = loadRequest.current;
+    const profileId = activeProfileId;
 
     try {
       await backend.doku.deleteDoku({ id: dokuId, profileId: activeProfileId || undefined });
+      if (request !== loadRequest.current || profileId !== currentProfileId.current) return;
       setDokus((prev) => prev.filter((doku) => doku.id !== dokuId));
+      setDokusTotal((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error("Error deleting doku:", error);
+      if (request === loadRequest.current && profileId === currentProfileId.current) toast.error(t("errors.generic"));
     }
   };
 
@@ -1054,6 +544,17 @@ const TaleaHomeScreen: React.FC = () => {
       </SignedOut>
 
       <SignedIn>
+        {loadError && (
+          <div className={cn(taleaPageShellClass, "pt-5")}>
+            <div role="alert" className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--talea-border-strong)] bg-[var(--talea-surface-primary)] p-6">
+              <p className="text-sm font-medium text-[var(--talea-text-primary)]">{t("errors.generic")}</p>
+              <TaleaActionButton variant="secondary" disabled={refreshing} onClick={handleRefresh} icon={<RefreshCw className={cn("h-4 w-4", refreshing && "motion-safe:animate-spin")} />}>
+                {t("common.retry")}
+              </TaleaActionButton>
+            </div>
+          </div>
+        )}
+        {hasLoadedData && (
         <HomeSignedInContent
           isDark={isDark}
           greeting={greeting}
@@ -1076,300 +577,6 @@ const TaleaHomeScreen: React.FC = () => {
           toggleStory={toggleStory}
           cosmosState={cosmosState}
         />
-        {false && (
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="mx-auto max-w-7xl space-y-12 px-4 pt-6 md:px-8 mt-4"
-        >
-          {/* Bento Hero Section */}
-          <section className="grid lg:grid-cols-3 gap-6">
-            {/* Welcome Main Block */}
-            <motion.div variants={itemVariants} className="lg:col-span-2">
-              <Card className="h-full overflow-hidden rounded-[3rem] border-[6px] border-white/80 dark:border-slate-700 bg-white/70 dark:bg-slate-800/80 shadow-[0_20px_50px_-12px_rgba(6,182,212,0.2)] dark:shadow-indigo-900/40 backdrop-blur-2xl">
-                <CardContent className="p-8 md:p-12 relative h-full flex flex-col justify-center">
-                  <div className="absolute -top-24 -right-24 w-80 h-80 bg-cyan-200/40 dark:bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
-                  
-                  <div className="flex flex-wrap items-start justify-between gap-6 mb-8 relative z-10">
-                    <div className="flex items-center gap-5">
-                      <div className="rounded-[2rem] border-[6px] border-white dark:border-slate-600 bg-white shadow-xl p-1">
-                        <UserButton
-                          afterSignOutUrl="/"
-                          userProfileMode="navigation"
-                          userProfileUrl="/settings"
-                          appearance={{ elements: { avatarBox: "h-16 w-16" } }}
-                        />
-                      </div>
-                      <div>
-                        <motion.div 
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className="inline-flex items-center gap-2 rounded-full border-2 border-white/80 dark:border-slate-700 bg-white/80 dark:bg-slate-800 px-4 py-1.5 shadow-sm mb-2"
-                        >
-                          <Sparkles className="h-4 w-4 text-pink-500" />
-                          <span className="text-xs font-black tracking-widest text-indigo-500 dark:text-indigo-300 uppercase">
-                            TALEA ATELIER
-                          </span>
-                        </motion.div>
-                        <h1
-                          className="text-4xl font-black text-slate-800 dark:text-white md:text-5xl tracking-tight"
-                          style={{ fontFamily: headingFont }}
-                        >
-                          {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600 dark:from-pink-400 dark:to-cyan-400">{user?.firstName || "Entdecker"}!</span>
-                        </h1>
-                      </div>
-                    </div>
-                    
-                    <motion.button
-                      whileHover={{ scale: 1.1, rotate: 180 }}
-                      whileTap={{ scale: 0.9 }}
-                      type="button"
-                      onClick={handleRefresh}
-                      className="rounded-[1.5rem] border-4 border-white/80 dark:border-slate-700 bg-white/80 dark:bg-slate-800 p-4 shadow-lg backdrop-blur-md text-cyan-600 dark:text-cyan-400"
-                      aria-label="Aktualisieren"
-                    >
-                      <RefreshCw className={cn("h-6 w-6", refreshing && "animate-spin")} />
-                    </motion.button>
-                  </div>
-
-                  <p className="max-w-2xl text-lg font-extrabold leading-relaxed text-slate-500 dark:text-slate-300 relative z-10">
-                    Das Magie-Labor ist bereit! Erschaffe neue Helden, webe die verrücktesten Geschichten und sammle unendlich viel Wissen. 
-                  </p>
-
-                  <div className="mt-10 flex flex-wrap gap-4 relative z-10">
-                    <motion.button
-                      whileHover={{ scale: 1.05, y: -4 }}
-                      whileTap={{ scale: 0.95 }}
-                      type="button"
-                      onClick={() => navigate("/story")}
-                      className="inline-flex items-center gap-3 rounded-[2rem] bg-gradient-to-r from-cyan-400 to-blue-500 px-8 py-4 text-lg font-black text-white shadow-xl shadow-cyan-300/50 border-4 border-white/20"
-                    >
-                      <WandSparkles className="h-6 w-6" />
-                      Story zaubern
-                    </motion.button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Cosmos Card Block */}
-            <motion.div variants={itemVariants} className="lg:col-span-1 rounded-[3rem] overflow-hidden shadow-[0_20px_50px_-12px_rgba(100,60,200,0.25)] dark:shadow-indigo-900/40 h-full flex flex-col">
-               <CosmosHomeCard isDark={isDark} cosmosState={cosmosState} />
-            </motion.div>
-          </section>
-
-          {/* Quick Stats Bento Row */}
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-            <motion.div variants={itemVariants} className="col-span-1">
-              <motion.div
-                whileHover={{ y: -5, scale: 1.02 }}
-                className="h-full flex flex-col justify-center rounded-[2.5rem] border-[4px] border-white/80 dark:border-slate-700 bg-gradient-to-br from-pink-100 to-pink-200/50 dark:from-slate-800 dark:to-slate-800 p-6 shadow-lg backdrop-blur-xl cursor-default"
-              >
-                <div className="h-12 w-12 rounded-[1.2rem] bg-white/60 dark:bg-slate-700 flex items-center justify-center mb-4 shadow-sm text-pink-500">
-                   <ScrollText className="h-6 w-6" />
-                </div>
-                <p className="text-sm font-black uppercase tracking-widest text-pink-500 dark:text-pink-300">Geschichten</p>
-                <p className="mt-1 text-5xl font-black text-slate-800 dark:text-white">{storiesTotal}</p>
-              </motion.div>
-            </motion.div>
-
-            <motion.div variants={itemVariants} className="col-span-1">
-              <motion.div
-                whileHover={{ y: -5, scale: 1.02 }}
-                className="h-full flex flex-col justify-center rounded-[2.5rem] border-[4px] border-white/80 dark:border-slate-700 bg-gradient-to-br from-cyan-100 to-cyan-200/50 dark:from-slate-800 dark:to-slate-800 p-6 shadow-lg backdrop-blur-xl cursor-default"
-              >
-                <div className="h-12 w-12 rounded-[1.2rem] bg-white/60 dark:bg-slate-700 flex items-center justify-center mb-4 shadow-sm text-cyan-500">
-                   <Swords className="h-6 w-6" />
-                </div>
-                <p className="text-sm font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-300">Avatare</p>
-                <p className="mt-1 text-5xl font-black text-slate-800 dark:text-white">{avatars.length}</p>
-              </motion.div>
-            </motion.div>
-
-            <motion.div variants={itemVariants} className="col-span-1">
-              <motion.div
-                whileHover={{ y: -5, scale: 1.02 }}
-                className="h-full flex flex-col justify-center rounded-[2.5rem] border-[4px] border-white/80 dark:border-slate-700 bg-gradient-to-br from-yellow-100 to-yellow-200/50 dark:from-slate-800 dark:to-slate-800 p-6 shadow-lg backdrop-blur-xl cursor-default"
-              >
-                 <div className="h-12 w-12 rounded-[1.2rem] bg-white/60 dark:bg-slate-700 flex items-center justify-center mb-4 shadow-sm text-yellow-500">
-                   <Zap className="h-6 w-6" />
-                </div>
-                <p className="text-sm font-black uppercase tracking-widest text-yellow-600 dark:text-yellow-400">Dokus</p>
-                <p className="mt-1 text-5xl font-black text-slate-800 dark:text-white">{dokusTotal}</p>
-              </motion.div>
-            </motion.div>
-
-            <motion.div variants={itemVariants} className="col-span-1">
-               <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  type="button"
-                  onClick={() => navigate("/stories")}
-                  className="h-full w-full flex flex-col justify-between rounded-[2.5rem] border-[4px] border-white/80 dark:border-slate-700 bg-gradient-to-br from-purple-400 to-indigo-500 p-6 text-left shadow-lg dark:from-indigo-600 dark:to-purple-700 group"
-                >
-                  <div className="h-12 w-12 rounded-[1.2rem] bg-white/30 flex items-center justify-center mb-4 shadow-sm text-white">
-                     <Star className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-black uppercase tracking-widest text-purple-100">Bibliothek</p>
-                    <p className="mt-1 inline-flex items-center gap-2 text-2xl font-black text-white group-hover:gap-4 transition-all">
-                      Zeig alles
-                      <ArrowRight className="h-6 w-6" />
-                    </p>
-                  </div>
-                </motion.button>
-            </motion.div>
-          </section>
-
-          {/* Stories Section */}
-          <section className="mt-12">
-            <SectionHeading
-              title="Deine neuesten Abenteuer"
-              subtitle={`${storiesTotal} wundervolle Geschichten drängen sich im Regal`}
-              icon={<BookOpen className="h-7 w-7" />}
-              actionLabel="Alle ansehen"
-              onAction={() => navigate("/stories")}
-            />
-
-            {stories.length === 0 ? (
-              <EmptyStateContainer
-                title="Die Seiten sind noch leer"
-                description="Erschaffe dein allererstes Abenteuer! Mit einem Klick auf 'Story zaubern' kann die Magie sofort beginnen."
-                icon={<BookOpen className="h-12 w-12 text-blue-500 dark:text-indigo-400" />}
-                colorClass="bg-blue-100 dark:bg-slate-700"
-                actionLabel="Zur Geschichten-Magie!"
-                onAction={() => navigate("/story")}
-              />
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
-                {stories.slice(0, 5).map((story, index) => (
-                  <StoryCard
-                    key={story.id}
-                    story={story}
-                    index={index}
-                    onRead={() => navigate(`/story-reader/${story.id}`)}
-                    onDelete={() => handleDeleteStory(story.id, story.title)}
-                    canSaveOffline={canUseOffline}
-                    isSavedOffline={isStorySaved(story.id)}
-                    isSavingOffline={isSaving(story.id)}
-                    onToggleOffline={() => toggleStory(story.id)}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* Avatars Scroll Row */}
-          <section className="mt-12">
-            <SectionHeading
-              title="Deine Helden"
-              subtitle={`${avatars.length} bunte Charaktere bevölkern deine Welt`}
-              icon={<Swords className="h-7 w-7" />}
-              actionLabel="Alle Helden"
-              onAction={() => navigate("/avatar")}
-            />
-
-            {avatars.length === 0 ? (
-              <EmptyStateContainer
-                title="Noch keine Helden hier"
-                description="Erwecke deinen ersten Avatar zum Leben, damit er spannende Abenteuer erleben kann!"
-                icon={<UserPlus className="h-12 w-12 text-pink-500 dark:text-pink-400" />}
-                colorClass="bg-pink-100 dark:bg-slate-700"
-                actionLabel="Held erschaffen"
-                onAction={() => navigate("/avatar/create")}
-              />
-            ) : (
-              <div className="-mx-4 px-4 sm:mx-0 sm:px-0">
-                <div className="flex overflow-x-auto pb-10 pt-4 gap-4 sm:gap-6 hide-scrollbar snap-x">
-                  <AnimatePresence>
-                    <motion.button
-                      variants={itemVariants}
-                      whileHover={{ y: -8, scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      type="button"
-                      onClick={() => navigate("/avatar/create")}
-                      className="snap-start shrink-0 w-36 h-48 sm:w-44 sm:h-56 flex flex-col items-center justify-center rounded-[2.5rem] border-[4px] border-dashed border-pink-300 dark:border-slate-600 bg-pink-50/50 dark:bg-slate-800/40 p-4 text-center shadow-lg backdrop-blur-xl"
-                    >
-                      <div className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-white dark:bg-slate-700 shadow-xl text-pink-500 border-4 border-pink-100 dark:border-slate-600">
-                        <Plus className="h-10 w-10" />
-                      </div>
-                      <p className="mt-4 text-lg font-black text-pink-600 dark:text-slate-100">Neuer Held</p>
-                    </motion.button>
-
-                    {avatars.map((avatar) => (
-                      <div className="snap-start shrink-0" key={avatar.id}>
-                        <AvatarTile
-                          avatar={avatar}
-                          onOpen={() => navigate(`/avatar/edit/${avatar.id}`)}
-                          onDelete={() => handleDeleteAvatar(avatar)}
-                        />
-                      </div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              </div>
-            )}
-          </section>
-
-          {/* Doku Bento Section */}
-          <section className="mt-8">
-            <SectionHeading
-              title="Wissenswelt"
-              subtitle={`${dokusTotal} faszinierende Dinge gelernt`}
-              icon={<Library className="h-7 w-7" />}
-              actionLabel="Alles Wissen"
-              onAction={() => navigate("/doku")}
-            />
-
-            {dokus.length === 0 ? (
-              <EmptyStateContainer
-                title="Noch kein Wissen gesammelt"
-                description="Starte deine erste Entdeckungsreise und lerne tolle Fakten über die Welt!"
-                icon={<Library className="h-12 w-12 text-yellow-500 dark:text-yellow-400" />}
-                colorClass="bg-yellow-100 dark:bg-slate-700"
-                actionLabel="Wissen sammeln"
-                onAction={() => navigate("/doku/create")}
-              />
-            ) : (
-              <div className="grid lg:grid-cols-2 gap-4 md:gap-6">
-                 <motion.button
-                    variants={itemVariants}
-                    whileHover={{ y: -4, scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    type="button"
-                    onClick={() => navigate("/doku/create")}
-                    className="h-full min-h-[140px] flex items-center justify-center gap-4 rounded-[2rem] border-[4px] border-dashed border-yellow-300 dark:border-slate-600 bg-yellow-50/50 dark:bg-slate-800/40 p-6 text-center shadow-md backdrop-blur-xl"
-                  >
-                    <div className="flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-white dark:bg-slate-700 shadow-md text-yellow-500">
-                      <Plus className="h-8 w-8" />
-                    </div>
-                    <p className="text-xl font-black text-yellow-600 dark:text-slate-100">Neues Thema <br/>erforschen</p>
-                  </motion.button>
-
-                {dokus.slice(0, 3).map((doku) => (
-                  <DokuBentoTicket
-                    key={doku.id}
-                    doku={doku}
-                    onRead={() => navigate(`/doku-reader/${doku.id}`)}
-                    onDelete={() => handleDeleteDoku(doku.id, doku.title)}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* CSS to hide scrollbar but keep functionality */}
-          <style dangerouslySetInnerHTML={{ __html: `
-            .hide-scrollbar::-webkit-scrollbar {
-              display: none;
-            }
-            .hide-scrollbar {
-              -ms-overflow-style: none; /* IE and Edge */
-              scrollbar-width: none;  /* Firefox */
-            }
-          `}} />
-        </motion.div>
         )}
       </SignedIn>
     </div>

@@ -18,11 +18,10 @@ import {
 import { useClerk } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
-import taleaLogo from "@/img/talea_logo.png";
-import { TaleaWordmark } from "@/components/talea/TaleaWordmark";
+import { TaleaLogo } from "@/components/brand/TaleaLogo";
 import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
 import { WizardImage } from "@/components/avatar-form/WizardImage";
 import { useWizardAssets } from "@/hooks/useWizardAssets";
@@ -96,12 +95,16 @@ const Sidebar: React.FC = () => {
   const unreadCount = useNotifications()?.summary?.unreadCount ?? 0;
 
   const [expanded, setExpanded] = useState(false);
+  const [focusWithin, setFocusWithin] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
   const isWide = useIsWideScreen();
+  const reduceMotion = useReducedMotion();
 
   // Wide screens show a permanent labelled sidebar (iPadOS); narrower desktops
   // keep the icon rail that expands on hover.
-  const canExpand = expanded || isWide;
+  const canExpand = expanded || focusWithin || isWide;
+  const labelTransition = { duration: reduceMotion ? 0 : 0.15 };
+  const focusClass = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]";
 
   const labelOf = (item: NavItem) => item.label ?? (item.labelKey ? t(item.labelKey) : "");
 
@@ -122,19 +125,30 @@ const Sidebar: React.FC = () => {
     const Icon = item.icon;
 
     return (
-      <button
+      <motion.button
         key={item.path || item.label}
         type="button"
         onClick={() => (item.action ? item.action() : navigate(item.path))}
         className={cn(
-          "group flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors duration-150",
+          "group relative flex min-h-12 w-full items-center rounded-2xl px-2.5 py-2 text-left transition-colors duration-150",
+          focusClass,
+          canExpand ? "gap-3" : "justify-center",
           active
-            ? "bg-[color-mix(in_srgb,var(--primary)_13%,transparent)] text-[var(--talea-text-primary)]"
+            ? "text-[var(--primary)]"
             : "text-[var(--talea-text-secondary)] hover:bg-[var(--talea-surface-inset)] hover:text-[var(--talea-text-primary)]"
         )}
         aria-label={item.path === '/mitteilungen' && unreadCount ? `Mitteilungen, ${unreadCount} ungelesen` : labelOf(item)}
         aria-current={active ? "page" : undefined}
+        whileTap={reduceMotion ? undefined : { scale: 0.98 }}
       >
+        {active && (
+          <motion.span
+            aria-hidden="true"
+            layoutId="talea-sidebar-active"
+            className="absolute inset-0 rounded-2xl border border-[color-mix(in_srgb,var(--primary)_18%,transparent)] bg-[var(--talea-accent-terracotta-soft)]"
+            transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 36 }}
+          />
+        )}
         <span
           className={cn(
             "relative flex h-9 w-9 flex-shrink-0 items-center justify-center transition-[opacity,filter]",
@@ -159,32 +173,36 @@ const Sidebar: React.FC = () => {
         <motion.span
           initial={false}
           animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
-          transition={{ duration: 0.15 }}
+          transition={labelTransition}
           className={cn(
-            "overflow-hidden whitespace-nowrap text-[15px]",
+            "relative overflow-hidden whitespace-nowrap text-[15px]",
             active ? "font-semibold" : "font-medium"
           )}
         >
           {labelOf(item)}
         </motion.span>
         {item.path === '/mitteilungen' && unreadCount > 0 && canExpand && (
-          <span aria-hidden="true" className="ml-auto rounded-full bg-[var(--primary)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--primary-foreground)]">{unreadCount > 99 ? '99+' : unreadCount}</span>
+          <span aria-hidden="true" className="relative ml-auto rounded-full bg-[var(--primary)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--primary-foreground)]">{unreadCount > 99 ? '99+' : unreadCount}</span>
         )}
-      </button>
+      </motion.button>
     );
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-40 hidden h-screen md:block">
+    <aside className="fixed left-0 top-0 z-40 hidden h-dvh md:block" aria-label="Hauptnavigation">
       <motion.div
         initial={false}
         animate={{ width: canExpand ? SIDEBAR_WIDE : SIDEBAR_RAIL }}
-        transition={{ type: "spring", stiffness: 400, damping: 36 }}
+        transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 36 }}
         onMouseEnter={() => setExpanded(true)}
         onMouseLeave={() => setExpanded(false)}
+        onFocusCapture={() => setFocusWithin(true)}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocusWithin(false);
+        }}
         className={cn(
-          "relative flex h-screen flex-col border-r px-3 py-4 backdrop-blur-xl backdrop-saturate-150",
-          expanded && !isWide && "shadow-[var(--talea-shadow-strong)]"
+          "relative flex h-dvh flex-col border-r px-3 pb-4 pt-[max(env(safe-area-inset-top),1rem)] backdrop-blur-xl",
+          canExpand && !isWide && "shadow-[var(--talea-shadow-strong)]"
         )}
         style={{ background: "var(--sidebar)", borderColor: "var(--sidebar-border)" }}
       >
@@ -192,32 +210,29 @@ const Sidebar: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate("/")}
-            className="mb-4 flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-[var(--talea-surface-inset)]"
+            className={cn("mb-5 flex min-h-14 items-center rounded-xl px-2 py-1.5 transition-colors hover:bg-[var(--talea-surface-inset)]", focusClass, !canExpand && "justify-center")}
             aria-label="Talea Startseite"
           >
-            <img src={taleaLogo} alt="" className="h-9 w-9 flex-shrink-0 object-contain" />
-            <motion.div
-              initial={false}
-              animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
-              transition={{ duration: 0.15 }}
-              className="overflow-hidden pr-1"
-            >
-              <TaleaWordmark className="h-[1.15rem] text-[var(--talea-text-primary)]" />
-            </motion.div>
+            <TaleaLogo variant={canExpand ? "compact" : "mark"} alt="" className={canExpand ? "h-12 w-auto" : "h-11 w-11"} />
           </button>
 
-          <button
+          <motion.button
             type="button"
             onClick={() => navigate("/story")}
             className={cn(
-              "mb-4 flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] text-[15px] font-semibold text-[var(--primary-foreground)] transition-[filter] hover:brightness-[1.06]",
+              "mb-5 flex h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--primary)] text-[15px] font-semibold text-[var(--primary-foreground)] transition-[filter] hover:brightness-[1.06]",
+              focusClass,
               canExpand ? "px-4" : "px-0"
             )}
             aria-label="Neue Geschichte"
+            whileHover={reduceMotion ? undefined : { y: -1 }}
+            whileTap={reduceMotion ? undefined : { scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 420, damping: 30 }}
+            style={{ boxShadow: "0 6px 18px color-mix(in srgb, var(--talea-accent-terracotta) 20%, transparent)" }}
           >
             <Sparkles className="h-4 w-4 flex-shrink-0" />
             {canExpand ? <span className="whitespace-nowrap">Neue Geschichte</span> : null}
-          </button>
+          </motion.button>
 
           <div className="flex-1 space-y-1 overflow-y-auto pr-0.5">
             {PRIMARY_ITEMS.map(renderNavItem)}
@@ -227,11 +242,15 @@ const Sidebar: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setAdminOpen((prev) => !prev)}
-                  className="mb-1 flex w-full items-center justify-between rounded-[1.2rem] px-3 py-2 text-left transition-colors hover:bg-[var(--talea-surface-inset)]"
+                  className={cn("mb-1 flex min-h-11 w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors hover:bg-[var(--talea-surface-inset)]", focusClass)}
+                  aria-label="Adminnavigation"
+                  aria-expanded={adminOpen && canExpand}
+                  aria-controls="talea-admin-navigation"
                 >
                   <motion.span
                     initial={false}
                     animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
+                    transition={labelTransition}
                     className="overflow-hidden whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--talea-text-muted)]"
                   >
                     Admin
@@ -242,10 +261,11 @@ const Sidebar: React.FC = () => {
                 <AnimatePresence initial={false}>
                   {adminOpen && canExpand && (
                     <motion.div
-                      initial={{ height: 0, opacity: 0 }}
+                      id="talea-admin-navigation"
+                      initial={reduceMotion ? false : { height: 0, opacity: 0 }}
                       animate={{ height: "auto", opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2, ease: "easeOut" }}
+                      transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
                       className="overflow-hidden"
                     >
                       <div className="space-y-0.5 pt-1">{ADMIN_ITEMS.map(renderNavItem)}</div>
@@ -262,7 +282,7 @@ const Sidebar: React.FC = () => {
             <button
               type="button"
               onClick={handleSignOut}
-              className="group flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left text-[var(--talea-text-tertiary)] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 dark:hover:text-red-400"
+              className={cn("group flex min-h-12 w-full items-center rounded-2xl px-2.5 py-2 text-left text-[var(--talea-text-tertiary)] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 dark:hover:text-red-400", focusClass, canExpand ? "gap-3" : "justify-center")}
               aria-label={t("navigation.logout")}
             >
               <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center">
@@ -271,7 +291,7 @@ const Sidebar: React.FC = () => {
               <motion.span
                 initial={false}
                 animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
-                transition={{ duration: 0.15 }}
+                transition={labelTransition}
                 className="overflow-hidden whitespace-nowrap text-[15px] font-medium"
               >
                 {t("navigation.logout")}

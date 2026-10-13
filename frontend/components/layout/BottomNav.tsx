@@ -17,22 +17,19 @@ interface NavItem {
   path: string;
   labelKey?: string;
   label?: string;
+  /** A shorter visible label keeps narrow mobile tabs readable; aria-label stays complete. */
+  compactLabel?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { icon: Home, imageId: 'home', labelKey: 'navigation.home', path: '/' },
-  { icon: BookOpen, imageId: 'stories', labelKey: 'navigation.stories', path: '/stories' },
+  { icon: BookOpen, imageId: 'stories', labelKey: 'navigation.stories', compactLabel: 'Lesen', path: '/stories' },
   { icon: User, imageId: 'avatars', labelKey: 'navigation.avatars', path: '/avatar' },
   { icon: FlaskConical, imageId: 'dokus', label: 'Dokus', path: '/doku' },
   { icon: Gamepad2, imageId: 'quiz', label: 'Spiel', path: '/spiel', aliases: ['/quiz'] },
 ];
 
-/**
- * Mobile tab bar in the current iOS style: a floating glass capsule with the
- * active tab on its own lighter capsule, and Tavi as a separate round button
- * next to it (where iOS puts search). Audio lives in GlobalAudioPlayer, which
- * floats its mini player above this bar.
- */
+/** Mobile navigation stays within thumb reach and clears the audio mini player. */
 const BottomNav: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -49,23 +46,26 @@ const BottomNav: React.FC = () => {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] md:hidden">
       <div className="pointer-events-auto flex items-center gap-1.5">
-        <nav className="talea-glass flex h-[62px] min-w-0 flex-1 items-center rounded-full p-[3px]" aria-label="Hauptnavigation">
+        <nav className="talea-glass grid h-16 min-w-0 flex-1 grid-cols-5 items-center rounded-full p-[3px]" aria-label="Hauptnavigation">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item.path, item.aliases);
             const Icon = item.icon;
             return (
-              <button
+              <motion.button
                 key={item.path}
                 type="button"
                 onClick={() => navigate(item.path)}
-                className="relative flex h-full min-w-0 flex-auto flex-col items-center justify-center gap-0.5 rounded-full px-1.5"
+                className="relative flex h-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-full px-1 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
                 aria-label={labelOf(item)}
                 aria-current={active ? 'page' : undefined}
+                whileTap={reduceMotion ? undefined : { scale: 0.94 }}
+                transition={{ type: 'spring', stiffness: 460, damping: 30 }}
               >
                 {active ? (
                   <motion.span
                     layoutId="talea-tab-active"
-                    className="absolute inset-0 rounded-full bg-[color-mix(in_srgb,var(--primary)_14%,var(--talea-surface-primary))]"
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-full border border-[color-mix(in_srgb,var(--primary)_18%,transparent)] bg-[var(--talea-accent-terracotta-soft)]"
                     transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }}
                   />
                 ) : null}
@@ -84,22 +84,29 @@ const BottomNav: React.FC = () => {
                 </span>
                 <span
                   className={cn(
-                    'relative max-w-full truncate text-[10px] leading-tight tracking-[-0.015em]',
+                    'relative max-w-full truncate text-[10px] leading-tight tracking-[-0.015em] min-[380px]:text-[11px]',
                     active ? 'font-semibold text-[var(--primary)]' : 'font-medium text-[var(--talea-text-secondary)]'
                   )}
                 >
-                  {labelOf(item)}
+                  {item.compactLabel ? (
+                    <>
+                      <span className="min-[480px]:hidden">{t('navigation.read', item.compactLabel)}</span>
+                      <span className="hidden min-[480px]:inline">{labelOf(item)}</span>
+                    </>
+                  ) : labelOf(item)}
                 </span>
-              </button>
+              </motion.button>
             );
           })}
         </nav>
 
-        <button
+        <motion.button
           type="button"
           onClick={() => window.dispatchEvent(new Event('tavi:open'))}
-          className="talea-glass flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-full transition-transform active:scale-95"
+          className="talea-glass flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-[color-mix(in_srgb,var(--primary)_24%,transparent)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
           aria-label="Tavi fragen"
+          whileTap={reduceMotion ? undefined : { scale: 0.94 }}
+          transition={{ type: 'spring', stiffness: 460, damping: 30 }}
         >
           <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-[9px]">
             <WizardImage
@@ -109,7 +116,7 @@ const BottomNav: React.FC = () => {
               fallbackClassName="flex h-full w-full items-center justify-center"
             />
           </span>
-        </button>
+        </motion.button>
       </div>
     </div>
   );

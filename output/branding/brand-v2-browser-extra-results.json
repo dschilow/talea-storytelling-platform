@@ -1,0 +1,113 @@
+[
+  {
+    "name": "audio-modal-focus-playback",
+    "detail": {
+      "width": 390,
+      "scrollWidth": 390,
+      "headings": [
+        "Dokus",
+        "Willkommen in deiner Geschichtenwelt"
+      ],
+      "nestedButtons": 0,
+      "playback": {
+        "currentTime": 0.011583,
+        "paused": false,
+        "duration": 15.947563
+      },
+      "focusContained": true,
+      "pausedOnClose": true
+    },
+    "pass": true,
+    "errors": []
+  },
+  {
+    "name": "wizard-mobile",
+    "detail": {
+      "width": 390,
+      "scrollWidth": 390,
+      "headings": [
+        "Neue Geschichte",
+        "Wer ist dabei?"
+      ],
+      "nestedButtons": 0,
+      "secondStepReached": true
+    },
+    "pass": true,
+    "errors": []
+  },
+  {
+    "name": "avatar-wizard-mobile",
+    "detail": {
+      "width": 390,
+      "scrollWidth": 390,
+      "headings": [
+        "Avatar erstellen",
+        "Wer soll dein Avatar sein?"
+      ],
+      "nestedButtons": 0,
+      "secondStepReached": true
+    },
+    "pass": true,
+    "errors": []
+  },
+  {
+    "name": "home-narrow",
+    "detail": {
+      "width": 320,
+      "scrollWidth": 320,
+      "headings": [
+        "Guten Tag,Mila.",
+        "Deine Geschichten",
+        "Avatare",
+        "Doku Highlights"
+      ],
+      "nestedButtons": 0
+    },
+    "pass": true,
+    "errors": []
+  },
+  {
+    "name": "doku-tabs-keyboard",
+    "detail": {
+      "width": 320,
+      "scrollWidth": 320,
+      "headings": [
+        "Dokus"
+      ],
+      "nestedButtons": 0
+    },
+    "pass": true,
+    "errors": []
+  },
+  {
+    "name": "landing-desktop-motion",
+    "detail": {
+      "width": 1440,
+      "scrollWidth": 1440,
+      "headings": [
+        "Dein Kind.Die Hauptrolle.Eine ganze Welt.",
+        "Folge dem Funkeln.",
+        "Es war einmal.Und zwar dein Kind.",
+        "Kleine Helden.Große Persönlichkeit."
+      ],
+      "nestedButtons": 0
+    },
+    "pass": true,
+    "errors": []
+  },
+  {
+    "name": "auth-timeout-late-recovery",
+    "detail": {
+      "width": 390,
+      "scrollWidth": 390,
+      "headings": [
+        "Willkommen zurück"
+      ],
+      "nestedButtons": 0,
+      "errorVisibleBeforeRecovery": true,
+      "lateMountRecovered": true
+    },
+    "pass": true,
+    "errors": []
+  }
+]

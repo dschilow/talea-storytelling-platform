@@ -1,11 +1,11 @@
 import * as React from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion, type HTMLMotionProps } from 'framer-motion';
 import { colors } from '../../utils/constants/colors';
 
 type ButtonVariant = 'default' | 'sage' | 'blush' | 'honey' | 'lilac' | 'ocean' | 'outline' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
-interface ModernButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ModernButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   icon?: React.ReactNode;
@@ -13,7 +13,8 @@ interface ModernButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement
 }
 
 export const ModernButton = React.forwardRef<HTMLButtonElement, ModernButtonProps>(
-  ({ variant = 'default', size = 'md', icon, children, className = '', ...props }, ref) => {
+  ({ variant = 'default', size = 'md', icon, children, className = '', style, type = 'button', ...props }, ref) => {
+    const reduceMotion = useReducedMotion();
     const getVariantStyles = (): React.CSSProperties => {
       const base: React.CSSProperties = {
         border: 'none',
@@ -25,36 +26,36 @@ export const ModernButton = React.forwardRef<HTMLButtonElement, ModernButtonProp
         case 'sage':
           return {
             ...base,
-            background: colors.gradients.primary,
-            color: colors.text.inverse,
+            background: colors.sage[400],
+            color: 'var(--talea-brand-brown)',
             boxShadow: colors.effects.shadow.md,
           };
         case 'blush':
           return {
             ...base,
             background: colors.blush[400],
-            color: colors.text.inverse,
+            color: 'var(--talea-brand-brown)',
             boxShadow: colors.effects.shadow.md,
           };
         case 'honey':
           return {
             ...base,
             background: colors.honey[400],
-            color: colors.text.primary,
+            color: 'var(--talea-brand-brown)',
             boxShadow: colors.effects.shadow.md,
           };
         case 'lilac':
           return {
             ...base,
             background: colors.lilac[400],
-            color: colors.text.inverse,
+            color: 'var(--talea-brand-brown)',
             boxShadow: colors.effects.shadow.md,
           };
         case 'ocean':
           return {
             ...base,
             background: colors.ocean[400],
-            color: colors.text.inverse,
+            color: 'var(--talea-brand-brown)',
             boxShadow: colors.effects.shadow.md,
           };
         case 'outline':
@@ -73,8 +74,8 @@ export const ModernButton = React.forwardRef<HTMLButtonElement, ModernButtonProp
         default:
           return {
             ...base,
-            background: colors.gradients.primary,
-            color: colors.text.inverse,
+            background: 'var(--talea-gradient-brand)',
+            color: 'var(--primary-foreground)',
             boxShadow: colors.effects.shadow.md,
           };
       }
@@ -87,21 +88,21 @@ export const ModernButton = React.forwardRef<HTMLButtonElement, ModernButtonProp
             padding: '8px 16px',
             fontSize: '14px',
             borderRadius: '16px',
-            height: '36px',
+            minHeight: '44px',
           };
         case 'lg':
           return {
             padding: '16px 32px',
             fontSize: '18px',
             borderRadius: '24px',
-            height: '56px',
+            minHeight: '56px',
           };
         default:
           return {
             padding: '12px 24px',
             fontSize: '16px',
             borderRadius: '20px',
-            height: '44px',
+            minHeight: '48px',
           };
       }
     };
@@ -114,20 +115,21 @@ export const ModernButton = React.forwardRef<HTMLButtonElement, ModernButtonProp
       justifyContent: 'center',
       gap: '8px',
       fontWeight: '600',
-      fontFamily: '"Inter", "Manrope", "Sora", sans-serif',
+      fontFamily: 'var(--talea-font-ui)',
       position: 'relative',
       overflow: 'hidden',
     };
 
     return (
       <motion.button
-        ref={ref}
-        style={buttonStyle}
-        className={`focus-ring ${className}`}
-        whileHover={!props.disabled ? { scale: 1.05, y: -2 } : {}}
-        whileTap={!props.disabled ? { scale: 0.95 } : {}}
-        transition={{ type: 'spring', stiffness: 400, damping: 17 }}
         {...props}
+        ref={ref}
+        type={type}
+        style={{ ...buttonStyle, ...style }}
+        className={`focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${className}`}
+        whileHover={!props.disabled && !reduceMotion ? { y: -2 } : undefined}
+        whileTap={!props.disabled && !reduceMotion ? { scale: 0.98 } : undefined}
+        transition={{ type: 'spring', stiffness: 420, damping: 30 }}
       >
         {icon && <span style={{ display: 'flex', alignItems: 'center' }}>{icon}</span>}
         <span>{children}</span>

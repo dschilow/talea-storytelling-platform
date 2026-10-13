@@ -1560,7 +1560,7 @@ function BillingPanel() {
 
           {/* Verbrauch im aktuellen Monat */}
           <div>
-            <h3 className="mb-3 text-sm font-bold text-foreground" style={{ fontFamily: '"Fredoka", "Nunito", sans-serif' }}>
+            <h3 className="mb-3 text-sm font-bold text-foreground" style={{ fontFamily: taleaDisplayFont }}>
               {t('settings.billingUsageTitle', 'Dein Verbrauch diesen Monat')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1670,8 +1670,8 @@ export default function SettingsScreen() {
                 colorBackground: 'transparent',
                 colorInputBackground: 'var(--talea-surface-primary)',
                 colorInputText: 'var(--talea-text-primary)',
-                fontFamily: '"Manrope", "Sora", sans-serif',
-                fontFamilyButtons: '"Manrope", "Sora", sans-serif',
+                fontFamily: 'var(--talea-font-ui)',
+                fontFamilyButtons: 'var(--talea-font-ui)',
                 borderRadius: '1.1rem',
               },
               elements: {
@@ -1691,14 +1691,14 @@ export default function SettingsScreen() {
                 pageScrollBox: '!h-auto md:!h-full !min-w-0 bg-transparent',
                 page: '!h-auto md:!h-full !min-w-0 !w-full bg-transparent',
                 profilePage: '!w-full !max-w-none',
-                headerTitle: '!font-serif !text-3xl !font-semibold !tracking-tight !text-[var(--talea-text-primary)]',
+                headerTitle: '![font-family:var(--talea-font-display)] !text-3xl !font-semibold !tracking-tight !text-[var(--talea-text-primary)]',
                 headerSubtitle: '!text-sm !font-medium !leading-6 !text-[var(--talea-text-secondary)]',
                 profileSection: 'rounded-[1.5rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] !p-4 sm:!p-5',
                 profileSectionTitleText: '!font-semibold !text-[var(--talea-text-primary)]',
                 profileSectionSubtitleText: '!text-[var(--talea-text-secondary)]',
-                profileSectionPrimaryButton: 'rounded-[1rem] !font-semibold !text-[var(--primary)] hover:!bg-[var(--talea-surface-primary)]',
-                formButtonPrimary: 'rounded-[1.05rem] bg-[linear-gradient(135deg,var(--primary),var(--talea-accent-sky))] !font-semibold !text-white shadow-[0_10px_26px_rgba(123,168,156,0.22)] hover:opacity-90',
-                formFieldInput: 'rounded-[1.05rem] border-[var(--talea-border-soft)] bg-[var(--talea-surface-primary)] backdrop-blur-lg focus:border-[var(--primary)] focus:ring-4 focus:ring-[var(--primary)]/12',
+                profileSectionPrimaryButton: '!min-h-11 rounded-[1rem] !font-semibold !text-[var(--primary)] hover:!bg-[var(--talea-surface-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]',
+                formButtonPrimary: '!min-h-11 rounded-2xl ![background:var(--talea-gradient-brand)] !font-semibold !text-[var(--primary-foreground)] shadow-[var(--talea-shadow-soft)] hover:brightness-[1.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]',
+                formFieldInput: 'rounded-[1.05rem] border-[var(--talea-border-soft)] bg-[var(--talea-surface-primary)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]',
                 formFieldLabel: '!font-semibold !text-[var(--talea-text-secondary)]',
               },
             }}
