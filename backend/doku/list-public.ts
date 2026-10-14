@@ -67,7 +67,16 @@ export const listPublicDokus = api<ListPublicDokusRequest, ListPublicDokusRespon
       created_at: Date;
       updated_at: Date;
     }>`
-      SELECT * FROM dokus
+      SELECT
+        id, user_id, title, topic, cover_image_url, is_public, status,
+        metadata, created_at, updated_at,
+        CASE WHEN jsonb_typeof(content) = 'string' THEN content
+        ELSE jsonb_build_object(
+          'title', content->'title',
+          'summary', content->'summary',
+          'sections', jsonb_build_array(jsonb_build_object('content', content->'sections'->0->'content'))
+        ) END AS content
+      FROM dokus
       WHERE is_public = true AND status = 'complete'
       ORDER BY created_at DESC
       LIMIT ${limit} OFFSET ${offset}

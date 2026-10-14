@@ -6,7 +6,6 @@ import { Toaster } from 'sonner';
 import { MotionConfig } from 'framer-motion';
 import { store } from './store/store';
 
-import AppLayout from './components/layout/AppLayout';
 import TaviButton from './components/common/TaviButton';
 import { colors } from './utils/constants/colors';
 import { clerkPublishableKey } from './config';
@@ -31,6 +30,7 @@ import { AgentProvider } from './agents';
 import { useLanguageSync } from './hooks/useLanguageSync';
 import { useWelcomeTour } from './hooks/useWelcomeTour';
 
+const AppLayout = React.lazy(() => import('./components/layout/AppLayout'));
 const HomeScreen = React.lazy(() => import('./screens/Home/TaleaHomeScreen'));
 const ModernHomeScreen = React.lazy(() => import('./screens/Home/ModernHomeScreen'));
 const LandingPage = React.lazy(() => import('./screens/Landing/LandingPage'));

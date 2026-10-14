@@ -183,12 +183,24 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 
 installRuntimeWarningFilters();
-void setupPwaRegistration();
+// Downloading the offline shell competes with the route's scripts and hero
+// image. Start its installation once the initial page has finished loading.
+function schedulePwaRegistration(): void {
+  if (typeof requestIdleCallback === 'function') {
+    window.requestIdleCallback(() => { void setupPwaRegistration(); }, { timeout: 2000 });
+  } else {
+    setTimeout(() => { void setupPwaRegistration(); }, 0);
+  }
+}
+if (document.readyState === 'complete') schedulePwaRegistration();
+else window.addEventListener('load', schedulePwaRegistration, { once: true });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <MotionConfig reducedMotion="user">
-      <App />
+      <React.Suspense fallback={<div className="min-h-screen bg-[var(--talea-page-solid)]" />}>
+        <App />
+      </React.Suspense>
     </MotionConfig>
   </React.StrictMode>
 );

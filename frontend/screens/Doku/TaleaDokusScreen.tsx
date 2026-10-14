@@ -636,8 +636,9 @@ const TaleaDokusScreen: React.FC = () => {
     if (searchParams.get('mode') === 'audio') setActiveTab('audio');
     if (!episodeId || loadingAudio || openedNotificationEpisode.current === episodeId) return;
     const episode = audioDokus.find((item) => item.id === episodeId);
+    if (!episode) return;
     openedNotificationEpisode.current = episodeId;
-    if (episode) setAudioModal(episode);
+    setAudioModal(episode);
   }, [searchParams, loadingAudio, audioDokus]);
 
   const myObserverRef = useRef<HTMLDivElement>(null);
@@ -648,7 +649,7 @@ const TaleaDokusScreen: React.FC = () => {
     return fallback;
   };
 
-  const loadMyDokus = async () => {
+  const loadMyDokus = async (isCurrent: () => boolean) => {
     try {
       setLoadingMy(true);
       const res = await backend.doku.listDokus({
@@ -656,25 +657,28 @@ const TaleaDokusScreen: React.FC = () => {
         offset: 0,
         profileId: activeProfileId || undefined,
       });
+      if (!isCurrent()) return;
       setMyDokus(res.dokus as any[]);
       setTotalMy(res.total);
       setHasMoreMy(res.hasMore);
     } catch (error) {
       console.error(error);
     } finally {
-      setLoadingMy(false);
+      if (isCurrent()) setLoadingMy(false);
     }
   };
 
-  const loadPublicDokus = async () => {
+  const loadPublicDokus = async (isCurrent: () => boolean) => {
     try {
       setLoadingPublic(true);
       setPublicAccessMessage(null);
       const res = await backend.doku.listPublicDokus({ limit: 12, offset: 0 });
+      if (!isCurrent()) return;
       setPublicDokus(res.dokus as any[]);
       setTotalPublic(res.total);
       setHasMorePublic(res.hasMore);
     } catch (error) {
+      if (!isCurrent()) return;
       console.error(error);
       setPublicDokus([]);
       setTotalPublic(0);
@@ -683,11 +687,11 @@ const TaleaDokusScreen: React.FC = () => {
         getErrorMessage(error, t('doku.publicAccessError', 'Entdecken-Inhalte sind in deinem aktuellen Plan nicht verfügbar.'))
       );
     } finally {
-      setLoadingPublic(false);
+      if (isCurrent()) setLoadingPublic(false);
     }
   };
 
-  const loadAudioDokus = async () => {
+  const loadAudioDokus = async (isCurrent: () => boolean) => {
     try {
       setLoadingAudio(true);
       setAudioAccessMessage(null);
@@ -701,9 +705,15 @@ const TaleaDokusScreen: React.FC = () => {
           limit: AUDIO_DOKU_LIST_PAGE_SIZE,
           offset,
         });
+        if (!isCurrent()) return;
         const page = (res.audioDokus || []) as any[];
         allAudioDokus.push(...page);
         total = res.total ?? allAudioDokus.length;
+        // Show the first page immediately. The existing local search/filter
+        // still receives the remaining library as its pages arrive.
+        setAudioDokus([...allAudioDokus]);
+        setTotalAudio(total);
+        setLoadingAudio(false);
         if (!res.hasMore || page.length === 0) break;
         offset += page.length;
       }
@@ -711,6 +721,7 @@ const TaleaDokusScreen: React.FC = () => {
       setAudioDokus(allAudioDokus);
       setTotalAudio(total);
     } catch (error) {
+      if (!isCurrent()) return;
       console.error(error);
       setAudioDokus([]);
       setTotalAudio(0);
@@ -718,7 +729,7 @@ const TaleaDokusScreen: React.FC = () => {
         getErrorMessage(error, t('doku.audioAccessError', 'Audio-Dokus sind in deinem aktuellen Plan nicht verfügbar.'))
       );
     } finally {
-      setLoadingAudio(false);
+      if (isCurrent()) setLoadingAudio(false);
     }
   };
 
@@ -770,11 +781,19 @@ const TaleaDokusScreen: React.FC = () => {
       setLoadingAudio(false);
       return;
     }
-    void loadMyDokus();
-    void refreshUserAccess();
-    void loadPublicDokus();
-    void loadAudioDokus();
-  }, [isLoaded, isSignedIn, backend, activeProfileId, user?.id, refreshUserAccess]);
+    // Other tabs can include many pages of audio or community content. Load
+    // only the visible library so it does not compete for the connection.
+    let disposed = false;
+    const isCurrent = () => !disposed;
+    if (activeTab === 'mine') void loadMyDokus(isCurrent);
+    else if (activeTab === 'discover') void loadPublicDokus(isCurrent);
+    else void loadAudioDokus(isCurrent);
+    return () => { disposed = true; };
+  }, [isLoaded, isSignedIn, backend, activeProfileId, user?.id, activeTab]);
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) void refreshUserAccess();
+  }, [isLoaded, isSignedIn, refreshUserAccess]);
 
   useEffect(() => {
     if (!isSignedIn || activeTab !== 'mine') return;
@@ -1172,7 +1191,7 @@ const TaleaDokusScreen: React.FC = () => {
                   >
                     <span className="truncate">{tab.label}</span>
                     <span className="text-[12px] font-medium tabular-nums text-[var(--talea-text-tertiary)]">
-                      {counts[tab.key]}
+                      {(tab.key === 'mine' ? loadingMy : tab.key === 'discover' ? loadingPublic : loadingAudio) ? '…' : counts[tab.key]}
                     </span>
                   </button>
                 );

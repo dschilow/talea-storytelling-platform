@@ -5,6 +5,7 @@ encore.gen.cue
 node_modules
 /encore.gen
 backend/frontend/dist
+/frontend/dist/
 Logs
 
 # Prevent local npm registry configs from leaking into CI/CD
@@ -71,3 +72,4 @@ __pycache__/
 scripts/game-art/.cache/
 scripts/game-qa/out/
 .tmp-alibi/
+.performance/

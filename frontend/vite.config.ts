@@ -54,7 +54,7 @@ export default defineConfig({
     VitePWA({
       injectRegister: false,
       registerType: 'autoUpdate',
-      includeAssets: ['talea_logo.png', 'favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'brand/*.svg', 'fonts/*.ttf', 'tavi.png', 'loading-animation.lottie'],
+      includeAssets: ['talea_logo.png', 'favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'brand/*.svg', 'fonts/*.woff2', 'tavi.png', 'loading-animation.lottie'],
       manifest: {
         name: 'Talea – Deine Geschichtenwelt',
         short_name: 'Talea',
@@ -99,7 +99,7 @@ export default defineConfig({
           'loading-animation.lottie',
           // Small brand vectors and the display face remain available offline.
           'brand/*.svg',
-          'fonts/*.ttf',
+          'fonts/*.woff2',
         ],
         globIgnores: [
           // CRITICAL: config.js is generated dynamically at container startup
@@ -200,9 +200,13 @@ export default defineConfig({
     chunkSizeWarningLimit: 4000,
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Three.js ecosystem → separate chunk (lazy-loaded via React.lazy Cosmos routes)
-          'three-vendor': ['three'],
+        // Dozens of individual icon chunks add round trips on mobile networks.
+        // Group icons, but keep React in the shared app graph to avoid cycles.
+        onlyExplicitManualChunks: true,
+        manualChunks(id) {
+          const normalized = id.replace(/\\/g, '/');
+          if (normalized.includes('/node_modules/lucide-react/')) return 'icons';
+          if (normalized.includes('/node_modules/three/')) return 'three-vendor';
         },
       },
     },

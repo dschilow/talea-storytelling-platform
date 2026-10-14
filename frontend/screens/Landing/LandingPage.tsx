@@ -16,6 +16,7 @@ import {
 } from '../../constants/planCatalog';
 import JourneyAtmosphere from './JourneyAtmosphere';
 import LandingFilm from './LandingFilm';
+import ViewportImage from './ViewportImage';
 import { NovaRays, SkyClouds, SoundWave, StarTrail } from './JourneyArtwork';
 import './LandingPage.css';
 
@@ -286,7 +287,7 @@ export default function LandingPage() {
                 return <article id={island.id} key={island.id} className={`island-scene island-scene--${island.id}`} style={{ '--island-accent': island.color } as CSSProperties} inert={cinematic && activeIsland !== i} aria-labelledby={`${island.id}-title`}>
                   <div className="island-aura" aria-hidden="true" />
                   <div className="island-art">
-                    <img src={island.image} alt={`${island.place}: eine schwebende Insel mit ${i === 0 ? 'Buch und Märchenschloss' : i === 1 ? 'magischer Werkstatt, Fuchs, Drache und einer kleinen Entdeckerin' : i === 2 ? 'Grammophon und musikalischem Garten' : i === 3 ? 'Observatorium, Teleskop und Planeten' : 'Tavi, dem freundlichen türkisfarbenen Flaschengeist'}.`} width="1000" height="1000" loading={i === 0 ? 'eager' : 'lazy'} decoding="async" />
+                    <ViewportImage src={island.image} alt={`${island.place}: eine schwebende Insel mit ${i === 0 ? 'Buch und Märchenschloss' : i === 1 ? 'magischer Werkstatt, Fuchs, Drache und einer kleinen Entdeckerin' : i === 2 ? 'Grammophon und musikalischem Garten' : i === 3 ? 'Observatorium, Teleskop und Planeten' : 'Tavi, dem freundlichen türkisfarbenen Flaschengeist'}.`} width="1000" height="1000" />
                     {i === 1 && <div className="island-floating-note"><Heart size={16} /><span>Mit jedem Abenteuer<small>wächst ein bisschen Mut.</small></span></div>}
                     {i === 3 && <div className="discovery-orbit" aria-hidden="true"><span /><span /><span /></div>}
                     {i === 4 && <div className="tavi-dialogue"><span><Sparkles size={14} />Tavi</span><p>„Was möchtest du heute entdecken?“</p><i>Dein KI-Begleiter in Talea</i></div>}

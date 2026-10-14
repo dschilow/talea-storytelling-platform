@@ -2,7 +2,7 @@
    Semantic tokens keep the same brand legible in both reading modes. */
 @font-face {
   font-family: 'Fredoka';
-  src: url('/fonts/fredoka-variable.ttf') format('truetype');
+  src: url('/fonts/fredoka-variable.woff2') format('woff2');
   font-style: normal;
   font-weight: 300 700;
   font-display: swap;

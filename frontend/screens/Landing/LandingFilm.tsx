@@ -23,6 +23,7 @@ export default function LandingFilm({ onPlay }: { onPlay?: () => void }) {
   const hideTimer = useRef<number | undefined>(undefined);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const [started, setStarted] = useState(false);
+  const [nearViewport, setNearViewport] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [captions, setCaptions] = useState(false);
@@ -31,6 +32,20 @@ export default function LandingFilm({ onPlay }: { onPlay?: () => void }) {
   const [duration, setDuration] = useState(FILM_SECONDS);
   const [buffered, setBuffered] = useState(0);
   const [chrome, setChrome] = useState(true);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    if (!('IntersectionObserver' in window)) { setNearViewport(true); return; }
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        setNearViewport(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: '400px' });
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
 
   // pause when the tab is hidden; track fullscreen changes (also via Esc)
   useEffect(() => {
@@ -114,7 +129,7 @@ export default function LandingFilm({ onPlay }: { onPlay?: () => void }) {
         <video
           ref={videoRef}
           className="film-video"
-          poster={POSTER}
+          poster={nearViewport || started ? POSTER : undefined}
           preload="none"
           playsInline
           onClick={toggle}

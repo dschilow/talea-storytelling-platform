@@ -115,7 +115,19 @@ export const listDokus = api<ListDokusRequest, ListDokusResponse>(
       created_at: Date;
       updated_at: Date;
     }>`
-      SELECT *
+      SELECT
+        d.id, d.user_id, d.primary_profile_id, d.title, d.topic,
+        d.cover_image_url, d.is_public, d.status, d.metadata,
+        d.created_at, d.updated_at,
+        -- List cards only use the title, summary and first section. Keep the
+        -- complete article in the reader endpoint rather than transferring it
+        -- from PostgreSQL and parsing every section for each card.
+        CASE WHEN jsonb_typeof(d.content) = 'string' THEN d.content
+        ELSE jsonb_build_object(
+          'title', d.content->'title',
+          'summary', d.content->'summary',
+          'sections', jsonb_build_array(jsonb_build_object('content', d.content->'sections'->0->'content'))
+        ) END AS content
       FROM dokus d
       WHERE d.user_id = ${auth.userID}
         AND (

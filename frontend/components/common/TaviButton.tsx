@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { useTheme } from '../../contexts/ThemeContext';
-import TaviChat from './TaviChat';
+const TaviChat = React.lazy(() => import('./TaviChat'));
 
 type TaviButtonProps = {
   showLauncher?: boolean;
@@ -10,9 +10,14 @@ type TaviButtonProps = {
 
 const TaviButton: React.FC<TaviButtonProps> = ({ showLauncher = true }) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [hasOpened, setHasOpened] = useState(false);
   const { resolvedTheme } = useTheme();
 
   const isDark = resolvedTheme === 'dark';
+
+  useEffect(() => {
+    if (isChatOpen) setHasOpened(true);
+  }, [isChatOpen]);
 
   useEffect(() => {
     const openHandler = () => setIsChatOpen(true);
@@ -79,7 +84,11 @@ const TaviButton: React.FC<TaviButtonProps> = ({ showLauncher = true }) => {
         </motion.div>
       )}
 
-      <TaviChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      {(isChatOpen || hasOpened) && (
+        <React.Suspense fallback={null}>
+          <TaviChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+        </React.Suspense>
+      )}
     </>
   );
 };

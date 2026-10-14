@@ -2,6 +2,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { useAuth, useUser } from "@clerk/clerk-react";
 import { Client as BackendClient } from "../client";
 import { getBackendUrl } from "../config";
+import { fetchWithProfileDeduplication } from '../utils/profileRequest';
 import { getStoredActiveProfileId, subscribeActiveProfileChanges } from "@/lib/active-profile";
 
 const PROFILE_METHODS: Record<"avatar" | "story" | "doku", Set<string>> = {
@@ -93,6 +94,7 @@ export function useBackend() {
   // Memoize the client instance to prevent recreation on every render
   return useMemo(() => {
     const baseClient = new BackendClient(target, {
+      fetcher: fetchWithProfileDeduplication,
       auth: async () => {
         // Wait for Clerk to load before checking authentication
         if (!isLoaded) {
