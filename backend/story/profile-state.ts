@@ -2,6 +2,7 @@ import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { storyDB } from "./db";
 import { resolveRequestedProfileId } from "../helpers/profiles";
+import { nudgeBookWriter } from "./book-generation";
 
 type CompletionState = "not_started" | "in_progress" | "completed";
 
@@ -192,6 +193,9 @@ export const updateStoryProfileState = api<UpdateStoryStateRequest, StoryStateRe
     if (!row) {
       throw APIError.internal("Failed to persist story profile state.");
     }
+
+    // A chapter book paused by its write-ahead buffer continues when the reader comes close.
+    if (progressPct !== undefined) void nudgeBookWriter(req.id);
 
     return {
       profileId,

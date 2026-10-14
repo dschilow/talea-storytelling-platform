@@ -244,14 +244,27 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
       is_public: boolean;
       config: unknown;
       avatar_developments: string | null;
+      metadata: unknown;
     }>`
-      SELECT user_id, is_public, config, avatar_developments
+      SELECT user_id, is_public, config, avatar_developments, metadata
       FROM stories
       WHERE id = ${req.storyId}
       LIMIT 1
     `;
     if (!storyOwner) {
       throw APIError.notFound("Story not found.");
+    }
+    // A chapter book is finished only when its last chapter exists and its rewards are prepared.
+    const book = (() => {
+      try {
+        const metadata = typeof storyOwner.metadata === "string" ? JSON.parse(storyOwner.metadata) : storyOwner.metadata;
+        return (metadata as any)?.book;
+      } catch {
+        return null;
+      }
+    })();
+    if (book?.format === "chapter-book" && book.state !== "complete") {
+      throw APIError.failedPrecondition("Das Buch wird noch geschrieben. Die Belohnung gibt es am Ende des letzten Kapitels.");
     }
     const storedAvatarDevelopments = storyOwner.user_id === userId
       ? parseStoredDevelopments(storyOwner.avatar_developments)

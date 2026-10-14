@@ -8,6 +8,12 @@ import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 import { storyMetadataForViewer } from "./metadata-visibility";
 
+function withoutBookPlan(metadata: Record<string, any> | null | undefined): Record<string, any> | null | undefined {
+  if (!metadata?.bookAdmin) return metadata;
+  const { bookAdmin: _plan, ...rest } = metadata;
+  return rest;
+}
+
 interface ListStoriesRequest {
   limit?: number;
   offset?: number;
@@ -443,7 +449,8 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
                 lastPlayedAt: profileState.last_played_at ?? undefined,
               }
             : undefined,
-          metadata: (storyMetadataForViewer(metadata, auth.role === "admin") || undefined) as any,
+          // The list never carries a chapter book's plan (admins see it in the reader).
+          metadata: (withoutBookPlan(storyMetadataForViewer(metadata, auth.role === "admin")) || undefined) as any,
           status: storyRow.status,
           isPublic: storyRow.is_public,
           createdAt: storyRow.created_at,

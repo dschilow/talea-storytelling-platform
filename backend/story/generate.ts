@@ -5,6 +5,7 @@ import { generateStoryDevMode, pickDevModePoolCharacters, recordDevModePoolChara
 import { generateStoryStandardMode } from "./standard-mode-generation";
 import { generateStoryStorybookMode } from "./storybook-mode-generation";
 import { generateStoryBookWorkshop } from "./book-workshop-generation";
+import { enqueueChapterBook, loadBookContinuation } from "./book-generation";
 import { isOpenRouterCreditLimitError } from "./openrouter-generation";
 import type { Avatar, InventoryItem, Skill } from "../avatar/avatar";
 import { avatar } from "~encore/clients";
@@ -226,7 +227,19 @@ export interface StoryConfig {
   // Does not touch developerMode or the standard path.
   storybookMode?: boolean;
   // Explicit wizard selection takes precedence over the legacy server default.
-  storybookEngine?: "storybook-v1" | "storybook-v2" | "book-workshop-v1";
+  storybookEngine?: "storybook-v1" | "storybook-v2" | "book-workshop-v1" | "chapter-book-v1";
+
+  // Chapter book (chapter-book-v1): a volume of 8-15 chapters read over several
+  // evenings, written by a job (book-generation.ts). Chapters and pictures per
+  // chapter follow the age band unless the wizard sets them.
+  bookChapters?: number;
+  bookImagesPerChapter?: number;
+  experienceForm?: "mystery" | "journey" | "funny" | "cozy";
+  // Next volume of an existing chapter book (same heroes, world and friends).
+  continueFromStoryId?: string;
+  // The teaser the child picked at the end of the previous volume, or its own wish.
+  continuationChoice?: string;
+  continuationWish?: string;
 
   // Developer Mode: bypass all enrichment (visual profiles, memories, DNA,
   // character pool, artifacts, style packs) and generate from a minimal prompt
@@ -267,6 +280,8 @@ export interface Chapter {
   imageUrl?: string;
   scenicImageUrl?: string;
   scenicImagePrompt?: string;
+  /** Chapter books: one to three pictures, each after a paragraph (0-based). */
+  images?: Array<{ url: string; afterParagraph: number }>;
   order: number;
   imagePrompt?: string;
   imageSeed?: number;
@@ -508,7 +523,7 @@ export const generate = api<GenerateStoryRequest, Story>(
     }
     // Child safety: free text from the wizard (wish, learning goals) is checked before any coin is spent.
     await assertChildSafeInput({
-      text: [req.config.customPrompt, ...(req.config.learningMode?.learningObjectives ?? [])].filter(Boolean).join(" · "),
+      text: [req.config.customPrompt, req.config.continuationChoice, req.config.continuationWish, ...(req.config.learningMode?.learningObjectives ?? [])].filter(Boolean).join(" · "),
       surface: "story-wish",
       ageBand: req.config.ageGroup,
     });
@@ -809,8 +824,36 @@ export const generate = api<GenerateStoryRequest, Story>(
       let generatedStory: any;
       let pipelineResult: Awaited<ReturnType<StoryPipelineOrchestrator["run"]>> | undefined;
 
+      if (config.storybookMode === true && config.storybookEngine === "chapter-book-v1") {
+        // A volume takes 15-30 minutes: a job writes it in steps and publishes the
+        // first chapters as soon as they are ready. The coin stays reserved; the
+        // job refunds it if nothing could be published.
+        const continuation = await loadBookContinuation(config, currentUserId);
+        await enqueueChapterBook({
+          storyId: id,
+          userId: currentUserId,
+          profileId: primaryProfileId,
+          config,
+          heroes: avatarDetails.map((a) => ({
+            id: a.id,
+            name: a.name,
+            age: (a as any).age ?? null,
+            description: a.description,
+            imageUrl: a.imageUrl,
+            visualProfile: a.visualProfile,
+            physicalTraits: a.physicalTraits,
+            personalityTraits: a.personalityTraits,
+            narrativeProfile: (a as any).narrativeProfile,
+          })),
+          blockedTerms,
+          series: continuation?.series || null,
+          continuation: continuation?.choice || null,
+        });
+        return await getCompleteStory(id);
+      }
+
       if (config.storybookMode === true) {
-        const useWorkshop = (config.storybookEngine ?? process.env.TALEA_STORYBOOK_ENGINE) === "book-workshop-v1";
+        const useWorkshop =(config.storybookEngine ?? process.env.TALEA_STORYBOOK_ENGINE) === "book-workshop-v1";
         console.log("[story.generate] Storybook engine:", useWorkshop ? "book-workshop-v1" : "storybook-v2");
         const storybookGenerator = useWorkshop
           ? generateStoryBookWorkshop

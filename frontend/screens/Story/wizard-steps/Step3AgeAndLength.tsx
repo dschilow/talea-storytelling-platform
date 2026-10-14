@@ -30,6 +30,8 @@ interface Props {
   state: Step3State;
   updateState: (updates: Partial<Step3State>) => void;
   showModelSelection?: boolean;
+  /** Chapter books choose their size in their own step. */
+  hideLength?: boolean;
 }
 
 const ageGroups = [
@@ -108,6 +110,7 @@ export default function Step3AgeAndLength({
   state,
   updateState,
   showModelSelection = true,
+  hideLength = false,
 }: Props) {
   const { t } = useTranslation();
   const { assetUrl } = useWizardAssets();
@@ -162,6 +165,7 @@ export default function Step3AgeAndLength({
         </div>
       </section>
 
+      {!hideLength && (
       <section>
         <h3 className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-foreground/85">
           <Clock3 className="h-4 w-4 text-muted-foreground" />
@@ -204,6 +208,7 @@ export default function Step3AgeAndLength({
           })}
         </div>
       </section>
+      )}
 
       {showModelSelection && (
         <section>

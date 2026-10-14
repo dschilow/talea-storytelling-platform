@@ -57,7 +57,7 @@ export type { StorybookGenerationInput, StorybookGeneratedStory, StorybookHero }
  * seeds): 14/16 clean pictures vs 7/16 with the 4B model (runware:400@4) —
  * the 4B fused children with dragons and tortoises. ~$0.0009–0.0016 per picture.
  */
-const IMAGE_MODEL = process.env.TALEA_STORYBOOK_IMAGE_MODEL || "runware:400@2";
+export const IMAGE_MODEL = process.env.TALEA_STORYBOOK_IMAGE_MODEL || "runware:400@2";
 
 function stableSeed(input: StorybookGenerationInput): string {
   return createHash("sha256")
@@ -97,7 +97,7 @@ function imageSteps(): number {
 }
 
 /** Runware through the ai service; stored URL for the story, readable URL for the vision check. */
-function encoreImageProvider(storyId: string | undefined): ImageProvider {
+export function encoreImageProvider(storyId: string | undefined): ImageProvider {
   return async (request) => {
     const image = await ai.generateImage({
       prompt: request.prompt,
@@ -124,7 +124,7 @@ function encoreImageProvider(storyId: string | undefined): ImageProvider {
   };
 }
 
-async function readableReference(imageUrl: string | undefined): Promise<string | undefined> {
+export async function readableReference(imageUrl: string | undefined): Promise<string | undefined> {
   if (!imageUrl) return undefined;
   try {
     const resolved = await resolveImageUrlForClient(imageUrl);

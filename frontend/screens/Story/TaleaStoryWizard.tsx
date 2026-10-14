@@ -48,6 +48,7 @@ import Step6LearningMode, {
   type LearningModeValue,
 } from './wizard-steps/Step6LearningMode';
 import Step6Summary from './wizard-steps/Step6Summary';
+import StepBookFormat, { type ExperienceForm } from './wizard-steps/StepBookFormat';
 import {
   createStoryGenerationId,
   generateStoryWithModelFallback,
@@ -83,6 +84,11 @@ interface WizardState {
   developerMode: boolean;
   storybookMode: boolean;
   bookWorkshopMode: boolean;
+  /** Chapter book (chapter-book-v1): a volume read over several evenings. */
+  chapterBookMode: boolean;
+  experienceForm: ExperienceForm | null;
+  bookChapters: number;
+  bookImagesPerChapter: number;
   /** Schatzkammer: owned artifact taken along into this story (Mitnehmen-Loop). */
   broughtArtifact: BroughtArtifactSelection | null;
 }
@@ -93,6 +99,7 @@ type StepKey =
   | 'mode'
   | 'avatars'
   | 'category'
+  | 'book'
   | 'ageLength'
   | 'feeling'
   | 'learning'
@@ -255,33 +262,6 @@ export default function TaleaStoryWizard() {
   // product steps; admins keep the full instrument panel.
   const showEngineControls = isAdmin === true;
 
-  const stepKeys = useMemo(
-    () =>
-      [
-        ...(showEngineControls ? (['mode'] as const) : []),
-        'avatars',
-        'category',
-        'ageLength',
-        'feeling',
-        'learning',
-        'wishes',
-        'summary',
-      ] as StepKey[],
-    [showEngineControls]
-  );
-
-  const stepLabels: Record<StepKey, string> = {
-    mode: 'Modus',
-    avatars: t('wizard.steps.avatars'),
-    category: t('wizard.steps.category'),
-    ageLength: t('wizard.steps.ageLength'),
-    feeling: t('wizard.steps.feeling'),
-    learning: t('wizard.steps.learning'),
-    wishes: t('wizard.steps.wishes'),
-    summary: t('wizard.steps.summary'),
-  };
-
-  const labels = stepKeys.map((key) => stepLabels[key]);
 
   const VALID_CATEGORIES = ['fairy-tales', 'adventure', 'magic', 'animals', 'scifi', 'modern'] as const;
   const tagParam = searchParams.get('tags');
@@ -336,8 +316,42 @@ export default function TaleaStoryWizard() {
     developerMode: false,
     storybookMode: false,
     bookWorkshopMode: false,
+    chapterBookMode: false,
+    experienceForm: null,
+    bookChapters: 12,
+    bookImagesPerChapter: 2,
     broughtArtifact: null,
   });
+  const stepKeys = useMemo(
+    () =>
+      [
+        ...(showEngineControls ? (['mode'] as const) : []),
+        'avatars',
+        'category',
+        ...(state.chapterBookMode ? (['book'] as const) : []),
+        'ageLength',
+        'feeling',
+        'learning',
+        'wishes',
+        'summary',
+      ] as StepKey[],
+    [showEngineControls, state.chapterBookMode]
+  );
+
+  const stepLabels: Record<StepKey, string> = {
+    mode: 'Modus',
+    avatars: t('wizard.steps.avatars'),
+    category: t('wizard.steps.category'),
+    book: 'Buch',
+    ageLength: t('wizard.steps.ageLength'),
+    feeling: t('wizard.steps.feeling'),
+    learning: t('wizard.steps.learning'),
+    wishes: t('wizard.steps.wishes'),
+    summary: t('wizard.steps.summary'),
+  };
+
+  const labels = stepKeys.map((key) => stepLabels[key]);
+
   const lastAppliedProfileRef = React.useRef<string | null>(null);
   const bringDeepLinkAppliedRef = React.useRef(false);
 
@@ -452,8 +466,10 @@ export default function TaleaStoryWizard() {
         return state.mainCategory !== null ? null : 'Wähle eine Art von Geschichte aus.';
       case 'ageLength':
         if (state.ageGroup === null) return 'Wähle noch ein Alter aus.';
-        if (state.length === null) return 'Wähle noch eine Länge aus.';
+        if (state.length === null && !state.chapterBookMode) return 'Wähle noch eine Länge aus.';
         return null;
+      case 'book':
+        return state.experienceForm ? null : 'Wähle aus, was für ein Buch es werden soll.';
       case 'feeling':
         return state.feelings.length > 0 ? null : 'Wähle mindestens eine Stimmung aus.';
       case 'learning':
@@ -618,12 +634,15 @@ export default function TaleaStoryWizard() {
         return <Step1AvatarSelection state={state} updateState={updateState} />;
       case 'category':
         return <Step2CategorySelection state={state} updateState={updateState} />;
+      case 'book':
+        return <StepBookFormat state={state} updateState={updateState} />;
       case 'ageLength':
         return (
           <Step3AgeAndLength
             state={state}
             updateState={updateState}
             showModelSelection={showEngineControls}
+            hideLength={state.chapterBookMode}
           />
         );
       case 'feeling':
@@ -685,9 +704,9 @@ export default function TaleaStoryWizard() {
                 <FlaskConical className="h-3.5 w-3.5" /> Dev Mode
               </span>
             )}
-            {(state.storybookMode || state.bookWorkshopMode) && (
+            {(state.storybookMode || state.bookWorkshopMode || state.chapterBookMode) && (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2.5 py-1 text-[12px] font-semibold text-emerald-700 dark:text-emerald-300">
-                <BookOpen className="h-3.5 w-3.5" /> {state.bookWorkshopMode ? 'Buchwerkstatt' : 'Bilderbuch'}
+                <BookOpen className="h-3.5 w-3.5" /> {state.chapterBookMode ? 'Kapitelbuch' : state.bookWorkshopMode ? 'Buchwerkstatt' : 'Bilderbuch'}
               </span>
             )}
           </div>
@@ -758,10 +777,10 @@ interface Step0ModeSelectionProps {
   updateState: (updates: Partial<WizardState>) => void;
 }
 
-type GenerationLane = 'standard' | 'storybook' | 'developer' | 'workshop';
+type GenerationLane = 'standard' | 'storybook' | 'developer' | 'workshop' | 'chapterbook';
 
 function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
-  const activeLane: GenerationLane = state.bookWorkshopMode ? 'workshop' : state.developerMode
+  const activeLane: GenerationLane = state.chapterBookMode ? 'chapterbook' : state.bookWorkshopMode ? 'workshop' : state.developerMode
     ? 'developer'
     : state.storybookMode
       ? 'storybook'
@@ -770,12 +789,12 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
   // Step 3 still lets an admin pick any other writer afterwards.
   const select = (lane: GenerationLane) => {
     const modelUpdate: Partial<WizardState> =
-      lane === 'storybook'
+      lane === 'storybook' || lane === 'chapterbook'
         ? { aiProvider: 'openrouter', openRouterModel: STORYBOOK_OPENROUTER_STORY_MODEL }
         : state.openRouterModel === STORYBOOK_OPENROUTER_STORY_MODEL
           ? { openRouterModel: DEFAULT_OPENROUTER_STORY_MODEL }
           : {};
-    updateState({ developerMode: lane === 'developer', storybookMode: lane === 'storybook', bookWorkshopMode: lane === 'workshop', ...modelUpdate });
+    updateState({ developerMode: lane === 'developer', storybookMode: lane === 'storybook', bookWorkshopMode: lane === 'workshop', chapterBookMode: lane === 'chapterbook', ...modelUpdate });
   };
   const cardBase =
     'flex w-full flex-col gap-3 rounded-2xl border p-5 text-left transition-all duration-200 hover:scale-[1.01]';
@@ -794,7 +813,7 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
           Wie soll die Geschichte generiert werden?
         </h2>
         <p className={cn(taleaBodyFont, 'mt-2 text-sm text-[var(--talea-text-secondary)]')}>
-          Wähle zwischen Normalmodus, Bilderbuch, Buchwerkstatt und Developer Mode.
+          Wähle zwischen Normalmodus, Bilderbuch, Kapitelbuch, Buchwerkstatt und Developer Mode.
           Die Buchwerkstatt ist die neue, eigenständige Pipeline zum Testen.
           Deine Avatare und Story-Wünsche wählst du anschließend aus.
         </p>
@@ -849,6 +868,37 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
         </p>
         <p className="text-xs italic text-[var(--talea-text-tertiary)]">
           Startet mit GPT-6 Luna als Autor-Modell; die Lektorin ist immer ein Modell einer anderen Familie.
+        </p>
+      </button>
+
+      <button
+        type="button"
+        aria-pressed={activeLane === 'chapterbook'}
+        onClick={() => select('chapterbook')}
+        className={cn(cardBase, activeLane === 'chapterbook' ? cardSelected : cardIdle)}
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <BookOpen className="h-6 w-6 text-[var(--primary)]" />
+          <span className="text-lg font-semibold text-[var(--talea-text-primary)]">
+            Kapitelbuch
+          </span>
+          <span className="rounded-full border border-amber-400/60 bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+            Neu · Test
+          </span>
+          {activeLane === 'chapterbook' && (
+            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[var(--primary)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--primary)]">
+              <Check className="h-3 w-3" /> Aktiv
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-[var(--talea-text-secondary)]">
+          Ein richtiges Buch für mehrere Abende: 8 bis 15 Kapitel mit 1–3 Bildern pro Kapitel.
+          Erst Idee und passende Figuren, dann ein geprüfter Bandplan mit großer Frage, Wendung,
+          Running Gag und Finale. Die ersten Kapitel sind nach wenigen Minuten lesbar, der Rest
+          entsteht im Hintergrund. Am Ende: nächster Band oder ganz neue Geschichte.
+        </p>
+        <p className="text-xs italic text-[var(--talea-text-tertiary)]">
+          GPT-6.1 Sol plant und schreibt, Gemini prüft, Luna patcht und führt das Logbuch. Geschätzt 35–55 ¢ pro Band.
         </p>
       </button>
 
@@ -989,8 +1039,11 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic',
     },
     developerMode: state.developerMode || undefined,
-    storybookMode: state.storybookMode || state.bookWorkshopMode || undefined,
-    storybookEngine: state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v2' : undefined,
+    storybookMode: state.storybookMode || state.bookWorkshopMode || state.chapterBookMode || undefined,
+    storybookEngine: state.chapterBookMode ? 'chapter-book-v1' : state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v2' : undefined,
+    ...(state.chapterBookMode
+      ? { bookChapters: state.bookChapters, bookImagesPerChapter: state.bookImagesPerChapter, experienceForm: state.experienceForm || undefined, length: 'long' }
+      : {}),
     broughtArtifact:
       state.broughtArtifact && state.selectedAvatars.includes(state.broughtArtifact.avatarId)
         ? {

@@ -189,6 +189,18 @@ export function buildChapterTextSegments(
   return paragraphs.length > 0 ? paragraphs : [joined];
 }
 
+/**
+ * Chapter books store each picture after a numbered paragraph, so their text
+ * is split exactly where the backend split it (blank lines) — never regrouped.
+ */
+export function splitBookParagraphs(content: string): string[] {
+  return stripTtsEmotionMarkersForDisplay(content)
+    .replace(/\r\n?/g, "\n")
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
 export function resolveChapterImageInsertPoints(segmentCount: number, hasPrimary: boolean, hasScenic: boolean): ChapterImageInsertPoints {
   const normalizedCount = Math.max(1, segmentCount);
   if (!hasPrimary && !hasScenic) {

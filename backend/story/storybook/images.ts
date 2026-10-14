@@ -121,6 +121,8 @@ export interface GenerateImagesInput {
   /** A second reader of another family when the first reply is unreadable. */
   fallbackVisionModel?: string;
   historical?: boolean;
+  /** Chapter books draw the cover once, with the first batch only. */
+  skipCover?: boolean;
 }
 
 /** Keep rejected candidates for diagnostics, but never attach them to a reading page. */
@@ -379,7 +381,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
   let refused = 0;
   const providerDown = () => refused >= 3 && delivered === 0;
 
-  const shots: IllustrationShot[] = [input.illustrations.cover, ...input.illustrations.pages];
+  const shots: IllustrationShot[] = input.skipCover ? [...input.illustrations.pages] : [input.illustrations.cover, ...input.illustrations.pages];
 
   // Heroes first: when a sheet must shrink, the avatars keep their identity.
   const rank = (entity: VisualEntity) => (entity.role === "hero" ? 0 : entity.kind === "artifact" ? 2 : 1);

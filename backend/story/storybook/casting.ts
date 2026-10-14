@@ -22,8 +22,14 @@ export async function loadCastCandidates(input: {
   seed: string;
 }): Promise<CastCandidate[]> {
   if (!input.enabled) return [];
+  const rows = await loadPoolRows();
+  return rows.length ? shortlistCastCandidates({ rows, genre: input.genre, setting: input.setting, band: input.band, excludeNames: input.excludeNames, seed: input.seed }) : [];
+}
+
+/** Every active pool character with the fields casting needs. Empty when the pool is unavailable. */
+export async function loadPoolRows(): Promise<Array<Record<string, any>>> {
   try {
-    const rows = await storyDB.queryAll<Record<string, any>>`
+    return await storyDB.queryAll<Record<string, any>>`
       SELECT id, name, image_url, role, archetype, emotional_nature, visual_profile,
              age_category, species_category, personality_keywords, physical_description,
              backstory, dominant_personality, secondary_traits, catchphrase, catchphrase_context,
@@ -32,7 +38,6 @@ export async function loadCastCandidates(input: {
       FROM character_pool
       WHERE is_active = TRUE
     `;
-    return shortlistCastCandidates({ rows, genre: input.genre, setting: input.setting, band: input.band, excludeNames: input.excludeNames, seed: input.seed });
   } catch (err) {
     console.warn("[storybook/casting] character_pool unavailable, continuing without pool characters:", err);
     return [];

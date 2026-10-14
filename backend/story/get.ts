@@ -13,6 +13,28 @@ interface GetStoryParams {
   profileId?: string;
 }
 
+/** A chapter book's pictures with readable URLs; undefined for every other story. */
+async function chapterImagesForClient(raw: unknown): Promise<Array<{ url: string; afterParagraph: number }> | undefined> {
+  let list: unknown = raw;
+  if (typeof raw === "string") {
+    try {
+      list = JSON.parse(raw);
+    } catch {
+      return undefined;
+    }
+  }
+  if (!Array.isArray(list) || list.length === 0) return undefined;
+  const images = await Promise.all(list.map(async (entry: any) => {
+    const stored = typeof entry?.url === "string" ? entry.url : "";
+    if (!stored) return null;
+    const url = (await resolveImageUrlForClient(stored).catch(() => undefined)) || stored;
+    const afterParagraph = Math.max(0, Math.round(Number(entry?.afterParagraph) || 0));
+    return { url, afterParagraph };
+  }));
+  const usable = images.filter((image): image is { url: string; afterParagraph: number } => Boolean(image));
+  return usable.length ? usable : undefined;
+}
+
 // Retrieves a specific story by ID with all chapters.
 export const get = api<GetStoryParams, Story>(
   { expose: true, method: "GET", path: "/story/:id", auth: true },
@@ -190,8 +212,11 @@ export const get = api<GetStoryParams, Story>(
       tts_text: string | null;
       image_url: string | null;
       chapter_order: number;
+      images: Array<{ url?: string; afterParagraph?: number }> | string | null;
     }>`
-      SELECT id, title, content, tts_text, image_url, chapter_order
+      SELECT id, title, content, tts_text, image_url, chapter_order,
+             -- to_jsonb: works before migration 43 added the column (then null).
+             to_jsonb(chapters) -> 'images' AS images
       FROM chapters
       WHERE story_id = ${id}
       ORDER BY chapter_order
@@ -232,6 +257,7 @@ export const get = api<GetStoryParams, Story>(
         imageUrl: await buildStoryChapterImageUrlForClient(id, ch.chapter_order, ch.image_url || undefined),
         scenicImageUrl: scenicResolvedUrl || scenicRawUrl,
         scenicImagePrompt: chapterVisuals[String(ch.chapter_order)]?.scenicImagePrompt || undefined,
+        images: await chapterImagesForClient(ch.images),
         order: ch.chapter_order,
       };
     }));

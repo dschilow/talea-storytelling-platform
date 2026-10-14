@@ -68,7 +68,7 @@ const ENGINE_EN: Record<string, string> = {
   zaehlkette: "On every page one more is added (a thing, an animal, an attempt). The amount becomes too much, it crashes, and afterwards something transforms.",
 };
 
-function bandNoteEn(band: AgeBand): string {
+export function bandNoteEn(band: AgeBand): string {
   if (band === "3-5") return "Your listeners are three to five: everything must be visible at once, repetition is a gift, fear stays small and safe.";
   if (band === "9-12") return "Your listeners are nine to twelve: they love pace, wordplay and real danger — but no adult abstractions.";
   return "Your listeners are six to eight: they follow every twist as long as each step follows from the previous one, and they laugh out loud at slapstick and characters who are ridiculously sure of themselves.";
@@ -127,7 +127,7 @@ export function wishLinesEn(config: StoryBrief["config"]): string[] {
   return lines;
 }
 
-function heroSheetEn(hero: StorybookHero & { id: string }, memories: string[]): string {
+export function heroSheetEn(hero: StorybookHero & { id: string }, memories: string[]): string {
   const bits: string[] = [];
   if (typeof hero.age === "number" && hero.age > 0) bits.push(`${hero.age} years`);
   const narrative = hero.narrativeProfile && typeof hero.narrativeProfile === "object" ? hero.narrativeProfile : {};
@@ -143,7 +143,7 @@ function heroSheetEn(hero: StorybookHero & { id: string }, memories: string[]): 
   return seasoningBits.length ? `${line}\n  Seasoning, at most once and never the solution: ${seasoningBits.join("; ")}` : line;
 }
 
-function castSheetEn(candidate: CastCandidate): string {
+export function castSheetEn(candidate: CastCandidate): string {
   const bits: string[] = [`- ${candidate.name} [id: ${candidate.id}]`, candidate.whoTheyAre];
   if (candidate.backstory) bits.push(`backstory: ${clean(candidate.backstory, 160)}`);
   if (candidate.personality.length) bits.push(`nature: ${candidate.personality.slice(0, 2).join(", ")}`);
@@ -153,7 +153,7 @@ function castSheetEn(candidate: CastCandidate): string {
   return bits.join(" | ");
 }
 
-function artifactSheetEn(artifact: ArtifactOption): string {
+export function artifactSheetEn(artifact: ArtifactOption): string {
   const bits = [`- ${artifact.name} [id: ${artifact.id}]`];
   if (artifact.description) bits.push(clean(artifact.description, 200));
   bits.push(`what it can do (unchangeable, limits included): ${clean(artifact.rule, 400)}`);

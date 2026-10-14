@@ -414,10 +414,17 @@ export function buildDirectorUserPrompt(input: {
   entities: VisualEntity[];
   maxPerImage: number;
   world?: string;
+  /** Chapter books: where these pages sit in the book, and the looks fixed by earlier batches. */
+  note?: string;
+  fixedElements?: StoryElement[];
 }): string {
   const lines: string[] = [];
   lines.push(`BOOK: ${input.title}`);
   if (input.world) lines.push(`WORLD REQUESTED BY FAMILY: ${input.world}`);
+  if (input.note) lines.push(input.note);
+  if (input.fixedElements?.length) {
+    lines.push(`STORY ELEMENTS ALREADY DRAWN IN EARLIER CHAPTERS (keep exactly these names, nouns and looks; list them in storyElements again when they appear): ${JSON.stringify(input.fixedElements)}`);
+  }
   lines.push("");
   lines.push("CHARACTERS AND OBJECTS YOU MAY DRAW (use the ids):");
   for (const [index, entity] of input.entities.entries()) {
@@ -448,11 +455,11 @@ export function buildDirectorUserPrompt(input: {
   return lines.join("\n");
 }
 
-function sanitizeElements(raw: unknown): StoryElement[] {
+function sanitizeElements(raw: unknown, max = 4): StoryElement[] {
   return (Array.isArray(raw) ? raw : [])
     .map((entry: any) => ({ name: clean(entry?.name, 60), look: clean(entry?.look, 260), ...(clean(entry?.noun, 40) ? { noun: clean(entry.noun, 40).toLowerCase() } : {}), ...(entry?.figure === true ? { figure: true } : {}) }))
     .filter((entry) => entry.name && entry.look && !/^name of a recurring/i.test(entry.name))
-    .slice(0, 4)
+    .slice(0, max)
     .map((entry, _index, all) => {
       const heads = (element: Pick<StoryElement, "name" | "noun">) =>
         [element.name, element.noun].map((raw) => (clean(raw, 60).toLowerCase().replace(LEADING_ARTICLE, "").trim().split(/[\s-]+/).pop() || "")).filter((head) => head.length >= 4);
@@ -578,8 +585,8 @@ export function fallbackShot(page: number, plan: StoryPlan, entities: VisualEnti
   };
 }
 
-export function sanitizeIllustrationPlan(raw: any, pageCount: number, plan: StoryPlan, entities: VisualEntity[], maxPerImage: number): IllustrationPlan {
-  const storyElements = sanitizeElements(raw?.storyElements);
+export function sanitizeIllustrationPlan(raw: any, pageCount: number, plan: StoryPlan, entities: VisualEntity[], maxPerImage: number, maxElements = 4): IllustrationPlan {
+  const storyElements = sanitizeElements(raw?.storyElements, maxElements);
   const figureNames = new Set(storyElements.filter((element) => element.figure).map((element) => element.name));
   const drafted = sanitizeShot(raw?.cover, 0, entities, maxPerImage, storyElements) || fallbackShot(0, plan, entities, maxPerImage);
   // The cover always shows every hero (story 2db50859: Adrian was left off).
@@ -678,29 +685,51 @@ export interface DirectorStageResult {
 
 export async function runDirectorStage(
   llm: StorybookLlm,
-  input: { brief: StoryBrief; title: string; pages: StorybookPage[]; plan: StoryPlan; entities: VisualEntity[] },
+  input: {
+    brief: StoryBrief;
+    title: string;
+    pages: StorybookPage[];
+    plan: StoryPlan;
+    entities: VisualEntity[];
+    /** Chapter books: elements fixed by earlier batches keep their names and looks. */
+    fixedElements?: StoryElement[];
+    note?: string;
+    stage?: string;
+    /** The cover is drawn with another batch; its plan is never repaired here. */
+    skipCover?: boolean;
+  },
   model: string
 ): Promise<DirectorStageResult> {
   const maxPerImage = input.brief.budget.maxCharactersPerImage;
-  const result: DirectorStageResult = { illustrations: sanitizeIllustrationPlan(null, input.pages.length, input.plan, input.entities, maxPerImage) };
+  const fixed = input.fixedElements || [];
+  const maxElements = fixed.length ? 6 : 4;
+  // Fixed looks win over a redefinition, and stay valid even when the director omits them from storyElements.
+  const withFixed = (raw: any) => {
+    if (!raw || !fixed.length) return raw;
+    const own = (Array.isArray(raw.storyElements) ? raw.storyElements : []).filter((entry: any) => !fixed.some((element) => element.name.toLowerCase() === clean(entry?.name, 60).toLowerCase()));
+    return { ...raw, storyElements: [...fixed, ...own] };
+  };
+  const sanitize = (raw: any) => sanitizeIllustrationPlan(withFixed(raw), input.pages.length, input.plan, input.entities, maxPerImage, maxElements);
+  const world = `${input.brief.config.genre || ""}; ${input.brief.config.setting || ""}`;
+  const result: DirectorStageResult = { illustrations: sanitize(fixed.length ? {} : null) };
   try {
     const call = await llm({
-      stage: "illustration-direction",
+      stage: input.stage || "illustration-direction",
       role: "support",
       model,
       system: buildDirectorSystemPrompt(),
-      user: buildDirectorUserPrompt({ ...input, maxPerImage, world: `${input.brief.config.genre || ""}; ${input.brief.config.setting || ""}` }),
+      user: buildDirectorUserPrompt({ ...input, maxPerImage, world }),
       json: true,
       maxTokens: 1500 + input.pages.length * 500,
       effort: "low",
       temperature: 0.6,
     });
     result.call = call;
-    result.illustrations = sanitizeIllustrationPlan(parseJsonObject<any>(call.text), input.pages.length, input.plan, input.entities, maxPerImage);
+    result.illustrations = sanitize(parseJsonObject<any>(call.text));
   } catch (err) {
     console.warn("[storybook/illustration] director failed, using planner pictures:", (err as Error)?.message || err);
   }
-  const invalid = [result.illustrations.cover, ...result.illustrations.pages].filter((shot) => shot.planningErrors?.length);
+  const invalid = [...(input.skipCover ? [] : [result.illustrations.cover]), ...result.illustrations.pages].filter((shot) => shot.planningErrors?.length);
   if (!invalid.length) return result;
   const recompose = () => {
     const elements = result.illustrations.storyElements || [];
@@ -725,11 +754,11 @@ export async function runDirectorStage(
       const candidate = sanitizeIllustrationPlan({
         ...raw,
         storyElements: result.illustrations.storyElements?.length ? result.illustrations.storyElements : raw.storyElements,
-      }, input.pages.length, input.plan, input.entities, maxPerImage);
+      }, input.pages.length, input.plan, input.entities, maxPerImage, maxElements);
       if (invalid.some((shot) => shot.page === 0) && !candidate.cover.planningErrors?.length) result.illustrations.cover = candidate.cover;
       result.illustrations.pages = result.illustrations.pages.map((shot) => {
-        const fixed = candidate.pages.find((page) => page.page === shot.page);
-        return shot.planningErrors?.length && fixed && !fixed.planningErrors?.length ? fixed : shot;
+        const repaired = candidate.pages.find((page) => page.page === shot.page);
+        return shot.planningErrors?.length && repaired && !repaired.planningErrors?.length ? repaired : shot;
       });
       result.illustrations.storyElements = candidate.storyElements;
     }

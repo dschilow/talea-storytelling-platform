@@ -4,7 +4,7 @@ import { LoaderCircle, Sparkles, Check } from 'lucide-react';
 
 import type { Chapter } from '../../../types/story';
 import { cn } from '../../../lib/utils';
-import { buildChapterTextSegments, resolveChapterImageInsertPoints } from '../../../utils/chapterImagePlacement';
+import { buildChapterTextSegments, resolveChapterImageInsertPoints, splitBookParagraphs } from '../../../utils/chapterImagePlacement';
 import { canUseDropCap, describeChapterHeading } from './readerText';
 
 interface ReaderChapterProps {
@@ -18,6 +18,8 @@ interface ReaderChapterProps {
   completionError?: string | null;
   onOpenImage: (src: string, alt: string) => void;
   registerElement: (index: number, element: HTMLElement | null) => void;
+  /** Chapter books: a quiet line after the chapter (bookmark / good-night stop). */
+  endNote?: string;
 }
 
 const REVEAL = { duration: 0.55, ease: [0.2, 0.65, 0.3, 0.9] as [number, number, number, number] };
@@ -32,6 +34,7 @@ export const ReaderChapter: React.FC<ReaderChapterProps> = ({
   completionError,
   onOpenImage,
   registerElement,
+  endNote,
 }) => {
   // Auto-completion: when the child scrolls to the end of the LAST chapter,
   // save the progress and show the rewards without requiring a button tap —
@@ -54,17 +57,23 @@ export const ReaderChapter: React.FC<ReaderChapterProps> = ({
   }, [completionZoneInView, onComplete, isCompleted, isCompleting]);
 
   const heading = describeChapterHeading(chapter, index, language);
-  const primaryImage = chapter.imageUrl || null;
-  const scenicImage = chapter.scenicImageUrl || null;
+  // Chapter books place each picture after a stored paragraph; other stories get the two-slot layout.
+  const bookImages = Array.isArray(chapter.images) && chapter.images.length > 0 ? chapter.images : null;
+  const primaryImage = bookImages ? null : chapter.imageUrl || null;
+  const scenicImage = bookImages ? null : chapter.scenicImageUrl || null;
 
   const paragraphs = useMemo(
     () =>
-      buildChapterTextSegments(String(chapter.content || ''), Boolean(primaryImage), Boolean(scenicImage), {
-        splitMidSentence: false,
-      }),
-    [chapter.content, primaryImage, scenicImage],
+      bookImages
+        ? splitBookParagraphs(String(chapter.content || ''))
+        : buildChapterTextSegments(String(chapter.content || ''), Boolean(primaryImage), Boolean(scenicImage), {
+            splitMidSentence: false,
+          }),
+    [chapter.content, primaryImage, scenicImage, bookImages],
   );
   const insertPoints = resolveChapterImageInsertPoints(paragraphs.length, Boolean(primaryImage), Boolean(scenicImage));
+  const bookImagesAfter = (paragraphIndex: number) =>
+    (bookImages || []).filter((image) => Math.min(image.afterParagraph, paragraphs.length - 1) === paragraphIndex);
 
   const renderFigure = (src: string, kind: 'Szene' | 'Umgebung') => {
     const alt = `${heading.title || heading.kicker} – ${kind}`;
@@ -127,9 +136,14 @@ export const ReaderChapter: React.FC<ReaderChapterProps> = ({
 
             {primaryImage && insertPoints.primaryAfterSegment === paragraphIndex && renderFigure(primaryImage, 'Szene')}
             {scenicImage && insertPoints.scenicAfterSegment === paragraphIndex && renderFigure(scenicImage, 'Umgebung')}
+            {bookImagesAfter(paragraphIndex).map((image) => (
+              <React.Fragment key={image.url}>{renderFigure(image.url, 'Szene')}</React.Fragment>
+            ))}
           </React.Fragment>
         ))}
       </div>
+
+      {endNote && <p className="rd-chapter-endnote">{endNote}</p>}
 
       {onComplete && (
         <motion.div

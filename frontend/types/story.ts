@@ -117,6 +117,8 @@ export interface Chapter {
   imageUrl?: string;
   scenicImageUrl?: string;
   scenicImagePrompt?: string;
+  /** Chapter books: one to three pictures, each after a paragraph (0-based). */
+  images?: Array<{ url: string; afterParagraph: number }>;
   order: number;
 }
 
@@ -195,7 +197,21 @@ export interface Story {
       images: number;
       total: number;
     };
+    /** Chapter books (chapter-book-v1): progress while the job writes, recaps for "Was bisher geschah". */
+    book?: ChapterBookInfo;
   };
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ChapterBookInfo {
+  format: 'chapter-book';
+  chaptersPlanned: number;
+  chaptersReady: number;
+  /** writing = more chapters are on their way; stalled = the job stopped (admin can re-queue). */
+  state: 'writing' | 'complete' | 'stalled';
+  form?: 'mystery' | 'journey' | 'funny' | 'cozy';
+  recaps?: Array<{ chapter: number; recap: string }>;
+  /** Ideas for the next volume, only once the book is complete. */
+  teasers?: string[];
 }

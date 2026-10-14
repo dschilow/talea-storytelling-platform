@@ -13,6 +13,7 @@ import { getOfflineStory } from '../../utils/offlineDb';
 import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';
 import { StoryReaderView } from './reader/StoryReaderView';
+import { createStoryGenerationId, generateStoryWithModelFallback } from './storyGenerateWithModelFallback';
 import './reader/StoryReader.css';
 
 /**
@@ -134,6 +135,49 @@ const CinematicStoryViewer: React.FC = () => {
     }
   };
 
+  // Chapter books are written while the family reads: refresh quietly until the last chapter is there.
+  const bookInProgress = story?.status === 'generating' || (story?.metadata?.book?.format === 'chapter-book' && story.metadata.book.state === 'writing');
+  useEffect(() => {
+    if (!storyId || !bookInProgress) return;
+    const timer = window.setInterval(async () => {
+      try {
+        const fresh = await backend.story.get({ id: storyId, profileId: activeProfileId || undefined });
+        setStory((current) => (current && current.id === (fresh as any).id ? (fresh as any as Story) : current));
+      } catch {
+        // The next tick tries again.
+      }
+    }, 20_000);
+    return () => window.clearInterval(timer);
+  }, [backend, storyId, activeProfileId, bookInProgress]);
+
+  // Next volume: same heroes and settings, the series memory, the child's choice or wish.
+  const continueBook = async (choice: { teaser?: string; wish?: string }) => {
+    if (!story) return;
+    const { customPrompt: _profileMerged, continueFromStoryId: _previous, continuationChoice: _choice, continuationWish: _wish, ...previousConfig } = story.config as any;
+    const nextId = createStoryGenerationId();
+    const created: any = await generateStoryWithModelFallback(backend.story.generate as any, {
+      storyId: nextId,
+      config: { ...previousConfig, continueFromStoryId: story.id, continuationChoice: choice.teaser, continuationWish: choice.wish },
+      profileId: activeProfileId || undefined,
+    } as any);
+    navigate(`/story-reader/${created?.id || nextId}`);
+  };
+
+  // Server-side bookmark for chapter books: percent of the planned chapters, debounced.
+  const progressTimerRef = useRef<number | null>(null);
+  const reportProgress = React.useCallback((chapterIndex: number) => {
+    const book = story?.metadata?.book;
+    if (!story || !storyId || !book || book.format !== 'chapter-book' || isCharacterLifeStory) return;
+    if (progressTimerRef.current !== null) window.clearTimeout(progressTimerRef.current);
+    progressTimerRef.current = window.setTimeout(() => {
+      const progressPct = Math.min(99, Math.round(((chapterIndex + 1) / Math.max(1, book.chaptersPlanned)) * 100));
+      void backend.story.updateStoryProfileState({ id: storyId, profileId: activeProfileId || undefined, progressPct, completionState: 'in_progress' }).catch(() => {});
+    }, 1500);
+  }, [backend, story, storyId, activeProfileId, isCharacterLifeStory]);
+  useEffect(() => () => {
+    if (progressTimerRef.current !== null) window.clearTimeout(progressTimerRef.current);
+  }, []);
+
   const handleStoryCompletion = async () => {
     if (!story || !storyId || storyCompleted || completionInFlightRef.current) return;
     if (isCharacterLifeStory) {
@@ -238,6 +282,29 @@ const CinematicStoryViewer: React.FC = () => {
   }
 
   const chapters = story.chapters?.length ? story.chapters : story.pages || [];
+
+  /* ── A chapter book before its first chapters exist ── */
+  if (chapters.length === 0 && (story.status === 'generating' || story.status === 'error')) {
+    return (
+      <div className="rd-loading rd-scope" data-theme={theme} role="status">
+        {story.status === 'error' ? (
+          <p className="rd-error-title">Diese Geschichte konnte leider nicht geschrieben werden. Deine Münze bekommst du zurück.</p>
+        ) : (
+          <>
+            <div className="rd-spinner" aria-hidden="true" />
+            <p className="rd-loading-text">
+              {(story.config as { storybookEngine?: string }).storybookEngine === 'chapter-book-v1'
+                ? 'Dein Buch wird geschrieben. Die ersten Kapitel sind in etwa fünf bis zehn Minuten da — diese Seite aktualisiert sich von selbst.'
+                : 'Deine Geschichte wird geschrieben …'}
+            </p>
+          </>
+        )}
+        <button type="button" onClick={() => navigate(returnPath)} className="rd-secondary-btn">
+          {returnLabel}
+        </button>
+      </div>
+    );
+  }
   const castMembers = participants.length > 0 ? participants : story.avatarParticipants || story.config.avatars || [];
 
   return (
@@ -253,6 +320,8 @@ const CinematicStoryViewer: React.FC = () => {
         returnPath={returnPath}
         returnLabel={returnLabel}
         onNavigate={navigate}
+        onContinueBook={isAdmin && story.metadata?.book?.format === 'chapter-book' ? continueBook : undefined}
+        onProgress={reportProgress}
         completion={{
           isCompleted: storyCompleted,
           isCompleting: completionPending,

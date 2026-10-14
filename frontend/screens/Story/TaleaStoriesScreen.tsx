@@ -324,6 +324,7 @@ const GridStoryCard: React.FC<{
         <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
           {story.status !== "complete" ? <StoryStatusChip status={story.status} /> : null}
           {imagesSkipped ? <StoryImageSkipChip /> : null}
+          <BookChip story={story} />
         </div>
         <TaleaCardMenu actions={actions} label={`Aktionen für ${story.title}`} className="!absolute right-3 top-3" />
       </div>
@@ -348,6 +349,19 @@ const GridStoryCard: React.FC<{
   );
 };
 
+/** Chapter books show their progress while the job is still writing. */
+const BookChip: React.FC<{ story: Story }> = ({ story }) => {
+  const book = story.metadata?.book;
+  if (book?.format !== "chapter-book") return null;
+  const label = book.state === "complete"
+    ? `Kapitelbuch · ${book.chaptersPlanned} Kapitel`
+    : `Kapitelbuch · ${book.chaptersReady}/${book.chaptersPlanned} geschrieben`;
+  return (
+    <span className="inline-flex rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-glass-bg)] px-3 py-1 text-[11px] font-semibold text-[var(--talea-text-primary)] shadow-sm backdrop-blur">
+      {label}
+    </span>
+  );
+};
 const ListStoryRow: React.FC<{
   story: Story;
   index: number;
@@ -399,6 +413,7 @@ const ListStoryRow: React.FC<{
         <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[13px] text-[var(--talea-text-tertiary)]">
           {story.status !== "complete" ? <StoryStatusChip status={story.status} /> : null}
           {imagesSkipped ? <StoryImageSkipChip /> : null}
+          <BookChip story={story} />
           <span>{formatDate(story.createdAt)}</span>
         </div>
       </div>
