@@ -1,36 +1,19 @@
 import React, { useEffect, useState } from "react";
-import {
-  BookMarked,
-  Bell,
-  BookOpen,
-  Bot,
-  ChevronDown,
-  Code,
-  FlaskConical,
-  Gamepad2,
-  Gem,
-  Home,
-  LogOut,
-  Settings,
-  Sparkles,
-  User,
-} from "lucide-react";
+import { BookMarked, ChevronDown, Code, Gem, LogOut, Sparkles, type LucideIcon } from "lucide-react";
 import { useClerk } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 import { TaleaLogo } from "@/components/brand/TaleaLogo";
+import { NavIcon, type NavIconName } from "@/components/navigation/NavIcon";
 import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
-import { WizardImage } from "@/components/avatar-form/WizardImage";
-import { useWizardAssets } from "@/hooks/useWizardAssets";
 import { useNotifications } from "@/contexts/NotificationsContext";
 
 interface NavItem {
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  /** Wizard-asset id within the "navTab" group; renders a Talea illustration instead of the icon. */
-  imageId?: string;
+  /** Talea glyph for the child-facing areas; lucide icons for admin tools. */
+  icon: NavIconName | LucideIcon;
   /** Further paths that count as this tab (e.g. /quiz for the game room). */
   aliases?: string[];
   path: string;
@@ -41,15 +24,17 @@ interface NavItem {
 }
 
 const PRIMARY_ITEMS: NavItem[] = [
-  { icon: Home, imageId: "home", labelKey: "navigation.home", path: "/" },
-  { icon: BookOpen, imageId: "stories", labelKey: "navigation.stories", path: "/stories" },
-  { icon: User, imageId: "avatars", labelKey: "navigation.avatars", path: "/avatar" },
-  { icon: FlaskConical, imageId: "dokus", label: "Dokus", path: "/doku" },
-  { icon: Gamepad2, imageId: "quiz", label: "Spiel", path: "/spiel", aliases: ["/quiz"] },
-  { icon: Bell, label: "Mitteilungen", path: "/mitteilungen" },
+  { icon: "home", labelKey: "navigation.home", path: "/" },
+  { icon: "stories", labelKey: "navigation.stories", path: "/stories" },
+  { icon: "avatars", labelKey: "navigation.avatars", path: "/avatar" },
+  { icon: "dokus", label: "Dokus", path: "/doku" },
+  { icon: "game", label: "Spiel", path: "/spiel", aliases: ["/quiz"] },
+];
+
+const SECONDARY_ITEMS: NavItem[] = [
+  { icon: "notifications", label: "Mitteilungen", path: "/mitteilungen" },
   {
-    icon: Bot,
-    imageId: "tavi",
+    icon: "tavi",
     label: "Tavi",
     path: "",
     action: () => window.dispatchEvent(new Event("tavi:open")),
@@ -64,7 +49,7 @@ const ADMIN_ITEMS: NavItem[] = [
 ];
 
 const SETTINGS_ITEM: NavItem = {
-  icon: Settings,
+  icon: "settings",
   labelKey: "navigation.settings",
   path: "/settings",
 };
@@ -73,6 +58,8 @@ const SETTINGS_ITEM: NavItem = {
 export const SIDEBAR_RAIL = 84;
 export const SIDEBAR_WIDE = 248;
 const WIDE_QUERY = "(min-width: 1280px)";
+
+const MotionLink = motion.create(Link);
 
 function useIsWideScreen(): boolean {
   const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia(WIDE_QUERY).matches);
@@ -118,73 +105,72 @@ const Sidebar: React.FC = () => {
     await signOut();
   };
 
-  const { assetUrl } = useWizardAssets();
+  const renderLabel = (text: string, className?: string) => (
+    <motion.span
+      initial={false}
+      animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
+      transition={labelTransition}
+      className={cn("relative overflow-hidden whitespace-nowrap text-[15px]", className)}
+    >
+      {text}
+    </motion.span>
+  );
 
   const renderNavItem = (item: NavItem) => {
     const active = isActive(item.path, item.aliases);
+    const unread = item.path === "/mitteilungen" ? unreadCount : 0;
     const Icon = item.icon;
 
-    return (
-      <motion.button
-        key={item.path || item.label}
-        type="button"
-        onClick={() => (item.action ? item.action() : navigate(item.path))}
-        className={cn(
-          "group relative flex min-h-12 w-full items-center rounded-2xl px-2.5 py-2 text-left transition-colors duration-150",
-          focusClass,
-          canExpand ? "gap-3" : "justify-center",
-          active
-            ? "text-[var(--primary)]"
-            : "text-[var(--talea-text-secondary)] hover:bg-[var(--talea-surface-inset)] hover:text-[var(--talea-text-primary)]"
-        )}
-        aria-label={item.path === '/mitteilungen' && unreadCount ? `Mitteilungen, ${unreadCount} ungelesen` : labelOf(item)}
-        aria-current={active ? "page" : undefined}
-        whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-      >
+    const className = cn(
+      "group relative flex h-11 w-full items-center rounded-[14px] px-2.5 text-left transition-colors duration-150",
+      focusClass,
+      canExpand ? "gap-3" : "justify-center",
+      active
+        ? "text-[var(--primary)]"
+        : "text-[var(--talea-text-secondary)] hover:bg-[var(--talea-surface-inset)] hover:text-[var(--talea-text-primary)]"
+    );
+    const content = (
+      <>
         {active && (
           <motion.span
             aria-hidden="true"
             layoutId="talea-sidebar-active"
-            className="absolute inset-0 rounded-2xl border border-[color-mix(in_srgb,var(--primary)_18%,transparent)] bg-[var(--talea-accent-terracotta-soft)]"
+            className="absolute inset-0 rounded-[14px] bg-[color-mix(in_srgb,var(--primary)_11%,transparent)]"
             transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 36 }}
           />
         )}
-        <span
-          className={cn(
-            "relative flex h-9 w-9 flex-shrink-0 items-center justify-center transition-[opacity,filter]",
-            active ? "opacity-100" : "opacity-70 grayscale-[30%] group-hover:opacity-100 group-hover:grayscale-0"
-          )}
-        >
-          {item.imageId ? (
-            <WizardImage
-              url={assetUrl("navTab", item.imageId)}
-              fallback={<Icon className="h-[20px] w-[20px]" />}
-              alt=""
-              fallbackClassName="flex h-full w-full items-center justify-center"
-            />
+        <span className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center">
+          {typeof Icon === "string" ? (
+            <NavIcon name={Icon} active={active} className="h-[23px] w-[23px]" />
           ) : (
-            <Icon className={cn("h-[20px] w-[20px]", active && "text-[var(--primary)]")} />
+            <Icon className="h-[20px] w-[20px]" strokeWidth={1.8} />
           )}
-          {item.path === '/mitteilungen' && unreadCount > 0 && !canExpand && (
-            <span aria-hidden="true" className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-[var(--primary)]" />
+          {unread > 0 && !canExpand && (
+            <span aria-hidden="true" className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-[var(--primary)] ring-2 ring-[var(--talea-surface-primary)]" />
           )}
         </span>
-
-        <motion.span
-          initial={false}
-          animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
-          transition={labelTransition}
-          className={cn(
-            "relative overflow-hidden whitespace-nowrap text-[15px]",
-            active ? "font-semibold" : "font-medium"
-          )}
-        >
-          {labelOf(item)}
-        </motion.span>
-        {item.path === '/mitteilungen' && unreadCount > 0 && canExpand && (
-          <span aria-hidden="true" className="relative ml-auto rounded-full bg-[var(--primary)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--primary-foreground)]">{unreadCount > 99 ? '99+' : unreadCount}</span>
+        {renderLabel(labelOf(item), active ? "font-semibold" : "font-medium")}
+        {unread > 0 && canExpand && (
+          <span aria-hidden="true" className="relative ml-auto rounded-full bg-[var(--primary)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--primary-foreground)]">
+            {unread > 99 ? "99+" : unread}
+          </span>
         )}
+      </>
+    );
+    const shared = {
+      className,
+      "aria-label": unread ? `${labelOf(item)}, ${unread} ungelesen` : labelOf(item),
+      whileTap: reduceMotion ? undefined : { scale: 0.98 },
+    };
+
+    return item.action ? (
+      <motion.button key={item.label} type="button" onClick={item.action} {...shared}>
+        {content}
       </motion.button>
+    ) : (
+      <MotionLink key={item.path} to={item.path} aria-current={active ? "page" : undefined} {...shared}>
+        {content}
+      </MotionLink>
     );
   };
 
@@ -207,14 +193,13 @@ const Sidebar: React.FC = () => {
         style={{ background: "var(--sidebar)", borderColor: "var(--sidebar-border)" }}
       >
         <div className="relative flex flex-1 flex-col overflow-hidden">
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className={cn("mb-5 flex min-h-14 items-center rounded-xl px-2 py-1.5 transition-colors hover:bg-[var(--talea-surface-inset)]", focusClass, !canExpand && "justify-center")}
+          <Link
+            to="/"
+            className={cn("mb-5 flex min-h-14 items-center rounded-xl px-1.5 py-1.5", focusClass, !canExpand && "justify-center")}
             aria-label="Talea Startseite"
           >
-            <TaleaLogo variant={canExpand ? "compact" : "mark"} alt="" className={canExpand ? "h-12 w-auto" : "h-11 w-11"} />
-          </button>
+            <TaleaLogo variant={canExpand ? "horizontal" : "icon"} alt="" className={canExpand ? "h-14 w-auto" : "h-[52px] w-[52px]"} />
+          </Link>
 
           <motion.button
             type="button"
@@ -230,12 +215,14 @@ const Sidebar: React.FC = () => {
             transition={{ type: "spring", stiffness: 420, damping: 30 }}
             style={{ boxShadow: "0 6px 18px color-mix(in srgb, var(--talea-accent-terracotta) 20%, transparent)" }}
           >
-            <Sparkles className="h-4 w-4 flex-shrink-0" />
+            <NavIcon name="newStory" active className="h-[19px] w-[19px]" />
             {canExpand ? <span className="whitespace-nowrap">Neue Geschichte</span> : null}
           </motion.button>
 
-          <div className="flex-1 space-y-1 overflow-y-auto pr-0.5">
-            {PRIMARY_ITEMS.map(renderNavItem)}
+          <div className="flex-1 overflow-y-auto pr-0.5">
+            <div className="space-y-1">{PRIMARY_ITEMS.map(renderNavItem)}</div>
+            <div aria-hidden="true" className="mx-2.5 my-3 h-px bg-[var(--talea-border-light)]" />
+            <div className="space-y-1">{SECONDARY_ITEMS.map(renderNavItem)}</div>
 
             {isAdmin && (
               <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--talea-border-light)" }}>
@@ -276,26 +263,19 @@ const Sidebar: React.FC = () => {
             )}
           </div>
 
-          <div className="mt-3 space-y-0.5 border-t pt-3" style={{ borderColor: "var(--talea-border-light)" }}>
+          <div className="mt-3 space-y-1 border-t pt-3" style={{ borderColor: "var(--talea-border-light)" }}>
             {renderNavItem(SETTINGS_ITEM)}
 
             <button
               type="button"
               onClick={handleSignOut}
-              className={cn("group flex min-h-12 w-full items-center rounded-2xl px-2.5 py-2 text-left text-[var(--talea-text-tertiary)] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 dark:hover:text-red-400", focusClass, canExpand ? "gap-3" : "justify-center")}
+              className={cn("group flex h-11 w-full items-center rounded-[14px] px-2.5 text-left text-[var(--talea-text-tertiary)] transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 dark:hover:text-red-400", focusClass, canExpand ? "gap-3" : "justify-center")}
               aria-label={t("navigation.logout")}
             >
-              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center">
-                <LogOut className="h-[20px] w-[20px]" />
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center">
+                <LogOut className="h-[20px] w-[20px]" strokeWidth={1.8} />
               </span>
-              <motion.span
-                initial={false}
-                animate={{ opacity: canExpand ? 1 : 0, width: canExpand ? "auto" : 0 }}
-                transition={labelTransition}
-                className="overflow-hidden whitespace-nowrap text-[15px] font-medium"
-              >
-                {t("navigation.logout")}
-              </motion.span>
+              {renderLabel(t("navigation.logout"), "font-medium")}
             </button>
           </div>
         </div>

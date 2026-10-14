@@ -173,7 +173,7 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
                 aria-label="Talea Startseite"
                 className="mr-auto rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)] md:hidden"
               >
-                <TaleaLogo variant="compact" className="h-9 w-auto" alt="" />
+                <TaleaLogo variant="horizontal" className="h-12 w-auto" alt="" />
               </Link>
               {!usesImmersiveShell ? (
                 <h1
