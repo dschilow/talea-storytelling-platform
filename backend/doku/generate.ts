@@ -42,6 +42,8 @@ import {
   type NormalizedDokuOutput,
 } from "./doku-prompt";
 import { applyFactCheck, buildFactCheckPayload, parseFactCheckIssues, resolveFactCheckModel } from "./doku-factcheck";
+import { assertChildSafeInput } from "../helpers/child-safety-gate";
+import { scrubProfanity } from "../helpers/child-safety";
 import { DOKU_IMAGE_QA_MODEL, parseTextCheck, renderTextFreeImage, TEXT_CHECK_SYSTEM, TEXT_CHECK_USER } from "./doku-images";
 
 const dokuDB = SQLDatabase.named("doku");
@@ -353,7 +355,7 @@ const NON_READER_KEYS = new Set(["sectionImagePrompt", "coverImagePrompt", "imag
 /** Applies the parents' blocked terms to every reader-facing string of the doku. */
 function sanitizeReaderText<T>(value: T, blockedTerms: string[], key = ""): T {
   if (typeof value === "string") {
-    return (NON_READER_KEYS.has(key) ? value : sanitizeTextWithBlockedTerms(value, blockedTerms).text) as T;
+    return (NON_READER_KEYS.has(key) ? value : scrubProfanity(sanitizeTextWithBlockedTerms(value, blockedTerms).text).text) as T;
   }
   if (Array.isArray(value)) {
     return value.map((entry) => sanitizeReaderText(entry, blockedTerms, key)) as T;
@@ -597,6 +599,8 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
       usedToday: usageToday?.count ?? 0,
     });
 
+    // Child safety: the topic becomes part of the writer prompt, so it is checked first.
+    await assertChildSafeInput({ text: req.config.topic, surface: "doku-topic", ageBand: req.config.ageGroup });
     const parentalGuidance = buildGenerationGuidanceFromControls(parentalControls);
     const config: DokuConfig = {
       ...req.config,
@@ -744,7 +748,8 @@ export const generateDoku = api<GenerateDokuRequest, Doku>(
         console.info(`[doku] ${imageStats.rejectedForWriting} picture(s) redrawn or dropped for visible writing`, { dokuId: id });
       }
 
-      const finalOutput = blockedTerms.length > 0 ? sanitizeReaderText(output, blockedTerms) : output;
+      // Swear words are always scrubbed (child safety), parental blocked terms only when set.
+      const finalOutput = sanitizeReaderText(output, blockedTerms);
 
       const processingTime = Date.now() - startTime;
       const textCost = writer.costUSD + (factCheck?.costUSD ?? 0) + imageStats.qaCostUSD;

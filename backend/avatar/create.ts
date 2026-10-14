@@ -15,6 +15,7 @@ import {
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { resolveRequestedProfileId } from "../helpers/profiles";
 import { claimMeteredUsage, refundMeteredUsage } from "../helpers/billing";
+import { assertChildSafeInput } from "../helpers/child-safety-gate";
 import {
   assertCanAssignChildAvatar,
   ensureAvatarColumns,
@@ -36,6 +37,11 @@ export const create = api(
     if (JSON.stringify(req).length > 100_000) {
       throw APIError.invalidArgument("Avatar request is too large.");
     }
+    // Child safety: name, description and quirks end up in every story prompt of this avatar.
+    await assertChildSafeInput({
+      text: [req.name, req.description, (req.physicalTraits as any)?.appearance, (req.narrativeProfile as any)?.quirk, (req.narrativeProfile as any)?.catchphrase].filter((v) => typeof v === "string" && v.trim()).join(" · "),
+      surface: "avatar-text",
+    });
     const usageClaim = await claimMeteredUsage({
       userId,
       kind: "assist",

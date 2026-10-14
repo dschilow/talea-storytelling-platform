@@ -1,4 +1,5 @@
 import { api, APIError } from "encore.dev/api";
+import { assertChildSafeInput } from "../helpers/child-safety-gate";
 import type { Story } from "./generate";
 import { getAuthData } from "~encore/auth";
 import { storyDB } from "./db";
@@ -53,6 +54,8 @@ export const update = api<UpdateStoryRequest, { success: boolean }>(
       }
     }
 
+    // Child safety: titles and descriptions are shown to other users once a story is public.
+    await assertChildSafeInput({ text: [updates.title, updates.description].filter(Boolean).join(" · "), surface: "avatar-text" });
     const now = new Date();
     
     await storyDB.exec`

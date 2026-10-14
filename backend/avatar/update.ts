@@ -1,4 +1,5 @@
 import { api, APIError } from "encore.dev/api";
+import { assertChildSafeInput } from "../helpers/child-safety-gate";
 import { normalizeAvatarNarrativeProfile, type Avatar, type AvatarNarrativeProfile, type PhysicalTraits, type AvatarVisualProfile } from "./avatar";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
@@ -47,6 +48,8 @@ export const update = api<UpdateAvatarRequest, Avatar>(
       userId: auth.userID,
       requestedProfileId: req.profileId,
     });
+    // Child safety: name and description end up in story prompts and are visible when the avatar is shared.
+    await assertChildSafeInput({ text: [updates.name, updates.description].filter(Boolean).join(" · "), surface: "avatar-text" });
     const defaultProfile = await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
     
     const existingAvatar = await avatarDB.queryRow<{

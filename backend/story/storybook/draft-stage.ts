@@ -6,6 +6,7 @@
  * the length per page. Output is plain text with page markers.
  */
 
+import { CHILD_SAFETY_RULES_DE } from "../../helpers/child-safety";
 import { buildLanguageRules, buildSlimLanguageRules, CORE_RULES, CRAFT_RULES, isGerman, type AgeBand } from "./craft";
 import { heroSeasoning, isLean, type StoryBrief } from "./context";
 import type { LlmCallResult, StorybookLlm } from "./llm";
@@ -70,6 +71,7 @@ export function buildWriterSystemPrompt(brief: StoryBrief, options: { oneShot?: 
     // Sol 6.1 test 2026-09-30: a moral spoken by a character, an invented sibling bond, a character sheet on page 1.
     "Keine Lehre, auch nicht als Satz einer Figur („Magie liegt in dir“). Wie die Helden zueinander stehen, ist nicht bekannt: nenne keine Verwandtschaft oder Freundschaft, zeige Nähe durch gemeinsames Handeln. Aussehen, Größe und Alter der Helden beschreibst du nicht (das zeigt das Bild) — stell sie über das vor, was sie tun und mögen. Der Titel greift ein Ding, Wesen oder einen Satz auf, das in der Geschichte wirklich vorkommt.",
     ...(isGerman(brief.config.language) ? ["Wörtliche Rede: „so“. Kurze Stilprobe (nur Rhythmus, nichts übernehmen):", STYLE_SAMPLE_DE] : []),
+    CHILD_SAFETY_RULES_DE,
     "Ausgabe ohne Markdown: TITEL: …, BESCHREIBUNG: … (12–25 Wörter), danach SEITE 1, Text, SEITE 2, Text usw. Diese Marker bleiben deutsch; alle Inhalte in der gewünschten Sprache. Zusätzliche Kopfzeilen nur wie im Auftrag angegeben.",
   ].join("\n");
   const lines = [
@@ -103,6 +105,8 @@ export function buildWriterSystemPrompt(brief: StoryBrief, options: { oneShot?: 
     lines.push("", "STILPROBE aus einer ganz anderen Geschichte (nur Rhythmus und Ton — keine Figuren, Dinge oder Sätze daraus übernehmen):", brief.experiment?.pictureBook ? STYLE_SAMPLE_PICTUREBOOK_DE : STYLE_SAMPLE_DE);
   }
   lines.push(
+    "",
+    CHILD_SAFETY_RULES_DE,
     "",
     "AUSGABEFORMAT — genau so, ohne Markdown, ohne Überschriften, ohne Kommentare:",
     "TITEL: <Titel>",

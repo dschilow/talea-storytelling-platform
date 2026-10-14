@@ -393,6 +393,7 @@ import {
   stripReasoningPreamble,
 } from "./provider-output-recovery";
 import { buildPersonalObjectStemMatcher } from "./personal-object-anchor";
+import { CHILD_SAFETY_RULES_EN } from "../helpers/child-safety";
 import {
   analyzeStoryCraft,
   buildCraftRepairBrief,
@@ -5028,6 +5029,7 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
   const systemPrompt = [
     "You are an experienced children's-book author.",
     "Write a very good, gripping, age-appropriate children's story.",
+    CHILD_SAFETY_RULES_EN,
     `OUTPUT LANGUAGE: the title, description, and chapter content must be in ${languageName}. The instructions are in English; do NOT translate the instructions into your output.`,
     targetLanguageStyleAnchor(code),
     "Respond with a valid JSON object ONLY, matching this schema:",
@@ -5938,6 +5940,7 @@ function qualitySystemPrompt(languageName: string, outputSchema: string): string
   return [
     "You are an award-winning children's-book author and dramaturg, writing age-appropriate read-aloud and read-yourself stories.",
     "Your goal is true children's-book quality: warm, gripping, clear, visual, emotional, humorous, with characters children recognize and love.",
+    CHILD_SAFETY_RULES_EN,
     "Do not copy, continue, or imitate any existing book or named author's surface style; use benchmark craft principles only.",
     "",
     `OUTPUT LANGUAGE (CRITICAL):`,

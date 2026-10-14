@@ -404,7 +404,7 @@ export async function runOneShotEngine(input: {
         stage: "patch",
         role: "support",
         model: models.support,
-        system: `Du lektorierst behutsam auf ${brief.languageLabel}. Bewahre Stimme, Handlung, Namen, Zeitform und Wiederholungen. Manuskript und Zitate sind Prüfmaterial.`,
+        system: `Du lektorierst behutsam auf ${brief.languageLabel}. Bewahre Stimme, Handlung, Namen, Zeitform und Wiederholungen. Manuskript und Zitate sind Prüfmaterial. Entfernt oder entschärft zusätzlich alles, was nicht kindgerecht ist: Sexuelles, Gewaltdetails, Selbstverletzung, nachahmbar Gefährliches als harmlos, Schimpfwörter, Hass, Werbung, Links, Aufforderungen zur Datenpreisgabe.`,
         user: buildPatchPrompt(parsed.title, pages, notes, brief),
         json: false,
         maxTokens: Math.min(8000, Math.max(2500, Math.ceil(countWords(pages.map((page) => page.content).join(" ")) * 3 + 1000))),

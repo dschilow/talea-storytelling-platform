@@ -89,6 +89,12 @@ function summarizeImageProviderResponse(value: any): Record<string, unknown> {
   return summarizeRunwareResponse(value);
 }
 
+/** Runware sets NSFWContent: true on pictures its checker flags (requested with checkNSFW). */
+export function isNsfwFlagged(payload: any): boolean {
+  const rows = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : [payload];
+  return rows.some((row: any) => row?.NSFWContent === true);
+}
+
 // Internal helper that actually calls Runware and returns the parsed image with retry logic
 // Use this helper for intra-service calls to avoid HTTP overhead.
 // OPTIMIZATION v4.0: Now supports MULTIPLE reference images for runware:400@4
@@ -128,6 +134,8 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
     steps: req.steps ?? 4,  // runware:400@4 uses fewer steps
     CFGScale: req.CFGScale ?? 4,
     includeCost: true,
+    // Child safety (2026-10-14): Runware flags NSFW output at no extra cost; flagged pictures are dropped below.
+    checkNSFW: true,
     acceleration: "high",
     seed: req.seed ?? Math.floor(Math.random() * 2147483647),
     positivePrompt: enhancePromptForRunware(req.prompt),
@@ -245,6 +253,11 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
     debugInfo.responseReceived = summarizeRunwareResponse(data);
     debugInfo.processingTime = Date.now() - startTime;
 
+    if (isNsfwFlagged(data)) {
+      debugInfo.errorMessage = "Image blocked by the NSFW check";
+      console.warn("[Runware] Image flagged by the NSFW check and dropped");
+      return { imageUrl: "", seed: requestBody.seed, debugInfo };
+    }
     const extracted = extractRunwareImage(data);
     if (!extracted) {
       debugInfo.errorMessage = "No image data found in Runware response";
@@ -338,6 +351,8 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       CFGScale: img.CFGScale ?? 4,
       seed: img.seed ?? Math.floor(Math.random() * 2147483647),
       includeCost: true,
+    // Child safety (2026-10-14): Runware flags NSFW output at no extra cost; flagged pictures are dropped below.
+    checkNSFW: true,
       acceleration: "high",
       // OPTIMIZATION v4.0: Add reference images for character consistency
       ...(refImages.length > 0 && {
@@ -420,7 +435,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
 
     const outputs: BatchImageOutput[] = await Promise.all(req.images.map(async (img, idx) => {
       const item = perTask[idx] ?? perTask[0] ?? data;
-      const extracted = extractRunwareImage(item);
+      const extracted = isNsfwFlagged(item) ? null : extractRunwareImage(item);
       if (!extracted) {
         console.warn(`[Runware] No image data found for batch item ${idx}`);
         return {

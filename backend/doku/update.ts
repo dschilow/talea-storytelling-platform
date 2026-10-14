@@ -1,4 +1,5 @@
 import { api, APIError } from "encore.dev/api";
+import { assertChildSafeInput } from "../helpers/child-safety-gate";
 import { SQLDatabase } from "encore.dev/storage/sqldb";
 import { getAuthData } from "~encore/auth";
 import { resolveRequestedProfileId } from "../helpers/profiles";
@@ -48,6 +49,8 @@ export const updateDoku = api<UpdateDokuRequest, { success: boolean }>(
       }
     }
 
+    // Child safety: titles are shown to other users once a doku is public.
+    await assertChildSafeInput({ text: req.title, surface: "avatar-text" });
     await dokuDB.exec`
       UPDATE dokus
       SET title = COALESCE(${req.title}, title),

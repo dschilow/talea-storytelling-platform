@@ -54,6 +54,8 @@ import {
 } from "../helpers/child-profile-personalization";
 import { enrichStoryForTTS } from "./tts-enrichment";
 import { reserveStoryGenerationCapacity } from "./generation-capacity";
+import { assertChildSafeInput } from "../helpers/child-safety-gate";
+import { scrubProfanity } from "../helpers/child-safety";
 
 const mcpServerApiKey = secret("MCPServerAPIKey");
 // Keep cost reporting aligned with the reliable checkpoint used by the image
@@ -504,6 +506,12 @@ export const generate = api<GenerateStoryRequest, Story>(
     if (auth?.role !== "admin") {
       req.config = stripAdminOnlyStoryOptions(req.config);
     }
+    // Child safety: free text from the wizard (wish, learning goals) is checked before any coin is spent.
+    await assertChildSafeInput({
+      text: [req.config.customPrompt, ...(req.config.learningMode?.learningObjectives ?? [])].filter(Boolean).join(" · "),
+      surface: "story-wish",
+      ageBand: req.config.ageGroup,
+    });
     const requestedAiModel = req.config.aiModel;
     const requestedAiProvider: AIProvider = req.config.aiProvider === "openrouter" ? "openrouter" : "native";
     const requestedOpenRouterModel =
@@ -1123,6 +1131,25 @@ export const generate = api<GenerateStoryRequest, Story>(
               })
             : generatedStory.chapters,
         };
+      }
+
+      // Child safety: swear words never reach a child, with or without parental controls.
+      if (generatedStory.metadata?.pipeline !== "book-workshop-v1") {
+        let scrubbed = 0;
+        const clean = (value: unknown): string => {
+          const result = scrubProfanity(typeof value === "string" ? value : "");
+          scrubbed += result.replacements;
+          return result.text;
+        };
+        generatedStory = {
+          ...generatedStory,
+          title: clean(generatedStory.title),
+          description: clean(generatedStory.description),
+          chapters: Array.isArray(generatedStory.chapters)
+            ? generatedStory.chapters.map((chapter: any) => ({ ...chapter, title: clean(chapter?.title), content: clean(chapter?.content) }))
+            : generatedStory.chapters,
+        };
+        if (scrubbed > 0) console.warn("[child-safety] profanity replaced in generated story", { scrubbed });
       }
 
       // Extract cost data from pipeline metadata. Stage-based pipelines

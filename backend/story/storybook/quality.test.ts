@@ -41,7 +41,7 @@ describe("wizard budgets and compact writing", () => {
   }
   test("compact writer keeps orientation and the family mood without the old prompt duplication", () => {
     const prompt = buildWriterSystemPrompt(brief(), { oneShot: true });
-    expect(prompt.length).toBeLessThan(4000);
+    expect(prompt.length).toBeLessThan(5600); // 4000 + the CHILD SAFETY block (2026-10-14)
     expect(prompt).toContain("Seite 1");
     expect(prompt).toContain("Erst am Seitenende kommt die Störung");
   });
@@ -468,7 +468,7 @@ describe("Sol 6.1 test 2026-09-30", () => {
     const prompt = buildWriterSystemPrompt(brief(), { oneShot: true });
     expect(prompt).toContain("Keine Lehre");
     expect(prompt).toContain("nenne keine Verwandtschaft");
-    expect(prompt.length).toBeLessThan(4600);
+    expect(prompt.length).toBeLessThan(6200); // + CHILD SAFETY block (2026-10-14)
   });
 });
 

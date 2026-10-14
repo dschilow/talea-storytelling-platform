@@ -17,6 +17,8 @@ import {
 import { getProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
 import { TAVI_CREATION_TOOL_NAMES, TAVI_TOOLS } from "./tavi-tools";
 import { callOpenRouterChatCompletion } from "../story/openrouter-generation";
+import { checkChildSafeInput } from "../helpers/child-safety-gate";
+import { TAVI_SAFETY_RULES_DE, taviRefusal } from "../helpers/child-safety";
 import {
   claimMeteredUsage,
   getPlanCapabilities,
@@ -212,6 +214,8 @@ Regeln:
 - Fuer Geschichten: Nutze immer die Avatare des Nutzers wenn verfuegbar
 - Basiere Altersgruppe und Inhalt auf dem aktiven Kinderprofil
 - Bei Bildgenerierung: Erstelle immer einen detaillierten englischen Prompt
+
+${TAVI_SAFETY_RULES_DE}
 ${avatarList}${languageHint}${canCreate ? "" : FREE_PLAN_PROMPT_NOTE}${profilePrompt ? `\n\nAKTIVES KINDERPROFIL:\n${profilePrompt}\nBegruesse das Kind direkt mit Namen, wenn es natuerlich passt.` : ""}`;
 }
 
@@ -675,6 +679,14 @@ export const taviChat = api<TaviChatRequest, TaviChatResponse>(
     }
     if (!normalizedMessage) {
       throw new Error("Bitte stelle eine Frage!");
+    }
+
+    // Child safety: override attempts and requests that no child-facing assistant may serve are
+    // answered here without spending a model call or a chat unit.
+    const gate = await checkChildSafeInput({ text: normalizedMessage, surface: "tavi-message" });
+    if (gate.action === "block") {
+      console.warn("[tavi] blocked message", { category: gate.category });
+      return { response: taviRefusal(), tokensUsed: { prompt: 0, completion: 0, total: 0 } };
     }
 
     const language = normalizeLanguage(context?.language);
