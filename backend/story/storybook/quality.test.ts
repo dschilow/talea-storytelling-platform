@@ -577,3 +577,79 @@ describe("English writer prompt (default since 2026-10-14)", () => {
     expect(buildOneShotUserPromptEn(brief("3-5", "short"))).toContain("For three- to five-year-olds");
   });
 });
+
+describe("director plan with several creatures of one kind (story ea253b27, 4 of 7 pages without picture)", () => {
+  const entities: VisualEntity[] = [
+    { id: "alex", name: "Alexander", role: "hero", kind: "character", species: "human", isHuman: true, appearance: "boy", forbidden: [] },
+    { id: "adri", name: "Adrian", role: "hero", kind: "character", species: "human", isHuman: true, appearance: "boy", forbidden: [] },
+    { id: "hexe", name: "Die Nebelhexe", role: "cast", kind: "character", species: "human", isHuman: true, appearance: "witch", forbidden: [] },
+  ];
+  const birds = [
+    { name: "blue bird", noun: "blue songbird", look: "small bright-blue songbird", figure: true },
+    { name: "yellow bird", noun: "yellow songbird", look: "small golden-yellow songbird", figure: true },
+    { name: "violet bird", noun: "violet songbird", look: "huge violet songbird as wide as a parasol", figure: true },
+  ];
+  const plan = { heroes: [], pages: [], title: "T", logline: "L" } as any;
+  const raw = {
+    storyElements: birds,
+    cover: { scene: "Wide view of the winter garden.", onStage: ["alex", "adri"], elements: ["blue bird"] },
+    pages: [
+      { page: 1, scene: "Alexander and Adrian whistle between the lemon tubs.", onStage: ["alex", "adri"], elements: [], vignette: "Three wooden armchairs among lemon tubs in a quiet glass winter garden." },
+      // creature names inside onStage, all three birds listed although the scene shows one
+      { page: 2, scene: "Low angle: Alexander leaps toward the blue songbird on a crossbar. The Nebelhexe stands at the right with raised hands.", onStage: ["alex", "hexe", "blue bird"], elements: ["blue bird", "yellow bird", "violet bird"] },
+      { page: 3, scene: "Alexander purses his lips and whistles; the blue songbird bursts into a soft blue cloud above him. Adrian points at the yellow songbird hiding behind a broad leaf.", onStage: ["alex", "adri"], elements: ["blue bird", "yellow bird", "violet bird"] },
+      { page: 4, scene: "The Nebelhexe stamps one boot as the enormous violet songbird bursts upward beside her. The yellow songbird darts in a tight circle near the glass roof.", onStage: ["hexe", "violet bird", "yellow bird"], elements: ["violet bird", "yellow bird", "blue bird"] },
+    ],
+  };
+  const result = sanitizeIllustrationPlan(raw, 4, plan, entities, 3);
+
+  test("an element name is the same word as a bird, but three birds do not match each other", () => {
+    expect(mentionsElement("the blue songbird sings", result.storyElements![0])).toBe(true);
+    expect(mentionsElement("the blue songbird sings", result.storyElements![1])).toBe(false);
+    expect(mentionsElement("the huge violet songbird", result.storyElements![2])).toBe(true);
+    expect(result.storyElements!.every((element) => element.distinct)).toBe(true);
+    // a lone element keeps the head-noun match ("the red cloth")
+    const cloth = sanitizeIllustrationPlan({ storyElements: [{ name: "red picnic cloth", noun: "red picnic cloth", look: "a red cloth" }] }, 1, plan, entities, 3).storyElements![0];
+    expect(cloth.distinct).toBeUndefined();
+    expect(mentionsElement("Alexander sits on the red cloth", cloth)).toBe(true);
+  });
+  test("creature names in onStage are elements, not unknown characters", () => {
+    expect(result.pages[1].planningErrors).toBeUndefined();
+    expect(result.pages[1].onStage).toEqual(["alex", "hexe"]);
+    expect(result.pages[1].elements).toEqual(["blue bird"]);
+  });
+  test("only creatures named in the scene count against the three figures", () => {
+    // two heroes + two named birds = four: a plain "crowded" error that recomposeShot can trim (no unknown ids)
+    expect(result.pages[2].elements?.sort()).toEqual(["blue bird", "yellow bird"]);
+    expect(result.pages[2].planningErrors).toEqual(["Composition exceeds 3 figures; recompose instead of dropping identities."]);
+    const trimmed = recomposeShot(result.pages[2], entities, result.storyElements!, 3);
+    expect(trimmed.planningErrors).toBeUndefined();
+    expect(trimmed.onStage).toEqual(["alex", "adri"]);
+    expect(trimmed.elements).toEqual(["blue bird"]);
+    expect(trimmed.scene).toContain("Alexander purses his lips");
+    expect(result.pages[3].onStage).toEqual(["hexe"]);
+    expect(result.pages[3].elements?.sort()).toEqual(["violet bird", "yellow bird"]);
+    expect(result.pages[3].planningErrors).toBeUndefined();
+  });
+  test("a page that cannot be composed borrows the book's place picture instead of staying blank", () => {
+    expect(result.pages[1].vignette).toBeUndefined();
+    expect(result.pages[1].fallbackVignette).toContain("armchairs");
+    expect(result.pages[0].fallbackVignette).toBeUndefined();
+  });
+  test("a trimmed scene that no longer mentions anyone who stays keeps its wording", () => {
+    const shot = { page: 3, scene: "Alexander whistles at the blue songbird. Adrian points at the yellow songbird behind a leaf. The violet songbird flaps.", onStage: ["alex", "adri"], elements: ["blue bird", "yellow bird", "violet bird"], artifactVisible: false, planningErrors: ["Composition exceeds 3 figures; recompose instead of dropping identities."] };
+    const trimmed = recomposeShot(shot as any, entities, birds.map((bird) => ({ ...bird, distinct: true })) as any, 3);
+    expect(trimmed.scene).toContain("Alexander whistles");
+    expect(trimmed.scene).not.toContain("violet songbird");
+  });
+});
+
+describe("a lone creature called by a shorter word stays in the picture", () => {
+  test("'the frog' keeps the 'green frog king' element, the three birds still need their colour", () => {
+    const entities: VisualEntity[] = [{ id: "alex", name: "Alexander", role: "hero", kind: "character", species: "human", isHuman: true, appearance: "boy", forbidden: [] }];
+    const elements = [{ name: "Froschkönig", noun: "green frog king", look: "a green frog with a gold crown", figure: true }];
+    const plan = { heroes: [], pages: [], title: "T", logline: "L" } as any;
+    const raw = { storyElements: elements, cover: { scene: "x", onStage: ["alex"] }, pages: [{ page: 1, scene: "Alexander hands the book to the frog on the armchair.", onStage: ["alex"], elements: ["Froschkönig"] }] };
+    expect(sanitizeIllustrationPlan(raw, 1, plan, entities, 3).pages[0].elements).toEqual(["Froschkönig"]);
+  });
+});

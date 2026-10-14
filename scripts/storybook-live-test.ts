@@ -26,6 +26,8 @@ import { buildBrief } from "../backend/story/storybook/context";
 import { CostLedger, resolveStorybookModels, retryRequestFor, type LlmCallResult, type LlmRequest, type StorybookLlm } from "../backend/story/storybook/llm";
 import { acceptsTemperature, extractStorybookChoiceContent, isTruncatedFinishReason, resolveStorybookReasoning } from "../backend/story/storybook/llm-guards";
 import { runStorybookTextEngine } from "../backend/story/storybook/engine";
+import { parseDraft } from "../backend/story/storybook/parsing";
+import { planFromOneShot } from "../backend/story/storybook/oneshot-stage";
 import { selectRewardArtifacts, shortlistCastCandidates, toArtifactOption, toCastCandidate } from "../backend/story/storybook/cast-selection";
 import { castAppearance, describeReferenceLooks, heroAppearance, runDirectorStage, speciesFromProfile, type VisualEntity } from "../backend/story/storybook/illustration-stage";
 import { generateStorybookImages, type ImageProvider } from "../backend/story/storybook/images";
@@ -221,7 +223,7 @@ const experiment = {
   selfCheck: variant.includes("R") || undefined,
   castOptional: variant.includes("D") || undefined,
   plannerModel: option("--planner"),
-  writerEffort: option("--writer-effort") as "low" | "medium" | "high" | undefined,
+  writerEffort: option("--writer-effort") as "none" | "minimal" | "low" | "medium" | "high" | undefined,
 };
 const brief = buildBrief({ config, band, budget, heroes, candidates, artifacts, seed, recentStories: history.stories, recentEngineIds: history.engines, experiment });
 const models = resolveStorybookModels(config, { critic: option("--critic") });
@@ -253,16 +255,28 @@ ${buildConceptUserPrompt(brief, engines)}
 }
 
 const started = Date.now();
-const text = await runStorybookTextEngine({
-  llm,
-  brief,
-  models,
-  ledger,
-  observe: (stage, payload) => {
-    const extra = stage === "review" ? ` overall=${(payload.review as any)?.scores?.overall}` : stage === "final-ab" ? ` chosen=${payload.chosen}` : "";
-    console.log(`  ✓ ${stage}${extra}`);
-  },
-});
+// --text-file: a finished story (one-shot format: header lines, TITEL, SEITE n …). The text engine is skipped,
+// so illustration fixes can be replayed on the exact text of a production story.
+const textFile = option("--text-file");
+async function fixedText(path: string): Promise<Awaited<ReturnType<typeof runStorybookTextEngine>>> {
+  const raw = await readFile(path, "utf8");
+  const parsed = parseDraft(raw, 99, { german: true });
+  const plan = planFromOneShot(raw, brief, parsed);
+  const noChecks = { ok: true, hard: [], soft: [] } as any;
+  return { title: parsed.title, description: parsed.description, pages: parsed.pages, plan, pitches: [], engineIds: [], review: null, pairwise: null, chosen: "draft", finalChecks: noChecks, benchmarkScore: null, draftScore: null, planRepaired: false, draftRetried: false };
+}
+const text = textFile
+  ? await fixedText(textFile)
+  : await runStorybookTextEngine({
+      llm,
+      brief,
+      models,
+      ledger,
+      observe: (stage, payload) => {
+        const extra = stage === "review" ? ` overall=${(payload.review as any)?.scores?.overall}` : stage === "final-ab" ? ` chosen=${payload.chosen}` : "";
+        console.log(`  ✓ ${stage}${extra}`);
+      },
+    });
 
 let imageSummary = "Bilder übersprungen";
 let imageCostUSD = 0;

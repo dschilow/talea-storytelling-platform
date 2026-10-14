@@ -40,7 +40,7 @@ export const STORYBOOK_CROSS_FAMILY_CRITIC_MODEL = "google/gemini-3.8-flash";
 /** Used once, only after a model returned nothing usable. */
 export const STORYBOOK_FALLBACK_MODEL = "google/gemini-3.5-flash-lite";
 
-export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
+export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 export type LlmRole = "support" | "writer" | "critic";
 
 export interface LlmRequest {

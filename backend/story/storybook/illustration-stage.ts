@@ -284,7 +284,7 @@ const LEADING_ARTICLE = /^(the|a|an|der|die|das|den|dem|des|ein|eine|einen|einem
  * and four pages) and to every vignette. Elements match by their whole phrase
  * or their head noun ("red picnic cloth" is "the red cloth"), articles ignored.
  */
-export function mentionsElement(text: string, element: Pick<StoryElement, "name" | "noun">): boolean {
+export function mentionsElement(text: string, element: Pick<StoryElement, "name" | "noun"> & { distinct?: boolean }): boolean {
   const haystack = String(text || "").toLowerCase();
   const phrases = new Set<string>();
   for (const raw of [element.name, element.noun]) {
@@ -292,7 +292,7 @@ export function mentionsElement(text: string, element: Pick<StoryElement, "name"
     if (!phrase) continue;
     phrases.add(phrase);
     const head = phrase.split(/[\s-]+/).pop() || "";
-    if (head.length >= 4) phrases.add(head);
+    if (head.length >= 4 && !element.distinct) phrases.add(head);
   }
   return [...phrases].some((phrase) => new RegExp(`(^|[^\\p{L}])${escapeRegExp(phrase)}(?:e?s)?(?![\\p{L}])`, "u").test(haystack));
 }
@@ -383,6 +383,7 @@ export function buildDirectorSystemPrompt(): string {
     "- Never frame a shot over a character's shoulder or from behind a character who also acts in the scene — the illustrator then draws that character twice. Every listed figure faces into the scene and appears exactly once.",
     "- Toys and small things keep their real size in every picture (a toy sailboat as long as a child's forearm, never a boat people sit in).",
     "- Show the place concretely: time of day, weather, light, and the props exactly in their CURRENT state on this page (broken, wet, tied up, glowing ...).",
+    "- A recurring creature appears in a picture's 'elements' ONLY when the scene text of that picture names it with its colour or noun (\"the blue songbird\"). Never list creatures that are not in the picture. Several creatures of one kind (three songbirds) are separate storyElements with different colours in their names and nouns (\"blue songbird\", \"yellow songbird\"). onStage holds character ids only, never creature names.",
     "- At most 3 FIGURES per picture in total, counting named characters AND figure story elements (a troll, a giant, a goose). If more are in the scene, pick the ones the moment needs and leave the others off-panel. List onStage from LEFT to RIGHT as the figures stand in the picture. Use only the ids given.",
     "- Say exactly WHO does WHAT and where each one is (left / right / foreground / on the ladder …). Use each visible character's exact name in scene AND its id in onStage. Never mention off-panel people in the scene. Never swap roles: if the text says Adrian climbs, Adrian is the one climbing.",
     "- Unnamed extras (a flock of geese, a crowd) only when the page needs them, fully described.",
@@ -451,7 +452,14 @@ function sanitizeElements(raw: unknown): StoryElement[] {
   return (Array.isArray(raw) ? raw : [])
     .map((entry: any) => ({ name: clean(entry?.name, 60), look: clean(entry?.look, 260), ...(clean(entry?.noun, 40) ? { noun: clean(entry.noun, 40).toLowerCase() } : {}), ...(entry?.figure === true ? { figure: true } : {}) }))
     .filter((entry) => entry.name && entry.look && !/^name of a recurring/i.test(entry.name))
-    .slice(0, 4);
+    .slice(0, 4)
+    .map((entry, _index, all) => {
+      const heads = (element: Pick<StoryElement, "name" | "noun">) =>
+        [element.name, element.noun].map((raw) => (clean(raw, 60).toLowerCase().replace(LEADING_ARTICLE, "").trim().split(/[\s-]+/).pop() || "")).filter((head) => head.length >= 4);
+      const mine = heads(entry);
+      const shared = all.some((other) => other !== entry && heads(other).some((head) => mine.includes(head)));
+      return shared ? { ...entry, distinct: true } : entry;
+    });
 }
 
 function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerImage: number, storyElements: StoryElement[] = []): IllustrationShot | null {
@@ -461,10 +469,16 @@ function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerIm
   if (!scene) return null;
   const characters = entities.filter((entity) => entity.kind === "character");
   const errors: string[] = [];
+  // Story ea253b27: the director wrote "blue bird" into onStage. A story element is no unknown character.
+  const statedElements: string[] = [];
   const resolve = (value: unknown): string | undefined => {
     const key = String(value ?? "").trim();
     const entity = characters.find((entry) => entry.id === key) || entities.find((entry, index) => `e${index + 1}` === key.toLowerCase() && entry.kind === "character") || characters.find((entry) => entry.name.toLocaleLowerCase() === key.toLocaleLowerCase());
-    if (!entity) errors.push(`Unknown character id: ${key}`);
+    if (!entity) {
+      const element = storyElements.find((entry) => [entry.name, entry.noun].some((label) => clean(label, 60).toLocaleLowerCase() === key.toLocaleLowerCase()));
+      if (element) statedElements.push(element.name);
+      else errors.push(`Unknown character id: ${key}`);
+    }
     return entity?.id;
   };
   const onStage = [...new Set<string>((Array.isArray(raw?.onStage) ? raw.onStage : []).map(resolve).filter((id: unknown): id is string => typeof id === "string"))];
@@ -473,9 +487,18 @@ function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerIm
     const ambiguous = characters.some((other) => other.id !== entity.id && mentions(other.name, entity.name));
     if (!ambiguous) onStage.push(entity.id);
   }
-  const elements = [...new Set<string>((Array.isArray(raw?.elements) ? raw.elements : [])
-    .map((name: unknown) => clean(name, 60))
-    .filter((name: string) => elementNames.has(name)))];
+  const listed = [...new Set<string>([...statedElements, ...(Array.isArray(raw?.elements) ? raw.elements : []).map((name: unknown) => clean(name, 60)).filter((name: string) => elementNames.has(name))])];
+  // A creature the scene never mentions is not in the picture: listing all three songbirds on every
+  // page put five figures on a shot that shows one.
+  const elements = listed.filter((name) => {
+    const element = storyElements.find((entry) => entry.name === name)!;
+    if (!element.figure || statedElements.includes(name) || mentionsElement(scene, element)) return true;
+    // A lone creature may be called by a shorter word than the director's noun ("the frog" for "green frog king").
+    // Only creatures that share a head noun with another one need the whole phrase.
+    if (element.distinct) return false;
+    const tokens = [element.name, element.noun].flatMap((label) => clean(label, 60).toLowerCase().split(/[\s-]+/)).filter((token) => token.length >= 4);
+    return tokens.some((token) => new RegExp(`(^|[^\\p{L}])${escapeRegExp(token)}`, "u").test(scene.toLowerCase()));
+  });
   for (const element of storyElements) if (mentionsElement(scene, element) && !elements.includes(element.name)) elements.push(element.name);
   if (onStage.length + elements.filter((name) => figureNames.has(name)).length > maxPerImage) errors.push(`Composition exceeds ${maxPerImage} figures; recompose instead of dropping identities.`);
   if (!onStage.length && !elements.some((name) => figureNames.has(name)) && raw?.focus !== "detail") errors.push("Empty character manifest; explicitly choose a detail shot or identify the visible figures.");
@@ -520,7 +543,11 @@ export function recomposeShot(shot: IllustrationShot, entities: VisualEntity[], 
     if (!text) return text;
     const sentences = text.split(/(?<=[.!?])\s+/);
     const kept = sentences.filter((sentence) => !aboutDropped(sentence));
-    return kept.length > 0 ? kept.join(" ") : text;
+    // Story ea253b27 page 3: only the place sentence survived, and the picture became a lineup.
+    // A scene that no longer mentions anyone who stays keeps its original wording.
+    const staying = [...entities.filter((entity) => onStage.includes(entity.id)).map((entity) => entity.name)];
+    const stays = (sentence: string) => staying.some((name) => mentions(sentence, name)) || storyElements.some((element) => keptFigures.includes(element.name) && mentionsElement(sentence, element));
+    return kept.length > 0 && kept.some(stays) ? kept.join(" ") : text;
   };
   // The shot keeps its layout order (left to right) for the figures that stay.
   const { planningErrors: _dropped, ...rest } = shot;
@@ -570,6 +597,9 @@ export function sanitizeIllustrationPlan(raw: any, pageCount: number, plan: Stor
   for (let page = 1; page <= pageCount; page += 1) {
     pages.push(sanitizeShot(byPage.get(page), page, entities, maxPerImage, storyElements) || fallbackShot(page, plan, entities, maxPerImage));
   }
+  // Last resort for a page that cannot be composed: the book's own place picture, never a blank page.
+  const spare = pages.find((shot) => shot.vignette)?.vignette;
+  if (spare) for (const shot of pages) if (!shot.vignette) shot.fallbackVignette = spare;
   return { cover, pages, storyElements };
 }
 

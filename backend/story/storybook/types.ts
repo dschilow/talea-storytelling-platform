@@ -209,6 +209,11 @@ export interface IllustrationShot {
   vignette?: string;
   /** Invalid plans are repaired before paying for image generation. */
   planningErrors?: string[];
+  /**
+   * A people-free place picture borrowed from another page. Used only when this
+   * page cannot be composed at all, so that no page of the book stays blank.
+   */
+  fallbackVignette?: string;
   /** Figures left off-panel because the repaired shot was still too crowded. */
   recomposed?: string[];
 }
@@ -226,6 +231,12 @@ export interface StoryElement {
   noun?: string;
   /** A living figure (troll, giant, goose) — counts against the figures per picture. */
   figure?: boolean;
+  /**
+   * Another element shares this one's head noun (three songbirds). Then only the
+   * whole phrase identifies it: matching "songbird" put all three birds into every
+   * picture of story ea253b27 and four pages were never drawn.
+   */
+  distinct?: boolean;
 }
 
 export interface IllustrationPlan {

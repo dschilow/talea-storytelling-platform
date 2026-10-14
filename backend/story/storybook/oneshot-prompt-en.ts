@@ -112,7 +112,7 @@ export function wishLinesEn(config: StoryBrief["config"]): string[] {
   if (config.requireHappyEnd !== false) lines.push("The ending is happy.");
   if (config.requireMoral) lines.push("Message (mandatory): a clear, child-appropriate piece of life wisdom (courage, honesty, sharing, patience …) shows in what the heroes do and what follows from it — never as a saying, not even as a side character's catchphrase.");
   if (config.avatarIsHero === false) lines.push("The avatars may also be companions, but must contribute something decisive.");
-  if (config.allowFamousCharacters) lines.push(`Famous fairy-tale character (mandatory): at least one public-domain fairy-tale character (e.g. Rotkäppchen, der gestiefelte Kater, Frau Holle, Rumpelstilzchen, der Froschkönig, die Bremer Stadtmusikanten) appears under their well-known ${isGerman(config.language) ? "German " : ""}name and has a small real task. The heroes stay the heroes.`);
+  if (config.allowFamousCharacters) lines.push(`Famous fairy-tale character (mandatory): at least one public-domain fairy-tale character (e.g. Rotkäppchen, der gestiefelte Kater, Frau Holle, Rumpelstilzchen, der Froschkönig, die Bremer Stadtmusikanten) appears under their well-known ${isGerman(config.language) ? "German " : ""}name and changes the plot noticeably at least once (not merely sitting by or holding something). The heroes stay the heroes.`);
   const mode = config.learningMode;
   if (mode?.enabled && mode.subjects?.length) {
     const subjects = mode.subjects.map((subject) => SUBJECT_EN[subject] || clean(subject, 60)).join(", ");
@@ -172,7 +172,7 @@ export function buildOneShotUserPromptEn(brief: StoryBrief): string {
   if (brief.band === "3-5") lines.push("For three- to five-year-olds: ONE very simple idea (a thing or animal does something outrageous), lots of repetition, sounds to join in with and one big laugh — no spell rule with conditions.");
   lines.push("Not as the whole story: the puzzle \"a thing gets stuck, rolls away, leaks or sticks and a trick frees it\" — there have been too many of those. A trick may be the solution, but the wonder or the character carries the story.");
   lines.push("Then check: personal goal, real obstacle, understandable solution, spatial logic — and that every point in the FRAME marked \"mandatory\" is fulfilled. The introduction gets the beginning of page 1.");
-  lines.push("Freshness: the family already knows these solutions too well — do not use them: a vain opponent distracted by reflections; an opponent who compulsively has to dance along; a bell stroke as deadline; a witch or grump who only wants to sleep and stops the children's noise. A pool character's quirk shows, but it need not be the solution every time.");
+  lines.push("Freshness: the family already knows these solutions too well — do not use them: a vain opponent distracted by reflections; an opponent who compulsively has to dance along; a bell stroke as deadline; a witch or grump who only wants to sleep and stops the children's noise; an opponent who announces the solution rule himself and swears nobody will use it (use a demonstration or a first mishap to teach the rule instead). A pool character's quirk shows, but it need not be the solution every time.");
   lines.push("");
   lines.push("FRAME:");
   lines.push(`- Story language: ${brief.languageLabel}`);

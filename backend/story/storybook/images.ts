@@ -608,9 +608,9 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
      * unless it shows a person or a body defect: a calm picture of the thing
      * the page is about is better than a blank page (story b10f2dad page 7).
      */
-    const vignette = async (attemptNo: number): Promise<Attempt | null> => {
-      if (cover || !shot.vignette || lastRefused || providerDown()) return null;
-      const scene = shot.vignette;
+    const vignette = async (attemptNo: number, allowBorrowed = false): Promise<Attempt | null> => {
+      const scene = shot.vignette || (allowBorrowed ? shot.fallbackVignette : undefined);
+      if (cover || !scene || lastRefused || providerDown()) return null;
       // Things only: a creature in a vignette is a figure without a reference.
       const shown = allElements.filter((element) => !element.figure && mentionsElement(scene, element)).slice(0, 2);
       const prompt = assembleImagePrompt({ scene, onStage: [], spriteOrder: [], elements: shown, vignette: true });
@@ -654,7 +654,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     if (shot.planningErrors?.length) {
       // An unresolved composition never buys a portrait scene; a people-free vignette cannot go wrong that way.
       errors.push(...shot.planningErrors);
-      const fallback = await vignette(1);
+      const fallback = await vignette(1, true);
       if (fallback) {
         note("vignette", fallback);
         return finish(fallback, 1);
@@ -668,7 +668,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     if (first.url) candidates.push(first);
     if (!first.url) {
       // Nothing arrived even without a reference: the vignette is the only picture left.
-      const fallback = await vignette(2);
+      const fallback = await vignette(2, true);
       if (fallback) note("vignette", fallback);
       return fallback && isPublishable(fallback) ? finish(fallback, 2) : finish(first, fallback ? 2 : 1);
     }
