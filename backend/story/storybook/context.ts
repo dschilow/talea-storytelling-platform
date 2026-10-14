@@ -57,6 +57,12 @@ export interface StorybookExperiment {
   spar?: boolean;
   /** The multi-stage chain (concept → plan → review → draft → review → revision) instead of one shot. */
   legacy?: boolean;
+  /**
+   * The one-shot writer gets German instructions (the pre-2026-10-14 prompt).
+   * Default is English: blind A/B 2026-10-14 even (5 of 10), −8 % prompt and −4 %
+   * output tokens. The story itself is always written in the family language.
+   */
+  germanPrompt?: boolean;
 }
 
 export function isLean(brief: { experiment?: StorybookExperiment }): boolean {
@@ -78,6 +84,36 @@ const GENRE_LABELS: Record<string, string> = {
   animals: "Tiergeschichte",
   scifi: "Weltraum und Zukunft",
   modern: "Alltag von heute",
+};
+
+/**
+ * What the child expects from the genre tile it tapped. Run 2026-10-14
+ * (114e759b): "Märchen" was one word in the brief, and the writer delivered a
+ * siphon puzzle in a castle garden — nothing a child would call a fairy tale.
+ */
+const GENRE_PROMISES: Record<string, string> = {
+  fairy_tales: "Es fühlt sich an wie ein echtes Märchen: mindestens ein Wunder gehört selbstverständlich dazu (ein sprechendes Tier, ein Zauberding, ein Wunsch, ein Fluch oder eine Verwandlung), es gibt klare Helfer und Gegenspieler, gern die Märchen-Drei. Ein Alltagsproblem in Schlosskulisse ist noch kein Märchen.",
+  adventure: "Die Helden brechen auf an einen besonderen Ort (Höhle, Insel, Fluss, Gipfel, verlassenes Schloss) und bestehen dort echte Hindernisse mit Mut und Köpfchen — Entdeckerfreude und eine spürbare, kindgerechte Gefahr.",
+  magic: "Ein Zauber steht im Mittelpunkt: sichtbare Wirkung, eine klare Regel und ein komischer oder gefährlicher Haken. Die Kinder lernen, ihn klug zu benutzen.",
+  animals: "Tiere tragen die Geschichte. Sie haben Charakter, und was sie als Tiere typischerweise tun (fressen, graben, schlafen, wandern, sich verstecken) treibt Witz und Lösung — sachlich richtig.",
+  scifi: "Raumschiff, Roboter, fremder Planet oder eine verrückte Erfindung: Staunen über das Fremde und eine Technik-Regel, die ein Kind versteht.",
+  modern: "Heute, ohne Magie: Kita, Schule, Spielplatz, Familie oder Nachbarschaft. Spannung und Witz kommen aus Lagen, die jedes Kind kennt — nur ein bisschen verrückter.",
+};
+
+/** Wizard ids (Step6LearningMode) in words a writer can use. */
+const LEARNING_SUBJECTS: Record<string, string> = {
+  math: "Mathe (Zählen, Rechnen, Mengen, Formen, Messen)",
+  science: "Naturwissenschaft (wie Natur, Tiere, Körper und Technik funktionieren)",
+  language: "Sprache (Wörter, Reime, Buchstaben, genaues Zuhören)",
+  history: "Geschichte (wie Menschen früher lebten)",
+  geography: "Erdkunde (Länder, Landschaften, Wetter, Karten, Himmelsrichtungen)",
+  social: "Miteinander (Gefühle erkennen, teilen, Streit lösen, Rücksicht nehmen)",
+};
+
+const LEARNING_DEPTH: Record<string, string> = {
+  beginner: "ein einfacher Gedanke",
+  intermediate: "zwei, drei zusammenhängende Fakten",
+  advanced: "ein echtes Prinzip mit Ursache und Wirkung",
 };
 
 const SETTING_LABELS: Record<string, string> = {
@@ -139,7 +175,7 @@ export function heroSheet(hero: StorybookHero & { id: string }, memories: string
   const bits: string[] = [];
   if (typeof hero.age === "number" && hero.age > 0) bits.push(`${hero.age} Jahre`);
   const narrative = hero.narrativeProfile && typeof hero.narrativeProfile === "object" ? hero.narrativeProfile : {};
-  const personality = [clean(narrative.dominantPersonality, 48), ...(Array.isArray(narrative.traits) ? narrative.traits.map((t: unknown) => clean(t, 32)) : [])]
+  const personality = [clean(narrative.dominantPersonality, 48), ...(Array.isArray(narrative.traits) ? narrative.traits.map((t: unknown) => clean(t, 70)) : [])]
     .filter(Boolean);
   if (personality.length) bits.push(`Wesen: ${[...new Set(personality)].slice(0, 4).join(", ")}`);
   const description = clean(hero.description, 220);
@@ -185,11 +221,30 @@ export function artifactSheet(artifact: ArtifactOption): string {
   return bits.join(" | ");
 }
 
+/**
+ * The learning wish as the writer needs it. Before 2026-10-14 only the subject
+ * ids reached the prompt ("Nebenbei lernen: science"): the objective the parent
+ * typed ("Warum Igel Winterschlaf halten"), the depth and the delivery were lost.
+ */
+export function learningLines(config: StoryConfig): string[] {
+  const mode = config.learningMode;
+  if (!mode?.enabled || !mode.subjects?.length) return [];
+  const subjects = mode.subjects.map((subject) => LEARNING_SUBJECTS[subject] || clean(subject, 60)).join(", ");
+  const objectives = (mode.learningObjectives || []).map((objective) => clean(objective, 160)).filter(Boolean);
+  const lines = [
+    `Lernmodus (Pflicht): ${subjects}.${objectives.length ? ` Lernziel: ${objectives.map((objective) => `„${objective}“`).join(" und ")} — nach dem Vorlesen kann das Kind das in einem eigenen Satz erklären.` : ""} Umfang: ${LEARNING_DEPTH[mode.difficulty] || LEARNING_DEPTH.beginner}. Das Wissen ist sachlich richtig, die Helden entdecken oder erproben es selbst, und es ist der Schlüssel zur Lösung — nie ein Vortrag.`,
+  ];
+  if (mode.assessmentType === "quiz") lines.push("Lernart Quiz: Auf der letzten Seite stellt eine Figur dem zuhörenden Kind eine kurze, spielerische Frage dazu; die Antwort steckt in der Geschichte.");
+  if (mode.assessmentType === "discussion") lines.push("Lernart Gespräch: Am Ende wundert sich eine Figur laut über eine offene Frage zum Thema, über die Kind und Eltern weiterreden können.");
+  return lines;
+}
+
 /** Every narrative wizard control, in plain words. */
 export function wishLines(config: StoryConfig): string[] {
   const lines: string[] = [];
   const genre = GENRE_LABELS[String(config.genre || "")] || clean(config.genre, 40);
-  if (genre) lines.push(`Genre: ${genre}`);
+  const promise = GENRE_PROMISES[String(config.genre || "")];
+  if (genre) lines.push(promise ? `Genre ${genre} (Pflicht): ${promise}` : `Genre: ${genre}`);
   if (config.setting && config.setting !== "varied") {
     lines.push(`Schauplatz-Wunsch: ${SETTING_LABELS[String(config.setting).toLowerCase()] || clean(config.setting, 60)}`);
   }
@@ -199,17 +254,16 @@ export function wishLines(config: StoryConfig): string[] {
   if (flavors.length) lines.push(`Die Geschichte soll sich anfühlen: ${flavors.join(", ")}`);
   if (typeof config.humorLevel === "number") lines.push(`Humor: ${config.humorLevel >= 2 ? "viel, zum lauten Lachen" : config.humorLevel <= 0 ? "wenig, eher still" : "schon, aber nicht albern"}`);
   if (typeof config.suspenseLevel === "number") lines.push(`Spannung: ${config.suspenseLevel >= 2 ? "hoch, mit echtem Kribbeln" : config.suspenseLevel <= 0 ? "sanft, geborgen" : "mittel"}`);
-  if (config.hasTwist) lines.push("Eine überraschende Wendung ist gewünscht — früh angedeutet, nicht aus dem Nichts.");
-  if (config.allowRhymes) lines.push("Reime sind willkommen: mindestens der wiederkehrende Satz reimt sich.");
+  // Baseline 2026-10-14: "gewünscht" read as optional — no twist in B3/B6, no fairy-tale guest in B8.
+  if (config.hasTwist) lines.push("Überraschende Wendung (Pflicht): Auf einer der letzten beiden Seiten stellt sich etwas anders heraus, als Helden und Kind dachten — vorher unauffällig angedeutet, nicht aus dem Nichts.");
+  if (config.allowRhymes) lines.push("Reime (Pflicht): Der wiederkehrende Satz reimt sich, und an zwei, drei Höhepunkten steht ein kurzer Reim zum Mitsprechen. Kein holpriger Zwangsreim.");
   if (config.requireHappyEnd !== false) lines.push("Das Ende geht gut aus.");
-  if (config.requireMoral) lines.push("Eine Botschaft ist gewünscht — sie wird nur durch die Handlung gezeigt, nie ausgesprochen.");
+  if (config.requireMoral) lines.push("Botschaft (Pflicht): Eine klare, kindgerechte Lebensweisheit (Mut, Ehrlichkeit, Teilen, Geduld …) zeigt sich daran, was die Helden tun und was daraus folgt — nie als Spruch, auch nicht als Spruch einer Nebenfigur.");
   if (config.avatarIsHero === false) lines.push("Die Avatare dürfen auch Begleiter sein, müssen aber etwas Entscheidendes beitragen.");
-  if (config.allowFamousCharacters) lines.push("Gemeinfreie Märchenfiguren dürfen als Gäste auftreten; die Helden bleiben die Helden.");
-  if (config.learningMode?.enabled && config.learningMode.subjects?.length) {
-    lines.push(`Nebenbei lernen: ${config.learningMode.subjects.join(", ")} — sachlich richtig, in die Handlung eingebaut, kein Unterricht.`);
-  }
+  if (config.allowFamousCharacters) lines.push("Bekannte Märchenfigur (Pflicht): Mindestens eine gemeinfreie Märchenfigur (z. B. Rotkäppchen, der gestiefelte Kater, Frau Holle, Rumpelstilzchen, der Froschkönig, die Bremer Stadtmusikanten) tritt mit ihrem bekannten Namen auf und hat eine kleine echte Aufgabe. Die Helden bleiben die Helden.");
+  lines.push(...learningLines(config));
   const wish = clean(config.customPrompt, 500);
-  if (wish) lines.push(`Wunsch des Kindes / der Eltern (hat Vorrang): ${wish}`);
+  if (wish) lines.push(`Eigener Wunsch des Kindes (Pflicht, hat Vorrang vor allem anderen): „${wish}“ — die Geschichte handelt genau davon; was der Wunsch nennt, kommt vor.`);
   if (config.parentalGuidance) lines.push(`Elternvorgabe (verbindlich): ${clean(config.parentalGuidance, 400)}`);
   return lines;
 }

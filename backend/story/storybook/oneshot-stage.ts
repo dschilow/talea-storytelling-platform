@@ -13,13 +13,14 @@
 import { isGerman } from "./craft";
 import { checkProse, countWords, issuesToNotes, mentions, nameTokens } from "./checks";
 import { selectEnginesForBrief } from "./concept-stage";
-import { artifactSheet, briefHeader, broughtArtifact, castSheet, heroSeasoning, heroSheet, wishLines, type StoryBrief } from "./context";
+import { artifactSheet, briefHeader, broughtArtifact, castSheet, heroSeasoning, heroSheet, learningLines, wishLines, type StoryBrief } from "./context";
 import { buildWriterSystemPrompt, lengthBlock, renderStoryForPrompt } from "./draft-stage";
 import { modelFamily, type CostLedger, type LlmRole, type StorybookLlm, type StorybookModels } from "./llm";
 import { parseDraft } from "./parsing";
 import { comprehensionGaps, ledgerNotes, runReviewStage, verifyStorybookRepair } from "./review-stage";
 import type { CastCandidate, StoryPlan, StorybookPage } from "./types";
 import type { TextEngineResult, StageObserver } from "./engine";
+import { buildOneShotSystemPromptEn, buildOneShotUserPromptEn } from "./oneshot-prompt-en";
 
 const HEADER = {
   engine: /^\s*BAUPLAN\s*[:：]\s*(.+?)\s*$/im,
@@ -30,10 +31,22 @@ const HEADER = {
 
 export function buildOneShotUserPrompt(brief: StoryBrief, options: { visiblePlan?: boolean } = {}): string {
   const lines: string[] = [];
-  lines.push("AUFGABE: Erfinde, plane und schreibe ein vollständiges Bilderbuch mit diesen Helden.");
-  lines.push("Wähle still eine frische Idee. Prüfe vor dem Schreiben: persönliches Ziel, echtes Hindernis, verständliche Lösung und räumliche Abläufe. Die Einführung bekommt den Anfang von Seite 1.");
+  lines.push("AUFGABE: Erfinde, plane und schreibe ein vollständiges Bilderbuch mit diesen Helden — eines, das Kinder immer wieder hören wollen.");
+  // Baseline 2026-10-14 (11 Sol stories): ten were "a thing gets stuck, leaks,
+  // rolls away or sticks and a trick frees it" — clean, logical and forgettable.
+  // The one with a wonder at its heart was the best. No concrete example in the
+  // prompt: "eine Wolke, die alles nachmacht" turned 5 of 19 stories into copy-spells.
+  lines.push("ZUERST DIE IDEE: Notiere drei ganz verschiedene Ideen und nimm die, die ein Kind am liebsten sofort weitererzählen würde („Stell dir vor, …!“). Eine starke Idee hat:");
+  lines.push("- etwas Wunderbares, Verrücktes oder Unerhörtes, das man malen kann (ein Wesen, ein Zauber, eine unmögliche Lage), passend zum Genre;");
+  lines.push("- einen Wunsch der Helden mit Herz (etwas, das sie lieben, jemand, dem sie helfen wollen, ein Versprechen);");
+  lines.push("- eine Figur, die komisch ist, weil sie sich lächerlich sicher ist oder eine starke Schwäche hat;");
+  lines.push("- ein Ende, das überrascht und trotzdem passt.");
+  // Run v1 B5 (3-5): a mimicry spell with rules lost the blind read against a plain "farting dough" story.
+  if (brief.band === "3-5") lines.push("Für Drei- bis Fünfjährige: EINE ganz einfache Idee (ein Ding oder Tier tut etwas Unerhörtes), viel Wiederholung, Geräusche zum Mitmachen und ein großer Lacher — keine Zauberregel mit Bedingungen.");
+  lines.push("Nicht als ganze Geschichte: die Knobelei „ein Ding klemmt, rollt weg, läuft aus oder klebt fest und wird mit einem Trick befreit“ — die gab es schon zu oft. Ein Trick darf die Lösung sein, aber das Wunder oder die Figur trägt die Geschichte.");
+  lines.push("Prüfe dann: persönliches Ziel, echtes Hindernis, verständliche Lösung, räumliche Abläufe — und dass jeder Punkt im RAHMEN, der „Pflicht“ heißt, erfüllt ist. Die Einführung bekommt den Anfang von Seite 1.");
   // Story a9c00c8b (Sol): the fifth "vain Brunhilde, distracted by a reflection" plot in a row.
-  lines.push("Frische: Diese Lösungen kennt die Familie schon zu oft — nimm sie nicht: ein eitler Gegenspieler, der von Spiegelbildern abgelenkt wird; ein Gegenspieler, der zwanghaft im Takt mittanzen muss; ein Glockenschlag als Frist. Die Eigenart einer Pool-Figur zeigt sich, aber sie muss nicht jedes Mal die Lösung sein.");
+  lines.push("Frische: Diese Lösungen kennt die Familie schon zu oft — nimm sie nicht: ein eitler Gegenspieler, der von Spiegelbildern abgelenkt wird; ein Gegenspieler, der zwanghaft im Takt mittanzen muss; ein Glockenschlag als Frist; eine Hexe oder ein Griesgram, der nur schlafen will und den Lärm der Kinder stoppt (Release-Test 2026-10-14: fünfmal). Die Eigenart einer Pool-Figur zeigt sich, aber sie muss nicht jedes Mal die Lösung sein.");
   lines.push("");
   lines.push("RAHMEN:");
   for (const line of briefHeader(brief)) lines.push(`- ${line}`);
@@ -87,7 +100,7 @@ export function buildOneShotUserPrompt(brief: StoryBrief, options: { visiblePlan
   }
   // Only these names exist in the story (Sonnet 5.5 invented "Mats" and "Königin Isabella").
   const allowed = [...brief.heroes.map((hero) => hero.name), ...brief.candidates.map((candidate) => candidate.name)];
-  lines.push(`NAMEN: Nur diese Figuren haben Namen: ${allowed.join(", ")}. Alle anderen bleiben namenlos (die Königin, ein Bär) — höchstens eine solche Randfigur.`);
+  lines.push(`NAMEN: Nur diese Figuren haben Namen: ${allowed.join(", ")}${brief.config.allowFamousCharacters ? " — dazu die gewünschte bekannte Märchenfigur mit ihrem bekannten Namen" : ""}. Alle anderen bleiben namenlos (die Königin, ein Bär) — höchstens eine solche Randfigur.`);
   // Story c2ff7f42: an unnamed duck carried the plot (her nest, her roof) while
   // the cast list showed only the frog. Whoever matters comes from the pool.
   lines.push("Diese Randfigur hat nur einen kurzen Auftritt (höchstens zwei Seiten) und trägt weder das Ziel noch die Lösung. Wer einen eigenen Wunsch hat oder die Handlung mitträgt, kommt aus dem Figurenpool.");
@@ -114,7 +127,10 @@ export function buildOneShotUserPrompt(brief: StoryBrief, options: { visiblePlan
     lines.push("Verbessere alles, was nicht stimmt, und gib erst dann die fertige Fassung aus. Die Prüfung selbst schreibst du nicht hin.");
     lines.push("");
   }
-  lines.push(`AUSGABE — ${options.visiblePlan ? "nach dem Plan " : "zuerst "}diese vier Kopfzeilen, dann die Geschichte im gewohnten Format:`);
+  lines.push(`AUSGABE — ${options.visiblePlan ? "nach dem Plan " : "zuerst "}diese Kopfzeilen, dann die Geschichte im gewohnten Format:`);
+  // Visible on purpose (~100 tokens): at effort "low" a silent choice is no choice.
+  lines.push("IDEEN: 1) … 2) … 3) … (je höchstens 12 Wörter)");
+  lines.push("WAHL: <Nummer> — warum ein Kind genau diese liebt");
   lines.push("BAUPLAN: <id des Bauplans>");
   lines.push(`BESETZUNG: <ids aus dem Figurenpool, mit Komma getrennt>`);
   lines.push("FUNDSTÜCK: <id oder keins>");
@@ -219,10 +235,11 @@ export function acceptablePatch(before: string, after: string): boolean {
 export function buildPatchPrompt(title: string, pages: StorybookPage[], notes: string[], brief: StoryBrief): string {
   return [
     "Du bist die Lektorin dieses Bilderbuchs. Die Geschichte stammt von einer sehr guten Autorin — ihre Stimme, ihr Witz und ihre Sätze bleiben.",
-    "Behebe die konkreten Fehler: fehlende Einführung oder Motivation, unklare Orte und Besitzwechsel, Widersprüche, unverständliche Lösung, Sprachfehler und fehlende Pflichtfiguren. Reine Geschmacksänderungen an Stil, Witz oder Spannung bleiben aus.",
+    "Behebe die konkreten Fehler: fehlende Einführung oder Motivation, unklare Orte und Besitzwechsel, Widersprüche, unverständliche Lösung, Sprachfehler, fehlende Pflichtfiguren und nicht eingelöste Pflicht-Wünsche der Familie, soweit ein, zwei Sätze reichen (ein fehlendes Lernziel: die Helden entdecken oder sagen das Wissen sachlich richtig dort, wo es zur Handlung passt). Reine Geschmacksänderungen an Stil, Witz oder Spannung bleiben aus.",
     // Story 774d5a5e: these need a sentence in the RIGHT place, usually an earlier page.
     "Liegt die Lösung zufällig bereit, ergänze auf einer früheren Seite einen kurzen Satz, in dem die Helden das Ding sehen, kennen oder mitnehmen. Erfüllt das Ende das Anfangsziel nicht, zeig auf der letzten Seite in einem Satz, dass genau dieses Ziel erreicht ist. Wird etwas angekündigt und nie eingelöst, löse es mit einem Satz ein oder streiche die Ankündigung. Wechselt ein Ding ohne Grund Form, Ort oder Besitzer, gleiche die frühere Stelle an.",
     `Die Familie wählte ${brief.band} Jahre, ${brief.budget.pages} Seiten und ${brief.budget.totalWordsMin}–${brief.budget.totalWordsMax} Wörter (${brief.budget.wordsPerPageMin}–${brief.budget.wordsPerPageMax} je Seite). Diese Vorgaben bleiben erhalten.`,
+    ...learningLines(brief.config),
     "Mit so wenigen Worten wie möglich: einen Satz ändern oder einen kurzen Satz ergänzen, nie die Seite neu schreiben, nie eine neue Handlung erfinden.",
     // Story 2db50859: the patch pasted the critic's fix into page 5 and gave
     // the solution away one page before the heroes' "Ich hab's!".
@@ -274,14 +291,17 @@ export async function runOneShotEngine(input: {
     }
   };
   const german = isGerman(brief.config.language);
+  const english = !brief.experiment?.germanPrompt;
+  const writerSystem = () => (english ? buildOneShotSystemPromptEn(brief) : buildWriterSystemPrompt(brief, { oneShot: true }));
+  const writerUser = (visiblePlan = false) => (english ? buildOneShotUserPromptEn(brief) : buildOneShotUserPrompt(brief, { visiblePlan }));
 
   // 1) Invent, plan and write in one call.
   let call = await llm({
     stage: "oneshot",
     role: "writer",
     model: strong,
-    system: buildWriterSystemPrompt(brief, { oneShot: true }),
-    user: buildOneShotUserPrompt(brief, { visiblePlan: modelFamily(strong) === "anthropic" }),
+    system: writerSystem(),
+    user: writerUser(modelFamily(strong) === "anthropic"),
     json: false,
     // A whole story is ~2.500 tokens (Sol low) to ~5.000 (medium). 30k let
     // Sonnet 5.5 think itself into a 31 ¢ loop without a single page (2026-09-29).
@@ -301,8 +321,8 @@ export async function runOneShotEngine(input: {
     draftRetried = true;
     const retry = await llm({
       stage: "oneshot-repair", role: "writer", model: strong,
-      system: buildWriterSystemPrompt(brief, { oneShot: true }),
-      user: [buildOneShotUserPrompt(brief), "Behebe ausschließlich diese Format-/Umfangsfehler im Entwurf:", ...issuesToNotes(report.hard, 6), call.text].join("\n"),
+      system: writerSystem(),
+      user: [writerUser(), "Behebe ausschließlich diese Format-/Umfangsfehler im Entwurf:", ...issuesToNotes(report.hard, 6), call.text].join("\n"),
       json: false, maxTokens: 10000, effort: "low", timeoutMs: 300_000,
     });
     record("oneshot-repair", "writer", retry);

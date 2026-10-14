@@ -218,6 +218,70 @@ export interface ProseCheckInput {
   brief: StoryBrief;
 }
 
+/**
+ * Looks the writer may only repeat, never invent. Baseline 2026-10-14: Sol gave
+ * blond Adrian "Sommersprossen", "dunkle Locken" and red hair in five of twenty
+ * stories, and called the younger hero "der große Adrian" — the picture then
+ * contradicts the text. `known` is searched in the avatar's own data (German
+ * description and English visual descriptors).
+ */
+const LOOK_TERMS: Array<{ text: RegExp; known: RegExp; label: string }> = [
+  { text: /sommersprosse|sommersprossig/i, known: /sommersprosse|freckle/i, label: "Sommersprossen" },
+  { text: /\blockig\w*|\blocken\b|gelockt/i, known: /lock|curl/i, label: "Locken" },
+  { text: /rothaarig|\brote[nsmr]?\s+(?:haar|locken|schopf|zöpfe)|feuerrot\w*\s+haar/i, known: /\brot|\bred\b|ginger|auburn/i, label: "rote Haare" },
+  { text: /\bblond/i, known: /blond/i, label: "blond" },
+  { text: /schwarzhaarig|dunkelhaarig|\b(?:schwarze|dunkle)[nsmr]?\s+(?:haar|locken|schopf|zöpfe)/i, known: /schwarz|dunkel|black|dark/i, label: "dunkle Haare" },
+  { text: /braunhaarig|\bbraune[nsmr]?\s+(?:haar|locken|schopf)/i, known: /braun|brown/i, label: "braune Haare" },
+  { text: /\bbrille/i, known: /brille|glasses|spectacles/i, label: "Brille" },
+  { text: /\bzöpfe|\bzopf\b/i, known: /zopf|zöpfe|braid|pigtail/i, label: "Zöpfe" },
+];
+
+function heroLookSource(hero: StoryBrief["heroes"][number]): string {
+  const visual = hero.visualProfile && typeof hero.visualProfile === "object" ? hero.visualProfile : {};
+  return [hero.description, JSON.stringify(visual), JSON.stringify(hero.physicalTraits || {})].join(" ");
+}
+
+/** Hero looks and relative sizes the avatar data does not support. */
+export function inventedHeroLooks(pages: StorybookPage[], heroes: StoryBrief["heroes"]): CheckIssue[] {
+  const issues: CheckIssue[] = [];
+  const ages = heroes.map((hero) => (typeof hero.age === "number" && hero.age > 0 ? hero.age : null));
+  const oldest = Math.max(...ages.map((age) => age ?? -1));
+  const youngest = Math.min(...ages.map((age) => age ?? 99));
+  for (const page of pages) {
+    for (const sentence of splitSentences(page.content)) {
+      for (const [index, hero] of heroes.entries()) {
+        if (!mentions(sentence, hero.name)) continue;
+        // Only the clause around the name: "Alexander kniete, Adrian mit den Sommersprossen tanzte".
+        const at = sentence.indexOf(hero.name);
+        // …and never across another hero's name ("Alexander kniete neben Adrian mit den Sommersprossen").
+        const others = heroes.filter((other) => other !== hero).map((other) => sentence.indexOf(other.name)).filter((pos) => pos >= 0);
+        // Before the name only an attribute ("der lockige Alexander"), never the previous clause.
+        const lastComma = sentence.lastIndexOf(",", at);
+        const from = Math.max(0, at - 25, lastComma + 1, ...others.filter((pos) => pos < at).map((pos) => pos + 1));
+        const to = Math.min(sentence.length, at + hero.name.length + 60, ...others.filter((pos) => pos > at));
+        const near = at >= 0 ? sentence.slice(from, to) : sentence;
+        const source = heroLookSource(hero);
+        const invented = LOOK_TERMS.filter((term) => term.text.test(near) && !term.known.test(source)).map((term) => term.label);
+        const age = ages[index];
+        const escaped = hero.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        if (heroes.length > 1 && age !== null && oldest !== youngest) {
+          if (age === youngest && new RegExp(`\\bgroße[nr]?\\s+${escaped}`, "i").test(sentence)) invented.push("„der große …“, obwohl der Jüngste");
+          if (age === oldest && new RegExp(`\\bkleine[nr]?\\s+${escaped}`, "i").test(sentence)) invented.push("„der kleine …“, obwohl der Älteste");
+        }
+        if (invented.length) {
+          issues.push({
+            code: "invented_look",
+            severity: "hard",
+            page: page.order,
+            message: `Seite ${page.order}: „${sentence.slice(0, 110)}“ gibt ${hero.name} ${invented.join(", ")} — das steht nicht in der Avatar-Beschreibung. Streiche diese Aussehens-Angabe.`,
+          });
+        }
+      }
+    }
+  }
+  return issues;
+}
+
 export function checkProse(input: ProseCheckInput): CheckReport {
   const issues: CheckIssue[] = [];
   const { pages, budget, plan, brief } = input;
@@ -269,6 +333,7 @@ export function checkProse(input: ProseCheckInput): CheckReport {
       issues.push({ code: "hero_missing", severity: "hard", message: `${hero.name} kommt im Text nicht vor.` });
     }
   }
+  issues.push(...inventedHeroLooks(pages, brief.heroes));
   for (const member of plan.cast) {
     if (!mentions(fullText, member.name)) {
       issues.push({ code: "cast_missing", severity: "hard", message: `${member.name} (aus dem Figurenpool besetzt) kommt im Text nicht vor.` });

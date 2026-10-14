@@ -158,20 +158,37 @@ const heroes = heroFile ? fileHeroes : heroRows.map((row: any) => {
   };
 });
 
+// Same mapping as the wizard (TaleaStoryWizard.mapWizardStateToAPI): humour and
+// suspense follow the chosen feelings unless set explicitly.
+const flavors = (option("--flavors", "lachfreude,prickeln") || "").split(",").filter(Boolean);
+const learningSubjects = (option("--learning", "") || "").split(",").map((s) => s.trim()).filter(Boolean);
 const config: any = {
   genre: option("--genre", "fairy_tales"),
-  setting: option("--setting", "fantasy"),
+  setting: option("--setting", option("--genre", "fairy_tales") === "fairy_tales" ? "fantasy" : "varied"),
   ageGroup: option("--age", "6-8"),
   length: option("--length", "medium"),
   language: option("--language", "de"),
-  humorLevel: 2,
-  suspenseLevel: 2,
-  emotionalFlavors: (option("--flavors", "lachfreude,prickeln") || "").split(",").filter(Boolean),
-  requireHappyEnd: true,
+  humorLevel: Number(option("--humor", flavors.includes("lachfreude") ? "2" : "1")),
+  suspenseLevel: Number(option("--suspense", flavors.includes("prickeln") ? "2" : "1")),
+  emotionalFlavors: flavors,
+  requireHappyEnd: !flag("--no-happy-end"),
+  requireMoral: flag("--moral") || undefined,
+  hasTwist: flag("--twist") || undefined,
+  allowFamousCharacters: flag("--famous") || undefined,
+  avatarIsHero: flag("--companions") ? false : true,
   allowRhymes: flag("--rhymes"),
   customPrompt: option("--wish"),
+  learningMode: learningSubjects.length
+    ? {
+        enabled: true,
+        subjects: learningSubjects,
+        difficulty: option("--difficulty", "beginner"),
+        learningObjectives: (option("--objectives", "") || "").split("|").map((s) => s.trim()).filter(Boolean),
+        assessmentType: option("--assessment", "interactive"),
+      }
+    : undefined,
   aiProvider: "openrouter",
-  openRouterModel: option("--writer", "openai/gpt-6-sol"),
+  openRouterModel: option("--writer", "openai/gpt-6.1-sol"),
 };
 const band = normalizeAgeBand(config.ageGroup);
 const baseBudget = resolveLengthBudget(config.length, band);
@@ -199,6 +216,7 @@ const experiment = {
   // Every lettered variant except O is a multi-stage experiment.
   legacy: /[ABCDEFGLS]/.test(variant) || undefined,
   pictureBook: variant.includes("P") || undefined,
+  germanPrompt: flag("--german") || undefined,
   writerPolish: variant.includes("Q") || undefined,
   selfCheck: variant.includes("R") || undefined,
   castOptional: variant.includes("D") || undefined,
@@ -227,7 +245,10 @@ ${buildConceptSystemPrompt(brief.experiment)}
 
 ${buildConceptUserPrompt(brief, engines)}
 `, "utf8");
-  console.log(`  dry run: prompt written to ${join(out, "concept-prompt.md")}`);
+  const { buildOneShotUserPrompt } = await import("../backend/story/storybook/oneshot-stage");
+  const { buildWriterSystemPrompt } = await import("../backend/story/storybook/draft-stage");
+  await writeFile(join(out, "oneshot-prompt.md"), `# SYSTEM\n\n${buildWriterSystemPrompt(brief, { oneShot: true })}\n\n# USER\n\n${buildOneShotUserPrompt(brief)}\n`, "utf8");
+  console.log(`  dry run: prompts written to ${join(out, "concept-prompt.md")} and oneshot-prompt.md`);
   process.exit(0);
 }
 

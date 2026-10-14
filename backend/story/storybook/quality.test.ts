@@ -9,6 +9,8 @@ import { generateStorybookImages, parseQaReport, publishableImageUrl, qaSeverity
 import { CostLedger, resolveStorybookModels, retryRequestFor, type LlmRequest, type StorybookLlm } from "./llm";
 import { buildOneShotUserPrompt, buildPatchPrompt, mergeStorybookPatch, planFromOneShot } from "./oneshot-stage";
 import { storybookQuality } from "./quality";
+import { inventedHeroLooks } from "./checks";
+import { buildOneShotSystemPromptEn, buildOneShotUserPromptEn } from "./oneshot-prompt-en";
 import { ledgerNotes, runReviewStage, sanitizeReview, verifyStorybookRepair } from "./review-stage";
 
 function brief(band: AgeBand = "6-8", length: "short" | "medium" | "long" = "medium") {
@@ -527,5 +529,51 @@ describe("story b10f2dad: the last page must not stay blank", () => {
       provider: async () => ({ url: "https://example.test/x.jpg" }),
     });
     expect(publishableImageUrl(result.pages.get(7))).toBeUndefined();
+  });
+});
+
+describe("wizard promises and hero looks (release audit 2026-10-14)", () => {
+  test("learning objective, depth and German subject reach the writer", () => {
+    const b = brief();
+    b.config.learningMode = { enabled: true, subjects: ["science"], difficulty: "beginner", learningObjectives: ["Warum Igel Winterschlaf halten"], assessmentType: "interactive" };
+    const prompt = buildOneShotUserPrompt(b);
+    expect(prompt).toContain("Warum Igel Winterschlaf halten");
+    expect(prompt).toContain("Naturwissenschaft");
+    expect(prompt).not.toContain("Nebenbei lernen: science");
+    expect(buildPatchPrompt("T", [], [], b)).toContain("Warum Igel Winterschlaf halten");
+  });
+  test("genre, twist and fairy-tale guest are binding, and the guest may keep its name", () => {
+    const b = brief();
+    b.config.hasTwist = true;
+    b.config.allowFamousCharacters = true;
+    const prompt = buildOneShotUserPrompt(b);
+    expect(prompt).toContain("Genre Märchen (Pflicht)");
+    expect(prompt).toContain("Überraschende Wendung (Pflicht)");
+    expect(prompt).toContain("bekannte Märchenfigur mit ihrem bekannten Namen");
+  });
+  test("invented hero looks are found and attributed to the right hero", () => {
+    const heroes = [
+      { id: "a", name: "Alexander", age: 8, description: "Ein Junge mit braunen, zerzausten Haaren", visualProfile: { consistentDescriptors: ["boy, messy brown hair"] } },
+      { id: "b", name: "Adrian", age: 7, description: "Ein Junge mit blonden Haaren", visualProfile: { consistentDescriptors: ["boy, blond hair"] } },
+    ] as any;
+    const pages = [{ order: 1, title: "", content: "Alexander kniete neben Adrian mit den Sommersprossen. Der große Adrian lachte. Alexander mit den braunen Haaren nickte, Adrians blonde Haare wippten." }];
+    const issues = inventedHeroLooks(pages, heroes);
+    expect(issues.map((issue) => issue.message.match(/gibt (\w+)/)?.[1])).toEqual(["Adrian", "Adrian"]);
+    expect(issues.every((issue) => issue.severity === "hard")).toBe(true);
+  });
+});
+
+describe("English writer prompt (default since 2026-10-14)", () => {
+  test("carries every wizard promise and keeps the family's words and the German markers", () => {
+    const b = brief();
+    b.config.hasTwist = true;
+    b.config.allowFamousCharacters = true;
+    b.config.customPrompt = "Ein kleiner Drache, der Angst im Dunkeln hat";
+    b.config.learningMode = { enabled: true, subjects: ["math"], difficulty: "beginner", learningObjectives: ["Verdoppeln"], assessmentType: "quiz" };
+    const prompt = buildOneShotSystemPromptEn(b) + "\n" + buildOneShotUserPromptEn(b);
+    for (const expected of ["Genre fairy tale (mandatory)", "Surprising twist (mandatory)", "famous fairy-tale character", "„Verdoppeln“", "maths", "Learning style quiz", "„Ein kleiner Drache, der Angst im Dunkeln hat“", "TITEL:", "BESCHREIBUNG:", "SEITE 1", "IDEEN:", "Präteritum", "Für einen ist noch Platz!"]) {
+      expect(prompt).toContain(expected);
+    }
+    expect(buildOneShotUserPromptEn(brief("3-5", "short"))).toContain("For three- to five-year-olds");
   });
 });

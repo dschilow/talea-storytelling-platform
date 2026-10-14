@@ -17,7 +17,7 @@ import type { EditorialReview, StoryPlan, StorybookPage } from "./types";
  * only: repetition, a sound word, a visible gag, a deadpan reaction and a
  * page-turn hook — in ten short lines.
  */
-const STYLE_SAMPLE_DE = [
+export const STYLE_SAMPLE_DE = [
   "Der Kuchen war rund, braun und so groß wie ein Wagenrad.",
   "„Den tragen wir zu Oma“, sagte Lotta. „Ganz. Vorsichtig.“",
   "Ben nickte. Dann stolperte er über den Gartenschlauch.",
@@ -61,12 +61,14 @@ export function buildWriterSystemPrompt(brief: StoryBrief, options: { oneShot?: 
     "Die entscheidende Idee kommt von den Helden und nutzt etwas früh Gezeigtes. Die Lösung ist in einem Kindersatz verständlich. Erwachsene dürfen mithelfen, aber nicht die Lösung übernehmen. Kein Zufall als Rettung.",
     "Jede Seite hat einen klaren Schwerpunkt. Verfolge Orte, Wege, Besitzer und Zustand wichtiger Dinge. Übergänge und Bewegungen müssen nachvollziehbar sein; auch Tiere werden aus Gefahren sichtbar in Sicherheit gebracht.",
     "Kurze und mittlere Sätze wechseln, konkrete Verben, natürliche Dialoge mit eigenen Stimmen. Gefühle durch Verhalten zeigen. Unbekannte Dinge beim ersten Auftreten knapp in Kinderworten erklären. Keine Semikolons, Erwachsenen-Abstraktionen oder erklärten Witze.",
-    "Wiederholung schafft Vorfreude: ein verständlicher Satz zum Mitsprechen, mit einer passenden Wendung am Schluss. Seitenenden machen durch ein Ereignis neugierig, nicht durch Erzählerfragen. Ende mit Geborgenheit, einem veränderten Anfangsbild oder einer Pointe, ohne Moralpredigt.",
+    // Baseline 2026-10-14: "Da ging noch was!", "Erst das Brot, dann die Butter",
+    // "Irgendwo musste es doch sein!" — refrains with no speaker, no sense and wrong tense.
+    "Wiederholung schafft Vorfreude: höchstens EIN Satz zum Mitsprechen, kurz und rhythmisch, der Wunsch oder Lage der Helden sagt („Für einen ist noch Platz!“). Eine Figur spricht ihn hörbar und passend, am Schluss kippt er. Lieber keiner als einer ohne klaren Sinn. Seitenenden machen durch ein Ereignis neugierig, nicht durch Erzählerfragen. Ende mit Geborgenheit, einem veränderten Anfangsbild oder einer Pointe, ohne Moralpredigt.",
     // Story b10f2dad (Sol 6.1 live): from page 2 nearly every paragraph was one sentence — a list of events, not a told scene; and two competing refrains.
-    "Erzähle in Absätzen: mindestens die Hälfte besteht aus zwei bis vier zusammenhängenden Sätzen. Einzelsatz-Absätze sind für Knall- und Pointenmomente da, höchstens zwei je Seite. Es gibt genau EINEN wiederkehrenden Satz; Sprüche der Figuren sind Würze und kommen nur vor, wenn sie zur Szene passen.",
+    "Erzähle in Absätzen: mindestens die Hälfte besteht aus zwei bis vier zusammenhängenden Sätzen. Einzelsatz-Absätze sind für Knall- und Pointenmomente da, höchstens zwei je Seite. Es gibt höchstens EINEN wiederkehrenden Satz; Sprüche der Figuren sind Würze und kommen nur vor, wenn sie zur Szene passen.",
     "Nur erlaubte Namen. Artefaktregeln bleiben unverändert. Sprache, Wortumfang und Seitenzahl exakt nach Auftrag; keine Füllsätze, keine zusätzlichen Nebenhandlungen.",
     // Sol 6.1 test 2026-09-30: a moral spoken by a character, an invented sibling bond, a character sheet on page 1.
-    "Keine Lehre, auch nicht als Satz einer Figur („Magie liegt in dir“). Wie die Helden zueinander stehen, ist nicht bekannt: nenne keine Verwandtschaft oder Freundschaft, zeige Nähe durch gemeinsames Handeln. Kleidung, Haar und Alter der Helden höchstens als beiläufiger Halbsatz, nie als Steckbrief. Der Titel greift ein Ding, Wesen oder einen Satz auf, das in der Geschichte wirklich vorkommt.",
+    "Keine Lehre, auch nicht als Satz einer Figur („Magie liegt in dir“). Wie die Helden zueinander stehen, ist nicht bekannt: nenne keine Verwandtschaft oder Freundschaft, zeige Nähe durch gemeinsames Handeln. Aussehen, Größe und Alter der Helden beschreibst du nicht (das zeigt das Bild) — stell sie über das vor, was sie tun und mögen. Der Titel greift ein Ding, Wesen oder einen Satz auf, das in der Geschichte wirklich vorkommt.",
     ...(isGerman(brief.config.language) ? ["Wörtliche Rede: „so“. Kurze Stilprobe (nur Rhythmus, nichts übernehmen):", STYLE_SAMPLE_DE] : []),
     "Ausgabe ohne Markdown: TITEL: …, BESCHREIBUNG: … (12–25 Wörter), danach SEITE 1, Text, SEITE 2, Text usw. Diese Marker bleiben deutsch; alle Inhalte in der gewünschten Sprache. Zusätzliche Kopfzeilen nur wie im Auftrag angegeben.",
   ].join("\n");

@@ -348,7 +348,7 @@ function buildImagePrompt(
   const humans = characters.filter((entity) => entity.isHuman);
   if (humans.length > 0) {
     const children = humans.filter((entity) => entity.role === "hero").map((entity) => entity.name);
-    lines.push(`${humans.map((entity) => entity.name).join(" and ")} ${humans.length === 1 ? "is an ordinary human" : "are ordinary humans"} with natural faces and two five-fingered hands${children.length ? `; ${children.join(" and ")} ${children.length === 1 ? "has a smooth child's face" : "have smooth children's faces"}` : ""}. Everyone wears only their own clothes.`);
+    lines.push(`${humans.map((entity) => entity.name).join(" and ")} ${humans.length === 1 ? "is an ordinary human" : "are ordinary humans"} with natural faces, rounded human ears and two five-fingered hands${children.length ? `; ${children.join(" and ")} ${children.length === 1 ? "has a smooth child's face" : "have smooth children's faces"}` : ""}. Everyone wears only their own clothes.`);
   }
   const owned = ownershipLine(characters);
   if (owned) lines.push(owned);
@@ -378,7 +378,10 @@ export function buildDirectorSystemPrompt(): string {
     "- Repeated places and props keep their layout, material, scale and colour throughout the book (a waterwheel stays a wheel, never a boat).",
     "- Characters DO something physical and react to each other: running, tumbling, pulling, hiding, reaching, ducking, laughing, gasping. Faces and bodies show the emotion.",
     "- Never a lineup, never characters standing side by side looking at the viewer, never posing.",
-    "- Choose a camera for each page and vary it from page to page: wide establishing shot, medium action shot, low angle looking up, high angle looking down, over-the-shoulder, close-up on a reaction or an object.",
+    "- Choose a camera for each page and vary it from page to page: wide establishing shot, medium action shot, low angle looking up, high angle looking down, close-up on a reaction or an object.",
+    // Story 114e759b page 4: "Over Alexander's shoulder … Alexander points" drew two Alexanders.
+    "- Never frame a shot over a character's shoulder or from behind a character who also acts in the scene — the illustrator then draws that character twice. Every listed figure faces into the scene and appears exactly once.",
+    "- Toys and small things keep their real size in every picture (a toy sailboat as long as a child's forearm, never a boat people sit in).",
     "- Show the place concretely: time of day, weather, light, and the props exactly in their CURRENT state on this page (broken, wet, tied up, glowing ...).",
     "- At most 3 FIGURES per picture in total, counting named characters AND figure story elements (a troll, a giant, a goose). If more are in the scene, pick the ones the moment needs and leave the others off-panel. List onStage from LEFT to RIGHT as the figures stand in the picture. Use only the ids given.",
     "- Say exactly WHO does WHAT and where each one is (left / right / foreground / on the ladder …). Use each visible character's exact name in scene AND its id in onStage. Never mention off-panel people in the scene. Never swap roles: if the text says Adrian climbs, Adrian is the one climbing.",
@@ -392,7 +395,7 @@ export function buildDirectorSystemPrompt(): string {
     "- Each picture happens exactly at this page's place from the text: an outdoor scene at a stream is never moved into a kitchen.",
     "- Only the listed characters plus extras the page needs. Never extra children in the background — they look like copies of the heroes.",
     "- Features belong to their owner: one character's moustache, crown, hat or cape is never drawn on anyone else.",
-    "- No text, letters, labels or speech bubbles in any picture. Books, pages, letters and notes show simple pictures (a painted bear, berries), never writing — a painted scribble reads as nonsense. A sign may carry ONE short word only when the text names it, written in the scene in capitals and quotes (a sign reading \"BEEREN\").",
+    "- No text, letters, labels or speech bubbles in any picture. Books, pages, letters and notes show simple pictures (a painted bear, berries), never writing — a painted scribble reads as nonsense. Signs, stone tablets, labels and maps carry a simple painted symbol (a hedgehog, an arrow, a star) instead of words — even when the story text quotes what is written on them (User rule 2026-10-08: never text in pictures; FLUX misspells every word).",
     "- English only, 45-80 words per scene. Describe only what the eye sees. Start every scene with the camera and the ACTION — who does what, with which body language and expression — and put place and light last: the illustrator reads the first words most carefully (never open with 'In warm morning light …').",
     "- For every PAGE also write vignette: the same moment WITHOUT any person, animal, creature or named character — the key object or the place in its current state, calm and clear, at most 30 words (e.g. 'the wooden signpost lying in the wet grass behind the open garden gate'). It is printed only when the full picture fails.",
     "- For a difficult shot (3 figures or overlapping limbs/props), also provide simpleScene: the SAME instant, actors and place in a simpler separated composition, at most 35 words. Otherwise omit it. focus is 'detail' ONLY for a deliberate close-up without any character.",

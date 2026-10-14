@@ -276,7 +276,8 @@ export function qaSeverityParts(
     else soft += 10;
   }
   if (report.posing) soft += 10;
-  if (report.textVisible) soft += 6;
+  // User rule 2026-10-08: no writing in any generated picture. Run v2-img B1 printed two pages with scribbled tablets at 6.
+  if (report.textVisible) soft += 10;
   if (!report.missing?.length && expectedCharacters > 0 && report.namedCharactersVisible < expectedCharacters) soft += 3;
   if (report.sceneMatch < 0.5) soft += 10;
   return { hard, soft };
@@ -345,6 +346,7 @@ export function correctionFor(report: ImageQaReport, elementNames: string[] = []
   if (report.referenceSheetVisible) fixes.push("One single full-bleed scene.");
   if (report.roleSwaps.length || report.sceneMatch < 0.5) fixes.push("Freeze the single described action at its stated location; keep each prop with its named owner.");
   if (report.posing) fixes.push("Everyone is busy with the action and turned toward it.");
+  if (report.textVisible) fixes.push("A wordless picture: every sign, page, tablet and surface is plain and unmarked or shows a small painted symbol.");
   if (report.identityMatch < 0.6) fixes.push("Match each named figure's age, species, face and outfit to its own reference.");
   return fixes.join(" ");
 }
