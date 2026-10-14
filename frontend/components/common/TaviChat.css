@@ -1,0 +1,18 @@
+.tavi-chat-dialog {
+  height: min(720px, 90dvh);
+  max-height: 90dvh;
+}
+
+@media (max-width: 767px) {
+  .tavi-chat-dialog {
+    top: var(--tavi-viewport-top, 0px);
+    left: 0;
+    width: 100%;
+    max-width: 100%;
+    height: var(--tavi-viewport-height, 100dvh);
+    max-height: var(--tavi-viewport-height, 100dvh);
+    translate: none;
+    border-radius: 0;
+    animation: none;
+  }
+}

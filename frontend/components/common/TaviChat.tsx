@@ -26,6 +26,8 @@ import type {
 } from '../../types/tavi';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
+import './TaviChat.css';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -391,18 +393,45 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const [wordCount, setWordCount] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(true);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const [mobileViewport, setMobileViewport] = useState<{ height: number; top: number } | null>(null);
   const isDark = resolvedTheme === 'dark';
   const tWithFallback: TranslateWithFallback = (key, fallback) => translate(key, fallback);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  useEffect(() => {
+    if (!isOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      const container = messagesRef.current;
+      if (!container) return;
+      // Keep the introduction at the top. Scroll only the chat's own history.
+      container.scrollTo({ top: messages.length === 1 ? 0 : container.scrollHeight, behavior: 'auto' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isOpen, messages, isLoading]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (!isOpen) { setMobileViewport(null); return; }
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const updateViewport = () => {
+      // Pinch zoom keeps its normal browser behavior; only keyboard / browser
+      // chrome resizing on phones changes the dialog's dimensions.
+      setMobileViewport(window.innerWidth < 768 && viewport.scale === 1
+        ? { height: viewport.height, top: viewport.offsetTop }
+        : null);
+    };
+    updateViewport();
+    viewport.addEventListener('resize', updateViewport);
+    viewport.addEventListener('scroll', updateViewport);
+    window.addEventListener('resize', updateViewport);
+    return () => {
+      viewport.removeEventListener('resize', updateViewport);
+      viewport.removeEventListener('scroll', updateViewport);
+      window.removeEventListener('resize', updateViewport);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     setMessages((prev) => {
@@ -412,10 +441,7 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   }, [welcomeText]);
 
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      setTimeout(() => inputRef.current?.focus(), 260);
-      void refreshUserAccess();
-    }
+    if (isOpen) void refreshUserAccess();
   }, [isOpen, refreshUserAccess]);
 
   // Build history for API from current messages
@@ -528,148 +554,139 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
   const canSend = !isLoading && !isOutOfChatCredits && inputMessage.trim().length > 0 && !isOverLimit;
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm dark:bg-black/50"
-          />
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent
+        className="tavi-chat-dialog flex w-[500px] max-w-[calc(100%_-_2rem)] flex-col gap-0 overflow-hidden rounded-3xl border p-0 shadow-2xl backdrop-blur-2xl motion-reduce:animate-none [&>button]:hidden"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          titleRef.current?.focus({ preventScroll: true });
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (returnFocusRef.current?.isConnected) returnFocusRef.current.focus({ preventScroll: true });
+        }}
+        style={{
+          '--tavi-viewport-height': mobileViewport ? `${mobileViewport.height}px` : undefined,
+          '--tavi-viewport-top': mobileViewport ? `${mobileViewport.top}px` : undefined,
+          background: isDark ? 'rgba(23,31,44,0.95)' : 'rgba(255,251,245,0.96)',
+          borderColor: isDark ? '#33465f' : '#e3d7c8',
+          boxShadow: isDark
+            ? '0 24px 52px rgba(7,13,23,0.5)'
+            : '0 24px 52px rgba(52,61,78,0.2)',
+        } as React.CSSProperties}
+      >
+        {/* Header */}
+        <div className="relative flex shrink-0 items-center justify-between border-b border-border px-5 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--talea-text-tertiary)] via-[var(--primary)] to-[var(--talea-text-tertiary)]" />
 
-          <motion.div
-            initial={{ opacity: 0, scale: 0.92, y: 34 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 20 }}
-            transition={{ type: 'spring', stiffness: 360, damping: 30 }}
-            onClick={(e) => e.stopPropagation()}
-            className="relative flex h-[720px] max-h-[90vh] w-[500px] max-w-[95vw] flex-col overflow-hidden rounded-3xl border shadow-2xl backdrop-blur-2xl"
-            style={{
-              background: isDark ? 'rgba(23,31,44,0.95)' : 'rgba(255,251,245,0.96)',
-              borderColor: isDark ? '#33465f' : '#e3d7c8',
-              boxShadow: isDark
-                ? '0 24px 52px rgba(7,13,23,0.5)'
-                : '0 24px 52px rgba(52,61,78,0.2)',
-            }}
-          >
-            {/* Header */}
-            <div className="relative flex items-center justify-between border-b border-border px-5 py-4">
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--talea-text-tertiary)] via-[var(--primary)] to-[var(--talea-text-tertiary)]" />
-
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="relative shrink-0">
-                  <div
-                    className="h-11 w-11 rounded-full border-[2.5px] border-[var(--talea-text-tertiary)]/60 bg-cover bg-center shadow-lg shadow-slate-500/20"
-                    style={{ backgroundImage: 'url(/tavi.png)' }}
-                  />
-                  <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-400 dark:border-[#13102B]" />
-                </div>
-
-                <div className="min-w-0">
-                  <h3 className="font-[Fredoka] text-base font-bold text-foreground">
-                    {t('chat.title')}
-                  </h3>
-                  <p className="text-[11px] font-medium text-muted-foreground">
-                    {t('chat.subtitle')}
-                  </p>
-                  <p className="mt-1 inline-flex max-w-full truncate rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-                    {chatQuotaLabel} Anfragen &uuml;brig
-                  </p>
-                </div>
-              </div>
-
-              <motion.button
-                whileHover={{ scale: 1.08, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card/80 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <X size={16} />
-              </motion.button>
-            </div>
-
-            {/* Messages */}
-            <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
-              <AnimatePresence mode="popLayout">
-                {messages.map((message) => (
-                  <MessageBubble
-                    key={message.id}
-                    message={message}
-                    onAction={handleAction}
-                    onChoice={sendMessage}
-                    choicesDisabled={isLoading || isOutOfChatCredits}
-                    t={tWithFallback}
-                  />
-                ))}
-                {isLoading && <TypingDots isDark={isDark} key="typing" />}
-              </AnimatePresence>
-
-              {showSuggestions && messages.length === 1 && (
-                <QuickSuggestions onSelect={handleSuggestion} t={tWithFallback} />
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input */}
-            <div className="border-t border-border bg-card/40 px-4 pb-4 pt-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="relative shrink-0">
               <div
-                className={`mb-1.5 text-right text-[10px] font-semibold ${isOverLimit ? 'text-red-500' : 'text-muted-foreground'}`}
-              >
-                {wordCount}/100 {t('chat.words')}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <input
-                    ref={inputRef}
-                    value={inputMessage}
-                    onChange={handleInputChange}
-                    onKeyPress={handleKeyPress}
-                    placeholder={isOutOfChatCredits ? 'Chat-Kontingent aufgebraucht' : t('chat.placeholder')}
-                    disabled={isLoading || isOutOfChatCredits}
-                    maxLength={600}
-                    className="w-full rounded-2xl border border-border bg-card/80 px-4 py-3 text-sm text-foreground outline-none transition-all placeholder:text-muted-foreground focus:border-[var(--talea-text-tertiary)]/50 focus:ring-2 focus:ring-[var(--talea-text-tertiary)]/20"
-                  />
-                  {isLoading && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <Sparkles
-                        size={14}
-                        className="animate-pulse text-[var(--talea-text-tertiary)]"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <motion.button
-                  whileHover={{ scale: 1.08 }}
-                  whileTap={{ scale: 0.92 }}
-                  onClick={handleSendMessage}
-                  disabled={!canSend}
-                  className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl transition-all ${
-                    canSend
-                      ? 'bg-gradient-to-br from-[var(--talea-text-tertiary)] to-[var(--talea-text-tertiary)] text-white shadow-lg shadow-slate-500/25 hover:shadow-slate-500/40'
-                      : 'cursor-not-allowed border border-border bg-card/70 text-muted-foreground'
-                  }`}
-                >
-                  <Send size={16} />
-                </motion.button>
-              </div>
+                className="h-11 w-11 rounded-full border-[2.5px] border-[var(--talea-text-tertiary)]/60 bg-cover bg-center shadow-lg shadow-slate-500/20"
+                style={{ backgroundImage: 'url(/tavi.png)' }}
+              />
+              <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-400 dark:border-[#13102B]" />
             </div>
 
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[var(--talea-text-tertiary)]/10 to-transparent" />
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+            <div className="min-w-0">
+              <DialogTitle asChild><h3 ref={titleRef} tabIndex={-1} className="font-[Fredoka] text-base font-bold text-foreground outline-none">
+                {t('chat.title')}
+              </h3></DialogTitle>
+              <DialogDescription asChild><p className="text-[11px] font-medium text-muted-foreground">
+                {t('chat.subtitle')}
+              </p></DialogDescription>
+              <p className="mt-1 inline-flex max-w-full truncate rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                {chatQuotaLabel} Anfragen &uuml;brig
+              </p>
+            </div>
+          </div>
+
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.08, rotate: 90 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={onClose}
+            aria-label="Tavi-Chat schließen"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border bg-card/80 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+          >
+            <X size={16} />
+          </motion.button>
+        </div>
+
+        {/* Messages */}
+        <div ref={messagesRef} className="tavi-chat-messages flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 py-4" role="log" aria-label="Unterhaltung mit Tavi" aria-relevant="additions">
+          <AnimatePresence mode="popLayout">
+            {messages.map((message) => (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                onAction={handleAction}
+                onChoice={sendMessage}
+                choicesDisabled={isLoading || isOutOfChatCredits}
+                t={tWithFallback}
+              />
+            ))}
+            {isLoading && <TypingDots isDark={isDark} key="typing" />}
+          </AnimatePresence>
+
+          {showSuggestions && messages.length === 1 && (
+            <QuickSuggestions onSelect={handleSuggestion} t={tWithFallback} />
+          )}
+
+        </div>
+
+        {/* Input */}
+        <div className="tavi-chat-composer shrink-0 border-t border-border bg-card/40 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3">
+          <div
+            className={`mb-1.5 text-right text-[10px] font-semibold ${isOverLimit ? 'text-red-500' : 'text-muted-foreground'}`}
+          >
+            {wordCount}/100 {t('chat.words')}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <input
+                value={inputMessage}
+                onChange={handleInputChange}
+                onKeyPress={handleKeyPress}
+                placeholder={isOutOfChatCredits ? 'Chat-Kontingent aufgebraucht' : t('chat.placeholder')}
+                aria-label={translate('chat.placeholder', 'Frag Tavi etwas')}
+                disabled={isLoading || isOutOfChatCredits}
+                maxLength={600}
+                className="w-full rounded-2xl border border-border bg-card/80 px-4 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[var(--talea-text-tertiary)]/50 focus:ring-2 focus:ring-[var(--talea-text-tertiary)]/20 md:text-sm"
+              />
+              {isLoading && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Sparkles
+                    size={14}
+                    className="animate-pulse text-[var(--talea-text-tertiary)]"
+                  />
+                </div>
+              )}
+            </div>
+
+            <motion.button
+              type="button"
+              aria-label="Nachricht an Tavi senden"
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.92 }}
+              onClick={handleSendMessage}
+              disabled={!canSend}
+              className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl transition-all ${
+                canSend
+                  ? 'bg-gradient-to-br from-[var(--talea-text-tertiary)] to-[var(--talea-text-tertiary)] text-white shadow-lg shadow-slate-500/25 hover:shadow-slate-500/40'
+                  : 'cursor-not-allowed border border-border bg-card/70 text-muted-foreground'
+              }`}
+            >
+              <Send size={16} />
+            </motion.button>
+          </div>
+        </div>
+
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[var(--talea-text-tertiary)]/10 to-transparent" />
+      </DialogContent>
+    </Dialog>
   );
 };
 
