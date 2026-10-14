@@ -68,17 +68,17 @@ export default defineConfig({
         lang: 'de',
         icons: [
           {
-            src: 'pwa-192x192.png?v=logo-v3',
+            src: 'pwa-192x192.png?v=logo-v4',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: 'pwa-512x512.png?v=logo-v3',
+            src: 'pwa-512x512.png?v=logo-v4',
             sizes: '512x512',
             type: 'image/png',
           },
           {
-            src: 'pwa-maskable-512x512.png?v=logo-v3',
+            src: 'pwa-maskable-512x512.png?v=logo-v4',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
