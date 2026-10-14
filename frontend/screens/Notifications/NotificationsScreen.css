@@ -114,6 +114,8 @@ button.notification-overview-item:hover { background: var(--notification-inset);
 .notification-panel-heading > svg { color: var(--primary); }
 .notification-panel-heading h2 { font-family: var(--talea-font-display); font-size: 15px; font-weight: 650; letter-spacing: -.015em; }
 .notification-caption { color: var(--talea-text-secondary); font-size: 11px; line-height: 1.75; }
+.notification-publishing-note { margin: -4px 0 18px; font-size: 12px; line-height: 1.7; color: var(--notification-muted); }
+.notification-publishing-note a { display: inline-flex; align-items: center; gap: 3px; min-height: 36px; color: var(--primary); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .notification-preference-list { margin-top: 17px; }
 .notification-preference-row { display: flex; align-items: center; gap: 9px; padding: 13px 0; }
 .notification-preference-row + .notification-preference-row { border-top: 1px solid var(--talea-border-light); }

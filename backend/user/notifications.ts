@@ -6,9 +6,11 @@ import { ensureAdmin } from '../admin/authz';
 import { resolveImageUrlForClient } from '../helpers/bucket-storage';
 import {
   applyNotificationState, DEFAULT_NOTIFICATION_PREFERENCES, isAllowedNotificationHref,
-  isNotificationEnabled, type NotificationItem, type NotificationKind,
-  type NotificationPreferences, type NotificationState,
+  isNotificationEnabled, summarizeNotifications, type NotificationItem, type NotificationKind,
+  type NotificationPreferences, type NotificationState, type NotificationSummary,
 } from './notification-model';
+
+export type { NotificationSummary } from './notification-model';
 
 const avatarDB = SQLDatabase.named('avatar');
 const dokuDB = SQLDatabase.named('doku');
@@ -56,13 +58,13 @@ async function loadFeed(userId: string) {
       WHERE withdrawn_at IS NULL AND published_at <= CURRENT_TIMESTAMP
         AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
     `,
-    dokuDB.queryAll<{ id: string; title: string; description: string; cover_image_url: string | null; created_at: Date }>`
-      SELECT id, title, description, cover_image_url, created_at FROM audio_dokus
-      WHERE is_public = TRUE AND audio_url <> '' AND (created_at >= ${since} OR id = ANY(${retainedAudioIds}))
+    dokuDB.queryAll<{ id: string; title: string; description: string; cover_image_url: string | null; published_at: Date }>`
+      SELECT id, title, description, cover_image_url, published_at FROM audio_dokus
+      WHERE is_public = TRUE AND BTRIM(audio_url) <> '' AND (published_at >= ${since} OR id = ANY(${retainedAudioIds}))
     `,
-    storyDB.queryAll<{ id: string; name: string; image_url: string; created_at: Date }>`
-      SELECT id, name, image_url, created_at FROM character_pool
-      WHERE is_active = TRUE AND image_url IS NOT NULL AND image_url <> '' AND (created_at >= ${since} OR id = ANY(${retainedCharacterIds}))
+    storyDB.queryAll<{ id: string; name: string; image_url: string; published_at: Date }>`
+      SELECT id, name, image_url, published_at FROM character_pool
+      WHERE is_active = TRUE AND BTRIM(image_url) <> '' AND (published_at >= ${since} OR id = ANY(${retainedCharacterIds}))
     `,
     avatarDB.queryAll<{ id: string; owner_user_id: string; copied_avatar_id: string; copied_profile_id: string | null; name: string; image_url: string | null; shared_at: Date }>`
       SELECT s.id, s.owner_user_id, s.copied_avatar_id, a.profile_id AS copied_profile_id, a.name, a.image_url,
@@ -83,12 +85,12 @@ async function loadFeed(userId: string) {
       href: row.href ?? undefined, actionLabel: row.action_label ?? undefined, pinned: row.pinned, managed: true,
     })),
     ...audio.map((row) => ({
-      ...baseItem(`audio:${row.id}`, 'audio', row.title, row.description || 'Eine neue Audio-Doku wartet auf neugierige Ohren.', row.created_at),
-      href: `/doku?mode=audio&episode=${encodeURIComponent(row.id)}`, actionLabel: 'Folge entdecken', imageUrl: row.cover_image_url ?? undefined,
+      ...baseItem(`audio:${row.id}`, 'audio', `Neu zum Hören: ${row.title}`, row.description || 'Eine neue Audio-Doku wartet auf neugierige Ohren.', row.published_at),
+      href: `/doku?mode=audio&episode=${encodeURIComponent(row.id)}`, actionLabel: 'Folge anhören', imageUrl: row.cover_image_url ?? undefined,
     })),
     ...characters.map((row) => ({
       ...baseItem(`character:${row.id}`, 'character', `Dürfen wir vorstellen: ${row.name}`,
-        `${row.name} ist neu in der Talea-Welt und kann in euren nächsten Geschichten auftauchen. Starte ein Abenteuer und entdecke neue Begegnungen.`, row.created_at),
+        `${row.name} ist neu in der Talea-Welt und kann in euren nächsten Geschichten auftauchen. Starte ein Abenteuer und entdecke neue Begegnungen.`, row.published_at),
       href: '/story', actionLabel: 'Geschichte gestalten', imageUrl: row.image_url,
     })),
     ...shares.map((row) => ({
@@ -108,23 +110,11 @@ async function loadFeed(userId: string) {
   };
 }
 
-export interface NotificationSummary {
-  unreadCount: number;
-  counts: { update: number; audio: number; character: number; sharing: number; tip: number };
-  preferences: NotificationPreferences;
-}
-
-function summarize(items: NotificationItem[], preferences: NotificationPreferences): NotificationSummary {
-  const counts = { update: 0, audio: 0, character: 0, sharing: 0, tip: 0 };
-  for (const item of items) if (!item.read && !item.archived) counts[item.kind]++;
-  return { unreadCount: Object.values(counts).reduce((sum, count) => sum + count, 0), counts, preferences };
-}
-
 export const notificationSummary = api<void, NotificationSummary>(
   { expose: true, method: 'GET', path: '/user/notifications/summary', auth: true },
   async () => {
     const feed = await loadFeed(viewerId());
-    return summarize(feed.items, feed.preferences);
+    return summarizeNotifications(feed.items, feed.preferences);
   },
 );
 
@@ -150,7 +140,7 @@ export const listNotifications = api<ListNotificationsRequest, ListNotifications
     const items = await Promise.all(filtered.slice(offset, offset + limit).map(async (item) => ({
       ...item, imageUrl: item.imageUrl ? (await resolveImageUrlForClient(item.imageUrl)) ?? undefined : undefined,
     })));
-    return { ...summarize(feed.items, feed.preferences), items, total: filtered.length, hasMore: offset + limit < filtered.length, asOf };
+    return { ...summarizeNotifications(feed.items, feed.preferences), items, total: filtered.length, hasMore: offset + limit < filtered.length, asOf };
   },
 );
 

@@ -9,6 +9,7 @@ import LottieLoader from '../../components/common/LottieLoader';
 import { AudioUploadCard } from '../../components/ui/audio-upload-card';
 import { getBackendUrl } from '../../config';
 import { useBackend } from '../../hooks/useBackend';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getStaticQwenVoiceOptions } from '../../constants/qwenVoices';
 import { typography } from '../../utils/constants/typography';
@@ -1112,6 +1113,7 @@ const CreateAudioDokuScreen: React.FC = () => {
   const { getToken } = useAuth();
   const navigate = useNavigate();
   const backend = useBackend();
+  const refreshNotifications = useNotifications()?.refresh;
   const { resolvedTheme } = useTheme();
   const [searchParams] = useSearchParams();
   const dialogueEditorRef = useRef<HTMLTextAreaElement | null>(null);
@@ -2253,6 +2255,7 @@ const CreateAudioDokuScreen: React.FC = () => {
         const audio = updated as AudioDoku;
         setSavedAudio(audio);
         setExistingAudioUrl(audio.audioUrl);
+        void refreshNotifications?.();
         return;
       }
 
@@ -2279,6 +2282,7 @@ const CreateAudioDokuScreen: React.FC = () => {
       const audio = response as AudioDoku;
       setSavedAudio(audio);
       setExistingAudioUrl(audio.audioUrl);
+      void refreshNotifications?.();
     } catch (err) {
       console.error('[AudioDoku] Save failed:', err);
       setError(

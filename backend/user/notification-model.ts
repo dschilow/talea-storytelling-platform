@@ -28,6 +28,23 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   updates: true, audio: true, characters: true, sharing: true, tips: true,
 };
 
+export interface NotificationSummary {
+  unreadCount: number;
+  latestUnreadAt?: string;
+  counts: { update: number; audio: number; character: number; sharing: number; tip: number };
+  preferences: NotificationPreferences;
+}
+
+export function summarizeNotifications(items: NotificationItem[], preferences: NotificationPreferences): NotificationSummary {
+  const counts = { update: 0, audio: 0, character: 0, sharing: 0, tip: 0 };
+  let latestUnreadAt: string | undefined;
+  for (const item of items) if (!item.read && !item.archived) {
+    counts[item.kind]++;
+    if (!latestUnreadAt || Date.parse(item.createdAt) > Date.parse(latestUnreadAt)) latestUnreadAt = item.createdAt;
+  }
+  return { unreadCount: Object.values(counts).reduce((sum, count) => sum + count, 0), latestUnreadAt, counts, preferences };
+}
+
 const PREFERENCE_KEYS: Record<NotificationKind, keyof NotificationPreferences> = {
   update: 'updates', audio: 'audio', character: 'characters', sharing: 'sharing', tip: 'tips',
 };

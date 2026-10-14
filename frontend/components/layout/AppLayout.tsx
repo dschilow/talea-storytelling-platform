@@ -8,6 +8,7 @@ import BottomNav from "./BottomNav";
 import { GlobalAudioPlayer } from "../audio/GlobalAudioPlayer";
 import ProfileMenuButton from "./ProfileMenuButton";
 import NotificationsButton from "./NotificationsButton";
+import NotificationsNotice from "./NotificationsNotice";
 import { cn } from "@/lib/utils";
 import { TaleaLogo } from "@/components/brand/TaleaLogo";
 
@@ -191,6 +192,8 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
               ) : null}
             </div>
           ) : null}
+
+          {!offline && chrome && !isFullBleed && <SignedIn><NotificationsNotice /></SignedIn>}
 
           <div className={cn(contentClassName)}>
             <AnimatePresence mode="wait" initial={false}>

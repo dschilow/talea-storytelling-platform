@@ -3,6 +3,7 @@ import { storyDB } from "../story/db";
 import { avatarDB } from "../avatar/db";
 import { fairytalesDB } from "../fairytales/db";
 import { userDB } from "../user/db";
+import { dokuDB } from "../doku/db";
 import fs from "fs";
 import path from "path";
 import { compareMigrationFiles, splitMigrationStatements } from "./migration-order";
@@ -27,7 +28,7 @@ function isExpectedIdempotencyError(error: unknown): boolean {
 
 /**
  * Runs every numbered `.up.sql` migration file (user, avatar, story, fairy
- * tales) idempotently against the respective service database. This is the
+ * tales, doku) idempotently against the respective service database. This is the
  * canonical way schema changes reach Railway prod: the container does NOT run
  * Encore auto-migrations, so /health invokes this once per process boot.
  */
@@ -99,6 +100,18 @@ export async function runAllNumberedMigrationFiles(): Promise<MigrationResponse>
           .sort(compareMigrationFiles);
         for (const file of avatarFiles) {
           await runSqlFile(path.join(avatarMigrationsPath, file), avatarDB);
+        }
+      }
+
+      // Doku migrations also need to reach Railway, where Encore does not
+      // automatically apply service migrations.
+      const dokuMigrationsPath = path.join(basePath, "doku", "migrations");
+      if (fs.existsSync(dokuMigrationsPath)) {
+        const dokuFiles = fs.readdirSync(dokuMigrationsPath)
+          .filter((f) => f.endsWith(".up.sql"))
+          .sort(compareMigrationFiles);
+        for (const file of dokuFiles) {
+          await runSqlFile(path.join(dokuMigrationsPath, file), dokuDB);
         }
       }
 

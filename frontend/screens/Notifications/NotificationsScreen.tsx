@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   Archive, ArchiveRestore, ArrowUpRight, Bell, BellOff, Check, CheckCheck,
@@ -200,7 +200,7 @@ export default function NotificationsScreen() {
         <div>
           <span className="notification-eyebrow"><span className="notification-live-dot" /> NEUES AUS DEINER TALEA-WELT</span>
           <h1>Mitteilungen<span className="notification-heading-dot">.</span></h1>
-          <p>Frische Ideen, neue Abenteuer und kleine Überraschungen.<br className="hidden sm:block" /> Alles, was dich und deine Talea-Welt weiterbringt.</p>
+          <p>Schau, was neu ist! Hier warten frische Audio-Dokus,<br className="hidden sm:block" /> neue Charaktere und kleine Überraschungen auf dich.</p>
         </div>
         <div className="notification-hero-mark" aria-hidden="true"><span className="notification-stamp-label">TALEA POST</span><Bell size={43} strokeWidth={1.15} /><span className="notification-stamp-line" /><span>FÜR DICH</span></div>
       </motion.header>
@@ -228,6 +228,8 @@ export default function NotificationsScreen() {
             </div>
           </div>
 
+          {isAdmin && <p className="notification-publishing-note">Neue Audio-Dokus erscheinen hier automatisch, sobald sie öffentlich sind. <Link to="/doku?mode=audio">Audio-Bibliothek öffnen <ArrowUpRight size={13} /></Link></p>}
+
           <div className="notification-search"><Search size={18} aria-hidden="true" /><input type="search" aria-label="Mitteilungen durchsuchen" placeholder="Mitteilungen durchsuchen …" value={search} onChange={(event) => setSearch(event.target.value)} />{search && <button type="button" aria-label="Suche leeren" onClick={() => setSearch('')}><X size={16} /></button>}</div>
 
           <div className="notification-filters" role="group" aria-label="Nach Thema filtern">
@@ -241,11 +243,11 @@ export default function NotificationsScreen() {
               <button type="button" aria-pressed={archived} className={archived ? 'is-selected' : ''} onClick={() => { setArchived(true); setUnreadOnly(false); }}><Archive size={14} />Archiv</button>
             </div>
             <label className="notification-unread-control"><input type="checkbox" checked={unreadOnly} onChange={(event) => setUnreadOnly(event.target.checked)} /> Nur ungelesen</label>
-            {!archived && <button type="button" className="notification-mark-all" disabled={busy || loading || !summary?.unreadCount || !feed} onClick={() => feed && void mutate(() => backend.user.markNotificationsRead({ asOf: feed.asOf }), 'Alle Mitteilungen wurden als gelesen markiert.')}><CheckCheck size={15} /><span>Alle gelesen</span></button>}
+            {!archived && <button type="button" className="notification-mark-all" aria-label="Alle Mitteilungen als gelesen markieren" disabled={busy || loading || !summary?.unreadCount || !feed} onClick={() => feed && void mutate(() => backend.user.markNotificationsRead({ asOf: feed.asOf }), 'Alle Mitteilungen wurden als gelesen markiert.')}><CheckCheck size={15} /><span>Alle gelesen</span></button>}
           </div>
 
           <div className="notification-results" aria-busy={loading || busy}>
-            {!loading && feed && summary && summary.unreadCount > feed.unreadCount && (
+            {!loading && feed && summary && (summary.unreadCount > feed.unreadCount || new Date(summary.latestUnreadAt ?? '').getTime() > new Date(feed.latestUnreadAt ?? '1970-01-01').getTime()) && (
               <div className="notification-new-arrivals" role="status"><Bell size={16} /><span>Es gibt neue Mitteilungen.</span><button type="button" disabled={busy} onClick={() => void load()}>Jetzt anzeigen <RefreshCw size={13} /></button></div>
             )}
             {loading ? (
@@ -273,7 +275,7 @@ export default function NotificationsScreen() {
                   </React.Fragment>;
                 })}
                 {feed.hasMore && <button type="button" className="notification-load-more notification-button" disabled={loadingMore || busy} onClick={() => void loadMore()}>{loadingMore ? <LoaderCircle size={17} className="notification-spin" /> : <ChevronDown size={17} />}Weitere Mitteilungen</button>}
-                <p className="notification-feed-end">Neue Kataloginhalte der letzten 90 Tage · Persönliche Freigaben und Neuigkeiten bleiben erhalten.</p>
+                <p className="notification-feed-end">In den letzten 90 Tagen neu veröffentlicht · Persönliche Freigaben und Neuigkeiten bleiben erhalten.</p>
               </div>
             )}
           </div>

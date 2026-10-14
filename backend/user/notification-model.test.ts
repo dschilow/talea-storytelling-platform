@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   applyNotificationState, DEFAULT_NOTIFICATION_PREFERENCES, isAllowedNotificationHref,
-  isNotificationEnabled, type NotificationItem, type NotificationKind,
+  isNotificationEnabled, summarizeNotifications, type NotificationItem, type NotificationKind,
 } from './notification-model';
 
 function item(id: string, createdAt: string, kind: NotificationKind = 'audio'): NotificationItem {
@@ -38,6 +38,29 @@ describe('notification topics', () => {
     const preferences = { ...DEFAULT_NOTIFICATION_PREFERENCES, characters: false };
     for (const kind of ['update', 'audio', 'sharing', 'tip'] as const) assert.equal(isNotificationEnabled(kind, preferences), true);
     assert.equal(isNotificationEnabled('character', preferences), false);
+  });
+});
+
+describe('notification notice summary', () => {
+  it('counts unread inbox entries and finds the newest publication even with an older pinned notice first', () => {
+    const items = [
+      { ...item('pinned', '2026-10-01T08:00:00Z', 'update'), pinned: true },
+      item('audio:new', '2026-10-14T08:00:00Z'),
+      item('character:new', '2026-10-13T08:00:00Z', 'character'),
+      { ...item('audio:read', '2026-10-14T09:00:00Z'), read: true },
+      { ...item('audio:archived', '2026-10-14T10:00:00Z'), archived: true },
+    ];
+    const summary = summarizeNotifications(items, DEFAULT_NOTIFICATION_PREFERENCES);
+    assert.equal(summary.unreadCount, 3);
+    assert.equal(summary.counts.audio, 1);
+    assert.equal(summary.counts.character, 1);
+    assert.equal(summary.latestUnreadAt, '2026-10-14T08:00:00Z');
+  });
+
+  it('clears the notice timestamp when everything is read', () => {
+    const summary = summarizeNotifications([{ ...item('audio:read', '2026-10-14T08:00:00Z'), read: true }], DEFAULT_NOTIFICATION_PREFERENCES);
+    assert.equal(summary.unreadCount, 0);
+    assert.equal(summary.latestUnreadAt, undefined);
   });
 });
 
