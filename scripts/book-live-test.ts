@@ -17,6 +17,7 @@
  *   --upto 6                                            stop after chapter 6 (cost sampling)
  *   --state-file <result.json>                          reuse the chapters of an earlier run (with --plan-file): only draw
  *   --no-images | --image-chapters 3                    pictures for all chapters or only the first N
+ *   (env) TALEA_JEV_CHECK=off                           without the second picture reader (Jev: tails, doubles, fused bodies)
  *   --history Logs/test-history-alexander-adrian.json   recent stories of the family
  *   --plan-only                                         pitch + plan + plan review, no chapters
  *   --out Logs/book-v1/<tag>
@@ -33,6 +34,7 @@ import { acceptsTemperature, extractStorybookChoiceContent, isTruncatedFinishRea
 import { selectRewardArtifacts, toArtifactOption, toCastCandidate } from "../backend/story/storybook/cast-selection";
 import { castAppearance, describeReferenceLooks, heroAppearance, speciesFromProfile, type VisualEntity } from "../backend/story/storybook/illustration-stage";
 import type { ImageProvider } from "../backend/story/storybook/images";
+import { createOpenRouterJevPort } from "../backend/story/storybook/jev-openrouter";
 import { runDevelopmentStage } from "../backend/story/storybook/developments";
 import { countWords } from "../backend/story/storybook/checks";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "../backend/story/storybook/book/budget";
@@ -296,7 +298,7 @@ if (!flag("--plan-only")) {
     let slot = 1;
     for (let from = 1; from <= imageChapters; from += 3) {
       const chapters = state.chapters.filter((chapter) => chapter.order >= from && chapter.order <= Math.min(imageChapters, from + 2));
-      const batch = await illustrateBatch({ llm, models, ledger, brief: planned.brief, plan: planned.plan, chapters, entities: looks.entities, provider: runware, seed, withCover: from === 1, fixedElements, startSlot: slot });
+      const batch = await illustrateBatch({ llm, models, ledger, brief: planned.brief, plan: planned.plan, chapters, entities: looks.entities, provider: runware, seed, withCover: from === 1, fixedElements, startSlot: slot, jev: createOpenRouterJevPort(() => openRouterKey) });
       slot += chapters.length * book.imagesPerChapter;
       fixedElements = batch.storyElements;
       if (batch.coverUrl) coverUrl = batch.coverUrl;

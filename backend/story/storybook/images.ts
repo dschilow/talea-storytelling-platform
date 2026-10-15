@@ -8,6 +8,8 @@
  *   3. a cheap vision check (gpt-6-luna reads images) for the defects a parent
  *      notices first: extra hands or fingers, animal ears/tails on humans,
  *      doubled characters, text, the reference sheet painted into the scene;
+ *      a second, much cheaper reader (jev.ts) runs alongside and adds what the
+ *      first one lets through: a child with a tail or wings, the same figure twice;
  *   4. on a defect exactly one regeneration with a new seed and a named
  *      correction; the better of the two attempts ships;
  *   5. hard defects (extra limbs, doubles, strangers, features on the wrong
@@ -24,6 +26,7 @@ import { createIdentityReferenceCache, type IdentityReferenceBuilder } from "../
 import { mentions } from "./checks";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import { assembleImagePrompt, mentionsElement, negativePromptFor, type VisualEntity } from "./illustration-stage";
+import { interpretJev, JEV_MODEL, JEV_THRESHOLDS, jevQuestionsFor, parseJevScores, type JevPort, type JevScores } from "./jev";
 import type { IllustrationPlan, IllustrationShot, StoryElement } from "./types";
 
 export interface ImageRequest {
@@ -66,6 +69,10 @@ export interface ImageQaReport {
   posing?: boolean;
   /** A story THING drawn twice (a doubled pot): worth a redraw, never a reason to leave the page blank. */
   thingDuplicates?: string[];
+  /** The second reader's soft findings (same figure twice, fused bodies): a redraw, never a blank page. */
+  jevFindings?: string[];
+  /** The second reader's raw probabilities, for the log. */
+  jev?: JevScores;
   textVisible: boolean;
   referenceSheetVisible: boolean;
   identityMatch: number;
@@ -102,6 +109,8 @@ export interface StorybookImagesResult {
   imageCalls: number;
   imageCostUSD: number;
   qaCalls: LlmCallResult[];
+  /** The second reader's calls, kept apart so the ledger shows what it costs. */
+  jevCalls?: LlmCallResult[];
   regenerated: number[];
 }
 
@@ -120,6 +129,8 @@ export interface GenerateImagesInput {
   pageTexts?: Record<number, string>;
   /** A second reader of another family when the first reply is unreadable. */
   fallbackVisionModel?: string;
+  /** Jev: a cheap second opinion on tails, doubles and fused bodies; its failure never changes a verdict. */
+  jev?: JevPort;
   historical?: boolean;
   /** Chapter books draw the cover once, with the first batch only. */
   skipCover?: boolean;
@@ -270,6 +281,7 @@ export function qaSeverityParts(
   // A wrong key action is worth a redraw, but it does not make the page unreadable.
   soft += report.roleSwaps.length * 10;
   soft += (report.elementMisuse?.length || 0) * 10;
+  soft += (report.jevFindings?.length || 0) * 10;
   // Story 2db50859: Adrian missing on the cover and page 1, Alexander on page 3.
   // Only visible figures belong to the manifest, so each one is required; a
   // cover without one of its heroes is never printed.
@@ -345,7 +357,8 @@ export function correctionFor(report: ImageQaReport, elementNames: string[] = []
   const fixes: string[] = [];
   if (report.anatomyDefects.length) fixes.push("Every figure is one separate, complete body with natural anatomy.");
   if (report.animalFeaturesOnHumans.length || report.featureBleed?.length) fixes.push("Each figure looks exactly like its own place on the identity sheet; the children look like ordinary human kids in their own clothes.");
-  if (report.duplicates.length || report.unexpectedCharacters.length) fixes.push("The listed figures are the only figures in the picture, each exactly once.");
+  if (report.duplicates.length || report.unexpectedCharacters.length || report.jevFindings?.some((finding) => /twice/.test(finding))) fixes.push("The listed figures are the only figures in the picture, each exactly once.");
+  if (report.jevFindings?.some((finding) => /fused/.test(finding))) fixes.push("Every figure is one separate, complete body; the figures stand apart so no two bodies merge.");
   if (report.missing?.length) fixes.push(`${report.missing.slice(0, 3).join(" and ")} clearly visible in the foreground.`);
   const misused = elementNames.filter((name) => report.elementMisuse?.some((note) => note.toLowerCase().includes(name.toLowerCase())));
   if (misused.length) fixes.push(`${misused.join(" and ")} shown as its own separate figure or thing.`);
@@ -375,6 +388,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
   const byId = new Map(input.entities.map((entity) => [entity.id, entity]));
   const artifact = input.entities.find((entity) => entity.kind === "artifact");
   const qaCalls: LlmCallResult[] = [];
+  const jevCalls: LlmCallResult[] = [];
   const regenerated: number[] = [];
   let imageCalls = 0;
   let imageCostUSD = 0;
@@ -429,6 +443,40 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     }
     errors.push(`${label}: incomplete image QA report`);
     return undefined;
+  };
+
+  /**
+   * The second reader, run next to the first. A failure (alpha API, download, timeout)
+   * is logged and costs nothing but the second opinion.
+   */
+  const secondOpinion = async (imageUrl: string, drawn: VisualEntity[], label: string): Promise<JevScores | undefined> => {
+    if (!input.jev || drawn.length === 0) return undefined;
+    try {
+      const reply = await input.jev({ imageUrl, questions: jevQuestionsFor(drawn) });
+      jevCalls.push({
+        text: JSON.stringify(reply.answers),
+        modelUsed: JEV_MODEL,
+        usage: { prompt: reply.inputTokens, completion: 0, total: reply.inputTokens, costUSD: reply.costUSD },
+        durationMs: reply.durationMs,
+      });
+      return parseJevScores(reply.answers) ?? undefined;
+    } catch (err) {
+      console.warn(`[storybook/images] second reader failed (${label}):`, (err as Error)?.message || err);
+      return undefined;
+    }
+  };
+
+  /** The second reader's findings added to the checker's report; a hybrid it shares with the checker is not counted twice. */
+  const withSecondOpinion = (qa: ImageQaReport, scores: JevScores | undefined): ImageQaReport => {
+    if (!scores) return qa;
+    const found = interpretJev(scores);
+    return {
+      ...qa,
+      animalFeaturesOnHumans: qa.animalFeaturesOnHumans.length ? qa.animalFeaturesOnHumans : found.hybrid,
+      jevFindings: found.soft,
+      textVisible: qa.textVisible || found.text,
+      jev: scores,
+    };
   };
 
   const renderShot = async (shot: IllustrationShot): Promise<ImageOutcome> => {
@@ -584,9 +632,9 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
         severity: outcome.severity,
         notes: outcome.qa
           ? [
-              ...outcome.qa.anatomyDefects, ...outcome.qa.animalFeaturesOnHumans, ...outcome.qa.duplicates, ...(outcome.qa.thingDuplicates || []), ...(outcome.qa.featureBleed || []), ...outcome.qa.roleSwaps, ...outcome.qa.unexpectedCharacters, ...outcome.qa.missing?.map((name) => `${name} missing`) || [],
+              ...outcome.qa.anatomyDefects, ...outcome.qa.animalFeaturesOnHumans, ...outcome.qa.duplicates, ...(outcome.qa.thingDuplicates || []), ...(outcome.qa.jevFindings || []), ...(outcome.qa.featureBleed || []), ...outcome.qa.roleSwaps, ...outcome.qa.unexpectedCharacters, ...outcome.qa.missing?.map((name) => `${name} missing`) || [],
               // The flags too: without them a redraw for writing or a pose left no reason in the log.
-              ...(outcome.qa.textVisible ? ["text visible"] : []),
+              ...(outcome.qa.textVisible ? [outcome.qa.jev && outcome.qa.jev.text >= JEV_THRESHOLDS.text ? `text visible [jev ${Math.round(outcome.qa.jev.text * 100)}%]` : "text visible"] : []),
               ...(outcome.qa.referenceSheetVisible ? ["reference sheet visible"] : []),
               ...(outcome.qa.posing ? ["posing"] : []),
               ...(outcome.qa.identityMatch < 0.6 ? [`identity ${outcome.qa.identityMatch}`] : []),
@@ -603,15 +651,19 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       const url = got.response.url;
       if (!url) return { page: shot.page, prompt: got.prompt, attempts: attemptNo, costUSD, severity: 999, status: "missing", level: -1, plan: plan.kind };
       const expectedNames = [...plan.onStage.map((entity) => entity.name), ...plan.elements.map((element) => element.name)];
-      const raw = await inspect(
-        `image-qa-${cover ? "cover" : `p${shot.page}`}-${attemptNo}`,
-        buildQaPrompt(plan.drawn, plan.qaScene, got.references.length > 0, plan.elements, input.pageTexts?.[shot.page]),
-        [got.response.viewUrl || url, ...got.references.slice(0, 1)],
-        expectedNames,
-        errors,
-        `attempt ${attemptNo}`
-      );
-      const qa = raw ? scopeQaReport(raw, plan.onStage.map((entity) => entity.name), plan.elements) : undefined;
+      const [raw, scores] = await Promise.all([
+        inspect(
+          `image-qa-${cover ? "cover" : `p${shot.page}`}-${attemptNo}`,
+          buildQaPrompt(plan.drawn, plan.qaScene, got.references.length > 0, plan.elements, input.pageTexts?.[shot.page]),
+          [got.response.viewUrl || url, ...got.references.slice(0, 1)],
+          expectedNames,
+          errors,
+          `attempt ${attemptNo}`
+        ),
+        secondOpinion(got.response.viewUrl || url, plan.drawn, `${cover ? "cover" : `page ${shot.page}`} attempt ${attemptNo}`),
+      ]);
+      const checked = raw ? scopeQaReport(raw, plan.onStage.map((entity) => entity.name), plan.elements) : undefined;
+      const qa = checked ? withSecondOpinion(checked, scores) : undefined;
       const heroNames = plan.onStage.filter((entity) => entity.role === "hero").map((entity) => entity.name);
       const parts = qaSeverityParts(qa, plan.onStage.length + plan.elements.length, { heroNames, cover });
       return { page: shot.page, url, prompt: got.prompt, attempts: attemptNo, costUSD, qa, severity: parts.hard + parts.soft, status: qaStatus(qa, parts), level: got.level, plan: plan.kind };
@@ -744,5 +796,5 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     else pages.set(outcome.page, outcome);
   }
   const imagesGenerated = outcomes.filter((outcome) => outcome.url).length;
-  return { cover, pages, imagesGenerated, imageCalls, imageCostUSD, qaCalls, regenerated };
+  return { cover, pages, imagesGenerated, imageCalls, imageCostUSD, qaCalls, jevCalls, regenerated };
 }

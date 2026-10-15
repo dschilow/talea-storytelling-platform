@@ -12,6 +12,7 @@
 import { mentions } from "../checks";
 import { runDirectorStage, type VisualEntity } from "../illustration-stage";
 import { generateStorybookImages, publishableImageUrl, type ImageOutcome, type ImageProvider } from "../images";
+import type { JevPort } from "../jev";
 import type { CostLedger, StorybookLlm, StorybookModels } from "../llm";
 import type { StoryElement, StoryPlan, StorybookPage } from "../types";
 import type { BookBrief, BookChapter, BookPlan } from "./types";
@@ -115,6 +116,8 @@ export async function illustrateBatch(input: {
   withCover: boolean;
   fixedElements?: StoryElement[];
   startSlot?: number;
+  /** Second reader for tails, doubles and fused bodies (see ../jev.ts). */
+  jev?: JevPort;
 }): Promise<BatchImagesResult> {
   const slots = buildImageSlots(input.chapters, input.plan, input.brief.book.imagesPerChapter, input.startSlot || 1);
   const empty: BatchImagesResult = { images: [], missing: slots.map((slot) => ({ chapter: slot.chapter, part: slot.part })), storyElements: input.fixedElements || [], imageCostUSD: 0, imagesGenerated: 0 };
@@ -153,8 +156,10 @@ export async function illustrateBatch(input: {
       fallbackVisionModel: input.models.critic,
       pageTexts: Object.fromEntries(pages.map((page) => [page.order, page.content])),
       skipCover: !input.withCover,
+      jev: input.jev,
     });
     images.qaCalls.forEach((qaCall, index) => input.ledger.recordCall(`book-image-qa-${range}-${index + 1}`, qaCall, "support"));
+    images.jevCalls?.forEach((jevCall, index) => input.ledger.recordCall(`book-image-jev-${range}-${index + 1}`, jevCall, "support"));
     const result: BatchImagesResult = { images: [], missing: [], storyElements: director.illustrations.storyElements || [], imageCostUSD: images.imageCostUSD, imagesGenerated: images.imagesGenerated, imageCalls: images.imageCalls, redraws: [] };
     if (input.withCover) result.coverUrl = publishableImageUrl(images.cover);
     const reasonsOf = (outcome: NonNullable<typeof images.cover>) =>

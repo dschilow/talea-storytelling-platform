@@ -44,6 +44,8 @@ import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
 import { runStorybookTextEngine, STORYBOOK_PIPELINE_ID } from "./storybook/engine";
 import { castAppearance, describeReferenceLooks, heroAppearance, runDirectorStage, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
 import { generateStorybookImages, publishableImageUrl, type ImageProvider, type StorybookImagesResult } from "./storybook/images";
+import { createOpenRouterJevPort } from "./storybook/jev-openrouter";
+import { resolveOpenRouterApiKey } from "./openrouter-generation";
 import { storybookQuality } from "./storybook/quality";
 import { runDevelopmentStage } from "./storybook/developments";
 import { artifactHeadToken, countWords } from "./storybook/checks";
@@ -272,6 +274,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       llm,
       visionModel: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : models.support,
       fallbackVisionModel: models.critic,
+      jev: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : createOpenRouterJevPort(resolveOpenRouterApiKey),
       pageTexts: Object.fromEntries(pages.map((page) => [page.order, page.content])),
       historical: !["modern", "scifi"].includes(config.genre || "") && ["fantasy", "medieval", "castle"].includes(config.setting || ""),
     }).catch((err): StorybookImagesResult => {
@@ -281,6 +284,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     runDevelopmentStage(llm, { heroes: brief.heroes, title: text.title, pages }, models.support),
   ]);
   images.qaCalls.forEach((call, index) => ledger.recordCall(`image-qa-${index + 1}`, call, "support"));
+  images.jevCalls?.forEach((call, index) => ledger.recordCall(`image-jev-${index + 1}`, call, "support"));
   if (development.call) ledger.recordCall("avatar-development", development.call, "support");
 
   // -------------------------------------------------------------------------

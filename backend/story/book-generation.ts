@@ -28,7 +28,7 @@ import { assignAvatarDevelopmentIds } from "./avatar-development-assignment";
 import { recordStoryArtifact } from "./artifact-matcher";
 import { recordBroughtArtifact } from "./artifact-treasury";
 import { buildImageCostEntry, buildLlmCostEntry, summarizeStoryCostEntries } from "./pipeline/cost-ledger";
-import { splitOpenRouterCostUSD } from "./openrouter-generation";
+import { resolveOpenRouterApiKey, splitOpenRouterCostUSD } from "./openrouter-generation";
 import { enrichStoryForTTS } from "./tts-enrichment";
 import { encoreImageProvider, IMAGE_MODEL, readableReference } from "./storybook-mode-generation";
 import { normalizeAgeBand } from "./storybook/craft";
@@ -45,6 +45,7 @@ import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./st
 import { buildCatalogue } from "./storybook/book/catalogue";
 import { buildSeriesMemory, planBook, resolveBookPlanner, writeBook, type BookContext, type PlannedBook } from "./storybook/book/engine";
 import { illustrateBatch, type BatchImagesResult, type BookImage } from "./storybook/book/illustrations";
+import { createOpenRouterJevPort } from "./storybook/jev-openrouter";
 import { emptyBookState, type BookBrief, type BookState, type SeriesMemory } from "./storybook/book/types";
 import type { StoryConfig } from "./generate";
 
@@ -453,6 +454,7 @@ async function runJobStep(row: JobRow): Promise<void> {
             return illustrateBatch({
               llm, models, ledger, brief: planned.brief, plan: planned.plan, chapters: fresh, entities: entities.entities,
               provider: encoreImageProvider(storyId), seed: seedFor(input), withCover: from === 1, fixedElements: state.storyElements, startSlot: state.slot || 1,
+              jev: createOpenRouterJevPort(resolveOpenRouterApiKey),
             });
           })();
       state.book = next;
