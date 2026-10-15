@@ -31,6 +31,12 @@ export interface Verdict {
   beauty: number;
   /** Passt das Bild zur Szene (Handlung, Ort), 0–3 */
   sceneFit: number;
+  /** Wie viel echte Umgebung: 0 = leerer/heller Wash, 1 = Andeutung, 2 = erkennbarer Ort, 3 = reiche Umgebung */
+  scenery: number;
+  /** 0 = Figuren stehen/posieren, 3 = die beschriebene Handlung ist klar zu sehen */
+  action: number;
+  /** Figuren schweben vor einem hellen Verlauf/Vignette ohne Ort */
+  vignette: boolean;
   issues: string[];
   pass: boolean;
   /** Mittel aus identity (0–3), auf 0–1 normiert */
@@ -53,9 +59,12 @@ Also:
 - artifacts: 3 = clean, 2 = minor, 1 = obvious (warped faces or hands, melted shapes), 0 = severe.
 - beauty: 0-10 as a children's picture-book illustration (composition, colour, charm, finish). Be critical; 6 is decent, 8 would be a printed picture book.
 - sceneFit: 3 = the described action, place and light are all there, 0 = unrelated.
+- scenery: 0 = plain, pale or empty wash/background (figures could be cut out and nothing would be missing), 1 = a hint of environment (a few strokes, one object), 2 = the requested place is recognisable with several details, 3 = a full environment with foreground, middle ground and background that matches the requested place.
+- action: 0 = the figures stand or pose facing the viewer, nothing happens, 1 = vague movement, 2 = the requested action is recognisable, 3 = the described moment is clearly and dynamically shown.
+- vignette: true if the figures sit in a soft pale vignette, wash or blob instead of a real place (white or cream edges fading out).
 - issues: up to 4 short phrases naming the worst concrete problems.`;
 
-const SCHEMA_HINT = `Return JSON exactly like: {"figures":[{"name":"","count":1,"identity":3,"outfit":3,"anatomy":2,"note":""}],"unlisted":0,"sheetLeak":false,"text":false,"artifacts":3,"beauty":7,"sceneFit":3,"issues":[]}`;
+const SCHEMA_HINT = `Return JSON exactly like: {"figures":[{"name":"","count":1,"identity":3,"outfit":3,"anatomy":2,"note":""}],"unlisted":0,"sheetLeak":false,"text":false,"artifacts":3,"beauty":7,"sceneFit":3,"scenery":2,"action":2,"vignette":false,"issues":[]}`;
 
 const num = (value: unknown, fallback = 0) => (Number.isFinite(Number(value)) ? Number(value) : fallback);
 
@@ -115,6 +124,7 @@ export async function judge(args: { image: Buffer; sheet: Buffer; figures: Figur
       const rest = { unlisted: num(parsed.unlisted), sheetLeak: Boolean(parsed.sheetLeak), text: Boolean(parsed.text), artifacts: Math.min(3, num(parsed.artifacts)) };
       return {
         figures, ...rest, beauty: num(parsed.beauty), sceneFit: num(parsed.sceneFit),
+        scenery: Math.min(3, num(parsed.scenery)), action: Math.min(3, num(parsed.action)), vignette: Boolean(parsed.vignette),
         issues: Array.isArray(parsed.issues) ? parsed.issues.slice(0, 4).map((issue: unknown) => String(issue).slice(0, 140)) : [],
         pass: decide(figures, rest),
         identityScore: figures.length ? figures.reduce((sum, figure) => sum + figure.identity, 0) / (3 * figures.length) : 0,

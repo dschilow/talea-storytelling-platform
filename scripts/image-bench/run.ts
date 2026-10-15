@@ -22,7 +22,7 @@ import { buildRefs, judgeSheet, REF_STRATEGIES, type BuiltRefs, type RefStrategy
 import { figureById, loadRoster, restylePortrait, type Figure } from "./lib/roster";
 
 const PRICE_GUARD = 0.0125;
-const BASE_SCENES = SCENES.filter((scene) => !/^s5[bcd]/.test(scene.id)).map((scene) => scene.id);
+const BASE_SCENES = SCENES.filter((scene) => !/^(s5[bcd]|b[0-9]|l[0-9])/.test(scene.id)).map((scene) => scene.id);
 
 interface Variant {
   id: string;
@@ -94,6 +94,9 @@ function summarize(results: CaseResult[], ranks: Ranks = {}) {
       variant, n: rows.length, delivered: delivered.length, failed: rows.length - delivered.length,
       passRate, identity: mean(judged.map((v) => v.identityScore)), beauty: mean(judged.map((v) => v.beauty)),
       artifacts: mean(judged.map((v) => v.artifacts)), sceneFit: mean(judged.map((v) => v.sceneFit)),
+      scenery: mean(judged.map((v) => v.scenery)), action: mean(judged.map((v) => v.action)),
+      vignette: judged.length ? judged.filter((v) => v.vignette).length / judged.length : NaN,
+      composition: judged.length ? judged.filter((v) => v.scenery >= 2 && v.action >= 2 && !v.vignette).length / judged.length : NaN,
       leak: judged.length ? judged.filter((v) => v.sheetLeak).length / judged.length : NaN,
       text: judged.length ? judged.filter((v) => v.text).length / judged.length : NaN,
       unlisted: judged.length ? judged.filter((v) => v.unlisted > 0).length / judged.length : NaN,
@@ -110,13 +113,14 @@ function reportMarkdown(name: string, results: CaseResult[], budget?: Budget, ra
     "",
     `${results.length} Fälle, ${rows.length} Varianten.${budget ? ` Ausgegeben: Bilder $${budget.spent.toFixed(4)}, Judge $${budget.judge.toFixed(4)}.` : ""}`,
     "",
-    "| Variante (Modell \\| Referenz \\| Prompt \\| Stil) | n | ok | Rang | Bestanden | davon 1 / 2 / 3 / 4 Fig. | Identität | Schön (0–10) | Artefakte (0–3) | Blatt im Bild | Schrift | Fremdfig. | ¢/Bild | ¢/gutes Bild | s |",
-    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+    "| Variante (Modell \\| Referenz \\| Prompt \\| Stil) | n | ok | Rang | Bestanden | Szene gut | Umgebung (0–3) | Aktion (0–3) | Vignette | davon 1 / 2 / 3 / 4 Fig. | Identität | Schön (0–10) | Artefakte (0–3) | Blatt im Bild | Schrift | Fremdfig. | ¢/Bild | ¢/gutes Bild | s |",
+    "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ...rows.map((r) =>
-      `| ${r.variant} | ${r.n} | ${r.delivered} | ${pct(r.rank)} | **${pct(r.passRate)}** | ${pct(r.p1)} / ${pct(r.p2)} / ${pct(r.p3)} / ${pct(r.p4)} | ${fix(r.identity)} | ${fix(r.beauty, 1)} | ${fix(r.artifacts, 1)} | ${pct(r.leak)} | ${pct(r.text)} | ${pct(r.unlisted)} | ${fix(r.avgCost * 100, 3)} | ${Number.isFinite(r.perAccepted) ? fix(r.perAccepted * 100, 3) : "∞"} | ${fix(r.ms / 1000, 1)} |`,
+      `| ${r.variant} | ${r.n} | ${r.delivered} | ${pct(r.rank)} | **${pct(r.passRate)}** | ${pct(r.composition)} | ${fix(r.scenery)} | ${fix(r.action)} | ${pct(r.vignette)} | ${pct(r.p1)} / ${pct(r.p2)} / ${pct(r.p3)} / ${pct(r.p4)} | ${fix(r.identity)} | ${fix(r.beauty, 1)} | ${fix(r.artifacts, 1)} | ${pct(r.leak)} | ${pct(r.text)} | ${pct(r.unlisted)} | ${fix(r.avgCost * 100, 3)} | ${Number.isFinite(r.perAccepted) ? fix(r.perAccepted * 100, 3) : "∞"} | ${fix(r.ms / 1000, 1)} |`,
     ),
     "",
     "Rang = mittlerer Platz im anonymisierten Vergleich gleicher Szene/Seed (100 % = immer Bester, 0 % = immer Letzter; Identität vor Sauberkeit vor Schönheit).",
+    "Szene gut = Umgebung ≥ 2 und Aktion ≥ 2 und keine Vignette (Figuren vor einem hellen Wash ohne Ort).",
     "Bestanden = jede Figur genau einmal, Identität ≥ 2/3, Kleidung ≥ 2/3, Anatomie ≥ 1/2, keine Fremdfiguren, kein Referenzblatt im Bild, keine Schrift, Artefakte ≥ 2/3.",
     "¢/gutes Bild = Ø Kosten pro Bild ÷ Bestehensquote (so viele Versuche braucht ein brauchbares Bild).",
   ];

@@ -37,6 +37,8 @@ const POOL: PoolSpec[] = [
   { id: "7cd7c99a", tag: "fox with round glasses" },
   { id: "7ae55808", tag: "small green dragon" },
   { id: "5cba02d9", tag: "old witch in a black robe" },
+  { id: "6b5e29b8", tag: "silver-haired fairy in a pale blue dress with clear wings" },
+  { id: "a6cd9fbc", tag: "teacher with round glasses and a notebook" },
 ];
 
 const HEROES = [
