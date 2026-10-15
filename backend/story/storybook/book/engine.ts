@@ -12,7 +12,7 @@
 
 
 import { isGerman } from "../craft";
-import { fallbackModelFor, modelFamily, parseJsonObject, type CostLedger, type LlmCallResult, type LlmRequest, type StorybookLlm, type StorybookModels } from "../llm";
+import { STORYBOOK_SUPPORT_MODEL, fallbackModelFor, modelFamily, parseJsonObject, type CostLedger, type LlmCallResult, type LlmRequest, type StorybookLlm, type StorybookModels } from "../llm";
 import { mentionsName, resolveCasting, type CastingResult } from "./catalogue";
 import { checkChapter, mergeChapterPatch, parseChapterCritique, parseChapters, type ChapterCritiqueResult } from "./chapters";
 import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview } from "./plan";
@@ -30,7 +30,7 @@ import {
   buildSeriesMemoryPrompt,
   planReviewNotes,
 } from "./prompts";
-import type { BookBrief, BookChapter, BookPitch, BookPlan, BookState, ChapterCurvePoint, PlanReview, SeriesMemory } from "./types";
+import type { BookBrief, BookChapter, BookExperiment, BookPitch, BookPlan, BookState, ChapterCurvePoint, PlanReview, SeriesMemory } from "./types";
 
 export interface BookContext {
   llm: StorybookLlm;
@@ -84,6 +84,18 @@ async function jsonCall<T>(ctx: BookContext, request: LlmRequest, parse: (raw: a
 // Plan
 // ---------------------------------------------------------------------------
 
+/**
+ * Who plans a chapter book. Measured 2026-10-15: Luna at effort "low" plans for about 1 cent what Sol
+ * plans for about 12 cents, and Sol still wrote its chapters without a rewrite (Luna medium and
+ * Luna-pro scored higher on the plan review but caused rewrites in 5 of 6 chapters). "writer" puts
+ * the plan back on the writer model.
+ */
+export function resolveBookPlanner(model?: string, effort?: string): Pick<BookExperiment, "plannerModel" | "planEffort"> {
+  const plannerModel = !model ? STORYBOOK_SUPPORT_MODEL : model === "writer" ? undefined : model;
+  const planEffort = (effort as BookExperiment["planEffort"]) || (plannerModel === STORYBOOK_SUPPORT_MODEL ? "low" : undefined);
+  return { plannerModel, planEffort };
+}
+
 export async function planBook(ctx: BookContext): Promise<PlannedBook> {
   const { brief, models } = ctx;
   const experiment = brief.bookExperiment || {};
@@ -91,12 +103,14 @@ export async function planBook(ctx: BookContext): Promise<PlannedBook> {
   const planner = experiment.plannerModel || models.writer;
   // The plan critic must never be the planner's twin.
   const planCritic = modelFamily(planner) === modelFamily(models.critic) ? models.support : models.critic;
+  // A cheap planner that fails goes to the writer: the default fallback (Flash-Lite) planned 4/10 books.
+  const plannerFallback = planner !== models.writer ? models.writer : undefined;
 
   const pitchPrompt = buildPitchPrompt(brief);
   const pitch = await jsonCall(ctx, {
     stage: "book-pitch", role: "writer", model: planner, system: pitchPrompt.system, user: pitchPrompt.user,
-    json: true, maxTokens: 7000, effort: "low", timeoutMs: 240_000, temperature: 0.9,
-  }, parsePitch);
+    json: true, maxTokens: 7000, effort: "low", timeoutMs: 240_000, temperature: 0.9, fallbackModel: plannerFallback,
+  }, parsePitch, plannerFallback);
   const idea = pitch?.ideas[pitch.choice - 1];
   if (!idea) throw new Error("[book] Die Buchidee konnte nicht entwickelt werden. Bitte erneut versuchen.");
 
@@ -112,14 +126,14 @@ export async function planBook(ctx: BookContext): Promise<PlannedBook> {
   const planPrompt = buildPlanPrompt(castBrief, idea, casting.cast, casting.roles);
   const planRequest: LlmRequest = {
     stage: "book-plan", role: "writer", model: planner, system: planPrompt.system, user: planPrompt.user,
-    json: true, maxTokens: 14000 + brief.book.chapters * 300, effort: experiment.planEffort || "medium", timeoutMs: 420_000, temperature: 0.8,
+    json: true, maxTokens: 14000 + brief.book.chapters * 300, effort: experiment.planEffort || "medium", timeoutMs: 420_000, temperature: 0.8, fallbackModel: plannerFallback,
   };
   let rawPlan: any = null;
   const plan0 = await jsonCall(ctx, planRequest, (raw) => {
     const parsed = parsePlan(raw, brief.book.chapters);
     if (parsed) rawPlan = raw;
     return parsed;
-  });
+  }, plannerFallback);
   if (!plan0) throw new Error("[book] Der Bandplan konnte nicht erstellt werden. Bitte erneut versuchen.");
   let plan = plan0;
 

@@ -11,7 +11,7 @@
  *   --chapters 12 --images-per-chapter 2
  *   --wish "…"  --learning science --objectives "a|b" --twist --famous --rhymes --moral
  *   --write-mode batch|single|whole  --batch-size 3      how many chapters one writer call writes
- *   --planner openai/gpt-6-luna                         model for pitch + plan (default: the writer)
+ *   --planner writer|<model>                            model for pitch + plan (default: openai/gpt-6-luna at effort low, like production)
  *   --plan-effort low|medium|high  --chapter-effort minimal|low|medium  --chapter-writer <model>
  *   --upto 6                                            stop after chapter 6 (cost sampling)
  *   --no-images | --image-chapters 3                    pictures for all chapters or only the first N
@@ -35,7 +35,7 @@ import { runDevelopmentStage } from "../backend/story/storybook/developments";
 import { countWords } from "../backend/story/storybook/checks";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "../backend/story/storybook/book/budget";
 import { buildCatalogue } from "../backend/story/storybook/book/catalogue";
-import { buildSeriesMemory, planBook, writeBook, type BookContext } from "../backend/story/storybook/book/engine";
+import { buildSeriesMemory, planBook, resolveBookPlanner, writeBook, type BookContext } from "../backend/story/storybook/book/engine";
 import { chapterParagraphs, illustrateBatch, type BookImage } from "../backend/story/storybook/book/illustrations";
 import { emptyBookState, type BookBrief, type BookState } from "../backend/story/storybook/book/types";
 
@@ -211,10 +211,10 @@ const brief: BookBrief = {
   bookExperiment: {
     writeMode: (option("--write-mode", "batch") as any),
     batchSize: Number(option("--batch-size", "3")),
-    planEffort: option("--plan-effort") as any,
+    // Same default as production: Luna low plans; --planner writer (or any model id) changes it.
+    ...resolveBookPlanner(option("--planner"), option("--plan-effort")),
     chapterEffort: option("--chapter-effort") as any,
     chapterWriterModel: option("--chapter-writer"),
-    plannerModel: option("--planner"),
   },
 };
 // --series-from <result.json>: the next volume of an earlier test book (its series memory and the child's choice).
@@ -231,7 +231,7 @@ const out = option("--out", join("Logs", "book-v1", new Date().toISOString().rep
 await mkdir(out, { recursive: true });
 
 console.log(`▶ chapter book live test → ${out}`);
-console.log(`  writer ${models.writer} | planner ${option("--planner") || models.writer} | support ${models.support} | critic ${models.critic}`);
+console.log(`  writer ${models.writer} | planner ${resolveBookPlanner(option("--planner"), option("--plan-effort")).plannerModel || models.writer} (${resolveBookPlanner(option("--planner"), option("--plan-effort")).planEffort || "medium"}) | support ${models.support} | critic ${models.critic}`);
 console.log(`  heroes ${heroes.map((hero: any) => hero.name).join(", ")} | form ${form} | ${book.chapters} chapters × ${book.wordsPerChapterMin}-${book.wordsPerChapterMax} words, ${book.imagesPerChapter} pictures | catalogue ${catalogue.length}`);
 
 const started = Date.now();

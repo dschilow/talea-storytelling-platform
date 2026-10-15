@@ -2,10 +2,11 @@
 import { describe, expect, test } from "bun:test";
 import { buildBrief } from "../context";
 import type { CastCandidate } from "../types";
+import { retryRequestFor, type LlmRequest } from "../llm";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./budget";
 import { catalogueForPitch, catalogueLine, foldUmlauts, mentionsName, resolveCasting } from "./catalogue";
 import { checkChapter, formulaicOpening, mergeChapterPatch, speechTagCommas, parseChapterCritique, parseChapters, quoteInText, repeatedPhrases } from "./chapters";
-import { chapterRanges } from "./engine";
+import { chapterRanges, resolveBookPlanner } from "./engine";
 import { buildImageSlots } from "./illustrations";
 import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview, planScoreCap } from "./plan";
 import { buildChapterStaticContext, buildChapterSystemPrompt, buildChapterSystemWithContext, buildChapterUserPrompt, buildPitchPrompt, plantedSentences, planReviewNotes } from "./prompts";
@@ -271,5 +272,19 @@ describe("batches, pictures and prompts", () => {
     const later = buildChapterUserPrompt(b, plan, { ...emptyBookState(), chapters: [{ order: 3, title: "x", recap: "r", content: "Text." }] }, 4, 6);
     expect(later).not.toContain("BOOK BIBLE");
     expect(later).toContain("THE LAST LINES OF CHAPTER 3");
+  });
+});
+
+describe("planner choice", () => {
+  test("Luna low plans by default, `writer` puts the plan back on the writer, a chosen model keeps its own effort", () => {
+    expect(resolveBookPlanner()).toEqual({ plannerModel: "openai/gpt-6-luna", planEffort: "low" });
+    expect(resolveBookPlanner("writer")).toEqual({ plannerModel: undefined, planEffort: undefined });
+    expect(resolveBookPlanner("openai/gpt-6-luna", "medium").planEffort).toBe("medium");
+    expect(resolveBookPlanner("anthropic/claude-haiku-5.5")).toEqual({ plannerModel: "anthropic/claude-haiku-5.5", planEffort: undefined });
+  });
+  test("a failed planner call goes to the writer, not to Flash-Lite", () => {
+    const request = { stage: "book-plan", role: "writer", model: "openai/gpt-6-luna", system: "", user: "", json: true, maxTokens: 1000, fallbackModel: "openai/gpt-6.1-sol" } as LlmRequest;
+    expect(retryRequestFor(request, new Error("Truncated response")).model).toBe("openai/gpt-6.1-sol");
+    expect(retryRequestFor({ ...request, fallbackModel: undefined }, new Error("Truncated response")).model).toBe("google/gemini-3.5-flash-lite");
   });
 });

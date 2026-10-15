@@ -43,7 +43,7 @@ import { artifactHeadToken, countWords } from "./storybook/checks";
 import type { StorybookHero, StoryElement } from "./storybook/types";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./storybook/book/budget";
 import { buildCatalogue } from "./storybook/book/catalogue";
-import { buildSeriesMemory, planBook, writeBook, type BookContext, type PlannedBook } from "./storybook/book/engine";
+import { buildSeriesMemory, planBook, resolveBookPlanner, writeBook, type BookContext, type PlannedBook } from "./storybook/book/engine";
 import { illustrateBatch, type BatchImagesResult, type BookImage } from "./storybook/book/illustrations";
 import { emptyBookState, type BookBrief, type BookState, type SeriesMemory } from "./storybook/book/types";
 import type { StoryConfig } from "./generate";
@@ -274,7 +274,8 @@ async function buildBookBrief(input: BookJobInput): Promise<BookBrief> {
     series: input.series?.memory || null,
     continuation: input.continuation || null,
     bookExperiment: {
-      plannerModel: process.env.TALEA_BOOK_PLANNER_MODEL || undefined,
+      // Luna low plans the volume (TALEA_BOOK_PLANNER_MODEL=writer: Sol plans again; TALEA_BOOK_PLAN_EFFORT overrides the effort).
+      ...resolveBookPlanner(process.env.TALEA_BOOK_PLANNER_MODEL || undefined, process.env.TALEA_BOOK_PLAN_EFFORT || undefined),
       chapterEffort: (process.env.TALEA_BOOK_CHAPTER_EFFORT as any) || undefined,
     },
   };

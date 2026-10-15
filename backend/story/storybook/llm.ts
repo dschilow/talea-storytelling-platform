@@ -57,6 +57,8 @@ export interface LlmRequest {
   /** Image URLs / data URIs for vision-capable models. */
   imageInputs?: string[];
   timeoutMs?: number;
+  /** Where a failed call goes instead of the default other-family model (a cheap planner falls back to the writer, not to Flash-Lite). */
+  fallbackModel?: string;
 }
 
 export interface LlmCallResult {
@@ -151,7 +153,7 @@ export function retryRequestFor(request: LlmRequest, error: unknown): { request:
   const truncated = /Truncated/i.test(message);
   return {
     request: { ...request, maxTokens: truncated ? Math.ceil(request.maxTokens * 1.5) : request.maxTokens },
-    model: fallbackModelFor(request.model),
+    model: request.fallbackModel || fallbackModelFor(request.model),
   };
 }
 

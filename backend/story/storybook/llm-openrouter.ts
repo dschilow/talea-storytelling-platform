@@ -106,7 +106,7 @@ export function createOpenRouterStorybookLlm(options: OpenRouterPortOptions = {}
         // 2026-09-30): only now does the other model write the story.
         if (retry.model === request.model) {
           const last = retryRequestFor({ ...retry.request, effort: "low" }, new Error("Truncated"));
-          const lastModel = fallbackModelFor(request.model);
+          const lastModel = request.fallbackModel || fallbackModelFor(request.model);
           console.warn(`[storybook/llm] ${request.stage}: ${request.model} failed twice, last try with ${lastModel}:`, (retryError as Error)?.message || retryError);
           try {
             const finalTry = await callOnce({ ...retry.request, maxTokens: last.request.maxTokens }, lastModel);
