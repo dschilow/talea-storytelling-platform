@@ -72,8 +72,9 @@ describe("image acceptance regressions from the mill story", () => {
       visionModel: "test", llm: async (r) => reply(r, { ...cleanQa, anatomyDefects: ["four arms"] }),
       provider: async () => ({ url: `https://example.test/${++calls}.jpg`, costUSD: .001 }),
     });
-    expect(calls).toBe(2);
-    expect(result.imageCostUSD).toBe(.002);
+    // full, redraw, and the one attempt on the stronger checkpoint
+    expect(calls).toBe(3);
+    expect(result.imageCostUSD).toBe(.003);
     expect(result.cover?.status).toBe("failed");
     expect(result.cover?.url).toBeDefined();
     expect(publishableImageUrl(result.cover)).toBeUndefined();
@@ -208,14 +209,16 @@ describe("story 774d5a5e: no blank pages, bound roles, plain nouns", () => {
     const page = result.pages.get(1)!;
     expect(page.vignette).toBe(true);
     expect(page.status).toBe("passed");
-    expect(page.attempts).toBe(3);
+    // full, redraw, strong, then the vignette
+    expect(page.attempts).toBe(4);
     expect(publishableImageUrl(page)).toBeDefined();
     const last = requests.filter((request) => request.page === 1).pop()!;
     expect(last.referenceImages).toEqual([]);
     expect(last.prompt).not.toMatch(/Alexander|Adrian/);
     expect(result.cover?.status).toBe("failed");
     expect(result.cover?.vignette).toBeUndefined();
-    expect(requests.filter((request) => request.page === 0)).toHaveLength(2);
+    // full, redraw and the stronger checkpoint — the cover never gets a vignette
+    expect(requests.filter((request) => request.page === 0)).toHaveLength(3);
   });
 
   test("an incomplete QA report is read once more instead of discarding the picture", async () => {
@@ -505,11 +508,11 @@ describe("story b10f2dad: the last page must not stay blank", () => {
     });
     const page = result.pages.get(7)!;
     expect(page.status).toBe("passed");
-    expect(page.attempts).toBe(3);
+    expect(page.attempts).toBe(4);
     expect(publishableImageUrl(page)).toBeDefined();
     const reducedPrompt = requests.filter((prompt) => prompt.length > 0).pop()!;
     expect(reducedPrompt).not.toContain("Fauchi");
-    expect(page.history?.map((entry) => entry.kind)).toEqual(["full", "redraw", "reduced"]);
+    expect(page.history?.map((entry) => entry.kind)).toEqual(["full", "redraw", "strong", "reduced"]);
   });
 
   test("when everything fails the least bad salvageable picture is printed, never a blank page", async () => {
@@ -653,3 +656,48 @@ describe("a lone creature called by a shorter word stays in the picture", () => 
     expect(sanitizeIllustrationPlan(raw, 1, plan, entities, 3).pages[0].elements).toEqual(["Froschkönig"]);
   });
 });
+
+describe("image prompting from the benchmark of 2026-10-15 (scripts/image-bench)", () => {
+  const hero: VisualEntity = { id: "h", name: "Adrian", role: "hero", kind: "character", species: "human", isHuman: true, appearance: "boy with short blond hair, grey t-shirt", forbidden: [], referenceUrl: "https://example.test/adrian.png" };
+  const dragon: VisualEntity = { id: "f", name: "Drache Fauchi", role: "cast", kind: "character", species: "dragon", isHuman: false, appearance: "small green dragon with orange wings", forbidden: [], referenceUrl: "https://example.test/fauchi.png" };
+  const cloud: VisualEntity = { id: "w", name: "Wolke Wuschel", role: "cast", kind: "character", species: "cloud", isHuman: false, appearance: "small white cloud with a rainbow scarf", forbidden: [], referenceUrl: "https://example.test/wuschel.png" };
+  const cave = { cover: { page: 0, scene: "Adrian at the cave entrance.", onStage: ["h"], artifactVisible: false }, pages: [{ page: 1, scene: "Fauchi puffs a flame and Wuschel rains while Adrian holds out his hands.", onStage: ["f", "w", "h"], artifactVisible: false }] };
+  const qa = (stage: string, defect: Record<string, unknown>) => ({ ...cleanQa, characterCounts: stage.includes("cover") ? { Adrian: 1 } : { Adrian: 1, "Drache Fauchi": 1, "Wolke Wuschel": 1 }, ...defect });
+
+  test("a doubled figure is redrawn with only the heroes on the sheet", async () => {
+    const sheets: string[][] = [];
+    const result = await generateStorybookImages({ illustrations: cave, entities: [hero, dragon, cloud], seed: "s", visionModel: "test", concurrency: 1,
+      buildReference: async (slots) => { sheets.push(slots.map((slot) => slot.displayName)); return { urls: ["data:image/png;base64,AAA"], mode: slots.length > 1 ? "sprite" : "single", subjects: [] }; },
+      llm: async (r) => reply(r, qa(r.stage, r.stage === "image-qa-p1-1" ? { duplicates: ["Adrian drawn 2 times"] } : {})),
+      provider: async (request) => ({ url: `https://example.test/${request.page}-${request.seed}.jpg` }),
+    });
+    // page 1: full sheet first, then the heroes-only sheet for the redraw
+    expect(sheets).toContainEqual(["Drache Fauchi", "Wolke Wuschel", "Adrian"]);
+    expect(sheets.filter((sheet) => sheet.join() === "Adrian").length).toBe(2); // cover + redraw
+    expect(result.pages.get(1)?.attempts).toBe(2);
+    expect(result.pages.get(1)?.status).toBe("passed");
+  });
+
+  test("a picture the standard checkpoint failed twice gets ONE attempt on the stronger one before figures are dropped", async () => {
+    const tiers: Array<string | undefined> = [];
+    const result = await generateStorybookImages({ illustrations: cave, entities: [hero, dragon, cloud], seed: "s", visionModel: "test", concurrency: 1, buildReference: reference,
+      llm: async (r) => reply(r, qa(r.stage, /image-qa-p1-[12]$/.test(r.stage) ? { duplicates: ["Adrian drawn 2 times"] } : {})),
+      provider: async (request) => { if (request.page === 1) tiers.push(request.tier); return { url: `https://example.test/${request.page}-${request.seed}.jpg` }; },
+    });
+    expect(tiers).toEqual([undefined, undefined, "strong"]);
+    const page = result.pages.get(1)!;
+    expect(page.attempts).toBe(3);
+    expect(page.status).toBe("passed");
+    expect(page.history?.map((entry) => entry.kind)).toEqual(["full", "redraw", "strong"]);
+  });
+
+  test("strongRetry: false keeps the old ladder (no stronger attempt)", async () => {
+    const tiers: Array<string | undefined> = [];
+    await generateStorybookImages({ illustrations: cave, entities: [hero, dragon, cloud], seed: "s", visionModel: "test", concurrency: 1, buildReference: reference, strongRetry: false,
+      llm: async (r) => reply(r, qa(r.stage, r.stage.startsWith("image-qa-p1") ? { duplicates: ["Adrian drawn 2 times"] } : {})),
+      provider: async (request) => { if (request.page === 1) tiers.push(request.tier); return { url: `https://example.test/${request.page}-${request.seed}.jpg` }; },
+    });
+    expect(tiers.includes("strong")).toBe(false);
+  });
+});
+

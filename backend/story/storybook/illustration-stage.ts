@@ -212,7 +212,11 @@ export function ownershipLine(onStage: VisualEntity[]): string {
 }
 
 /**
- * The final Runware prompt for FLUX.2 [klein] 9B (runware:400@2, 4 steps).
+ * The final Runware prompt for FLUX.2 [klein] 4B (runware:400@4, 4 steps; the 9B was used until 2026-10-15,
+ * benchmark: same quality). Measured 2026-10-15 and deliberately NOT changed: dropping the appearance lines for
+ * figures that are on the sheet and have a tag ("nolooks") scored 91 % vs 84 % but not significantly, and the
+ * production lines are already short (portrait-read, ≤ 25 words); style words barely act because the sheet's
+ * portraits set the look; a "left to right" layout sentence and rephrased scenes did nothing.
  *
  * Story 31a7a59d (2026-09-29): prompts of 3.000–3.500 characters, the sheet
  * contract and the redraw correction at the very end, and negations in the

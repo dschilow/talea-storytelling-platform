@@ -19,8 +19,8 @@
 
 import type { LifeStoryMood } from "./character-life-story-prompt";
 
-/** FLUX.2 [klein] 9B: follows a scene description far better than the 4B checkpoint (storybook A/B: 14/16 vs 7/16 clean pictures). */
-export const LIFE_STORY_IMAGE_MODEL = "runware:400@2";
+/** FLUX.2 [klein] 4B, like the Bilderbuch pipeline since 2026-10-15 (scripts/image-bench: as good as the 9B, ~30 % cheaper). */
+export const LIFE_STORY_IMAGE_MODEL = "runware:400@4";
 
 /** The generic cast pack minus its "no extra character / unlisted creature" entries: opponents are part of these pictures. */
 export const LIFE_STORY_IMAGE_NEGATIVE = [

@@ -33,7 +33,7 @@ const goodList = {
 
 describe("Shot-Liste für die Charaktergeschichten", () => {
   test("Bilder kommen vom 9B-Modell, ohne das Verbot weiterer Figuren", () => {
-    expect(LIFE_STORY_IMAGE_MODEL).toBe("runware:400@2");
+    expect(LIFE_STORY_IMAGE_MODEL).toBe("runware:400@4");
     expect(LIFE_STORY_IMAGE_NEGATIVE).not.toMatch(/extra character|unlisted creature|unlisted animal|unlisted person/);
     expect(LIFE_STORY_IMAGE_NEGATIVE).toContain("watermarks");
   });

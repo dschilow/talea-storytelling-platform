@@ -55,11 +55,23 @@ export { STORYBOOK_PIPELINE_ID };
 export type { StorybookGenerationInput, StorybookGeneratedStory, StorybookHero } from "./storybook/types";
 
 /**
- * FLUX.2 [klein] 9B. A/B 2026-09-29 (16 shots each, same prompts, sprites and
- * seeds): 14/16 clean pictures vs 7/16 with the 4B model (runware:400@4) —
- * the 4B fused children with dragons and tortoises. ~$0.0009–0.0016 per picture.
+ * FLUX.2 [klein] 4B (runware:400@4), 4 steps, 1024², acceleration high, CFG 4. Switched from the 9B
+ * (runware:400@2) on 2026-10-15 after scripts/image-bench (1,298 pictures, docs/bild-modelle-benchmark-
+ * 2026-10-15.de.md): across all runs 90 % usable vs 85 % for the 9B (not significant), ~0.13 ¢ vs ~0.19 ¢
+ * per picture. The A/B of 2026-09-29 (14/16 vs 7/16 clean for the 9B) ran on an older prompt and sheet
+ * pipeline and is not reproduced by the current one. Override: TALEA_STORYBOOK_IMAGE_MODEL (set it to
+ * runware:400@2 to go back).
  */
-export const IMAGE_MODEL = process.env.TALEA_STORYBOOK_IMAGE_MODEL || "runware:400@2";
+export const IMAGE_MODEL = process.env.TALEA_STORYBOOK_IMAGE_MODEL || "runware:400@4";
+
+/**
+ * The stronger checkpoint for ONE attempt of a picture the standard model failed twice: FLUX.2 [klein] 4B
+ * Base (runware:400@5), not distilled, 20 steps, real CFG, no acceleration — exactly the benchmark setup.
+ * ~0.6–0.9 ¢ per picture; on the hardest scene (child + dragon + cloud) 67–83 % clean vs 38 %.
+ * TALEA_STORYBOOK_IMAGE_STRONG=off removes the extra attempt (read in storybook/images.ts).
+ */
+export const IMAGE_MODEL_STRONG = process.env.TALEA_STORYBOOK_IMAGE_MODEL_STRONG || "runware:400@5";
+const STRONG_STEPS = 20;
 
 function stableSeed(input: StorybookGenerationInput): string {
   return createHash("sha256")
@@ -101,14 +113,17 @@ function imageSteps(): number {
 /** Runware through the ai service; stored URL for the story, readable URL for the vision check. */
 export function encoreImageProvider(storyId: string | undefined): ImageProvider {
   return async (request) => {
+    const strong = request.tier === "strong";
     const image = await ai.generateImage({
       prompt: request.prompt,
       negativePrompt: request.negativePrompt,
-      model: IMAGE_MODEL,
+      model: strong ? IMAGE_MODEL_STRONG : IMAGE_MODEL,
       width: request.width,
       height: request.height,
-      steps: imageSteps(),
+      steps: strong ? STRONG_STEPS : imageSteps(),
       CFGScale: 4,
+      // The distilled checkpoints run with acceleration "high"; the base checkpoint was measured without it.
+      ...(strong ? { acceleration: "none" as const } : {}),
       seed: request.seed,
       outputFormat: "JPEG",
       referenceImages: request.referenceImages.length > 0 ? request.referenceImages : undefined,

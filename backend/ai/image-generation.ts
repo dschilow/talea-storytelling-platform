@@ -15,6 +15,8 @@ export interface ImageGenerationRequest {
   height?: number;
   steps?: number;
   CFGScale?: number;
+  /** Runware acceleration. Default "high" (the distilled klein checkpoints); "none" for non-distilled ones. */
+  acceleration?: "none" | "low" | "medium" | "high";
   seed?: number;
   outputFormat?: "WEBP" | "PNG" | "JPEG";
   /** OPTIMIZATION v3.0: Reference images for IP-Adapter character consistency */
@@ -136,7 +138,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
     includeCost: true,
     // Child safety (2026-10-14): Runware flags NSFW output at no extra cost; flagged pictures are dropped below.
     checkNSFW: true,
-    acceleration: "high",
+    ...((req.acceleration ?? "high") === "none" ? {} : { acceleration: req.acceleration ?? "high" }),
     seed: req.seed ?? Math.floor(Math.random() * 2147483647),
     positivePrompt: enhancePromptForRunware(req.prompt),
     ...(req.negativePrompt && req.negativePrompt.trim() !== "" ? { negativePrompt: enhancePromptForRunware(req.negativePrompt) } : {}),
