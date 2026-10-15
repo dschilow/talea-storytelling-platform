@@ -2,9 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowLeft,
-  BookOpen,
-  Brain,
-  Gem,
   LoaderCircle,
   Lock,
   PencilLine,
@@ -24,6 +21,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useBackend } from '../../hooks/useBackend';
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import type { Avatar, AvatarMemory, AvatarProgression } from '../../types/avatar';
+import { NavIcon, type NavIconName } from '@/components/navigation/NavIcon';
 
 type ProfileTab = 'growth' | 'diary' | 'treasure';
 
@@ -368,9 +366,9 @@ const AvatarProfileScreen: React.FC = () => {
             </div>
 
             <dl className="grid grid-cols-3 gap-2 md:w-64">
-              <HeroStat label="Storys" value={progression?.stats?.storiesRead || 0} isDark={isDark} />
-              <HeroStat label="Dokus" value={progression?.stats?.dokusRead || 0} isDark={isDark} />
-              <HeroStat label="Sch&auml;tze" value={inventoryCount} isDark={isDark} />
+              <HeroStat icon="stories" label="Storys" value={progression?.stats?.storiesRead || 0} isDark={isDark} />
+              <HeroStat icon="dokus" label="Dokus" value={progression?.stats?.dokusRead || 0} isDark={isDark} />
+              <HeroStat icon="treasure" label="Sch&auml;tze" value={inventoryCount} isDark={isDark} />
             </dl>
           </div>
         </motion.section>
@@ -462,7 +460,7 @@ const AvatarProfileScreen: React.FC = () => {
           <div className="grid grid-cols-3 gap-1.5" role="tablist">
             <ProfileTabButton
               active={activeTab === 'growth'}
-              icon={<Brain className="h-4.5 w-4.5" />}
+              icon="growth"
               label="Entwicklung"
               onClick={() => selectTab('growth')}
               isDark={isDark}
@@ -470,7 +468,7 @@ const AvatarProfileScreen: React.FC = () => {
             />
             <ProfileTabButton
               active={activeTab === 'diary'}
-              icon={<BookOpen className="h-4.5 w-4.5" />}
+              icon="diary"
               label="Tagebuch"
               badge={memories.length}
               onClick={() => selectTab('diary')}
@@ -479,7 +477,7 @@ const AvatarProfileScreen: React.FC = () => {
             />
             <ProfileTabButton
               active={activeTab === 'treasure'}
-              icon={<Gem className="h-4.5 w-4.5" />}
+              icon="treasure"
               label="Schatzkammer"
               badge={inventoryCount}
               onClick={() => selectTab('treasure')}
@@ -527,16 +525,21 @@ const AvatarProfileScreen: React.FC = () => {
   );
 };
 
-const HeroStat: React.FC<{ label: string; value: number; isDark: boolean }> = ({ label, value, isDark }) => (
+const HeroStat: React.FC<{ icon: NavIconName; label: string; value: number; isDark: boolean }> = ({ icon, label, value, isDark }) => (
   <div className="rounded-2xl border px-2 py-3 text-center" style={{ borderColor: isDark ? '#3d5369' : '#ddd1c3', background: isDark ? 'rgba(27,40,56,0.68)' : '#faf7f2' }}>
-    <dd className="text-xl font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>{value}</dd>
+    <dd className="flex items-center justify-center gap-1.5 text-xl font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>
+      <span className="flex" style={{ color: isDark ? '#9bc4b9' : '#527b70' }}>
+        <NavIcon name={icon} active className="h-5 w-5" />
+      </span>
+      {value}
+    </dd>
     <dt className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.1em]" style={{ color: isDark ? '#8fa4ba' : '#718399' }}>{label}</dt>
   </div>
 );
 
 const ProfileTabButton: React.FC<{
   active: boolean;
-  icon: React.ReactNode;
+  icon: NavIconName;
   label: string;
   badge?: number;
   onClick: () => void;
@@ -549,22 +552,28 @@ const ProfileTabButton: React.FC<{
     aria-selected={active}
     aria-controls={controls}
     onClick={onClick}
-    className="relative inline-flex min-h-12 items-center justify-center gap-1.5 rounded-[18px] px-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#527b70] sm:text-sm"
+    className="relative flex min-h-[4.25rem] min-w-0 flex-col items-center justify-center gap-1 rounded-[18px] px-1.5 py-2 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#527b70] sm:text-sm"
     style={{
       background: active ? (isDark ? '#527b70' : '#e2efe9') : 'transparent',
       color: active ? (isDark ? '#fff' : '#31574a') : (isDark ? '#a8bbcf' : '#64798f'),
     }}
   >
-    {icon}
-    <span className="truncate">{label}</span>
-    {typeof badge === 'number' && badge > 0 ? (
-      <span
-        className="hidden min-w-5 rounded-full px-1.5 py-0.5 text-[10px] font-bold sm:inline"
-        style={{ background: active ? (isDark ? 'rgba(255,255,255,0.18)' : '#fff') : (isDark ? '#304459' : '#eee7de') }}
-      >
-        {badge}
-      </span>
-    ) : null}
+    {/* The picture names the tab for children who cannot read yet; the count rides on it like an app badge. */}
+    <span className="relative flex">
+      <NavIcon name={icon} active={active} className="h-[26px] w-[26px]" />
+      {typeof badge === 'number' && badge > 0 ? (
+        <span
+          className="absolute -right-3 -top-1.5 min-w-[1.15rem] rounded-full px-1 py-px text-center text-[10px] font-bold leading-[1.1rem] tabular-nums"
+          style={{
+            background: active ? (isDark ? 'rgba(255,255,255,0.22)' : '#fff') : (isDark ? '#304459' : '#eee7de'),
+            color: active ? (isDark ? '#fff' : '#31574a') : (isDark ? '#cfe0ed' : '#4f6378'),
+          }}
+        >
+          {badge > 99 ? '99+' : badge}
+        </span>
+      ) : null}
+    </span>
+    <span className="max-w-full truncate">{label}</span>
   </button>
 );
 

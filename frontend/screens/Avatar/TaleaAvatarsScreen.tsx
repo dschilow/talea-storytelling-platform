@@ -23,6 +23,7 @@ import {
   taleaSurfaceClass,
 } from "@/components/talea/TaleaPastelPrimitives";
 import { TaleaCardMenu, type TaleaCardMenuAction } from "@/components/talea/TaleaCardMenu";
+import { IconTabs, iconTabId } from "@/components/navigation/IconTabs";
 
 type AvatarContentTab = "avatars" | "characters";
 
@@ -426,28 +427,18 @@ const TaleaAvatarsScreen: React.FC = () => {
                   : "Avatare entwickeln sich in abgeschlossenen Geschichten weiter."}
             </p>
 
-            <div role="tablist" aria-label="Avatar-Bereiche" className="mt-4 grid grid-cols-2 rounded-[0.7rem] bg-[var(--talea-surface-inset)] p-0.5 sm:inline-grid sm:min-w-[22rem]">
-              {([
-                { id: "avatars", label: activeProfile ? `F\u00fcr ${activeProfile.name}` : "Meine Avatare" },
-                { id: "characters", label: "Figuren-Bibliothek" },
-              ] as Array<{ id: AvatarContentTab; label: string }>).map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={contentTab === tab.id}
-                  onClick={() => setContentTab(tab.id)}
-                  className={cn(
-                    "truncate rounded-[0.55rem] px-3 py-1.5 text-[14px] font-semibold transition",
-                    contentTab === tab.id
-                      ? "bg-[var(--talea-surface-primary)] text-[var(--talea-text-primary)] shadow-[0_1px_3px_rgba(0,0,0,0.12)] dark:bg-[#48484d]"
-                      : "text-[var(--talea-text-secondary)]"
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+            <IconTabs
+              items={[
+                { id: "avatars", label: activeProfile ? `Für ${activeProfile.name}` : "Meine Avatare", icon: "avatars" },
+                { id: "characters", label: "Figuren-Bibliothek", icon: "figures" },
+              ]}
+              value={contentTab}
+              onChange={setContentTab}
+              label="Avatar-Bereiche"
+              idBase="avatar-area"
+              panelId={() => "avatar-area-panel"}
+              className="mt-4 sm:inline-grid sm:min-w-[22rem]"
+            />
 
             {contentTab === "avatars" ? (
               <label className="relative mt-3 block">
@@ -463,149 +454,151 @@ const TaleaAvatarsScreen: React.FC = () => {
             ) : null}
           </header>
 
-          {/* Only when something needs doing: a linked child avatar already shows below under "Das bin ich". */}
-          {contentTab === "avatars" && activeProfile && !isLoading && !linkedChildAvatar ? (
-            <section
-              className={cn(taleaSurfaceClass, "p-4 sm:p-5")}
-              aria-labelledby="child-avatar-status-title"
-            >
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--talea-warning-soft)] text-[var(--talea-warning)]">
-                  <AlertCircle className="h-6 w-6" />
-                </span>
+          <div id="avatar-area-panel" role="tabpanel" aria-labelledby={iconTabId("avatar-area", contentTab)} className="space-y-7">
+            {/* Only when something needs doing: a linked child avatar already shows below under "Das bin ich". */}
+            {contentTab === "avatars" && activeProfile && !isLoading && !linkedChildAvatar ? (
+              <section
+                className={cn(taleaSurfaceClass, "p-4 sm:p-5")}
+                aria-labelledby="child-avatar-status-title"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--talea-warning-soft)] text-[var(--talea-warning)]">
+                    <AlertCircle className="h-6 w-6" />
+                  </span>
 
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <h2 id="child-avatar-status-title" className="text-[17px] font-semibold text-[var(--talea-text-primary)]">
-                      Kind-Avatar für {activeProfile.name} fehlt
-                    </h2>
-                    <ConceptHelp title="Was ist der Kind-Avatar?">
-                      So erscheint {activeProfile.name} selbst in Geschichten. Er gehört nur zu diesem Kinderprofil und wird niemals mit einem anderen Profil geteilt.
-                    </ConceptHelp>
-                  </div>
-                  <p className="mt-0.5 text-[15px] leading-snug text-[var(--talea-text-secondary)]">
-                    {exactChildCandidate
-                      ? `Der vorhandene Avatar ${exactChildCandidate.name} passt. Du kannst ihn ohne neue Kopie verbinden.`
-                      : "Wähle einen vorhandenen menschlichen Avatar oder erstelle einen neuen."}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {exactChildCandidate ? (
-                    <TaleaActionButton
-                      type="button"
-                      onClick={() => void handleAssignChild(exactChildCandidate)}
-                      disabled={assigningChildId === exactChildCandidate.id}
-                      icon={assigningChildId === exactChildCandidate.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
-                    >
-                      {exactChildCandidate.name} verwenden
-                    </TaleaActionButton>
-                  ) : null}
-                  <TaleaActionButton type="button" variant="secondary" onClick={() => openCreateAvatar("child")} icon={<Plus className="h-4 w-4" />}>
-                    Neu erstellen
-                  </TaleaActionButton>
-                </div>
-              </div>
-            </section>
-          ) : null}
-
-          {contentTab === "characters" ? (
-            <CharacterProfilesPanel />
-          ) : isLoading ? (
-            <LoadingSkeleton palette={palette} />
-          ) : loadError ? (
-            <section className={cn(taleaSurfaceClass, "p-8 text-center")}>
-              <AlertCircle className="mx-auto h-8 w-8 text-[var(--talea-danger)]" />
-              <h2 className="mt-3 text-lg font-semibold text-[var(--talea-text-primary)]">Avatare nicht erreichbar</h2>
-              <p className="mt-1 text-sm text-[var(--talea-text-secondary)]">{loadError}</p>
-              <TaleaActionButton type="button" onClick={() => void loadAvatars()} className="mt-4">
-                Noch einmal versuchen
-              </TaleaActionButton>
-            </section>
-          ) : filteredAvatars.length === 0 && avatars.length > 0 ? (
-            <section className={cn(taleaSurfaceClass, "p-10 text-center")}>
-              <Search className="mx-auto h-7 w-7 text-[var(--talea-text-muted)]" />
-              <h2 className="mt-3 text-xl font-semibold text-[var(--talea-text-primary)]">Nichts gefunden</h2>
-              <p className="mt-1 text-sm text-[var(--talea-text-secondary)]">Prüfe den Suchbegriff oder zeige wieder alle Avatare.</p>
-              <button type="button" onClick={() => setSearchQuery("")} className="mt-4 text-sm font-semibold text-[var(--primary)]">
-                Suche zurücksetzen
-              </button>
-            </section>
-          ) : (
-            <div className="space-y-6">
-              {filteredChildAvatar ? (
-                <section aria-labelledby="child-avatar-heading">
-                  <div className="mb-3 flex items-end justify-between gap-3">
-                    <div>
-                      <h2 id="child-avatar-heading" className="text-[1.375rem] font-bold text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>Das bin ich</h2>
-                      <p className="mt-0.5 text-sm text-[var(--talea-text-secondary)]">Der eigene Avatar von {activeProfile?.name}.</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
-                    <AvatarCard
-                      avatar={filteredChildAvatar}
-                      index={0}
-                      palette={palette}
-                      profileName={activeProfile?.name}
-                      isChildAvatar
-                      canBecomeChild={false}
-                      assigningChild={false}
-                      onView={() => navigate(`/avatar/${filteredChildAvatar.id}`)}
-                      onEdit={() => navigate(`/avatar/edit/${filteredChildAvatar.id}`)}
-                      onDelete={() => void handleDeleteAvatar(filteredChildAvatar)}
-                      onAssignChild={() => undefined}
-                    />
-                  </div>
-                </section>
-              ) : null}
-
-              <section aria-labelledby="companion-heading">
-                <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <h2 id="companion-heading" className="text-[1.375rem] font-bold text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>Begleiter &amp; Familie</h2>
-                      <ConceptHelp title="Wie funktionieren Begleiter?">
-                        Mama, Papa, Tiere und Freunde entwickeln sich nur in diesem Kinderprofil. Beim Übernehmen in ein anderes Profil entsteht eine eigene Kopie mit eigenen Erinnerungen.
+                      <h2 id="child-avatar-status-title" className="text-[17px] font-semibold text-[var(--talea-text-primary)]">
+                        Kind-Avatar für {activeProfile.name} fehlt
+                      </h2>
+                      <ConceptHelp title="Was ist der Kind-Avatar?">
+                        So erscheint {activeProfile.name} selbst in Geschichten. Er gehört nur zu diesem Kinderprofil und wird niemals mit einem anderen Profil geteilt.
                       </ConceptHelp>
                     </div>
-                    <p className="mt-0.5 text-sm text-[var(--talea-text-secondary)]">
-                      {filteredCompanions.length} {filteredCompanions.length === 1 ? "Figur" : "Figuren"} nur für {activeProfile?.name || "dieses Profil"}.
+                    <p className="mt-0.5 text-[15px] leading-snug text-[var(--talea-text-secondary)]">
+                      {exactChildCandidate
+                        ? `Der vorhandene Avatar ${exactChildCandidate.name} passt. Du kannst ihn ohne neue Kopie verbinden.`
+                        : "Wähle einen vorhandenen menschlichen Avatar oder erstelle einen neuen."}
                     </p>
                   </div>
-                  <button type="button" onClick={() => openCreateAvatar("companion")} className="self-start text-[15px] font-semibold text-[var(--primary)] hover:opacity-75 sm:self-end">
-                    Begleiter anlegen
-                  </button>
-                </div>
 
-                {filteredCompanions.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
-                    {filteredCompanions.map((avatar, index) => (
+                  <div className="flex flex-wrap gap-2">
+                    {exactChildCandidate ? (
+                      <TaleaActionButton
+                        type="button"
+                        onClick={() => void handleAssignChild(exactChildCandidate)}
+                        disabled={assigningChildId === exactChildCandidate.id}
+                        icon={assigningChildId === exactChildCandidate.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />}
+                      >
+                        {exactChildCandidate.name} verwenden
+                      </TaleaActionButton>
+                    ) : null}
+                    <TaleaActionButton type="button" variant="secondary" onClick={() => openCreateAvatar("child")} icon={<Plus className="h-4 w-4" />}>
+                      Neu erstellen
+                    </TaleaActionButton>
+                  </div>
+                </div>
+              </section>
+            ) : null}
+
+            {contentTab === "characters" ? (
+              <CharacterProfilesPanel />
+            ) : isLoading ? (
+              <LoadingSkeleton palette={palette} />
+            ) : loadError ? (
+              <section className={cn(taleaSurfaceClass, "p-8 text-center")}>
+                <AlertCircle className="mx-auto h-8 w-8 text-[var(--talea-danger)]" />
+                <h2 className="mt-3 text-lg font-semibold text-[var(--talea-text-primary)]">Avatare nicht erreichbar</h2>
+                <p className="mt-1 text-sm text-[var(--talea-text-secondary)]">{loadError}</p>
+                <TaleaActionButton type="button" onClick={() => void loadAvatars()} className="mt-4">
+                  Noch einmal versuchen
+                </TaleaActionButton>
+              </section>
+            ) : filteredAvatars.length === 0 && avatars.length > 0 ? (
+              <section className={cn(taleaSurfaceClass, "p-10 text-center")}>
+                <Search className="mx-auto h-7 w-7 text-[var(--talea-text-muted)]" />
+                <h2 className="mt-3 text-xl font-semibold text-[var(--talea-text-primary)]">Nichts gefunden</h2>
+                <p className="mt-1 text-sm text-[var(--talea-text-secondary)]">Prüfe den Suchbegriff oder zeige wieder alle Avatare.</p>
+                <button type="button" onClick={() => setSearchQuery("")} className="mt-4 text-sm font-semibold text-[var(--primary)]">
+                  Suche zurücksetzen
+                </button>
+              </section>
+            ) : (
+              <div className="space-y-6">
+                {filteredChildAvatar ? (
+                  <section aria-labelledby="child-avatar-heading">
+                    <div className="mb-3 flex items-end justify-between gap-3">
+                      <div>
+                        <h2 id="child-avatar-heading" className="text-[1.375rem] font-bold text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>Das bin ich</h2>
+                        <p className="mt-0.5 text-sm text-[var(--talea-text-secondary)]">Der eigene Avatar von {activeProfile?.name}.</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
                       <AvatarCard
-                        key={avatar.id}
-                        avatar={avatar}
-                        index={index}
+                        avatar={filteredChildAvatar}
+                        index={0}
                         palette={palette}
                         profileName={activeProfile?.name}
-                        isChildAvatar={false}
-                        canBecomeChild={needsChildAvatar && avatar.isOwnedByCurrentUser !== false && isHumanAvatar(avatar)}
-                        assigningChild={assigningChildId === avatar.id}
-                        onView={() => navigate(`/avatar/${avatar.id}`)}
-                        onEdit={() => navigate(`/avatar/edit/${avatar.id}`)}
-                        onDelete={() => void handleDeleteAvatar(avatar)}
-                        onAssignChild={() => void handleAssignChild(avatar)}
+                        isChildAvatar
+                        canBecomeChild={false}
+                        assigningChild={false}
+                        onView={() => navigate(`/avatar/${filteredChildAvatar.id}`)}
+                        onEdit={() => navigate(`/avatar/edit/${filteredChildAvatar.id}`)}
+                        onDelete={() => void handleDeleteAvatar(filteredChildAvatar)}
+                        onAssignChild={() => undefined}
                       />
-                    ))}
+                    </div>
+                  </section>
+                ) : null}
+
+                <section aria-labelledby="companion-heading">
+                  <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <h2 id="companion-heading" className="text-[1.375rem] font-bold text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>Begleiter &amp; Familie</h2>
+                        <ConceptHelp title="Wie funktionieren Begleiter?">
+                          Mama, Papa, Tiere und Freunde entwickeln sich nur in diesem Kinderprofil. Beim Übernehmen in ein anderes Profil entsteht eine eigene Kopie mit eigenen Erinnerungen.
+                        </ConceptHelp>
+                      </div>
+                      <p className="mt-0.5 text-sm text-[var(--talea-text-secondary)]">
+                        {filteredCompanions.length} {filteredCompanions.length === 1 ? "Figur" : "Figuren"} nur für {activeProfile?.name || "dieses Profil"}.
+                      </p>
+                    </div>
+                    <button type="button" onClick={() => openCreateAvatar("companion")} className="self-start text-[15px] font-semibold text-[var(--primary)] hover:opacity-75 sm:self-end">
+                      Begleiter anlegen
+                    </button>
                   </div>
-                ) : (
-                  <div className={cn(taleaSurfaceClass, "border-dashed p-8 text-center")}>
-                    <UsersRound className="mx-auto h-8 w-8 text-[var(--talea-text-muted)]" />
-                    <h3 className="mt-3 font-semibold text-[var(--talea-text-primary)]">Noch keine Begleiter</h3>
-                    <p className="mt-1 text-sm text-[var(--talea-text-secondary)]">Lege Mama, Papa, ein Tier oder eine Fantasiefigur für dieses Profil an.</p>
-                  </div>
-                )}
-              </section>
-            </div>
-          )}
+
+                  {filteredCompanions.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4">
+                      {filteredCompanions.map((avatar, index) => (
+                        <AvatarCard
+                          key={avatar.id}
+                          avatar={avatar}
+                          index={index}
+                          palette={palette}
+                          profileName={activeProfile?.name}
+                          isChildAvatar={false}
+                          canBecomeChild={needsChildAvatar && avatar.isOwnedByCurrentUser !== false && isHumanAvatar(avatar)}
+                          assigningChild={assigningChildId === avatar.id}
+                          onView={() => navigate(`/avatar/${avatar.id}`)}
+                          onEdit={() => navigate(`/avatar/edit/${avatar.id}`)}
+                          onDelete={() => void handleDeleteAvatar(avatar)}
+                          onAssignChild={() => void handleAssignChild(avatar)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className={cn(taleaSurfaceClass, "border-dashed p-8 text-center")}>
+                      <UsersRound className="mx-auto h-8 w-8 text-[var(--talea-text-muted)]" />
+                      <h3 className="mt-3 font-semibold text-[var(--talea-text-primary)]">Noch keine Begleiter</h3>
+                      <p className="mt-1 text-sm text-[var(--talea-text-secondary)]">Lege Mama, Papa, ein Tier oder eine Fantasiefigur für dieses Profil an.</p>
+                    </div>
+                  )}
+                </section>
+              </div>
+            )}
+          </div>
         </div>
       </SignedIn>
     </div>

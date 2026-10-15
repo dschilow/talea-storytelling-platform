@@ -24,6 +24,7 @@ import {
   taleaBodyFont, taleaDisplayFont, taleaPageShellClass, taleaSurfaceClass,
 } from "@/components/talea/TaleaPastelPrimitives";
 import { TaleaCardMenu, type TaleaCardMenuAction } from "@/components/talea/TaleaCardMenu";
+import { NavIcon } from "@/components/navigation/NavIcon";
 
 interface Avatar {
   id: string;
@@ -270,23 +271,23 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
             <h1 className="mt-5 text-[2.15rem] font-medium leading-[1.1] tracking-[-0.025em] text-[var(--talea-text-primary)] sm:text-[2.8rem] lg:text-[3.25rem]" style={{ fontFamily: headingFont }}>{greeting},<br /><span className="text-[var(--primary)]">{userName || t("homeScreen.defaultUser")}.</span></h1>
             <p className="mt-4 text-base leading-relaxed text-[var(--talea-text-secondary)]">{t("home.subtitle")}</p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <TaleaActionButton icon={<WandSparkles className="h-4 w-4" />} onClick={() => goTo("/story")}>{t("homeScreen.newStory")}</TaleaActionButton>
-              <TaleaActionButton variant="secondary" icon={<BookOpen className="h-4 w-4" />} onClick={() => goTo("/stories")}>{t("homeScreen.library")}</TaleaActionButton>
+              <TaleaActionButton icon={<WandSparkles className="h-5 w-5" />} onClick={() => goTo("/story")}>{t("homeScreen.newStory")}</TaleaActionButton>
+              <TaleaActionButton variant="secondary" icon={<NavIcon name="stories" className="h-5 w-5" />} onClick={() => goTo("/stories")}>{t("homeScreen.library")}</TaleaActionButton>
             </div>
           </div>
           <div className="hidden items-center justify-center bg-[var(--talea-surface-inset)] lg:flex"><div className="w-full max-w-sm"><BrandBook compact /></div></div>
         </div>
         <div className="grid grid-cols-3 border-t border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] px-3 py-3 sm:px-6">
           {[
-            { label: t("homeScreen.statsStories"), value: storiesTotal, path: "/stories" },
-            { label: t("homeScreen.statsAvatars"), value: avatars.length, path: "/avatar" },
-            { label: t("homeScreen.statsDokus"), value: dokusTotal, path: "/doku" },
-          ].map((stat) => <button key={stat.path} type="button" onClick={() => goTo(stat.path)} className={cn("flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[var(--talea-text-secondary)] transition-colors hover:bg-[var(--talea-surface-primary)] sm:flex-row sm:gap-3", focusClass)}><span className="text-xl font-semibold tabular-nums text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>{stat.value}</span><span className="text-xs sm:text-sm">{stat.label}</span></button>)}
+            { label: t("homeScreen.statsStories"), value: storiesTotal, path: "/stories", icon: "stories" as const },
+            { label: t("homeScreen.statsAvatars"), value: avatars.length, path: "/avatar", icon: "avatars" as const },
+            { label: t("homeScreen.statsDokus"), value: dokusTotal, path: "/doku", icon: "dokus" as const },
+          ].map((stat) => <button key={stat.path} type="button" onClick={() => goTo(stat.path)} className={cn("flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl text-[var(--talea-text-secondary)] transition-colors hover:bg-[var(--talea-surface-primary)] sm:flex-row sm:gap-3", focusClass)}><span className="flex items-center gap-1.5"><NavIcon name={stat.icon} active className="h-[22px] w-[22px] text-[var(--primary)]" /><span className="text-xl font-semibold tabular-nums text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>{stat.value}</span></span><span className="text-xs sm:text-sm">{stat.label}</span></button>)}
         </div>
       </motion.header>
 
       <motion.section {...reveal} className="space-y-5">
-        <TaleaSectionHeading eyebrow={t("homeScreen.yourStoriesEyebrow")} title={t("homeScreen.yourStories")} subtitle={t("homeScreen.yourStoriesSubtitle")} actionLabel={t("homeScreen.allStories")} onAction={() => goTo("/stories")} />
+        <TaleaSectionHeading eyebrow={t("homeScreen.yourStoriesEyebrow")} title={t("homeScreen.yourStories")} subtitle={t("homeScreen.yourStoriesSubtitle")} actionLabel={t("homeScreen.allStories")} onAction={() => goTo("/stories")} icon="stories" />
         {stories.length === 0 ? <EmptyStateContainer title={t("homeScreen.noStoriesTitle")} description={t("homeScreen.noStoriesDesc")} icon={<BookOpen className="h-7 w-7" />} actionLabel={t("homeScreen.createFirstStory")} onAction={() => goTo("/story")} /> : (
           <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 pt-1 [scrollbar-width:thin] [scrollbar-color:var(--talea-border-strong)_transparent] md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
             {stories.slice(0, 8).map((story, index) => <StoryCard key={story.id} story={story} index={index} onRead={() => goTo(`/story-reader/${story.id}`)} onDelete={() => onDeleteStory(story.id, story.title)} canSaveOffline={canUseOffline} isSavedOffline={isStorySaved(story.id)} isSavingOffline={isSaving(story.id)} onToggleOffline={() => toggleStory(story.id)} />)}
@@ -295,7 +296,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
       </motion.section>
 
       <motion.section {...reveal} className="space-y-5">
-        <TaleaSectionHeading eyebrow={t("homeScreen.yourAvatarsEyebrow")} title={t("homeScreen.yourAvatars")} subtitle={t("homeScreen.yourAvatarsSubtitle")} actionLabel={t("homeScreen.allAvatars")} onAction={() => goTo("/avatar")} />
+        <TaleaSectionHeading eyebrow={t("homeScreen.yourAvatarsEyebrow")} title={t("homeScreen.yourAvatars")} subtitle={t("homeScreen.yourAvatarsSubtitle")} actionLabel={t("homeScreen.allAvatars")} onAction={() => goTo("/avatar")} icon="avatars" />
         {avatars.length === 0 ? <EmptyStateContainer title={t("homeScreen.noAvatarsTitle")} description={t("homeScreen.noAvatarsDesc")} icon={<UserPlus className="h-7 w-7" />} actionLabel={t("homeScreen.createAvatar")} onAction={() => goTo(createAvatarPath)} /> : (
           <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 pt-1 [scrollbar-width:thin] [scrollbar-color:var(--talea-border-strong)_transparent] md:mx-0 md:px-0">
             <button type="button" onClick={() => goTo(createAvatarPath)} className={cn("flex min-h-48 w-36 shrink-0 snap-start flex-col items-center justify-center gap-3 rounded-[1.375rem] border-2 border-dashed border-[var(--talea-border-strong)] px-3 text-center transition-colors hover:bg-[var(--talea-surface-primary)] sm:w-40", focusClass)}><span className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)]"><Plus className="h-6 w-6" aria-hidden /></span><span className="text-sm font-semibold text-[var(--primary)]">{t("homeScreen.newHero")}</span></button>
@@ -305,7 +306,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
       </motion.section>
 
       <motion.section {...reveal} className="space-y-5">
-        <TaleaSectionHeading eyebrow={t("homeScreen.yourDokusEyebrow")} title={t("homeScreen.yourDokus")} subtitle={t("homeScreen.yourDokusSubtitle")} actionLabel={t("homeScreen.allDokus")} onAction={() => goTo("/doku")} />
+        <TaleaSectionHeading eyebrow={t("homeScreen.yourDokusEyebrow")} title={t("homeScreen.yourDokus")} subtitle={t("homeScreen.yourDokusSubtitle")} actionLabel={t("homeScreen.allDokus")} onAction={() => goTo("/doku")} icon="dokus" />
         {dokus.length === 0 ? <EmptyStateContainer title={t("homeScreen.noDokusTitle")} description={t("homeScreen.noDokusDesc")} icon={<Library className="h-7 w-7" />} actionLabel={t("homeScreen.createFirstDoku")} onAction={() => goTo("/doku/create")} /> : (
           <div className="grid gap-4 md:grid-cols-2">
             <button type="button" onClick={() => goTo("/doku/create")} className={cn("flex min-h-28 items-center gap-4 rounded-[1.375rem] border border-dashed border-[var(--talea-border-strong)] p-5 text-left transition-colors hover:bg-[var(--talea-surface-primary)]", focusClass)}><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)]"><Plus className="h-6 w-6" aria-hidden /></span><span className="flex-1 text-lg font-medium text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>{t("homeScreen.knowledgeJourney")}</span><ArrowRight className="h-5 w-5 text-[var(--primary)]" aria-hidden /></button>

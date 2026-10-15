@@ -37,6 +37,7 @@ import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
 import TaleaStudioWorkspace from "./TaleaStudioWorkspace";
 import CharacterOriginsScreen from "../CharacterPool/CharacterOriginsScreen";
 import { TaleaCardMenu, type TaleaCardMenuAction } from "@/components/talea/TaleaCardMenu";
+import { IconTabs, iconTabId, type IconTabItem } from "@/components/navigation/IconTabs";
 import {
   TaleaActionButton,
   TaleaLoadingState,
@@ -564,24 +565,11 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
   const shelfStories = filteredStories.slice(featuredStory ? 1 : 0);
   const isStudioTabActive = isAdmin && contentTab === "studio";
   const tabGroupId = useId();
-  const tabRefs = useRef<Partial<Record<ContentTab, HTMLButtonElement | null>>>({});
-  const contentTabs: Array<{ id: ContentTab; label: string }> = [
-    { id: "stories", label: t("storiesScreen.storiesTab") },
-    { id: "characters", label: "Charaktere" },
-    ...(isAdmin ? [{ id: "studio" as const, label: t("storiesScreen.studioTab") }] : []),
+  const contentTabs: IconTabItem<ContentTab>[] = [
+    { id: "stories", label: t("storiesScreen.storiesTab"), icon: "stories" },
+    { id: "characters", label: "Charaktere", icon: "figures" },
+    ...(isAdmin ? [{ id: "studio" as const, label: t("storiesScreen.studioTab"), icon: "studio" as const }] : []),
   ];
-
-  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-    let next: number;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (index + 1) % contentTabs.length;
-    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (index - 1 + contentTabs.length) % contentTabs.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = contentTabs.length - 1;
-    else return;
-    event.preventDefault();
-    setContentTab(contentTabs[next].id);
-    tabRefs.current[contentTabs[next].id]?.focus();
-  };
 
   return (
     <div className={cn(taleaPageShellClass, "flex flex-col gap-4 pb-6 pt-2 sm:gap-6 sm:pb-8 sm:pt-6")}>
@@ -618,37 +606,21 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
           {remainingStoryLabel !== null ? <> · {remainingStoryLabel} übrig in diesem Monat</> : null}
         </p>
 
-        {/* iOS segmented control */}
-        <div role="tablist" aria-label="Bibliotheksbereiche" className="mt-4 grid grid-flow-col auto-cols-fr rounded-[0.7rem] bg-[var(--talea-surface-inset)] p-0.5 sm:inline-grid sm:min-w-[22rem]">
-          {contentTabs.map((tab, index) => (
-            <button
-              key={tab.id}
-              ref={(node) => { tabRefs.current[tab.id] = node; }}
-              id={`${tabGroupId}-${tab.id}`}
-              type="button"
-              role="tab"
-              tabIndex={contentTab === tab.id ? 0 : -1}
-              aria-selected={contentTab === tab.id}
-              aria-controls={`${tabGroupId}-panel`}
-              onClick={() => setContentTab(tab.id)}
-              onKeyDown={(event) => handleTabKeyDown(event, index)}
-              className={cn(
-                "min-h-11 rounded-[0.55rem] px-3 py-1.5 text-[14px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]",
-                contentTab === tab.id
-                  ? "bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)] shadow-[var(--talea-shadow-soft)]"
-                  : "text-[var(--talea-text-secondary)]"
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <IconTabs
+          items={contentTabs}
+          value={contentTab}
+          onChange={setContentTab}
+          label="Bibliotheksbereiche"
+          idBase={tabGroupId}
+          panelId={() => `${tabGroupId}-panel`}
+          className="mt-4 sm:inline-grid sm:min-w-[22rem]"
+        />
       </header>
 
       <div
         id={`${tabGroupId}-panel`}
         role="tabpanel"
-        aria-labelledby={`${tabGroupId}-${contentTab}`}
+        aria-labelledby={iconTabId(tabGroupId, contentTab)}
         tabIndex={0}
         className="min-w-0 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--primary)]"
       >

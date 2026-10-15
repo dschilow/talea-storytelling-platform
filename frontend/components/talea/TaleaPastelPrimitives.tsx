@@ -1,8 +1,9 @@
 import React from "react";
 import { motion, useReducedMotion, type HTMLMotionProps, type MotionProps } from "framer-motion";
-import { Check, Sparkles } from "lucide-react";
+import { Check, ChevronRight, Sparkles } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { NavIcon, type NavIconName } from "@/components/navigation/NavIcon";
 
 export const taleaDisplayFont = 'var(--talea-font-display)';
 export const taleaBodyFont = 'var(--talea-font-ui)';
@@ -193,24 +194,31 @@ export const TaleaSectionHeading: React.FC<{
   subtitle: string;
   actionLabel?: string;
   onAction?: () => void;
-}> = ({ eyebrow, title, subtitle, actionLabel, onAction }) => (
+  /** The navigation picture of the area this section belongs to, so it reads without text. */
+  icon?: NavIconName;
+}> = ({ eyebrow, title, subtitle, actionLabel, onAction, icon }) => (
   // iOS section header: bold title with a text link on the same line, one quiet line below.
   <div className="min-w-0">
     {eyebrow ? <span className={taleaChipClass}>{eyebrow}</span> : null}
-    <div className="mt-0.5 flex items-baseline justify-between gap-4">
+    <div className="mt-0.5 flex items-center justify-between gap-4">
       <h2
-        className="min-w-0 text-[1.375rem] font-bold leading-tight text-[var(--talea-text-primary)] md:text-[1.625rem]"
+        className="flex min-w-0 items-center gap-2 text-[1.375rem] font-bold leading-tight text-[var(--talea-text-primary)] md:text-[1.625rem]"
         style={{ fontFamily: taleaDisplayFont }}
       >
-        {title}
+        {icon ? <NavIcon name={icon} active className="h-[1.2em] w-[1.2em] text-[var(--primary)]" /> : null}
+        <span className="min-w-0">{title}</span>
       </h2>
       {actionLabel && onAction ? (
+        // Phones show a round arrow (it reads without text and keeps the title on one line);
+        // wider screens add the label.
         <button
           type="button"
           onClick={onAction}
-          className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-1 text-[15px] font-semibold text-[var(--primary)] hover:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+          aria-label={actionLabel}
+          className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-0.5 rounded-full bg-[var(--talea-surface-inset)] text-[15px] font-semibold text-[var(--primary)] hover:opacity-75 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] sm:rounded-lg sm:bg-transparent sm:px-1"
         >
-          {actionLabel}
+          <span className="hidden sm:inline">{actionLabel}</span>
+          <ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" strokeWidth={2.4} aria-hidden="true" />
         </button>
       ) : null}
     </div>

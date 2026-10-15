@@ -6,8 +6,6 @@ import {
   BookOpen,
   ChevronDown,
   Filter,
-  Globe,
-  GraduationCap,
   Headphones,
   ListPlus,
   Loader2,
@@ -15,7 +13,6 @@ import {
   Mic,
   Pencil,
   Play,
-  PlayCircle,
   Plus,
   Search,
   SlidersHorizontal,
@@ -28,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 
 import { DokuCard } from '../../components/cards/DokuCard';
+import { IconTabs, iconTabId, type IconTabItem } from '@/components/navigation/IconTabs';
 import { useBackend } from '../../hooks/useBackend';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import { AudioPlaybackControls } from '../../components/audio/AudioPlaybackControls';
@@ -69,16 +67,6 @@ type DokuSortMode = 'newest' | 'oldest' | 'title';
 type AudioScope = 'all' | 'mine' | 'public';
 const AUDIO_DOKU_LIST_PAGE_SIZE = 100;
 type TranslateFn = TFunction;
-
-// Tab-Theme: jeder Tab hat einen eigenen Akzentcolor für klare visuelle Trennung
-type TabTheme = {
-  key: DokuTab;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  accent: string; // CSS color expression
-  accentSoft: string;
-  emoji: string;
-};
 
 function normalizeFilterValue(value: unknown): string {
   if (typeof value !== 'string') return '';
@@ -336,8 +324,9 @@ const AudioDokuCard: React.FC<{
           )}
         </div>
 
-        {/* Big Play button on hover */}
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100">
+        {/* Big Play button: on hover with a mouse, always on touch screens, where a
+            child who cannot read needs to see that this card plays something. */}
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
           <motion.div
             initial={reduceMotion ? false : { scale: 0.85 }}
             whileHover={reduceMotion ? undefined : { scale: 1 }}
@@ -1048,38 +1037,12 @@ const TaleaDokusScreen: React.FC = () => {
     audioScopeFilter !== 'all' ||
     sortMode !== 'newest';
 
-  const tabThemes: TabTheme[] = [
-    {
-      key: 'mine',
-      label: t('doku.tabMine', 'Meine'),
-      icon: GraduationCap,
-      accent: 'var(--primary)',
-      accentSoft: 'color-mix(in srgb, var(--primary) 20%, transparent)',
-      emoji: '✨',
-    },
-    {
-      key: 'discover',
-      label: t('doku.tabDiscover', 'Entdecken'),
-      icon: Globe,
-      accent: 'var(--talea-accent-sky)',
-      accentSoft: 'color-mix(in srgb, var(--talea-accent-sky) 20%, transparent)',
-      emoji: '🌍',
-    },
-    {
-      key: 'audio',
-      label: t('doku.tabAudio', 'Hörwelt'),
-      icon: Headphones,
-      accent: 'var(--talea-accent-lavender)',
-      accentSoft: 'color-mix(in srgb, var(--talea-accent-lavender) 20%, transparent)',
-      emoji: '🎧',
-    },
+  const countLabel = (loading: boolean, count: number) => (loading ? '…' : count);
+  const dokuTabs: IconTabItem<DokuTab>[] = [
+    { id: 'mine', label: t('doku.tabMine', 'Meine'), icon: 'mine', count: countLabel(loadingMy, totalMy) },
+    { id: 'discover', label: t('doku.tabDiscover', 'Entdecken'), icon: 'discover', count: countLabel(loadingPublic, totalPublic) },
+    { id: 'audio', label: t('doku.tabAudio', 'Hörwelt'), icon: 'listen', count: countLabel(loadingAudio, totalAudio) },
   ];
-
-  const counts: Record<DokuTab, number> = {
-    mine: totalMy,
-    discover: totalPublic,
-    audio: totalAudio,
-  };
   // Unknown credits are left out — a bare "-" read like a broken value.
   const remainingDokuLabel = billing?.dokuCredits.remaining === undefined
     ? null
@@ -1154,49 +1117,15 @@ const TaleaDokusScreen: React.FC = () => {
               {remainingDokuLabel !== null ? <> · {remainingDokuLabel} übrig in diesem Monat</> : null}
             </p>
 
-            {/* iOS segmented control */}
-            <div
-              role="tablist"
-              aria-label={t('doku.viewTabs', 'Doku-Ansichten')}
-              className="mt-4 grid grid-cols-3 rounded-[0.7rem] bg-[var(--talea-surface-inset)] p-0.5 sm:inline-grid sm:min-w-[26rem]"
-            >
-              {tabThemes.map((tab, index) => {
-                const active = activeTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    role="tab"
-                    id={`doku-tab-${tab.key}`}
-                    aria-controls={`doku-panel-${tab.key}`}
-                    aria-selected={active}
-                    tabIndex={active ? 0 : -1}
-                    onClick={() => setActiveTab(tab.key)}
-                    onKeyDown={(event) => {
-                      const nextIndex = event.key === 'ArrowRight' ? (index + 1) % tabThemes.length
-                        : event.key === 'ArrowLeft' ? (index - 1 + tabThemes.length) % tabThemes.length
-                          : event.key === 'Home' ? 0 : event.key === 'End' ? tabThemes.length - 1 : null;
-                      if (nextIndex === null) return;
-                      event.preventDefault();
-                      const nextTab = tabThemes[nextIndex];
-                      setActiveTab(nextTab.key);
-                      document.getElementById(`doku-tab-${nextTab.key}`)?.focus();
-                    }}
-                    className={cn(
-                      'flex min-h-11 min-w-0 items-center justify-center gap-1.5 rounded-[0.55rem] px-2 py-1.5 text-[14px] font-semibold transition',
-                      active
-                        ? 'bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)] shadow-[0_1px_3px_rgba(62,40,31,0.1)]'
-                        : 'text-[var(--talea-text-secondary)]'
-                    )}
-                  >
-                    <span className="truncate">{tab.label}</span>
-                    <span className="text-[12px] font-medium tabular-nums text-[var(--talea-text-tertiary)]">
-                      {(tab.key === 'mine' ? loadingMy : tab.key === 'discover' ? loadingPublic : loadingAudio) ? '…' : counts[tab.key]}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            <IconTabs
+              items={dokuTabs}
+              value={activeTab}
+              onChange={setActiveTab}
+              label={t('doku.viewTabs', 'Doku-Ansichten')}
+              idBase="doku"
+              panelId={(id) => `doku-panel-${id}`}
+              className="mt-4 sm:inline-grid sm:min-w-[26rem]"
+            />
           </motion.header>
 
           {/* Search, then sort + filter as compact pills */}
@@ -1355,7 +1284,7 @@ const TaleaDokusScreen: React.FC = () => {
               key={activeTab}
               id={`doku-panel-${activeTab}`}
               role="tabpanel"
-              aria-labelledby={`doku-tab-${activeTab}`}
+              aria-labelledby={iconTabId('doku', activeTab)}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
@@ -1483,7 +1412,7 @@ const TaleaDokusScreen: React.FC = () => {
                                     'linear-gradient(135deg, var(--talea-accent-lavender) 0%, color-mix(in srgb, var(--talea-accent-rose) 70%, white) 100%)',
                                 }}
                               >
-                                <PlayCircle className="h-4 w-4" fill="currentColor" />
+                                <Play className="h-4 w-4" fill="currentColor" aria-hidden="true" />
                                 {t('doku.audioPlayAll', 'Alle abspielen')}
                               </motion.button>
                             </div>
