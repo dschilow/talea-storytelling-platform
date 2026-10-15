@@ -65,6 +65,7 @@ Nach Figurenzahl: 1 Figur 100 %, 2 Figuren 91 %, 3 Figuren 56 %, 4 Figuren 65 %.
 | Bildmodell auf FLUX.2 klein 4B (`runware:400@4`) | `storybook-mode-generation.ts` (`IMAGE_MODEL`, gilt für Bilderbuch und Kapitelbuch), Charakter-Lebensgeschichten (`LIFE_STORY_IMAGE_MODEL`), Live-Test-Skripte. Alle anderen Pipelines liefen schon auf 4B. | ≈ −30 % Bildkosten. Zurück auf 9B: `TALEA_STORYBOOK_IMAGE_MODEL=runware:400@2` |
 | Doppelgänger → Neuzeichnen mit Held:innen-Blatt | `storybook/images.ts` (`doubled`, bisher nur bei Tier-Merkmalen auf Menschen) | Szene Kind+Drache+Wolke: 4/6 sauber gegen 0/6 mit vollem Blatt; Doppelgänger 17 % gegen 100 %. Als erster Versuch ungeeignet (Identität/Kleidung leicht schwächer), deshalb nur im Neuzeichnen |
 | ~~Zusätzlicher Versuch mit klein 4B Base~~ — **wieder entfernt (2026-10-15)** | – | Der erste echte Lauf (Buch 29ae501d) zeichnete 6 von 35 Bildern mit dem Base-Modell (5,2 ¢, mehr als die 29 Standard-Aufrufe zusammen) und der Look wich sichtbar ab. Die Schätzung „≈ 0,03 ¢ je Bild“ war falsch: in diesem Buch scheiterten fast alle Bilder zweimal. | – |
+| **Neuzeichnen behält die volle Szene** (Ort, Licht, Handlung) statt der 35-Wörter-`simpleScene`; Korrektursatz ohne „Simple clear composition / one pose per figure“ | `storybook/images.ts` (`REDRAW_KEEPS_SCENE`, `sceneOf`, reduzierter Plan) | Buch 29ae501d zeigte Figuren vorn ohne Szene und Aktion. Messung (klein 4B, 3-Figuren-Szenen in Produktionslänge, 12 Bilder je Variante): altes Neuzeichnen **0 % gute Szenen**, Umgebung 1,1/3, Aktion 0,75/3, 83 % Vignette; volle Szene + neuer Satz **92 %**, Umgebung 3,0, Aktion 2,6, 0 % Vignette, mehr saubere Bilder (67 % gegen 42 %). Gleiche Kosten (derselbe Aufruf), eher weniger Neuzeichnungen |
 | nicht übernommen | – | Aussehens-Zeilen weglassen („nolooks“, nicht signifikant, Produktionszeilen sind schon kurz), Raster statt Sprite, Einzelreferenzen, Kanon-Karten, 768 px, 8 Schritte |
 
 Leiter je Bild: voll → Neuzeichnen mit Korrektur (nach Doppelgänger/Tier-Merkmal nur Helden aufs Blatt) → nur Helden und Dinge → Vignette → am wenigsten schlechtes Bild.
@@ -83,6 +84,8 @@ Nicht tun: Einzelreferenzen, Kanon-Karten, Freisteller, 768 px, 8 Schritte, teur
 Für Bilder sind es nur etwa 16 % der Buchkosten (rund 6 von 38 ¢). Selbst ein perfektes Bildmodell spart höchstens ein paar Cent je Buch; der größere Hebel bleibt der Text.
 
 ## Grenzen der Messung
+
+- **Lücke der ersten Messung:** „Bestanden“ prüfte Figuren, Identität, Anatomie, Schrift und Referenzblatt, aber nicht, ob das Bild eine echte Szene mit Ort und Handlung zeigt. Das fiel erst an einem echten Buch auf. Seit dem Nachtrag misst der Judge zusätzlich Umgebung (0–3), Aktion (0–3) und „Vignette“ (Figuren vor hellem Wash); Spalte „Szene gut“ im Bericht.
 
 - Der Judge (`gpt-6-luna`) bewertet Identität kaum unterscheidend (fast immer 1,0). Unterschiede in Gesichtstreue zwischen den Strategien sind deshalb nicht aufgelöst, nur Zählfehler, Doppelgänger, Anatomie, Schrift und Referenzblatt-Leck. Entscheidungen wurden zusätzlich an Montagebildern geprüft.
 - 20–80 Bilder je Zelle: Unterschiede unter etwa 10 Prozentpunkten sind Rauschen.

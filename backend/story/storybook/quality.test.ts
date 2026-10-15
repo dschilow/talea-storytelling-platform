@@ -5,7 +5,7 @@ import { resolveLengthBudget, type AgeBand } from "./craft";
 import { buildWriterSystemPrompt } from "./draft-stage";
 import { runStorybookTextEngine } from "./engine";
 import { assembleImagePrompt, bindNamesToLooks, describeReferenceLooks, mentionsElement, nameElementsPlainly, negativePromptFor, recomposeShot, runDirectorStage, sanitizeIllustrationPlan, type VisualEntity } from "./illustration-stage";
-import { generateStorybookImages, parseQaReport, publishableImageUrl, qaSeverity, qaSeverityParts, qaStatus, salvageable, scopeQaReport, type ImageOutcome } from "./images";
+import { generateStorybookImages, REDRAW_KEEPS_SCENE, parseQaReport, publishableImageUrl, qaSeverity, qaSeverityParts, qaStatus, salvageable, scopeQaReport, type ImageOutcome } from "./images";
 import { CostLedger, resolveStorybookModels, retryRequestFor, type LlmRequest, type StorybookLlm } from "./llm";
 import { buildOneShotUserPrompt, buildPatchPrompt, mergeStorybookPatch, planFromOneShot } from "./oneshot-stage";
 import { storybookQuality } from "./quality";
@@ -660,6 +660,25 @@ describe("image prompting from the benchmark of 2026-10-15 (scripts/image-bench)
   const cloud: VisualEntity = { id: "w", name: "Wolke Wuschel", role: "cast", kind: "character", species: "cloud", isHuman: false, appearance: "small white cloud with a rainbow scarf", forbidden: [], referenceUrl: "https://example.test/wuschel.png" };
   const cave = { cover: { page: 0, scene: "Adrian at the cave entrance.", onStage: ["h"], artifactVisible: false }, pages: [{ page: 1, scene: "Fauchi puffs a flame and Wuschel rains while Adrian holds out his hands.", onStage: ["f", "w", "h"], artifactVisible: false }] };
   const qa = (stage: string, defect: Record<string, unknown>) => ({ ...cleanQa, characterCounts: stage.includes("cover") ? { Adrian: 1 } : { Adrian: 1, "Drache Fauchi": 1, "Wolke Wuschel": 1 }, ...defect });
+
+  test("a redraw keeps the full scene — place and action — instead of the director's bare simpleScene (book 29ae501d: plain, posed pictures)", async () => {
+    const prompts: string[] = [];
+    const place = "weathered stage frame and birch trees behind them in warm afternoon sun";
+    const scene = `Wide shot: Fauchi puffs a flame, Wuschel rains and Adrian holds out his hands, ${place}.`;
+    const simple = "Adrian, Fauchi and Wuschel stand separately.";
+    await generateStorybookImages({
+      illustrations: { cover: cave.cover, pages: [{ page: 1, scene, simpleScene: simple, onStage: ["f", "w", "h"], artifactVisible: false }] },
+      entities: [hero, dragon, cloud], seed: "s", visionModel: "test", concurrency: 1, buildReference: reference,
+      llm: async (r) => reply(r, qa(r.stage, r.stage === "image-qa-p1-1" ? { duplicates: ["Adrian drawn 2 times"] } : {})),
+      provider: async (request) => { if (request.page === 1) prompts.push(request.prompt); return { url: `https://example.test/${request.page}-${request.seed}.jpg` }; },
+    });
+    expect(prompts.length).toBe(2);
+    expect(prompts[1]).toContain(place);
+    expect(prompts[1]).toContain(REDRAW_KEEPS_SCENE);
+    expect(prompts[1]).not.toContain(simple);
+    expect(prompts[1]).not.toContain("Simple clear composition");
+    expect(prompts[1]).not.toContain("one pose per figure");
+  });
 
   test("a doubled figure is redrawn with only the heroes on the sheet", async () => {
     const sheets: string[][] = [];

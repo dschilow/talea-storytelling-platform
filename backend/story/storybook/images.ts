@@ -357,6 +357,15 @@ export function salvageable(report: ImageQaReport | undefined): boolean {
  * quoting the checker ("Theo has the troll's shaggy orange beard") put exactly
  * that into the next picture — a diffusion model draws what it reads.
  */
+/**
+ * What every redraw adds after its named correction. It used to say "Simple clear composition; separate
+ * silhouettes, one pose per figure" and swapped the scene for the director's 35-word simpleScene. Benchmark
+ * 2026-10-15 (3-figure scenes, FLUX.2 klein 4B, same cost): that redraw gave 0 % good scenes — environment
+ * 1.1/3, action 0.75/3, 83 % figures on a pale wash with no place (the plain, posed pictures of book 29ae501d);
+ * the full scene plus this sentence gave 92 % good scenes (environment 3.0, action 2.6) and more clean pictures.
+ */
+export const REDRAW_KEEPS_SCENE = "Each figure is its own separate body, drawn exactly once, with the full place around them and the described action in progress.";
+
 export function correctionFor(report: ImageQaReport, elementNames: string[] = []): string {
   const fixes: string[] = [];
   if (report.anatomyDefects.length) fixes.push("Every figure is one separate, complete body with natural anatomy.");
@@ -528,7 +537,8 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       onStage: fullOnStage,
       drawn: fullDrawn,
       elements: fullElements,
-      sceneOf: (attemptNo) => (attemptNo > 1 && shot.simpleScene ? shot.simpleScene : shot.scene),
+      // The redraw keeps the full scene (place, light, action); the director's simpleScene dropped the place (see REDRAW_KEEPS_SCENE).
+      sceneOf: () => shot.scene,
       ladder: ladderFor(withReferences),
       qaScene: shot.scene,
     };
@@ -549,7 +559,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
         const kept = text.split(/(?<=[.!?])\s+/).filter((sentence) => !dropped.some((entity) => mentions(sentence, entity.name)) && !droppedFigures.some((element) => mentionsElement(sentence, element)));
         return kept.length ? kept.join(" ") : text;
       };
-      const base = trim(shot.simpleScene || shot.scene);
+      const base = trim(shot.scene);
       const things = fullElements.filter((element) => !element.figure);
       const drawn = [...keep, ...(shot.artifactVisible && artifact ? [artifact] : [])];
       return {
@@ -758,7 +768,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       startLevel = 0;
     }
     const correction = correctionFor(first.qa, fullElements.map((element) => element.name));
-    const second = await attempt(fullPlan, 2, `${correction} Simple clear composition; separate silhouettes, one pose per figure, hands apart and easy to read.`, startLevel, redrawLadder);
+    const second = await attempt(fullPlan, 2, `${correction} ${REDRAW_KEEPS_SCENE}`, startLevel, redrawLadder);
     note("redraw", second);
     if (second.url) candidates.push(second);
     let best = better(second, first) ? second : first;
@@ -769,7 +779,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     let attempts = 2;
     if (reduced && !lastRefused && !providerDown()) {
       attempts = 3;
-      const third = await attempt(reduced, 3, "Simple clear composition; separate silhouettes, hands apart and easy to read.", 0);
+      const third = await attempt(reduced, 3, REDRAW_KEEPS_SCENE, 0);
       note("reduced", third);
       if (third.url) candidates.push(third);
       if (better(third, best)) best = third;
