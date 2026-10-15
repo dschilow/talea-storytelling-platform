@@ -4,7 +4,7 @@ import { buildBrief } from "../context";
 import type { CastCandidate } from "../types";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./budget";
 import { catalogueForPitch, catalogueLine, foldUmlauts, mentionsName, resolveCasting } from "./catalogue";
-import { checkChapter, mergeChapterPatch, parseChapterCritique, parseChapters, quoteInText, repeatedPhrases } from "./chapters";
+import { checkChapter, formulaicOpening, mergeChapterPatch, speechTagCommas, parseChapterCritique, parseChapters, quoteInText, repeatedPhrases } from "./chapters";
 import { chapterRanges } from "./engine";
 import { buildImageSlots } from "./illustrations";
 import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview, planScoreCap } from "./plan";
@@ -164,6 +164,8 @@ describe("plan", () => {
     const review = parsePlanReview({ checks: { solutionPrepared: false, gagEscalates: "true" }, scores: { overall: 9.5 }, mustFix: [], weaknesses: [{ chapter: 5, problem: "vorhersehbar", severity: "high" }, { chapter: 2, problem: "klein", severity: "low" }] })!;
     expect(review.scores.overall).toBe(5);
     expect(planScoreCap({ gagEscalates: false })).toBe(7);
+    expect(planScoreCap({ noEasyWayOut: false, climaxNew: false })).toBe(6.5);
+    expect(planScoreCap({ needBeforeClimax: false })).toBe(7.5);
     const notes = planReviewNotes(review).join("\n");
     expect(notes).toContain("Lösung");
     expect(notes).toContain("Kapitel 5: vorhersehbar");
@@ -203,7 +205,30 @@ describe("chapters", () => {
     expect(quoteInText("Luna erklärt ihre Pfoten zu Detektiven", chapter.content)).toBe(false);
     const critique = parseChapterCritique(JSON.stringify({ chapters: [{ n: 3, laugh: "Luna erklärt ihre Pfoten zu Detektiven", hook: "Alle lachten.", suspense: 4, humor: 7, progress: "false" }] }), [chapter])!;
     expect(critique.chapters[0].laugh).toBeNull();
+    expect(critique.chapters[0].unmatched?.laugh).toBe("Luna erklärt ihre Pfoten zu Detektiven");
     expect(critique.chapters[0].progress).toBe(false);
+  });
+  test("a quote that joins two sentences or drops a word still counts, a word fragment does not", () => {
+    const content = "Er drehte sich. Der Topflappen drehte sich mit. Dann drehte er sich allein weiter und landete genau auf Alexanders Ohr.";
+    expect(quoteInText("Der Topflappen drehte sich mit und landete genau auf Alexanders Ohr", content)).toBe(true);
+    expect(quoteInText("ter Topflappen drehte sich mit", content)).toBe(false);
+  });
+  test("a speech tag after direct speech gets its comma", () => {
+    expect(speechTagCommas("„Welche Reise?“ fragte Alexander.")).toBe("„Welche Reise?“, fragte Alexander.");
+    expect(speechTagCommas("„Hier.“ sagte er. „Komm!“ rief Adrian.")).toBe("„Hier“, sagte er. „Komm!“, rief Adrian.");
+    expect(speechTagCommas("„Hörst du das?“, fragte Adrian. „Ja.“ Alexander nickte.")).toBe("„Hörst du das?“, fragte Adrian. „Ja.“ Alexander nickte.");
+  });
+  test("the same opening formula in a row is a soft defect", () => {
+    const b = brief();
+    const names = ["Alexander", "Adrian", "Mops"];
+    expect(formulaicOpening("Am nächsten Morgen saßen alle am Tisch.", names)).toBe("time");
+    expect(formulaicOpening("Alexander, Adrian und Mops standen vor dem Tor.", names)).toBe("roll-call");
+    expect(formulaicOpening("„Halt!“, rief Adrian.", names)).toBeNull();
+    const earlier: BookChapter = { order: 4, title: "", recap: "", content: "Am Abend wehte Wind über den Hof." };
+    const same: BookChapter = { order: 5, title: "", recap: "", content: "Am nächsten Morgen klebte Marmelade an der Tür." };
+    const fresh: BookChapter = { order: 5, title: "", recap: "", content: "Marmelade klebte an der Tür. Am Morgen war das noch nicht so." };
+    expect(checkChapter(same, { brief: b, budget: b.book, earlier: [earlier], names }).some((issue) => issue.code === "formulaic_opening")).toBe(true);
+    expect(checkChapter(fresh, { brief: b, budget: b.book, earlier: [earlier], names }).some((issue) => issue.code === "formulaic_opening")).toBe(false);
   });
   test("the patch may change a sentence but not rewrite a chapter", () => {
     const base = Array.from({ length: 40 }, (_, index) => `Satz ${index} handelt vom Wald und vom Bach.`).join(" ");

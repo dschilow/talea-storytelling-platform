@@ -63,11 +63,19 @@ describe("single reference sprite without injected picture frames", () => {
     ])).rejects.toThrow("403");
   });
 
-  test("a single subject needs neither collage rendering nor a second input", async () => {
+  test("a single subject travels inline at 512 px; an unreachable one keeps its URL", async () => {
+    const image = await source("#dddddd");
     let calls = 0;
-    const build = createIdentityReferenceCache((async () => { calls++; throw new Error("Unexpected fetch"); }) as typeof fetch);
-    expect((await build([{ displayName: "Alexander", imageUrl: "https://example.com/a.png" }])).urls).toEqual(["https://example.com/a.png"]);
-    expect((await build([])).urls).toEqual([]); expect(calls).toBe(0);
+    const build = createIdentityReferenceCache((async () => { calls++; return new Response(new Uint8Array(image)); }) as typeof fetch);
+    const single = await build([{ displayName: "Alexander", imageUrl: "https://example.com/a.png" }]);
+    expect(single.mode).toBe("single");
+    expect(single.urls[0]).toStartWith("data:image/jpeg;base64,");
+    const meta = await sharp(Buffer.from(single.urls[0].split(",")[1], "base64")).metadata();
+    expect([meta.width, meta.height]).toEqual([512, 512]);
+    expect(calls).toBe(1);
+    const offline = createIdentityReferenceCache((async () => { throw new Error("proxy down"); }) as typeof fetch);
+    expect((await offline([{ displayName: "Alexander", imageUrl: "https://example.com/a.png" }])).urls).toEqual(["https://example.com/a.png"]);
+    expect((await build([])).urls).toEqual([]);
     await expect(build([{ displayName: "Alexander", imageUrl: "bucket://private/a.png" }])).rejects.toThrow("provider-readable");
   });
 

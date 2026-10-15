@@ -195,6 +195,8 @@ export interface ChapterCritique {
   humor: number;
   progress: boolean;
   missingPlants: string[];
+  /** The critic quoted something the text does not contain (kept to tell a paraphrase from a missing laugh). */
+  unmatched?: { laugh?: string; hook?: string };
 }
 
 export interface ChapterCurvePoint {
@@ -205,6 +207,10 @@ export interface ChapterCurvePoint {
   hook: string | null;
   rewritten: boolean;
   patched: boolean;
+  /** Why the writer rewrote the chapter: no-laugh, laugh-unmatched, no-progress, missing-plant, too-short. */
+  rewriteReasons?: string[];
+  /** The chapter ended without a gentle hook and the support model patched its ending. */
+  hookPatched?: boolean;
 }
 
 /** Everything the next batch needs. Persisted between job runs in production. */

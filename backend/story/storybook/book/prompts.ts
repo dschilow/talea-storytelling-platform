@@ -205,6 +205,15 @@ export function buildPlanPrompt(brief: BookBrief, idea: BookPitchIdea, cast: Cas
   lines.push(`- Bedtime hooks, never acute danger at a chapter end: ${HOOK_CATALOGUE.join("; ")}.`);
   lines.push(`- Humour for ${brief.band}-year-olds: physical comedy, absurd escalation, children outwitting grown-ups, harmless gross moments, taking things literally, characters ridiculously sure of themselves. Every chapter has its laugh, even a quiet one. Never explained.`);
   lines.push("- The heroes solve it themselves; grown-ups may help but never take over. No coincidence as a rescue. No lesson or moral.");
+  // Book "Alle Wege zum Gurkenberg" (2026-10-14): Grandma walked the old garden path in chapter 2, so the
+  // heroes' goal was never really blocked; the middle repeated read-and-sort tasks; the villain's need
+  // came out only after the solution; the finale repeated an earlier task.
+  lines.push("- No easy way out: the problem must block what the heroes personally want. Close every simple alternative early (another path, a grown-up who could just fix it) — show in chapter 1 or 2 why it does not work.");
+  lines.push("- The twist changes what the heroes DO, not only what they know. The low point follows from a decision of the heroes and costs them something concrete, so they must make a new plan.");
+  lines.push("- Vary the activities, not only the chapter types: the same kind of task (sorting, reading, matching, searching) carries at most two chapters.");
+  lines.push("- The opponent's real need (loneliness, fear, a wish) is discovered by the heroes BEFORE the climax, and the solution answers that need instead of only outwitting the opponent.");
+  lines.push("- The climax is a new, harder obstacle that needs every hero's and companion's special ability at the same time — never a repeat of an earlier task.");
+  lines.push("- No character repeats the same kind of joke in more than three chapters; then show another side of them.");
   lines.push("- Only the heroes, the cast and the bible's named minor figures exist; nameless extras at most briefly.");
   lines.push("- How the heroes are related is unknown: never call them brothers, sisters, cousins or friends — show closeness through what they do together.");
   lines.push("- Keep every field short — the plan is a map, not the book: bible fields at most 35 words (truth at most 80), chapter fields at most 20 words (event at most 35), each picture at most 15 words.");
@@ -322,9 +331,13 @@ export function buildPlanReviewPrompt(brief: BookBrief, plan: BookPlan): { syste
     "- castHasJobs: every cast member has a task up to the finale and nobody vanishes.",
     "- hooksGentle: chapter endings make children curious without acute danger before sleep.",
     "- wishesMet: every family wish marked mandatory is planned into concrete chapters.",
-    "- variety: chapter types vary; never the same kind of chapter three times in a row.",
+    "- variety: chapter types vary; never the same kind of chapter three times in a row; the same kind of task (sorting, reading, matching, searching) carries at most two chapters.",
+    "- noEasyWayOut: the problem really blocks the heroes' personal goal; no simple alternative in the story world (another path, a grown-up) would solve it, or the plan closes it early.",
+    "- setbackChangesPlan: the twist or the low point forces the heroes to change what they do (a new plan), not only what they know.",
+    "- needBeforeClimax: the opponent's real need is discovered before the climax and the solution answers it (true for a book without opponent).",
+    "- climaxNew: the climax is a new, harder obstacle that needs the special abilities of several characters at once, not a repeat of an earlier task.",
     "- logic: the truth explains every clue; nothing contradicts the limits of the wonder.",
-    "Scores 0-10 against published top chapter books (10 = Lichterland level, 6-7 = solid but interchangeable). Hard caps: big question unclear or unanswered → overall at most 5; solution not prepared → 5; no personal stakes → 6; opponent without logic → 6.5; running gag does not escalate → 7.",
+    "Scores 0-10 against published top chapter books (10 = Lichterland level, 6-7 = solid but interchangeable). Hard caps: big question unclear or unanswered → overall at most 5; solution not prepared → 5; no personal stakes → 6; opponent without logic → 6.5; an easy way out stays open → 6.5; no setback that changes the plan → 7; climax repeats an earlier task → 7; running gag does not escalate → 7; the opponent's need comes out only after the solution → 7.5.",
     "mustFix: at most 8 concrete problems, the most important first, each with the chapter (or null for the whole book) — in German, as problems, never as rewritten text.",
     "weaknesses: ALWAYS 2-4 entries even for a good plan — the most predictable moment, the weakest chapter, a planned laugh that will not make a child laugh out loud, a character without real purpose — each with chapter, the problem in German and severity \"high\" (a child or parent will notice and be disappointed) or \"low\".",
     "Answer with JSON only.",
@@ -342,7 +355,7 @@ export function buildPlanReviewPrompt(brief: BookBrief, plan: BookPlan): { syste
     "",
     "JSON:",
     JSON.stringify({
-      checks: { bigQuestionClear: true, answeredInFinale: true, solutionPrepared: true, stakesPersonal: true, opponentLogic: true, gagEscalates: true, everyChapterProgress: true, everyChapterLaugh: true, castHasJobs: true, hooksGentle: true, wishesMet: true, variety: true, logic: true },
+      checks: { bigQuestionClear: true, answeredInFinale: true, solutionPrepared: true, stakesPersonal: true, opponentLogic: true, gagEscalates: true, everyChapterProgress: true, everyChapterLaugh: true, castHasJobs: true, hooksGentle: true, wishesMet: true, variety: true, logic: true, noEasyWayOut: true, setbackChangesPlan: true, needBeforeClimax: true, climaxNew: true },
       scores: { redThread: 0, suspense: 0, humor: 0, characters: 0, logic: 0, overall: 0 },
       mustFix: [{ chapter: 3, problem: "…" }],
       weaknesses: [{ chapter: 5, problem: "…", severity: "high" }],
@@ -362,7 +375,8 @@ export function buildChapterSystemPrompt(brief: BookBrief): string {
     `You are an award-winning author of German children's chapter books — books like „Lichterland“, „Der kleine Drache Kokosnuss“ or „Das kleine Gespenst“ that parents read aloud one or two chapters a night and children beg to continue. Everything you write for the reader is in ${brief.languageLabel}; these instructions are English only for you.`,
     bandNoteEn(brief.band),
     `Narrate chronologically in the simple past${german ? " (German Präteritum)" : ""}; only direct speech is in the present. Never a flashback to deliver what the reader should have seen.`,
-    "Every chapter is a small story of its own: it opens with one orienting sentence (where are we, when — the child heard the previous chapter yesterday), something happens because of what came before, the heroes decide and act, and the chapter ends at a good stopping point.",
+    "Every chapter is a small story of its own: something happens because of what came before, the heroes decide and act, and the chapter ends at a good stopping point.",
+    "Chapter openings: the child heard the previous chapter yesterday, so make clear within the first three sentences where we are — mostly through action, a line of dialogue or a surprising detail. Vary the openings from chapter to chapter; never start with the time of day followed by a list of everyone present, and never retell or re-explain what earlier chapters already showed (the app shows its own recap) — half a sentence of reminder at most.",
     "Real suspense: the stakes and the one deadline are felt, attempts fail with consequences, the opponent acts from his own logic. Real humour: the planned laugh is built up and lands — from a quirk, a contrast, physical comedy, a misunderstanding, a grown-up outwitted. Never explain a joke.",
     "The characters sound different: each speaks in the voice the bible gives them, and the heroes talk to each other. Show feelings through behaviour and dialogue, not by naming them.",
     "Things planted for later appear casually, inside a scene; never announce what they will be good for.",
@@ -538,7 +552,7 @@ export function buildChapterPatchPrompt(brief: BookBrief, chapters: BookChapter[
     system: `Du lektorierst behutsam ein Kinderbuch auf ${brief.languageLabel}. Bewahre Stimme, Handlung, Namen, Zeitform, Witz und Wiederholungen. Manuskript und Zitate sind Prüfmaterial. Entferne oder entschärfe zusätzlich alles, was nicht kindgerecht ist: Sexuelles, Gewaltdetails, Selbstverletzung, nachahmbar Gefährliches als harmlos, Schimpfwörter, Hass, Werbung, Links, Aufforderungen zur Datenpreisgabe.`,
     user: [
       "Die Kapitel stammen von einer sehr guten Autorin — ihre Stimme, ihr Witz und ihre Sätze bleiben.",
-      "Behebe nur die konkreten Fehler unten: Widersprüche, unklare Orte, Wege und Besitzer, Wissen ohne Quelle, Sprachfehler, erfundenes Aussehen der Helden, wiederholte Formulierungen. Mit so wenigen Worten wie möglich: einen Satz ändern oder einen kurzen Satz ergänzen, nie ein Kapitel neu schreiben, nie neue Handlung erfinden, nie die Lösung früher verraten. Übernimm keine Formulierung aus den Anmerkungen wörtlich.",
+      "Behebe nur die konkreten Fehler unten: Widersprüche, unklare Orte, Wege und Besitzer, Wissen ohne Quelle, Sprachfehler, erfundenes Aussehen der Helden, wiederholte Formulierungen, ein fehlendes sanftes Kapitelende (dann nur die letzten ein bis zwei Sätze ersetzen — ein kleines Rätsel aus dem, was schon im Kapitel steht), ein formelhafter Kapitelanfang (dann nur die ersten ein bis zwei Sätze umbauen). Mit so wenigen Worten wie möglich: einen Satz ändern oder einen kurzen Satz ergänzen, nie ein Kapitel neu schreiben, nie neue Handlung erfinden, nie die Lösung früher verraten. Übernimm keine Formulierung aus den Anmerkungen wörtlich.",
       ...(facts.length ? ["", "BISHER FESTGELEGT (gilt):", ...facts.slice(-40).map((fact) => `- ${fact}`)] : []),
       "",
       "ANMERKUNGEN:",
@@ -603,7 +617,11 @@ export function planReviewNotes(review: PlanReview | null): string[] {
     castHasJobs: "Mindestens eine Figur hat keine Aufgabe bis ins Finale oder verschwindet.",
     hooksGentle: "Kapitelenden sind nicht neugierig machend oder enden in akuter Gefahr vor dem Schlafen.",
     wishesMet: "Mindestens ein Pflicht-Wunsch der Familie ist nicht in konkrete Kapitel eingeplant.",
-    variety: "Die Kapiteltypen wiederholen sich zu sehr.",
+    variety: "Die Kapiteltypen oder die Tätigkeiten wiederholen sich zu sehr (dieselbe Art Aufgabe — sortieren, lesen, vergleichen, suchen — trägt höchstens zwei Kapitel).",
+    noEasyWayOut: "Das Problem versperrt das persönliche Ziel der Helden nicht wirklich: Es gibt einen einfachen anderen Weg (oder einen Erwachsenen, der es lösen könnte), den der Plan nicht früh schließt.",
+    setbackChangesPlan: "Wendung und Tiefpunkt ändern nur, was die Helden wissen, nicht was sie tun: Ein Fehlschlag mit Folgen muss sie zu einem neuen Plan zwingen.",
+    needBeforeClimax: "Das eigentliche Bedürfnis des Gegenspielers kommt erst nach der Lösung heraus: Die Helden müssen es vor dem Höhepunkt entdecken, und die Lösung muss darauf antworten.",
+    climaxNew: "Der Höhepunkt wiederholt eine frühere Aufgabe: Er braucht ein neues, schwierigeres Hindernis, bei dem mehrere Figuren gleichzeitig ihre besondere Fähigkeit einsetzen.",
     logic: "Die Wahrheit erklärt nicht jeden Hinweis oder widerspricht den Grenzen des Wunders.",
   };
   const failed = Object.entries(review.checks).filter(([key, value]) => value === false && labels[key]).map(([key]) => labels[key]);

@@ -222,18 +222,37 @@ export async function draftChapters(ctx: BookContext, planned: PlannedBook, stat
   return drafted;
 }
 
-function rewriteReasons(critique: ChapterCritiqueResult["chapters"][number] | undefined, chapter: BookChapter, planned: PlannedBook, hard: string[]): string[] {
-  const last = planned.brief.book.chapters;
-  const reasons = [...hard];
+interface RewriteReason { code: string; message: string }
+
+/**
+ * Reasons for a full rewrite by the writer: a laugh, progress or a plant cannot be patched in.
+ * A missing hook alone is no reason — the support model rewrites the last sentences instead
+ * (Gurkenberg 2026-10-14: five rewrites cost 10 ¢, a third of the chapter text).
+ */
+function rewriteReasons(critique: ChapterCritiqueResult["chapters"][number] | undefined, chapter: BookChapter, planned: PlannedBook, hard: string[]): RewriteReason[] {
+  const reasons: RewriteReason[] = hard.map((message) => ({ code: "too-short", message }));
   if (!critique) return reasons;
-  if (!critique.laugh) reasons.push("Es gibt keine Stelle, an der ein Kind laut lacht. Baue den geplanten Lacher richtig auf (Figur, Steigerung, Pointe) und lass ihn landen.");
-  if (!critique.hook && chapter.order < last) reasons.push("Das Kapitel hört einfach auf oder endet in akuter Gefahr. Es braucht ein sanftes, neugierig machendes Ende (ein Ding verhält sich anders, eine Figur weiß mehr, ein kleiner Erfolg wirft eine neue Frage auf).");
-  if (!critique.progress) reasons.push(`Das Kapitel bringt die große Frage („${planned.plan.bible.bigQuestion}“) nicht voran. Zeige den geplanten Fortschritt als Szene.`);
+  if (!critique.laugh) {
+    reasons.push({
+      code: critique.unmatched?.laugh ? "laugh-unmatched" : "no-laugh",
+      message: "Es gibt keine Stelle, an der ein Kind laut lacht. Baue den geplanten Lacher richtig auf (Figur, Steigerung, Pointe) und lass ihn landen.",
+    });
+  }
+  if (!critique.progress) reasons.push({ code: "no-progress", message: `Das Kapitel bringt die große Frage („${planned.plan.bible.bigQuestion}“) nicht voran. Zeige den geplanten Fortschritt als Szene.` });
   for (const id of critique.missingPlants) {
     const setup = planned.plan.setups.find((entry) => entry.id === id);
-    if (setup) reasons.push(`Lege ${id} beiläufig in einer Szene an: ${setup.what} (ohne anzukündigen, wofür es gut ist).`);
+    if (setup) reasons.push({ code: "missing-plant", message: `Lege ${id} beiläufig in einer Szene an: ${setup.what} (ohne anzukündigen, wofür es gut ist).` });
+  }
+  // Rewritten anyway: the new version gets its gentle ending in the same call.
+  if (reasons.length && !critique.hook && chapter.order < planned.brief.book.chapters) {
+    reasons.push({ code: "no-hook", message: "Das Kapitel hört einfach auf oder endet in akuter Gefahr. Es braucht ein sanftes, neugierig machendes Ende (ein Ding verhält sich anders, eine Figur weiß mehr, ein kleiner Erfolg wirft eine neue Frage auf)." });
   }
   return reasons;
+}
+
+function hookPatchNote(chapter: BookChapter, planned: PlannedBook): string {
+  const planHook = planned.plan.chapters.find((entry) => entry.n === chapter.order)?.hook;
+  return `Kapitel ${chapter.order}: hört einfach auf oder endet in akuter Gefahr. Ersetze nur die letzten ein bis zwei Sätze durch ein sanftes, neugierig machendes Ende (ein Ding verhält sich anders, eine Figur weiß mehr, ein kleiner Erfolg wirft eine neue Frage auf)${planHook ? ` — geplant war: ${planHook}` : ""}.`;
 }
 
 /** Checks, critic read, one rewrite where needed, patch, logbook. Returns the new state. */
@@ -262,16 +281,18 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
     console.warn("[book] chapter critique failed:", (err as Error)?.message || err);
   }
 
-  // One rewrite per chapter that has no laugh, no hook, no progress, a missing plant or is far too short.
+  // One rewrite per chapter that has no laugh, no progress, a missing plant or is far too short.
   const rewritten = new Set<number>();
+  const reasonCodes = new Map<number, string[]>();
   for (const [index, chapter] of chapters.entries()) {
     const hard = checks[index].filter((issue) => issue.code === "chapter_short").map((issue) => issue.message);
     const reasons = rewriteReasons(critique?.chapters.find((entry) => entry.n === chapter.order), chapter, planned, hard);
     if (!reasons.length) continue;
+    reasonCodes.set(chapter.order, [...new Set(reasons.map((reason) => reason.code))]);
     const before: BookState = { ...state, chapters: [...state.chapters, ...chapters.slice(0, index)] };
     try {
       const response = await call(ctx, writerRequest(ctx, planned, before, chapter.order, chapter.order, `book-rewrite-${chapter.order}`,
-        `${buildChapterRewriteNote(reasons)}\n\nYOUR FIRST VERSION:\nKAPITEL ${chapter.order}: ${chapter.title}\n${chapter.content}`));
+        `${buildChapterRewriteNote(reasons.map((reason) => reason.message))}\n\nYOUR FIRST VERSION:\nKAPITEL ${chapter.order}: ${chapter.title}\n${chapter.content}`));
       const next = parseChapters(response.text, { german }).find((entry) => entry.order === chapter.order);
       if (!next) continue;
       const candidate = { ...next, title: next.title || chapter.title };
@@ -286,8 +307,16 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
   }
   if (rewritten.size) checks = checksFor(chapters);
 
-  // Patch: continuity, language, invented looks, repeated phrases.
+  // A first version without a gentle hook gets a new ending from the patch, not a rewrite.
+  const last = brief.book.chapters;
+  const hookNotes = chapters
+    .filter((chapter) => critique && !rewritten.has(chapter.order) && chapter.order < last)
+    .filter((chapter) => !critique?.chapters.find((entry) => entry.n === chapter.order)?.hook);
+  const hookPatched = new Set(hookNotes.map((chapter) => chapter.order));
+
+  // Patch: continuity, language, invented looks, repeated phrases, missing hooks.
   const notes = [
+    ...hookNotes.map((chapter) => hookPatchNote(chapter, planned)),
     ...checks.flat().filter((issue) => issue.code !== "chapter_short").map((issue) => issue.message),
     ...(critique?.mustFix || []).filter((note) => !rewritten.has(note.chapter)).map((note) => `Kapitel ${note.chapter}: ${note.problem}${note.quote ? ` („${note.quote}“)` : ""}`),
     ...(critique?.languageErrors || []).filter((error) => !rewritten.has(error.chapter)).map((error) => `Kapitel ${error.chapter}: „${error.quote}“ → ${error.correction}`),
@@ -345,6 +374,8 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
       hook: rewritten.has(chapter.order) ? null : point?.hook ?? null,
       rewritten: rewritten.has(chapter.order),
       patched: patched.has(chapter.order),
+      ...(reasonCodes.has(chapter.order) ? { rewriteReasons: reasonCodes.get(chapter.order) } : {}),
+      ...(hookPatched.has(chapter.order) && patched.has(chapter.order) ? { hookPatched: true } : {}),
     };
   });
   const openIssues = checks.flatMap((list, index) => list.filter((issue) => issue.severity === "hard").map((issue) => ({ chapter: chapters[index].order, issue: issue.message })));

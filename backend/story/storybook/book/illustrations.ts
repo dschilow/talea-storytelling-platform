@@ -95,6 +95,10 @@ export interface BatchImagesResult {
   storyElements: StoryElement[];
   imageCostUSD: number;
   imagesGenerated: number;
+  /** Provider calls including redraws (imagesGenerated counts only delivered pictures). */
+  imageCalls?: number;
+  /** Pictures that needed more than one attempt, with the checker's reasons — redraws were half the image bill. */
+  redraws?: Array<{ chapter: number; part: number; attempts: number; reasons: string[] }>;
 }
 
 /** Director + images for the chapters of one batch. Never throws: a failed picture leaves a text-only spot. */
@@ -143,10 +147,14 @@ export async function illustrateBatch(input: {
       skipCover: !input.withCover,
     });
     images.qaCalls.forEach((qaCall, index) => input.ledger.recordCall(`book-image-qa-${range}-${index + 1}`, qaCall, "support"));
-    const result: BatchImagesResult = { images: [], missing: [], storyElements: director.illustrations.storyElements || [], imageCostUSD: images.imageCostUSD, imagesGenerated: images.imagesGenerated };
+    const result: BatchImagesResult = { images: [], missing: [], storyElements: director.illustrations.storyElements || [], imageCostUSD: images.imageCostUSD, imagesGenerated: images.imagesGenerated, imageCalls: images.imageCalls, redraws: [] };
     if (input.withCover) result.coverUrl = publishableImageUrl(images.cover);
+    const reasonsOf = (outcome: NonNullable<typeof images.cover>) =>
+      [...new Set((outcome.history || []).filter((entry) => entry.severity >= 10).flatMap((entry) => entry.notes))].slice(0, 6);
+    if (images.cover && images.cover.attempts > 1) result.redraws!.push({ chapter: 0, part: 0, attempts: images.cover.attempts, reasons: reasonsOf(images.cover) });
     for (const [index, slot] of slots.entries()) {
       const outcome = images.pages.get(index + 1);
+      if (outcome && outcome.attempts > 1) result.redraws!.push({ chapter: slot.chapter, part: slot.part, attempts: outcome.attempts, reasons: reasonsOf(outcome) });
       const url = publishableImageUrl(outcome);
       if (url && outcome) result.images.push({ chapter: slot.chapter, afterParagraph: slot.afterParagraph, url, status: outcome.status, ...(outcome.vignette ? { vignette: true } : {}) });
       else result.missing.push({ chapter: slot.chapter, part: slot.part });

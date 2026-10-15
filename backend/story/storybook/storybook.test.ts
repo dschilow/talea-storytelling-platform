@@ -18,7 +18,7 @@ import { sanitizePitches } from "./concept-stage";
 import { sanitizePlan } from "./plan-stage";
 import { comprehensionGaps, needsRevision, sanitizeReview } from "./review-stage";
 import { assembleImagePrompt, castAppearance, heroAppearance, negativePromptFor, ownershipLine, sanitizeIllustrationPlan, signatureNegatives, speciesFromProfile, type VisualEntity } from "./illustration-stage";
-import { correctionFor, generateStorybookImages, parseQaReport, qaSeverity } from "./images";
+import { correctionFor, generateStorybookImages, parseQaReport, qaSeverity, qaStatus, salvageable } from "./images";
 import { runStorybookTextEngine } from "./engine";
 import { acceptablePatch, planFromOneShot } from "./oneshot-stage";
 import type { CastCandidate, StoryPlan, StorybookPage } from "./types";
@@ -475,6 +475,14 @@ describe("images", () => {
     // The page's key action must belong to the right child.
     expect(qaSeverity({ ...clean, roleSwaps: ["Alexander climbs instead of Adrian"] }, 2)).toBeGreaterThanOrEqual(10);
     expect(qaSeverity({ ...clean, elementMisuse: ["the wish hat is worn as a cap"] } as any, 2)).toBeGreaterThanOrEqual(10);
+  });
+
+  test("book 6950cb7e: a picture with writing is never printed, not even as the least bad one", () => {
+    const clean = { anatomyDefects: [], animalFeaturesOnHumans: [], duplicates: [], unexpectedCharacters: [], roleSwaps: [], elementMisuse: [], textVisible: false, referenceSheetVisible: false, identityMatch: 0.9, sceneMatch: 0.9, namedCharactersVisible: 2 };
+    const lettered = { ...clean, textVisible: true };
+    expect(qaStatus(lettered, { hard: 0, soft: 10 })).toBe("failed");
+    expect(qaStatus({ ...clean, posing: true } as any, { hard: 0, soft: 10 })).toBe("flawed");
+    expect(salvageable(lettered)).toBe(false);
   });
 
   test("run 0039344e: a sheet the provider rejects never leaves the page blank", async () => {

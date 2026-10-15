@@ -293,7 +293,8 @@ if (!flag("--plan-only")) {
       images.push(...batch.images);
       imageCostUSD += batch.imageCostUSD;
       missingImages += batch.missing.length;
-      console.log(`  ✓ pictures ${from}-${from + chapters.length - 1}: ${batch.images.length} ok, ${batch.missing.length} missing | $${batch.imageCostUSD.toFixed(4)}`);
+      console.log(`  ✓ pictures ${from}-${from + chapters.length - 1}: ${batch.images.length} ok, ${batch.missing.length} missing, ${batch.imageCalls ?? "?"} calls | $${batch.imageCostUSD.toFixed(4)}`);
+      for (const redraw of batch.redraws || []) console.log(`    ↻ ${redraw.chapter ? `Kapitel ${redraw.chapter}.${redraw.part}` : "Cover"} × ${redraw.attempts}: ${redraw.reasons.join("; ") || "?"}`);
     }
   }
 }

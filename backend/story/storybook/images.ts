@@ -294,6 +294,9 @@ export function qaSeverity(report: ImageQaReport | undefined, expectedCharacters
 export function qaStatus(report: ImageQaReport | undefined, parts: { hard: number; soft: number }): ImageOutcome["status"] {
   if (!report) return "unverified";
   if (parts.hard + parts.soft < 10) return "passed";
+  // User rule 2026-10-08: no writing in any picture. As a mere flaw it shipped after the redraw
+  // (book 6950cb7e chapter 6: a sign reading "FRAU GLEICHGLEICH DAY DAY LNACE").
+  if (report.textVisible) return "failed";
   return parts.hard < 10 ? "flawed" : "failed";
 }
 
@@ -329,7 +332,8 @@ export function salvageable(report: ImageQaReport | undefined): boolean {
     && !report.animalFeaturesOnHumans.length
     && !report.unexpectedCharacters.length
     && !report.duplicates.length
-    && !report.referenceSheetVisible;
+    && !report.referenceSheetVisible
+    && !report.textVisible;
 }
 
 /**
@@ -579,7 +583,16 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
         status: outcome.status,
         severity: outcome.severity,
         notes: outcome.qa
-          ? [...outcome.qa.anatomyDefects, ...outcome.qa.animalFeaturesOnHumans, ...outcome.qa.duplicates, ...(outcome.qa.thingDuplicates || []), ...(outcome.qa.featureBleed || []), ...outcome.qa.roleSwaps, ...outcome.qa.unexpectedCharacters, ...outcome.qa.missing?.map((name) => `${name} missing`) || []].slice(0, 5)
+          ? [
+              ...outcome.qa.anatomyDefects, ...outcome.qa.animalFeaturesOnHumans, ...outcome.qa.duplicates, ...(outcome.qa.thingDuplicates || []), ...(outcome.qa.featureBleed || []), ...outcome.qa.roleSwaps, ...outcome.qa.unexpectedCharacters, ...outcome.qa.missing?.map((name) => `${name} missing`) || [],
+              // The flags too: without them a redraw for writing or a pose left no reason in the log.
+              ...(outcome.qa.textVisible ? ["text visible"] : []),
+              ...(outcome.qa.referenceSheetVisible ? ["reference sheet visible"] : []),
+              ...(outcome.qa.posing ? ["posing"] : []),
+              ...(outcome.qa.identityMatch < 0.6 ? [`identity ${outcome.qa.identityMatch}`] : []),
+              ...(outcome.qa.sceneMatch < 0.5 ? [`scene ${outcome.qa.sceneMatch}`] : []),
+              ...(outcome.qa.elementMisuse || []),
+            ].slice(0, 6)
           : [outcome.status],
         ...(parts.hard >= 999 ? {} : {}),
       });

@@ -33,6 +33,12 @@ export async function renderIdentitySprite(images: Buffer[]): Promise<Buffer> {
     .composite(tiles.map((input, index) => ({ input, left: index * cell, top: 0 }))).png().toBuffer();
 }
 
+/** One portrait on the same neutral 512 canvas a sprite cell uses. */
+export async function renderSingleReference(image: Buffer): Promise<Buffer> {
+  return sharp(image, { limitInputPixels: 40_000_000 }).rotate()
+    .resize(512, 512, { fit: "contain", background: "#ffffff" }).flatten({ background: "#ffffff" }).png().toBuffer();
+}
+
 /**
  * What actually travels to the image provider. The canvas is rendered as PNG,
  * but a lossless PNG of three portraits is ~2.5 MB of base64 — and in story
@@ -68,7 +74,18 @@ export function createIdentityReferenceCache(fetcher: typeof fetch = fetch): Ide
       if (!slots.length) return EMPTY_IDENTITY_REFERENCE;
       if (slots.some(s => !isProviderReadableReference(s.imageUrl))) throw new Error("Reference image is not provider-readable");
       const subjects = slots.map(s => ({ displayName: s.displayName, kind: s.kind || "character" as const }));
-      if (slots.length === 1) return { urls: [slots[0].imageUrl], mode: "single", subjects };
+      if (slots.length === 1) {
+        // Inline like the sprite: with a URL Runware fetches our image proxy, and FLUX.2 klein is
+        // billed by end-to-end request time (probe 2026-10-15: $0.0026 per picture by URL vs $0.0012
+        // inline; book 6950cb7e paid $0.062 for one picture). A failed download keeps the URL.
+        if (!/^https?:\/\//i.test(slots[0].imageUrl)) return { urls: [slots[0].imageUrl], mode: "single", subjects };
+        try {
+          const buffer = await encodeReferenceSprite(await renderSingleReference(await download(slots[0].imageUrl)));
+          return { urls: [`data:image/jpeg;base64,${buffer.toString("base64")}`], mode: "single", subjects };
+        } catch {
+          return { urls: [slots[0].imageUrl], mode: "single", subjects };
+        }
+      }
       const buffer = await encodeReferenceSprite(await renderIdentitySprite(await Promise.all(slots.map(s => download(s.imageUrl)))));
       return { urls: [`data:image/jpeg;base64,${buffer.toString("base64")}`], mode: "sprite", subjects };
     })());

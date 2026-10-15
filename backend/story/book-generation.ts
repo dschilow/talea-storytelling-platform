@@ -44,7 +44,7 @@ import type { StorybookHero, StoryElement } from "./storybook/types";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./storybook/book/budget";
 import { buildCatalogue } from "./storybook/book/catalogue";
 import { buildSeriesMemory, planBook, writeBook, type BookContext, type PlannedBook } from "./storybook/book/engine";
-import { illustrateBatch, type BookImage } from "./storybook/book/illustrations";
+import { illustrateBatch, type BatchImagesResult, type BookImage } from "./storybook/book/illustrations";
 import { emptyBookState, type BookBrief, type BookState, type SeriesMemory } from "./storybook/book/types";
 import type { StoryConfig } from "./generate";
 
@@ -82,6 +82,8 @@ interface BookJobState {
   stages?: StorybookStageLog[];
   imageCostUSD?: number;
   imageCalls?: number;
+  /** Pictures that needed more than one attempt, with the checker's reasons. */
+  imageRedraws?: NonNullable<BatchImagesResult["redraws"]>;
   published?: number;
   startedAt?: string;
 }
@@ -163,7 +165,7 @@ export async function enqueueChapterBook(input: BookJobInput): Promise<void> {
   await ensureBookSchema();
   await storyDB.exec`
     INSERT INTO story_book_jobs (story_id, user_id, status, stage, input, state)
-    VALUES (${input.storyId}, ${input.userId}, 'queued', 'queued', ${JSON.stringify(input)}::jsonb, ${JSON.stringify({ startedAt: new Date().toISOString() })}::jsonb)
+    VALUES (${input.storyId}, ${input.userId}, 'queued', 'queued', (${JSON.stringify(input)}::jsonb #>> '{}')::jsonb, (${JSON.stringify({ startedAt: new Date().toISOString() })}::jsonb #>> '{}')::jsonb)
     ON CONFLICT (story_id) DO NOTHING
   `;
   await logStage(input.storyId, "queued", { heroes: input.heroes.map((hero) => hero.name), chapters: input.config.bookChapters, form: input.config.experienceForm });
@@ -313,7 +315,7 @@ async function entitiesFor(planned: PlannedBook): Promise<VisualEntity[]> {
 async function saveState(storyId: string, state: BookJobState, stage: string, status: "queued" | "running" | "waiting" | "done"): Promise<void> {
   await storyDB.exec`
     UPDATE story_book_jobs
-    SET state = ${JSON.stringify(state)}::jsonb, stage = ${stage}, status = ${status}, updated_at = CURRENT_TIMESTAMP,
+    SET state = (${JSON.stringify(state)}::jsonb #>> '{}')::jsonb, stage = ${stage}, status = ${status}, updated_at = CURRENT_TIMESTAMP,
         attempts = CASE WHEN ${status} = 'queued' THEN 0 ELSE attempts END,
         finished_at = CASE WHEN ${status} = 'done' THEN CURRENT_TIMESTAMP ELSE finished_at END
     WHERE story_id = ${storyId}
@@ -399,6 +401,7 @@ async function writeStoryMetadata(storyId: string, input: BookJobInput, planned:
       casting: planned.casting.roles,
       curve: book.curve,
       openIssues: book.openIssues,
+      imageRedraws: state.imageRedraws || [],
       wordCount: book.chapters.reduce((sum, chapter) => sum + countWords(chapter.content), 0),
     },
   };
@@ -456,7 +459,8 @@ async function runJobStep(row: JobRow): Promise<void> {
       state.storyElements = pictures.storyElements;
       state.slot = (state.slot || 1) + fresh.length * planned.brief.book.imagesPerChapter;
       state.imageCostUSD = Number(((state.imageCostUSD || 0) + pictures.imageCostUSD).toFixed(6));
-      state.imageCalls = (state.imageCalls || 0) + pictures.imagesGenerated;
+      state.imageCalls = (state.imageCalls || 0) + ("imageCalls" in pictures && pictures.imageCalls ? pictures.imageCalls : pictures.imagesGenerated);
+      if ("redraws" in pictures && pictures.redraws?.length) state.imageRedraws = [...(state.imageRedraws || []), ...pictures.redraws];
       if (pictures.coverUrl) state.coverUrl = pictures.coverUrl;
       keepCosts();
       await publishChapters(input, planned, state, from, to);
@@ -517,7 +521,7 @@ async function publishChapters(input: BookJobInput, planned: PlannedBook, state:
     const content = cleanForReader(chapter.content, input.blockedTerms);
     await tx.exec`
       INSERT INTO chapters (id, story_id, title, content, image_url, images, chapter_order, created_at)
-      VALUES (${id}, ${storyId}, ${title}, ${content}, ${images[0]?.url || null}, ${JSON.stringify(images)}::jsonb, ${chapter.order}, ${now})
+      VALUES (${id}, ${storyId}, ${title}, ${content}, ${images[0]?.url || null}, (${JSON.stringify(images)}::jsonb #>> '{}')::jsonb, ${chapter.order}, ${now})
     `;
     inserted.push({ id, title, content, order: chapter.order });
   }
@@ -596,7 +600,7 @@ async function finishBook(input: BookJobInput, planned: PlannedBook, state: Book
   const seriesId = input.series?.seriesId || crypto.randomUUID();
   await storyDB.exec`
     INSERT INTO story_series (id, user_id, profile_id, title, memory)
-    VALUES (${seriesId}, ${input.userId}, ${input.profileId || null}, ${memory.seriesTitle}, ${JSON.stringify(memory)}::jsonb)
+    VALUES (${seriesId}, ${input.userId}, ${input.profileId || null}, ${memory.seriesTitle}, (${JSON.stringify(memory)}::jsonb #>> '{}')::jsonb)
     ON CONFLICT (id) DO UPDATE SET memory = EXCLUDED.memory, updated_at = CURRENT_TIMESTAMP
   `;
   await storyDB.exec`UPDATE stories SET series_id = ${seriesId}, series_volume = ${memory.volume} WHERE id = ${storyId}`;

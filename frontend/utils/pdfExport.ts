@@ -10,6 +10,7 @@ import type { Story } from '../types/story';
 import type { Doku } from '../types/doku';
 import { getBackendUrl } from '../config';
 import { stripTtsEmotionMarkersForDisplay } from './chapterImagePlacement';
+import i18n from '../src/i18n';
 
 // Type definitions for image loading
 interface ImageLoadResult {
@@ -304,6 +305,14 @@ function addWrappedText(
   return currentY;
 }
 
+/** The genre as the library shows it ("Märchen"), never the raw key ("fairy_tales"). */
+function genreLabel(genre: string | undefined): string {
+  if (!genre) return 'Story';
+  const translated = i18n.t(`storiesScreen.genre.${genre}`, { defaultValue: '' });
+  if (typeof translated === 'string' && translated) return translated;
+  return genre.replace(/[_-]+/g, ' ').replace(/\b\p{Ll}/gu, (letter) => letter.toUpperCase());
+}
+
 /**
  * Export story as PDF
  *
@@ -426,7 +435,7 @@ export async function exportStoryAsPDF(
     yPos += 15;
     doc.setFontSize(10);
     doc.setTextColor(100);
-    doc.text(`Genre: ${story.config.genre || 'Story'}`, margin, yPos);
+    doc.text(`Genre: ${genreLabel(story.config.genre)}`, margin, yPos);
     yPos += 6;
     doc.text(`Alter: ${story.config.ageGroup || '6-8'}`, margin, yPos);
     yPos += 6;
@@ -459,8 +468,14 @@ export async function exportStoryAsPDF(
 
         yPos += 5;
 
+        // Chapter books place 1-3 pictures after stored paragraphs (drawn below);
+        // every other story shows its one chapter picture at the top.
+        const bookImages = Array.isArray((chapter as any).images) && (chapter as any).images.length > 0
+          ? ((chapter as any).images as Array<{ url: string; afterParagraph: number }>)
+          : null;
+
         // Chapter image if available
-        if (chapter.imageUrl) {
+        if (chapter.imageUrl && !bookImages) {
           const imageResult = await loadImageAsDataUrl(chapter.imageUrl);
 
           if (imageResult.success && imageResult.dataUrl) {
@@ -510,7 +525,7 @@ export async function exportStoryAsPDF(
         const paragraphGap = 5;
         const bottomLimit = pageHeight - 20; // leave room for the footer
 
-        for (const paragraph of paragraphs) {
+        for (const [paragraphIndex, paragraph] of paragraphs.entries()) {
           // Pre-measure the paragraph so a long block does not get split into
           // a 1-line orphan on the next page. When the whole paragraph does not
           // fit in the remaining space AND it fits on a fresh page, move it to
@@ -549,6 +564,24 @@ export async function exportStoryAsPDF(
             yPos += lineHeight;
           }
           yPos += paragraphGap; // Space between paragraphs
+
+          for (const picture of (bookImages || []).filter((image) => Math.min(image.afterParagraph, paragraphs.length - 1) === paragraphIndex)) {
+            const loaded = await loadImageAsDataUrl(picture.url);
+            if (!loaded.success || !loaded.dataUrl) continue;
+            let pictureWidth = contentWidth;
+            let pictureHeight = 80;
+            if (loaded.width && loaded.height) {
+              const ratio = loaded.width / loaded.height;
+              if (ratio > contentWidth / 80) pictureHeight = contentWidth / ratio;
+              else pictureWidth = 80 * ratio;
+            }
+            if (yPos + pictureHeight > bottomLimit) {
+              doc.addPage();
+              yPos = margin;
+            }
+            doc.addImage(loaded.dataUrl, 'JPEG', (pageWidth - pictureWidth) / 2, yPos, pictureWidth, pictureHeight);
+            yPos += pictureHeight + 8;
+          }
         }
 
         updateProgress();

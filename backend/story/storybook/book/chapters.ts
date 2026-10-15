@@ -12,6 +12,7 @@ import { containsBlockedTerm, countWords, inventedHeroLooks, splitSentences } fr
 import { cleanProse, ensureParagraphs, normalizeGermanQuotes } from "../parsing";
 import { parseJsonObject } from "../llm";
 import type { CheckIssue } from "../types";
+import { mentionsName } from "./catalogue";
 import type { BookBrief, BookBudget, BookChapter, ChapterCritique } from "./types";
 
 const CHAPTER_MARKER = /^\s*(?:[#*_>\s]*)(?:KAPITEL|CHAPTER|CHAPITRE|CAPÍTULO|CAPITOLO|HOOFDSTUK|ГЛАВА)\s+(\d+)\s*[:：.\-–—]?\s*(.*?)\s*[*_#]*\s*$/i;
@@ -43,10 +44,23 @@ export function parseChapters(raw: string, options: { german?: boolean } = {}): 
     })
     .map((block) => {
       let content = cleanChapterText(block.lines.join("\n"));
-      if (options.german) content = ensureParagraphs(normalizeGermanQuotes(content));
+      if (options.german) content = speechTagCommas(ensureParagraphs(normalizeGermanQuotes(content)));
       return { order: block.order, title: block.title || `Kapitel ${block.order}`, content, recap: "" };
     })
     .filter((chapter) => chapter.content.length > 0);
+}
+
+// A speech tag after a quote: a weak past form (sagte, fragte, flüsterte …) or a common strong one.
+const SPEECH_TAG = String.raw`(?=(?:\p{Ll}+te|rief|schrie|sprach|bat|befahl|log|riet)\b)`;
+
+/**
+ * German comma after direct speech followed by its speech tag, which the writer drops now and then
+ * („Welche Reise?“ fragte Alexander → „Welche Reise?“, fragte Alexander; „Hier.“ sagte er → „Hier“, sagte er).
+ */
+export function speechTagCommas(text: string): string {
+  return text
+    .replace(new RegExp(String.raw`([?!])“[ \t]+${SPEECH_TAG}`, "gu"), "$1“, ")
+    .replace(new RegExp(String.raw`([^.?!…\s])\.“[ \t]+${SPEECH_TAG}`, "gu"), "$1“, ");
 }
 
 /** Removes markdown, logbook lines a model may add, and any "to be continued". */
@@ -91,6 +105,19 @@ const MORAL_ENDINGS = [
   /they learned that/i,
 ];
 
+const TIME_OPENING = /^(am|an diesem|an jenem|in (der|dieser|jener)|früh am|spät am|gegen|als (die sonne|der mond|es (dunkel|hell|abend|morgen))|die sonne|der nächste|the next|that (morning|evening|night)|in the (morning|evening))\b[^.!?]{0,40}\b(morgen|vormittag|mittag|nachmittag|abend|nacht|tag|frühstück|sonne|mond|morning|evening|night|day)\b/i;
+
+/**
+ * How a chapter opens, when it opens by formula: the time of day, or everyone present
+ * listed in the first sentence (Gurkenberg: "Am nächsten Morgen saßen A, B, C und D …" again and again).
+ */
+export function formulaicOpening(content: string, names: string[]): "time" | "roll-call" | null {
+  const first = splitSentences(content.trim().split(/\n+/)[0] || "")[0] || "";
+  if (TIME_OPENING.test(first.trim())) return "time";
+  const present = names.filter((name) => mentionsName(first, name)).length;
+  return present >= 3 ? "roll-call" : null;
+}
+
 export function checkChapter(chapter: BookChapter, input: { brief: BookBrief; budget: BookBudget; earlier: BookChapter[]; names: string[] }): CheckIssue[] {
   const issues: CheckIssue[] = [];
   const { budget } = input;
@@ -108,6 +135,14 @@ export function checkChapter(chapter: BookChapter, input: { brief: BookBrief; bu
   const lastSentence = splitSentences(chapter.content.trim().split(/\n+/).pop() || "").pop() || "";
   if (/\?\s*$/.test(lastSentence) && !/[„"»«“”]/.test(lastSentence)) at(`endet mit einer Erzählerfrage („${lastSentence.slice(0, 80)}“) statt mit einem Ereignis.`, "narrator_question", "soft");
   if (chapter.order === budget.chapters && MORAL_ENDINGS.some((pattern) => pattern.test(chapter.content.slice(-700)))) at("das Ende spricht eine Lehre aus — es muss ein Bild oder eine Pointe sein.", "moral_ending", "hard");
+  // One opening by formula is fine; the same formula in one of the two chapters before is a tic.
+  const opening = formulaicOpening(chapter.content, input.names);
+  if (opening && input.earlier.slice(-2).some((other) => formulaicOpening(other.content, input.names) === opening)) {
+    at(opening === "time"
+      ? "beginnt wie ein Kapitel kurz davor mit der Tageszeit — steig mit einer Handlung, einem Satz wörtlicher Rede oder einem überraschenden Detail ein."
+      : "zählt im ersten Satz wieder die ganze Gruppe auf — steig mit einer Handlung oder einem Satz wörtlicher Rede ein und bring die Figuren nach und nach ins Bild.",
+    "formulaic_opening", "soft");
+  }
   for (const hit of repeatedPhrases(chapter, input.earlier, input.names)) {
     at(`die Formulierung „${hit.phrase}“ stand schon in Kapitel ${hit.chapter} — variiere sie.`, "repeated_phrase", "soft");
   }
@@ -128,11 +163,16 @@ function score(value: unknown): number {
 /** A quote counts only when it is (nearly) in the text: critics paraphrase, and a paraphrase proves nothing. */
 export function quoteInText(quoted: string | null, content: string): boolean {
   if (!quoted) return false;
-  const haystack = words(content).join(" ");
+  const haystack = ` ${words(content).join(" ")} `;
   const needle = words(quoted);
   if (needle.length < 3) return false;
-  const probe = needle.slice(0, Math.min(6, needle.length)).join(" ");
-  return haystack.includes(probe) || haystack.includes(needle.slice(-Math.min(6, needle.length)).join(" "));
+  // Any five consecutive words of the quote (all of it when shorter): critics join two
+  // sentences or drop a word, and a near-verbatim quote still proves the laugh exists.
+  const size = Math.min(5, needle.length);
+  for (let i = 0; i + size <= needle.length; i += 1) {
+    if (haystack.includes(` ${needle.slice(i, i + size).join(" ")} `)) return true;
+  }
+  return false;
 }
 
 export interface ChapterCritiqueResult {
@@ -153,15 +193,22 @@ export function parseChapterCritique(raw: string, chapters: BookChapter[]): Chap
     const entry = parsed.chapters.find((item: any) => Math.round(Number(item?.n)) === chapter.order) || {};
     const laugh = quote(entry.laugh);
     const hook = quote(entry.hook);
+    // A quote the text does not contain is a guess, not a laugh.
+    const laughFound = Boolean(laugh && quoteInText(laugh, chapter.content));
+    const hookFound = Boolean(hook && quoteInText(hook, chapter.content));
+    const unmatched = {
+      ...(laugh && !laughFound ? { laugh } : {}),
+      ...(hook && !hookFound ? { hook } : {}),
+    };
     return {
       n: chapter.order,
-      // A quote the text does not contain is a guess, not a laugh.
-      laugh: laugh && quoteInText(laugh, chapter.content) ? laugh : null,
-      hook: hook && quoteInText(hook, chapter.content) ? hook : null,
+      laugh: laughFound ? laugh : null,
+      hook: hookFound ? hook : null,
       suspense: score(entry.suspense),
       humor: score(entry.humor),
       progress: entry.progress !== false && !/^(false|nein|no)$/i.test(String(entry.progress)),
       missingPlants: (Array.isArray(entry.missingPlants) ? entry.missingPlants : []).map((id: unknown) => String(id).trim().toUpperCase()).filter(Boolean).slice(0, 4),
+      ...(Object.keys(unmatched).length ? { unmatched } : {}),
     };
   });
   return {

@@ -180,7 +180,9 @@ export function planScoreCap(checks: Record<string, boolean>): number {
   if (checks.solutionPrepared === false) cap = Math.min(cap, 5);
   if (checks.stakesPersonal === false) cap = Math.min(cap, 6);
   if (checks.opponentLogic === false) cap = Math.min(cap, 6.5);
-  if (checks.gagEscalates === false) cap = Math.min(cap, 7);
+  if (checks.noEasyWayOut === false) cap = Math.min(cap, 6.5);
+  if (checks.gagEscalates === false || checks.setbackChangesPlan === false || checks.climaxNew === false) cap = Math.min(cap, 7);
+  if (checks.needBeforeClimax === false) cap = Math.min(cap, 7.5);
   return cap;
 }
 
