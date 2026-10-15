@@ -16,9 +16,6 @@
  *      appears almost only when the creatures' portraits are on the sheet —
  *      scene "child + dragon + cloud": 4/6 clean with heroes only, 0/6 with the
  *      full sheet); the better of the two attempts ships;
- *   4b. if both still carry a defect, ONE more attempt of the full scene on the
- *      stronger checkpoint (FLUX.2 klein 4B Base, ~0.7 ¢, benchmark 67–83 % clean
- *      where the distilled 4B managed 38 %) before figures are dropped;
  *   5. hard defects (extra limbs, doubles, strangers, features on the wrong
  *      figure) are never printed; soft ones (who holds what, a posed lineup, a
  *      word on a sign) are. When both attempts carry a hard defect, a vignette
@@ -44,8 +41,6 @@ export interface ImageRequest {
   seed: number;
   width: number;
   height: number;
-  /** "strong" = the non-distilled checkpoint for a picture the standard model failed twice. */
-  tier?: "standard" | "strong";
 }
 
 export interface ImageResponse {
@@ -143,8 +138,6 @@ export interface GenerateImagesInput {
   historical?: boolean;
   /** Chapter books draw the cover once, with the first batch only. */
   skipCover?: boolean;
-  /** One extra full-scene attempt on the stronger checkpoint before figures are dropped. Default on; TALEA_STORYBOOK_IMAGE_STRONG=off turns it off for both pipelines. */
-  strongRetry?: boolean;
 }
 
 /** Keep rejected candidates for diagnostics, but never attach them to a reading page. */
@@ -580,7 +573,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     };
 
     let lastRefused = false;
-    const deliver = async (plan: Plan, attemptNo: number, extra: string, startLevel: number, ladder: VisualEntity[][], tier: "standard" | "strong" = "standard") => {
+    const deliver = async (plan: Plan, attemptNo: number, extra: string, startLevel: number, ladder: VisualEntity[][]) => {
       let lastPrompt = shot.scene;
       lastRefused = false;
       for (let level = startLevel; level < ladder.length; level += 1) {
@@ -611,7 +604,6 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
             seed: seedFor(input.seed, shot.page, attemptNo * 10 + level),
             width,
             height,
-            ...(tier === "strong" ? { tier } : {}),
           });
           addCost(response);
           if (response.url) {
@@ -658,8 +650,8 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       });
     };
 
-    const attempt = async (plan: Plan, attemptNo: number, extra: string, startLevel: number, ladder = plan.ladder, tier: "standard" | "strong" = "standard"): Promise<Attempt> => {
-      const got = await deliver(plan, attemptNo, extra, startLevel, ladder, tier);
+    const attempt = async (plan: Plan, attemptNo: number, extra: string, startLevel: number, ladder = plan.ladder): Promise<Attempt> => {
+      const got = await deliver(plan, attemptNo, extra, startLevel, ladder);
       const url = got.response.url;
       if (!url) return { page: shot.page, prompt: got.prompt, attempts: attemptNo, costUSD, severity: 999, status: "missing", level: -1, plan: plan.kind };
       const expectedNames = [...plan.onStage.map((entity) => entity.name), ...plan.elements.map((element) => element.name)];
@@ -772,30 +764,19 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     let best = better(second, first) ? second : first;
     if (isPublishable(best)) return finish(best, 2);
 
-    let attempts = 2;
-    // Rung 3: the same full scene once on the stronger checkpoint — it keeps all figures where the next rung drops them.
-    if ((input.strongRetry ?? process.env.TALEA_STORYBOOK_IMAGE_STRONG !== "off") && !lastRefused && !providerDown()) {
-      attempts += 1;
-      const strongCorrection = correctionFor(best.qa || first.qa, fullElements.map((element) => element.name));
-      const strong = await attempt(fullPlan, attempts, `${strongCorrection} Simple clear composition; separate silhouettes, one pose per figure, hands apart and easy to read.`, 0, fullPlan.ladder, "strong");
-      note("strong", strong);
-      if (strong.url) candidates.push(strong);
-      if (better(strong, best)) best = strong;
-      if (isPublishable(best)) return finish(best, attempts);
-    }
-
-    // Rung 4: only the heroes and the things (drops the crowd that tangles the picture).
+    // Rung 3: only the heroes and the things (drops the crowd that tangles the picture).
     const reduced = reducedPlan();
+    let attempts = 2;
     if (reduced && !lastRefused && !providerDown()) {
-      attempts += 1;
-      const third = await attempt(reduced, attempts, "Simple clear composition; separate silhouettes, hands apart and easy to read.", 0);
+      attempts = 3;
+      const third = await attempt(reduced, 3, "Simple clear composition; separate silhouettes, hands apart and easy to read.", 0);
       note("reduced", third);
       if (third.url) candidates.push(third);
       if (better(third, best)) best = third;
       if (isPublishable(best)) return finish(best, attempts);
     }
 
-    // Rung 5: the people-free picture.
+    // Rung 4: the people-free picture.
     const fallback = await vignette(attempts + 1);
     if (fallback) {
       attempts += 1;
@@ -804,7 +785,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       if (fallback.url) candidates.push(fallback);
     }
 
-    // Rung 6: the least bad picture, if it has no body defect, no stranger and no doubled figure.
+    // Rung 5: the least bad picture, if it has no body defect, no stranger and no doubled figure.
     const salvage = candidates.filter((candidate) => salvageable(candidate.qa)).sort((a, b) => a.severity - b.severity)[0];
     if (salvage) {
       errors.push(`salvaged ${salvage.plan === "reduced" ? "reduced" : salvage.vignette ? "vignette" : "full"} picture with severity ${salvage.severity}`);
