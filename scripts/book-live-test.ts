@@ -15,6 +15,7 @@
  *   --planner writer|<model>                            model for pitch + plan (default: openai/gpt-6-luna at effort low, like production)
  *   --plan-effort low|medium|high  --chapter-effort minimal|low|medium  --chapter-writer <model>
  *   --upto 6                                            stop after chapter 6 (cost sampling)
+ *   --state-file <result.json>                          reuse the chapters of an earlier run (with --plan-file): only draw
  *   --no-images | --image-chapters 3                    pictures for all chapters or only the first N
  *   --history Logs/test-history-alexander-adrian.json   recent stories of the family
  *   --plan-only                                         pitch + plan + plan review, no chapters
@@ -267,7 +268,14 @@ let imageCostUSD = 0;
 let missingImages = 0;
 
 if (!flag("--plan-only")) {
-  state = await writeBook(ctx, planned, state, upTo);
+  // --state-file <result.json>: reuse the chapters of an earlier run and only draw (director + pictures).
+  const stateFile = option("--state-file");
+  if (stateFile) {
+    const savedRun = JSON.parse(await readFile(stateFile, "utf8"));
+    state = (savedRun.state || savedRun) as BookState;
+  } else {
+    state = await writeBook(ctx, planned, state, upTo);
+  }
   await writeFile(join(out, "state.json"), JSON.stringify(state, null, 2), "utf8");
 
   const imageChapters = flag("--no-images") || !runwareKey ? 0 : Math.min(state.chapters.length, Number(option("--image-chapters", String(state.chapters.length))) || state.chapters.length);

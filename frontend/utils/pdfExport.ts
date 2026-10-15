@@ -533,6 +533,20 @@ export async function exportStoryAsPDF(
           // are allowed to break mid-way.
           const wrapped = doc.splitTextToSize(paragraph, contentWidth) as string[];
           const blockHeight = wrapped.length * lineHeight;
+          // Keep the last two paragraphs of a chapter together: its closing line (the hook) alone on a
+          // page looked broken ("Die segelnden Wörter", page 10). Only without a picture in between.
+          if (
+            paragraphs.length >= 3 &&
+            paragraphIndex === paragraphs.length - 2 &&
+            !(bookImages || []).some((image) => Math.min(image.afterParagraph, paragraphs.length - 1) === paragraphIndex)
+          ) {
+            const lastWrapped = doc.splitTextToSize(paragraphs[paragraphs.length - 1], contentWidth) as string[];
+            const together = blockHeight + paragraphGap + lastWrapped.length * lineHeight;
+            if (bottomLimit - yPos < together && together <= bottomLimit - margin) {
+              doc.addPage();
+              yPos = margin;
+            }
+          }
           const remaining = bottomLimit - yPos;
           const fitsOnFreshPage = blockHeight <= bottomLimit - margin;
 

@@ -8,7 +8,7 @@
  */
 
 import { containsBlockedTerm } from "../checks";
-import { mentionsName } from "./catalogue";
+import { foldUmlauts, mentionsName } from "./catalogue";
 import type { BookBudget, BookChapterPlan, BookPitch, BookPlan, PlanReview } from "./types";
 
 function text(value: unknown, max = 600): string {
@@ -93,6 +93,10 @@ export function parsePlan(raw: any, chapters: number): BookPlan | null {
       twistChapter: int(b.twistChapter),
       lowPointChapter: int(b.lowPointChapter),
       solution: { how: text(b.solution?.how, 400), uses: list(b.solution?.uses, 6, 12).map((id) => id.toUpperCase()) },
+      fixedWordings: (Array.isArray(b.fixedWordings) ? b.fixedWordings : [])
+        .map((entry: any) => ({ what: text(entry?.what, 60), text: text(entry?.text, 240) }))
+        .filter((entry: { what: string; text: string }) => entry.what && entry.text)
+        .slice(0, 5),
     },
     setups: (Array.isArray(raw.setups) ? raw.setups : []).map((setup: any, index: number) => ({
       id: (text(setup?.id, 12) || `S${index + 1}`).toUpperCase(),
@@ -163,9 +167,26 @@ export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroN
     if (on.length < 2) issues.push(`${name} ist besetzt, steht aber in weniger als zwei Kapiteln auf der Bühne.`);
     else if (!on.some((chapter) => chapter.n >= secondHalf)) issues.push(`${name} verschwindet nach der ersten Hälfte — gib der Figur in der zweiten Hälfte eine Aufgabe.`);
   }
+  // "Die segelnden Wörter" (2026-10-15): chapters 1-3 all at one table; the way out began in chapter 4.
+  const opening = plan.chapters.slice(0, 3);
+  if (!input.cozy && n >= 6 && opening.length === 3 && opening.every((chapter) => chapter.place && samePlace(chapter.place, opening[0].place))) {
+    issues.push(`Kapitel 1–3 spielen alle am selben Ort („${opening[0].place.slice(0, 50)}“) — die Helden sollen spätestens in Kapitel 3 aufbrechen oder der Ort verändert sich spürbar.`);
+  }
   const blocked = containsBlockedTerm(JSON.stringify(plan), input.blockedTerms);
   if (blocked) issues.push(`Der gesperrte Begriff „${blocked}“ kommt im Plan vor.`);
   return issues;
+}
+
+const PLACE_STOPWORDS = new Set(["der", "die", "das", "dem", "den", "ein", "eine", "einem", "im", "in", "am", "an", "auf", "bei", "vor", "von", "zu", "zum", "zur", "und", "mit", "the", "of", "at"]);
+
+/** Two place descriptions name the same spot: one holds the other's words, or most words are shared. */
+export function samePlace(a: string, b: string): boolean {
+  const tokens = (value: string) => new Set(foldUmlauts(value.toLocaleLowerCase("de-DE")).split(/[^a-z0-9]+/).filter((word) => word.length > 2 && !PLACE_STOPWORDS.has(word)));
+  const left = tokens(a);
+  const right = tokens(b);
+  if (!left.size || !right.size) return false;
+  const shared = [...left].filter((word) => right.has(word)).length;
+  return shared / Math.min(left.size, right.size) >= 0.5;
 }
 
 function score(value: unknown): number {

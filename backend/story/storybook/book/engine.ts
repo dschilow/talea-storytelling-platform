@@ -14,7 +14,7 @@
 import { isGerman } from "../craft";
 import { STORYBOOK_SUPPORT_MODEL, fallbackModelFor, modelFamily, parseJsonObject, type CostLedger, type LlmCallResult, type LlmRequest, type StorybookLlm, type StorybookModels } from "../llm";
 import { mentionsName, resolveCasting, type CastingResult } from "./catalogue";
-import { checkChapter, mergeChapterPatch, mergeWorldState, parseChapterCritique, parseChapters, type ChapterCritiqueResult } from "./chapters";
+import { checkChapter, mergeChapterPatch, mergeWorldState, mergeWordings, parseChapterCritique, parseChapters, quoteInText, type ChapterCritiqueResult } from "./chapters";
 import { buildColdReadPrompt, coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
 import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview } from "./plan";
 import {
@@ -422,6 +422,11 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
     .map((entry: any) => ({ chapter: chapter.order, who: clean(entry?.who, 60), knows: clean(entry?.knows, 200) }))
     .filter((entry: { who: string; knows: string }) => entry.who && entry.knows)
     .slice(0, 5));
+  // Spells, rhymes and key sentences, verbatim: the first version stands, later chapters copy it.
+  const wordings = released.flatMap((chapter) => (Array.isArray(entryOf(chapter.order)?.wordings) ? entryOf(chapter.order).wordings : [])
+    .map((entry: any) => ({ what: clean(entry?.what, 60), text: clean(entry?.text, 240) }))
+    .filter((entry: { what: string; text: string }) => entry.what && entry.text && quoteInText(entry.text, chapter.content))
+    .slice(0, 4));
   const worldState = released.flatMap((chapter) => (Array.isArray(entryOf(chapter.order)?.state) ? entryOf(chapter.order).state : [])
     .map((entry: any) => ({ chapter: chapter.order, thing: clean(entry?.thing, 60), now: clean(entry?.now, 160) }))
     .filter((entry: { thing: string; now: string }) => entry.thing && entry.now)
@@ -450,6 +455,7 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
     facts: [...state.facts, ...facts],
     knowledge: [...state.knowledge, ...knowledge],
     worldState: mergeWorldState(state.worldState || [], worldState),
+    wordings: mergeWordings(state.wordings || [], wordings),
     curve: [...state.curve, ...curve],
     openIssues: [...state.openIssues, ...openIssues],
   };

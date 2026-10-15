@@ -126,6 +126,21 @@ export function mergeWorldState(
   return [...merged.values()].slice(-limit);
 }
 
+/** Wordings keep their first version (the plan's or the first chapter's); a thing named again does not replace it. */
+export function mergeWordings(
+  previous: Array<{ what: string; text: string }>,
+  next: Array<{ what: string; text: string }>,
+  limit = 14,
+): Array<{ what: string; text: string }> {
+  const key = (value: string) => foldUmlauts(value.toLocaleLowerCase("de-DE")).replace(/[^a-z0-9]+/g, " ").trim();
+  const merged = new Map<string, { what: string; text: string }>();
+  for (const entry of [...previous, ...next]) {
+    const id = key(entry.what);
+    if (id && !merged.has(id)) merged.set(id, entry);
+  }
+  return [...merged.values()].slice(-limit);
+}
+
 /**
  * How a chapter opens, when it opens by formula: the time of day, or everyone present
  * listed in the first sentence (Gurkenberg: "Am nächsten Morgen saßen A, B, C und D …" again and again).

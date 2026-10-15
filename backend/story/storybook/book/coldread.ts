@@ -78,7 +78,7 @@ export function coldReadNotes(missing: string[], input: { chapters: BookChapter[
       const name = id.slice(5);
       const first = input.chapters.find((chapter) => mentionsName(chapter.content, name))?.order ?? firstChapter;
       const intro = input.plan.bible.characters.find((character) => mentionsName(character.name, name))?.introduction;
-      notes.push(`Kapitel ${first}: Beim ersten Auftritt von ${name} erfährt ein Kind nicht, wer oder was ${name} ist und warum ${name} da ist. Ergänze dort ein bis zwei Sätze in der Handlung${intro ? ` (gemeint ist: ${intro})` : ""}.`);
+      notes.push(`Kapitel ${first}: Beim ersten Auftritt von ${name} erfährt ein Kind nicht, wer oder was ${name} ist und warum ${name} da ist. Ergänze dort ein bis zwei Sätze, die in der Handlung stehen — als Reaktion der Helden oder wörtliche Rede, nicht als Erzähler-Satz wie „X war ein …“${intro ? ` (gemeint ist: ${intro})` : ""}.`);
     }
   }
   return notes;

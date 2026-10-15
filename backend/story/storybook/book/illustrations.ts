@@ -131,7 +131,15 @@ export async function illustrateBatch(input: {
       fixedElements: input.fixedElements,
       skipCover: !input.withCover,
       stage: `book-illustration-${range}`,
-      note: `This is a chapter book. These PAGES are reading segments of chapters ${range} (pictures ${slots[0].slot}–${slots[slots.length - 1].slot} of the book), numbered locally from 1.${input.withCover ? "" : " The cover already exists: answer cover briefly, it is not drawn."}`,
+      note: [
+        `This is a chapter book. These PAGES are reading segments of chapters ${range} (pictures ${slots[0].slot}–${slots[slots.length - 1].slot} of the book), numbered locally from 1.`,
+        // "Die segelnden Wörter": a picture showed the paper boat twelve paragraphs before the text had it — the chapter's hook.
+        "A picture sits after the MIDDLE paragraph of its segment: draw a moment from the middle of the segment, never from its last paragraphs (they hold the chapter's ending, and a picture must not show it before the text does).",
+        input.withCover
+          // The cover and the first picture were nearly the same table scene.
+          ? "The cover must differ from every page picture: show the book's central wonder big in the foreground with the heroes reacting to it — never the opening scene of chapter 1."
+          : "The cover already exists: answer cover briefly, it is not drawn.",
+      ].join(" "),
     }, input.models.support);
     if (director.call) input.ledger.recordCall(`book-illustration-${range}`, director.call, "support");
     if (director.repairCall) input.ledger.recordCall(`book-illustration-repair-${range}`, director.repairCall, "support");

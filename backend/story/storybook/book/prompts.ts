@@ -209,10 +209,12 @@ export function buildPlanPrompt(brief: BookBrief, idea: BookPitchIdea, cast: Cas
   lines.push("");
   lines.push("HOW TO PLAN (this is where suspense, red thread and humour are decided):");
   lines.push("- BIBLE: world (concrete, paintable), home (the place the heroes start from and return to, with its inhabitants), bigQuestion (ONE, answered in the last chapter), truth (what really happens and why — for a mystery the whole hidden chain), limits (what the wonder can and cannot do), workaround (a bypass or escape route shown by chapter 3 and needed later), stakes (what is lost if they fail, concrete), personalReason (why it matters to THESE heroes), deadline (exactly one, visible), opponent (who, a motive a child understands, own logic — null in a cosy book).");
-  lines.push("- characters: one profile for each hero and each cast member — introduction (cast only: what kind of being they are, how the heroes know them or how they meet, why they are here today — one sentence a child understands), wants, can, flaw (a quirk with side effects: the comic engine, sometimes the problem), avoids, voice (how they talk, two or three concrete speech habits), challengedBy, finalChoice (a decision at the end they could not have made at the start). The heroes' roles come from their real profiles; never fix a child as \"the brave one\" or \"the scared one\".");
+  lines.push("- characters: one profile for each hero and each cast member — introduction (cast only: what kind of being they are, how the heroes know them or how they meet, why they are here today — one sentence a child understands; never a family tie to the heroes: a pool \"Oma\" is a friendly old neighbour, not their grandmother), wants, can, flaw (a quirk with side effects: the comic engine, sometimes the problem), avoids, voice (how they talk, two or three concrete speech habits), challengedBy, finalChoice (a decision at the end they could not have made at the start). The heroes' roles come from their real profiles; never fix a child as \"the brave one\" or \"the scared one\".");
+  lines.push("- fixedWordings: 0-4 entries { what, text } — the EXACT wording of every spell, rhyme, rule sentence, sign text or last line the story hinges on (a missing word, a magic formula, the book's final sentence). Written once here; whenever it is spoken or read in any chapter it appears letter for letter (a partial quote ends with „…“, never reworded).");
   lines.push("- runningGag: one gag with 3-4 beats in different chapters — it appears, escalates, tips over the third time, and is used meaningfully in the finale.");
   // Book "Sieben Zimmer und ein Nieser" (2026-10-15): readers without Talea never learned who Kuno was,
   // how the heroes belonged together or whose room it was.
+  lines.push("- The heroes do not stay in one place for the whole opening: by chapter 3 at the latest they leave the starting place (or it changes visibly) — three chapters at one table read as three evenings of the same scene.");
   lines.push("- Orientation: chapter 1 starts in the home place and, before the first wonder, lets a child who knows nothing learn where we are, who belongs together, what the heroes want today and by when, and who each companion is (their introduction). Plan it into chapter 1's event.");
   lines.push(`- Arc: chapters 1-2 calm opening in the home place and getting to know everyone, the disruption at the end of chapter 1 or 2; early clues; twistChapter ≈ ${twist} turns an assumption upside down; lowPointChapter ≈ ${low} follows from what happened; the solution comes from the heroes and earlier observations; the last chapter answers the big question and brings them home, the home place a little changed, with one small open thread for another volume (never the main question).`);
   lines.push("- setups: 4-8, each with id S1…, a concrete visible thing, the chapter where it is planted (casually) and a LATER chapter where it pays off. Nothing planted stays unpaid; no payoff without a plant. solution.uses names at least two setup ids.");
@@ -255,6 +257,7 @@ export function buildPlanPrompt(brief: BookBrief, idea: BookPitchIdea, cast: Cas
       runningGag: { gag: "…", beats: [{ chapter: 2, beat: "…" }] },
       twistChapter: twist, lowPointChapter: low,
       solution: { how: "one child's sentence", uses: ["S1", "S3"] },
+      fixedWordings: [{ what: "the closing sentence of the book", text: "…" }],
     },
     setups: [{ id: "S1", what: "…", planted: 2, paidOff: n - 1 }],
     chapters: [{ n: 1, title: "…", type: "discovery", place: "…", event: "…", progress: "…", laugh: "…", hook: "…", cast: ["…"], plants: ["S1"], payoffs: [], gagBeat: "", pictures: Array.from({ length: book.imagesPerChapter }, () => "…") }],
@@ -314,6 +317,7 @@ export function renderBible(plan: BookPlan): string {
     `Twist in chapter ${b.twistChapter}, low point in chapter ${b.lowPointChapter}. Solution: ${b.solution.how} (uses ${b.solution.uses.join(", ")})`,
     "Setups:",
     ...plan.setups.map((setup) => `- ${setup.id}: ${setup.what} (planted ch. ${setup.planted}, pays off ch. ${setup.paidOff})`),
+    ...(b.fixedWordings?.length ? ["Fixed wordings (letter for letter wherever spoken or read; a partial quote ends with „…“, never reworded):", ...b.fixedWordings.map((entry) => `- ${entry.what}: „${entry.text}“`)] : []),
   ];
   return lines.join("\n");
 }
@@ -406,10 +410,11 @@ export function buildChapterSystemPrompt(brief: BookBrief): string {
     "Things planted for later appear casually, inside a scene; never announce what they will be good for.",
     "At most one new invented thing (a place name, a rule, a magic object) per chapter: show it working first, then name it. Never explain the rules of the world in a lecture.",
     "Explain unfamiliar things in children's words when they first appear. Concrete nouns and strong verbs, short and medium sentences, paragraphs of two to four sentences; one-sentence paragraphs only for a bang or a punchline. No semicolons, adult abstractions, narrator questions, comments about the story, lessons or morals.",
-    `Do not describe the heroes' looks, size or age (the pictures show them). ${heroRelation(brief) ? `The heroes are ${heroRelation(brief)} — say so plainly in chapter 1, never invent anything else about their family.` : "Never name a family relation or friendship between the heroes (nobody told us)."} Catchphrases only when the scene carries them.`,
+    `Do not describe the heroes' looks, size or age (the pictures show them). ${heroRelation(brief) ? `The heroes are ${heroRelation(brief)} — say so plainly in chapter 1, never invent anything else about their family.` : "Never name a family relation or friendship between the heroes (nobody told us)."} Cast members are never the heroes' relatives (a pool \"Oma\" is a friendly old neighbour, not their grandmother). Catchphrases only when the scene carries them.`,
     // "Sieben Zimmer und ein Nieser" (2026-10-15): a child without Talea knowledge never learned who Kuno was or why Wuschel was there.
-    "A child hears this book without knowing any of the characters. Chapter 1 orients before the first wonder: where we are, who belongs together, what the heroes want today and by when — told through what they do, within roughly the first 150-250 words. Every companion gets, at their first appearance in the book, one or two sentences woven into the action that say what kind of being they are, how the heroes know them (or how they meet) and why they are here — the bible's introduction, never a list.",
+    "A child hears this book without knowing any of the characters. Chapter 1 orients before the first wonder: where we are, who belongs together, what the heroes want today and by when — told through what they do, within roughly the first 150-250 words. Every companion gets, at their first appearance in the book, one or two sentences woven into the action that say what kind of being they are, how the heroes know them (or how they meet) and why they are here — the bible's introduction, never a list. Give it through a reaction or a line of dialogue (a heroes' exclamation, a name the character says about themselves), never as a bare narrator fact like \"X war ein …, den die Geschwister zum ersten Mal trafen\".",
     "Grown-ups without a name in the bible stay offstage or are named naturally from a child's view (\"aus der Küche rief jemand\"); never stilted labels like \"die vertraute erwachsene Person\".",
+    "Spells, rhymes, rule sentences, signs and the book's key lines stay letter for letter wherever they come back — the bible's fixed wordings and every line listed under WORDINGS THAT STAND. A partial quote ends with „…“; never reword it, never invent a second version.",
     "Only the heroes, the cast and the minor figures the bible names have names; nameless extras only briefly.",
     `Chapter endings are gentle hooks — ${HOOK_CATALOGUE.slice(0, 4).join("; ")} — never acute danger or fear before sleep.`,
     ...(german ? ["Direct speech in German quotation marks: „so“. Rhythm sample (copy nothing):", STYLE_SAMPLE_DE] : []),
@@ -487,6 +492,10 @@ export function buildChapterUserPrompt(brief: BookBrief, plan: BookPlan, state: 
     lines.push("WHO KNOWS WHAT:");
     for (const entry of state.knowledge.slice(-20)) lines.push(`- (${entry.chapter}) ${entry.who}: ${entry.knows}`);
   }
+  if (state.wordings?.length) {
+    lines.push("WORDINGS THAT STAND (copy letter for letter when they come back):");
+    for (const entry of state.wordings.slice(-12)) lines.push(`- ${entry.what}: „${entry.text}“`);
+  }
   if (state.worldState?.length) {
     lines.push("HOW THINGS STAND NOW (continue from exactly this; chapter of the last change in brackets):");
     for (const entry of state.worldState.slice(-24)) lines.push(`- (${entry.chapter}) ${entry.thing}: ${entry.now}`);
@@ -539,7 +548,7 @@ export function buildChapterCritiquePrompt(brief: BookBrief, plan: BookPlan, sta
     `- hook: copy the exact last sentence(s) that make a child want the next chapter. null if the chapter just stops, or ends in acute danger or fear before sleep. Chapter ${last} (the last one) needs no hook: copy its closing line.`,
     "- suspense and humor 0-10 against top chapter books; progress: true if the chapter moves the big question.",
     "- missingPlants: setup ids the plan wanted planted here that the text does not show.",
-    "mustFix (at most 6, in German): contradictions with the established facts or within the text (places, owners, who knows what without a source), unclear transitions, a character acting against their profile, invented looks of the heroes, a planned payoff that does not land, child-safety problems. Each with chapter, exact short quote and the problem — never rewritten text. Taste, more jokes or more suspense are NOT mustFix.",
+    "mustFix (at most 6, in German): contradictions with the established facts or within the text (places, owners, who knows what without a source), unclear transitions, a character acting against their profile, invented looks of the heroes, a planned payoff that does not land, any quote of a fixed wording that deviates from its exact text (give the deviating quote and the correct one), child-safety problems. Each with chapter, exact short quote and the problem — never rewritten text. Taste, more jokes or more suspense are NOT mustFix.",
     "languageErrors: grammar, wrong words, tense switches into the present, with correction.",
     "Answer with JSON only.",
   ].join("\n");
@@ -551,6 +560,11 @@ export function buildChapterCritiquePrompt(brief: BookBrief, plan: BookPlan, sta
   if (state.facts.length) {
     user.push("ESTABLISHED FACTS:");
     user.push(...state.facts.slice(-60).map((fact) => `- (${fact.chapter}) ${fact.fact}`));
+  }
+  const wordings = [...(plan.bible.fixedWordings || []), ...(state.wordings || [])];
+  if (wordings.length) {
+    user.push("FIXED WORDINGS (every quote of them must match exactly):");
+    user.push(...wordings.slice(-14).map((entry) => `- ${entry.what}: „${entry.text}“`));
   }
   if (state.worldState?.length) {
     user.push("HOW THINGS STOOD BEFORE THESE CHAPTERS (a change needs a cause in the text):");
@@ -618,7 +632,9 @@ export function buildLogbookPrompt(brief: BookBrief, chapters: BookChapter[], pr
       "- knowledge: who learned or now believes something important (only characters, never the narrator).",
       // "Sieben Zimmer": the room count and which room had which weather drifted between chapters.
       "- state: things whose state CHANGES and that later chapters build on, as they are at the END of this chapter — how many of something exist, where a thing or character is, open/closed, tied/untied, wet/dry, who has which weather. One entry per thing, with a stable short name (the same name every time).",
-      JSON.stringify({ chapters: chapters.map((chapter) => ({ n: chapter.order, recap: "…", facts: ["…"], knowledge: [{ who: "…", knows: "…" }], state: [{ thing: "…", now: "…" }] })) }),
+      // "Die segelnden Wörter": the book's key sentence came back in three versions.
+      "- wordings: spells, rhymes, rule sentences, sign texts and key sentences that are INTRODUCED or come back in this chapter, copied letter for letter from the text (what = a short name, text = the exact wording). Only wordings that later chapters may quote again.",
+      JSON.stringify({ chapters: chapters.map((chapter) => ({ n: chapter.order, recap: "…", facts: ["…"], knowledge: [{ who: "…", knows: "…" }], state: [{ thing: "…", now: "…" }], wordings: [{ what: "…", text: "…" }] })) }),
     ].join("\n"),
   };
 }

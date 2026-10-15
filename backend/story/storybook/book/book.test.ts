@@ -5,12 +5,12 @@ import type { CastCandidate } from "../types";
 import { retryRequestFor, type LlmRequest } from "../llm";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./budget";
 import { catalogueForPitch, catalogueLine, foldUmlauts, mentionsName, resolveCasting } from "./catalogue";
-import { checkChapter, formulaicOpening, mergeChapterPatch, mergeWorldState, speechTagCommas, parseChapterCritique, parseChapters, quoteInText, repeatedPhrases } from "./chapters";
+import { checkChapter, formulaicOpening, mergeChapterPatch, mergeWordings, mergeWorldState, speechTagCommas, parseChapterCritique, parseChapters, quoteInText, repeatedPhrases } from "./chapters";
 import { chapterRanges, resolveBookPlanner } from "./engine";
 import { coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
 import { buildImageSlots } from "./illustrations";
-import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview, planScoreCap } from "./plan";
-import { buildChapterStaticContext, buildChapterSystemPrompt, buildChapterSystemWithContext, buildChapterUserPrompt, buildPitchPrompt, plantedSentences, planReviewNotes } from "./prompts";
+import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview, planScoreCap, samePlace } from "./plan";
+import { buildChapterCritiquePrompt, buildChapterStaticContext, buildChapterSystemPrompt, buildChapterSystemWithContext, buildChapterUserPrompt, buildPitchPrompt, plantedSentences, planReviewNotes } from "./prompts";
 import { emptyBookState, type BookBrief, type BookChapter, type CatalogueEntry } from "./types";
 
 function entry(id: string, name: string, extra: Partial<CatalogueEntry> = {}): CatalogueEntry {
@@ -40,7 +40,7 @@ function brief(overrides: Partial<BookBrief> = {}): BookBrief {
 
 function planJson(overrides: any = {}) {
   const chapters = Array.from({ length: 12 }, (_, index) => ({
-    n: index + 1, title: `Titel ${index + 1}`, type: ["entdeckung", "verfolgung", "rätsel", "ruhiges herzenskapitel"][index % 4], place: "Wald",
+    n: index + 1, title: `Titel ${index + 1}`, type: ["entdeckung", "verfolgung", "rätsel", "ruhiges herzenskapitel"][index % 4], place: ["Dorfplatz", "Waldweg", "Moorhütte", "Bachufer"][index % 4],
     event: "Etwas passiert.", progress: "Ein Hinweis mehr.", laugh: "Luna fällt vom Sieb.", hook: index < 11 ? "Ein Schmatzen." : "",
     cast: ["Alexander", "Adrian", index % 2 ? "Luna" : "Theo"], plants: index === 1 ? ["S1", "S2"] : index === 2 ? ["S3"] : [], payoffs: index === 10 ? ["S1", "S2"] : index === 9 ? ["S3"] : [], pictures: ["a", "b"],
   }));
@@ -339,6 +339,35 @@ describe("a child without Talea knowledge (Sieben Zimmer und ein Nieser, 2026-10
   test("a plan without orientation or with too many rules is capped", () => {
     expect(planScoreCap({ orientation: false })).toBe(7);
     expect(planScoreCap({ rulesSimple: false })).toBe(7);
+  });
+});
+
+describe("Die segelnden Wörter (2026-10-15): one key line, one table", () => {
+  test("a spell that comes back keeps its first wording", () => {
+    const merged = mergeWordings(
+      [{ what: "Schlusssatz", text: "Alle finden gern den Weg nach Hause." }],
+      [{ what: "der Schlusssatz", text: "Alle finden gern den Weg zurück …" }, { what: "Zauberspruch", text: "Wort an Bord, segle fort!" }],
+    );
+    expect(merged).toEqual([{ what: "Schlusssatz", text: "Alle finden gern den Weg nach Hause." }, { what: "der Schlusssatz", text: "Alle finden gern den Weg zurück …" }, { what: "Zauberspruch", text: "Wort an Bord, segle fort!" }]);
+  });
+  test("the writer, the critic and the bible all carry the fixed wordings", () => {
+    const b = brief();
+    const plan = parsePlan(planJson({ bible: { ...planJson().bible, fixedWordings: [{ what: "Zauberspruch", text: "Wort an Bord, segle fort!" }] } }), 12)!;
+    expect(plan.bible.fixedWordings).toEqual([{ what: "Zauberspruch", text: "Wort an Bord, segle fort!" }]);
+    expect(buildChapterStaticContext(b, plan)).toContain("Wort an Bord, segle fort!");
+    const state = { ...emptyBookState(), wordings: [{ what: "Reim", text: "Ob nah, ob fern, nach Hause kehren alle gern." }] };
+    expect(buildChapterUserPrompt(b, plan, state, 2, 3)).toContain("WORDINGS THAT STAND");
+    expect(buildChapterUserPrompt(b, plan, state, 2, 3)).toContain("Ob nah, ob fern");
+    expect(buildChapterCritiquePrompt(b, plan, state, [{ order: 2, title: "T", recap: "", content: "x" }]).user).toContain("FIXED WORDINGS");
+  });
+  test("three opening chapters at one place are a plan defect, a way out is not", () => {
+    expect(samePlace("Lesetisch in der Dorflesestube", "Dorflesestube, am Fenster")).toBe(true);
+    expect(samePlace("Lesetisch in der Dorflesestube", "Waldweg bei der alten Eiche")).toBe(false);
+    const b = brief();
+    const stuck = parsePlan(planJson({ chapters: planJson().chapters.map((chapter: any, index: number) => (index < 3 ? { ...chapter, place: "Lesetisch in der Dorflesestube" } : chapter)) }), 12)!;
+    const checkInput = { heroNames: ["Alexander", "Adrian"], castNames: [] as string[], blockedTerms: [] as string[], cozy: false };
+    expect(checkBookPlan(stuck, b.book, checkInput).some((issue) => issue.includes("Kapitel 1–3 spielen alle am selben Ort"))).toBe(true);
+    expect(checkBookPlan(stuck, b.book, { ...checkInput, cozy: true }).some((issue) => issue.includes("selben Ort"))).toBe(false);
   });
 });
 

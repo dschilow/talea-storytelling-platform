@@ -153,6 +153,14 @@ export interface BookBible {
   twistChapter: number;
   lowPointChapter: number;
   solution: { how: string; uses: string[] };
+  /** The exact wording of every spell, rhyme, rule sentence, sign or last line the story hinges on. */
+  fixedWordings?: BookWording[];
+}
+
+/** A line that must stay letter for letter wherever it is spoken or read. */
+export interface BookWording {
+  what: string;
+  text: string;
 }
 
 export interface BookPlan {
@@ -226,6 +234,8 @@ export interface BookState {
   storyElements?: StoryElement[];
   /** The current state of things that change (how many rooms, which knot is tied, what is wet) — latest entry per thing. */
   worldState?: Array<{ thing: string; now: string; chapter: number }>;
+  /** Spells, rhymes, signs and key sentences introduced in the text, verbatim — later chapters copy them exactly. */
+  wordings?: BookWording[];
 }
 
 export function emptyBookState(): BookState {

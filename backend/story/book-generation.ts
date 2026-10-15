@@ -542,7 +542,12 @@ async function publishChapters(input: BookJobInput, planned: PlannedBook, state:
   await tx.commit();
   state.published = Math.max(state.published || 0, to);
   await writeStoryMetadata(storyId, input, planned, state, "writing");
-  await logStage(storyId, "chapters-published", { from, to, images: (state.images || []).filter((image) => image.chapter >= from && image.chapter <= to).length });
+  // Redraw reasons belong in the downloadable log too: "Die segelnden Wörter" drew 34 pictures for 17 places and the log said why in no line.
+  const redraws = (state.imageRedraws || []).filter((entry) => entry.chapter >= from && entry.chapter <= to);
+  await logStage(storyId, "chapters-published", {
+    from, to, images: (state.images || []).filter((image) => image.chapter >= from && image.chapter <= to).length,
+    ...(redraws.length ? { redraws: redraws.map((entry) => `K${entry.chapter}.${entry.part}×${entry.attempts}: ${entry.reasons.join("; ") || "?"}`) } : {}),
+  });
   enrichStoryForTTS({ storyId, chapters: inserted, aiModel: input.config.aiModel }).catch((error) => {
     console.warn(`[book] TTS enrichment failed (non-blocking): ${(error as Error)?.message || error}`);
   });
