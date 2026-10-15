@@ -140,6 +140,7 @@ export async function planBook(ctx: BookContext): Promise<PlannedBook> {
   let plan = plan0;
 
   const checkInput = {
+    genre: brief.config.genre,
     heroNames: brief.heroes.map((hero) => hero.name),
     castNames: casting.cast.map((candidate) => candidate.name),
     blockedTerms: brief.blockedTerms,

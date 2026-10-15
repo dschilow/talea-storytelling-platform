@@ -181,6 +181,18 @@ export const STORY_ENGINES: StoryEngine[] = [
     flavors: ["warmherzigkeit", "zusammenhalt"],
   },
   {
+    // 2026-10-15, the user's children love Zippel (see heart-and-wit.ts).
+    id: "wundergast",
+    name: "Der Wundergast",
+    provenBy: "Zippel, das wirklich wahre Schlossgespenst; Pumuckl; Das Sams; Paddington",
+    mechanism:
+      "Ein kleines Wesen mit großem Eigensinn taucht in einer Ecke des Alltags der Helden auf (ohne Zauber: ein Neuankömmling oder ein Tier). Es kennt diese Welt nicht und versteht sie komisch falsch; die Helden erklären, verstecken und beschützen es. Der ganz normale Erwachsenen-Alltag bedroht mit vernünftigen Gründen sein Zuhause oder sein Geheimnis. Die Helden retten es mit ihrer eigenen Idee — und genau ein frühes Missverständnis wird zum Schlüssel.",
+    humor: "Wörtlich genommene Wörter, selbst erfundene Wörter, sturköpfige Logik; Beinahe-Entdeckungen durch Erwachsene.",
+    trap: "Der Gast ist nur niedlich, und die Geschichte wird eine Besichtigungstour ohne etwas, das auf dem Spiel steht.",
+    ages: ["3-5", "6-8", "9-12"],
+    flavors: ["lachfreude", "warmherzigkeit", "zusammenhalt"],
+  },
+  {
     id: "zaehlkette",
     name: "Die Zähl-Kette",
     provenBy: "Die kleine Raupe Nimmersatt",
@@ -288,7 +300,8 @@ export function buildLanguageRules(band: AgeBand, languageLabel: string): string
     "Konkrete Nomen und starke Verben statt Adjektivketten. 'Der Topf schepperte die Treppe hinunter' statt 'Es war sehr laut und chaotisch'.",
     "Klangwörter und Geräusche sparsam, aber genau (Platsch! Rumms! Knirsch.). Sie markieren die Höhepunkte.",
     "Dialoge sind kurz, jede Figur klingt anders. Direkte Rede treibt die Handlung, sie erklärt sie nicht.",
-    "Vergleiche kommen aus der Welt der Kinder (Spielzeug, Tiere, Essen, Wetter). Keine erfundenen Wörter, keine Erwachsenen-Ironie, kein Fachjargon.",
+    // 2026-10-15: "no invented words, no grown-up irony" forbade exactly what Zippel lives on.
+    "Vergleiche kommen aus der Welt der Kinder (Spielzeug, Tiere, Essen, Wetter). Kein Fachjargon. Erfundene Wörter nur aus dem Mund einer Figur, die eben so spricht; Witz darf auch die Vorleserin schmunzeln lassen, aber nie über die Köpfe der Kinder hinweg.",
     "Jede Figur wird beim ersten Auftritt vorgestellt, wie Bilderbücher es tun: wer sie ist, wo sie lebt, was sie mag oder nicht mag — ein, zwei kurze Sätze, gern mit einem Detail aus ihrer Vorgeschichte ('Im Schloss wohnte Graf Griesgram. Er mochte keinen Lärm, keine Kinder und am allerwenigsten Vorlesen.'). Keine Aufzählung ihres Aussehens.",
     "Erzähl alles in der Reihenfolge, in der es passiert. Keine Rückblenden und keine Vorvergangenheit für Vorgeschichte ('Er hatte das Buch eben genommen …') — zeig es, wenn es passiert.",
     "Dinge, die ein Kind nicht kennt (eine Wäschewalze, eine Schleuse), erklärst du beim ersten Auftauchen in einem halben Satz in Kinderworten.",

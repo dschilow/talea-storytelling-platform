@@ -13,6 +13,7 @@
  */
 
 import { CORE_RULES, CRAFT_RULES, rankEngines, type StoryEngine } from "./craft";
+import { everydayWonderFitsGenre, heartAndWitEnabled } from "./heart-and-wit";
 import { artifactSheet, briefHeader, broughtArtifact, castSheet, heroSheet, wishLines, type StoryBrief } from "./context";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import type { StoryPitch } from "./types";
@@ -21,8 +22,19 @@ export const PITCH_COUNT = 3;
 
 export function selectEnginesForBrief(brief: StoryBrief, count = 5): StoryEngine[] {
   const flavors = Array.isArray((brief.config as any).emotionalFlavors) ? (brief.config as any).emotionalFlavors : [];
-  return rankEngines({ band: brief.band, flavors, recentEngineIds: brief.recentEngineIds, seed: brief.seed }).slice(0, count);
+  // 2026-10-15 (Zippel): the everyday-wonder engine is always among the options where the genre allows it
+  // (magic, fairy tale, everyday) unless one of the last three stories used it — and never for space,
+  // adventure or animal stories, where it pulled a space mystery onto a schoolyard and a fairy into an animal story.
+  const guestFits = heartAndWitEnabled() && everydayWonderFitsGenre(brief.config.genre);
+  const ranked = rankEngines({ band: brief.band, flavors, recentEngineIds: brief.recentEngineIds, seed: brief.seed })
+    .filter((engine) => engine.id !== EVERYDAY_WONDER_ENGINE || guestFits);
+  const chosen = ranked.slice(0, count);
+  const guest = ranked.find((engine) => engine.id === EVERYDAY_WONDER_ENGINE);
+  if (guest && !chosen.includes(guest) && !brief.recentEngineIds.slice(0, 3).includes(guest.id) && chosen.length > 0) chosen[chosen.length - 1] = guest;
+  return chosen;
 }
+
+export const EVERYDAY_WONDER_ENGINE = "wundergast";
 
 export function buildConceptSystemPrompt(experiment?: StoryBrief["experiment"]): string {
   if (experiment?.slim) {

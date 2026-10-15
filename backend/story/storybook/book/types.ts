@@ -155,6 +155,12 @@ export interface BookBible {
   solution: { how: string; uses: string[] };
   /** The exact wording of every spell, rhyme, rule sentence, sign or last line the story hinges on. */
   fixedWordings?: BookWording[];
+  /** What heroes and companion give each other, and the companion's sore spot (heart-and-wit.ts). */
+  heart?: string;
+  /** What the heroes know that the grown-ups do not; empty when the story has none. */
+  secret?: string;
+  /** Planned misunderstandings, literal takes and coined words, each in one chapter. */
+  freshEyes?: Array<{ chapter: number; moment: string }>;
 }
 
 /** A line that must stay letter for letter wherever it is spoken or read. */

@@ -15,6 +15,7 @@ import { CHILD_SAFETY_RULES_EN } from "../../helpers/child-safety";
 import { broughtArtifact, fixCatchphrase, heroIdOf, type StoryBrief } from "./context";
 import { selectEnginesForBrief } from "./concept-stage";
 import { STYLE_SAMPLE_DE } from "./draft-stage";
+import { everydayWonderIdeaLine, heartAndWitMode, heartAndWitPictureBookRules, heartAndWitSettingLines } from "./heart-and-wit";
 import type { ArtifactOption, CastCandidate, StorybookHero } from "./types";
 
 function clean(value: unknown, max = 200): string {
@@ -66,6 +67,7 @@ const ENGINE_EN: Record<string, string> = {
   gefuehlsreise: "A real child's feeling (anger, fear, jealousy, homesickness) becomes a place or creature you can visit. There the feeling grows huge and loud. The children tame it with exactly the strength they have and return to something small and warm.",
   kreisreise: "The children set out to find something special far away. On the way they meet characters and collect small things. Without noticing, they walk in a circle and arrive home — which they now see with new eyes as the special thing.",
   zaehlkette: "On every page one more is added (a thing, an animal, an attempt). The amount becomes too much, it crashes, and afterwards something transforms.",
+  wundergast: "A small someone with a big will of its own turns up in a corner of the heroes' everyday world (without magic: a newcomer or an animal). It does not know this world and gets it comically wrong; the heroes explain, hide and protect it. Ordinary grown-up life threatens its home or secret for sensible reasons. The heroes save it with their own idea — and one early misunderstanding becomes the key.",
 };
 
 export function bandNoteEn(band: AgeBand): string {
@@ -82,6 +84,8 @@ export function buildOneShotSystemPromptEn(brief: StoryBrief): string {
     `The family's settings for age, length, mood and content apply. Plan silently, then narrate chronologically in the simple past${german ? " (German Präteritum)" : ""}.`,
     "Page 1: a calm, paintable opening picture; get to know the place and the heroes. When a character first appears, briefly show who they are and what they want right now. The disruption comes only at the end of the page; by page 2 at the latest the problem is clear. No backstory delivered afterwards.",
     "The goal matters to the heroes personally. Their traits show in decisions and their own contributions, not in a character sheet. The opponent, too, has a wish a child understands early.",
+    // 2026-10-15 (Zippel): heart and wit, see heart-and-wit.ts.
+    ...heartAndWitPictureBookRules(brief.languageLabel, brief.config.genre),
     "Every attempt changes the situation and causes the next one. One visible danger or difficulty, no competing deadlines. Intensity and comedy follow the family's wishes; quiet stories need neither slapstick nor a villain.",
     "The decisive idea comes from the heroes and uses something shown early. The solution can be understood in one child's sentence. Adults may help but never take over the solution. No coincidence as rescue.",
     "Every page has one clear focus. Track places, paths, owners and the state of important things. Transitions and movements must be easy to follow; animals, too, are visibly brought out of danger.",
@@ -167,8 +171,13 @@ export function buildOneShotUserPromptEn(brief: StoryBrief): string {
   lines.push("FIRST THE IDEA: Note three completely different ideas and take the one a child would most want to retell right away („Stell dir vor, …!“). A strong idea has:");
   lines.push("- something wonderful, crazy or outrageous that can be painted (a creature, a spell, an impossible situation), fitting the genre;");
   lines.push("- a wish of the heroes with heart (something they love, someone they want to help, a promise);");
-  lines.push("- a character who is funny because they are ridiculously sure of themselves or have one strong weakness;");
+  lines.push(heartAndWitMode(brief.config.genre) === "full"
+    ? "- a someone at its heart: the wonder or the most unusual figure has a personality, a will of its own and a voice — ridiculously sure of itself or with one strong weakness — not a mechanism;"
+    : "- a character who is funny because they are ridiculously sure of themselves or have one strong weakness;");
   lines.push("- an ending that surprises and still fits.");
+  const everydayIdea = everydayWonderIdeaLine(brief.config.genre);
+  if (everydayIdea) lines.push(everydayIdea);
+  for (const line of heartAndWitSettingLines(brief.config.genre, brief.band)) lines.push(line);
   if (brief.band === "3-5") lines.push("For three- to five-year-olds: ONE very simple idea (a thing or animal does something outrageous), lots of repetition, sounds to join in with and one big laugh — no spell rule with conditions.");
   lines.push("Not as the whole story: the puzzle \"a thing gets stuck, rolls away, leaks or sticks and a trick frees it\" — there have been too many of those. A trick may be the solution, but the wonder or the character carries the story.");
   lines.push("Then check: personal goal, real obstacle, understandable solution, spatial logic — and that every point in the FRAME marked \"mandatory\" is fulfilled. The introduction gets the beginning of page 1.");

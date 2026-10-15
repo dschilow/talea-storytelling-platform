@@ -14,7 +14,8 @@ import { acceptsTemperature, resolveStorybookReasoning } from "./llm-guards";
 import { ensureParagraphs, normalizeGermanQuotes, parseDraft } from "./parsing";
 import { checkPlan, checkProse, containsBlockedTerm, mentions, nameTokens } from "./checks";
 import { selectRewardArtifacts, shortlistCastCandidates } from "./cast-selection";
-import { sanitizePitches } from "./concept-stage";
+import { sanitizePitches, selectEnginesForBrief } from "./concept-stage";
+import { buildOneShotSystemPromptEn, buildOneShotUserPromptEn } from "./oneshot-prompt-en";
 import { sanitizePlan } from "./plan-stage";
 import { comprehensionGaps, needsRevision, sanitizeReview } from "./review-stage";
 import { assembleImagePrompt, castAppearance, heroAppearance, negativePromptFor, ownershipLine, sanitizeIllustrationPlan, signatureNegatives, speciesFromProfile, type VisualEntity } from "./illustration-stage";
@@ -782,5 +783,41 @@ describe("one-shot cast detection (run intro-0929-2)", () => {
     const pages = Array.from({ length: b.budget.pages }, (_, index) => ({ order: index + 1, title: "", content: index === 0 ? "Bäcker Wilhelm schnupperte am Kuchen. Wilhelm lachte." : "Die Jungen liefen weiter." }));
     const plan = planFromOneShot("BAUPLAN: frei\nBESETZUNG: \nFUNDSTÜCK: keins\nREFRAIN: keiner", b, { title: "T", description: "D", pages });
     expect(plan.cast.map((member) => member.id)).toEqual(["baker"]);
+  });
+});
+
+describe("heart and wit (Zippel, 2026-10-15)", () => {
+  const withGenre = (genre: string, seed = "a") => brief({ seed, config: { genre, setting: "varied", length: "medium", ageGroup: "6-8", language: "de" } as any });
+  test("the everyday-wonder engine is always offered for magic, fairy tales and everyday stories unless a recent story used it", () => {
+    for (const genre of ["fairy_tales", "magic", "modern"]) {
+      for (const seed of ["a", "b", "c", "d", "e"]) {
+        const offered = selectEnginesForBrief(withGenre(genre, seed), 3).map((engine) => engine.id);
+        expect(offered).toHaveLength(3);
+        expect(offered).toContain("wundergast");
+      }
+    }
+    const recent = { ...brief({ seed: "a" }), recentEngineIds: ["wundergast"] };
+    expect(selectEnginesForBrief(recent, 3).map((engine) => engine.id)).not.toContain("wundergast");
+  });
+  test("space, adventure and animal stories keep their world: no everyday-wonder engine or idea, only the light rules", () => {
+    for (const genre of ["scifi", "adventure", "animals"]) {
+      for (const seed of ["a", "b", "c", "d", "e", "f", "g"]) {
+        expect(selectEnginesForBrief(withGenre(genre, seed), 5).map((engine) => engine.id)).not.toContain("wundergast");
+      }
+      const user = buildOneShotUserPromptEn(withGenre(genre));
+      expect(user).not.toContain("everyday world");
+      expect(user).toContain("a character who is funny because they are ridiculously sure of themselves");
+      const system = buildOneShotSystemPromptEn(withGenre(genre));
+      expect(system).toContain("Fresh eyes: at least one moment");
+      expect(system).not.toContain("The wonder is a someone");
+    }
+  });
+  test("a fairy tale gets the full rules, the genre note and the idea line", () => {
+    const b = brief();
+    expect(buildOneShotSystemPromptEn(b)).toContain("The wonder is a someone");
+    const user = buildOneShotUserPromptEn(b);
+    expect(user).toContain("wundergast:");
+    expect(user).toContain("into the heroes' everyday world");
+    expect(user).toContain("In this fairy tale");
   });
 });

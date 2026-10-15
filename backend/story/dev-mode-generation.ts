@@ -45,6 +45,8 @@ import { collectStakeOwnerDrift } from "./pipeline/stake-owner";
 import { resolveIdeaCast } from "./pipeline/idea-cast";
 import { isOpenRouterFamilyModel, resolveConfiguredStoryModel, GEMINI_MAIN_STORY_MODEL } from "./pipeline/model-routing";
 import { getReferenceFewshotBlock } from "./pipeline/reference-fewshot";
+import { everydayWonderIdeaLine, heartAndWitEnabled, heartAndWitMode, heartAndWitRules, heartAndWitSettingLines } from "./storybook/heart-and-wit";
+import { normalizeAgeBand } from "./storybook/craft";
 import type { StoryConfig, AIProvider } from "./generate";
 import { buildStoryExperienceContext, describeEmotionalFlavors, describeSpecialIngredients } from "./story-experience";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
@@ -5513,6 +5515,8 @@ function buildIdeaCandidatePrompts(
     `Recommended supporting cast names must come ONLY from the provided pool list. Recommend ${DEV_MODE_MIN_SUPPORTING_CAST}-${DEV_MODE_MAX_SUPPORTING_CAST} names; pick the smallest set that genuinely serves the story.`,
     "Never recommend a cast member just to use the pool. A pool figure must create a turn, complication, joke, clue, or payoff that the main avatars could not create alone.",
     "At least half the candidates should differ strongly in object/place/problem structure, not just surface wording.",
+    everydayWonderIdeaLine(input.config.genre) || null,
+    buildHeartAndWitGenreBlock(input),
     "",
     `Target output language later: ${languageName}. Candidate fields may stay in English for speed, except titles may already be in the target language if they sound stronger that way.`,
     `Plan for exactly ${chapterCount} later chapters, but do not outline them here.`,
@@ -5932,6 +5936,17 @@ function targetLanguageStyleAnchor(languageCode: string): string {
   }
 }
 
+/** 2026-10-15 (Zippel): the full heart-and-wit rules for the genres where they won (storybook/heart-and-wit.ts); null elsewhere. */
+function buildHeartAndWitGenreBlock(input: DevModeGenerationInput): string | null {
+  if (heartAndWitMode(input.config.genre) !== "full") return null;
+  const languageName = localizedLanguageName(input.config.language);
+  return [
+    "HEART AND WIT FOR THIS GENRE (what the best read-aloud books do):",
+    ...heartAndWitRules(languageName, input.config.genre).map((rule) => `- ${rule}`),
+    ...heartAndWitSettingLines(input.config.genre, normalizeAgeBand(input.config.ageGroup)).map((line) => `- ${line}`),
+  ].join("\n");
+}
+
 function qualitySystemPrompt(languageName: string, outputSchema: string): string {
   const code = languageCodeFromName(languageName);
   const dialogueQuoteRule = code === "en"
@@ -5958,6 +5973,10 @@ function qualitySystemPrompt(languageName: string, outputSchema: string): string
     "- Low personality values mean friction / room to grow, not unlikability.",
     "- High personality values must surface as active strengths in the action.",
     "",
+    // 2026-10-15 (Zippel): heart and wit, see storybook/heart-and-wit.ts.
+    // Light rules for every stage; the full rules for fairy tales, magic and everyday stories come
+    // in the creative user prompts (buildHeartAndWitGenreBlock), where the genre is known.
+    ...(heartAndWitEnabled() ? ["HEART AND WIT (what the best read-aloud books do):", ...heartAndWitRules(languageName).map((rule) => `- ${rule}`), ""] : []),
     "LANGUAGE & FORM (in the target output language):",
     "- Age-appropriate: clear sentences, clear images, no nested adult phrasing.",
     `- Dialogue overshoot target: write toward ${DEV_MODE_PROMPT_DIALOG_PCT}% dialogue in the final story; the hard floor is ${DEV_MODE_MIN_DIALOG_PCT}%, so do not aim merely at the floor.`,
@@ -6072,6 +6091,7 @@ function buildBlueprintPrompts(
     "Make sure antagonist hints aren't smuggled into the solution as a spoiler shortcut.",
     "The emotional engine must be concrete enough that the final story writer can translate it directly into scene, dialogue, and closing image.",
     "",
+    buildHeartAndWitGenreBlock(input),
     buildArtifactPropBlock(input) || null,
   ].filter((line): line is string => line !== null && line !== undefined).join("\n");
   return { systemPrompt, userPrompt };
@@ -8109,6 +8129,7 @@ function buildCompactWholeStoryDraftPrompts(
     "5. Copy-edit word by word: spelling, verb conjugation, subject-verb agreement, cases, articles, punctuation, and idiomatic compounds. Fix every visible error before emitting.",
     "6. Confirm the ending shows changed behavior and leaves the supporting character with agency, not only gratitude.",
     "",
+    buildHeartAndWitGenreBlock(input),
     plainTextDraftMode
       ? [
           "FINAL REMINDER: plain text only, exactly:",
@@ -8323,6 +8344,7 @@ function buildWholeStoryDraftPrompts(
       ? "6. Verstaendlichkeit: scan for any sentence over " + maxSentenceChars + " characters or with more than one nested subordinate clause. Split into two simpler sentences."
       : "6. Sentence rhythm: vary length; no chains of long sentences.",
     "",
+    buildHeartAndWitGenreBlock(input),
     plainTextDraftMode
       ? [
           "FINAL REMINDER: output plain text only, exactly in this shape:",

@@ -54,6 +54,8 @@ function planJson(overrides: any = {}) {
       characters: ["Alexander", "Adrian", "Luna", "Theo Zeitsam"].map((name) => ({ name, wants: "x", can: "x", flaw: "x", avoids: "x", voice: "x", challengedBy: "x", finalChoice: "x" })),
       runningGag: { gag: "Lunas Aussichtsposten", beats: [{ chapter: 2, beat: "Sieb" }, { chapter: 5, beat: "Pilz" }, { chapter: 12, beat: "Korb" }] },
       twistChapter: 6, lowPointChapter: 9, solution: { how: "Sie folgen den Klängen.", uses: ["S1", "S2"] },
+      heart: "Luna hat keinen Platz im Konzert; die Helden geben ihr einen.", secret: null,
+      freshEyes: [{ chapter: 2, moment: "Luna hält „Lampenfieber“ für eine Krankheit von Lampen." }, { chapter: 5, moment: "Theo will die Zeit „totschlagen“ und holt einen Fliegenklatscher." }],
     },
     setups: [{ id: "S1", what: "Schmatzen hinter der Hecke", planted: 2, paidOff: 11 }, { id: "S2", what: "Klangfolge", planted: 2, paidOff: 11 }, { id: "S3", what: "Dreischritt öffnet Blattwege", planted: 3, paidOff: 10 }],
     chapters,
@@ -371,3 +373,71 @@ describe("Die segelnden Wörter (2026-10-15): one key line, one table", () => {
   });
 });
 
+
+describe("heart and wit (Zippel, 2026-10-15)", () => {
+  test("in the full genres a plan without fresh-eyes moments or a heart is a countable defect; space books are not held to it", () => {
+    const b = brief();
+    const bare = parsePlan(planJson({ bible: { ...planJson().bible, heart: "", freshEyes: [{ chapter: 2, moment: "nur einer" }] } }), 12)!;
+    const issues = checkBookPlan(bare, b.book, { ...checkInput, genre: "fairy_tales" }).join(" | ");
+    expect(issues).toContain("frischem Blick");
+    expect(issues).toContain("Herz der Freundschaft");
+    expect(checkBookPlan(bare, b.book, { ...checkInput, genre: "scifi" })).toEqual([]);
+  });
+  test("secret null stays empty; heart, secret and fresh-eyes moments reach the writer's chapter plan", () => {
+    const plan = parsePlan(planJson(), 12)!;
+    expect(plan.bible.secret).toBe("");
+    const withSecret = parsePlan(planJson({ bible: { ...planJson().bible, secret: "Nur die Helden hören Luna sprechen." } }), 12)!;
+    const b = brief();
+    const context = buildChapterStaticContext(b, withSecret);
+    expect(context).toContain("Heart of the friendship");
+    expect(context).toContain("Nur die Helden hören Luna sprechen.");
+    const chapterTwo = buildChapterUserPrompt(b, withSecret, emptyBookState(), 2, 2);
+    expect(chapterTwo).toContain("Lampenfieber");
+    expect(chapterTwo).not.toContain("totschlagen");
+  });
+  test("fairy tales, magic and everyday books get the full rules and the everyday-wonder idea", () => {
+    const magic = brief({ config: { genre: "magic", ageGroup: "9-12", language: "de", length: "long" } as any, band: "9-12" });
+    const pitch = buildPitchPrompt(magic).user;
+    expect(pitch).toContain("wonder-someone into the heroes' everyday world");
+    expect(pitch).toContain("the spell keeps its visible effect");
+    expect(pitch).toContain("sharper wit");
+    expect(buildChapterSystemPrompt(magic)).toContain("The wonder is a someone");
+    const modern = buildPitchPrompt(brief({ config: { genre: "modern", ageGroup: "6-8", language: "de", length: "long" } as any })).user;
+    expect(modern).toContain("unusual someone");
+    expect(modern).not.toContain("wonder-someone");
+  });
+  test("space, adventure and animal books keep their own world and get only the light rules (run K2: a space mystery moved to a schoolyard)", () => {
+    for (const genre of ["scifi", "adventure", "animals"]) {
+      const b = brief({ config: { genre, ageGroup: "9-12", language: "de", length: "long" } as any, band: "9-12" });
+      const pitch = buildPitchPrompt(b).user;
+      expect(pitch).not.toContain("everyday world");
+      expect(pitch).not.toContain("a someone at its heart");
+      const writer = buildChapterSystemPrompt(b);
+      expect(writer).toContain("HEART AND WIT");
+      expect(writer).toContain("truly works in Deutsch");
+      expect(writer).not.toContain("The wonder is a someone");
+    }
+  });
+  test("a plan whose wonder is only a mechanism is capped and gets a note", () => {
+    expect(planScoreCap({ heartAndWit: false })).toBe(7.5);
+    const review = parsePlanReview({ checks: { heartAndWit: false }, scores: { overall: 9 }, mustFix: [], weaknesses: [] });
+    expect(planReviewNotes(review).join(" | ")).toContain("Jemand mit Eigensinn");
+  });
+});
+
+describe("heart and wit kill switch", () => {
+  test("TALEA_HEART_AND_WIT=off removes every trace from pitch, plan, review, writer and plan checks", () => {
+    const before = process.env.TALEA_HEART_AND_WIT;
+    process.env.TALEA_HEART_AND_WIT = "off";
+    try {
+      const b = brief();
+      const plan = parsePlan(planJson({ bible: { ...planJson().bible, heart: "", freshEyes: [] } }), 12)!;
+      const texts = [buildPitchPrompt(b).user, buildChapterSystemPrompt(b)].join("\n");
+      expect(texts).not.toMatch(/HEART AND WIT|a someone|wonder-someone|fresh eyes|freshEyes/i);
+      expect(checkBookPlan(plan, b.book, checkInput)).toEqual([]);
+    } finally {
+      if (before === undefined) delete process.env.TALEA_HEART_AND_WIT;
+      else process.env.TALEA_HEART_AND_WIT = before;
+    }
+  });
+});

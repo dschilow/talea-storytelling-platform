@@ -8,6 +8,7 @@
  */
 
 import { containsBlockedTerm } from "../checks";
+import { heartAndWitMode } from "../heart-and-wit";
 import { foldUmlauts, mentionsName } from "./catalogue";
 import type { BookBudget, BookChapterPlan, BookPitch, BookPlan, PlanReview } from "./types";
 
@@ -97,6 +98,12 @@ export function parsePlan(raw: any, chapters: number): BookPlan | null {
         .map((entry: any) => ({ what: text(entry?.what, 60), text: text(entry?.text, 240) }))
         .filter((entry: { what: string; text: string }) => entry.what && entry.text)
         .slice(0, 5),
+      heart: text(b.heart, 300),
+      secret: /^(null|none|kein|keine)\b/i.test(text(b.secret, 20)) ? "" : text(b.secret, 300),
+      freshEyes: (Array.isArray(b.freshEyes) ? b.freshEyes : [])
+        .map((entry: any) => ({ chapter: int(entry?.chapter), moment: text(entry?.moment, 240) }))
+        .filter((entry: { chapter: number; moment: string }) => entry.chapter >= 1 && entry.moment)
+        .slice(0, 5),
     },
     setups: (Array.isArray(raw.setups) ? raw.setups : []).map((setup: any, index: number) => ({
       id: (text(setup?.id, 12) || `S${index + 1}`).toUpperCase(),
@@ -114,7 +121,7 @@ export function parsePlan(raw: any, chapters: number): BookPlan | null {
 }
 
 /** Countable defects of a plan, as German edit notes for the revision. */
-export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroNames: string[]; castNames: string[]; blockedTerms: string[]; cozy?: boolean }): string[] {
+export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroNames: string[]; castNames: string[]; blockedTerms: string[]; cozy?: boolean; genre?: unknown }): string[] {
   const issues: string[] = [];
   const n = budget.chapters;
   if (!plan.title) issues.push("Der Plan hat keinen Titel.");
@@ -155,6 +162,11 @@ export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroN
     }
   }
   if (b.runningGag.beats.length < 3) issues.push("Der Running Gag braucht mindestens drei Auftritte in verschiedenen Kapiteln (auftauchen, steigern, kippen) und einen Einsatz im Finale.");
+  // 2026-10-15 (Zippel): the misunderstandings a child repeats at dinner are planned, not hoped for.
+  // Only for the genres where the full rules apply (heart-and-wit.ts); a space or animal book just gets one moment if it fits.
+  const full = heartAndWitMode(input.genre) === "full";
+  if (full && (b.freshEyes || []).filter((entry) => entry.chapter <= n).length < 2) issues.push("Plane zwei bis vier Momente mit frischem Blick (freshEyes): Jemand nimmt ein Wort wörtlich, verwechselt etwas, erfindet ein Wort oder zieht einen sturköpfig logischen Fehlschluss, und die Helden erklären — ausformuliert in der Sprache der Geschichte, je mit Kapitel.");
+  if (full && !b.heart) issues.push("Es fehlt das Herz der Freundschaft (heart): was sich die Helden und ihr engster Begleiter gegenseitig geben, und der kleine wunde Punkt des Begleiters.");
   for (let index = 2; index < plan.chapters.length; index += 1) {
     const [a, c, d] = [plan.chapters[index - 2], plan.chapters[index - 1], plan.chapters[index]];
     if (a.type && a.type === c.type && c.type === d.type) issues.push(`Kapitel ${a.n}–${d.n} sind dreimal hintereinander „${a.type}“ — variiere die Kapiteltypen.`);
@@ -205,6 +217,7 @@ export function planScoreCap(checks: Record<string, boolean>): number {
   if (checks.gagEscalates === false || checks.setbackChangesPlan === false || checks.climaxNew === false) cap = Math.min(cap, 7);
   if (checks.needBeforeClimax === false) cap = Math.min(cap, 7.5);
   if (checks.orientation === false || checks.rulesSimple === false) cap = Math.min(cap, 7);
+  if (checks.heartAndWit === false) cap = Math.min(cap, 7.5);
   return cap;
 }
 
