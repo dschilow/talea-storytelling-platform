@@ -240,6 +240,9 @@ export interface StoryConfig {
   // The teaser the child picked at the end of the previous volume, or its own wish.
   continuationChoice?: string;
   continuationWish?: string;
+  // How the heroes belong together ("Geschwister", "Freunde", …), chosen in the wizard. The app
+  // knows nothing about families otherwise; unset means the story never names a relation.
+  heroRelation?: string;
 
   // Developer Mode: bypass all enrichment (visual profiles, memories, DNA,
   // character pool, artifacts, style packs) and generate from a minimal prompt
@@ -523,7 +526,7 @@ export const generate = api<GenerateStoryRequest, Story>(
     }
     // Child safety: free text from the wizard (wish, learning goals) is checked before any coin is spent.
     await assertChildSafeInput({
-      text: [req.config.customPrompt, req.config.continuationChoice, req.config.continuationWish, ...(req.config.learningMode?.learningObjectives ?? [])].filter(Boolean).join(" · "),
+      text: [req.config.customPrompt, req.config.continuationChoice, req.config.continuationWish, req.config.heroRelation, ...(req.config.learningMode?.learningObjectives ?? [])].filter(Boolean).join(" · "),
       surface: "story-wish",
       ageBand: req.config.ageGroup,
     });

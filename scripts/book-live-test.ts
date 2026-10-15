@@ -8,6 +8,7 @@
  *   --heroes "Amir Sternfinder,Mina Mosaik"             or pool characters as stand-in heroes
  *   --genre fairy_tales --setting fantasy --age 6-8 --language de --flavors lachfreude,prickeln
  *   --form mystery|journey|funny|cozy                   experience form (default: derived)
+ *   --relation "Brüder"                                how the heroes belong together (default: not stated)
  *   --chapters 12 --images-per-chapter 2
  *   --wish "…"  --learning science --objectives "a|b" --twist --famous --rhymes --moral
  *   --write-mode batch|single|whole  --batch-size 3      how many chapters one writer call writes
@@ -182,6 +183,7 @@ const config: any = {
   allowRhymes: flag("--rhymes"),
   customPrompt: option("--wish"),
   experienceForm: option("--form"),
+  heroRelation: option("--relation"),
   learningMode: learningSubjects.length
     ? { enabled: true, subjects: learningSubjects, difficulty: option("--difficulty", "beginner"), learningObjectives: (option("--objectives", "") || "").split("|").map((s) => s.trim()).filter(Boolean), assessmentType: option("--assessment", "interactive") }
     : undefined,

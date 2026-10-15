@@ -94,6 +94,8 @@ export interface BookPitch {
 
 export interface BookCharacterProfile {
   name: string;
+  /** Who they are to the heroes and why they are here — what a child must learn at the first appearance. */
+  introduction?: string;
   wants: string;
   can: string;
   /** A quirk with side effects: the comic engine and sometimes the problem. */
@@ -222,8 +224,10 @@ export interface BookState {
   /** Notes that could not be fixed, per chapter. */
   openIssues: Array<{ chapter: number; issue: string }>;
   storyElements?: StoryElement[];
+  /** The current state of things that change (how many rooms, which knot is tied, what is wet) — latest entry per thing. */
+  worldState?: Array<{ thing: string; now: string; chapter: number }>;
 }
 
 export function emptyBookState(): BookState {
-  return { chapters: [], facts: [], knowledge: [], curve: [], openIssues: [] };
+  return { chapters: [], facts: [], knowledge: [], curve: [], openIssues: [], worldState: [] };
 }

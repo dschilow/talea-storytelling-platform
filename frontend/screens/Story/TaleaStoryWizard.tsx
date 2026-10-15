@@ -48,7 +48,7 @@ import Step6LearningMode, {
   type LearningModeValue,
 } from './wizard-steps/Step6LearningMode';
 import Step6Summary from './wizard-steps/Step6Summary';
-import StepBookFormat, { type ExperienceForm } from './wizard-steps/StepBookFormat';
+import StepBookFormat, { readStoredHeroRelation, type ExperienceForm } from './wizard-steps/StepBookFormat';
 import {
   createStoryGenerationId,
   generateStoryWithModelFallback,
@@ -89,6 +89,8 @@ interface WizardState {
   experienceForm: ExperienceForm | null;
   bookChapters: number;
   bookImagesPerChapter: number;
+  /** How the heroes belong together ("Geschwister", "Freunde"); the story names it only when set. */
+  heroRelation: string | null;
   /** Schatzkammer: owned artifact taken along into this story (Mitnehmen-Loop). */
   broughtArtifact: BroughtArtifactSelection | null;
 }
@@ -320,6 +322,7 @@ export default function TaleaStoryWizard() {
     experienceForm: null,
     bookChapters: 12,
     bookImagesPerChapter: 2,
+    heroRelation: readStoredHeroRelation(),
     broughtArtifact: null,
   });
   const stepKeys = useMemo(
@@ -898,7 +901,7 @@ function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
           entsteht im Hintergrund. Am Ende: nächster Band oder ganz neue Geschichte.
         </p>
         <p className="text-xs italic text-[var(--talea-text-tertiary)]">
-          GPT-6.1 Sol plant und schreibt, Gemini prüft, Luna patcht und führt das Logbuch. Geschätzt 35–55 ¢ pro Band.
+          GPT-6 Luna plant, GPT-6.1 Sol schreibt, Gemini prüft, Luna patcht und führt das Logbuch. Geschätzt 25–35 ¢ pro Band.
         </p>
       </button>
 
@@ -1042,7 +1045,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     storybookMode: state.storybookMode || state.bookWorkshopMode || state.chapterBookMode || undefined,
     storybookEngine: state.chapterBookMode ? 'chapter-book-v1' : state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v2' : undefined,
     ...(state.chapterBookMode
-      ? { bookChapters: state.bookChapters, bookImagesPerChapter: state.bookImagesPerChapter, experienceForm: state.experienceForm || undefined, length: 'long' }
+      ? { bookChapters: state.bookChapters, bookImagesPerChapter: state.bookImagesPerChapter, experienceForm: state.experienceForm || undefined, heroRelation: state.selectedAvatars.length > 1 ? state.heroRelation || undefined : undefined, length: 'long' }
       : {}),
     broughtArtifact:
       state.broughtArtifact && state.selectedAvatars.includes(state.broughtArtifact.avatarId)

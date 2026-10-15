@@ -7,8 +7,41 @@ import { cn } from '@/lib/utils';
 export type ExperienceForm = 'mystery' | 'journey' | 'funny' | 'cozy';
 
 interface Props {
-  state: { experienceForm: ExperienceForm | null; bookChapters: number; bookImagesPerChapter: number; ageGroup: string | null };
+  state: { experienceForm: ExperienceForm | null; bookChapters: number; bookImagesPerChapter: number; ageGroup: string | null; heroRelation: string | null; selectedAvatars: string[] };
   updateState: (updates: any) => void;
+}
+
+/**
+ * How the heroes belong together. The app knows nothing about families: without this the
+ * book never names a relation — and a child without Talea knowledge asks why they are together
+ * ("Sieben Zimmer und ein Nieser", 2026-10-15).
+ */
+const RELATIONS: Array<{ value: string | null; label: string }> = [
+  { value: 'Geschwister', label: 'Geschwister' },
+  { value: 'Freunde', label: 'Freunde' },
+  { value: 'Cousins und Cousinen', label: 'Cousins & Cousinen' },
+  { value: 'Nachbarskinder', label: 'Nachbarskinder' },
+  { value: null, label: 'Nicht festlegen' },
+];
+const RELATION_KEY = 'talea.book.heroRelation';
+
+/** The last choice, so a family sets it once. Never throws (private mode, blocked storage). */
+export function readStoredHeroRelation(): string | null {
+  try {
+    const value = window.localStorage.getItem(RELATION_KEY);
+    return value && RELATIONS.some((option) => option.value === value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeHeroRelation(value: string | null): void {
+  try {
+    if (value) window.localStorage.setItem(RELATION_KEY, value);
+    else window.localStorage.removeItem(RELATION_KEY);
+  } catch {
+    // Remembering is a convenience only.
+  }
 }
 
 const FORMS: Array<{ id: ExperienceForm; title: string; description: string; icon: React.ComponentType<any> }> = [
@@ -24,11 +57,11 @@ const CHAPTERS = [
   { value: 15, label: '15 Kapitel', hint: 'ca. 8 Abende' },
 ];
 
-/** Rough cost per volume from the first measurements (Sol plans and writes, Luna checks, FLUX draws). */
+/** Rough cost per volume (measured 2026-10-15: Luna plans for ~1 ¢, Sol writes, Luna checks, FLUX draws). */
 function estimateCents(chapters: number, images: number, ageGroup: string | null): [number, number] {
   const wordsPerChapter = ageGroup === '9-12' || ageGroup === '13+' ? 900 : ageGroup === '3-5' ? 360 : 620;
-  const text = 11 + chapters * wordsPerChapter * 0.0045;
-  const pictures = chapters * images * 0.35 + 0.5;
+  const text = 2 + chapters * wordsPerChapter * 0.0026;
+  const pictures = chapters * images * 0.25 + 0.5;
   const base = text + pictures;
   return [Math.round(base * 0.85), Math.round(base * 1.2)];
 }
@@ -91,6 +124,34 @@ export default function StepBookFormat({ state, updateState }: Props) {
           ))}
         </div>
       </section>
+
+      {state.selectedAvatars.length > 1 && (
+        <section aria-labelledby="book-relation-title" className="space-y-3">
+          <div>
+            <h3 id="book-relation-title" className="text-sm font-semibold text-foreground">Wie gehören die Helden zusammen?</h3>
+            <p className="text-xs text-muted-foreground">Das Buch sagt es gleich am Anfang — so versteht jedes Kind, warum sie zusammen sind.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {RELATIONS.map((option) => {
+              const selected = state.heroRelation === option.value;
+              return (
+                <button
+                  key={option.label}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => {
+                    storeHeroRelation(option.value);
+                    updateState({ heroRelation: option.value });
+                  }}
+                  className={cn(chip(selected), 'px-3 py-2 text-sm font-medium text-foreground')}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <p className="rounded-2xl border border-border bg-card/65 px-4 py-3 text-xs text-muted-foreground">
         Admin-Test · geschätzte Kosten pro Band: {low}–{high} ¢ · die ersten Kapitel sind nach etwa 5–10 Minuten lesbar, der Rest entsteht, während ihr lest.

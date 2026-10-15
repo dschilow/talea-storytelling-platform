@@ -14,7 +14,8 @@
 import { isGerman } from "../craft";
 import { STORYBOOK_SUPPORT_MODEL, fallbackModelFor, modelFamily, parseJsonObject, type CostLedger, type LlmCallResult, type LlmRequest, type StorybookLlm, type StorybookModels } from "../llm";
 import { mentionsName, resolveCasting, type CastingResult } from "./catalogue";
-import { checkChapter, mergeChapterPatch, parseChapterCritique, parseChapters, type ChapterCritiqueResult } from "./chapters";
+import { checkChapter, mergeChapterPatch, mergeWorldState, parseChapterCritique, parseChapters, type ChapterCritiqueResult } from "./chapters";
+import { buildColdReadPrompt, coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
 import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview } from "./plan";
 import {
   buildChapterCritiquePrompt,
@@ -28,6 +29,7 @@ import {
   buildPlanReviewPrompt,
   buildPlanRevisionPrompt,
   buildSeriesMemoryPrompt,
+  heroRelation,
   planReviewNotes,
 } from "./prompts";
 import type { BookBrief, BookChapter, BookExperiment, BookPitch, BookPlan, BookState, ChapterCurvePoint, PlanReview, SeriesMemory } from "./types";
@@ -246,22 +248,56 @@ interface RewriteReason { code: string; message: string }
 function rewriteReasons(critique: ChapterCritiqueResult["chapters"][number] | undefined, chapter: BookChapter, planned: PlannedBook, hard: string[]): RewriteReason[] {
   const reasons: RewriteReason[] = hard.map((message) => ({ code: "too-short", message }));
   if (!critique) return reasons;
-  if (!critique.laugh) {
-    reasons.push({
-      code: critique.unmatched?.laugh ? "laugh-unmatched" : "no-laugh",
-      message: "Es gibt keine Stelle, an der ein Kind laut lacht. Baue den geplanten Lacher richtig auf (Figur, Steigerung, Pointe) und lass ihn landen.",
-    });
+  // A laugh the critic quoted but misquoted is still a laugh ("Sieben Zimmer" chapter 8 was rewritten for it).
+  if (!critique.laugh && !critique.unmatched?.laugh) {
+    reasons.push({ code: "no-laugh", message: "Es gibt keine Stelle, an der ein Kind laut lacht. Baue den geplanten Lacher richtig auf (Figur, Steigerung, Pointe) und lass ihn landen." });
   }
   if (!critique.progress) reasons.push({ code: "no-progress", message: `Das Kapitel bringt die große Frage („${planned.plan.bible.bigQuestion}“) nicht voran. Zeige den geplanten Fortschritt als Szene.` });
-  for (const id of critique.missingPlants) {
-    const setup = planned.plan.setups.find((entry) => entry.id === id);
-    if (setup) reasons.push({ code: "missing-plant", message: `Lege ${id} beiläufig in einer Szene an: ${setup.what} (ohne anzukündigen, wofür es gut ist).` });
-  }
+  // A missing plant alone is one casual sentence for the patch (7 of 10 rewrites in the planner A/B
+  // of 2026-10-15); a chapter rewritten anyway gets it in the same call.
+  if (reasons.length) reasons.push(...plantReasons(critique, planned));
   // Rewritten anyway: the new version gets its gentle ending in the same call.
   if (reasons.length && !critique.hook && chapter.order < planned.brief.book.chapters) {
     reasons.push({ code: "no-hook", message: "Das Kapitel hört einfach auf oder endet in akuter Gefahr. Es braucht ein sanftes, neugierig machendes Ende (ein Ding verhält sich anders, eine Figur weiß mehr, ein kleiner Erfolg wirft eine neue Frage auf)." });
   }
   return reasons;
+}
+
+function plantReasons(critique: ChapterCritiqueResult["chapters"][number], planned: PlannedBook): RewriteReason[] {
+  return critique.missingPlants.flatMap((id) => {
+    const setup = planned.plan.setups.find((entry) => entry.id === id);
+    return setup ? [{ code: "missing-plant", message: `Lege ${id} beiläufig in einer Szene an: ${setup.what} (ohne anzukündigen, wofür es gut ist).` }] : [];
+  });
+}
+
+/** Companions who first appear in this batch (not in any released chapter). */
+function newcomersIn(chapters: BookChapter[], state: BookState, cast: string[]): string[] {
+  return cast.filter((name) => !state.chapters.some((chapter) => mentionsName(chapter.content, name)) && chapters.some((chapter) => mentionsName(chapter.content, name)));
+}
+
+/** The cold reader: what a child without any profile learns from this batch alone. Never fatal. */
+async function coldRead(ctx: BookContext, planned: PlannedBook, state: BookState, chapters: BookChapter[], range: string): Promise<{ missing: string[]; notes: string[] }> {
+  const { brief, plan } = planned;
+  const heroes = brief.heroes.map((hero) => hero.name);
+  const relation = heroRelation(brief);
+  const questions = coldReadQuestions({
+    heroes, relation,
+    orientation: chapters.some((chapter) => chapter.order === 1),
+    newcomers: newcomersIn(chapters, state, brief.candidates.map((candidate) => candidate.name)),
+  });
+  if (!questions.length) return { missing: [], notes: [] };
+  const prompt = buildColdReadPrompt(brief, chapters, questions);
+  try {
+    const response = await call(ctx, {
+      stage: `book-coldread-${range}`, role: "support", model: ctx.models.support, system: prompt.system, user: prompt.user,
+      json: true, maxTokens: 2500, effort: "low", timeoutMs: 120_000, temperature: 0.2,
+    });
+    const missing = unansweredQuestions(response.text, chapters, questions);
+    return { missing, notes: coldReadNotes(missing, { chapters, plan, heroes, relation }) };
+  } catch (err) {
+    console.warn("[book] cold read failed:", (err as Error)?.message || err);
+    return { missing: [], notes: [] };
+  }
 }
 
 function hookPatchNote(chapter: BookChapter, planned: PlannedBook): string {
@@ -327,10 +363,20 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
     .filter((chapter) => critique && !rewritten.has(chapter.order) && chapter.order < last)
     .filter((chapter) => !critique?.chapters.find((entry) => entry.n === chapter.order)?.hook);
   const hookPatched = new Set(hookNotes.map((chapter) => chapter.order));
+  // Plants the critic missed in chapters that were not rewritten: one casual sentence each.
+  const plantNotes = chapters
+    .filter((chapter) => !rewritten.has(chapter.order))
+    .flatMap((chapter) => {
+      const point = critique?.chapters.find((entry) => entry.n === chapter.order);
+      return point ? plantReasons(point, planned).map((reason) => `Kapitel ${chapter.order}: ${reason.message} Ein einziger Satz in einer vorhandenen Szene genügt.`) : [];
+    });
+  const cold = await coldRead(ctx, planned, state, chapters, range);
 
-  // Patch: continuity, language, invented looks, repeated phrases, missing hooks.
+  // Patch: continuity, language, invented looks, repeated phrases, missing hooks and plants, what a newcomer cannot follow.
   const notes = [
+    ...cold.notes,
     ...hookNotes.map((chapter) => hookPatchNote(chapter, planned)),
+    ...plantNotes,
     ...checks.flat().filter((issue) => issue.code !== "chapter_short").map((issue) => issue.message),
     ...(critique?.mustFix || []).filter((note) => !rewritten.has(note.chapter)).map((note) => `Kapitel ${note.chapter}: ${note.problem}${note.quote ? ` („${note.quote}“)` : ""}`),
     ...(critique?.languageErrors || []).filter((error) => !rewritten.has(error.chapter)).map((error) => `Kapitel ${error.chapter}: „${error.quote}“ → ${error.correction}`),
@@ -376,6 +422,10 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
     .map((entry: any) => ({ chapter: chapter.order, who: clean(entry?.who, 60), knows: clean(entry?.knows, 200) }))
     .filter((entry: { who: string; knows: string }) => entry.who && entry.knows)
     .slice(0, 5));
+  const worldState = released.flatMap((chapter) => (Array.isArray(entryOf(chapter.order)?.state) ? entryOf(chapter.order).state : [])
+    .map((entry: any) => ({ chapter: chapter.order, thing: clean(entry?.thing, 60), now: clean(entry?.now, 160) }))
+    .filter((entry: { thing: string; now: string }) => entry.thing && entry.now)
+    .slice(0, 8));
 
   const curve: ChapterCurvePoint[] = released.map((chapter) => {
     const point = critique?.chapters.find((entry) => entry.n === chapter.order);
@@ -393,12 +443,13 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
     };
   });
   const openIssues = checks.flatMap((list, index) => list.filter((issue) => issue.severity === "hard").map((issue) => ({ chapter: chapters[index].order, issue: issue.message })));
-  await observe(ctx, "chapters", { range, rewritten: [...rewritten], patched: [...patched], curve, open: openIssues.length });
+  await observe(ctx, "chapters", { range, rewritten: [...rewritten], patched: [...patched], curve, open: openIssues.length, ...(cold.missing.length ? { coldReadGaps: cold.missing } : {}) });
   return {
     ...state,
     chapters: [...state.chapters, ...released],
     facts: [...state.facts, ...facts],
     knowledge: [...state.knowledge, ...knowledge],
+    worldState: mergeWorldState(state.worldState || [], worldState),
     curve: [...state.curve, ...curve],
     openIssues: [...state.openIssues, ...openIssues],
   };

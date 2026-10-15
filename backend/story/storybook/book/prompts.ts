@@ -58,7 +58,22 @@ function frameLines(brief: BookBrief): string[] {
 }
 
 function heroLines(brief: BookBrief): string[] {
-  return brief.heroes.map((hero) => heroSheetEn(hero, brief.heroMemories[hero.id] || []));
+  const lines = brief.heroes.map((hero) => heroSheetEn(hero, brief.heroMemories[hero.id] || []));
+  if (brief.heroes.length > 1) lines.push(`- How they belong together: ${relationNote(brief)}`);
+  return lines;
+}
+
+/** How the heroes belong together — only what the family chose in the wizard ("Geschwister", "Freunde"); never invented. */
+export function heroRelation(brief: BookBrief): string | null {
+  const value = String((brief.config as { heroRelation?: unknown })?.heroRelation ?? "").replace(/[<>{}]/g, " ").replace(/\s+/g, " ").trim().slice(0, 40);
+  return value || null;
+}
+
+function relationNote(brief: BookBrief): string {
+  const relation = heroRelation(brief);
+  return relation
+    ? `${relation} (stated by the family — say it plainly in chapter 1)`
+    : "not stated — never call them brothers, sisters, cousins or friends; show that they belong together through what they share and do";
 }
 
 function seriesLines(brief: BookBrief): string[] {
@@ -194,13 +209,18 @@ export function buildPlanPrompt(brief: BookBrief, idea: BookPitchIdea, cast: Cas
   lines.push("");
   lines.push("HOW TO PLAN (this is where suspense, red thread and humour are decided):");
   lines.push("- BIBLE: world (concrete, paintable), home (the place the heroes start from and return to, with its inhabitants), bigQuestion (ONE, answered in the last chapter), truth (what really happens and why — for a mystery the whole hidden chain), limits (what the wonder can and cannot do), workaround (a bypass or escape route shown by chapter 3 and needed later), stakes (what is lost if they fail, concrete), personalReason (why it matters to THESE heroes), deadline (exactly one, visible), opponent (who, a motive a child understands, own logic — null in a cosy book).");
-  lines.push("- characters: one profile for each hero and each cast member — wants, can, flaw (a quirk with side effects: the comic engine, sometimes the problem), avoids, voice (how they talk, two or three concrete speech habits), challengedBy, finalChoice (a decision at the end they could not have made at the start). The heroes' roles come from their real profiles; never fix a child as \"the brave one\" or \"the scared one\".");
+  lines.push("- characters: one profile for each hero and each cast member — introduction (cast only: what kind of being they are, how the heroes know them or how they meet, why they are here today — one sentence a child understands), wants, can, flaw (a quirk with side effects: the comic engine, sometimes the problem), avoids, voice (how they talk, two or three concrete speech habits), challengedBy, finalChoice (a decision at the end they could not have made at the start). The heroes' roles come from their real profiles; never fix a child as \"the brave one\" or \"the scared one\".");
   lines.push("- runningGag: one gag with 3-4 beats in different chapters — it appears, escalates, tips over the third time, and is used meaningfully in the finale.");
+  // Book "Sieben Zimmer und ein Nieser" (2026-10-15): readers without Talea never learned who Kuno was,
+  // how the heroes belonged together or whose room it was.
+  lines.push("- Orientation: chapter 1 starts in the home place and, before the first wonder, lets a child who knows nothing learn where we are, who belongs together, what the heroes want today and by when, and who each companion is (their introduction). Plan it into chapter 1's event.");
   lines.push(`- Arc: chapters 1-2 calm opening in the home place and getting to know everyone, the disruption at the end of chapter 1 or 2; early clues; twistChapter ≈ ${twist} turns an assumption upside down; lowPointChapter ≈ ${low} follows from what happened; the solution comes from the heroes and earlier observations; the last chapter answers the big question and brings them home, the home place a little changed, with one small open thread for another volume (never the main question).`);
   lines.push("- setups: 4-8, each with id S1…, a concrete visible thing, the chapter where it is planted (casually) and a LATER chapter where it pays off. Nothing planted stays unpaid; no payoff without a plant. solution.uses names at least two setup ids.");
   lines.push(`- chapters: exactly ${n}. Each: n, title (in ${brief.languageLabel}, curious, never spoils), type (${CHAPTER_TYPES.join(", ")}), place, event (2-3 sentences, caused by the previous chapter), progress (how it concretely moves the big question), laugh (the planned funny moment, built from a character's quirk or a contrast), hook (the gentle bedtime ending), cast (names on stage), plants and payoffs (setup ids), gagBeat (only where the running gag appears), pictures (${book.imagesPerChapter} concrete paintable moment${book.imagesPerChapter > 1 ? "s" : ""} in reading order).`);
   // Test book 2026-10-14: chapter 1 introduced three realms, two door signs, closing words and a moon flower at once.
   lines.push(`- Keep the wonder simple enough for ${brief.band}-year-olds: ONE wonder with one clear rule beats a system of realms, signs and rituals. Chapter 1 introduces at most two invented things; afterwards at most one new invented thing per chapter, always shown in action before it gets a name.`);
+  // "Sieben Zimmer": folding + weather swap by knots + the cloud's own weather + gusts — readers lost track.
+  lines.push(`- The wonder has at most ${brief.band === "9-12" ? "three" : "two"} rules, listed in limits. Each rule is shown working before the heroes rely on it; a rule never fails without a cause planted earlier. Anything a child can count (rooms, keys, wishes) adds up across chapters — say how the number comes about.`);
   lines.push("- Never three chapters of the same type in a row. A quiet chapter after a tense one is welcome; calm, closeness and everyday moments give the exciting ones their weight.");
   lines.push(`- Bedtime hooks, never acute danger at a chapter end: ${HOOK_CATALOGUE.join("; ")}.`);
   lines.push(`- Humour for ${brief.band}-year-olds: physical comedy, absurd escalation, children outwitting grown-ups, harmless gross moments, taking things literally, characters ridiculously sure of themselves. Every chapter has its laugh, even a quiet one. Never explained.`);
@@ -215,7 +235,9 @@ export function buildPlanPrompt(brief: BookBrief, idea: BookPitchIdea, cast: Cas
   lines.push("- The climax is a new, harder obstacle that needs every hero's and companion's special ability at the same time — never a repeat of an earlier task.");
   lines.push("- No character repeats the same kind of joke in more than three chapters; then show another side of them.");
   lines.push("- Only the heroes, the cast and the bible's named minor figures exist; nameless extras at most briefly.");
-  lines.push("- How the heroes are related is unknown: never call them brothers, sisters, cousins or friends — show closeness through what they do together.");
+  lines.push(heroRelation(brief)
+    ? `- The heroes are ${heroRelation(brief)}: chapter 1 says so plainly; never invent other family members or facts about their family.`
+    : "- How the heroes are related is unknown: never call them brothers, sisters, cousins or friends — show closeness through what they do together.");
   lines.push("- Keep every field short — the plan is a map, not the book: bible fields at most 35 words (truth at most 80), chapter fields at most 20 words (event at most 35), each picture at most 15 words.");
   lines.push(`- sequelTeasers: 2-3 one-sentence teasers in ${brief.languageLabel} for a possible next volume, built on the small open thread („Was, wenn …“).`);
   lines.push("- artifact: the chosen find (id, chapter found, its use) or null.");
@@ -229,7 +251,7 @@ export function buildPlanPrompt(brief: BookBrief, idea: BookPitchIdea, cast: Cas
     bible: {
       world: "…", home: "…", bigQuestion: "…", truth: "…", limits: "…", workaround: "…", stakes: "…", personalReason: "…", deadline: "…",
       opponent: { who: "…", motive: "…", logic: "…" },
-      characters: [{ name: "…", wants: "…", can: "…", flaw: "…", avoids: "…", voice: "…", challengedBy: "…", finalChoice: "…" }],
+      characters: [{ name: "…", introduction: "…", wants: "…", can: "…", flaw: "…", avoids: "…", voice: "…", challengedBy: "…", finalChoice: "…" }],
       runningGag: { gag: "…", beats: [{ chapter: 2, beat: "…" }] },
       twistChapter: twist, lowPointChapter: low,
       solution: { how: "one child's sentence", uses: ["S1", "S3"] },
@@ -287,7 +309,7 @@ export function renderBible(plan: BookPlan): string {
     `Deadline (the only one): ${b.deadline}`,
     b.opponent ? `Opponent: ${b.opponent.who} — motive: ${b.opponent.motive} — logic: ${b.opponent.logic}` : "Opponent: none (gentle obstacle)",
     "Characters:",
-    ...b.characters.map((c) => `- ${c.name}: wants ${c.wants}; can ${c.can}; flaw ${c.flaw}; avoids ${c.avoids}; voice ${c.voice}; challenged by ${c.challengedBy}; final choice ${c.finalChoice}`),
+    ...b.characters.map((c) => `- ${c.name}: ${c.introduction ? `who: ${c.introduction}; ` : ""}wants ${c.wants}; can ${c.can}; flaw ${c.flaw}; avoids ${c.avoids}; voice ${c.voice}; challenged by ${c.challengedBy}; final choice ${c.finalChoice}`),
     `Running gag: ${b.runningGag.gag} — ${b.runningGag.beats.map((beat) => `ch. ${beat.chapter}: ${beat.beat}`).join(" / ")}`,
     `Twist in chapter ${b.twistChapter}, low point in chapter ${b.lowPointChapter}. Solution: ${b.solution.how} (uses ${b.solution.uses.join(", ")})`,
     "Setups:",
@@ -336,8 +358,10 @@ export function buildPlanReviewPrompt(brief: BookBrief, plan: BookPlan): { syste
     "- setbackChangesPlan: the twist or the low point forces the heroes to change what they do (a new plan), not only what they know.",
     "- needBeforeClimax: the opponent's real need is discovered before the climax and the solution answers it (true for a book without opponent).",
     "- climaxNew: the climax is a new, harder obstacle that needs the special abilities of several characters at once, not a repeat of an earlier task.",
+    "- orientation: chapter 1 lets a child who knows nothing learn where we are, who belongs together, what the heroes want and by when, and every cast member has an introduction saying who they are to the heroes and why they are there.",
+    "- rulesSimple: the wonder has at most two or three rules a child can repeat; every later turn follows from them, nothing a child can count contradicts itself.",
     "- logic: the truth explains every clue; nothing contradicts the limits of the wonder.",
-    "Scores 0-10 against published top chapter books (10 = Lichterland level, 6-7 = solid but interchangeable). Hard caps: big question unclear or unanswered → overall at most 5; solution not prepared → 5; no personal stakes → 6; opponent without logic → 6.5; an easy way out stays open → 6.5; no setback that changes the plan → 7; climax repeats an earlier task → 7; running gag does not escalate → 7; the opponent's need comes out only after the solution → 7.5.",
+    "Scores 0-10 against published top chapter books (10 = Lichterland level, 6-7 = solid but interchangeable). Hard caps: big question unclear or unanswered → overall at most 5; solution not prepared → 5; no personal stakes → 6; opponent without logic → 6.5; an easy way out stays open → 6.5; no setback that changes the plan → 7; climax repeats an earlier task → 7; running gag does not escalate → 7; the opponent's need comes out only after the solution → 7.5; no orientation in chapter 1 or a wonder with too many rules → 7.",
     "mustFix: at most 8 concrete problems, the most important first, each with the chapter (or null for the whole book) — in German, as problems, never as rewritten text.",
     "weaknesses: ALWAYS 2-4 entries even for a good plan — the most predictable moment, the weakest chapter, a planned laugh that will not make a child laugh out loud, a character without real purpose — each with chapter, the problem in German and severity \"high\" (a child or parent will notice and be disappointed) or \"low\".",
     "Answer with JSON only.",
@@ -355,7 +379,7 @@ export function buildPlanReviewPrompt(brief: BookBrief, plan: BookPlan): { syste
     "",
     "JSON:",
     JSON.stringify({
-      checks: { bigQuestionClear: true, answeredInFinale: true, solutionPrepared: true, stakesPersonal: true, opponentLogic: true, gagEscalates: true, everyChapterProgress: true, everyChapterLaugh: true, castHasJobs: true, hooksGentle: true, wishesMet: true, variety: true, logic: true, noEasyWayOut: true, setbackChangesPlan: true, needBeforeClimax: true, climaxNew: true },
+      checks: { bigQuestionClear: true, answeredInFinale: true, solutionPrepared: true, stakesPersonal: true, opponentLogic: true, gagEscalates: true, everyChapterProgress: true, everyChapterLaugh: true, castHasJobs: true, hooksGentle: true, wishesMet: true, variety: true, logic: true, noEasyWayOut: true, setbackChangesPlan: true, needBeforeClimax: true, climaxNew: true, orientation: true, rulesSimple: true },
       scores: { redThread: 0, suspense: 0, humor: 0, characters: 0, logic: 0, overall: 0 },
       mustFix: [{ chapter: 3, problem: "…" }],
       weaknesses: [{ chapter: 5, problem: "…", severity: "high" }],
@@ -382,7 +406,10 @@ export function buildChapterSystemPrompt(brief: BookBrief): string {
     "Things planted for later appear casually, inside a scene; never announce what they will be good for.",
     "At most one new invented thing (a place name, a rule, a magic object) per chapter: show it working first, then name it. Never explain the rules of the world in a lecture.",
     "Explain unfamiliar things in children's words when they first appear. Concrete nouns and strong verbs, short and medium sentences, paragraphs of two to four sentences; one-sentence paragraphs only for a bang or a punchline. No semicolons, adult abstractions, narrator questions, comments about the story, lessons or morals.",
-    "Do not describe the heroes' looks, size or age (the pictures show them); never name a family relation or friendship between the heroes. Catchphrases only when the scene carries them.",
+    `Do not describe the heroes' looks, size or age (the pictures show them). ${heroRelation(brief) ? `The heroes are ${heroRelation(brief)} — say so plainly in chapter 1, never invent anything else about their family.` : "Never name a family relation or friendship between the heroes (nobody told us)."} Catchphrases only when the scene carries them.`,
+    // "Sieben Zimmer und ein Nieser" (2026-10-15): a child without Talea knowledge never learned who Kuno was or why Wuschel was there.
+    "A child hears this book without knowing any of the characters. Chapter 1 orients before the first wonder: where we are, who belongs together, what the heroes want today and by when — told through what they do, within roughly the first 150-250 words. Every companion gets, at their first appearance in the book, one or two sentences woven into the action that say what kind of being they are, how the heroes know them (or how they meet) and why they are here — the bible's introduction, never a list.",
+    "Grown-ups without a name in the bible stay offstage or are named naturally from a child's view (\"aus der Küche rief jemand\"); never stilted labels like \"die vertraute erwachsene Person\".",
     "Only the heroes, the cast and the minor figures the bible names have names; nameless extras only briefly.",
     `Chapter endings are gentle hooks — ${HOOK_CATALOGUE.slice(0, 4).join("; ")} — never acute danger or fear before sleep.`,
     ...(german ? ["Direct speech in German quotation marks: „so“. Rhythm sample (copy nothing):", STYLE_SAMPLE_DE] : []),
@@ -460,6 +487,10 @@ export function buildChapterUserPrompt(brief: BookBrief, plan: BookPlan, state: 
     lines.push("WHO KNOWS WHAT:");
     for (const entry of state.knowledge.slice(-20)) lines.push(`- (${entry.chapter}) ${entry.who}: ${entry.knows}`);
   }
+  if (state.worldState?.length) {
+    lines.push("HOW THINGS STAND NOW (continue from exactly this; chapter of the last change in brackets):");
+    for (const entry of state.worldState.slice(-24)) lines.push(`- (${entry.chapter}) ${entry.thing}: ${entry.now}`);
+  }
   if (state.chapters.length) {
     lines.push("PREVIOUSLY:");
     for (const chapter of state.chapters) lines.push(`${chapter.order}. ${chapter.title}: ${chapter.recap}`);
@@ -479,7 +510,7 @@ export function buildChapterUserPrompt(brief: BookBrief, plan: BookPlan, state: 
   for (const chapter of plan.chapters.filter((entry) => entry.n >= from && entry.n <= to)) lines.push(renderChapterPlan(chapter, plan));
   lines.push("");
   lines.push(`SIZE (counted): every chapter ${book.wordsPerChapterMin}–${book.wordsPerChapterMax} words. Better one strong scene with dialogue than a hasty summary of three.`);
-  if (from === 1) lines.push("Chapter 1 starts calmly in the home place: where, who, what the heroes love — each character introduced by what they do when they first appear. The disruption comes at the end.");
+  if (from === 1) lines.push("Chapter 1 starts calmly in the home place for a child who knows none of the characters: where we are, who belongs together, what the heroes want today and by when, and who each companion is (the bible's introduction) — shown by what they do, before the first wonder. The disruption comes at the end.");
   if (to === book.chapters) lines.push("The last chapter answers the big question, brings the heroes home and shows the home place a little changed, with one small open thread. Never write „Fortsetzung folgt“ or anything like it.");
   if (brief.blockedTerms.length) lines.push(`These terms must not appear anywhere: ${brief.blockedTerms.join(", ")}`);
   lines.push("Use the titles from the plan. Output only the chapters, each starting with `KAPITEL <number>: <title>`.");
@@ -520,6 +551,10 @@ export function buildChapterCritiquePrompt(brief: BookBrief, plan: BookPlan, sta
   if (state.facts.length) {
     user.push("ESTABLISHED FACTS:");
     user.push(...state.facts.slice(-60).map((fact) => `- (${fact.chapter}) ${fact.fact}`));
+  }
+  if (state.worldState?.length) {
+    user.push("HOW THINGS STOOD BEFORE THESE CHAPTERS (a change needs a cause in the text):");
+    user.push(...state.worldState.slice(-24).map((entry) => `- (${entry.chapter}) ${entry.thing}: ${entry.now}`));
   }
   if (state.knowledge.length) {
     user.push("WHO KNOWS WHAT:");
@@ -571,7 +606,7 @@ export function buildChapterPatchPrompt(brief: BookBrief, chapters: BookChapter[
 
 export function buildLogbookPrompt(brief: BookBrief, chapters: BookChapter[], previousFacts: string[]): { system: string; user: string } {
   return {
-    system: `You keep the continuity logbook of a children's chapter book. You read only the released text and write down what it actually says — plans and guesses do not count. How the heroes are related to each other is unknown: never write that they are friends, brothers or sisters. Facts, recaps and knowledge are written in ${brief.languageLabel}. Answer with JSON only.`,
+    system: `You keep the continuity logbook of a children's chapter book. You read only the released text and write down what it actually says — plans and guesses do not count. ${heroRelation(brief) ? `The heroes are ${heroRelation(brief)}.` : "How the heroes are related to each other is unknown: never write that they are friends, brothers or sisters."} Facts, recaps and knowledge are written in ${brief.languageLabel}. Answer with JSON only.`,
     user: [
       ...(previousFacts.length ? ["FACTS FROM EARLIER CHAPTERS (do not repeat them; note only what is new or changed):", ...previousFacts.slice(-40).map((fact) => `- ${fact}`), ""] : []),
       "CHAPTERS:",
@@ -581,14 +616,16 @@ export function buildLogbookPrompt(brief: BookBrief, chapters: BookChapter[], pr
       "- recap: two short sentences for a child who wants to remember tomorrow what happened (past tense, no spoilers beyond this chapter, no names that are not in the text).",
       "- facts: 3-8 short facts later chapters must not contradict — who owns or carries which thing, where things and characters are, what changed (broken, opened, promised), names and rules that were introduced.",
       "- knowledge: who learned or now believes something important (only characters, never the narrator).",
-      JSON.stringify({ chapters: chapters.map((chapter) => ({ n: chapter.order, recap: "…", facts: ["…"], knowledge: [{ who: "…", knows: "…" }] })) }),
+      // "Sieben Zimmer": the room count and which room had which weather drifted between chapters.
+      "- state: things whose state CHANGES and that later chapters build on, as they are at the END of this chapter — how many of something exist, where a thing or character is, open/closed, tied/untied, wet/dry, who has which weather. One entry per thing, with a stable short name (the same name every time).",
+      JSON.stringify({ chapters: chapters.map((chapter) => ({ n: chapter.order, recap: "…", facts: ["…"], knowledge: [{ who: "…", knows: "…" }], state: [{ thing: "…", now: "…" }] })) }),
     ].join("\n"),
   };
 }
 
 export function buildSeriesMemoryPrompt(brief: BookBrief, plan: BookPlan, state: BookState): { system: string; user: string } {
   return {
-    system: `You write the series memory of a finished children's chapter book so that a next volume can continue the world. Use only what the released text says. How the heroes are related to each other is unknown — never call them friends, brothers or sisters; describe what they did together instead. Write in ${brief.languageLabel}. Answer with JSON only.`,
+    system: `You write the series memory of a finished children's chapter book so that a next volume can continue the world. Use only what the released text says. ${heroRelation(brief) ? `The heroes are ${heroRelation(brief)}.` : "How the heroes are related to each other is unknown — never call them friends, brothers or sisters; describe what they did together instead."} Write in ${brief.languageLabel}. Answer with JSON only.`,
     user: [
       `TITLE: ${plan.title}`,
       `HOME PLACE (plan): ${plan.bible.home}`,
@@ -622,6 +659,8 @@ export function planReviewNotes(review: PlanReview | null): string[] {
     setbackChangesPlan: "Wendung und Tiefpunkt ändern nur, was die Helden wissen, nicht was sie tun: Ein Fehlschlag mit Folgen muss sie zu einem neuen Plan zwingen.",
     needBeforeClimax: "Das eigentliche Bedürfnis des Gegenspielers kommt erst nach der Lösung heraus: Die Helden müssen es vor dem Höhepunkt entdecken, und die Lösung muss darauf antworten.",
     climaxNew: "Der Höhepunkt wiederholt eine frühere Aufgabe: Er braucht ein neues, schwierigeres Hindernis, bei dem mehrere Figuren gleichzeitig ihre besondere Fähigkeit einsetzen.",
+    orientation: "Ein Kind ohne Vorwissen erfährt in Kapitel 1 nicht, wo es ist, wer zusammengehört, was die Helden heute wollen und bis wann — oder eine Nebenfigur hat keine Einführung (was sie ist, woher die Helden sie kennen, warum sie da ist).",
+    rulesSimple: "Das Wunder hat zu viele Regeln oder bricht sie ohne vorbereiteten Grund; Zahlen, die ein Kind mitzählt (Zimmer, Schlüssel), gehen nicht auf.",
     logic: "Die Wahrheit erklärt nicht jeden Hinweis oder widerspricht den Grenzen des Wunders.",
   };
   const failed = Object.entries(review.checks).filter(([key, value]) => value === false && labels[key]).map(([key]) => labels[key]);

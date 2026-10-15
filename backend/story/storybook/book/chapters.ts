@@ -12,7 +12,7 @@ import { containsBlockedTerm, countWords, inventedHeroLooks, splitSentences } fr
 import { cleanProse, ensureParagraphs, normalizeGermanQuotes } from "../parsing";
 import { parseJsonObject } from "../llm";
 import type { CheckIssue } from "../types";
-import { mentionsName } from "./catalogue";
+import { foldUmlauts, mentionsName } from "./catalogue";
 import type { BookBrief, BookBudget, BookChapter, ChapterCritique } from "./types";
 
 const CHAPTER_MARKER = /^\s*(?:[#*_>\s]*)(?:KAPITEL|CHAPTER|CHAPITRE|CAPÍTULO|CAPITOLO|HOOFDSTUK|ГЛАВА)\s+(\d+)\s*[:：.\-–—]?\s*(.*?)\s*[*_#]*\s*$/i;
@@ -107,6 +107,25 @@ const MORAL_ENDINGS = [
 
 const TIME_OPENING = /^(am|an diesem|an jenem|in (der|dieser|jener)|früh am|spät am|gegen|als (die sonne|der mond|es (dunkel|hell|abend|morgen))|die sonne|der nächste|the next|that (morning|evening|night)|in the (morning|evening))\b[^.!?]{0,40}\b(morgen|vormittag|mittag|nachmittag|abend|nacht|tag|frühstück|sonne|mond|morning|evening|night|day)\b/i;
 
+const STILTED_GROWNUP = /\b(?:die|der|eine|ein|einer)?\s*vertraute[nr]?\s+(?:erwachsene[nr]?\s+)?(?:Person|Stimme)\b|\berwachsene[nr]?\s+(?:Bezugs)?[Pp]erson\b|\bBezugsperson\b/i;
+
+/** The latest state per thing (how many rooms, which knot is tied): a thing named again replaces its earlier entry. */
+export function mergeWorldState(
+  previous: Array<{ thing: string; now: string; chapter: number }>,
+  next: Array<{ thing: string; now: string; chapter: number }>,
+  limit = 30,
+): Array<{ thing: string; now: string; chapter: number }> {
+  const key = (thing: string) => foldUmlauts(thing.toLocaleLowerCase("de-DE")).replace(/[^a-z0-9]+/g, " ").replace(/^(der|die|das|ein|eine) /, "").trim();
+  const merged = new Map<string, { thing: string; now: string; chapter: number }>();
+  for (const entry of [...previous, ...next]) {
+    const id = key(entry.thing);
+    if (!id) continue;
+    merged.delete(id);
+    merged.set(id, entry);
+  }
+  return [...merged.values()].slice(-limit);
+}
+
 /**
  * How a chapter opens, when it opens by formula: the time of day, or everyone present
  * listed in the first sentence (Gurkenberg: "Am nächsten Morgen saßen A, B, C und D …" again and again).
@@ -143,6 +162,9 @@ export function checkChapter(chapter: BookChapter, input: { brief: BookBrief; bu
       : "zählt im ersten Satz wieder die ganze Gruppe auf — steig mit einer Handlung oder einem Satz wörtlicher Rede ein und bring die Figuren nach und nach ins Bild.",
     "formulaic_opening", "soft");
   }
+  // "Sieben Zimmer und ein Nieser": the writer, told never to invent family, wrote "die vertraute erwachsene Person".
+  const stilted = chapter.content.match(STILTED_GROWNUP);
+  if (stilted) at(`nennt einen Erwachsenen „${stilted[0]}“. Lass ihn aus dem Bild oder nenne ihn natürlich aus Kindersicht („aus der Küche rief jemand“).`, "stilted_grownup", "soft");
   for (const hit of repeatedPhrases(chapter, input.earlier, input.names)) {
     at(`die Formulierung „${hit.phrase}“ stand schon in Kapitel ${hit.chapter} — variiere sie.`, "repeated_phrase", "soft");
   }

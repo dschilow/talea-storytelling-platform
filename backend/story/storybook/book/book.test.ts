@@ -5,8 +5,9 @@ import type { CastCandidate } from "../types";
 import { retryRequestFor, type LlmRequest } from "../llm";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./budget";
 import { catalogueForPitch, catalogueLine, foldUmlauts, mentionsName, resolveCasting } from "./catalogue";
-import { checkChapter, formulaicOpening, mergeChapterPatch, speechTagCommas, parseChapterCritique, parseChapters, quoteInText, repeatedPhrases } from "./chapters";
+import { checkChapter, formulaicOpening, mergeChapterPatch, mergeWorldState, speechTagCommas, parseChapterCritique, parseChapters, quoteInText, repeatedPhrases } from "./chapters";
 import { chapterRanges, resolveBookPlanner } from "./engine";
+import { coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
 import { buildImageSlots } from "./illustrations";
 import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview, planScoreCap } from "./plan";
 import { buildChapterStaticContext, buildChapterSystemPrompt, buildChapterSystemWithContext, buildChapterUserPrompt, buildPitchPrompt, plantedSentences, planReviewNotes } from "./prompts";
@@ -288,3 +289,56 @@ describe("planner choice", () => {
     expect(retryRequestFor({ ...request, fallbackModel: undefined }, new Error("Truncated response")).model).toBe("google/gemini-3.5-flash-lite");
   });
 });
+
+describe("a child without Talea knowledge (Sieben Zimmer und ein Nieser, 2026-10-15)", () => {
+  test("the heroes' relation is named only when the family chose one", () => {
+    const unknown = buildChapterSystemPrompt(brief());
+    expect(unknown).toContain("Never name a family relation");
+    const siblings = buildChapterSystemPrompt(brief({ config: { genre: "fairy_tales", ageGroup: "6-8", language: "de", length: "long", heroRelation: "Brüder" } as any }));
+    expect(siblings).toContain("The heroes are Brüder");
+    expect(siblings).not.toContain("Never name a family relation");
+    expect(siblings).toContain("A child hears this book without knowing any of the characters");
+  });
+  test("the cold reader asks about the relation only when it is known, and about every newcomer", () => {
+    const withRelation = coldReadQuestions({ heroes: ["Alexander", "Adrian"], relation: "Brüder", orientation: true, newcomers: ["Kuno Knopf"] }).map((q) => q.id);
+    expect(withRelation).toEqual(["place", "together", "goal", "cast:Kuno Knopf"]);
+    expect(coldReadQuestions({ heroes: ["Alexander", "Adrian"], relation: null, orientation: true, newcomers: [] }).map((q) => q.id)).toEqual(["place", "goal"]);
+    expect(coldReadQuestions({ heroes: ["Alexander"], relation: null, orientation: false, newcomers: [] })).toEqual([]);
+  });
+  test("an answer counts only with a sentence from the text; gaps become notes for the right chapter", () => {
+    const chapters: BookChapter[] = [
+      { order: 1, title: "", recap: "", content: "Alexander schob die Bücherkiste im Kinderzimmer zur Wand. Um sechs kamen die Übernachtungsgäste." },
+      { order: 2, title: "", recap: "", content: "Kuno Knopf kniete daneben und nahm seine Mütze ab. Ihre vielen Knöpfe klackerten." },
+    ];
+    const questions = coldReadQuestions({ heroes: ["Alexander", "Adrian"], relation: null, orientation: true, newcomers: ["Kuno Knopf"] });
+    const raw = JSON.stringify({ answers: [
+      { id: "place", answer: "im Kinderzimmer", quote: "Alexander schob die Bücherkiste im Kinderzimmer zur Wand." },
+      { id: "goal", answer: "Schlafplätze bis sechs", quote: "Sie wollten bis sechs Uhr alle Betten fertig haben." },
+      { id: "cast:Kuno Knopf", answer: null, quote: null },
+    ] });
+    const missing = unansweredQuestions(raw, chapters, questions);
+    expect(missing).toEqual(["goal", "cast:Kuno Knopf"]);
+    const plan = { bible: { characters: [{ name: "Kuno Knopf", introduction: "ein junger Schneider von nebenan, der Stoffe falten kann" }] } } as any;
+    const notes = coldReadNotes(missing, { chapters, plan, heroes: ["Alexander", "Adrian"], relation: null });
+    expect(notes[0]).toStartWith("Kapitel 1:");
+    expect(notes[1]).toStartWith("Kapitel 2: Beim ersten Auftritt von Kuno Knopf");
+    expect(notes[1]).toContain("junger Schneider");
+  });
+  test("the state of things keeps the latest entry per thing", () => {
+    const merged = mergeWorldState(
+      [{ thing: "Deckenzimmer", now: "1 zusätzliches", chapter: 1 }, { thing: "Knoten See–Wiese", now: "offen", chapter: 1 }],
+      [{ thing: "die Deckenzimmer", now: "6 zusätzliche, 7 mit dem Kinderzimmer", chapter: 2 }],
+    );
+    expect(merged).toEqual([{ thing: "Knoten See–Wiese", now: "offen", chapter: 1 }, { thing: "die Deckenzimmer", now: "6 zusätzliche, 7 mit dem Kinderzimmer", chapter: 2 }]);
+  });
+  test("a stilted label for a grown-up is a soft defect", () => {
+    const b = brief();
+    const chapter: BookChapter = { order: 4, title: "", recap: "", content: "Nebenan klapperte die vertraute erwachsene Person mit Tassen." };
+    expect(checkChapter(chapter, { brief: b, budget: b.book, earlier: [], names: [] }).find((issue) => issue.code === "stilted_grownup")?.severity).toBe("soft");
+  });
+  test("a plan without orientation or with too many rules is capped", () => {
+    expect(planScoreCap({ orientation: false })).toBe(7);
+    expect(planScoreCap({ rulesSimple: false })).toBe(7);
+  });
+});
+

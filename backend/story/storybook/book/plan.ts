@@ -83,7 +83,7 @@ export function parsePlan(raw: any, chapters: number): BookPlan | null {
       limits: text(b.limits, 400), workaround: text(b.workaround, 400), stakes: text(b.stakes, 400),
       personalReason: text(b.personalReason, 400), deadline: text(b.deadline, 300), opponent,
       characters: (Array.isArray(b.characters) ? b.characters : []).map((c: any) => ({
-        name: text(c?.name, 80), wants: text(c?.wants, 240), can: text(c?.can, 240), flaw: text(c?.flaw, 240),
+        name: text(c?.name, 80), introduction: text(c?.introduction, 240), wants: text(c?.wants, 240), can: text(c?.can, 240), flaw: text(c?.flaw, 240),
         avoids: text(c?.avoids, 240), voice: text(c?.voice, 240), challengedBy: text(c?.challengedBy, 160), finalChoice: text(c?.finalChoice, 240),
       })).filter((c: { name: string }) => c.name).slice(0, 8),
       runningGag: {
@@ -183,6 +183,7 @@ export function planScoreCap(checks: Record<string, boolean>): number {
   if (checks.noEasyWayOut === false) cap = Math.min(cap, 6.5);
   if (checks.gagEscalates === false || checks.setbackChangesPlan === false || checks.climaxNew === false) cap = Math.min(cap, 7);
   if (checks.needBeforeClimax === false) cap = Math.min(cap, 7.5);
+  if (checks.orientation === false || checks.rulesSimple === false) cap = Math.min(cap, 7);
   return cap;
 }
 
