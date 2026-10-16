@@ -175,6 +175,18 @@ function countedIn(note: string): number {
   return Number(note.match(/drawn (\d+) times/i)?.[1] || 0);
 }
 
+/**
+ * The names the checker is asked to count — and the only ones its reply must count. Book "Die Flotte der Minuten"
+ * (2026-10-16): the prompt left out the paper boats (they come in numbers), the parser still demanded a count for
+ * them, every reply was "incomplete", and the cover plus 8 of 16 pictures were dropped as unverified without a log line.
+ */
+export function qaCountNames(expected: Array<Pick<VisualEntity, "name" | "kind">>, elements: Array<{ name: string; look: string; noun?: string }>, scene: string): string[] {
+  return [
+    ...expected.filter((entity) => entity.kind !== "artifact").map((entity) => entity.name),
+    ...elements.filter((element) => !isPluralElement(element, scene)).map((element) => element.name),
+  ];
+}
+
 export function buildQaPrompt(expected: VisualEntity[], scene: string, hasReference: boolean, elements: Array<{ name: string; look: string; noun?: string }> = [], pageText?: string): string {
   const many = elements.filter((element) => isPluralElement(element, scene));
   const list = expected.map((entity) => `- ${entity.name}: ${entity.kind === "artifact" ? "object" : entity.isHuman ? entity.role === "hero" ? "HUMAN CHILD" : "HUMAN" : entity.species}; ${entity.appearance}`).join("\n") || "- (no named characters)";
@@ -197,7 +209,7 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
     ...(expected.some((entity) => entity.kind === "character") ? ["posing: true only when the figures stand or sit side by side facing the viewer, like a group photo, instead of doing the scene's action."] : []),
     "Return JSON only:",
     JSON.stringify({
-      characterCounts: Object.fromEntries([...expected.filter((entity) => entity.kind !== "artifact").map((entity) => entity.name), ...elements.filter((element) => !isPluralElement(element, scene)).map((element) => element.name)].map((name) => [name, "integer count"])),
+      characterCounts: Object.fromEntries(qaCountNames(expected, elements, scene).map((name) => [name, "integer count"])),
       namedCharactersVisible: 0,
       anatomyDefects: [],
       animalFeaturesOnHumans: [],
@@ -239,9 +251,14 @@ export function parseQaReport(raw: string, expectedNames?: string[]): ImageQaRep
   const data = parseJsonObject<any>(raw);
   if (!data || (!data.characterCounts && !Number.isFinite(Number(data.namedCharactersVisible)))) return null;
   const given = data.characterCounts && typeof data.characterCounts === "object" && !Array.isArray(data.characterCounts) ? Object.entries(data.characterCounts) : [];
+  const byName = (name: string) => given.find(([key]) => key === name) || given.find(([key]) => key.toLowerCase() === name.toLowerCase())
+    || given.find(([key]) => mentions(key, name) || mentions(name, key));
+  // The checker writes the keys in the order it was given them; a German name it translated ("Die Stundendiebin" →
+  // "Hour Thief") is the unmatched key in the unmatched name's place — paired only when the numbers agree.
+  const unmatchedNames = (expectedNames || []).filter((name) => !byName(name));
+  const unmatchedKeys = given.filter(([key]) => !(expectedNames || []).some((name) => byName(name)?.[0] === key));
   const countFor = (name: string): number | undefined => {
-    const exact = given.find(([key]) => key === name) || given.find(([key]) => key.toLowerCase() === name.toLowerCase())
-      || given.find(([key]) => mentions(key, name) || mentions(name, key));
+    const exact = byName(name) || (unmatchedNames.length === unmatchedKeys.length ? unmatchedKeys[unmatchedNames.indexOf(name)] : undefined);
     return exact ? countValue(exact[1]) : undefined;
   };
   if (expectedNames && (
@@ -376,7 +393,10 @@ export function salvageable(report: ImageQaReport | undefined): boolean {
     && !report.unexpectedCharacters.length
     && !report.duplicates.length
     && !report.referenceSheetVisible
-    && !report.textVisible;
+    && !report.textVisible
+    // "Die Flotte der Minuten" chapter 6: Adrian wore Brumm's green beard on the raft and was printed as the least bad
+    // picture. A creature in sleeves can stay; a child with a beard is what a parent sees first.
+    && !(report.featureBleed || []).some((note) => /\b(beard|moustache|mustache|bart|schnurrbart)\b/i.test(note));
 }
 
 /**
@@ -693,7 +713,8 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       const got = await deliver(plan, attemptNo, extra, startLevel, ladder);
       const url = got.response.url;
       if (!url) return { page: shot.page, prompt: got.prompt, attempts: attemptNo, costUSD, severity: 999, status: "missing", level: -1, plan: plan.kind };
-      const expectedNames = [...plan.onStage.map((entity) => entity.name), ...plan.elements.map((element) => element.name)];
+      // Exactly the names the prompt asks to count (see qaCountNames): a demanded count the prompt never asked for made every reply "incomplete".
+      const expectedNames = qaCountNames(plan.onStage, plan.elements, plan.qaScene);
       const [raw, scores] = await Promise.all([
         inspect(
           `image-qa-${cover ? "cover" : `p${shot.page}`}-${attemptNo}`,
@@ -708,7 +729,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       const checked = raw ? scopeQaReport(raw, plan.onStage.map((entity) => entity.name), plan.elements, plan.qaScene) : undefined;
       const qa = checked ? withSecondOpinion(checked, scores) : undefined;
       const heroNames = plan.onStage.filter((entity) => entity.role === "hero").map((entity) => entity.name);
-      const parts = qaSeverityParts(qa, plan.onStage.length + plan.elements.length, { heroNames, cover });
+      const parts = qaSeverityParts(qa, expectedNames.length, { heroNames, cover });
       return { page: shot.page, url, prompt: got.prompt, attempts: attemptNo, costUSD, qa, severity: parts.hard + parts.soft, status: qaStatus(qa, parts), level: got.level, plan: plan.kind };
     };
 
@@ -743,9 +764,10 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
         errors.push(`vignette: ${(err as Error)?.message || err}`);
       }
       if (!response.url) return null;
-      const raw = await inspect(`image-qa-p${shot.page}-vignette`, buildQaPrompt([], scene, false, shown), [response.viewUrl || response.url], shown.map((element) => element.name), errors, "vignette");
+      const counted = qaCountNames([], shown, scene);
+      const raw = await inspect(`image-qa-p${shot.page}-vignette`, buildQaPrompt([], scene, false, shown), [response.viewUrl || response.url], counted, errors, "vignette");
       const qa = raw ? scopeQaReport(raw, [], shown, scene) : undefined;
-      const parts = qaSeverityParts(qa, shown.length);
+      const parts = qaSeverityParts(qa, counted.length);
       // Anything a person could be counted as makes it useless.
       const personSeen = Boolean(qa && (qa.unexpectedCharacters.length || qa.anatomyDefects.length));
       const status = personSeen ? "failed" : qaStatus(qa, parts);

@@ -782,8 +782,22 @@ export function bookEngineOf(metadata: Record<string, any> | null | undefined): 
 export function planMotifs(plan: BookPlan): { lessons: string[]; motifs: string[] } {
   const clean = (value: unknown, max: number) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
   const b = plan.bible;
-  const lessons = (b.heroDuties || [])
-    .map((duty) => `${duty.hero}: ${clean(duty.feelingEnd || duty.decision, 120)}`)
+  // The arc, not the end feeling: "Die Flotte der Minuten" taught Alexander to wait for the third time ("Segelnde Wörter",
+  // "Türlaunische"), and the memory only said "Alexander: erleichtert". Flaw → final choice is what must not repeat.
+  // Books planned before heroDuties existed: the heroes are the profiles without an introduction (cast only has one).
+  const heroNames = (b.heroDuties || []).map((duty) => duty.hero).filter(Boolean);
+  const heroProfiles = (b.characters || []).filter((profile) => (heroNames.length ? heroNames.some((name) => mentionsName(profile.name, name) || mentionsName(name, profile.name)) : !profile.introduction));
+  const arcOf = (name: string) => {
+    const profile = heroProfiles.find((entry) => mentionsName(entry.name, name) || mentionsName(name, entry.name));
+    return profile && (profile.flaw || profile.finalChoice) ? [profile.flaw, profile.finalChoice].map((part) => clean(part, 70)).filter(Boolean).join(" → ") : "";
+  };
+  const names = heroNames.length ? heroNames : heroProfiles.map((profile) => profile.name);
+  const lessons = names
+    .slice(0, 3)
+    .map((name) => {
+      const duty = (b.heroDuties || []).find((entry) => entry.hero === name);
+      return `${name}: ${clean(arcOf(name) || duty?.feelingEnd || duty?.decision || "", 140)}`;
+    })
     .filter((line) => !/:\s*$/.test(line));
   const motifs = [
     b.engineFigure ? `Motorfigur: ${clean(b.engineFigure, 80)}` : "",

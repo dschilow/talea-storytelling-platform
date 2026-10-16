@@ -494,6 +494,8 @@ describe("story b10f2dad: the last page must not stay blank", () => {
     expect(qaSeverityParts(scopeQaReport(qa, [], [pot]), 4).soft).toBeGreaterThanOrEqual(10);
     expect(salvageable(scoped)).toBe(false);
     expect(salvageable(scopeQaReport(parseQaReport(JSON.stringify(qaWith({ duplicates: ["Schwebetopf appears twice"], featureBleed: ["Fauchi wears sleeves"] })), ["Alexander", "Adrian", "Drache Fauchi", "Schwebetopf"])!, ["Alexander", "Adrian", "Drache Fauchi"], [pot]))).toBe(true);
+    // "Die Flotte der Minuten": a child with the troll's beard is never the least bad picture.
+    expect(salvageable(scopeQaReport(parseQaReport(JSON.stringify(qaWith({ featureBleed: ["Adrian has Brumm-like green beard and moustache"] })), ["Alexander", "Adrian", "Drache Fauchi", "Schwebetopf"])!, ["Alexander", "Adrian", "Drache Fauchi"], [pot]))).toBe(false);
   });
 
   test("full picture and redraw fail, the heroes-only attempt rescues the page", async () => {
