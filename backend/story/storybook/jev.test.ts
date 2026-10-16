@@ -11,7 +11,8 @@ const cleanQa = { characterCounts: { Alexander: 1, Adrian: 1 }, anatomyDefects: 
 const cover = { cover: { page: 0, scene: "Alexander and Adrian beside the stream.", onStage: ["a", "b"], artifactVisible: false }, pages: [] };
 const withPage = { ...cover, pages: [{ page: 1, scene: "Adrian braces the cart while Alexander catches the basket.", onStage: ["b", "a"], artifactVisible: false, vignette: "the long wooden cart at the fork of two country paths" }] };
 const sheet = async () => ({ urls: ["https://example.test/sheet.jpg"], mode: "sprite" as const, subjects: [] });
-const none = { hybrid: 0.02, twins: 0.03, fused: 0.1, mirror: 0.02, text: 0.03 };
+const none = { hybrid: 0.02, twins: 0.03, fused: 0.1, mirror: 0.02, text: 0.03, blend: 0.05, garment: 0.05 };
+const creature: VisualEntity = { id: "c", name: "Fresser", role: "cast", kind: "character", species: "grey long-eared creature", isHuman: false, appearance: "small grey creature with big ears and a sack", forbidden: [], referenceUrl: "https://example.test/fresser.png" };
 const read = (answers: Partial<typeof none>): JevReply => ({ answers: { ...none, ...answers }, costUSD: 0.00008, inputTokens: 2000, durationMs: 600 });
 
 describe("Jev: what counts as a finding", () => {
@@ -37,15 +38,47 @@ describe("Jev: what counts as a finding", () => {
   test("scores come back only for questions that were asked", () => {
     expect(parseJevScores(undefined)).toBeNull();
     expect(parseJevScores({ unrelated: 1 })).toBeNull();
-    expect(parseJevScores({ hybrid: 0.9 })).toEqual({ hybrid: 0.9, twins: 0, fused: 0, mirror: 0, text: 0 });
+    expect(parseJevScores({ hybrid: 0.9 })).toEqual({ hybrid: 0.9, twins: 0, fused: 0, mirror: 0, text: 0, blend: 0, garment: 0 });
     expect(parseJevScores({ hybrid: 7, twins: NaN })).toMatchObject({ hybrid: 1, twins: 0 });
   });
   test("a cast that is meant to be half animal or look alike is not asked", () => {
-    expect(Object.keys(jevQuestionsFor(people)).sort()).toEqual(["fused", "hybrid", "mirror", "text", "twins"]);
+    expect(Object.keys(jevQuestionsFor(people)).sort()).toEqual(["fused", "garment", "hybrid", "mirror", "text", "twins"]);
     const mermaid: VisualEntity = { ...people[0], id: "m", name: "Marina", species: "mermaid", isHuman: false };
     expect(Object.keys(jevQuestionsFor([...people, mermaid]))).not.toContain("hybrid");
     const twins: VisualEntity = { ...people[1], id: "t", appearance: "one of the identical twins in green" };
     expect(Object.keys(jevQuestionsFor([people[0], twins]))).not.toContain("twins");
+  });
+});
+
+describe("Jev: a mixed figure and a borrowed garment (book \"Die hüpfenden Geräusche\", 2026-10-16)", () => {
+  test("blend is asked only when a child and a creature share the picture, garment when two figures do", () => {
+    expect(Object.keys(jevQuestionsFor(people))).not.toContain("blend");
+    expect(Object.keys(jevQuestionsFor([people[0], creature]))).toEqual(expect.arrayContaining(["blend", "garment"]));
+    expect(Object.keys(jevQuestionsFor([people[0]]))).not.toContain("garment");
+    expect(Object.keys(jevQuestionsFor([creature]))).not.toContain("blend");
+    const mermaid: VisualEntity = { ...people[0], id: "m", name: "Marina", species: "mermaid", isHuman: false };
+    expect(Object.keys(jevQuestionsFor([people[1], mermaid]))).not.toContain("blend");
+    const twins: VisualEntity = { ...people[1], id: "t", appearance: "one of the identical twins in green" };
+    expect(Object.keys(jevQuestionsFor([people[0], twins, creature]))).not.toContain("garment");
+  });
+  test("both are soft findings with their own cut-offs (blend 0.85, garment 0.9)", () => {
+    const found = interpretJev({ ...none, blend: 0.97, garment: 0.95 });
+    expect(found.soft).toHaveLength(2);
+    expect(found.hybrid).toHaveLength(0);
+    expect(found.soft.join(" ")).toContain("mixes features");
+    expect(found.soft.join(" ")).toContain("same garment");
+    expect(interpretJev({ ...none, blend: 0.84, garment: 0.89 }).soft).toHaveLength(0);
+  });
+  test("in a mirror two people wear the same vest, a mixed figure stays mixed", () => {
+    const found = interpretJev({ ...none, blend: 0.9, garment: 0.95, mirror: 0.9 });
+    expect(found.soft).toHaveLength(1);
+    expect(found.soft[0]).toContain("mixes features");
+  });
+  test("the scores measured on the two pictures of the book: the old questions were silent, the new ones are not", () => {
+    // Picture 13: Adrian's hair and shirt on the sack creature. Picture 6: the librarian's vest on Alexander.
+    expect(interpretJev({ ...none, hybrid: 0.08, twins: 0.07, fused: 0.16, blend: 0.97, garment: 0.14 }).soft).toHaveLength(1);
+    expect(interpretJev({ ...none, hybrid: 0.02, twins: 0.1, fused: 0.51, blend: 0.05, garment: 0.97 }).soft).toHaveLength(1);
+    expect(interpretJev({ ...none, hybrid: 0.08, twins: 0.07, fused: 0.16 }).soft).toHaveLength(0);
   });
 });
 
@@ -86,6 +119,22 @@ describe("Jev in the picture loop", () => {
     expect(page.vignette).toBe(true);
     expect(result.cover?.status).toBe("failed");
     expect(publishableImageUrl(result.cover)).toBeUndefined();
+  });
+
+  test("a mixed figure is redrawn from separate portraits with a named correction, and is still printed", async () => {
+    const calls: Array<{ prompt: string; referenceImages: string[] }> = [];
+    let asked = 0;
+    const result = await generateStorybookImages({
+      illustrations: { cover: { page: 0, scene: "Alexander kneels beside the creature.", onStage: ["a", "c"], artifactVisible: false }, pages: [] },
+      entities: [people[0], creature], seed: "s", buildReference: sheet, visionModel: "test",
+      jev: async () => read({ blend: ++asked <= 2 ? 0.96 : 0.1 }),
+      llm: async (request) => reply(request, { ...cleanQa, characterCounts: { Alexander: 1, Fresser: 1 } }),
+      provider: async (request) => { calls.push(request as any); return { url: `https://example.test/${calls.length}.jpg`, costUSD: .001 }; },
+    });
+    expect(calls.length).toBeGreaterThanOrEqual(2);
+    expect(calls[1].prompt).toContain("creatures never wear a child's hair or clothes");
+    expect(result.cover?.history?.[0].notes.join(" ")).toContain("mixes features");
+    expect(publishableImageUrl(result.cover)).toBeDefined();
   });
 
   test("a failing second reader changes nothing and costs no extra picture", async () => {

@@ -160,13 +160,23 @@ const CAST_SHADOW_LOOK = /\b(shadow|silhouette)\b/i;
  * Things that come in numbers ("hopping sound bubbles", "paper boats") are never "drawn twice":
  * book run flex-quality-1 (2026-10-16) redrew three of six pictures because bubbles were counted.
  */
-export function isPluralElement(element: { name: string; noun?: string }): boolean {
-  const last = String(element.noun || "").trim().toLowerCase().split(/\s+/).pop() || "";
-  return /(?<![siu])s$/.test(last);
+export function isPluralElement(element: { name: string; noun?: string; look?: string }, scene = ""): boolean {
+  const last = String(element.noun || element.name || "").trim().toLowerCase().split(/\s+/).pop() || "";
+  if (/(?<![siu])s$/.test(last)) return true;
+  if (!/^[a-z]{3,}$/.test(last)) return false;
+  // The director names it in the singular ("sound bubble", by its own rule), yet paints and tells it in numbers:
+  // the plural stands in the look or in the scene (re-run of the same book 2026-10-16: "sound bubble drawn 6 times" on 6 of 15 pictures).
+  return new RegExp(`\\b${last}(?:s|es)\\b`, "i").test(`${element.look || ""} ${scene}`);
+}
+
+/** Four or more of a thing is a group, never "a doubled pot". */
+const GROUP_OF_THINGS = 4;
+function countedIn(note: string): number {
+  return Number(note.match(/drawn (\d+) times/i)?.[1] || 0);
 }
 
 export function buildQaPrompt(expected: VisualEntity[], scene: string, hasReference: boolean, elements: Array<{ name: string; look: string; noun?: string }> = [], pageText?: string): string {
-  const many = elements.filter(isPluralElement);
+  const many = elements.filter((element) => isPluralElement(element, scene));
   const list = expected.map((entity) => `- ${entity.name}: ${entity.kind === "artifact" ? "object" : entity.isHuman ? entity.role === "hero" ? "HUMAN CHILD" : "HUMAN" : entity.species}; ${entity.appearance}`).join("\n") || "- (no named characters)";
   return [
     "You inspect ONE illustration from a children's picture book for defects a parent would notice immediately.",
@@ -187,7 +197,7 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
     ...(expected.some((entity) => entity.kind === "character") ? ["posing: true only when the figures stand or sit side by side facing the viewer, like a group photo, instead of doing the scene's action."] : []),
     "Return JSON only:",
     JSON.stringify({
-      characterCounts: Object.fromEntries([...expected.filter((entity) => entity.kind !== "artifact").map((entity) => entity.name), ...elements.filter((element) => !isPluralElement(element)).map((element) => element.name)].map((name) => [name, "integer count"])),
+      characterCounts: Object.fromEntries([...expected.filter((entity) => entity.kind !== "artifact").map((entity) => entity.name), ...elements.filter((element) => !isPluralElement(element, scene)).map((element) => element.name)].map((name) => [name, "integer count"])),
       namedCharactersVisible: 0,
       anatomyDefects: [],
       animalFeaturesOnHumans: [],
@@ -336,18 +346,18 @@ export function qaStatus(report: ImageQaReport | undefined, parts: { hard: numbe
  * page 5 had no story element, yet "the painted arrow is not visible" counted
  * as element misuse and the picture was dropped.
  */
-export function scopeQaReport(report: ImageQaReport, onStageNames: string[], elements: StoryElement[]): ImageQaReport {
+export function scopeQaReport(report: ImageQaReport, onStageNames: string[], elements: StoryElement[], scene = ""): ImageQaReport {
   const aboutElement = (note: string) => elements.some((element) => mentionsElement(note, element));
   const aboutCharacter = (note: string) => onStageNames.some((name) => mentions(note, name));
   // "Schwebetopf appears twice" is a doubled THING, "Adrian drawn 2 times" a doubled person.
   const thingNames = elements.filter((element) => !element.figure);
   const aboutThing = (note: string, things: StoryElement[]) => !aboutCharacter(note) && things.some((element) => mentionsElement(note, element));
   // Several bubbles or boats are the story, not a defect.
-  const single = thingNames.filter((element) => !isPluralElement(element));
+  const single = thingNames.filter((element) => !isPluralElement(element, scene));
   return {
     ...report,
     duplicates: report.duplicates.filter((note) => !aboutThing(note, thingNames)),
-    thingDuplicates: report.duplicates.filter((note) => aboutThing(note, single)),
+    thingDuplicates: report.duplicates.filter((note) => aboutThing(note, single) && countedIn(note) < GROUP_OF_THINGS),
     elementMisuse: (report.elementMisuse || []).filter(aboutElement),
     roleSwaps: report.roleSwaps.filter(aboutCharacter),
   };
@@ -389,6 +399,8 @@ export function correctionFor(report: ImageQaReport, elementNames: string[] = []
   if (report.animalFeaturesOnHumans.length || report.featureBleed?.length) fixes.push("Each figure looks exactly like its own place on the identity sheet; the children look like ordinary human kids in their own clothes.");
   if (report.duplicates.length || report.unexpectedCharacters.length || report.jevFindings?.some((finding) => /twice/.test(finding))) fixes.push("The listed figures are the only figures in the picture, each exactly once.");
   if (report.jevFindings?.some((finding) => /fused/.test(finding))) fixes.push("Every figure is one separate, complete body; the figures stand apart so no two bodies merge.");
+  if (report.jevFindings?.some((finding) => /mixes features/.test(finding))) fixes.push("Every figure keeps only its own hair, face, ears and clothes from its own place on the identity sheet: creatures never wear a child's hair or clothes, children never get animal or pointed ears.");
+  if (report.jevFindings?.some((finding) => /same garment/.test(finding))) fixes.push("Every garment belongs to exactly one figure: a vest, jacket or hat is worn by one person only, and each figure wears its own outfit from the identity sheet.");
   if (report.missing?.length) fixes.push(`${report.missing.slice(0, 3).join(" and ")} clearly visible in the foreground.`);
   const misused = elementNames.filter((name) => report.elementMisuse?.some((note) => note.toLowerCase().includes(name.toLowerCase())));
   if (misused.length) fixes.push(`${misused.join(" and ")} shown as its own separate figure or thing.`);
@@ -693,7 +705,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
         ),
         secondOpinion(got.response.viewUrl || url, plan.drawn, `${cover ? "cover" : `page ${shot.page}`} attempt ${attemptNo}`),
       ]);
-      const checked = raw ? scopeQaReport(raw, plan.onStage.map((entity) => entity.name), plan.elements) : undefined;
+      const checked = raw ? scopeQaReport(raw, plan.onStage.map((entity) => entity.name), plan.elements, plan.qaScene) : undefined;
       const qa = checked ? withSecondOpinion(checked, scores) : undefined;
       const heroNames = plan.onStage.filter((entity) => entity.role === "hero").map((entity) => entity.name);
       const parts = qaSeverityParts(qa, plan.onStage.length + plan.elements.length, { heroNames, cover });
@@ -732,7 +744,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       }
       if (!response.url) return null;
       const raw = await inspect(`image-qa-p${shot.page}-vignette`, buildQaPrompt([], scene, false, shown), [response.viewUrl || response.url], shown.map((element) => element.name), errors, "vignette");
-      const qa = raw ? scopeQaReport(raw, [], shown) : undefined;
+      const qa = raw ? scopeQaReport(raw, [], shown, scene) : undefined;
       const parts = qaSeverityParts(qa, shown.length);
       // Anything a person could be counted as makes it useless.
       const personSeen = Boolean(qa && (qa.unexpectedCharacters.length || qa.anatomyDefects.length));
@@ -775,7 +787,8 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     regenerated.push(shot.page);
 
     // Redraw 1: one more full attempt with a named correction and a simpler composition.
-    const bled = Boolean(first.qa.animalFeaturesOnHumans.length || first.qa.featureBleed?.length);
+    // A mixed figure or a borrowed garment is bleed between the portraits on the sheet too (book "Die hüpfenden Geräusche").
+    const bled = Boolean(first.qa.animalFeaturesOnHumans.length || first.qa.featureBleed?.length || first.qa.jevFindings?.some((finding) => /mixes features|same garment/.test(finding)));
     // Benchmark 2026-10-15: a doubled figure is nearly always induced by the other portraits on the sheet.
     const doubled = Boolean(first.qa.duplicates.length || first.qa.jevFindings?.some((finding) => /twice|double|duplicate|same figure/i.test(finding)));
     let startLevel = Math.max(0, first.level);

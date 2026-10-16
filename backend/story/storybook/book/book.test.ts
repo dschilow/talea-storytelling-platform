@@ -8,7 +8,7 @@ import { catalogueForPitch, catalogueLine, foldUmlauts, mentionsName, resolveCas
 import { checkChapter, formulaicOpening, mergeChapterPatch, mergeOpenThreads, mergeWordings, mergeWorldState, speechTagCommas, parseChapterCritique, parseChapters, quoteInText, repeatedPhrases } from "./chapters";
 import { bookBatchRanges, bookServiceTier, chapterRanges, LAUGH_REWRITE_MAX_HUMOR, resolveBookPlanner, rewriteReasons, type PlannedBook } from "./engine";
 import { coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
-import { buildImageSlots } from "./illustrations";
+import { buildImageSlots, remainingNotes } from "./illustrations";
 import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview, planScoreCap, samePlace } from "./plan";
 import { buildChapterCritiquePrompt, buildChapterStaticContext, buildChapterSystemPrompt, buildChapterSystemWithContext, buildChapterUserPrompt, buildLogbookPrompt, buildPitchPrompt, plantedSentences, planReviewNotes } from "./prompts";
 import { buildQaPrompt, isPluralElement, scopeQaReport, type ImageQaReport } from "../images";
@@ -521,6 +521,16 @@ describe("Schatto führt Regie (2026-10-16): cheaper, sooner, nothing left dangl
     expect(buildQaPrompt([], "Schatto an der Mauer", false, [{ name: "Schatto", look: "flat dark silhouette cast on the courtyard wall" }])).toContain("not an extra limb");
     expect(buildQaPrompt([], "Kicher am Rahmen", false, [{ name: "Rahmen", look: "wooden frame" }])).not.toContain("not an extra limb");
   });
+  test("the log says what is still wrong with the picture that was printed, not only why it was redrawn", () => {
+    const history = [
+      { kind: "full", status: "failed", severity: 30, notes: ["Alexander has pointed ears", "Adrian missing"] },
+      { kind: "redraw", status: "flawed", severity: 20, notes: ["a figure mixes features of two characters [jev 97%]", "scene 0.35"] },
+    ];
+    expect(remainingNotes({ history, severity: 20 })).toEqual(["a figure mixes features of two characters [jev 97%]", "scene 0.35"]);
+    expect(remainingNotes({ history, severity: 30 })).toEqual(["Alexander has pointed ears", "Adrian missing"]);
+    expect(remainingNotes({ history: [{ kind: "full", status: "passed", severity: 0, notes: [] }], severity: 0 })).toEqual([]);
+    expect(remainingNotes({ severity: 10 })).toEqual([]);
+  });
   test("things that come in numbers are never counted as drawn twice (run flex-quality-1: three of six pictures redrawn for bubbles)", () => {
     expect(isPluralElement({ name: "Geräuschblasen", noun: "hopping sound bubbles" })).toBe(true);
     expect(isPluralElement({ name: "Gans", noun: "grey goose" })).toBe(false);
@@ -534,5 +544,23 @@ describe("Schatto führt Regie (2026-10-16): cheaper, sooner, nothing left dangl
     const report = scopeQaReport({ ...cleanReport(), duplicates: ["Geräuschblasen drawn 8 times", "Topf drawn 2 times"] }, ["Alexander"], [bubbles, { name: "Topf", noun: "copper pot", look: "copper pot" }]);
     expect(report.duplicates).toEqual([]);
     expect(report.thingDuplicates).toEqual(["Topf drawn 2 times"]);
+  });
+  test("a thing named in the singular but painted and told in numbers is plural too (re-run: \"sound bubble drawn 6 times\" on 6 of 15 pictures)", () => {
+    const bubble = { name: "Geräuschblase", noun: "sound bubble", look: "small round shimmering bubbles that hop" };
+    expect(isPluralElement(bubble)).toBe(true);
+    expect(isPluralElement({ name: "Geräuschblase", noun: "sound bubble", look: "a shimmering sphere" }, "Alexander watches the sound bubbles hop along the bench.")).toBe(true);
+    // One pot stays one pot, also when the scene speaks of another thing in the plural.
+    expect(isPluralElement({ name: "Topf", noun: "copper pot", look: "a copper pot with a dent" }, "Adrian carries the pot past the shoes.")).toBe(false);
+    const prompt = buildQaPrompt([], "Bubbles hop on the bench", false, [bubble]);
+    expect(prompt).toContain("come in numbers by nature");
+    expect(prompt).not.toContain("\"Geräuschblase\":\"integer count\"");
+    const report = scopeQaReport({ ...cleanReport(), duplicates: ["sound bubble drawn 10 times", "sound bubble appears twice"] }, ["Alexander"], [bubble]);
+    expect(report.duplicates).toEqual([]);
+    expect(report.thingDuplicates).toEqual([]);
+  });
+  test("four or more of a single thing is a group, two or three is still a doubled thing", () => {
+    const pot = { name: "Topf", noun: "copper pot", look: "a copper pot" };
+    const report = scopeQaReport({ ...cleanReport(), duplicates: ["copper pot drawn 2 times", "copper pot drawn 3 times", "copper pot drawn 6 times"] }, ["Alexander"], [pot]);
+    expect(report.thingDuplicates).toEqual(["copper pot drawn 2 times", "copper pot drawn 3 times"]);
   });
 });

@@ -340,7 +340,7 @@ if (!flag("--plan-only")) {
     imageCostUSD += batch.imageCostUSD;
     missingImages += batch.missing.length;
     mark(`pictures ${from}-${end}: ${batch.images.length} ok, ${batch.missing.length} missing, ${batch.imageCalls ?? "?"} calls, $${batch.imageCostUSD.toFixed(4)}`);
-    for (const redraw of batch.redraws || []) console.log(`    ↻ ${redraw.chapter ? `Kapitel ${redraw.chapter}.${redraw.part}` : "Cover"} × ${redraw.attempts}: ${redraw.reasons.join("; ") || "?"}`);
+    for (const redraw of batch.redraws || []) console.log(`    ↻ ${redraw.chapter ? `Kapitel ${redraw.chapter}.${redraw.part}` : "Cover"} × ${redraw.attempts} → ${redraw.status || "?"}${redraw.remaining?.length ? ` [Rest: ${redraw.remaining.join("; ")}]` : ""}: ${redraw.reasons.join("; ") || "?"}`);
   }
   await writeFile(join(out, "state.json"), JSON.stringify(state, null, 2), "utf8");
 }

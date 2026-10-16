@@ -45,14 +45,22 @@ export interface JevScores {
   fused: number;
   mirror: number;
   text: number;
+  /** One figure carries features of two characters (a child's hair and clothes on a creature with big ears). */
+  blend: number;
+  /** Two figures wear the same distinctive garment (the librarian's vest on a hero). */
+  garment: number;
 }
 
 /**
  * Cut-offs from the 430-picture probe. hybrid: eight of eight hits at 0.7 were real,
  * none on pictures with a talking fox. twins/fused: 0.65 / 0.75 were real except in
  * mirrors and puddles, which is what `mirror` is asked for.
+ * blend/garment (2026-10-16, book "Die hüpfenden Geräusche": Adrian's hair and shirt on the sack creature scored
+ * hybrid 0.08, the librarian's vest on Alexander fused 0.51 — both printed): over 97 stored pictures blend >= 0.85 hit
+ * 6 (the creature picture plus five heroes with pointed elf ears: the same fault, milder), garment >= 0.9 hit 1 (the
+ * vest picture); one kitchen scene of two boys in T-shirts reached 0.85, hence 0.9.
  */
-export const JEV_THRESHOLDS = { hybrid: 0.7, twins: 0.65, fused: 0.75, text: 0.75, mirror: 0.5 } as const;
+export const JEV_THRESHOLDS = { hybrid: 0.7, twins: 0.65, fused: 0.75, text: 0.75, mirror: 0.5, blend: 0.85, garment: 0.9 } as const;
 
 const QUESTIONS: Record<keyof JevScores, JevQuestion> = {
   hybrid: { type: "noul", instructions: "A human child in the picture has animal body parts such as a tail, scales, claws, a snout or dinosaur legs." },
@@ -60,6 +68,8 @@ const QUESTIONS: Record<keyof JevScores, JevQuestion> = {
   fused: { type: "noul", instructions: "A character's legs or arms are fused into one shape or merge with another figure's body." },
   mirror: { type: "noul", instructions: "The picture shows a mirror, a reflection in water or glass, or a window with figures behind it." },
   text: { type: "noul", instructions: "The picture contains readable written words or letters." },
+  blend: { type: "noul", instructions: "One figure mixes features of two different characters, for example a child's hair, face or clothes together with an animal creature's ears, fur or snout." },
+  garment: { type: "noul", instructions: "Two different figures wear the same distinctive garment, such as the same vest, jacket or hat." },
 };
 
 /** A cast that is meant to be half animal (mermaid, centaur): the question would only produce noise. */
@@ -73,6 +83,11 @@ export function jevQuestionsFor(drawn: VisualEntity[]): Record<string, JevQuesti
   const questions: Record<string, JevQuestion> = { fused: QUESTIONS.fused, mirror: QUESTIONS.mirror, text: QUESTIONS.text };
   if (!MEANT_HYBRID.test(text)) questions.hybrid = QUESTIONS.hybrid;
   if (!MEANT_ALIKE.test(text)) questions.twins = QUESTIONS.twins;
+  const figures = drawn.filter((entity) => entity.kind === "character");
+  // A creature next to a human child is where the child's looks leak onto the creature, and the creature's ears onto the child.
+  if (!MEANT_HYBRID.test(text) && figures.some((entity) => entity.isHuman) && figures.some((entity) => !entity.isHuman)) questions.blend = QUESTIONS.blend;
+  // Twins wear the same clothes on purpose; with one figure there is nobody to share a garment with.
+  if (!MEANT_ALIKE.test(text) && figures.length >= 2) questions.garment = QUESTIONS.garment;
   return questions;
 }
 
@@ -83,7 +98,7 @@ export function parseJevScores(answers: Record<string, number> | undefined): Jev
     const value = Number(answers[key]);
     return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
   };
-  const scores: JevScores = { hybrid: read("hybrid"), twins: read("twins"), fused: read("fused"), mirror: read("mirror"), text: read("text") };
+  const scores: JevScores = { hybrid: read("hybrid"), twins: read("twins"), fused: read("fused"), mirror: read("mirror"), text: read("text"), blend: read("blend"), garment: read("garment") };
   return Object.keys(answers).some((key) => key in QUESTIONS) ? scores : null;
 }
 
@@ -104,6 +119,9 @@ export function interpretJev(scores: JevScores): JevFindings {
     soft: [
       ...(!reflection && scores.twins >= JEV_THRESHOLDS.twins ? [`the same figure drawn twice [jev ${percent(scores.twins)}]`] : []),
       ...(!reflection && scores.fused >= JEV_THRESHOLDS.fused ? [`bodies fused into one shape [jev ${percent(scores.fused)}]`] : []),
+      // A mixed figure stays one even in a mirror; two people in the same vest do not (the reflection wears it too).
+      ...(scores.blend >= JEV_THRESHOLDS.blend ? [`a figure mixes features of two characters (a child's hair or clothes with animal ears or fur) [jev ${percent(scores.blend)}]`] : []),
+      ...(!reflection && scores.garment >= JEV_THRESHOLDS.garment ? [`two figures wear the same garment [jev ${percent(scores.garment)}]`] : []),
     ],
     text: scores.text >= JEV_THRESHOLDS.text,
   };

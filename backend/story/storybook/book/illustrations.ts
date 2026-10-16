@@ -81,6 +81,15 @@ function slotPlan(brief: BookBrief, plan: BookPlan, slots: ImageSlot[]): StoryPl
   };
 }
 
+/**
+ * What is still wrong with the picture that was delivered. The history holds every attempt; the severity of the
+ * delivered one tells which it was. Empty for a clean picture (severity under 10).
+ */
+export function remainingNotes(outcome: Pick<ImageOutcome, "history" | "severity">): string[] {
+  const delivered = [...(outcome.history || [])].reverse().find((entry) => entry.severity === outcome.severity);
+  return delivered && delivered.severity >= 10 ? delivered.notes.slice(0, 4) : [];
+}
+
 export interface BookImage {
   chapter: number;
   afterParagraph: number;
@@ -99,7 +108,7 @@ export interface BatchImagesResult {
   /** Provider calls including redraws (imagesGenerated counts only delivered pictures). */
   imageCalls?: number;
   /** Pictures that needed more than one attempt, with the checker's reasons — redraws were half the image bill. */
-  redraws?: Array<{ chapter: number; part: number; attempts: number; reasons: string[] }>;
+  redraws?: Array<{ chapter: number; part: number; attempts: number; reasons: string[]; /** How the delivered picture ended (passed, flawed, failed) … */ status?: string; /** … and what is still wrong with it. "flawed" prints; without this a parent finds the fault before the log does. */ remaining?: string[] }>;
 }
 
 /** Director + images for the chapters of one batch. Never throws: a failed picture leaves a text-only spot. */
@@ -164,10 +173,11 @@ export async function illustrateBatch(input: {
     if (input.withCover) result.coverUrl = publishableImageUrl(images.cover);
     const reasonsOf = (outcome: NonNullable<typeof images.cover>) =>
       [...new Set((outcome.history || []).filter((entry) => entry.severity >= 10).flatMap((entry) => entry.notes))].slice(0, 6);
-    if (images.cover && images.cover.attempts > 1) result.redraws!.push({ chapter: 0, part: 0, attempts: images.cover.attempts, reasons: reasonsOf(images.cover) });
+    const redrawEntry = (outcome: NonNullable<typeof images.cover>) => ({ attempts: outcome.attempts, reasons: reasonsOf(outcome), status: outcome.vignette ? `${outcome.status}/vignette` : outcome.status, remaining: remainingNotes(outcome) });
+    if (images.cover && images.cover.attempts > 1) result.redraws!.push({ chapter: 0, part: 0, ...redrawEntry(images.cover) });
     for (const [index, slot] of slots.entries()) {
       const outcome = images.pages.get(index + 1);
-      if (outcome && outcome.attempts > 1) result.redraws!.push({ chapter: slot.chapter, part: slot.part, attempts: outcome.attempts, reasons: reasonsOf(outcome) });
+      if (outcome && outcome.attempts > 1) result.redraws!.push({ chapter: slot.chapter, part: slot.part, ...redrawEntry(outcome) });
       const url = publishableImageUrl(outcome);
       if (url && outcome) result.images.push({ chapter: slot.chapter, afterParagraph: slot.afterParagraph, url, status: outcome.status, ...(outcome.vignette ? { vignette: true } : {}) });
       else result.missing.push({ chapter: slot.chapter, part: slot.part });

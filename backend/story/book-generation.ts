@@ -632,7 +632,7 @@ async function attachPictures(input: BookJobInput, planned: PlannedBook, state: 
   const redraws = (state.imageRedraws || []).filter((entry) => (entry.chapter >= from && entry.chapter <= to) || (from === 1 && entry.chapter === 0));
   await logStage(storyId, "chapters-illustrated", {
     from, to, images: (state.images || []).filter((image) => image.chapter >= from && image.chapter <= to).length, ...summary,
-    ...(redraws.length ? { redraws: redraws.map((entry) => `${entry.chapter ? `K${entry.chapter}.${entry.part}` : "Cover"}×${entry.attempts}: ${entry.reasons.join("; ") || "?"}`) } : {}),
+    ...(redraws.length ? { redraws: redraws.map((entry) => `${entry.chapter ? `K${entry.chapter}.${entry.part}` : "Cover"}×${entry.attempts} → ${entry.status || "?"}${entry.remaining?.length ? ` [Rest: ${entry.remaining.join("; ")}]` : ""}: ${entry.reasons.join("; ") || "?"}`) } : {}),
   });
 }
 
