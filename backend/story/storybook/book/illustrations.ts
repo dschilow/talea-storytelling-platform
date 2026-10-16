@@ -20,6 +20,7 @@ import type { JevPort } from "../jev";
 import type { CostLedger, StorybookLlm, StorybookModels } from "../llm";
 import type { IllustrationPlan, IllustrationShot, StoryElement, StoryPlan, StorybookPage } from "../types";
 import { mentionsName } from "./catalogue";
+import type { CastCandidate } from "../types";
 import type { BookBrief, BookChapter, BookPlan } from "./types";
 
 export interface ImageSlot {
@@ -230,6 +231,77 @@ function slotPlan(brief: BookBrief, plan: BookPlan, slots: ImageSlot[]): StoryPl
   };
 }
 
+// ---------------------------------------------------------------------------
+// 2026-10-16, "Die rollende Woche": Rotkäppchen had no picture identity, the Zeitweber was drawn as a woman, and the
+// cover and three pictures failed on writing because the stake was a school calendar.
+// ---------------------------------------------------------------------------
+
+/**
+ * Picture identities for the plan's figures without a portrait (neither hero nor pool cast): the planner's look is the
+ * identity lock, the kind decides species. Things (a talking door) stay story elements of the director.
+ */
+export function bibleFigureEntities(plan: BookPlan, takenNames: string[]): VisualEntity[] {
+  const entities: VisualEntity[] = [];
+  for (const profile of plan.bible.characters) {
+    if (!profile.look || profile.kind === "thing") continue;
+    if (takenNames.some((name) => mentionsName(profile.name, name) || mentionsName(name, profile.name))) continue;
+    const kind = profile.kind || (/\b(girl|boy|man|woman|child|kid|lady|gentleman|grand(mother|father)|witch|wizard|knight|king|queen|prince(ss)?)\b/i.test(profile.look) ? "person" : "creature");
+    const slug = foldName(profile.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `figure-${entities.length + 1}`;
+    entities.push({
+      id: `bible:${slug}`, name: profile.name, kind: "character", role: "cast",
+      species: kind === "person" ? "human" : kind === "animal" ? "animal" : "magical creature", isHuman: kind === "person",
+      appearance: profile.look.replace(/\s+/g, " ").trim().slice(0, 260), forbidden: [],
+    });
+  }
+  return entities;
+}
+
+function foldName(value: string): string {
+  return value.replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/Ä/g, "Ae").replace(/Ö/g, "Oe").replace(/Ü/g, "Ue").replace(/ß/g, "ss");
+}
+
+const MALE_DE = /\b(Mann|Herr|Opa|Großvater|Grossvater|Vater|Papa|Onkel|Junge|Bub|Knabe|König|Koenig|Prinz|Ritter|Zauberer|Bauer|Kapitän|Kapitaen|Händler|Haendler|Wächter|Waechter|Bäcker|Baecker|Lehrer|Doktor|Professor|Gärtner|Gaertner|Hausmeister|Schäfer|Schaefer|Weber|Müller|Mueller|Schmied|Fischer|Förster|Foerster|Mönch|Moench|Pirat|Räuber|Raeuber|Riese|Zwerg|Kobold|Troll|Er)\b/;
+const FEMALE_DE = /\b(Frau|Dame|Oma|Großmutter|Grossmutter|Mutter|Mama|Tante|Mädchen|Maedchen|Königin|Koenigin|Prinzessin|Hexe|Fee|Bäuerin|Baeuerin|Lehrerin|Händlerin|Haendlerin|Wächterin|Waechterin|Bäckerin|Baeckerin|Gärtnerin|Gaertnerin|Nixe|Meerjungfrau|Zauberin|Doktorin|Riesin|Sie)\b/;
+const GENDER_EN = /\b(man|woman|boy|girl|male|female|lady|gentleman|grandmother|grandfather|grandma|grandpa|king|queen|prince|princess|witch|wizard|he|she|his|her)\b/i;
+
+/**
+ * The identity line of a pool figure starts with what it is: a human figure's gender and age ("an old man, …"), when
+ * the pool prompt lacks it ("Der Zeitweber" was drawn as a woman). Non-human figures keep their species in front.
+ */
+export function castIdentityLine(member: Pick<CastCandidate, "visualProfile" | "physicalDescription" | "whoTheyAre" | "ageCategory" | "species" | "backstory" | "role" | "archetype">, appearance: string, isHuman: boolean): string {
+  const line = appearance.replace(/\s+/g, " ").trim();
+  if (!isHuman) return line;
+  if (GENDER_EN.test(line)) return line;
+  const profile = member.visualProfile && typeof member.visualProfile === "object" ? member.visualProfile : {};
+  const declared = String(profile.gender || "").toLowerCase();
+  const german = [member.whoTheyAre, member.physicalDescription, member.backstory, member.role, member.archetype].filter(Boolean).join(" ");
+  const gender = /^(m|male|mann|männlich|maennlich|boy|junge)/.test(declared) ? "male"
+    : /^(f|w|female|frau|weiblich|girl|mädchen|maedchen)/.test(declared) ? "female"
+    : FEMALE_DE.test(german) && !MALE_DE.test(german) ? "female"
+    : MALE_DE.test(german) && !FEMALE_DE.test(german) ? "male"
+    : "";
+  if (!gender) return line;
+  const age = String(member.ageCategory || profile.ageDescription || profile.ageApprox || "").toLowerCase();
+  const young = /child|kind|teen|jugend|young|jung/.test(age) || /\b(Junge|Mädchen|Maedchen|Bub|Knabe)\b/.test(german);
+  const old = /elder|senior|old|alt|grand|oma|opa/.test(age) || /\b(Oma|Opa|Großmutter|Grossmutter|Großvater|Grossvater|alte[rn]?)\b/.test(german);
+  const noun = gender === "male" ? (young ? "boy" : old ? "old man" : "man") : young ? "girl" : old ? "old woman" : "woman";
+  return `${/^[aeiou]/.test(noun) ? "an" : "a"} ${noun}, ${line}`.slice(0, 280);
+}
+
+// Compounds count (Schulkalender, Namensschild, Schatzkarte); a clock or an hourglass does not.
+const TEXT_THINGS_DE = /[A-Za-zÄÖÜäöüß]*(?:[Kk]alender|[Ss]tundenplan|[Ww]ochenplan|[Ss]child(?:er)?|[Pp]lakat|[Bb]rief(?:e)?|[Zz]ettel|[Nn]otiz|[Bb]uch|[Bb][üu]e?cher|[Kk]arte|[Zz]eitung|[Tt]afel|[Ee]tikett|[Ff]ahrplan|[Ll]iste|[Rr]ezept|[Uu]rkunde|[Tt]icket|[Hh]eft|[Tt]agebuch|[Ww]egweiser|[Ss]chriftrolle)\b/g;
+
+/**
+ * A note for the director when the plan's things carry writing in the text (a calendar, a sign, a letter): in the
+ * pictures they show only coloured fields and painted symbols. Empty when nothing in the plan carries writing.
+ */
+export function wordlessThingsNote(plan: BookPlan): string {
+  const sources = [plan.bible.stakeVisible || "", plan.bible.truth || "", ...plan.setups.map((setup) => setup.what), ...plan.chapters.flatMap((chapter) => chapter.pictures)].join(" ");
+  const found = [...new Set((sources.match(TEXT_THINGS_DE) || []).map((word) => word.trim()))].slice(0, 5);
+  if (!found.length) return "";
+  return `Things of this story that carry writing in the text (${found.join(", ")}) are drawn WITHOUT any letters or digits: a calendar is a grid of coloured squares with one bright square, a sign or page shows a single painted symbol, a letter is a folded sheet with a wax seal, a map has only painted hills and a dotted path. Define each such thing as a storyElement with exactly that wordless look and use it on every page it appears.`;
+}
+
 /**
  * What is still wrong with the picture that was delivered. The history holds every attempt; the severity of the
  * delivered one tells which it was. Empty for a clean picture (severity under 10).
@@ -315,7 +387,9 @@ export async function directBatch(input: {
         // The cover and the first picture were nearly the same table scene.
         ? "The cover must differ from every page picture: show the book's central wonder big in the foreground with the heroes reacting to it — never the opening scene of chapter 1."
         : "The cover already exists: answer cover briefly, it is not drawn.",
-    ].join(" "),
+      // 2026-10-16 ("Die rollende Woche"): the stake was a school calendar — the cover and three pictures failed on writing.
+      wordlessThingsNote(input.plan),
+    ].filter(Boolean).join(" "),
   }, input.models.support);
   if (director.call) input.ledger.recordCall(`book-illustration-${range}`, director.call, "support");
   if (director.repairCall) input.ledger.recordCall(`book-illustration-repair-${range}`, director.repairCall, "support");

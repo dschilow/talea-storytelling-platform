@@ -68,3 +68,20 @@ Die 27 ct der Türlaunischen verteilten sich auf 11 ct Kapitel, 6,5 ct Rewrites,
 - `enforceCastPresence` kann Figuren ohne Porträt ins Bild setzen; die Bild-QA erwartet sie dann (sie stehen in `onStage`), aber das Modell zeichnet sie ohne Referenz frei. Für die meistgenutzten Pool-Figuren Porträts erzeugen (`generateCharacterImage` gibt es schon).
 - Nach dem Deploy einmal `POST /story/character-pool/enrich-bibles` aufrufen (Admin), danach stichprobenartig die Bibeln lesen und nachschärfen; die 18 Originalfiguren sind per Migration gesetzt.
 - Frontend: der Charakter-Pool-Screen zeigt die Bibel-Felder noch nicht (der generierte Client braucht `encore gen client`).
+
+## Nachtrag: erster Live-Lauf „Die rollende Woche“ (16.10.2026, Story 1d2220c0)
+
+Befund: Plan-Gate griff (4.5 → 6.0 → 9.2), Tics weg, Finale stark (Spannung 8/8, Humor 7/7) — aber der Pitch wählte wieder den Helden-Motor (alle drei Ideen), besetzte niemanden gültig (Fallback: bestpassende Genre-Figur als Begleiter), Rotkäppchen kam ab Kapitel 3 ohne Besetzung und ohne Bild-Identität, der Zeitweber wurde als Frau gezeichnet, Cover und drei Bilder scheiterten an Schrift (der Einsatz war ein Schulkalender), drei Kapitel wurden wegen fehlendem Lacher bei Humor 4–5 neu geschrieben (3,7 ct) und brauchten danach trotzdem den Lach-Patch. Kosten 28,4 ct.
+
+Änderungen (alle Punkte der zweiten Bewertung plus die Restpunkte der anderen KI):
+
+- **Der Lektor wählt die Idee** (`catalogue.ts chooseIdea`): nie der Motor des letzten Buchs der Familie (`history.ts recentBookEngines` aus `bookAdmin.plan.bible.engine`), nie Helden-Motor in einem lustigen oder Rätsel-Buch, wenn der Pool „kann Gegner sein“/„kann führen“ bietet, nie eine Idee ohne gültige Pool-Besetzung, wenn eine andere eine hat. Gemütlich bleibt ohne Gegenspieler; eine Reihe behält ihren Motor.
+- **Motor erzwingen** (`forceEngine`): kommen alle Ideen auf Helden (oder auf dem Motor des Vorgängers), setzt der Lektor den Gegenspieler aus dem Katalog (Stil nach Alter, Portrait bevorzugt), sonst einen Gast, und gibt dem Planer eine bindende Notiz (`engineNote`). Die Plan-Checks erzwingen danach Züge ohne Helden, Durchschauen bis zur Mitte und die Heldenentscheidung.
+- **Casting-Fallback nach Motor** (`fallbackCasting`): Gegenspieler → „kann Gegner sein“, Gast → „kann führen“; erst danach der Genre-Treffer. Kürzel (P3) als Motorfigur werden zum Namen aufgelöst (`resolveEngineFigure`).
+- **Namen bleiben besetzt** (`plan.ts checkNamedFigures`): Nur Helden, Besetzung und der zentrale Jemand tragen Namen; jede weitere benannte Figur ist eine Pflichtkorrektur. Figuren ohne Portrait brauchen `look` (englische Erscheinung) und `kind`; aus ihnen werden Bild-Identitäten (`illustrations.ts bibleFigureEntities`).
+- **Bilder**: Pool-Menschen bekommen Geschlecht und Alter an den Anfang der Identitätszeile (`castIdentityLine`, aus Profil oder deutscher Beschreibung); Dinge mit Schrift im Text (Kalender, Schild, Brief, Karte …) bekommen eine Regieanweisung „ohne Buchstaben und Ziffern“ (`wordlessThingsNote`).
+- **Rewrite nur bei doppeltem Defizit** (`engine.ts laughRewriteNeeded`): kein Lacher und Humor ≤ 4 und Spannung ≤ 4. Alles andere bis Humor 7 holt der Patch, auch ohne geplanten Lacher. Erwartete Ersparnis 2–3 ct je Buch.
+- **Restpunkte**: höchstens zwei Zauberregeln (drei ab 9–12) werden gezählt (`countRules` über `limits`, Semikolon je Regel), höchstens ein gemeinsamer Spruch in `fixedWordings` (`checkChants`), Serien-Typ: die Motorfigur aus dem Pool wird Star der Reihe (`SeriesMemory.starId`) und kehrt in jedem Band in dieser Rolle zurück.
+- **Messen**: `scripts/book-pairwise.ts` hört jedes Paar jetzt mit zwei Richtern aus verschiedenen Modell-Familien (Gemini + Luna, beide Lesereihenfolgen); ein Paar gilt nur als gewonnen, wenn alle Richter einig sind.
+
+Nicht geändert: die Bild-Nachzeichnungsleiter (Schrift bleibt ein Ausfall, der Bildanteil der Kosten lag bei 5,6 ct, davon rund 2 ct Nachzeichnungen) und die Plan-Reviews (drei Reviews kosteten 2,6 ct und haben den Plan von 4.5 auf 9.2 gebracht).
