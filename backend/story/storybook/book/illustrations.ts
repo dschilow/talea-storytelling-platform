@@ -18,7 +18,8 @@ import { runDirectorStage, type VisualEntity } from "../illustration-stage";
 import { generateStorybookImages, publishableImageUrl, type ImageOutcome, type ImageProvider } from "../images";
 import type { JevPort } from "../jev";
 import type { CostLedger, StorybookLlm, StorybookModels } from "../llm";
-import type { IllustrationPlan, StoryElement, StoryPlan, StorybookPage } from "../types";
+import type { IllustrationPlan, IllustrationShot, StoryElement, StoryPlan, StorybookPage } from "../types";
+import { mentionsName } from "./catalogue";
 import type { BookBrief, BookChapter, BookPlan } from "./types";
 
 export interface ImageSlot {
@@ -125,6 +126,87 @@ export function buildPictureNotes(slots: ImageSlot[], shots: IllustrationPlan["p
   });
 }
 
+export interface CastPresenceChange {
+  chapter: number;
+  part: number;
+  name: string;
+  /** The hero who gave way when the picture was full. */
+  replaced?: string;
+}
+
+/**
+ * Every cast figure who acts in a chapter stands in at least one picture of that chapter, and the engine figure
+ * (when it is a cast member) in at least every second picture of the batch — enforced on the director's plan, not
+ * only asked for in its prompt ("Die Türlaunische": the rule stood in the prompt, and Schnüffel and Bäcker Braun were
+ * in 0 of 16 pictures). The figure goes into the picture whose paragraphs mention it most; when that picture is full,
+ * the hero who is not named near the picture gives way, and at least one hero always stays.
+ */
+export function enforceCastPresence(input: {
+  slots: ImageSlot[];
+  shots: IllustrationShot[];
+  entities: VisualEntity[];
+  chapters: BookChapter[];
+  maxPerImage: number;
+  engineFigure?: string;
+}): { shots: IllustrationShot[]; changes: CastPresenceChange[] } {
+  const shots = input.shots.map((shot) => ({ ...shot, onStage: [...shot.onStage] }));
+  const changes: CastPresenceChange[] = [];
+  const cast = input.entities.filter((entity) => entity.kind === "character" && entity.role === "cast");
+  const heroIds = new Set(input.entities.filter((entity) => entity.role === "hero").map((entity) => entity.id));
+  const byId = new Map(input.entities.map((entity) => [entity.id, entity]));
+  const count = (text: string, name: string) => (text.match(new RegExp(name.split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "giu")) || []).length;
+
+  const place = (slotIndex: number, entity: VisualEntity): boolean => {
+    const slot = input.slots[slotIndex];
+    const shot = shots[slotIndex];
+    if (!slot || !shot || shot.onStage.includes(entity.id)) return false;
+    if (shot.onStage.length < input.maxPerImage) {
+      shot.onStage.push(entity.id);
+      shot.scene = `${shot.scene.replace(/\s+$/, "")} ${entity.name} is in this picture, taking part in the action.`;
+      changes.push({ chapter: slot.chapter, part: slot.part, name: entity.name });
+      return true;
+    }
+    const heroesOn = shot.onStage.filter((id) => heroIds.has(id));
+    if (heroesOn.length < 2) return false;
+    // The hero who is not named near the picture gives way; the last-listed one when both are.
+    const paragraphs = chapterParagraphs(slot.text);
+    const near = paragraphs.slice(Math.max(0, (shot.paragraph || Math.ceil(paragraphs.length / 2)) - 2), (shot.paragraph || Math.ceil(paragraphs.length / 2)) + 1).join(" ");
+    const away = heroesOn.filter((id) => !mentionsName(near, byId.get(id)?.name || ""));
+    const victim = (away.length ? away : heroesOn)[away.length ? 0 : heroesOn.length - 1];
+    shot.onStage = shot.onStage.map((id) => (id === victim ? entity.id : id));
+    shot.scene = `${shot.scene.replace(/\s+$/, "")} ${entity.name} is in this picture instead of ${byId.get(victim)?.name || "one hero"}, taking part in the action.`;
+    changes.push({ chapter: slot.chapter, part: slot.part, name: entity.name, replaced: byId.get(victim)?.name });
+    return true;
+  };
+
+  for (const chapter of input.chapters) {
+    const indices = input.slots.map((slot, index) => (slot.chapter === chapter.order ? index : -1)).filter((index) => index >= 0);
+    if (!indices.length) continue;
+    for (const entity of cast) {
+      if (!mentionsName(chapter.content, entity.name)) continue;
+      if (indices.some((index) => shots[index]?.onStage.includes(entity.id))) continue;
+      const ranked = [...indices].sort((a, b) => count(input.slots[b].text, entity.name) - count(input.slots[a].text, entity.name));
+      for (const index of ranked) if (place(index, entity)) break;
+    }
+  }
+
+  // The figure that drives the book is in at least every second picture of the batch — a book about it must show it.
+  const engine = input.engineFigure ? cast.find((entity) => mentionsName(entity.name, input.engineFigure!) || mentionsName(input.engineFigure!, entity.name)) : undefined;
+  if (engine) {
+    const wanted = Math.ceil(input.slots.length / 2);
+    const has = () => shots.filter((shot) => shot.onStage.includes(engine.id)).length;
+    const candidates = input.slots
+      .map((slot, index) => ({ index, hits: count(slot.text, engine.name) }))
+      .filter((entry) => entry.hits > 0 && !shots[entry.index].onStage.includes(engine.id))
+      .sort((a, b) => b.hits - a.hits);
+    for (const entry of candidates) {
+      if (has() >= wanted) break;
+      place(entry.index, engine);
+    }
+  }
+  return { shots, changes };
+}
+
 /** The thin StoryPlan the director needs (planned pictures, cast, fallback shots). */
 function slotPlan(brief: BookBrief, plan: BookPlan, slots: ImageSlot[]): StoryPlan {
   const cast = brief.candidates.map((candidate) => ({ id: candidate.id, name: candidate.name, role: "", want: "", voice: "", signature: "" }));
@@ -189,6 +271,8 @@ export interface StoredDirection {
 export interface DirectedBatch extends StoredDirection {
   pages: StorybookPage[];
   director: Awaited<ReturnType<typeof runDirectorStage>>;
+  /** Figures the code put into pictures after the director left them out (enforceCastPresence). */
+  changes: CastPresenceChange[];
 }
 
 /** The art director's brief for the reading segments of one batch: a scene, the figures, the things and the paragraph of every picture. */
@@ -235,9 +319,12 @@ export async function directBatch(input: {
   }, input.models.support);
   if (director.call) input.ledger.recordCall(`book-illustration-${range}`, director.call, "support");
   if (director.repairCall) input.ledger.recordCall(`book-illustration-repair-${range}`, director.repairCall, "support");
-  const placed = placePictures(slots, director.illustrations.pages);
-  const notes = buildPictureNotes(slots, director.illustrations.pages, placed, input.entities, director.illustrations.storyElements || [], input.chapters);
-  return { range, pages, director, illustrations: director.illustrations, placed, notes };
+  // 2026-10-16: the prompt asked for every acting figure in a picture; now the code makes sure of it.
+  const enforced = enforceCastPresence({ slots, shots: director.illustrations.pages, entities: input.entities, chapters: input.chapters, maxPerImage: input.brief.book.maxCharactersPerImage, engineFigure: input.plan.bible.engineFigure });
+  const illustrations: IllustrationPlan = { ...director.illustrations, pages: enforced.shots };
+  const placed = placePictures(slots, illustrations.pages);
+  const notes = buildPictureNotes(slots, illustrations.pages, placed, input.entities, illustrations.storyElements || [], input.chapters);
+  return { range, pages, director, illustrations, placed, notes, changes: enforced.changes };
 }
 
 /** Director + images for the chapters of one batch. Never throws: a failed picture leaves a text-only spot. */

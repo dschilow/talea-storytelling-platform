@@ -42,6 +42,20 @@ export interface CharacterTemplate {
   emotionalTriggers?: string[]; // Situations causing strong reactions
   quirk?: string; // Unique mannerism: "wischt sich die Hände an der Schürze"
 
+  // Character bible (Migration 44, 2026-10-16) - what lets a figure carry a book
+  want?: string; // What the figure always wants
+  fear?: string; // Its fear or sore spot
+  secret?: string; // What it hides at first
+  runningGag?: string; // A comic pattern that repeats and escalates
+  gesture?: string; // A gesture a child can imitate
+  comicRole?: string; // know-it-all | boaster | coward | grump | chaos | literalist | schemer | dreamer | fusspot
+  canLead?: boolean; // May carry a book as its plot engine
+  canOppose?: boolean; // May be the opposing figure with a plan
+  villainStyle?: "comic" | "misunderstood" | "real"; // How it opposes when it does
+  introLine?: string; // How it introduces itself in its own words
+  signatureVisual?: string; // One visual tag for the pictures
+  bibleVersion?: number; // 0 = not filled
+
   // Screen Time & Availability
   maxScreenTime: number; // 0-100 percentage
   availableChapters: number[]; // [1,2,3,4,5]

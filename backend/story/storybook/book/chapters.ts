@@ -14,7 +14,7 @@ import { parseJsonObject } from "../llm";
 import type { CheckIssue } from "../types";
 import { foldUmlauts, mentionsName } from "./catalogue";
 import type { BookBrief, BookBudget, BookChapter, ChapterCritique, OpenThread } from "./types";
-import { voiceIssues } from "./voice";
+import { interludeShare, overusedWords, repeatedTics, voiceIssues } from "./voice";
 
 const CHAPTER_MARKER = /^\s*(?:[#*_>\s]*)(?:KAPITEL|CHAPTER|CHAPITRE|CAPÍTULO|CAPITOLO|HOOFDSTUK|ГЛАВА)\s+(\d+)\s*[:：.\-–—]?\s*(.*?)\s*[*_#]*\s*$/i;
 const LEFTOVER_LINE = /^\s*[*_#\s]*(?:RÜCKBLICK|FAKTEN|RECAP|FACTS|TITEL|BESCHREIBUNG)\s*[:：].*$/gim;
@@ -187,6 +187,16 @@ export function checkChapter(chapter: BookChapter, input: { brief: BookBrief; bu
   // 2026-10-16: the prose itself — a script-like chapter is rewritten by the writer (engine.ts), never patched.
   const german = String(input.brief.config.language || "de").toLowerCase().startsWith("de");
   for (const issue of voiceIssues(chapter.content, { german, minWords: Math.round(budget.wordsPerChapterMin * 0.5) })) at(issue.message, issue.code, "soft");
+  // 2026-10-16 ("Die Türlaunische"): the same stomach seven times, one handle 47 times, and scenes without the heroes
+  // that must stay short (voice.ts). Tics and overused words go to the patch; a long interlude only to the log.
+  for (const tic of repeatedTics(chapter.content, input.earlier.map((other) => other.content), { german })) {
+    at(`wiederholt ${tic.label} (${tic.total}-mal im Buch bisher, ${tic.here}-mal in diesem Kapitel) — jedes Gefühl bekommt sein eigenes Bild: ersetze die Wiederholung hier durch ein anderes Bild aus der Szene oder streiche sie.`, "repeated_tic", "soft");
+  }
+  for (const hit of overusedWords(chapter.content, input.names, { german })) {
+    at(`das Wort „${hit.word}“ steht ${hit.count}-mal im Kapitel — ein Motiv, das jeden Absatz trägt, nutzt sich ab: an zwei, drei Stellen umschreiben oder weglassen, ohne die Handlung zu ändern.`, "motif_overuse", "soft");
+  }
+  const interlude = interludeShare(chapter.content, input.brief.heroes.map((hero) => hero.name), mentionsName);
+  if (interlude.share > 0.25) at(`Szenen ohne die Helden machen ${Math.round(interlude.share * 100)} % des Kapitels aus — höchstens etwa 15 %: Die Zwischenszene bleibt kurz, und das Kapitel kehrt früher zu den Helden zurück.`, "interlude_long", "soft");
   return issues;
 }
 
@@ -255,6 +265,9 @@ export function parseChapterCritique(raw: string, chapters: BookChapter[]): Chap
       progress: entry.progress !== false && !/^(false|nein|no)$/i.test(String(entry.progress)),
       missingPlants: (Array.isArray(entry.missingPlants) ? entry.missingPlants : []).map((id: unknown) => String(id).trim().toUpperCase()).filter(Boolean).slice(0, 4),
       ...(Object.keys(unmatched).length ? { unmatched } : {}),
+      // 2026-10-16 (plot engine): is anything working against the heroes here; did the heroes invent another chant.
+      opponentPresent: typeof entry.opponentPresent === "boolean" ? entry.opponentPresent : /^(true|ja|yes)$/i.test(String(entry.opponentPresent)) ? true : /^(false|nein|no)$/i.test(String(entry.opponentPresent)) ? false : null,
+      newChant: (() => { const quoted = quote(entry.newChant); return quoted && quoteInText(quoted, chapter.content) ? quoted : null; })(),
     };
   });
   return {

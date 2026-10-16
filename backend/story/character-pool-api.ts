@@ -4,6 +4,7 @@
 import { api, APIError } from "encore.dev/api";
 import { ensureAdmin } from "../admin/authz";
 import { storyDB } from "./db";
+import { bibleFromRow } from "./character-bible-core";
 import type { CharacterTemplate } from "./types";
 import { seedCharacterPool } from "./seed-characters";
 import { runwareGenerateImage } from "../ai/image-generation";
@@ -55,7 +56,19 @@ async function ensureImageUrlColumn(): Promise<void> {
         ADD COLUMN IF NOT EXISTS catchphrase_context TEXT,
         ADD COLUMN IF NOT EXISTS speech_style TEXT[] DEFAULT '{}',
         ADD COLUMN IF NOT EXISTS emotional_triggers TEXT[] DEFAULT '{}',
-        ADD COLUMN IF NOT EXISTS quirk TEXT
+        ADD COLUMN IF NOT EXISTS quirk TEXT,
+        ADD COLUMN IF NOT EXISTS want TEXT,
+        ADD COLUMN IF NOT EXISTS fear TEXT,
+        ADD COLUMN IF NOT EXISTS secret TEXT,
+        ADD COLUMN IF NOT EXISTS running_gag TEXT,
+        ADD COLUMN IF NOT EXISTS gesture TEXT,
+        ADD COLUMN IF NOT EXISTS comic_role TEXT,
+        ADD COLUMN IF NOT EXISTS can_lead BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS can_oppose BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS villain_style TEXT,
+        ADD COLUMN IF NOT EXISTS intro_line TEXT,
+        ADD COLUMN IF NOT EXISTS signature_visual TEXT,
+        ADD COLUMN IF NOT EXISTS bible_version INTEGER NOT NULL DEFAULT 0
     `;
     characterPoolColumnsEnsured = true;
   } catch (err) {
@@ -101,11 +114,13 @@ async function fetchAllCharacters(): Promise<CharacterTemplate[]> {
     speech_style: string[] | null;
     emotional_triggers: string[] | null;
     quirk: string | null;
-  }>`
+  } & Record<string, unknown>>`
     SELECT * FROM character_pool ORDER BY name
   `;
 
   return rows.map(row => ({
+    // The character bible (migration 44); absent columns leave the fields undefined.
+    ...bibleFromRow(row),
     id: row.id,
     name: row.name,
     role: row.role,
@@ -209,7 +224,7 @@ export const getCharacter = api<GetCharacterRequest, CharacterTemplate>(
       speech_style: string[] | null;
       emotional_triggers: string[] | null;
       quirk: string | null;
-    }>`
+    } & Record<string, unknown>>`
       SELECT * FROM character_pool WHERE id = ${req.id}
     `;
 
@@ -218,6 +233,7 @@ export const getCharacter = api<GetCharacterRequest, CharacterTemplate>(
     }
 
     const character: CharacterTemplate = {
+      ...bibleFromRow(row),
       id: row.id,
       name: row.name,
       role: row.role,
@@ -292,7 +308,8 @@ export const addCharacter = api<AddCharacterRequest, CharacterTemplate>(
         recent_usage_count, total_usage_count, is_active,
         created_at, updated_at,
         dominant_personality, secondary_traits, catchphrase, catchphrase_context,
-        speech_style, emotional_triggers, quirk
+        speech_style, emotional_triggers, quirk,
+        want, fear, secret, running_gag, gesture, comic_role, can_lead, can_oppose, villain_style, intro_line, signature_visual, bible_version
       ) VALUES (
         ${id},
         ${req.character.name},
@@ -315,7 +332,19 @@ export const addCharacter = api<AddCharacterRequest, CharacterTemplate>(
         ${req.character.catchphraseContext || null},
         ${req.character.speechStyle || []},
         ${req.character.emotionalTriggers || []},
-        ${req.character.quirk || null}
+        ${req.character.quirk || null},
+        ${req.character.want || null},
+        ${req.character.fear || null},
+        ${req.character.secret || null},
+        ${req.character.runningGag || null},
+        ${req.character.gesture || null},
+        ${req.character.comicRole || null},
+        ${req.character.canLead ?? false},
+        ${req.character.canOppose ?? false},
+        ${req.character.villainStyle || null},
+        ${req.character.introLine || null},
+        ${req.character.signatureVisual || null},
+        ${req.character.want && req.character.runningGag ? 1 : 0}
       )
     `;
 
@@ -418,6 +447,22 @@ export const updateCharacter = api<UpdateCharacterRequest, CharacterTemplate>(
     }
     if (req.updates.backstory !== undefined) {
       await storyDB.exec`UPDATE character_pool SET backstory = ${req.updates.backstory || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    }
+    // The character bible (migration 44). A hand-edited bible counts as filled.
+    const bible = req.updates;
+    if (bible.want !== undefined) await storyDB.exec`UPDATE character_pool SET want = ${bible.want || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    if (bible.fear !== undefined) await storyDB.exec`UPDATE character_pool SET fear = ${bible.fear || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    if (bible.secret !== undefined) await storyDB.exec`UPDATE character_pool SET secret = ${bible.secret || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    if (bible.runningGag !== undefined) await storyDB.exec`UPDATE character_pool SET running_gag = ${bible.runningGag || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    if (bible.gesture !== undefined) await storyDB.exec`UPDATE character_pool SET gesture = ${bible.gesture || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    if (bible.comicRole !== undefined) await storyDB.exec`UPDATE character_pool SET comic_role = ${bible.comicRole || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    if (bible.canLead !== undefined) await storyDB.exec`UPDATE character_pool SET can_lead = ${Boolean(bible.canLead)}, updated_at = ${now} WHERE id = ${req.id}`;
+    if (bible.canOppose !== undefined) await storyDB.exec`UPDATE character_pool SET can_oppose = ${Boolean(bible.canOppose)}, updated_at = ${now} WHERE id = ${req.id}`;
+    if (bible.villainStyle !== undefined) await storyDB.exec`UPDATE character_pool SET villain_style = ${bible.villainStyle || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    if (bible.introLine !== undefined) await storyDB.exec`UPDATE character_pool SET intro_line = ${bible.introLine || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    if (bible.signatureVisual !== undefined) await storyDB.exec`UPDATE character_pool SET signature_visual = ${bible.signatureVisual || null}, updated_at = ${now} WHERE id = ${req.id}`;
+    if (bible.want !== undefined || bible.runningGag !== undefined) {
+      await storyDB.exec`UPDATE character_pool SET bible_version = CASE WHEN want IS NOT NULL AND running_gag IS NOT NULL THEN GREATEST(bible_version, 1) ELSE 0 END WHERE id = ${req.id}`;
     }
 
     console.log("[CharacterPool] Character updated:", req.id);

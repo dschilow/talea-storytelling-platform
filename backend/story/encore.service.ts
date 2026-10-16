@@ -8,6 +8,7 @@ import "./book-api";
 import "./generate-from-fairytale";
 import "./studio-api";
 import "./character-pool-api";
+import "./character-bible";
 import "./character-showcase";
 import "./character-life-story-api";
 import "./artifact-pool-api";

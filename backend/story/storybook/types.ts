@@ -41,6 +41,20 @@ export interface CastCandidate {
   imageUrl?: string;
   visualProfile?: any;
   physicalDescription?: string;
+  /** The character bible (migration 44): what lets a pool figure carry a book and stay recognisable from book to book. */
+  want?: string;
+  fear?: string;
+  secret?: string;
+  runningGag?: string;
+  gesture?: string;
+  comicRole?: string;
+  /** May drive a book as its plot engine (guest with a mission). */
+  canLead?: boolean;
+  /** May be the opposing figure with a plan of its own. */
+  canOppose?: boolean;
+  villainStyle?: "comic" | "misunderstood" | "real";
+  introLine?: string;
+  signatureVisual?: string;
 }
 
 /** A catalogue artifact: either brought along by an avatar or a possible reward. */

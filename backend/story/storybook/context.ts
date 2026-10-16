@@ -298,7 +298,7 @@ export function buildBrief(input: {
     heroes: input.heroes.map((hero, index) => ({ ...hero, id: heroIdOf(hero, index) })),
     candidates: input.candidates,
     artifacts: input.artifacts,
-    recentStories: (input.recentStories || []).slice(0, 8),
+    recentStories: (input.recentStories || []).slice(0, 16),
     recentEngineIds: input.recentEngineIds || [],
     heroMemories: input.heroMemories || {},
     blockedTerms: (input.blockedTerms || []).map((term) => clean(term, 60)).filter(Boolean),

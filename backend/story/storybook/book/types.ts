@@ -16,6 +16,52 @@ import type { CastCandidate, StoryElement } from "../types";
 /** How the volume feels; every form has its own plan template. */
 export type ExperienceForm = "mystery" | "journey" | "funny" | "cozy";
 
+/**
+ * Who drives the plot (2026-10-16, "Die Türlaunische": every book grew out of the heroes' own traits,
+ * nobody worked against them, and the listener never knew more than the heroes).
+ *   heroes  — the classic Talea book: the heroes' wish drives it, an obstacle with its own logic stands in the way.
+ *   villain — someone with a plan the heroes do not know drives it; the book may open with that plan, the
+ *             listener knows more than the heroes, the heroes react until the middle and act from then on.
+ *   guest   — a figure with its own mission and secret is the star; the heroes are its allies and keep it
+ *             hidden; suspense comes from near-discovery and from what the guest does not tell.
+ * In every engine the heroes stay the point of view and make the decisive move of the finale.
+ */
+export type StoryEngine = "heroes" | "villain" | "guest";
+
+/** How the opposing figure ends, by age: a comic villain may simply lose (6-8), a misunderstood one is answered (3-5), a real one is beaten (9-12). */
+export type VillainStyle = "comic" | "misunderstood" | "real";
+
+/** The opposing figure with a plan of its own — the second motor of the book. */
+export interface BookVillain {
+  who: string;
+  /** What the villain wants, in a child's words. */
+  goal: string;
+  /** The plan as the villain sees it. */
+  plan: string;
+  /** Moves the villain makes WITHOUT the heroes present, each in its chapter: these are the scenes the listener sees and the heroes do not. */
+  moves: Array<{ chapter: number; move: string }>;
+  /** The flaw the heroes use in the finale. */
+  weakness: string;
+  /** The chapter in which the heroes see through the plan (by the middle of the book). */
+  exposedBy: number;
+  /** How it ends for the villain. */
+  outcome: string;
+  style: VillainStyle;
+}
+
+/** What every hero must own in the book, whoever drives the plot (the avatar is the child: it must never be a bystander). */
+export interface HeroDuty {
+  hero: string;
+  /** The hero's own ability or habit that turns the plot once — and the chapter where it does. */
+  talent: string;
+  talentChapter: number;
+  /** The decision only this hero makes at the climax. */
+  decision: string;
+  decisionChapter: number;
+  /** The feeling the hero ends the book with, shown in a gesture or a line. */
+  feelingEnd: string;
+}
+
 /** How many chapters one writer call produces. Measured in phase A of the plan. */
 export type ChapterWriteMode = "batch" | "single" | "whole";
 
@@ -66,6 +112,10 @@ export interface SeriesMemory {
   runningGags: string[];
   items: string[];
   relationships: string[];
+  /** What each hero learned or overcame, one line per volume ("Alexander: erst zuhören, dann handeln") — the next volume gives them another inner arc. */
+  lessons?: string[];
+  /** The core motifs used so far (the wonder, the central thing, the kind of activity) — the next volume avoids them. */
+  motifs?: string[];
 }
 
 export interface BookBrief extends StoryBrief {
@@ -85,6 +135,12 @@ export interface BookPitchIdea {
   bigQuestion: string;
   wonder: string;
   roles: Array<{ role: string; castId: string | null; why: string }>;
+  /** Who drives this idea's plot (types.ts StoryEngine). Missing in old pitches: heroes. */
+  engine?: StoryEngine;
+  /** The figure that drives the plot when the engine is villain or guest: a catalogue alias, a cast id or the wonder's name. */
+  engineFigure?: string;
+  /** What is lost if the heroes fail, as a thing a six-year-old could draw. */
+  stake?: string;
 }
 
 export interface BookPitch {
@@ -107,6 +163,8 @@ export interface BookCharacterProfile {
   challengedBy: string;
   /** A decision at the end the character could not have made at the start. */
   finalChoice: string;
+  /** Cast only: the one thing this figure DOES that changes the heroes' path (not help — a turn), and its chapter. */
+  turn?: { chapter: number; what: string };
 }
 
 export interface BookSetup {
@@ -136,6 +194,13 @@ export interface BookChapterPlan {
   gagBeat?: string;
   /** Paintable moments in reading order, one per picture. */
   pictures: string[];
+  /**
+   * A short scene WITHOUT the heroes (the villain at work, the guest's secret) that the listener sees and the
+   * heroes do not — dramatic irony. At most 15 % of the chapter, set apart by a time cue ("Unterdessen …").
+   */
+  opponentScene?: string;
+  /** Whose scene opens the chapter: the heroes' (default) or the opponent's (a cold open, mostly chapter 1 of a villain book). */
+  pov?: "heroes" | "opponent";
 }
 
 export interface BookBible {
@@ -165,6 +230,18 @@ export interface BookBible {
   secret?: string;
   /** Planned misunderstandings, literal takes and coined words, each in one chapter. */
   freshEyes?: Array<{ chapter: number; moment: string }>;
+  /** Who drives the plot (StoryEngine). Missing in old plans: heroes. */
+  engine?: StoryEngine;
+  /** The name of the figure that drives the plot (villain or guest); empty for the heroes engine. */
+  engineFigure?: string;
+  /** The opposing figure with a plan of its own; null when the book has none (cosy) or the obstacle has no will. */
+  villain?: BookVillain | null;
+  /** Moments where the listening child knows more than the heroes, each in its chapter. */
+  readerKnowsMore?: Array<{ chapter: number; what: string }>;
+  /** What each hero owns in this book: a talent that turns the plot, the decision at the climax, the feeling at the end. */
+  heroDuties?: HeroDuty[];
+  /** The stake as a thing a six-year-old could draw. */
+  stakeVisible?: string;
 }
 
 /** A line that must stay letter for letter wherever it is spoken or read. */
@@ -221,6 +298,10 @@ export interface ChapterCritique {
   missingPlants: string[];
   /** The critic quoted something the text does not contain (kept to tell a paraphrase from a missing laugh). */
   unmatched?: { laugh?: string; hook?: string };
+  /** The opposing force (villain, guest's secret, deadline) is felt in this chapter. null when the critic gave none. */
+  opponentPresent?: boolean | null;
+  /** A rhyme or chant the heroes speak that is not among the fixed wordings; null when there is none. */
+  newChant?: string | null;
 }
 
 export interface ChapterCurvePoint {
@@ -239,6 +320,16 @@ export interface ChapterCurvePoint {
   rewriteReasons?: string[];
   /** The chapter ended without a gentle hook and the support model patched its ending. */
   hookPatched?: boolean;
+  /** The critic felt the opposing force in this chapter (villain, secret, deadline); absent when the critic gave none. */
+  opponentPresent?: boolean;
+  /** Share of the chapter's words in scenes without the heroes (measured, voice.ts interludeShare). */
+  interludeShare?: number;
+  /** The sentence in which someone stated a lesson, as the critic quoted it (counted across the book). */
+  lesson?: string | null;
+  /** The planned laugh did not land and the patch was asked to build it in (no rewrite). */
+  laughPatched?: boolean;
+  /** A measured voice issue the critic contradicted (voice ≥ 8): no rewrite was paid for. */
+  voiceDisputed?: boolean;
 }
 
 /** Everything the next batch needs. Persisted between job runs in production. */

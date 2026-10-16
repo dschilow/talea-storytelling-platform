@@ -9,6 +9,7 @@
 
 import { storyDB } from "../db";
 import { avatarDB } from "../../avatar/db";
+import { motifLines } from "./book/engine";
 
 export interface StorybookHistory {
   recentStories: string[];
@@ -48,6 +49,9 @@ export async function loadStorybookHistory(input: { userId?: string; currentStor
       const logline = String(metadata?.storybook?.logline || metadata?.bookWorkshop?.premise || row.description || "").replace(/\s+/g, " ").trim();
       const title = String(row.title || "").trim();
       if (title || logline) recentStories.push([title && `„${title}“`, logline].filter(Boolean).join(": ").slice(0, 220));
+      // 2026-10-16: a chapter book leaves the heroes' inner lessons and its motifs behind (book-generation.ts writes
+      // bookAdmin.motifs; engine.ts planMotifs) — the same hero learned "first listen" twice, three books ran on sounds.
+      for (const line of motifLines(metadata?.bookAdmin?.motifs, title)) recentStories.push(line);
       const engine = String(metadata?.storybook?.engine || "").trim();
       if (engine) recentEngineIds.push(engine);
     }

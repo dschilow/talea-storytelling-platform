@@ -86,7 +86,25 @@ export function toCastCandidate(row: Row): CastCandidate | null {
     imageUrl: text(row.image_url ?? row.imageUrl, 2000) || undefined,
     visualProfile: asObject(row.visual_profile ?? row.visualProfile),
     physicalDescription: physical || undefined,
+    // The character bible (migration 44); every field optional so an older pool still casts.
+    want: text(row.want, 200) || undefined,
+    fear: text(row.fear, 200) || undefined,
+    secret: text(row.secret, 240) || undefined,
+    runningGag: text(row.running_gag ?? row.runningGag, 300) || undefined,
+    gesture: text(row.gesture, 160) || undefined,
+    comicRole: text(row.comic_role ?? row.comicRole, 40) || undefined,
+    canLead: flag(row.can_lead ?? row.canLead),
+    canOppose: flag(row.can_oppose ?? row.canOppose),
+    villainStyle: (["comic", "misunderstood", "real"] as const).find((style) => style === text(row.villain_style ?? row.villainStyle, 20)) || undefined,
+    introLine: text(row.intro_line ?? row.introLine, 200) || undefined,
+    signatureVisual: text(row.signature_visual ?? row.signatureVisual, 120) || undefined,
   };
+}
+
+function flag(value: unknown): boolean | undefined {
+  if (value === true || value === false) return value;
+  if (value === null || value === undefined || value === "") return undefined;
+  return /^(true|t|1|yes|ja)$/i.test(String(value));
 }
 
 const GENRE_SETTINGS: Record<string, string[]> = {
@@ -148,6 +166,9 @@ export function shortlistCastCandidates(input: ShortlistInput): CastCandidate[] 
     if (text(row.catchphrase)) score += 6;
     if (text(row.quirk)) score += 8;
     if (list(row.speech_style ?? row.speechStyle).length) score += 4;
+    // A figure with a bible (a want, a fear, a running gag) can carry scenes; one that may drive or oppose a book even more.
+    if (text(row.want) && text(row.running_gag ?? row.runningGag)) score += 6;
+    if (flag(row.can_lead ?? row.canLead) || flag(row.can_oppose ?? row.canOppose)) score += 4;
 
     const fn = castFunctionOf(row);
     const species = text(row.species_category ?? row.speciesCategory, 40).toLowerCase();

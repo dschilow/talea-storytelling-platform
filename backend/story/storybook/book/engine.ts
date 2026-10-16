@@ -16,7 +16,7 @@ import { STORYBOOK_SUPPORT_MODEL, fallbackModelFor, modelFamily, parseJsonObject
 import { mentionsName, resolveCasting, type CastingResult } from "./catalogue";
 import { checkChapter, mergeChapterPatch, mergeOpenThreads, mergeWorldState, mergeWordings, parseChapterCritique, parseChapters, quoteInText, type ChapterCritiqueResult } from "./chapters";
 import { buildColdReadPrompt, coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
-import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview } from "./plan";
+import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview, PLAN_MAX_REVISIONS, planPassesGate } from "./plan";
 import {
   buildChapterCritiquePrompt,
   buildChapterPatchPrompt,
@@ -33,7 +33,7 @@ import {
   planReviewNotes,
 } from "./prompts";
 import type { BookBrief, BookChapter, BookExperiment, BookPitch, BookPlan, BookState, ChapterCurvePoint, PlanReview, SeriesMemory } from "./types";
-import { proseProfile, VOICE_REWRITE_CODES, voiceRewriteNeeded } from "./voice";
+import { interludeShare, LOG_ONLY_CODES, proseProfile, VOICE_REWRITE_CODES, voiceRewriteDisputed, voiceRewriteNeeded } from "./voice";
 
 export interface BookContext {
   llm: StorybookLlm;
@@ -51,6 +51,10 @@ export interface PlannedBook {
   /** Deterministic plan defects left after the revision. */
   planIssues: string[];
   planRevised: boolean;
+  /** The critic's second look after the revision (plan gate); absent when the first review already passed. */
+  planReviewAfter?: PlanReview | null;
+  /** How many revisions the plan went through (0-2). */
+  planRevisions?: number;
   /** The brief with `candidates` = the chosen cast. Every later stage uses this one. */
   brief: BookBrief;
 }
@@ -146,48 +150,75 @@ export async function planBook(ctx: BookContext): Promise<PlannedBook> {
     castNames: casting.cast.map((candidate) => candidate.name),
     blockedTerms: brief.blockedTerms,
     cozy: brief.form === "cozy",
+    band: brief.band,
   };
   let issues = checkBookPlan(plan, brief.book, checkInput);
 
-  let planReview: PlanReview | null = null;
-  if (!experiment.skipPlanReview) {
-    const prompt = buildPlanReviewPrompt(castBrief, plan);
+  const review = async (stage: string, current: BookPlan): Promise<PlanReview | null> => {
+    if (experiment.skipPlanReview) return null;
+    const prompt = buildPlanReviewPrompt(castBrief, current);
     try {
-      planReview = await jsonCall(ctx, {
-        stage: "book-plan-review", role: "critic", model: planCritic, system: prompt.system, user: prompt.user,
+      return await jsonCall(ctx, {
+        stage, role: "critic", model: planCritic, system: prompt.system, user: prompt.user,
         json: true, maxTokens: 6000, effort: "low", timeoutMs: 180_000, temperature: 0.2,
       }, parsePlanReview, fallbackModelFor(planCritic));
     } catch (err) {
-      console.warn("[book] plan review failed:", (err as Error)?.message || err);
+      console.warn(`[book] ${stage} failed:`, (err as Error)?.message || err);
+      return null;
     }
-  }
-  await observe(ctx, "plan", { title: plan.title, issues, review: planReview?.scores, mustFix: planReview?.mustFix.length ?? null, weaknesses: planReview?.weaknesses.map((entry) => `${entry.severity}: ${entry.problem}`) });
-
-  const notes = [...issues, ...planReviewNotes(planReview)];
-  let planRevised = false;
-  if (notes.length > 0) {
-    const revisionPrompt = buildPlanRevisionPrompt(castBrief, planPrompt, JSON.stringify(rawPlan ?? plan), notes);
+  };
+  const revise = async (stage: string, current: BookPlan, rawCurrent: any, notes: string[]): Promise<{ plan: BookPlan; raw: any; issues: string[] } | null> => {
+    const revisionPrompt = buildPlanRevisionPrompt(castBrief, planPrompt, JSON.stringify(rawCurrent ?? current), notes);
     try {
       // Only the changed parts come back (a full rewrite cost 10.7 ¢ on the first live run).
-      const revised = await jsonCall(ctx, { ...planRequest, stage: "book-plan-revision", user: revisionPrompt.user, maxTokens: 9000 }, (raw) =>
-        raw && typeof raw === "object" && !Array.isArray(raw) ? parsePlan(mergePlanRevision(rawPlan ?? plan, raw), brief.book.chapters) : null);
-      if (revised) {
-        const revisedIssues = checkBookPlan(revised, brief.book, checkInput);
-        if (revisedIssues.length <= issues.length) {
-          plan = revised;
-          issues = revisedIssues;
-          planRevised = true;
-        }
-      }
+      let merged: any = null;
+      const revised = await jsonCall(ctx, { ...planRequest, stage, user: revisionPrompt.user, maxTokens: 9000 }, (raw) => {
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+        merged = mergePlanRevision(rawCurrent ?? current, raw);
+        return parsePlan(merged, brief.book.chapters);
+      });
+      if (!revised) return null;
+      const revisedIssues = checkBookPlan(revised, brief.book, checkInput);
+      return revisedIssues.length <= issues.length ? { plan: revised, raw: merged, issues: revisedIssues } : null;
     } catch (err) {
-      console.warn("[book] plan revision failed; writing from the first plan:", (err as Error)?.message || err);
+      console.warn(`[book] ${stage} failed; keeping the plan before it:`, (err as Error)?.message || err);
+      return null;
     }
-    await observe(ctx, "plan-revision", { revised: planRevised, remaining: issues });
+  };
+
+  const planReview = await review("book-plan-review", plan);
+  await observe(ctx, "plan", { title: plan.title, issues, review: planReview?.scores, mustFix: planReview?.mustFix.length ?? null, weaknesses: planReview?.weaknesses.map((entry) => `${entry.severity}: ${entry.problem}`) });
+
+  // The plan gate (2026-10-16): "Die Türlaunische" was reviewed at 5, revised once without a second look and written.
+  // A plan under the gate is reviewed again after its revision and revised a second time; a revision costs about
+  // 0.3 ct, a review about 0.8 ct — a chapter rewritten for a weak plan costs 1.5-2.3 ct.
+  let planRevisions = 0;
+  let planReviewAfter: PlanReview | null | undefined;
+  let latestReview = planReview;
+  let rawCurrent: any = rawPlan;
+  let notes = [...issues, ...planReviewNotes(latestReview)];
+  while (notes.length > 0 && planRevisions < PLAN_MAX_REVISIONS) {
+    const result = await revise(planRevisions === 0 ? "book-plan-revision" : `book-plan-revision-${planRevisions + 1}`, plan, rawCurrent, notes);
+    if (!result) break;
+    plan = result.plan;
+    rawCurrent = result.raw;
+    issues = result.issues;
+    planRevisions += 1;
+    if (planPassesGate(latestReview, issues)) break;
+    // The second look at the revised plan: the first review had must-fix notes or scored under the gate.
+    planReviewAfter = await review(`book-plan-review-${planRevisions + 1}`, plan);
+    latestReview = planReviewAfter ?? latestReview;
+    if (!planReviewAfter) break;
+    notes = [...issues, ...planReviewNotes(planReviewAfter)];
+    await observe(ctx, "plan-review-after", { revision: planRevisions, review: planReviewAfter.scores, mustFix: planReviewAfter.mustFix.length, passes: planPassesGate(planReviewAfter, issues) });
+    if (planPassesGate(planReviewAfter, issues)) break;
   }
+  const planRevised = planRevisions > 0;
+  if (planRevised || notes.length) await observe(ctx, "plan-revision", { revised: planRevised, revisions: planRevisions, remaining: issues, gate: planPassesGate(latestReview, issues) });
   // The plan may cast fewer characters than the pitch; the book carries only those it plans with.
   const planned = casting.cast.filter((candidate) => plan.chapters.some((chapter) => chapter.cast.some((entry) => mentionsName(entry, candidate.name))) || plan.castIds.includes(candidate.id));
   const finalCast = planned.length ? planned : casting.cast;
-  return { pitch, casting: { ...casting, cast: finalCast }, plan, planReview, planIssues: issues, planRevised, brief: { ...castBrief, candidates: finalCast } };
+  return { pitch, casting: { ...casting, cast: finalCast }, plan, planReview, planIssues: issues, planRevised, planReviewAfter, planRevisions, brief: { ...castBrief, candidates: finalCast } };
 }
 
 // ---------------------------------------------------------------------------
@@ -246,6 +277,16 @@ interface RewriteReason { code: string; message: string }
 export const LAUGH_REWRITE_MAX_HUMOR = 5;
 
 /**
+ * Above the rewrite bar and up to this humour score, a chapter without a quotable laugh gets its planned laugh from
+ * the patch instead ("Die Türlaunische": six of eight chapters had no laugh at humour 6-7, and nothing happened).
+ * A patch is part of a call that runs anyway; a rewrite costs 1.5-2.3 ct.
+ */
+export const LAUGH_PATCH_MAX_HUMOR = 7;
+
+/** At or under this suspense score, a chapter in which the critic felt no opposing force gets a one-sentence nudge from the patch. */
+export const SUSPENSE_PATCH_MAX = 5;
+
+/**
  * Reasons for a full rewrite by the writer: a laugh, progress or a plant cannot be patched in.
  * A missing hook alone is no reason — the support model rewrites the last sentences instead
  * (Gurkenberg 2026-10-14: five rewrites cost 10 ¢, a third of the chapter text).
@@ -253,8 +294,9 @@ export const LAUGH_REWRITE_MAX_HUMOR = 5;
 export function rewriteReasons(critique: ChapterCritiqueResult["chapters"][number] | undefined, chapter: BookChapter, planned: PlannedBook, hard: string[], voice: Array<{ code: string; message: string }> = []): RewriteReason[] {
   const reasons: RewriteReason[] = hard.map((message) => ({ code: "too-short", message }));
   // 2026-10-16 ("Der Regen sagt rückwärts"): a script-like chapter cannot be patched (a patch keeps 85 % of the words);
-  // the writer retells it with a narrator. The measured text decides, the critic's voice score only adds weight.
-  if (voiceRewriteNeeded(voice, critique?.voice)) {
+  // the writer retells it with a narrator. The measured text decides, the critic's voice score only adds weight —
+  // unless the critic rates the voice 8 or better against a single measured sign ("Die Türlaunische": four such rewrites for 6.5 ct).
+  if (!voiceRewriteDisputed(voice, critique?.voice) && voiceRewriteNeeded(voice, critique?.voice)) {
     reasons.push({ code: "script-like", message: `Das Kapitel ${voice.map((issue) => issue.message.replace(/^Kapitel \d+: /, "")).join(" Außerdem: es ")}` });
   }
   if (!critique) return reasons;
@@ -273,6 +315,29 @@ export function rewriteReasons(critique: ChapterCritiqueResult["chapters"][numbe
     reasons.push({ code: "no-hook", message: "Das Kapitel hört einfach auf oder endet in akuter Gefahr. Es braucht ein sanftes, neugierig machendes Ende (ein Ding verhält sich anders, eine Figur weiß mehr, ein kleiner Erfolg wirft eine neue Frage auf)." });
   }
   return reasons;
+}
+
+/**
+ * Patch notes for what the critic found about the plot engine of one chapter (2026-10-16, "Die Türlaunische"):
+ * the planned laugh that did not land at a middling humour score, a chapter in which nothing works against the
+ * heroes, a chant the heroes made up. Each is a few sentences the patch can place; none is worth a rewrite.
+ */
+export function enginePatchNotes(point: ChapterCritiqueResult["chapters"][number], chapter: BookChapter, plan: BookPlan, form: BookBrief["form"]): { notes: string[]; laughPatched: boolean } {
+  const notes: string[] = [];
+  let laughPatched = false;
+  const plannedChapter = plan.chapters.find((entry) => entry.n === chapter.order);
+  if (!point.laugh && !point.unmatched?.laugh && point.humor > LAUGH_REWRITE_MAX_HUMOR && point.humor <= LAUGH_PATCH_MAX_HUMOR && plannedChapter?.laugh) {
+    laughPatched = true;
+    notes.push(`Kapitel ${chapter.order}: Der geplante Lacher („${plannedChapter.laugh}“) landet nicht. Baue ihn in zwei bis vier Sätzen in der vorhandenen Szene auf — Figur, Steigerung, Pointe — ohne neue Handlung und ohne den Witz zu erklären.`);
+  }
+  if (point.opponentPresent === false && point.suspense <= SUSPENSE_PATCH_MAX && form !== "cozy") {
+    const force = plan.bible.villain?.who || plan.bible.opponent?.who || plan.bible.engineFigure || "";
+    notes.push(`Kapitel ${chapter.order}: Nichts und niemand arbeitet in diesem Kapitel gegen die Helden. Ergänze an einer Stelle ein bis zwei Sätze, in denen ${force ? `${force} näher kommt oder Spuren hinterlässt` : "das Hindernis spürbar wird"}, der Einsatz${plan.bible.stakeVisible ? ` („${plan.bible.stakeVisible}“)` : ""} wackelt oder die Frist („${plan.bible.deadline}“) drückt — aus dem, was die Geschichte schon hat.`);
+  }
+  if (point.newChant) {
+    notes.push(`Kapitel ${chapter.order}: Die Helden sprechen einen neuen Spruch („${point.newChant}“), der nicht zu den festgelegten Wortlauten gehört. Streiche ihn oder mache daraus eine normale Zeile wörtlicher Rede — das Buch hat höchstens einen gemeinsamen Spruch.`);
+  }
+  return { notes, laughPatched };
 }
 
 function plantReasons(critique: ChapterCritiqueResult["chapters"][number], planned: PlannedBook): RewriteReason[] {
@@ -346,10 +411,13 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
   // One rewrite per chapter that has no laugh, no progress, a missing plant or is far too short.
   const rewritten = new Set<number>();
   const reasonCodes = new Map<number, string[]>();
+  const voiceDisputed = new Set<number>();
   for (const [index, chapter] of chapters.entries()) {
     const hard = checks[index].filter((issue) => issue.code === "chapter_short").map((issue) => issue.message);
     const voice = checks[index].filter((issue) => VOICE_REWRITE_CODES.has(issue.code)).map((issue) => ({ code: issue.code, message: issue.message }));
-    const reasons = rewriteReasons(critique?.chapters.find((entry) => entry.n === chapter.order), chapter, planned, hard, voice);
+    const point = critique?.chapters.find((entry) => entry.n === chapter.order);
+    if (voice.length && voiceRewriteDisputed(voice, point?.voice)) voiceDisputed.add(chapter.order);
+    const reasons = rewriteReasons(point, chapter, planned, hard, voice);
     if (!reasons.length) continue;
     reasonCodes.set(chapter.order, [...new Set(reasons.map((reason) => reason.code))]);
     const before: BookState = { ...state, chapters: [...state.chapters, ...chapters.slice(0, index)] };
@@ -398,19 +466,37 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
       .map((thread) => `Kapitel ${lastChapter.order}: Ein Kind fragt sich seit Kapitel ${thread.chapter} noch: „${thread.question}“ Beantworte das beiläufig in ein bis zwei Sätzen einer vorhandenen Szene, aus dem, was die Geschichte schon gezeigt hat.`)
     : [];
 
+  // 2026-10-16 ("Die Türlaunische"): the planned laugh that did not land, a chapter with nothing against the heroes, a new
+  // chant, the second spoken lesson — each a few sentences the patch can place, none worth a rewrite.
+  const laughPatched = new Set<number>();
+  const engineNotes = chapters
+    .filter((chapter) => critique && !rewritten.has(chapter.order))
+    .flatMap((chapter) => {
+      const point = critique!.chapters.find((entry) => entry.n === chapter.order);
+      if (!point) return [];
+      const result = enginePatchNotes(point, chapter, plan, brief.form);
+      if (result.laughPatched) laughPatched.add(chapter.order);
+      return result.notes;
+    });
+  const lessonsBefore = state.curve.filter((point) => point.lesson).length;
+
   // Patch: continuity, language, invented looks, repeated phrases, missing hooks and plants, what a newcomer cannot follow.
   const notes = [
     ...cold.notes,
     ...threadNotes,
     ...hookNotes.map((chapter) => hookPatchNote(chapter, planned)),
     ...plantNotes,
-    ...checks.flat().filter((issue) => issue.code !== "chapter_short" && !VOICE_REWRITE_CODES.has(issue.code)).map((issue) => issue.message),
+    ...engineNotes,
+    ...checks.flat().filter((issue) => issue.code !== "chapter_short" && !VOICE_REWRITE_CODES.has(issue.code) && !LOG_ONLY_CODES.has(issue.code)).map((issue) => issue.message),
     // A spoken lesson or motto is one sentence: the patch strikes it or turns it into a gesture.
     ...chapters
       .filter((chapter) => !rewritten.has(chapter.order))
       .flatMap((chapter) => {
         const lesson = critique?.chapters.find((entry) => entry.n === chapter.order)?.lesson;
-        return lesson ? [`Kapitel ${chapter.order}: Der Satz „${lesson}“ spricht eine Lehre oder einen Merksatz aus. Streiche ihn oder ersetze ihn durch eine Handlung oder ein Bild aus der Szene — kein Kind soll hier belehrt werden.`] : [];
+        if (!lesson) return [];
+        return lessonsBefore > 0
+          ? [`Kapitel ${chapter.order}: Der Satz „${lesson}“ spricht eine Lehre aus — und das Buch hat schon ${lessonsBefore === 1 ? "eine" : lessonsBefore} ausgesprochen. Streiche ihn ersatzlos; die Szene trägt das Gefühl allein.`]
+          : [`Kapitel ${chapter.order}: Der Satz „${lesson}“ spricht eine Lehre oder einen Merksatz aus. Streiche ihn oder ersetze ihn durch eine Handlung oder ein Bild aus der Szene — kein Kind soll hier belehrt werden.`];
       }),
     ...(critique?.mustFix || []).filter((note) => !rewritten.has(note.chapter)).map((note) => `Kapitel ${note.chapter}: ${note.problem}${note.quote ? ` („${note.quote}“)` : ""}`),
     ...(critique?.languageErrors || []).filter((error) => !rewritten.has(error.chapter)).map((error) => `Kapitel ${error.chapter}: „${error.quote}“ → ${error.correction}`),
@@ -489,11 +575,19 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
       patched: patched.has(chapter.order),
       ...(reasonCodes.has(chapter.order) ? { rewriteReasons: reasonCodes.get(chapter.order) } : {}),
       ...(hookPatched.has(chapter.order) && patched.has(chapter.order) ? { hookPatched: true } : {}),
+      // 2026-10-16 (plot engine): what the log needs to see a flat book — no force against the heroes, long interludes, repeated lessons.
+      ...(typeof point?.opponentPresent === "boolean" && !rewritten.has(chapter.order) ? { opponentPresent: point.opponentPresent } : {}),
+      interludeShare: interludeShare(chapter.content, brief.heroes.map((hero) => hero.name), mentionsName).share,
+      ...(point?.lesson && !rewritten.has(chapter.order) ? { lesson: point.lesson } : {}),
+      ...(laughPatched.has(chapter.order) && patched.has(chapter.order) ? { laughPatched: true } : {}),
+      ...(voiceDisputed.has(chapter.order) ? { voiceDisputed: true } : {}),
     };
   });
   const openIssues = checks.flatMap((list, index) => list.filter((issue) => issue.severity === "hard").map((issue) => ({ chapter: chapters[index].order, issue: issue.message })));
   await observe(ctx, "chapters", {
     range, rewritten: [...rewritten], patched: [...patched], curve, open: openIssues.length,
+    ...(voiceDisputed.size ? { voiceDisputed: [...voiceDisputed] } : {}),
+    ...(laughPatched.size ? { laughPatched: [...laughPatched] } : {}),
     ...(cold.missing.length ? { coldReadGaps: cold.missing } : {}),
     ...(openThreads.length ? { openThreads: openThreads.map((thread) => `${thread.id} (K${thread.chapter}): ${thread.question}`) } : {}),
     ...(threadNotes.length ? { answeredByPatch: threadNotes.length } : {}),
@@ -594,6 +688,10 @@ export async function buildSeriesMemory(ctx: BookContext, planned: PlannedBook, 
     console.warn("[book] series memory failed:", (err as Error)?.message || err);
   }
   const volume = (previous?.volume || 0) + 1;
+  // 2026-10-16: what each hero learned and which motifs the book used — so the next volume (and the pitch of any later
+  // book of this family, via history.ts) gives the heroes another inner arc and another world.
+  const lessons = list(raw?.lessons).length ? list(raw?.lessons) : planMotifs(planned.plan).lessons;
+  const motifs = list(raw?.motifs).length ? list(raw?.motifs) : planMotifs(planned.plan).motifs;
   return {
     seriesTitle: previous?.seriesTitle || planned.plan.title,
     volume,
@@ -605,6 +703,48 @@ export async function buildSeriesMemory(ctx: BookContext, planned: PlannedBook, 
     runningGags: list(raw?.runningGags),
     items: list(raw?.items),
     relationships: list(raw?.relationships),
+    lessons: [...(previous?.lessons || []), ...lessons].slice(-12),
+    motifs: [...(previous?.motifs || []), ...motifs].slice(-12),
   };
+}
+
+/**
+ * The memory lines of one finished chapter book for the next pitch: „Lektion (Held) in „Titel“: …“ for every inner
+ * arc, one „Motiv“ line for the wonder, the stake and the engine. history.ts reads them off the story's metadata.
+ */
+export function motifLines(motifs: unknown, title = ""): string[] {
+  if (!motifs || typeof motifs !== "object") return [];
+  const record = motifs as { lessons?: unknown; motifs?: unknown };
+  const clean = (value: unknown, max: number) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const where = title ? ` in „${clean(title, 80)}“` : "";
+  const lines: string[] = [];
+  for (const lesson of (Array.isArray(record.lessons) ? record.lessons : []).slice(0, 3)) {
+    const text = clean(lesson, 140);
+    if (!text) continue;
+    const colon = text.indexOf(":");
+    lines.push(colon > 0 ? `Lektion (${text.slice(0, colon).trim()})${where}: ${text.slice(colon + 1).trim()}` : `Lektion${where}: ${text}`);
+  }
+  const used = (Array.isArray(record.motifs) ? record.motifs : []).map((entry) => clean(entry, 100)).filter(Boolean).slice(0, 4);
+  if (used.length) lines.push(`Motiv${where}: ${used.join("; ")}`.slice(0, 260));
+  return lines;
+}
+
+/**
+ * The inner arcs and motifs a plan carries, as short lines for the family's memory (book-generation.ts writes them
+ * into the story's metadata; history.ts reads them back for the next pitch). From the plan alone, no model call.
+ */
+export function planMotifs(plan: BookPlan): { lessons: string[]; motifs: string[] } {
+  const clean = (value: unknown, max: number) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const b = plan.bible;
+  const lessons = (b.heroDuties || [])
+    .map((duty) => `${duty.hero}: ${clean(duty.feelingEnd || duty.decision, 120)}`)
+    .filter((line) => !/:\s*$/.test(line));
+  const motifs = [
+    b.engineFigure ? `Motorfigur: ${clean(b.engineFigure, 80)}` : "",
+    b.stakeVisible ? `Einsatz: ${clean(b.stakeVisible, 100)}` : "",
+    b.truth ? `Wunder: ${clean(b.truth, 140)}` : "",
+    b.engine ? `Motor: ${b.engine}` : "",
+  ].filter(Boolean);
+  return { lessons, motifs };
 }
 

@@ -20,6 +20,14 @@ function cleanReport(): ImageQaReport {
   return { anatomyDefects: [], animalFeaturesOnHumans: [], duplicates: [], unexpectedCharacters: [], roleSwaps: [], elementMisuse: [], textVisible: false, referenceSheetVisible: false, identityMatch: 1, sceneMatch: 1, namedCharactersVisible: 1 } as ImageQaReport;
 }
 import { emptyBookState, type BookBrief, type BookChapter, type CatalogueEntry } from "./types";
+// 2026-10-16 (plot engine)
+import { enginePatchNotes, LAUGH_PATCH_MAX_HUMOR, motifLines, planMotifs } from "./engine";
+import { parseEngine, PLAN_GATE_SCORE, planPassesGate, villainStyleFor } from "./plan";
+import { interludeShare, overusedWords, repeatedTics, voiceRewriteDisputed } from "./voice";
+import { enforceCastPresence } from "./illustrations";
+import { toCastCandidate } from "../cast-selection";
+import { castSheetEn } from "../oneshot-prompt-en";
+import { bibleFromRow, buildBiblePrompt, parseBible } from "../../character-bible-core";
 
 function entry(id: string, name: string, extra: Partial<CatalogueEntry> = {}): CatalogueEntry {
   return { id, name, species: "animal", whoTheyAre: `${name} aus dem Wald`, personality: ["neugierig"], speechStyle: [], recentUses: 0, hasImage: true, imageUrl: "https://x/y.png", ...extra } as CatalogueEntry;
@@ -59,11 +67,17 @@ function planJson(overrides: any = {}) {
       world: "Klangwald", home: "Gartenhaus", bigQuestion: "Wer nimmt dem Wald die Geräusche weg?", truth: "Der Geräusche-Fresser sammelt Klänge.",
       limits: "Nur aus der Nähe.", workaround: "Dreischritt.", stakes: "Das Konzert.", personalReason: "Lunas Schnurren.", deadline: "Konzertbeginn",
       opponent: { who: "Der Geräusche-Fresser", motive: "will auftreten", logic: "behält Klänge" },
-      characters: ["Alexander", "Adrian", "Luna", "Theo Zeitsam"].map((name) => ({ name, wants: "x", can: "x", flaw: "x", avoids: "x", voice: "x", challengedBy: "x", finalChoice: "x" })),
+      characters: ["Alexander", "Adrian", "Luna", "Theo Zeitsam"].map((name) => ({ name, wants: "x", can: "x", flaw: "x", avoids: "x", voice: "x", challengedBy: "x", finalChoice: "x", ...(name === "Luna" || name === "Theo Zeitsam" ? { turn: { chapter: 4, what: "führt die Helden in die falsche Richtung" } } : {}) })),
       runningGag: { gag: "Lunas Aussichtsposten", beats: [{ chapter: 2, beat: "Sieb" }, { chapter: 5, beat: "Pilz" }, { chapter: 12, beat: "Korb" }] },
       twistChapter: 6, lowPointChapter: 9, solution: { how: "Sie folgen den Klängen.", uses: ["S1", "S2"] },
       heart: "Luna hat keinen Platz im Konzert; die Helden geben ihr einen.", secret: null,
       freshEyes: [{ chapter: 2, moment: "Luna hält „Lampenfieber“ für eine Krankheit von Lampen." }, { chapter: 5, moment: "Theo will die Zeit „totschlagen“ und holt einen Fliegenklatscher." }],
+      // 2026-10-16 (plot engine): the stake a child can draw and what every hero owns.
+      engine: "heroes", stakeVisible: "Das Konzertplakat am Dorfplatz",
+      heroDuties: [
+        { hero: "Alexander", talent: "merkt sich jeden Ton", talentChapter: 3, decision: "geht allein zum Fresser", decisionChapter: 11, feelingEnd: "stolz und ein bisschen müde" },
+        { hero: "Adrian", talent: "zählt Schritte", talentChapter: 5, decision: "gibt das Sieb her", decisionChapter: 11, feelingEnd: "leicht" },
+      ],
     },
     setups: [{ id: "S1", what: "Schmatzen hinter der Hecke", planted: 2, paidOff: 11 }, { id: "S2", what: "Klangfolge", planted: 2, paidOff: 11 }, { id: "S3", what: "Dreischritt öffnet Blattwege", planted: 3, paidOff: 10 }],
     chapters,
@@ -154,7 +168,7 @@ describe("plan", () => {
   });
   test("a profile written with umlauts counts for a pool name with ae", () => {
     const raw = planJson();
-    raw.bible.characters.push({ name: "Der Geräusche-Fresser", wants: "x" });
+    raw.bible.characters.push({ name: "Der Geräusche-Fresser", wants: "x", turn: { chapter: 6, what: "frisst den falschen Klang" } });
     raw.chapters.forEach((chapter: any) => chapter.cast.push("Geräusche-Fresser"));
     const issues = checkBookPlan(parsePlan(raw, 12)!, resolveBookBudget("6-8", { chapters: 12 }), { ...checkInput, castNames: [...checkInput.castNames, "Der Geraeusche-Fresser"] });
     expect(issues).toEqual([]);
@@ -805,5 +819,246 @@ describe("Buchgefühl (2026-10-16): a narrator, inner life and rhythm instead of
     await directBatch({ llm, models: { writer: "w", support: "s", critic: "c" } as any, ledger: new CostLedger(), brief: b, plan, chapters, entities, slots, withCover: false });
     expect(seen[0].user).toContain("appears in at least one picture of that chapter");
     expect(seen[0].user).toContain("never figures posing side by side");
+  });
+});
+
+describe("Der Erzählmotor (Die Türlaunische, 2026-10-16): wer das Buch antreibt, was die Helden behalten, was das Kind zuerst weiß", () => {
+  const budget = resolveBookBudget("6-8", { chapters: 12 });
+  const villainPlan = () => {
+    const raw = planJson();
+    raw.bible.engine = "villain";
+    raw.bible.engineFigure = "Der Geräusche-Fresser";
+    raw.bible.villain = {
+      who: "Der Geräusche-Fresser", goal: "alle Klänge im Dorf", plan: "sammelt sie Glas für Glas",
+      moves: [{ chapter: 1, move: "stiehlt den Glockenklang" }, { chapter: 3, move: "versteckt ein Glas im Backhaus" }, { chapter: 8, move: "holt zum letzten Klang aus" }],
+      weakness: "verträgt kein Lachen", exposedBy: 6, outcome: "wird ausgelacht und niest alle Klänge frei", style: "comic",
+    };
+    raw.bible.readerKnowsMore = [{ chapter: 1, what: "wer die Klänge stiehlt" }];
+    raw.chapters[0].opponentScene = "Der Fresser schraubt ein Glas zu.";
+    raw.chapters[0].pov = "opponent";
+    raw.chapters[2].opponentScene = "Der Fresser versteckt das Glas.";
+    raw.chapters[7].opponentScene = "Der Fresser schleicht zum Turm.";
+    return raw;
+  };
+
+  test("pitch and plan carry the engine, the villain, the reader's head start and the hero duties; old plans read as heroes", () => {
+    const pitch = parsePitch({ ideas: [{ title: "A", premise: "p", engine: "Villain", engineFigure: "P3", stake: "das Plakat" }, { title: "B", premise: "q", engine: "unsinn" }], choice: 1 })!;
+    expect(pitch.ideas[0]).toMatchObject({ engine: "villain", engineFigure: "P3", stake: "das Plakat" });
+    expect(pitch.ideas[1].engine).toBe("heroes");
+    expect(parseEngine("Gegenspieler")).toBe("villain");
+    expect(parseEngine("guest")).toBe("guest");
+    expect(parseEngine("")).toBeUndefined();
+    const plan = parsePlan(villainPlan(), 12)!;
+    expect(plan.bible.engine).toBe("villain");
+    expect(plan.bible.villain).toMatchObject({ who: "Der Geräusche-Fresser", exposedBy: 6, style: "comic" });
+    expect(plan.bible.villain!.moves).toHaveLength(3);
+    expect(plan.bible.readerKnowsMore).toEqual([{ chapter: 1, what: "wer die Klänge stiehlt" }]);
+    expect(plan.bible.heroDuties!.map((duty) => duty.hero)).toEqual(["Alexander", "Adrian"]);
+    expect(plan.chapters[0]).toMatchObject({ pov: "opponent", opponentScene: "Der Fresser schraubt ein Glas zu." });
+    expect(plan.chapters[1].pov).toBeUndefined();
+    expect(plan.bible.characters.find((character) => character.name === "Luna")!.turn).toEqual({ chapter: 4, what: "führt die Helden in die falsche Richtung" });
+    const old = parsePlan({ ...planJson(), bible: { ...planJson().bible, engine: undefined, villain: undefined } }, 12)!;
+    expect(old.bible.engine).toBe("heroes");
+    expect(old.bible.villain).toBeNull();
+  });
+
+  test("a complete villain plan passes; a villain who never acts alone, a late exposure, a missing hero duty, a cast member who only helps and a stake nobody can draw are reported", () => {
+    expect(checkBookPlan(parsePlan(villainPlan(), 12)!, budget, { ...checkInput, band: "6-8" })).toEqual([]);
+    const silent = villainPlan();
+    silent.chapters[2].opponentScene = undefined;
+    silent.chapters[7].opponentScene = undefined;
+    expect(checkBookPlan(parsePlan(silent, 12)!, budget, checkInput).join("\n")).toContain("OHNE die Helden");
+    const late = villainPlan();
+    late.bible.villain.exposedBy = 9;
+    expect(checkBookPlan(parsePlan(late, 12)!, budget, checkInput).join("\n")).toContain("spätestens in Kapitel 6");
+    const young = villainPlan();
+    young.bible.villain.style = "real";
+    expect(checkBookPlan(parsePlan(young, 12)!, budget, { ...checkInput, band: "3-5" }).join("\n")).toContain("kein echter Gegner");
+    const noDuty = planJson();
+    noDuty.bible.heroDuties = [noDuty.bible.heroDuties[0]];
+    expect(checkBookPlan(parsePlan(noDuty, 12)!, budget, checkInput).join("\n")).toContain("Für Adrian fehlen die Heldenpflichten");
+    const early = planJson();
+    early.bible.heroDuties[0].decisionChapter = 4;
+    expect(checkBookPlan(parsePlan(early, 12)!, budget, checkInput).join("\n")).toContain("Kapitel 9–12");
+    const helper = planJson();
+    helper.bible.characters = helper.bible.characters.map((character: any) => (character.name === "Luna" ? { ...character, turn: undefined } : character));
+    expect(checkBookPlan(parsePlan(helper, 12)!, budget, checkInput).join("\n")).toContain("Luna hilft nur");
+    const abstract = planJson();
+    abstract.bible.stakeVisible = "";
+    expect(checkBookPlan(parsePlan(abstract, 12)!, budget, checkInput).join("\n")).toContain("stakeVisible");
+    const guest = planJson();
+    guest.bible.engine = "guest";
+    guest.bible.engineFigure = "Luna";
+    const guestIssues = checkBookPlan(parsePlan(guest, 12)!, budget, checkInput).join("\n");
+    expect(guestIssues).toContain("secret");
+    expect(guestIssues).toContain("readerKnowsMore");
+  });
+
+  test("the review caps the new checks, the notes name them, the gate decides when the chapters may start, the age decides the villain", () => {
+    expect(planScoreCap({ stakesPaintable: false })).toBe(6);
+    expect(planScoreCap({ villainActs: false })).toBe(6.5);
+    expect(planScoreCap({ heroDecides: false })).toBe(6.5);
+    expect(planScoreCap({ heroesSeeThrough: false, castCausesTurns: false })).toBe(7);
+    expect(planScoreCap({ traitsNotPremise: false })).toBe(7);
+    expect(planScoreCap({ readerKnowsMore: false, freshArc: false })).toBe(7.5);
+    const notes = planReviewNotes(parsePlanReview({ checks: { castCausesTurns: false, traitsNotPremise: false }, scores: { overall: 9 }, mustFix: [], weaknesses: [] })).join(" | ");
+    expect(notes).toContain("hilft nur");
+    expect(notes).toContain("Begabung eines Helden");
+    const weak = parsePlanReview({ checks: {}, scores: { overall: 5 }, mustFix: [{ chapter: 2, problem: "x" }], weaknesses: [] })!;
+    expect(planPassesGate(weak, [])).toBe(false);
+    const fine = parsePlanReview({ checks: {}, scores: { overall: PLAN_GATE_SCORE }, mustFix: [], weaknesses: [] })!;
+    expect(planPassesGate(fine, [])).toBe(true);
+    expect(planPassesGate(fine, ["ein Rest"])).toBe(false);
+    expect(planPassesGate(null, [])).toBe(true);
+    expect(villainStyleFor("3-5")).toBe("misunderstood");
+    expect(villainStyleFor("6-8")).toBe("comic");
+    expect(villainStyleFor("9-12")).toBe("real");
+  });
+
+  test("the pitch offers the three engines, the plan prompt plans the villain's moves, the writer and the critic know the scenes without the heroes", () => {
+    const b = brief();
+    const pitch = buildPitchPrompt(b).user;
+    expect(pitch).toContain("WHO DRIVES THE BOOK");
+    expect(pitch).toContain("- villain:");
+    expect(pitch).toContain("- guest:");
+    expect(pitch).toContain("never from a hero's hobby or talent");
+    expect(buildPitchPrompt(brief({ form: "cozy" })).user).not.toContain("- villain:");
+    const idea = { title: "T", premise: "p", bigQuestion: "q", wonder: "w", roles: [], engine: "villain" as const, engineFigure: "Der Geräusche-Fresser", stake: "das Plakat" };
+    const planPrompt = buildPlanPrompt(b, idea, [], []).user;
+    expect(planPrompt).toContain("Engine (who drives the plot): villain");
+    expect(planPrompt).toContain("- villain: who, goal");
+    expect(planPrompt).toContain("opponentScene");
+    expect(planPrompt).toContain("heroDuties");
+    expect(planPrompt).toContain("A comic or real villain needs no sympathy");
+    const heroesPrompt = buildPlanPrompt(b, { ...idea, engine: "heroes" as const }, [], []).user;
+    expect(heroesPrompt).toContain("The opponent's real need");
+    expect(heroesPrompt).not.toContain("- villain: who, goal");
+    const plan = parsePlan(villainPlan(), 12)!;
+    const context = buildChapterStaticContext(b, plan);
+    expect(context).toContain("Villain with a plan: Der Geräusche-Fresser");
+    expect(context).toContain("Hero duties (the avatar decides)");
+    expect(context).toContain("turns the plot in ch. 4");
+    const system = buildChapterSystemPrompt(b);
+    expect(system).toContain("THE PLOT ENGINE");
+    expect(system).toContain("At most ONE line the heroes speak together");
+    const first = buildChapterUserPrompt(b, plan, emptyBookState(), 1, 1);
+    expect(first).toContain("cold open");
+    expect(first).toContain("scene WITHOUT the heroes");
+    const third = buildChapterUserPrompt(b, plan, emptyBookState(), 3, 3);
+    expect(third).toContain("Alexander's own talent turns the plot here");
+    expect(third).not.toContain("cold open");
+    const review = buildPlanReviewPrompt(b, plan);
+    expect(review.system).toContain("stakesPaintable");
+    expect(review.system).toContain("readerKnowsMore");
+    expect(review.user).toContain('"readerKnowsMore":true');
+    expect(buildPlanReviewPrompt(b, parsePlan(planJson(), 12)!).user).not.toContain('"readerKnowsMore"');
+    const critic = buildChapterCritiquePrompt(b, plan, emptyBookState(), [{ order: 1, title: "t", content: "Text.", recap: "" }]);
+    expect(critic.system).toContain("opponentPresent");
+    expect(critic.system).toContain("newChant");
+    expect(critic.system).toContain("Konjunktiv II");
+    expect(narratorVoiceRules("6-8", "Deutsch").join("\n")).not.toContain("a hot face");
+  });
+
+  test("a disputed voice issue is no rewrite; a laugh at humour 6-7, a chapter without opposing force and a new chant become patch notes", () => {
+    expect(voiceRewriteDisputed([{ code: "staccato" }], 8)).toBe(true);
+    expect(voiceRewriteDisputed([{ code: "staccato" }], 7)).toBe(false);
+    expect(voiceRewriteDisputed([{ code: "staccato" }, { code: "no_inner_life" }], 9)).toBe(false);
+    const plan = parsePlan(villainPlan(), 12)!;
+    const planned = { plan, brief: brief() } as unknown as PlannedBook;
+    const chapter = { order: 3, title: "t", recap: "", content: "Text." };
+    const voice = [{ code: "staccato", message: "Kapitel 3: liest sich wie ein Drehbuch" }];
+    const point = (humor: number, extra: Record<string, unknown> = {}) => ({ n: 3, laugh: null, hook: "Ende.", suspense: 6, humor, voice: 8, lesson: null, progress: true, missingPlants: [], ...extra });
+    expect(rewriteReasons(point(7), chapter, planned, [], voice).map((reason) => reason.code)).toEqual([]);
+    expect(rewriteReasons(point(7, { voice: 5 }), chapter, planned, [], voice).map((reason) => reason.code)).toContain("script-like");
+    const laugh = enginePatchNotes(point(LAUGH_PATCH_MAX_HUMOR), chapter, plan, "mystery");
+    expect(laugh.laughPatched).toBe(true);
+    expect(laugh.notes.join("\n")).toContain("Luna fällt vom Sieb");
+    expect(enginePatchNotes(point(LAUGH_PATCH_MAX_HUMOR + 1), chapter, plan, "mystery").laughPatched).toBe(false);
+    expect(enginePatchNotes(point(LAUGH_REWRITE_MAX_HUMOR), chapter, plan, "mystery").laughPatched).toBe(false);
+    const flat = enginePatchNotes(point(8, { opponentPresent: false, suspense: 4 }), chapter, plan, "mystery").notes.join("\n");
+    expect(flat).toContain("Nichts und niemand arbeitet");
+    expect(flat).toContain("Der Geräusche-Fresser");
+    expect(enginePatchNotes(point(8, { opponentPresent: false, suspense: 4 }), chapter, plan, "cozy").notes).toEqual([]);
+    expect(enginePatchNotes(point(8, { newChant: "Kling und Klang, wir gehn im Gang!" }), chapter, plan, "mystery").notes.join("\n")).toContain("neuen Spruch");
+    const parsed = parseChapterCritique(JSON.stringify({ chapters: [{ n: 3, opponentPresent: "false", newChant: "Kling und Klang, wir gehn im Gang!" }] }), [{ ...chapter, content: "Sie riefen: „Kling und Klang, wir gehn im Gang!“ Dann liefen sie." }])!;
+    expect(parsed.chapters[0]).toMatchObject({ opponentPresent: false, newChant: "Kling und Klang, wir gehn im Gang!" });
+    expect(parseChapterCritique(JSON.stringify({ chapters: [{ n: 3 }] }), [chapter])!.chapters[0]).toMatchObject({ opponentPresent: null, newChant: null });
+  });
+
+  test("tics, overused words and scenes without the heroes are measured on the text", () => {
+    const bauch = "Alexander spürte ein Ziehen im Bauch. Er ging weiter. Dann wurde ihm der Bauch eng. Adrian lachte.";
+    expect(repeatedTics(bauch, [])).toEqual([{ key: "bauch", label: "ein Gefühl im Bauch", here: 2, total: 2 }]);
+    expect(repeatedTics("Alexander bekam ein heißes Gesicht.", [])).toEqual([]);
+    expect(repeatedTics("Alexander bekam ein heißes Gesicht.", ["Ihm wurde heiß im Gesicht.", "Das Gesicht war rot."]).map((tic) => tic.total)).toEqual([3]);
+    const klinke = Array.from({ length: 40 }, (_, index) => `Alexander drückte die Klinke und Adrian sah zur Klinke, während die Klinke knarrte. Satz ${index}.`).join(" ");
+    const over = overusedWords(klinke, ["Alexander", "Adrian"]);
+    expect(over[0]).toMatchObject({ word: "Klinke" });
+    expect(over.map((hit) => hit.word)).not.toContain("Alexander");
+    expect(overusedWords("Kurz.", ["Alexander"])).toEqual([]);
+    const interlude = ["Alexander stand im Flur.", "Unterdessen schraubte der Fresser ein Glas zu. Er lachte leise.", "Er stellte es ins Regal.", "Adrian rief nach Alexander.", "Beide liefen los."].join("\n\n");
+    const profile = interludeShare(interlude, ["Alexander", "Adrian"]);
+    expect(profile.passages).toBe(1);
+    expect(profile.share).toBeGreaterThan(0.3);
+    expect(profile.coldOpen).toBe(false);
+    const cold = ["Der Fresser schlich.", "Er sammelte.", "Er lachte.", "Alexander wachte auf.", "Adrian auch."].join("\n\n");
+    expect(interludeShare(cold, ["Alexander", "Adrian"]).coldOpen).toBe(true);
+    expect(interludeShare("", ["Alexander"])).toEqual({ share: 0, passages: 0, coldOpen: false });
+    const issues = checkChapter({ order: 2, title: "t", recap: "", content: `${klinke} ${bauch}` }, { brief: brief(), budget, earlier: [], names: ["Alexander", "Adrian"] }).map((issue) => issue.code);
+    expect(issues).toContain("motif_overuse");
+    expect(issues).toContain("repeated_tic");
+  });
+
+  test("every acting cast figure gets into a picture of its chapter; a hero gives way when the picture is full, one hero always stays", () => {
+    const make = (id: string, name: string, role: "hero" | "cast"): VisualEntity => ({ id, name, kind: "character", role, species: "human", isHuman: true, appearance: "x", forbidden: [] });
+    const entities = [make("h1", "Alexander", "hero"), make("h2", "Adrian", "hero"), make("c1", "Schnüffel", "cast"), make("c2", "Bäcker Braun", "cast")];
+    const content = ["Alexander und Adrian standen am Zaun.", "Schnüffel putzte seine Lupe.", "Adrian lachte.", "Alexander ging weiter.", "Schnüffel folgte ihnen.", "Alexander blieb stehen.", "Bäcker Braun öffnete die Tür.", "Adrian trat ein.", "Alexander roch das Brot.", "Braun lachte.", "Adrian nickte.", "Alexander auch."].join("\n\n");
+    const chapters = [{ order: 1, title: "t", recap: "", content }];
+    const slots = buildImageSlots(chapters, parsePlan(planJson(), 12)!, 2);
+    const shots = [
+      { page: 1, scene: "The boys at the fence.", onStage: ["h1", "h2"], artifactVisible: false, paragraph: 3 },
+      { page: 2, scene: "The boys at the bakery door.", onStage: ["h1", "h2", "x"], artifactVisible: false, paragraph: 3 },
+    ] as any;
+    const { shots: fixed, changes } = enforceCastPresence({ slots, shots, entities, chapters, maxPerImage: 3, engineFigure: "Schnüffel" });
+    expect(fixed[0].onStage).toEqual(["h1", "h2", "c1"]);
+    expect(fixed[1].onStage).toContain("c2");
+    expect(fixed[1].onStage.filter((id: string) => id === "h1" || id === "h2")).toHaveLength(1);
+    expect(fixed[1].scene).toContain("instead of Adrian");
+    expect(changes).toEqual([{ chapter: 1, part: 0, name: "Schnüffel" }, { chapter: 1, part: 1, name: "Bäcker Braun", replaced: "Adrian" }]);
+    // The director's own plan stays untouched.
+    expect(shots[0].onStage).toEqual(["h1", "h2"]);
+    // Nothing to do: no change.
+    expect(enforceCastPresence({ slots, shots: fixed, entities, chapters, maxPerImage: 3 }).changes).toEqual([]);
+  });
+
+  test("the family's memory names lessons and motifs; the pitch and the plan review read them", () => {
+    const plan = parsePlan(planJson(), 12)!;
+    const motifs = planMotifs(plan);
+    expect(motifs.lessons).toEqual(["Alexander: stolz und ein bisschen müde", "Adrian: leicht"]);
+    expect(motifs.motifs.join(" | ")).toContain("Einsatz: Das Konzertplakat am Dorfplatz");
+    const lines = motifLines(motifs, "Das Schmatzen");
+    expect(lines[0]).toBe("Lektion (Alexander) in „Das Schmatzen“: stolz und ein bisschen müde");
+    expect(lines[2]).toContain("Motiv in „Das Schmatzen“");
+    expect(motifLines(null)).toEqual([]);
+    const b = brief({ recentStories: ["„Alt“: ein Buch", ...lines] });
+    expect(buildPitchPrompt(b).user).toContain("Lektion (Alexander)");
+    expect(buildPlanReviewPrompt(b, plan).user).toContain("WHAT THIS FAMILY ALREADY HAS");
+  });
+
+  test("the character bible reaches the candidate, the catalogue line and the cast sheet; a model's bible is checked", () => {
+    const row = { id: "p1", name: "Die Nebelhexe", role: "obstacle", archetype: "trickster_witch", want: "einen würdigen Gegner", fear: "Langeweile", running_gag: "kündigt einen kleinen Trick an, der jedes Mal größer wird", gesture: "kichert hinter der Hand", comic_role: "schemer", can_lead: false, can_oppose: "t", villain_style: "comic", intro_line: "Ich bin die Nebelhexe.", signature_visual: "witch with wild curly hair", bible_version: 1 };
+    const candidate = toCastCandidate(row)!;
+    expect(candidate).toMatchObject({ want: "einen würdigen Gegner", canOppose: true, canLead: false, villainStyle: "comic", comicRole: "schemer" });
+    const line = catalogueLine("P1", { ...candidate, recentUses: 0, hasImage: true } as CatalogueEntry);
+    expect(line).toContain("wants: einen würdigen Gegner");
+    expect(line).toContain("can oppose (comic)");
+    expect(line).not.toContain("can lead");
+    const sheet = castSheetEn(candidate);
+    expect(sheet).toContain("its comic pattern");
+    expect(sheet).toContain("introduces itself like this");
+    expect(bibleFromRow(row)).toMatchObject({ runningGag: "kündigt einen kleinen Trick an, der jedes Mal größer wird", canOppose: true, bibleVersion: 1 });
+    expect(bibleFromRow({ id: "x", name: "y" })).toEqual({});
+    expect(parseBible({ want: "w", fear: "f", runningGag: "g", gesture: "ge", introLine: "i", signatureVisual: "v", comicRole: "nonsense", canOppose: "true", villainStyle: "weird" })).toMatchObject({ comicRole: "dreamer", canOppose: true, villainStyle: "comic", secret: "" });
+    expect(parseBible({ want: "w" })).toBeNull();
+    expect(buildBiblePrompt(row).user).toContain("FIGURE: Die Nebelhexe");
   });
 });

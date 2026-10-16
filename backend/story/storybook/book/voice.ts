@@ -41,7 +41,9 @@ export function narratorVoiceRules(band: AgeBand, language: string): string[] {
   return [
     "NARRATOR VOICE (what makes this a book and not a script):",
     `- A narrator tells this — warm, a little dry, fond of the heroes, seeing a bit more than they do. Now and then the narrator says so in half a sentence: a dry aside, an understatement, a "what nobody knew yet", a small exaggeration taken back at once. ${young ? "Once per chapter" : "Once or twice per chapter"} the narrator may turn to the listening child directly — never to explain, never to teach.`,
-    `- Inner life: we hear what the heroes think and feel. A thought in their own words, a wish, a worry, a plan forming, a feeling named the way a child of that age names it (a hot face, a stomach that drops, a lump in the throat, "most of all he wanted to …"). At least ${innerMoments} such moments per chapter, each short, then back to the action. Behaviour and dialogue carry the rest — but not every feeling has to be acted out.`,
+    // 2026-10-16 ("Die Türlaunische"): the examples given here ("a hot face, a stomach that drops") came back seven times in one
+    // book, with the same nudge of the elbow three times. The rule now asks for variety and names no image.
+    `- Inner life: we hear what the heroes think and feel. A thought in their own words, a wish, a worry, a plan forming, a feeling named the way a child of that age names it — in the body, in a comparison from the story's own world, or in a plain word. At least ${innerMoments} such moments per chapter, each short, then back to the action. Every feeling gets its own picture: no body image (what the face, the stomach, the throat does) and no gesture between the heroes (a nudge, a lean, a squeeze of the hand) is used more than once in the whole book. Behaviour and dialogue carry the rest — but not every feeling has to be acted out.`,
     `- Rhythm: sentences of every length — ${rhythm} A chapter is roughly half narration (what happens, what it looks and sounds like, what someone thinks) and half dialogue. Never more than four lines of dialogue in a row without a narrating sentence between them; never five sentences of under six words in a row. Paragraphs of two to six sentences; one-sentence paragraphs only for a bang or a punchline.`,
     "- Scene detail: every scene has two or three exact, sensory details a child could draw or hear — the sound a thing makes, how it smells, what it looks like up close — told in passing, inside the action. Details belong to the story's own world (its genre, place and time), never to another.",
     `- Read-aloud test: every joke, misunderstanding, invented word or wordplay must work when a parent reads it aloud at speed in ${language} — pronounceable, understandable by ear, repeatable at the dinner table. Nothing that only works on paper: no letter puzzles, no words spelled or read backwards, no reversed sentences. Explain nothing twice.`,
@@ -184,3 +186,158 @@ export function voiceRewriteNeeded(issues: Array<{ code: string }>, criticVoice:
 
 /** The critic's voice score at or under which a chapter with any measured voice issue is rewritten. */
 export const VOICE_REWRITE_MAX_SCORE = 5;
+
+/**
+ * The critic's voice score from which a measured issue is disputed (2026-10-16, "Die Türlaunische": four chapters were
+ * rewritten as script-like for 6.5 ct while the critic had rated their voice 8-9; the rewrites changed the prose
+ * profile hardly at all). Staccato alone against such a score is no longer a rewrite; two measured signs still are.
+ */
+export const VOICE_DISPUTE_MIN_SCORE = 8;
+
+/** True when the critic's voice score contradicts the measured issues strongly enough to skip the rewrite. */
+export function voiceRewriteDisputed(issues: Array<{ code: string }>, criticVoice: number | null | undefined): boolean {
+  if (typeof criticVoice !== "number" || criticVoice < VOICE_DISPUTE_MIN_SCORE) return false;
+  const codes = new Set(issues.map((issue) => issue.code));
+  // One measured sign against a confident second reader: no rewrite. Two signs together still win.
+  return codes.size <= 1;
+}
+
+// ---------------------------------------------------------------------------
+// Tics, overused words and scenes without the heroes (2026-10-16, "Die Türlaunische")
+// ---------------------------------------------------------------------------
+
+/**
+ * Body images and gestures a writer reaches for again and again: a feeling in the stomach seven times, a hot face
+ * twice, "pressed his lips together, but the laugh came out anyway" twice almost word for word, a nudge with the
+ * elbow three times — in one book. The first is a feeling, the third is a tic. German lists; other languages measure nothing.
+ */
+const TIC_PATTERNS_DE: Array<{ key: string; label: string; pattern: RegExp }> = [
+  { key: "bauch", label: "ein Gefühl im Bauch", pattern: /\bim bauch\b|\bbauch (wurde|war|zog|kribbelte|machte|eng)\b|\b(knoten|ziehen|kribbeln|flattern) (im|in seinem|in ihrem) bauch\b|\bbauchgefühl\b/giu },
+  { key: "gesicht", label: "ein heißes oder rotes Gesicht", pattern: /\b(heiß|heiss|warm|rot) (im|ins) gesicht\b|\bgesicht (wurde|war) (heiß|heiss|rot|warm)\b|\bheißes gesicht\b|\bwurde (ihm|ihr) heiß\b/giu },
+  { key: "lippen", label: "zusammengepresste Lippen", pattern: /\bpresste (die|seine|ihre) lippen (zusammen|aufeinander)\b|\bbiss sich auf die lippe\b/giu },
+  { key: "ellbogen", label: "ein Stupsen mit dem Ellbogen", pattern: /\bell(en)?bogen\b/giu },
+  { key: "kloss", label: "ein Kloß im Hals", pattern: /\bklo(ß|ss) im hals\b/giu },
+  { key: "herz", label: "ein klopfendes oder hüpfendes Herz", pattern: /\bherz (klopfte|hüpfte|pochte|machte einen (sprung|satz)|schlug (schneller|bis zum hals|wie wild))\b|\bherzklopfen\b/giu },
+  { key: "schulter", label: "eine Schulter zum Anlehnen", pattern: /\b(lehnte|legte) (sich |den kopf |die schulter |kurz )?(an|gegen) (seine|ihre|die) schulter\b|\bschulter an schulter\b/giu },
+  { key: "atem", label: "ein angehaltener oder ausgestoßener Atem", pattern: /\bhielt (den|die) (atem|luft) an\b|\batmete (hörbar |tief |laut |erleichtert )?(aus|ein)\b/giu },
+  { key: "hand", label: "eine Hand, die gedrückt oder gegriffen wird", pattern: /\b(griff|nahm) (nach )?(seine|ihre|die) hand\b|\bdrückte (seine|ihre|die) hand\b|\bhand in hand\b/giu },
+];
+
+function ticCountsDe(text: string): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const tic of TIC_PATTERNS_DE) {
+    const n = (String(text || "").match(tic.pattern) || []).length;
+    if (n) counts.set(tic.key, n);
+  }
+  return counts;
+}
+
+export interface RepeatedTic {
+  key: string;
+  label: string;
+  /** Occurrences in this chapter. */
+  here: number;
+  /** Occurrences in the whole book up to and including this chapter. */
+  total: number;
+}
+
+/**
+ * Tics of this chapter that the book already leans on: a body image or gesture that stands at least three times in
+ * the book so far (this chapter included), or twice in this chapter alone. Reported once per image per chapter.
+ */
+export function repeatedTics(content: string, earlier: string[], options: { german?: boolean } = {}): RepeatedTic[] {
+  if (options.german === false) return [];
+  const here = ticCountsDe(content);
+  if (!here.size) return [];
+  const before = ticCountsDe(earlier.join("\n"));
+  const out: RepeatedTic[] = [];
+  for (const tic of TIC_PATTERNS_DE) {
+    const now = here.get(tic.key) || 0;
+    if (!now) continue;
+    const total = now + (before.get(tic.key) || 0);
+    if (total >= 3 || now >= 2) out.push({ key: tic.key, label: tic.label, here: now, total });
+  }
+  return out;
+}
+
+// German function words a noun heuristic must not count (capitalised at a sentence start they look like nouns).
+const CAPITALISED_STOPWORDS_DE = new Set(["dann", "aber", "doch", "jetzt", "nein", "also", "wenn", "weil", "oder", "denn", "noch", "nicht", "schon", "auch", "nur", "sogar", "erst", "dort", "hier", "dahinter", "davor", "dabei", "damit", "danach", "zuerst", "diesmal", "manchmal", "irgendwo", "nichts", "alles", "etwas", "jemand", "niemand", "endlich", "vielleicht", "bestimmt", "sofort", "plötzlich", "langsam", "leise", "immer", "wieder", "gleich", "heute", "morgen", "gestern", "unten", "oben", "draußen", "drinnen", "hinten", "vorn", "vorne", "links", "rechts", "einmal", "zweimal", "dreimal", "kein", "keine", "keiner", "einen", "einem", "einer", "eines", "seine", "ihre", "sein", "ihr", "dieser", "diese", "dieses", "jeder", "jede", "jedes", "beide", "mein", "dein", "unser", "euer", "welche", "welcher", "warum", "wohin", "woher", "wann", "wer", "was", "wie", "wo", "ganz", "sehr", "fast", "kaum", "gern", "gerne", "lieber", "mehr", "weniger", "eben", "halt", "bitte", "danke", "genau", "richtig", "falsch", "natürlich", "trotzdem", "außerdem", "deshalb", "darum", "sonst", "statt", "während", "bevor", "nachdem", "sobald", "solange", "obwohl", "seit", "bis", "über", "unter", "hinter", "neben", "zwischen", "gegen", "durch", "ohne", "für", "mit", "nach", "aus", "bei", "von", "zu", "um", "am", "im", "ins", "ans", "beim", "vom", "zum", "zur", "der", "die", "das", "den", "dem", "des", "ein", "eine", "und", "ja", "nun", "na", "ach", "oh", "hm", "stimmt", "schnell", "still", "weit", "nah", "hoch", "tief", "kurz", "lang", "neu", "alt", "gut", "böse", "groß", "klein", "warm", "kalt", "hell", "dunkel", "laut", "leer", "voll", "da", "so", "es", "er", "sie", "wir", "ihm", "ihn", "uns", "euch", "ihnen", "sich", "man", "wird", "war", "waren", "wurde", "wurden", "hatte", "hatten", "hat", "ist", "sind", "kam", "kamen", "ging", "gingen", "sagte", "sagten", "fragte", "rief", "riefen", "machte", "stand", "standen", "blieb", "blieben", "lag", "lagen", "saß", "saßen", "sah", "sahen", "hörte", "hörten", "nahm", "gab", "lief", "liefen", "kling", "klang", "tack", "ting", "plopp"]);
+
+export interface OverusedWord {
+  word: string;
+  count: number;
+}
+
+/**
+ * Nouns a chapter leans on too hard ("Die Türlaunische": one handle 47 times, one silver wave 46 times in 7,700 words).
+ * German only: nouns are capitalised, and a capitalised word inside a sentence is a noun often enough. Names and the
+ * sound words of the book's own refrains are skipped. Threshold: about one mention per 90 words, at least seven.
+ */
+export function overusedWords(content: string, names: string[], options: { german?: boolean; perWords?: number; min?: number } = {}): OverusedWord[] {
+  if (options.german === false) return [];
+  const text = String(content || "");
+  const total = tokens(text).length;
+  if (total < 300) return [];
+  const nameTokens = new Set(names.flatMap((name) => tokens(name)).map((token) => token.toLocaleLowerCase("de-DE")));
+  const counts = new Map<string, number>();
+  const pattern = /(^|[^.!?…“"»\n]\s|[,;:–—(]\s*)([A-ZÄÖÜ][\p{Ll}]{3,})/gmu;
+  for (const match of text.matchAll(pattern)) {
+    const word = match[2];
+    const key = word.toLocaleLowerCase("de-DE");
+    if (nameTokens.has(key) || CAPITALISED_STOPWORDS_DE.has(key)) continue;
+    counts.set(word, (counts.get(word) || 0) + 1);
+  }
+  const limit = Math.max(options.min ?? 7, Math.round(total / (options.perWords ?? 90)));
+  return [...counts.entries()]
+    .filter(([, count]) => count >= limit)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([word, count]) => ({ word, count }));
+}
+
+const INTERLUDE_OPENER_DE = /^[„"]?(unterdessen|währenddessen|derweil|inzwischen|indessen|in der zwischenzeit|zur (selben|gleichen) (zeit|stunde)|um (dieselbe|die gleiche) zeit|zu (dieser|derselben) (zeit|stunde)|weit (weg|entfernt|draußen)|ganz woanders|am anderen ende|nicht weit (davon|entfernt)|zur gleichen minute)\b/iu;
+
+export interface InterludeProfile {
+  /** Share of the chapter's words in scenes without the heroes. */
+  share: number;
+  /** Number of such passages. */
+  passages: number;
+  /** The chapter opens without the heroes for at least three paragraphs (a cold open). */
+  coldOpen: boolean;
+}
+
+/**
+ * Scenes without the heroes, measured: a paragraph that opens with a time cue ("Unterdessen …") starts one, the
+ * next paragraph that names a hero ends it; an opening run of three or more paragraphs without a hero is a cold open.
+ * Approximate on purpose — a paragraph about the heroes that uses only pronouns counts until a name falls.
+ */
+export function interludeShare(content: string, heroNames: string[], mentionsHero: (paragraph: string, name: string) => boolean = (paragraph, name) => paragraph.toLocaleLowerCase("de-DE").includes(name.toLocaleLowerCase("de-DE"))): InterludeProfile {
+  const paragraphs = String(content || "").split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
+  const total = tokens(content).length;
+  if (!paragraphs.length || !total) return { share: 0, passages: 0, coldOpen: false };
+  const namesHero = (paragraph: string) => heroNames.some((name) => mentionsHero(paragraph, name));
+  let words = 0;
+  let passages = 0;
+  let inside = false;
+  let leading = 0;
+  while (leading < paragraphs.length && !namesHero(paragraphs[leading])) leading += 1;
+  const coldOpen = leading >= 3 && leading < paragraphs.length;
+  for (const [index, paragraph] of paragraphs.entries()) {
+    if (coldOpen && index < leading) {
+      words += tokens(paragraph).length;
+      if (index === 0) passages += 1;
+      continue;
+    }
+    if (INTERLUDE_OPENER_DE.test(paragraph)) {
+      inside = true;
+      passages += 1;
+    } else if (inside && namesHero(paragraph)) {
+      inside = false;
+    }
+    if (inside) words += tokens(paragraph).length;
+  }
+  return { share: Math.round((Math.min(words, total) / total) * 100) / 100, passages, coldOpen };
+}
+
+/** Codes that the log keeps but no patch is asked to fix (a patch keeps 85 % of the words; it cannot shorten a scene). */
+export const LOG_ONLY_CODES = new Set<string>(["interlude_long"]);

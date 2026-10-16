@@ -26,15 +26,16 @@ export async function loadCastCandidates(input: {
   return rows.length ? shortlistCastCandidates({ rows, genre: input.genre, setting: input.setting, band: input.band, excludeNames: input.excludeNames, seed: input.seed }) : [];
 }
 
-/** Every active pool character with the fields casting needs. Empty when the pool is unavailable. */
+/**
+ * Every active pool character with the fields casting needs. Empty when the pool is unavailable.
+ * All columns: the bible columns of migration 44 may be missing on a deployment that skipped the file
+ * (CLAUDE.md, "Running Database Migrations Manually"), and a named column that does not exist would
+ * cost the whole pool; cast-selection.ts tolerates absent fields.
+ */
 export async function loadPoolRows(): Promise<Array<Record<string, any>>> {
   try {
     return await storyDB.queryAll<Record<string, any>>`
-      SELECT id, name, image_url, role, archetype, emotional_nature, visual_profile,
-             age_category, species_category, personality_keywords, physical_description,
-             backstory, dominant_personality, secondary_traits, catchphrase, catchphrase_context,
-             speech_style, emotional_triggers, quirk, canon_settings, recent_usage_count,
-             total_usage_count, last_used_at, is_active
+      SELECT *
       FROM character_pool
       WHERE is_active = TRUE
     `;
