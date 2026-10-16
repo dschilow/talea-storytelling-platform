@@ -1572,6 +1572,7 @@ import {
     resolveGeneratedAudioByCacheKeys as api_story_audio_library_resolveGeneratedAudioByCacheKeys,
     saveGeneratedAudio as api_story_audio_library_saveGeneratedAudio
 } from "~backend/story/audio-library";
+import { enrichCharacterBibles as api_story_character_bible_enrichCharacterBibles } from "~backend/story/character-bible";
 import {
     generateCharacterLifeStory as api_story_character_life_story_api_generateCharacterLifeStory,
     getCharacterLifeStory as api_story_character_life_story_api_getCharacterLifeStory,
@@ -1670,6 +1671,7 @@ export namespace story {
             this.deleteGeneratedAudio = this.deleteGeneratedAudio.bind(this)
             this.deleteStory = this.deleteStory.bind(this)
             this.dumpStoryLogs = this.dumpStoryLogs.bind(this)
+            this.enrichCharacterBibles = this.enrichCharacterBibles.bind(this)
             this.exportArtifacts = this.exportArtifacts.bind(this)
             this.exportCharacters = this.exportCharacters.bind(this)
             this.generate = this.generate.bind(this)
@@ -1915,6 +1917,15 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/debug-logs/${encodeURIComponent(params.storyId)}`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_log_dump_dumpStoryLogs>
+        }
+
+        /**
+         * Fills the character bible of every active figure that has none (admin only).
+         */
+        public async enrichCharacterBibles(params: RequestType<typeof api_story_character_bible_enrichCharacterBibles>): Promise<ResponseType<typeof api_story_character_bible_enrichCharacterBibles>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/character-pool/enrich-bibles`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_bible_enrichCharacterBibles>
         }
 
         /**

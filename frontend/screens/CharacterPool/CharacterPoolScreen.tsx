@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Download, Edit3, RefreshCcw, Save, Sparkles, Trash2, Upload, X, Zap } from 'lucide-react';
+import { BookOpen, Download, Edit3, RefreshCcw, Save, Sparkles, Trash2, Upload, X, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
 import Card from '../../components/common/Card';
@@ -46,7 +46,25 @@ interface CharacterTemplate {
   emotionalTriggers?: string[];
   quirk?: string;
   backstory?: string;
+  // Character bible (Migration 44): what lets a figure drive a book
+  want?: string;
+  fear?: string;
+  secret?: string;
+  runningGag?: string;
+  gesture?: string;
+  comicRole?: string;
+  canLead?: boolean;
+  canOppose?: boolean;
+  villainStyle?: 'comic' | 'misunderstood' | 'real';
+  introLine?: string;
+  signatureVisual?: string;
+  bibleVersion?: number;
 }
+
+/** Figures per request: a request stays short (about 30 s), so a locked phone screen loses at most one batch. */
+const BIBLE_BATCH_SIZE = 6;
+
+const hasBible = (character: CharacterTemplate): boolean => (character.bibleVersion ?? 0) >= 1;
 
 type CharacterIdentifier = string | CharacterTemplate | { id?: string } | { value?: string } | null | undefined;
 
@@ -231,7 +249,12 @@ const CharacterPoolScreen: React.FC = () => {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [batchRegenerating, setBatchRegenerating] = useState(false);
+  const [enrichingBibles, setEnrichingBibles] = useState(false);
+  const [bibleProgress, setBibleProgress] = useState<{ done: number; total: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Active figures without a bible: what the button fills. Inactive ones are skipped by the backend as well.
+  const missingBibles = useMemo(() => characters.filter((character) => character.isActive && !hasBible(character)), [characters]);
 
   useEffect(() => {
     void loadCharacters();
@@ -517,6 +540,58 @@ const CharacterPoolScreen: React.FC = () => {
     }
   };
 
+  /**
+   * Writes the character bible of every active figure that has none, a few figures per request.
+   * The list of ids comes from the screen, so a figure that fails does not block the ones behind it,
+   * and tapping again after an interruption continues with what is still missing (the backend is idempotent).
+   */
+  const handleEnrichBibles = async () => {
+    const todo = missingBibles;
+    if (todo.length === 0) {
+      toast.info('Alle aktiven Charaktere haben schon eine Bibel.');
+      return;
+    }
+    const cents = (todo.length * 0.1).toFixed(1).replace('.', ',');
+    const confirmEnrich = window.confirm(
+      `${todo.length} Charaktere bekommen eine Bibel (Wollen, Angst, Geheimnis, Running Gag, Geste).\n\n` +
+      `Ein KI-Aufruf je Figur, zusammen etwa ${cents} ct. Das dauert ein paar Minuten, bitte die Seite offen lassen. ` +
+      `Wenn es abbricht, einfach noch einmal tippen: es geht dort weiter, wo es aufgehört hat.`
+    );
+    if (!confirmEnrich) {
+      return;
+    }
+
+    let enriched = 0;
+    let costUSD = 0;
+    const failedIds: string[] = [];
+    try {
+      setEnrichingBibles(true);
+      setBibleProgress({ done: 0, total: todo.length });
+      for (let start = 0; start < todo.length; start += BIBLE_BATCH_SIZE) {
+        const batch = todo.slice(start, start + BIBLE_BATCH_SIZE);
+        const response = await backend.story.enrichCharacterBibles({ ids: batch.map((character) => character.id), limit: BIBLE_BATCH_SIZE });
+        enriched += response.enriched.length;
+        costUSD += response.costUSD;
+        failedIds.push(...response.failed.map((entry) => entry.id));
+        setBibleProgress({ done: Math.min(start + batch.length, todo.length), total: todo.length });
+      }
+      const spent = `${(costUSD * 100).toFixed(1).replace('.', ',')} ct`;
+      if (failedIds.length === 0) {
+        toast.success(`${enriched} Bibeln erzeugt (${spent}).`);
+      } else {
+        const names = failedIds.map((id) => characters.find((character) => character.id === id)?.name ?? id).slice(0, 5).join(', ');
+        toast.warning(`${enriched} Bibeln erzeugt (${spent}), ${failedIds.length} fehlgeschlagen: ${names}. Noch einmal tippen versucht es erneut.`);
+      }
+    } catch (err) {
+      console.error('Failed to enrich character bibles', err);
+      toast.error(`Bibeln: Abbruch nach ${enriched} Figuren. Noch einmal tippen setzt dort fort.`);
+    } finally {
+      setEnrichingBibles(false);
+      setBibleProgress(null);
+      await loadCharacters();
+    }
+  };
+
   return (
     <div style={containerStyle}>
       <input
@@ -539,7 +614,22 @@ const CharacterPoolScreen: React.FC = () => {
             onPress={() => void handleBatchRegenerateImages()}
             icon={<Zap size={16} />}
             variant="primary"
-            disabled={batchRegenerating || loading || importing || exporting}
+            disabled={batchRegenerating || loading || importing || exporting || enrichingBibles}
+          />
+          <Button
+            title={
+              enrichingBibles
+                ? `Bibeln ${bibleProgress?.done ?? 0}/${bibleProgress?.total ?? missingBibles.length}...`
+                : loading
+                  ? 'Bibeln erzeugen'
+                  : missingBibles.length > 0
+                    ? `Bibeln erzeugen (${missingBibles.length})`
+                    : 'Bibeln vollstaendig'
+            }
+            onPress={() => void handleEnrichBibles()}
+            icon={<BookOpen size={16} />}
+            variant="secondary"
+            disabled={enrichingBibles || loading || missingBibles.length === 0 || batchRegenerating || importing || exporting}
           />
           <Button
             title={exporting ? 'Exportiert...' : 'Exportieren'}
@@ -604,6 +694,16 @@ const CharacterPoolScreen: React.FC = () => {
                 <p style={{ color: colors.text.secondary, fontSize: 14 }}>
                   {character.role} - {character.archetype}
                 </p>
+                <p style={{ marginTop: spacing.xs, fontSize: 12, color: hasBible(character) ? colors.semantic.success : colors.text.secondary }}>
+                  {hasBible(character)
+                    ? `Bibel vorhanden${character.canLead ? ' · kann führen' : ''}${character.canOppose ? ' · kann Gegner sein' : ''}`
+                    : 'Bibel fehlt'}
+                </p>
+                {character.want && (
+                  <p style={{ marginTop: spacing.xs, fontSize: 12, color: colors.text.secondary }}>
+                    Will: {character.want}
+                  </p>
+                )}
               </div>
               <div style={{ marginTop: spacing.md, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 12, color: character.isActive ? colors.semantic.success : colors.text.secondary }}>
