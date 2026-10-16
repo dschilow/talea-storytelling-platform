@@ -288,18 +288,39 @@ export function castIdentityLine(member: Pick<CastCandidate, "visualProfile" | "
   return `${/^[aeiou]/.test(noun) ? "an" : "a"} ${noun}, ${line}`.slice(0, 280);
 }
 
-// Compounds count (Schulkalender, Namensschild, Schatzkarte); a clock or an hourglass does not.
-const TEXT_THINGS_DE = /[A-Za-zÄÖÜäöüß]*(?:[Kk]alender|[Ss]tundenplan|[Ww]ochenplan|[Ss]child(?:er)?|[Pp]lakat|[Bb]rief(?:e)?|[Zz]ettel|[Nn]otiz|[Bb]uch|[Bb][üu]e?cher|[Kk]arte|[Zz]eitung|[Tt]afel|[Ee]tikett|[Ff]ahrplan|[Ll]iste|[Rr]ezept|[Uu]rkunde|[Tt]icket|[Hh]eft|[Tt]agebuch|[Ww]egweiser|[Ss]chriftrolle)\b/g;
+// Compounds count (Schulkalender, Namensschild, Schatzkarte, Kalenderblättermantel); a paper kite does not.
+const TEXT_THINGS_DE = /[A-Za-zÄÖÜäöüß]*(?:[Kk]alender[a-zäöüß]*|[Ss]tundenplan|[Ww]ochenplan|[Ss]child(?:er)?|[Pp]lakat|[Bb]rief(?:e)?|[Zz]ettel|[Nn]otiz|[Bb]uch|[Bb][üu]e?cher|[Kk]arte|[Zz]eitung|[Tt]afel|[Ee]tikett|[Ff]ahrplan|[Ll]iste|[Rr]ezept|[Uu]rkunde|[Tt]icket|[Hh]eft|[Tt]agebuch|[Ww]egweiser|[Ss]chriftrolle|[Pp]apierboot(?:e)?|[Pp]apierschiff(?:e|chen)?|[Pp]apierflieger|[Pp]apierhut)\b/g;
+// "Die Flotte der Minuten": the finale at the clock tower's dial failed four times on "text visible" — numerals are writing too.
+// A bare "Uhr" is a time of day ("um sechs Uhr"), not a thing in the picture.
+const CLOCK_FACES_DE = /[A-Za-zÄÖÜäöüß]*(?:[Zz]ifferbl[aä]tt[a-zäöüß]*|[Uu]hrturm|[Tt]urmuhr|[Kk][üu]e?chenuhr|[Ww]anduhr|[Tt]aschenuhr|[Ss]tanduhr|[Kk]uckucksuhr|[Bb]ahnhofsuhr|[Aa]rmbanduhr|[Ww]ecker)\b/g;
 
 /**
- * A note for the director when the plan's things carry writing in the text (a calendar, a sign, a letter): in the
- * pictures they show only coloured fields and painted symbols. Empty when nothing in the plan carries writing.
+ * A note for the director when the story's things carry writing (a calendar, a sign, a letter, a clock face): in the
+ * pictures they show only coloured fields, strokes and painted symbols. Reads the plan and, when given, the text of
+ * the batch ("Die Flotte der Minuten": the coat of calendar pages and the clock tower stood only in the chapters, and
+ * "text visible" sank most of the pictures with the villain in them). Empty when nothing carries writing.
  */
-export function wordlessThingsNote(plan: BookPlan): string {
-  const sources = [plan.bible.stakeVisible || "", plan.bible.truth || "", ...plan.setups.map((setup) => setup.what), ...plan.chapters.flatMap((chapter) => chapter.pictures)].join(" ");
-  const found = [...new Set((sources.match(TEXT_THINGS_DE) || []).map((word) => word.trim()))].slice(0, 5);
-  if (!found.length) return "";
-  return `Things of this story that carry writing in the text (${found.join(", ")}) are drawn WITHOUT any letters or digits: a calendar is a grid of coloured squares with one bright square, a sign or page shows a single painted symbol, a letter is a folded sheet with a wax seal, a map has only painted hills and a dotted path. Define each such thing as a storyElement with exactly that wordless look and use it on every page it appears.`;
+export function wordlessThingsNote(plan: BookPlan, texts: string[] = []): string {
+  const sources = [plan.bible.stakeVisible || "", plan.bible.truth || "", ...plan.setups.map((setup) => setup.what), ...plan.chapters.flatMap((chapter) => chapter.pictures), ...texts].join(" ");
+  const pick = (pattern: RegExp) => [...new Set((sources.match(pattern) || []).map((word) => word.trim()))];
+  const found = pick(TEXT_THINGS_DE).slice(0, 5);
+  const clocks = pick(CLOCK_FACES_DE).slice(0, 3);
+  if (!found.length && !clocks.length) return "";
+  const all = [...found, ...clocks];
+  return `Things of this story that carry writing or numbers in the text (${all.join(", ")}) are drawn WITHOUT any letters or digits: a calendar is a grid of coloured squares with one bright square, a sign or page shows a single painted symbol, a letter is a folded sheet with a wax seal, a map has only painted hills and a dotted path, a paper boat is folded from plain unprinted paper${clocks.length ? ", a clock face shows only plain strokes or dots instead of numerals" : ""}. Define each such thing as a storyElement with exactly that wordless look and use it on every page it appears.`;
+}
+
+// A figure's look that is made of writing material ("a coat of old calendar pages") puts letters into every picture of it.
+const WRITING_LOOK_EN = /\b(calendar|newspaper|letters?|pages?|book|books|map|sign|signs|ticket|label|scroll|notes?|numbers?|digits?|numerals?|clock face|dial|writing|script|alphabet)\b/i;
+const WORDLESS_LOOK = "every page, paper and face on it is blank: no letters, no digits, no numerals";
+
+/** The figures whose look is made of writing material get the no-writing clause in their identity line (prompt and checker read it). */
+export function wordlessEntities(entities: VisualEntity[]): VisualEntity[] {
+  return entities.map((entity) => {
+    const look = String(entity.appearance || "");
+    if (!WRITING_LOOK_EN.test(look) || look.includes(WORDLESS_LOOK)) return entity;
+    return { ...entity, appearance: `${look.replace(/[\s.;,]+$/, "")}; ${WORDLESS_LOOK}` };
+  });
 }
 
 /**
@@ -319,10 +340,24 @@ export interface BookImage {
   vignette?: boolean;
 }
 
+/**
+ * Why a planned picture is not in the book. "Die Flotte der Minuten" lost the cover and 8 of 16 pictures and the log
+ * said nothing: pictures with one attempt and an unreadable check report never showed up among the redraws.
+ */
+export function missingReason(outcome: ImageOutcome | undefined): { status: string; reason: string } {
+  if (!outcome) return { status: "missing", reason: "not drawn" };
+  const last = [...(outcome.history || [])].reverse().find((entry) => entry.notes.length);
+  const reason = outcome.status === "unverified"
+    ? (outcome.errors || []).slice(-2).join("; ") || "no readable check report"
+    : [...(last?.notes || []), ...(outcome.errors || []).slice(-1)].slice(0, 4).join("; ");
+  return { status: outcome.status, reason: reason || outcome.status };
+}
+
 export interface BatchImagesResult {
   coverUrl?: string;
   images: BookImage[];
-  missing: Array<{ chapter: number; part: number }>;
+  /** Pictures that are not in the book, with how they ended and why (chapter 0 = the cover). */
+  missing: Array<{ chapter: number; part: number; status?: string; reason?: string }>;
   storyElements: StoryElement[];
   imageCostUSD: number;
   imagesGenerated: number;
@@ -368,7 +403,7 @@ export async function directBatch(input: {
     title: input.plan.title,
     pages,
     plan: slotPlan(input.brief, input.plan, slots),
-    entities: input.entities,
+    entities: wordlessEntities(input.entities),
     fixedElements: input.fixedElements,
     skipCover: !input.withCover,
     stage: `book-illustration-${range}`,
@@ -388,7 +423,8 @@ export async function directBatch(input: {
         ? "The cover must differ from every page picture: show the book's central wonder big in the foreground with the heroes reacting to it — never the opening scene of chapter 1."
         : "The cover already exists: answer cover briefly, it is not drawn.",
       // 2026-10-16 ("Die rollende Woche"): the stake was a school calendar — the cover and three pictures failed on writing.
-      wordlessThingsNote(input.plan),
+      // "Die Flotte der Minuten": the calendar-page coat and the clock tower stood only in the chapter text.
+      wordlessThingsNote(input.plan, input.chapters.map((chapter) => chapter.content)),
     ].filter(Boolean).join(" "),
   }, input.models.support);
   if (director.call) input.ledger.recordCall(`book-illustration-${range}`, director.call, "support");
@@ -431,7 +467,7 @@ export async function illustrateBatch(input: {
     const director = { illustrations: directed.illustrations };
     const images = await generateStorybookImages({
       illustrations: director.illustrations,
-      entities: input.entities,
+      entities: wordlessEntities(input.entities),
       provider: input.provider,
       seed: `${input.seed}:${range}`,
       llm: input.llm,
@@ -454,11 +490,13 @@ export async function illustrateBatch(input: {
       if (outcome && outcome.attempts > 1) result.redraws!.push({ chapter: slot.chapter, part: slot.part, ...redrawEntry(outcome) });
       const url = publishableImageUrl(outcome);
       if (url && outcome) result.images.push({ chapter: slot.chapter, afterParagraph: directed.placed[index]?.afterParagraph ?? slot.afterParagraph, url, status: outcome.status, ...(outcome.vignette ? { vignette: true } : {}) });
-      else result.missing.push({ chapter: slot.chapter, part: slot.part });
+      else result.missing.push({ chapter: slot.chapter, part: slot.part, ...missingReason(outcome) });
     }
+    if (input.withCover && !result.coverUrl) result.missing.push({ chapter: 0, part: 0, ...missingReason(images.cover) });
     return result;
   } catch (err) {
-    console.warn(`[book] pictures for chapters ${input.chapters[0].order}-${input.chapters[input.chapters.length - 1].order} failed:`, (err as Error)?.message || err);
-    return empty;
+    const message = String((err as Error)?.message || err).slice(0, 160);
+    console.warn(`[book] pictures for chapters ${input.chapters[0].order}-${input.chapters[input.chapters.length - 1].order} failed:`, message);
+    return { ...empty, missing: empty.missing.map((entry) => ({ ...entry, status: "missing", reason: `batch failed: ${message}` })) };
   }
 }

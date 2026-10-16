@@ -320,12 +320,41 @@ export function acceptableChapterPatch(before: string, after: string): boolean {
   return original.filter((word) => kept.has(word)).length >= original.length * 0.8;
 }
 
+/**
+ * Sentences a patch ADDED that say again what the chapter already says. "Die Flotte der Minuten", chapter 1: the cold
+ * reader missed the goal, the patch added it once more next to the author's own lines („Alexander hielt die Stoffbahn
+ * hoch …" right after „Alexander hielt neben ihm eine Stoffbahn hoch …"). An added sentence goes when it shares at least
+ * four word stems and 60 % of the shorter sentence with an author's sentence that is still there; an author's sentence
+ * the patch reworded is gone from the text, so its new wording stays.
+ */
+export function dropEchoedSentences(before: string, after: string): string {
+  const sentencesOf = (text: string) => text.match(/[^.!?…]+(?:[.!?…]+[“”"»«]*|$)/g) || [];
+  const stems = (sentence: string) => new Set(words(sentence).filter((word) => word.length >= 4).map((word) => word.slice(0, 5)));
+  const original = sentencesOf(before).map((sentence) => sentence.trim()).filter(Boolean);
+  const originalSet = new Set(original);
+  const stillThere = original.filter((sentence) => after.includes(sentence)).map(stems);
+  const echoes = (sentence: string) => {
+    const mine = stems(sentence);
+    if (mine.size < 4) return false;
+    return stillThere.some((other) => {
+      let shared = 0;
+      for (const stem of mine) if (other.has(stem)) shared += 1;
+      return shared >= 4 && shared / Math.min(mine.size, other.size) >= 0.6;
+    });
+  };
+  return after
+    .split(/\n\s*\n/)
+    .map((paragraph) => sentencesOf(paragraph).filter((part) => originalSet.has(part.trim()) || !echoes(part.trim())).join("").trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 /** The patch returns only changed chapters; unknown numbers or a rewritten chapter are rejected. */
 export function mergeChapterPatch(raw: string, chapters: BookChapter[], german: boolean): BookChapter[] {
   const changed = parseChapters(raw, { german });
   if (!changed.length || changed.some((entry) => !chapters.some((chapter) => chapter.order === entry.order))) return chapters;
   return chapters.map((chapter) => {
     const next = changed.find((entry) => entry.order === chapter.order);
-    return next && acceptableChapterPatch(chapter.content, next.content) ? { ...chapter, content: next.content } : chapter;
+    return next && acceptableChapterPatch(chapter.content, next.content) ? { ...chapter, content: dropEchoedSentences(chapter.content, next.content) } : chapter;
   });
 }

@@ -1036,11 +1036,20 @@ describe("Der Erzählmotor (Die Türlaunische, 2026-10-16): wer das Buch antreib
 
   test("the family's memory names lessons and motifs; the pitch and the plan review read them", () => {
     const plan = parsePlan(planJson(), 12)!;
+    // "Die Flotte der Minuten": the memory must carry the arc (flaw → final choice), not the end feeling — Alexander
+    // learned to wait for the third time while the memory only said "erleichtert".
+    const alexander = plan.bible.characters.find((profile) => profile.name === "Alexander")!;
+    alexander.flaw = "rennt los, bevor er hinsieht";
+    alexander.finalChoice = "wartet auf das Zeichen seines Bruders";
     const motifs = planMotifs(plan);
-    expect(motifs.lessons).toEqual(["Alexander: stolz und ein bisschen müde", "Adrian: leicht"]);
+    expect(motifs.lessons).toEqual(["Alexander: rennt los, bevor er hinsieht → wartet auf das Zeichen seines Bruders", "Adrian: x → x"]);
     expect(motifs.motifs.join(" | ")).toContain("Einsatz: Das Konzertplakat am Dorfplatz");
     const lines = motifLines(motifs, "Das Schmatzen");
-    expect(lines[0]).toBe("Lektion (Alexander) in „Das Schmatzen“: stolz und ein bisschen müde");
+    expect(lines[0]).toBe("Lektion (Alexander) in „Das Schmatzen“: rennt los, bevor er hinsieht → wartet auf das Zeichen seines Bruders");
+    // Without hero profiles the end feeling stays the fallback.
+    expect(planMotifs({ ...plan, bible: { ...plan.bible, characters: [] } }).lessons).toEqual(["Alexander: stolz und ein bisschen müde", "Adrian: leicht"]);
+    // An older plan without heroDuties: the heroes are the profiles without an introduction.
+    expect(planMotifs({ ...plan, bible: { ...plan.bible, heroDuties: [] } }).lessons[0]).toBe("Alexander: rennt los, bevor er hinsieht → wartet auf das Zeichen seines Bruders");
     expect(lines[2]).toContain("Motiv in „Das Schmatzen“");
     expect(motifLines(null)).toEqual([]);
     const b = brief({ recentStories: ["„Alt“: ein Buch", ...lines] });
@@ -1261,5 +1270,97 @@ describe("Die rollende Woche (2026-10-16): der Motor wird erzwungen, die Besetzu
     expect(plan).toContain("\"look\":\"figures without a portrait only");
     expect(plan).toContain("Do not invent a further named figure");
     expect(plan).toContain("separated by semicolons (the editor counts them)");
+  });
+});
+
+import { dropEchoedSentences } from "./chapters";
+import { missingReason, wordlessEntities } from "./illustrations";
+import { parseQaReport, qaCountNames } from "../images";
+
+describe("Die Flotte der Minuten (2026-10-16): Bilder, die nicht verschwinden, Zeit, die zu Hause schläft, Fragen ohne Erklärzwang", () => {
+  const boats = { name: "paper boat", look: "tiny white folded paper boats", noun: "boat" };
+  const minute = { name: "golden minute", look: "a small golden folded square" };
+  const adrian = { id: "h2", name: "Adrian", kind: "character", role: "hero", isHuman: true, appearance: "blond boy, dark t-shirt" } as any;
+  const thief = { id: "c1", name: "Die Stundendiebin", kind: "character", role: "cast", isHuman: true, appearance: "a pale woman in a coat of old calendar pages" } as any;
+  const reply = (counts: Record<string, number>) => JSON.stringify({ characterCounts: counts, namedCharactersVisible: Object.keys(counts).length, anatomyDefects: [], identityMatch: 0.9, sceneMatch: 0.8 });
+
+  test("the checker counts exactly what it was asked: things in numbers are neither asked nor demanded", () => {
+    const scene = "Adrian follows the paper boats past the golden minute";
+    const names = qaCountNames([adrian], [boats, minute], scene);
+    expect(names).toEqual(["Adrian", "golden minute"]);
+    const prompt = buildQaPrompt([adrian], scene, false, [boats, minute]);
+    const template = JSON.parse(prompt.split("\n").find((line) => line.startsWith('{"characterCounts"'))!);
+    expect(Object.keys(template.characterCounts)).toEqual(names);
+    // Before: the boats were demanded although never asked — every such reply was "incomplete" and the picture dropped.
+    expect(parseQaReport(reply({ Adrian: 1, "golden minute": 1 }), names)).not.toBeNull();
+    expect(parseQaReport(reply({ Adrian: 1 }), ["Adrian", "paper boat"])).toBeNull();
+  });
+
+  test("a name the checker translated is found in its place", () => {
+    const parsed = parseQaReport(reply({ Adrian: 1, "Hour Thief": 2 }), ["Adrian", "Die Stundendiebin"]);
+    expect(parsed?.duplicates).toContain("Die Stundendiebin drawn 2 times");
+    // Two unknown keys for one unknown name: no guessing.
+    expect(parseQaReport(reply({ Adrian: 1, "Hour Thief": 1, Boat: 3 }), ["Adrian", "Die Stundendiebin"])).toBeNull();
+  });
+
+  test("a picture that is not in the book says why", () => {
+    expect(missingReason(undefined)).toEqual({ status: "missing", reason: "not drawn" });
+    expect(missingReason({ page: 1, prompt: "", attempts: 1, costUSD: 0, severity: 999, status: "unverified", errors: ["attempt 1: incomplete image QA report"] })).toEqual({ status: "unverified", reason: "attempt 1: incomplete image QA report" });
+    const failed = missingReason({ page: 1, prompt: "", attempts: 4, costUSD: 0, severity: 20, status: "failed", history: [{ kind: "full", status: "failed", severity: 20, notes: ["text visible"] }] });
+    expect(failed.status).toBe("failed");
+    expect(failed.reason).toContain("text visible");
+  });
+
+  test("writing in the chapter text and in a figure's look is drawn without letters or digits", () => {
+    const plan = parsePlan({ ...planJson(), bible: { ...planJson().bible, stakeVisible: "Das gelbe Festzelt" }, setups: [], chapters: planJson().chapters.map((chapter: any) => ({ ...chapter, pictures: ["ein Zelt"] })) }, 12)!;
+    expect(wordlessThingsNote(plan)).toBe("");
+    const note = wordlessThingsNote(plan, ["Ihr Mantel aus alten Kalenderblättern raschelte.", "Durch die Zahlen des Zifferblatts am Uhrturm schimmerte der Platz.", "Sie setzte ein Papierboot in das Rinnsal."]);
+    expect(note).toContain("Kalenderblättern");
+    expect(note).toContain("Zifferblatts");
+    expect(note).toContain("Papierboot");
+    expect(note).toContain("instead of numerals");
+    // A time of day is no clock face, a paper kite no page.
+    expect(wordlessThingsNote(plan, ["Um sechs Uhr steigt ein roter Drachen aus Papier."])).toBe("");
+    const [drawnThief, drawnAdrian] = wordlessEntities([thief, adrian]);
+    expect(drawnThief.appearance).toContain("no letters, no digits");
+    expect(drawnAdrian.appearance).toBe("blond boy, dark t-shirt");
+    expect(wordlessEntities([drawnThief])[0].appearance).toBe(drawnThief.appearance);
+  });
+
+  test("a patch never says again what the chapter already says; a reworded sentence stays", () => {
+    const before = [
+      "Wenig später hüpfte Adrian zwischen den Zeltstangen über drei flache Steine. Alexander hielt neben ihm eine Stoffbahn hoch, damit sie nicht über den Boden schleifte.",
+      "„Bis zum Festtag muss alles fertig sein“, sagte Alexander. „Dann öffnen wir beim Familienauftritt die Stoffbahnen, und du zeigst deinen Tanz.“",
+      "Über ihnen leuchteten gelbe Streifen im Morgenlicht.",
+    ].join("\n\n");
+    const patched = [
+      "Wenig später hüpfte Adrian zwischen den Zeltstangen über drei flache Steine. Alexander hielt neben ihm eine Stoffbahn hoch, damit sie nicht über den Boden schleifte. Gleich hinter dem Festplatz lag ihr Zuhause.",
+      "„Bis zum Festtag muss alles fertig sein“, sagte Alexander. „Dann öffnen wir beim Familienauftritt die Stoffbahnen, und du zeigst deinen Tanz.“",
+      "Alexander hielt die Stoffbahn hoch. Adrian übte dazwischen seinen Tanz: drei klare Schritte, dann eine Drehung. Beim Familienauftritt am Festtag wollte Alexander die Stoffbahnen öffnen, und Adrian seinen Tanz zeigen.",
+      "Über ihnen leuchteten gelbe Streifen im Morgenlicht.",
+    ].join("\n\n");
+    const merged = dropEchoedSentences(before, patched);
+    expect(merged).toContain("Gleich hinter dem Festplatz lag ihr Zuhause.");
+    expect(merged).toContain("drei klare Schritte, dann eine Drehung");
+    expect(merged).not.toContain("Alexander hielt die Stoffbahn hoch.");
+    expect(merged).not.toContain("Beim Familienauftritt am Festtag wollte");
+    expect(merged.split("\n\n")).toHaveLength(4);
+    // A grammar fix rewords the author's sentence: the old one is gone, so the new one is no echo.
+    const fix = dropEchoedSentences("Er bemerkte, als Alexander räusperte und die Notizen ansah.", "Er bemerkte, als Alexander sich räusperte und die Notizen ansah.");
+    expect(fix).toBe("Er bemerkte, als Alexander sich räusperte und die Notizen ansah.");
+  });
+
+  test("plan, writer and logbook: one day or nights at home, answers in the action, jokes need no answer, the finale explains itself", () => {
+    const idea = { title: "Die Flotte", premise: "Eine Diebin sammelt Minuten.", bigQuestion: "Bleibt das Zelt?", wonder: "Papierboote", roles: [] };
+    const young = buildPlanPrompt(brief({ band: "6-8" }), idea, [], []).user;
+    expect(young).toContain("never spend a night away from home");
+    expect(young).toContain("in one sentence why it worked");
+    const older = buildPlanPrompt(brief({ band: "9-12", config: { genre: "magic", ageGroup: "9-12", language: "de", length: "long" } as any }), idea, [], []).user;
+    expect(older).toContain("a night away from home only when the premise is a trip");
+    const writer = buildChapterSystemPrompt(brief({}));
+    expect(writer).toContain("never in a question-and-answer talk after the climax");
+    expect(writer).toContain("never explain a joke");
+    const logbook = buildLogbookPrompt(brief({}), [{ order: 1, title: "t", content: "x" }] as any, []).user;
+    expect(logbook).toContain("Never a joke, a running gag or a figure's habit");
   });
 });

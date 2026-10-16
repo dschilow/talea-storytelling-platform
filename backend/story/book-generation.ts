@@ -85,6 +85,8 @@ interface BookJobState {
   imageCalls?: number;
   /** Pictures that needed more than one attempt, with the checker's reasons. */
   imageRedraws?: NonNullable<BatchImagesResult["redraws"]>;
+  /** Planned pictures (and the cover, chapter 0) that are not in the book, with why ("Die Flotte der Minuten" lost 9 silently). */
+  imageMissing?: BatchImagesResult["missing"];
   published?: number;
   startedAt?: string;
   /** Batches whose text is published and whose pictures are still being painted, oldest first. */
@@ -425,6 +427,7 @@ async function writeStoryMetadata(storyId: string, input: BookJobInput, planned:
       curve: book.curve,
       openIssues: book.openIssues,
       imageRedraws: state.imageRedraws || [],
+      imageMissing: state.imageMissing || [],
       // Where every picture sits and what it shows (the audit of 2026-10-16 had to guess from the pictures: the prompts were never kept).
       pictures: (state.pictureNotes || []).map((note) => ({
         ...note,
@@ -659,6 +662,7 @@ async function illustratePending(input: BookJobInput, planned: PlannedBook, stat
   state.imageCostUSD = Number(((state.imageCostUSD || 0) + pictures.imageCostUSD).toFixed(6));
   state.imageCalls = (state.imageCalls || 0) + (pictures.imageCalls || pictures.imagesGenerated);
   if (pictures.redraws?.length) state.imageRedraws = [...(state.imageRedraws || []), ...pictures.redraws];
+  state.imageMissing = [...(state.imageMissing || []).filter((entry) => entry.chapter < from || entry.chapter > to || (entry.chapter === 0 && from !== 1)), ...pictures.missing];
   if (pictures.coverUrl) state.coverUrl = pictures.coverUrl;
 }
 
@@ -684,9 +688,11 @@ async function attachPictures(input: BookJobInput, planned: PlannedBook, state: 
   await writeStoryMetadata(storyId, input, planned, state, "writing");
   // Redraw reasons belong in the downloadable log too: "Die segelnden Wörter" drew 34 pictures for 17 places and the log said why in no line.
   const redraws = (state.imageRedraws || []).filter((entry) => (entry.chapter >= from && entry.chapter <= to) || (from === 1 && entry.chapter === 0));
+  const missing = (state.imageMissing || []).filter((entry) => (entry.chapter >= from && entry.chapter <= to) || (from === 1 && entry.chapter === 0));
   await logStage(storyId, "chapters-illustrated", {
     from, to, images: (state.images || []).filter((image) => image.chapter >= from && image.chapter <= to).length, ...summary,
     ...(redraws.length ? { redraws: redraws.map((entry) => `${entry.chapter ? `K${entry.chapter}.${entry.part}` : "Cover"}×${entry.attempts} → ${entry.status || "?"}${entry.remaining?.length ? ` [Rest: ${entry.remaining.join("; ")}]` : ""}: ${entry.reasons.join("; ") || "?"}`) } : {}),
+    ...(missing.length ? { missing: missing.map((entry) => `${entry.chapter ? `K${entry.chapter}.${entry.part}` : "Cover"} → ${entry.status || "missing"}: ${entry.reason || "?"}`) } : {}),
   });
 }
 
