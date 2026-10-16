@@ -14,6 +14,8 @@ import {
   trackCosmosReadEvent,
 } from "../helpers/cosmos-tracking";
 import { runWithCompletionClaim } from "../helpers/completion-claim";
+import { resolveDokuKnowledgeTrait } from "./doku-knowledge";
+import { withAppliedAmounts } from "../helpers/applied-trait-changes";
 
 const avatarDB = SQLDatabase.named("avatar");
 const dokuDB = SQLDatabase.named("doku");
@@ -276,9 +278,11 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
       String(req.topic || "").trim() ||
       String(dokuDomainRow?.topic || "").trim() ||
       String(req.dokuTitle || "").trim();
-    const resolvedDomainId =
+    const storedDomainId =
       normalizeDomainId(dokuDomainRow?.domain_id) ||
-      normalizeDomainId(req.domainId) ||
+      normalizeDomainId(req.domainId);
+    const resolvedDomainId =
+      storedDomainId ||
       inferDomainFromDokuTopic(resolvedTopicTitle, req.perspective);
 
     let userAvatars: ProfileScopedAvatar[] = [];
@@ -343,7 +347,7 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
           WHERE id = ${userAvatar.id}
         `;
 
-        const changes = buildDokuReadChanges(req, userAvatar.id, avatarRow?.personality_traits ?? "{}");
+        const changes = buildDokuReadChanges(req, storedDomainId, userAvatar.id, avatarRow?.personality_traits ?? "{}");
         if (changes.length === 0) {
           continue;
         }
@@ -390,6 +394,7 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
         }
 
         const personalityResult = progression.value;
+        const gainedChanges = withAppliedAmounts(changes, personalityResult.appliedChanges);
 
         await avatarDB.exec`
           INSERT INTO avatar_doku_read (avatar_id, doku_id, doku_title)
@@ -406,11 +411,11 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
               avatarName: userAvatar.name,
               dokuTitle: req.dokuTitle,
               topic: req.topic,
-              changes,
+              changes: gainedChanges,
             }),
             emotionalImpact: "positive",
-            personalityChanges: changes,
-            developmentDescription: `Wissensentwicklung: ${changes.map((item) => item.description).join(", ")}`,
+            personalityChanges: gainedChanges,
+            developmentDescription: `Wissensentwicklung: ${gainedChanges.map((item) => item.description).join(", ")}`,
             contentType: "doku",
           });
         } catch (memoryError) {
@@ -441,7 +446,7 @@ export const markRead = api<MarkDokuReadRequest, MarkDokuReadResponse>(
 
         personalityChanges.push({
           avatarName: userAvatar.name,
-          changes,
+          changes: gainedChanges,
           appliedChanges: personalityResult.appliedChanges.map((entry) => ({
             trait: entry.trait,
             change: entry.change,
@@ -557,35 +562,14 @@ function getKnowledgeDisplayName(knowledgeTrait: string): string {
   return displayNames[knowledgeTrait] || knowledgeTrait.split(".")[1] || "Wissen";
 }
 
-function inferKnowledgeSubcategory(topic: string, perspective?: string): string {
-  const value = `${topic} ${perspective ?? ""}`.toLowerCase();
-
-  const map: Array<{ keywords: string[]; id: string }> = [
-    { keywords: ["bio", "tier", "pflanz", "zoo", "mensch", "koerper", "leben"], id: "knowledge.biology" },
-    { keywords: ["geschichte", "histor", "antike", "mittelalter", "krieg", "kultur", "pyramiden"], id: "knowledge.history" },
-    { keywords: ["physik", "kraft", "energie", "bewegung", "elektr", "licht", "atom"], id: "knowledge.physics" },
-    { keywords: ["erde", "karte", "kontinent", "geografie", "ocean", "meer", "berg"], id: "knowledge.geography" },
-    { keywords: ["stern", "planet", "weltall", "galax", "kosmos", "astronom", "mond"], id: "knowledge.astronomy" },
-    { keywords: ["mathe", "zahl", "rechnen", "geometr", "bruch", "plus", "minus"], id: "knowledge.mathematics" },
-    { keywords: ["chemie", "stoff", "reaktion", "element", "molekuel", "labor"], id: "knowledge.chemistry" },
-  ];
-
-  for (const entry of map) {
-    if (entry.keywords.some((keyword) => value.includes(keyword))) {
-      return entry.id;
-    }
-  }
-
-  return "knowledge.history";
-}
-
 function buildDokuReadChanges(
   req: MarkDokuReadRequest,
+  domainId: string,
   avatarId: string,
   personalityTraitsRaw: string
 ): DokuChange[] {
   const traits = parseTraits(personalityTraitsRaw);
-  const knowledgeTrait = inferKnowledgeSubcategory(req.topic, req.perspective);
+  const knowledgeTrait = resolveDokuKnowledgeTrait({ domainId, topic: req.topic, perspective: req.perspective });
   const context = `${req.topic} ${req.perspective ?? ""} ${req.dokuTitle}`.toLowerCase();
   const variation = stableHash(`${req.dokuId}:${avatarId}`) % 2;
   const depthSignals = countKeywordMatches(context, [
@@ -601,7 +585,9 @@ function buildDokuReadChanges(
     "fakten",
   ]);
 
-  const knowledgeCurrent = getKnowledgeSubcategoryValue(traits, knowledgeTrait);
+  const knowledgeCurrent = knowledgeTrait.includes(".")
+    ? getKnowledgeSubcategoryValue(traits, knowledgeTrait)
+    : getTraitValue(traits, knowledgeTrait);
   const knowledgePenalty = knowledgeCurrent >= 130 ? 2 : knowledgeCurrent >= 90 ? 1 : 0;
   const knowledgePoints = clamp(2 + Math.min(2, depthSignals) + variation - knowledgePenalty, 1, 5);
 

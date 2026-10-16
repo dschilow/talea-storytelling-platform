@@ -9,6 +9,8 @@ import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
 import { ensureCosmosTrackingSchema } from "./cosmos-schema";
+import { ensureCosmosMvpSchema } from "./cosmos-mvp-schema";
+import { resolveChildIdForCosmos } from "./cosmos-mvp-service";
 import { assertAvatarOwnedByCurrentUser } from "./authz";
 import { getProfileForUser } from "../helpers/profiles";
 
@@ -59,6 +61,9 @@ export const cosmosParentSummary = api<ParentSummaryRequest, ParentSummaryRespon
     await ensureCosmosTrackingSchema().catch((schemaError) => {
       console.warn("[avatar] cosmos schema ensure skipped in parent summary endpoint", schemaError);
     });
+    await ensureCosmosMvpSchema().catch((schemaError) => {
+      console.warn("[avatar] cosmos MVP schema ensure skipped in parent summary endpoint", schemaError);
+    });
 
     try {
       const range = req.range || 'month';
@@ -69,13 +74,35 @@ export const cosmosParentSummary = api<ParentSummaryRequest, ParentSummaryRespon
         threshold = new Date(0);
       }
 
+      // The Lernkosmos tracks per child profile: quiz and recall evidence carry
+      // the profile id in avatar_id, a read is logged twice (legacy row with the
+      // avatar id plus the cosmos row). Scope by profile and count a read once,
+      // as the cosmos state does.
+      const childId = await resolveChildIdForCosmos({
+        userId: auth.userID,
+        avatarId: req.avatarId,
+        profileId: req.profileId,
+      });
+
       // Get evidence highlights (recent events with summaries)
       const highlightRows = await avatarDB.query`
       SELECT id, domain_id, event_type, score, max_score, payload, created_at
-      FROM evidence_events
-      WHERE avatar_id = ${req.avatarId}
-        AND (${req.profileId}::TEXT IS NULL OR profile_id = ${req.profileId})
-        AND created_at >= ${threshold}
+      FROM (
+        SELECT DISTINCT ON (dedupe_key)
+          id, domain_id, event_type, score, max_score, payload, created_at
+        FROM (
+          SELECT ee.*,
+            CASE
+              WHEN ee.event_type IN ('doku_read', 'story_read') AND ee.source_content_id IS NOT NULL
+                THEN ee.event_type || ':' || ee.source_content_id
+              ELSE ee.id
+            END AS dedupe_key
+          FROM evidence_events ee
+          WHERE (ee.profile_id = ${childId} OR ee.avatar_id = ${req.avatarId})
+            AND ee.created_at >= ${threshold}
+        ) scoped
+        ORDER BY dedupe_key, created_at DESC
+      ) deduped
       ORDER BY created_at DESC
       LIMIT 10
     `;
@@ -121,16 +148,22 @@ export const cosmosParentSummary = api<ParentSummaryRequest, ParentSummaryRespon
       const recallCount = await avatarDB.queryRow`
       SELECT COUNT(*) as cnt
       FROM recall_tasks
-      WHERE avatar_id = ${req.avatarId}
+      WHERE (avatar_id = ${req.avatarId} OR child_id = ${childId})
         AND status = 'pending'
         AND due_at <= NOW()
       `;
 
-      // Count total events
+      // Count total events (a read counts once, see above)
       const eventCount = await avatarDB.queryRow`
-      SELECT COUNT(*) as cnt
+      SELECT COUNT(DISTINCT
+        CASE
+          WHEN event_type IN ('doku_read', 'story_read') AND source_content_id IS NOT NULL
+            THEN event_type || ':' || source_content_id
+          ELSE id
+        END
+      ) as cnt
       FROM evidence_events
-      WHERE avatar_id = ${req.avatarId}
+      WHERE (profile_id = ${childId} OR avatar_id = ${req.avatarId})
         AND created_at >= ${threshold}
       `;
 

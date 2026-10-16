@@ -15,16 +15,6 @@ const VALID_BASE_TRAITS = [
   'knowledge',
 ] as const;
 
-const VALID_KNOWLEDGE_SUBCATEGORIES = [
-  'history',
-  'biology',
-  'physics',
-  'geography',
-  'astronomy',
-  'mathematics',
-  'chemistry',
-] as const;
-
 // Legacy/Alternative name mappings → maps to the 9 real backend traits
 const LEGACY_MAPPING: Record<string, string> = {
   // German names → backend trait IDs
@@ -109,13 +99,11 @@ export function validateTraitId(traitId: string): string | null {
     return normalized;
   }
 
-  // Check if it's a valid knowledge subcategory
-  const knowledgeMatch = normalized.match(/^knowledge\.(.+)$/);
-  if (knowledgeMatch) {
-    const subcategory = knowledgeMatch[1];
-    if (VALID_KNOWLEDGE_SUBCATEGORIES.includes(subcategory as any)) {
-      return normalized;
-    }
+  // A subcategory of a base trait: known ones (knowledge.history) and ones the
+  // AI creates on the fly (knowledge.dinosaurs) are both valid.
+  const subcategoryMatch = normalized.match(/^([a-z]+)\.([a-z0-9_]+)$/);
+  if (subcategoryMatch && VALID_BASE_TRAITS.includes(subcategoryMatch[1] as any)) {
+    return normalized;
   }
 
   // Try legacy mapping
@@ -132,8 +120,8 @@ export function validateTraitId(traitId: string): string | null {
  * Normalize trait changes array
  */
 export function normalizeTraitChanges(
-  changes: Array<{ trait: string; change: number }>
-): Array<{ trait: string; change: number; originalTrait?: string }> {
+  changes: Array<{ trait: string; change: number; description?: string; reason?: string }>
+): Array<{ trait: string; change: number; description?: string; originalTrait?: string }> {
   return changes
     .map((change) => {
       const validTrait = validateTraitId(change.trait);
@@ -143,13 +131,15 @@ export function normalizeTraitChanges(
         return null;
       }
 
+      const description = change.description ?? change.reason;
       return {
         trait: validTrait,
         change: change.change,
+        ...(typeof description === 'string' && description.trim() && { description }),
         ...(validTrait !== change.trait && { originalTrait: change.trait }),
       };
     })
-    .filter((c): c is { trait: string; change: number; originalTrait?: string } => c !== null);
+    .filter((c): c is { trait: string; change: number; description?: string; originalTrait?: string } => c !== null);
 }
 
 /**
@@ -158,7 +148,7 @@ export function normalizeTraitChanges(
 export function normalizeAvatarDevelopments(developments: any[]): any[] {
   return developments.map((dev) => {
     // Handle both array and object format
-    let normalizedChanges: Array<{ trait: string; change: number }> = [];
+    let normalizedChanges: Array<{ trait: string; change: number; description?: string }> = [];
 
     if (Array.isArray(dev.changedTraits)) {
       // Array format - normalize directly
@@ -176,9 +166,10 @@ export function normalizeAvatarDevelopments(developments: any[]): any[] {
           return {
             trait: validTrait,
             change: traitData.after - traitData.before,
+            ...(typeof traitData.reason === 'string' && traitData.reason.trim() && { description: traitData.reason }),
           };
         })
-        .filter((c): c is { trait: string; change: number } => c !== null);
+        .filter((c): c is { trait: string; change: number; description?: string } => c !== null);
     }
 
     return {

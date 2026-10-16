@@ -266,7 +266,9 @@ export async function grantArtifactToAvatar(args: {
     return false;
   }
   const current = parseInventory(row.inventory);
-  const reward = appendArtifactReward(current, inventoryItem);
+  const reward = appendArtifactReward(current, inventoryItem, {
+    onePerStory: args.journalEvent !== "set_crown",
+  });
   if (reward.added) {
     await tx.exec`
       UPDATE avatars

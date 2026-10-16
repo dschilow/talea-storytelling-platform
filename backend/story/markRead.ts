@@ -38,6 +38,8 @@ import {
 } from "../helpers/cosmos-tracking";
 import { runWithCompletionClaim } from "../helpers/completion-claim";
 import { getAssignedDevelopmentForAvatar } from "./avatar-development-assignment";
+import { withAppliedAmounts } from "../helpers/applied-trait-changes";
+import { inferPersonalityTrait } from "./genre-trait";
 
 const avatarDB = SQLDatabase.named("avatar");
 const storyDB = SQLDatabase.named("story");
@@ -369,8 +371,8 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
     for (const userAvatar of userAvatars) {
       try {
 
-        const avatarRow = await avatarDB.queryRow<{ personality_traits: string; inventory: string }>`
-          SELECT personality_traits, inventory
+        const avatarRow = await avatarDB.queryRow<{ personality_traits: string }>`
+          SELECT personality_traits
           FROM avatars
           WHERE id = ${userAvatar.id}
         `;
@@ -431,6 +433,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
         }
 
         const personalityResult = progression.value;
+        const gainedChanges = withAppliedAmounts(changes, personalityResult.appliedChanges);
 
         await avatarDB.exec`
           INSERT INTO avatar_story_read (avatar_id, story_id, story_title)
@@ -447,11 +450,11 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
               avatarName: userAvatar.name,
               storyTitle: req.storyTitle,
               genre: req.genre,
-              changes,
+              changes: gainedChanges,
             }),
             emotionalImpact: "positive",
-            personalityChanges: changes,
-            developmentDescription: `Persoenlichkeitsentwicklung: ${changes.map((item) => item.description).join(", ")}`,
+            personalityChanges: gainedChanges,
+            developmentDescription: `Persoenlichkeitsentwicklung: ${gainedChanges.map((item) => item.description).join(", ")}`,
             contentType: "story",
           });
         } catch (memoryError) {
@@ -481,54 +484,12 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
           console.warn("Failed to track cosmos story-read event", trackingError);
         }
 
-        let rewards: MarkStoryReadResponse["personalityChanges"][number]["rewards"] | undefined = undefined;
-        try {
-          await using rewardTx = await avatarDB.begin();
-          const lockedAvatar = await rewardTx.queryRow<{ inventory: string }>`
-            SELECT inventory FROM avatars WHERE id = ${userAvatar.id} FOR UPDATE
-          `;
-          if (!lockedAvatar) {
-            throw APIError.notFound("Avatar not found while updating rewards");
-          }
-          const inventory: InventoryItem[] = JSON.parse(lockedAvatar.inventory || "[]");
-          const storyTags = req.genre ? [req.genre.toLowerCase()] : ["adventure"];
-          const upgradedItems: InventoryItem[] = [];
-
-          for (const item of inventory) {
-            const hasTagMatch = item.tags?.some((tag) => storyTags.includes(tag)) ?? false;
-            if (hasTagMatch && item.level < 3) {
-              item.level += 1;
-              const baseName = item.name.replace(/^(Novice|Advanced|Master)\s+/, "");
-              if (item.level === 2) item.name = `Advanced ${baseName}`;
-              if (item.level === 3) item.name = `Master ${baseName}`;
-              item.description = `Verstaerkte Version: ${item.name}. Level ${item.level}!`;
-              upgradedItems.push(item);
-              break;
-            }
-          }
-
-          if (upgradedItems.length > 0) {
-            await rewardTx.exec`
-              UPDATE avatars
-              SET inventory = ${JSON.stringify(inventory)},
-                  updated_at = CURRENT_TIMESTAMP
-              WHERE id = ${userAvatar.id}
-            `;
-
-            rewards = {
-              newItems: [],
-              upgradedItems,
-              newSkills: [],
-            };
-          }
-          await rewardTx.commit();
-        } catch (rewardError) {
-          console.error(`Failed reward update for ${userAvatar.name}`, rewardError);
-        }
-
+        // Artifact levels come only from journeys (artifact-treasury). The old
+        // genre-tag upgrade renamed pool artifacts to "Advanced …", overwrote
+        // their description and raised their level past the journey count.
         personalityChanges.push({
           avatarName: userAvatar.name,
-          changes,
+          changes: gainedChanges,
           appliedChanges: personalityResult.appliedChanges.map((entry) => ({
             trait: entry.trait,
             change: entry.change,
@@ -558,7 +519,6 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
             target: entry.target,
             status: entry.status,
           })),
-          rewards,
         });
 
         updatedCount += 1;
@@ -847,31 +807,6 @@ function getPersonalityDisplayName(traitId: string): string {
   };
 
   return displayNames[traitId] || traitId;
-}
-
-function inferPersonalityTrait(genre?: string): string {
-  if (!genre) return "empathy";
-
-  const value = genre.toLowerCase();
-  const map: Array<{ keywords: string[]; trait: string }> = [
-    { keywords: ["fantasy", "magie", "zauber", "fee", "drache"], trait: "creativity" },
-    { keywords: ["abenteuer", "reise", "expedition", "herausforderung", "kampf"], trait: "courage" },
-    { keywords: ["freundschaft", "familie", "liebe", "gemeinschaft"], trait: "empathy" },
-    { keywords: ["wissenschaft", "raetsel", "geheimnis", "detektiv"], trait: "curiosity" },
-    { keywords: ["tier", "natur", "umwelt", "wald"], trait: "empathy" },
-    { keywords: ["humor", "komoedie", "lustig"], trait: "creativity" },
-    { keywords: ["problem", "loesung", "ausdauer", "durchhalten"], trait: "persistence" },
-    { keywords: ["maerchen", "weisheit", "lehre", "moral"], trait: "vocabulary" },
-    { keywords: ["team", "zusammen", "gemeinsam", "helfen"], trait: "teamwork" },
-    { keywords: ["logik", "denken", "strategie", "plan"], trait: "logic" },
-  ];
-
-  for (const entry of map) {
-    if (entry.keywords.some((keyword) => value.includes(keyword))) {
-      return entry.trait;
-    }
-  }
-  return "empathy";
 }
 
 function buildStoryReadChanges(

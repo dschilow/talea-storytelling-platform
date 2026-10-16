@@ -751,11 +751,15 @@ async function finishBook(input: BookJobInput, planned: PlannedBook, state: Book
   const development = await runDevelopmentStage(deps.llm, { heroes: planned.brief.heroes, title: planned.plan.title, pages: book.chapters.map((chapter) => ({ order: chapter.order, title: chapter.title, content: `${chapter.title}: ${chapter.recap}` })) }, deps.models.support);
   if (development.call) deps.ledger.recordCall("avatar-development", development.call, "support");
   const avatars = planned.brief.heroes.map((hero) => ({ id: hero.id, name: hero.name }));
-  let developments = assignAvatarDevelopmentIds(development.developments as any[], avatars);
+  const developments = assignAvatarDevelopmentIds(development.developments as any[], avatars);
+  // Second opinion only: the deployed MCP schema rejects vocabulary, persistence,
+  // logic and knowledge and strips descriptions, so its verdict never replaces
+  // the clamped local result (see story/generate.ts).
   try {
-    const validation = await validateAvatarDevelopments(developments, mcpServerApiKey()) as { isValid?: boolean; normalized?: any[] };
-    if (validation?.isValid === false) developments = [];
-    else if (Array.isArray(validation?.normalized)) developments = assignAvatarDevelopmentIds(validation.normalized, avatars);
+    const validation = await validateAvatarDevelopments(developments, mcpServerApiKey()) as { isValid?: boolean; errors?: unknown };
+    if (validation?.isValid === false) {
+      console.warn("[book] MCP validator disagrees with the avatar developments (local result kept):", JSON.stringify(validation.errors ?? {}));
+    }
   } catch (err) {
     console.warn("[book] avatar development validation unavailable; keeping the clamped developments:", (err as Error)?.message || err);
   }

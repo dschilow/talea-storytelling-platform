@@ -1106,45 +1106,23 @@ export const generate = api<GenerateStoryRequest, Story>(
         developmentAvatars,
       );
       if (!config.developerMode || generatedStory.metadata?.pipeline === "book-workshop-v1") {
+        // The MCP validator is a second opinion only. Its deployed schema lags
+        // the trait catalogue (it rejects vocabulary, persistence, logic and
+        // knowledge) and its normalized output drops every description,
+        // avatar id and free subcategory. assignAvatarDevelopmentIds above
+        // already enforces the 9 trait ids and the value clamps, so the local
+        // result is what gets stored. Discarding it would not withhold a
+        // reward either: markRead then awards generic genre points instead.
         try {
           const validation = await validateAvatarDevelopments(
             validatedDevelopments,
             mcpApiKey
           ) as AvatarDevelopmentValidationResult;
-          if (validation?.isValid === false || (generatedStory.metadata?.pipeline === "book-workshop-v1" && validation?.isValid !== true)) {
-            throw new Error(`Avatar developments invalid: ${JSON.stringify(validation.errors ?? {})}`);
-          }
-          if (Array.isArray(validation?.normalized)) {
-            // Re-attach story-specific trait descriptions that the external
-            // normalizer may strip — the WHY of each change must survive.
-            const originalDescriptions = new Map<string, string>();
-            for (const dev of validatedDevelopments) {
-              for (const traitChange of (Array.isArray(dev?.changedTraits) ? dev.changedTraits : [])) {
-                if (typeof traitChange?.description === "string" && traitChange.description.trim()) {
-                  originalDescriptions.set(
-                    `${String(dev?.avatarId || dev?.name || "").toLowerCase()}|${traitChange.trait}`,
-                    traitChange.description,
-                  );
-                }
-              }
-            }
-            validatedDevelopments = (validation.normalized as typeof validatedDevelopments).map((dev: any) => ({
-              ...dev,
-              changedTraits: Array.isArray(dev?.changedTraits)
-                ? dev.changedTraits.map((traitChange: any) => ({
-                    ...traitChange,
-                    description: traitChange?.description
-                      || originalDescriptions.get(
-                        `${String(dev?.avatarId || dev?.name || "").toLowerCase()}|${traitChange?.trait}`,
-                      ),
-                  }))
-                : dev?.changedTraits,
-            }));
+          if (validation?.isValid === false) {
+            console.warn("[story.generate] MCP validator disagrees with the avatar developments (local result kept):", JSON.stringify(validation.errors ?? {}));
           }
         } catch (validationError) {
-          console.warn("[story.generate] Avatar development validation warning:", validationError);
-          // The new lane must not award unvalidated changes when MCP fails.
-          if (generatedStory.metadata?.pipeline === "book-workshop-v1") validatedDevelopments = [];
+          console.warn("[story.generate] Avatar development validation unavailable:", validationError);
         }
       }
       validatedDevelopments = assignAvatarDevelopmentIds(

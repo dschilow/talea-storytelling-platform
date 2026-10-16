@@ -69,11 +69,12 @@ const ParentDashboardRoot: React.FC = () => {
     [cosmosState.domains]
   );
 
-  // Interest profile: top domains by mastery
+  // Interest profile: where the child spends time. Reading alone explores
+  // topics without raising mastery (only quizzes do), so activity ranks first.
   const interestProfile = useMemo(() => {
     return [...cosmosState.domains]
-      .filter((d) => d.mastery > 0)
-      .sort((a, b) => b.mastery - a.mastery)
+      .filter((d) => d.topicsExplored > 0 || d.mastery > 0)
+      .sort((a, b) => b.topicsExplored - a.topicsExplored || b.mastery - a.mastery)
       .slice(0, 5);
   }, [cosmosState.domains]);
 
@@ -83,7 +84,7 @@ const ParentDashboardRoot: React.FC = () => {
   );
 
   const activeDomainCount = useMemo(
-    () => cosmosState.domains.filter((d) => d.mastery > 0).length,
+    () => cosmosState.domains.filter((d) => d.topicsExplored > 0 || d.mastery > 0).length,
     [cosmosState.domains]
   );
 
@@ -175,7 +176,7 @@ const ParentDashboardRoot: React.FC = () => {
                         {domain.label}
                       </p>
                       <p className="text-[10px] text-slate-400">
-                        {Math.round(dp.mastery)}% Wissen
+                        {dp.topicsExplored} {dp.topicsExplored === 1 ? 'Thema' : 'Themen'} · {Math.round(dp.mastery)}% Wissen
                       </p>
                     </div>
                     {idx === 0 && (

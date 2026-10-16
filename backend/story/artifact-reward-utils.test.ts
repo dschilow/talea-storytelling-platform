@@ -77,6 +77,22 @@ describe("artifact reward recovery", () => {
     expect(duplicate.inventory).toHaveLength(1);
   });
 
+  test("grants the set crown in the same completion that found the last piece", () => {
+    const piece = buildArtifactInventoryItem({ artifact, avatarId: "avatar_1", storyId: "story_1" });
+    const crown = buildArtifactInventoryItem({
+      artifact: { ...artifact, id: "artifact_crown", category: "jewelry" },
+      avatarId: "avatar_1",
+      storyId: "story_1",
+    });
+    const afterPiece = appendArtifactReward([], piece);
+
+    expect(appendArtifactReward(afterPiece.inventory, crown).added).toBe(false);
+    const afterCrown = appendArtifactReward(afterPiece.inventory, crown, { onePerStory: false });
+    expect(afterCrown.added).toBe(true);
+    expect(afterCrown.inventory).toHaveLength(2);
+    expect(appendArtifactReward(afterCrown.inventory, crown, { onePerStory: false }).added).toBe(false);
+  });
+
   test("uses persisted participants when the client omits avatar ids", () => {
     expect(extractStoredAvatarIds('["avatar_1", {"id":"avatar_2"}, "avatar_1"]')).toEqual([
       "avatar_1",

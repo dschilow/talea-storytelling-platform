@@ -1,40 +1,31 @@
 import { z } from 'zod';
 
-// Valid trait IDs based on your system
+// The 9 base traits of the backend (backend/constants/personalityTraits.ts)
 export const VALID_BASE_TRAITS = [
-  'courage',
-  'intelligence',
+  'knowledge',
   'creativity',
-  'empathy',
-  'strength',
-  'humor',
-  'adventure',
-  'patience',
+  'vocabulary',
+  'courage',
   'curiosity',
-  'leadership',
   'teamwork',
+  'empathy',
+  'persistence',
+  'logic',
 ] as const;
 
-export const VALID_KNOWLEDGE_SUBCATEGORIES = [
-  'history',
-  'biology',
-  'physics',
-  'geography',
-  'astronomy',
-  'mathematics',
-  'chemistry',
-] as const;
-
-// Trait ID Schema - supports base traits and knowledge.* subcategories
+// Trait ID Schema - a base trait or a free subcategory of one
+// (knowledge.history, knowledge.dinosaurs). Subcategories are created by the AI.
 export const TraitIdSchema = z.union([
   z.enum(VALID_BASE_TRAITS),
-  z.string().regex(/^knowledge\.(history|biology|physics|geography|astronomy|mathematics|chemistry)$/),
+  z.string().regex(/^(knowledge|creativity|vocabulary|courage|curiosity|teamwork|empathy|persistence|logic)\.[a-z0-9_]+$/),
 ]);
 
 // Personality Change Schema
 export const PersonalityChangeSchema = z.object({
   trait: TraitIdSchema,
   change: z.number().int().min(-10).max(10),
+  // Why the trait changed; shown to the child, so it must survive validation.
+  description: z.string().optional(),
 });
 
 // Chapter Image Description Schema - extremely flexible to accept any format from OpenAI
@@ -61,6 +52,7 @@ export const ChapterSchema = z.object({
 
 // Avatar Development Schema
 export const AvatarDevelopmentSchema = z.object({
+  avatarId: z.string().optional(),
   name: z.string().min(1),
   changedTraits: z.array(PersonalityChangeSchema).min(0),
 });

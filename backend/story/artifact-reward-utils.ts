@@ -76,14 +76,23 @@ export function buildArtifactInventoryItem(args: {
   };
 }
 
-/** Returns a new array and never mutates the caller's inventory. */
+/**
+ * Returns a new array and never mutates the caller's inventory.
+ *
+ * A story yields at most one found artifact, so by default any item from the
+ * same story blocks the reward. A set crown is a second, separate reward of
+ * the completion that found the last set piece: pass `onePerStory: false`, or
+ * the crown is refused because that piece carries the same story id.
+ */
 export function appendArtifactReward(
   inventory: InventoryItem[],
-  reward: InventoryItem
+  reward: InventoryItem,
+  options: { onePerStory?: boolean } = {}
 ): { inventory: InventoryItem[]; added: boolean } {
+  const onePerStory = options.onePerStory ?? true;
   const alreadyPresent = inventory.some((item) =>
     item.id === reward.id ||
-    (Boolean(item.sourceStoryId) && item.sourceStoryId === reward.sourceStoryId)
+    (onePerStory && Boolean(item.sourceStoryId) && item.sourceStoryId === reward.sourceStoryId)
   );
   return alreadyPresent
     ? { inventory: [...inventory], added: false }

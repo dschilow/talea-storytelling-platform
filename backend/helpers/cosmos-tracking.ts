@@ -18,7 +18,7 @@ interface TrackCosmosReadParams {
 }
 
 const STORY_DOMAIN_MAP: Array<{ keywords: string[]; domainId: string }> = [
-  { keywords: ["weltraum", "space", "planet", "galax"], domainId: "space" },
+  { keywords: ["weltraum", "space", "planet", "galax", "scifi", "sci-fi"], domainId: "space" },
   { keywords: ["natur", "tier", "wald", "animal"], domainId: "nature" },
   { keywords: ["geschichte", "histor", "antike", "ritter"], domainId: "history" },
   { keywords: ["technik", "robot", "erfind", "maschine"], domainId: "tech" },
