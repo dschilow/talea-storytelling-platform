@@ -314,7 +314,49 @@ function genreLabel(genre: string | undefined): string {
 }
 
 /**
+ * Book words in the story's language. Only Latin-script languages: the standard
+ * PDF fonts carry no Cyrillic. Unknown languages fall back to English.
+ */
+function bookLabels(language: string | undefined): { chapter: string; forHeroes: (names: string) => string; madeWith: string; genre: string; age: string; chapters: string; created: string } {
+  const code = String(language || 'de').toLowerCase().slice(0, 2);
+  const table: Record<string, ReturnType<typeof bookLabels>> = {
+    de: { chapter: 'Kapitel', forHeroes: (names) => `Eine Geschichte für ${names}`, madeWith: 'Erstellt mit Talea', genre: 'Genre', age: 'Alter', chapters: 'Kapitel', created: 'Erstellt am' },
+    en: { chapter: 'Chapter', forHeroes: (names) => `A story for ${names}`, madeWith: 'Made with Talea', genre: 'Genre', age: 'Age', chapters: 'Chapters', created: 'Created on' },
+    fr: { chapter: 'Chapitre', forHeroes: (names) => `Une histoire pour ${names}`, madeWith: 'Créé avec Talea', genre: 'Genre', age: 'Âge', chapters: 'Chapitres', created: 'Créé le' },
+    es: { chapter: 'Capítulo', forHeroes: (names) => `Una historia para ${names}`, madeWith: 'Creado con Talea', genre: 'Género', age: 'Edad', chapters: 'Capítulos', created: 'Creado el' },
+    it: { chapter: 'Capitolo', forHeroes: (names) => `Una storia per ${names}`, madeWith: 'Creato con Talea', genre: 'Genere', age: 'Età', chapters: 'Capitoli', created: 'Creato il' },
+    nl: { chapter: 'Hoofdstuk', forHeroes: (names) => `Een verhaal voor ${names}`, madeWith: 'Gemaakt met Talea', genre: 'Genre', age: 'Leeftijd', chapters: 'Hoofdstukken', created: 'Gemaakt op' },
+  };
+  return table[code] || table.en;
+}
+
+/** "Alexander und Adrian" — the heroes' names joined the way the language joins a list. */
+function joinNames(names: string[], language: string | undefined): string {
+  const and: Record<string, string> = { de: 'und', en: 'and', fr: 'et', es: 'y', it: 'e', nl: 'en' };
+  const word = and[String(language || 'de').toLowerCase().slice(0, 2)] || 'and';
+  if (names.length <= 1) return names.join('');
+  return `${names.slice(0, -1).join(', ')} ${word} ${names[names.length - 1]}`;
+}
+
+/** Draws centred lines of text; returns the y after the last line. */
+function addCenteredLines(doc: jsPDF, text: string, y: number, maxWidth: number, lineHeight: number, pageWidth: number): number {
+  const lines = doc.splitTextToSize(text, maxWidth) as string[];
+  let currentY = y;
+  for (const line of lines) {
+    doc.text(line, (pageWidth - doc.getTextWidth(line)) / 2, currentY);
+    currentY += lineHeight;
+  }
+  return currentY;
+}
+
+/**
  * Export story as PDF
+ *
+ * Layout 2026-10-16 ("Der Regen sagt rückwärts" looked like a printout, not a
+ * book): serif body text, a numbered chapter heading with air above it, a cover
+ * that carries only title, subtitle and the heroes' names, page numbers alone in
+ * the footer, and the metadata on a colophon page at the end. Pictures shrink to
+ * the space left on a page instead of pushing a near-empty page in front of them.
  *
  * @param story - Story object with chapters and images
  * @param onProgress - Optional callback for progress updates (0-100)
@@ -411,40 +453,39 @@ export async function exportStoryAsPDF(
       }
     }
 
-    // Add title
-    doc.setFontSize(24);
-    doc.setFont('helvetica', 'bold');
-    let yPos = story.coverImageUrl ? pageHeight * 0.65 : 60;
-    const titleLines = doc.splitTextToSize(story.title, contentWidth);
-    titleLines.forEach((line: string) => {
-      const textWidth = doc.getTextWidth(line);
-      doc.text(line, (pageWidth - textWidth) / 2, yPos);
-      yPos += 10;
-    });
+    const labels = bookLabels(story.config.language);
+    const heroNames = [
+      ...(story.avatarParticipants || []),
+      ...(story.config.avatars || []),
+    ].map((avatar) => String(avatar?.name || '').trim()).filter((name, index, all) => name && all.indexOf(name) === index);
 
-    // Add description/summary
+    // Title: serif, large, centred — the cover carries the book, not its settings.
+    doc.setFontSize(26);
+    doc.setFont('times', 'bold');
+    let yPos = story.coverImageUrl ? pageHeight * 0.5 + 30 + 18 : 90;
+    yPos = addCenteredLines(doc, story.title, yPos, contentWidth, 11, pageWidth);
+
+    // Subtitle: the description in a quiet serif.
     if (story.description) {
       const cleanDescription = stripTtsEmotionMarkersForDisplay(story.description);
-      yPos += 10;
+      yPos += 6;
       doc.setFontSize(12);
-      doc.setFont('helvetica', 'normal');
-      yPos = addWrappedText(doc, cleanDescription, margin, yPos, contentWidth, 7);
+      doc.setFont('times', 'italic');
+      doc.setTextColor(60);
+      yPos = addCenteredLines(doc, cleanDescription, yPos, contentWidth - 20, 6.5, pageWidth);
+      doc.setTextColor(0);
     }
 
-    // Add metadata
-    yPos += 15;
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Genre: ${genreLabel(story.config.genre)}`, margin, yPos);
-    yPos += 6;
-    doc.text(`Alter: ${story.config.ageGroup || '6-8'}`, margin, yPos);
-    yPos += 6;
-    doc.text(`Kapitel: ${chapters.length || 0}`, margin, yPos);
-    yPos += 6;
-    const dateStr = new Date(story.createdAt).toLocaleDateString('de-DE');
-    doc.text(`Erstellt: ${dateStr}`, margin, yPos);
+    // "Eine Geschichte für Alexander und Adrian"
+    if (heroNames.length) {
+      yPos += 10;
+      doc.setFontSize(12);
+      doc.setFont('times', 'normal');
+      doc.setTextColor(90);
+      addCenteredLines(doc, labels.forHeroes(joinNames(heroNames, story.config.language)), Math.min(yPos, pageHeight - 30), contentWidth, 6.5, pageWidth);
+      doc.setTextColor(0);
+    }
 
-    doc.setTextColor(0);
     updateProgress();
 
     // ============================================================================
@@ -453,20 +494,33 @@ export async function exportStoryAsPDF(
 
     if (chapters && chapters.length > 0) {
       for (const chapter of chapters) {
-        // Start new page for each chapter
+        // Start new page for each chapter, with air above the heading like a printed book.
         doc.addPage();
-        yPos = margin;
+        yPos = margin + 22;
 
-        // Chapter title
-        doc.setFontSize(18);
-        doc.setFont('helvetica', 'bold');
-        const chapterTitleLines = doc.splitTextToSize(chapter.title || `Kapitel ${chapter.order}`, contentWidth);
-        chapterTitleLines.forEach((line: string) => {
-          doc.text(line, margin, yPos);
-          yPos += 10;
-        });
-
-        yPos += 5;
+        // "Kapitel 3" small and grey, the title below it in bold serif, both centred.
+        doc.setFontSize(11);
+        doc.setFont('times', 'normal');
+        doc.setTextColor(120);
+        const chapterNumber = Number(chapter.order);
+        if (Number.isFinite(chapterNumber) && chapterNumber > 0) {
+          const numberLine = `${labels.chapter} ${chapterNumber}`;
+          doc.text(numberLine, (pageWidth - doc.getTextWidth(numberLine)) / 2, yPos);
+          yPos += 9;
+        }
+        doc.setTextColor(0);
+        doc.setFontSize(20);
+        doc.setFont('times', 'bold');
+        const chapterTitle = (chapter.title || '').trim();
+        if (chapterTitle && !/^(kapitel|chapter)\s+\d+$/i.test(chapterTitle)) {
+          yPos = addCenteredLines(doc, chapterTitle, yPos, contentWidth, 9.5, pageWidth);
+        }
+        // A short rule under the heading.
+        doc.setDrawColor(170);
+        doc.setLineWidth(0.3);
+        doc.line(pageWidth / 2 - 12, yPos + 1, pageWidth / 2 + 12, yPos + 1);
+        doc.setDrawColor(0);
+        yPos += 12;
 
         // Chapter books place 1-3 pictures after stored paragraphs (drawn below);
         // every other story shows its one chapter picture at the top.
@@ -513,17 +567,17 @@ export async function exportStoryAsPDF(
 
         updateProgress();
 
-        // Chapter content
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'normal');
+        // Chapter content: a serif reading face, as in a printed chapter book.
+        doc.setFontSize(12);
+        doc.setFont('times', 'normal');
 
         // Split content by paragraphs (hide TTS emotion markers in PDF output)
         const displayChapterContent = stripTtsEmotionMarkersForDisplay(chapter.content || '');
         const paragraphs = displayChapterContent.split('\n').filter(p => p.trim().length > 0);
 
-        const lineHeight = 7;
-        const paragraphGap = 5;
-        const bottomLimit = pageHeight - 20; // leave room for the footer
+        const lineHeight = 6.6;
+        const paragraphGap = 3.2;
+        const bottomLimit = pageHeight - 22; // leave room for the page number
 
         for (const [paragraphIndex, paragraph] of paragraphs.entries()) {
           // Pre-measure the paragraph so a long block does not get split into
@@ -582,19 +636,27 @@ export async function exportStoryAsPDF(
           for (const picture of (bookImages || []).filter((image) => Math.min(image.afterParagraph, paragraphs.length - 1) === paragraphIndex)) {
             const loaded = await loadImageAsDataUrl(picture.url);
             if (!loaded.success || !loaded.dataUrl) continue;
-            let pictureWidth = contentWidth;
-            let pictureHeight = 80;
-            if (loaded.width && loaded.height) {
-              const ratio = loaded.width / loaded.height;
-              if (ratio > contentWidth / 80) pictureHeight = contentWidth / ratio;
-              else pictureWidth = 80 * ratio;
+            // Pictures vary in size like in a book: the first of a chapter wide, the others a little smaller.
+            const isFirstOfChapter = bookImages!.indexOf(picture) === 0;
+            const wantedHeight = isFirstOfChapter ? 92 : 72;
+            const ratio = loaded.width && loaded.height ? loaded.width / loaded.height : 1;
+            const fit = (maxHeight: number) => {
+              let h = maxHeight;
+              let w = h * ratio;
+              if (w > contentWidth) { w = contentWidth; h = w / ratio; }
+              return { w, h };
+            };
+            let size = fit(wantedHeight);
+            const remaining = bottomLimit - yPos;
+            // Pages 5, 18 and 22 of the audited book were nearly empty because a picture moved to a fresh
+            // page and took two lines of text with it: a picture shrinks into the space left (down to 50 mm)
+            // before it starts a new page.
+            if (size.h + 8 > remaining) {
+              if (remaining >= 58) size = fit(remaining - 8);
+              else { doc.addPage(); yPos = margin; }
             }
-            if (yPos + pictureHeight > bottomLimit) {
-              doc.addPage();
-              yPos = margin;
-            }
-            doc.addImage(loaded.dataUrl, 'JPEG', (pageWidth - pictureWidth) / 2, yPos, pictureWidth, pictureHeight);
-            yPos += pictureHeight + 8;
+            doc.addImage(loaded.dataUrl, 'JPEG', (pageWidth - size.w) / 2, yPos, size.w, size.h);
+            yPos += size.h + 8;
           }
         }
 
@@ -603,23 +665,41 @@ export async function exportStoryAsPDF(
     }
 
     // ============================================================================
-    // FOOTER ON EACH PAGE
+    // COLOPHON (last page) AND PAGE NUMBERS
     // ============================================================================
 
+    doc.addPage();
+    doc.setFont('times', 'normal');
+    doc.setTextColor(110);
+    doc.setFontSize(11);
+    const languageCode = String(story.config.language || 'de').slice(0, 2).toLowerCase();
+    const dateStr = new Date(story.createdAt).toLocaleDateString(languageCode === 'en' ? 'en-GB' : `${languageCode}-${languageCode.toUpperCase()}`);
+    const colophon = [
+      story.title,
+      '',
+      `${labels.genre}: ${genreLabel(story.config.genre)}`,
+      `${labels.age}: ${story.config.ageGroup || '6-8'}`,
+      `${labels.chapters}: ${chapters.length || 0}`,
+      `${labels.created} ${dateStr}`,
+      '',
+      labels.madeWith,
+    ];
+    let colophonY = pageHeight - 20 - colophon.length * 6.5;
+    for (const line of colophon) {
+      if (line) doc.text(line, (pageWidth - doc.getTextWidth(line)) / 2, colophonY);
+      colophonY += 6.5;
+    }
+    doc.setTextColor(0);
+
+    // Page numbers only, centred, never on the cover: the footer of a book is quiet.
     const totalPages = doc.getNumberOfPages();
-
-    for (let i = 1; i <= totalPages; i++) {
+    for (let i = 2; i <= totalPages; i++) {
       doc.setPage(i);
-      doc.setFontSize(9);
-      doc.setTextColor(150);
-
-      // Page number
-      const pageText = `Seite ${i} von ${totalPages}`;
-      const pageTextWidth = doc.getTextWidth(pageText);
-      doc.text(pageText, pageWidth - margin - pageTextWidth, pageHeight - 10);
-
-      // Talea branding
-      doc.text('Erstellt mit Talea', margin, pageHeight - 10);
+      doc.setFont('times', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(140);
+      const pageText = `${i - 1}`;
+      doc.text(pageText, (pageWidth - doc.getTextWidth(pageText)) / 2, pageHeight - 11);
     }
 
     doc.setTextColor(0);

@@ -4,6 +4,8 @@
  * Start values (plan 2026-10-14, measured in phase A): a chapter is one to two
  * bedtime readings of five to eight minutes, like "Lichterland" or "Der kleine
  * Drache Kokosnuss". Reading aloud runs at roughly 100-130 words a minute.
+ * Raised 2026-10-16 to one reading of eight to twelve minutes: the shorter
+ * chapters had no room for a narrator (see voice.ts).
  */
 
 import type { StoryConfig } from "../../generate";
@@ -12,10 +14,14 @@ import type { BookBudget, ExperienceForm } from "./types";
 
 export const BOOK_CHAPTER_OPTIONS = [8, 12, 15] as const;
 
+// 2026-10-16 ("Der Regen sagt rückwärts", 8 chapters at 550-700): with 600 words a chapter had room for
+// the planned events and the dialogue, but none for a narrator, a thought or a detail — it read like a
+// script. Published read-aloud chapter books for six- to eight-year-olds run 900-1,500 words a chapter
+// (8-12 minutes aloud); the new bands give the writer that room and the prose checks (voice.ts) use it.
 const WORDS_PER_CHAPTER: Record<AgeBand, [number, number]> = {
-  "3-5": [300, 420],
-  "6-8": [550, 700],
-  "9-12": [800, 1000],
+  "3-5": [380, 520],
+  "6-8": [850, 1100],
+  "9-12": [1150, 1500],
 };
 
 const DEFAULT_CHAPTERS: Record<AgeBand, number> = { "3-5": 8, "6-8": 12, "9-12": 15 };

@@ -54,6 +54,7 @@ function chapterPlan(raw: any, n: number): BookChapterPlan {
     event: text(raw?.event, 700),
     progress: text(raw?.progress, 300),
     laugh: text(raw?.laugh, 300),
+    ...(text(raw?.feeling, 300) ? { feeling: text(raw.feeling, 300) } : {}),
     hook: text(raw?.hook, 300),
     cast: list(raw?.cast, 8, 80),
     plants: list(raw?.plants, 6, 12).map((id) => id.toUpperCase()),
@@ -219,6 +220,12 @@ export function planScoreCap(checks: Record<string, boolean>): number {
   if (checks.orientation === false || checks.rulesSimple === false) cap = Math.min(cap, 7);
   if (checks.heartAndWit === false) cap = Math.min(cap, 7.5);
   if (checks.heroesDistinct === false || checks.placesClear === false) cap = Math.min(cap, 7.5);
+  // 2026-10-16 ("Der Regen sagt rückwärts" was reviewed at 8.7): a bigger figure who could solve it, stakes dropped
+  // at the end, a setback from the weather, a joke that only works on paper, a someone without a want.
+  if (checks.nobodyBiggerSolves === false) cap = Math.min(cap, 6.5);
+  if (checks.stakesKept === false) cap = Math.min(cap, 6);
+  if (checks.setbackByHero === false || checks.worksByEar === false) cap = Math.min(cap, 7);
+  if (checks.someoneWants === false) cap = Math.min(cap, 7.5);
   return cap;
 }
 

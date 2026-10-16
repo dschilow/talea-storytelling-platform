@@ -106,7 +106,7 @@ export function heartAndWitGenreNote(genre: unknown): string {
 export function heartAndWitBandNote(band: AgeBand, genre?: unknown): string {
   if (heartAndWitMode(genre) !== "full") return "";
   if (band === "3-5") return "For three- to five-year-olds: one simple misunderstanding that comes back like a refrain, a small lovable someone, a secret at most as a game.";
-  if (band === "9-12") return "For nine- to twelve-year-olds: sharper wit, real wordplay, a little irony, and a feeling under the surface that is never named.";
+  if (band === "9-12") return "For nine- to twelve-year-olds: sharper wit, real wordplay, a little irony, and a feeling under the surface that the text shows and never explains or sums up.";
   return "";
 }
 
