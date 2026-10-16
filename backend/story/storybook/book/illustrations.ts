@@ -224,6 +224,9 @@ export async function directBatch(input: {
       // Audit 2026-10-16: the title figure was missing on 4 of 16 "Schatto" pictures, a hero on 13 of 77 — the 3-figure cap had no order.
       // First re-run with "who acts in the paragraph first": a paragraph about the librarian drew the librarian alone, the heroes standing right there were gone.
       "Figures (at most 3): fill the places in this order — 1) the heroes who are present in the scene of your paragraph: they stay in the picture even when the paragraph is about someone else, and are left out only when they are truly elsewhere; 2) everyone else who acts or speaks in your paragraph or the one before it; 3) the book's title figure or central wonder if it is part of that moment; 4) the others.",
+      // 2026-10-16 ("Der Regen sagt rückwärts"): two cast members acted in five chapters and appeared in none of 13 pictures — the heroes filled every place.
+      "Every named figure who acts in a chapter appears in at least one picture of that chapter. When the heroes would fill all places, give the picture whose paragraph is about a cast member to that cast member and ONE hero (the one who acts with them), not to the heroes alone. The central wonder or title figure is in at least every second picture of the book — a book about it must show it.",
+      "Each picture is a moment of action from its paragraph, with the things the text names there (what someone carries, wears or holds, in the state the text gives it) — never figures posing side by side.",
       input.withCover
         // The cover and the first picture were nearly the same table scene.
         ? "The cover must differ from every page picture: show the book's central wonder big in the foreground with the heroes reacting to it — never the opening scene of chapter 1."

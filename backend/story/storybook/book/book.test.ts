@@ -12,7 +12,8 @@ import { buildImageSlots, buildPictureNotes, directBatch, pagesFor, PICTURE_EDGE
 import { buildDirectorUserPrompt, sanitizeIllustrationPlan, type VisualEntity } from "../illustration-stage";
 import { CostLedger } from "../llm";
 import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview, planScoreCap, samePlace } from "./plan";
-import { buildChapterCritiquePrompt, buildChapterStaticContext, buildChapterSystemPrompt, buildChapterSystemWithContext, buildChapterUserPrompt, buildLogbookPrompt, buildPitchPrompt, plantedSentences, planReviewNotes } from "./prompts";
+import { buildChapterCritiquePrompt, buildChapterStaticContext, buildChapterSystemPrompt, buildChapterSystemWithContext, buildChapterUserPrompt, buildLogbookPrompt, buildPitchPrompt, buildPlanPrompt, buildPlanReviewPrompt, plantedSentences, planReviewNotes } from "./prompts";
+import { narratorVoiceRules, proseProfile, STYLE_SAMPLE_BOOK_DE, VOICE_REWRITE_CODES, voiceIssues, voiceRewriteNeeded } from "./voice";
 import { buildQaPrompt, isPluralElement, scopeQaReport, type ImageQaReport } from "../images";
 
 function cleanReport(): ImageQaReport {
@@ -81,7 +82,7 @@ describe("budget and form", () => {
     expect(resolveBookBudget("9-12").chapters).toBe(15);
     expect(resolveBookBudget("6-8", { chapters: 99 }).chapters).toBe(12);
     expect(resolveBookBudget("6-8", { chapters: 8, imagesPerChapter: 3 })).toMatchObject({ chapters: 8, imagesPerChapter: 3 });
-    expect(bookLengthBudget(resolveBookBudget("6-8")).totalWordsMin).toBe(12 * 550);
+    expect(bookLengthBudget(resolveBookBudget("6-8")).totalWordsMin).toBe(12 * 850);
   });
   test("form follows the wizard, then the feelings", () => {
     expect(resolveExperienceForm({ genre: "magic", experienceForm: "cozy" } as any)).toBe("cozy");
@@ -479,7 +480,7 @@ describe("Schatto führt Regie (2026-10-16): cheaper, sooner, nothing left dangl
     const plan = parsePlan(planJson(), 12)!;
     const planned = { plan, brief: brief() } as unknown as PlannedBook;
     const chapter = { order: 2, title: "t", recap: "", content: "Text." };
-    const critique = (humor: number) => ({ n: 2, laugh: null, hook: "Ende.", suspense: 5, humor, progress: true, missingPlants: [] });
+    const critique = (humor: number) => ({ n: 2, laugh: null, hook: "Ende.", suspense: 5, humor, voice: null, lesson: null, progress: true, missingPlants: [] });
     expect(rewriteReasons(critique(LAUGH_REWRITE_MAX_HUMOR + 1), chapter, planned, []).map((reason) => reason.code)).toEqual([]);
     expect(rewriteReasons(critique(LAUGH_REWRITE_MAX_HUMOR), chapter, planned, []).map((reason) => reason.code)).toContain("no-laugh");
   });
@@ -680,5 +681,129 @@ describe("pictures sit after the paragraph they show (audit 2026-10-16: 11 of 16
     const shots = [{ page: 1, scene: "Kicher giggles.", onStage: ["c"], artifactVisible: false }];
     const notes = buildPictureNotes(slots, shots as any, [{ afterParagraph: 3, by: "director", paragraph: 4 }], [...heroes, cast], [], [{ order: 1, title: "t", recap: "", content }]);
     expect(notes[0]).toMatchObject({ chapter: 1, afterParagraph: 3, placedBy: "director", figures: ["Kicher"], missing: ["Alexander", "Adrian"] });
+  });
+});
+
+describe("Buchgefühl (2026-10-16): a narrator, inner life and rhythm instead of a script", () => {
+  // Script-like, as the audited book read: five-word sentences, dialogue line after dialogue line, no thought.
+  const script = Array.from({ length: 30 }, (_, i) => [
+    `Der Topf stand da. Er war blau. Mira sah ihn an. „Was ist das?“, fragte sie. „Ein Topf“, sagte Jonas. „Er tropft.“ Plink. Plink. Plink. „Hör erst hin.“ Jonas nickte. Dann ging er los. Nummer ${i}.`,
+  ].join(" ")).join("\n\n");
+  // Book-like: a narrator with an opinion, a thought on the page, long and short sentences, dialogue woven in.
+  const book = Array.from({ length: 12 }, (_, i) => [
+    `Es gibt Töpfe, die einfach nur Töpfe sind, und es gibt den kleinen blauen Topf auf dem Fensterbrett, der an diesem Nachmittag zum ersten Mal tropfte, obwohl niemand Wasser hineingegossen hatte, und Mira fand das viel aufregender, als es Jonas lieb war.`,
+    `„Ein Topf tropft nicht von selbst“, sagte Jonas, der gern recht hatte, und schaute trotzdem genauer hin. Mira dachte an den Sommer zurück, in dem ihr Opa das Fensterbrett gestrichen hatte, und wusste plötzlich, dass sie den Topf noch nie angefasst hatte. Ihr wurde ein bisschen mulmig, nur ganz kurz, dann siegte die Neugier (Absatz ${i}).`,
+    `Plink. Noch ein Tropfen, dunkel und rund, und dann einer, der fast wie ein Wort klang.`,
+  ].join(" ")).join("\n\n");
+
+  test("the prose profile tells a script from a book", () => {
+    const a = proseProfile(script, { german: true });
+    const b = proseProfile(book, { german: true });
+    expect(a.avgSentenceLength).toBeLessThan(6);
+    expect(a.innerLife).toBe(0);
+    expect(b.avgSentenceLength).toBeGreaterThan(12);
+    expect(b.innerLife).toBeGreaterThan(5);
+    expect(b.dialogueShare).toBeLessThan(0.3);
+    expect(voiceIssues(script, { german: true }).map((issue) => issue.code)).toEqual(["staccato", "no_inner_life"]);
+    expect(voiceIssues(book, { german: true })).toEqual([]);
+    // Short texts and other languages do not trip the German inner-life check.
+    expect(voiceIssues(script.slice(0, 400), { german: true })).toEqual([]);
+    expect(voiceIssues(script, { german: false }).map((issue) => issue.code)).toEqual(["staccato"]);
+  });
+  test("a script-like chapter is a rewrite reason, not a patch note; the critic's voice score only adds weight", () => {
+    expect(voiceRewriteNeeded([{ code: "staccato" }], null)).toBe(true);
+    expect(voiceRewriteNeeded([{ code: "no_inner_life" }], null)).toBe(false);
+    expect(voiceRewriteNeeded([{ code: "no_inner_life" }], 4)).toBe(true);
+    expect(voiceRewriteNeeded([{ code: "dialogue_heavy" }, { code: "no_inner_life" }], null)).toBe(true);
+    expect(voiceRewriteNeeded([], 2)).toBe(false);
+    expect([...VOICE_REWRITE_CODES]).toEqual(["staccato", "dialogue_heavy", "no_inner_life"]);
+    const plan = parsePlan(planJson(), 12)!;
+    const planned = { plan, brief: brief() } as unknown as PlannedBook;
+    const chapter = { order: 2, title: "t", recap: "", content: script };
+    const critique = { n: 2, laugh: "x", hook: "Ende.", suspense: 7, humor: 8, voice: 3, lesson: null, progress: true, missingPlants: [] };
+    const reasons = rewriteReasons(critique, chapter, planned, [], [{ code: "staccato", message: "Kapitel 2: liest sich wie ein Drehbuch." }]);
+    expect(reasons.map((reason) => reason.code)).toEqual(["script-like"]);
+    expect(reasons[0].message).toContain("Das Kapitel liest sich wie ein Drehbuch");
+    expect(rewriteReasons(critique, chapter, planned, []).map((reason) => reason.code)).toEqual([]);
+  });
+  test("checkChapter measures the released text (German only for the inner life)", () => {
+    const b = brief();
+    const codes = checkChapter({ order: 3, title: "t", recap: "", content: script }, { brief: b, budget: b.book, earlier: [], names: ["Alexander", "Adrian"] }).map((issue) => issue.code);
+    expect(codes).toContain("staccato");
+    expect(codes).toContain("no_inner_life");
+    const fine = checkChapter({ order: 3, title: "t", recap: "", content: book }, { brief: b, budget: b.book, earlier: [], names: ["Alexander", "Adrian"] }).map((issue) => issue.code);
+    expect(fine).not.toContain("staccato");
+    expect(fine).not.toContain("no_inner_life");
+  });
+  test("the critic returns a voice score and a quoted lesson; a lesson the text does not contain is dropped", () => {
+    const chapters = [{ order: 4, title: "t", recap: "", content: "Mira lachte. „Man muss erst hinhören, bevor man redet“, sagte Jonas. Dann gingen sie." }];
+    const parsed = parseChapterCritique(JSON.stringify({ chapters: [{ n: 4, voice: 4, lesson: "Man muss erst hinhören, bevor man redet", humor: 6 }] }), chapters)!;
+    expect(parsed.chapters[0].voice).toBe(4);
+    expect(parsed.chapters[0].lesson).toBe("Man muss erst hinhören, bevor man redet");
+    const guessed = parseChapterCritique(JSON.stringify({ chapters: [{ n: 4, lesson: "Freundschaft ist das Wichtigste im Leben" }] }), chapters)!;
+    expect(guessed.chapters[0].lesson).toBeNull();
+    expect(guessed.chapters[0].voice).toBeNull();
+    const critic = buildChapterCritiquePrompt(brief(), parsePlan(planJson(), 12)!, emptyBookState(), chapters);
+    expect(critic.system).toContain("voice 0-10");
+    expect(critic.system).toContain("lesson: copy the exact sentence");
+    expect(critic.user).toContain('"voice":0');
+  });
+  test("the writer gets the narrator rules by age and language, the chapter-book sample for German, and no longer the script rules", () => {
+    const system = buildChapterSystemPrompt(brief());
+    expect(system).toContain("NARRATOR VOICE");
+    expect(system).toContain("Inner life");
+    expect(system).toContain("Read-aloud test");
+    expect(system).toContain("One motto at most");
+    expect(system).not.toContain("not by naming them");
+    expect(system).not.toContain("short and medium sentences");
+    expect(system).toContain(STYLE_SAMPLE_BOOK_DE.split("\n")[0]);
+    expect(buildChapterSystemPrompt(brief({ config: { ...brief().config, language: "en" } as any, languageLabel: "English" }))).not.toContain(STYLE_SAMPLE_BOOK_DE.split("\n")[0]);
+    expect(narratorVoiceRules("3-5", "Deutsch").join(" ")).toContain("one or two such moments");
+    expect(narratorVoiceRules("9-12", "Deutsch").join(" ")).toContain("dry one-liner");
+    expect(narratorVoiceRules("6-8", "Français").join(" ")).toContain("aloud at speed in Français");
+    expect(buildChapterUserPrompt(brief(), parsePlan(planJson(), 12)!, emptyBookState(), 2, 3)).toContain("850–1100 words");
+  });
+  test("the plan asks for stakes that are kept, a setback by the heroes, nobody bigger who could solve it, jokes by ear and a feeling per chapter", () => {
+    const plan = buildPlanPrompt(brief(), { title: "Das Schmatzen", premise: "Ein Rätsel.", bigQuestion: "Wer?", wonder: "Ein Fresser.", roles: [] }, [], []).user;
+    expect(plan).toContain("Nobody bigger can solve it");
+    expect(plan).toContain("Stakes are kept");
+    expect(plan).toContain("Weather, luck or a grown-up turning up are never the setback");
+    expect(plan).toContain("Everything funny works by ear");
+    expect(plan).toContain("feeling: one phrase per chapter");
+    const parsed = parsePlan(planJson({ chapters: planJson().chapters.map((chapter: any) => ({ ...chapter, feeling: "Mira traut sich nicht zu fragen." })) }), 12)!;
+    expect(parsed.chapters[0].feeling).toBe("Mira traut sich nicht zu fragen.");
+    expect(buildChapterUserPrompt(brief(), parsed, emptyBookState(), 1, 1)).toContain("inner life (what the hero feels or thinks; the quiet moment): Mira traut sich nicht zu fragen.");
+  });
+  test("the plan review names the five new checks, caps the score for them and translates them for the revision", () => {
+    const review = buildPlanReviewPrompt(brief(), parsePlan(planJson(), 12)!);
+    for (const check of ["nobodyBiggerSolves", "stakesKept", "setbackByHero", "worksByEar", "someoneWants"]) {
+      expect(review.system).toContain(`- ${check}:`);
+      expect(review.user).toContain(`"${check}":true`);
+    }
+    expect(review.system).toContain("a bigger figure could solve it → 6.5");
+    expect(review.system).toContain('Always \"high\": a passive conflict');
+    expect(planScoreCap({ nobodyBiggerSolves: false })).toBe(6.5);
+    expect(planScoreCap({ stakesKept: false })).toBe(6);
+    expect(planScoreCap({ setbackByHero: false })).toBe(7);
+    expect(planScoreCap({ worksByEar: false })).toBe(7);
+    expect(planScoreCap({ someoneWants: false })).toBe(7.5);
+    const notes = planReviewNotes({ checks: { stakesKept: false, worksByEar: false }, scores: { redThread: 0, suspense: 0, humor: 0, characters: 0, logic: 0, overall: 0 }, mustFix: [], weaknesses: [], verdict: "" });
+    expect(notes.join(" | ")).toContain("stillschweigend fallen gelassen");
+    expect(notes.join(" | ")).toContain("nur auf dem Papier");
+  });
+  test("the art director must show every acting cast member at least once per chapter", async () => {
+    const b = brief();
+    const plan = parsePlan(planJson(), 12)!;
+    const chapters: BookChapter[] = [{ order: 2, title: "t", recap: "", content: Array.from({ length: 12 }, (_, i) => `Absatz ${i + 1}.`).join("\n\n") }];
+    const slots = buildImageSlots(chapters, plan, 2);
+    const seen: LlmRequest[] = [];
+    const llm = async (request: LlmRequest): Promise<LlmCallResult> => {
+      seen.push(request);
+      return { text: JSON.stringify({ cover: { scene: "x", onStage: [], artifactVisible: false, elements: [] }, pages: slots.map((_, index) => ({ page: index + 1, paragraph: 3, scene: "Alexander reaches for the pot", onStage: ["hero-alexander"], artifactVisible: false, elements: [], focus: "scene", vignette: "a pot" })) }), modelUsed: request.model, usage: { prompt: 0, completion: 0, total: 0, costUSD: 0 }, durationMs: 0 };
+    };
+    const entities: VisualEntity[] = [{ id: "hero-alexander", name: "Alexander", kind: "character", role: "hero", species: "human", isHuman: true, appearance: "boy", forbidden: [] }];
+    await directBatch({ llm, models: { writer: "w", support: "s", critic: "c" } as any, ledger: new CostLedger(), brief: b, plan, chapters, entities, slots, withCover: false });
+    expect(seen[0].user).toContain("appears in at least one picture of that chapter");
+    expect(seen[0].user).toContain("never figures posing side by side");
   });
 });

@@ -33,6 +33,7 @@ import {
   planReviewNotes,
 } from "./prompts";
 import type { BookBrief, BookChapter, BookExperiment, BookPitch, BookPlan, BookState, ChapterCurvePoint, PlanReview, SeriesMemory } from "./types";
+import { proseProfile, VOICE_REWRITE_CODES, voiceRewriteNeeded } from "./voice";
 
 export interface BookContext {
   llm: StorybookLlm;
@@ -249,8 +250,13 @@ export const LAUGH_REWRITE_MAX_HUMOR = 5;
  * A missing hook alone is no reason — the support model rewrites the last sentences instead
  * (Gurkenberg 2026-10-14: five rewrites cost 10 ¢, a third of the chapter text).
  */
-export function rewriteReasons(critique: ChapterCritiqueResult["chapters"][number] | undefined, chapter: BookChapter, planned: PlannedBook, hard: string[]): RewriteReason[] {
+export function rewriteReasons(critique: ChapterCritiqueResult["chapters"][number] | undefined, chapter: BookChapter, planned: PlannedBook, hard: string[], voice: Array<{ code: string; message: string }> = []): RewriteReason[] {
   const reasons: RewriteReason[] = hard.map((message) => ({ code: "too-short", message }));
+  // 2026-10-16 ("Der Regen sagt rückwärts"): a script-like chapter cannot be patched (a patch keeps 85 % of the words);
+  // the writer retells it with a narrator. The measured text decides, the critic's voice score only adds weight.
+  if (voiceRewriteNeeded(voice, critique?.voice)) {
+    reasons.push({ code: "script-like", message: `Das Kapitel ${voice.map((issue) => issue.message.replace(/^Kapitel \d+: /, "")).join(" Außerdem: es ")}` });
+  }
   if (!critique) return reasons;
   // A laugh the critic quoted but misquoted is still a laugh ("Sieben Zimmer" chapter 8 was rewritten for it).
   // So is one it rated funny but did not quote: "Schatto führt Regie" rewrote chapters 2-4 at humour 6
@@ -342,7 +348,8 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
   const reasonCodes = new Map<number, string[]>();
   for (const [index, chapter] of chapters.entries()) {
     const hard = checks[index].filter((issue) => issue.code === "chapter_short").map((issue) => issue.message);
-    const reasons = rewriteReasons(critique?.chapters.find((entry) => entry.n === chapter.order), chapter, planned, hard);
+    const voice = checks[index].filter((issue) => VOICE_REWRITE_CODES.has(issue.code)).map((issue) => ({ code: issue.code, message: issue.message }));
+    const reasons = rewriteReasons(critique?.chapters.find((entry) => entry.n === chapter.order), chapter, planned, hard, voice);
     if (!reasons.length) continue;
     reasonCodes.set(chapter.order, [...new Set(reasons.map((reason) => reason.code))]);
     const before: BookState = { ...state, chapters: [...state.chapters, ...chapters.slice(0, index)] };
@@ -353,7 +360,11 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
       if (!next) continue;
       const candidate = { ...next, title: next.title || chapter.title };
       const nextChecks = checkChapter(candidate, { brief, budget: brief.book, earlier: before.chapters, names });
-      if (nextChecks.filter((issue) => issue.severity === "hard").length <= checks[index].filter((issue) => issue.severity === "hard").length) {
+      // A rewrite for the voice must read more like a book than the first version, or the first version stays.
+      const voiceBefore = voice.length;
+      const voiceAfter = nextChecks.filter((issue) => VOICE_REWRITE_CODES.has(issue.code)).length;
+      const voiceOk = !voiceBefore || voiceAfter < voiceBefore || proseProfile(candidate.content, { german }).avgSentenceLength > proseProfile(chapter.content, { german }).avgSentenceLength;
+      if (voiceOk && nextChecks.filter((issue) => issue.severity === "hard").length <= checks[index].filter((issue) => issue.severity === "hard").length) {
         chapters = chapters.map((entry) => (entry.order === chapter.order ? candidate : entry));
         rewritten.add(chapter.order);
       }
@@ -393,7 +404,14 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
     ...threadNotes,
     ...hookNotes.map((chapter) => hookPatchNote(chapter, planned)),
     ...plantNotes,
-    ...checks.flat().filter((issue) => issue.code !== "chapter_short").map((issue) => issue.message),
+    ...checks.flat().filter((issue) => issue.code !== "chapter_short" && !VOICE_REWRITE_CODES.has(issue.code)).map((issue) => issue.message),
+    // A spoken lesson or motto is one sentence: the patch strikes it or turns it into a gesture.
+    ...chapters
+      .filter((chapter) => !rewritten.has(chapter.order))
+      .flatMap((chapter) => {
+        const lesson = critique?.chapters.find((entry) => entry.n === chapter.order)?.lesson;
+        return lesson ? [`Kapitel ${chapter.order}: Der Satz „${lesson}“ spricht eine Lehre oder einen Merksatz aus. Streiche ihn oder ersetze ihn durch eine Handlung oder ein Bild aus der Szene — kein Kind soll hier belehrt werden.`] : [];
+      }),
     ...(critique?.mustFix || []).filter((note) => !rewritten.has(note.chapter)).map((note) => `Kapitel ${note.chapter}: ${note.problem}${note.quote ? ` („${note.quote}“)` : ""}`),
     ...(critique?.languageErrors || []).filter((error) => !rewritten.has(error.chapter)).map((error) => `Kapitel ${error.chapter}: „${error.quote}“ → ${error.correction}`),
   ];
@@ -462,6 +480,8 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
       chapter: chapter.order,
       suspense: point?.suspense ?? 0,
       humor: point?.humor ?? 0,
+      ...(point && point.voice !== null && point.voice !== undefined ? { voice: point.voice } : {}),
+      prose: (() => { const profile = proseProfile(chapter.content, { german }); return { avgSentenceLength: profile.avgSentenceLength, dialogueShare: profile.dialogueShare, innerLife: profile.innerLife }; })(),
       // A rewritten chapter was not read again; its first-read quotes do not describe it.
       laugh: rewritten.has(chapter.order) ? null : point?.laugh ?? null,
       hook: rewritten.has(chapter.order) ? null : point?.hook ?? null,

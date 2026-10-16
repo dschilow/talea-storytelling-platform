@@ -10,7 +10,7 @@
 import { CHILD_SAFETY_RULES_EN } from "../../../helpers/child-safety";
 import { broughtArtifact, type StoryBrief } from "../context";
 import { isGerman } from "../craft";
-import { STYLE_SAMPLE_DE } from "../draft-stage";
+import { narratorVoiceRules, STYLE_SAMPLE_BOOK_DE } from "./voice";
 import { artifactSheetEn, bandNoteEn, castSheetEn, heroSheetEn, wishLinesEn } from "../oneshot-prompt-en";
 import { everydayWonderIdeaLine, heartAndWitEnabled, heartAndWitMode, heartAndWitRules, heartAndWitSettingLines } from "../heart-and-wit";
 import type { CastCandidate } from "../types";
@@ -239,7 +239,7 @@ export function buildPlanPrompt(brief: BookBrief, idea: BookPitchIdea, cast: Cas
   lines.push("- Orientation: chapter 1 starts in the home place and, before the first wonder, lets a child who knows nothing learn where we are, who belongs together, what the heroes want today and by when, and who each companion is (their introduction). Plan it into chapter 1's event.");
   lines.push(`- Arc: chapters 1-2 calm opening in the home place and getting to know everyone, the disruption at the end of chapter 1 or 2; early clues; twistChapter ≈ ${twist} turns an assumption upside down; lowPointChapter ≈ ${low} follows from what happened; the solution comes from the heroes and earlier observations; the last chapter answers the big question and brings them home, the home place a little changed, with one small open thread for another volume (never the main question).`);
   lines.push("- setups: 4-8, each with id S1…, a concrete visible thing, the chapter where it is planted (casually) and a LATER chapter where it pays off. Nothing planted stays unpaid; no payoff without a plant. solution.uses names at least two setup ids.");
-  lines.push(`- chapters: exactly ${n}. Each: n, title (in ${brief.languageLabel}, curious, never spoils), type (${CHAPTER_TYPES.join(", ")}), place, event (2-3 sentences, caused by the previous chapter), progress (how it concretely moves the big question), laugh (the planned funny moment, built from a character's quirk or a contrast), hook (the gentle bedtime ending), cast (names on stage), plants and payoffs (setup ids), gagBeat (only where the running gag appears), pictures (${book.imagesPerChapter} concrete paintable moment${book.imagesPerChapter > 1 ? "s" : ""} in reading order).`);
+  lines.push(`- chapters: exactly ${n}. Each: n, title (in ${brief.languageLabel}, curious, never spoils), type (${CHAPTER_TYPES.join(", ")}), place, event (2-3 sentences, caused by the previous chapter), progress (how it concretely moves the big question), laugh (the planned funny moment, built from a character's quirk or a contrast), feeling (what the chapter's central hero feels or thinks, and the quiet moment where it shows), hook (the gentle bedtime ending), cast (names on stage), plants and payoffs (setup ids), gagBeat (only where the running gag appears), pictures (${book.imagesPerChapter} concrete paintable moment${book.imagesPerChapter > 1 ? "s" : ""} in reading order).`);
   // Test book 2026-10-14: chapter 1 introduced three realms, two door signs, closing words and a moon flower at once.
   lines.push(`- Keep the wonder simple enough for ${brief.band}-year-olds: ONE wonder with one clear rule beats a system of realms, signs and rituals. Chapter 1 introduces at most two invented things; afterwards at most one new invented thing per chapter, always shown in action before it gets a name.`);
   // "Sieben Zimmer": folding + weather swap by knots + the cloud's own weather + gusts — readers lost track.
@@ -257,7 +257,17 @@ export function buildPlanPrompt(brief: BookBrief, idea: BookPitchIdea, cast: Cas
   // heroes' goal was never really blocked; the middle repeated read-and-sort tasks; the villain's need
   // came out only after the solution; the finale repeated an earlier task.
   lines.push("- No easy way out: the problem must block what the heroes personally want. Close every simple alternative early (another path, a grown-up who could just fix it) — show in chapter 1 or 2 why it does not work.");
-  lines.push("- The twist changes what the heroes DO, not only what they know. The low point follows from a decision of the heroes and costs them something concrete, so they must make a new plan.");
+  // 2026-10-16 ("Der Regen sagt rückwärts"): a neighbour knew the side gate all along; the only setback was a thunderstorm;
+  // the stakes (a concert) were quietly dropped in the last chapter; the wordplay (sentences read backwards) could not be heard.
+  lines.push("- Nobody bigger can solve it: no grown-up, teacher, guard or stronger figure in the story world knows a way out the heroes missed. In chapter 1 or 2 show why they cannot help (they cannot see or hear the wonder, they would not believe it, they are away, or what they would do is exactly the danger) — and keep it that way until the end.");
+  lines.push("- Stakes are kept: what the heroes stand to lose is named early, matters to them personally, and the last chapter either saves it or openly turns it into something better that the heroes choose. Never let it quietly disappear.");
+  lines.push("- The twist changes what the heroes DO, not only what they know. The low point follows from a decision or mistake of the heroes (an impatience, a secret kept too long, a promise broken, a wrong guess acted on) and costs them something concrete, so they must make a new plan. Weather, luck or a grown-up turning up are never the setback.");
+  lines.push(`- Everything funny works by ear: every planned laugh, misunderstanding, invented word and wordplay must be understandable when read aloud in ${brief.languageLabel} — nothing that needs to be seen on paper (letters, spelling, words or sentences read backwards).`);
+  lines.push("- The central someone (the wonder, the title creature, the newcomer — whoever is not a hero and matters most) has one want, one fear and one sore spot a child understands, and acts on them; the heroes find this out before the finale.");
+  lines.push("- Besides the heroes, the cast and the central someone, at most one further thing or creature speaks — unless the genre or a family wish asks for more (talking animals in an animal story). A world where everything talks makes the one that talks nothing special.");
+  lines.push("- Time passes like in a book: the volume plays over several days or evenings, or at least over clearly different times of day; chapters are not twelve pieces of one hour. Each chapter names, in passing, when it plays.");
+  lines.push("- Cast with a known story (a fairy-tale or classic figure from the pool) brings what every child knows about it — the plan plays with that knowledge instead of ignoring it; every pool figure gets its introduction line and a job only it can do.");
+  lines.push("- feeling: one phrase per chapter — what the hero at the centre of this chapter feels or secretly thinks, and the one quiet moment where it shows. The writer turns it into inner life; it is never a lesson.");
   lines.push("- Vary the activities, not only the chapter types: the same kind of task (sorting, reading, matching, searching) carries at most two chapters.");
   lines.push("- The opponent's real need (loneliness, fear, a wish) is discovered by the heroes BEFORE the climax, and the solution answers that need instead of only outwitting the opponent.");
   lines.push("- The climax is a new, harder obstacle that needs every hero's and companion's special ability at the same time — never a repeat of an earlier task.");
@@ -266,7 +276,7 @@ export function buildPlanPrompt(brief: BookBrief, idea: BookPitchIdea, cast: Cas
   lines.push(heroRelation(brief)
     ? `- The heroes are ${heroRelation(brief)}: chapter 1 says so plainly; never invent other family members or facts about their family.`
     : "- How the heroes are related is unknown: never call them brothers, sisters, cousins or friends — show closeness through what they do together.");
-  lines.push("- Keep every field short — the plan is a map, not the book: bible fields at most 35 words (truth at most 80), chapter fields at most 20 words (event at most 35), each picture at most 15 words.");
+  lines.push("- Keep every field short — the plan is a map, not the book: bible fields at most 35 words (truth at most 80), chapter fields at most 20 words (event at most 35), each picture at most 15 words. At most one fixedWording that is a motto, rhyme or rule of thumb; the others are spells, signs or the closing line.");
   lines.push(`- sequelTeasers: 2-3 one-sentence teasers in ${brief.languageLabel} for a possible next volume, built on the small open thread („Was, wenn …“).`);
   lines.push("- artifact: the chosen find (id, chapter found, its use) or null.");
   if (brief.blockedTerms.length) lines.push(`- These terms must not appear anywhere: ${brief.blockedTerms.join(", ")}`);
@@ -288,7 +298,7 @@ export function buildPlanPrompt(brief: BookBrief, idea: BookPitchIdea, cast: Cas
       fixedWordings: [{ what: "the closing sentence of the book", text: "…" }],
     },
     setups: [{ id: "S1", what: "…", planted: 2, paidOff: n - 1 }],
-    chapters: [{ n: 1, title: "…", type: "discovery", place: "…", event: "…", progress: "…", laugh: "…", hook: "…", cast: ["…"], plants: ["S1"], payoffs: [], gagBeat: "", pictures: Array.from({ length: book.imagesPerChapter }, () => "…") }],
+    chapters: [{ n: 1, title: "…", type: "discovery", place: "…", event: "…", progress: "…", laugh: "…", feeling: "…", hook: "…", cast: ["…"], plants: ["S1"], payoffs: [], gagBeat: "", pictures: Array.from({ length: book.imagesPerChapter }, () => "…") }],
     castIds: cast.map((candidate) => candidate.id),
     artifact: null,
     sequelTeasers: ["…"],
@@ -366,6 +376,7 @@ function renderChapterPlan(chapter: BookChapterPlan, plan: BookPlan): string {
     `- planned laugh: ${chapter.laugh}`,
   ];
   if (chapter.gagBeat) lines.push(`- running gag here: ${chapter.gagBeat}`);
+  if (chapter.feeling) lines.push(`- inner life (what the hero feels or thinks; the quiet moment): ${chapter.feeling}`);
   for (const entry of plan.bible.freshEyes || []) if (entry.chapter === chapter.n) lines.push(`- fresh-eyes moment here (as dialogue — the heroes explain): ${entry.moment}`);
   for (const id of chapter.plants) lines.push(`- plant casually (never announce what it is for): ${id} — ${setup(id)?.what || ""}`);
   for (const id of chapter.payoffs) lines.push(`- pay off: ${id} — ${setup(id)?.what || ""}`);
@@ -391,6 +402,12 @@ export function buildPlanReviewPrompt(brief: BookBrief, plan: BookPlan): { syste
     "- wishesMet: every family wish marked mandatory is planned into concrete chapters.",
     "- variety: chapter types vary; never the same kind of chapter three times in a row; the same kind of task (sorting, reading, matching, searching) carries at most two chapters.",
     "- noEasyWayOut: the problem really blocks the heroes' personal goal; no simple alternative in the story world (another path, a grown-up) would solve it, or the plan closes it early.",
+    // 2026-10-16: the review of "Der Regen sagt rückwärts" gave 8.7 with a neighbour who knew the way, a thunderstorm as the only setback and stakes dropped at the end — all three now have names and caps.
+    "- nobodyBiggerSolves: no grown-up, teacher, guard or stronger figure in the story world could solve the problem or knows a way out the heroes missed — or the plan shows early and for good why not. False as soon as one such figure could simply fix it.",
+    "- stakesKept: what the heroes stand to lose is named early, is personal, and the finale saves it or openly turns it into something better the heroes choose; false when it is quietly dropped or forgotten.",
+    "- setbackByHero: the twist or the low point is caused by something a hero decides or does (a mistake, an impatience, a kept secret), not by weather, luck or a grown-up appearing.",
+    "- worksByEar: every planned laugh, misunderstanding and wordplay would work when a parent reads it aloud — nothing that only works on paper (spelling, letters, words or sentences read backwards).",
+    "- someoneWants: the central someone (wonder, title creature, newcomer — whoever matters most and is not a hero) has a want, a fear and a sore spot of its own and acts on them; it is not a device or a weather effect.",
     "- setbackChangesPlan: the twist or the low point forces the heroes to change what they do (a new plan), not only what they know.",
     "- needBeforeClimax: the opponent's real need is discovered before the climax and the solution answers it (true for a book without opponent).",
     "- climaxNew: the climax is a new, harder obstacle that needs the special abilities of several characters at once, not a repeat of an earlier task.",
@@ -400,9 +417,9 @@ export function buildPlanReviewPrompt(brief: BookBrief, plan: BookPlan): { syste
     "- heroesDistinct: with two or more heroes, each has a different side, a voice of their own and a decision only they make; they are not interchangeable.",
     "- placesClear: every chapter has one main place, each change of place has a reason a child sees, and the story does not shuttle between the same two places.",
     ...(heartAndWitMode(brief.config.genre) === "full" ? ["- heartAndWit: the wonder (or the most unusual figure) is a someone with a personality and a voice a child could imitate, not just a rule; heroes and companion need each other; the fresh-eyes moments would really make a child laugh in the story language."] : []),
-    `Scores 0-10 against published top chapter books (10 = Lichterland level, 6-7 = solid but interchangeable). Hard caps: big question unclear or unanswered → overall at most 5; solution not prepared → 5; no personal stakes → 6; opponent without logic → 6.5; an easy way out stays open → 6.5; no setback that changes the plan → 7; climax repeats an earlier task → 7; running gag does not escalate → 7; the opponent's need comes out only after the solution → 7.5; no orientation in chapter 1 or a wonder with too many rules → 7; interchangeable heroes or unclear places → 7.5${heartAndWitMode(brief.config.genre) === "full" ?"; the wonder is only a mechanism without a someone, or no fresh-eyes moment would make a child laugh → 7.5" : ""}.`,
+    `Scores 0-10 against published top chapter books (10 = Lichterland level, 6-7 = solid but interchangeable). Hard caps: big question unclear or unanswered → overall at most 5; solution not prepared → 5; no personal stakes → 6; opponent without logic → 6.5; an easy way out stays open → 6.5; no setback that changes the plan → 7; climax repeats an earlier task → 7; running gag does not escalate → 7; the opponent's need comes out only after the solution → 7.5; no orientation in chapter 1 or a wonder with too many rules → 7; interchangeable heroes or unclear places → 7.5; a bigger figure could solve it → 6.5; stakes dropped at the end → 6; the setback comes from weather or luck → 7; a joke that only works on paper → 7; a central someone without a want → 7.5${heartAndWitMode(brief.config.genre) === "full" ?"; the wonder is only a mechanism without a someone, or no fresh-eyes moment would make a child laugh → 7.5" : ""}.`,
     "mustFix: at most 8 concrete problems, the most important first, each with the chapter (or null for the whole book) — in German, as problems, never as rewritten text.",
-    "weaknesses: ALWAYS 2-4 entries even for a good plan — the most predictable moment, the weakest chapter, a planned laugh that will not make a child laugh out loud, a character without real purpose — each with chapter, the problem in German and severity \"high\" (a child or parent will notice and be disappointed) or \"low\".",
+    "weaknesses: ALWAYS 2-4 entries even for a good plan — the most predictable moment, the weakest chapter, a planned laugh that will not make a child laugh out loud, a character without real purpose — each with chapter, the problem in German and severity \"high\" (a child or parent will notice and be disappointed) or \"low\". Always \"high\": a passive conflict (waiting, weather, a thing that just happens), a chapter in which the heroes only watch or listen, a someone without a want, a planned laugh a listener cannot follow by ear, a cast member who is only there.",
     "Answer with JSON only.",
   ].join("\n");
   const user = [
@@ -418,7 +435,7 @@ export function buildPlanReviewPrompt(brief: BookBrief, plan: BookPlan): { syste
     "",
     "JSON:",
     JSON.stringify({
-      checks: { heroesDistinct: true, placesClear: true, bigQuestionClear: true, answeredInFinale: true, solutionPrepared: true, stakesPersonal: true, opponentLogic: true, gagEscalates: true, everyChapterProgress: true, everyChapterLaugh: true, castHasJobs: true, hooksGentle: true, wishesMet: true, variety: true, logic: true, noEasyWayOut: true, setbackChangesPlan: true, needBeforeClimax: true, climaxNew: true, orientation: true, rulesSimple: true, ...(heartAndWitMode(brief.config.genre) === "full" ? { heartAndWit: true } : {}) },
+      checks: { heroesDistinct: true, placesClear: true, bigQuestionClear: true, answeredInFinale: true, solutionPrepared: true, stakesPersonal: true, opponentLogic: true, gagEscalates: true, everyChapterProgress: true, everyChapterLaugh: true, castHasJobs: true, hooksGentle: true, wishesMet: true, variety: true, logic: true, noEasyWayOut: true, nobodyBiggerSolves: true, stakesKept: true, setbackByHero: true, worksByEar: true, someoneWants: true, setbackChangesPlan: true, needBeforeClimax: true, climaxNew: true, orientation: true, rulesSimple: true, ...(heartAndWitMode(brief.config.genre) === "full" ? { heartAndWit: true } : {}) },
       scores: { redThread: 0, suspense: 0, humor: 0, characters: 0, logic: 0, overall: 0 },
       mustFix: [{ chapter: 3, problem: "…" }],
       weaknesses: [{ chapter: 5, problem: "…", severity: "high" }],
@@ -435,13 +452,13 @@ export function buildPlanReviewPrompt(brief: BookBrief, plan: BookPlan): { syste
 export function buildChapterSystemPrompt(brief: BookBrief): string {
   const german = isGerman(brief.config.language);
   return [
-    `You are an award-winning author of German children's chapter books — books like „Lichterland“, „Der kleine Drache Kokosnuss“ or „Das kleine Gespenst“ that parents read aloud one or two chapters a night and children beg to continue. Everything you write for the reader is in ${brief.languageLabel}; these instructions are English only for you.`,
+    `You are an award-winning author of children's chapter books — books like „Lichterland“, „Der kleine Drache Kokosnuss“ or „Das kleine Gespenst“ that parents read aloud one or two chapters a night and children beg to continue. Everything you write for the reader is in ${brief.languageLabel}; these instructions are English only for you.`,
     bandNoteEn(brief.band),
     `Narrate chronologically in the simple past${german ? " (German Präteritum)" : ""}; only direct speech is in the present. Never a flashback to deliver what the reader should have seen.`,
     "Every chapter is a small story of its own: something happens because of what came before, the heroes decide and act, and the chapter ends at a good stopping point.",
     "Chapter openings: the child heard the previous chapter yesterday, so make clear within the first three sentences where we are — mostly through action, a line of dialogue or a surprising detail. Vary the openings from chapter to chapter; never start with the time of day followed by a list of everyone present, and never retell or re-explain what earlier chapters already showed (the app shows its own recap) — half a sentence of reminder at most.",
     "Real suspense: the stakes and the one deadline are felt, attempts fail with consequences, the opponent acts from his own logic. Real humour: the planned laugh is built up and lands — from a quirk, a contrast, physical comedy, a misunderstanding, a grown-up outwitted. Never explain a joke.",
-    "The characters sound different: each speaks in the voice the bible gives them, and the heroes talk to each other. Show feelings through behaviour and dialogue, not by naming them.",
+    "The characters sound different: each speaks in the voice the bible gives them, and the heroes talk to each other.",
     // 2026-10-15 (Zippel): heart and wit, see heart-and-wit.ts.
     ...(heartAndWitEnabled()
       ? [
@@ -451,13 +468,16 @@ export function buildChapterSystemPrompt(brief: BookBrief): string {
           "- Fresh-eyes moments land in dialogue: the someone gets it wrong, the heroes explain, the scene moves on — the narrator never explains the joke. Every chapter has room for one small quiet moment, even a funny one.",
         ]
       : []),
+    // 2026-10-16 ("Der Regen sagt rückwärts"): the old sentence rules ("short and medium sentences", "no narrator
+    // comments", feelings never named) produced a screenplay — 6.4 words per sentence, no thought in eight chapters.
+    ...narratorVoiceRules(brief.band, brief.languageLabel),
     "Things planted for later appear casually, inside a scene; never announce what they will be good for.",
     "The wonder keeps its limits from the bible in every scene: if it cannot touch real things, it never pulls, carries or gets stuck in them — find the comedy inside its rules.",
     "The heroes are never interchangeable: each keeps their own way of speaking and their own contribution in every chapter; a child can tell who speaks without the speech tag.",
     "Within a chapter change the place at most once, and make clear where the heroes are now. Never move back and forth between the same two places.",
     "Every mysterious thing the text shows (a strange shape, a figure nobody explained, a promise) gets its answer later — the OPEN QUESTIONS list keeps track. No new rhyme or spell in the last two chapters: the finale reuses the wording the child already knows.",
     "At most one new invented thing (a place name, a rule, a magic object) per chapter: show it working first, then name it. Never explain the rules of the world in a lecture.",
-    "Explain unfamiliar things in children's words when they first appear. Concrete nouns and strong verbs, short and medium sentences, paragraphs of two to four sentences; one-sentence paragraphs only for a bang or a punchline. No semicolons, adult abstractions, narrator questions, comments about the story, lessons or morals.",
+    "Explain unfamiliar things in children's words when they first appear. Concrete nouns and strong verbs; the sentence rhythm, the narrator and the inner life are set under NARRATOR VOICE.",
     `Do not describe the heroes' looks, size or age (the pictures show them). ${heroRelation(brief) ? `The heroes are ${heroRelation(brief)} — say so plainly in chapter 1, never invent anything else about their family.` : "Never name a family relation or friendship between the heroes (nobody told us)."} Cast members are never the heroes' relatives (a pool \"Oma\" is a friendly old neighbour, not their grandmother). Catchphrases only when the scene carries them.`,
     // "Sieben Zimmer und ein Nieser" (2026-10-15): a child without Talea knowledge never learned who Kuno was or why Wuschel was there.
     "A child hears this book without knowing any of the characters. Chapter 1 orients before the first wonder: where we are, who belongs together, what the heroes want today and by when — told through what they do, within roughly the first 150-250 words. Every companion gets, at their first appearance in the book, one or two sentences woven into the action that say what kind of being they are, how the heroes know them (or how they meet) and why they are here — the bible's introduction, never a list. Give it through a reaction or a line of dialogue (a heroes' exclamation, a name the character says about themselves), never as a bare narrator fact like \"X war ein …, den die Geschwister zum ersten Mal trafen\".",
@@ -465,7 +485,7 @@ export function buildChapterSystemPrompt(brief: BookBrief): string {
     "Spells, rhymes, rule sentences, signs and the book's key lines stay letter for letter wherever they come back — the bible's fixed wordings and every line listed under WORDINGS THAT STAND. A partial quote ends with „…“; never reword it, never invent a second version.",
     "Only the heroes, the cast and the minor figures the bible names have names; nameless extras only briefly.",
     `Chapter endings are gentle hooks — ${HOOK_CATALOGUE.slice(0, 4).join("; ")} — never acute danger or fear before sleep. The next chapter keeps the hook's promise; never dismiss it as "it was only the wind".`,
-    ...(german ? ["Direct speech in German quotation marks: „so“. Rhythm sample (copy nothing):", STYLE_SAMPLE_DE] : []),
+    ...(german ? ["Direct speech in German quotation marks: „so“. Rhythm sample from an unrelated story — only the voice and the rhythm count; copy no figure, thing, place or sentence from it:", STYLE_SAMPLE_BOOK_DE] : []),
     CHILD_SAFETY_RULES_EN,
     "Output without markdown: for every chapter one line `KAPITEL <number>: <title>`, then the chapter text. Nothing before, between or after.",
   ].join("\n");
@@ -570,7 +590,7 @@ export function buildChapterUserPrompt(brief: BookBrief, plan: BookPlan, state: 
   lines.push(`TASK: Write chapter${from === to ? ` ${from}` : `s ${from} to ${to}`} of ${book.chapters}.`);
   for (const chapter of plan.chapters.filter((entry) => entry.n >= from && entry.n <= to)) lines.push(renderChapterPlan(chapter, plan));
   lines.push("");
-  lines.push(`SIZE (counted): every chapter ${book.wordsPerChapterMin}–${book.wordsPerChapterMax} words. Better one strong scene with dialogue than a hasty summary of three.`);
+  lines.push(`SIZE (counted): every chapter ${book.wordsPerChapterMin}–${book.wordsPerChapterMax} words. Better one strong scene with dialogue than a hasty summary of three. The room is for narration, thoughts and exact detail inside the planned events — never for more events than the plan has.`);
   if (from === 1) lines.push("Chapter 1 starts calmly in the home place for a child who knows none of the characters: where we are, who belongs together, what the heroes want today and by when, and who each companion is (the bible's introduction) — shown by what they do, before the first wonder. The disruption comes at the end.");
   if (to === book.chapters) lines.push(`The last chapter answers the big question, brings the heroes home and shows the home place a little changed, with one small open thread. Never write „Fortsetzung folgt“ or anything like it.${state.openThreads?.length ? " These chapters answer every OPEN QUESTION above (the small open thread for another volume is the only exception)." : ""}`);
   if (brief.blockedTerms.length) lines.push(`These terms must not appear anywhere: ${brief.blockedTerms.join(", ")}`);
@@ -583,7 +603,7 @@ export function buildChapterRewriteNote(problems: string[]): string {
     "",
     "REWRITE THIS CHAPTER ONCE. A careful reader found:",
     ...problems.map((problem) => `- ${problem}`),
-    "Keep what works (events, names, the facts above); fix exactly these points. Output only this chapter in the same format.",
+    "Keep what works (events, names, the facts above); fix exactly these points. Where the note asks for a narrator, inner life or rhythm, retell the same events as a book would — with the narrator's voice, the heroes' thoughts and feelings, long and short sentences, exact details — rather than adding new events. Output only this chapter in the same format.",
   ].join("\n");
 }
 
@@ -601,8 +621,11 @@ export function buildChapterCritiquePrompt(brief: BookBrief, plan: BookPlan, sta
     "- laugh: copy the exact sentence (5-25 words) where a child laughs out loud — a built-up moment, not a merely \"funny\" word. null if there is none.",
     `- hook: copy the exact last sentence(s) that make a child want the next chapter. null if the chapter just stops, or ends in acute danger or fear before sleep. Chapter ${last} (the last one) needs no hook: copy its closing line.`,
     "- suspense and humor 0-10 against top chapter books; progress: true if the chapter moves the big question.",
+    // 2026-10-16: the critic rated laugh, hook and suspense and never noticed that the book had no narrator.
+    "- voice 0-10: does a narrator tell this like a real book — a voice with warmth and dry humour, the heroes' thoughts and feelings on the page, sentences of varied length, two or three exact sensory details per scene — or does it read like a script (short sentence, short sentence, line of dialogue, line of dialogue, no thought anywhere)? 8-10 only for a true narrator's voice; 5 or less for a script.",
+    "- lesson: copy the exact sentence (if any) in which someone states a lesson, a moral, a motto or a rule of thumb for life — anything a child is supposed to learn from — null if there is none. A quiet feeling shown in a gesture is not a lesson.",
     "- missingPlants: setup ids the plan wanted planted here that the text does not show.",
-    "mustFix (at most 6, in German): contradictions with the established facts or within the text (places, owners, who knows what without a source), unclear transitions, a character acting against their profile, the wonder doing what its limits forbid, invented looks of the heroes, a planned payoff that does not land, any quote of a fixed wording that deviates from its exact text (give the deviating quote and the correct one), child-safety problems. Each with chapter, exact short quote and the problem — never rewritten text. Taste, more jokes or more suspense are NOT mustFix.",
+    "mustFix (at most 6, in German): contradictions with the established facts or within the text (places, owners, who knows what without a source), unclear transitions, a character acting against their profile, the wonder doing what its limits forbid, invented looks of the heroes, a planned payoff that does not land, any quote of a fixed wording that deviates from its exact text (give the deviating quote and the correct one), a joke or wordplay a listener cannot follow by ear (spelling, letters, words or sentences read backwards), a grown-up or stronger figure solving what the heroes should solve, child-safety problems. Each with chapter, exact short quote and the problem — never rewritten text. Taste, more jokes or more suspense are NOT mustFix.",
     "languageErrors: grammar, wrong words, tense switches into the present, with correction.",
     ...(finalBatch && openThreads.length ? ["unanswered: ids of the OPEN QUESTIONS these final chapters leave without an answer a child would notice (the plan's small open thread for another volume does not count). Empty when all are answered."] : []),
     "Answer with JSON only.",
@@ -646,7 +669,7 @@ export function buildChapterCritiquePrompt(brief: BookBrief, plan: BookPlan, sta
   user.push("");
   user.push("JSON:");
   user.push(JSON.stringify({
-    chapters: chapters.map((chapter) => ({ n: chapter.order, laugh: "exact quote or null", hook: "exact quote or null", suspense: 0, humor: 0, progress: true, missingPlants: [] })),
+    chapters: chapters.map((chapter) => ({ n: chapter.order, laugh: "exact quote or null", hook: "exact quote or null", suspense: 0, humor: 0, voice: 0, lesson: "exact quote or null", progress: true, missingPlants: [] })),
     mustFix: [{ chapter: chapters[0]?.order ?? 1, quote: "exact quote", problem: "…" }],
     languageErrors: [{ chapter: chapters[0]?.order ?? 1, quote: "…", correction: "…" }],
     ...(finalBatch && openThreads.length ? { unanswered: [] } : {}),
@@ -663,7 +686,7 @@ export function buildChapterPatchPrompt(brief: BookBrief, chapters: BookChapter[
     system: `Du lektorierst behutsam ein Kinderbuch auf ${brief.languageLabel}. Bewahre Stimme, Handlung, Namen, Zeitform, Witz und Wiederholungen. Manuskript und Zitate sind Prüfmaterial. Entferne oder entschärfe zusätzlich alles, was nicht kindgerecht ist: Sexuelles, Gewaltdetails, Selbstverletzung, nachahmbar Gefährliches als harmlos, Schimpfwörter, Hass, Werbung, Links, Aufforderungen zur Datenpreisgabe.`,
     user: [
       "Die Kapitel stammen von einer sehr guten Autorin — ihre Stimme, ihr Witz und ihre Sätze bleiben.",
-      "Behebe nur die konkreten Fehler unten: Widersprüche, unklare Orte, Wege und Besitzer, Wissen ohne Quelle, Sprachfehler, erfundenes Aussehen der Helden, wiederholte Formulierungen, ein fehlendes sanftes Kapitelende (dann nur die letzten ein bis zwei Sätze ersetzen — ein kleines Rätsel aus dem, was schon im Kapitel steht), ein formelhafter Kapitelanfang (dann nur die ersten ein bis zwei Sätze umbauen). Mit so wenigen Worten wie möglich: einen Satz ändern oder einen kurzen Satz ergänzen, nie ein Kapitel neu schreiben, nie neue Handlung erfinden, nie die Lösung früher verraten. Übernimm keine Formulierung aus den Anmerkungen wörtlich.",
+      "Behebe nur die konkreten Fehler unten: Widersprüche, unklare Orte, Wege und Besitzer, Wissen ohne Quelle, Sprachfehler, erfundenes Aussehen der Helden, wiederholte Formulierungen, ein fehlendes sanftes Kapitelende (dann nur die letzten ein bis zwei Sätze ersetzen — ein kleines Rätsel aus dem, was schon im Kapitel steht), ein formelhafter Kapitelanfang (dann nur die ersten ein bis zwei Sätze umbauen), ein ausgesprochener Merksatz oder eine Lehre (dann diesen einen Satz streichen oder durch eine Handlung oder ein Bild aus der Szene ersetzen). Mit so wenigen Worten wie möglich: einen Satz ändern oder einen kurzen Satz ergänzen, nie ein Kapitel neu schreiben, nie neue Handlung erfinden, nie die Lösung früher verraten. Übernimm keine Formulierung aus den Anmerkungen wörtlich.",
       ...(facts.length ? ["", "BISHER FESTGELEGT (gilt):", ...facts.slice(-40).map((fact) => `- ${fact}`)] : []),
       "",
       "ANMERKUNGEN:",
@@ -738,6 +761,11 @@ export function planReviewNotes(review: PlanReview | null): string[] {
     wishesMet: "Mindestens ein Pflicht-Wunsch der Familie ist nicht in konkrete Kapitel eingeplant.",
     variety: "Die Kapiteltypen oder die Tätigkeiten wiederholen sich zu sehr (dieselbe Art Aufgabe — sortieren, lesen, vergleichen, suchen — trägt höchstens zwei Kapitel).",
     noEasyWayOut: "Das Problem versperrt das persönliche Ziel der Helden nicht wirklich: Es gibt einen einfachen anderen Weg (oder einen Erwachsenen, der es lösen könnte), den der Plan nicht früh schließt.",
+    nobodyBiggerSolves: "Eine größere Figur (Erwachsener, Lehrer, Wächter) könnte das Problem einfach lösen oder kennt einen Ausweg, den die Helden übersehen: Zeige früh und endgültig, warum sie nicht helfen kann (sieht oder hört das Wunder nicht, glaubt es nicht, ist fort, oder ihre Lösung wäre genau die Gefahr).",
+    stakesKept: "Was auf dem Spiel steht, wird am Ende stillschweigend fallen gelassen: Das Finale muss es retten oder offen in etwas Besseres verwandeln, das die Helden selbst wählen.",
+    setbackByHero: "Wendung oder Tiefpunkt kommen von außen (Wetter, Zufall, ein Erwachsener taucht auf) statt aus einer Entscheidung oder einem Fehler der Helden.",
+    worksByEar: "Mindestens ein geplanter Lacher oder ein Wortspiel funktioniert nur auf dem Papier (Buchstaben, Schreibweise, rückwärts gelesene Wörter oder Sätze) — beim Vorlesen versteht es kein Kind.",
+    someoneWants: "Der zentrale Jemand (das Wunder, die Titelfigur, der Neuankömmling) hat kein eigenes Wollen, keine Angst und keine wunde Stelle, nach denen er handelt — er ist nur ein Effekt oder ein Mechanismus.",
     setbackChangesPlan: "Wendung und Tiefpunkt ändern nur, was die Helden wissen, nicht was sie tun: Ein Fehlschlag mit Folgen muss sie zu einem neuen Plan zwingen.",
     needBeforeClimax: "Das eigentliche Bedürfnis des Gegenspielers kommt erst nach der Lösung heraus: Die Helden müssen es vor dem Höhepunkt entdecken, und die Lösung muss darauf antworten.",
     climaxNew: "Der Höhepunkt wiederholt eine frühere Aufgabe: Er braucht ein neues, schwierigeres Hindernis, bei dem mehrere Figuren gleichzeitig ihre besondere Fähigkeit einsetzen.",

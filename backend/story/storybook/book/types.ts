@@ -126,6 +126,8 @@ export interface BookChapterPlan {
   progress: string;
   /** The planned laugh, built from a character. */
   laugh: string;
+  /** What the chapter's central hero feels or secretly thinks, and the quiet moment where it shows (voice.ts). */
+  feeling?: string;
   /** The gentle bedtime hook; the last chapter's closing picture. */
   hook: string;
   cast: string[];
@@ -211,6 +213,10 @@ export interface ChapterCritique {
   hook: string | null;
   suspense: number;
   humor: number;
+  /** 0-10: a narrator's voice with inner life and rhythm, or a script. null when the critic gave none. */
+  voice: number | null;
+  /** The exact sentence in which someone states a lesson or motto; null when there is none. */
+  lesson: string | null;
   progress: boolean;
   missingPlants: string[];
   /** The critic quoted something the text does not contain (kept to tell a paraphrase from a missing laugh). */
@@ -221,11 +227,15 @@ export interface ChapterCurvePoint {
   chapter: number;
   suspense: number;
   humor: number;
+  /** The critic's voice score (narrator, inner life, rhythm); absent when the critic gave none. */
+  voice?: number | null;
+  /** Measured on the released text: words per sentence and the share of dialogue (voice.ts). */
+  prose?: { avgSentenceLength: number; dialogueShare: number; innerLife: number };
   laugh: string | null;
   hook: string | null;
   rewritten: boolean;
   patched: boolean;
-  /** Why the writer rewrote the chapter: no-laugh, laugh-unmatched, no-progress, missing-plant, too-short. */
+  /** Why the writer rewrote the chapter: no-laugh, laugh-unmatched, no-progress, missing-plant, too-short, script-like. */
   rewriteReasons?: string[];
   /** The chapter ended without a gentle hook and the support model patched its ending. */
   hookPatched?: boolean;

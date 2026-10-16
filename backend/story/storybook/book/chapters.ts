@@ -14,6 +14,7 @@ import { parseJsonObject } from "../llm";
 import type { CheckIssue } from "../types";
 import { foldUmlauts, mentionsName } from "./catalogue";
 import type { BookBrief, BookBudget, BookChapter, ChapterCritique, OpenThread } from "./types";
+import { voiceIssues } from "./voice";
 
 const CHAPTER_MARKER = /^\s*(?:[#*_>\s]*)(?:KAPITEL|CHAPTER|CHAPITRE|CAPÍTULO|CAPITOLO|HOOFDSTUK|ГЛАВА)\s+(\d+)\s*[:：.\-–—]?\s*(.*?)\s*[*_#]*\s*$/i;
 const LEFTOVER_LINE = /^\s*[*_#\s]*(?:RÜCKBLICK|FAKTEN|RECAP|FACTS|TITEL|BESCHREIBUNG)\s*[:：].*$/gim;
@@ -183,6 +184,9 @@ export function checkChapter(chapter: BookChapter, input: { brief: BookBrief; bu
   for (const hit of repeatedPhrases(chapter, input.earlier, input.names)) {
     at(`die Formulierung „${hit.phrase}“ stand schon in Kapitel ${hit.chapter} — variiere sie.`, "repeated_phrase", "soft");
   }
+  // 2026-10-16: the prose itself — a script-like chapter is rewritten by the writer (engine.ts), never patched.
+  const german = String(input.brief.config.language || "de").toLowerCase().startsWith("de");
+  for (const issue of voiceIssues(chapter.content, { german, minWords: Math.round(budget.wordsPerChapterMin * 0.5) })) at(issue.message, issue.code, "soft");
   return issues;
 }
 
@@ -245,6 +249,9 @@ export function parseChapterCritique(raw: string, chapters: BookChapter[]): Chap
       hook: hookFound ? hook : null,
       suspense: score(entry.suspense),
       humor: score(entry.humor),
+      voice: entry.voice === undefined || entry.voice === null || entry.voice === "" ? null : score(entry.voice),
+      // A lesson the critic quotes but the text does not contain is a guess, like a laugh.
+      lesson: (() => { const quoted = quote(entry.lesson); return quoted && quoteInText(quoted, chapter.content) ? quoted : null; })(),
       progress: entry.progress !== false && !/^(false|nein|no)$/i.test(String(entry.progress)),
       missingPlants: (Array.isArray(entry.missingPlants) ? entry.missingPlants : []).map((id: unknown) => String(id).trim().toUpperCase()).filter(Boolean).slice(0, 4),
       ...(Object.keys(unmatched).length ? { unmatched } : {}),
