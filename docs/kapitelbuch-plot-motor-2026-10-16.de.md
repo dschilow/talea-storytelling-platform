@@ -102,3 +102,21 @@ Erstes Buch mit erzwungenem Gegenspieler-Motor. Text deutlich stärker als die V
 | Alexander lernt zum dritten Mal „erst warten“ | Das Familiengedächtnis speicherte das End-Gefühl („erleichtert“), nicht den Bogen; ältere Bücher hatten gar keine Motive. | `planMotifs`: Lektion = Schwäche → letzte Entscheidung je Held; `history.ts motifsOf` rechnet sie aus dem gespeicherten Plan jedes Buchs nach, auch für Bücher vor `bookAdmin.motifs`. |
 
 Offen: Die Prosa bleibt kurzatmig (Ø 6,2–7,7 Wörter je Satz, Ziel 9–13); `voiceRewriteDisputed` verhindert die teuren Rewrites, ein billiger Hebel fehlt noch. Die Mitte (Kap. 3–5: Booten folgen, auf den dritten Schaukler warten) wiederholt eine Tätigkeit. Ein Live-Buch mit diesem Stand steht aus.
+
+## Nachtrag 3: „Luna und der Brunnenbrief“ (16.10.2026, Story 8688be51)
+
+Erstes Buch mit den Bild-Fixes aus Nachtrag 2: 15 von 16 Bildern kamen an, das fehlende steht jetzt mit Grund im Log. Das Cover scheiterte (Alexander mit Katzenkörper verschmolzen), deshalb dient das erste Bild als Cover. Das PDF wurde 6 s vor den Bildern von Kapitel 7–8 exportiert und hat deshalb keine. Text ≈ 6/10: Luna ist ein guter Gast (wörtliches Nehmen, „Ordnung im Schnurrbart“, Erwachsene hören nur „Miau“), Isabellas immer längere Anreden zahlen sich im Finale aus. Aber es gibt keinen Druck: Ab Kapitel 4 ist das Ziel in Sicht, die Hindernisse sind Wäscheleinen und Isabellas Bitte, den Ablauf frei zu lassen, die Helden pendeln zwischen Hof und Dorfplatz. Kosten 24,8 ct (Sol 10,8, Bilder 6,4, Luna 4,1, Gemini 3,1).
+
+| Befund | Ursache | Änderung |
+| --- | --- | --- |
+| Luna fehlt in der Übersicht, dafür steht dort Königin Isabella — eine Königin, die im Hof Wäsche aufhängt | Der Pitch nannte die Pool-Figur Luna (`char_005_luna_die_katze`) als Motorfigur, führte sie aber nicht unter `roles`. Die Besetzung blieb leer, `fallbackCasting` setzte die „beste Gast-Figur“ Isabella ein, Luna wurde ohne Porträt gezeichnet. Die Übersicht zeigt `characterPoolUsed` = Besetzung. | `catalogue.ts ensureEngineCast`: Eine Motorfigur aus dem Pool steht immer in der Besetzung, auch für die Bewertung der Ideen in `chooseIdea`. Eine erfundene Motorfigur bekommt keinen zweiten Gast dazu, die Pool-Figur kommt dann als Begleiter. Die Motorfigur bleibt auch nach der Plan-Filterung in der Besetzung. |
+| Plan-Review 6, nach der Revision 5 (Spannung 4,5); die zweite Revision wurde verworfen, der Plan trotzdem geschrieben | Das Gate prüft, hat aber keinen Ausweg. | `plan.ts planNeedsRescue` (unter 6): einmal die nächste Idee aus der Rangfolge des Lektors planen (`chooseIdea.order`), der besser bewertete Plan wird geschrieben. Log-Stufe `plan-rescue`. Kostet etwa 1–3 ct und 1–2 min nur in diesem Fall. |
+| Seite 1: „Ihr Haus lag in einem Dorf.“ als eigener Absatz; Lunas Frage steht zweimal („Ich sehe jedenfalls niemanden.“ / „Ich sehe niemanden.“) | Kaltleser-Patch („Ort fehlt“) und Lach-Patch fügten neben vorhandenen Text ein. | `dropEchoedSentences` mit zweiter Stufe für kurze Dialogzeilen (Wörter ab 3 Buchstaben, ≥ 3 gemeinsam, ≥ 75 %); umformulierte Autorensätze bleiben immer. Die Ortsnotiz verlangt Einflechten statt Faktensatz, der Lach-Patch schärft einen vorhandenen Witz statt ihn zu wiederholen. |
+| „Eine erwachsene Nachbarin“ | Steife Erwachsenen-Etiketten. | `STILTED_GROWNUP` fängt auch „erwachsene Nachbarin/Frau/Mann“. |
+| Alexander lernt zum vierten Mal „warten, andere ausreden lassen“ | Das Familiengedächtnis erreichte Pitch und Plan-Review, nicht den Planer, der die Schwächen festlegt. | Plan-Prompt: „ALREADY LEARNED IN EARLIER BOOKS (binding)“ mit den Lektions-Zeilen. |
+| Gast-Buch ohne Gegenkraft | Die Gast-Regeln verlangten Beinahe-Entdeckungen, aber keinen Druck von außen. | Planregel: Jemand arbeitet von sich aus gegen die Mission des Gasts; eine höfliche Bitte eines Erwachsenen ist kein Gegner; das Ziel bleibt bis zum Tiefpunkt außer Reichweite. |
+
+Offen:
+- PDF-Export, solange Bilder fehlen: Der Export sollte warten oder darauf hinweisen (`metadata.book.pendingPictures`).
+- Gedruckte Bildfehler: Adrian als zweiter Alexander (Jev-Fund „same figure twice“ gilt als weich), Isabella hält den Brief.
+- Bekannte Märchenfiguren ohne Pool-Eintrag (Frau Holle) lösen die Namensprüfung aus.

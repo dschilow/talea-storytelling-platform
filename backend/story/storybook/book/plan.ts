@@ -449,6 +449,14 @@ export function planPassesGate(review: PlanReview | null, issues: string[]): boo
   return review.scores.overall >= PLAN_GATE_SCORE && review.mustFix.length === 0 && issues.length === 0;
 }
 
+/** Under this overall score after its revisions a plan hands over to the next idea ("Luna und der Brunnenbrief": 5, suspense 4.5). */
+export const PLAN_RESCUE_SCORE = 6;
+
+/** A plan that stays clearly weak after its revisions; a missing review never triggers a second plan. */
+export function planNeedsRescue(review: PlanReview | null | undefined): boolean {
+  return Boolean(review) && review!.scores.overall < PLAN_RESCUE_SCORE;
+}
+
 export function parsePlanReview(raw: any): PlanReview | null {
   if (!raw || typeof raw !== "object" || !raw.checks || !raw.scores) return null;
   const checks: Record<string, boolean> = {};

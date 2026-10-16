@@ -108,7 +108,8 @@ const MORAL_ENDINGS = [
 
 const TIME_OPENING = /^(am|an diesem|an jenem|in (der|dieser|jener)|früh am|spät am|gegen|als (die sonne|der mond|es (dunkel|hell|abend|morgen))|die sonne|der nächste|the next|that (morning|evening|night)|in the (morning|evening))\b[^.!?]{0,40}\b(morgen|vormittag|mittag|nachmittag|abend|nacht|tag|frühstück|sonne|mond|morning|evening|night|day)\b/i;
 
-const STILTED_GROWNUP = /\b(?:die|der|eine|ein|einer)?\s*vertraute[nr]?\s+(?:erwachsene[nr]?\s+)?(?:Person|Stimme)\b|\berwachsene[nr]?\s+(?:Bezugs)?[Pp]erson\b|\bBezugsperson\b/i;
+// "Luna und der Brunnenbrief": „Eine erwachsene Nachbarin ordnete Wäsche“ — every neighbour in a children's book is grown up.
+const STILTED_GROWNUP = /\b(?:die|der|eine|ein|einer)?\s*vertraute[nr]?\s+(?:erwachsene[nr]?\s+)?(?:Person|Stimme)\b|\berwachsene[nr]?\s+(?:Bezugs)?[Pp]erson\b|\bBezugsperson\b|\berwachsene[nrs]?\s+(?:Nachbar(?:in)?|Frau|Mann|Dame|Herr)\b/i;
 
 /** The latest state per thing (how many rooms, which knot is tied): a thing named again replaces its earlier entry. */
 export function mergeWorldState(
@@ -330,17 +331,34 @@ export function acceptableChapterPatch(before: string, after: string): boolean {
 export function dropEchoedSentences(before: string, after: string): string {
   const sentencesOf = (text: string) => text.match(/[^.!?…]+(?:[.!?…]+[“”"»«]*|$)/g) || [];
   const stems = (sentence: string) => new Set(words(sentence).filter((word) => word.length >= 4).map((word) => word.slice(0, 5)));
+  // Short lines of dialogue carry few long words: "Luna und der Brunnenbrief", chapter 1 — the laugh patch added
+  // „Ich sehe jedenfalls niemanden.“ next to the author's „Ich sehe niemanden.“ Here every word of three letters counts.
+  const shortWords = (sentence: string) => new Set(words(sentence).filter((word) => word.length >= 3));
+  const overlap = (mine: Set<string>, other: Set<string>) => {
+    let shared = 0;
+    for (const item of mine) if (other.has(item)) shared += 1;
+    return { shared, ratio: shared / Math.max(1, Math.min(mine.size, other.size)) };
+  };
   const original = sentencesOf(before).map((sentence) => sentence.trim()).filter(Boolean);
   const originalSet = new Set(original);
-  const stillThere = original.filter((sentence) => after.includes(sentence)).map(stems);
+  const kept = original.filter((sentence) => after.includes(sentence));
+  const stillThere = kept.map(stems);
+  const stillThereShort = kept.map(shortWords);
+  // A sentence the patch reworded is gone from the text; its new wording is never an echo, however much it resembles others.
+  const removedShort = original.filter((sentence) => !after.includes(sentence)).map(shortWords);
   const echoes = (sentence: string) => {
+    const rewording = removedShort.some((other) => overlap(shortWords(sentence), other).ratio >= 0.5);
+    if (rewording) return false;
     const mine = stems(sentence);
-    if (mine.size < 4) return false;
-    return stillThere.some((other) => {
-      let shared = 0;
-      for (const stem of mine) if (other.has(stem)) shared += 1;
-      return shared >= 4 && shared / Math.min(mine.size, other.size) >= 0.6;
-    });
+    if (mine.size >= 4 && stillThere.some((other) => {
+      const { shared, ratio } = overlap(mine, other);
+      return shared >= 4 && ratio >= 0.6;
+    })) return true;
+    const short = shortWords(sentence);
+    return short.size >= 3 && stillThereShort.some((other) => other.size >= 3 && (() => {
+      const { shared, ratio } = overlap(short, other);
+      return shared >= 3 && ratio >= 0.75;
+    })());
   };
   return after
     .split(/\n\s*\n/)

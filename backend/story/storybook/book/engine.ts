@@ -13,10 +13,10 @@
 
 import { isGerman } from "../craft";
 import { STORYBOOK_SUPPORT_MODEL, fallbackModelFor, modelFamily, parseJsonObject, type CostLedger, type LlmCallResult, type LlmRequest, type StorybookLlm, type StorybookModels } from "../llm";
-import { chooseIdea, fallbackCasting, forceEngine, mentionsName, resolveCasting, resolveEngineFigure, type CastingResult } from "./catalogue";
+import { chooseIdea, ensureEngineCast, fallbackCasting, forceEngine, mentionsName, resolveCasting, resolveEngineFigure, type CastingResult } from "./catalogue";
 import { checkChapter, mergeChapterPatch, mergeOpenThreads, mergeWorldState, mergeWordings, parseChapterCritique, parseChapters, quoteInText, type ChapterCritiqueResult } from "./chapters";
 import { buildColdReadPrompt, coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
-import { checkBookPlan, mergePlanRevision, parseEngine, parsePitch, parsePlan, parsePlanReview, PLAN_MAX_REVISIONS, planPassesGate, villainStyleFor } from "./plan";
+import { checkBookPlan, mergePlanRevision, parseEngine, parsePitch, parsePlan, parsePlanReview, PLAN_MAX_REVISIONS, planNeedsRescue, planPassesGate, villainStyleFor } from "./plan";
 import {
   buildChapterCritiquePrompt,
   buildChapterPatchPrompt,
@@ -123,115 +123,142 @@ export async function planBook(ctx: BookContext): Promise<PlannedBook> {
   // funny or mystery book when the pool offers opponents, never an idea without a valid pool cast when another has one.
   const choiceInput = { form: brief.form, catalogue: brief.catalogue, series: brief.series, recentBookEngines: brief.recentBookEngines, max: brief.book.maxPoolCast };
   const chosen = chooseIdea(pitch, choiceInput);
-  let idea = pitch.ideas[chosen.index];
-  idea = { ...idea, engineFigure: resolveEngineFigure(idea.engineFigure, brief.catalogue, brief.series) };
-  let casting = resolveCasting(idea, brief.catalogue, brief.book.maxPoolCast, brief.series);
-  const pitchNotes = [...chosen.notes];
-  // All three ideas on heroes (or on last book's engine): the editor assigns the engine and its figure from the catalogue.
-  const forced = forceEngine(idea, casting, { ...choiceInput, style: villainStyleFor(brief.band) });
-  if (forced) {
-    idea = forced.idea;
-    casting = forced.casting;
-    pitchNotes.push(forced.note);
-  }
-  // Pool characters are part of the product: an idea without any gets a companion that fits the engine.
-  if (casting.cast.length === 0 && brief.catalogue.length > 0) {
-    const fallback = fallbackCasting(idea, brief.catalogue, casting, villainStyleFor(brief.band));
-    idea = fallback.idea;
-    casting = fallback.casting;
-  }
-  const castBrief: BookBrief = { ...brief, candidates: casting.cast };
-  await observe(ctx, "pitch", { ideas: pitch.ideas.map((entry) => entry.title), choice: pitch.choice, chosen: chosen.index + 1, engine: idea.engine || "heroes", engineFigure: idea.engineFigure || null, cast: casting.roles, notes: [...pitchNotes, ...casting.notes] });
 
-  const planPrompt = buildPlanPrompt(castBrief, idea, casting.cast, casting.roles);
-  const planRequest: LlmRequest = {
-    stage: "book-plan", role: "writer", model: planner, system: planPrompt.system, user: planPrompt.user,
-    json: true, maxTokens: 14000 + brief.book.chapters * 300, effort: experiment.planEffort || "medium", timeoutMs: 420_000, temperature: 0.8, fallbackModel: plannerFallback,
-  };
-  let rawPlan: any = null;
-  const plan0 = await jsonCall(ctx, planRequest, (raw) => {
-    const parsed = parsePlan(raw, brief.book.chapters);
-    if (parsed) rawPlan = raw;
-    return parsed;
-  }, plannerFallback);
-  if (!plan0) throw new Error("[book] Der Bandplan konnte nicht erstellt werden. Bitte erneut versuchen.");
-  let plan = plan0;
-
-  const checkInput = {
-    genre: brief.config.genre,
-    heroNames: brief.heroes.map((hero) => hero.name),
-    castNames: casting.cast.map((candidate) => candidate.name),
-    blockedTerms: brief.blockedTerms,
-    cozy: brief.form === "cozy",
-    band: brief.band,
-  };
-  let issues = checkBookPlan(plan, brief.book, checkInput);
-
-  const review = async (stage: string, current: BookPlan): Promise<PlanReview | null> => {
-    if (experiment.skipPlanReview) return null;
-    const prompt = buildPlanReviewPrompt(castBrief, current);
-    try {
-      return await jsonCall(ctx, {
-        stage, role: "critic", model: planCritic, system: prompt.system, user: prompt.user,
-        json: true, maxTokens: 6000, effort: "low", timeoutMs: 180_000, temperature: 0.2,
-      }, parsePlanReview, fallbackModelFor(planCritic));
-    } catch (err) {
-      console.warn(`[book] ${stage} failed:`, (err as Error)?.message || err);
-      return null;
+  /** Casting, plan, review and revisions for one of the pitch's ideas. */
+  const planIdea = async (index: number, attempt: number) => {
+    let idea = pitch.ideas[index];
+    idea = { ...idea, engineFigure: resolveEngineFigure(idea.engineFigure, brief.catalogue, brief.series) };
+    let casting = resolveCasting(idea, brief.catalogue, brief.book.maxPoolCast, brief.series);
+    const pitchNotes = attempt === 1 ? [...chosen.notes] : [`Idee ${index + 1}: der Plan der ersten Idee blieb unter dem Gate.`];
+    // All three ideas on heroes (or on last book's engine): the editor assigns the engine and its figure from the catalogue.
+    const forced = forceEngine(idea, casting, { ...choiceInput, style: villainStyleFor(brief.band) });
+    if (forced) {
+      idea = forced.idea;
+      casting = forced.casting;
+      pitchNotes.push(forced.note);
     }
-  };
-  const revise = async (stage: string, current: BookPlan, rawCurrent: any, notes: string[]): Promise<{ plan: BookPlan; raw: any; issues: string[] } | null> => {
-    const revisionPrompt = buildPlanRevisionPrompt(castBrief, planPrompt, JSON.stringify(rawCurrent ?? current), notes);
-    try {
-      // Only the changed parts come back (a full rewrite cost 10.7 ¢ on the first live run).
-      let merged: any = null;
-      const revised = await jsonCall(ctx, { ...planRequest, stage, user: revisionPrompt.user, maxTokens: 9000 }, (raw) => {
-        if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-        merged = mergePlanRevision(rawCurrent ?? current, raw);
-        return parsePlan(merged, brief.book.chapters);
-      });
-      if (!revised) return null;
-      const revisedIssues = checkBookPlan(revised, brief.book, checkInput);
-      return revisedIssues.length <= issues.length ? { plan: revised, raw: merged, issues: revisedIssues } : null;
-    } catch (err) {
-      console.warn(`[book] ${stage} failed; keeping the plan before it:`, (err as Error)?.message || err);
-      return null;
+    // The engine figure from the pool is always cast ("Luna und der Brunnenbrief": named as engine, missing from the roles).
+    casting = ensureEngineCast(idea, brief.catalogue, casting, brief.book.maxPoolCast);
+    // Pool characters are part of the product: an idea without any gets a companion that fits the engine.
+    if (casting.cast.length === 0 && brief.catalogue.length > 0) {
+      const fallback = fallbackCasting(idea, brief.catalogue, casting, villainStyleFor(brief.band));
+      idea = fallback.idea;
+      casting = fallback.casting;
     }
+    const castBrief: BookBrief = { ...brief, candidates: casting.cast };
+    const again = attempt > 1 ? { attempt } : {};
+    await observe(ctx, "pitch", { ideas: pitch.ideas.map((entry) => entry.title), choice: pitch.choice, chosen: index + 1, ...again, engine: idea.engine || "heroes", engineFigure: idea.engineFigure || null, cast: casting.roles, notes: [...pitchNotes, ...casting.notes] });
+
+    const planPrompt = buildPlanPrompt(castBrief, idea, casting.cast, casting.roles);
+    const tag = attempt > 1 ? `-idea${attempt}` : "";
+    const planRequest: LlmRequest = {
+      stage: `book-plan${tag}`, role: "writer", model: planner, system: planPrompt.system, user: planPrompt.user,
+      json: true, maxTokens: 14000 + brief.book.chapters * 300, effort: experiment.planEffort || "medium", timeoutMs: 420_000, temperature: 0.8, fallbackModel: plannerFallback,
+    };
+    let rawPlan: any = null;
+    const plan0 = await jsonCall(ctx, planRequest, (raw) => {
+      const parsed = parsePlan(raw, brief.book.chapters);
+      if (parsed) rawPlan = raw;
+      return parsed;
+    }, plannerFallback);
+    if (!plan0) return null;
+    let plan = plan0;
+
+    const checkInput = {
+      genre: brief.config.genre,
+      heroNames: brief.heroes.map((hero) => hero.name),
+      castNames: casting.cast.map((candidate) => candidate.name),
+      blockedTerms: brief.blockedTerms,
+      cozy: brief.form === "cozy",
+      band: brief.band,
+    };
+    let issues = checkBookPlan(plan, brief.book, checkInput);
+
+    const review = async (stage: string, current: BookPlan): Promise<PlanReview | null> => {
+      if (experiment.skipPlanReview) return null;
+      const prompt = buildPlanReviewPrompt(castBrief, current);
+      try {
+        return await jsonCall(ctx, {
+          stage, role: "critic", model: planCritic, system: prompt.system, user: prompt.user,
+          json: true, maxTokens: 6000, effort: "low", timeoutMs: 180_000, temperature: 0.2,
+        }, parsePlanReview, fallbackModelFor(planCritic));
+      } catch (err) {
+        console.warn(`[book] ${stage} failed:`, (err as Error)?.message || err);
+        return null;
+      }
+    };
+    const revise = async (stage: string, current: BookPlan, rawCurrent: any, notes: string[]): Promise<{ plan: BookPlan; raw: any; issues: string[] } | null> => {
+      const revisionPrompt = buildPlanRevisionPrompt(castBrief, planPrompt, JSON.stringify(rawCurrent ?? current), notes);
+      try {
+        // Only the changed parts come back (a full rewrite cost 10.7 ¢ on the first live run).
+        let merged: any = null;
+        const revised = await jsonCall(ctx, { ...planRequest, stage, user: revisionPrompt.user, maxTokens: 9000 }, (raw) => {
+          if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+          merged = mergePlanRevision(rawCurrent ?? current, raw);
+          return parsePlan(merged, brief.book.chapters);
+        });
+        if (!revised) return null;
+        const revisedIssues = checkBookPlan(revised, brief.book, checkInput);
+        return revisedIssues.length <= issues.length ? { plan: revised, raw: merged, issues: revisedIssues } : null;
+      } catch (err) {
+        console.warn(`[book] ${stage} failed; keeping the plan before it:`, (err as Error)?.message || err);
+        return null;
+      }
+    };
+
+    const planReview = await review(`book-plan-review${tag}`, plan);
+    await observe(ctx, "plan", { title: plan.title, ...again, issues, review: planReview?.scores, mustFix: planReview?.mustFix.length ?? null, weaknesses: planReview?.weaknesses.map((entry) => `${entry.severity}: ${entry.problem}`) });
+
+    // The plan gate (2026-10-16): "Die Türlaunische" was reviewed at 5, revised once without a second look and written.
+    // A plan under the gate is reviewed again after its revision and revised a second time; a revision costs about
+    // 0.3 ct, a review about 0.8 ct — a chapter rewritten for a weak plan costs 1.5-2.3 ct.
+    let planRevisions = 0;
+    let planReviewAfter: PlanReview | null | undefined;
+    let latestReview = planReview;
+    let rawCurrent: any = rawPlan;
+    let notes = [...issues, ...planReviewNotes(latestReview)];
+    while (notes.length > 0 && planRevisions < PLAN_MAX_REVISIONS) {
+      const result = await revise(planRevisions === 0 ? `book-plan-revision${tag}` : `book-plan-revision-${planRevisions + 1}${tag}`, plan, rawCurrent, notes);
+      if (!result) break;
+      plan = result.plan;
+      rawCurrent = result.raw;
+      issues = result.issues;
+      planRevisions += 1;
+      if (planPassesGate(latestReview, issues)) break;
+      // The second look at the revised plan: the first review had must-fix notes or scored under the gate.
+      planReviewAfter = await review(`book-plan-review-${planRevisions + 1}${tag}`, plan);
+      latestReview = planReviewAfter ?? latestReview;
+      if (!planReviewAfter) break;
+      notes = [...issues, ...planReviewNotes(planReviewAfter)];
+      await observe(ctx, "plan-review-after", { revision: planRevisions, ...again, review: planReviewAfter.scores, mustFix: planReviewAfter.mustFix.length, passes: planPassesGate(planReviewAfter, issues) });
+      if (planPassesGate(planReviewAfter, issues)) break;
+    }
+    const planRevised = planRevisions > 0;
+    if (planRevised || notes.length) await observe(ctx, "plan-revision", { revised: planRevised, revisions: planRevisions, ...again, remaining: issues, gate: planPassesGate(latestReview, issues) });
+    return { index, idea, casting, castBrief, plan, planReview, planReviewAfter, latestReview, issues, planRevised, planRevisions };
   };
 
-  const planReview = await review("book-plan-review", plan);
-  await observe(ctx, "plan", { title: plan.title, issues, review: planReview?.scores, mustFix: planReview?.mustFix.length ?? null, weaknesses: planReview?.weaknesses.map((entry) => `${entry.severity}: ${entry.problem}`) });
-
-  // The plan gate (2026-10-16): "Die Türlaunische" was reviewed at 5, revised once without a second look and written.
-  // A plan under the gate is reviewed again after its revision and revised a second time; a revision costs about
-  // 0.3 ct, a review about 0.8 ct — a chapter rewritten for a weak plan costs 1.5-2.3 ct.
-  let planRevisions = 0;
-  let planReviewAfter: PlanReview | null | undefined;
-  let latestReview = planReview;
-  let rawCurrent: any = rawPlan;
-  let notes = [...issues, ...planReviewNotes(latestReview)];
-  while (notes.length > 0 && planRevisions < PLAN_MAX_REVISIONS) {
-    const result = await revise(planRevisions === 0 ? "book-plan-revision" : `book-plan-revision-${planRevisions + 1}`, plan, rawCurrent, notes);
-    if (!result) break;
-    plan = result.plan;
-    rawCurrent = result.raw;
-    issues = result.issues;
-    planRevisions += 1;
-    if (planPassesGate(latestReview, issues)) break;
-    // The second look at the revised plan: the first review had must-fix notes or scored under the gate.
-    planReviewAfter = await review(`book-plan-review-${planRevisions + 1}`, plan);
-    latestReview = planReviewAfter ?? latestReview;
-    if (!planReviewAfter) break;
-    notes = [...issues, ...planReviewNotes(planReviewAfter)];
-    await observe(ctx, "plan-review-after", { revision: planRevisions, review: planReviewAfter.scores, mustFix: planReviewAfter.mustFix.length, passes: planPassesGate(planReviewAfter, issues) });
-    if (planPassesGate(planReviewAfter, issues)) break;
+  const first = await planIdea(chosen.index, 1);
+  if (!first) throw new Error("[book] Der Bandplan konnte nicht erstellt werden. Bitte erneut versuchen.");
+  let best = first;
+  // "Luna und der Brunnenbrief" (2026-10-16): reviewed at 6, revised to 5 (suspense 4.5), the second revision was refused
+  // and the plan was written anyway — 25 ct for a book about laundry lines. A plan that stays clearly under the gate
+  // hands over once to the editor's next idea (about 1-3 ct); the better reviewed plan is written.
+  const nextIdea = chosen.order.find((index) => index !== chosen.index);
+  if (nextIdea !== undefined && planNeedsRescue(first.latestReview)) {
+    const second = await planIdea(nextIdea, 2).catch((err) => {
+      console.warn("[book] plan of the next idea failed; keeping the first plan:", (err as Error)?.message || err);
+      return null;
+    });
+    const score = (entry: NonNullable<typeof second>) => entry.latestReview?.scores.overall ?? 0;
+    if (second && score(second) > score(first)) best = second;
+    await observe(ctx, "plan-rescue", { firstIdea: first.index + 1, firstOverall: score(first), secondIdea: second ? second.index + 1 : null, secondOverall: second ? score(second) : null, written: best.index + 1 });
   }
-  const planRevised = planRevisions > 0;
-  if (planRevised || notes.length) await observe(ctx, "plan-revision", { revised: planRevised, revisions: planRevisions, remaining: issues, gate: planPassesGate(latestReview, issues) });
-  // The plan may cast fewer characters than the pitch; the book carries only those it plans with.
-  const planned = casting.cast.filter((candidate) => plan.chapters.some((chapter) => chapter.cast.some((entry) => mentionsName(entry, candidate.name))) || plan.castIds.includes(candidate.id));
+  const { casting, castBrief, plan, planReview, planReviewAfter, issues, planRevised, planRevisions } = best;
+  // The plan may cast fewer characters than the pitch; the book carries only those it plans with — and always the engine figure.
+  const planned = casting.cast.filter((candidate) => plan.chapters.some((chapter) => chapter.cast.some((entry) => mentionsName(entry, candidate.name))) || plan.castIds.includes(candidate.id) || mentionsName(plan.bible.engineFigure || "", candidate.name));
   const finalCast = planned.length ? planned : casting.cast;
-  return { pitch: { ...pitch, choice: chosen.index + 1 }, casting: { ...casting, cast: finalCast }, plan, planReview, planIssues: issues, planRevised, planReviewAfter, planRevisions, brief: { ...castBrief, candidates: finalCast } };
+  return { pitch: { ...pitch, choice: best.index + 1 }, casting: { ...casting, cast: finalCast }, plan, planReview, planIssues: issues, planRevised, planReviewAfter, planRevisions, brief: { ...castBrief, candidates: finalCast } };
 }
 
 // ---------------------------------------------------------------------------
@@ -353,7 +380,7 @@ export function enginePatchNotes(point: ChapterCritiqueResult["chapters"][number
   if (!point.laugh && !point.unmatched?.laugh && point.humor <= LAUGH_PATCH_MAX_HUMOR && !laughRewriteNeeded(point)) {
     laughPatched = true;
     notes.push(plannedChapter?.laugh
-      ? `Kapitel ${chapter.order}: Der geplante Lacher („${plannedChapter.laugh}“) landet nicht. Baue ihn in zwei bis vier Sätzen in der vorhandenen Szene auf — Figur, Steigerung, Pointe — ohne neue Handlung und ohne den Witz zu erklären.`
+      ? `Kapitel ${chapter.order}: Der geplante Lacher („${plannedChapter.laugh}“) landet nicht. Baue ihn in zwei bis vier Sätzen in der vorhandenen Szene auf — Figur, Steigerung, Pointe — ohne neue Handlung und ohne den Witz zu erklären. Steht der Witz schon im Kapitel, schärfe ihn an genau dieser Stelle, statt ihn ein zweites Mal einzubauen.`
       : `Kapitel ${chapter.order}: Es gibt keine Stelle, an der ein Kind laut lacht. Baue in der vorhandenen Szene einen Lacher aus einer Eigenheit oder einem Kontrast der Figuren auf — Figur, Steigerung, Pointe, in zwei bis vier Sätzen — ohne neue Handlung und ohne den Witz zu erklären.`);
   }
   if (point.opponentPresent === false && point.suspense <= SUSPENSE_PATCH_MAX && form !== "cozy") {

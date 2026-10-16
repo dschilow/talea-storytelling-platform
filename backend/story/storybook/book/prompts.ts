@@ -257,6 +257,13 @@ export function buildPlanPrompt(brief: BookBrief, idea: BookPitchIdea, cast: Cas
   lines.push("");
   lines.push("THE HEROES:");
   lines.push(...heroLines(brief));
+  // "Luna und der Brunnenbrief" (2026-10-16): Alexander learned "wait, let the others finish" for the fourth book running —
+  // the family's memory reached the pitch and the review, never the planner who sets the flaws.
+  const learned = brief.recentStories.filter((line) => /^Lektion\b/.test(line)).slice(0, 6);
+  if (learned.length) {
+    lines.push("ALREADY LEARNED IN EARLIER BOOKS (binding): give every hero a flaw and a final choice of a different kind this time — another side of their profile, not the same lesson in other words (rushing ahead, interrupting and taking over are one kind).");
+    lines.push(...learned.map((line) => `- ${line}`));
+  }
   lines.push("");
   if (cast.length) {
     lines.push("THE CAST (only these pool characters have names besides the heroes):");
@@ -399,6 +406,9 @@ function planEngineLines(brief: BookBrief, engine: StoryEngine, twist: number, l
       "- The engine figure is the guest: its profile carries wants (its mission), a flaw that causes the low point, and the guest's own secret (what it does not tell the heroes at first — out by the twist). secret: what the heroes must keep from the grown-ups.",
       "- opponentScene / readerKnowsMore: 1-2 short scenes without the heroes (the guest alone, a grown-up closing in) so the listener knows more than the heroes; at most 15 % of a chapter, set apart by a time cue.",
       "- Suspense from near-discovery: at least two moments where a grown-up almost finds out; the heroes' cover-ups are the comedy.",
+      // "Luna und der Brunnenbrief" (2026-10-16): the only obstacles were laundry lines and a queen's polite "please not
+      // through the drain"; the goal stood in sight from chapter 4 and the plan review gave suspense 4.5.
+      "- Pressure from outside: someone or something works against the guest's mission on its own — a grown-up who would take the guest away, a rival who wants the same thing, or a loss the heroes would feel themselves if the mission fails. A polite rule of a grown-up (\"please not that way\") is no opponent, and the goal stays out of reach until the low point.",
     );
   } else {
     lines.push("- The opponent or obstacle acts on its own logic in at least two chapters (not only when the heroes arrive); the listener may see one of these moments before the heroes do (readerKnowsMore, optional).");

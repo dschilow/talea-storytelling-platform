@@ -176,13 +176,15 @@ function poolOffersEngine(catalogue: CatalogueEntry[]): boolean {
  * engine, runs on heroes in a funny or mystery book although the pool offers opponents, or casts nobody from the pool
  * loses against one that does not. A series with a star prefers the idea that gives the star its role.
  */
-export function chooseIdea(pitch: BookPitch, input: IdeaChoiceInput): { index: number; notes: string[] } {
+export function chooseIdea(pitch: BookPitch, input: IdeaChoiceInput): { index: number; notes: string[]; order: number[] } {
   const last = input.series ? undefined : input.recentBookEngines?.[0];
   const forced = !input.series && input.form !== "cozy" && ENGINE_FORCED_FORMS.has(input.form) && poolOffersEngine(input.catalogue);
   const starId = input.series?.starId;
   const scored = pitch.ideas.map((idea, index) => {
     const engine = idea.engine || "heroes";
-    const casting = resolveCasting(idea, input.catalogue, input.max, input.series);
+    // An engine figure from the pool counts as cast even when the pitch listed no role for it (see ensureEngineCast).
+    const resolved = { ...idea, engineFigure: resolveEngineFigure(idea.engineFigure, input.catalogue, input.series) };
+    const casting = ensureEngineCast(resolved, input.catalogue, resolveCasting(idea, input.catalogue, input.max, input.series), input.max);
     const reasons: string[] = [];
     let score = index === pitch.choice - 1 ? 2 : 0;
     if (input.form === "cozy" && engine === "villain") { score -= 10; reasons.push("Gegenspieler in einem gemütlichen Buch"); }
@@ -192,12 +194,42 @@ export function chooseIdea(pitch: BookPitch, input: IdeaChoiceInput): { index: n
     if (starId && (casting.roles.some((role) => role.id === starId) || (idea.engineFigure && resolveEngineFigure(idea.engineFigure, input.catalogue, input.series) === input.series?.starName))) score += 2;
     return { index, score, reasons };
   });
-  if (!scored.length) return { index: 0, notes: [] };
-  const best = [...scored].sort((a, b) => b.score - a.score || a.index - b.index)[0];
+  if (!scored.length) return { index: 0, notes: [], order: [0] };
+  const ranked = [...scored].sort((a, b) => b.score - a.score || a.index - b.index);
+  const best = ranked[0];
   const original = scored[pitch.choice - 1];
   const notes: string[] = [];
   if (original && best.index !== original.index) notes.push(`Idee ${best.index + 1} statt ${pitch.choice}: ${original.reasons.join(", ") || "die andere Idee passt besser"}.`);
-  return { index: best.index, notes };
+  // The order is the editor's fallback list: a plan that stays weak after its revisions hands over to the next idea.
+  return { index: best.index, notes, order: ranked.map((entry) => entry.index) };
+}
+
+/** The catalogue entry an idea's engine figure names, if the figure comes from the pool. */
+function engineEntry(idea: BookPitchIdea, catalogue: CatalogueEntry[]): CatalogueEntry | undefined {
+  const name = clean(idea.engineFigure, 80);
+  if (!name || (idea.engine || "heroes") === "heroes") return undefined;
+  return catalogue.find((entry) => entry.id === name) || catalogue.find((entry) => foldUmlauts(entry.name).toLowerCase() === foldUmlauts(name).toLowerCase())
+    || catalogue.find((entry) => mentionsName(name, entry.name) || mentionsName(entry.name, name));
+}
+
+/**
+ * The figure that drives the book is cast when it comes from the pool. "Luna und der Brunnenbrief" (2026-10-16): the
+ * pitch made the pool's Luna its guest but listed no role for her; the cast came back empty, the fallback put
+ * Königin Isabella in as a second guest (a queen hanging laundry in a courtyard), Luna was drawn without her portrait
+ * and the library card showed Isabella instead of Luna.
+ */
+export function ensureEngineCast(idea: BookPitchIdea, catalogue: CatalogueEntry[], casting: CastingResult, max: number): CastingResult {
+  const entry = engineEntry(idea, catalogue);
+  if (!entry || casting.roles.some((role) => role.id === entry.id)) return casting;
+  const role = idea.engine === "villain" ? "opponent" : "guest";
+  const why = `Motorfigur der Idee${entry.want ? `: will ${clean(entry.want, 100)}` : ""}`;
+  const roles = [{ id: entry.id, role, why }, ...casting.roles].slice(0, Math.max(1, max));
+  const byId = new Map([...casting.cast.map((member) => [member.id, member] as const), [entry.id, entry] as const]);
+  return {
+    cast: roles.map((item) => byId.get(item.id)!).filter(Boolean),
+    roles,
+    notes: [...casting.notes, `${entry.name} als Motorfigur besetzt (stand nicht in der Rollenliste).`],
+  };
 }
 
 export interface ForcedEngine {
@@ -251,6 +283,16 @@ export function forceEngine(idea: BookPitchIdea, casting: CastingResult, input: 
 export function fallbackCasting(idea: BookPitchIdea, catalogue: CatalogueEntry[], casting: CastingResult, style?: VillainStyle): { idea: BookPitchIdea; casting: CastingResult } {
   if (casting.cast.length > 0 || catalogue.length === 0) return { idea, casting };
   const engine = idea.engine || "heroes";
+  // An idea that invented its own engine figure keeps it: the pool figure joins as a companion, never as a second
+  // guest or villain beside it (see ensureEngineCast for an engine figure from the pool).
+  const invented = engine !== "heroes" && Boolean(clean(idea.engineFigure)) && !engineEntry(idea, catalogue);
+  if (invented) {
+    const companion = catalogue[0];
+    return {
+      idea,
+      casting: { cast: [companion], roles: [{ id: companion.id, role: "Begleiter", why: "passt am besten zum Genre" }], notes: [...casting.notes, `Keine gültige Besetzung — ${companion.name} als Begleiter gesetzt (Motorfigur ${clean(idea.engineFigure, 60)} bleibt).`] },
+    };
+  }
   const figure = bestEngineFigure(catalogue, engine, { style }) || bestEngineFigure(catalogue, "heroes") || catalogue[0];
   const fits = fitsEngine(figure, engine) && engine !== "heroes";
   const role = fits ? (engine === "villain" ? "opponent" : "guest") : "Begleiter";

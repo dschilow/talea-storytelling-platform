@@ -71,7 +71,7 @@ export function coldReadNotes(missing: string[], input: { chapters: BookChapter[
   const firstChapter = input.chapters[0]?.order ?? 1;
   const notes: string[] = [];
   for (const id of missing) {
-    if (id === "place") notes.push(`Kapitel ${firstChapter}: Ein Kind ohne Vorwissen erfährt nicht, wo die Geschichte spielt. Zeige den Ort früh in einem beiläufigen Satz.`);
+    if (id === "place") notes.push(`Kapitel ${firstChapter}: Ein Kind ohne Vorwissen erfährt nicht, wo die Geschichte spielt. Flicht den Ort früh in einen vorhandenen Satz ein („im langen Flur ihres Hauses am Dorfrand“), nie als eigener Satz wie „Ihr Haus lag in einem Dorf.“`);
     else if (id === "together" && input.relation) notes.push(`Kapitel ${firstChapter}: Es wird nicht gesagt, dass ${input.heroes.join(" und ")} ${input.relation} sind. Sag es früh und beiläufig in einem Satz — nichts anderes über die Familie erfinden.`);
     else if (id === "goal") notes.push(`Kapitel ${firstChapter}: Ein Kind ohne Vorwissen erfährt nicht, was die Helden heute wollen und bis wann. Sag es früh in einem Satz oder einer Zeile wörtlicher Rede.`);
     else if (id.startsWith("cast:")) {

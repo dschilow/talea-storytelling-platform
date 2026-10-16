@@ -1364,3 +1364,89 @@ describe("Die Flotte der Minuten (2026-10-16): Bilder, die nicht verschwinden, Z
     expect(logbook).toContain("Never a joke, a running gag or a figure's habit");
   });
 });
+
+import { ensureEngineCast } from "./catalogue";
+import type { BookPitchIdea } from "./types";
+import { planBook } from "./engine";
+import { planNeedsRescue, PLAN_RESCUE_SCORE } from "./plan";
+
+describe("Luna und der Brunnenbrief (2026-10-16): die Motorfigur ist besetzt, ein schwacher Plan gibt an die nächste Idee ab, Patches doppeln nichts", () => {
+  const empty = { cast: [], roles: [], notes: [] };
+  const guestIdea = (engineFigure?: string): BookPitchIdea => ({ title: "Luna und der Brief", premise: "p", bigQuestion: "q", wonder: "w", engine: "guest", engineFigure, roles: [] });
+
+  test("the pool's engine figure is cast even when the pitch listed no role for it; an invented one keeps its place", () => {
+    const cast = ensureEngineCast(guestIdea("Luna"), catalogue, empty, 3);
+    expect(cast.roles[0]).toMatchObject({ id: "uuid-luna", role: "guest" });
+    expect(cast.cast.map((member) => member.name)).toEqual(["Luna"]);
+    // Already cast: unchanged. Heroes engine: nothing to add.
+    expect(ensureEngineCast(guestIdea("Luna"), catalogue, cast, 3)).toBe(cast);
+    expect(ensureEngineCast({ ...guestIdea("Luna"), engine: "heroes" }, catalogue, empty, 3)).toBe(empty);
+    // The engine figure goes first and the cast stays within the limit.
+    const full = { cast: [catalogue[1], catalogue[2]], roles: [{ id: "uuid-theo", role: "a", why: "" }, { id: "uuid-fresser", role: "b", why: "" }], notes: [] };
+    expect(ensureEngineCast(guestIdea("Luna"), catalogue, full, 2).roles.map((role) => role.id)).toEqual(["uuid-luna", "uuid-theo"]);
+    // An invented guest (not in the pool) is not doubled by a pool guest: the pool figure joins as a companion.
+    const invented = fallbackCasting(guestIdea("Mimi die Wolkenmaus"), catalogue, empty);
+    expect(invented.idea.engineFigure).toBe("Mimi die Wolkenmaus");
+    expect(invented.casting.roles[0]).toMatchObject({ role: "Begleiter" });
+  });
+
+  test("the editor's order of ideas is the fallback list; only a clearly weak plan asks for a second one", () => {
+    const pitch: BookPitch = { ideas: [guestIdea("Luna"), { ...guestIdea(), title: "Zwei", engine: "heroes", roles: [{ role: "x", castId: "P2", why: "y" }] }, { ...guestIdea(), title: "Drei", engine: "heroes" }], choice: 1, why: "" } as any;
+    const chosen = chooseIdea(pitch, { form: "journey", catalogue, series: null, max: 3 });
+    expect(chosen.order).toHaveLength(3);
+    expect(chosen.order[0]).toBe(chosen.index);
+    const review = (overall: number) => parsePlanReview({ checks: {}, scores: { overall }, mustFix: [], weaknesses: [] })!;
+    expect(planNeedsRescue(review(PLAN_RESCUE_SCORE - 1))).toBe(true);
+    expect(planNeedsRescue(review(PLAN_RESCUE_SCORE))).toBe(false);
+    expect(planNeedsRescue(null)).toBe(false);
+  });
+
+  test("planBook: a plan reviewed at 5 hands over to the next idea, and the better plan is written with its engine figure cast", async () => {
+    const answer = (request: LlmRequest, data: unknown): LlmCallResult => ({ text: JSON.stringify(data), modelUsed: request.model, usage: { prompt: 1, completion: 1, total: 2, costUSD: 0 }, durationMs: 1 });
+    const stages: string[] = [];
+    const observed: Array<{ stage: string; payload: Record<string, unknown> }> = [];
+    const llm = async (request: LlmRequest): Promise<LlmCallResult> => {
+      stages.push(request.stage);
+      if (request.stage.startsWith("book-pitch")) {
+        return answer(request, { ideas: [
+          { title: "Luna und der Brief", premise: "Eine Katze bringt einen Brief.", bigQuestion: "Kommt der Brief an?", wonder: "Luna", engine: "guest", engineFigure: "P1", stake: "der Brief", roles: [] },
+          { title: "Das Schmatzen", premise: "Etwas frisst Geräusche.", bigQuestion: "Wer?", wonder: "Ein Fresser", engine: "villain", engineFigure: "P3", stake: "das Konzert", roles: [{ role: "opponent", castId: "P3", why: "frisst" }] },
+          { title: "Drei", premise: "p", bigQuestion: "q", wonder: "w", engine: "heroes", engineFigure: null, stake: "s", roles: [{ role: "x", castId: "P2", why: "y" }] },
+        ], choice: 1, why: "w" });
+      }
+      if (request.stage.startsWith("book-plan-review")) return answer(request, { checks: {}, scores: { overall: request.stage.includes("idea2") ? 8 : 5, suspense: 4.5 }, mustFix: [], weaknesses: [] });
+      if (request.stage.startsWith("book-plan-revision")) return answer(request, {});
+      return answer(request, planJson());
+    };
+    const planned = await planBook({
+      llm, brief: brief({ form: "journey" }), models: { writer: "w", support: "s", critic: "c" }, ledger: new CostLedger(),
+      observe: (stage, payload) => { observed.push({ stage, payload }); },
+    });
+    const reviews = stages.filter((stage) => stage.startsWith("book-plan-review"));
+    expect(reviews[0]).toBe("book-plan-review");
+    expect(reviews).toContain("book-plan-review-idea2");
+    // The second idea is planned once, never a third.
+    expect(stages.filter((stage) => /^book-plan(-idea\d)?$/.test(stage))).toEqual(["book-plan", "book-plan-idea2"]);
+    const pitches = observed.filter((entry) => entry.stage === "pitch");
+    expect((pitches[0].payload.cast as Array<{ id: string }>).map((role) => role.id)).toContain("uuid-luna");
+    expect(observed.find((entry) => entry.stage === "plan-rescue")?.payload).toMatchObject({ firstOverall: 5, secondOverall: 8 });
+    expect(planned.pitch?.choice).toBe((observed.find((entry) => entry.stage === "plan-rescue")!.payload.written as number));
+    expect(planned.planReview?.scores.overall).toBe(8);
+  });
+
+  test("a patch adds no line the chapter already has, also in short dialogue; the patch notes say so", () => {
+    const before = "„Wir müssen nur noch den Weg freimachen“, sagte er.\n\n„Den Weg“, sagte sie. „Wer hält ihn fest? Ich sehe niemanden.“\n\nAlexander richtete sich auf.";
+    const patched = "„Wir müssen nur noch den Weg freimachen“, sagte er.\n\n„Den Weg freimachen?“, fragte die Katze. „Heißt das, jemand hält ihn fest?“ Sie sah den Flur entlang. „Ich sehe jedenfalls niemanden.“\n\n„Den Weg“, sagte sie. „Wer hält ihn fest? Ich sehe niemanden.“\n\nAlexander richtete sich auf.";
+    const merged = dropEchoedSentences(before, patched);
+    expect(merged).not.toContain("Ich sehe jedenfalls niemanden");
+    expect(merged).not.toContain("Heißt das, jemand hält ihn fest");
+    expect(merged).toContain("„Wer hält ihn fest? Ich sehe niemanden.“");
+    expect(merged).toContain("Sie sah den Flur entlang.");
+    const notes = coldReadNotes(["place"], { chapters: [{ order: 1, title: "t", recap: "", content: "x" }], plan: parsePlan(planJson(), 12)!, heroes: ["Alexander", "Adrian"], relation: null });
+    expect(notes[0]).toContain("nie als eigener Satz");
+    const stilted = checkChapter({ order: 1, title: "", recap: "", content: "Eine erwachsene Nachbarin ordnete Wäsche." }, { brief: brief(), budget: brief().book, earlier: [], names: [] });
+    expect(stilted.find((issue) => issue.code === "stilted_grownup")?.severity).toBe("soft");
+    const learned = buildPlanPrompt(brief({ recentStories: ["Lektion (Alexander) in „Die Flotte der Minuten“: rennt los → wartet auf das Zeichen"] }), guestIdea("Luna"), [], []).user;
+    expect(learned).toContain("ALREADY LEARNED IN EARLIER BOOKS");
+  });
+});
