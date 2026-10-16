@@ -442,7 +442,9 @@ export function buildDirectorUserPrompt(input: {
   for (const page of input.pages) {
     const planned = input.plan.pages.find((entry) => entry.page === page.order);
     lines.push(`PAGE ${page.order}${planned?.place ? ` — place: ${planned.place}` : ""}`);
-    lines.push(page.content.replace(/\s+/g, " "));
+    // Chapter books: numbered paragraphs, so the picture can name the one it shows (as one block the director could not find "the middle").
+    if (page.paragraphs?.length) page.paragraphs.forEach((paragraph, index) => lines.push(`p${index + 1}: ${paragraph.replace(/\s+/g, " ")}`));
+    else lines.push(page.content.replace(/\s+/g, " "));
     if (planned?.picture) lines.push(`[suggested picture: ${planned.picture}]`);
     lines.push("");
   }
@@ -453,7 +455,7 @@ export function buildDirectorUserPrompt(input: {
       {
         storyElements: [{ name: "name of a recurring figure or thing, or leave the list empty", noun: "plain lowercase noun", look: "fixed English look", figure: true }],
         cover: { scene: "…", onStage: ["e1"], artifactVisible: false, elements: [] },
-        pages: input.pages.map((page) => ({ page: page.order, scene: "…", onStage: ["e1"], artifactVisible: false, elements: [], focus: "scene", vignette: "…" })),
+        pages: input.pages.map((page) => ({ page: page.order, ...(page.paragraphs?.length ? { paragraph: 0 } : {}), scene: "…", onStage: ["e1"], artifactVisible: false, elements: [], focus: "scene", vignette: "…" })),
       },
       null,
       1
@@ -523,7 +525,9 @@ function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerIm
   const vignetteOk = vignette.length >= 15 && vignette !== "…"
     && !characters.some((entity) => mentions(vignette, entity.name))
     && !storyElements.some((element) => element.figure && mentionsElement(vignette, element));
-  return { page, scene, onStage, artifactVisible: Boolean(raw?.artifactVisible) && entities.some((entity) => entity.kind === "artifact"), elements,
+  // "p12", "12" or 12; 0 (the template's placeholder) and anything else means: not stated.
+  const paragraph = Number(String(raw?.paragraph ?? "").match(/\d+/)?.[0]);
+  return { page, scene, ...(page > 0 && Number.isInteger(paragraph) && paragraph >= 1 ? { paragraph } : {}), onStage, artifactVisible: Boolean(raw?.artifactVisible) && entities.some((entity) => entity.kind === "artifact"), elements,
     focus: raw?.focus === "detail" ? "detail" : "scene", simpleScene: clean(raw?.simpleScene, 420) || undefined,
     ...(page > 0 && vignetteOk ? { vignette } : {}),
     ...(errors.length ? { planningErrors: errors } : {}),
@@ -765,7 +769,9 @@ export async function runDirectorStage(
       if (invalid.some((shot) => shot.page === 0) && !candidate.cover.planningErrors?.length) result.illustrations.cover = candidate.cover;
       result.illustrations.pages = result.illustrations.pages.map((shot) => {
         const repaired = candidate.pages.find((page) => page.page === shot.page);
-        return shot.planningErrors?.length && repaired && !repaired.planningErrors?.length ? repaired : shot;
+        // The repair rewrites the cast, not the moment: the paragraph stays.
+        const kept = repaired?.paragraph ?? shot.paragraph;
+        return shot.planningErrors?.length && repaired && !repaired.planningErrors?.length ? { ...repaired, ...(kept ? { paragraph: kept } : {}) } : shot;
       });
       result.illustrations.storyElements = candidate.storyElements;
     }

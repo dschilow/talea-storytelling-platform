@@ -19,6 +19,7 @@
  *   --upto 6                                            stop after chapter 6 (cost sampling)
  *   --state-file <result.json>                          reuse the chapters of an earlier run (with --plan-file): only draw
  *   --no-images | --image-chapters 3                    pictures for all chapters or only the first N
+ *   --director-only                                     no pictures: the art director's scene, figures and final prompt for every picture slot (pictures.json) — audits whether prompts fit the text
  *   (env) TALEA_JEV_CHECK=off                           without the second picture reader (Jev: tails, doubles, fused bodies)
  *   --history Logs/test-history-alexander-adrian.json   recent stories of the family
  *   --plan-only                                         pitch + plan + plan review, no chapters
@@ -42,7 +43,8 @@ import { countWords } from "../backend/story/storybook/checks";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "../backend/story/storybook/book/budget";
 import { buildCatalogue } from "../backend/story/storybook/book/catalogue";
 import { bookBatchRanges, bookServiceTier, buildSeriesMemory, planBook, resolveBookPlanner, writeBook, type BookContext } from "../backend/story/storybook/book/engine";
-import { chapterParagraphs, illustrateBatch, type BookImage } from "../backend/story/storybook/book/illustrations";
+import { buildImageSlots, chapterParagraphs, directBatch, illustrateBatch, type BookImage } from "../backend/story/storybook/book/illustrations";
+import { assembleImagePrompt } from "../backend/story/storybook/illustration-stage";
 import { emptyBookState, type BookBrief, type BookState } from "../backend/story/storybook/book/types";
 
 const PUBLIC_IMAGE_PROXY = "https://backend-2-production-3de1.up.railway.app/story/image?key=";
@@ -288,6 +290,7 @@ let imageCostUSD = 0;
 let missingImages = 0;
 
 const flexPolicy = option("--flex", "later");
+const dumped: Array<Record<string, unknown>> = [];
 const timeline: Array<{ what: string; seconds: number }> = [];
 const mark = (what: string) => {
   const seconds = Math.round((Date.now() - started) / 1000);
@@ -332,6 +335,26 @@ if (!flag("--plan-only")) {
       if (looks.call) ledger.recordCall("reference-looks", looks.call, "support");
     }
     const chapters = state.chapters.filter((chapter) => chapter.order >= from && chapter.order <= Math.min(end, imageChapters));
+    if (flag("--director-only")) {
+      const slots = buildImageSlots(chapters, planned.plan, book.imagesPerChapter, slot);
+      const directed = await directBatch({ llm: batchLlm, models, ledger, brief: planned.brief, plan: planned.plan, chapters, entities: looks.entities, slots, withCover: from === 1, fixedElements });
+      const sceneElements = directed.director.illustrations.storyElements || [];
+      for (const [index, shot] of directed.director.illustrations.pages.entries()) {
+        const slotInfo = slots[index];
+        const onStage = shot.onStage.map((id) => looks!.entities.find((entity) => entity.id === id)).filter((entity): entity is VisualEntity => Boolean(entity));
+        const elements = sceneElements.filter((element) => (shot.elements || []).includes(element.name));
+        dumped.push({
+          chapter: slotInfo.chapter, part: slotInfo.part, afterParagraph: directed.placed[index].afterParagraph, placedBy: directed.placed[index].by, middleOfSegment: slotInfo.afterParagraph,
+          segmentParagraphs: [slotInfo.first + 1, slotInfo.first + slotInfo.count], missing: directed.notes[index]?.missing || [],
+          plannedPicture: slotInfo.picture, scene: shot.scene, onStage: onStage.map((entity) => entity.name), elements: elements.map((element) => element.name),
+          prompt: assembleImagePrompt({ scene: shot.scene, onStage, spriteOrder: onStage, elements }),
+        });
+      }
+      slot += chapters.length * book.imagesPerChapter;
+      fixedElements = directed.director.illustrations.storyElements;
+      mark(`director ${from}-${end}: ${directed.director.illustrations.pages.length} scenes`);
+      continue;
+    }
     const batch = await illustrateBatch({ llm: batchLlm, models, ledger, brief: planned.brief, plan: planned.plan, chapters, entities: looks.entities, provider: runware, seed, withCover: from === 1, fixedElements, startSlot: slot, jev: createOpenRouterJevPort(() => openRouterKey) });
     slot += chapters.length * book.imagesPerChapter;
     fixedElements = batch.storyElements;
@@ -343,6 +366,7 @@ if (!flag("--plan-only")) {
     for (const redraw of batch.redraws || []) console.log(`    ↻ ${redraw.chapter ? `Kapitel ${redraw.chapter}.${redraw.part}` : "Cover"} × ${redraw.attempts} → ${redraw.status || "?"}${redraw.remaining?.length ? ` [Rest: ${redraw.remaining.join("; ")}]` : ""}: ${redraw.reasons.join("; ") || "?"}`);
   }
   await writeFile(join(out, "state.json"), JSON.stringify(state, null, 2), "utf8");
+  if (dumped.length) await writeFile(join(out, "pictures.json"), JSON.stringify(dumped, null, 2), "utf8");
 }
 
 // Download pictures for the offline HTML.

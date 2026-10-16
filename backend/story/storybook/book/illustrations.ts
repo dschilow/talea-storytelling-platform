@@ -4,7 +4,11 @@
  * A chapter with k pictures is cut into k reading segments at paragraph
  * borders; each segment plays the role of a picture-book page for the existing
  * illustration director and image ladder (identity sheets, vision QA, redraw,
- * vignette). The picture then sits after the middle paragraph of its segment.
+ * vignette). The art director sees the segment's paragraphs numbered and names
+ * the one its picture shows; the picture is printed right after it (the middle
+ * of the segment is only the fallback). Audit 2026-10-16: with the picture at
+ * the middle of the segment and the moment chosen freely, 11 of 16 scenes were
+ * 3-7 paragraphs away from their place, and only a quarter of those pictures fit.
  * Batches after the first skip the cover and keep the looks of recurring
  * creatures fixed by earlier batches.
  */
@@ -14,7 +18,7 @@ import { runDirectorStage, type VisualEntity } from "../illustration-stage";
 import { generateStorybookImages, publishableImageUrl, type ImageOutcome, type ImageProvider } from "../images";
 import type { JevPort } from "../jev";
 import type { CostLedger, StorybookLlm, StorybookModels } from "../llm";
-import type { StoryElement, StoryPlan, StorybookPage } from "../types";
+import type { IllustrationPlan, StoryElement, StoryPlan, StorybookPage } from "../types";
 import type { BookBrief, BookChapter, BookPlan } from "./types";
 
 export interface ImageSlot {
@@ -23,8 +27,11 @@ export interface ImageSlot {
   chapter: number;
   /** 0-based picture index inside the chapter. */
   part: number;
-  /** The picture follows this paragraph (0-based) of the chapter. */
+  /** The picture follows this paragraph (0-based) of the chapter — the middle of the segment until the art director names another. */
   afterParagraph: number;
+  /** 0-based index of the segment's first paragraph in the chapter, and how many paragraphs it has. */
+  first: number;
+  count: number;
   text: string;
   picture: string;
 }
@@ -50,12 +57,72 @@ export function buildImageSlots(chapters: BookChapter[], plan: BookPlan, perChap
         chapter: chapter.order,
         part,
         afterParagraph: start + Math.max(0, Math.floor(segment.length / 2) - 1),
+        first: start,
+        count: segment.length,
         text: segment.join("\n\n"),
         picture: pictures[part] || "",
       });
     }
   }
   return slots;
+}
+
+/** The reading segments as the art director's pages: text plus the numbered paragraphs. */
+export function pagesFor(slots: ImageSlot[]): StorybookPage[] {
+  return slots.map((slot, index) => ({ order: index + 1, title: `Kapitel ${slot.chapter}`, content: slot.text, paragraphs: chapterParagraphs(slot.text) }));
+}
+
+/**
+ * Paragraphs kept free at both ends of a segment: a picture at the very start or end would crowd the neighbouring
+ * picture or give away the chapter's ending ("Die segelnden Wörter": a picture showed the hook twelve paragraphs early).
+ */
+export const PICTURE_EDGE = 3;
+
+export interface Placement {
+  /** The picture follows this paragraph (0-based) of the chapter. */
+  afterParagraph: number;
+  by: "director" | "middle";
+  /** The paragraph the director named, after the edge rule (1-based within the segment). */
+  paragraph?: number;
+}
+
+/** Where each picture goes: right after the paragraph its scene shows; the middle of the segment when the director named none. */
+export function placePictures(slots: ImageSlot[], shots: Array<{ paragraph?: number } | undefined>): Placement[] {
+  return slots.map((slot, index) => {
+    const wanted = Number(shots[index]?.paragraph);
+    const lowest = PICTURE_EDGE;
+    const highest = slot.count - PICTURE_EDGE;
+    if (!Number.isInteger(wanted) || wanted < 1 || wanted > slot.count || highest < lowest) return { afterParagraph: slot.afterParagraph, by: "middle" as const };
+    const paragraph = Math.min(highest, Math.max(lowest, wanted));
+    return { afterParagraph: slot.first + paragraph - 1, by: "director" as const, paragraph };
+  });
+}
+
+/** What the admin sees per picture: where it sits, what it was told to show, and who acts there but is not in it. */
+export interface PictureNote {
+  chapter: number;
+  part: number;
+  afterParagraph: number;
+  placedBy: Placement["by"];
+  scene: string;
+  figures: string[];
+  things: string[];
+  /** Named characters who act in the paragraphs leading up to the picture but are not drawn. */
+  missing: string[];
+}
+
+export function buildPictureNotes(slots: ImageSlot[], shots: IllustrationPlan["pages"], placed: Placement[], entities: VisualEntity[], storyElements: StoryElement[], chapters: BookChapter[]): PictureNote[] {
+  return slots.flatMap((slot, index) => {
+    const shot = shots[index];
+    if (!shot) return [];
+    const paragraphs = chapterParagraphs(chapters.find((chapter) => chapter.order === slot.chapter)?.content || "");
+    const after = placed[index].afterParagraph;
+    const near = paragraphs.slice(Math.max(0, after - 2), after + 2).join(" ");
+    const figures = shot.onStage.map((id) => entities.find((entity) => entity.id === id)?.name).filter((name): name is string => Boolean(name));
+    const things = (shot.elements || []).filter((name) => storyElements.some((element) => element.name === name));
+    const missing = entities.filter((entity) => entity.kind === "character" && mentions(near, entity.name) && !figures.includes(entity.name)).map((entity) => entity.name);
+    return [{ chapter: slot.chapter, part: slot.part, afterParagraph: after, placedBy: placed[index].by, scene: shot.scene.slice(0, 600), figures, things, missing }];
+  });
 }
 
 /** The thin StoryPlan the director needs (planned pictures, cast, fallback shots). */
@@ -111,6 +178,65 @@ export interface BatchImagesResult {
   redraws?: Array<{ chapter: number; part: number; attempts: number; reasons: string[]; /** How the delivered picture ended (passed, flawed, failed) … */ status?: string; /** … and what is still wrong with it. "flawed" prints; without this a parent finds the fault before the log does. */ remaining?: string[] }>;
 }
 
+/** What the job keeps between the text step (directing, placing) and the picture step (drawing). */
+export interface StoredDirection {
+  range: string;
+  illustrations: IllustrationPlan;
+  placed: Placement[];
+  notes: PictureNote[];
+}
+
+export interface DirectedBatch extends StoredDirection {
+  pages: StorybookPage[];
+  director: Awaited<ReturnType<typeof runDirectorStage>>;
+}
+
+/** The art director's brief for the reading segments of one batch: a scene, the figures, the things and the paragraph of every picture. */
+export async function directBatch(input: {
+  llm: StorybookLlm;
+  models: StorybookModels;
+  ledger: CostLedger;
+  brief: BookBrief;
+  plan: BookPlan;
+  chapters: BookChapter[];
+  entities: VisualEntity[];
+  slots: ImageSlot[];
+  withCover: boolean;
+  fixedElements?: StoryElement[];
+}): Promise<DirectedBatch> {
+  const { slots } = input;
+  const range = `${input.chapters[0].order}-${input.chapters[input.chapters.length - 1].order}`;
+  const pages = pagesFor(slots);
+  const director = await runDirectorStage(input.llm, {
+    brief: input.brief,
+    title: input.plan.title,
+    pages,
+    plan: slotPlan(input.brief, input.plan, slots),
+    entities: input.entities,
+    fixedElements: input.fixedElements,
+    skipCover: !input.withCover,
+    stage: `book-illustration-${range}`,
+    note: [
+      `This is a chapter book. These PAGES are reading segments of chapters ${range} (pictures ${slots[0].slot}–${slots[slots.length - 1].slot} of the book), numbered locally from 1.`,
+      // Audit 2026-10-16: pictures sat after the middle paragraph while the scene came from anywhere in the segment (3-7 paragraphs off in 11 of 16).
+      // "Die segelnden Wörter": a picture showed the paper boat twelve paragraphs before the text had it — the chapter's hook.
+      `Each PAGE lists its paragraphs numbered p1, p2, … For every picture return "paragraph": the number of the ONE paragraph whose moment the picture shows. The picture is printed right after that paragraph, so the scene must show exactly what that paragraph and the one before it tell — who acts there, the place, and every thing in the state the text gives it at that point — never something that happens later or happened earlier, and never a suggested picture of the planner that does not fit. Choose a paragraph with a clear, visible action that is at least ${PICTURE_EDGE} paragraphs from the start of its page and at least ${PICTURE_EDGE} from its end (the last paragraphs of a chapter hold its ending: a picture must not show it before the text does).`,
+      // Audit 2026-10-16: the title figure was missing on 4 of 16 "Schatto" pictures, a hero on 13 of 77 — the 3-figure cap had no order.
+      // First re-run with "who acts in the paragraph first": a paragraph about the librarian drew the librarian alone, the heroes standing right there were gone.
+      "Figures (at most 3): fill the places in this order — 1) the heroes who are present in the scene of your paragraph: they stay in the picture even when the paragraph is about someone else, and are left out only when they are truly elsewhere; 2) everyone else who acts or speaks in your paragraph or the one before it; 3) the book's title figure or central wonder if it is part of that moment; 4) the others.",
+      input.withCover
+        // The cover and the first picture were nearly the same table scene.
+        ? "The cover must differ from every page picture: show the book's central wonder big in the foreground with the heroes reacting to it — never the opening scene of chapter 1."
+        : "The cover already exists: answer cover briefly, it is not drawn.",
+    ].join(" "),
+  }, input.models.support);
+  if (director.call) input.ledger.recordCall(`book-illustration-${range}`, director.call, "support");
+  if (director.repairCall) input.ledger.recordCall(`book-illustration-repair-${range}`, director.repairCall, "support");
+  const placed = placePictures(slots, director.illustrations.pages);
+  const notes = buildPictureNotes(slots, director.illustrations.pages, placed, input.entities, director.illustrations.storyElements || [], input.chapters);
+  return { range, pages, director, illustrations: director.illustrations, placed, notes };
+}
+
 /** Director + images for the chapters of one batch. Never throws: a failed picture leaves a text-only spot. */
 export async function illustrateBatch(input: {
   llm: StorybookLlm;
@@ -127,34 +253,18 @@ export async function illustrateBatch(input: {
   startSlot?: number;
   /** Second reader for tails, doubles and fused bodies (see ../jev.ts). */
   jev?: JevPort;
+  /** The direction the text step already made (and printed the placeholders from); without it the director runs here. */
+  directed?: StoredDirection;
 }): Promise<BatchImagesResult> {
   const slots = buildImageSlots(input.chapters, input.plan, input.brief.book.imagesPerChapter, input.startSlot || 1);
   const empty: BatchImagesResult = { images: [], missing: slots.map((slot) => ({ chapter: slot.chapter, part: slot.part })), storyElements: input.fixedElements || [], imageCostUSD: 0, imagesGenerated: 0 };
   if (!slots.length) return empty;
-  const range = `${input.chapters[0].order}-${input.chapters[input.chapters.length - 1].order}`;
-  const pages: StorybookPage[] = slots.map((slot, index) => ({ order: index + 1, title: `Kapitel ${slot.chapter}`, content: slot.text }));
   try {
-    const director = await runDirectorStage(input.llm, {
-      brief: input.brief,
-      title: input.plan.title,
-      pages,
-      plan: slotPlan(input.brief, input.plan, slots),
-      entities: input.entities,
-      fixedElements: input.fixedElements,
-      skipCover: !input.withCover,
-      stage: `book-illustration-${range}`,
-      note: [
-        `This is a chapter book. These PAGES are reading segments of chapters ${range} (pictures ${slots[0].slot}–${slots[slots.length - 1].slot} of the book), numbered locally from 1.`,
-        // "Die segelnden Wörter": a picture showed the paper boat twelve paragraphs before the text had it — the chapter's hook.
-        "A picture sits after the MIDDLE paragraph of its segment: draw a moment from the middle of the segment, never from its last paragraphs (they hold the chapter's ending, and a picture must not show it before the text does).",
-        input.withCover
-          // The cover and the first picture were nearly the same table scene.
-          ? "The cover must differ from every page picture: show the book's central wonder big in the foreground with the heroes reacting to it — never the opening scene of chapter 1."
-          : "The cover already exists: answer cover briefly, it is not drawn.",
-      ].join(" "),
-    }, input.models.support);
-    if (director.call) input.ledger.recordCall(`book-illustration-${range}`, director.call, "support");
-    if (director.repairCall) input.ledger.recordCall(`book-illustration-repair-${range}`, director.repairCall, "support");
+    const directed: StoredDirection & { pages: StorybookPage[] } = input.directed
+      ? { ...input.directed, pages: pagesFor(slots) }
+      : await directBatch({ ...input, slots });
+    const { range, pages } = directed;
+    const director = { illustrations: directed.illustrations };
     const images = await generateStorybookImages({
       illustrations: director.illustrations,
       entities: input.entities,
@@ -179,12 +289,12 @@ export async function illustrateBatch(input: {
       const outcome = images.pages.get(index + 1);
       if (outcome && outcome.attempts > 1) result.redraws!.push({ chapter: slot.chapter, part: slot.part, ...redrawEntry(outcome) });
       const url = publishableImageUrl(outcome);
-      if (url && outcome) result.images.push({ chapter: slot.chapter, afterParagraph: slot.afterParagraph, url, status: outcome.status, ...(outcome.vignette ? { vignette: true } : {}) });
+      if (url && outcome) result.images.push({ chapter: slot.chapter, afterParagraph: directed.placed[index]?.afterParagraph ?? slot.afterParagraph, url, status: outcome.status, ...(outcome.vignette ? { vignette: true } : {}) });
       else result.missing.push({ chapter: slot.chapter, part: slot.part });
     }
     return result;
   } catch (err) {
-    console.warn(`[book] pictures for chapters ${range} failed:`, (err as Error)?.message || err);
+    console.warn(`[book] pictures for chapters ${input.chapters[0].order}-${input.chapters[input.chapters.length - 1].order} failed:`, (err as Error)?.message || err);
     return empty;
   }
 }

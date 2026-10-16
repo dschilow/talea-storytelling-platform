@@ -132,6 +132,11 @@ export interface StorybookPage {
   order: number;
   title: string;
   content: string;
+  /**
+   * Chapter books: the page's paragraphs. The art director sees them numbered (p1, p2 …) and names the paragraph
+   * its picture shows — the picture is printed right after it.
+   */
+  paragraphs?: string[];
 }
 
 export interface ReviewNote {
@@ -196,6 +201,8 @@ export interface IllustrationShot {
   page: number;
   /** English scene description: action, composition, camera, setting, light. */
   scene: string;
+  /** Chapter books: number (1-based, within the page) of the paragraph this picture shows; the picture is printed after it. */
+  paragraph?: number;
   /** Hero and cast ids that are drawn. At most three. */
   onStage: string[];
   artifactVisible: boolean;

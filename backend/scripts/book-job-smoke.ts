@@ -56,6 +56,14 @@ const story = await storyDB.queryRow<{ metadata: any; series_id: string | null; 
 const metadata = typeof story?.metadata === "string" ? JSON.parse(story.metadata) : story?.metadata || {};
 console.log("book:", JSON.stringify({ ...metadata.book, recaps: metadata.book?.recaps?.length }));
 console.log("totalCost:", JSON.stringify(metadata.totalCost), "stages:", metadata.adminGenerationMetrics?.stages?.length, "cached input:", metadata.adminGenerationMetrics?.tokens?.cachedInput);
+// Every picture sits where the art director put it: the chapter's stored places equal the admin notes.
+const notes: any[] = metadata.bookAdmin?.pictures || [];
+const placesOk = rows.every((row) => {
+  const stored: any[] = typeof row.images === "string" ? JSON.parse(row.images) : (row.images as any[]) || [];
+  const mine = notes.filter((note) => note.chapter === row.chapter_order).map((note) => note.afterParagraph).sort((x, y) => x - y);
+  return JSON.stringify(stored.map((image) => image.afterParagraph).sort((x, y) => x - y)) === JSON.stringify(mine);
+});
+console.log("pictures:", notes.length, "notes | placedBy director:", notes.filter((note) => note.placedBy === "director").length, "| missing figures noted:", notes.filter((note) => note.missing?.length).length, "| statuses:", JSON.stringify(notes.map((note) => note.status)), "| stored places = notes:", placesOk);
 console.log("bookAdmin keys:", Object.keys(metadata.bookAdmin || {}).join(", "), "| curve:", JSON.stringify((metadata.bookAdmin?.curve || []).map((point: any) => `${point.chapter}:${point.suspense}/${point.humor}${point.rewritten ? "R" : ""}`)));
 console.log("series:", story?.series_id, "volume", story?.series_volume, "| developments:", story?.avatar_developments?.slice(0, 300));
 if (story?.series_id) {

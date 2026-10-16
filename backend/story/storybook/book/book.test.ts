@@ -8,7 +8,9 @@ import { catalogueForPitch, catalogueLine, foldUmlauts, mentionsName, resolveCas
 import { checkChapter, formulaicOpening, mergeChapterPatch, mergeOpenThreads, mergeWordings, mergeWorldState, speechTagCommas, parseChapterCritique, parseChapters, quoteInText, repeatedPhrases } from "./chapters";
 import { bookBatchRanges, bookServiceTier, chapterRanges, LAUGH_REWRITE_MAX_HUMOR, resolveBookPlanner, rewriteReasons, type PlannedBook } from "./engine";
 import { coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
-import { buildImageSlots, remainingNotes } from "./illustrations";
+import { buildImageSlots, buildPictureNotes, directBatch, pagesFor, PICTURE_EDGE, placePictures, remainingNotes } from "./illustrations";
+import { buildDirectorUserPrompt, sanitizeIllustrationPlan, type VisualEntity } from "../illustration-stage";
+import { CostLedger } from "../llm";
 import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview, planScoreCap, samePlace } from "./plan";
 import { buildChapterCritiquePrompt, buildChapterStaticContext, buildChapterSystemPrompt, buildChapterSystemWithContext, buildChapterUserPrompt, buildLogbookPrompt, buildPitchPrompt, plantedSentences, planReviewNotes } from "./prompts";
 import { buildQaPrompt, isPluralElement, scopeQaReport, type ImageQaReport } from "../images";
@@ -562,5 +564,121 @@ describe("Schatto führt Regie (2026-10-16): cheaper, sooner, nothing left dangl
     const pot = { name: "Topf", noun: "copper pot", look: "a copper pot" };
     const report = scopeQaReport({ ...cleanReport(), duplicates: ["copper pot drawn 2 times", "copper pot drawn 3 times", "copper pot drawn 6 times"] }, ["Alexander"], [pot]);
     expect(report.thingDuplicates).toEqual(["copper pot drawn 2 times", "copper pot drawn 3 times"]);
+  });
+});
+
+describe("pictures sit after the paragraph they show (audit 2026-10-16: 11 of 16 scenes were 3-7 paragraphs off their place)", () => {
+  const long = Array.from({ length: 12 }, (_, index) => `Absatz ${index + 1}.`).join("\n\n");
+  const chapters = [{ order: 1, title: "Eins", recap: "", content: long }];
+  const heroes: VisualEntity[] = [["hero-alexander", "Alexander"], ["hero-adrian", "Adrian"]].map(([id, name]) => ({ id, name, kind: "character", role: "hero", species: "human", isHuman: true, appearance: "child", forbidden: [] }) as VisualEntity);
+  const answer = (request: LlmRequest, data: unknown): LlmCallResult => ({ text: JSON.stringify(data), modelUsed: request.model, usage: { prompt: 1, completion: 1, total: 2, costUSD: 0 }, durationMs: 1 });
+
+  test("slots know where their segment starts and how long it is", () => {
+    const slots = buildImageSlots(chapters, parsePlan(planJson(), 12)!, 2);
+    expect(slots.map((slot) => [slot.first, slot.count, slot.afterParagraph])).toEqual([[0, 6, 2], [6, 6, 8]]);
+    expect(pagesFor(slots)[1].paragraphs).toEqual(["Absatz 7.", "Absatz 8.", "Absatz 9.", "Absatz 10.", "Absatz 11.", "Absatz 12."]);
+  });
+
+  test("the director's paragraph decides the place; edges keep pictures apart and the chapter's ending out", () => {
+    const slots = buildImageSlots([{ ...chapters[0], content: Array.from({ length: 50 }, (_, index) => `Absatz ${index + 1}.`).join("\n\n") }], parsePlan(planJson(), 12)!, 2);
+    expect(slots.map((slot) => [slot.first, slot.count])).toEqual([[0, 25], [25, 25]]);
+    // p7 of the second segment = chapter paragraph 32, i.e. after index 31
+    expect(placePictures(slots, [{ paragraph: 12 }, { paragraph: 7 }])).toEqual([
+      { afterParagraph: 11, by: "director", paragraph: 12 },
+      { afterParagraph: 31, by: "director", paragraph: 7 },
+    ]);
+    // too early / too late is pulled to the edge rule: at least 3 paragraphs in, at least 3 before the segment's end
+    expect(placePictures(slots, [{ paragraph: 1 }, { paragraph: 25 }]).map((place) => place.paragraph)).toEqual([PICTURE_EDGE, 25 - PICTURE_EDGE]);
+    expect(placePictures(slots, [{ paragraph: 25 }, { paragraph: 25 }])[1].afterParagraph).toBe(49 - PICTURE_EDGE);
+  });
+
+  test("no usable paragraph, or a segment too short for the edges: the middle of the segment, as before", () => {
+    const slots = buildImageSlots(chapters, parsePlan(planJson(), 12)!, 2);
+    expect(placePictures(slots, [undefined, {}]).map((place) => [place.by, place.afterParagraph])).toEqual([["middle", 2], ["middle", 8]]);
+    // Six paragraphs leave exactly one place between the edges; five leave none.
+    expect(placePictures(slots, [{ paragraph: 4 }, { paragraph: 4 }]).map((place) => [place.by, place.paragraph])).toEqual([["director", 3], ["director", 3]]);
+    const short = buildImageSlots([{ ...chapters[0], content: Array.from({ length: 10 }, (_, index) => `A${index}.`).join("\n\n") }], parsePlan(planJson(), 12)!, 2);
+    expect(short.map((slot) => slot.count)).toEqual([5, 5]);
+    expect(placePictures(short, [{ paragraph: 3 }, { paragraph: 3 }]).map((place) => place.by)).toEqual(["middle", "middle"]);
+    const roomy = buildImageSlots([{ ...chapters[0], content: Array.from({ length: 20 }, (_, index) => `A${index}.`).join("\n\n") }], parsePlan(planJson(), 12)!, 2);
+    expect(placePictures(roomy, [{ paragraph: 0 }, { paragraph: 99 }, ]).map((place) => place.by)).toEqual(["middle", "middle"]);
+  });
+
+  test("the director gets numbered paragraphs and a paragraph field; a picture book page stays one block", () => {
+    const slots = buildImageSlots(chapters, parsePlan(planJson(), 12)!, 2);
+    const plan = { pages: [], title: "t" } as any;
+    const numbered = buildDirectorUserPrompt({ title: "t", pages: pagesFor(slots), plan, entities: heroes, maxPerImage: 3 });
+    expect(numbered).toContain("p1: Absatz 1.");
+    expect(numbered).toContain("p6: Absatz 6.");
+    expect(numbered).toContain('"paragraph": 0');
+    const block = buildDirectorUserPrompt({ title: "t", pages: [{ order: 1, title: "S", content: "Erst. Dann." }], plan, entities: heroes, maxPerImage: 3 });
+    expect(block).toContain("Erst. Dann.");
+    expect(block).not.toContain("p1:");
+    expect(block).not.toContain('"paragraph"');
+  });
+
+  test("the paragraph is read from 12, \"p12\" or \"Paragraph 12\"; zero, nonsense and the cover give none", () => {
+    const shot = (paragraph: unknown) => sanitizeIllustrationPlan({ cover: { scene: "Alexander stands.", onStage: ["hero-alexander"], paragraph: 5 }, pages: [{ page: 1, scene: "Adrian runs.", onStage: ["hero-adrian"], paragraph }] }, 1, { pages: [] } as any, heroes, 3);
+    expect(shot(12).pages[0].paragraph).toBe(12);
+    expect(shot("p12").pages[0].paragraph).toBe(12);
+    expect(shot("Paragraph 7").pages[0].paragraph).toBe(7);
+    expect(shot(0).pages[0].paragraph).toBeUndefined();
+    expect(shot("soon").pages[0].paragraph).toBeUndefined();
+    expect(shot(12).cover.paragraph).toBeUndefined();
+  });
+
+  test("directing a batch: the director sees p1…, names a paragraph, and the picture is placed and noted there", async () => {
+    const plan = parsePlan(planJson(), 12)!;
+    const slots = buildImageSlots(chapters, plan, 1);
+    const seen: LlmRequest[] = [];
+    const llm = async (request: LlmRequest) => {
+      seen.push(request);
+      return answer(request, { pages: [{ page: 1, paragraph: "p7", scene: "Alexander laughs beside a bench in the yard.", onStage: ["hero-alexander"] }] });
+    };
+    const directed = await directBatch({ llm, models: { writer: "w", support: "s", critic: "c" }, ledger: new CostLedger(), brief: brief(), plan, chapters, entities: heroes, slots, withCover: false });
+    expect(seen[0].user).toContain("p7: Absatz 7.");
+    expect(seen[0].user).toContain("p12: Absatz 12.");
+    expect(directed.placed).toEqual([{ afterParagraph: 6, by: "director", paragraph: 7 }]);
+    expect(directed.notes).toHaveLength(1);
+    expect(directed.notes[0]).toMatchObject({ chapter: 1, afterParagraph: 6, placedBy: "director", figures: ["Alexander"] });
+  });
+
+  test("the director's rules name the paragraph, the edges and the order of the three figure places", async () => {
+    const plan = parsePlan(planJson(), 12)!;
+    const seen: LlmRequest[] = [];
+    await directBatch({
+      llm: async (request) => { seen.push(request); return answer(request, {}); },
+      models: { writer: "w", support: "s", critic: "c" }, ledger: new CostLedger(), brief: brief(), plan, chapters, entities: heroes, slots: buildImageSlots(chapters, plan, 1), withCover: false,
+    });
+    expect(seen[0].user).toContain('return "paragraph"');
+    expect(seen[0].user).toContain(`at least ${PICTURE_EDGE} paragraphs from the start`);
+    expect(seen[0].user).toContain("the heroes who are present in the scene of your paragraph");
+    expect(seen[0].user).not.toContain("MIDDLE paragraph");
+  });
+
+  test("a repaired shot keeps the paragraph its first version named", async () => {
+    const plan = parsePlan(planJson(), 12)!;
+    let call = 0;
+    const llm = async (request: LlmRequest) => {
+      call += 1;
+      // The first brief names a figure that does not exist (needs repair), the repair forgets the paragraph.
+      return answer(request, call === 1
+        ? { pages: [{ page: 1, paragraph: 5, scene: "A stranger waves at the bench.", onStage: ["nobody-here"] }] }
+        : { pages: [{ page: 1, scene: "Alexander waves at the bench.", onStage: ["hero-alexander"] }] });
+    };
+    const directed = await directBatch({ llm, models: { writer: "w", support: "s", critic: "c" }, ledger: new CostLedger(), brief: brief(), plan, chapters, entities: heroes, slots: buildImageSlots(chapters, plan, 1), withCover: false });
+    expect(call).toBe(2);
+    expect(directed.illustrations.pages[0].paragraph).toBe(5);
+    expect(directed.placed[0]).toMatchObject({ by: "director", afterParagraph: 4 });
+  });
+
+  test("the admin note lists who acts at the place but is not drawn", () => {
+    const plan = parsePlan(planJson(), 12)!;
+    const content = ["Anfang.", "Alexander kam.", "Adrian kam auch.", "Kicher kicherte.", "Alle lachten.", "Ende.", "Noch mehr.", "Und mehr."].join("\n\n");
+    const slots = buildImageSlots([{ order: 1, title: "t", recap: "", content }], plan, 1);
+    const cast: VisualEntity = { ...heroes[0], id: "c", name: "Kicher", role: "cast" };
+    const shots = [{ page: 1, scene: "Kicher giggles.", onStage: ["c"], artifactVisible: false }];
+    const notes = buildPictureNotes(slots, shots as any, [{ afterParagraph: 3, by: "director", paragraph: 4 }], [...heroes, cast], [], [{ order: 1, title: "t", recap: "", content }]);
+    expect(notes[0]).toMatchObject({ chapter: 1, afterParagraph: 3, placedBy: "director", figures: ["Kicher"], missing: ["Alexander", "Adrian"] });
   });
 });
