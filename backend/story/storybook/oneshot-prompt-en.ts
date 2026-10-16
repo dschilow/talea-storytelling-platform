@@ -151,8 +151,16 @@ export function castSheetEn(candidate: CastCandidate): string {
   const bits: string[] = [`- ${candidate.name} [id: ${candidate.id}]`, candidate.whoTheyAre];
   if (candidate.backstory) bits.push(`backstory: ${clean(candidate.backstory, 160)}`);
   if (candidate.personality.length) bits.push(`nature: ${candidate.personality.slice(0, 2).join(", ")}`);
+  // The character bible (2026-10-16): what the figure wants and fears drives its moves; the gag and the gesture make it recognisable from book to book.
+  if (candidate.want) bits.push(`always wants: ${clean(candidate.want, 120)}`);
+  if (candidate.fear) bits.push(`fears / sore spot: ${clean(candidate.fear, 100)}`);
+  if (candidate.secret) bits.push(`hides at first: ${clean(candidate.secret, 120)}`);
+  if (candidate.runningGag) bits.push(`its comic pattern (use it, let it escalate, never explain it): ${clean(candidate.runningGag, 200)}`);
   if (candidate.quirk) bits.push(`quirk: ${clean(candidate.quirk, 100)}`);
+  if (candidate.gesture) bits.push(`gesture a child can imitate: ${clean(candidate.gesture, 100)}`);
+  if (candidate.comicRole) bits.push(`comic role: ${clean(candidate.comicRole, 30)}`);
   if (candidate.speechStyle.length) bits.push(`speaks: ${candidate.speechStyle.slice(0, 1).join(", ")}`);
+  if (candidate.introLine) bits.push(`introduces itself like this (its own words, may be used once): „${clean(candidate.introLine, 140)}“`);
   if (candidate.catchphrase) bits.push(`catchphrase (only if it fits the scene, at most once, never as refrain): „${fixCatchphrase(candidate.catchphrase)}“`);
   return bits.join(" | ");
 }

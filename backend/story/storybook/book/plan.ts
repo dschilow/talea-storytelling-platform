@@ -8,9 +8,64 @@
  */
 
 import { containsBlockedTerm } from "../checks";
+import type { AgeBand } from "../craft";
 import { heartAndWitMode } from "../heart-and-wit";
 import { foldUmlauts, mentionsName } from "./catalogue";
-import type { BookBudget, BookChapterPlan, BookPitch, BookPlan, PlanReview } from "./types";
+import type { BookBudget, BookChapterPlan, BookPitch, BookPlan, BookVillain, HeroDuty, PlanReview, StoryEngine, VillainStyle } from "./types";
+
+const ENGINES: StoryEngine[] = ["heroes", "villain", "guest"];
+const VILLAIN_STYLES: VillainStyle[] = ["comic", "misunderstood", "real"];
+
+/** The engine of an idea or plan; anything unknown (old plans, a stray word) is the heroes engine. */
+export function parseEngine(value: unknown): StoryEngine | undefined {
+  const key = String(value ?? "").trim().toLowerCase();
+  if (!key) return undefined;
+  if (/^(villain|opponent|antagonist|gegenspieler|bösewicht|boesewicht)/.test(key)) return "villain";
+  if (/^(guest|gast|star|companion)/.test(key)) return "guest";
+  return ENGINES.includes(key as StoryEngine) ? (key as StoryEngine) : "heroes";
+}
+
+/**
+ * How the opposing figure may end, by age (the other review of "Die Türlaunische": every opponent so far was
+ * understood and answered — fine for the youngest, but a six-year-old also wants a villain who is simply outwitted).
+ */
+export function villainStyleFor(band: AgeBand): VillainStyle {
+  return band === "3-5" ? "misunderstood" : band === "9-12" ? "real" : "comic";
+}
+
+function parseVillain(raw: any): BookVillain | null {
+  if (!raw || typeof raw !== "object") return null;
+  const who = text(raw.who, 120);
+  if (!who || /^(null|none|kein|keine)\b/i.test(who)) return null;
+  const style = String(raw.style ?? "").trim().toLowerCase();
+  return {
+    who,
+    goal: text(raw.goal, 240),
+    plan: text(raw.plan, 400),
+    moves: (Array.isArray(raw.moves) ? raw.moves : [])
+      .map((move: any) => ({ chapter: int(move?.chapter), move: text(move?.move, 240) }))
+      .filter((move: { chapter: number; move: string }) => move.chapter >= 1 && move.move)
+      .slice(0, 8),
+    weakness: text(raw.weakness, 240),
+    exposedBy: int(raw.exposedBy),
+    outcome: text(raw.outcome, 240),
+    style: VILLAIN_STYLES.includes(style as VillainStyle) ? (style as VillainStyle) : "comic",
+  };
+}
+
+function parseHeroDuties(raw: any): HeroDuty[] {
+  return (Array.isArray(raw) ? raw : [])
+    .map((duty: any) => ({
+      hero: text(duty?.hero, 80),
+      talent: text(duty?.talent, 240),
+      talentChapter: int(duty?.talentChapter),
+      decision: text(duty?.decision, 240),
+      decisionChapter: int(duty?.decisionChapter),
+      feelingEnd: text(duty?.feelingEnd, 240),
+    }))
+    .filter((duty: HeroDuty) => duty.hero)
+    .slice(0, 4);
+}
 
 function text(value: unknown, max = 600): string {
   return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
@@ -37,6 +92,9 @@ export function parsePitch(raw: any): BookPitch | null {
         castId: role?.castId === null || role?.castId === undefined ? null : text(role.castId, 80) || null,
         why: text(role?.why, 240),
       })).filter((role: { role: string }) => role.role).slice(0, 8),
+      ...(parseEngine(idea?.engine) ? { engine: parseEngine(idea?.engine) } : {}),
+      ...(text(idea?.engineFigure, 80) && !/^(null|none)$/i.test(text(idea?.engineFigure, 80)) ? { engineFigure: text(idea.engineFigure, 80) } : {}),
+      ...(text(idea?.stake, 240) ? { stake: text(idea.stake, 240) } : {}),
     }))
     .filter((idea: { premise: string; title: string }) => idea.premise || idea.title)
     .slice(0, 3);
@@ -61,6 +119,8 @@ function chapterPlan(raw: any, n: number): BookChapterPlan {
     payoffs: list(raw?.payoffs, 6, 12).map((id) => id.toUpperCase()),
     ...(text(raw?.gagBeat, 300) ? { gagBeat: text(raw.gagBeat, 300) } : {}),
     pictures: list(raw?.pictures, 3, 300),
+    ...(text(raw?.opponentScene, 300) && !/^(null|none|keine?|—|-)$/i.test(text(raw?.opponentScene, 300)) ? { opponentScene: text(raw.opponentScene, 300) } : {}),
+    ...(/^opponent|^villain|^gegen/i.test(text(raw?.pov, 20)) ? { pov: "opponent" as const } : {}),
   };
 }
 
@@ -87,6 +147,7 @@ export function parsePlan(raw: any, chapters: number): BookPlan | null {
       characters: (Array.isArray(b.characters) ? b.characters : []).map((c: any) => ({
         name: text(c?.name, 80), introduction: text(c?.introduction, 240), wants: text(c?.wants, 240), can: text(c?.can, 240), flaw: text(c?.flaw, 240),
         avoids: text(c?.avoids, 240), voice: text(c?.voice, 240), challengedBy: text(c?.challengedBy, 160), finalChoice: text(c?.finalChoice, 240),
+        ...(c?.turn && typeof c.turn === "object" && int(c.turn.chapter) >= 1 && text(c.turn.what, 240) ? { turn: { chapter: int(c.turn.chapter), what: text(c.turn.what, 240) } } : {}),
       })).filter((c: { name: string }) => c.name).slice(0, 8),
       runningGag: {
         gag: text(b.runningGag?.gag, 300),
@@ -105,6 +166,16 @@ export function parsePlan(raw: any, chapters: number): BookPlan | null {
         .map((entry: any) => ({ chapter: int(entry?.chapter), moment: text(entry?.moment, 240) }))
         .filter((entry: { chapter: number; moment: string }) => entry.chapter >= 1 && entry.moment)
         .slice(0, 5),
+      // 2026-10-16 (plot engine): who drives the book, the villain's own plan, what the listener knows first, what every hero owns.
+      engine: parseEngine(b.engine) || "heroes",
+      engineFigure: /^(null|none|kein|keine)\b/i.test(text(b.engineFigure, 20)) ? "" : text(b.engineFigure, 120),
+      villain: parseVillain(b.villain),
+      readerKnowsMore: (Array.isArray(b.readerKnowsMore) ? b.readerKnowsMore : [])
+        .map((entry: any) => ({ chapter: int(entry?.chapter), what: text(entry?.what, 240) }))
+        .filter((entry: { chapter: number; what: string }) => entry.chapter >= 1 && entry.what)
+        .slice(0, 4),
+      heroDuties: parseHeroDuties(b.heroDuties),
+      stakeVisible: /^(null|none|kein|keine)\b/i.test(text(b.stakeVisible, 20)) ? "" : text(b.stakeVisible, 240),
     },
     setups: (Array.isArray(raw.setups) ? raw.setups : []).map((setup: any, index: number) => ({
       id: (text(setup?.id, 12) || `S${index + 1}`).toUpperCase(),
@@ -122,7 +193,7 @@ export function parsePlan(raw: any, chapters: number): BookPlan | null {
 }
 
 /** Countable defects of a plan, as German edit notes for the revision. */
-export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroNames: string[]; castNames: string[]; blockedTerms: string[]; cozy?: boolean; genre?: unknown }): string[] {
+export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroNames: string[]; castNames: string[]; blockedTerms: string[]; cozy?: boolean; genre?: unknown; band?: AgeBand }): string[] {
   const issues: string[] = [];
   const n = budget.chapters;
   if (!plan.title) issues.push("Der Plan hat keinen Titel.");
@@ -185,8 +256,66 @@ export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroN
   if (!input.cozy && n >= 6 && opening.length === 3 && opening.every((chapter) => chapter.place && samePlace(chapter.place, opening[0].place))) {
     issues.push(`Kapitel 1–3 spielen alle am selben Ort („${opening[0].place.slice(0, 50)}“) — die Helden sollen spätestens in Kapitel 3 aufbrechen oder der Ort verändert sich spürbar.`);
   }
+  issues.push(...checkEngine(plan, n, input));
   const blocked = containsBlockedTerm(JSON.stringify(plan), input.blockedTerms);
   if (blocked) issues.push(`Der gesperrte Begriff „${blocked}“ kommt im Plan vor.`);
+  return issues;
+}
+
+/**
+ * The countable duties of the plot engine (2026-10-16, "Die Türlaunische": nobody worked against the heroes, the
+ * listener never knew more than they did, the side characters only helped, and the stake — a door chime — was
+ * nothing a child could draw). Whoever drives the book, every hero keeps a talent that turns the plot, the
+ * decision at the climax and the feeling at the end: the avatar is the child, never a bystander.
+ */
+export function checkEngine(plan: BookPlan, n: number, input: { heroNames: string[]; castNames: string[]; cozy?: boolean; band?: AgeBand }): string[] {
+  const issues: string[] = [];
+  const b = plan.bible;
+  const engine = b.engine || "heroes";
+  const middle = Math.ceil(n / 2);
+  if (!b.stakeVisible) issues.push("Es fehlt der sichtbare Einsatz (stakeVisible): Was geht verloren — als Ding oder Person, die ein Sechsjähriger malen könnte. Kein Klang, kein Gefühl, keine Gewohnheit.");
+  if (engine === "villain") {
+    const villain = b.villain;
+    if (!villain) {
+      issues.push("Der Motor des Buchs ist ein Gegenspieler mit eigenem Plan (engine villain), aber die Bibel hat keinen villain-Block (who, goal, plan, moves je Kapitel, weakness, exposedBy, outcome, style).");
+    } else {
+      const moveChapters = new Set(villain.moves.filter((move) => move.chapter >= 1 && move.chapter <= n).map((move) => move.chapter));
+      const sceneChapters = new Set(plan.chapters.filter((chapter) => chapter.opponentScene).map((chapter) => chapter.n));
+      const alone = [...moveChapters].filter((chapter) => sceneChapters.has(chapter));
+      if (alone.length < 2) issues.push(`${villain.who} handelt in weniger als zwei Kapiteln OHNE die Helden: Plane mindestens zwei Züge (villain.moves) und gib denselben Kapiteln eine kurze opponentScene — das zuhörende Kind soll mehr wissen als die Helden.`);
+      if (sceneChapters.size > middle) issues.push(`In ${sceneChapters.size} von ${n} Kapiteln gibt es eine Szene ohne die Helden — höchstens in jedem zweiten; die Helden bleiben die Perspektive.`);
+      if (!villain.exposedBy || villain.exposedBy > middle) issues.push(`Die Helden durchschauen den Plan von ${villain.who} ${villain.exposedBy ? `erst in Kapitel ${villain.exposedBy}` : "nie"} — spätestens in Kapitel ${middle} (exposedBy): bis dahin reagieren sie, danach handeln sie und der Gegenspieler muss reagieren.`);
+      if (!villain.weakness || !villain.outcome) issues.push(`${villain.who} braucht eine Schwäche (weakness), die die Helden im Finale nutzen, und einen Ausgang (outcome).`);
+      if (input.band === "3-5" && villain.style === "real") issues.push(`Für Drei- bis Fünfjährige ist ${villain.who} kein echter Gegner (style real): ein missverstandener oder ein komischer, der überlistet wird.`);
+      if (input.cozy) issues.push("Ein gemütliches Buch (cozy) hat keinen Gegenspieler mit Plan — wähle engine heroes oder guest.");
+    }
+  }
+  if (engine === "guest") {
+    if (!b.engineFigure) issues.push("Der Motor des Buchs ist ein Gast mit eigener Mission (engine guest), aber engineFigure nennt keine Figur.");
+    else if (!b.characters.some((character) => mentionsName(character.name, b.engineFigure!))) issues.push(`Die Motorfigur „${b.engineFigure}“ hat kein Figurenprofil in der Bibel.`);
+    if (!b.secret) issues.push("Ein Gast-Buch braucht secret: was der Gast will oder verbirgt und was die Erwachsenen nicht erfahren dürfen.");
+  }
+  if (engine !== "heroes") {
+    const moments = (b.readerKnowsMore || []).filter((moment) => moment.chapter >= 1 && moment.chapter <= n);
+    if (!moments.length) issues.push("Plane ein bis zwei Momente (readerKnowsMore), in denen das zuhörende Kind mehr weiß als die Helden — je mit Kapitel, als kurze Szene ohne die Helden (opponentScene).");
+  }
+  const duties = b.heroDuties || [];
+  const climaxFrom = Math.max(b.lowPointChapter || 0, Math.floor(n * 0.6));
+  for (const name of input.heroNames) {
+    const duty = duties.find((entry) => mentionsName(entry.hero, name));
+    if (!duty || !duty.talent || !duty.decision || !duty.feelingEnd) {
+      issues.push(`Für ${name} fehlen die Heldenpflichten (heroDuties): eine eigene Fähigkeit oder Gewohnheit, die die Handlung einmal dreht (talent, talentChapter), die Entscheidung am Höhepunkt, die nur ${name} trifft (decision, decisionChapter), und das Gefühl am Ende (feelingEnd).`);
+      continue;
+    }
+    if (duty.talentChapter < 1 || duty.talentChapter > n) issues.push(`${name}: talentChapter muss zwischen 1 und ${n} liegen.`);
+    if (duty.decisionChapter < climaxFrom || duty.decisionChapter > n) issues.push(`${name}: die Entscheidung am Höhepunkt (decisionChapter ${duty.decisionChapter || "?"}) gehört in die Kapitel ${climaxFrom}–${n}.`);
+  }
+  for (const name of input.castNames) {
+    const profile = b.characters.find((character) => mentionsName(character.name, name));
+    if (profile && (!profile.turn || profile.turn.chapter < 1 || profile.turn.chapter > n)) {
+      issues.push(`${name} hilft nur: gib der Figur eine Wendung (turn mit Kapitel) — etwas, das sie TUT und das den Weg der Helden verändert (ein Fehler, ein Eigensinn, ein Geheimnis, ein falscher Rat), nicht nur Hilfe.`);
+    }
+  }
   return issues;
 }
 
@@ -226,7 +355,28 @@ export function planScoreCap(checks: Record<string, boolean>): number {
   if (checks.stakesKept === false) cap = Math.min(cap, 6);
   if (checks.setbackByHero === false || checks.worksByEar === false) cap = Math.min(cap, 7);
   if (checks.someoneWants === false) cap = Math.min(cap, 7.5);
+  // 2026-10-16 (plot engine, "Die Türlaunische" was reviewed at 5 and written anyway): a stake nobody can draw, a villain
+  // who never acts alone, heroes who never see through the plan, a finale not decided by a hero, side characters who only
+  // help, the heroes' own traits as the premise again, the same inner lesson as last time.
+  if (checks.stakesPaintable === false) cap = Math.min(cap, 6);
+  if (checks.villainActs === false || checks.heroDecides === false) cap = Math.min(cap, 6.5);
+  if (checks.heroesSeeThrough === false || checks.traitsNotPremise === false) cap = Math.min(cap, 7);
+  if (checks.castCausesTurns === false || checks.readerKnowsMore === false || checks.freshArc === false) cap = Math.min(cap, 7.5);
   return cap;
+}
+
+/**
+ * The plan gate (2026-10-16): "Die Türlaunische" was reviewed at overall 5 and logic 5, revised once without a second
+ * look, and written. A plan under this score after its revision is reviewed again and revised a second time; only
+ * then do the chapters start. Measured cost of a review and a revision together: about 1 ct.
+ */
+export const PLAN_GATE_SCORE = 7;
+export const PLAN_MAX_REVISIONS = 2;
+
+/** A plan passes the gate when its review is missing (never block on a failed critic) or scores at least the gate without must-fix notes. */
+export function planPassesGate(review: PlanReview | null, issues: string[]): boolean {
+  if (!review) return issues.length === 0;
+  return review.scores.overall >= PLAN_GATE_SCORE && review.mustFix.length === 0 && issues.length === 0;
 }
 
 export function parsePlanReview(raw: any): PlanReview | null {

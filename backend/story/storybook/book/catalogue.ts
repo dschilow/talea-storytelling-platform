@@ -67,11 +67,15 @@ export function catalogueForPitch(catalogue: CatalogueEntry[], series?: SeriesMe
   return ordered.slice(0, limit).map((entry, index) => ({ alias: `P${index + 1}`, entry }));
 }
 
-/** One line per character, about 40 tokens. */
+/** One line per character, about 40-55 tokens (the bible adds a want and the marks that decide who may drive a book). */
 export function catalogueLine(alias: string, entry: CatalogueEntry): string {
   const bits = [`${alias} ${entry.name}: ${clean(entry.whoTheyAre, 70)}`];
   if (entry.personality.length) bits.push(entry.personality.slice(0, 2).join(", "));
+  if (entry.want) bits.push(`wants: ${clean(entry.want, 60)}`);
   if (entry.quirk) bits.push(`quirk: ${clean(entry.quirk, 60)}`);
+  else if (entry.runningGag) bits.push(`gag: ${clean(entry.runningGag, 60)}`);
+  if (entry.canLead) bits.push("can lead");
+  if (entry.canOppose) bits.push(`can oppose${entry.villainStyle ? ` (${entry.villainStyle})` : ""}`);
   if (entry.recentUses >= 2) bits.push("used often lately");
   if (!entry.hasImage) bits.push("no portrait");
   return bits.join(" | ");

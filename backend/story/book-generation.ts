@@ -43,7 +43,7 @@ import { artifactHeadToken, countWords } from "./storybook/checks";
 import type { StorybookHero, StoryElement } from "./storybook/types";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./storybook/book/budget";
 import { buildCatalogue } from "./storybook/book/catalogue";
-import { bookBatchRanges, bookServiceTier, buildSeriesMemory, planBook, resolveBookPlanner, writeBook, type BookContext, type PlannedBook } from "./storybook/book/engine";
+import { bookBatchRanges, bookServiceTier, buildSeriesMemory, planBook, planMotifs, resolveBookPlanner, writeBook, type BookContext, type PlannedBook } from "./storybook/book/engine";
 import { buildImageSlots, directBatch, illustrateBatch, type BatchImagesResult, type BookImage, type PictureNote, type StoredDirection } from "./storybook/book/illustrations";
 import { createOpenRouterJevPort } from "./storybook/jev-openrouter";
 import { emptyBookState, type BookBrief, type BookState, type SeriesMemory } from "./storybook/book/types";
@@ -410,8 +410,12 @@ async function writeStoryMetadata(storyId: string, input: BookJobInput, planned:
     bookAdmin: {
       plan: planned.plan,
       planReview: planned.planReview,
+      planReviewAfter: planned.planReviewAfter ?? null,
+      planRevisions: planned.planRevisions ?? (planned.planRevised ? 1 : 0),
       planIssues: planned.planIssues,
       casting: planned.casting.roles,
+      // What this book leaves for the family's next one (history.ts reads it for the pitch): the heroes' inner arcs and the motifs used.
+      motifs: planMotifs(planned.plan),
       curve: book.curve,
       openIssues: book.openIssues,
       imageRedraws: state.imageRedraws || [],
@@ -510,6 +514,7 @@ async function runJobStep(row: JobRow): Promise<void> {
             state.pictureNotes = [...(state.pictureNotes || []).filter((note) => note.chapter < textFrom || note.chapter > to), ...directed.notes];
             await logStage(storyId, "pictures-directed", {
               from: textFrom, to, pictures: directed.notes.map((note) => `K${note.chapter}.${note.part} nach Absatz ${note.afterParagraph + 1} (${note.placedBy})${note.missing.length ? ` — fehlt: ${note.missing.join(", ")}` : ""}`),
+              ...(directed.changes.length ? { castEnforced: directed.changes.map((change) => `K${change.chapter}.${change.part}: ${change.name}${change.replaced ? ` statt ${change.replaced}` : ""}`) } : {}),
             });
           } catch (err) {
             // No direction: the pictures take the middle of their segments and the director runs again when they are drawn.
