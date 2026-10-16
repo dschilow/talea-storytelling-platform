@@ -16,6 +16,16 @@ import type { BookBudget, BookChapterPlan, BookPitch, BookPlan, BookVillain, Her
 const ENGINES: StoryEngine[] = ["heroes", "villain", "guest"];
 const VILLAIN_STYLES: VillainStyle[] = ["comic", "misunderstood", "real"];
 
+/** What kind of being a planned figure is (plan.bible.characters[].kind); unknown words are dropped. */
+export function parseFigureKind(value: unknown): "person" | "animal" | "creature" | "thing" | undefined {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (/^(person|human|mensch|child|kind|adult|erwachsene)/.test(raw)) return "person";
+  if (/^(animal|tier)/.test(raw)) return "animal";
+  if (/^(creature|wesen|monster|ghost|geist|fabel|magical)/.test(raw)) return "creature";
+  if (/^(thing|ding|object|objekt|gegenstand)/.test(raw)) return "thing";
+  return undefined;
+}
+
 /** The engine of an idea or plan; anything unknown (old plans, a stray word) is the heroes engine. */
 export function parseEngine(value: unknown): StoryEngine | undefined {
   const key = String(value ?? "").trim().toLowerCase();
@@ -148,6 +158,9 @@ export function parsePlan(raw: any, chapters: number): BookPlan | null {
         name: text(c?.name, 80), introduction: text(c?.introduction, 240), wants: text(c?.wants, 240), can: text(c?.can, 240), flaw: text(c?.flaw, 240),
         avoids: text(c?.avoids, 240), voice: text(c?.voice, 240), challengedBy: text(c?.challengedBy, 160), finalChoice: text(c?.finalChoice, 240),
         ...(c?.turn && typeof c.turn === "object" && int(c.turn.chapter) >= 1 && text(c.turn.what, 240) ? { turn: { chapter: int(c.turn.chapter), what: text(c.turn.what, 240) } } : {}),
+        // 2026-10-16 ("Die rollende Woche"): the identity line and the kind of a figure without a portrait.
+        ...(text(c?.look, 200) && !/^(null|none|—|-)$/i.test(text(c?.look, 20)) ? { look: text(c.look, 200) } : {}),
+        ...(parseFigureKind(c?.kind) ? { kind: parseFigureKind(c?.kind) } : {}),
       })).filter((c: { name: string }) => c.name).slice(0, 8),
       runningGag: {
         gag: text(b.runningGag?.gag, 300),
@@ -257,6 +270,9 @@ export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroN
     issues.push(`Kapitel 1–3 spielen alle am selben Ort („${opening[0].place.slice(0, 50)}“) — die Helden sollen spätestens in Kapitel 3 aufbrechen oder der Ort verändert sich spürbar.`);
   }
   issues.push(...checkEngine(plan, n, input));
+  issues.push(...checkNamedFigures(plan, input));
+  issues.push(...checkWonderRules(plan, input.band));
+  issues.push(...checkChants(plan));
   const blocked = containsBlockedTerm(JSON.stringify(plan), input.blockedTerms);
   if (blocked) issues.push(`Der gesperrte Begriff „${blocked}“ kommt im Plan vor.`);
   return issues;
@@ -317,6 +333,60 @@ export function checkEngine(plan: BookPlan, n: number, input: { heroNames: strin
     }
   }
   return issues;
+}
+
+/**
+ * Only heroes, the cast and the central someone carry names (2026-10-16, "Die rollende Woche": Rotkäppchen appeared from
+ * chapter 3 on, was in no cast and had no picture identity — a different girl on every page). The central someone is the
+ * engine figure, the opponent or the villain; when none of them is a figure without a portrait, one such figure (the
+ * wonder) may exist. Every figure without a portrait needs its look for the illustrator.
+ */
+export function checkNamedFigures(plan: BookPlan, input: { heroNames: string[]; castNames: string[] }): string[] {
+  const issues: string[] = [];
+  const b = plan.bible;
+  const known = [...input.heroNames, ...input.castNames];
+  const central = [b.engineFigure, b.opponent?.who, b.villain?.who].filter((name): name is string => Boolean(name));
+  const extras = b.characters.filter((character) => !known.some((name) => mentionsName(character.name, name) || mentionsName(name, character.name)));
+  const centralExtras = extras.filter((character) => central.some((name) => mentionsName(name, character.name) || mentionsName(character.name, name)));
+  const others = extras.filter((character) => !centralExtras.includes(character));
+  const allowedOthers = centralExtras.length > 0 ? 0 : 1;
+  for (const character of others.slice(allowedOthers)) {
+    issues.push(`„${character.name}“ ist weder Held noch besetzte Pool-Figur noch der zentrale Jemand: Nur Helden, Besetzung und das Wunder tragen Namen. Gib die Rolle einer besetzten Figur, oder mache sie namenlos („ein Mädchen mit roter Kapuze“) und streiche das Profil.`);
+  }
+  for (const character of [...centralExtras, ...others.slice(0, allowedOthers)]) {
+    if (character.kind === "thing") continue;
+    if (!character.look) issues.push(`Für „${character.name}“ fehlt look: die Erscheinung auf Englisch in 10-18 Wörtern (Art, Alter, Statur, Haar oder Fell, Kleidung oder Farben) und kind (person, animal, creature, thing) — ohne sie sieht die Figur auf jedem Bild anders aus.`);
+  }
+  return issues;
+}
+
+/** How many rules the wonder may have (the other AI's review, 2026-10-16: "wieder höchstens zwei Zauberregeln"). */
+export function maxWonderRules(band?: AgeBand): number {
+  return band === "9-12" ? 3 : 2;
+}
+
+/** The rules in bible.limits, one per sentence or semicolon-separated clause; a clause under three words is no rule. */
+export function countRules(limits: string): number {
+  return String(limits || "")
+    .split(/;|(?<=[.!?])\s+(?=[A-ZÄÖÜ„"(])|\s+(?=\d+[.)]\s)/)
+    .map((part) => part.replace(/^\s*\d+[.)]\s*/, "").trim())
+    .filter((part) => part.split(/\s+/).filter(Boolean).length >= 3).length;
+}
+
+export function checkWonderRules(plan: BookPlan, band?: AgeBand): string[] {
+  const count = countRules(plan.bible.limits);
+  const max = maxWonderRules(band);
+  return count > max ? [`Das Wunder hat ${count} Regeln (limits) — höchstens ${max}: streiche oder verschmelze Regeln; ein kurzer Satz je Regel, mit Semikolon getrennt.`] : [];
+}
+
+const CHANT_WORDING = /spruch|chant|reim|rhyme|zauber|formel|spell|motto|vers\b|lied|song|refrain|ruf\b/i;
+
+/** At most one wording the heroes speak together; the other fixed wordings are signs, rules or the closing line. */
+export function checkChants(plan: BookPlan): string[] {
+  const chants = (plan.bible.fixedWordings || []).filter((wording) => CHANT_WORDING.test(wording.what));
+  return chants.length > 1
+    ? [`${chants.length} gemeinsame Sprüche oder Reime in fixedWordings („${chants.map((wording) => wording.what).join("“, „")}“) — höchstens einer, und der muss etwas in der Handlung tun; die anderen Wortlaute sind Schilder, Regelsätze oder der Schlusssatz.`]
+    : [];
 }
 
 const PLACE_STOPWORDS = new Set(["der", "die", "das", "dem", "den", "ein", "eine", "einem", "im", "in", "am", "an", "auf", "bei", "vor", "von", "zu", "zum", "zur", "und", "mit", "the", "of", "at"]);

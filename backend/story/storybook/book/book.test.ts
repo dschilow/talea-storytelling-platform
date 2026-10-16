@@ -6,7 +6,7 @@ import { retryRequestFor, withServiceTier, type LlmCallResult, type LlmRequest }
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./budget";
 import { catalogueForPitch, catalogueLine, foldUmlauts, mentionsName, resolveCasting } from "./catalogue";
 import { checkChapter, formulaicOpening, mergeChapterPatch, mergeOpenThreads, mergeWordings, mergeWorldState, speechTagCommas, parseChapterCritique, parseChapters, quoteInText, repeatedPhrases } from "./chapters";
-import { bookBatchRanges, bookServiceTier, chapterRanges, LAUGH_REWRITE_MAX_HUMOR, resolveBookPlanner, rewriteReasons, type PlannedBook } from "./engine";
+import { bookBatchRanges, bookServiceTier, chapterRanges, LAUGH_REWRITE_MAX_HUMOR, LAUGH_REWRITE_MAX_SUSPENSE, resolveBookPlanner, rewriteReasons, type PlannedBook } from "./engine";
 import { coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
 import { buildImageSlots, buildPictureNotes, directBatch, pagesFor, PICTURE_EDGE, placePictures, remainingNotes } from "./illustrations";
 import { buildDirectorUserPrompt, sanitizeIllustrationPlan, type VisualEntity } from "../illustration-stage";
@@ -494,9 +494,11 @@ describe("Schatto führt Regie (2026-10-16): cheaper, sooner, nothing left dangl
     const plan = parsePlan(planJson(), 12)!;
     const planned = { plan, brief: brief() } as unknown as PlannedBook;
     const chapter = { order: 2, title: "t", recap: "", content: "Text." };
-    const critique = (humor: number) => ({ n: 2, laugh: null, hook: "Ende.", suspense: 5, humor, voice: null, lesson: null, progress: true, missingPlants: [] });
+    const critique = (humor: number, suspense = LAUGH_REWRITE_MAX_SUSPENSE) => ({ n: 2, laugh: null, hook: "Ende.", suspense, humor, voice: null, lesson: null, progress: true, missingPlants: [] });
     expect(rewriteReasons(critique(LAUGH_REWRITE_MAX_HUMOR + 1), chapter, planned, []).map((reason) => reason.code)).toEqual([]);
     expect(rewriteReasons(critique(LAUGH_REWRITE_MAX_HUMOR), chapter, planned, []).map((reason) => reason.code)).toContain("no-laugh");
+    // 2026-10-16 ("Die rollende Woche"): a missing laugh in a chapter with suspense is patched, not rewritten.
+    expect(rewriteReasons(critique(LAUGH_REWRITE_MAX_HUMOR, LAUGH_REWRITE_MAX_SUSPENSE + 1), chapter, planned, []).map((reason) => reason.code)).toEqual([]);
   });
   test("open questions get stable ids, answered ones leave, duplicates and old ones stay put", () => {
     let threads = mergeOpenThreads([], [{ chapter: 1, question: "Was ist der kleine Schatten zu Schattos Füßen?" }, { chapter: 1, question: "Wer hat die Kulisse gebaut?" }], []);
@@ -974,7 +976,9 @@ describe("Der Erzählmotor (Die Türlaunische, 2026-10-16): wer das Buch antreib
     expect(laugh.laughPatched).toBe(true);
     expect(laugh.notes.join("\n")).toContain("Luna fällt vom Sieb");
     expect(enginePatchNotes(point(LAUGH_PATCH_MAX_HUMOR + 1), chapter, plan, "mystery").laughPatched).toBe(false);
-    expect(enginePatchNotes(point(LAUGH_REWRITE_MAX_HUMOR), chapter, plan, "mystery").laughPatched).toBe(false);
+    // Humour at the rewrite bar but suspense 6: no double deficit, so the patch takes the laugh (2026-10-16, "Die rollende Woche").
+    expect(enginePatchNotes(point(LAUGH_REWRITE_MAX_HUMOR), chapter, plan, "mystery").laughPatched).toBe(true);
+    expect(enginePatchNotes(point(LAUGH_REWRITE_MAX_HUMOR, { suspense: LAUGH_REWRITE_MAX_SUSPENSE }), chapter, plan, "mystery").laughPatched).toBe(false);
     const flat = enginePatchNotes(point(8, { opponentPresent: false, suspense: 4 }), chapter, plan, "mystery").notes.join("\n");
     expect(flat).toContain("Nichts und niemand arbeitet");
     expect(flat).toContain("Der Geräusche-Fresser");
@@ -1060,5 +1064,202 @@ describe("Der Erzählmotor (Die Türlaunische, 2026-10-16): wer das Buch antreib
     expect(parseBible({ want: "w", fear: "f", runningGag: "g", gesture: "ge", introLine: "i", signatureVisual: "v", comicRole: "nonsense", canOppose: "true", villainStyle: "weird" })).toMatchObject({ comicRole: "dreamer", canOppose: true, villainStyle: "comic", secret: "" });
     expect(parseBible({ want: "w" })).toBeNull();
     expect(buildBiblePrompt(row).user).toContain("FIGURE: Die Nebelhexe");
+  });
+});
+
+// 2026-10-16, "Die rollende Woche": the editor chooses the engine, the fallback casts for it, named figures stay cast, pictures keep identities.
+import { bestEngineFigure, chooseIdea, ENGINE_FORCED_FORMS, fallbackCasting, forceEngine, resolveEngineFigure } from "./catalogue";
+import { checkChants, checkNamedFigures, checkWonderRules, countRules, parseFigureKind } from "./plan";
+import { bookEngineOf, laughRewriteNeeded, seriesStar } from "./engine";
+import { bibleFigureEntities, castIdentityLine, wordlessThingsNote } from "./illustrations";
+import type { BookPitch, StoryEngine } from "./types";
+
+describe("Die rollende Woche (2026-10-16): der Motor wird erzwungen, die Besetzung folgt ihm, Namen bleiben besetzt, Bilder behalten Identität", () => {
+  const hexe = entry("uuid-hexe", "Die Nebelhexe", { canOppose: true, villainStyle: "comic", want: "einen würdigen Gegner", whoTheyAre: "eine Hexe mit wilden Locken" });
+  const kobold = entry("uuid-kobold", "Kobold Knirps", { canLead: true, hasImage: false, want: "nach Hause ins Uhrwerk" });
+  const pool = [...catalogue, hexe, kobold];
+  const pitch = (engines: StoryEngine[], roles: Array<Array<string | null>> = [], choice = 1): BookPitch => ({
+    ideas: engines.map((engine, index) => ({ title: `Idee ${index + 1}`, premise: "p", bigQuestion: "q", wonder: "w", engine, roles: (roles[index] || []).map((castId) => ({ role: "x", castId, why: "y" })) })),
+    choice, why: "",
+  });
+  const budget = resolveBookBudget("6-8", { chapters: 12 });
+
+  test("the editor's choice: not the last book's engine, not heroes in a funny book with opponents in the pool, not an idea without a pool cast", () => {
+    expect(ENGINE_FORCED_FORMS.has("funny")).toBe(true);
+    expect(ENGINE_FORCED_FORMS.has("journey")).toBe(false);
+    const base = { catalogue: pool, series: null, max: 3 };
+    // Funny book, the pitch chose the heroes idea: the villain idea with a valid cast wins.
+    const funny = chooseIdea(pitch(["heroes", "villain"], [["P1"], ["uuid-hexe"]]), { ...base, form: "funny" });
+    expect(funny.index).toBe(1);
+    expect(funny.notes[0]).toContain("Motor heroes in einem funny-Buch");
+    // A journey has no forced engine; the pitch's choice stands.
+    expect(chooseIdea(pitch(["heroes", "villain"], [["P1"], ["uuid-hexe"]]), { ...base, form: "journey" }).index).toBe(0);
+    // The last book ran on villain: the heroes idea wins the journey.
+    const history = chooseIdea(pitch(["villain", "heroes"], [["uuid-hexe"], ["P1"]]), { ...base, form: "journey", recentBookEngines: ["villain"] });
+    expect(history.index).toBe(1);
+    expect(history.notes[0]).toContain("wie im letzten Buch");
+    // A sequel keeps its engine: the history rule is off.
+    expect(chooseIdea(pitch(["villain", "heroes"], [["uuid-hexe"], ["P1"]]), { ...base, form: "journey", recentBookEngines: ["villain"], series: { seriesTitle: "S", volume: 1, castIds: ["uuid-hexe"], home: "", world: "", volumes: [], openThreads: [], runningGags: [], items: [], relationships: [], starId: "uuid-hexe", starName: "Die Nebelhexe" } }).index).toBe(0);
+    // A cosy book never takes the villain idea; an idea without any valid cast loses to one with a cast.
+    expect(chooseIdea(pitch(["villain", "heroes"], [["uuid-hexe"], ["P1"]]), { ...base, form: "cozy" }).index).toBe(1);
+    const uncast = chooseIdea(pitch(["heroes", "heroes"], [[null], ["P2"]]), { ...base, form: "journey" });
+    expect(uncast.index).toBe(1);
+    expect(uncast.notes[0]).toContain("keine gültige Pool-Besetzung");
+  });
+
+  test("all ideas on heroes in a funny book: the editor assigns the villain from the catalogue, with a binding note for the planner", () => {
+    const idea = pitch(["heroes"], [["P1"]]).ideas[0];
+    const casting = resolveCasting(idea, pool, 3, null);
+    expect(casting.cast.map((member) => member.name)).toEqual(["Luna"]);
+    const forced = forceEngine(idea, casting, { form: "funny", catalogue: pool, series: null, max: 3, style: "comic" })!;
+    expect(forced.idea.engine).toBe("villain");
+    expect(forced.idea.engineFigure).toBe("Die Nebelhexe");
+    expect(forced.idea.engineNote).toContain("assigned the villain engine: Die Nebelhexe");
+    expect(forced.casting.roles.map((role) => `${role.id}:${role.role}`)).toEqual(["uuid-hexe:opponent", "uuid-luna:x"]);
+    expect(forced.casting.cast.map((member) => member.name)).toEqual(["Die Nebelhexe", "Luna"]);
+    expect(forced.note).toContain("Motor erzwungen: villain mit Die Nebelhexe");
+    // The same engine as last book is replaced too (journey: heroes after heroes → villain).
+    expect(forceEngine(idea, casting, { form: "journey", catalogue: pool, series: null, max: 3, recentBookEngines: ["heroes"] })!.idea.engine).toBe("villain");
+    // Villain after villain becomes a guest when the pool offers one who can lead.
+    const villainIdea = { ...idea, engine: "villain" as const, engineFigure: "Die Nebelhexe" };
+    expect(forceEngine(villainIdea, resolveCasting(villainIdea, pool, 3, null), { form: "journey", catalogue: pool, series: null, max: 3, recentBookEngines: ["villain"] })!.idea).toMatchObject({ engine: "guest", engineFigure: "Kobold Knirps" });
+    // Nothing to force: a journey without history, a cosy book, a sequel, a pool without marks.
+    expect(forceEngine(idea, casting, { form: "journey", catalogue: pool, series: null, max: 3 })).toBeNull();
+    expect(forceEngine(idea, casting, { form: "funny", catalogue: pool, series: { seriesTitle: "S", volume: 1, castIds: [], home: "", world: "", volumes: [], openThreads: [], runningGags: [], items: [], relationships: [] }, max: 3 })).toBeNull();
+    expect(forceEngine(idea, casting, { form: "funny", catalogue, series: null, max: 3 })).toBeNull();
+    // The cast is full: the last role makes room for the engine figure.
+    const full = resolveCasting(pitch(["heroes"], [["P1", "P2", "P3"]]).ideas[0], pool, 3, null);
+    expect(forceEngine(idea, full, { form: "funny", catalogue: pool, series: null, max: 3 })!.casting.roles.map((role) => role.id)).toEqual(["uuid-hexe", "uuid-luna", "uuid-theo"]);
+  });
+
+  test("the fallback cast follows the engine; the engine figure resolves from alias, id or name; the best figure prefers the age's villain style and a portrait", () => {
+    const empty = { cast: [], roles: [], notes: [] };
+    const villain = fallbackCasting({ ...pitch(["villain"]).ideas[0], engineFigure: undefined }, pool, empty, "comic");
+    expect(villain.casting.roles).toEqual([{ id: "uuid-hexe", role: "opponent", why: expect.stringContaining("passt zum Motor villain") }]);
+    expect(villain.idea.engineFigure).toBe("Die Nebelhexe");
+    expect(villain.casting.notes[0]).toContain("als opponent für den Motor villain");
+    const guest = fallbackCasting(pitch(["guest"]).ideas[0], pool, empty);
+    expect(guest.casting.roles[0]).toMatchObject({ id: "uuid-kobold", role: "guest" });
+    const heroes = fallbackCasting(pitch(["heroes"]).ideas[0], pool, empty);
+    expect(heroes.casting.roles[0]).toMatchObject({ id: "uuid-hexe", role: "Begleiter" });
+    // A pool without marks: the best genre match, as before.
+    expect(fallbackCasting(pitch(["villain"]).ideas[0], catalogue, empty).casting.roles[0]).toMatchObject({ id: "uuid-luna", role: "Begleiter", why: "passt am besten zum Genre" });
+    // A cast that exists is never replaced.
+    const kept = { cast: [catalogue[1]], roles: [{ id: "uuid-theo", role: "Begleiter", why: "w" }], notes: [] };
+    expect(fallbackCasting(pitch(["villain"]).ideas[0], pool, kept).casting).toBe(kept);
+    expect(resolveEngineFigure("P1", pool, null)).toBe("Luna");
+    expect(resolveEngineFigure("uuid-hexe", pool, null)).toBe("Die Nebelhexe");
+    expect(resolveEngineFigure("die Wochenrolle", pool, null)).toBe("die Wochenrolle");
+    expect(resolveEngineFigure("null", pool, null)).toBeUndefined();
+    const real = entry("uuid-real", "Der Graue", { canOppose: true, villainStyle: "real" });
+    expect(bestEngineFigure([real, hexe], "villain", { style: "comic" })!.id).toBe("uuid-hexe");
+    expect(bestEngineFigure([real, hexe], "villain", { style: "real" })!.id).toBe("uuid-real");
+    expect(bestEngineFigure([real, hexe], "villain", { exclude: new Set(["uuid-hexe", "uuid-real"]) })).toBeNull();
+    expect(bestEngineFigure(pool, "guest")!.id).toBe("uuid-kobold");
+  });
+
+  test("named figures: only heroes, cast and the central someone; a figure without a portrait needs its look; wonder rules and chants are counted", () => {
+    const raw = planJson();
+    raw.bible.characters.push({ name: "Rotkäppchen", wants: "x", can: "x", flaw: "x", avoids: "x", voice: "x", challengedBy: "x", finalChoice: "x" });
+    // The opponent has no profile of its own: Rotkäppchen may be the one figure without a portrait, but needs a look.
+    const lenient = checkNamedFigures(parsePlan(raw, 12)!, checkInput);
+    expect(lenient).toHaveLength(1);
+    expect(lenient[0]).toContain("Für „Rotkäppchen“ fehlt look");
+    raw.bible.characters.push({ name: "Der Geräusche-Fresser", wants: "x", can: "x", flaw: "x", avoids: "x", voice: "x", challengedBy: "x", finalChoice: "x", look: "a round grey creature with huge ears and a jar", kind: "creature" });
+    const strict = checkNamedFigures(parsePlan(raw, 12)!, checkInput);
+    expect(strict).toHaveLength(1);
+    expect(strict[0]).toContain("„Rotkäppchen“ ist weder Held noch besetzte Pool-Figur");
+    // The whole check reports it; the plain fixture stays clean.
+    expect(checkBookPlan(parsePlan(raw, 12)!, budget, checkInput).join("\n")).toContain("Rotkäppchen");
+    expect(checkBookPlan(parsePlan(planJson(), 12)!, budget, checkInput)).toEqual([]);
+    // A thing needs no look; umlaut spelling does not matter.
+    const thing = planJson();
+    thing.bible.characters.push({ name: "Die Wochenrolle", wants: "x", can: "x", flaw: "x", avoids: "x", voice: "x", challengedBy: "x", finalChoice: "x", kind: "Ding" });
+    thing.bible.opponent = { who: "Die Wochenrolle", motive: "m", logic: "l" };
+    expect(checkNamedFigures(parsePlan(thing, 12)!, checkInput)).toEqual([]);
+    expect(parsePlan(thing, 12)!.bible.characters.at(-1)!.kind).toBe("thing");
+    expect(parseFigureKind("Person")).toBe("person");
+    expect(parseFigureKind("magical creature")).toBe("creature");
+    expect(parseFigureKind("unsinn")).toBeUndefined();
+    // Rules.
+    expect(countRules("Nur aus der Nähe.")).toBe(1);
+    expect(countRules("Die Rolle rollt nur montags; sie hört auf Reime; sie schweigt, wenn jemand lacht.")).toBe(3);
+    expect(countRules("1) Sie rollt nur montags. 2) Sie hört auf Reime.")).toBe(2);
+    const rules = planJson();
+    rules.bible.limits = "Die Rolle rollt nur montags; sie hört auf Reime; sie schweigt, wenn jemand lacht.";
+    expect(checkWonderRules(parsePlan(rules, 12)!, "6-8")[0]).toContain("3 Regeln (limits) — höchstens 2");
+    expect(checkWonderRules(parsePlan(rules, 12)!, "9-12")).toEqual([]);
+    // Chants.
+    const chants = planJson();
+    chants.bible.fixedWordings = [{ what: "Spruch der Helden", text: "Kling und Klang!" }, { what: "Reim am Tor", text: "Tor, geh auf!" }, { what: "Schlusssatz", text: "Und dann war Montag." }];
+    expect(checkChants(parsePlan(chants, 12)!)[0]).toContain("2 gemeinsame Sprüche oder Reime");
+    chants.bible.fixedWordings.pop();
+    chants.bible.fixedWordings.shift();
+    expect(checkChants(parsePlan(chants, 12)!)).toEqual([]);
+  });
+
+  test("a missing laugh is a rewrite only with a double deficit; the series keeps its star; the last book's engine is read off the metadata", () => {
+    const point = (humor: number, suspense: number) => ({ laugh: null, humor, suspense });
+    expect(laughRewriteNeeded(point(4, 4))).toBe(true);
+    expect(laughRewriteNeeded(point(4, 5))).toBe(false);
+    expect(laughRewriteNeeded(point(5, 3))).toBe(false);
+    expect(laughRewriteNeeded({ laugh: "x", humor: 2, suspense: 2 })).toBe(false);
+    const plan = parsePlan({ ...planJson(), bible: { ...planJson().bible, engine: "villain", engineFigure: "Der Geräusche-Fresser" } }, 12)!;
+    const fresser = { id: "uuid-fresser", name: "Der Geraeusche-Fresser", species: "creature", whoTheyAre: "x", personality: [], speechStyle: [] } as CastCandidate;
+    expect(seriesStar({ plan, brief: brief({ candidates: [fresser] }) })).toEqual({ starId: "uuid-fresser", starName: "Der Geraeusche-Fresser" });
+    expect(seriesStar({ plan: parsePlan(planJson(), 12)!, brief: brief({ candidates: [fresser] }) })).toEqual({});
+    expect(seriesStar({ plan, brief: brief({ candidates: [] }) }, { seriesTitle: "S", volume: 1, castIds: [], home: "", world: "", volumes: [], openThreads: [], runningGags: [], items: [], relationships: [], starId: "uuid-alt", starName: "Alt" })).toEqual({ starId: "uuid-alt", starName: "Alt" });
+    expect(bookEngineOf({ bookAdmin: { plan: { bible: { engine: "villain" } } } })).toBe("villain");
+    expect(bookEngineOf({ bookAdmin: { plan: { bible: { title: "alt" } } } })).toBe("heroes");
+    expect(bookEngineOf({ storybook: { engine: "chase" } })).toBeUndefined();
+    expect(bookEngineOf(null)).toBeUndefined();
+  });
+
+  test("pictures: a planned figure without a portrait becomes an identity, a pool man is a man, things that carry writing are drawn wordless", () => {
+    const raw = planJson();
+    raw.bible.characters.push(
+      { name: "Rotkäppchen", wants: "x", can: "x", flaw: "x", avoids: "x", voice: "x", challengedBy: "x", finalChoice: "x", look: "a girl of seven with a red hooded cape, brown braids and a wicker basket", kind: "person" },
+      { name: "Die Wochenrolle", wants: "x", can: "x", flaw: "x", avoids: "x", voice: "x", challengedBy: "x", finalChoice: "x", look: "a rolled green calendar", kind: "thing" },
+      { name: "Luna", wants: "x", can: "x", flaw: "x", avoids: "x", voice: "x", challengedBy: "x", finalChoice: "x", look: "never used", kind: "animal" },
+    );
+    const entities = bibleFigureEntities(parsePlan(raw, 12)!, ["Alexander", "Adrian", "Luna", "Theo Zeitsam"]);
+    expect(entities).toHaveLength(1);
+    expect(entities[0]).toMatchObject({ id: "bible:rotkaeppchen", name: "Rotkäppchen", role: "cast", species: "human", isHuman: true, appearance: "a girl of seven with a red hooded cape, brown braids and a wicker basket" });
+    const zeitweber = { whoTheyAre: "ein alter Mann, der Stunden zählt", physicalDescription: "Ein alter Mann mit langem grauem Bart.", species: "human" };
+    expect(castIdentityLine(zeitweber, "long grey beard, blue robe with golden clock hands", true)).toBe("an old man, long grey beard, blue robe with golden clock hands");
+    expect(castIdentityLine(zeitweber, "an old man with a long grey beard", true)).toBe("an old man with a long grey beard");
+    expect(castIdentityLine({ whoTheyAre: "eine Hexe mit wilden Locken", species: "human" }, "wild curly hair, purple dress", true)).toBe("a woman, wild curly hair, purple dress");
+    expect(castIdentityLine({ whoTheyAre: "ein Junge aus dem Dorf", species: "human", ageCategory: "child" }, "freckles, green cap", true)).toBe("a boy, freckles, green cap");
+    expect(castIdentityLine({ whoTheyAre: "eine Figur aus der Gegend", species: "human" }, "freckles, green cap", true)).toBe("freckles, green cap");
+    expect(castIdentityLine({ whoTheyAre: "ein alter Mann", species: "animal" }, "old tortoise with a tiny hat", false)).toBe("old tortoise with a tiny hat");
+    expect(castIdentityLine({ whoTheyAre: "x", species: "human", visualProfile: { gender: "female", ageDescription: "elderly" } }, "grey bun, apron", true)).toBe("an old woman, grey bun, apron");
+    const calendar = parsePlan({ ...planJson(), bible: { ...planJson().bible, stakeVisible: "Das grüne Montagsfeld im Schulkalender" } }, 12)!;
+    const note = wordlessThingsNote(calendar);
+    expect(note).toContain("Schulkalender");
+    expect(note).toContain("WITHOUT any letters or digits");
+    // The fixture's stake is a poster (Konzertplakat): text-bearing. A paper kite is not.
+    expect(wordlessThingsNote(parsePlan(planJson(), 12)!)).toContain("Konzertplakat");
+    expect(wordlessThingsNote(parsePlan({ ...planJson(), bible: { ...planJson().bible, stakeVisible: "Ein roter Drachen aus Papier" } }, 12)!)).toBe("");
+    const dir = buildDirectorUserPrompt({ title: "t", pages: [], plan: { title: "t", pages: [], heroes: [], cast: [] } as any, entities: [], maxPerImage: 3, world: "", note: note } as any);
+    expect(dir).toContain("Schulkalender");
+  });
+
+  test("the pitch and the plan prompt carry the editor's rules: the last engine, the forced engine for funny books, the series star, the binding note, look and kind", () => {
+    const funny = brief({ form: "funny", catalogue: pool, recentBookEngines: ["heroes"] });
+    const user = buildPitchPrompt(funny).user;
+    expect(user).toContain('last chapter book ran on the "heroes" engine');
+    expect(user).toContain("runs on the villain or guest engine");
+    expect(buildPitchPrompt(brief({ form: "journey", catalogue: pool })).user).not.toContain("runs on the villain or guest engine");
+    expect(buildPitchPrompt(brief({ form: "funny", catalogue })).user).not.toContain("runs on the villain or guest engine");
+    const series = { seriesTitle: "S", volume: 1, castIds: ["uuid-hexe"], home: "h", world: "w", volumes: [], openThreads: [], runningGags: [], items: [], relationships: [], starId: "uuid-hexe", starName: "Die Nebelhexe" };
+    const sequel = buildPitchPrompt(brief({ form: "funny", catalogue: pool, series, recentBookEngines: ["villain"] })).user;
+    expect(sequel).toContain("The star of the series: Die Nebelhexe");
+    expect(sequel).not.toContain("last chapter book ran on");
+    const idea = { ...pitch(["villain"]).ideas[0], engineFigure: "Die Nebelhexe", engineNote: "The editor assigned the villain engine: Die Nebelhexe has a plan." };
+    const plan = buildPlanPrompt(funny, idea, [hexe], [{ id: "uuid-hexe", role: "opponent", why: "w" }]).user;
+    expect(plan).toContain("EDITOR'S NOTE (binding): The editor assigned the villain engine");
+    expect(plan).toContain("\"look\":\"figures without a portrait only");
+    expect(plan).toContain("Do not invent a further named figure");
+    expect(plan).toContain("separated by semicolons (the editor counts them)");
   });
 });

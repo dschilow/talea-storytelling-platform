@@ -116,6 +116,9 @@ export interface SeriesMemory {
   lessons?: string[];
   /** The core motifs used so far (the wonder, the central thing, the kind of activity) — the next volume avoids them. */
   motifs?: string[];
+  /** Series type (2026-10-16): the pool figure that drives the series as its engine figure (guest or villain), like Pumuckl or the Sams. */
+  starId?: string;
+  starName?: string;
 }
 
 export interface BookBrief extends StoryBrief {
@@ -126,6 +129,8 @@ export interface BookBrief extends StoryBrief {
   series?: SeriesMemory | null;
   /** The child's choice or wish for the next volume (continuation only). */
   continuation?: { teaser?: string; wish?: string } | null;
+  /** The engines of the family's last chapter books, newest first (history.ts) — the next book runs on another one. */
+  recentBookEngines?: StoryEngine[];
   bookExperiment?: BookExperiment;
 }
 
@@ -141,6 +146,8 @@ export interface BookPitchIdea {
   engineFigure?: string;
   /** What is lost if the heroes fail, as a thing a six-year-old could draw. */
   stake?: string;
+  /** Set by the editor when the engine was assigned after the pitch (catalogue.ts forceEngine): what the planner must rebuild. */
+  engineNote?: string;
 }
 
 export interface BookPitch {
@@ -165,6 +172,14 @@ export interface BookCharacterProfile {
   finalChoice: string;
   /** Cast only: the one thing this figure DOES that changes the heroes' path (not help — a turn), and its chapter. */
   turn?: { chapter: number; what: string };
+  /**
+   * Figures without a portrait (neither hero nor pool cast — the central someone): the English identity line the
+   * illustrator locks on, 10-18 words. "Die rollende Woche" (2026-10-16): Rotkäppchen had no look and became a
+   * different girl on every picture.
+   */
+  look?: string;
+  /** What kind of being the figure is; a thing (a talking door, a rolling week) is drawn as a story element, not a character. */
+  kind?: "person" | "animal" | "creature" | "thing";
 }
 
 export interface BookSetup {

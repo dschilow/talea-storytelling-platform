@@ -10,10 +10,14 @@
 import { storyDB } from "../db";
 import { avatarDB } from "../../avatar/db";
 import { motifLines } from "./book/engine";
+import { bookEngineOf } from "./book/engine";
+import type { StoryEngine } from "./book/types";
 
 export interface StorybookHistory {
   recentStories: string[];
   recentEngineIds: string[];
+  /** The engines of the family's chapter books, newest first — the next book runs on another one (2026-10-16). */
+  recentBookEngines: StoryEngine[];
 }
 
 function parseMetadata(raw: unknown): Record<string, any> {
@@ -31,7 +35,7 @@ function parseMetadata(raw: unknown): Record<string, any> {
 }
 
 export async function loadStorybookHistory(input: { userId?: string; currentStoryId?: string }): Promise<StorybookHistory> {
-  if (!input.userId) return { recentStories: [], recentEngineIds: [] };
+  if (!input.userId) return { recentStories: [], recentEngineIds: [], recentBookEngines: [] };
   try {
     const currentStoryId = input.currentStoryId || "";
     const rows = await storyDB.queryAll<{ title: string | null; description: string | null; metadata: any }>`
@@ -44,8 +48,11 @@ export async function loadStorybookHistory(input: { userId?: string; currentStor
     `;
     const recentStories: string[] = [];
     const recentEngineIds: string[] = [];
+    const recentBookEngines: StoryEngine[] = [];
     for (const row of rows) {
       const metadata = parseMetadata(row.metadata);
+      const bookEngine = bookEngineOf(metadata);
+      if (bookEngine) recentBookEngines.push(bookEngine);
       const logline = String(metadata?.storybook?.logline || metadata?.bookWorkshop?.premise || row.description || "").replace(/\s+/g, " ").trim();
       const title = String(row.title || "").trim();
       if (title || logline) recentStories.push([title && `„${title}“`, logline].filter(Boolean).join(": ").slice(0, 220));
@@ -55,10 +62,10 @@ export async function loadStorybookHistory(input: { userId?: string; currentStor
       const engine = String(metadata?.storybook?.engine || "").trim();
       if (engine) recentEngineIds.push(engine);
     }
-    return { recentStories, recentEngineIds };
+    return { recentStories, recentEngineIds, recentBookEngines };
   } catch (err) {
     console.warn("[storybook/history] could not load story history, continuing without it:", err);
-    return { recentStories: [], recentEngineIds: [] };
+    return { recentStories: [], recentEngineIds: [], recentBookEngines: [] };
   }
 }
 

@@ -13,10 +13,10 @@
 
 import { isGerman } from "../craft";
 import { STORYBOOK_SUPPORT_MODEL, fallbackModelFor, modelFamily, parseJsonObject, type CostLedger, type LlmCallResult, type LlmRequest, type StorybookLlm, type StorybookModels } from "../llm";
-import { mentionsName, resolveCasting, type CastingResult } from "./catalogue";
+import { chooseIdea, fallbackCasting, forceEngine, mentionsName, resolveCasting, resolveEngineFigure, type CastingResult } from "./catalogue";
 import { checkChapter, mergeChapterPatch, mergeOpenThreads, mergeWorldState, mergeWordings, parseChapterCritique, parseChapters, quoteInText, type ChapterCritiqueResult } from "./chapters";
 import { buildColdReadPrompt, coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
-import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview, PLAN_MAX_REVISIONS, planPassesGate } from "./plan";
+import { checkBookPlan, mergePlanRevision, parseEngine, parsePitch, parsePlan, parsePlanReview, PLAN_MAX_REVISIONS, planPassesGate, villainStyleFor } from "./plan";
 import {
   buildChapterCritiquePrompt,
   buildChapterPatchPrompt,
@@ -32,7 +32,7 @@ import {
   heroRelation,
   planReviewNotes,
 } from "./prompts";
-import type { BookBrief, BookChapter, BookExperiment, BookPitch, BookPlan, BookState, ChapterCurvePoint, PlanReview, SeriesMemory } from "./types";
+import type { BookBrief, BookChapter, BookExperiment, BookPitch, BookPlan, BookState, ChapterCurvePoint, PlanReview, SeriesMemory, StoryEngine } from "./types";
 import { interludeShare, LOG_ONLY_CODES, proseProfile, VOICE_REWRITE_CODES, voiceRewriteDisputed, voiceRewriteNeeded } from "./voice";
 
 export interface BookContext {
@@ -118,17 +118,30 @@ export async function planBook(ctx: BookContext): Promise<PlannedBook> {
     stage: "book-pitch", role: "writer", model: planner, system: pitchPrompt.system, user: pitchPrompt.user,
     json: true, maxTokens: 7000, effort: "low", timeoutMs: 240_000, temperature: 0.9, fallbackModel: plannerFallback,
   }, parsePitch, plannerFallback);
-  const idea = pitch?.ideas[pitch.choice - 1];
-  if (!idea) throw new Error("[book] Die Buchidee konnte nicht entwickelt werden. Bitte erneut versuchen.");
-
+  if (!pitch?.ideas.length) throw new Error("[book] Die Buchidee konnte nicht entwickelt werden. Bitte erneut versuchen.");
+  // 2026-10-16 ("Die rollende Woche"): the editor chooses among the ideas — never the last book's engine, never heroes in a
+  // funny or mystery book when the pool offers opponents, never an idea without a valid pool cast when another has one.
+  const choiceInput = { form: brief.form, catalogue: brief.catalogue, series: brief.series, recentBookEngines: brief.recentBookEngines, max: brief.book.maxPoolCast };
+  const chosen = chooseIdea(pitch, choiceInput);
+  let idea = pitch.ideas[chosen.index];
+  idea = { ...idea, engineFigure: resolveEngineFigure(idea.engineFigure, brief.catalogue, brief.series) };
   let casting = resolveCasting(idea, brief.catalogue, brief.book.maxPoolCast, brief.series);
-  // Pool characters are part of the product: an idea without any gets the best-fitting companion.
+  const pitchNotes = [...chosen.notes];
+  // All three ideas on heroes (or on last book's engine): the editor assigns the engine and its figure from the catalogue.
+  const forced = forceEngine(idea, casting, { ...choiceInput, style: villainStyleFor(brief.band) });
+  if (forced) {
+    idea = forced.idea;
+    casting = forced.casting;
+    pitchNotes.push(forced.note);
+  }
+  // Pool characters are part of the product: an idea without any gets a companion that fits the engine.
   if (casting.cast.length === 0 && brief.catalogue.length > 0) {
-    const fallback = brief.catalogue[0];
-    casting = { cast: [fallback], roles: [{ id: fallback.id, role: "Begleiter", why: "passt am besten zum Genre" }], notes: [...casting.notes, "Keine gültige Besetzung — bestpassende Pool-Figur als Begleiter gesetzt."] };
+    const fallback = fallbackCasting(idea, brief.catalogue, casting, villainStyleFor(brief.band));
+    idea = fallback.idea;
+    casting = fallback.casting;
   }
   const castBrief: BookBrief = { ...brief, candidates: casting.cast };
-  await observe(ctx, "pitch", { ideas: pitch!.ideas.map((entry) => entry.title), choice: pitch!.choice, cast: casting.roles, notes: casting.notes });
+  await observe(ctx, "pitch", { ideas: pitch.ideas.map((entry) => entry.title), choice: pitch.choice, chosen: chosen.index + 1, engine: idea.engine || "heroes", engineFigure: idea.engineFigure || null, cast: casting.roles, notes: [...pitchNotes, ...casting.notes] });
 
   const planPrompt = buildPlanPrompt(castBrief, idea, casting.cast, casting.roles);
   const planRequest: LlmRequest = {
@@ -218,7 +231,7 @@ export async function planBook(ctx: BookContext): Promise<PlannedBook> {
   // The plan may cast fewer characters than the pitch; the book carries only those it plans with.
   const planned = casting.cast.filter((candidate) => plan.chapters.some((chapter) => chapter.cast.some((entry) => mentionsName(entry, candidate.name))) || plan.castIds.includes(candidate.id));
   const finalCast = planned.length ? planned : casting.cast;
-  return { pitch, casting: { ...casting, cast: finalCast }, plan, planReview, planIssues: issues, planRevised, planReviewAfter, planRevisions, brief: { ...castBrief, candidates: finalCast } };
+  return { pitch: { ...pitch, choice: chosen.index + 1 }, casting: { ...casting, cast: finalCast }, plan, planReview, planIssues: issues, planRevised, planReviewAfter, planRevisions, brief: { ...castBrief, candidates: finalCast } };
 }
 
 // ---------------------------------------------------------------------------
@@ -273,8 +286,18 @@ export async function draftChapters(ctx: BookContext, planned: PlannedBook, stat
 
 interface RewriteReason { code: string; message: string }
 
-/** A chapter without a quotable laugh is rewritten only when the critic also rates its humour this low. */
-export const LAUGH_REWRITE_MAX_HUMOR = 5;
+/**
+ * A chapter without a quotable laugh is rewritten only when the critic rates its humour this low AND its suspense no
+ * higher than LAUGH_REWRITE_MAX_SUSPENSE ("Die rollende Woche", 2026-10-16: three rewrites at humour 4-5 for 3.7 ct,
+ * and the rewritten chapters still needed the laugh patch). A chapter that only lacks the laugh gets it from the patch.
+ */
+export const LAUGH_REWRITE_MAX_HUMOR = 4;
+export const LAUGH_REWRITE_MAX_SUSPENSE = 4;
+
+/** The double deficit that makes a missing laugh worth a rewrite: nothing to laugh at and nothing to fear. */
+export function laughRewriteNeeded(point: Pick<ChapterCritiqueResult["chapters"][number], "laugh" | "unmatched" | "humor" | "suspense">): boolean {
+  return !point.laugh && !point.unmatched?.laugh && point.humor <= LAUGH_REWRITE_MAX_HUMOR && point.suspense <= LAUGH_REWRITE_MAX_SUSPENSE;
+}
 
 /**
  * Above the rewrite bar and up to this humour score, a chapter without a quotable laugh gets its planned laugh from
@@ -303,8 +326,8 @@ export function rewriteReasons(critique: ChapterCritiqueResult["chapters"][numbe
   // A laugh the critic quoted but misquoted is still a laugh ("Sieben Zimmer" chapter 8 was rewritten for it).
   // So is one it rated funny but did not quote: "Schatto führt Regie" rewrote chapters 2-4 at humour 6
   // for 5.5 ¢, a fifth of the book — the critic is known to miss quotes (7 of 12 in one replay).
-  if (!critique.laugh && !critique.unmatched?.laugh && critique.humor <= LAUGH_REWRITE_MAX_HUMOR) {
-    reasons.push({ code: "no-laugh", message: "Es gibt keine Stelle, an der ein Kind laut lacht. Baue den geplanten Lacher richtig auf (Figur, Steigerung, Pointe) und lass ihn landen." });
+  if (laughRewriteNeeded(critique)) {
+    reasons.push({ code: "no-laugh", message: "Es gibt keine Stelle, an der ein Kind laut lacht, und nichts, was es bangen lässt. Baue den geplanten Lacher richtig auf (Figur, Steigerung, Pointe) und lass ihn landen; gib dem Kapitel einen Moment, in dem der Einsatz wackelt." });
   }
   if (!critique.progress) reasons.push({ code: "no-progress", message: `Das Kapitel bringt die große Frage („${planned.plan.bible.bigQuestion}“) nicht voran. Zeige den geplanten Fortschritt als Szene.` });
   // A missing plant alone is one casual sentence for the patch (7 of 10 rewrites in the planner A/B
@@ -326,9 +349,12 @@ export function enginePatchNotes(point: ChapterCritiqueResult["chapters"][number
   const notes: string[] = [];
   let laughPatched = false;
   const plannedChapter = plan.chapters.find((entry) => entry.n === chapter.order);
-  if (!point.laugh && !point.unmatched?.laugh && point.humor > LAUGH_REWRITE_MAX_HUMOR && point.humor <= LAUGH_PATCH_MAX_HUMOR && plannedChapter?.laugh) {
+  // Every chapter without a laugh up to LAUGH_PATCH_MAX_HUMOR that is not rewritten (laughRewriteNeeded) gets it from the patch.
+  if (!point.laugh && !point.unmatched?.laugh && point.humor <= LAUGH_PATCH_MAX_HUMOR && !laughRewriteNeeded(point)) {
     laughPatched = true;
-    notes.push(`Kapitel ${chapter.order}: Der geplante Lacher („${plannedChapter.laugh}“) landet nicht. Baue ihn in zwei bis vier Sätzen in der vorhandenen Szene auf — Figur, Steigerung, Pointe — ohne neue Handlung und ohne den Witz zu erklären.`);
+    notes.push(plannedChapter?.laugh
+      ? `Kapitel ${chapter.order}: Der geplante Lacher („${plannedChapter.laugh}“) landet nicht. Baue ihn in zwei bis vier Sätzen in der vorhandenen Szene auf — Figur, Steigerung, Pointe — ohne neue Handlung und ohne den Witz zu erklären.`
+      : `Kapitel ${chapter.order}: Es gibt keine Stelle, an der ein Kind laut lacht. Baue in der vorhandenen Szene einen Lacher aus einer Eigenheit oder einem Kontrast der Figuren auf — Figur, Steigerung, Pointe, in zwei bis vier Sätzen — ohne neue Handlung und ohne den Witz zu erklären.`);
   }
   if (point.opponentPresent === false && point.suspense <= SUSPENSE_PATCH_MAX && form !== "cozy") {
     const force = plan.bible.villain?.who || plan.bible.opponent?.who || plan.bible.engineFigure || "";
@@ -705,7 +731,20 @@ export async function buildSeriesMemory(ctx: BookContext, planned: PlannedBook, 
     relationships: list(raw?.relationships),
     lessons: [...(previous?.lessons || []), ...lessons].slice(-12),
     motifs: [...(previous?.motifs || []), ...motifs].slice(-12),
+    ...seriesStar(planned, previous),
   };
+}
+
+/**
+ * Series type (2026-10-16): a pool figure that drove this volume as its engine figure (guest or villain) becomes the
+ * star of the series and returns in that role in every volume — the family's own Pumuckl. An earlier star stays.
+ */
+export function seriesStar(planned: Pick<PlannedBook, "plan" | "brief">, previous?: SeriesMemory | null): { starId?: string; starName?: string } {
+  if (previous?.starId) return { starId: previous.starId, ...(previous.starName ? { starName: previous.starName } : {}) };
+  const b = planned.plan.bible;
+  if (!b.engine || b.engine === "heroes" || !b.engineFigure) return {};
+  const star = planned.brief.candidates.find((candidate) => mentionsName(b.engineFigure!, candidate.name) || mentionsName(candidate.name, b.engineFigure!));
+  return star ? { starId: star.id, starName: star.name } : {};
 }
 
 /**
@@ -727,6 +766,13 @@ export function motifLines(motifs: unknown, title = ""): string[] {
   const used = (Array.isArray(record.motifs) ? record.motifs : []).map((entry) => clean(entry, 100)).filter(Boolean).slice(0, 4);
   if (used.length) lines.push(`Motiv${where}: ${used.join("; ")}`.slice(0, 260));
   return lines;
+}
+
+/** The plot engine a finished chapter book ran on, read off its story metadata (bookAdmin.plan.bible.engine); undefined for other stories. history.ts reads it. */
+export function bookEngineOf(metadata: Record<string, any> | null | undefined): StoryEngine | undefined {
+  const bible = metadata?.bookAdmin?.plan?.bible;
+  if (!bible || typeof bible !== "object") return undefined;
+  return parseEngine(bible.engine) || "heroes";
 }
 
 /**

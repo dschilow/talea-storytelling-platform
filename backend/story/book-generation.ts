@@ -43,6 +43,7 @@ import { artifactHeadToken, countWords } from "./storybook/checks";
 import type { StorybookHero, StoryElement } from "./storybook/types";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./storybook/book/budget";
 import { buildCatalogue } from "./storybook/book/catalogue";
+import { bibleFigureEntities, castIdentityLine } from "./storybook/book/illustrations";
 import { bookBatchRanges, bookServiceTier, buildSeriesMemory, planBook, planMotifs, resolveBookPlanner, writeBook, type BookContext, type PlannedBook } from "./storybook/book/engine";
 import { buildImageSlots, directBatch, illustrateBatch, type BatchImagesResult, type BookImage, type PictureNote, type StoredDirection } from "./storybook/book/illustrations";
 import { createOpenRouterJevPort } from "./storybook/jev-openrouter";
@@ -284,6 +285,8 @@ async function buildBookBrief(input: BookJobInput): Promise<BookBrief> {
     catalogue: buildCatalogue({ rows, genre: config.genre, setting: config.setting, band, excludeNames, seed }),
     series: input.series?.memory || null,
     continuation: input.continuation || null,
+    // 2026-10-16: the next book never runs on the last book's engine (catalogue.ts chooseIdea).
+    recentBookEngines: history.recentBookEngines,
     bookExperiment: {
       // Luna low plans the volume (TALEA_BOOK_PLANNER_MODEL=writer: Sol plans again; TALEA_BOOK_PLAN_EFFORT overrides the effort).
       ...resolveBookPlanner(process.env.TALEA_BOOK_PLANNER_MODEL || undefined, process.env.TALEA_BOOK_PLAN_EFFORT || undefined),
@@ -317,10 +320,13 @@ async function entitiesFor(planned: PlannedBook): Promise<VisualEntity[]> {
     const { species, isHuman } = speciesFromProfile(member.visualProfile, member.species);
     entities.push({
       id: member.id, name: member.name, kind: "character", role: "cast", species, isHuman,
-      appearance: castAppearance(member.visualProfile, member.physicalDescription), forbidden: [],
+      // 2026-10-16: the identity line starts with gender and age ("Der Zeitweber" was drawn as a woman).
+      appearance: castIdentityLine(member, castAppearance(member.visualProfile, member.physicalDescription), isHuman), forbidden: [],
       referenceUrl: await readableReference(member.imageUrl), referenceKey: member.imageUrl,
     });
   }
+  // 2026-10-16 ("Die rollende Woche"): the plan's figures without a portrait get a picture identity from their planned look.
+  entities.push(...bibleFigureEntities(planned.plan, entities.map((entity) => entity.name)));
   return entities;
 }
 
