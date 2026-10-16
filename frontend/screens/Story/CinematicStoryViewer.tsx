@@ -137,6 +137,8 @@ const CinematicStoryViewer: React.FC = () => {
 
   // Chapter books are written while the family reads: refresh quietly until the last chapter is there.
   const bookInProgress = story?.status === 'generating' || (story?.metadata?.book?.format === 'chapter-book' && story.metadata.book.state === 'writing');
+  // Text first, pictures a minute later: look more often while a picture is still being painted.
+  const picturesPending = Boolean(story?.metadata?.book?.pendingPictures?.length);
   useEffect(() => {
     if (!storyId || !bookInProgress) return;
     const timer = window.setInterval(async () => {
@@ -146,9 +148,9 @@ const CinematicStoryViewer: React.FC = () => {
       } catch {
         // The next tick tries again.
       }
-    }, 20_000);
+    }, picturesPending ? 10_000 : 20_000);
     return () => window.clearInterval(timer);
-  }, [backend, storyId, activeProfileId, bookInProgress]);
+  }, [backend, storyId, activeProfileId, bookInProgress, picturesPending]);
 
   // Next volume: same heroes and settings, the series memory, the child's choice or wish.
   const continueBook = async (choice: { teaser?: string; wish?: string }) => {

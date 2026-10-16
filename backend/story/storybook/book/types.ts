@@ -34,6 +34,8 @@ export interface BookExperiment {
   writeMode?: ChapterWriteMode;
   /** Chapters per writer call in batch mode (default 3). */
   batchSize?: number;
+  /** Chapters in the first batch (default 1: the first chapter appears while the next ones are written). */
+  firstBatch?: number;
   planEffort?: "low" | "medium" | "high";
   chapterEffort?: "minimal" | "low" | "medium";
   /** Another model writes the chapters from Sol's plan (cost experiment). */
@@ -242,6 +244,18 @@ export interface BookState {
   worldState?: Array<{ thing: string; now: string; chapter: number }>;
   /** Spells, rhymes, signs and key sentences introduced in the text, verbatim — later chapters copy them exactly. */
   wordings?: BookWording[];
+  /** Questions the released text made a child ask and has not answered yet. */
+  openThreads?: OpenThread[];
+}
+
+/**
+ * A question the text raised ("Schatto führt Regie": the small second shadow at Schatto's feet
+ * appeared three times and was never explained). Ids F1, F2 … are stable while it is open.
+ */
+export interface OpenThread {
+  id: string;
+  chapter: number;
+  question: string;
 }
 
 export function emptyBookState(): BookState {

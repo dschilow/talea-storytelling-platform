@@ -35,7 +35,7 @@ import { normalizeAgeBand } from "./storybook/craft";
 import { buildBrief } from "./storybook/context";
 import { loadArtifactOptions, loadPoolRows, recordCastUsage } from "./storybook/casting";
 import { loadHeroMemories, loadStorybookHistory } from "./storybook/history";
-import { CostLedger, resolveStorybookModels, type StorybookStageLog } from "./storybook/llm";
+import { CostLedger, resolveStorybookModels, withServiceTier, type StorybookStageLog } from "./storybook/llm";
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
 import { castAppearance, describeReferenceLooks, heroAppearance, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
 import { runDevelopmentStage } from "./storybook/developments";
@@ -43,8 +43,8 @@ import { artifactHeadToken, countWords } from "./storybook/checks";
 import type { StorybookHero, StoryElement } from "./storybook/types";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./storybook/book/budget";
 import { buildCatalogue } from "./storybook/book/catalogue";
-import { buildSeriesMemory, planBook, resolveBookPlanner, writeBook, type BookContext, type PlannedBook } from "./storybook/book/engine";
-import { illustrateBatch, type BatchImagesResult, type BookImage } from "./storybook/book/illustrations";
+import { bookBatchRanges, bookServiceTier, buildSeriesMemory, planBook, resolveBookPlanner, writeBook, type BookContext, type PlannedBook } from "./storybook/book/engine";
+import { buildImageSlots, illustrateBatch, type BatchImagesResult, type BookImage } from "./storybook/book/illustrations";
 import { createOpenRouterJevPort } from "./storybook/jev-openrouter";
 import { emptyBookState, type BookBrief, type BookState, type SeriesMemory } from "./storybook/book/types";
 import type { StoryConfig } from "./generate";
@@ -55,7 +55,6 @@ const mcpServerApiKey = secret("MCPServerAPIKey");
 const STALE_RUNNING_MINUTES = 25;
 const MAX_ATTEMPTS = 3;
 const MAX_CONCURRENT = Math.max(1, Math.min(4, Number(process.env.TALEA_BOOK_JOB_CONCURRENCY) || 2));
-const BATCH_SIZE = 3;
 
 export interface BookJobInput {
   storyId: string;
@@ -87,6 +86,10 @@ interface BookJobState {
   imageRedraws?: NonNullable<BatchImagesResult["redraws"]>;
   published?: number;
   startedAt?: string;
+  /** Batches whose text is published and whose pictures are still being painted, oldest first. */
+  pendingImages?: Array<{ from: number; to: number }>;
+  /** Where those pictures will sit; the reader keeps the places free. */
+  pendingPictures?: Array<{ chapter: number; afterParagraph: number }>;
 }
 
 interface JobRow {
@@ -334,6 +337,7 @@ function readerMetadata(planned: PlannedBook, state: BookJobState, phase: "writi
     form: planned.brief.form,
     // Recaps only of chapters that exist; the reader shows those already read.
     recaps: book.chapters.map((chapter) => ({ chapter: chapter.order, recap: chapter.recap })),
+    ...(state.pendingPictures?.length ? { pendingPictures: state.pendingPictures } : {}),
     ...(phase === "complete" ? { teasers: planned.plan.sequelTeasers } : {}),
   };
 }
@@ -417,9 +421,19 @@ async function runJobStep(row: JobRow): Promise<void> {
   const storyId = row.story_id;
   try {
     const ledger = new CostLedger();
-    const llm = createOpenRouterStorybookLlm({ onFailedAttempt: (request, billed) => { if (billed) ledger.recordCall(`${request.stage}-failed`, billed, request.role); } });
+    const port = createOpenRouterStorybookLlm({ onFailedAttempt: (request, billed) => { if (billed) ledger.recordCall(`${request.stage}-failed`, billed, request.role); } });
+    // The plan and chapter 1 (text and pictures) stay on the fast tier; everything after runs on flex.
+    const llmFor = (kind: "plan" | "first" | "later") => withServiceTier(port, bookServiceTier(kind));
+    const llm = llmFor(state.planned ? "later" : "plan");
     const models = resolveStorybookModels(input.config, { critic: process.env.TALEA_STORYBOOK_CRITIC_MODEL || undefined });
-    const keepCosts = () => { state.stages = [...(state.stages || []), ...ledger.all()]; };
+    // Costs are copied into the state at every save point of the step, each ledger entry once.
+    let kept = 0;
+    const keepCosts = () => {
+      const all = ledger.all();
+      state.stages = [...(state.stages || []), ...all.slice(kept)];
+      kept = all.length;
+    };
+    const stepStarted = Date.now();
 
     // Step 1: idea, casting, plan.
     if (!state.planned) {
@@ -435,42 +449,58 @@ async function runJobStep(row: JobRow): Promise<void> {
       return;
     }
 
-    // Step 2..n: one batch of chapters with pictures, then publication.
+    // Step 2..n: the text of the next batch and, at the same time, the pictures of the batch before.
+    // Neither waits for the other: the family reads the new text while the pictures are painted.
     const planned = plannedFromState(state.planned);
     const total = planned.brief.book.chapters;
-    const book = state.book || emptyBookState();
-    if (book.chapters.length < total) {
-      const ctx: BookContext = { llm, brief: planned.brief, models, ledger, observe: (stage, payload) => logStage(storyId, stage, payload) };
-      const from = book.chapters.length + 1;
-      const to = Math.min(total, from + BATCH_SIZE - 1);
-      const next = await writeBook(ctx, planned, book, to);
-      const fresh = next.chapters.filter((chapter) => chapter.order >= from && chapter.order <= to);
-      // TALEA_BOOK_IMAGES=off: text-only books (local smoke test, emergency switch when the image provider is down).
-      const pictures = process.env.TALEA_BOOK_IMAGES === "off"
-        ? { images: [], missing: [], storyElements: state.storyElements || [], imageCostUSD: 0, imagesGenerated: 0, coverUrl: undefined }
-        : await (async () => {
-            const entities = await describeReferenceLooks(llm, await entitiesFor(planned), models.support);
-            if (entities.call) ledger.recordCall("reference-looks", entities.call, "support");
-            return illustrateBatch({
-              llm, models, ledger, brief: planned.brief, plan: planned.plan, chapters: fresh, entities: entities.entities,
-              provider: encoreImageProvider(storyId), seed: seedFor(input), withCover: from === 1, fixedElements: state.storyElements, startSlot: state.slot || 1,
-              jev: createOpenRouterJevPort(resolveOpenRouterApiKey),
-            });
-          })();
-      state.book = next;
-      state.images = [...(state.images || []).filter((image) => image.chapter < from || image.chapter > to), ...pictures.images];
-      state.storyElements = pictures.storyElements;
-      state.slot = (state.slot || 1) + fresh.length * planned.brief.book.imagesPerChapter;
-      state.imageCostUSD = Number(((state.imageCostUSD || 0) + pictures.imageCostUSD).toFixed(6));
-      state.imageCalls = (state.imageCalls || 0) + ("imageCalls" in pictures && pictures.imageCalls ? pictures.imageCalls : pictures.imagesGenerated);
-      if ("redraws" in pictures && pictures.redraws?.length) state.imageRedraws = [...(state.imageRedraws || []), ...pictures.redraws];
-      if (pictures.coverUrl) state.coverUrl = pictures.coverUrl;
+    state.pendingImages = pendingBatches(state);
+    const drawRange = state.pendingImages[0];
+    const textFrom = (state.book?.chapters.length || 0) + 1;
+    if (textFrom <= total || drawRange) {
+      // Both tasks rewrite the story metadata: their database writes run one after the other.
+      let queue: Promise<unknown> = Promise.resolve();
+      const inOrder = <T>(task: () => Promise<T>): Promise<T> => {
+        const run = queue.then(task);
+        queue = run.catch(() => undefined);
+        return run;
+      };
+      const text = async () => {
+        if (textFrom > total) return;
+        const ctx: BookContext = { llm: llmFor(textFrom === 1 ? "first" : "later"), brief: planned.brief, models, ledger, observe: (stage, payload) => logStage(storyId, stage, payload) };
+        const to = Math.min(total, (bookBatchRanges(planned.brief).find(([, end]) => end >= textFrom) || [textFrom, textFrom])[1]);
+        const next = await writeBook(ctx, planned, state.book || emptyBookState(), to);
+        const fresh = next.chapters.filter((chapter) => chapter.order >= textFrom && chapter.order <= to);
+        state.book = next;
+        if (picturesEnabled()) {
+          // Where the pictures will sit: the reader keeps their place free, so nothing jumps when they arrive.
+          state.pendingImages = [...pendingBatches(state), { from: textFrom, to }];
+          state.pendingPictures = [
+            ...(state.pendingPictures || []),
+            ...buildImageSlots(fresh, planned.plan, planned.brief.book.imagesPerChapter).map((slot) => ({ chapter: slot.chapter, afterParagraph: slot.afterParagraph })),
+          ];
+        }
+        await inOrder(async () => {
+          keepCosts();
+          await publishChapters(input, planned, state, textFrom, to, stepSummary(ledger.all().filter((entry) => !isPictureStage(entry.stage)), stepStarted));
+          await saveState(storyId, state, `chapters-${to}`, "running");
+        });
+      };
+      const pictures = async () => {
+        if (!drawRange) return;
+        const started = Date.now();
+        await illustratePending(input, planned, state, drawRange, { llm: llmFor(drawRange.from === 1 ? "first" : "later"), models, ledger });
+        await inOrder(async () => {
+          keepCosts();
+          await attachPictures(input, planned, state, drawRange, stepSummary(ledger.all().filter((entry) => isPictureStage(entry.stage)), started));
+          await saveState(storyId, state, `pictures-${drawRange.to}`, "running");
+        });
+      };
+      // Both settle before the step ends: a failed text must not leave the pictures writing into a re-queued job.
+      const settled = await Promise.allSettled([text(), pictures()]);
+      const failed = settled.find((result): result is PromiseRejectedResult => result.status === "rejected");
+      if (failed) throw failed.reason;
       keepCosts();
-      await publishChapters(input, planned, state, from, to);
-      const done = next.chapters.length >= total;
-      // Write-ahead: an abandoned book stops costing money a few chapters past the reader.
-      const pause = !done && writeAheadPolicy() === "buffer" && next.chapters.length >= (await readerChapter(storyId, total)) + WRITE_AHEAD_BUFFER;
-      await saveState(storyId, state, done ? "finishing" : pause ? `waiting-after-${to}` : `chapters-${to}`, pause ? "waiting" : "queued");
+      await saveBatchDone(storyId, state, total);
       return;
     }
 
@@ -509,7 +539,104 @@ async function giveUp(row: JobRow, message: string): Promise<void> {
   await writeStoryMetadata(row.story_id, input, planned, state, complete ? "complete" : "stalled");
 }
 
-async function publishChapters(input: BookJobInput, planned: PlannedBook, state: BookJobState, from: number, to: number): Promise<void> {
+/** TALEA_BOOK_IMAGES=off: text-only books (local smoke test, emergency switch when the image provider is down). */
+function picturesEnabled(): boolean {
+  return process.env.TALEA_BOOK_IMAGES !== "off";
+}
+
+/** Duration, LLM cost and how many calls flex served, for the downloadable log. */
+function stepSummary(entries: StorybookStageLog[], started: number): Record<string, unknown> {
+  return {
+    seconds: Math.round((Date.now() - started) / 1000),
+    llmCalls: entries.length,
+    flexCalls: entries.filter((entry) => entry.serviceTier === "flex").length,
+    llmCostUSD: Number(entries.reduce((sum, entry) => sum + (entry.usage?.costUSD || 0), 0).toFixed(6)),
+  };
+}
+
+/** Batches waiting for pictures (a single range from an older state counts as one). */
+function pendingBatches(state: BookJobState): Array<{ from: number; to: number }> {
+  const pending = state.pendingImages as unknown;
+  if (Array.isArray(pending)) return pending;
+  return pending && typeof pending === "object" ? [pending as { from: number; to: number }] : [];
+}
+
+/** Ledger stages of the picture work (director, checks, reference looks) — the rest is text. */
+function isPictureStage(stage: string): boolean {
+  return /^(reference-looks|book-illustration|book-image)/.test(stage);
+}
+
+async function saveBatchDone(storyId: string, state: BookJobState, total: number): Promise<void> {
+  const written = state.book?.chapters.length || 0;
+  const waiting = pendingBatches(state).length > 0;
+  const done = written >= total && !waiting;
+  // Write-ahead: an abandoned book stops costing money a few chapters past the reader — but pictures of published text are always finished.
+  const pause = !done && !waiting && writeAheadPolicy() === "buffer" && written >= (await readerChapter(storyId, total)) + WRITE_AHEAD_BUFFER;
+  await saveState(storyId, state, done ? "finishing" : pause ? `waiting-after-${written}` : `chapters-${written}`, pause ? "waiting" : "queued");
+}
+
+/** The cover always exists: the first clean picture stands in when the cover failed. */
+function coverFor(state: BookJobState): string | null {
+  return state.coverUrl || (state.images || []).find((image) => image.status === "passed" && !image.vignette)?.url || null;
+}
+
+/** Pictures for the chapters whose text is already out. A failed picture leaves a text-only spot. */
+async function illustratePending(input: BookJobInput, planned: PlannedBook, state: BookJobState, range: { from: number; to: number }, deps: { llm: BookContext["llm"]; models: BookContext["models"]; ledger: CostLedger }): Promise<void> {
+  const { from, to } = range;
+  const fresh = (state.book?.chapters || []).filter((chapter) => chapter.order >= from && chapter.order <= to);
+  // TALEA_BOOK_IMAGES=fake (local smoke test only): placeholder pictures after a short pause, no provider called.
+  if (process.env.TALEA_BOOK_IMAGES === "fake") {
+    await new Promise((resolve) => setTimeout(resolve, 20_000));
+    const slots = buildImageSlots(fresh, planned.plan, planned.brief.book.imagesPerChapter, state.slot || 1);
+    state.images = [...(state.images || []).filter((image) => image.chapter < from || image.chapter > to), ...slots.map((slot) => ({ chapter: slot.chapter, afterParagraph: slot.afterParagraph, url: `https://placehold.co/1024x1024?text=K${slot.chapter}`, status: "passed" as const }))];
+    if (from === 1) state.coverUrl = "https://placehold.co/1024x1024?text=Cover";
+    state.slot = (state.slot || 1) + fresh.length * planned.brief.book.imagesPerChapter;
+    return;
+  }
+  const entities = await describeReferenceLooks(deps.llm, await entitiesFor(planned), deps.models.support);
+  if (entities.call) deps.ledger.recordCall("reference-looks", entities.call, "support");
+  const pictures = await illustrateBatch({
+    llm: deps.llm, models: deps.models, ledger: deps.ledger, brief: planned.brief, plan: planned.plan, chapters: fresh, entities: entities.entities,
+    provider: encoreImageProvider(input.storyId), seed: seedFor(input), withCover: from === 1, fixedElements: state.storyElements, startSlot: state.slot || 1,
+    jev: createOpenRouterJevPort(resolveOpenRouterApiKey),
+  });
+  state.images = [...(state.images || []).filter((image) => image.chapter < from || image.chapter > to), ...pictures.images];
+  state.storyElements = pictures.storyElements;
+  state.slot = (state.slot || 1) + fresh.length * planned.brief.book.imagesPerChapter;
+  state.imageCostUSD = Number(((state.imageCostUSD || 0) + pictures.imageCostUSD).toFixed(6));
+  state.imageCalls = (state.imageCalls || 0) + (pictures.imageCalls || pictures.imagesGenerated);
+  if (pictures.redraws?.length) state.imageRedraws = [...(state.imageRedraws || []), ...pictures.redraws];
+  if (pictures.coverUrl) state.coverUrl = pictures.coverUrl;
+}
+
+/** Puts the finished pictures into chapters the family may already be reading; their text stays untouched. */
+async function attachPictures(input: BookJobInput, planned: PlannedBook, state: BookJobState, range: { from: number; to: number }, summary: Record<string, unknown>): Promise<void> {
+  const storyId = input.storyId;
+  const { from, to } = range;
+  await using tx = await storyDB.begin();
+  for (let order = from; order <= to; order += 1) {
+    const images = (state.images || []).filter((image) => image.chapter === order).map((image) => ({ url: image.url, afterParagraph: image.afterParagraph }));
+    await tx.exec`
+      UPDATE chapters
+      SET image_url = ${images[0]?.url || null}, images = (${JSON.stringify(images)}::jsonb #>> '{}')::jsonb
+      WHERE story_id = ${storyId} AND chapter_order = ${order}
+    `;
+  }
+  const cover = from === 1 ? coverFor(state) : null;
+  if (cover) await tx.exec`UPDATE stories SET cover_image_url = ${cover}, updated_at = CURRENT_TIMESTAMP WHERE id = ${storyId}`;
+  await tx.commit();
+  state.pendingImages = pendingBatches(state).filter((batch) => batch.from !== from);
+  state.pendingPictures = (state.pendingPictures || []).filter((picture) => picture.chapter < from || picture.chapter > to);
+  await writeStoryMetadata(storyId, input, planned, state, "writing");
+  // Redraw reasons belong in the downloadable log too: "Die segelnden Wörter" drew 34 pictures for 17 places and the log said why in no line.
+  const redraws = (state.imageRedraws || []).filter((entry) => (entry.chapter >= from && entry.chapter <= to) || (from === 1 && entry.chapter === 0));
+  await logStage(storyId, "chapters-illustrated", {
+    from, to, images: (state.images || []).filter((image) => image.chapter >= from && image.chapter <= to).length, ...summary,
+    ...(redraws.length ? { redraws: redraws.map((entry) => `${entry.chapter ? `K${entry.chapter}.${entry.part}` : "Cover"}×${entry.attempts}: ${entry.reasons.join("; ") || "?"}`) } : {}),
+  });
+}
+
+async function publishChapters(input: BookJobInput, planned: PlannedBook, state: BookJobState, from: number, to: number, summary: Record<string, unknown> = {}): Promise<void> {
   const storyId = input.storyId;
   const chapters = (state.book?.chapters || []).filter((chapter) => chapter.order >= from && chapter.order <= to);
   const now = new Date();
@@ -529,8 +656,8 @@ async function publishChapters(input: BookJobInput, planned: PlannedBook, state:
     inserted.push({ id, title, content, order: chapter.order });
   }
   if (from === 1) {
-    // The cover always exists: the first clean picture stands in when the cover failed.
-    const cover = state.coverUrl || (state.images || []).find((image) => image.status === "passed" && !image.vignette)?.url || null;
+    // Text first: the cover usually follows a minute later with the pictures (attachPictures).
+    const cover = coverFor(state);
     await tx.exec`
       UPDATE stories
       SET title = ${cleanForReader(planned.plan.title, input.blockedTerms)},
@@ -544,11 +671,11 @@ async function publishChapters(input: BookJobInput, planned: PlannedBook, state:
   await tx.commit();
   state.published = Math.max(state.published || 0, to);
   await writeStoryMetadata(storyId, input, planned, state, "writing");
-  // Redraw reasons belong in the downloadable log too: "Die segelnden Wörter" drew 34 pictures for 17 places and the log said why in no line.
-  const redraws = (state.imageRedraws || []).filter((entry) => entry.chapter >= from && entry.chapter <= to);
+  const startedAt = Date.parse(String(state.startedAt || ""));
   await logStage(storyId, "chapters-published", {
-    from, to, images: (state.images || []).filter((image) => image.chapter >= from && image.chapter <= to).length,
-    ...(redraws.length ? { redraws: redraws.map((entry) => `K${entry.chapter}.${entry.part}×${entry.attempts}: ${entry.reasons.join("; ") || "?"}`) } : {}),
+    from, to, ...summary,
+    ...(Number.isFinite(startedAt) ? { secondsSinceOrder: Math.round((Date.now() - startedAt) / 1000) } : {}),
+    ...(state.pendingPictures?.length ? { picturesPending: state.pendingPictures.length } : {}),
   });
   enrichStoryForTTS({ storyId, chapters: inserted, aiModel: input.config.aiModel }).catch((error) => {
     console.warn(`[book] TTS enrichment failed (non-blocking): ${(error as Error)?.message || error}`);

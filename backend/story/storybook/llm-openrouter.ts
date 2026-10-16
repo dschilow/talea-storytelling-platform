@@ -12,7 +12,7 @@ import {
   getOpenRouterModelPricing,
 } from "../openrouter-generation";
 import { acceptsTemperature, extractStorybookChoiceContent, isTruncatedFinishReason, resolveStorybookReasoning } from "./llm-guards";
-import { fallbackModelFor, retryRequestFor, type LlmCallResult, type LlmRequest, type StorybookLlm } from "./llm";
+import { fallbackModelFor, retryRequestFor, serviceTierTimeoutMs, type LlmCallResult, type LlmRequest, type StorybookLlm } from "./llm";
 
 const DEFAULT_TIMEOUT_MS = 180_000;
 
@@ -24,7 +24,7 @@ function estimateCost(model: string, promptTokens: number, completionTokens: num
 async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResult> {
   const started = Date.now();
   const controller = new AbortController();
-  const timeoutMs = request.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeoutMs = serviceTierTimeoutMs(request.timeoutMs ?? DEFAULT_TIMEOUT_MS, request.serviceTier);
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   let response: Awaited<ReturnType<typeof callOpenRouterChatCompletion>>;
   try {
@@ -41,6 +41,7 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
       includeReasoning: false,
       signal: controller.signal,
       imageInputs: request.imageInputs,
+      serviceTier: request.serviceTier,
     });
   } catch (err) {
     if ((err as any)?.name === "AbortError") throw new Error(`[storybook/llm] ${model} timed out after ${timeoutMs / 1000}s (${request.stage}).`);
@@ -70,6 +71,7 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
     },
     durationMs: Date.now() - started,
     finishReason,
+    ...(typeof data?.service_tier === "string" ? { serviceTier: data.service_tier } : {}),
   };
   if (!text) {
     const error = new Error(`[storybook/llm] Empty response from ${model} (${request.stage}, finish_reason=${finishReason}, completion_tokens=${completionTokens}, reasoning_tokens=${result.usage.reasoningTokens ?? 0}, refusal=${JSON.stringify(choice?.message?.refusal ?? null)}).`);
@@ -90,6 +92,23 @@ export interface OpenRouterPortOptions {
 }
 
 export function createOpenRouterStorybookLlm(options: OpenRouterPortOptions = {}): StorybookLlm {
+  const standard = standardPort(options);
+  return async (request) => {
+    if (request.serviceTier !== "flex") return standard(request);
+    try {
+      return await callOnce(request, request.model);
+    } catch (err) {
+      // Refused under load, too slow or unusable: the same request once more on the standard tier,
+      // with the usual retry chain behind it — flex never sends a story to a weaker model.
+      options.onFailedAttempt?.(request, (err as any)?.billed, err);
+      const { serviceTier: _flex, ...plain } = request;
+      console.warn(`[storybook/llm] ${request.stage}: flex call failed, repeating on the standard tier:`, (err as Error)?.message || err);
+      return standard(plain);
+    }
+  };
+}
+
+function standardPort(options: OpenRouterPortOptions): StorybookLlm {
   return async (request) => {
     try {
       return await callOnce(request, request.model);

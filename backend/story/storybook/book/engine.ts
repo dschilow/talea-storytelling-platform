@@ -14,7 +14,7 @@
 import { isGerman } from "../craft";
 import { STORYBOOK_SUPPORT_MODEL, fallbackModelFor, modelFamily, parseJsonObject, type CostLedger, type LlmCallResult, type LlmRequest, type StorybookLlm, type StorybookModels } from "../llm";
 import { mentionsName, resolveCasting, type CastingResult } from "./catalogue";
-import { checkChapter, mergeChapterPatch, mergeWorldState, mergeWordings, parseChapterCritique, parseChapters, quoteInText, type ChapterCritiqueResult } from "./chapters";
+import { checkChapter, mergeChapterPatch, mergeOpenThreads, mergeWorldState, mergeWordings, parseChapterCritique, parseChapters, quoteInText, type ChapterCritiqueResult } from "./chapters";
 import { buildColdReadPrompt, coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
 import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview } from "./plan";
 import {
@@ -241,16 +241,21 @@ export async function draftChapters(ctx: BookContext, planned: PlannedBook, stat
 
 interface RewriteReason { code: string; message: string }
 
+/** A chapter without a quotable laugh is rewritten only when the critic also rates its humour this low. */
+export const LAUGH_REWRITE_MAX_HUMOR = 5;
+
 /**
  * Reasons for a full rewrite by the writer: a laugh, progress or a plant cannot be patched in.
  * A missing hook alone is no reason — the support model rewrites the last sentences instead
  * (Gurkenberg 2026-10-14: five rewrites cost 10 ¢, a third of the chapter text).
  */
-function rewriteReasons(critique: ChapterCritiqueResult["chapters"][number] | undefined, chapter: BookChapter, planned: PlannedBook, hard: string[]): RewriteReason[] {
+export function rewriteReasons(critique: ChapterCritiqueResult["chapters"][number] | undefined, chapter: BookChapter, planned: PlannedBook, hard: string[]): RewriteReason[] {
   const reasons: RewriteReason[] = hard.map((message) => ({ code: "too-short", message }));
   if (!critique) return reasons;
   // A laugh the critic quoted but misquoted is still a laugh ("Sieben Zimmer" chapter 8 was rewritten for it).
-  if (!critique.laugh && !critique.unmatched?.laugh) {
+  // So is one it rated funny but did not quote: "Schatto führt Regie" rewrote chapters 2-4 at humour 6
+  // for 5.5 ¢, a fifth of the book — the critic is known to miss quotes (7 of 12 in one replay).
+  if (!critique.laugh && !critique.unmatched?.laugh && critique.humor <= LAUGH_REWRITE_MAX_HUMOR) {
     reasons.push({ code: "no-laugh", message: "Es gibt keine Stelle, an der ein Kind laut lacht. Baue den geplanten Lacher richtig auf (Figur, Steigerung, Pointe) und lass ihn landen." });
   }
   if (!critique.progress) reasons.push({ code: "no-progress", message: `Das Kapitel bringt die große Frage („${planned.plan.bible.bigQuestion}“) nicht voran. Zeige den geplanten Fortschritt als Szene.` });
@@ -373,9 +378,19 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
     });
   const cold = await coldRead(ctx, planned, state, chapters, range);
 
+  // The last batch answers what the text made a child ask: the critic names what is still open.
+  const lastChapter = chapters[chapters.length - 1];
+  const threadNotes = lastChapter.order === last
+    ? (critique?.unanswered || [])
+      .map((id) => (state.openThreads || []).find((thread) => thread.id === id))
+      .filter((thread): thread is NonNullable<typeof thread> => Boolean(thread))
+      .map((thread) => `Kapitel ${lastChapter.order}: Ein Kind fragt sich seit Kapitel ${thread.chapter} noch: „${thread.question}“ Beantworte das beiläufig in ein bis zwei Sätzen einer vorhandenen Szene, aus dem, was die Geschichte schon gezeigt hat.`)
+    : [];
+
   // Patch: continuity, language, invented looks, repeated phrases, missing hooks and plants, what a newcomer cannot follow.
   const notes = [
     ...cold.notes,
+    ...threadNotes,
     ...hookNotes.map((chapter) => hookPatchNote(chapter, planned)),
     ...plantNotes,
     ...checks.flat().filter((issue) => issue.code !== "chapter_short").map((issue) => issue.message),
@@ -405,7 +420,7 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
   }
 
   // Logbook from the released text: recaps, facts with their chapter, who knows what.
-  const logPrompt = buildLogbookPrompt(brief, chapters, state.facts.map((fact) => `(${fact.chapter}) ${fact.fact}`));
+  const logPrompt = buildLogbookPrompt(brief, chapters, state.facts.map((fact) => `(${fact.chapter}) ${fact.fact}`), state.openThreads || []);
   let log: any = null;
   try {
     log = await jsonCall(ctx, {
@@ -432,6 +447,14 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
     .map((entry: any) => ({ chapter: chapter.order, thing: clean(entry?.thing, 60), now: clean(entry?.now, 160) }))
     .filter((entry: { thing: string; now: string }) => entry.thing && entry.now)
     .slice(0, 8));
+  // Questions the text raised, chapter by chapter; answered ones leave the list.
+  let openThreads = state.openThreads || [];
+  for (const chapter of released) {
+    const entry = entryOf(chapter.order);
+    const opened = (Array.isArray(entry?.opened) ? entry.opened : []).map((question: unknown) => ({ chapter: chapter.order, question: clean(question, 200) })).filter((item: { question: string }) => item.question).slice(0, 3);
+    const answered = (Array.isArray(entry?.answered) ? entry.answered : []).map((id: unknown) => clean(id, 8));
+    openThreads = mergeOpenThreads(openThreads, opened, answered);
+  }
 
   const curve: ChapterCurvePoint[] = released.map((chapter) => {
     const point = critique?.chapters.find((entry) => entry.n === chapter.order);
@@ -449,7 +472,12 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
     };
   });
   const openIssues = checks.flatMap((list, index) => list.filter((issue) => issue.severity === "hard").map((issue) => ({ chapter: chapters[index].order, issue: issue.message })));
-  await observe(ctx, "chapters", { range, rewritten: [...rewritten], patched: [...patched], curve, open: openIssues.length, ...(cold.missing.length ? { coldReadGaps: cold.missing } : {}) });
+  await observe(ctx, "chapters", {
+    range, rewritten: [...rewritten], patched: [...patched], curve, open: openIssues.length,
+    ...(cold.missing.length ? { coldReadGaps: cold.missing } : {}),
+    ...(openThreads.length ? { openThreads: openThreads.map((thread) => `${thread.id} (K${thread.chapter}): ${thread.question}`) } : {}),
+    ...(threadNotes.length ? { answeredByPatch: threadNotes.length } : {}),
+  });
   return {
     ...state,
     chapters: [...state.chapters, ...released],
@@ -457,17 +485,54 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
     knowledge: [...state.knowledge, ...knowledge],
     worldState: mergeWorldState(state.worldState || [], worldState),
     wordings: mergeWordings(state.wordings || [], wordings),
+    openThreads,
     curve: [...state.curve, ...curve],
     openIssues: [...state.openIssues, ...openIssues],
   };
 }
 
-/** Chapter ranges for one volume, by write mode. */
-export function chapterRanges(total: number, mode: "batch" | "single" | "whole" = "batch", batchSize = 3): Array<[number, number]> {
+/**
+ * The first batch is chapter 1 alone: the family can start reading while the next chapters are
+ * written (user wish 2026-10-16 — "Schatto führt Regie" showed its first page after five minutes).
+ */
+export const FIRST_BATCH_CHAPTERS = 1;
+
+/**
+ * Chapter ranges for one volume, by write mode: the first batch, then the rest in even batches of
+ * at most `batchSize` (8 chapters with a first batch of 1: 1, 2-4, 5-6, 7-8).
+ */
+export function chapterRanges(total: number, mode: "batch" | "single" | "whole" = "batch", batchSize = 3, firstBatch?: number): Array<[number, number]> {
   const size = mode === "single" ? 1 : mode === "whole" ? total : Math.max(1, batchSize);
-  const ranges: Array<[number, number]> = [];
-  for (let start = 1; start <= total; start += size) ranges.push([start, Math.min(total, start + size - 1)]);
+  if (total < 1) return [];
+  const first = Math.max(1, Math.min(total, firstBatch ?? size));
+  const ranges: Array<[number, number]> = [[1, first]];
+  const batches = Math.ceil((total - first) / size);
+  let start = first + 1;
+  for (let index = 0; index < batches; index += 1) {
+    const length = Math.ceil((total - start + 1) / (batches - index));
+    ranges.push([start, start + length - 1]);
+    start += length;
+  }
   return ranges;
+}
+
+/**
+ * Flex (half price, about twice as slow, probe 2026-10-16) for every step after the first chapter:
+ * the plan and chapter 1 stay on the fast tier so the family can start reading soon.
+ * TALEA_BOOK_FLEX=off | later (default) | all.
+ */
+export function bookServiceTier(step: "plan" | "first" | "later", policy = process.env.TALEA_BOOK_FLEX): "flex" | undefined {
+  const mode = String(policy || "later").trim().toLowerCase();
+  if (mode === "off") return undefined;
+  if (mode === "all") return "flex";
+  return step === "later" ? "flex" : undefined;
+}
+
+/** The ranges the job and writeBook share: one batch per job step. */
+export function bookBatchRanges(brief: BookBrief): Array<[number, number]> {
+  const experiment = brief.bookExperiment || {};
+  const mode = experiment.writeMode === "single" ? "single" : "batch";
+  return chapterRanges(brief.book.chapters, mode, experiment.batchSize || 3, experiment.firstBatch ?? FIRST_BATCH_CHAPTERS);
 }
 
 /** Writes chapters up to `upTo` (default: all). Whole mode writes everything first and reads it in groups of three. */
@@ -483,7 +548,7 @@ export async function writeBook(ctx: BookContext, planned: PlannedBook, state: B
     }
     return current;
   }
-  for (const [from, to] of chapterRanges(planned.brief.book.chapters, mode === "whole" ? "batch" : mode, experiment.batchSize || 3)) {
+  for (const [from, to] of bookBatchRanges(planned.brief)) {
     if (to <= done) continue;
     if (from > upTo) break;
     const start = Math.max(from, done + 1);

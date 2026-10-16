@@ -214,4 +214,6 @@ export interface ChapterBookInfo {
   recaps?: Array<{ chapter: number; recap: string }>;
   /** Ideas for the next volume, only once the book is complete. */
   teasers?: string[];
+  /** Pictures still being painted for chapters whose text is already out; the reader keeps their place free. */
+  pendingPictures?: Array<{ chapter: number; afterParagraph: number }>;
 }

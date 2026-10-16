@@ -20,6 +20,8 @@ interface ReaderChapterProps {
   registerElement: (index: number, element: HTMLElement | null) => void;
   /** Chapter books: a quiet line after the chapter (bookmark / good-night stop). */
   endNote?: string;
+  /** Chapter books: paragraphs (0-based) after which a picture is still being painted. */
+  pendingPictures?: number[];
 }
 
 const REVEAL = { duration: 0.55, ease: [0.2, 0.65, 0.3, 0.9] as [number, number, number, number] };
@@ -35,6 +37,7 @@ export const ReaderChapter: React.FC<ReaderChapterProps> = ({
   onOpenImage,
   registerElement,
   endNote,
+  pendingPictures,
 }) => {
   // Auto-completion: when the child scrolls to the end of the LAST chapter,
   // save the progress and show the rewards without requiring a button tap —
@@ -58,18 +61,22 @@ export const ReaderChapter: React.FC<ReaderChapterProps> = ({
 
   const heading = describeChapterHeading(chapter, index, language);
   // Chapter books place each picture after a stored paragraph; other stories get the two-slot layout.
+  // A chapter book chapter whose pictures are still being painted is laid out the same way already,
+  // so the text does not reflow when they arrive.
   const bookImages = Array.isArray(chapter.images) && chapter.images.length > 0 ? chapter.images : null;
-  const primaryImage = bookImages ? null : chapter.imageUrl || null;
-  const scenicImage = bookImages ? null : chapter.scenicImageUrl || null;
+  const waitingFor = bookImages ? [] : pendingPictures || [];
+  const bookLayout = Boolean(bookImages) || waitingFor.length > 0;
+  const primaryImage = bookLayout ? null : chapter.imageUrl || null;
+  const scenicImage = bookLayout ? null : chapter.scenicImageUrl || null;
 
   const paragraphs = useMemo(
     () =>
-      bookImages
+      bookLayout
         ? splitBookParagraphs(String(chapter.content || ''))
         : buildChapterTextSegments(String(chapter.content || ''), Boolean(primaryImage), Boolean(scenicImage), {
             splitMidSentence: false,
           }),
-    [chapter.content, primaryImage, scenicImage, bookImages],
+    [chapter.content, primaryImage, scenicImage, bookLayout],
   );
   const insertPoints = resolveChapterImageInsertPoints(paragraphs.length, Boolean(primaryImage), Boolean(scenicImage));
   const bookImagesAfter = (paragraphIndex: number) =>
@@ -139,6 +146,16 @@ export const ReaderChapter: React.FC<ReaderChapterProps> = ({
             {bookImagesAfter(paragraphIndex).map((image) => (
               <React.Fragment key={image.url}>{renderFigure(image.url, 'Szene')}</React.Fragment>
             ))}
+            {waitingFor
+              .filter((after) => Math.min(after, paragraphs.length - 1) === paragraphIndex)
+              .map((after, pictureIndex) => (
+                <figure key={`pending-${after}-${pictureIndex}`} className="rd-figure" aria-hidden="true">
+                  <div className="rd-figure-pending">
+                    <Sparkles className="h-5 w-5" />
+                    <span>Bild wird gemalt …</span>
+                  </div>
+                </figure>
+              ))}
           </React.Fragment>
         ))}
       </div>

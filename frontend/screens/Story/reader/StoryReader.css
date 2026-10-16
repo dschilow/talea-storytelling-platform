@@ -661,6 +661,39 @@
   opacity: 1;
 }
 
+/* Chapter books: the text is out, the picture is still being painted — same square, so nothing jumps. */
+.rd-figure-pending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 20px;
+  background: var(--rd-surface);
+  box-shadow: 0 0 0 1px var(--rd-figure-ring);
+  color: var(--rd-muted);
+  font-family: var(--rd-font-ui);
+  font-size: 0.9rem;
+  animation: rd-pending-breathe 2.4s var(--rd-ease) infinite alternate;
+}
+
+.rd-figure-pending svg {
+  color: var(--rd-accent);
+}
+
+@keyframes rd-pending-breathe {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rd-figure-pending {
+    animation: none;
+  }
+}
+
 @media (hover: hover) {
   .rd-figure-btn:hover .rd-figure-img {
     transform: scale(1.02);

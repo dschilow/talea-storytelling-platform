@@ -267,6 +267,7 @@ export const StoryReaderView: React.FC<StoryReaderViewProps> = ({
               completionError={completion.error}
               onOpenImage={openLightbox}
               registerElement={registerChapter}
+              pendingPictures={book?.pendingPictures?.filter((picture) => picture.chapter === chapter.order).map((picture) => picture.afterParagraph)}
             />
           ))}
           {book && bookWriting && (

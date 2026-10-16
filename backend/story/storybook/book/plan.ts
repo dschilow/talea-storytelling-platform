@@ -218,6 +218,7 @@ export function planScoreCap(checks: Record<string, boolean>): number {
   if (checks.needBeforeClimax === false) cap = Math.min(cap, 7.5);
   if (checks.orientation === false || checks.rulesSimple === false) cap = Math.min(cap, 7);
   if (checks.heartAndWit === false) cap = Math.min(cap, 7.5);
+  if (checks.heroesDistinct === false || checks.placesClear === false) cap = Math.min(cap, 7.5);
   return cap;
 }
 

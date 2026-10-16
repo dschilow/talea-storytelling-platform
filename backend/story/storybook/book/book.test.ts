@@ -2,15 +2,20 @@
 import { describe, expect, test } from "bun:test";
 import { buildBrief } from "../context";
 import type { CastCandidate } from "../types";
-import { retryRequestFor, type LlmRequest } from "../llm";
+import { retryRequestFor, withServiceTier, type LlmCallResult, type LlmRequest } from "../llm";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./budget";
 import { catalogueForPitch, catalogueLine, foldUmlauts, mentionsName, resolveCasting } from "./catalogue";
-import { checkChapter, formulaicOpening, mergeChapterPatch, mergeWordings, mergeWorldState, speechTagCommas, parseChapterCritique, parseChapters, quoteInText, repeatedPhrases } from "./chapters";
-import { chapterRanges, resolveBookPlanner } from "./engine";
+import { checkChapter, formulaicOpening, mergeChapterPatch, mergeOpenThreads, mergeWordings, mergeWorldState, speechTagCommas, parseChapterCritique, parseChapters, quoteInText, repeatedPhrases } from "./chapters";
+import { bookBatchRanges, bookServiceTier, chapterRanges, LAUGH_REWRITE_MAX_HUMOR, resolveBookPlanner, rewriteReasons, type PlannedBook } from "./engine";
 import { coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
 import { buildImageSlots } from "./illustrations";
 import { checkBookPlan, mergePlanRevision, parsePitch, parsePlan, parsePlanReview, planScoreCap, samePlace } from "./plan";
-import { buildChapterCritiquePrompt, buildChapterStaticContext, buildChapterSystemPrompt, buildChapterSystemWithContext, buildChapterUserPrompt, buildPitchPrompt, plantedSentences, planReviewNotes } from "./prompts";
+import { buildChapterCritiquePrompt, buildChapterStaticContext, buildChapterSystemPrompt, buildChapterSystemWithContext, buildChapterUserPrompt, buildLogbookPrompt, buildPitchPrompt, plantedSentences, planReviewNotes } from "./prompts";
+import { buildQaPrompt, isPluralElement, scopeQaReport, type ImageQaReport } from "../images";
+
+function cleanReport(): ImageQaReport {
+  return { anatomyDefects: [], animalFeaturesOnHumans: [], duplicates: [], unexpectedCharacters: [], roleSwaps: [], elementMisuse: [], textVisible: false, referenceSheetVisible: false, identityMatch: 1, sceneMatch: 1, namedCharactersVisible: 1 } as ImageQaReport;
+}
 import { emptyBookState, type BookBrief, type BookChapter, type CatalogueEntry } from "./types";
 
 function entry(id: string, name: string, extra: Partial<CatalogueEntry> = {}): CatalogueEntry {
@@ -164,7 +169,7 @@ describe("plan", () => {
     expect(parsePitch({ ideas: [{ title: "A", premise: "p", roles: [{ role: "r", castId: "P2" }] }], choice: 9 })).toMatchObject({ choice: 1 });
     expect(parsePitch({ nope: true })).toBeNull();
   });
-  test("plan review caps the score and feeds high weaknesses into the revision", () => {
+  test("plan review caps the score and feeds every weakness into the revision", () => {
     const review = parsePlanReview({ checks: { solutionPrepared: false, gagEscalates: "true" }, scores: { overall: 9.5 }, mustFix: [], weaknesses: [{ chapter: 5, problem: "vorhersehbar", severity: "high" }, { chapter: 2, problem: "klein", severity: "low" }] })!;
     expect(review.scores.overall).toBe(5);
     expect(planScoreCap({ gagEscalates: false })).toBe(7);
@@ -173,7 +178,8 @@ describe("plan", () => {
     const notes = planReviewNotes(review).join("\n");
     expect(notes).toContain("Lösung");
     expect(notes).toContain("Kapitel 5: vorhersehbar");
-    expect(notes).not.toContain("klein");
+    // "Schatto führt Regie": both "low" weaknesses were real and visible in the book.
+    expect(notes).toContain("Kapitel 2: klein");
   });
 });
 
@@ -250,6 +256,12 @@ describe("batches, pictures and prompts", () => {
     expect(chapterRanges(8, "batch", 3)).toEqual([[1, 3], [4, 6], [7, 8]]);
     expect(chapterRanges(3, "single")).toEqual([[1, 1], [2, 2], [3, 3]]);
     expect(chapterRanges(12, "whole")).toEqual([[1, 12]]);
+    // Chapter 1 alone, then even batches of at most three.
+    expect(chapterRanges(8, "batch", 3, 1)).toEqual([[1, 1], [2, 4], [5, 6], [7, 8]]);
+    expect(chapterRanges(12, "batch", 3, 1)).toEqual([[1, 1], [2, 4], [5, 7], [8, 10], [11, 12]]);
+    expect(chapterRanges(15, "batch", 3, 1)).toEqual([[1, 1], [2, 4], [5, 7], [8, 10], [11, 13], [14, 15]]);
+    expect(bookBatchRanges(brief({ book: resolveBookBudget("6-8", { chapters: 8 }) }))).toEqual([[1, 1], [2, 4], [5, 6], [7, 8]]);
+    expect(bookBatchRanges(brief({ book: resolveBookBudget("6-8", { chapters: 8 }), bookExperiment: { firstBatch: 3 } }))).toEqual([[1, 3], [4, 6], [7, 8]]);
   });
   test("two pictures per chapter sit after the middle of each half", () => {
     const content = Array.from({ length: 8 }, (_, index) => `Absatz ${index}.`).join("\n\n");
@@ -439,5 +451,88 @@ describe("heart and wit kill switch", () => {
       if (before === undefined) delete process.env.TALEA_HEART_AND_WIT;
       else process.env.TALEA_HEART_AND_WIT = before;
     }
+  });
+});
+
+describe("Schatto führt Regie (2026-10-16): cheaper, sooner, nothing left dangling", () => {
+  test("the plan and chapter 1 stay on the fast tier, everything after runs on flex; the switch turns it off or on for all", () => {
+    expect(bookServiceTier("plan", "")).toBeUndefined();
+    expect(bookServiceTier("first", "")).toBeUndefined();
+    expect(bookServiceTier("later", "")).toBe("flex");
+    expect(bookServiceTier("later", "off")).toBeUndefined();
+    expect(bookServiceTier("plan", "all")).toBe("flex");
+  });
+  test("the flex port asks for flex unless a request names its own tier", async () => {
+    const seen: Array<string | undefined> = [];
+    const answer = (request: LlmRequest): LlmCallResult => {
+      seen.push(request.serviceTier);
+      return { text: "x", modelUsed: request.model, usage: { prompt: 0, completion: 0, total: 0, costUSD: 0 }, durationMs: 0 };
+    };
+    const request: LlmRequest = { stage: "a", role: "writer", model: "m", system: "", user: "", json: false, maxTokens: 10 };
+    await withServiceTier(async (r) => answer(r), "flex")(request);
+    await withServiceTier(async (r) => answer(r), undefined)(request);
+    expect(seen).toEqual(["flex", undefined]);
+  });
+  test("no quotable laugh is a rewrite only when the critic also rates the humour low", () => {
+    const plan = parsePlan(planJson(), 12)!;
+    const planned = { plan, brief: brief() } as unknown as PlannedBook;
+    const chapter = { order: 2, title: "t", recap: "", content: "Text." };
+    const critique = (humor: number) => ({ n: 2, laugh: null, hook: "Ende.", suspense: 5, humor, progress: true, missingPlants: [] });
+    expect(rewriteReasons(critique(LAUGH_REWRITE_MAX_HUMOR + 1), chapter, planned, []).map((reason) => reason.code)).toEqual([]);
+    expect(rewriteReasons(critique(LAUGH_REWRITE_MAX_HUMOR), chapter, planned, []).map((reason) => reason.code)).toContain("no-laugh");
+  });
+  test("open questions get stable ids, answered ones leave, duplicates and old ones stay put", () => {
+    let threads = mergeOpenThreads([], [{ chapter: 1, question: "Was ist der kleine Schatten zu Schattos Füßen?" }, { chapter: 1, question: "Wer hat die Kulisse gebaut?" }], []);
+    expect(threads.map((thread) => thread.id)).toEqual(["F1", "F2"]);
+    threads = mergeOpenThreads(threads, [{ chapter: 3, question: "was ist der kleine Schatten zu Schattos Füßen?" }, { chapter: 3, question: "Wer wartet vor dem Tor?" }], ["f2"]);
+    expect(threads.map((thread) => `${thread.id}:${thread.chapter}`)).toEqual(["F1:1", "F3:3"]);
+    const many = mergeOpenThreads([], Array.from({ length: 12 }, (_, index) => ({ chapter: 1, question: `Frage ${index}?` })), []);
+    expect(many).toHaveLength(8);
+    expect(many[0].question).toBe("Frage 0?");
+  });
+  test("writer, logbook and the final critic all see the open questions; the critic reports what stays open", () => {
+    const plan = parsePlan(planJson(), 12)!;
+    const state = { ...emptyBookState(), openThreads: [{ id: "F1", chapter: 1, question: "Was ist der kleine Schatten?" }] };
+    const writer = buildChapterUserPrompt(brief(), plan, state, 11, 12);
+    expect(writer).toContain("OPEN QUESTIONS");
+    expect(writer).toContain("F1 (chapter 1): Was ist der kleine Schatten?");
+    expect(writer).toContain("answer every OPEN QUESTION");
+    const logbook = buildLogbookPrompt(brief(), [{ order: 2, title: "t", recap: "", content: "Text." }], [], state.openThreads).user;
+    expect(logbook).toContain("F1: Was ist der kleine Schatten?");
+    expect(logbook).toContain("- opened:");
+    const chapters = [{ order: 11, title: "a", recap: "", content: "Text." }, { order: 12, title: "b", recap: "", content: "Ende." }];
+    const finalCritic = buildChapterCritiquePrompt(brief(), plan, state, chapters);
+    expect(finalCritic.system).toContain("unanswered");
+    expect(finalCritic.user).toContain("F1 (chapter 1)");
+    expect(finalCritic.user).toContain("LIMITS OF THE WONDER");
+    const middleCritic = buildChapterCritiquePrompt(brief(), plan, state, [{ order: 4, title: "a", recap: "", content: "Text." }]);
+    expect(middleCritic.system).not.toContain("unanswered");
+    expect(parseChapterCritique(JSON.stringify({ chapters: [{ n: 12 }], unanswered: ["f1", "x"] }), [chapters[1]])!.unanswered).toEqual(["F1"]);
+  });
+  test("interchangeable heroes or unclear places cap the plan; the rules reach the writer", () => {
+    expect(planScoreCap({ heroesDistinct: false })).toBe(7.5);
+    expect(planScoreCap({ placesClear: false })).toBe(7.5);
+    const system = buildChapterSystemPrompt(brief());
+    expect(system).toContain("never interchangeable");
+    expect(system).toContain("No new rhyme or spell in the last two chapters");
+    expect(system).toContain("it was only the wind");
+  });
+  test("the checker does not count the children's shadows as a living shadow's arms", () => {
+    expect(buildQaPrompt([], "Schatto an der Mauer", false, [{ name: "Schatto", look: "flat dark silhouette cast on the courtyard wall" }])).toContain("not an extra limb");
+    expect(buildQaPrompt([], "Kicher am Rahmen", false, [{ name: "Rahmen", look: "wooden frame" }])).not.toContain("not an extra limb");
+  });
+  test("things that come in numbers are never counted as drawn twice (run flex-quality-1: three of six pictures redrawn for bubbles)", () => {
+    expect(isPluralElement({ name: "Geräuschblasen", noun: "hopping sound bubbles" })).toBe(true);
+    expect(isPluralElement({ name: "Gans", noun: "grey goose" })).toBe(false);
+    expect(isPluralElement({ name: "Glas", noun: "magnifying glass" })).toBe(false);
+    expect(isPluralElement({ name: "Krake", noun: "octopus" })).toBe(false);
+    const bubbles = { name: "Geräuschblasen", noun: "hopping sound bubbles", look: "small round bubbles" };
+    const prompt = buildQaPrompt([], "Blasen hüpfen", false, [bubbles, { name: "Topf", noun: "copper pot", look: "copper pot" }]);
+    expect(prompt).toContain("come in numbers by nature");
+    expect(prompt).not.toContain("\"Geräuschblasen\":\"integer count\"");
+    expect(prompt).toContain("\"Topf\":\"integer count\"");
+    const report = scopeQaReport({ ...cleanReport(), duplicates: ["Geräuschblasen drawn 8 times", "Topf drawn 2 times"] }, ["Alexander"], [bubbles, { name: "Topf", noun: "copper pot", look: "copper pot" }]);
+    expect(report.duplicates).toEqual([]);
+    expect(report.thingDuplicates).toEqual(["Topf drawn 2 times"]);
   });
 });

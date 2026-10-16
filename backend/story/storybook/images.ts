@@ -154,7 +154,19 @@ function seedFor(seed: string, page: number, attempt: number): number {
   return parseInt(hex, 16) % 2_147_483_647;
 }
 
-export function buildQaPrompt(expected: VisualEntity[], scene: string, hasReference: boolean, elements: Array<{ name: string; look: string }> = [], pageText?: string): string {
+const CAST_SHADOW_LOOK = /\b(shadow|silhouette)\b/i;
+
+/**
+ * Things that come in numbers ("hopping sound bubbles", "paper boats") are never "drawn twice":
+ * book run flex-quality-1 (2026-10-16) redrew three of six pictures because bubbles were counted.
+ */
+export function isPluralElement(element: { name: string; noun?: string }): boolean {
+  const last = String(element.noun || "").trim().toLowerCase().split(/\s+/).pop() || "";
+  return /(?<![siu])s$/.test(last);
+}
+
+export function buildQaPrompt(expected: VisualEntity[], scene: string, hasReference: boolean, elements: Array<{ name: string; look: string; noun?: string }> = [], pageText?: string): string {
+  const many = elements.filter(isPluralElement);
   const list = expected.map((entity) => `- ${entity.name}: ${entity.kind === "artifact" ? "object" : entity.isHuman ? entity.role === "hero" ? "HUMAN CHILD" : "HUMAN" : entity.species}; ${entity.appearance}`).join("\n") || "- (no named characters)";
   return [
     "You inspect ONE illustration from a children's picture book for defects a parent would notice immediately.",
@@ -164,15 +176,18 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
     `Intended scene: ${scene.slice(0, 500)}`,
     ...(pageText ? [`Actual reading page: ${pageText}`, "The illustration depicts ONE moment from the page, not every mentioned person. Reject contradictions in the key action, place or object state; do not require off-panel characters."] : []),
     ...(elements.length ? [`Story elements in this picture: ${elements.map((element) => `${element.name} — ${element.look}`).join("; ")}. Report under elementMisuse ONLY if one is worn as clothing, drawn as a person, or missing entirely — never for shape, size or colour details.`] : []),
+    // "Schatto führt Regie": the children's own cast shadows touching the living shadow were counted as its extra arms.
+    ...(elements.some((element) => CAST_SHADOW_LOOK.test(`${element.look} ${element.name}`)) ? ["A story element that is a shadow or silhouette lies on a wall or the ground: where the children's own cast shadows touch or cross it, that is not an extra limb — count only the arms that clearly grow from its own shoulders. A shadow drawn as a solid standing body is elementMisuse."] : []),
     "",
     "Inspect the actual pixels, not the prompt's claims. Look for MERGED bodies and extra limbs on EVERY figure, including animals: human hands or sweater sleeves on a natural goat are defects too. Talking does not change anatomy. Count arms from each shoulder to each hand, including behind the body.",
     "Look carefully at every hand, arm, leg, head and ear. Count fingers where visible. Check every face: children never have a moustache or beard, and no character wears another character's moustache, crown, hat, cape, wings or tail.",
     "Compare who does the KEY action with the intended scene, using the reference sheet to tell the characters apart. Ignore small pose or prop differences — a picture book illustration may interpret the moment freely.",
+    ...(many.length ? [`${many.map((element) => element.name).join(", ")} come in numbers by nature: never count them and never report them as duplicates.`] : []),
     "First count how often EACH expected character and story element is drawn (a second person with the same face, hair or outfit counts, a second goose counts, a second girl in the same dress counts even with other hair). Exactly 1 is correct; 2 or more is a duplicate; 0 means missing.",
     ...(expected.some((entity) => entity.kind === "character") ? ["posing: true only when the figures stand or sit side by side facing the viewer, like a group photo, instead of doing the scene's action."] : []),
     "Return JSON only:",
     JSON.stringify({
-      characterCounts: Object.fromEntries([...expected.filter((entity) => entity.kind !== "artifact").map((entity) => entity.name), ...elements.map((element) => element.name)].map((name) => [name, "integer count"])),
+      characterCounts: Object.fromEntries([...expected.filter((entity) => entity.kind !== "artifact").map((entity) => entity.name), ...elements.filter((element) => !isPluralElement(element)).map((element) => element.name)].map((name) => [name, "integer count"])),
       namedCharactersVisible: 0,
       anatomyDefects: [],
       animalFeaturesOnHumans: [],
@@ -326,11 +341,13 @@ export function scopeQaReport(report: ImageQaReport, onStageNames: string[], ele
   const aboutCharacter = (note: string) => onStageNames.some((name) => mentions(note, name));
   // "Schwebetopf appears twice" is a doubled THING, "Adrian drawn 2 times" a doubled person.
   const thingNames = elements.filter((element) => !element.figure);
-  const aboutThing = (note: string) => !aboutCharacter(note) && thingNames.some((element) => mentionsElement(note, element));
+  const aboutThing = (note: string, things: StoryElement[]) => !aboutCharacter(note) && things.some((element) => mentionsElement(note, element));
+  // Several bubbles or boats are the story, not a defect.
+  const single = thingNames.filter((element) => !isPluralElement(element));
   return {
     ...report,
-    duplicates: report.duplicates.filter((note) => !aboutThing(note)),
-    thingDuplicates: report.duplicates.filter(aboutThing),
+    duplicates: report.duplicates.filter((note) => !aboutThing(note, thingNames)),
+    thingDuplicates: report.duplicates.filter((note) => aboutThing(note, single)),
     elementMisuse: (report.elementMisuse || []).filter(aboutElement),
     roleSwaps: report.roleSwaps.filter(aboutCharacter),
   };

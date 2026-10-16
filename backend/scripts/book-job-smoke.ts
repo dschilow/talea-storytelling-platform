@@ -2,7 +2,7 @@
  * Local end-to-end test of the chapter-book job against the local Encore database.
  *
  *   cd backend
- *   $env:OPENROUTER_API_KEY = "…"; $env:TALEA_BOOK_IMAGES = "off"
+ *   $env:OPENROUTER_API_KEY = "…"; $env:TALEA_BOOK_IMAGES = "off"   (or "fake": placeholder pictures, tests text-first + pictures-in-parallel)
  *   encore exec -- npx tsx scripts/book-job-smoke.ts [chapters] [form]
  *
  * Inserts a story row like /story/generate does, enqueues the job and follows it
@@ -39,8 +39,10 @@ for (;;) {
   await new Promise((resolve) => setTimeout(resolve, 15_000));
   const job = await bookJobStatus(storyId);
   const story = await storyDB.queryRow<{ status: string; title: string }>`SELECT status, title FROM stories WHERE id = ${storyId}`;
-  const count = await storyDB.queryRow<{ n: number }>`SELECT COUNT(*)::int AS n FROM chapters WHERE story_id = ${storyId}`;
-  console.log(`${Math.round((Date.now() - started) / 1000)}s job=${job?.status}/${job?.stage} attempts=${job?.attempts} story=${story?.status} „${story?.title}“ chapters=${count?.n}${job?.error ? ` error=${job.error}` : ""}`);
+  const count = await storyDB.queryRow<{ n: number; pictured: number }>`
+    SELECT COUNT(*)::int AS n, COUNT(*) FILTER (WHERE jsonb_typeof(images) = 'array' AND jsonb_array_length(images) > 0)::int AS pictured FROM chapters WHERE story_id = ${storyId}
+  `;
+  console.log(`${Math.round((Date.now() - started) / 1000)}s job=${job?.status}/${job?.stage} attempts=${job?.attempts} story=${story?.status} „${story?.title}“ chapters=${count?.n} with pictures=${count?.pictured}${job?.error ? ` error=${job.error}` : ""}`);
   if (job?.status === "done" || job?.status === "failed") break;
 }
 

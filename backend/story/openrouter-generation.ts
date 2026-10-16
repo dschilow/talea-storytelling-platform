@@ -230,6 +230,11 @@ export async function callOpenRouterChatCompletion(input: {
    * OpenAI / OpenRouter spec.
    */
   imageInputs?: string[];
+  /**
+   * "flex": half price, about twice as slow and refusable under load (probe 2026-10-16:
+   * Sol, Luna and Gemini 3.8 Flash all served on flex). Billing follows the tier that served.
+   */
+  serviceTier?: "flex";
 }): Promise<OpenRouterChatCompletionResult> {
   const apiKey = resolveOpenRouterApiKey();
   if (!apiKey) {
@@ -268,6 +273,10 @@ export async function callOpenRouterChatCompletion(input: {
 
   if (input.responseFormat === "json_object") {
     payload.response_format = { type: "json_object" };
+  }
+
+  if (input.serviceTier) {
+    payload.service_tier = input.serviceTier;
   }
 
   if (input.tools && input.tools.length > 0) {

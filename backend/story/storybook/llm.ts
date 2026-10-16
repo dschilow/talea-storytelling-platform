@@ -59,6 +59,8 @@ export interface LlmRequest {
   timeoutMs?: number;
   /** Where a failed call goes instead of the default other-family model (a cheap planner falls back to the writer, not to Flash-Lite). */
   fallbackModel?: string;
+  /** "flex": half price, slower; a refused or failed flex call is repeated on the standard tier. */
+  serviceTier?: "flex";
 }
 
 export interface LlmCallResult {
@@ -69,9 +71,21 @@ export interface LlmCallResult {
   finishReason?: string;
   /** Set when the port had to switch models to get an answer. */
   fallbackFrom?: string;
+  /** The tier that served the call, as the provider reports it ("flex", "default", …). */
+  serviceTier?: string;
 }
 
 export type StorybookLlm = (request: LlmRequest) => Promise<LlmCallResult>;
+
+/** Every call through this port asks for `tier`, unless the request already names one. */
+export function withServiceTier(llm: StorybookLlm, tier: LlmRequest["serviceTier"]): StorybookLlm {
+  return tier ? (request) => llm(request.serviceTier ? request : { ...request, serviceTier: tier }) : llm;
+}
+
+/** Flex answers took about twice as long in the probe (Sol 3.6 s → 8.4 s); the timeout grows with it. */
+export function serviceTierTimeoutMs(timeoutMs: number, tier: LlmRequest["serviceTier"]): number {
+  return tier === "flex" ? Math.min(900_000, timeoutMs * 2) : timeoutMs;
+}
 
 export interface StorybookModels {
   writer: string;
@@ -164,6 +178,7 @@ export interface StorybookStageLog {
   durationMs?: number;
   usage?: LlmCallResult["usage"];
   note?: string;
+  serviceTier?: string;
 }
 
 export class CostLedger {
@@ -179,6 +194,7 @@ export class CostLedger {
         ...result.usage,
       },
       note: result.fallbackFrom ? `fallback from ${result.fallbackFrom}` : undefined,
+      ...(result.serviceTier ? { serviceTier: result.serviceTier } : {}),
     });
   }
 

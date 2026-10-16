@@ -13,7 +13,7 @@ import { cleanProse, ensureParagraphs, normalizeGermanQuotes } from "../parsing"
 import { parseJsonObject } from "../llm";
 import type { CheckIssue } from "../types";
 import { foldUmlauts, mentionsName } from "./catalogue";
-import type { BookBrief, BookBudget, BookChapter, ChapterCritique } from "./types";
+import type { BookBrief, BookBudget, BookChapter, ChapterCritique, OpenThread } from "./types";
 
 const CHAPTER_MARKER = /^\s*(?:[#*_>\s]*)(?:KAPITEL|CHAPTER|CHAPITRE|CAPÍTULO|CAPITOLO|HOOFDSTUK|ГЛАВА)\s+(\d+)\s*[:：.\-–—]?\s*(.*?)\s*[*_#]*\s*$/i;
 const LEFTOVER_LINE = /^\s*[*_#\s]*(?:RÜCKBLICK|FAKTEN|RECAP|FACTS|TITEL|BESCHREIBUNG)\s*[:：].*$/gim;
@@ -216,6 +216,8 @@ export interface ChapterCritiqueResult {
   chapters: ChapterCritique[];
   mustFix: Array<{ chapter: number; quote: string; problem: string }>;
   languageErrors: Array<{ chapter: number; quote: string; correction: string }>;
+  /** Ids of open questions the last batch still leaves unanswered. */
+  unanswered?: string[];
 }
 
 export function parseChapterCritique(raw: string, chapters: BookChapter[]): ChapterCritiqueResult | null {
@@ -258,7 +260,35 @@ export function parseChapterCritique(raw: string, chapters: BookChapter[]): Chap
       .map((error: any) => ({ chapter: clamp(error?.chapter), quote: String(error?.quote ?? "").trim().slice(0, 200), correction: String(error?.correction ?? "").trim().slice(0, 200) }))
       .filter((error: { quote: string; correction: string }) => error.quote && error.correction)
       .slice(0, 10),
+    unanswered: (Array.isArray(parsed.unanswered) ? parsed.unanswered : [])
+      .map((id: unknown) => String(id ?? "").trim().toUpperCase())
+      .filter((id: string) => /^F\d+$/.test(id))
+      .slice(0, 8),
   };
+}
+
+/**
+ * Open questions after a chapter: answered ones leave, new ones get the next free id. The oldest
+ * stay when the list is full — they are the ones in danger of being forgotten.
+ */
+export function mergeOpenThreads(
+  previous: OpenThread[],
+  opened: Array<{ chapter: number; question: string }>,
+  answered: string[],
+  limit = 8,
+): OpenThread[] {
+  const closed = new Set(answered.map((id) => String(id).trim().toUpperCase()));
+  const kept = previous.filter((thread) => !closed.has(thread.id));
+  const key = (value: string) => foldUmlauts(value.toLocaleLowerCase("de-DE")).replace(/[^a-z0-9]+/g, " ").trim();
+  const seen = new Set(kept.map((thread) => key(thread.question)));
+  let next = previous.reduce((max, thread) => Math.max(max, Number(thread.id.slice(1)) || 0), 0);
+  for (const entry of opened) {
+    const id = key(entry.question);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    kept.push({ id: `F${++next}`, chapter: entry.chapter, question: entry.question });
+  }
+  return kept.slice(0, limit);
 }
 
 /** A patched chapter keeps at least 80 % of its words and grows by two or three sentences at most. */

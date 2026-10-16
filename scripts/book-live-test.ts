@@ -12,6 +12,8 @@
  *   --chapters 12 --images-per-chapter 2
  *   --wish "…"  --learning science --objectives "a|b" --twist --famous --rhymes --moral
  *   --write-mode batch|single|whole  --batch-size 3      how many chapters one writer call writes
+ *   --first-batch 1                                     chapters in the first batch (production: 1)
+ *   --flex later|all|off                                OpenRouter flex tier (production: later = after chapter 1)
  *   --planner writer|<model>                            model for pitch + plan (default: openai/gpt-6-luna at effort low, like production)
  *   --plan-effort low|medium|high  --chapter-effort minimal|low|medium  --chapter-writer <model>
  *   --upto 6                                            stop after chapter 6 (cost sampling)
@@ -29,7 +31,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { normalizeAgeBand } from "../backend/story/storybook/craft";
 import { buildBrief } from "../backend/story/storybook/context";
-import { CostLedger, resolveStorybookModels, retryRequestFor, type LlmCallResult, type LlmRequest, type StorybookLlm } from "../backend/story/storybook/llm";
+import { CostLedger, resolveStorybookModels, retryRequestFor, serviceTierTimeoutMs, withServiceTier, type LlmCallResult, type LlmRequest, type StorybookLlm } from "../backend/story/storybook/llm";
 import { acceptsTemperature, extractStorybookChoiceContent, isTruncatedFinishReason, resolveStorybookReasoning } from "../backend/story/storybook/llm-guards";
 import { selectRewardArtifacts, toArtifactOption, toCastCandidate } from "../backend/story/storybook/cast-selection";
 import { castAppearance, describeReferenceLooks, heroAppearance, speciesFromProfile, type VisualEntity } from "../backend/story/storybook/illustration-stage";
@@ -39,7 +41,7 @@ import { runDevelopmentStage } from "../backend/story/storybook/developments";
 import { countWords } from "../backend/story/storybook/checks";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "../backend/story/storybook/book/budget";
 import { buildCatalogue } from "../backend/story/storybook/book/catalogue";
-import { buildSeriesMemory, planBook, resolveBookPlanner, writeBook, type BookContext } from "../backend/story/storybook/book/engine";
+import { bookBatchRanges, bookServiceTier, buildSeriesMemory, planBook, resolveBookPlanner, writeBook, type BookContext } from "../backend/story/storybook/book/engine";
 import { chapterParagraphs, illustrateBatch, type BookImage } from "../backend/story/storybook/book/illustrations";
 import { emptyBookState, type BookBrief, type BookState } from "../backend/story/storybook/book/types";
 
@@ -77,12 +79,13 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
     include_reasoning: false,
   };
   if (request.json) body.response_format = { type: "json_object" };
+  if (request.serviceTier) body.service_tier = request.serviceTier;
   if (typeof request.temperature === "number" && acceptsTemperature(model)) body.temperature = request.temperature;
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${openRouterKey}`, "X-Title": "Talea chapter book live test" },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(request.timeoutMs ?? 240_000),
+    signal: AbortSignal.timeout(serviceTierTimeoutMs(request.timeoutMs ?? 240_000, request.serviceTier)),
   });
   const raw = await response.text();
   if (!response.ok) throw new Error(`OpenRouter ${response.status} (${request.stage}, ${model}): ${raw.slice(0, 300)}`);
@@ -102,6 +105,7 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
     },
     durationMs: Date.now() - started,
     finishReason: choice?.finish_reason,
+    ...(typeof data.service_tier === "string" ? { serviceTier: data.service_tier } : {}),
   };
   if (!text || isTruncatedFinishReason(choice?.finish_reason)) {
     const error = new Error(`${!text ? "Empty" : "Truncated"} response from ${model} (${request.stage}, finish_reason=${choice?.finish_reason || "unknown"}, completion_tokens=${result.usage.completion}, reasoning_tokens=${result.usage.reasoningTokens}).`);
@@ -112,7 +116,7 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
 }
 
 const ledger = new CostLedger();
-const llm: StorybookLlm = async (request) => {
+const standardLlm: StorybookLlm = async (request) => {
   try {
     return await callOnce(request, request.model);
   } catch (err) {
@@ -122,6 +126,19 @@ const llm: StorybookLlm = async (request) => {
     console.warn(`  ! ${request.stage}: ${(err as Error).message} → retry with ${retry.model} (effort ${retry.request.effort || "default"})`);
     const retried = await callOnce(retry.request, retry.model);
     return retry.model === request.model ? retried : { ...retried, fallbackFrom: request.model };
+  }
+};
+// Same semantics as production: a refused or failed flex call runs once more on the standard tier.
+const llm: StorybookLlm = async (request) => {
+  if (request.serviceTier !== "flex") return standardLlm(request);
+  try {
+    return await callOnce(request, request.model);
+  } catch (err) {
+    const billed = (err as any)?.billed as LlmCallResult | undefined;
+    if (billed) ledger.recordCall(`${request.stage}-failed`, billed, request.role);
+    console.warn(`  ! ${request.stage}: flex failed (${(err as Error).message.slice(0, 120)}) → standard tier`);
+    const { serviceTier: _flex, ...plain } = request;
+    return standardLlm(plain);
   }
 };
 
@@ -216,6 +233,7 @@ const brief: BookBrief = {
   bookExperiment: {
     writeMode: (option("--write-mode", "batch") as any),
     batchSize: Number(option("--batch-size", "3")),
+    firstBatch: option("--first-batch") ? Number(option("--first-batch")) : undefined,
     // Same default as production: Luna low plans; --planner writer (or any model id) changes it.
     ...resolveBookPlanner(option("--planner"), option("--plan-effort")),
     chapterEffort: option("--chapter-effort") as any,
@@ -269,46 +287,62 @@ let coverUrl: string | undefined;
 let imageCostUSD = 0;
 let missingImages = 0;
 
+const flexPolicy = option("--flex", "later");
+const timeline: Array<{ what: string; seconds: number }> = [];
+const mark = (what: string) => {
+  const seconds = Math.round((Date.now() - started) / 1000);
+  timeline.push({ what, seconds });
+  console.log(`  ⏱ ${what} after ${seconds} s`);
+};
+mark("plan ready");
 if (!flag("--plan-only")) {
   // --state-file <result.json>: reuse the chapters of an earlier run and only draw (director + pictures).
   const stateFile = option("--state-file");
   if (stateFile) {
     const savedRun = JSON.parse(await readFile(stateFile, "utf8"));
     state = (savedRun.state || savedRun) as BookState;
-  } else {
-    state = await writeBook(ctx, planned, state, upTo);
+  }
+  const imagesOn = !flag("--no-images") && Boolean(runwareKey);
+  if (!flag("--no-images") && !runwareKey) console.warn("  ! RUNWARE_API_KEY fehlt — Bilder werden übersprungen.");
+  const imageChapters = imagesOn ? Number(option("--image-chapters", String(book.chapters))) || book.chapters : 0;
+  const entities: VisualEntity[] = [];
+  for (const hero of planned.brief.heroes) {
+    const { species, isHuman } = speciesFromProfile(hero.visualProfile, "human");
+    entities.push({ id: hero.id, name: hero.name, kind: "character", role: "hero", species, isHuman, appearance: heroAppearance(hero.visualProfile), forbidden: [], referenceUrl: hero.imageUrl });
+  }
+  for (const candidate of planned.brief.candidates) {
+    const { species, isHuman } = speciesFromProfile(candidate.visualProfile, candidate.species);
+    entities.push({ id: candidate.id, name: candidate.name, kind: "character", role: "cast", species, isHuman, appearance: castAppearance(candidate.visualProfile, candidate.physicalDescription), forbidden: [], referenceUrl: publicImageUrl(candidate.imageUrl) });
+  }
+  let looks: Awaited<ReturnType<typeof describeReferenceLooks>> | null = null;
+  let fixedElements = undefined as any;
+  let slot = 1;
+  for (const [from, to] of bookBatchRanges(planned.brief)) {
+    if (from > upTo) break;
+    const end = Math.min(to, upTo);
+    const tier = bookServiceTier(from === 1 ? "first" : "later", flexPolicy);
+    const batchLlm = withServiceTier(llm, tier);
+    if (!stateFile) {
+      state = await writeBook({ ...ctx, llm: batchLlm }, planned, state, end);
+      mark(`text ${from}-${end} readable (${tier || "standard"})`);
+    }
+    if (from > imageChapters) continue;
+    if (!looks) {
+      looks = await describeReferenceLooks(batchLlm, entities, models.support);
+      if (looks.call) ledger.recordCall("reference-looks", looks.call, "support");
+    }
+    const chapters = state.chapters.filter((chapter) => chapter.order >= from && chapter.order <= Math.min(end, imageChapters));
+    const batch = await illustrateBatch({ llm: batchLlm, models, ledger, brief: planned.brief, plan: planned.plan, chapters, entities: looks.entities, provider: runware, seed, withCover: from === 1, fixedElements, startSlot: slot, jev: createOpenRouterJevPort(() => openRouterKey) });
+    slot += chapters.length * book.imagesPerChapter;
+    fixedElements = batch.storyElements;
+    if (batch.coverUrl) coverUrl = batch.coverUrl;
+    images.push(...batch.images);
+    imageCostUSD += batch.imageCostUSD;
+    missingImages += batch.missing.length;
+    mark(`pictures ${from}-${end}: ${batch.images.length} ok, ${batch.missing.length} missing, ${batch.imageCalls ?? "?"} calls, $${batch.imageCostUSD.toFixed(4)}`);
+    for (const redraw of batch.redraws || []) console.log(`    ↻ ${redraw.chapter ? `Kapitel ${redraw.chapter}.${redraw.part}` : "Cover"} × ${redraw.attempts}: ${redraw.reasons.join("; ") || "?"}`);
   }
   await writeFile(join(out, "state.json"), JSON.stringify(state, null, 2), "utf8");
-
-  const imageChapters = flag("--no-images") || !runwareKey ? 0 : Math.min(state.chapters.length, Number(option("--image-chapters", String(state.chapters.length))) || state.chapters.length);
-  if (!flag("--no-images") && !runwareKey) console.warn("  ! RUNWARE_API_KEY fehlt — Bilder werden übersprungen.");
-  if (imageChapters > 0) {
-    const entities: VisualEntity[] = [];
-    for (const hero of planned.brief.heroes) {
-      const { species, isHuman } = speciesFromProfile(hero.visualProfile, "human");
-      entities.push({ id: hero.id, name: hero.name, kind: "character", role: "hero", species, isHuman, appearance: heroAppearance(hero.visualProfile), forbidden: [], referenceUrl: hero.imageUrl });
-    }
-    for (const candidate of planned.brief.candidates) {
-      const { species, isHuman } = speciesFromProfile(candidate.visualProfile, candidate.species);
-      entities.push({ id: candidate.id, name: candidate.name, kind: "character", role: "cast", species, isHuman, appearance: castAppearance(candidate.visualProfile, candidate.physicalDescription), forbidden: [], referenceUrl: publicImageUrl(candidate.imageUrl) });
-    }
-    const looks = await describeReferenceLooks(llm, entities, models.support);
-    if (looks.call) ledger.recordCall("reference-looks", looks.call, "support");
-    let fixedElements = undefined as any;
-    let slot = 1;
-    for (let from = 1; from <= imageChapters; from += 3) {
-      const chapters = state.chapters.filter((chapter) => chapter.order >= from && chapter.order <= Math.min(imageChapters, from + 2));
-      const batch = await illustrateBatch({ llm, models, ledger, brief: planned.brief, plan: planned.plan, chapters, entities: looks.entities, provider: runware, seed, withCover: from === 1, fixedElements, startSlot: slot, jev: createOpenRouterJevPort(() => openRouterKey) });
-      slot += chapters.length * book.imagesPerChapter;
-      fixedElements = batch.storyElements;
-      if (batch.coverUrl) coverUrl = batch.coverUrl;
-      images.push(...batch.images);
-      imageCostUSD += batch.imageCostUSD;
-      missingImages += batch.missing.length;
-      console.log(`  ✓ pictures ${from}-${from + chapters.length - 1}: ${batch.images.length} ok, ${batch.missing.length} missing, ${batch.imageCalls ?? "?"} calls | $${batch.imageCostUSD.toFixed(4)}`);
-      for (const redraw of batch.redraws || []) console.log(`    ↻ ${redraw.chapter ? `Kapitel ${redraw.chapter}.${redraw.part}` : "Cover"} × ${redraw.attempts}: ${redraw.reasons.join("; ") || "?"}`);
-    }
-  }
 }
 
 // Download pictures for the offline HTML.
@@ -335,6 +369,8 @@ if (state.chapters.length) {
 
 // --- Report ---
 const totals = ledger.totals();
+const flexCalls = ledger.all().filter((stage) => stage.serviceTier === "flex");
+const flexCost = flexCalls.reduce((sum, stage) => sum + (stage.usage?.costUSD || 0), 0);
 const groups = new Map<string, { cost: number; calls: number; prompt: number; cached: number; completion: number }>();
 for (const stage of ledger.all()) {
   const key = stage.stage.replace(/-\d+(-\d+)*(-rest|-retry)?$/, "").replace(/-\d+$/, "");
@@ -354,7 +390,8 @@ const summary = [
   `**Form:** ${form} · **Kapitel:** ${state.chapters.length}/${book.chapters} · **Wörter:** ${words} · **Bilder:** ${images.length} (+Cover ${coverUrl ? "ja" : "nein"}, fehlend ${missingImages})`,
   `**Besetzung:** ${planned.casting.roles.map((role) => `${planned.brief.candidates.find((c) => c.id === role.id)?.name || role.id} (${role.role})`).join(", ") || "–"}`,
   `**Plan-Lektorat:** ${planned.planReview ? JSON.stringify(planned.planReview.scores) : "–"} · überarbeitet: ${planned.planRevised} · offene Plan-Befunde: ${planned.planIssues.length}`,
-  `**Kosten:** Text $${totals.costUSD.toFixed(4)} (${totals.calls} Calls) + Bilder $${imageCostUSD.toFixed(4)} = **$${(totals.costUSD + imageCostUSD).toFixed(4)}** · **Dauer:** ${seconds} s`,
+  `**Kosten:** Text $${totals.costUSD.toFixed(4)} (${totals.calls} Calls, davon ${flexCalls.length} auf Flex für $${flexCost.toFixed(4)}) + Bilder $${imageCostUSD.toFixed(4)} = **$${(totals.costUSD + imageCostUSD).toFixed(4)}** · **Dauer:** ${seconds} s`,
+  `**Zeitleiste:** ${timeline.map((entry) => `${entry.what} ${entry.seconds} s`).join(" · ")}`,
 ];
 const md = [
   `# ${planned.plan.title}`, "", `_${planned.plan.description}_`, "", ...summary, "",
@@ -393,5 +430,5 @@ ${coverUrl ? imgTag(coverUrl, "Cover") : ""}
 ${chapterHtml}
 </main></body></html>`;
 await writeFile(join(out, "book.html"), html, "utf8");
-await writeFile(join(out, "result.json"), JSON.stringify({ models, brief: { config, band, book, form, heroes: heroes.map((hero: any) => hero.name) }, plan: planned.plan, planReview: planned.planReview, planIssues: planned.planIssues, casting: planned.casting.roles, state, images, coverUrl, ledger: ledger.all(), totals, imageCostUSD, seconds, developments, seriesMemory }, null, 2), "utf8");
+await writeFile(join(out, "result.json"), JSON.stringify({ models, brief: { config, band, book, form, heroes: heroes.map((hero: any) => hero.name) }, plan: planned.plan, planReview: planned.planReview, planIssues: planned.planIssues, casting: planned.casting.roles, state, images, coverUrl, ledger: ledger.all(), totals, imageCostUSD, seconds, timeline, flex: { calls: flexCalls.length, costUSD: flexCost }, developments, seriesMemory }, null, 2), "utf8");
 console.log(`\n■ ${planned.plan.title} — ${state.chapters.length} Kapitel, ${words} Wörter, $${(totals.costUSD + imageCostUSD).toFixed(4)} gesamt, ${seconds} s → ${join(out, "book.html")}`);
