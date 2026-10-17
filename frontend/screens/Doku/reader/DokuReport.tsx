@@ -49,7 +49,19 @@ export function splitParagraphs(text: string): string[] {
 }
 
 /** The sticker already says "Rate mal!"; the question should not repeat it. */
-const stripGuessLabel = (question: string) => question.replace(/^s*rate mal(?: mit)?s*[:!,–-]s*/i, '');
+const stripGuessLabel = (question: string) => question.replace(/^\s*rate mal(?: mit)?\s*[:!,–-]\s*/i, '');
+
+/**
+ * Old dokus stored facts as plain strings; the backend converts them since
+ * 2026-10-17, but offline copies saved earlier still hold them. A fact without
+ * text would render as an empty card, so it is left out.
+ */
+function readableFacts(facts: unknown): DokuKeyFact[] {
+  if (!Array.isArray(facts)) return [];
+  return facts
+    .map((fact) => (typeof fact === 'string' ? { title: '', fact } : (fact as DokuKeyFact | null)))
+    .filter((fact): fact is DokuKeyFact => typeof fact?.fact === 'string' && fact.fact.trim().length > 0);
+}
 
 export const ReportAssignment: React.FC<{ question: string }> = ({ question }) => (
   <aside className="rp-assignment" aria-label="Die Leitfrage">
@@ -406,7 +418,7 @@ export const ReportChapter: React.FC<{
   const isWissen = section.kind === 'wissen';
   const isStation = !isWissen && (section.kind === 'station' || Boolean(section.place));
   const kicker = isWissen ? 'Check-Wissen' : isStation ? `Station ${index + 1}` : `Kapitel ${index + 1} von ${total}`;
-  const facts = section.keyFacts ?? [];
+  const facts = readableFacts(section.keyFacts);
   const experiments = section.interactive?.activities?.enabled ? section.interactive.activities.items ?? [] : [];
   const imageAlt = `${section.title} – Bild`;
 

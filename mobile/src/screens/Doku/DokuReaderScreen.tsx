@@ -16,7 +16,7 @@ import { useDoku } from '@/hooks/queries';
 import { useAudioPlayer } from '@/providers/AudioPlayerProvider';
 import { useOffline } from '@/providers/OfflineProvider';
 import { useToast } from '@/providers/ToastProvider';
-import { dokuPlainText, toParagraphs } from '@/lib/content';
+import { dokuPlainText, readableFacts, toParagraphs } from '@/lib/content';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
@@ -208,16 +208,16 @@ export function DokuReaderScreen() {
               ))}
             </View>
 
-            {section.keyFacts?.length ? (
+            {readableFacts(section.keyFacts).length ? (
               <View style={{ gap: spacing.sm }}>
-                {section.keyFacts.map((fact, factIndex) => (
+                {readableFacts(section.keyFacts).map((fact, factIndex) => (
                   <Card key={factIndex} variant="inset">
                     <View style={{ flexDirection: 'row', gap: spacing.md }}>
                       <View style={[styles.factIcon, { borderRadius: radius.sm, backgroundColor: colors.warningSoft }]}>
                         <Lightbulb size={16} color={colors.warning} />
                       </View>
                       <View style={{ flex: 1, gap: 3 }}>
-                        <Text variant="label">{fact.title}</Text>
+                        {fact.title ? <Text variant="label">{fact.title}</Text> : null}
                         <Text variant="bodySm" tone="secondary">
                           {fact.fact}
                         </Text>

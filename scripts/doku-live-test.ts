@@ -154,9 +154,11 @@ function renderMarkdown(doku: any, header: string[], factCheck?: Awaited<ReturnT
 const recheckPath = option("--recheck");
 if (recheckPath) {
   const saved = JSON.parse(await readFile(recheckPath, "utf8"));
-  const factCheck = await runFactCheck(saved.doku, saved.config, saved.model);
+  // Runs since 2026-10-17 keep the writer's text before the check, so a changed checker sees the same input.
+  const doku = saved.unchecked ?? saved.doku;
+  const factCheck = await runFactCheck(doku, saved.config, saved.model);
   const outDir = dirname(recheckPath);
-  await writeFile(join(outDir, "doku.checked.md"), renderMarkdown(saved.doku, [`Recheck von ${saved.model}`], factCheck));
+  await writeFile(join(outDir, "doku.checked.md"), renderMarkdown(doku, [`Recheck von ${saved.model}`], factCheck));
   await writeFile(join(outDir, "result.checked.json"), JSON.stringify({ ...saved, factCheck }, null, 2));
   console.log(`${outDir}: ${factCheck.issues.length} Befund(e), ${factCheck.outcome.applied.length} angewendet · ${factCheck.seconds.toFixed(1)} s · $${factCheck.cost.toFixed(4)}`);
   process.exit(0);
@@ -200,6 +202,7 @@ try {
   throw new Error(`Unparseable JSON (finish=${writer.finish}, ${writer.content.length} chars) — raw written to ${outDir}/raw.txt`);
 }
 const doku = promptModule.normalizeDokuOutput ? promptModule.normalizeDokuOutput(parsed, config) : parsed;
+const unchecked = structuredClone(doku);
 const factCheck = flag("--factcheck") ? await runFactCheck(doku, config, model) : undefined;
 
 const header = [
@@ -207,7 +210,7 @@ const header = [
     `Tokens ${writer.data.usage?.prompt_tokens}/${writer.data.usage?.completion_tokens} · Kosten $${writer.cost.toFixed(4)}`,
 ];
 await writeFile(join(outDir, "doku.md"), renderMarkdown(doku, header, factCheck));
-await writeFile(join(outDir, "result.json"), JSON.stringify({ config, model, effort, seconds: writer.seconds, usage: writer.data.usage, finish: writer.finish, doku, factCheck }, null, 2));
+await writeFile(join(outDir, "result.json"), JSON.stringify({ config, model, effort, seconds: writer.seconds, usage: writer.data.usage, finish: writer.finish, doku, unchecked, factCheck }, null, 2));
 const total = writer.cost + (factCheck?.cost ?? 0);
 console.log(`${outDir}: ${doku.title} · ${(writer.seconds + (factCheck?.seconds ?? 0)).toFixed(1)} s · $${total.toFixed(4)} · finish ${writer.finish}` +
   (factCheck ? ` · Faktencheck ${factCheck.issues.length} Befund(e), ${factCheck.outcome.applied.length} angewendet` : ""));

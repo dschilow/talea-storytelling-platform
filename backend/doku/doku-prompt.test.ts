@@ -130,6 +130,13 @@ describe("normalizeDokuOutput", () => {
     expect((content as unknown as Record<string, unknown>).twist).toBeUndefined();
   });
 
+  test("toDokuContent turns old string facts into cards instead of empty ones", () => {
+    const legacy = { title: "Alt", content: "Text.", keyFacts: ["Zebras schlafen im Stehen.", "", { text: "Altes Feld." }] };
+    const [section] = toDokuContent({}, [legacy as never]).sections;
+    expect(section.keyFacts.map((fact) => fact.fact)).toEqual(["Zebras schlafen im Stehen.", "Altes Feld."]);
+    expect(section.keyFacts.every((fact) => fact.title.length > 0)).toBe(true);
+  });
+
   test("parseDokuJson names a cut-off answer", () => {
     expect(() => parseDokuJson('{"title": "Abgeschn', "length")).toThrow(/token limit/);
     expect(parseDokuJson('```json\n{"a":1}\n```')).toEqual({ a: 1 });
@@ -144,6 +151,15 @@ describe("applyFactCheck", () => {
     });
     const outcome = applyFactCheck(doku, issues);
     expect(doku.sections[0].keyFacts[0].fact).toBe("Ein richtiger Fakt.");
+    expect(outcome.applied[0].action).toBe("replaced");
+  });
+
+  test("finds a quote that spans two paragraphs", () => {
+    const doku = normalizeDokuOutput(rawDoku(), config);
+    const outcome = applyFactCheck(doku, [
+      { ref: "S1", kind: "fact", quote: "Absatz eins. Absatz zwei.", problem: "falsch", fix: "Absatz eins, richtig." },
+    ]);
+    expect(doku.sections[0].content).toBe("Absatz eins, richtig.");
     expect(outcome.applied[0].action).toBe("replaced");
   });
 

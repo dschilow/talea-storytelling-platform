@@ -1,4 +1,4 @@
-import type { Doku } from '@/types/doku';
+import type { Doku, DokuKeyFact } from '@/types/doku';
 import type { Chapter, Story } from '@/types/story';
 
 /** Content helpers shared by the readers, the TTS pipeline and the offline store. */
@@ -7,6 +7,18 @@ import type { Chapter, Story } from '@/types/story';
 export function storyChapters(story: Story | null | undefined): Chapter[] {
   const chapters = story?.chapters ?? story?.pages ?? [];
   return [...chapters].sort((a, b) => a.order - b.order);
+}
+
+/**
+ * Key facts as cards. Old dokus stored plain strings; the backend converts them
+ * since 2026-10-17, but offline copies saved earlier still hold them. A fact
+ * without text is dropped instead of rendering an empty card.
+ */
+export function readableFacts(facts: unknown): DokuKeyFact[] {
+  if (!Array.isArray(facts)) return [];
+  return facts
+    .map((fact) => (typeof fact === 'string' ? { title: '', fact } : (fact as DokuKeyFact | null)))
+    .filter((fact): fact is DokuKeyFact => typeof fact?.fact === 'string' && fact.fact.trim().length > 0);
 }
 
 /**
@@ -22,8 +34,8 @@ export function dokuPlainText(doku: Doku | null | undefined): string {
 
   return sections
     .map((section) => {
-      const facts = (section.keyFacts ?? [])
-        .map((fact) => `${fact.title}: ${fact.fact}`)
+      const facts = readableFacts(section.keyFacts)
+        .map((fact) => (fact.title ? `${fact.title}: ${fact.fact}` : fact.fact))
         .join(' ');
       return [section.title, section.content, facts].filter(Boolean).join('\n\n');
     })

@@ -31,7 +31,7 @@ export interface FactCheckOutcome {
   skipped: Array<{ ref: string; kind: FactCheckKind; problem: string; reason: string }>;
 }
 
-const MAX_CHANGES = 8;
+const MAX_CHANGES = 12;
 
 /** Checker from another family than the writer, so it does not share the writer's blind spots. */
 export function resolveFactCheckModel(writerModel: string): { model: string; effort: "low" | "medium" } {
@@ -46,20 +46,26 @@ const SYSTEM_PROMPT = `Du bist Faktenprüferin für Kinder-Wissensdokus. Eine Do
 
 Melde NUR echte Probleme dieser Art:
 - fact: eine Aussage, Zahl oder ein Vergleich ist sachlich falsch, stark übertrieben oder wird als sicher dargestellt, obwohl die Forschung uneinig ist.
-- safety: eine Stelle könnte Kinder zu gefährlichem Nachmachen verleiten (Strom und Steckdosen, Feuer, Hitze, Chemikalien, Höhen, Werkzeuge, wilde Tiere), oder ein Experiment ist ohne Hinweis auf einen Erwachsenen riskant.
-- quiz: bei einer Quizfrage ist die markierte Antwort falsch, mehrere Antworten sind richtig, oder die Frage lässt sich mit dem Text nicht beantworten.
+- safety: eine Stelle könnte Kinder zu gefährlichem Nachmachen verleiten (Strom und Steckdosen, Feuer, Hitze, Chemikalien, Höhen, schwere oder scharfe Werkzeuge, Wasser- oder Luftdruck, wilde Tiere), oder ein Experiment ist ohne Hinweis auf einen Erwachsenen riskant. Harmloses ist KEIN safety-Problem: eine Sprudelflasche schütteln, Milch ins Wasserglas tropfen, kurz ins Eiswasser fassen, Knete, Taschenlampe.
+- quiz: bei einer Quizfrage ist die markierte Antwort falsch, mehrere Antworten sind richtig, oder die Frage lässt sich mit dem Text nicht beantworten. Ist nur die Erklärung falsch, melde fact mit quote aus der Erklärung.
 - guess: die markierte Antwort oder die Auflösung der Rate-Frage ist falsch.
 
 NICHT melden:
 - Stil, Geschmack, Erzählperspektive, erfundene Fachleute und ihre harmlosen Anekdoten.
 - Kindgerechte Vereinfachungen, die im Kern stimmen: „50-mal pro Sekunde“ ist richtig genug (kein „Nennfrequenz“ nötig), „Bakterien pupsen Gase aus“ ist erlaubte Kindersprache, gerundete Zahlen mit „etwa“ sind in Ordnung.
-- Präzisierungen, die nur ein Fachbuch bräuchte. Melde nur, was eine Fachperson als FALSCH bezeichnen würde.
+- Präzisierungen, die nur ein Fachbuch bräuchte. Melde nur, was eine Fachperson als FALSCH bezeichnen würde. Schulbuch-Modelle sind richtig genug: Magmakammer, „unter der Erde Magma, draußen Lava“, Erdplatten auf weichem Gestein, Sonnenlicht mit allen Regenbogenfarben.
+- Harmloses Ausprobieren, das Kinder ohnehin tun: mit Griffel oder Stift schreiben, an einer Probe schnuppern, die die Fachperson reicht, Kleidung anprobieren, etwas Leichtes heben.
 - Bildhafte Vergleiche („wie Kletten an der Socke“, „wie eine Stoßwelle“) sind gewollt — nur melden, wenn der Vergleich etwas Falsches über die Sache behauptet.
 - Bei offenen Forschungsfragen nur, wenn der Text eine umstrittene Erklärung als sichere Tatsache darstellt.
 
-Melde höchstens die 6 wichtigsten Probleme, safety zuerst.
+Melde höchstens die 10 wichtigsten Probleme, safety zuerst.
 
-Für fact und safety: quote = der betroffene Satz EXAKT wie im Text (zeichengenau kopiert; betrifft das Problem zwei aufeinanderfolgende Sätze, beide zusammen), fix = derselbe Text korrigiert. Der fix bleibt kindgerecht für die Zielgruppe: gleiche Wortwahl und gleicher Ton wie das Original, ungefähr so lang, keine Fachwörter, keine Absicherungsfloskeln („möglicherweise“, „unter anderem“), außer genau diese Unsicherheit ist der Fehler. Lässt sich das Problem nicht in einem Satz reparieren, lass fix leer.
+Für fact und safety: quote = der betroffene Text EXAKT wie in der Doku (zeichengenau kopiert), fix = derselbe Text korrigiert. Der fix bleibt kindgerecht für die Zielgruppe: gleiche Wortwahl und gleicher Ton wie das Original, ungefähr so lang, keine Fachwörter, keine Absicherungsfloskeln („möglicherweise“, „unter anderem“), außer genau diese Unsicherheit ist der Fehler. Ein bildhafter Vergleich des Originals bleibt, wenn er nicht selbst falsch ist. Der fix bringt keine Person, keinen Ort und keinen Gegenstand ins Spiel, der an dieser Stelle noch nicht vorkam. Lässt sich das Problem so nicht reparieren, lass fix leer. Wäre eine korrigierte Wow-Karte nicht mehr verblüffend, lass fix leer — die Karte entfällt dann.
+
+Die Doku muss nach der Korrektur in sich stimmig sein:
+- Steht derselbe Fehler an mehreren Stellen (Kapiteltext, Wow-Karte, Quiz-Erklärung, Gecheckt-Punkt, Schlusssatz), melde JEDE Stelle als eigenes Problem mit eigenem quote und fix.
+- safety in der Erzählung: quote = ALLE aufeinanderfolgenden Sätze, in denen Tavi die riskante Handlung ausführt oder auf sie reagiert. fix = eine stimmige Ersatzhandlung: Die Fachperson macht das Riskante, Tavi probiert selbst einen sicheren Teil (fühlt, misst, zählt mit, übt am Modell) und erlebt dabei etwas Echtes — nicht nur „ich schaue zu“. Der fix muss zum Satz davor und danach passen.
+
 ref = die Kennung in eckigen Klammern, in der der Satz steht (z.B. "S2", "S3.F1", "S1.A1", "H", "R").
 
 Antworte ausschließlich als JSON: {"issues":[{"ref":"S2","kind":"fact","quote":"…","problem":"…","fix":"…"}]}. Ohne Probleme: {"issues":[]}.`;
@@ -79,8 +85,10 @@ function renderForCheck(doku: NormalizedDokuOutput): string {
     const id = `S${s + 1}`;
     const where = [section.place, section.expert ? `${section.expert.role} ${section.expert.name ?? ""}`.trim() : ""].filter(Boolean).join(", ");
     lines.push("", `[${id}] Kapitel „${section.title}“${where ? ` (${where})` : ""}`, section.content);
+    // Fact and comparison on separate lines: a quote spanning both is found in neither slot.
     section.keyFacts.forEach((fact, f) => {
-      lines.push(`[${id}.F${f + 1}] Wow-Karte: ${fact.fact}${fact.comparison ? ` | Vergleich: ${fact.comparison}` : ""}`);
+      lines.push(`[${id}.F${f + 1}] Wow-Karte: ${fact.fact}`);
+      if (fact.comparison) lines.push(`[${id}.F${f + 1}] Vergleich: ${fact.comparison}`);
     });
     (section.interactive?.quiz?.questions ?? []).forEach((question, q) => {
       const options = question.options.map((option, i) => `${letters[i]}) ${option}`).join("  ");
@@ -177,6 +185,20 @@ const RENDER_LABEL = /^(?:Wow-Karte|Vergleich|Sicherheit|Beobachtung|Schritte|Ma
 const stripLabel = (text?: string) => (text ?? "").trim().replace(RENDER_LABEL, "").trim();
 const DEFAULT_SAFETY_NOTE = "Nur zusammen mit einem Erwachsenen ausprobieren.";
 
+/**
+ * Finds the quote in the text, tolerant of whitespace: the checker sees
+ * paragraphs and copies a quote that spans two of them with a plain space.
+ */
+function locateQuote(text: string, quote: string): { start: number; end: number } | null {
+  const exact = text.indexOf(quote);
+  if (exact >= 0) return { start: exact, end: exact + quote.length };
+  const words = quote.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return null;
+  const pattern = new RegExp(words.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+"));
+  const match = pattern.exec(text);
+  return match ? { start: match.index, end: match.index + match[0].length } : null;
+}
+
 function plausibleFix(quote: string, fix: string): boolean {
   if (!fix || fix === quote) return false;
   const ratio = fix.length / Math.max(1, quote.length);
@@ -222,9 +244,12 @@ export function applyFactCheck(doku: NormalizedDokuOutput, issues: FactCheckIssu
     const fix = stripLabel(issue.fix);
     if (quote && quote !== "—" && fix && plausibleFix(quote, fix)) {
       const scoped = ref.section !== undefined ? textSlots(doku, ref.section) : [];
-      const slot = [...scoped, ...textSlots(doku)].find((candidate) => candidate.get().includes(quote));
-      if (slot) {
-        slot.set(slot.get().replace(quote, fix));
+      const found = [...scoped, ...textSlots(doku)]
+        .map((candidate) => ({ slot: candidate, at: locateQuote(candidate.get(), quote) }))
+        .find((candidate) => candidate.at);
+      if (found?.at) {
+        const text = found.slot.get();
+        found.slot.set(text.slice(0, found.at.start) + fix + text.slice(found.at.end));
         outcome.applied.push({ ref: issue.ref, kind: issue.kind, problem: issue.problem, action: "replaced" });
         continue;
       }

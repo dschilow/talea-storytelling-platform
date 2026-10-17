@@ -135,7 +135,8 @@ ABLAUF DER DOKU
 3. guess (Rate-Frage): Tavi lässt den Leser vorab raten; die App löst erst ganz am Ende auf. Sie fragt nach einem verblüffenden Detail, das unterwegs vorkommt (eine Zahl, Dauer, Größe oder ein Vergleich) — NICHT nach der Antwort auf die Leitfrage und ohne sie zu verraten. 3 Antworten, alle plausibel, die richtige überrascht. reveal: 1-2 Sätze mit Begründung.
 4. sections (Kapitel):
    - kind "station": Tavi ist vor Ort. Ankommen mit 1-2 Sätzen Kopfkino (sehen, hören, riechen, fühlen), Fachperson, Erklären am Objekt.
-   - SELBST AUSPROBIEREN (an jeder Station): Tavi macht einen echten Handgriff aus diesem Beruf oder testet etwas mit den Sinnen — und das Ergebnis zeigt einen Teil der Antwort. Es ist schwerer, lauter, kälter, glitschiger oder kniffliger als gedacht; Tavi reagiert ehrlich (staunt, ächzt, lacht über sich). Nicht nur „Ich darf X halten“ — es muss etwas passieren, das man versteht.
+   - SELBST AUSPROBIEREN (an jeder Station): Tavi testet selbst etwas — und das Ergebnis zeigt einen Teil der Antwort. Es ist kälter, glitschiger, lauter oder kniffliger als gedacht; Tavi reagiert ehrlich (staunt, ächzt, lacht über sich). Nicht nur „Ich darf X halten“ — es muss etwas passieren, das man versteht.
+   - Tavi probiert nur, was auch ein Kind gefahrlos dürfte: fühlen, riechen, hören, beobachten, mit einfachen Mitteln messen, leichte Dinge heben, Schutzkleidung anziehen, am Modell, Übungsstück oder Simulator üben, ein Gerät per Fernsteuerung lenken. Schweres, Heißes, Scharfes, Spitzes, Strom, Wasser- oder Luftdruck, Chemikalien, Höhen, Maschinen und wilde Tiere bedient nur die Fachperson; Tavi übernimmt dabei einen sicheren Teil (zählt mit, spürt das Vibrieren im Boden, hält das Modell). Das gilt für die ganze Doku, auch für hook und Anekdoten.
    - kind "wissen" (Check-Wissen): Tavi erklärt in Ruhe den Kern-Mechanismus mit EINEM starken Vergleich aus dem Kinderalltag, Schritt für Schritt. Kein neuer Ort nötig.
    - Jedes Kapitel hat eine eigene Mini-Frage (miniQuestion), die es beantwortet, und endet (außer dem letzten) mit einem Satz, der auf das nächste Kapitel neugierig macht.
    - Im letzten Drittel kommt ein echter Twist: eine wahre Überraschung, die die Leitfrage in neues Licht rückt.
@@ -151,7 +152,8 @@ TITEL
 FAKTEN — WICHTIGSTE REGEL
 - Nur gesichertes Wissen. Keine erfundenen Zahlen, Rekorde, Studien, Jahreszahlen, Quellen oder Zitate echter Personen.
 - Ist sich die Forschung nicht sicher, sag das offen und nenne die Erklärung, die heute am besten belegt ist. Erfinde keine Kompromiss-Antwort („von allem ein bisschen“), wenn die Forschung eine Erklärung klar bevorzugt.
-- Zahlen nur, wenn sie stimmen, gerundet („etwa zehn Liter“) und am besten mit Vergleich („so viel wie ein voller Putzeimer“). Vergleiche müssen sachlich stimmen.
+- Zahlen nur, wenn sie stimmen, gerundet („etwa zehn Liter“) und am besten mit Vergleich („so viel wie ein voller Putzeimer“). Vergleiche müssen sachlich stimmen. Keine „x-mal heißer/kälter“ bei Grad-Angaben.
+- Keine Absolutwörter bei Sachaussagen (immer, nie, alle, jeder, nur, der/die/das einzige, gar nicht), wenn es Ausnahmen gibt — „meistens“, „fast alle“, „viele“ ist dann richtig. Zugespitzt wird mit Bildern und Vergleichen, nicht mit Übertreibung.
 - Anekdoten der Fachleute sind alltäglich und glaubwürdig — keine Rekorde, keine überprüfbaren Behauptungen.
 - Lieber eine Sache richtig verstehen als zehn Fakten aufzählen.
 
@@ -309,7 +311,7 @@ function buildUserPrompt(config: DokuConfig): string {
     "PRÜFE VOR DER AUSGABE:",
     `- ${sectionsCount} Kapitel, jedes mindestens ${minWords} Wörter, 2-4 Absätze?`,
     "- Titel nach den guten Mustern? Ich-Form Präsens, Tavi vor Ort, Fachleute mit Beruf + Vorname?",
-    "- An jeder Station ein Selbst-Ausprobieren, bei dem etwas passiert, das einen Teil der Antwort zeigt?",
+    "- An jeder Station ein Selbst-Ausprobieren, bei dem etwas passiert, das einen Teil der Antwort zeigt — und das ein Kind gefahrlos nachmachen dürfte?",
     "- Hook ohne Leitfrage und ohne Rate-Frage? Rate-Frage verrät die Antwort auf die Leitfrage nicht und hat eine überraschende, wahre Auflösung?",
     "- Twist im letzten Drittel, Leitfrage im letzten Kapitel klar beantwortet?",
     "- Wow-Karten zum Weitererzählen statt Allgemeinwissen? Quiz-Ablenker sind echte Fehlvorstellungen, Erklärungen ohne „Richtig“?",
@@ -597,6 +599,18 @@ export function normalizeDokuOutput(raw: unknown, config: Pick<DokuConfig, "topi
 }
 
 /**
+ * Dokus before 2026-07-16 stored keyFacts as plain strings (and some with
+ * `text` instead of `fact`). The readers render cards from `fact`, so those
+ * facts showed up as empty cards; they are converted on the way out.
+ */
+function withReadableKeyFacts(section: DokuSection): DokuSection {
+  const keyFacts = (Array.isArray(section.keyFacts) ? (section.keyFacts as unknown[]) : [])
+    .map(normalizeKeyFact)
+    .filter((fact): fact is DokuKeyFact => Boolean(fact));
+  return { ...section, keyFacts };
+}
+
+/**
  * The declared response shape of stored content (old and new dokus). Encore
  * drops undeclared fields, so this picks exactly the fields of DokuContent.
  */
@@ -613,7 +627,7 @@ export function toDokuContent(raw: unknown, sections: DokuSection[]): DokuConten
   const finale = text(source.finale);
   const wowFacts = list(source.wowFacts);
   return {
-    sections,
+    sections: sections.map(withReadableKeyFacts),
     ...(hook ? { hook } : {}),
     ...(mainQuestion ? { mainQuestion } : {}),
     ...(guess ? { guess } : {}),
