@@ -122,7 +122,8 @@ export function buildPictureNotes(slots: ImageSlot[], shots: IllustrationPlan["p
     const near = paragraphs.slice(Math.max(0, after - 2), after + 2).join(" ");
     const figures = shot.onStage.map((id) => entities.find((entity) => entity.id === id)?.name).filter((name): name is string => Boolean(name));
     const things = (shot.elements || []).filter((name) => storyElements.some((element) => element.name === name));
-    const missing = entities.filter((entity) => entity.kind === "character" && mentions(near, entity.name) && !figures.includes(entity.name)).map((entity) => entity.name);
+    // Acting, not talked about: "Das sagt Grummel auch" does not make the troll missing from the picture.
+    const missing = entities.filter((entity) => entity.kind === "character" && actsIn(near, entity.name) && !figures.includes(entity.name)).map((entity) => entity.name);
     return [{ chapter: slot.chapter, part: slot.part, afterParagraph: after, placedBy: placed[index].by, scene: shot.scene.slice(0, 600), figures, things, missing }];
   });
 }
@@ -131,16 +132,33 @@ export interface CastPresenceChange {
   chapter: number;
   part: number;
   name: string;
-  /** The hero who gave way when the picture was full. */
+  /** The figure who gave way when the picture was full (never a hero who is in that part of the text). */
   replaced?: string;
+}
+
+/** The text without its direct speech: what the narrator shows happening, not what someone talks about. */
+export function narrationOnly(text: string): string {
+  return String(text || "").replace(/„[^“”]*[“”]/g, " ").replace(/»[^«]*«/g, " ").replace(/"[^"]*"/g, " ");
+}
+
+/** A figure acts in a text when the narration names it ("Das sagt Grummel auch" is talk about Grummel, not Grummel). */
+export function actsIn(text: string, name: string): boolean {
+  return mentionsName(narrationOnly(text), name);
 }
 
 /**
  * Every cast figure who acts in a chapter stands in at least one picture of that chapter, and the engine figure
  * (when it is a cast member) in at least every second picture of the batch — enforced on the director's plan, not
  * only asked for in its prompt ("Die Türlaunische": the rule stood in the prompt, and Schnüffel and Bäcker Braun were
- * in 0 of 16 pictures). The figure goes into the picture whose paragraphs mention it most; when that picture is full,
- * the hero who is not named near the picture gives way, and at least one hero always stays.
+ * in 0 of 16 pictures).
+ *
+ * "Der Kieselgarten auf Reisen" (2026-10-16) lost a hero in 4 of 15 pictures to this rule: a name in someone's
+ * sentence counted as presence (the troll, only talked about in chapter 3, was put into its picture instead of
+ * Alexander and took over Rotkäppchen's action), and a full picture always made a hero give way, even one who acted in
+ * the very next paragraph. The heroes are the family's children; a picture without one of them is the worse fault. So:
+ * a figure goes only into a picture whose moment it acts in (narration around the picture's paragraph), first into one
+ * with room; in a full picture a non-hero who is not in that moment gives way, a hero only when the picture's whole
+ * reading segment never names him. Otherwise the figure waits for another picture.
  */
 export function enforceCastPresence(input: {
   slots: ImageSlot[];
@@ -155,40 +173,76 @@ export function enforceCastPresence(input: {
   const cast = input.entities.filter((entity) => entity.kind === "character" && entity.role === "cast");
   const heroIds = new Set(input.entities.filter((entity) => entity.role === "hero").map((entity) => entity.id));
   const byId = new Map(input.entities.map((entity) => [entity.id, entity]));
-  const count = (text: string, name: string) => (text.match(new RegExp(name.split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "giu")) || []).length;
 
-  const place = (slotIndex: number, entity: VisualEntity): boolean => {
+  /** The moment a picture shows: the paragraph it is printed after (as placePictures places it), the three before and the one after. */
+  const momentOf = (slotIndex: number): string => {
+    const slot = input.slots[slotIndex];
+    const paragraphs = chapterParagraphs(slot.text);
+    const at = placePictures([slot], [shots[slotIndex]])[0].afterParagraph - slot.first + 1;
+    return paragraphs.slice(Math.max(0, at - 4), at + 1).join("\n\n");
+  };
+  const narratedHits = (text: string, name: string): number =>
+    chapterParagraphs(text).filter((paragraph) => actsIn(paragraph, name)).length;
+
+  const place = (slotIndex: number, entity: VisualEntity, allowSwap: boolean): boolean => {
     const slot = input.slots[slotIndex];
     const shot = shots[slotIndex];
     if (!slot || !shot || shot.onStage.includes(entity.id)) return false;
+    // The figure is drawn beside the action the director planned, never in someone else's part of it.
+    const beside = `${entity.name} is also in this picture, close to the others; the action described above stays with the figures it names.`;
     if (shot.onStage.length < input.maxPerImage) {
       shot.onStage.push(entity.id);
-      shot.scene = `${shot.scene.replace(/\s+$/, "")} ${entity.name} is in this picture, taking part in the action.`;
+      shot.scene = `${shot.scene.replace(/\s+$/, "")} ${beside}`;
       changes.push({ chapter: slot.chapter, part: slot.part, name: entity.name });
       return true;
     }
+    if (!allowSwap) return false;
+    const moment = momentOf(slotIndex);
+    const segment = slot.text;
     const heroesOn = shot.onStage.filter((id) => heroIds.has(id));
-    if (heroesOn.length < 2) return false;
-    // The hero who is not named near the picture gives way; the last-listed one when both are.
-    const paragraphs = chapterParagraphs(slot.text);
-    const near = paragraphs.slice(Math.max(0, (shot.paragraph || Math.ceil(paragraphs.length / 2)) - 2), (shot.paragraph || Math.ceil(paragraphs.length / 2)) + 1).join(" ");
-    const away = heroesOn.filter((id) => !mentionsName(near, byId.get(id)?.name || ""));
-    const victim = (away.length ? away : heroesOn)[away.length ? 0 : heroesOn.length - 1];
+    const otherAway = shot.onStage.find((id) => !heroIds.has(id) && !mentionsName(moment, byId.get(id)?.name || "\u0000"));
+    // A hero gives way only when this part of the book never names him, and one hero always stays.
+    const heroAway = heroesOn.length >= 2 ? heroesOn.find((id) => !mentionsName(segment, byId.get(id)?.name || "\u0000")) : undefined;
+    const victim = otherAway ?? heroAway;
+    if (!victim) return false;
+    const victimName = byId.get(victim)?.name;
     shot.onStage = shot.onStage.map((id) => (id === victim ? entity.id : id));
-    shot.scene = `${shot.scene.replace(/\s+$/, "")} ${entity.name} is in this picture instead of ${byId.get(victim)?.name || "one hero"}, taking part in the action.`;
-    changes.push({ chapter: slot.chapter, part: slot.part, name: entity.name, replaced: byId.get(victim)?.name });
+    shot.scene = `${shot.scene.replace(/\s+$/, "")} ${beside}${victimName ? ` ${victimName} is not in this picture.` : ""}`;
+    changes.push({ chapter: slot.chapter, part: slot.part, name: entity.name, ...(victimName ? { replaced: victimName } : {}) });
     return true;
+  };
+
+  /** The pictures whose moment the figure acts in, the one where it acts most first: room first, then a swap. */
+  const placeSomewhere = (indices: number[], entity: VisualEntity): boolean => {
+    const ranked = indices
+      .map((index) => ({ index, hits: narratedHits(momentOf(index), entity.name) }))
+      .filter((entry) => entry.hits > 0)
+      .sort((a, b) => b.hits - a.hits)
+      .map((entry) => entry.index);
+    return ranked.some((index) => place(index, entity, false)) || ranked.some((index) => place(index, entity, true));
   };
 
   for (const chapter of input.chapters) {
     const indices = input.slots.map((slot, index) => (slot.chapter === chapter.order ? index : -1)).filter((index) => index >= 0);
     if (!indices.length) continue;
     for (const entity of cast) {
-      if (!mentionsName(chapter.content, entity.name)) continue;
+      if (!actsIn(chapter.content, entity.name)) continue;
       if (indices.some((index) => shots[index]?.onStage.includes(entity.id))) continue;
-      const ranked = [...indices].sort((a, b) => count(input.slots[b].text, entity.name) - count(input.slots[a].text, entity.name));
-      for (const index of ranked) if (place(index, entity)) break;
+      placeSomewhere(indices, entity);
     }
+  }
+
+  // Last resort: a figure that acts in this batch but stands in none of its pictures goes into a picture with room
+  // whose reading segment shows it acting — never by pushing anyone out ("Der Regen sagt rückwärts": two cast members
+  // in none of 13 pictures).
+  for (const entity of cast) {
+    if (!input.chapters.some((chapter) => actsIn(chapter.content, entity.name))) continue;
+    if (shots.some((shot) => shot.onStage.includes(entity.id))) continue;
+    input.slots
+      .map((slot, index) => ({ index, hits: narratedHits(slot.text, entity.name) }))
+      .filter((entry) => entry.hits > 0)
+      .sort((a, b) => b.hits - a.hits)
+      .some((entry) => place(entry.index, entity, false));
   }
 
   // The figure that drives the book is in at least every second picture of the batch — a book about it must show it.
@@ -196,14 +250,8 @@ export function enforceCastPresence(input: {
   if (engine) {
     const wanted = Math.ceil(input.slots.length / 2);
     const has = () => shots.filter((shot) => shot.onStage.includes(engine.id)).length;
-    const candidates = input.slots
-      .map((slot, index) => ({ index, hits: count(slot.text, engine.name) }))
-      .filter((entry) => entry.hits > 0 && !shots[entry.index].onStage.includes(engine.id))
-      .sort((a, b) => b.hits - a.hits);
-    for (const entry of candidates) {
-      if (has() >= wanted) break;
-      place(entry.index, engine);
-    }
+    const open = () => input.slots.map((_, index) => index).filter((index) => !shots[index].onStage.includes(engine.id));
+    while (has() < wanted && placeSomewhere(open(), engine)) { /* one picture per round */ }
   }
   return { shots, changes };
 }

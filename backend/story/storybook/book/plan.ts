@@ -206,7 +206,7 @@ export function parsePlan(raw: any, chapters: number): BookPlan | null {
 }
 
 /** Countable defects of a plan, as German edit notes for the revision. */
-export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroNames: string[]; castNames: string[]; blockedTerms: string[]; cozy?: boolean; genre?: unknown; band?: AgeBand }): string[] {
+export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroNames: string[]; castNames: string[]; blockedTerms: string[]; cozy?: boolean; genre?: unknown; band?: AgeBand; famousFigure?: boolean }): string[] {
   const issues: string[] = [];
   const n = budget.chapters;
   if (!plan.title) issues.push("Der Plan hat keinen Titel.");
@@ -341,12 +341,21 @@ export function checkEngine(plan: BookPlan, n: number, input: { heroNames: strin
  * engine figure, the opponent or the villain; when none of them is a figure without a portrait, one such figure (the
  * wonder) may exist. Every figure without a portrait needs its look for the illustrator.
  */
-export function checkNamedFigures(plan: BookPlan, input: { heroNames: string[]; castNames: string[] }): string[] {
+export function checkNamedFigures(plan: BookPlan, input: { heroNames: string[]; castNames: string[]; famousFigure?: boolean }): string[] {
   const issues: string[] = [];
   const b = plan.bible;
   const known = [...input.heroNames, ...input.castNames];
   const central = [b.engineFigure, b.opponent?.who, b.villain?.who].filter((name): name is string => Boolean(name));
-  const extras = b.characters.filter((character) => !known.some((name) => mentionsName(character.name, name) || mentionsName(name, character.name)));
+  // "Der Kieselgarten auf Reisen" (2026-10-16): the family asked for a famous fairy-tale figure (a mandatory wish), this
+  // rule told the planner to make Rotkäppchen nameless, and two revisions could satisfy only one of them. The asked-for
+  // figure (at most two, Hänsel and Gretel come together) keeps its name; it needs its look like any figure without a portrait.
+  const famous = input.famousFigure
+    ? b.characters.filter((character) => FAMOUS_FIGURE.test(foldUmlauts(character.name)) && !known.some((name) => mentionsName(character.name, name) || mentionsName(name, character.name))).slice(0, 2)
+    : [];
+  for (const character of famous) {
+    if (character.kind !== "thing" && !character.look) issues.push(`Für „${character.name}“ fehlt look: die Erscheinung auf Englisch in 10-18 Wörtern (Art, Alter, Statur, Haar oder Fell, Kleidung oder Farben) und kind (person, animal, creature, thing) — ohne sie sieht die Figur auf jedem Bild anders aus.`);
+  }
+  const extras = b.characters.filter((character) => !famous.includes(character) && !known.some((name) => mentionsName(character.name, name) || mentionsName(name, character.name)));
   const centralExtras = extras.filter((character) => central.some((name) => mentionsName(name, character.name) || mentionsName(character.name, name)));
   const others = extras.filter((character) => !centralExtras.includes(character));
   const allowedOthers = centralExtras.length > 0 ? 0 : 1;
@@ -359,6 +368,9 @@ export function checkNamedFigures(plan: BookPlan, input: { heroNames: string[]; 
   }
   return issues;
 }
+
+/** The public-domain fairy-tale figures a family may ask for by name (umlauts folded). */
+export const FAMOUS_FIGURE = /rotkaeppchen|frau holle|rumpelstilzchen|froschkoenig|gestiefelte[nr]? kater|stadtmusikant|haensel|gretel|schneewittchen|dornroeschen|aschenputtel|rapunzel|hans im glueck|daeumling|sterntaler|schneeweisschen|rosenrot|schneiderlein|goldmarie|pechmarie|geisslein/i;
 
 /** How many rules the wonder may have (the other AI's review, 2026-10-16: "wieder höchstens zwei Zauberregeln"). */
 export function maxWonderRules(band?: AgeBand): number {

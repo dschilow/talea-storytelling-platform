@@ -14,7 +14,8 @@
 import { isGerman } from "../craft";
 import { STORYBOOK_SUPPORT_MODEL, fallbackModelFor, modelFamily, parseJsonObject, type CostLedger, type LlmCallResult, type LlmRequest, type StorybookLlm, type StorybookModels } from "../llm";
 import { chooseIdea, ensureEngineCast, fallbackCasting, forceEngine, mentionsName, resolveCasting, resolveEngineFigure, type CastingResult } from "./catalogue";
-import { checkChapter, mergeChapterPatch, mergeOpenThreads, mergeWorldState, mergeWordings, parseChapterCritique, parseChapters, quoteInText, type ChapterCritiqueResult } from "./chapters";
+import { checkChapter, mergeChapterPatch, mergeOpenThreads, mergeWorldState, mergeWordings, parseChapterCritique, parseChapters, quoteInText, restoreFixedWordings, type ChapterCritiqueResult } from "./chapters";
+import type { CheckIssue } from "../types";
 import { buildColdReadPrompt, coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
 import { checkBookPlan, mergePlanRevision, parseEngine, parsePitch, parsePlan, parsePlanReview, PLAN_MAX_REVISIONS, planNeedsRescue, planPassesGate, villainStyleFor } from "./plan";
 import {
@@ -171,6 +172,7 @@ export async function planBook(ctx: BookContext): Promise<PlannedBook> {
       blockedTerms: brief.blockedTerms,
       cozy: brief.form === "cozy",
       band: brief.band,
+      famousFigure: Boolean(brief.config.allowFamousCharacters),
     };
     let issues = checkBookPlan(plan, brief.book, checkInput);
 
@@ -379,9 +381,12 @@ export function enginePatchNotes(point: ChapterCritiqueResult["chapters"][number
   // Every chapter without a laugh up to LAUGH_PATCH_MAX_HUMOR that is not rewritten (laughRewriteNeeded) gets it from the patch.
   if (!point.laugh && !point.unmatched?.laugh && point.humor <= LAUGH_PATCH_MAX_HUMOR && !laughRewriteNeeded(point)) {
     laughPatched = true;
+    // "Der Kieselgarten auf Reisen": the patched laughs ended with a figure laughing at them ("Das Lachen darin konnte sie
+    // nicht verstecken") — three times the same side figure and her basket.
+    const noLaughTrack = "Keine Figur lacht über den Witz (kein „musste lachen“, kein Lachen, das jemand versteckt): das Kind lacht, die Figuren bleiben ernst oder ahnungslos.";
     notes.push(plannedChapter?.laugh
-      ? `Kapitel ${chapter.order}: Der geplante Lacher („${plannedChapter.laugh}“) landet nicht. Baue ihn in zwei bis vier Sätzen in der vorhandenen Szene auf — Figur, Steigerung, Pointe — ohne neue Handlung und ohne den Witz zu erklären. Steht der Witz schon im Kapitel, schärfe ihn an genau dieser Stelle, statt ihn ein zweites Mal einzubauen.`
-      : `Kapitel ${chapter.order}: Es gibt keine Stelle, an der ein Kind laut lacht. Baue in der vorhandenen Szene einen Lacher aus einer Eigenheit oder einem Kontrast der Figuren auf — Figur, Steigerung, Pointe, in zwei bis vier Sätzen — ohne neue Handlung und ohne den Witz zu erklären.`);
+      ? `Kapitel ${chapter.order}: Der geplante Lacher („${plannedChapter.laugh}“) landet nicht. Baue ihn in zwei bis vier Sätzen in der vorhandenen Szene auf — Figur, Steigerung, Pointe — ohne neue Handlung und ohne den Witz zu erklären. Steht der Witz schon im Kapitel, schärfe ihn an genau dieser Stelle, statt ihn ein zweites Mal einzubauen. ${noLaughTrack}`
+      : `Kapitel ${chapter.order}: Es gibt keine Stelle, an der ein Kind laut lacht. Baue in der vorhandenen Szene einen Lacher aus einer Eigenheit oder einem Kontrast der Figuren auf — Figur, Steigerung, Pointe, in zwei bis vier Sätzen — ohne neue Handlung und ohne den Witz zu erklären. ${noLaughTrack}`);
   }
   if (point.opponentPresent === false && point.suspense <= SUSPENSE_PATCH_MAX && form !== "cozy") {
     const force = plan.bible.villain?.who || plan.bible.opponent?.who || plan.bible.engineFigure || "";
@@ -564,16 +569,30 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
       });
       const merged = mergeChapterPatch(response.text, chapters, german);
       const mergedChecks = checksFor(merged);
-      const hardBefore = checks.flat().filter((issue) => issue.severity === "hard").length;
-      const hardAfter = mergedChecks.flat().filter((issue) => issue.severity === "hard").length;
-      if (hardAfter <= hardBefore) {
-        for (const chapter of merged) if (chapter.content !== chapters.find((entry) => entry.order === chapter.order)?.content) patched.add(chapter.order);
-        chapters = merged;
-        checks = mergedChecks;
+      // Per chapter: a patched chapter with more hard problems than before keeps its text — one broken quote in one
+      // chapter must not cost the other chapters of the batch their fixes (it used to be all or nothing).
+      const hard = (list: CheckIssue[]) => list.filter((issue) => issue.severity === "hard").length;
+      const accepted = merged.map((chapter, index) => (hard(mergedChecks[index]) <= hard(checks[index]) ? chapter : chapters[index]));
+      for (const [index, chapter] of accepted.entries()) if (chapter.content !== chapters[index].content) patched.add(chapter.order);
+      if (patched.size) {
+        chapters = accepted;
+        checks = checksFor(chapters);
       }
     } catch (err) {
       console.warn("[book] chapter patch failed; keeping the text:", (err as Error)?.message || err);
     }
+  }
+
+  // Fixed wordings letter for letter: a reworded rhyme goes back to its exact text (deterministic; the critic missed it).
+  const fixedWordings = [...(plan.bible.fixedWordings || []), ...(state.wordings || [])];
+  const wordingsRestored: number[] = [];
+  if (fixedWordings.length) {
+    chapters = chapters.map((chapter) => {
+      const result = restoreFixedWordings(chapter.content, fixedWordings);
+      if (!result.restored.length) return chapter;
+      wordingsRestored.push(chapter.order);
+      return { ...chapter, content: result.content };
+    });
   }
 
   // Logbook from the released text: recaps, facts with their chapter, who knows what.
@@ -641,6 +660,7 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
     range, rewritten: [...rewritten], patched: [...patched], curve, open: openIssues.length,
     ...(voiceDisputed.size ? { voiceDisputed: [...voiceDisputed] } : {}),
     ...(laughPatched.size ? { laughPatched: [...laughPatched] } : {}),
+    ...(wordingsRestored.length ? { wordingsRestored } : {}),
     ...(cold.missing.length ? { coldReadGaps: cold.missing } : {}),
     ...(openThreads.length ? { openThreads: openThreads.map((thread) => `${thread.id} (K${thread.chapter}): ${thread.question}`) } : {}),
     ...(threadNotes.length ? { answeredByPatch: threadNotes.length } : {}),

@@ -221,6 +221,9 @@ const TIC_PATTERNS_DE: Array<{ key: string; label: string; pattern: RegExp }> = 
   { key: "schulter", label: "eine Schulter zum Anlehnen", pattern: /\b(lehnte|legte) (sich |den kopf |die schulter |kurz )?(an|gegen) (seine|ihre|die) schulter\b|\bschulter an schulter\b/giu },
   { key: "atem", label: "ein angehaltener oder ausgestoßener Atem", pattern: /\bhielt (den|die) (atem|luft) an\b|\batmete (hörbar |tief |laut |erleichtert )?(aus|ein)\b/giu },
   { key: "hand", label: "eine Hand, die gedrückt oder gegriffen wird", pattern: /\b(griff|nahm) (nach )?(seine|ihre|die) hand\b|\bdrückte (seine|ihre|die) hand\b|\bhand in hand\b/giu },
+  // "Der Kieselgarten auf Reisen": a figure laughing at the joke in five chapters, Rotkäppchen three times over her basket.
+  // The child laughs; a figure who laughs along is a laugh track.
+  { key: "lachen", label: "eine Figur, die über den Witz lacht", pattern: /\bmusste(n)? (\p{L}+ )?(lachen|kichern|grinsen)\b|\bhätte(n)? (beinahe|fast) (los)?gelacht\b|\b(ihr|sein|das) lachen( \p{L}+){0,3} (hätte|konnte|kam|platzte|steckte|verstecken|unterdrücken|verkneifen)\b/giu },
 ];
 
 function ticCountsDe(text: string): Map<string, number> {

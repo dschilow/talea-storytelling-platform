@@ -128,6 +128,38 @@ export function mergeWorldState(
   return [...merged.values()].slice(-limit);
 }
 
+/**
+ * Quotes that reword a fixed wording go back to its exact text ("Der Kieselgarten auf Reisen", chapter 3: the rhyme
+ * came back as „Erst den Gruß sprechen, dann weitergehen; …“ and the next sentence said the lines sounded exactly as at
+ * the garden gate — the critic, told to check every quote, let it pass). A quote counts as the wording when it holds at
+ * least half of the wording's words (at least four, three letters or more) at about its length; a partial quote with
+ * „…“ and a deliberate new verse that shares less stay as they are.
+ */
+export function restoreFixedWordings(content: string, wordings: Array<{ what: string; text: string }>): { content: string; restored: string[] } {
+  let next = String(content || "");
+  const restored: string[] = [];
+  const significant = (text: string) => words(text).filter((word) => word.length >= 3);
+  for (const wording of wordings) {
+    const target = String(wording.text || "").trim().replace(/^[„"»«“]+|[“”"«»]+$/g, "").trim();
+    const targetWords = significant(target);
+    const targetSet = new Set(targetWords);
+    if (targetSet.size < 4) continue;
+    next = next.replace(/„([^„“”]{8,400})[“”]/g, (match: string, inner: string, offset: number, whole: string) => {
+      const said = inner.trim();
+      if (said === target || said.replace(/[.!?]$/, "") === target.replace(/[.!?]$/, "") || /…|\.\.\./.test(said)) return match;
+      const saidWords = significant(said);
+      if (saidWords.length > targetWords.length * 1.5 || saidWords.length < targetWords.length * 0.6) return match;
+      const shared = new Set(saidWords.filter((word) => targetSet.has(word))).size;
+      if (shared < 4 || shared < targetSet.size * 0.5) return match;
+      restored.push(wording.what);
+      // German direct speech before its speech tag drops the full stop („… sehen“, sagte er).
+      const tagFollows = /^\s*,/.test(whole.slice(offset + match.length));
+      return `„${tagFollows ? target.replace(/\.$/, "") : target}“`;
+    });
+  }
+  return { content: next, restored };
+}
+
 /** Wordings keep their first version (the plan's or the first chapter's); a thing named again does not replace it. */
 export function mergeWordings(
   previous: Array<{ what: string; text: string }>,
@@ -162,6 +194,10 @@ export function checkChapter(chapter: BookChapter, input: { brief: BookBrief; bu
   if (count < budget.wordsPerChapterMin * 0.7) at(`nur ${count} Wörter, gebraucht ${budget.wordsPerChapterMin}–${budget.wordsPerChapterMax}.`, "chapter_short", "hard");
   else if (count > budget.wordsPerChapterMax * 1.5) at(`${count} Wörter, höchstens ${budget.wordsPerChapterMax} — kürzen, ohne Handlung zu verlieren.`, "chapter_long", "soft");
   if (/\[object Object\]|\{\{|\}\}|\bundefined\b|\bNaN\b|\bSEITE\s+\d+|\bKAPITEL\s+\d+/.test(chapter.content)) at("technische Reste im Text.", "serialization_artifact", "hard");
+  // "Der Kieselgarten auf Reisen": „Und fasst meine Steine nicht achtlos an.“ stood alone — a quote without its start.
+  for (const paragraph of brokenQuoteParagraphs(chapter.content).slice(0, 2)) {
+    at(`die wörtliche Rede in „${paragraph.slice(0, 90)}${paragraph.length > 90 ? " …" : ""}“ ist unvollständig (Anführungszeichen ohne Gegenstück). Stelle den Satz mit Sprecher vollständig her oder streiche den Rest.`, "broken_quote", "hard");
+  }
   // Looks: the pictures show the heroes; the text must not contradict them.
   for (const issue of inventedHeroLooks([{ order: chapter.order, title: chapter.title, content: chapter.content }], input.brief.heroes)) {
     issues.push({ ...issue, message: issue.message.replace(/^Seite (\d+)/, "Kapitel $1") });
@@ -362,9 +398,36 @@ export function dropEchoedSentences(before: string, after: string): string {
   };
   return after
     .split(/\n\s*\n/)
-    .map((paragraph) => sentencesOf(paragraph).filter((part) => originalSet.has(part.trim()) || !echoes(part.trim())).join("").trim())
+    .map((paragraph) => {
+      const parts = sentencesOf(paragraph);
+      const keep = parts.filter((part) => originalSet.has(part.trim()) || !echoes(part.trim()));
+      const filtered = keep.join("").trim();
+      if (keep.length === parts.length || quoteBalance(filtered) === quoteBalance(paragraph)) return filtered;
+      // "Der Kieselgarten auf Reisen", chapter 2: the patch let the troll introduce himself a second time in one quote;
+      // its first two sentences went as echoes and „Und fasst meine Steine nicht achtlos an.“ stayed without its opening
+      // and its speaker. A quote is never cut: an added paragraph that mostly repeats goes whole, any other stays whole.
+      const added = !parts.some((part) => originalSet.has(part.trim()));
+      return added && keep.length * 2 <= parts.length ? "" : paragraph.trim();
+    })
     .filter(Boolean)
     .join("\n\n");
+}
+
+/**
+ * Opening minus closing quotation marks: zero when every quote of the text is complete. German „…“ (closed by “ or ”);
+ * without a „ the curly pair is English “…” — so a German line left with only its closing “ counts as open. Guillemets
+ * pair in either direction (»…« or «…»), straight quotes by parity.
+ */
+export function quoteBalance(text: string): number {
+  const value = String(text || "");
+  const count = (pattern: RegExp) => (value.match(pattern) || []).length;
+  const curly = value.includes("„") ? count(/„/g) - count(/[“”]/g) : count(/“/g) - count(/”/g);
+  return curly + (count(/»/g) - count(/«/g)) + (count(/"/g) % 2);
+}
+
+/** Paragraphs whose direct speech opens without closing or closes without opening (a patch cut, a lost line). */
+export function brokenQuoteParagraphs(content: string): string[] {
+  return String(content || "").split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter((paragraph) => paragraph && quoteBalance(paragraph) !== 0);
 }
 
 /** The patch returns only changed chapters; unknown numbers or a rewritten chapter are rejected. */

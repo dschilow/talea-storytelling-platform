@@ -29,7 +29,9 @@ export function coldReadQuestions(input: { heroes: string[]; relation: string | 
     if (input.relation && input.heroes.length > 1) questions.push({ id: "together", question: `How do ${input.heroes.join(" and ")} belong together?` });
     questions.push({ id: "goal", question: "What do the heroes want to achieve, and by when?" });
   }
-  for (const name of input.newcomers) questions.push({ id: `cast:${name}`, question: `Who or what is ${name}, and why is ${name} with the heroes?` });
+  // "Der Kieselgarten auf Reisen": "why is the troll with the heroes?" has no answer for a troll who guards his own
+  // bridge — the patch made him introduce himself twice. The question asks what the figure is doing there.
+  for (const name of input.newcomers) questions.push({ id: `cast:${name}`, question: `Who or what is ${name}, and why is ${name} there when the heroes meet ${name}?` });
   return questions;
 }
 
@@ -78,7 +80,7 @@ export function coldReadNotes(missing: string[], input: { chapters: BookChapter[
       const name = id.slice(5);
       const first = input.chapters.find((chapter) => mentionsName(chapter.content, name))?.order ?? firstChapter;
       const intro = input.plan.bible.characters.find((character) => mentionsName(character.name, name))?.introduction;
-      notes.push(`Kapitel ${first}: Beim ersten Auftritt von ${name} erfährt ein Kind nicht, wer oder was ${name} ist und warum ${name} da ist. Ergänze dort ein bis zwei Sätze, die in der Handlung stehen — als Reaktion der Helden oder wörtliche Rede, nicht als Erzähler-Satz wie „X war ein …“${intro ? ` (gemeint ist: ${intro})` : ""}.`);
+      notes.push(`Kapitel ${first}: Beim ersten Auftritt von ${name} erfährt ein Kind nicht, wer oder was ${name} ist und warum ${name} da ist. Ergänze dort ein bis zwei Sätze, die in der Handlung stehen — als Reaktion der Helden oder wörtliche Rede, nicht als Erzähler-Satz wie „X war ein …“${intro ? ` (gemeint ist: ${intro})` : ""}. Stellt sich ${name} dort schon vor, schärfe genau diesen Satz, statt eine zweite Vorstellung zu schreiben.`);
     }
   }
   return notes;

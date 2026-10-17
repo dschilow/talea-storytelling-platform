@@ -637,7 +637,7 @@ export async function describeReferenceLooks(
 ): Promise<{ entities: VisualEntity[]; call?: LlmCallResult }> {
   // Heroes too: story 5b1b8b7a gave Alexander four different shirts in seven
   // pictures — the avatar profile had no outfit, the sheet alone did not hold it.
-  const keyFor = (entity: VisualEntity) => JSON.stringify(["look-v3", model, entity.id, entity.referenceKey || entity.referenceUrl, entity.species, entity.appearance]);
+  const keyFor = (entity: VisualEntity) => JSON.stringify(["look-v4", model, entity.id, entity.referenceKey || entity.referenceUrl, entity.species, entity.appearance]);
   const apply = (entity: VisualEntity, cached?: { look: string; tag?: string }) =>
     cached ? { ...entity, appearance: cached.look, ...(cached.tag ? { tag: cached.tag } : {}) } : entity;
   const now = Date.now();
@@ -656,6 +656,9 @@ export async function describeReferenceLooks(
         // Distinctive item first, so no budget cut can drop it (A/B 2026-09-29:
         // variant H — fewest defects in both stories).
         "For each character write ONE English line, at most 25 words, of what stays the same in every picture. Start with the most distinctive thing (a pointed witch hat, wings, a crown, a shell, a star-patterned jacket), then apparent age, skin tone, hair colour and style (or fur/feather colours), the main clothing pieces with colours. Only what is visible, no mood, no background.",
+        // "Der Kieselgarten auf Reisen" (2026-10-16): a small logo on a hero's shirt became pseudo-letters on the cover and
+        // sank a picture on "text visible". Garments are described plain.
+        "Describe every garment as plain (a shirt with a logo or print is 'plain navy T-shirt'): never mention logos, prints, letters, numbers or writing.",
         // Story 774d5a5e: the action sentence binds to this tag, not to a name the image model cannot know.
         "Also a tag for each: at most 6 words that tell this figure apart from the others at a glance — hair or fur colour plus the main garment with its colour (e.g. 'blond boy in dark T-shirt', 'woman in floral apron').",
         JSON.stringify({ looks: Object.fromEntries(targets.map((entity, index) => [`e${index + 1}`, "…"])), tags: Object.fromEntries(targets.map((entity, index) => [`e${index + 1}`, "…"])) }),

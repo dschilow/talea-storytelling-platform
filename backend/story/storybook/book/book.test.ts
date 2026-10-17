@@ -1012,26 +1012,67 @@ describe("Der Erzählmotor (Die Türlaunische, 2026-10-16): wer das Buch antreib
     expect(issues).toContain("repeated_tic");
   });
 
-  test("every acting cast figure gets into a picture of its chapter; a hero gives way when the picture is full, one hero always stays", () => {
+  test("every acting cast figure gets into a picture of its chapter; in a full picture an absent side figure gives way, never a present hero", () => {
     const make = (id: string, name: string, role: "hero" | "cast"): VisualEntity => ({ id, name, kind: "character", role, species: "human", isHuman: true, appearance: "x", forbidden: [] });
-    const entities = [make("h1", "Alexander", "hero"), make("h2", "Adrian", "hero"), make("c1", "Schnüffel", "cast"), make("c2", "Bäcker Braun", "cast")];
+    const entities = [make("h1", "Alexander", "hero"), make("h2", "Adrian", "hero"), make("c1", "Schnüffel", "cast"), make("c2", "Bäcker Braun", "cast"), make("c3", "Oma Hilde", "cast")];
     const content = ["Alexander und Adrian standen am Zaun.", "Schnüffel putzte seine Lupe.", "Adrian lachte.", "Alexander ging weiter.", "Schnüffel folgte ihnen.", "Alexander blieb stehen.", "Bäcker Braun öffnete die Tür.", "Adrian trat ein.", "Alexander roch das Brot.", "Braun lachte.", "Adrian nickte.", "Alexander auch."].join("\n\n");
     const chapters = [{ order: 1, title: "t", recap: "", content }];
     const slots = buildImageSlots(chapters, parsePlan(planJson(), 12)!, 2);
     const shots = [
       { page: 1, scene: "The boys at the fence.", onStage: ["h1", "h2"], artifactVisible: false, paragraph: 3 },
-      { page: 2, scene: "The boys at the bakery door.", onStage: ["h1", "h2", "x"], artifactVisible: false, paragraph: 3 },
+      { page: 2, scene: "The boys at the bakery door.", onStage: ["h1", "h2", "c3"], artifactVisible: false, paragraph: 3 },
     ] as any;
     const { shots: fixed, changes } = enforceCastPresence({ slots, shots, entities, chapters, maxPerImage: 3, engineFigure: "Schnüffel" });
     expect(fixed[0].onStage).toEqual(["h1", "h2", "c1"]);
-    expect(fixed[1].onStage).toContain("c2");
-    expect(fixed[1].onStage.filter((id: string) => id === "h1" || id === "h2")).toHaveLength(1);
-    expect(fixed[1].scene).toContain("instead of Adrian");
-    expect(changes).toEqual([{ chapter: 1, part: 0, name: "Schnüffel" }, { chapter: 1, part: 1, name: "Bäcker Braun", replaced: "Adrian" }]);
+    // Oma Hilde is nowhere near the bakery door: she gives way, both heroes stay.
+    expect(fixed[1].onStage).toEqual(["h1", "h2", "c2"]);
+    expect(fixed[1].scene).toContain("Bäcker Braun is also in this picture");
+    expect(fixed[1].scene).toContain("Oma Hilde is not in this picture");
+    expect(changes).toEqual([{ chapter: 1, part: 0, name: "Schnüffel" }, { chapter: 1, part: 1, name: "Bäcker Braun", replaced: "Oma Hilde" }]);
     // The director's own plan stays untouched.
     expect(shots[0].onStage).toEqual(["h1", "h2"]);
     // Nothing to do: no change.
     expect(enforceCastPresence({ slots, shots: fixed, entities, chapters, maxPerImage: 3 }).changes).toEqual([]);
+  });
+
+  test("a figure only talked about is not drawn, and a full picture never loses a hero who is in its part of the text", () => {
+    // "Der Kieselgarten auf Reisen" (2026-10-16): the troll, only mentioned in dialogue in chapter 3, replaced Alexander;
+    // Rotkäppchen replaced Adrian in three full pictures while he acted a paragraph later.
+    const make = (id: string, name: string, role: "hero" | "cast"): VisualEntity => ({ id, name, kind: "character", role, species: "human", isHuman: true, appearance: "x", forbidden: [] });
+    const entities = [make("h1", "Alexander", "hero"), make("h2", "Adrian", "hero"), make("c1", "Troll Grummel", "cast"), make("b1", "Rotkäppchen", "cast")];
+    const talkedAbout = ["Rotkäppchen hob einen Zweig.", "„Das sagt Grummel auch“, sagte Alexander.", "Adrian nickte.", "„Hinter Grummels Brücke liegt der Bogen.“", "Alexander stand auf.", "Adrian ging voran.", "Rotkäppchen folgte.", "Alexander sah den Bogen."].join("\n\n");
+    const chapter3 = [{ order: 3, title: "t", recap: "", content: talkedAbout }];
+    const slots3 = buildImageSlots(chapter3, parsePlan(planJson(), 12)!, 1);
+    const shots3 = [{ page: 1, scene: "Rotkäppchen lifts a willow branch.", onStage: ["h1", "h2", "b1"], artifactVisible: false, paragraph: 2 }] as any;
+    const third = enforceCastPresence({ slots: slots3, shots: shots3, entities, chapters: chapter3, maxPerImage: 3 });
+    expect(third.changes).toEqual([]);
+    expect(third.shots[0].onStage).toEqual(["h1", "h2", "b1"]);
+
+    const busy = ["Grummel sortierte Steine.", "Alexander hielt den Kiesel.", "Grummel ordnete drei Steine.", "„Die gehören zu verschiedenen Blumen“, sagte Adrian.", "Rotkäppchen nahm ihr Körbchen hoch.", "Grummel nickte.", "Alexander setzte den Kiesel zurück.", "Adrian legte den letzten Stein.", "Rotkäppchen ließ das Körbchen hängen.", "Alexander kniete.", "Adrian lächelte.", "Alexander stand auf."].join("\n\n");
+    const chapter6 = [{ order: 6, title: "t", recap: "", content: busy }];
+    const slots6 = buildImageSlots(chapter6, parsePlan(planJson(), 12)!, 2);
+    const shots6 = [
+      { page: 1, scene: "Grummel sorts stones; Adrian points.", onStage: ["h1", "h2", "c1"], artifactVisible: false, paragraph: 4 },
+      { page: 2, scene: "The boys put the pebble back.", onStage: ["h1", "h2"], artifactVisible: false, paragraph: 3 },
+    ] as any;
+    const sixth = enforceCastPresence({ slots: slots6, shots: shots6, entities, chapters: chapter6, maxPerImage: 3 });
+    // Rotkäppchen goes where there is room and she acts — the heroes in the full picture stay.
+    expect(sixth.shots[0].onStage).toEqual(["h1", "h2", "c1"]);
+    expect(sixth.shots[1].onStage).toEqual(["h1", "h2", "b1"]);
+    expect(sixth.changes).toEqual([{ chapter: 6, part: 1, name: "Rotkäppchen" }]);
+    expect(sixth.changes.some((change) => change.replaced)).toBe(false);
+
+    // A figure that acts in the batch but in no picture's moment still gets one picture with room in its segment.
+    const late = ["Alexander lief los.", "Adrian folgte.", "Alexander rief.", "Adrian lachte.", "Alexander blieb stehen.", "Rotkäppchen winkte vom Zaun.", "Alexander ging heim.", "Adrian auch.", "Alexander aß.", "Adrian trank.", "Alexander gähnte.", "Adrian schlief."].join("\n\n");
+    const chapter7 = [{ order: 7, title: "t", recap: "", content: late }];
+    const slots7 = buildImageSlots(chapter7, parsePlan(planJson(), 12)!, 2);
+    const shots7 = [
+      { page: 1, scene: "The boys run.", onStage: ["h1", "h2"], artifactVisible: false, paragraph: 3 },
+      { page: 2, scene: "The boys at home.", onStage: ["h1", "h2"], artifactVisible: false, paragraph: 3 },
+    ] as any;
+    const seventh = enforceCastPresence({ slots: slots7, shots: shots7, entities, chapters: chapter7, maxPerImage: 3 });
+    expect(seventh.shots[0].onStage).toEqual(["h1", "h2", "b1"]);
+    expect(seventh.shots[1].onStage).toEqual(["h1", "h2"]);
   });
 
   test("the family's memory names lessons and motifs; the pitch and the plan review read them", () => {
@@ -1178,6 +1219,16 @@ describe("Die rollende Woche (2026-10-16): der Motor wird erzwungen, die Besetzu
     const strict = checkNamedFigures(parsePlan(raw, 12)!, checkInput);
     expect(strict).toHaveLength(1);
     expect(strict[0]).toContain("„Rotkäppchen“ ist weder Held noch besetzte Pool-Figur");
+    // "Der Kieselgarten auf Reisen": the family asked for a famous fairy-tale figure — Rotkäppchen keeps her name, but needs her look.
+    const asked = checkNamedFigures(parsePlan(raw, 12)!, { ...checkInput, famousFigure: true });
+    expect(asked).toEqual(["Für „Rotkäppchen“ fehlt look: die Erscheinung auf Englisch in 10-18 Wörtern (Art, Alter, Statur, Haar oder Fell, Kleidung oder Farben) und kind (person, animal, creature, thing) — ohne sie sieht die Figur auf jedem Bild anders aus."]);
+    const withLook = planJson();
+    withLook.bible.characters.push({ name: "Rotkäppchen", wants: "x", can: "x", flaw: "x", avoids: "x", voice: "x", challengedBy: "x", finalChoice: "x", look: "a girl of about eight in a red hooded cape and red dress, with a wicker basket", kind: "person" });
+    withLook.bible.characters.push({ name: "Der Geräusche-Fresser", wants: "x", can: "x", flaw: "x", avoids: "x", voice: "x", challengedBy: "x", finalChoice: "x", look: "a round grey creature with huge ears and a jar", kind: "creature" });
+    expect(checkNamedFigures(parsePlan(withLook, 12)!, { ...checkInput, famousFigure: true })).toEqual([]);
+    // The wish covers the famous figure only, never an invented neighbour child.
+    withLook.bible.characters.push({ name: "Nachbarskind Lotte", wants: "x", can: "x", flaw: "x", avoids: "x", voice: "x", challengedBy: "x", finalChoice: "x" });
+    expect(checkNamedFigures(parsePlan(withLook, 12)!, { ...checkInput, famousFigure: true }).join(" ")).toContain("„Nachbarskind Lotte“ ist weder Held");
     // The whole check reports it; the plain fixture stays clean.
     expect(checkBookPlan(parsePlan(raw, 12)!, budget, checkInput).join("\n")).toContain("Rotkäppchen");
     expect(checkBookPlan(parsePlan(planJson(), 12)!, budget, checkInput)).toEqual([]);
@@ -1448,5 +1499,78 @@ describe("Luna und der Brunnenbrief (2026-10-16): die Motorfigur ist besetzt, ei
     expect(stilted.find((issue) => issue.code === "stilted_grownup")?.severity).toBe("soft");
     const learned = buildPlanPrompt(brief({ recentStories: ["Lektion (Alexander) in „Die Flotte der Minuten“: rennt los → wartet auf das Zeichen"] }), guestIdea("Luna"), [], []).user;
     expect(learned).toContain("ALREADY LEARNED IN EARLIER BOOKS");
+  });
+});
+
+// 2026-10-16, "Der Kieselgarten auf Reisen": a quote cut by the echo filter, a rhyme quoted three ways, a laugh track,
+// a cold-read question a guardian figure cannot answer.
+import { brokenQuoteParagraphs, quoteBalance, restoreFixedWordings } from "./chapters";
+
+describe("Der Kieselgarten auf Reisen (2026-10-16): Zitate bleiben ganz, Reime wörtlich, keine Lachkonserve", () => {
+  const budget = resolveBookBudget("6-8", { chapters: 8 });
+
+  test("the echo filter never cuts a quote: a repeated introduction goes whole, the lonely closing line does not stay", () => {
+    const before = [
+      "„Ich bin Grummel, der Troll, und ich bewache diese Brücke“, sagte der Fremde. „Wer hinüberwill, wartet.“",
+      "Grummel prüfte die drei Steine noch einmal und nickte ihnen zu, als stellten sie sich nun endlich ordentlich an.",
+    ].join("\n\n");
+    const after = `${before}\n\n„Ich bin Grummel, der Troll, und ich bewache diese Brücke. Wer hinüberwill, wartet. Und fasst meine Steine nicht achtlos an.“`;
+    const cleaned = dropEchoedSentences(before, after);
+    expect(cleaned).not.toContain("Und fasst meine Steine");
+    expect(cleaned).toBe(before);
+    expect(brokenQuoteParagraphs(cleaned)).toEqual([]);
+    // A new quote that only partly echoes stays whole rather than losing its opening.
+    const mixed = `${before}\n\nAdrian nickte. „Ich bin Grummel, der Troll, und ich bewache diese Brücke, hat er gesagt. Und er mag Brötchen. Und Kiesel. Und Ordnung.“`;
+    expect(brokenQuoteParagraphs(dropEchoedSentences(before, mixed))).toEqual([]);
+  });
+
+  test("quote balance reads German, English and guillemets; a closing mark alone is a broken quote, and a hard one", () => {
+    expect(quoteBalance("„Hier entlang“, sagte er. „Heute ohne nasse Füße.“")).toBe(0);
+    expect(quoteBalance("Und fasst meine Steine nicht achtlos an.“")).not.toBe(0);
+    expect(quoteBalance("„Nicht kehren“, rief der Garten. „Ich stehe noch drauf.")).not.toBe(0);
+    expect(quoteBalance("“This way,” he said. “No wet feet today.”")).toBe(0);
+    expect(quoteBalance("»Hier«, sagte er.")).toBe(0);
+    expect(quoteBalance("Kein Zitat in diesem Absatz.")).toBe(0);
+    const content = ["Grummel prüfte die drei Steine.", "Und fasst meine Steine nicht achtlos an.“", "„Wir passen auf“, sagte Adrian."].join("\n\n");
+    const issues = checkChapter({ order: 2, title: "t", recap: "", content }, { brief: brief(), budget, earlier: [], names: ["Alexander", "Adrian"] });
+    const broken = issues.find((issue) => issue.code === "broken_quote");
+    expect(broken?.severity).toBe("hard");
+    expect(broken?.message).toContain("Und fasst meine Steine");
+  });
+
+  test("a reworded fixed rhyme goes back to its exact text; a partial quote and a deliberate new verse stay", () => {
+    const wordings = [{ what: "Reim des Gartens", text: "Erst grüßen, dann gehen; am Bogen bleiben stehen; beim alten Rand den Anfang sehen." }];
+    const chapter3 = "„Erst den Gruß sprechen, dann weitergehen; am Bogen haltmachen; beim alten Rand den Anfang entdecken.“\n\nAlexander sprach langsam. Die Zeilen klangen genau wie am Gartentor.";
+    const restored = restoreFixedWordings(chapter3, wordings);
+    expect(restored.restored).toEqual(["Reim des Gartens"]);
+    expect(restored.content).toContain("„Erst grüßen, dann gehen; am Bogen bleiben stehen; beim alten Rand den Anfang sehen.“");
+    // Before a speech tag the full stop goes.
+    expect(restoreFixedWordings("„Erst den Gruß sprechen, dann weitergehen; am Bogen haltmachen; beim alten Rand den Anfang entdecken“, sagte er.", wordings).content)
+      .toBe("„Erst grüßen, dann gehen; am Bogen bleiben stehen; beim alten Rand den Anfang sehen“, sagte er.");
+    const verse = "„Am Aufgang ein Gruß, am Bogen verweilen, am alten Rand den Weg teilen.“";
+    expect(restoreFixedWordings(verse, wordings).content).toBe(verse);
+    const partial = "„Erst grüßen, dann gehen …“, murmelte Alexander.";
+    expect(restoreFixedWordings(partial, wordings).content).toBe(partial);
+    expect(restoreFixedWordings("„Guten Tag“, sagte Rotkäppchen.", wordings).restored).toEqual([]);
+  });
+
+  test("a figure laughing at the joke is a tic; the laugh patch asks for none", () => {
+    // The book's own sentences.
+    const earlier = ["Alexander musste lachen.", "Rotkäppchen hielt ihr Körbchen sehr still. Das Lachen darin konnte sie allerdings nicht verstecken.", "Rotkäppchen setzte ihr Körbchen hastig ab. Ihr Lachen hätte beinahe das Tuch heruntergepustet."];
+    const tics = repeatedTics("Alexander hätte beinahe gelacht.", earlier);
+    expect(tics.map((tic) => tic.key)).toEqual(["lachen"]);
+    expect(tics[0].total).toBe(4);
+    expect(repeatedTics("Der Garten knirschte.", earlier)).toEqual([]);
+    const plan = parsePlan(planJson(), 12)!;
+    const point = { n: 1, laugh: null, hook: "h", suspense: 5, humor: 3, voice: 8, lesson: null, opponentPresent: true, newChant: null, progress: true, missingPlants: [] } as any;
+    const patch = enginePatchNotes(point, { order: 1, title: "t", recap: "", content: "x" }, plan, "journey");
+    expect(patch.notes[0]).toContain("Keine Figur lacht über den Witz");
+  });
+
+  test("the cold reader asks why a newcomer is there, not why it is with the heroes; the note forbids a second introduction", () => {
+    const [question] = coldReadQuestions({ heroes: ["Alexander", "Adrian"], relation: null, orientation: false, newcomers: ["Troll Grummel"] });
+    expect(question.question).toBe("Who or what is Troll Grummel, and why is Troll Grummel there when the heroes meet Troll Grummel?");
+    const notes = coldReadNotes(["cast:Troll Grummel"], { chapters: [{ order: 2, title: "t", recap: "", content: "Troll Grummel stand auf der Brücke." }], plan: parsePlan(planJson(), 12)!, heroes: ["Alexander", "Adrian"], relation: null });
+    expect(notes[0]).toContain("statt eine zweite Vorstellung zu schreiben");
   });
 });
