@@ -491,7 +491,9 @@
       "feeling": "Welk gevoel?",
       "wishes": "Speciale wensen? (Optioneel)",
       "summary": "Alles klaar!",
-      "learning": "Moet het verhaal iets leren?"
+      "learning": "Moet het verhaal iets leren?",
+      "shape": "Hoe moet je verhaal zijn?",
+      "extras": "Nog een wens?"
     },
     "subtitles": {
       "avatars": "Selecteer 1-4 avatars voor het verhaal.",
@@ -499,8 +501,9 @@
       "ageLength": "Pas het verhaal aan de leeftijd en beschikbare tijd aan.",
       "feeling": "Selecteer 1-3 stemmingen.",
       "wishes": "Voeg speciale kenmerken toe of sla deze stap over.",
-      "summary": "Controleer je selectie en maak het verhaal.",
-      "learning": "Optioneel — het blijft vooral een verhaal."
+      "summary": "Tik op een regel om iets te veranderen.",
+      "learning": "Optioneel — het blijft vooral een verhaal.",
+      "extras": "Alles is vrijwillig – je kunt ook meteen verder."
     },
     "buttons": {
       "back": "Terug",
@@ -647,13 +650,15 @@
       }
     },
     "steps": {
-      "avatars": "Avatars",
-      "category": "Categorie",
+      "avatars": "Wie",
+      "category": "Wereld",
       "ageLength": "Leeftijd en Duur",
       "feeling": "Gevoelens",
       "wishes": "Wensen",
-      "summary": "Samenvatting",
-      "learning": "Leren"
+      "summary": "Start!",
+      "learning": "Leren",
+      "shape": "Gevoel",
+      "extras": "Wensen"
     },
     "loading": {
       "title": "Je verhaal wordt geschreven...",
@@ -707,6 +712,31 @@
           "description": "Een open vraag aan het eind"
         }
       }
+    },
+    "shape": {
+      "lengthTitle": "Hoe lang?",
+      "feelingTitle": "Hoe moet het voelen?",
+      "feelingHint": "tot 3"
+    },
+    "extras": {
+      "learnTitle": "Iets leren?",
+      "learnDescription": "De kennis zit midden in het avontuur.",
+      "parentSettings": "Meer instellingen (voor ouders)",
+      "ownWishTitle": "Eigen wens"
+    },
+    "ready": {
+      "who": "Wie",
+      "world": "Wereld",
+      "length": "Lengte",
+      "feeling": "Gevoel",
+      "extras": "Extra’s",
+      "noExtras": "Geen – tik om iets te wensen",
+      "withoutHero": "zonder hoofdrol",
+      "withoutHappyEnd": "zonder happy end",
+      "treasure": "Schat: {{name}}",
+      "ageTitle": "Voor welke leeftijd?",
+      "ageYears": "jaar",
+      "ageMissing": "Kies nog een leeftijd."
     }
   },
   "landing": {

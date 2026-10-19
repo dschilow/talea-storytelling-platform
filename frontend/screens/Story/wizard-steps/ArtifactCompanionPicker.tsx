@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Footprints, Gem, Sparkles, Star, X } from 'lucide-react';
+import { Check, Footprints, Sparkles, Star, X } from 'lucide-react';
 
 import { useBackend } from '../../../hooks/useBackend';
 import { cn } from '@/lib/utils';
+import { StoryWizardIcon } from './StoryWizardIcon';
+import { TONE } from './wizardChoices';
 
 export interface BroughtArtifactSelection {
   artifactId: string;
@@ -77,27 +79,20 @@ export default function ArtifactCompanionPicker({ selectedAvatars, broughtArtifa
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card/70 p-4">
-      <div className="flex items-start gap-3">
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15">
-          <Gem className="h-4 w-4 text-amber-600" />
+    <section className="rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-4">
+      <div className="flex items-center gap-3">
+        <span
+          className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-[0.95rem]"
+          style={{ background: `color-mix(in srgb, ${TONE.sky} 14%, transparent)`, color: TONE.sky }}
+        >
+          <StoryWizardIcon name="gem" className="h-9 w-9" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-foreground">Einen Schatz mitnehmen?</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Ein Artefakt aus der Schatzkammer reist mit und sammelt eine Reise für seinen Stufenaufstieg.
-            Dafür gibt es am Ende ein Fundstück statt eines neuen Artefakts.
+          <p className="text-[16px] font-semibold text-foreground">Einen Schatz mitnehmen?</p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
+            Er reist mit und wird stärker. Dafür gibt es am Ende ein Fundstück statt eines neuen Schatzes.
           </p>
         </div>
-        {broughtArtifact && (
-          <button
-            type="button"
-            onClick={() => onSelect(null)}
-            className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-3 w-3" /> Ohne Schatz
-          </button>
-        )}
       </div>
 
       {loading ? (
@@ -172,18 +167,29 @@ export default function ArtifactCompanionPicker({ selectedAvatars, broughtArtifa
 
       <AnimatePresence>
         {broughtArtifact && (
-          <motion.p
+          <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="mt-2 flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300"
+            className="mt-2 flex items-center gap-2"
           >
-            <Sparkles className="h-3.5 w-3.5 shrink-0" />
-            {broughtArtifact.name} reist mit!
-            {broughtArtifact.journeysUntilNextLevel
-              ? ` Noch ${broughtArtifact.journeysUntilNextLevel} ${broughtArtifact.journeysUntilNextLevel === 1 ? 'Reise' : 'Reisen'} bis Stufe ${broughtArtifact.nextLevel}.`
-              : ''}
-          </motion.p>
+            <p className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+              <Sparkles className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                {broughtArtifact.name} reist mit!
+                {broughtArtifact.journeysUntilNextLevel
+                  ? ` Noch ${broughtArtifact.journeysUntilNextLevel} ${broughtArtifact.journeysUntilNextLevel === 1 ? 'Reise' : 'Reisen'} bis Stufe ${broughtArtifact.nextLevel}.`
+                  : ''}
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => onSelect(null)}
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3 w-3" /> Ohne Schatz
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </section>

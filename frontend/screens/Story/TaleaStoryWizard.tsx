@@ -13,7 +13,6 @@ import {
   Loader2,
   Sparkles,
   Users,
-  Wand2,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
@@ -31,7 +30,6 @@ import { cn } from '@/lib/utils';
 import {
   TaleaActionButton,
   TaleaPageBackground,
-  TaleaProgressSteps,
   taleaBodyFont,
   taleaDisplayFont,
   taleaPageShellClass,
@@ -40,15 +38,14 @@ import {
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
 import type { BroughtArtifactSelection } from './wizard-steps/ArtifactCompanionPicker';
 import Step2CategorySelection from './wizard-steps/Step2CategorySelection';
-import Step3AgeAndLength from './wizard-steps/Step3AgeAndLength';
-import Step4StoryFeeling from './wizard-steps/Step4StoryFeeling';
-import Step5SpecialWishes from './wizard-steps/Step5SpecialWishes';
-import Step6LearningMode, {
-  DEFAULT_LEARNING_MODE,
-  type LearningModeValue,
-} from './wizard-steps/Step6LearningMode';
-import Step6Summary from './wizard-steps/Step6Summary';
+import StepStoryShape from './wizard-steps/StepStoryShape';
+import StepExtras from './wizard-steps/StepExtras';
+import { DEFAULT_LEARNING_MODE, type LearningModeValue } from './wizard-steps/LearningModeSection';
+import StepReady from './wizard-steps/StepReady';
+import StepEngineMode from './wizard-steps/StepEngineMode';
 import StepBookFormat, { readStoredHeroRelation, type ExperienceForm } from './wizard-steps/StepBookFormat';
+import type { StoryWizardIconName } from './wizard-steps/StoryWizardIcon';
+import { WizardStepBar } from './wizard-steps/wizardChoices';
 import {
   createStoryGenerationId,
   generateStoryWithModelFallback,
@@ -57,7 +54,6 @@ import {
 } from './storyGenerateWithModelFallback';
 import {
   DEFAULT_OPENROUTER_STORY_MODEL,
-  STORYBOOK_OPENROUTER_STORY_MODEL,
   type AIModel,
   type AIProvider,
   type OpenRouterStoryModel,
@@ -97,16 +93,20 @@ interface WizardState {
 
 type GenerationStep = 'profiles' | 'memories' | 'text' | 'validation' | 'images' | 'complete';
 
-type StepKey =
-  | 'mode'
-  | 'avatars'
-  | 'category'
-  | 'book'
-  | 'ageLength'
-  | 'feeling'
-  | 'learning'
-  | 'wishes'
-  | 'summary';
+// Four quick picture choices (who, world, length + mood, extras) and the start page.
+// Age comes from the child profile and is changed on the last page; learning, the
+// treasure and the own wish are folded into "extras" because they are optional.
+type StepKey = 'mode' | 'avatars' | 'category' | 'book' | 'shape' | 'extras' | 'ready';
+
+const STEP_ICONS: Record<StepKey, StoryWizardIconName> = {
+  mode: 'sliders',
+  avatars: 'people',
+  category: 'globe',
+  book: 'books3',
+  shape: 'smile',
+  extras: 'shootingStar',
+  ready: 'sparkles',
+};
 
 type StoryCredits = {
   limit: number | null;
@@ -159,13 +159,6 @@ const GENERATION_STEPS: { key: GenerationStep; icon: React.FC<{ className?: stri
 ];
 
 const WizardBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => <TaleaPageBackground isDark={isDark} />;
-
-const StepIndicator: React.FC<{ activeStep: number; labels: string[]; palette: Palette }> = ({ activeStep, labels }) => (
-  <TaleaProgressSteps
-    steps={labels.map((label, index) => ({ id: `wizard-step-${index}`, label }))}
-    activeIndex={activeStep}
-  />
-);
 
 const GenerationProgress: React.FC<{ currentStep: GenerationStep; palette: Palette }> = ({ currentStep, palette }) => {
   const currentIndex = GENERATION_STEPS.findIndex((step) => step.key === currentStep);
@@ -298,7 +291,8 @@ export default function TaleaStoryWizard() {
     mainCategory: initialCategory || (isMapAutoFill ? 'adventure' : null),
     subCategory: null,
     ageGroup: isMapAutoFill ? '6-8' : null,
-    length: isMapAutoFill ? 'medium' : null,
+    // A sensible default is one decision less; the child can still change it.
+    length: 'medium',
     feelings: isMapAutoFill ? ['exciting'] : [],
     rhymes: false,
     moral: false,
@@ -332,28 +326,29 @@ export default function TaleaStoryWizard() {
         'avatars',
         'category',
         ...(state.chapterBookMode ? (['book'] as const) : []),
-        'ageLength',
-        'feeling',
-        'learning',
-        'wishes',
-        'summary',
+        'shape',
+        'extras',
+        'ready',
       ] as StepKey[],
     [showEngineControls, state.chapterBookMode]
   );
 
   const stepLabels: Record<StepKey, string> = {
-    mode: 'Modus',
+    mode: 'Art',
     avatars: t('wizard.steps.avatars'),
     category: t('wizard.steps.category'),
     book: 'Buch',
-    ageLength: t('wizard.steps.ageLength'),
-    feeling: t('wizard.steps.feeling'),
-    learning: t('wizard.steps.learning'),
-    wishes: t('wizard.steps.wishes'),
-    summary: t('wizard.steps.summary'),
+    shape: t('wizard.steps.shape'),
+    extras: t('wizard.steps.extras'),
+    ready: t('wizard.steps.summary'),
   };
 
   const labels = stepKeys.map((key) => stepLabels[key]);
+  const stepBarItems = stepKeys.map((key) => ({ id: key, label: stepLabels[key], icon: STEP_ICONS[key] }));
+  const goToStep = (key: StepKey) => {
+    const index = stepKeys.indexOf(key);
+    if (index >= 0) setActiveStep(index);
+  };
 
   const lastAppliedProfileRef = React.useRef<string | null>(null);
   const bringDeepLinkAppliedRef = React.useRef(false);
@@ -466,16 +461,13 @@ export default function TaleaStoryWizard() {
       case 'avatars':
         return state.selectedAvatars.length > 0 ? null : 'Wähle mindestens einen Avatar aus.';
       case 'category':
-        return state.mainCategory !== null ? null : 'Wähle eine Art von Geschichte aus.';
-      case 'ageLength':
-        if (state.ageGroup === null) return 'Wähle noch ein Alter aus.';
-        if (state.length === null && !state.chapterBookMode) return 'Wähle noch eine Länge aus.';
-        return null;
+        return state.mainCategory !== null ? null : 'Wähle eine Welt aus.';
       case 'book':
         return state.experienceForm ? null : 'Wähle aus, was für ein Buch es werden soll.';
-      case 'feeling':
-        return state.feelings.length > 0 ? null : 'Wähle mindestens eine Stimmung aus.';
-      case 'learning':
+      case 'shape':
+        if (state.length === null && !state.chapterBookMode) return 'Wähle noch eine Länge aus.';
+        return state.feelings.length > 0 ? null : 'Wähle mindestens ein Gefühl aus.';
+      case 'extras':
         return state.learningMode.enabled && state.learningMode.subjects.length === 0
           ? 'Wähle mindestens ein Fach aus — oder schalte den Lernmodus wieder aus.'
           : null;
@@ -632,32 +624,23 @@ export default function TaleaStoryWizard() {
 
     switch (stepKeys[activeStep]) {
       case 'mode':
-        return <Step0ModeSelection state={state} updateState={updateState} />;
+        return <StepEngineMode state={state} updateState={updateState} />;
       case 'avatars':
         return <Step1AvatarSelection state={state} updateState={updateState} />;
       case 'category':
         return <Step2CategorySelection state={state} updateState={updateState} />;
       case 'book':
         return <StepBookFormat state={state} updateState={updateState} />;
-      case 'ageLength':
+      case 'shape':
+        return <StepStoryShape state={state} updateState={updateState} hideLength={state.chapterBookMode} />;
+      case 'extras':
+        return <StepExtras state={state} updateState={updateState} />;
+      case 'ready':
         return (
-          <Step3AgeAndLength
+          <StepReady
             state={state}
             updateState={updateState}
-            showModelSelection={showEngineControls}
-            hideLength={state.chapterBookMode}
-          />
-        );
-      case 'feeling':
-        return <Step4StoryFeeling state={state} updateState={updateState} />;
-      case 'learning':
-        return <Step6LearningMode state={state} updateState={updateState} />;
-      case 'wishes':
-        return <Step5SpecialWishes state={state} updateState={updateState} />;
-      case 'summary':
-        return (
-          <Step6Summary
-            state={state}
+            onEdit={goToStep}
             onGenerate={handleGenerate}
             storyCredits={storyCredits}
             generateDisabled={storyGenerationBlocked}
@@ -687,7 +670,8 @@ export default function TaleaStoryWizard() {
     <div className="relative min-h-screen pb-10 pt-1" style={{ fontFamily: bodyFont }}>
       <WizardBackground isDark={isDark} />
 
-      <div className={cn(taleaPageShellClass, 'relative z-10')}>
+      {/* One narrow column: big picture tiles stay together instead of spreading over a wide screen. */}
+      <div className={cn(taleaPageShellClass, 'relative z-10 max-w-3xl')}>
         {/* iOS flow: back link, large title, progress — then the step on the page itself. */}
         <motion.header initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} className="px-1">
           <button
@@ -713,12 +697,12 @@ export default function TaleaStoryWizard() {
               </span>
             )}
           </div>
-          <div className="mt-4">
-            <StepIndicator activeStep={activeStep} labels={labels} palette={palette} />
+          <div className="mt-5">
+            <WizardStepBar steps={stepBarItems} activeIndex={activeStep} onSelect={setActiveStep} />
           </div>
         </motion.header>
 
-        <div className="mt-7">
+        <div className="mt-6">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeStep}
@@ -733,7 +717,20 @@ export default function TaleaStoryWizard() {
         </div>
 
         {/* Sticky action bar: "Weiter" is always reachable, above the tab bar on phones. */}
-        <div className="sticky bottom-[calc(max(env(safe-area-inset-bottom),0.75rem)+70px+var(--talea-player-offset,0px))] z-30 mt-6 md:bottom-4">
+        {/* The last page has its own big button; a floating bar holding only "Zurück" would cover it. */}
+        <div
+          className={cn(
+            'z-30 mt-6',
+            activeStep < labels.length - 1 &&
+              'sticky bottom-[calc(max(env(safe-area-inset-bottom),0.75rem)+70px+var(--talea-player-offset,0px))] md:bottom-4'
+          )}
+        >
+          {/* On a phone the reason sits above the bar, so a grey "Weiter" never goes unexplained. */}
+          {activeStep < labels.length - 1 && blockedReason() && (
+            <p className="mx-auto mb-1.5 w-fit max-w-full rounded-full bg-[var(--talea-glass-bg)] px-3 py-1 text-center text-[13px] font-medium text-[var(--talea-text-secondary)] backdrop-blur-xl sm:hidden">
+              {blockedReason()}
+            </p>
+          )}
           <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--talea-border-light)] bg-[var(--talea-glass-bg)] p-2 shadow-[var(--talea-shadow-strong)] backdrop-blur-xl backdrop-saturate-150">
             <TaleaActionButton
               type="button"
@@ -751,8 +748,9 @@ export default function TaleaStoryWizard() {
                     {blockedReason()}
                   </p>
                 )}
-                <TaleaActionButton type="button" onClick={handleNext} disabled={!canProceed()} className="min-w-[7.5rem]">
+                <TaleaActionButton type="button" onClick={handleNext} disabled={!canProceed()} className="min-w-[8.5rem]">
                   Weiter
+                  <ArrowRight className="ml-1.5 inline-block h-4 w-4 align-[-3px]" strokeWidth={2.6} aria-hidden />
                 </TaleaActionButton>
               </div>
             )}
@@ -771,200 +769,6 @@ export default function TaleaStoryWizard() {
         message={upgradeMessage}
         onClose={() => setShowUpgradeModal(false)}
       />
-    </div>
-  );
-}
-
-interface Step0ModeSelectionProps {
-  state: WizardState;
-  updateState: (updates: Partial<WizardState>) => void;
-}
-
-type GenerationLane = 'standard' | 'storybook' | 'developer' | 'workshop' | 'chapterbook';
-
-function Step0ModeSelection({ state, updateState }: Step0ModeSelectionProps) {
-  const activeLane: GenerationLane = state.chapterBookMode ? 'chapterbook' : state.bookWorkshopMode ? 'workshop' : state.developerMode
-    ? 'developer'
-    : state.storybookMode
-      ? 'storybook'
-      : 'standard';
-  // The Bilderbuch-Modus is built and measured on GPT-6 Luna; it starts there.
-  // Step 3 still lets an admin pick any other writer afterwards.
-  const select = (lane: GenerationLane) => {
-    const modelUpdate: Partial<WizardState> =
-      lane === 'storybook' || lane === 'chapterbook'
-        ? { aiProvider: 'openrouter', openRouterModel: STORYBOOK_OPENROUTER_STORY_MODEL }
-        : state.openRouterModel === STORYBOOK_OPENROUTER_STORY_MODEL
-          ? { openRouterModel: DEFAULT_OPENROUTER_STORY_MODEL }
-          : {};
-    updateState({ developerMode: lane === 'developer', storybookMode: lane === 'storybook', bookWorkshopMode: lane === 'workshop', chapterBookMode: lane === 'chapterbook', ...modelUpdate });
-  };
-  const cardBase =
-    'flex w-full flex-col gap-3 rounded-2xl border p-5 text-left transition-all duration-200 hover:scale-[1.01]';
-  const cardSelected =
-    'border-[var(--primary)] bg-[var(--talea-surface-elevated)] shadow-md ring-2 ring-[var(--primary)]/30';
-  const cardIdle =
-    'border-[var(--talea-border-light)] bg-[var(--talea-surface)] hover:border-[var(--talea-border-strong)]';
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h2
-          className="text-2xl leading-tight text-[var(--talea-text-primary)]"
-          style={{ fontFamily: headingFont }}
-        >
-          Wie soll die Geschichte generiert werden?
-        </h2>
-        <p className={cn(taleaBodyFont, 'mt-2 text-sm text-[var(--talea-text-secondary)]')}>
-          Wähle zwischen Normalmodus, Bilderbuch, Kapitelbuch, Buchwerkstatt und Developer Mode.
-          Die Buchwerkstatt ist die neue, eigenständige Pipeline zum Testen.
-          Deine Avatare und Story-Wünsche wählst du anschließend aus.
-        </p>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => select('standard')}
-        className={cn(cardBase, activeLane === 'standard' ? cardSelected : cardIdle)}
-      >
-        <div className="flex items-center gap-3">
-          <Sparkles className="h-6 w-6 text-[var(--primary)]" />
-          <span className="text-lg font-semibold text-[var(--talea-text-primary)]">
-            Normaler Modus
-          </span>
-          {activeLane === 'standard' && (
-            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[var(--primary)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--primary)]">
-              <Check className="h-3 w-3" /> Aktiv
-            </span>
-          )}
-        </div>
-        <p className="text-sm text-[var(--talea-text-secondary)]">
-          Volle Pipeline: Avatare mit Persönlichkeit & Erinnerungen, Charakter-Pool, Story-DNA,
-          Stilpaket, Bilder pro Kapitel, Personality-Updates nach dem Lesen.
-        </p>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => select('storybook')}
-        className={cn(cardBase, activeLane === 'storybook' ? cardSelected : cardIdle)}
-      >
-        <div className="flex items-center gap-3">
-          <BookOpen className="h-6 w-6 text-[var(--primary)]" />
-          <span className="text-lg font-semibold text-[var(--talea-text-primary)]">
-            Bilderbuch-Modus
-          </span>
-          <span className="inline-flex items-center rounded-full border border-emerald-400/60 bg-emerald-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-            Neu
-          </span>
-          {activeLane === 'storybook' && (
-            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[var(--primary)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--primary)]">
-              <Check className="h-3 w-3" /> Aktiv
-            </span>
-          )}
-        </div>
-        <p className="text-sm text-[var(--talea-text-secondary)]">
-          Gebaut nach den Bauplänen der besten Bilderbücher: drei Ideen, die stärkste wird
-          Seite für Seite geplant, geschrieben, von einer unabhängigen Lektorin gegen echte
-          Kinderbücher bewertet (0–10) und überarbeitet. Figuren aus dem Charakter-Pool per
-          Casting, Artefakt je nach Einstellung, actionreiche Bilder mit Bildprüfung.
-        </p>
-        <p className="text-xs italic text-[var(--talea-text-tertiary)]">
-          Startet mit GPT-6 Luna als Autor-Modell; die Lektorin ist immer ein Modell einer anderen Familie.
-        </p>
-      </button>
-
-      <button
-        type="button"
-        aria-pressed={activeLane === 'chapterbook'}
-        onClick={() => select('chapterbook')}
-        className={cn(cardBase, activeLane === 'chapterbook' ? cardSelected : cardIdle)}
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <BookOpen className="h-6 w-6 text-[var(--primary)]" />
-          <span className="text-lg font-semibold text-[var(--talea-text-primary)]">
-            Kapitelbuch
-          </span>
-          <span className="rounded-full border border-amber-400/60 bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-            Neu · Test
-          </span>
-          {activeLane === 'chapterbook' && (
-            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[var(--primary)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--primary)]">
-              <Check className="h-3 w-3" /> Aktiv
-            </span>
-          )}
-        </div>
-        <p className="text-sm text-[var(--talea-text-secondary)]">
-          Ein richtiges Buch für mehrere Abende: 8 bis 15 Kapitel mit 1–3 Bildern pro Kapitel.
-          Erst Idee und passende Figuren, dann ein geprüfter Bandplan mit großer Frage, Wendung,
-          Running Gag und Finale. Die ersten Kapitel sind nach wenigen Minuten lesbar, der Rest
-          entsteht im Hintergrund. Am Ende: nächster Band oder ganz neue Geschichte.
-        </p>
-        <p className="text-xs italic text-[var(--talea-text-tertiary)]">
-          GPT-6 Luna plant, GPT-6.1 Sol schreibt, Gemini prüft, Luna patcht und führt das Logbuch. Geschätzt 25–35 ¢ pro Band.
-        </p>
-      </button>
-
-      <button
-        type="button"
-        aria-pressed={activeLane === 'workshop'}
-        onClick={() => select('workshop')}
-        className={cn(cardBase, activeLane === 'workshop' ? cardSelected : cardIdle)}
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <Wand2 className="h-6 w-6 text-[var(--primary)]" />
-          <span className="text-lg font-semibold text-[var(--talea-text-primary)]">
-            Buchwerkstatt
-          </span>
-          <span className="rounded-full border border-amber-400/60 bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-            Neu · Test
-          </span>
-          {activeLane === 'workshop' && (
-            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[var(--primary)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--primary)]">
-              <Check className="h-3 w-3" /> Aktiv
-            </span>
-          )}
-        </div>
-        <p className="text-sm text-[var(--talea-text-secondary)]">
-          Neue, eigenständige Pipeline: plant die Handlung, schreibt die Geschichte und prüft
-          sie auf Verständlichkeit und Widersprüche. Mit deinen Avataren, passenden
-          Nebenfiguren, Artefakten und Illustrationen.
-        </p>
-        <p className="text-xs text-[var(--talea-text-tertiary)]">
-          Zum Testen und Vergleichen. Alter, Wünsche und weitere Einstellungen wählst du in den nächsten Schritten.
-        </p>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => select('developer')}
-        className={cn(cardBase, activeLane === 'developer' ? cardSelected : cardIdle)}
-      >
-        <div className="flex items-center gap-3">
-          <FlaskConical className="h-6 w-6 text-[var(--primary)]" />
-          <span className="text-lg font-semibold text-[var(--talea-text-primary)]">
-            Developer Mode
-          </span>
-          <span className="inline-flex items-center rounded-full border border-amber-400/60 bg-amber-400/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-            Test
-          </span>
-          {activeLane === 'developer' && (
-            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-[var(--primary)]/15 px-2.5 py-0.5 text-[11px] font-medium text-[var(--primary)]">
-              <Check className="h-3 w-3" /> Aktiv
-            </span>
-          )}
-        </div>
-        <p className="text-sm text-[var(--talea-text-secondary)]">
-          Kostenoptimierte Text-Pipeline: Blueprint, Dramaturgie-Check, finale Geschichte und
-          harte Validierung. Planung und Prüfung laufen über ein günstiges Support-Modell;
-          nur die finale Story-Prosa nutzt das ausgewählte KI-Modell.
-          <strong>Keine Bilder.</strong> Avatare werden nicht verändert.
-        </p>
-        <p className="text-xs italic text-[var(--talea-text-tertiary)]">
-          Nutze diesen Modus, um Storyqualität mit kontrolliertem Kontext zu testen. Der
-          Validator bewertet nur und schreibt die finale Geschichte nicht um.
-        </p>
-      </button>
     </div>
   );
 }

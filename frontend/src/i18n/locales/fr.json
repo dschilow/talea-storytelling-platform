@@ -491,7 +491,9 @@
       "feeling": "Quelle ambiance?",
       "wishes": "Souhaits spÃ©ciaux? (Optionnel)",
       "summary": "Tout est prÃªt!",
-      "learning": "L'histoire doit-elle enseigner quelque chose ?"
+      "learning": "L'histoire doit-elle enseigner quelque chose ?",
+      "shape": "Comment sera ton histoire ?",
+      "extras": "Encore un souhait ?"
     },
     "subtitles": {
       "avatars": "SÃ©lectionnez 1-4 avatars pour l'histoire.",
@@ -499,8 +501,9 @@
       "ageLength": "Ajustez l'histoire Ã  l'Ã¢ge et au temps disponible.",
       "feeling": "SÃ©lectionnez 1-3 ambiances.",
       "wishes": "Ajoutez des caractÃ©ristiques ou passez cette Ã©tape.",
-      "summary": "VÃ©rifiez votre sÃ©lection et crÃ©ez l'histoire.",
-      "learning": "Optionnel — cela reste avant tout une histoire."
+      "summary": "Touche une ligne pour la modifier.",
+      "learning": "Optionnel — cela reste avant tout une histoire.",
+      "extras": "Tout est facultatif – tu peux aussi continuer."
     },
     "buttons": {
       "back": "Retour",
@@ -647,13 +650,15 @@
       }
     },
     "steps": {
-      "avatars": "Avatars",
-      "category": "CatÃ©gorie",
+      "avatars": "Qui",
+      "category": "Monde",
       "ageLength": "Ã‚ge et DurÃ©e",
       "feeling": "Sentiments",
       "wishes": "Souhaits",
-      "summary": "RÃ©sumÃ©",
-      "learning": "Apprendre"
+      "summary": "C’est parti !",
+      "learning": "Apprendre",
+      "shape": "Ambiance",
+      "extras": "Souhaits"
     },
     "loading": {
       "title": "Votre histoire s'Ã©crit...",
@@ -707,6 +712,31 @@
           "description": "Une question ouverte à la fin"
         }
       }
+    },
+    "shape": {
+      "lengthTitle": "Quelle longueur ?",
+      "feelingTitle": "Quelle ambiance ?",
+      "feelingHint": "jusqu’à 3"
+    },
+    "extras": {
+      "learnTitle": "Apprendre quelque chose ?",
+      "learnDescription": "Le savoir est au cœur de l’aventure.",
+      "parentSettings": "Réglages détaillés (pour les parents)",
+      "ownWishTitle": "Ton propre souhait"
+    },
+    "ready": {
+      "who": "Qui",
+      "world": "Monde",
+      "length": "Longueur",
+      "feeling": "Ambiance",
+      "extras": "Extras",
+      "noExtras": "Aucun – touche pour faire un souhait",
+      "withoutHero": "sans rôle principal",
+      "withoutHappyEnd": "sans fin heureuse",
+      "treasure": "Trésor : {{name}}",
+      "ageTitle": "Pour quel âge ?",
+      "ageYears": "ans",
+      "ageMissing": "Choisis encore un âge."
     }
   },
   "landing": {

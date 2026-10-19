@@ -1,94 +1,34 @@
 import React from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Dog, Home, Mountain, Rocket, Sparkles, Wand2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@/lib/utils';
-import { WizardImage } from '../../../components/avatar-form/WizardImage';
-import { useWizardAssets } from '../../../hooks/useWizardAssets';
-import { TaleaSelectedBadge } from '@/components/talea/TaleaPastelPrimitives';
-
-type MainCategory = 'fairy-tales' | 'adventure' | 'magic' | 'animals' | 'scifi' | 'modern' | null;
+import { CATEGORY_CHOICES, ChoiceTile, WizardStepHeading, categoryKey, type WizardCategory } from './wizardChoices';
 
 interface Props {
-  state: { mainCategory: MainCategory };
+  state: { mainCategory: WizardCategory | null };
   updateState: (updates: any) => void;
 }
 
-const categories = [
-  { id: 'fairy-tales', icon: Sparkles, tone: '#b29a8a' },
-  { id: 'adventure', icon: Mountain, tone: '#d0885e' },
-  { id: 'magic', icon: Wand2, tone: '#ad9788' },
-  { id: 'animals', icon: Dog, tone: 'var(--talea-text-tertiary)' },
-  { id: 'scifi', icon: Rocket, tone: '#9b8a7d' },
-  { id: 'modern', icon: Home, tone: '#7d8795' },
-] as const;
-
+/** Six worlds, all visible at once on a phone: picture, one word, one short line. */
 export default function Step2CategorySelection({ state, updateState }: Props) {
   const { t } = useTranslation();
-  const { assetUrl } = useWizardAssets();
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-        <h2 className="mb-1 text-2xl font-bold text-foreground" style={{ fontFamily: 'var(--talea-font-display)' }}>
-          {t('wizard.titles.category')}
-        </h2>
-        <p className="text-sm text-muted-foreground">{t('wizard.subtitles.category')}</p>
-      </motion.div>
+      <WizardStepHeading title={t('wizard.titles.category')} subtitle={t('wizard.subtitles.category')} />
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        {categories.map((category, index) => {
-          const selected = state.mainCategory === category.id;
-          const Icon = category.icon;
-          const title = t(`wizard.categories.${category.id.replace('-', '_')}.title`);
-          const description = t(`wizard.categories.${category.id.replace('-', '_')}.description`);
-          const examples = t(`wizard.categories.${category.id.replace('-', '_')}.examples`);
-
-          return (
-            <motion.button
-              key={category.id}
-              type="button"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.03 }}
-              whileHover={{ y: -3 }}
-              whileTap={{ scale: 0.99 }}
-              onClick={() => updateState({ mainCategory: category.id })}
-              aria-pressed={selected}
-              className={cn(
-                'relative rounded-2xl border p-4 text-left transition-colors',
-                selected ? 'bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-primary))] ring-1 ring-[var(--primary)]' : 'bg-[var(--talea-surface-primary)] hover:bg-[var(--talea-surface-inset)]/60'
-              )}
-              style={{ borderColor: selected ? 'var(--primary)' : 'var(--talea-border-light)' }}
-            >
-              <div className="mb-3 flex items-center gap-3.5">
-                <div
-                  className="inline-flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl"
-                  style={{ background: `color-mix(in srgb, ${category.tone} 12%, transparent)` }}
-                >
-                  <WizardImage
-                    url={assetUrl('storyCategory', category.id)}
-                    fallback={<Icon className="h-9 w-9" style={{ color: category.tone }} />}
-                    alt={title}
-                    fallbackClassName="flex h-full w-full items-center justify-center"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-base font-semibold text-foreground">{title}</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">{description}</p>
-                </div>
-              </div>
-
-              <p className="line-clamp-2 text-xs text-foreground/75">{examples}</p>
-
-              <AnimatePresence>{selected && <TaleaSelectedBadge className="right-3 top-3" label={title} />}</AnimatePresence>
-            </motion.button>
-          );
-        })}
+      <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+        {CATEGORY_CHOICES.map((choice) => (
+          <ChoiceTile
+            key={choice.id}
+            icon={choice.icon}
+            tone={choice.tone}
+            title={t(`wizard.categories.${categoryKey(choice.id)}.title`)}
+            description={t(`wizard.categories.${categoryKey(choice.id)}.description`)}
+            selected={state.mainCategory === choice.id}
+            onClick={() => updateState({ mainCategory: choice.id })}
+          />
+        ))}
       </div>
     </div>
   );
 }
-
-

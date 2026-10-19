@@ -1148,22 +1148,25 @@
   },
   "wizard": {
     "titles": {
-      "avatars": "Who is in the story?",
-      "category": "What kind of story?",
+      "avatars": "Who's coming along?",
+      "category": "Where does the journey go?",
       "ageLength": "For which age & how long?",
       "feeling": "What feeling should the story have?",
       "wishes": "Special wishes? (Optional)",
       "summary": "All ready!",
-      "learning": "Should the story teach something?"
+      "learning": "Should the story teach something?",
+      "shape": "What should your story be like?",
+      "extras": "Any more wishes?"
     },
     "subtitles": {
-      "avatars": "Select 1-4 avatars to be part of the story.",
-      "category": "Choose a category - your avatars will be part of a unique story!",
+      "avatars": "Tap up to 4 characters.",
+      "category": "Pick a world.",
       "ageLength": "Adjust the story to the age and available time.",
       "feeling": "Select 1-3 moods that should shape the story.",
       "wishes": "Add special features or skip this step.",
-      "summary": "Check your selection and create the story.",
-      "learning": "Optional — it stays a story first."
+      "summary": "Tap a row to change something.",
+      "learning": "Optional — it stays a story first.",
+      "extras": "All optional – you can also just go on."
     },
     "buttons": {
       "back": "Back",
@@ -1216,33 +1219,33 @@
     },
     "categories": {
       "fairy_tales": {
-        "title": "Classic Fairy Tales",
-        "description": "Enchanted worlds, kings & princesses",
+        "title": "Fairy tales",
+        "description": "Castles and princesses",
         "examples": "Hansel & Gretel, Little Red Riding Hood"
       },
       "adventure": {
-        "title": "Adventure & Treasures",
-        "description": "Exciting journeys, hidden treasures",
+        "title": "Adventure",
+        "description": "Treasure hunts and caves",
         "examples": "Treasure Hunt, Secret Caves"
       },
       "magic": {
-        "title": "Fairy Tale Worlds & Magic",
-        "description": "Spells, magical powers",
+        "title": "Magic",
+        "description": "Wizards and fairies",
         "examples": "Wizards, Fairies"
       },
       "animals": {
-        "title": "Animal Worlds",
-        "description": "Talking animals, animal friendships",
+        "title": "Animals",
+        "description": "Talking animals",
         "examples": "In the Forest, On the Farm"
       },
       "scifi": {
-        "title": "Sci-Fi & Future",
-        "description": "Spaceships, alien planets",
+        "title": "Space",
+        "description": "Rockets and robots",
         "examples": "Space Adventures, Robots"
       },
       "modern": {
-        "title": "Modern & Reality",
-        "description": "Everyday life, school, family",
+        "title": "Home",
+        "description": "Family and friends",
         "examples": "Here & Now"
       }
     },
@@ -1287,7 +1290,7 @@
         "description": "Laugh out loud"
       },
       "warm": {
-        "title": "Heartwarming",
+        "title": "Cozy",
         "description": "Loving moments"
       },
       "exciting": {
@@ -1314,38 +1317,40 @@
     },
     "wishes": {
       "rhymes": {
-        "title": "Rhymes & Verses",
-        "description": "The story is told in rhymes"
+        "title": "Rhymes",
+        "description": "Sounds like a poem"
       },
       "moral": {
-        "title": "Moral & Values",
-        "description": "The story conveys an important lesson"
+        "title": "With a lesson",
+        "description": "Something to learn for life"
       },
       "avatarIsHero": {
-        "title": "Avatar is Hero",
-        "description": "Your avatar plays the main role"
+        "title": "Main role",
+        "description": "Your avatar is the hero"
       },
       "famousCharacters": {
-        "title": "Famous Characters",
-        "description": "Meet characters from famous fairy tales"
+        "title": "Fairy-tale characters",
+        "description": "Little Red Riding Hood & co."
       },
       "happyEnd": {
         "title": "Happy End",
         "description": "The story ends well"
       },
       "surpriseEnd": {
-        "title": "Surprise Ending",
-        "description": "An unexpected ending"
+        "title": "Surprise",
+        "description": "An ending nobody expects"
       }
     },
     "steps": {
-      "avatars": "Avatars",
-      "category": "Category",
+      "avatars": "Who",
+      "category": "World",
       "ageLength": "Age & Length",
       "feeling": "Feelings",
       "wishes": "Wishes",
-      "summary": "Summary",
-      "learning": "Learning"
+      "summary": "Go!",
+      "learning": "Learning",
+      "shape": "Feeling",
+      "extras": "Wishes"
     },
     "loading": {
       "title": "Your story is being written...",
@@ -1354,7 +1359,7 @@
     "learning": {
       "toggleTitle": "Enable learning mode",
       "toggleDescription": "Knowledge is woven into the plot, not bolted on.",
-      "subjectsTitle": "Which subjects?",
+      "subjectsTitle": "What would you like to learn?",
       "subjectsHint": "Pick at least one subject.",
       "difficultyTitle": "How deep?",
       "assessmentTitle": "How should it be learned?",
@@ -1399,6 +1404,31 @@
           "description": "An open question at the end"
         }
       }
+    },
+    "shape": {
+      "lengthTitle": "How long?",
+      "feelingTitle": "How should it feel?",
+      "feelingHint": "up to 3"
+    },
+    "extras": {
+      "learnTitle": "Learn something?",
+      "learnDescription": "The knowledge sits right inside the adventure.",
+      "parentSettings": "More settings (for parents)",
+      "ownWishTitle": "Your own wish"
+    },
+    "ready": {
+      "who": "Who",
+      "world": "World",
+      "length": "Length",
+      "feeling": "Feeling",
+      "extras": "Extras",
+      "noExtras": "None – tap to wish for something",
+      "withoutHero": "not the main character",
+      "withoutHappyEnd": "no happy end",
+      "treasure": "Treasure: {{name}}",
+      "ageTitle": "For which age?",
+      "ageYears": "years",
+      "ageMissing": "Please choose an age."
     }
   },
   "fairytales": {

@@ -491,7 +491,9 @@
       "feeling": "Â¿QuÃ© sensaciÃ³n debe tener?",
       "wishes": "Â¿Deseos especiales? (Opcional)",
       "summary": "Â¡Todo listo!",
-      "learning": "¿La historia debe enseñar algo?"
+      "learning": "¿La historia debe enseñar algo?",
+      "shape": "¿Cómo será tu historia?",
+      "extras": "¿Algún deseo más?"
     },
     "subtitles": {
       "avatars": "Selecciona 1-4 avatares para la historia.",
@@ -499,8 +501,9 @@
       "ageLength": "Ajusta la historia a la edad y el tiempo disponible.",
       "feeling": "Selecciona 1-3 estados de Ã¡nimo.",
       "wishes": "AÃ±ade caracterÃ­sticas especiales o salta este paso.",
-      "summary": "Revisa tu selecciÃ³n y crea la historia.",
-      "learning": "Opcional — ante todo sigue siendo un cuento."
+      "summary": "Toca una fila para cambiar algo.",
+      "learning": "Opcional — ante todo sigue siendo un cuento.",
+      "extras": "Todo es opcional – también puedes seguir."
     },
     "buttons": {
       "back": "AtrÃ¡s",
@@ -647,13 +650,15 @@
       }
     },
     "steps": {
-      "avatars": "Avatares",
-      "category": "CategorÃ­a",
+      "avatars": "Quién",
+      "category": "Mundo",
       "ageLength": "Edad y DuraciÃ³n",
       "feeling": "Sentimientos",
       "wishes": "Deseos",
-      "summary": "Resumen",
-      "learning": "Aprender"
+      "summary": "¡Vamos!",
+      "learning": "Aprender",
+      "shape": "Sensación",
+      "extras": "Deseos"
     },
     "loading": {
       "title": "Tu historia se estÃ¡ escribiendo...",
@@ -707,6 +712,31 @@
           "description": "Una pregunta abierta al final"
         }
       }
+    },
+    "shape": {
+      "lengthTitle": "¿Qué tan larga?",
+      "feelingTitle": "¿Cómo debe sentirse?",
+      "feelingHint": "hasta 3"
+    },
+    "extras": {
+      "learnTitle": "¿Aprender algo?",
+      "learnDescription": "El saber está en medio de la aventura.",
+      "parentSettings": "Más ajustes (para padres)",
+      "ownWishTitle": "Tu propio deseo"
+    },
+    "ready": {
+      "who": "Quién",
+      "world": "Mundo",
+      "length": "Duración",
+      "feeling": "Sensación",
+      "extras": "Extras",
+      "noExtras": "Ninguno – toca para pedir un deseo",
+      "withoutHero": "sin papel principal",
+      "withoutHappyEnd": "sin final feliz",
+      "treasure": "Tesoro: {{name}}",
+      "ageTitle": "¿Para qué edad?",
+      "ageYears": "años",
+      "ageMissing": "Elige una edad."
     }
   },
   "landing": {

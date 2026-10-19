@@ -9,6 +9,7 @@ import { useBackend } from '../../../hooks/useBackend';
 import { useOptionalChildProfiles } from '../../../contexts/ChildProfilesContext';
 import { getPreferredAvatarIds } from '@/lib/child-profile-defaults';
 import { TaleaSelectedBadge } from '@/components/talea/TaleaPastelPrimitives';
+import { WizardStepHeading, idleTileClass, selectedTileClass } from './wizardChoices';
 
 interface Avatar {
   id: string;
@@ -119,7 +120,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
   }, [activeProfile, orderedAvatars, state.selectedAvatars.length, updateState]);
 
   const selectedLabel = useMemo(() => {
-    if (selectedCount === 0) return t('wizard.subtitles.avatars');
+    if (selectedCount === 0) return null;
     const noun = selectedCount === 1 ? t('wizard.common.avatarSingular') : t('wizard.summary.avatars');
     const suffix = selectedCount >= MAX_AVATARS ? ` — ${t('wizard.common.avatarMaxReached')}` : '';
     return `${selectedCount} ${noun} ${t('common.selected')}${suffix}`;
@@ -140,12 +141,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="text-center">
-        <h2 className="mb-1 text-2xl font-bold text-foreground" style={{ fontFamily: 'var(--talea-font-display)' }}>
-          {t('wizard.titles.avatars')}
-        </h2>
-        <p className="text-sm text-muted-foreground">{t('wizard.subtitles.avatars')}</p>
-      </motion.div>
+      <WizardStepHeading title={t('wizard.titles.avatars')} subtitle={t('wizard.subtitles.avatars')} />
 
       {avatars.length === 0 ? (
         <motion.div
@@ -182,15 +178,13 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
                 aria-pressed={isSelected}
                 disabled={isBlocked}
                 className={cn(
-                  'relative overflow-hidden rounded-2xl border p-3 text-left transition-colors',
-                  isSelected ? 'bg-[color-mix(in_srgb,var(--primary)_9%,var(--talea-surface-primary))] ring-1 ring-[var(--primary)]' : 'bg-[var(--talea-surface-primary)]',
+                  // flex-col: a button centres its content vertically, so tiles without a second line sank lower.
+                  'relative flex flex-col justify-start overflow-hidden rounded-[1.25rem] border p-2.5 text-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]',
+                  isSelected ? selectedTileClass : idleTileClass,
                   isBlocked && 'cursor-not-allowed opacity-45'
                 )}
-                style={{
-                  borderColor: isSelected ? 'var(--primary)' : 'var(--talea-border-light)',
-                }}
               >
-                <div className="mb-3 aspect-square overflow-hidden rounded-xl bg-muted/40">
+                <div className="mb-2 aspect-square overflow-hidden rounded-[0.9rem] bg-[var(--talea-surface-inset)]">
                   {avatar.imageUrl ? (
                     <img src={avatar.imageUrl} alt={avatar.name} className="h-full w-full object-cover" />
                   ) : (
@@ -200,16 +194,11 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
                   )}
                 </div>
 
-                <p className="truncate text-sm font-semibold text-foreground">{avatar.name}</p>
-                {avatar.avatarRole === 'child' ? (
-                  <p className="mt-0.5 text-xs font-semibold text-[var(--talea-text-tertiary)]">{t('wizard.common.childAvatar')}</p>
-                ) : null}
+                <p className="truncate text-[15px] font-semibold text-foreground">{avatar.name}</p>
                 {avatar.isOwnedByCurrentUser === false && avatar.sharedByLabel ? (
-                  <p className="mt-0.5 text-xs text-[#6f8cab]">{t('wizard.common.sharedBy', { name: avatar.sharedByLabel })}</p>
-                ) : avatar.age > 0 ? (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {`${avatar.age} ${t('wizard.summary.age')}`}
-                  </p>
+                  <p className="mt-0.5 truncate text-xs text-[var(--talea-text-tertiary)]">{t('wizard.common.sharedBy', { name: avatar.sharedByLabel })}</p>
+                ) : avatar.avatarRole === 'child' ? (
+                  <p className="mt-0.5 text-xs font-medium text-[var(--talea-text-tertiary)]">{t('wizard.common.childAvatar')}</p>
                 ) : null}
 
                 <AnimatePresence>
@@ -221,13 +210,11 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
         </div>
       )}
 
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="rounded-2xl border border-[#7baea032] bg-[#7baea014] px-4 py-3"
-      >
-        <p className="text-sm font-semibold text-foreground/85">{selectedLabel}</p>
-      </motion.div>
+      {selectedLabel ? (
+        <p className="text-center text-[13px] font-medium text-[var(--talea-text-secondary)]" aria-live="polite">
+          {selectedLabel}
+        </p>
+      ) : null}
     </div>
   );
 }
