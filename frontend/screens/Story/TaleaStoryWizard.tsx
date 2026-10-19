@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
@@ -6,13 +6,8 @@ import {
   ArrowRight,
   BookOpen,
   Check,
-  CheckCircle,
-  FileText,
   FlaskConical,
-  Image,
   Loader2,
-  Sparkles,
-  Users,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
@@ -44,7 +39,8 @@ import { DEFAULT_LEARNING_MODE, type LearningModeValue } from './wizard-steps/Le
 import StepReady from './wizard-steps/StepReady';
 import StepEngineMode from './wizard-steps/StepEngineMode';
 import StepBookFormat, { readStoredHeroRelation, type ExperienceForm } from './wizard-steps/StepBookFormat';
-import type { StoryWizardIconName } from './wizard-steps/StoryWizardIcon';
+import { StoryWizardIcon, type StoryWizardIconName } from './wizard-steps/StoryWizardIcon';
+import { followChapterBook, type BookWaitStep } from './chapterBookProgress';
 import { WizardStepBar } from './wizard-steps/wizardChoices';
 import {
   createStoryGenerationId,
@@ -91,7 +87,10 @@ interface WizardState {
   broughtArtifact: BroughtArtifactSelection | null;
 }
 
-type GenerationStep = 'profiles' | 'memories' | 'text' | 'validation' | 'images' | 'complete';
+// A story from one long request shows 'profiles' -> 'memories' -> 'text' -> 'complete'; a chapter book shows
+// 'plan' -> 'chapter' -> 'complete' from the real stage of its job (see chapterBookProgress.ts). Nothing is
+// played back on a timer after the work is done.
+type GenerationStep = 'profiles' | 'memories' | 'text' | BookWaitStep | 'complete';
 
 // Four quick picture choices (who, world, length + mood, extras) and the start page.
 // Age comes from the child profile and is changed on the last page; learning, the
@@ -149,88 +148,125 @@ function getPalette(_isDark: boolean): Palette {
   };
 }
 
-const GENERATION_STEPS: { key: GenerationStep; icon: React.FC<{ className?: string; style?: React.CSSProperties }>; label: string; description: string }[] = [
-  { key: 'profiles', icon: Users, label: 'Avatare vorbereiten', description: 'Schaue mir deine Avatare genau an' },
-  { key: 'memories', icon: Sparkles, label: 'Erinnerungen sammeln', description: 'Was haben deine Avatare schon erlebt?' },
-  { key: 'text', icon: FileText, label: 'Geschichte schreiben', description: 'Deine Geschichte wird gerade geschrieben' },
-  { key: 'validation', icon: CheckCircle, label: 'Alles prüfen', description: 'Passt die Geschichte zusammen?' },
-  { key: 'images', icon: Image, label: 'Bilder malen', description: 'Die Bilder für deine Geschichte entstehen' },
-  { key: 'complete', icon: CheckCircle, label: 'Fertig!', description: 'Alles gespeichert - viel Spaß beim Lesen!' },
+interface GenerationStepInfo {
+  key: GenerationStep;
+  icon: StoryWizardIconName;
+  label: string;
+  description: string;
+}
+
+const SINGLE_STEPS: GenerationStepInfo[] = [
+  { key: 'profiles', icon: 'people', label: 'Figuren vorbereiten', description: 'Talea schaut sich deine Figuren genau an.' },
+  { key: 'memories', icon: 'openBook', label: 'Erinnerungen sammeln', description: 'Was haben deine Figuren schon erlebt?' },
+  { key: 'text', icon: 'pencil', label: 'Geschichte schreiben', description: 'Text und Bilder entstehen gerade – das dauert ein paar Minuten.' },
+  { key: 'complete', icon: 'sparkles', label: 'Fertig!', description: 'Alles gespeichert – viel Spaß beim Lesen!' },
+];
+
+const BOOK_STEPS: GenerationStepInfo[] = [
+  { key: 'plan', icon: 'compass', label: 'Idee, Figuren und Plan', description: 'Eine Idee wird gewählt, passende Figuren werden gesucht und das ganze Buch wird geplant.' },
+  { key: 'chapter', icon: 'pencil', label: 'Das erste Kapitel', description: 'Text und Bilder entstehen gerade.' },
+  { key: 'complete', icon: 'sparkles', label: 'Die ersten Kapitel sind da!', description: 'Los geht’s – der Rest entsteht, während ihr lest.' },
 ];
 
 const WizardBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => <TaleaPageBackground isDark={isDark} />;
 
-const GenerationProgress: React.FC<{ currentStep: GenerationStep; palette: Palette }> = ({ currentStep, palette }) => {
-  const currentIndex = GENERATION_STEPS.findIndex((step) => step.key === currentStep);
+const GenerationProgress: React.FC<{
+  steps: GenerationStepInfo[];
+  currentStep: GenerationStep;
+  palette: Palette;
+  /** A book keeps writing in the background; the child may leave while it does. */
+  onLeave?: () => void;
+}> = ({ steps, currentStep, palette, onLeave }) => {
+  const currentIndex = Math.max(0, steps.findIndex((step) => step.key === currentStep));
+  const isBook = Boolean(onLeave);
+  const lastIndex = steps.length - 1;
 
   return (
-    <div className="relative min-h-[70vh] flex items-center justify-center px-4">
+    <div className="relative flex min-h-[70vh] items-center justify-center px-4">
       <div className="w-full max-w-xl rounded-3xl border p-6 md:p-7" style={{ background: palette.panel, borderColor: palette.panelBorder }}>
         <div className="mb-5 flex items-center gap-3">
-          <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl" style={{ background: palette.soft }}>
-            <BookOpen className="h-5 w-5" style={{ color: palette.text }} />
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl" style={{ background: palette.soft, color: 'var(--primary)' }}>
+            <StoryWizardIcon name={isBook ? 'books3' : 'openBook'} className="h-8 w-8" />
           </div>
           <div>
             <h2 className="text-3xl leading-none" style={{ fontFamily: headingFont, color: palette.text }}>
-              Deine Geschichte wird gezaubert
+              {isBook ? 'Dein Buch entsteht' : 'Deine Geschichte wird gezaubert'}
             </h2>
-            <p className="text-xs mt-1" style={{ color: palette.muted }}>
-              Das dauert nur einen kleinen Moment - gleich geht's los!
+            <p className="mt-1 text-xs" style={{ color: palette.muted }}>
+              {isBook ? 'Das erste Kapitel ist in etwa 5 bis 10 Minuten da.' : 'Das dauert einen Moment.'}
             </p>
           </div>
         </div>
 
-        <div className="space-y-3">
-          {GENERATION_STEPS.map((step, index) => {
-            const Icon = step.icon;
-            const isActive = index === currentIndex;
-            const isDone = index < currentIndex;
+        <ol className="space-y-3" aria-label="Das passiert gerade">
+          {steps.map((step, index) => {
+            const isActive = index === currentIndex && index !== lastIndex;
+            const isDone = index < currentIndex || (index === lastIndex && currentIndex === lastIndex);
 
             return (
-              <div
+              <li
                 key={step.key}
-                className="flex items-center gap-3 rounded-2xl border px-3 py-3"
+                aria-current={isActive ? 'step' : undefined}
+                className="flex items-center gap-3 rounded-2xl border px-3 py-3 transition-colors"
                 style={{
-                  borderColor: isActive ? 'var(--talea-text-tertiary)' : palette.panelBorder,
+                  borderColor: isActive ? 'var(--primary)' : palette.panelBorder,
                   background: isActive ? palette.soft : palette.secondary,
+                  opacity: !isActive && !isDone ? 0.7 : 1,
                 }}
               >
                 <div
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl"
-                  style={{ background: isDone ? 'var(--talea-success-soft)' : palette.soft }}
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                  style={{
+                    background: isDone ? 'var(--talea-success-soft)' : isActive ? 'var(--talea-accent-terracotta-soft)' : palette.soft,
+                    color: isDone ? 'var(--talea-success)' : isActive ? 'var(--primary)' : palette.muted,
+                  }}
                 >
-                  {isDone ? (
-                    <Check className="h-4 w-4" style={{ color: 'var(--talea-success)' }} />
-                  ) : isActive ? (
-                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.4, repeat: Infinity, ease: 'linear' }}>
-                      <Loader2 className="h-4 w-4" style={{ color: palette.text }} />
-                    </motion.div>
-                  ) : (
-                    <Icon className="h-4 w-4" style={{ color: palette.muted }} />
-                  )}
+                  <StoryWizardIcon name={step.icon} className="h-8 w-8" />
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold" style={{ color: palette.text }}>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15px] font-semibold" style={{ color: palette.text }}>
                     {step.label}
                   </p>
                   <p className="text-xs" style={{ color: palette.muted }}>
                     {step.description}
                   </p>
                 </div>
-              </div>
+
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center" aria-hidden>
+                  {isDone ? (
+                    <Check className="h-5 w-5" strokeWidth={3} style={{ color: 'var(--talea-success)' }} />
+                  ) : isActive ? (
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.4, repeat: Infinity, ease: 'linear' }}>
+                      <Loader2 className="h-5 w-5" style={{ color: 'var(--primary)' }} />
+                    </motion.div>
+                  ) : null}
+                </div>
+              </li>
             );
           })}
-        </div>
+        </ol>
 
+        {/* Half a step for the one that is running: the bar never claims more than is known. */}
         <div className="mt-5 h-2 w-full overflow-hidden rounded-full" style={{ background: palette.soft }}>
           <motion.div
             className="h-full rounded-full"
-            style={{ background: 'linear-gradient(90deg,var(--talea-text-tertiary),var(--talea-border-soft),var(--primary))' }}
-            animate={{ width: `${((currentIndex + 1) / GENERATION_STEPS.length) * 100}%` }}
+            style={{ background: 'var(--primary)' }}
+            animate={{ width: `${((currentIndex + (currentIndex === lastIndex ? 1 : 0.5)) / steps.length) * 100}%` }}
             transition={{ duration: 0.35 }}
           />
         </div>
+
+        {onLeave && (
+          <div className="mt-5 space-y-3 text-center">
+            <p className="text-[13px]" style={{ color: palette.muted }}>
+              Du musst nicht warten: Das Buch erscheint in deiner Bibliothek, sobald die ersten Kapitel fertig sind.
+            </p>
+            <TaleaActionButton type="button" variant="secondary" onClick={onLeave} className="w-full">
+              In die Bibliothek
+            </TaleaActionButton>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -420,28 +456,43 @@ export default function TaleaStoryWizard() {
     }));
   }, [activeProfile, isMapAutoFill]);
 
-  useEffect(() => {
-    let active = true;
-
-    const loadCredits = async () => {
+  const refreshCredits = useCallback(
+    async (isActive: () => boolean = () => true) => {
       if (!userId) return;
       try {
         const profile = await backend.user.me();
-        if (!active) return;
+        if (!isActive()) return;
         setStoryCredits((profile as any).billing?.storyCredits ?? null);
         setDailyStoryCredits((profile as any).billing?.dailyStoryCredits ?? null);
         setBillingPermissions((profile as any).billing?.permissions ?? null);
       } catch (error) {
         console.error('[StoryWizard] Failed to load story credits:', error);
       }
-    };
+    },
+    [backend, userId]
+  );
 
-    void loadCredits();
-
+  useEffect(() => {
+    let active = true;
+    void refreshCredits(() => active);
     return () => {
       active = false;
     };
-  }, [backend, userId]);
+  }, [refreshCredits]);
+
+  // A chapter book is followed for minutes: leaving the page ends the wait, it never opens a book behind the user's back.
+  const stopWaitingRef = React.useRef(false);
+  useEffect(() => {
+    return () => {
+      stopWaitingRef.current = true;
+    };
+  }, []);
+
+  const leaveToLibrary = () => {
+    stopWaitingRef.current = true;
+    onStoryReady();
+    navigate('/stories');
+  };
 
   const updateState = (updates: Partial<WizardState>) => {
     setState((prev) => ({ ...prev, ...updates }));
@@ -526,17 +577,26 @@ export default function TaleaStoryWizard() {
     }
 
     const storyId = createStoryGenerationId();
+    const isBook = state.chapterBookMode;
+    const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
     try {
       setGenerating(true);
-      setGenerationStep('profiles');
-      onPhaseChange('profiles');
-      await new Promise((r) => setTimeout(r, 1200));
-      setGenerationStep('memories');
-      onPhaseChange('memories');
-      await new Promise((r) => setTimeout(r, 1200));
-      setGenerationStep('text');
-      onPhaseChange('text');
+      stopWaitingRef.current = false;
+      if (isBook) {
+        // The call below only queues the job; the first step is already running.
+        setGenerationStep('plan');
+        onPhaseChange('text');
+      } else {
+        setGenerationStep('profiles');
+        onPhaseChange('profiles');
+        await wait(1200);
+        setGenerationStep('memories');
+        onPhaseChange('memories');
+        await wait(1200);
+        setGenerationStep('text');
+        onPhaseChange('text');
+      }
 
       const storyConfig = mapWizardStateToAPI(state, userLanguage);
       const story = await generateStoryWithModelFallback(backend.story.generate, {
@@ -557,15 +617,35 @@ export default function TaleaStoryWizard() {
       setStoryCredits(spendOne);
       setDailyStoryCredits(spendOne);
 
-      setGenerationStep('validation');
-      onPhaseChange('validation');
-      await new Promise((r) => setTimeout(r, 900));
-      setGenerationStep('images');
-      onPhaseChange('images');
-      await new Promise((r) => setTimeout(r, 1200));
+      if (isBook) {
+        // Minutes of real work follow. Show the job's own stage and open the book when its first chapters exist.
+        const outcome = await followChapterBook(
+          {
+            bookStatus: (request) => backend.story.bookStatus(request),
+            getStory: (request) => backend.story.get(request),
+            sleep: wait,
+          },
+          storyId,
+          { onStep: setGenerationStep, shouldStop: () => stopWaitingRef.current }
+        );
+        if (stopWaitingRef.current || outcome.kind === 'stopped') return;
+        if (outcome.kind === 'failed') {
+          await refreshCredits();
+          alert('Dein Buch konnte leider nicht geschrieben werden. Deine Münze bekommst du zurück.');
+          return;
+        }
+        setGenerationStep('complete');
+        onPhaseChange('complete');
+        await wait(800);
+        if (stopWaitingRef.current) return;
+        openGeneratedStory(outcome.story);
+        return;
+      }
+
+      // The request returned: the story is written, checked and illustrated.
       setGenerationStep('complete');
       onPhaseChange('complete');
-      await new Promise((r) => setTimeout(r, 800));
+      await wait(800);
 
       openGeneratedStory(story);
     } catch (error) {
@@ -657,7 +737,12 @@ export default function TaleaStoryWizard() {
       <div className="relative min-h-screen pb-10 pt-6" style={{ fontFamily: bodyFont }}>
         <WizardBackground isDark={isDark} />
         <div className={taleaPageShellClass}>
-          <GenerationProgress currentStep={generationStep} palette={palette} />
+          <GenerationProgress
+            steps={state.chapterBookMode ? BOOK_STEPS : SINGLE_STEPS}
+            currentStep={generationStep}
+            palette={palette}
+            onLeave={state.chapterBookMode ? leaveToLibrary : undefined}
+          />
         </div>
         <div className="relative z-10 mx-auto mt-4 max-w-xl px-4">
           <ActiveAgentStack />

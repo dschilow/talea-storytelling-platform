@@ -781,6 +781,7 @@ import {
     automationGetJob as api_doku_audio_automation_automationGetJob,
     automationListJobs as api_doku_audio_automation_automationListJobs,
     automationPublish as api_doku_audio_automation_automationPublish,
+    automationShowcaseCovers as api_doku_audio_automation_automationShowcaseCovers,
     automationStartJobs as api_doku_audio_automation_automationStartJobs,
     automationVoices as api_doku_audio_automation_automationVoices
 } from "~backend/doku/audio-automation";
@@ -824,6 +825,7 @@ export namespace doku {
             this.automationGetJob = this.automationGetJob.bind(this)
             this.automationListJobs = this.automationListJobs.bind(this)
             this.automationPublish = this.automationPublish.bind(this)
+            this.automationShowcaseCovers = this.automationShowcaseCovers.bind(this)
             this.automationStartJobs = this.automationStartJobs.bind(this)
             this.automationVoices = this.automationVoices.bind(this)
             this.createAudioDoku = this.createAudioDoku.bind(this)
@@ -922,6 +924,20 @@ export namespace doku {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/automation/audio-dokus/publish/${encodeURIComponent(params.id)}`, {headers, method: "POST", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_automation_automationPublish>
+        }
+
+        /**
+         * Covers and story characters that may appear in advertising (promo video); see showcase-covers.ts.
+         */
+        public async automationShowcaseCovers(params: RequestType<typeof api_doku_audio_automation_automationShowcaseCovers>): Promise<ResponseType<typeof api_doku_audio_automation_automationShowcaseCovers>> {
+            // Convert our params into the objects we need for the request
+            const headers = makeRecord<string, string>({
+                "x-automation-key": params.key,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/automation/showcase/covers`, {headers, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_doku_audio_automation_automationShowcaseCovers>
         }
 
         public async automationStartJobs(params: RequestType<typeof api_doku_audio_automation_automationStartJobs>): Promise<ResponseType<typeof api_doku_audio_automation_automationStartJobs>> {
@@ -1572,6 +1588,10 @@ import {
     resolveGeneratedAudioByCacheKeys as api_story_audio_library_resolveGeneratedAudioByCacheKeys,
     saveGeneratedAudio as api_story_audio_library_saveGeneratedAudio
 } from "~backend/story/audio-library";
+import {
+    bookRequeue as api_story_book_api_bookRequeue,
+    bookStatus as api_story_book_api_bookStatus
+} from "~backend/story/book-api";
 import { enrichCharacterBibles as api_story_character_bible_enrichCharacterBibles } from "~backend/story/character-bible";
 import {
     generateCharacterLifeStory as api_story_character_life_story_api_generateCharacterLifeStory,
@@ -1656,6 +1676,8 @@ export namespace story {
             this.artifactJournal = this.artifactJournal.bind(this)
             this.batchRegenerateArtifactImages = this.batchRegenerateArtifactImages.bind(this)
             this.batchRegenerateCharacterImages = this.batchRegenerateCharacterImages.bind(this)
+            this.bookRequeue = this.bookRequeue.bind(this)
+            this.bookStatus = this.bookStatus.bind(this)
             this.bringableArtifacts = this.bringableArtifacts.bind(this)
             this.characterShowcase = this.characterShowcase.bind(this)
             this.composeStudioEpisode = this.composeStudioEpisode.bind(this)
@@ -1782,6 +1804,24 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/character-pool/batch-regenerate-images`, {method: "POST", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_batchRegenerateCharacterImages>
+        }
+
+        /**
+         * Admin: continue a stalled or failed chapter book after its last published chapter.
+         */
+        public async bookRequeue(params: { id: string }): Promise<ResponseType<typeof api_story_book_api_bookRequeue>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/book/${encodeURIComponent(params.id)}/requeue`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_book_api_bookRequeue>
+        }
+
+        /**
+         * Where the chapter book job stands (owner or admin).
+         */
+        public async bookStatus(params: { id: string }): Promise<ResponseType<typeof api_story_book_api_bookStatus>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/story/book/${encodeURIComponent(params.id)}/status`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_book_api_bookStatus>
         }
 
         public async bringableArtifacts(params: RequestType<typeof api_story_artifact_treasury_api_bringableArtifacts>): Promise<ResponseType<typeof api_story_artifact_treasury_api_bringableArtifacts>> {
@@ -1920,7 +1960,8 @@ export namespace story {
         }
 
         /**
-         * Fills the character bible of every active figure that has none (admin only).
+         * Fills the character bible of every active figure that has none (bible_version 0), one support-model call each.
+         * Idempotent; `force` rewrites, `ids` narrows, `limit` bounds one call. Admin only.
          */
         public async enrichCharacterBibles(params: RequestType<typeof api_story_character_bible_enrichCharacterBibles>): Promise<ResponseType<typeof api_story_character_bible_enrichCharacterBibles>> {
             // Now make the actual call to the API
