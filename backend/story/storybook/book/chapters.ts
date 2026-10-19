@@ -305,6 +305,14 @@ export function parseChapterCritique(raw: string, chapters: BookChapter[]): Chap
       // 2026-10-16 (plot engine): is anything working against the heroes here; did the heroes invent another chant.
       opponentPresent: typeof entry.opponentPresent === "boolean" ? entry.opponentPresent : /^(true|ja|yes)$/i.test(String(entry.opponentPresent)) ? true : /^(false|nein|no)$/i.test(String(entry.opponentPresent)) ? false : null,
       newChant: (() => { const quoted = quote(entry.newChant); return quoted && quoteInText(quoted, chapter.content) ? quoted : null; })(),
+      // 2026-10-19: an easy way the text leaves open counts only with its sentence from the text.
+      shortcut: (() => {
+        const raw = entry.shortcut;
+        if (!raw || typeof raw !== "object") return null;
+        const quoted = quote(raw.quote);
+        const problem = String(raw.problem ?? "").replace(/\s+/g, " ").trim().slice(0, 300);
+        return quoted && problem && !/^(null|none|keine?s?)$/i.test(problem) && quoteInText(quoted, chapter.content) ? { quote: quoted, problem } : null;
+      })(),
     };
   });
   return {

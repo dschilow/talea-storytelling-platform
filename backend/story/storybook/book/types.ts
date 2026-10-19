@@ -216,6 +216,26 @@ export interface BookChapterPlan {
   opponentScene?: string;
   /** Whose scene opens the chapter: the heroes' (default) or the opponent's (a cold open, mostly chapter 1 of a villain book). */
   pov?: "heroes" | "opponent";
+  /**
+   * The obstacle ledger (2026-10-19, "Pfeile aus Nebel": the heroes knew the open side door in chapter 1 and the owner held
+   * her own map in chapter 5 — the goal was reachable all along). What the heroes want now, the move a clever child would
+   * suggest, why it fails here, and what is new. The planner has to say it; the code checks it is there and varies.
+   */
+  goalNow?: string;
+  simplestMove?: string;
+  blockedBy?: string;
+  blockKind?: BlockKind;
+  newThisChapter?: string;
+}
+
+/** What stops the simple move: someone acts against it, the wonder's rule, a real barrier, a fear or wish, or something not yet known. */
+export type BlockKind = "figure" | "rule" | "barrier" | "inner" | "unknown";
+
+/** A plot hole the red-team reader found in the plan and the revisions could not close; the writer closes it on the page. */
+export interface PlanHole {
+  chapter: number | null;
+  kind: "shortcut" | "wonder" | "learning" | "repeat";
+  problem: string;
 }
 
 export interface BookBible {
@@ -270,10 +290,15 @@ export interface BookLearning {
   misconception: string;
   /** The everyday picture that makes it graspable. */
   comparison: string;
-  /** Question or wrong belief early, tests in the middle, the aha before the climax, the key in the climax, the echo at the end. */
-  steps: Array<{ chapter: number; step: string }>;
+  /**
+   * Question or wrong belief early, tests in the middle, the aha before the climax, the key in the climax, the echo at the end.
+   * obstacle (2026-10-19): the plot problem this step causes or solves — a step without one runs beside the story.
+   */
+  steps: Array<{ chapter: number; step: string; obstacle?: string }>;
   /** What a child could look at or try at home afterwards. */
   realWorld: string;
+  /** What would fail in the climax if the heroes did not know it — a concrete action ("Pfeile aus Nebel": nothing would have). */
+  withoutIt?: string;
 }
 
 /** A line that must stay letter for letter wherever it is spoken or read. */
@@ -292,6 +317,8 @@ export interface BookPlan {
   castIds: string[];
   artifact: { id: string; foundIn: number; use: string } | null;
   sequelTeasers: string[];
+  /** Holes the red-team reader still saw after the last revision; the writer closes each on the page in its chapter. */
+  holes?: PlanHole[];
 }
 
 export interface PlanReview {
@@ -334,6 +361,11 @@ export interface ChapterCritique {
   opponentPresent?: boolean | null;
   /** A rhyme or chant the heroes speak that is not among the fixed wordings; null when there is none. */
   newChant?: string | null;
+  /**
+   * "Why don't they just …?" (2026-10-19, "Pfeile aus Nebel": Frau Holle read her own lost map and walked away): the
+   * sentence where an easy way to the goal shows and the text gives no reason; null when there is none.
+   */
+  shortcut?: { quote: string; problem: string } | null;
 }
 
 export interface ChapterCurvePoint {

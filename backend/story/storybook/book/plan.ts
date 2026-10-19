@@ -11,7 +11,7 @@ import { containsBlockedTerm } from "../checks";
 import type { AgeBand } from "../craft";
 import { heartAndWitMode } from "../heart-and-wit";
 import { foldUmlauts, mentionsName } from "./catalogue";
-import type { BookBudget, BookChapterPlan, BookLearning, BookPitch, BookPlan, BookVillain, HeroDuty, PlanReview, StoryEngine, VillainStyle } from "./types";
+import type { BlockKind, BookBudget, BookChapterPlan, BookLearning, BookPitch, BookPlan, BookVillain, HeroDuty, PlanHole, PlanReview, StoryEngine, VillainStyle } from "./types";
 
 const ENGINES: StoryEngine[] = ["heroes", "villain", "guest"];
 const VILLAIN_STYLES: VillainStyle[] = ["comic", "misunderstood", "real"];
@@ -131,7 +131,29 @@ function chapterPlan(raw: any, n: number): BookChapterPlan {
     pictures: list(raw?.pictures, 3, 300),
     ...(text(raw?.opponentScene, 300) && !/^(null|none|keine?|—|-)$/i.test(text(raw?.opponentScene, 300)) ? { opponentScene: text(raw.opponentScene, 300) } : {}),
     ...(/^opponent|^villain|^gegen/i.test(text(raw?.pov, 20)) ? { pov: "opponent" as const } : {}),
+    ...ledgerField("goalNow", raw?.goalNow),
+    ...ledgerField("simplestMove", raw?.simplestMove),
+    ...ledgerField("blockedBy", raw?.blockedBy),
+    ...(parseBlockKind(raw?.blockKind) ? { blockKind: parseBlockKind(raw?.blockKind) } : {}),
+    ...ledgerField("newThisChapter", raw?.newThisChapter),
   };
+}
+
+function ledgerField<K extends "goalNow" | "simplestMove" | "blockedBy" | "newThisChapter">(key: K, value: unknown): Partial<Record<K, string>> {
+  const entry = text(value, 240);
+  return entry && !/^(null|none|keine?s?|—|-)$/i.test(entry) ? ({ [key]: entry } as Partial<Record<K, string>>) : {};
+}
+
+/** What stops the simple move; the planner may answer in German or with a near word. */
+export function parseBlockKind(value: unknown): BlockKind | undefined {
+  const raw = foldUmlauts(String(value ?? "").trim().toLowerCase());
+  if (!raw) return undefined;
+  if (/^(figure|person|someone|jemand|figur|gegner|opponent|villain|grown|erwachsen)/.test(raw)) return "figure";
+  if (/^(rule|regel|limit|grenze|wonder|wunder|magic|zauber)/.test(raw)) return "rule";
+  if (/^(barrier|obstacle|hindernis|sperre|way|weg|door|tuer|closed|zu\b|place|ort|thing|ding)/.test(raw)) return "barrier";
+  if (/^(inner|fear|angst|wish|wunsch|flaw|schwaeche|feeling|gefuehl|mistake|fehler)/.test(raw)) return "inner";
+  if (/^(unknown|knowledge|wissen|unbekannt|misunderstand|irrtum|secret|geheimnis)/.test(raw)) return "unknown";
+  return undefined;
 }
 
 /** Null when the answer is not a plan at all. Missing pieces are left empty for the checks to report. */
@@ -146,12 +168,18 @@ function parseLearning(raw: any): BookLearning | null {
     misconception: text(raw.misconception, 300),
     comparison: text(raw.comparison, 300),
     steps: (Array.isArray(raw.steps) ? raw.steps : [])
-      .map((entry: any) => ({ chapter: int(entry?.chapter), step: text(entry?.step, 300) }))
+      .map((entry: any) => ({ chapter: int(entry?.chapter), step: text(entry?.step, 300), ...ledgerObstacle(entry?.obstacle) }))
       .filter((entry: { chapter: number; step: string }) => entry.chapter >= 1 && entry.step)
       .sort((a: { chapter: number }, b: { chapter: number }) => a.chapter - b.chapter)
       .slice(0, 8),
     realWorld: text(raw.realWorld, 240),
+    ...(text(raw.withoutIt, 300) && !/^(null|none|nichts|kein|keine)\b/i.test(text(raw.withoutIt, 20)) ? { withoutIt: text(raw.withoutIt, 300) } : {}),
   };
+}
+
+function ledgerObstacle(value: unknown): { obstacle?: string } {
+  const entry = text(value, 240);
+  return entry && !/^(null|none|keine?s?|—|-)$/i.test(entry) ? { obstacle: entry } : {};
 }
 
 /**
@@ -170,6 +198,10 @@ export function checkLearningThread(plan: BookPlan, n: number, learning: boolean
   const climaxFrom = Math.max(2, Math.min(plan.bible.lowPointChapter || n - 1, n - 1));
   if (![...chapters].some((chapter) => chapter >= climaxFrom)) issues.push(`Lernmodus: Das Wissen trägt den Höhepunkt nicht — plane einen Schritt ab Kapitel ${climaxFrom}, in dem der Plan der Helden genau deshalb klappt.`);
   if (!thread.misconception) issues.push("Lernmodus: Es fehlt der Irrtum (misconception), an dem die ersten Versuche scheitern — so wird das richtige Wissen erst spürbar.");
+  // "Pfeile aus Nebel" (2026-10-19): evaporation kept a magic arrow visible that the book taught to ignore; the map came free
+  // with a bookmark and the way came from memory. The knowledge ran beside the story, never through its climax.
+  if (!thread.withoutIt) issues.push("Lernmodus: Es fehlt withoutIt — welche konkrete Handlung im Höhepunkt ohne dieses Wissen scheitern würde. Würde nichts scheitern, trägt das Wissen das Finale nicht: Baue den Höhepunkt so, dass ein Held es unter Druck anwendet.");
+  if (thread.steps.filter((entry) => entry.obstacle).length < 2) issues.push("Lernmodus: Die Lernschritte hängen nicht an der Handlung — mindestens zwei Schritte nennen das Hindernis der Geschichte (obstacle), das sie auslösen oder lösen. Ein Versuch ohne Folge für die Geschichte ist eine Unterrichtsstunde.");
   return issues;
 }
 
@@ -312,6 +344,8 @@ export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroN
   issues.push(...checkNamedFigures(plan, input));
   issues.push(...checkWonderRules(plan, input.band));
   issues.push(...checkChants(plan));
+  issues.push(...checkObstacleLedger(plan, n));
+  issues.push(...checkFreshDeadline(plan));
   issues.push(...checkLearningThread(plan, n, Boolean(input.learning)));
   const blocked = containsBlockedTerm(JSON.stringify(plan), input.blockedTerms);
   if (blocked) issues.push(`Der gesperrte Begriff „${blocked}“ kommt im Plan vor.`);
@@ -441,7 +475,111 @@ export function checkChants(plan: BookPlan): string[] {
     : [];
 }
 
+const BLOCK_LABELS: Record<BlockKind, string> = { figure: "jemand handelt dagegen", rule: "eine Regel des Wunders", barrier: "eine echte Sperre", inner: "eine Angst, ein Wunsch oder eine Schwäche", unknown: "etwas noch Unbekanntes" };
+
+/**
+ * The obstacle ledger (2026-10-19, "Pfeile aus Nebel"): Alexander knew the open side door in chapter 1, the owner held
+ * her own map in chapter 5, and the arrow pointed into the same flower bed in five chapters. The plan review had all of
+ * it as yes/no questions and answered yes. The planner now names, for every chapter before the last, the move a clever
+ * child would suggest and why it fails here — and the code checks that the obstacles change and something new happens.
+ */
+export function checkObstacleLedger(plan: BookPlan, n: number): string[] {
+  const issues: string[] = [];
+  const open = plan.chapters.filter((chapter) => chapter.n < n);
+  const missing = open.filter((chapter) => !chapter.simplestMove || !chapter.blockedBy || !chapter.newThisChapter);
+  if (missing.length) {
+    issues.push(`Kapitel ${missing.map((chapter) => chapter.n).join(", ")}: Es fehlt die Hindernisliste — was die Helden jetzt wollen (goalNow), der naheliegende Zug, den ein schlaues Kind vorschlagen würde (simplestMove), warum er hier nicht klappt (blockedBy, blockKind) und was in diesem Kapitel neu ist (newThisChapter). Ohne sie bleibt offen, warum die Helden nicht einfach ans Ziel gehen.`);
+  }
+  for (let index = 2; index < open.length; index += 1) {
+    const [a, b, c] = [open[index - 2], open[index - 1], open[index]];
+    if (a.blockKind && a.blockKind === b.blockKind && b.blockKind === c.blockKind) {
+      issues.push(`Kapitel ${a.n}–${c.n}: dreimal hintereinander dieselbe Art Hindernis (${BLOCK_LABELS[a.blockKind]}) — wechsle ab, damit jedes Kapitel eine neue Entscheidung verlangt.`);
+      break;
+    }
+  }
+  const kinds = new Set(open.map((chapter) => chapter.blockKind).filter(Boolean));
+  if (n >= 6 && open.filter((chapter) => chapter.blockKind).length >= open.length - 1 && kinds.size < 3) {
+    issues.push(`Die Hindernisse haben nur ${kinds.size === 1 ? "eine Art" : "zwei Arten"} (${[...kinds].map((kind) => BLOCK_LABELS[kind as BlockKind]).join(", ")}) — mische mindestens drei: ${Object.values(BLOCK_LABELS).join(", ")}. Reicht die Idee nicht für ${n} verschiedene Kapitel, gib ihr eine zweite Linie (der Wunsch eines Helden unter Druck, das Geheimnis des Gasts, der eigene Plan der Gegenseite) statt Versuche zu wiederholen.`);
+  }
+  // The same obstacle three times without a change is the book stretching itself ("the arrow points into the bed again").
+  for (const chapter of open) {
+    const same = open.filter((other) => other.n < chapter.n && similarText(other.blockedBy || "", chapter.blockedBy || ""));
+    if (same.length >= 2) {
+      issues.push(`Kapitel ${[...same.map((other) => other.n), chapter.n].join(", ")}: dasselbe Hindernis kommt wieder („${(chapter.blockedBy || "").slice(0, 80)}“) — beim dritten Mal muss es sich steigern oder einem neuen weichen; wiederholte Versuche strecken das Buch.`);
+      break;
+    }
+  }
+  outer: for (const chapter of open) {
+    for (const other of open.filter((entry) => entry.n < chapter.n)) {
+      if (similarText(other.newThisChapter || "", chapter.newThisChapter || "", 0.7)) {
+        issues.push(`Kapitel ${other.n} und ${chapter.n} bringen dasselbe Neue („${(chapter.newThisChapter || "").slice(0, 80)}“) — jedes Kapitel braucht eine eigene neue Komplikation, Enthüllung oder Folge.`);
+        break outer;
+      }
+    }
+  }
+  return issues;
+}
+
+/**
+ * The deadlines the family knows too well (prompts.ts FRESHNESS, until now only in the pitch: "Pfeile aus Nebel" ran on a
+ * school bell again). A clock or bell striking is the one item of that list the code can see in the plan.
+ */
+const WORN_DEADLINE = /gl(o|ö|oe)ck|gong|klingel|l(ä|ae)ut|\bbells?\b|uhrschl|turmuhr|schl(ä|ae)gt die uhr/i;
+
+export function checkFreshDeadline(plan: BookPlan): string[] {
+  const deadline = plan.bible.deadline || "";
+  return WORN_DEADLINE.test(deadline)
+    ? [`Die Frist („${deadline.slice(0, 80)}“) ist ein Glocken- oder Uhrschlag — den kennt die Familie zu gut. Nimm eine Frist, die ein Kind sieht und die mit dem Einsatz zu tun hat (ein Bus, der abfährt; Eis, das schmilzt; die Sonne hinter dem Dach), und passe die Kapitel an, die sie nennen.`]
+    : [];
+}
+
+// ---------------------------------------------------------------------------
+// The red-team reader (2026-10-19): one question instead of a checklist
+// ---------------------------------------------------------------------------
+
+const HOLE_KINDS: PlanHole["kind"][] = ["shortcut", "wonder", "learning", "repeat"];
+
+/** The red-team reader's holes; anything without a problem is dropped, at most six. */
+export function parsePlanHoles(raw: any, n: number): PlanHole[] | null {
+  if (!raw || typeof raw !== "object" || !Array.isArray(raw.holes)) return null;
+  return raw.holes
+    .map((hole: any) => {
+      const chapter = int(hole?.chapter, 0);
+      const kind = String(hole?.kind ?? "").trim().toLowerCase();
+      return {
+        chapter: chapter >= 1 && chapter <= n ? chapter : null,
+        kind: (HOLE_KINDS.includes(kind as PlanHole["kind"]) ? kind : "shortcut") as PlanHole["kind"],
+        problem: text(hole?.problem, 400),
+      };
+    })
+    .filter((hole: PlanHole) => hole.problem && !/^(null|none|keine?s?|—|-)$/i.test(hole.problem))
+    .slice(0, 6);
+}
+
+/** The holes as edit notes for the plan revision, each with what closing it means. */
+export function planHoleNotes(holes: PlanHole[]): string[] {
+  const how: Record<PlanHole["kind"], string> = {
+    shortcut: "Schließe es: ein Grund im Plan, den ein Kind sieht (blockedBy), oder ändere die Handlung, sodass der einfache Weg wirklich versperrt ist — ohne künstliche Gefahr.",
+    wonder: "Das Wunder hält seine Regeln (limits); wirkt es anders, braucht es eine Ursache, die das Kind vorher gehört hat — eine Entscheidung einer Figur oder eine entdeckte Regel.",
+    learning: "Das Wissen muss den entscheidenden Zug tragen (learning.withoutIt): Ohne es scheitert der Zug, mit ihm klappt er.",
+    repeat: "Steigere das Hindernis oder ersetze es durch ein neues; kein Versuch zweimal gleich.",
+  };
+  return holes.map((hole) => `${hole.chapter ? `Kapitel ${hole.chapter}: ` : ""}Plot-Loch (Gegenleser): ${hole.problem} ${how[hole.kind]}`);
+}
+
 const PLACE_STOPWORDS = new Set(["der", "die", "das", "dem", "den", "ein", "eine", "einem", "im", "in", "am", "an", "auf", "bei", "vor", "von", "zu", "zum", "zur", "und", "mit", "the", "of", "at"]);
+
+const TEXT_STOPWORDS = new Set([...PLACE_STOPWORDS, "nicht", "noch", "wieder", "weil", "aber", "dass", "sich", "sind", "wird", "werden", "kann", "koennen", "will", "wollen", "muss", "einen", "einer", "eines", "ihre", "ihren", "ihrem", "seine", "seinen", "seinem", "helden", "heroes", "they", "their", "with", "that", "from", "into", "dann", "jetzt", "hier", "dort", "schon", "only", "nur", "auch", "alle", "beide", "kinder"]);
+
+/** Two short plan lines say the same thing: most of their content words are shared. */
+export function similarText(a: string, b: string, threshold = 0.6): boolean {
+  const tokens = (value: string) => new Set(foldUmlauts(value.toLocaleLowerCase("de-DE")).split(/[^a-z0-9]+/).filter((word) => word.length > 3 && !TEXT_STOPWORDS.has(word)));
+  const left = tokens(a);
+  const right = tokens(b);
+  if (left.size < 2 || right.size < 2) return false;
+  const shared = [...left].filter((word) => right.has(word)).length;
+  return shared / Math.min(left.size, right.size) >= threshold;
+}
 
 /** Two place descriptions name the same spot: one holds the other's words, or most words are shared. */
 export function samePlace(a: string, b: string): boolean {

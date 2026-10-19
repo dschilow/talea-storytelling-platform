@@ -1,8 +1,8 @@
 /**
  * Chapter book (chapter-book-v1) — the text engine.
  *
- *   pitch + casting (writer) → plan (writer) → plan checks + plan review (critic, other family)
- *   → one plan revision (writer) → per batch: chapters (writer) → checks → critic read
+ *   pitch + casting (writer) → plan (writer) → plan checks + plan review + red-team reader (critic, other family)
+ *   → one plan revision (writer) → per batch: chapters (writer) → checks → critic read → cold reader
  *   → one rewrite of chapters without laugh/hook/progress (writer) → patch (support)
  *   → logbook from the released text (support) → … → series memory (support)
  *
@@ -12,13 +12,13 @@
 
 
 import { isGerman } from "../craft";
-import { learningGoal, mentionsKnowledge } from "../learning";
+import { learningGoal, mentionsKnowledge, repeatedExplanationNotes } from "../learning";
 import { STORYBOOK_SUPPORT_MODEL, fallbackModelFor, modelFamily, parseJsonObject, type CostLedger, type LlmCallResult, type LlmRequest, type StorybookLlm, type StorybookModels } from "../llm";
 import { chooseIdea, ensureEngineCast, fallbackCasting, forceEngine, mentionsName, resolveCasting, resolveEngineFigure, type CastingResult } from "./catalogue";
 import { checkChapter, mergeChapterPatch, mergeOpenThreads, mergeWorldState, mergeWordings, parseChapterCritique, parseChapters, quoteInText, restoreFixedWordings, type ChapterCritiqueResult } from "./chapters";
 import type { CheckIssue } from "../types";
 import { buildColdReadPrompt, coldReadNotes, coldReadQuestions, unansweredQuestions } from "./coldread";
-import { checkBookPlan, mergePlanRevision, parseEngine, parsePitch, parsePlan, parsePlanReview, PLAN_MAX_REVISIONS, planNeedsRescue, planPassesGate, villainStyleFor } from "./plan";
+import { checkBookPlan, mergePlanRevision, parseEngine, parsePitch, parsePlan, parsePlanHoles, parsePlanReview, PLAN_MAX_REVISIONS, planHoleNotes, planNeedsRescue, planPassesGate, villainStyleFor } from "./plan";
 import {
   buildChapterCritiquePrompt,
   buildChapterPatchPrompt,
@@ -28,13 +28,14 @@ import {
   buildLogbookPrompt,
   buildPitchPrompt,
   buildPlanPrompt,
+  buildPlanRedTeamPrompt,
   buildPlanReviewPrompt,
   buildPlanRevisionPrompt,
   buildSeriesMemoryPrompt,
   heroRelation,
   planReviewNotes,
 } from "./prompts";
-import type { BookBrief, BookChapter, BookExperiment, BookPitch, BookPlan, BookState, ChapterCurvePoint, PlanReview, SeriesMemory, StoryEngine } from "./types";
+import type { BookBrief, BookChapter, BookExperiment, BookPitch, BookPlan, BookState, ChapterCurvePoint, PlanHole, PlanReview, SeriesMemory, StoryEngine } from "./types";
 import { interludeShare, LOG_ONLY_CODES, proseProfile, VOICE_REWRITE_CODES, voiceRewriteDisputed, voiceRewriteNeeded } from "./voice";
 
 export interface BookContext {
@@ -103,6 +104,15 @@ export function resolveBookPlanner(model?: string, effort?: string): Pick<BookEx
   const plannerModel = !model ? STORYBOOK_SUPPORT_MODEL : model === "writer" ? undefined : model;
   const planEffort = (effort as BookExperiment["planEffort"]) || (plannerModel === STORYBOOK_SUPPORT_MODEL ? "low" : undefined);
   return { plannerModel, planEffort };
+}
+
+/**
+ * The red-team reader on the plan (2026-10-19): about 0.4 ct a read, a second read only after holes. TALEA_BOOK_HOLES=off
+ * turns it off. The obstacle ledger, the learning checks and the critic's "why don't they just …?" field cost nothing extra
+ * and stay on.
+ */
+export function holeChecksEnabled(value = process.env.TALEA_BOOK_HOLES): boolean {
+  return String(value ?? "").trim().toLowerCase() !== "off";
 }
 
 export async function planBook(ctx: BookContext): Promise<PlannedBook> {
@@ -210,17 +220,36 @@ export async function planBook(ctx: BookContext): Promise<PlannedBook> {
       }
     };
 
-    const planReview = await review(`book-plan-review${tag}`, plan);
-    await observe(ctx, "plan", { title: plan.title, ...again, issues, review: planReview?.scores, mustFix: planReview?.mustFix.length ?? null, weaknesses: planReview?.weaknesses.map((entry) => `${entry.severity}: ${entry.problem}`) });
+    // The red-team reader (2026-10-19, "Pfeile aus Nebel": the review said noEasyWayOut for a goal in reach from chapter 1).
+    // One question answered with a concrete move, same critic as the review; 0.3-0.5 ct a read (probe 2026-10-19), a re-check only after holes.
+    const redTeam = async (stage: string, current: BookPlan): Promise<PlanHole[] | null> => {
+      if (experiment.skipPlanReview || !holeChecksEnabled()) return null;
+      const prompt = buildPlanRedTeamPrompt(castBrief, current);
+      try {
+        return await jsonCall(ctx, {
+          stage, role: "critic", model: planCritic, system: prompt.system, user: prompt.user,
+          json: true, maxTokens: 3000, effort: "low", timeoutMs: 180_000, temperature: 0.3,
+        }, (raw) => parsePlanHoles(raw, brief.book.chapters), fallbackModelFor(planCritic));
+      } catch (err) {
+        console.warn(`[book] ${stage} failed:`, (err as Error)?.message || err);
+        return null;
+      }
+    };
+    const holeLines = (list: PlanHole[]) => list.map((hole) => `${hole.chapter ? `K${hole.chapter} ` : ""}${hole.kind}: ${hole.problem}`);
+
+    const [planReview, firstHoles] = await Promise.all([review(`book-plan-review${tag}`, plan), redTeam(`book-plan-redteam${tag}`, plan)]);
+    let holes: PlanHole[] = firstHoles || [];
+    await observe(ctx, "plan", { title: plan.title, ...again, issues, review: planReview?.scores, mustFix: planReview?.mustFix.length ?? null, weaknesses: planReview?.weaknesses.map((entry) => `${entry.severity}: ${entry.problem}`), ...(firstHoles ? { holes: holeLines(holes) } : {}) });
 
     // The plan gate (2026-10-16): "Die Türlaunische" was reviewed at 5, revised once without a second look and written.
     // A plan under the gate is reviewed again after its revision and revised a second time; a revision costs about
-    // 0.3 ct, a review about 0.8 ct — a chapter rewritten for a weak plan costs 1.5-2.3 ct.
+    // 0.3 ct, a review about 0.8 ct — a chapter rewritten for a weak plan costs 1.5-2.3 ct. Holes of the red-team reader
+    // count like must-fix notes; it reads the plan again only when it found some, and not after the last revision.
     let planRevisions = 0;
     let planReviewAfter: PlanReview | null | undefined;
     let latestReview = planReview;
     let rawCurrent: any = rawPlan;
-    let notes = [...issues, ...planReviewNotes(latestReview)];
+    let notes = [...issues, ...planHoleNotes(holes), ...planReviewNotes(latestReview)];
     while (notes.length > 0 && planRevisions < PLAN_MAX_REVISIONS) {
       const result = await revise(planRevisions === 0 ? `book-plan-revision${tag}` : `book-plan-revision-${planRevisions + 1}${tag}`, plan, rawCurrent, notes);
       if (!result) break;
@@ -228,17 +257,29 @@ export async function planBook(ctx: BookContext): Promise<PlannedBook> {
       rawCurrent = result.raw;
       issues = result.issues;
       planRevisions += 1;
-      if (planPassesGate(latestReview, issues)) break;
-      // The second look at the revised plan: the first review had must-fix notes or scored under the gate.
-      planReviewAfter = await review(`book-plan-review-${planRevisions + 1}${tag}`, plan);
-      latestReview = planReviewAfter ?? latestReview;
-      if (!planReviewAfter) break;
-      notes = [...issues, ...planReviewNotes(planReviewAfter)];
-      await observe(ctx, "plan-review-after", { revision: planRevisions, ...again, review: planReviewAfter.scores, mustFix: planReviewAfter.mustFix.length, passes: planPassesGate(planReviewAfter, issues) });
-      if (planPassesGate(planReviewAfter, issues)) break;
+      // The second look at the revised plan: the first review had must-fix notes or scored under the gate, or the reader found holes.
+      const reviewDue = !planPassesGate(latestReview, issues);
+      const recheck = holes.length > 0 && planRevisions < PLAN_MAX_REVISIONS;
+      if (!reviewDue && !recheck) break;
+      const [after, holesAfter] = await Promise.all([
+        reviewDue ? review(`book-plan-review-${planRevisions + 1}${tag}`, plan) : Promise.resolve(null),
+        recheck ? redTeam(`book-plan-redteam-${planRevisions + 1}${tag}`, plan) : Promise.resolve(null),
+      ]);
+      // A failed reader never blocks a book.
+      if (recheck) holes = holesAfter || [];
+      if (reviewDue) {
+        planReviewAfter = after;
+        latestReview = after ?? latestReview;
+        if (!after) break;
+      }
+      notes = [...issues, ...planHoleNotes(holes), ...(after ? planReviewNotes(after) : [])];
+      await observe(ctx, "plan-review-after", { revision: planRevisions, ...again, ...(after ? { review: after.scores, mustFix: after.mustFix.length } : {}), ...(recheck ? { holes: holeLines(holes) } : {}), passes: planPassesGate(latestReview, issues) && holes.length === 0 });
+      if (planPassesGate(latestReview, issues) && holes.length === 0) break;
     }
+    // What the revisions could not close goes to the writer, chapter by chapter: a reason a child hears on the page.
+    if (holes.length) plan = { ...plan, holes };
     const planRevised = planRevisions > 0;
-    if (planRevised || notes.length) await observe(ctx, "plan-revision", { revised: planRevised, revisions: planRevisions, ...again, remaining: issues, gate: planPassesGate(latestReview, issues) });
+    if (planRevised || notes.length) await observe(ctx, "plan-revision", { revised: planRevised, revisions: planRevisions, ...again, remaining: issues, ...(holes.length ? { holesToWriter: holeLines(holes) } : {}), gate: planPassesGate(latestReview, issues) && holes.length === 0 });
     return { index, idea, casting, castBrief, plan, planReview, planReviewAfter, latestReview, issues, planRevised, planRevisions };
   };
 
@@ -397,6 +438,10 @@ export function enginePatchNotes(point: ChapterCritiqueResult["chapters"][number
   if (point.newChant) {
     notes.push(`Kapitel ${chapter.order}: Die Helden sprechen einen neuen Spruch („${point.newChant}“), der nicht zu den festgelegten Wortlauten gehört. Streiche ihn oder mache daraus eine normale Zeile wörtlicher Rede — das Buch hat höchstens einen gemeinsamen Spruch.`);
   }
+  // 2026-10-19 ("Pfeile aus Nebel": Frau Holle read her own map and walked away): one reason a child accepts, at that sentence.
+  if (point.shortcut) {
+    notes.push(`Kapitel ${chapter.order}: Ein Kind fragt „Warum nicht einfach …?“ — ${point.shortcut.problem} (Stelle: „${point.shortcut.quote.replace(/^[„"]|[“"]$/g, "")}“) Gib dort in ein bis zwei Sätzen einen Grund, den ein Kind versteht — aus dem, was die Geschichte schon hat (eine Figur sagt oder tut etwas) —, ohne neue Handlung und ohne die Lösung vorwegzunehmen.`);
+  }
   return { notes, laughPatched };
 }
 
@@ -539,10 +584,15 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
       return result.notes;
     });
   const lessonsBefore = state.curve.filter((point) => point.lesson).length;
+  // Learning mode (2026-10-19, "Pfeile aus Nebel": evaporation explained in chapters 5, 7 and 8): a second explanation after
+  // the aha is shortened to a line that uses the knowledge. Counted in the text, no model call.
+  const learningThread = learningGoal(brief.config) ? plan.bible.learning : null;
+  const explainedAgain = learningThread?.term ? repeatedExplanationNotes(state.chapters, chapters, learningThread.core, learningThread.term) : [];
 
   // Patch: continuity, language, invented looks, repeated phrases, missing hooks and plants, what a newcomer cannot follow.
   const notes = [
     ...cold.notes,
+    ...explainedAgain,
     ...threadNotes,
     ...hookNotes.map((chapter) => hookPatchNote(chapter, planned)),
     ...plantNotes,
@@ -667,6 +717,8 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
     ...(laughPatched.size ? { laughPatched: [...laughPatched] } : {}),
     ...(wordingsRestored.length ? { wordingsRestored } : {}),
     ...(cold.missing.length ? { coldReadGaps: cold.missing } : {}),
+    ...(critique?.chapters.some((point) => point.shortcut && !rewritten.has(point.n)) ? { shortcutHoles: critique.chapters.filter((point) => point.shortcut && !rewritten.has(point.n)).map((point) => `K${point.n}: ${point.shortcut!.problem}`) } : {}),
+    ...(explainedAgain.length ? { explainedAgain: explainedAgain.length } : {}),
     ...(openThreads.length ? { openThreads: openThreads.map((thread) => `${thread.id} (K${thread.chapter}): ${thread.question}`) } : {}),
     ...(threadNotes.length ? { answeredByPatch: threadNotes.length } : {}),
   });

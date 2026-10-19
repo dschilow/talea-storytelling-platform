@@ -194,8 +194,10 @@ export function learningWriterLinesEn(config: Pick<StoryConfig, "learningMode"> 
     `  2. ${units.middle}: the heroes find out by doing — watching closely, trying, comparing, counting, measuring. The wrong idea visibly fails first. A character asks the central question aloud at the end of a ${units.unit}, and the answer comes later, so the listening child gets a moment to guess.`,
     `  3. The aha, ${units.aha}: a hero says the knowledge in one to three short sentences of dialogue — what and why — in children's words, with ONE comparison from a child's everyday life. The key word of the goal is said and explained in the same breath.`,
     `  4. ${units.key}: the heroes' plan works BECAUSE of the knowledge, so the child feels why it matters.`,
-    `  5. Echo ${units.lastAt}: someone says it once more, short and new — a hero explains it to someone who was not there, or the stubborn character proudly repeats it in its own funny words — and the key word is heard again (a child remembers the word it heard twice). In a magical world half a sentence shows that it is just as true in ours.`,
-    "- Teach through the story, never as a lecture: the knowledge comes from characters and from what happens, not from the narrator; at most three explaining sentences in a row, then something happens again. Show it before you name it. No grown-up abstractions (energy, process, system, reserves, metabolism …) unless the same sentence turns them into a picture a child knows.",
+    // "Pfeile aus Nebel" (2026-10-19): "a hero explains it to someone who was not there" became a third full definition in
+    // the last chapter, read like a lecture. The echo uses the knowledge; the aha is the only explanation.
+    `  5. Echo ${units.lastAt}: the knowledge is used once more, short and new — a hero spots it somewhere else or uses it in a new little situation, or the stubborn character proudly gets it right in its own funny words — and the key word is heard again (a child remembers the word it heard twice). Never a second explanation of what was already explained. In a magical world half a sentence shows that it is just as true in ours.`,
+    "- Teach through the story, never as a lecture: the knowledge comes from characters and from what happens, not from the narrator; at most three explaining sentences in a row, then something happens again. Show it before you name it. It is explained in full ONCE (the aha): before it come questions and tests, after it the knowledge is used, not explained again. No grown-up abstractions (energy, process, system, reserves, metabolism …) unless the same sentence turns them into a picture a child knows.",
     "- Facts and fantasy stay apart: magic, talking animals and invented things may frame the story, but never change or explain the real knowledge. A talking animal still eats, sleeps and behaves like the real animal; a magic thing may hold or show things, but the heroes do the thinking and the counting.",
     ...goal.subjects.map((subject) => SUBJECTS[subject]?.craft).filter((craft): craft is string => Boolean(craft)).map((craft) => `- ${craft}`),
     `- ${ageLineEn(options.band)}`,
@@ -227,7 +229,7 @@ export function learningLinesDe(config: Pick<StoryConfig, "learningMode"> | null
   if (!goal) return [];
   const lines = [
     `Lernmodus (Pflicht): ${subjectLabelsDe(goal)}.${goal.objectives.length ? ` Lernziel: ${objectivesQuoted(goal, " und ")} — nach dem Vorlesen kann das Kind es in einem eigenen Satz erklären.` : " Ein konkretes, wahres Wissen aus diesem Fach, das ein Kind nacherzählen kann."} Umfang: ${DEPTH[goal.difficulty].de}.`,
-    "So lehrt die Geschichte: Das Wissen ist sachlich richtig (kein Mythos, kein Zauber erklärt Echtes, jede Zahl stimmt) und zieht sich durch die Handlung — früh als sichtbare Beobachtung mit einer Frage oder einem Irrtum, in der Mitte von den Helden ausprobiert, spätestens vor der Lösung von einer Figur in ein bis drei kurzen Sätzen in Kinderworten mit einem Vergleich aus der Kinderwelt erklärt (das Fachwort gleich mit). Dann trägt es die Lösung und klingt am Ende in einem kurzen Satz einer Figur noch einmal an, mit dem Schlüsselwort. Nie als Vortrag des Erzählers; keine Erwachsenenwörter wie Energie, Prozess oder Reserven ohne ein Bild für Kinder.",
+    "So lehrt die Geschichte: Das Wissen ist sachlich richtig (kein Mythos, kein Zauber erklärt Echtes, jede Zahl stimmt) und zieht sich durch die Handlung — früh als sichtbare Beobachtung mit einer Frage oder einem Irrtum, in der Mitte von den Helden ausprobiert, spätestens vor der Lösung von einer Figur in ein bis drei kurzen Sätzen in Kinderworten mit einem Vergleich aus der Kinderwelt erklärt (das Fachwort gleich mit). Dann trägt es die Lösung und klingt am Ende in einem kurzen Satz einer Figur noch einmal an, mit dem Schlüsselwort — als Anwendung in einer neuen kleinen Lage, nie als zweite Erklärung. Nie als Vortrag des Erzählers; keine Erwachsenenwörter wie Energie, Prozess oder Reserven ohne ein Bild für Kinder.",
   ];
   if (goal.assessment === "quiz") lines.push("Lernart Quiz: Ganz am Schluss stellt eine Figur dem zuhörenden Kind eine kurze, spielerische Frage zum Wissen; die Antwort steht klar in der Geschichte.");
   else if (goal.assessment === "discussion") lines.push("Lernart Gespräch: Am Ende wundert sich eine Figur laut über eine offene Frage zum Thema, über die Kind und Eltern weiterreden können.");
@@ -262,6 +264,49 @@ export function knowledgeSentences(text: string, core: string, term = "", max = 
     .filter((sentence) => sentence.length >= 20 && mentionsKnowledge(sentence, core, term))
     .slice(0, max)
     .map((sentence) => clean(sentence, 240).replace(/^[„"]|[“"]$/g, ""));
+}
+
+const DEFINING = /\b(hei(ß|ss)t|nennt man|bedeutet|das ist|ist,? wenn|means|is called)\b/i;
+
+/**
+ * Paragraphs that explain the knowledge: the key word with three content words of the core, or with two and a defining
+ * phrase („Das ist Verdunstung. Wasser verteilt sich als unsichtbarer Wasserdampf …“). A line that only uses the word
+ * („Verdunstung — darum trocknet es so schnell“) is no explanation.
+ */
+export function explanationParagraphs(text: string, core: string, term: string): string[] {
+  const key = clean(term, 60).toLocaleLowerCase("de-DE");
+  if (key.length < 4) return [];
+  const keyStem = key.slice(0, Math.max(4, key.length - 2));
+  const termStems = new Set(stems(term));
+  const coreStems = new Set(stems(core).filter((stem) => !termStems.has(stem)));
+  return String(text || "")
+    .split(/\n\s*\n|\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => {
+      if (!paragraph.toLocaleLowerCase("de-DE").includes(keyStem)) return false;
+      const shared = stems(paragraph).filter((stem) => coreStems.has(stem)).length;
+      return shared >= 3 || (shared >= 2 && DEFINING.test(paragraph));
+    });
+}
+
+/**
+ * Chapter book (2026-10-19, "Pfeile aus Nebel": evaporation explained in chapters 5, 7 and 8, the last time as a lecture
+ * to someone who had not asked). The first chapter that explains the knowledge is the aha; every later chapter that
+ * explains it again gets a note to shorten it to one line that uses it. Deterministic, no model call.
+ */
+export function repeatedExplanationNotes(earlier: Array<{ order: number; content: string }>, current: Array<{ order: number; content: string }>, core: string, term: string): string[] {
+  const all = [...earlier, ...current].sort((a, b) => a.order - b.order);
+  const first = all.find((chapter) => explanationParagraphs(chapter.content, core, term).length > 0);
+  if (!first) return [];
+  const keyStem = clean(term, 60).toLocaleLowerCase("de-DE").slice(0, Math.max(4, clean(term, 60).length - 2));
+  return current
+    .filter((chapter) => chapter.order > first.order)
+    .flatMap((chapter) => {
+      const paragraph = explanationParagraphs(chapter.content, core, term)[0];
+      if (!paragraph) return [];
+      const sentence = paragraph.split(/(?<=[.!?…])\s+/).find((part) => part.toLocaleLowerCase("de-DE").includes(keyStem)) || paragraph;
+      return [`Kapitel ${chapter.order}: Das Wissen wird hier ein zweites Mal erklärt („${clean(sentence, 160).replace(/^[„"]|[“"]$/g, "")}“) — Kapitel ${first.order} hat es schon erklärt. Kürze diese Stelle auf einen kurzen Satz, in dem eine Figur das Wissen benutzt und das Wort „${clean(term, 40)}“ fällt; keine zweite Erklärung.`];
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -390,7 +435,7 @@ export function learningLedgerNotes(ledger: LearningLedger | undefined, goal: Le
     notes.push(`Seite ${ledger.explainedOn}: Das Wort „${ledger.keyWord}“ fällt in der ganzen Geschichte nie. Lass es in der Erklärung fallen — ein Wort in einem vorhandenen Satz wörtlicher Rede genügt.`);
   }
   if (echoMissing) {
-    notes.push(`Seite ${pageCount}: Das Lernwissen klingt am Ende nicht mehr an. Eine Figur sagt es in einem kurzen Satz wörtlicher Rede noch einmal, neu und knapp${wordMissing ? `, mit dem Wort „${ledger.keyWord}“` : ""} — nie als Erzählersatz wie „Seitdem wusste …“.`);
+    notes.push(`Seite ${pageCount}: Das Lernwissen klingt am Ende nicht mehr an. Eine Figur benutzt es in einem kurzen Satz wörtlicher Rede noch einmal, neu und knapp${wordMissing ? `, mit dem Wort „${ledger.keyWord}“` : ""} — keine zweite Erklärung, nie als Erzählersatz wie „Seitdem wusste …“.`);
   } else if (wordMissing) {
     notes.push(`Das Wort „${ledger.keyWord}“ fällt ${heard === 0 ? "nie" : "nur einmal"}. Lass es dort fallen, wo das Wissen erklärt wird, und auf Seite ${pageCount} noch einmal — ein Wort in einem vorhandenen Satz wörtlicher Rede genügt.`);
   }

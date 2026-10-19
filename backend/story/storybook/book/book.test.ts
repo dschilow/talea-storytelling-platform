@@ -54,10 +54,16 @@ function brief(overrides: Partial<BookBrief> = {}): BookBrief {
   return { ...base, book, form: "mystery", catalogue, series: null, ...overrides };
 }
 
+// 2026-10-19 (obstacle ledger): every chapter before the last says why the obvious move fails, with varied kinds and no repeats.
+const BLOCKED_BY = ["Der Fresser schnappt jeden Ton weg", "Das Sieb hält nur nahe Klänge", "Die Moorbrücke ist eingestürzt", "Adrian traut sich nicht hinein", "Niemand kennt den Dreischritt", "Theo verwechselt Morgen und Abend", "Lunas Schelle verrät das Versteck", "Nebel verschluckt alle Wegzeichen", "Alexander verspricht Stillschweigen", "Die Laterne erlischt am Bachufer", "Der Fresser bewacht das Notenblatt", ""];
+const NEW_HERE = ["Ein Schmatzen hinter der Hecke", "Das Sieb fängt einen Pfiff", "Eine Spur aus Moosflocken", "Theo kennt eine Abkürzung", "Luna verliert ihr Schnurren", "Der Fresser ist einsam", "Die Klangfolge passt zum Plakat", "Adrian zählt falsch", "Ein Streit über den Plan", "Der Dreischritt öffnet Blattwege", "Alle Klänge kehren zurück", "Das Konzert beginnt"];
+const BLOCK_KINDS = ["figure", "rule", "barrier", "inner", "unknown"];
+
 function planJson(overrides: any = {}) {
   const chapters = Array.from({ length: 12 }, (_, index) => ({
     n: index + 1, title: `Titel ${index + 1}`, type: ["entdeckung", "verfolgung", "rätsel", "ruhiges herzenskapitel"][index % 4], place: ["Dorfplatz", "Waldweg", "Moorhütte", "Bachufer"][index % 4],
     event: "Etwas passiert.", progress: "Ein Hinweis mehr.", laugh: "Luna fällt vom Sieb.", hook: index < 11 ? "Ein Schmatzen." : "",
+    ...(index < 11 ? { goalNow: "Das Konzert retten", simplestMove: "Die Klänge einfach zurückholen", blockedBy: BLOCKED_BY[index], blockKind: BLOCK_KINDS[index % 5] } : {}), newThisChapter: NEW_HERE[index],
     cast: ["Alexander", "Adrian", index % 2 ? "Luna" : "Theo"], plants: index === 1 ? ["S1", "S2"] : index === 2 ? ["S3"] : [], payoffs: index === 10 ? ["S1", "S2"] : index === 9 ? ["S3"] : [], pictures: ["a", "b"],
   }));
   return {
@@ -1628,5 +1634,164 @@ describe("Porträt für Figuren ohne Pool-Bild (Kieselgarten, 2026-10-17)", () =
     const troll = { ...garden, id: "bible:troll", appearance: "a big friendly green troll with moss on his shoulders" } as VisualEntity;
     expect(figurePortraitRequest(troll, "s").prompt).toContain("standing upright");
     expect(figurePortraitRequest(troll, "s").negativePrompt).not.toContain("person, child, boy, girl");
+  });
+});
+
+import { checkFreshDeadline, parseBlockKind, parsePlanHoles, planHoleNotes } from "./plan";
+import { buildPlanRedTeamPrompt } from "./prompts";
+import { holeChecksEnabled } from "./engine";
+
+describe("Pfeile aus Nebel (2026-10-19): kein einfacher Weg bleibt offen", () => {
+  const budget = resolveBookBudget("6-8", { chapters: 12 });
+  const issuesOf = (raw: any) => checkBookPlan(parsePlan(raw, 12)!, budget, checkInput).join("\n");
+
+  test("the obstacle ledger: missing fields, one kind three times, two kinds only, the same obstacle three times and the same news are reported", () => {
+    const missing = planJson();
+    delete missing.chapters[2].blockedBy;
+    delete missing.chapters[4].newThisChapter;
+    expect(issuesOf(missing)).toContain("Kapitel 3, 5: Es fehlt die Hindernisliste");
+    // The last chapter needs none.
+    const last = planJson();
+    delete last.chapters[11].newThisChapter;
+    expect(issuesOf(last)).not.toContain("Hindernisliste");
+    const sameKind = planJson();
+    sameKind.chapters[0].blockKind = sameKind.chapters[1].blockKind = sameKind.chapters[2].blockKind = "rule";
+    expect(issuesOf(sameKind)).toContain("dreimal hintereinander dieselbe Art Hindernis");
+    const twoKinds = planJson();
+    twoKinds.chapters.forEach((chapter: any, index: number) => { if (index < 11) chapter.blockKind = index % 2 ? "inner" : "rule"; });
+    expect(issuesOf(twoKinds)).toContain("nur zwei Arten");
+    // "the arrow points into the bed again" — chapters 2, 6 and 10.
+    const bed = planJson();
+    bed.chapters[1].blockedBy = bed.chapters[5].blockedBy = "Der Pfeil zeigt mitten durch das frisch geharkte Beet";
+    bed.chapters[9].blockedBy = "Der Nebelpfeil zeigt wieder mitten durchs geharkte Beet";
+    expect(issuesOf(bed)).toContain("Kapitel 2, 6, 10: dasselbe Hindernis kommt wieder");
+    const news = planJson();
+    news.chapters[6].newThisChapter = "Ein Schmatzen hinter der großen Hecke";
+    expect(issuesOf(news)).toContain("Kapitel 1 und 7 bringen dasselbe Neue");
+  });
+
+  test("block kinds are read tolerantly; the ledger reaches the review, the writer and the critic", () => {
+    expect(parseBlockKind("Angst")).toBe("inner");
+    expect(parseBlockKind("Regel des Wunders")).toBe("rule");
+    expect(parseBlockKind("barrier")).toBe("barrier");
+    expect(parseBlockKind("unbekannt")).toBe("unknown");
+    expect(parseBlockKind("jemand handelt")).toBe("figure");
+    expect(parseBlockKind("blau")).toBeUndefined();
+    const plan = parsePlan(planJson(), 12)!;
+    expect(plan.chapters[0]).toMatchObject({ simplestMove: "Die Klänge einfach zurückholen", blockedBy: BLOCKED_BY[0], blockKind: "figure", newThisChapter: NEW_HERE[0] });
+    const b = brief({ form: "journey" });
+    expect(buildPlanPrompt(b, { title: "x", premise: "x", bigQuestion: "x", wonder: "x", roles: [] }, [], []).user).toContain("The obstacle ledger (every chapter except the last)");
+    expect(buildPlanReviewPrompt(b, plan).user).toContain(`fails because: ${BLOCKED_BY[1]}`);
+    expect(buildChapterUserPrompt(b, plan, emptyBookState(), 2, 4)).toContain("why they cannot simply do it");
+    expect(buildChapterSystemPrompt(b)).toContain("No easy way stays open on the page");
+    const critic = buildChapterCritiquePrompt(b, plan, emptyBookState(), [{ order: 3, title: "x", content: "y", recap: "" }]);
+    expect(critic.user).toContain(`fails because: ${BLOCKED_BY[2]}`);
+    expect(critic.system).toContain("the reason the plan gives why the obvious move fails (\"fails because\") is missing from the page");
+  });
+
+  test("a bell or a clock striking is no fresh deadline; the plan prompt knows the worn list", () => {
+    const deadline = (value: string) => checkFreshDeadline(parsePlan(planJson({ bible: { ...planJson().bible, deadline: value } }), 12)!);
+    expect(deadline("Bevor die Schulglocke zur Eröffnung läutet")[0]).toContain("Glocken- oder Uhrschlag");
+    expect(deadline("Wenn die Turmuhr sieben schlägt")).toHaveLength(1);
+    expect(deadline("Bevor der Bus um drei abfährt")).toEqual([]);
+    expect(deadline("Bevor es draußen laut wird")).toEqual([]);
+    expect(buildPlanPrompt(brief(), { title: "x", premise: "x", bigQuestion: "x", wonder: "x", roles: [] }, [], []).user).toContain("a bell stroke as deadline");
+  });
+
+  test("the red-team reader: holes are read tolerantly, become revision notes, and what stays open reaches the writer", () => {
+    expect(parsePlanHoles("x", 12)).toBeNull();
+    const holes = parsePlanHoles({ holes: [
+      { chapter: 4, kind: "shortcut", problem: "Frau Holle sieht ihre Karte und nimmt sie nicht." },
+      { chapter: 99, kind: "seltsam", problem: "Die Seitentür ist seit Kapitel 1 bekannt." },
+      { chapter: 2, kind: "wonder", problem: "" },
+    ] }, 12)!;
+    expect(holes).toEqual([
+      { chapter: 4, kind: "shortcut", problem: "Frau Holle sieht ihre Karte und nimmt sie nicht." },
+      { chapter: null, kind: "shortcut", problem: "Die Seitentür ist seit Kapitel 1 bekannt." },
+    ]);
+    const notes = planHoleNotes(holes);
+    expect(notes[0]).toMatch(/^Kapitel 4: Plot-Loch \(Gegenleser\): Frau Holle/);
+    expect(notes[0]).toContain("ohne künstliche Gefahr");
+    expect(notes[1]).toMatch(/^Plot-Loch/);
+    const plan = { ...parsePlan(planJson(), 12)!, holes };
+    const b = brief();
+    expect(buildChapterUserPrompt(b, plan, emptyBookState(), 4, 4)).toContain("a plot hole the plan could not close — close it here");
+    expect(buildChapterStaticContext(b, plan)).toContain("Plot hole the plan could not close (close it on the page");
+    const prompt = buildPlanRedTeamPrompt(b, parsePlan(planJson(), 12)!);
+    expect(prompt.system).toContain("- shortcut:");
+    expect(prompt.system).toContain("- repeat:");
+    expect(prompt.system).not.toContain("- learning:");
+    expect(prompt.user).toContain("why they cannot simply do it");
+    const thread = { core: "Wasser verdunstet in warmer, bewegter Luft schneller.", term: "Verdunstung", misconception: "m", comparison: "c", steps: [{ chapter: 1, step: "s" }], withoutIt: "w" };
+    const learning = buildPlanRedTeamPrompt(brief({ config: { ...brief().config, learningMode: { enabled: true, subjects: ["science"] } } as any }), parsePlan(planJson({ bible: { ...planJson().bible, learning: thread } }), 12)!);
+    expect(learning.system).toContain("- learning: the climax would still work");
+  });
+
+  test("planBook: the red-team reader runs beside the review, its holes go into the revision, it reads again only after holes; TALEA_BOOK_HOLES=off skips it", async () => {
+    const answer = (request: LlmRequest, data: unknown): LlmCallResult => ({ text: JSON.stringify(data), modelUsed: request.model, usage: { prompt: 1, completion: 1, total: 2, costUSD: 0 }, durationMs: 1 });
+    const run = async (redTeamAnswers: unknown[]) => {
+      const requests: LlmRequest[] = [];
+      let redTeamCall = 0;
+      const llm = async (request: LlmRequest): Promise<LlmCallResult> => {
+        requests.push(request);
+        if (request.stage.startsWith("book-pitch")) return answer(request, { ideas: [{ title: "Drei", premise: "p", bigQuestion: "q", wonder: "w", engine: "heroes", engineFigure: null, stake: "s", roles: [{ role: "x", castId: "P2", why: "y" }] }], choice: 1, why: "w" });
+        if (request.stage.startsWith("book-plan-review")) return answer(request, { checks: {}, scores: { overall: 8 }, mustFix: [], weaknesses: [] });
+        if (request.stage.startsWith("book-plan-redteam")) return answer(request, redTeamAnswers[Math.min(redTeamCall++, redTeamAnswers.length - 1)]);
+        if (request.stage.startsWith("book-plan-revision")) return answer(request, {});
+        return answer(request, planJson());
+      };
+      const planned = await planBook({ llm, brief: brief({ form: "journey" }), models: { writer: "w", support: "s", critic: "c" }, ledger: new CostLedger() });
+      return { planned, stages: requests.map((request) => request.stage), requests };
+    };
+    const hole = { holes: [{ chapter: 5, kind: "shortcut", problem: "Die Besitzerin hält ihre Karte in der Hand und geht ohne sie." }] };
+    // Holes, then none: the revision gets the hole as a note, the reader looks once more, the next revision has no hole left.
+    const fixed = await run([hole, { holes: [] }]);
+    expect(fixed.stages.filter((stage) => stage.startsWith("book-plan-redteam"))).toEqual(["book-plan-redteam", "book-plan-redteam-2"]);
+    expect(fixed.requests.find((request) => request.stage === "book-plan-revision")!.user).toContain("Kapitel 5: Plot-Loch (Gegenleser): Die Besitzerin");
+    expect(fixed.requests.find((request) => request.stage === "book-plan-revision-2")?.user || "").not.toContain("Plot-Loch");
+    // Same reader as the plan review: never the planner's family.
+    expect(fixed.requests.find((request) => request.stage === "book-plan-redteam")!.model).toBe(fixed.requests.find((request) => request.stage === "book-plan-review")!.model);
+    expect(fixed.planned.plan.holes).toBeUndefined();
+    // A hole that stays: no third read after the last revision, the hole goes to the writer.
+    const kept = await run([hole]);
+    expect(kept.stages.filter((stage) => stage.startsWith("book-plan-redteam"))).toEqual(["book-plan-redteam", "book-plan-redteam-2"]);
+    expect(kept.requests.find((request) => request.stage === "book-plan-revision-2")!.user).toContain("Plot-Loch");
+    expect(kept.planned.plan.holes?.[0]).toMatchObject({ chapter: 5, kind: "shortcut" });
+    // No holes: no re-read.
+    const clean = await run([{ holes: [] }]);
+    expect(clean.stages.filter((stage) => stage.startsWith("book-plan-redteam"))).toEqual(["book-plan-redteam"]);
+    const before = process.env.TALEA_BOOK_HOLES;
+    process.env.TALEA_BOOK_HOLES = "off";
+    try {
+      expect(holeChecksEnabled()).toBe(false);
+      const off = await run([hole]);
+      expect(off.stages.some((stage) => stage.startsWith("book-plan-redteam"))).toBe(false);
+    } finally {
+      if (before === undefined) delete process.env.TALEA_BOOK_HOLES;
+      else process.env.TALEA_BOOK_HOLES = before;
+    }
+    expect(holeChecksEnabled()).toBe(true);
+  });
+
+  test("the critic asks „why don't they just …?“; it counts only with a sentence from the text and becomes one patch note", () => {
+    const chapters = [
+      { order: 5, title: "Die Luft wird trocken", recap: "", content: "Frau Holle beugte sich über die Zeichnung.\n\n„Da ist ja mein Wasserlauf“, sagte sie und ging die Treppe hinunter." },
+      { order: 6, title: "Der falsche kürzeste Weg", recap: "", content: "Alexander hielt das Papier in den Schatten." },
+    ];
+    const raw = JSON.stringify({ chapters: [
+      { n: 5, suspense: 5, humor: 6, progress: true, shortcut: { quote: "„Da ist ja mein Wasserlauf“, sagte sie und ging die Treppe hinunter.", problem: "Frau Holle liest ihre eigene Karte und geht ohne sie — warum geben die Brüder sie ihr nicht einfach?" } },
+      { n: 6, suspense: 7, humor: 6, progress: true, shortcut: { quote: "Dieser Satz steht nirgends.", problem: "Erfunden" } },
+    ], mustFix: [], languageErrors: [] });
+    const critique = parseChapterCritique(raw, chapters as any)!;
+    expect(critique.chapters[0].shortcut?.problem).toContain("Frau Holle liest ihre eigene Karte");
+    expect(critique.chapters[1].shortcut).toBeNull();
+    const plan = parsePlan(planJson(), 12)!;
+    const notes = enginePatchNotes(critique.chapters[0], chapters[0] as any, plan, "funny").notes.join("\n");
+    expect(notes).toMatch(/Kapitel 5: Ein Kind fragt „Warum nicht einfach …\?“ — Frau Holle/);
+    expect(notes).toContain("ohne neue Handlung");
+    expect(enginePatchNotes(critique.chapters[1], chapters[1] as any, plan, "funny").notes.join("\n")).not.toContain("Warum nicht einfach");
+    const prompt = buildChapterCritiquePrompt(brief(), plan, emptyBookState(), chapters as any);
+    expect(prompt.system).toContain("- shortcut: ask two things. (1) Does anyone in this chapter look for, need or own a thing the heroes carry");
+    expect(prompt.user).toContain("\"shortcut\":null");
   });
 });

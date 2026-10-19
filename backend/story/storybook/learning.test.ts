@@ -8,6 +8,7 @@ import { resolveLengthBudget, type AgeBand } from "./craft";
 import { runDevelopmentStage } from "./developments";
 import {
   countKeyWord,
+  explanationParagraphs,
   knowledgeSentences,
   learningDevelopmentLinesEn,
   learningGoal,
@@ -20,6 +21,7 @@ import {
   learningWriterLinesEn,
   mentionsKnowledge,
   parseLearningCore,
+  repeatedExplanationNotes,
   sanitizeLearningLedger,
 } from "./learning";
 import type { LlmRequest } from "./llm";
@@ -247,8 +249,9 @@ const THREAD = {
   term: "Winterschlaf",
   misconception: "Adrian glaubt, der Igel friert nur und braucht eine Decke.",
   comparison: "Das Fett ist wie eine volle Brotdose unter der Haut.",
-  steps: [{ chapter: 1, step: "Der Igel frisst und frisst." }, { chapter: 4, step: "Unter dem Brett finden sie keinen Käfer mehr." }, { chapter: 6, step: "Alexander erklärt den Winterschlaf." }, { chapter: 7, step: "Sie bauen ein ruhiges Laubnest statt eines Futterplatzes." }, { chapter: 8, step: "Adrian erklärt es der Nachbarin." }],
+  steps: [{ chapter: 1, step: "Der Igel frisst und frisst." }, { chapter: 4, step: "Unter dem Brett finden sie keinen Käfer mehr.", obstacle: "Der Futterplatz der Helden bleibt leer" }, { chapter: 6, step: "Alexander erklärt den Winterschlaf." }, { chapter: 7, step: "Sie bauen ein ruhiges Laubnest statt eines Futterplatzes.", obstacle: "Der Igel flieht vor dem lauten Futterplatz" }, { chapter: 8, step: "Adrian erkennt im Laubhaufen am Zaun ein zweites Winterquartier." }],
   realWorld: "Im Herbst einen Laubhaufen liegen lassen.",
+  withoutIt: "Mit noch mehr Futter würden sie den Igel wecken und vertreiben.",
 };
 
 describe("chapter book", () => {
@@ -259,12 +262,17 @@ describe("chapter book", () => {
     expect(checkLearningThread(plan, 8, false)).toEqual([]);
     const none = parsePlan(rawPlan(null), 8)!;
     expect(checkLearningThread(none, 8, true)[0]).toContain("keinen Wissensfaden");
-    const thin = parsePlan(rawPlan({ ...THREAD, misconception: "", steps: [{ chapter: 5, step: "x" }] }), 8)!;
+    const thin = parsePlan(rawPlan({ ...THREAD, misconception: "", withoutIt: "", steps: [{ chapter: 5, step: "x" }] }), 8)!;
     const issues = checkLearningThread(thin, 8, true).join("\n");
     expect(issues).toContain("mindestens drei Schritte");
     expect(issues).toContain("Kapitel 1–2");
     expect(issues).toContain("Höhepunkt");
     expect(issues).toContain("Irrtum");
+    // "Pfeile aus Nebel" (2026-10-19): a thread whose steps cause no story problem and that the climax does not need.
+    expect(issues).toContain("withoutIt");
+    expect(issues).toContain("obstacle");
+    expect(plan.bible.learning?.withoutIt).toContain("wecken");
+    expect(plan.bible.learning?.steps.filter((entry) => entry.obstacle)).toHaveLength(2);
     const input = { heroNames: ["Alexander", "Adrian"], castNames: [], blockedTerms: [] };
     expect(checkBookPlan(none, bookBrief().book, { ...input, learning: true }).some((issue) => issue.startsWith("Lernmodus"))).toBe(true);
     expect(checkBookPlan(none, bookBrief().book, input).some((issue) => issue.startsWith("Lernmodus"))).toBe(false);
@@ -293,6 +301,42 @@ describe("chapter book", () => {
     const plainCritic = buildChapterCritiquePrompt(bookBrief(), plan, emptyBookState(), [{ order: 6, title: "x", content: "y", recap: "" }]);
     expect(plainCritic.system).toContain("anything a child is supposed to learn from");
     expect(plainCritic.user).not.toContain("LEARNING THREAD");
+  });
+
+  test("Pfeile aus Nebel (2026-10-19): explained once, used afterwards; a second explanation gets a note, a word in use does not", () => {
+    const core = "Wasser verdunstet: Es wird zu unsichtbarem Wasserdampf und verteilt sich in der Luft. Wärme und Wind machen das schneller.";
+    const term = "Verdunstung";
+    const k5 = { order: 5, content: "„Das heißt Verdunstung“, sagte er. „Wasser wird zu unsichtbarem Wasserdampf und verteilt sich in der Luft, so wie Teeduft im Zimmer. Wärme und bewegte Luft können das schneller machen.“\n\nEin Windstoß blätterte die Buchseite um." };
+    const k7 = { order: 7, content: "„Das Wasser aus dem Tuch verteilt sich in der Luft“, sagte Alexander. „Wir brauchen das nasse Tuch daneben, nicht darauf.“" };
+    const k8 = { order: 8, content: "„Für den Pfeil braucht es bald wieder ein bisschen Wasser. Das ist Verdunstung. Wasser verteilt sich als unsichtbarer Wasserdampf in der Luft, auch bei einem ganz gewöhnlichen Tuch.“\n\nFrau Holle nahm die Gießkanne." };
+    const echo = { order: 8, content: "„Verdunstung“, sagte Adrian und hängte das Tuch an die Heizung. „Hier geht es noch schneller.“" };
+    expect(explanationParagraphs(k5.content, core, term)).toHaveLength(1);
+    expect(explanationParagraphs(k7.content, core, term)).toEqual([]);
+    const notes = repeatedExplanationNotes([k5], [k7, k8], core, term);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatch(/^Kapitel 8: Das Wissen wird hier ein zweites Mal erklärt \(„Das ist Verdunstung\./);
+    expect(notes[0]).toContain("Kapitel 5 hat es schon erklärt");
+    expect(repeatedExplanationNotes([k5, k7], [echo], core, term)).toEqual([]);
+    // The first explanation in the batch is the aha.
+    expect(repeatedExplanationNotes([], [k5], core, term)).toEqual([]);
+    // The arc asks for an echo that uses the knowledge — never the old "explains it to someone who was not there".
+    const lines = learningWriterLinesEn({ learningMode: HEDGEHOG } as any, { form: "chapterbook", band: "6-8", units: 8 }).join("\n");
+    expect(lines).toContain("Never a second explanation");
+    expect(lines).toContain("explained in full ONCE");
+    expect(lines).not.toContain("explains it to someone who was not there");
+    expect(learningLinesDe({ learningMode: HEDGEHOG } as any).join("\n")).toContain("nie als zweite Erklärung");
+  });
+
+  test("the plan's withoutIt and the story problems reach writer and critic; the climax batch is told what needs the knowledge", () => {
+    const b = bookBrief(HEDGEHOG);
+    const plan = parsePlan(rawPlan(THREAD), 8)!;
+    expect(buildChapterUserPrompt(b, plan, emptyBookState(), 7, 7)).toContain("it causes or solves this story problem: Der Igel flieht");
+    expect(buildPlanPrompt(b, { title: "x", premise: "x", bigQuestion: "x", wonder: "x", roles: [] }, [], []).user).toContain("The knowledge works FOR the plot, not beside it");
+    const climax = buildChapterCritiquePrompt(b, plan, emptyBookState(), [{ order: 7, title: "x", content: "y", recap: "" }]);
+    expect(climax.user).toContain("CLIMAX NEEDS IT (the planned move that fails without the knowledge): Mit noch mehr Futter");
+    expect(climax.system).toContain("knowledge explained a second time");
+    const early = buildChapterCritiquePrompt(b, plan, emptyBookState(), [{ order: 2, title: "x", content: "y", recap: "" }]);
+    expect(early.user).not.toContain("CLIMAX NEEDS IT");
   });
 
   test("a knowledge sentence is recognised (lesson guard and development evidence)", () => {
