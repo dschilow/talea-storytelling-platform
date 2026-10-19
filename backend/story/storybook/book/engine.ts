@@ -12,6 +12,7 @@
 
 
 import { isGerman } from "../craft";
+import { learningGoal, mentionsKnowledge } from "../learning";
 import { STORYBOOK_SUPPORT_MODEL, fallbackModelFor, modelFamily, parseJsonObject, type CostLedger, type LlmCallResult, type LlmRequest, type StorybookLlm, type StorybookModels } from "../llm";
 import { chooseIdea, ensureEngineCast, fallbackCasting, forceEngine, mentionsName, resolveCasting, resolveEngineFigure, type CastingResult } from "./catalogue";
 import { checkChapter, mergeChapterPatch, mergeOpenThreads, mergeWorldState, mergeWordings, parseChapterCritique, parseChapters, quoteInText, restoreFixedWordings, type ChapterCritiqueResult } from "./chapters";
@@ -173,6 +174,7 @@ export async function planBook(ctx: BookContext): Promise<PlannedBook> {
       cozy: brief.form === "cozy",
       band: brief.band,
       famousFigure: Boolean(brief.config.allowFamousCharacters),
+      learning: Boolean(learningGoal(brief.config)),
     };
     let issues = checkBookPlan(plan, brief.book, checkInput);
 
@@ -552,6 +554,9 @@ export async function processChapters(ctx: BookContext, planned: PlannedBook, st
       .flatMap((chapter) => {
         const lesson = critique?.chapters.find((entry) => entry.n === chapter.order)?.lesson;
         if (!lesson) return [];
+        // Learning mode (2026-10-17): the knowledge a character explains is what the family asked for — never struck as a "lesson".
+        const thread = plan.bible.learning;
+        if (thread && mentionsKnowledge(lesson, thread.core, thread.term)) return [];
         return lessonsBefore > 0
           ? [`Kapitel ${chapter.order}: Der Satz „${lesson}“ spricht eine Lehre aus — und das Buch hat schon ${lessonsBefore === 1 ? "eine" : lessonsBefore} ausgesprochen. Streiche ihn ersatzlos; die Szene trägt das Gefühl allein.`]
           : [`Kapitel ${chapter.order}: Der Satz „${lesson}“ spricht eine Lehre oder einen Merksatz aus. Streiche ihn oder ersetze ihn durch eine Handlung oder ein Bild aus der Szene — kein Kind soll hier belehrt werden.`];

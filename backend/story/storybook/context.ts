@@ -8,6 +8,7 @@
 
 import type { StoryConfig } from "../generate";
 import { languageName, type AgeBand, type LengthBudget } from "./craft";
+import { learningLinesDe } from "./learning";
 import type { ArtifactOption, CastCandidate, StorybookHero } from "./types";
 
 export interface StoryBrief {
@@ -98,22 +99,6 @@ const GENRE_PROMISES: Record<string, string> = {
   animals: "Tiere tragen die Geschichte. Sie haben Charakter, und was sie als Tiere typischerweise tun (fressen, graben, schlafen, wandern, sich verstecken) treibt Witz und Lösung — sachlich richtig.",
   scifi: "Raumschiff, Roboter, fremder Planet oder eine verrückte Erfindung: Staunen über das Fremde und eine Technik-Regel, die ein Kind versteht.",
   modern: "Heute, ohne Magie: Kita, Schule, Spielplatz, Familie oder Nachbarschaft. Spannung und Witz kommen aus Lagen, die jedes Kind kennt — nur ein bisschen verrückter.",
-};
-
-/** Wizard ids (Step6LearningMode) in words a writer can use. */
-const LEARNING_SUBJECTS: Record<string, string> = {
-  math: "Mathe (Zählen, Rechnen, Mengen, Formen, Messen)",
-  science: "Naturwissenschaft (wie Natur, Tiere, Körper und Technik funktionieren)",
-  language: "Sprache (Wörter, Reime, Buchstaben, genaues Zuhören)",
-  history: "Geschichte (wie Menschen früher lebten)",
-  geography: "Erdkunde (Länder, Landschaften, Wetter, Karten, Himmelsrichtungen)",
-  social: "Miteinander (Gefühle erkennen, teilen, Streit lösen, Rücksicht nehmen)",
-};
-
-const LEARNING_DEPTH: Record<string, string> = {
-  beginner: "ein einfacher Gedanke",
-  intermediate: "zwei, drei zusammenhängende Fakten",
-  advanced: "ein echtes Prinzip mit Ursache und Wirkung",
 };
 
 const SETTING_LABELS: Record<string, string> = {
@@ -222,21 +207,11 @@ export function artifactSheet(artifact: ArtifactOption): string {
 }
 
 /**
- * The learning wish as the writer needs it. Before 2026-10-14 only the subject
- * ids reached the prompt ("Nebenbei lernen: science"): the objective the parent
- * typed ("Warum Igel Winterschlaf halten"), the depth and the delivery were lost.
+ * The learning wish as the German prompts, the editor and the patch need it. Before 2026-10-14 only the subject ids
+ * reached the prompt ("Nebenbei lernen: science"); since 2026-10-17 the learning arc lives in learning.ts.
  */
 export function learningLines(config: StoryConfig): string[] {
-  const mode = config.learningMode;
-  if (!mode?.enabled || !mode.subjects?.length) return [];
-  const subjects = mode.subjects.map((subject) => LEARNING_SUBJECTS[subject] || clean(subject, 60)).join(", ");
-  const objectives = (mode.learningObjectives || []).map((objective) => clean(objective, 160)).filter(Boolean);
-  const lines = [
-    `Lernmodus (Pflicht): ${subjects}.${objectives.length ? ` Lernziel: ${objectives.map((objective) => `„${objective}“`).join(" und ")} — nach dem Vorlesen kann das Kind das in einem eigenen Satz erklären.` : ""} Umfang: ${LEARNING_DEPTH[mode.difficulty] || LEARNING_DEPTH.beginner}. Das Wissen ist sachlich richtig, die Helden entdecken oder erproben es selbst, und es ist der Schlüssel zur Lösung — nie ein Vortrag.`,
-  ];
-  if (mode.assessmentType === "quiz") lines.push("Lernart Quiz: Auf der letzten Seite stellt eine Figur dem zuhörenden Kind eine kurze, spielerische Frage dazu; die Antwort steckt in der Geschichte.");
-  if (mode.assessmentType === "discussion") lines.push("Lernart Gespräch: Am Ende wundert sich eine Figur laut über eine offene Frage zum Thema, über die Kind und Eltern weiterreden können.");
-  return lines;
+  return learningLinesDe(config);
 }
 
 /** Every narrative wizard control, in plain words. */

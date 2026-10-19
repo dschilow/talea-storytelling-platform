@@ -47,6 +47,7 @@ import { isOpenRouterFamilyModel, resolveConfiguredStoryModel, GEMINI_MAIN_STORY
 import { getReferenceFewshotBlock } from "./pipeline/reference-fewshot";
 import { everydayWonderIdeaLine, heartAndWitEnabled, heartAndWitMode, heartAndWitRules, heartAndWitSettingLines } from "./storybook/heart-and-wit";
 import { normalizeAgeBand } from "./storybook/craft";
+import { learningGoal, learningPlanAnchorEn, learningSummaryEn, learningValidatorLinesEn, learningWriterLinesEn } from "./storybook/learning";
 import type { StoryConfig, AIProvider } from "./generate";
 import { buildStoryExperienceContext, describeEmotionalFlavors, describeSpecialIngredients } from "./story-experience";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
@@ -4492,6 +4493,8 @@ function buildSelectedIdeaPromptBlock(input: DevModeGenerationInput): string {
       : "- No pool character is mandatory for this idea; keep extra cast lean.",
     buildCentralObjectContractBlock(input),
     `- Selection reason: ${selectedIdea.chosenReason}`,
+    // 2026-10-17: the learning goal used to stop at the idea lab; logline, beat sheet and scene cards never saw it.
+    ...learningPlanAnchorEn(input.config),
   ].filter((line): line is string => Boolean(line)).join("\n");
 }
 
@@ -4932,24 +4935,6 @@ function hookGuidance(hooks?: StoryConfig["hooks"]): string | null {
   return hooks.map((hook) => labels[hook] || hook).join("; ");
 }
 
-/**
- * How the requested learning content should surface in the prose. Previously
- * `assessmentType` was collected by the wizard and only ever logged.
- */
-function learningAssessmentGuidance(
-  assessmentType?: NonNullable<StoryConfig["learningMode"]>["assessmentType"]
-): string {
-  switch (assessmentType) {
-    case "quiz":
-      return "close the final chapter with 2-3 short in-world questions a character asks the reader about what happened. Keep them playful, never school-like.";
-    case "discussion":
-      return "end with an open question a character wonders about aloud, inviting the child and the adult reading along to talk about it.";
-    case "interactive":
-    default:
-      return "let the characters discover and test the knowledge inside the plot itself — through trying, failing and retrying — with no quiz block at the end.";
-  }
-}
-
 function buildWizardCreativeBrief(config: StoryConfig, chapterCount: number, compact = false): string {
   const experience = buildStoryExperienceContext(config);
   const lines: string[] = [
@@ -5001,12 +4986,13 @@ function buildWizardCreativeBrief(config: StoryConfig, chapterCount: number, com
   if (config.requireHappyEnd) {
     lines.push("- Happy-end wish: the story must end safely, warmly and hopefully. Tension is welcome, but every open conflict is resolved and the avatar ends the story better off than they started.");
   }
-  if (config.learningMode?.enabled && config.learningMode.subjects?.length) {
-    const objectives = config.learningMode.learningObjectives?.length
-      ? ` Objectives: ${config.learningMode.learningObjectives.join(", ")}.`
-      : "";
-    lines.push(`- Learning mode: ${config.learningMode.subjects.join(", ")} (${config.learningMode.difficulty}). Weave in gently through action/dialogue, never as a lesson block.${objectives}`);
-    lines.push(`- Learning delivery: ${learningAssessmentGuidance(config.learningMode.assessmentType)}`);
+  // 2026-10-17: "math (intermediate). Weave in gently" produced stories without any maths (eefd3600) or geography
+  // (69dace41). The full learning arc for idea lab, draft and repair; the compact brief carries one line.
+  if (compact) {
+    const summary = learningSummaryEn(config, "story");
+    if (summary) lines.push(`- ${summary}`);
+  } else {
+    lines.push(...learningWriterLinesEn(config, { form: "story", band: normalizeAgeBand(config.ageGroup), units: chapterCount }));
   }
   if (config.parentalGuidance?.trim()) {
     lines.push(`- Parent/safety guidance: ${compactExcerpt(config.parentalGuidance, compact ? 260 : 520)}`);
@@ -5067,11 +5053,7 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
 
   const poolBlock = buildPoolBlock(poolCharacters);
 
-  const learningLine =
-    config.learningMode?.enabled && config.learningMode.subjects?.length
-      ? `Learning goal (weave in gently, never preach): ${config.learningMode.subjects.join(", ")}.`
-      : null;
-
+  // The learning wish lives in the wizard brief above (learning.ts); "weave in gently" here contradicted it.
   const customLine = config.customPrompt?.trim()
     ? `Reader's extra wish: ${config.customPrompt.trim()}`
     : null;
@@ -5089,7 +5071,6 @@ function buildPrompts(input: DevModeGenerationInput): { systemPrompt: string; us
     avatarBlock,
     poolBlock || null,
     "",
-    learningLine,
     customLine,
     buildWholeStoryContinuityContract(chapterCount),
     "Each chapter needs a clear scene turn, but must NOT feel complete on its own; unresolved pressure should carry into the next chapter.",
@@ -5128,10 +5109,6 @@ function buildDevStoryContext(input: DevModeGenerationInput, chapterCount: numbe
   }
 
   const poolBlock = buildPoolBlock(poolCharacters);
-  const learningLine =
-    config.learningMode?.enabled && config.learningMode.subjects?.length
-      ? `Learning goal (weave in gently, never preach): ${config.learningMode.subjects.join(", ")}.`
-      : null;
   const customLine = config.customPrompt?.trim()
     ? `Reader's extra wish (keep their phrasing's intent; output stays in target language): ${config.customPrompt.trim()}`
     : null;
@@ -5151,7 +5128,6 @@ function buildDevStoryContext(input: DevModeGenerationInput, chapterCount: numbe
     "",
     avatarBlock,
     poolBlock || null,
-    learningLine,
     customLine,
   ]
     .filter((line): line is string => Boolean(line))
@@ -5520,7 +5496,8 @@ function buildIdeaCandidatePrompts(
     "",
     `Target output language later: ${languageName}. Candidate fields may stay in English for speed, except titles may already be in the target language if they sound stronger that way.`,
     `Plan for exactly ${chapterCount} later chapters, but do not outline them here.`,
-    "Every premise candidate must satisfy the wizard creative brief; do not propose ideas that ignore age, length, genre, feeling, rhyme, twist, or explicit wishes.",
+    "Every premise candidate must satisfy the wizard creative brief; do not propose ideas that ignore age, length, genre, feeling, rhyme, twist, learning goal, or explicit wishes.",
+    learningGoal(input.config) ? "LEARNING MODE: every candidate is one in which the children find out the requested knowledge by doing and use it as the key of the finale; name in coreConflict or wonderRule how the knowledge drives the plot. The wonder may frame it but never explains or changes what is true." : null,
     "",
     buildWizardCreativeBrief(input.config, chapterCount),
     "",
@@ -6459,6 +6436,13 @@ function buildSceneCardPrompts(
     "Each card needs at least 4 dialogueBeats; the next pass will expand to 4-6. Each beat must carry an actionCarried (a body action, object exchange, or pause) — never filler.",
     "Helpers must not explain the solution. helperFunction must be one of: complicates, misreads, provides tool, creates pressure, creates comic obstacle, witnesses choice. helperAction is the in-scene line/move.",
     "Non-final endPull must not be a calm conclusion.",
+    // 2026-10-17: scene cards see only the beat sheet — the learning goal has to be named here or it is lost.
+    ...(learningGoal(input.config)
+      ? [
+          ...learningPlanAnchorEn(input.config),
+          "- In the cards: the hook's plant shows the thing to learn and the wrong belief; a middle wrongAction tests the wrong belief; childDiscovery is the knowledge said in children's words; childDecision uses it; a dialogueBeat of the final scene lets someone say it once more.",
+        ]
+      : []),
     isPremium
       ? `PREMIUM MODE: visibleDamage on the middle scene, childDiscovery from scene ${sceneNumberOf("irreversible_middle")} onward, childDecision on the final scene, and recurringMotifState on every scene are HARD REQUIRED. Incomplete cards trigger scene_card_repair_then_rewrite.`
       : "EFFICIENT MODE: the new fields are preferred but the legacy fields (irreversibleChange, personalCost) remain the hard floor.",
@@ -10595,6 +10579,7 @@ function buildValidationPrompts(
     "- Selected pool cast is missing from the story or reduced to decorative cameo: max 8.4.",
     "- More than 2 forbidden phrases in any language ('they learned...', 'true magic in the heart...', 'with courage and togetherness...'): max 6.5.",
     "",
+    ...learningValidatorLinesEn(input.config).flatMap((line, index, all) => (index === all.length - 1 ? [line, ""] : [line])),
     "CHRONOLOGY LEDGER (mandatory): read every page in order before scoring.",
     "- Track each named character location/group, every important physical object holder/state, every separation/reunion, and every magic state/trigger/cost from page to page.",
     "- A character may not teleport across a barrier; separated characters must visibly reunite. An object may not change holder before an on-page transfer. Every payoff tool or repeated-again reference needs an earlier setup.",

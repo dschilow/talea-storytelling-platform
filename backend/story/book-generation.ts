@@ -39,6 +39,7 @@ import { CostLedger, resolveStorybookModels, withServiceTier, type StorybookStag
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
 import { castAppearance, describeReferenceLooks, heroAppearance, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
 import { runDevelopmentStage } from "./storybook/developments";
+import { knowledgeSentences, learningGoal } from "./storybook/learning";
 import { artifactHeadToken, countWords } from "./storybook/checks";
 import type { StorybookHero, StoryElement } from "./storybook/types";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./storybook/book/budget";
@@ -780,7 +781,17 @@ async function finishBook(input: BookJobInput, planned: PlannedBook, state: Book
   const ctx: BookContext = { llm: deps.llm, brief: planned.brief, models: deps.models, ledger: deps.ledger };
 
   // Avatar growth from the chapter recaps (a whole book does not fit the 8,000-character window).
-  const development = await runDevelopmentStage(deps.llm, { heroes: planned.brief.heroes, title: planned.plan.title, pages: book.chapters.map((chapter) => ({ order: chapter.order, title: chapter.title, content: `${chapter.title}: ${chapter.recap}` })) }, deps.models.support);
+  // Learning mode (2026-10-17): recaps rarely name the fact, so the sentences that teach it ride along as evidence.
+  const learningThread = learningGoal(planned.brief.config) ? planned.plan.bible.learning : null;
+  const development = await runDevelopmentStage(deps.llm, {
+    heroes: planned.brief.heroes,
+    title: planned.plan.title,
+    pages: book.chapters.map((chapter) => {
+      const taught = learningThread ? knowledgeSentences(chapter.content, learningThread.core, learningThread.term, 2) : [];
+      return { order: chapter.order, title: chapter.title, content: `${chapter.title}: ${chapter.recap}${taught.length ? ` Aus dem Text: ${taught.map((sentence) => `„${sentence}“`).join(" ")}` : ""}` };
+    }),
+    learning: { goal: learningGoal(planned.brief.config), core: learningThread?.core },
+  }, deps.models.support);
   if (development.call) deps.ledger.recordCall("avatar-development", development.call, "support");
   const avatars = planned.brief.heroes.map((hero) => ({ id: hero.id, name: hero.name }));
   const developments = assignAvatarDevelopmentIds(development.developments as any[], avatars);

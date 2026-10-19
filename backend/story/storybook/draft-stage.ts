@@ -9,6 +9,7 @@
 import { CHILD_SAFETY_RULES_DE } from "../../helpers/child-safety";
 import { buildLanguageRules, buildSlimLanguageRules, CORE_RULES, CRAFT_RULES, isGerman, type AgeBand } from "./craft";
 import { heroSeasoning, isLean, type StoryBrief } from "./context";
+import { learningGoal } from "./learning";
 import type { LlmCallResult, StorybookLlm } from "./llm";
 import { parseDraft } from "./parsing";
 import type { EditorialReview, StoryPlan, StorybookPage } from "./types";
@@ -69,7 +70,7 @@ export function buildWriterSystemPrompt(brief: StoryBrief, options: { oneShot?: 
     "Erzähle in Absätzen: mindestens die Hälfte besteht aus zwei bis vier zusammenhängenden Sätzen. Einzelsatz-Absätze sind für Knall- und Pointenmomente da, höchstens zwei je Seite. Es gibt höchstens EINEN wiederkehrenden Satz; Sprüche der Figuren sind Würze und kommen nur vor, wenn sie zur Szene passen.",
     "Nur erlaubte Namen. Artefaktregeln bleiben unverändert. Sprache, Wortumfang und Seitenzahl exakt nach Auftrag; keine Füllsätze, keine zusätzlichen Nebenhandlungen.",
     // Sol 6.1 test 2026-09-30: a moral spoken by a character, an invented sibling bond, a character sheet on page 1.
-    "Keine Lehre, auch nicht als Satz einer Figur („Magie liegt in dir“). Wie die Helden zueinander stehen, ist nicht bekannt: nenne keine Verwandtschaft oder Freundschaft, zeige Nähe durch gemeinsames Handeln. Aussehen, Größe und Alter der Helden beschreibst du nicht (das zeigt das Bild) — stell sie über das vor, was sie tun und mögen. Der Titel greift ein Ding, Wesen oder einen Satz auf, das in der Geschichte wirklich vorkommt.",
+    `${learningGoal(brief.config) ? "Keine Moral und keine Lebensweisheit, auch nicht als Satz einer Figur („Magie liegt in dir“) — wenn eine Figur das Wissen aus dem LERNMODUS erklärt, ist das keine Lehre und erwünscht." : "Keine Lehre, auch nicht als Satz einer Figur („Magie liegt in dir“)."} Wie die Helden zueinander stehen, ist nicht bekannt: nenne keine Verwandtschaft oder Freundschaft, zeige Nähe durch gemeinsames Handeln. Aussehen, Größe und Alter der Helden beschreibst du nicht (das zeigt das Bild) — stell sie über das vor, was sie tun und mögen. Der Titel greift ein Ding, Wesen oder einen Satz auf, das in der Geschichte wirklich vorkommt.`,
     ...(isGerman(brief.config.language) ? ["Wörtliche Rede: „so“. Kurze Stilprobe (nur Rhythmus, nichts übernehmen):", STYLE_SAMPLE_DE] : []),
     CHILD_SAFETY_RULES_DE,
     "Ausgabe ohne Markdown: TITEL: …, BESCHREIBUNG: … (12–25 Wörter), danach SEITE 1, Text, SEITE 2, Text usw. Diese Marker bleiben deutsch; alle Inhalte in der gewünschten Sprache. Zusätzliche Kopfzeilen nur wie im Auftrag angegeben.",
@@ -94,7 +95,9 @@ export function buildWriterSystemPrompt(brief: StoryBrief, options: { oneShot?: 
     "- Zusammenfassen statt erzählen ('Sie erlebten viele Abenteuer'). Jede Seite ist eine Szene mit Handlung und Stimmen.",
     "- Den Witz erklären, oder Figuren lachen lassen, damit es lustig wirkt.",
     "- Gefühle benennen statt zeigen ('Er war traurig').",
-    "- Eine Lehre oder Botschaft aussprechen, besonders am Ende.",
+    learningGoal(brief.config)
+      ? "- Eine Moral oder Lebensweisheit aussprechen, besonders am Ende. (Das Wissen aus dem LERNMODUS erklärt eine Figur dagegen ausdrücklich — das ist keine Lehre.)"
+      : "- Eine Lehre oder Botschaft aussprechen, besonders am Ende.",
     "- Neue Figuren mit Namen erfinden, die nicht im Plan stehen.",
     "- Etwas voraussetzen, das eine Figur noch nicht wissen oder haben kann.",
     "- Dieselbe Verlegenheitsgeste immer wieder ('presste die Lippen zusammen', 'hielt den Atem an', 'ließ die Schultern sinken'). Jede Figur zeigt Gefühle auf ihre eigene Art, und nicht in jedem Absatz.",

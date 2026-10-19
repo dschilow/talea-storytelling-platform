@@ -43,6 +43,7 @@ import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { logTopic } from "../log/logger";
 import { assignAvatarDevelopmentIds } from "./avatar-development-assignment";
 import { artifactMatcher } from "./artifact-matcher";
+import { learningDevelopmentLinesEn, learningGoal } from "./storybook/learning";
 import {
   getOwnedPoolIdsUnion,
   loadArtifactTemplateById,
@@ -537,6 +538,8 @@ function buildDevelopmentPrompts(input: {
     "3. change is an integer: 1-3 for base traits, 1-5 for knowledge.* subcategories. Small story-sized steps; 3+ only for a defining moment.",
     `4. description: ONE short sentence in language "${language}" naming the concrete story moment that caused the growth (the WHY). Never a generic sentence like "developed through reading".`,
     "5. Prefer base traits. Use a knowledge.* subcategory only when the avatar demonstrably learned facts of that subject in the story.",
+    // 2026-10-17: a geography learning story (69dace41) grew teamwork and persistence; the stage never knew what it was for.
+    ...learningDevelopmentLinesEn(learningGoal(input.config)),
     "",
     "OUTPUT JSON SHAPE:",
     '{ "avatarDevelopments": [ { "avatarId": "<avatar id>", "name": "<avatar name>", "changedTraits": [ { "trait": "<trait id>", "change": <int>, "description": "<one sentence>" } ] } ] }',

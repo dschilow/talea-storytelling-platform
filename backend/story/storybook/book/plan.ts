@@ -11,7 +11,7 @@ import { containsBlockedTerm } from "../checks";
 import type { AgeBand } from "../craft";
 import { heartAndWitMode } from "../heart-and-wit";
 import { foldUmlauts, mentionsName } from "./catalogue";
-import type { BookBudget, BookChapterPlan, BookPitch, BookPlan, BookVillain, HeroDuty, PlanReview, StoryEngine, VillainStyle } from "./types";
+import type { BookBudget, BookChapterPlan, BookLearning, BookPitch, BookPlan, BookVillain, HeroDuty, PlanReview, StoryEngine, VillainStyle } from "./types";
 
 const ENGINES: StoryEngine[] = ["heroes", "villain", "guest"];
 const VILLAIN_STYLES: VillainStyle[] = ["comic", "misunderstood", "real"];
@@ -135,6 +135,44 @@ function chapterPlan(raw: any, n: number): BookChapterPlan {
 }
 
 /** Null when the answer is not a plan at all. Missing pieces are left empty for the checks to report. */
+/** The knowledge thread of a learning-mode book; null when the plan has none. */
+function parseLearning(raw: any): BookLearning | null {
+  if (!raw || typeof raw !== "object") return null;
+  const core = text(raw.core, 400);
+  if (!core || /^(null|none|kein|keine)\b/i.test(core)) return null;
+  return {
+    core,
+    term: text(raw.term, 80),
+    misconception: text(raw.misconception, 300),
+    comparison: text(raw.comparison, 300),
+    steps: (Array.isArray(raw.steps) ? raw.steps : [])
+      .map((entry: any) => ({ chapter: int(entry?.chapter), step: text(entry?.step, 300) }))
+      .filter((entry: { chapter: number; step: string }) => entry.chapter >= 1 && entry.step)
+      .sort((a: { chapter: number }, b: { chapter: number }) => a.chapter - b.chapter)
+      .slice(0, 8),
+    realWorld: text(raw.realWorld, 240),
+  };
+}
+
+/**
+ * Learning mode (2026-10-17): the knowledge has to run through the volume like any red thread — a question or wrong
+ * belief at the start, the heroes' tests in the middle, the knowledge as the key of the climax. A thread that exists
+ * only in the bible never reaches a chapter.
+ */
+export function checkLearningThread(plan: BookPlan, n: number, learning: boolean): string[] {
+  if (!learning) return [];
+  const thread = plan.bible.learning;
+  if (!thread) return ["Lernmodus: Die Bibel hat keinen Wissensfaden (learning) — Kernwissen als Kindersatz, Schlüsselwort, Irrtum, Vergleich aus der Kinderwelt und die Schritte über die Kapitel."];
+  const issues: string[] = [];
+  const chapters = new Set(thread.steps.map((entry) => entry.chapter).filter((chapter) => chapter <= n));
+  if (chapters.size < 3) issues.push("Lernmodus: Der Wissensfaden braucht mindestens drei Schritte in verschiedenen Kapiteln (Frage oder Irrtum früh, Versuch in der Mitte, Erklärung vor dem Höhepunkt, Schlüssel im Höhepunkt, Echo am Ende).");
+  if (![...chapters].some((chapter) => chapter <= 2)) issues.push("Lernmodus: Das Wissen taucht nicht in Kapitel 1–2 auf — dort zeigt sich das Ding, um das es geht, mit einer Frage oder einem Irrtum.");
+  const climaxFrom = Math.max(2, Math.min(plan.bible.lowPointChapter || n - 1, n - 1));
+  if (![...chapters].some((chapter) => chapter >= climaxFrom)) issues.push(`Lernmodus: Das Wissen trägt den Höhepunkt nicht — plane einen Schritt ab Kapitel ${climaxFrom}, in dem der Plan der Helden genau deshalb klappt.`);
+  if (!thread.misconception) issues.push("Lernmodus: Es fehlt der Irrtum (misconception), an dem die ersten Versuche scheitern — so wird das richtige Wissen erst spürbar.");
+  return issues;
+}
+
 export function parsePlan(raw: any, chapters: number): BookPlan | null {
   if (!raw || typeof raw !== "object" || !Array.isArray(raw.chapters) || !raw.bible) return null;
   const b = raw.bible || {};
@@ -189,6 +227,7 @@ export function parsePlan(raw: any, chapters: number): BookPlan | null {
         .slice(0, 4),
       heroDuties: parseHeroDuties(b.heroDuties),
       stakeVisible: /^(null|none|kein|keine)\b/i.test(text(b.stakeVisible, 20)) ? "" : text(b.stakeVisible, 240),
+      learning: parseLearning(b.learning),
     },
     setups: (Array.isArray(raw.setups) ? raw.setups : []).map((setup: any, index: number) => ({
       id: (text(setup?.id, 12) || `S${index + 1}`).toUpperCase(),
@@ -206,7 +245,7 @@ export function parsePlan(raw: any, chapters: number): BookPlan | null {
 }
 
 /** Countable defects of a plan, as German edit notes for the revision. */
-export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroNames: string[]; castNames: string[]; blockedTerms: string[]; cozy?: boolean; genre?: unknown; band?: AgeBand; famousFigure?: boolean }): string[] {
+export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroNames: string[]; castNames: string[]; blockedTerms: string[]; cozy?: boolean; genre?: unknown; band?: AgeBand; famousFigure?: boolean; learning?: boolean }): string[] {
   const issues: string[] = [];
   const n = budget.chapters;
   if (!plan.title) issues.push("Der Plan hat keinen Titel.");
@@ -273,6 +312,7 @@ export function checkBookPlan(plan: BookPlan, budget: BookBudget, input: { heroN
   issues.push(...checkNamedFigures(plan, input));
   issues.push(...checkWonderRules(plan, input.band));
   issues.push(...checkChants(plan));
+  issues.push(...checkLearningThread(plan, n, Boolean(input.learning)));
   const blocked = containsBlockedTerm(JSON.stringify(plan), input.blockedTerms);
   if (blocked) issues.push(`Der gesperrte Begriff „${blocked}“ kommt im Plan vor.`);
   return issues;
@@ -444,6 +484,8 @@ export function planScoreCap(checks: Record<string, boolean>): number {
   if (checks.villainActs === false || checks.heroDecides === false) cap = Math.min(cap, 6.5);
   if (checks.heroesSeeThrough === false || checks.traitsNotPremise === false) cap = Math.min(cap, 7);
   if (checks.castCausesTurns === false || checks.readerKnowsMore === false || checks.freshArc === false) cap = Math.min(cap, 7.5);
+  // 2026-10-17: learning mode is a mandatory wish — a book that does not really teach it misses what the family asked for.
+  if (checks.learningThread === false) cap = Math.min(cap, 6.5);
   return cap;
 }
 

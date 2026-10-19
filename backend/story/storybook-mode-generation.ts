@@ -48,6 +48,7 @@ import { createOpenRouterJevPort } from "./storybook/jev-openrouter";
 import { resolveOpenRouterApiKey } from "./openrouter-generation";
 import { storybookQuality } from "./storybook/quality";
 import { runDevelopmentStage } from "./storybook/developments";
+import { learningGoal } from "./storybook/learning";
 import { artifactHeadToken, countWords } from "./storybook/checks";
 import type { StorybookGeneratedStory, StorybookGenerationInput } from "./storybook/types";
 

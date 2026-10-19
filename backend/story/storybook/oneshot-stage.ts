@@ -21,6 +21,7 @@ import { comprehensionGaps, ledgerNotes, runReviewStage, verifyStorybookRepair }
 import type { CastCandidate, StoryPlan, StorybookPage } from "./types";
 import type { TextEngineResult, StageObserver } from "./engine";
 import { buildOneShotSystemPromptEn, buildOneShotUserPromptEn } from "./oneshot-prompt-en";
+import { learningGoal, learningLedgerNotes, parseLearningCore } from "./learning";
 
 const HEADER = {
   engine: /^\s*BAUPLAN\s*[:：]\s*(.+?)\s*$/im,
@@ -135,6 +136,7 @@ export function buildOneShotUserPrompt(brief: StoryBrief, options: { visiblePlan
   lines.push(`BESETZUNG: <ids aus dem Figurenpool, mit Komma getrennt>`);
   lines.push("FUNDSTÜCK: <id oder keins>");
   lines.push("REFRAIN: <der Satz zum Mitsprechen oder keiner>");
+  if (learningGoal(brief.config)) lines.push("WISSEN: <das Kernwissen in ein, zwei Sätzen, genau so, wie das Kind es nach dem Hören sagen soll — in der echten Welt wahr>");
   // User 2026-09-29: "Alexander, Adrian und der/die/das …" on every book reads
   // like a template. Real picture-book titles are short and make you curious;
   // the heroes' names are allowed, never required.
@@ -201,6 +203,7 @@ export function planFromOneShot(raw: string, brief: StoryBrief, parsed: { title:
       after: "",
     })),
     ending: { resolution: "", callback: "", lastLine: "" },
+    learningCore: learningGoal(brief.config) ? parseLearningCore(raw) : null,
   };
 }
 
@@ -342,7 +345,7 @@ export async function runOneShotEngine(input: {
   // solution, an unreached goal and a painted arrow that later hung on a peg.
   let review = null;
   try {
-    const reviewed = await runReviewStage(llm, brief, parsed.title, pages, plan.cast.map((member) => member.name), models.critic, "review", true);
+    const reviewed = await runReviewStage(llm, brief, parsed.title, pages, plan.cast.map((member) => member.name), models.critic, "review", true, { learningCore: plan.learningCore });
     if (reviewed.failedCall) record("review-unusable", "critic", reviewed.failedCall);
     record("review", "critic", reviewed.call);
     review = reviewed.review;
@@ -362,6 +365,8 @@ export async function runOneShotEngine(input: {
     ...issuesToNotes(report.hard, 6),
     ...(review ? comprehensionGaps(review) : []),
     ...(review ? ledgerNotes(review) : []),
+    // 2026-10-17: missing, wrong, grown-up-worded or one-off knowledge — each one or two sentences for the patch.
+    ...learningLedgerNotes(review?.ledger?.learning, learningGoal(brief.config), brief.budget.pages, { text: pages.map((page) => page.content).join("\n"), band: brief.band }),
     // Only the problem, never the critic's suggested wording: Luna pasted those in verbatim.
     // The brief does not say how the heroes relate; a note asking for it made the patch invent "Freunde"/"Geschwister".
     ...(review?.mustFix || []).filter((note) => !/beziehung|geschwister|brüder|schwestern|verwandt|freunde\?|füreinander/i.test(note.problem)).slice(0, 5).map((note) => `Seite ${note.page}: ${note.problem}${note.quote ? ` („${note.quote}“)` : ""}`),

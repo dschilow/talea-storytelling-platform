@@ -257,6 +257,23 @@ export interface BookBible {
   heroDuties?: HeroDuty[];
   /** The stake as a thing a six-year-old could draw. */
   stakeVisible?: string;
+  /** Learning mode only (2026-10-17): the knowledge thread the book teaches, spread over its chapters (learning.ts). */
+  learning?: BookLearning | null;
+}
+
+export interface BookLearning {
+  /** The knowledge in one or two child sentences, true in the real world. */
+  core: string;
+  /** The key word the child should know afterwards. */
+  term: string;
+  /** The wrong belief that drives the first attempts. */
+  misconception: string;
+  /** The everyday picture that makes it graspable. */
+  comparison: string;
+  /** Question or wrong belief early, tests in the middle, the aha before the climax, the key in the climax, the echo at the end. */
+  steps: Array<{ chapter: number; step: string }>;
+  /** What a child could look at or try at home afterwards. */
+  realWorld: string;
 }
 
 /** A line that must stay letter for letter wherever it is spoken or read. */

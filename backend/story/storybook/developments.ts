@@ -9,6 +9,7 @@
  * only ever created when the model actually asks for it.
  */
 
+import { learningDevelopmentLinesDe, type LearningGoal } from "./learning";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import type { StorybookAvatarDevelopment, StorybookHero, StorybookPage } from "./types";
 
@@ -42,6 +43,11 @@ export interface DevelopmentStageInput {
   heroes: StorybookHero[];
   title: string;
   pages: StorybookPage[];
+  /**
+   * Learning mode (2026-10-17): without it the stage guessed the subject from the text — "Erdkunde" grew teamwork. The
+   * description of a learned fact names the fact, so the finale card says what the child learned.
+   */
+  learning?: { goal: LearningGoal | null; core?: string | null };
 }
 
 export interface DevelopmentStageResult {
@@ -49,7 +55,8 @@ export interface DevelopmentStageResult {
   call?: LlmCallResult;
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(learning?: DevelopmentStageInput["learning"]): string {
+  const learningRules = learningDevelopmentLinesDe(learning?.goal ?? null, learning?.core);
   return [
     "Du liest eine fertige Kindergeschichte und leitest daraus ab, was die Hauptfiguren daran gewachsen sind.",
     "",
@@ -60,6 +67,7 @@ function buildSystemPrompt(): string {
     "- Jede Änderung braucht eine Begründung aus DIESER Geschichte, in einem Satz, kindgerecht.",
     "  Falsch: „Mut ist wichtig.“  Richtig: „Ben ging als Erster durch die dunkle Scheune, obwohl er zitterte.“",
     "- Wenn eine Figur nichts gelernt hat, gib für sie eine leere Liste zurück. Das ist erlaubt.",
+    ...(learningRules.length ? ["", ...learningRules] : []),
     "",
     `Erlaubte Eigenschaften: ${[...ALLOWED_TRAIT_IDS].join(", ")}`,
     "",
@@ -144,7 +152,7 @@ export async function runDevelopmentStage(
       stage: "avatar-development",
       role: "support",
       model,
-      system: buildSystemPrompt(),
+      system: buildSystemPrompt(input.learning),
       user: buildUserPrompt(input),
       maxTokens: 4000,
       json: true,

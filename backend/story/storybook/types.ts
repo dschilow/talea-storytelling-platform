@@ -7,6 +7,7 @@
  */
 
 import type { StoryConfig } from "../generate";
+import type { LearningLedger } from "./learning";
 
 export interface StorybookHero {
   id?: string;
@@ -140,6 +141,8 @@ export interface StoryPlan {
   artifact: { id: string; name: string; role: string; firstPage: number; usePage: number; carried: boolean } | null;
   pages: PlanPage[];
   ending: { resolution: string; callback: string; lastLine: string };
+  /** Learning mode: the knowledge core the writer committed to (header line WISSEN), as the child should retell it. */
+  learningCore?: string | null;
 }
 
 export interface StorybookPage {
@@ -201,6 +204,8 @@ export interface StoryLedger {
   setups: Array<{ setup: string; page: number; payoff: string | null }>;
   /** How the heroes are introduced; null = not said in the text. */
   introduction: { relationship: string | null; traits: string | null };
+  /** Learning mode only: what a child can retell, whether it is true, carries the solution and comes back (learning.ts). */
+  learning?: LearningLedger;
 }
 
 export interface PairwiseVerdict {

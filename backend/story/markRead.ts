@@ -36,6 +36,7 @@ import {
   inferDomainFromStoryGenre,
   trackCosmosReadEvent,
 } from "../helpers/cosmos-tracking";
+import { inferDomainFromLearning } from "../helpers/cosmos-learning-domain";
 import { runWithCompletionClaim } from "../helpers/completion-claim";
 import { getAssignedDevelopmentForAvatar } from "./avatar-development-assignment";
 import { withAppliedAmounts } from "../helpers/applied-trait-changes";
@@ -462,12 +463,15 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
         }
 
         try {
-          const domainId = inferDomainFromStoryGenre(req.genre);
+          // Learning mode: the world of what the story taught, the family's goal as the topic.
+          const learned = inferDomainFromLearning(storyOwner.config, gainedChanges.map((item) => item.trait));
+          const domainId = learned?.domainId ?? inferDomainFromStoryGenre(req.genre);
+          const topicLabel = learned?.topic || req.genre || req.storyTitle;
           const topicId = buildTopicId({
             sourceContentType: "story",
             sourceContentId: req.storyId,
             domainId,
-            label: req.genre || req.storyTitle,
+            label: topicLabel,
           });
           await trackCosmosReadEvent({
             avatarId: userAvatar.id,
@@ -477,7 +481,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
             domainId,
             topicId,
             contentTitle: req.storyTitle,
-            topicTitle: req.genre || req.storyTitle,
+            topicTitle: topicLabel,
             summary: `Story gelesen: ${req.storyTitle}`,
           });
         } catch (trackingError) {
