@@ -1574,3 +1574,59 @@ describe("Der Kieselgarten auf Reisen (2026-10-16): Zitate bleiben ganz, Reime w
     expect(notes[0]).toContain("statt eine zweite Vorstellung zu schreiben");
   });
 });
+
+// 2026-10-17: a figure the plan names without a pool portrait gets one portrait per book.
+import { drawFigurePortraits, figurePortraitRequest } from "./illustrations";
+import type { ImageProvider, ImageRequest } from "../images";
+
+describe("Porträt für Figuren ohne Pool-Bild (Kieselgarten, 2026-10-17)", () => {
+  const rotkaeppchen = { id: "bible:rotkaeppchen", name: "Rotkäppchen", kind: "character", role: "cast", species: "human", isHuman: true, appearance: "a girl of about eight in a red hooded cape and red dress, with a wicker basket.", forbidden: [] } as VisualEntity;
+  const grummel = { ...rotkaeppchen, id: "pool-grummel", name: "Troll Grummel", isHuman: false, appearance: "a green moss-covered troll", referenceUrl: "https://x/grummel.png" } as VisualEntity;
+
+  test("one portrait per figure without a pool portrait: one figure on white, drawn once, reused, never fatal", async () => {
+    const requests: ImageRequest[] = [];
+    const provider: ImageProvider = async (request) => {
+      requests.push(request);
+      return { url: "https://img/rotkaeppchen.jpg", costUSD: 0.0011 };
+    };
+    const first = await drawFigurePortraits({ entities: [rotkaeppchen, grummel], provider, seed: "story-1" });
+    // The pool figure keeps its pool portrait; only Rotkäppchen is drawn.
+    expect(first).toEqual({ portraits: { "bible:rotkaeppchen": "https://img/rotkaeppchen.jpg" }, costUSD: 0.0011, calls: 1, failed: [] });
+    expect(requests[0].prompt).toContain("One single figure, full body");
+    expect(requests[0].prompt).toContain("a girl of about eight in a red hooded cape and red dress, with a wicker basket.");
+    expect(requests[0].prompt).toContain("Plain white background");
+    expect(requests[0].prompt).not.toContain("full-bleed");
+    expect(requests[0].negativePrompt).toContain("text, letters");
+    expect(requests[0].negativePrompt).toContain("character sheet");
+    expect(requests[0].referenceImages).toEqual([]);
+    expect(requests[0].logStage).toBe("storybook-image-portrait");
+    expect(figurePortraitRequest(rotkaeppchen, "story-1").seed).toBe(requests[0].seed);
+    // The next batch reuses the portrait: no second drawing, no second Rotkäppchen.
+    const again = await drawFigurePortraits({ entities: [rotkaeppchen], provider, seed: "story-1", existing: first.portraits });
+    expect(again.calls).toBe(0);
+    expect(again.portraits).toEqual(first.portraits);
+    expect(requests).toHaveLength(1);
+    // A provider that fails or answers without a picture leaves the figure drawn from its look.
+    const down = await drawFigurePortraits({ entities: [rotkaeppchen], provider: async () => { throw new Error("down"); }, seed: "story-1" });
+    expect(down).toEqual({ portraits: {}, costUSD: 0, calls: 1, failed: ["Rotkäppchen"] });
+    const empty = await drawFigurePortraits({ entities: [rotkaeppchen], provider: async () => ({ refused: true, httpStatus: 429 }), seed: "story-1" });
+    expect(empty.failed).toEqual(["Rotkäppchen"]);
+    // A figure without a look is not drawn blind.
+    expect((await drawFigurePortraits({ entities: [{ ...rotkaeppchen, appearance: "girl" }], provider, seed: "story-1" })).calls).toBe(0);
+  });
+
+  test("a being without a body like ours gets no standing body and no person from its look (probe: a boy in the well)", () => {
+    const garden = { ...rotkaeppchen, id: "bible:kieselgarten", name: "Der Kieselgarten", species: "magical creature", isHuman: false, appearance: "a small living garden of white pebble flowers around an old round stone well rim, as wide as a child is tall" } as VisualEntity;
+    const request = figurePortraitRequest(garden, "story-1");
+    expect(request.prompt).toContain("One single being, shown whole and alone — no person, no child: a small living garden of white pebble flowers around an old round stone well rim.");
+    expect(request.prompt).not.toContain("standing upright");
+    expect(request.prompt).not.toContain("as wide as a child");
+    expect(request.negativePrompt).toContain("person, child, boy, girl");
+    const hedgehog = { ...garden, id: "bible:igel", species: "animal", appearance: "a small grey hedgehog with a red knitted scarf" } as VisualEntity;
+    expect(figurePortraitRequest(hedgehog, "s").prompt).toContain("One single animal, shown whole and alone");
+    // A troll has a body like ours: it stands.
+    const troll = { ...garden, id: "bible:troll", appearance: "a big friendly green troll with moss on his shoulders" } as VisualEntity;
+    expect(figurePortraitRequest(troll, "s").prompt).toContain("standing upright");
+    expect(figurePortraitRequest(troll, "s").negativePrompt).not.toContain("person, child, boy, girl");
+  });
+});

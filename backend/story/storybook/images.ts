@@ -35,6 +35,8 @@ import type { IllustrationPlan, IllustrationShot, StoryElement } from "./types";
 
 export interface ImageRequest {
   page: number;
+  /** Log stage of the provider call when it is no page or cover (a figure portrait). */
+  logStage?: string;
   prompt: string;
   negativePrompt: string;
   referenceImages: string[];

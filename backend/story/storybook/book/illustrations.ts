@@ -14,8 +14,8 @@
  */
 
 import { mentions } from "../checks";
-import { runDirectorStage, type VisualEntity } from "../illustration-stage";
-import { generateStorybookImages, publishableImageUrl, type ImageOutcome, type ImageProvider } from "../images";
+import { negativePromptFor, runDirectorStage, type VisualEntity } from "../illustration-stage";
+import { generateStorybookImages, publishableImageUrl, type ImageOutcome, type ImageProvider, type ImageRequest } from "../images";
 import type { JevPort } from "../jev";
 import type { CostLedger, StorybookLlm, StorybookModels } from "../llm";
 import type { IllustrationPlan, IllustrationShot, StoryElement, StoryPlan, StorybookPage } from "../types";
@@ -302,6 +302,96 @@ export function bibleFigureEntities(plan: BookPlan, takenNames: string[]): Visua
     });
   }
   return entities;
+}
+
+// ---------------------------------------------------------------------------
+// 2026-10-17, "Der Kieselgarten auf Reisen": the family's wished-for Rotkäppchen had no portrait — a red dress, then a
+// cream sweater, then a red cap like a boy. The identity sheet had nothing to show for her.
+// ---------------------------------------------------------------------------
+
+/** The book's painting style for a figure alone (the page style asks for "one full-bleed scene"). */
+const PORTRAIT_STYLE = "Soft watercolour and coloured-pencil picture-book illustration, warm light palette, expressive friendly face.";
+
+function portraitSeed(seed: string, id: string): number {
+  let hash = 2166136261;
+  for (const char of `${seed}:portrait:${id}`) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash) % 2_147_483_647;
+}
+
+// A look that describes a body like ours: it may stand facing the viewer. Anything else must not get one.
+const HUMANOID_LOOK = /\b(girl|boy|man|woman|child|kid|lady|gentleman|grand(mother|father|ma|pa)|witch|wizard|knight|king|queen|prince(ss)?|fairy|elf|dwarf|troll|giant|gnome|goblin|mermaid|pirate|robot|scarecrow|snowman)\b/i;
+
+const HUMAN_WORD = /\b(child|children|kid|kids|person|people|man|men|woman|women|boy|girl|adult|grown-up|human)\b/i;
+
+/** The look a portrait is drawn from: for a figure without a body like ours, no clause that names a person. */
+export function portraitLook(entity: VisualEntity): { look: string; humanoid: boolean } {
+  const look = String(entity.appearance || "").replace(/\s+/g, " ").trim().replace(/[.;,\s]+$/, "");
+  // What the figure IS decides, not what it is compared with ("a fairy the size of a child's hand" stands, a garden "as
+  // wide as a child is tall" does not).
+  const withoutComparisons = look.replace(/\b(?:as\s+\w+\s+as|the\s+size\s+of|size\s+of|bigger\s+than|smaller\s+than|taller\s+than)\b[^,;]*/gi, " ");
+  const humanoid = entity.isHuman || HUMANOID_LOOK.test(withoutComparisons);
+  // Probe 2026-10-17: "… as wide as a child is tall" put a boy into the pebble garden on every attempt.
+  return { look: humanoid ? look : look.split(/\s*[,;]\s*/).filter((part) => !HUMAN_WORD.test(part)).join(", "), humanoid };
+}
+
+/**
+ * One figure, whole, on white: what an identity sheet needs from a portrait. Probe 2026-10-17: "standing upright, arms
+ * relaxed" turned a living pebble garden into a boy standing in the well — only a humanoid look gets a standing body.
+ */
+export function figurePortraitRequest(entity: VisualEntity, seed: string): ImageRequest {
+  const { look, humanoid } = portraitLook(entity);
+  const body = humanoid
+    ? `One single figure, full body from head to feet, standing upright and facing the viewer, arms relaxed: ${look}.`
+    : `One single ${entity.species === "animal" ? "animal" : "being"}, shown whole and alone — no person, no child: ${look}.`;
+  return {
+    page: 0,
+    logStage: "storybook-image-portrait",
+    prompt: [
+      body,
+      "Plain white background. Nothing else in the picture: no other figure, no scenery, no frame, no lettering.",
+      PORTRAIT_STYLE,
+    ].join(" "),
+    negativePrompt: `${negativePromptFor([entity], false)}, second figure, group of figures, crowd, scenery, landscape, room, furniture, frame, border, character sheet, turnaround, multiple views${humanoid ? "" : ", person, child, boy, girl, human figure, people"}`,
+    referenceImages: [],
+    seed: portraitSeed(seed, entity.id),
+    width: 768,
+    height: 768,
+  };
+}
+
+export interface FigurePortraits {
+  /** Entity id → stored portrait URL (with the ones drawn earlier). */
+  portraits: Record<string, string>;
+  costUSD: number;
+  calls: number;
+  failed: string[];
+}
+
+/**
+ * The plan's figures without a pool portrait (bibleFigureEntities) get one, drawn once per book from their planned look.
+ * Kept in the job state, the same portrait is the figure's identity in every picture of every batch, like a pool
+ * portrait. A figure that already has one is not drawn again; a failed portrait leaves it drawn from its look alone.
+ */
+export async function drawFigurePortraits(input: { entities: VisualEntity[]; provider: ImageProvider; seed: string; existing?: Record<string, string> }): Promise<FigurePortraits> {
+  const portraits: Record<string, string> = { ...(input.existing || {}) };
+  const wanted = input.entities.filter((entity) =>
+    entity.id.startsWith("bible:") && entity.kind === "character" && !entity.referenceUrl && !portraits[entity.id] && portraitLook(entity).look.length >= 10);
+  let costUSD = 0;
+  const failed: string[] = [];
+  await Promise.all(wanted.map(async (entity) => {
+    try {
+      const response = await input.provider(figurePortraitRequest(entity, input.seed));
+      costUSD += Number(response.costUSD) || 0;
+      if (response.url) portraits[entity.id] = response.url;
+      else failed.push(entity.name);
+    } catch {
+      failed.push(entity.name);
+    }
+  }));
+  return { portraits, costUSD: Number(costUSD.toFixed(6)), calls: wanted.length, failed };
 }
 
 function foldName(value: string): string {

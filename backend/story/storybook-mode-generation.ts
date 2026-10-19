@@ -116,7 +116,7 @@ export function encoreImageProvider(storyId: string | undefined): ImageProvider 
       seed: request.seed,
       outputFormat: "JPEG",
       referenceImages: request.referenceImages.length > 0 ? request.referenceImages : undefined,
-      logContext: { storyId, stage: request.page === 0 ? "storybook-image-cover" : "storybook-image-page", chapter: request.page || undefined },
+      logContext: { storyId, stage: request.logStage || (request.page === 0 ? "storybook-image-cover" : "storybook-image-page"), chapter: request.logStage ? undefined : request.page || undefined },
     });
     const url = acceptedGeneratedImageUrl(image) || undefined;
     const response = (image as any)?.debugInfo?.responseReceived;
@@ -207,6 +207,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     observe: (stage, payload) => logStage(input.storyId, stage, payload),
   });
   const { plan, pages } = text;
+  const learning = learningGoal(config);
 
   // -------------------------------------------------------------------------
   // 2) Illustration direction, then images and developments in parallel.
@@ -285,7 +286,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       console.warn("[storybook] image stage failed:", err);
       return emptyImages;
     }),
-    runDevelopmentStage(llm, { heroes: brief.heroes, title: text.title, pages }, models.support),
+    runDevelopmentStage(llm, { heroes: brief.heroes, title: text.title, pages, learning: { goal: learning, core: plan.learningCore } }, models.support),
   ]);
   images.qaCalls.forEach((call, index) => ledger.recordCall(`image-qa-${index + 1}`, call, "support"));
   images.jevCalls?.forEach((call, index) => ledger.recordCall(`image-jev-${index + 1}`, call, "support"));
@@ -372,6 +373,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     // participants dialog show the cast from here (they were missing for
     // Bilderbuch stories, 2026-09-28).
     characterPoolUsed: castInStory.map((member) => ({ characterId: member.id, characterName: member.name })),
+    // Learning mode (2026-10-17): what the story set out to teach, what the writer committed to, what the read found.
+    ...(learning ? { learning: { ...learning, core: plan.learningCore || null, read: text.review?.ledger?.learning ?? null } } : {}),
     quality: {
       ...quality,
       benchmarkScore: text.benchmarkScore,

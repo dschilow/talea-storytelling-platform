@@ -43,7 +43,7 @@ import { artifactHeadToken, countWords } from "./storybook/checks";
 import type { StorybookHero, StoryElement } from "./storybook/types";
 import { bookLengthBudget, resolveBookBudget, resolveExperienceForm } from "./storybook/book/budget";
 import { buildCatalogue } from "./storybook/book/catalogue";
-import { bibleFigureEntities, castIdentityLine } from "./storybook/book/illustrations";
+import { bibleFigureEntities, castIdentityLine, drawFigurePortraits } from "./storybook/book/illustrations";
 import { bookBatchRanges, bookServiceTier, buildSeriesMemory, planBook, planMotifs, resolveBookPlanner, writeBook, type BookContext, type PlannedBook } from "./storybook/book/engine";
 import { buildImageSlots, directBatch, illustrateBatch, type BatchImagesResult, type BookImage, type PictureNote, type StoredDirection } from "./storybook/book/illustrations";
 import { createOpenRouterJevPort } from "./storybook/jev-openrouter";
@@ -100,6 +100,11 @@ interface BookJobState {
   directed?: Record<string, StoredDirection>;
   /** Per picture, for the admin: where it sits, what it shows and who acts there but is missing (bookAdmin.pictures). */
   pictureNotes?: PictureNote[];
+  /**
+   * Portraits of the plan's figures without a pool portrait (entity id → image URL), drawn once after the plan and used
+   * as their identity in every picture ("Der Kieselgarten auf Reisen": three different Rotkäppchen without one).
+   */
+  portraits?: Record<string, string>;
 }
 
 interface JobRow {
@@ -307,7 +312,7 @@ function cleanForReader(text: string, blockedTerms: string[]): string {
   return scrubProfanity(parental).text;
 }
 
-async function entitiesFor(planned: PlannedBook): Promise<VisualEntity[]> {
+async function entitiesFor(planned: PlannedBook, portraits?: Record<string, string>): Promise<VisualEntity[]> {
   const entities: VisualEntity[] = [];
   for (const hero of planned.brief.heroes) {
     const { species, isHuman } = speciesFromProfile(hero.visualProfile, "human");
@@ -327,9 +332,34 @@ async function entitiesFor(planned: PlannedBook): Promise<VisualEntity[]> {
       referenceUrl: await readableReference(member.imageUrl), referenceKey: member.imageUrl,
     });
   }
-  // 2026-10-16 ("Die rollende Woche"): the plan's figures without a portrait get a picture identity from their planned look.
-  entities.push(...bibleFigureEntities(planned.plan, entities.map((entity) => entity.name)));
+  // 2026-10-16 ("Die rollende Woche"): the plan's figures without a portrait get a picture identity from their planned look,
+  // and since 2026-10-17 the portrait drawn from that look after the plan (drawPortraits).
+  for (const figure of bibleFigureEntities(planned.plan, entities.map((entity) => entity.name))) {
+    const portrait = portraits?.[figure.id];
+    const referenceUrl = portrait ? await readableReference(portrait) : undefined;
+    entities.push(referenceUrl ? { ...figure, referenceUrl, referenceKey: portrait } : figure);
+  }
   return entities;
+}
+
+/** One portrait per figure of the plan that has no pool portrait; a failure leaves the figure drawn from its look. */
+async function drawPortraits(input: BookJobInput, planned: PlannedBook, state: BookJobState): Promise<void> {
+  const figures = bibleFigureEntities(planned.plan, [...planned.brief.heroes.map((hero) => hero.name), ...planned.brief.candidates.map((member) => member.name)]);
+  if (!figures.length) return;
+  try {
+    const drawn = await drawFigurePortraits({ entities: figures, provider: encoreImageProvider(input.storyId), seed: seedFor(input), existing: state.portraits });
+    state.portraits = drawn.portraits;
+    state.imageCostUSD = Number(((state.imageCostUSD || 0) + drawn.costUSD).toFixed(6));
+    state.imageCalls = (state.imageCalls || 0) + drawn.calls;
+    await logStage(input.storyId, "figure-portraits", {
+      figures: figures.map((figure) => figure.name),
+      drawn: figures.filter((figure) => drawn.portraits[figure.id]).map((figure) => figure.name),
+      ...(drawn.failed.length ? { failed: drawn.failed } : {}),
+      costUSD: drawn.costUSD,
+    });
+  } catch (err) {
+    console.warn("[book] figure portraits failed; the figures are drawn from their looks:", (err as Error)?.message || err);
+  }
 }
 
 async function saveState(storyId: string, state: BookJobState, stage: string, status: "queued" | "running" | "waiting" | "done"): Promise<void> {
@@ -469,6 +499,8 @@ async function runJobStep(row: JobRow): Promise<void> {
       const { catalogue: _catalogue, ...storedBrief } = planned.brief;
       state.planned = { ...planned, brief: storedBrief };
       state.book = emptyBookState();
+      // Before the first picture is planned: the figures the plan names without a pool portrait get one.
+      if (picturesEnabled() && process.env.TALEA_BOOK_IMAGES !== "fake") await drawPortraits(input, planned, state);
       keepCosts();
       await saveState(storyId, state, "planned", "queued");
       await storyDB.exec`UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ${storyId}`;
@@ -486,7 +518,7 @@ async function runJobStep(row: JobRow): Promise<void> {
     const entitiesOnce = (() => {
       let pending: Promise<VisualEntity[]> | undefined;
       return () => (pending ||= (async () => {
-        const looked = await describeReferenceLooks(llmFor(textFrom === 1 ? "first" : "later"), await entitiesFor(planned), models.support);
+        const looked = await describeReferenceLooks(llmFor(textFrom === 1 ? "first" : "later"), await entitiesFor(planned, state.portraits), models.support);
         if (looked.call) ledger.recordCall("reference-looks", looked.call, "support");
         return looked.entities;
       })());
