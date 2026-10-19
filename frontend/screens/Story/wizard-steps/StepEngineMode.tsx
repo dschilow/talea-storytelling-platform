@@ -1,5 +1,5 @@
 import React from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
 import {
   DEFAULT_OPENROUTER_STORY_MODEL,
@@ -16,6 +16,7 @@ export interface EngineModeState {
   developerMode: boolean;
   storybookMode: boolean;
   bookWorkshopMode: boolean;
+  wonderStoryMode: boolean;
   chapterBookMode: boolean;
   aiModel: AIModel;
   aiProvider: AIProvider;
@@ -27,7 +28,7 @@ interface Props {
   updateState: (updates: Partial<EngineModeState>) => void;
 }
 
-type GenerationLane = 'standard' | 'storybook' | 'chapterbook' | 'workshop' | 'developer';
+type GenerationLane = 'standard' | 'wonder' | 'storybook' | 'chapterbook' | 'workshop' | 'developer';
 
 const LANES: Array<{
   id: GenerationLane;
@@ -38,6 +39,16 @@ const LANES: Array<{
   description: string;
   note?: string;
 }> = [
+  {
+    id: 'wonder',
+    title: 'Wunder & Witz',
+    badge: 'Neu · Test',
+    icon: 'laugh',
+    tone: TONE.gold,
+    description:
+      'Ein Frühstück, das plötzlich eigene Pläne hat. Ein Drache mit Lampenfieber. Geschichten mit Situationskomik, eigenwilligen Figuren und einem warmen Ende – deine Avatare entscheiden, wie das Abenteuer ausgeht.',
+    note: 'Mit eigenen Beispielideen, ausgearbeiteten Kapiteln und Lektorat. Alter, Länge und deine Wünsche bestimmen den Ton.',
+  },
   {
     id: 'standard',
     title: 'Geschichte',
@@ -91,7 +102,8 @@ const LANES: Array<{
 
 /** Admin-only: which pipeline writes the story, and with which model. */
 export default function StepEngineMode({ state, updateState }: Props) {
-  const activeLane: GenerationLane = state.chapterBookMode
+  const reduceMotion = useReducedMotion();
+  const activeLane: GenerationLane = state.wonderStoryMode ? 'wonder' : state.chapterBookMode
     ? 'chapterbook'
     : state.bookWorkshopMode
       ? 'workshop'
@@ -106,7 +118,7 @@ export default function StepEngineMode({ state, updateState }: Props) {
   // the model picker below still lets an admin choose any other one afterwards.
   const select = (lane: GenerationLane) => {
     const modelUpdate: Partial<EngineModeState> =
-      lane === 'storybook' || lane === 'chapterbook'
+      lane === 'storybook' || lane === 'chapterbook' || lane === 'wonder'
         ? { aiProvider: 'openrouter', openRouterModel: STORYBOOK_OPENROUTER_STORY_MODEL }
         : state.openRouterModel === STORYBOOK_OPENROUTER_STORY_MODEL
           ? { openRouterModel: DEFAULT_OPENROUTER_STORY_MODEL }
@@ -116,6 +128,7 @@ export default function StepEngineMode({ state, updateState }: Props) {
       storybookMode: lane === 'storybook',
       bookWorkshopMode: lane === 'workshop',
       chapterBookMode: lane === 'chapterbook',
+      wonderStoryMode: lane === 'wonder',
       ...modelUpdate,
     });
   };
@@ -124,7 +137,7 @@ export default function StepEngineMode({ state, updateState }: Props) {
     <div className="space-y-7">
       <WizardStepHeading title="Was soll entstehen?" subtitle="Nur für Admins sichtbar. Avatare und Wünsche folgen danach." />
 
-      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 sm:gap-3">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
         {LANES.map((lane) => (
           <ChoiceTile
             key={lane.id}
@@ -142,10 +155,10 @@ export default function StepEngineMode({ state, updateState }: Props) {
       <AnimatePresence mode="wait">
         <motion.div
           key={active.id}
-          initial={{ opacity: 0, y: 6 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.16 }}
+          transition={{ duration: reduceMotion ? 0 : 0.16 }}
           className="rounded-[1.25rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] px-4 py-3.5"
         >
           <p className="text-[15px] font-semibold text-[var(--talea-text-primary)]">{active.title}</p>

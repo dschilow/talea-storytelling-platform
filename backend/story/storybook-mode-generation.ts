@@ -42,6 +42,8 @@ import { loadHeroMemories, loadStorybookHistory } from "./storybook/history";
 import { CostLedger, resolveStorybookModels } from "./storybook/llm";
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
 import { runStorybookTextEngine, STORYBOOK_PIPELINE_ID } from "./storybook/engine";
+import { runWonderTextEngine, WONDER_PIPELINE_ID } from "./wonder/engine";
+import { wonderBudget } from "./wonder/library";
 import { castAppearance, describeReferenceLooks, heroAppearance, runDirectorStage, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
 import { generateStorybookImages, publishableImageUrl, type ImageProvider, type StorybookImagesResult } from "./storybook/images";
 import { createOpenRouterJevPort } from "./storybook/jev-openrouter";
@@ -73,14 +75,14 @@ function stableSeed(input: StorybookGenerationInput): string {
     .slice(0, 16);
 }
 
-async function logStage(storyId: string | undefined, stage: string, payload: Record<string, unknown>): Promise<void> {
+async function logStage(storyId: string | undefined, stage: string, payload: Record<string, unknown>, pipeline: string = STORYBOOK_PIPELINE_ID): Promise<void> {
   try {
     await publishWithTimeout(logTopic as any, {
       source: "storybook-generation-stage",
       timestamp: new Date(),
-      request: { pipeline: STORYBOOK_PIPELINE_ID, stage, storyId },
+      request: { pipeline, stage, storyId },
       response: payload,
-      metadata: { pipeline: STORYBOOK_PIPELINE_ID, stage, storyId },
+      metadata: { pipeline, stage, storyId },
     });
   } catch {
     // Logging must never take generation down.
@@ -144,10 +146,12 @@ export async function readableReference(imageUrl: string | undefined): Promise<s
 export async function generateStoryStorybookMode(input: StorybookGenerationInput): Promise<StorybookGeneratedStory> {
   const startedAt = Date.now();
   const { config } = input;
+  const wonderMode = config.storybookEngine === WONDER_PIPELINE_ID;
+  const pipelineId = wonderMode ? WONDER_PIPELINE_ID : STORYBOOK_PIPELINE_ID;
   const ledger = new CostLedger();
   const models = resolveStorybookModels(config, { critic: process.env.TALEA_STORYBOOK_CRITIC_MODEL || undefined });
   const band = normalizeAgeBand(config.ageGroup);
-  const budget = resolveLengthBudget(config.length, band);
+  const budget = wonderMode ? wonderBudget(config.length, band) : resolveLengthBudget(config.length, band);
   const seed = stableSeed(input);
   const avatarIds = input.heroes.map((hero) => String(hero.id || "")).filter(Boolean);
 
@@ -189,7 +193,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     candidates: candidates.map((candidate) => ({ id: candidate.id, name: candidate.name, species: candidate.species, hasImage: Boolean(candidate.imageUrl) })),
     artifacts: artifacts.map((artifact) => ({ id: artifact.id, name: artifact.name, brought: Boolean(artifact.broughtBy) })),
     recentStories: history.recentStories.length,
-  });
+  }, pipelineId);
 
   const llm = createOpenRouterStorybookLlm({
     onFailedAttempt: (request, billed) => {
@@ -200,13 +204,14 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // -------------------------------------------------------------------------
   // 1) Text: concept → plan → draft → review → revision → final A/B.
   // -------------------------------------------------------------------------
-  const text = await runStorybookTextEngine({
+  const text = await (wonderMode ? runWonderTextEngine : runStorybookTextEngine)({
     llm,
     brief,
     models,
     ledger,
-    observe: (stage, payload) => logStage(input.storyId, stage, payload),
+    observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId),
   });
+  const wonder = "wonder" in text ? (text as import("./wonder/types").WonderResult).wonder : undefined;
   const { plan, pages } = text;
   const learning = learningGoal(config);
 
@@ -214,7 +219,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // 2) Illustration direction, then images and developments in parallel.
   // -------------------------------------------------------------------------
   const castInStory = plan.cast
-    .map((member) => candidates.find((candidate) => candidate.id === member.id))
+    .map((member) => candidates.find((candidate) => candidate.id === member.id) || wonder?.guests.find(candidate => candidate.id === member.id))
     .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
   const artifactOption = plan.artifact ? artifacts.find((artifact) => artifact.id === plan.artifact!.id) : undefined;
 
@@ -268,7 +273,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const director = await runDirectorStage(llm, { brief, title: text.title, pages, plan, entities: looks.entities }, models.support);
   if (director.call) ledger.recordCall("illustration-direction", director.call, "support");
   if (director.repairCall) ledger.recordCall("illustration-plan-repair", director.repairCall, "support");
-  await logStage(input.storyId, "illustration-plan", { illustrations: director.illustrations });
+  await logStage(input.storyId, "illustration-plan", { illustrations: director.illustrations }, pipelineId);
 
   const emptyImages: StorybookImagesResult = { pages: new Map(), imagesGenerated: 0, imageCalls: 0, imageCostUSD: 0, qaCalls: [], regenerated: [] };
   const [images, development] = await Promise.all([
@@ -296,7 +301,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // -------------------------------------------------------------------------
   // 3) Side effects: pool rotation, artifact economy.
   // -------------------------------------------------------------------------
-  await recordCastUsage(input.storyId, castInStory.map((member) => member.id));
+  await recordCastUsage(input.storyId, castInStory.filter(member => candidates.some(candidate => candidate.id === member.id)).map((member) => member.id));
 
   let pendingArtifact: StorybookGeneratedStory["pendingArtifact"];
   if (plan.artifact && artifactOption && input.storyId) {
@@ -344,8 +349,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const chapters = pages.map((page) => {
     const image = images.pages.get(page.order);
     return {
-      id: `storybook-${page.order}`,
-      title: pageTitle(config.language, page.order),
+      id: `${wonderMode ? "wonder" : "storybook"}-${page.order}`,
+      title: wonderMode ? page.title : pageTitle(config.language, page.order),
       content: page.content,
       order: page.order,
       imageUrl: publishableImageUrl(image),
@@ -355,8 +360,9 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   });
 
   const metadata: Record<string, any> = {
-    pipeline: STORYBOOK_PIPELINE_ID,
-    generationMode: STORYBOOK_PIPELINE_ID,
+    pipeline: pipelineId,
+    generationMode: pipelineId,
+    ...(wonder ? { wonder } : {}),
     model: models.writer,
     storyModel: models.writer,
     supportModel: models.support,
@@ -373,14 +379,14 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     // The shared field every pipeline writes: the story list and the
     // participants dialog show the cast from here (they were missing for
     // Bilderbuch stories, 2026-09-28).
-    characterPoolUsed: castInStory.map((member) => ({ characterId: member.id, characterName: member.name })),
+    characterPoolUsed: castInStory.filter(member => candidates.some(candidate => candidate.id === member.id)).map((member) => ({ characterId: member.id, characterName: member.name })),
     // Learning mode (2026-10-17): what the story set out to teach, what the writer committed to, what the read found.
     ...(learning ? { learning: { ...learning, core: plan.learningCore || null, read: text.review?.ledger?.learning ?? null } } : {}),
     quality: {
       ...quality,
       benchmarkScore: text.benchmarkScore,
       draftScore: text.draftScore,
-      scale: "0-10 vs. published top picture books",
+      scale: wonderMode ? "Evidence-based editorial review; no numeric quality claim" : "0-10 vs. published top picture books",
       releaseReady,
     },
     storybook: {
@@ -445,7 +451,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     textQuality: text.textQuality,
     imageQa: imageOutcomes.map(({ page, status, severity, attempts, qa, vignette }) => ({ page, status, severity, attempts, ...(vignette ? { vignette } : {}), qa })),
     durationMs,
-  });
+  }, pipelineId);
 
   return {
     title: text.title,

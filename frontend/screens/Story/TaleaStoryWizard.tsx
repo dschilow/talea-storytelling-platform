@@ -76,6 +76,7 @@ interface WizardState {
   developerMode: boolean;
   storybookMode: boolean;
   bookWorkshopMode: boolean;
+  wonderStoryMode: boolean;
   /** Chapter book (chapter-book-v1): a volume read over several evenings. */
   chapterBookMode: boolean;
   experienceForm: ExperienceForm | null;
@@ -348,6 +349,7 @@ export default function TaleaStoryWizard() {
     developerMode: false,
     storybookMode: false,
     bookWorkshopMode: false,
+    wonderStoryMode: false,
     chapterBookMode: false,
     experienceForm: null,
     bookChapters: 12,
@@ -776,9 +778,9 @@ export default function TaleaStoryWizard() {
                 <FlaskConical className="h-3.5 w-3.5" /> Dev Mode
               </span>
             )}
-            {(state.storybookMode || state.bookWorkshopMode || state.chapterBookMode) && (
+            {(state.storybookMode || state.bookWorkshopMode || state.chapterBookMode || state.wonderStoryMode) && (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2.5 py-1 text-[12px] font-semibold text-emerald-700 dark:text-emerald-300">
-                <BookOpen className="h-3.5 w-3.5" /> {state.chapterBookMode ? 'Kapitelbuch' : state.bookWorkshopMode ? 'Buchwerkstatt' : 'Bilderbuch'}
+                <BookOpen className="h-3.5 w-3.5" /> {state.wonderStoryMode ? 'Wunder & Witz' : state.chapterBookMode ? 'Kapitelbuch' : state.bookWorkshopMode ? 'Buchwerkstatt' : 'Bilderbuch'}
               </span>
             )}
           </div>
@@ -931,8 +933,8 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic',
     },
     developerMode: state.developerMode || undefined,
-    storybookMode: state.storybookMode || state.bookWorkshopMode || state.chapterBookMode || undefined,
-    storybookEngine: state.chapterBookMode ? 'chapter-book-v1' : state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v2' : undefined,
+    storybookMode: state.storybookMode || state.bookWorkshopMode || state.chapterBookMode || state.wonderStoryMode || undefined,
+    storybookEngine: state.wonderStoryMode ? 'wonder-story-v1' : state.chapterBookMode ? 'chapter-book-v1' : state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v2' : undefined,
     ...(state.chapterBookMode
       ? { bookChapters: state.bookChapters, bookImagesPerChapter: state.bookImagesPerChapter, experienceForm: state.experienceForm || undefined, heroRelation: state.selectedAvatars.length > 1 ? state.heroRelation || undefined : undefined, length: 'long' }
       : {}),
