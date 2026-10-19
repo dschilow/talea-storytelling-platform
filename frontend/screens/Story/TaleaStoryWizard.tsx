@@ -656,8 +656,10 @@ export default function TaleaStoryWizard() {
         const recoveredStory = await recoverGeneratedStoryAfterFailure(
           backend.story,
           storyId,
-          activeProfileId || undefined
+          activeProfileId || undefined,
+          { maxWaitMs: state.wonderStoryMode ? 15 * 60_000 : undefined, shouldStop: () => stopWaitingRef.current }
         );
+        if (stopWaitingRef.current) return;
         if (recoveredStory) {
           setGenerationStep('complete');
           onPhaseChange('complete');

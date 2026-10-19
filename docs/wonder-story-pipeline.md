@@ -42,12 +42,28 @@ bun scripts/wonder-story/report.ts
 
 Der Testtransport verwendet `OPENROUTER_API_KEY` oder `OpenRouterAPIKey`, Sol 6.1 als Autor und Gemini 3.8 Flash als Lektor, höchstens zwölf neue API-Aufrufe pro Lauf. Das ist eine Aufrufbegrenzung, keine garantierte Dollarobergrenze. Modellkosten werden aus den Anbieterantworten protokolliert; fehlende Kostenangaben weist der Bericht separat aus. Erneut verwendete Antworten erzeugen keine neue Rechnung und behalten ihre ursprüngliche Modellherkunft. Nur exakt passende Aufgaben werden wiederverwendet, auch über mehrere Wiederaufnahmen hinweg.
 
-Fixtures: `magic`, `realistic`, `dragon`, `space`, `bedtime`; Längen `short`, `medium`, `long`. Alle Avatare sind fiktiv. `--dry` schreibt nur den Planungsauftrag. Pro Lauf liegen Brief, tatsächliche Modellaufträge, Antworten, Lektoratsbelege, Kosten und fertiger Vorlesetext unter `Logs/wonder-story/`. Fehlgeschlagene Läufe bleiben sichtbar.
+Fixtures: `magic`, `realistic`, `dragon`, `space`, `bedtime`, `fairytale`; Längen `short`, `medium`, `long`. Alle Avatare sind fiktiv. `fairytale` bildet die gemeldete Kombination Märchen/Fantasiewelt/6–8/kurz mit Reimen, Wendung und fiktiven Elternvorgaben nach. `--dry` schreibt nur den Planungsauftrag. Pro Lauf liegen Brief, tatsächliche Modellaufträge, Antworten, Lektoratsbelege, Kosten und fertiger Vorlesetext unter `Logs/wonder-story/`. Fehlgeschlagene Läufe bleiben sichtbar.
+
+### Korrektur des Produktionsabbruchs vom 19. Oktober
+
+Der erste gemeldete Produktionslauf brach nach etwa 5½ Minuten bereits bei `wonder-plan` ab: Das Hinweisverzeichnis erfüllte die Prüfung der Vorbereitung und späteren Auflösung nicht. Die Story-Münze wurde automatisch zurückgebucht. Die alte Wiederholung erhielt nur die Sammelmeldung und erzeugte den gesamten Plan erneut. Die einzelnen abgelehnten Verweise waren nicht protokolliert; ihre konkrete ursprüngliche Form lässt sich deshalb nicht nachträglich belegen.
+
+Die Prüfung benennt jetzt Eintrag und fehlerhafte Kapitelnummern. Sind ausschließlich diese Verweise fehlerhaft, korrigiert ein kurzer Modellaufruf nur `setups` anhand der vorhandenen Szenen. Alle übrigen Planfelder bleiben erhalten; der vollständige Plan muss erneut durch dieselbe Strukturprüfung und das unabhängige Lektorat. Fehlerhafte Auflösungen im selben oder einem früheren Kapitel bleiben gesperrt. Bei anderen Formatfehlern bekommt die Wiederholung die tatsächlich abgelehnte Ausgabe und die konkreten Fehler. Ungültige Ausgaben werden für die geschützten Admin-Diagnoselogs protokolliert.
+
+Eine echte Sol-/Gemini-Probe reparierte ein absichtlich beschädigtes Verzeichnis eines fiktiven Testplans samt unabhängiger Prüfung in 10,5 Sekunden für rund 0,012 US-Dollar. Das ist eine Einzelmessung der Reparatur, keine Zeitgarantie für eine ganze Geschichte. Regressionstests belegen, dass eine weiter ungültige Reparatur nicht ausgeschrieben wird.
+
+Die HTTP-Logs zeigen zudem einen nach rund 37 Sekunden vom Client geschlossenen Handyaufruf und anschließend einen sauber abgewiesenen doppelten Aufruf derselben Story-ID. Die Wiederaufnahme im Wizard wartete bisher höchstens drei Minuten. Bei Wunder & Witz verfolgt sie jetzt denselben Lauf bis zu 15 Minuten; eine neue kostenpflichtige Generierung wird dabei nicht gestartet. Ein terminaler Serverfehler beendet die Wartezeit sofort, und das Verlassen des Wizards beendet die Abfragen. 91 Tests einschließlich dieser Fälle bestehen.
+
+Der zusätzliche vollständige Texttest mit der Märchen-Fixture bestand danach ebenfalls: „Ein Regenbogen kommt selten durchs Fenster“, 1.150 Wörter, vier Modellaufrufe, 0,10905 US-Dollar. Planung und fertiger Text wurden unabhängig gelesen; es war keine Formatwiederholung erforderlich. Testdaten und Text liegen unter `Logs/wonder-story/production-fix-fairytale/`. Illustrationen und echte Kundenavatare waren nicht Teil dieses lokalen Modelltests.
+
+```powershell
+bun scripts/wonder-story/repair-probe.ts --source Logs/wonder-story/realistic-completed --out Logs/wonder-story/repair-probe
+```
 
 ## Verifikation und Grenzen
 
 ```powershell
-bun test backend/story/wonder/wonder.test.ts backend/story/storybook/quality.test.ts
+bun test backend/story/wonder/wonder.test.ts backend/story/storybook/quality.test.ts frontend/screens/Story/storyGenerateWithModelFallback.test.ts
 cd frontend
 bun run build
 ```

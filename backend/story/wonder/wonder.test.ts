@@ -2,7 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import { CostLedger, type LlmRequest } from "../storybook/llm";
 import { fixture } from "./fixtures";
-import { draftProblems, mergeRevision, planProblems, readDraft, reviewProblems } from "./checks";
+import { draftProblems, mergeRevision, planProblems, readDraft, reviewProblems, setupProblems } from "./checks";
 import { selectWonderPackages, wonderBudget } from "./library";
 import { runWonderTextEngine } from "./engine";
 import { writerPrompt, wonderBrief } from "./prompts";
@@ -64,6 +64,13 @@ describe("Wunder & Witz contracts", () => {
     plan.artifact = { id: "a1", name: "Laterne", role: "Licht", carried: true, firstPage: 1, usePage: 3 };
     expect(planProblems(plan, brief, [])).toEqual([]);
   });
+  test("invalid setup references identify the exact entry without relaxing preparation rules", () => {
+    expect(setupProblems([{ what: "Schild", plantedOnPage: 2, paysOffOnPage: 2 }], 4).join(" ")).toContain("setups[0]: Auflösung in Kapitel 2 muss NACH");
+    expect(setupProblems([{ what: "Schild", plantedOnPage: 0, paysOffOnPage: 5 }], 4)).toHaveLength(2);
+    expect(setupProblems([{ what: "Schild", plantedOnPage: "1", paysOffOnPage: 4 }], 4)[0]).toContain("ganze Kapitelnummer");
+    const { brief, plan } = setup();
+    expect(planProblems({ ...plan, setups: [...plan.setups, { what: "Sofortwirkung", plantedOnPage: 2, paysOffOnPage: 2 }] }, brief, []).join(" ")).toContain("setups[1]");
+  });
   test("requires exact page order and evidence, never repairs by silently renumbering", () => {
     const { brief, plan, raw, draft, review } = setup();
     expect(() => readDraft(raw.replace("SEITE 2", "SEITE 3"), plan)).toThrow();
@@ -83,6 +90,51 @@ describe("Wunder & Witz contracts", () => {
 });
 
 describe("Wunder engine release decisions", () => {
+  test("repairs only malformed setup metadata and preserves the complete plan before independent review", async () => {
+    const { brief, plan, raw, review } = setup();
+    const broken = { ...plan, setups: [{ what: "Ein Schild", plantedOnPage: 4, paysOffOnPage: 4 }] };
+    const requests: LlmRequest[] = []; const observations: string[] = [];
+    const result = await runWonderTextEngine({ brief, ledger: new CostLedger(), models: { writer: "sol", support: "luna", critic: "independent" },
+      observe: async stage => { observations.push(stage); }, llm: async r => {
+        requests.push(r);
+        if (r.stage === "wonder-plan-setups-repair") { expect(r.effort).toBe("low"); expect(r.maxTokens).toBe(1600); expect(r.user).toContain("Auflösung in Kapitel 4"); }
+        if (r.stage === "wonder-plan-read") expect(JSON.parse(r.user).plan).toEqual(plan);
+        const response = r.stage === "wonder-plan" ? JSON.stringify(broken)
+          : r.stage === "wonder-plan-setups-repair" ? JSON.stringify({ setups: plan.setups })
+          : r.stage === "wonder-plan-read" ? '{"issues":[],"keep":[]}'
+          : r.stage === "wonder-draft" ? raw : JSON.stringify(review);
+        return { text: response, modelUsed: r.model, usage: { prompt: 0, completion: 0, total: 0, costUSD: 0 }, durationMs: 0 };
+      } });
+    expect(result.textQuality?.status).toBe("passed");
+    expect(result.wonder.plan).toEqual(plan);
+    expect(requests.map(r => r.stage)).toEqual(["wonder-plan", "wonder-plan-setups-repair", "wonder-plan-read", "wonder-draft", "wonder-cold-read"]);
+    expect(observations).toContain("wonder-plan-validation-failed");
+  });
+  test("a setup repair that stays invalid never reaches writing or illustration", async () => {
+    const { brief, plan } = setup(); const stages: string[] = [];
+    const broken = { ...plan, setups: [{ what: "Ein Schild", plantedOnPage: 4, paysOffOnPage: 1 }] };
+    await expect(runWonderTextEngine({ brief, ledger: new CostLedger(), models: { writer: "sol", support: "luna", critic: "independent" }, llm: async r => {
+      stages.push(r.stage);
+      return { text: JSON.stringify(r.stage.includes("setups-repair") ? { setups: broken.setups } : broken), modelUsed: r.model, usage: { prompt: 0, completion: 0, total: 0, costUSD: 0 }, durationMs: 0 };
+    } })).rejects.toThrow("Auflösung in Kapitel 1 muss NACH");
+    expect(stages).not.toContain("wonder-draft");
+    expect(stages).toHaveLength(4);
+  });
+  test("full format retries receive the rejected plan and specific errors", async () => {
+    const { brief, plan, raw, review } = setup();
+    await runWonderTextEngine({ brief, ledger: new CostLedger(), models: { writer: "sol", support: "luna", critic: "independent" }, llm: async r => {
+      if (r.stage === "wonder-plan-format-retry") {
+        expect(r.user).toContain('"previousOutput"');
+        expect(r.user).toContain('"title":"Vorhandener Plan"');
+        expect(r.user).toContain('"validationErrors"');
+      }
+      const response = r.stage === "wonder-plan" ? JSON.stringify({ ...plan, title: "Vorhandener Plan", heroes: [] })
+        : r.stage === "wonder-plan-format-retry" ? JSON.stringify(plan)
+        : r.stage === "wonder-plan-read" ? '{"issues":[],"keep":[]}'
+        : r.stage === "wonder-draft" ? raw : JSON.stringify(review);
+      return { text: response, modelUsed: r.model, usage: { prompt: 0, completion: 0, total: 0, costUSD: 0 }, durationMs: 0 };
+    } });
+  });
   test("runs the real flow with a text-only port and records model usage", async () => {
     const { brief, plan, raw, review } = setup();
     const requests: LlmRequest[] = []; const ledger = new CostLedger();

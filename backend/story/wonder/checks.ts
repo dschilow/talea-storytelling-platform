@@ -6,6 +6,20 @@ import type { WonderDraft, WonderPlan, WonderReview } from "./types";
 const text = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
 const texts = (v: unknown): v is string[] => Array.isArray(v) && v.every(text);
 
+/** Precise diagnostics let the planner repair chapter references without rewriting the story. */
+export function setupProblems(raw: unknown, chapters: number): string[] {
+  if (!Array.isArray(raw) || raw.length === 0) return ["setups: Mindestens ein früh vorbereiteter, später eingelöster Hinweis erforderlich."];
+  const issues: string[] = [];
+  for (const [i, s] of raw.entries()) {
+    const prefix = `setups[${i}]`;
+    if (!s || !text(s.what)) issues.push(`${prefix}: Beschreibe den bereits im Kapitelplan vorbereiteten Hinweis in what.`);
+    if (!Number.isInteger(s?.plantedOnPage) || s.plantedOnPage < 1 || s.plantedOnPage > chapters) issues.push(`${prefix}: plantedOnPage=${JSON.stringify(s?.plantedOnPage) ?? "fehlt"}; erforderlich ist eine ganze Kapitelnummer von 1 bis ${chapters}.`);
+    if (!Number.isInteger(s?.paysOffOnPage) || s.paysOffOnPage < 1 || s.paysOffOnPage > chapters) issues.push(`${prefix}: paysOffOnPage=${JSON.stringify(s?.paysOffOnPage) ?? "fehlt"}; erforderlich ist eine ganze Kapitelnummer von 1 bis ${chapters}.`);
+    if (Number.isInteger(s?.plantedOnPage) && Number.isInteger(s?.paysOffOnPage) && s.paysOffOnPage <= s.plantedOnPage) issues.push(`${prefix}: Auflösung in Kapitel ${s.paysOffOnPage} muss NACH der Vorbereitung in Kapitel ${s.plantedOnPage} liegen. Eine Vorführung und ihre unmittelbare Wirkung im selben Kapitel gehören nicht in setups.`);
+  }
+  return issues;
+}
+
 export function planProblems(raw: unknown, brief: StoryBrief, packageIds: string[]): string[] {
   if (!raw || typeof raw !== "object") return ["Plan muss ein JSON-Objekt sein."];
   const p = raw as WonderPlan;
@@ -31,7 +45,7 @@ export function planProblems(raw: unknown, brief: StoryBrief, packageIds: string
   for (const [i, s] of (Array.isArray(p.scenes) ? p.scenes : []).entries()) {
     if (!s || s.chapter !== i + 1 || ![s.title, s.place, s.action, s.cause, s.change, s.humor, s.end, s.after].every(text) || !texts(s.onStage) || s.onStage.length === 0 || s.onStage.some(id => !ids.has(id))) issues.push(`Kapitel ${i + 1} ist unvollständig oder hat unbekannte Figuren.`);
   }
-  if (!Array.isArray(p.setups) || p.setups.length === 0 || p.setups.some(s => !s || !text(s.what) || !Number.isInteger(s.plantedOnPage) || !Number.isInteger(s.paysOffOnPage) || s.plantedOnPage < 1 || s.paysOffOnPage <= s.plantedOnPage || s.paysOffOnPage > brief.budget.pages)) issues.push("Mindestens ein früh vorbereiteter, später eingelöster Hinweis erforderlich.");
+  issues.push(...setupProblems(p.setups, brief.budget.pages));
   if (!p.ending || ![p.ending.resolution, p.ending.emotionalAction, p.ending.callback].every(text)) issues.push("Ende ist unvollständig.");
   const brought = brief.artifacts.find(a => a.broughtBy);
   if (brought && p.artifact?.id !== brought.id) issues.push("Mitgebrachtes Artefakt fehlt.");

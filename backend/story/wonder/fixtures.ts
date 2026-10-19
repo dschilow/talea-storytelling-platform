@@ -5,12 +5,14 @@ import { wonderBudget } from "./library";
 export function fixture(name = "magic", length: "short" | "medium" | "long" = "medium") {
   const young = name === "bedtime";
   const band = young ? "3-5" as const : "6-8" as const;
-  const genre = name === "space" ? "scifi" : name === "realistic" ? "modern" : "magic";
+  const genre = name === "space" ? "scifi" : name === "realistic" ? "modern" : name === "fairytale" ? "fairy_tales" : "magic";
   return buildBrief({
     config: {
-      avatarIds: ["hero:nora", "hero:ben"], genre, setting: name === "space" ? "space" : "varied", ageGroup: band, length,
+      avatarIds: ["hero:nora", "hero:ben"], genre, setting: name === "space" ? "space" : name === "fairytale" ? "fantasy" : "varied", ageGroup: band, length,
       complexity: "medium", language: "de", humorLevel: young ? 0 : 3, suspenseLevel: young ? 0 : 2,
       requireHappyEnd: true, avatarIsHero: true, useCharacterPool: true, aiProvider: "openrouter", openRouterModel: "openai/gpt-6.1-sol",
+      // Reproduces the reported wizard combination using fictional avatars and guidance.
+      ...(name === "fairytale" ? { humorLevel: 2, tone: "witty" as const, pacing: "fast" as const, pov: "personale" as const, allowRhymes: true, hasTwist: true, parentalGuidance: "Kindgerecht, keine grausamen Strafen und ein gutes Ende." } : {}),
       customPrompt: young ? "Eine geborgene Geschichte vor dem Einschlafen. Leise, kein Erschrecken und kein Zeitdruck." : name === "realistic" ? "Eine wirklich lustige Geschichte ohne Magie und ohne sprechende Gegenstände. Nora plant gern, Ben möchte mitentscheiden." : name === "dragon" ? "Fino ist ein kleiner Drache, der fliegen und kleine warme Flammen pusten kann. Diese Fähigkeiten bleiben ihm erhalten. Ein lustiges Abenteuer mit Freundschaft und eigenwilligen Nebenfiguren." : name === "space" ? "Ein lustiges Abenteuer auf einer Raumstation. Die Figuren dürfen Fehler machen und gemeinsam etwas herausfinden." : "Ein fantastisches Abenteuer, das mit einer komischen Alltagsstörung beginnt. Trockene Dialoge, echte Überraschungen, ein stiller Moment. Keine Schwerkraft, kein Amt, keine drei Prüfungen.",
     }, band, budget: wonderBudget(length, band), seed: `wonder-pilot-${name}-2026-10-19`,
     heroes: name === "dragon" ? [

@@ -3,7 +3,7 @@ import { parseJsonObject, type CostLedger, type LlmRequest, type StorybookLlm, t
 import type { CastCandidate, StoryPlan } from "../storybook/types";
 import { draftProblems, editorialBlockers, mergeRevision, planProblems, readDraft, reviewProblems } from "./checks";
 import { selectWonderPackages } from "./library";
-import { planPrompt, planReviewPrompt, reviewPrompt, writerPrompt } from "./prompts";
+import { planPrompt, planReviewPrompt, reviewPrompt, setupRepairPrompt, writerPrompt } from "./prompts";
 import { WONDER_PIPELINE_ID, type WonderDraft, type WonderPlan, type WonderResult, type WonderReview } from "./types";
 
 export { WONDER_PIPELINE_ID };
@@ -30,7 +30,8 @@ export async function runWonderTextEngine(input: {
   const packages = selectWonderPackages(brief);
   const observe = async (stage: string, payload: Record<string, unknown>) => { try { await input.observe?.(stage, payload); } catch { /* telemetry is best effort */ } };
   const call = async (stage: string, prompt: { system: string; user: string }, role: LlmRequest["role"], json: boolean, maxTokens: number) => {
-    const result = await input.llm({ stage, ...prompt, role, model: models[role], json, maxTokens, effort: role === "writer" ? "medium" : "low", temperature: role === "writer" ? 0.8 : 0.3, timeoutMs: 360_000 });
+    const setupRepair = stage.includes("setups-repair");
+    const result = await input.llm({ stage, ...prompt, role, model: models[role], json, maxTokens, effort: role === "writer" && !setupRepair ? "medium" : "low", temperature: role === "writer" ? 0.8 : 0.3, timeoutMs: setupRepair ? 90_000 : 360_000 });
     ledger.recordCall(stage, result, role);
     await observe(stage, { model: result.modelUsed, durationMs: result.durationMs, usage: result.usage });
     if (!result.text.trim() || /length|max_tokens/i.test(result.finishReason || "")) throw new Error(`[${WONDER_PIPELINE_ID}] ${stage}: unvollständige Antwort.`);
@@ -38,11 +39,26 @@ export async function runWonderTextEngine(input: {
   };
   const jsonCall = async <T>(stage: string, prompt: { system: string; user: string }, role: LlmRequest["role"], validate: (raw: unknown) => string[]): Promise<T> => {
     let issues: string[] = [];
+    let previousOutput: unknown = null;
     for (let attempt = 0; attempt < 2; attempt++) {
-      const text = await call(attempt ? `${stage}-format-retry` : stage, attempt ? { ...prompt, user: `${prompt.user}\nDie letzte Ausgabe war ungültig: ${issues.join(" ")} Gib das vollständige korrigierte JSON aus.` } : prompt, role, true, stage.includes("plan") ? 7000 : 5000);
+      const text = await call(attempt ? `${stage}-format-retry` : stage, attempt ? { ...prompt, user: `${prompt.user}\n${JSON.stringify({ task: "Korrigiere die konkrete vorherige Ausgabe. Behalte alle gültigen Teile und gib das vollständige korrigierte JSON aus.", validationErrors: issues, previousOutput })}` } : prompt, role, true, stage.includes("plan") ? 7000 : 5000);
       const parsed = parseJsonObject<unknown>(text);
       issues = validate(parsed);
       if (!issues.length) return parsed as T;
+      previousOutput = parsed ?? text;
+      await observe(`${stage}-validation-failed`, { attempt: attempt + 1, issues, output: previousOutput });
+      // A faulty chapter index is not a reason to throw away several minutes
+      // of valid story planning. Repair only that directory, then validate the
+      // WHOLE unchanged plan and pass it through the independent plan reader.
+      if (role === "writer" && stage.startsWith("wonder-plan") && parsed && issues.every(i => /^setups(?:\[|:)/.test(i))) {
+        const repairedText = await call(`${stage}-setups-repair${attempt ? "-2" : ""}`, setupRepairPrompt(parsed as WonderPlan, brief.budget.pages, issues), role, true, 1600);
+        const patch = parseJsonObject<{ setups?: unknown }>(repairedText);
+        const candidate = { ...parsed as WonderPlan, setups: patch?.setups };
+        issues = validate(candidate);
+        if (!issues.length) return candidate as T;
+        previousOutput = candidate;
+        await observe(`${stage}-setups-repair-invalid`, { attempt: attempt + 1, issues, output: candidate });
+      }
     }
     throw new Error(`[${WONDER_PIPELINE_ID}] ${stage}: ${issues.join(" ")}`);
   };

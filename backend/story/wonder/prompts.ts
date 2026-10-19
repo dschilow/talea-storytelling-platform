@@ -45,10 +45,20 @@ Die Beispiele zeigen Handwerk. Übernimm keine Beispielsätze oder Figuren verse
         ending: { resolution: "Warum die Lösung gelingt", emotionalAction: "kleine Handlung, die etwas bedeutet", callback: "verändertes Bild aus dem Anfang" }, learningCore: null,
       },
       formats: {
+        setups: `Mindestens ein Hinweis, der in einem späteren Kapitel wichtig wird. Für JEDEN Eintrag gelten ganze Zahlen: 1 <= plantedOnPage < paysOffOnPage <= ${brief.budget.pages}. Keine gleichzeitige Vorführung und Wirkung, keine Kapitel außerhalb des Buchs. Regelvorführungen im selben Kapitel bleiben in ruleDemonstration.`,
         guest: { id: "guest:name ODER exakte Pool-ID", name: "Name", species: "human/animal/magical_creature/...", appearance: "beständige konkrete Gestalt, Englisch", want: "Wunsch", voice: "Stimme", role: "Aufgabe" },
         artifact: { id: "exakte ID", name: "exakter Name", role: "vorbereitete Verwendung", firstPage: 1, usePage: 3, carried: true },
       },
     }),
+  };
+}
+
+export function setupRepairPrompt(plan: WonderPlan, chapters: number, issues: string[]) {
+  return {
+    system: `Du korrigierst ausschließlich das Hinweisverzeichnis eines vorhandenen Kinderbuchplans. ${TRUST}
+Lies die bereits geplanten Szenen. Wähle mindestens einen dort tatsächlich früh eingeführten Gegenstand, eine Beobachtung oder Entscheidung, die in einem SPÄTEREN Kapitel gebraucht wird. Erfinde keine neue Szene, Fähigkeit oder Lösung. Behalte gültige Hinweise. Eine unmittelbare Vorführung mit Wirkung im selben Kapitel ist kein später eingelöster Hinweis und gehört nicht in dieses Verzeichnis.
+Für JEDEN Eintrag gilt: 1 <= plantedOnPage < paysOffOnPage <= ${chapters}. Beide Felder sind ganze JSON-Zahlen, keine Texte, Listen oder Kapitelüberschriften. Antworte nur als JSON {"setups":[{"what":"vorhandener Hinweis und seine spätere Verwendung","plantedOnPage":1,"paysOffOnPage":${chapters}}]}. Gib nicht den gesamten Plan aus.`,
+    user: JSON.stringify({ issues, title: plan.title, currentSetups: plan.setups, scenes: plan.scenes, ending: plan.ending }),
   };
 }
 

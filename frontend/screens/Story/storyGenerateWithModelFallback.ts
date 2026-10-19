@@ -121,15 +121,25 @@ export function shouldAttemptStoryGenerationRecovery(error: unknown): boolean {
 export async function recoverGeneratedStoryAfterFailure(
   storyClient: StoryLookupClient,
   storyId: string,
-  profileId?: string
+  profileId?: string,
+  options: { maxWaitMs?: number; shouldStop?: () => boolean; sleep?: (ms: number) => Promise<void> } = {}
 ): Promise<any | null> {
-  for (let attempt = 0; attempt < GENERATION_RECOVERY_ATTEMPTS; attempt += 1) {
+  // The multi-stage writer can outlive a mobile connection and the old
+  // three-minute recovery window. Keep following that SAME generation; never
+  // start another paid one. Terminal backend errors still return immediately.
+  const attempts = options.maxWaitMs !== undefined && Number.isFinite(options.maxWaitMs)
+    ? Math.min(450, Math.max(1, Math.ceil(options.maxWaitMs / GENERATION_RECOVERY_DELAY_MS)))
+    : GENERATION_RECOVERY_ATTEMPTS;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (options.shouldStop?.()) return null;
     if (attempt > 0) {
-      await sleep(GENERATION_RECOVERY_DELAY_MS);
+      await (options.sleep || sleep)(GENERATION_RECOVERY_DELAY_MS);
     }
+    if (options.shouldStop?.()) return null;
 
     try {
       const story = await storyClient.get({ id: storyId, profileId });
+      if (options.shouldStop?.()) return null;
       if (isGeneratedStoryReady(story)) {
         return story;
       }

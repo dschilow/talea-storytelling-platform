@@ -12,7 +12,7 @@ import { selectWonderPackages } from "../../backend/story/wonder/library";
 const args = process.argv.slice(2);
 const opt = (name: string, fallback: string) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
 const name = opt("--case", "magic");
-if (!["magic", "space", "realistic", "dragon", "bedtime"].includes(name)) throw new Error("Unknown fixture.");
+if (!["magic", "space", "realistic", "dragon", "bedtime", "fairytale"].includes(name)) throw new Error("Unknown fixture.");
 const length = opt("--length", "medium");
 if (!["short", "medium", "long"].includes(length)) throw new Error("Invalid length.");
 const out = resolve(opt("--out", `Logs/wonder-story/${name}-${Date.now()}`));
