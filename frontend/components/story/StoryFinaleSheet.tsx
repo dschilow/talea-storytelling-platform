@@ -264,7 +264,7 @@ const StoryFinaleSheet: React.FC<StoryFinaleSheetProps> = ({
         >
           <button
             type="button"
-            onClick={close}
+            data-talea-android-back onClick={close}
             className="absolute right-3 top-3 z-10 rounded-full p-2 transition-colors hover:bg-black/5 dark:hover:bg-white/10"
             style={{ color: palette.sub }}
             aria-label="Schließen"

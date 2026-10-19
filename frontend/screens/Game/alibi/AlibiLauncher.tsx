@@ -11,6 +11,7 @@ import { useAlibiCharacters, useAlibiState, usePreviewFaces } from "./hooks";
 import { AlibiStage } from "./AlibiStage";
 import { TaviSprite } from "./live/TaviSprite";
 import { AttractBoard } from "./live/AttractBoard";
+import { useAndroidAlibi } from "../../../platform/alibi";
 
 const FEATURES = [
   { img: IMG.icon("phone"), title: "Geheimtelefon", text: "Tavi flüstert jedem ins Ohr, wo er war, wen er gesehen hat und was dort los war. Niemand muss lesen können." },
@@ -70,6 +71,7 @@ export const AlibiLauncher: React.FC<{ onController?: (ctrl: AlibiController) =>
   if (chars && !sharedCtrl) sharedCtrl = new AlibiController(chars);
   const ctrl = sharedCtrl;
   const [open, setOpen] = useState<null | { tour: boolean }>(null);
+  useAndroidAlibi(ctrl, !!open);
   const faces = usePreviewFaces(chars, 24);
   const strip = useMemo(() => faces.concat(faces), [faces]);
 

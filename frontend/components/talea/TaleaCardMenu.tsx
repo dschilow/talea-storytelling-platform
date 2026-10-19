@@ -136,6 +136,7 @@ export const TaleaCardMenu: React.FC<{
           ref={menuRef}
           id={menuId}
           role="menu"
+          data-talea-android-back="escape"
           aria-label={label}
           tabIndex={-1}
           className="fixed z-[1200] w-60 max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-1.5 shadow-[var(--talea-shadow-strong)] outline-none"

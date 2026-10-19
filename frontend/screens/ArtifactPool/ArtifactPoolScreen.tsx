@@ -1,3 +1,4 @@
+import { saveGeneratedFile } from '../../platform/native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Edit3, Gem, RefreshCcw, Save, Sparkles, Trash2, Upload, X, Zap } from 'lucide-react';
 import { toast } from 'sonner';
@@ -360,15 +361,8 @@ const ArtifactPoolScreen: React.FC = () => {
       const blob = new Blob([JSON.stringify(response.artifacts, null, 2)], {
         type: 'application/json',
       });
-      const url = URL.createObjectURL(blob);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `talea-artifacts-${timestamp}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      await saveGeneratedFile(blob, `talea-artifacts-${timestamp}.json`);
       toast.success('Artefakte exportiert.');
     } catch (err) {
       console.error('Failed to export artifacts', err);
@@ -622,6 +616,7 @@ const ArtifactPoolScreen: React.FC = () => {
               <Button
                 title="Schliessen"
                 onPress={closeEditor}
+                className="talea-android-back"
                 variant="outline"
                 icon={<X size={16} />}
               />

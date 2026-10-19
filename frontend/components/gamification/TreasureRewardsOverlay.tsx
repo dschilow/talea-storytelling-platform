@@ -124,7 +124,7 @@ const TreasureRewardsOverlay: React.FC<TreasureRewardsOverlayProps> = ({ rewards
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
-            onClick={() => setSceneIndex((i) => i + 1)}
+            data-talea-android-back onClick={() => setSceneIndex((i) => i + 1)}
           >
             <motion.div
               initial={{ scale: 0.4, y: 80, opacity: 0 }}

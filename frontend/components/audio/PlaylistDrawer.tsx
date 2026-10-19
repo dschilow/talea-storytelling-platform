@@ -558,7 +558,7 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
             whileHover={reduceMotion ? undefined : { scale: 1.08 }}
             whileTap={reduceMotion ? undefined : { scale: 0.94 }}
             type="button"
-            onClick={togglePlaylistDrawer}
+            data-talea-android-back onClick={togglePlaylistDrawer}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border"
             style={{
               borderColor: 'var(--talea-border-soft)',
@@ -734,7 +734,7 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         type="button"
-        onClick={togglePlaylistDrawer}
+        data-talea-android-back onClick={togglePlaylistDrawer}
         className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
         aria-label="Warteschlange schliessen"
       />

@@ -33,7 +33,7 @@ export default function UpgradePlanModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            data-talea-android-back onClick={onClose}
           />
           <motion.div
             className="fixed inset-x-3 top-1/2 z-[170] mx-auto max-w-md -translate-y-1/2 rounded-3xl border border-[var(--talea-border-soft)] bg-[var(--talea-surface-primary)] p-5 shadow-[var(--talea-shadow-strong)]"
@@ -47,7 +47,7 @@ export default function UpgradePlanModal({
           >
             <button
               type="button"
-              onClick={onClose}
+              data-talea-android-back onClick={onClose}
               className="absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-full border border-[var(--talea-border-soft)] bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
               aria-label="Schließen"
             >
@@ -70,7 +70,7 @@ export default function UpgradePlanModal({
             <div className="mt-5 flex items-center gap-2">
               <button
                 type="button"
-                onClick={onClose}
+                data-talea-android-back onClick={onClose}
                 className="inline-flex min-h-11 flex-1 items-center justify-center rounded-2xl border border-[var(--talea-border-soft)] bg-[var(--talea-surface-inset)] px-4 py-2.5 text-sm font-semibold text-[var(--talea-text-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
               >
                 Später

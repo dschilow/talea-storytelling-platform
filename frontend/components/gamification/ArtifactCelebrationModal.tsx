@@ -99,7 +99,7 @@ const ArtifactCelebrationModal: React.FC<ArtifactCelebrationModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
-          onClick={onClose}
+          data-talea-android-back onClick={onClose}
         >
           {/* Background Particles */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -176,7 +176,7 @@ const ArtifactCelebrationModal: React.FC<ArtifactCelebrationModalProps> = ({
                 <div className="relative p-6 text-center">
                   {/* Close button */}
                   <button
-                    onClick={onClose}
+                    data-talea-android-back onClick={onClose}
                     className="absolute top-4 right-4 p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-colors z-10"
                   >
                     <X className="w-5 h-5" />
@@ -344,7 +344,7 @@ const ArtifactCelebrationModal: React.FC<ArtifactCelebrationModalProps> = ({
                     </button>
                   )}
                   <button
-                    onClick={onClose}
+                    data-talea-android-back onClick={onClose}
                     className={`${onViewTreasureRoom ? 'flex-1' : 'w-full'} py-3 bg-gradient-to-r ${rarityConfig.gradient} text-white font-bold rounded-xl hover:opacity-90 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg`}
                   >
                     Fantastisch! {artifact.emoji || '🎉'}

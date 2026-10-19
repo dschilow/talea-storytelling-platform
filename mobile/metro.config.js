@@ -6,7 +6,7 @@ const config = getDefaultConfig(__dirname);
 
 // The Android character cache uses the game's canonical data. Metro must index
 // this shared source directory, which lives outside the mobile project root.
-config.watchFolders = [...config.watchFolders, path.resolve(__dirname, '../frontend/screens/Game/alibi')];
+config.watchFolders = [...config.watchFolders, path.resolve(__dirname, '../frontend/screens/Game/alibi'), path.resolve(__dirname, '../frontend/platform')];
 
 // The generated Encore client ships as .ts; the locale bundles as .json. Both are
 // already covered by the defaults — we only add the module formats some

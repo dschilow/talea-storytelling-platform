@@ -1,248 +1,103 @@
-# Talea Mobile (Android)
+# Talea Android
 
-Native Android app for Talea, built with Expo SDK 54 / React Native 0.81. It talks
-to the same Encore backend as the web app and mirrors its feature set.
+Android uses the actual React application in `../frontend/`: the same routes,
+components, icons, logos, colours, typography, animations, account permissions,
+readers, story and avatar wizards, games, admin pages and 3D cosmos. Both clients
+use the existing Encore backend and Clerk instance.
 
-## Quick start
+## How it works
 
-```bash
-cd mobile
-bun install                 # a local .npmrc pins the public registry — see "Registry" below
-cp .env.example .env        # then fill in the Clerk key
-bun run start               # Metro, for a dev client
-bun run android             # build + install a debug APK on a connected device/emulator
-```
+`App.tsx` mounts `src/web/TaleaWebApp.tsx`. Every Android `preBuild` runs
+`scripts/build-web.mjs`, building the canonical frontend directly into
+`android/app/src/main/assets/talea/`. It also renders Android launcher/splash
+resources from the original SVGs in `frontend/public/brand/` and packages the
+same Google Fonts files for offline use.
 
-Requirements: JDK 17, Android SDK 36, NDK 27.1.12297006, and a device or emulator
-on API 24+.
+`plugins/web/TaleaWebAssets.java` serves packaged files under
+`https://www.talea.website` inside Android System WebView. This keeps the web
+origin required by Clerk, IndexedDB, camera access and the existing API CORS
+configuration. The UI does not depend on downloading the website. Backend,
+Clerk and external resources retain ordinary HTTPS and authentication. HTTP
+range requests support local audio/video seeking. The website service worker
+is disabled inside the app so it cannot replace the APK's frontend.
 
-### Gradle troubleshooting
+`frontend/platform/` contains the small Android adapters. Ordinary browser visits
+keep their existing behavior. The native bridge checks its channel, source
+origin, main-frame host nonce, actions and payloads before accessing Android features.
 
-These have all been hit on this project. Check the toolchain and stale build
-state before changing application code.
-
-| Symptom | Cause | Fix |
-| --- | --- | --- |
-| `[CXX1101] NDK … did not have a source.properties file` | An NDK download was interrupted and left a stub directory | `rm -rf $ANDROID_HOME/ndk/<version>` and rebuild |
-| `duplicate class: com.horcrux.svg.*` | `bun install` upgraded `react-native-svg` in place and left the previous version's files in `android/src/main/java`. The package selects one version-specific source set (`…75/`, `…74/`), so the leftovers collide | `rm -rf node_modules/react-native-svg && bun install` |
-| `Failed to create MD5 hash for … output-metadata.json` | A previous build was killed and left half-written intermediates | Delete every `node_modules/*/android/build` plus `android/app/build` |
-
-The last two are worth knowing about because **neither is caught by
-`bun run typecheck` or `expo export`** — they live purely in the native build.
-
-### Environment
-
-`mobile/.env` (never committed):
-
-```
-EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-EXPO_PUBLIC_BACKEND_URL=https://backend-2-production-3de1.up.railway.app
-```
-
-`EXPO_PUBLIC_BACKEND_URL` is optional — it falls back to `expo.extra.backendUrl`
-in `app.json`, then to production. Point it at `http://10.0.2.2:4000` to run
-against a local `encore run` from the Android emulator.
-
-### Registry
-
-`mobile/.npmrc` pins the public npm registry. Without it, a machine-level
-`~/.npmrc` pointing at a corporate feed shadows the Expo/React Native packages
-and every install fails to resolve. This mirrors the repo-root `.npmrc`.
-
-## Builds
-
-```bash
-bun run android            # debug
-bun run android:release    # release variant (currently signed with the debug keystore)
-bun run prebuild           # regenerate android/ from app.json after native config changes
-```
-
-**Before shipping to Play:** `android/app/build.gradle` still signs release builds
-with `debug.keystore`. Generate a real upload key and wire it up first.
-
-`android/` is generated from `app.json` — `expo prebuild --clean` overwrites it.
-Machine-specific TLS proxy settings belong in `~/.gradle/gradle.properties`.
-Use `systemProp.javax.net.ssl.trustStoreType=Windows-ROOT` there only with a
-Windows JDK that supplies SunMSCAPI. The Alibi Gradle task and speech package
-are restored by `plugins/with-alibi.js` during prebuild.
-
-## Staying in sync with the web app
-
-Shared sources are mirrored from `frontend/` rather than reimplemented, so the two
-clients cannot drift. Re-run these after backend or shared-type changes:
-
-```bash
-bun run sync-client     # frontend/client.ts        -> src/api/client.ts
-bun run sync-locales    # locales + ttsChunking + shared domain types
-```
-
-| Mirrored | Why |
+| Android capability | Implementation |
 | --- | --- |
-| `client.ts` | The generated Encore client — the entire API surface |
-| `i18n/locales/*.json` | Identical copy in all 7 languages |
-| `ttsChunking.ts` | `normalizeTTSText()` is the fix for the German/multilingual missing-sentence bug; a divergence here silently corrupts audio |
-| `types/{story,avatar,doku,tavi,avatarForm}.ts` | Payload shapes, AI model ids, and the avatar option catalogues |
-| `screens/Game/alibi` + `public/game` | Mitternachts-Alibi is bundled directly from the current web source by every Android build |
+| Back button | Existing game overlays/exit confirmation, dialogs, web navigation, then app exit |
+| System bars | Safe areas and light/dark appearance follow the web theme |
+| Camera and uploads | Upstream WebView camera permissions and Android file chooser |
+| PDF, JSON and image export | Existing web generators, Android system share/save sheet |
+| Google/Apple sign-in | Same Clerk form; system auth browser and the original web sign-in attempt |
+| Audio and lock screen | Existing web queue and controls; Expo native audio owns playback |
+| Game privacy | Existing verified receiver-only Alibi audio module; private audio stops on app blur |
+| Offline library | Existing web IndexedDB and licence/profile scoping, with the app shell and fonts in the APK |
+| App links | All current web paths, queries and fragments; `talea://game` opens `/spiel` |
 
-`sync-client` also patches the generated client so it stands alone on device:
-it strips the `encore.dev` server-framework import, drops the `import.meta`
-default export, and widens the `~backend/*` payload helpers. See
-[`src/api/backend-modules.d.ts`](src/api/backend-modules.d.ts) for the full
-rationale and how to restore precise end-to-end types.
+The previous React Native screens remain in the source for reference, but the
+app entry point does not mount their separate UI or navigation.
 
-## Mitternachts-Alibi
+## Build and run
 
-Open the game from its Home card or `talea://game`. The APK includes the
-original React game, all eight cases, four difficulties, 4–8 players, voices,
-music, effects, animated village and 3D collection. `AlibiScreen` hosts this
-local bundle in Android System WebView. The native Clerk client retrieves the
-character pool; portraits are cached in the app's documents directory.
+Install JDK 17 or newer, Android SDK 36 and NDK 27.1.12297006. Install dependencies
+with **Bun** in both the repository root and `mobile/`.
 
-Collection, setup, sound preference and resumable game state live in
-AsyncStorage. App switching and the notification shade stop speech and the
-timer and cover private information. Android Back closes a game overlay first,
-then uses the game's existing exit confirmation.
-
-Private MP3s and fallback speech use native Android communication audio and the
-built-in earpiece at full clip volume (the earpiece itself is the privacy; the call
-volume buttons set loudness). On Android 12+ the host waits for
-`setCommunicationDevice` to confirm that route; MP3 playback verifies the actual
-output while muted before becoming audible (all outputs on Android 16+).
-Private TTS is synthesized to a temporary app-private file and uses the same
-verified receiver player; the file is deleted on completion or cancellation.
-Public speech returns to normal media audio at full clip volume. Music and
-ambience stop during secrets. There is no private loudspeaker fallback: an
-unavailable earpiece leaves the secret silent, with a private reading hint.
-Pause, exit and WebView failure release playback and restore the previous audio
-mode. Volume buttons control call volume during secrets. No microphone is opened
-and the app does not change the user's system volume.
-
-Install both workspaces' dependencies with Bun (repository root and `mobile/`).
-The Android `preBuild` task generates `android/app/src/main/assets/alibi/`;
-generated files stay out of Git. `bun run build:alibi` generates the same pack
-manually. The source and media remain maintained in `frontend/`.
+Create `mobile/.env` from `.env.example` and set the same **public** Clerk key as
+the website. Keep all secret keys out of this file.
 
 ```bash
 cd mobile
+bun install
+bun run android             # debug build; Metro required
+bun run android:release     # bundled, installable APK
+```
+
+The default backend is the same Railway service as the web app. Override it with
+`EXPO_PUBLIC_BACKEND_URL` when using an isolated development environment.
+
+```bash
+bun run build:web           # build the full web app and its assets into Android
+bun run test:web            # verify every public asset and all packaged hashes
 bun run typecheck
 bun test
-bun run build:alibi --qa     # separate test bundle under scripts/game-qa/out/
-bun run test:alibi          # Playwright; set PLAYWRIGHT_PATH if needed
-bun run test:alibi:android  # running emulator, Android SDK 36 and JAVA_HOME
-bun run android:release
 ```
 
-The automated bundle checks cover 17 phases at three viewport sizes, every
-player count and difficulty, all eight case rewards, escaped thieves, clues,
-duels, seals, interruption recovery, native MP3/TTS privacy flags, routing failure,
-background silence and byte-for-byte media parity. These use
-Chromium with a fixture native bridge. The Android smoke script builds a separate
-test APK with the same bundle and a fixture pool, checking all 17 phases, local
-MP3 playback and privacy recovery in System WebView. Set `JAVA_HOME` to JDK 17
-and `ANDROID_HOME` to the SDK location. A signed-in device pass checks Clerk
-retrieval, earpiece isolation versus public speakers, audio levels, notification
-shade and system Back. Browser or emulator checks cannot prove physical speaker
-isolation on a particular handset.
+The APK is generated at `android/app/build/outputs/apk/release/app-release.apk`.
+Release signing currently uses the project's existing debug keystore. Configure
+an upload key before publishing to Google Play.
 
-## Architecture
+`plugins/with-web-app.js` and `plugins/with-alibi.js` preserve the native
+integration through `bun run prebuild`. Never patch installed WebView packages.
+The complete app already contains the game media; the old standalone Alibi asset
+pack is excluded to avoid duplicating it in the APK. The isolated game QA scripts
+remain available via `build:alibi`, `test:alibi` and `test:alibi:android`.
 
-```
-src/
-├── api/          Generated Encore client + useBackend() (auth + profile scoping)
-├── audio/        TTS conversion queue
-├── components/   ui/ (design-system primitives), cards/, audio/, form/, profile/
-├── hooks/        React Query data access
-├── i18n/         i18next setup + mirrored locales
-├── lib/          storage, audioCache, personality, content, haptics, ttsChunking
-├── navigation/   Root stack, tab navigator, custom tab bar, deep links
-├── providers/    Clerk cache, UserAccess, ChildProfiles, Audio, Offline, Toast
-├── screens/      One folder per feature area
-├── theme/        Design tokens ported from frontend/index.css + typography
-└── types/        Mirrored domain types
-```
+## Updating an existing installation
 
-### Design system
+Sign in once again after switching from the previous native frontend. Backend
+accounts, profiles, avatars, stories and progress stay with the same account.
+The first launch imports the previous Android theme, language, Alibi collection,
+setup and resumable game state when the new web storage has no replacement.
 
-The app follows Apple's current platform design (iOS 26) rather than the web's
-pastel theme, so it deliberately does not mirror the `--talea-*` CSS tokens:
+The previous native offline cache is retained in app storage. Save those items
+again in the shared offline library; its IndexedDB storage is separate from the
+old filesystem/AsyncStorage cache. App updates retain the new offline library.
 
-- **Colour** — `theme/tokens.ts` uses the iOS system palette: grouped grey
-  page (`#F2F2F7` / black), borderless white (`#1C1C1E`) cards, the system
-  label/fill colours, and one accent (system blue). Colour comes from story
-  covers and avatar portraits, not from the chrome. Each personality trait has
-  a fixed system colour (`traitHues`).
-- **Type** — Inter (the freely licensed stand-in for SF Pro, which may not ship
-  on Android) on the iOS text-style ramp: Large Title 34, Title 1–3, Headline
-  17, Subheadline 15, Footnote 13. Literata is reserved for reading text.
-- **Glass** — `components/ui/Glass.tsx` is the material for chrome that floats
-  over content: tab bar, toolbar buttons, reader bars, banners. Large surfaces
-  use a real backdrop blur (`expo-blur`'s `dimezisBlurView`); small controls
-  use the tinted fill only.
-- **Patterns** — large left-aligned titles (`ScreenHeader large`), inset
-  grouped lists with coloured squircle icons (`components/ui/List.tsx`),
-  Books-style shelves (`Rail`), capsule buttons and filters, sheets with large
-  corner radii.
+## Local diagnostics
 
-Screens never hard-code a colour, font size or radius — everything goes through
-`useTheme()` and the `Text` primitive. Depth is `boxShadow` (New
-Architecture); Android `elevation` is avoided because it draws its shadow
-through translucent fills.
+`EXPO_PUBLIC_WEBVIEW_DEBUG=true` enables Chrome DevTools for a local QA build.
+Leave it unset for deliverable/release APKs. Gradle tracks this environment value
+so a subsequent build cannot accidentally reuse the diagnostic JS bundle.
 
-### Behaviour ported from the web
+On Windows, Java's Unix-domain socket path may exceed its length limit when the
+execution environment supplies a long temporary directory. Set
+`JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=<short-existing-local-directory>`
+for that build process. Keep machine-specific paths and TLS settings out of
+project Gradle configuration.
 
-- **Personality traits** — nine base traits starting at 0, subcategories created
-  only when the AI awards them, every change carrying its reason
-  (`lib/personality.ts`, shown in `GrowthSheet` and the avatar detail screen).
-- **Story wizard** — the same six steps, gating, and `mapWizardStateToAPI`
-  derivation of tone/suspense/humour/pacing, plus the Gemini-Pro model fallback
-  and the post-failure recovery poll.
-- **Profile scoping** — `useBackend()` injects the active child profile into the
-  same method list the web client uses.
-- **TTS pipeline** — identical chunking and cache keys, so mobile playback hits
-  the same server-side audio library the web already populated.
-
-### Native-only improvements
-
-These exist because the platform allows something the web could not do:
-
-- Audio keeps playing in the background and with the screen locked.
-- TTS chunks are written to disk as real files, so a re-listen is free and works
-  offline.
-- Session tokens live in the Android Keystore via `expo-secure-store`.
-- Offline saves mirror chapter images to the filesystem, so a saved story reads
-  identically with no connectivity.
-- Connectivity is probed against the backend rather than trusted from the OS.
-
-### Deliberate divergences
-
-| Web | Mobile | Reason |
-| --- | --- | --- |
-| 3D cosmos (three.js) | Explorable domain/mastery list | The 3D scene's interaction and thermal budget are wrong for a phone; same data, native interaction |
-| Three story readers (cinematic / scroll / legacy) | One paged reader | The legacy variants exist for browser compatibility, not for users |
-| Centred dialogs | Bottom sheets | Reachable one-handed, gesture-dismissible |
-| Full admin content editing | Read-first admin | Bulk editing needs screen real estate to be safe |
-| PDF export | Offline save + audio | Sharing a PDF from a phone is a worse fit than an offline copy |
-
-## Verification
-
-```bash
-bun run typecheck                          # 0 errors
-bun test                                   # personality traits, Alibi bridge and recovery
-bunx expo export --platform android        # verifies every import resolves
-```
-
-All three are green as of the initial implementation.
-
-`src/lib/personality.test.ts` locks down the trait rules — nine traits starting
-at 0, subcategories created only when the AI awards one, every change carrying
-its reason, and the 250/1000 ceilings. The backend has shipped several storage
-shapes for traits over time, so this is the one piece of logic worth pinning.
-
-## Known gaps before release
-
-1. **Release signing** — still the debug keystore (see "Builds").
-2. **Push notifications** — not wired up; `expo-notifications` is not installed.
-3. **API payload types** — degraded to `any` at the client boundary; restore by
-   generating a self-contained client (see `src/api/backend-modules.d.ts`).
-4. **Other screen coverage is narrow** — personality traits and the Alibi bundle
-   have automated checks; the remaining screens and the TTS queue have no tests.
+Browser/fixture tests cannot verify physical earpiece isolation. Check the
+receiver, notification shade, camera, actual sign-in, file sharing and locked
+screen playback on a handset before a store release.

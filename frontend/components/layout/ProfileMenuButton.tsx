@@ -201,6 +201,7 @@ const ProfileMenuButton: React.FC = () => {
           ref={menuRef}
           id="talea-profile-menu"
           role="menu"
+          data-talea-android-back="escape"
           aria-label="Profil und Einstellungen"
           initial={reduceMotion ? false : { opacity: 0, y: -5, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}

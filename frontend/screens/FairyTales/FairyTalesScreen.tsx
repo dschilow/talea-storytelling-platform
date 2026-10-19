@@ -1,3 +1,4 @@
+import { saveGeneratedFile } from '../../platform/native';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   Download,
@@ -199,7 +200,7 @@ const FairyTalesScreen: React.FC = () => {
   const handleExportAll = async () => {
     try {
       const response = await backend.fairytales.exportFairyTales({});
-      downloadJSON(response.tales, 'fairytales-export-all.json');
+      await downloadJSON(response.tales, 'fairytales-export-all.json');
     } catch (error: any) {
       console.error('Error exporting fairy tales:', error);
       const statusCode = error?.status || error?.response?.status;
@@ -220,7 +221,7 @@ const FairyTalesScreen: React.FC = () => {
       const response = await backend.fairytales.exportFairyTales({ taleIds: [selectedTale] });
       const tale = tales.find((t) => t.id === selectedTale);
       const fileName = `fairytale-${tale?.title.replace(/\s+/g, '-').toLowerCase()}.json`;
-      downloadJSON(response.tales, fileName);
+      await downloadJSON(response.tales, fileName);
     } catch (error: any) {
       console.error('Error exporting fairy tale:', error);
       const statusCode = error?.status || error?.response?.status;
@@ -232,16 +233,9 @@ const FairyTalesScreen: React.FC = () => {
     }
   };
 
-  const downloadJSON = (data: any, filename: string) => {
+  const downloadJSON = async (data: any, filename: string) => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    await saveGeneratedFile(blob, filename);
   };
 
   const handleImport = async () => {

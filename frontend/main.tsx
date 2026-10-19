@@ -4,6 +4,9 @@ import { MotionConfig } from "framer-motion";
 import App from "./App";
 import "./index.css";
 import "./src/i18n"; // Initialize i18n
+import { installAndroidBridge, isAndroidApp } from './platform/native';
+
+const androidReady = installAndroidBridge();
 
 // The service worker is what makes offline mode survive a reload: without a
 // precached app shell, opening Talea without a network yields the browser's
@@ -133,6 +136,7 @@ function isServiceWorkerSuspended(): boolean {
 }
 
 async function shouldEnableServiceWorker(): Promise<boolean> {
+  if (isAndroidApp()) return false;
   if (!("serviceWorker" in navigator)) return false;
   if (isServiceWorkerSuspended()) return false;
 
@@ -195,7 +199,7 @@ function schedulePwaRegistration(): void {
 if (document.readyState === 'complete') schedulePwaRegistration();
 else window.addEventListener('load', schedulePwaRegistration, { once: true });
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+void androidReady.then(() => ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <MotionConfig reducedMotion="user">
       <React.Suspense fallback={<div className="min-h-screen bg-[var(--talea-page-solid)]" />}>
@@ -203,4 +207,4 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       </React.Suspense>
     </MotionConfig>
   </React.StrictMode>
-);
+));

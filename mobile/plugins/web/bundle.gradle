@@ -1,0 +1,24 @@
+def taleaMobileRoot = rootDir.getAbsoluteFile().getParentFile()
+def bundleTaleaWeb = tasks.register("bundleTaleaWeb", Exec) {
+    workingDir taleaMobileRoot
+    commandLine "bun", "run", "build:web"
+    inputs.files(fileTree(new File(taleaMobileRoot, "../frontend")) {
+        exclude "node_modules/**", "dist/**", ".vite/**", "*.tsbuildinfo"
+    })
+    inputs.dir(new File(taleaMobileRoot, "src/web"))
+    inputs.file(new File(taleaMobileRoot, "scripts/build-web.mjs"))
+    inputs.file(new File(taleaMobileRoot, "scripts/sync-brand.mjs"))
+    inputs.file(new File(taleaMobileRoot, "scripts/mirror-web-fonts.mjs"))
+    inputs.files(new File(taleaMobileRoot, ".env"), new File(taleaMobileRoot, ".env.local"))
+    inputs.property("taleaBackendUrl", providers.environmentVariable("EXPO_PUBLIC_BACKEND_URL").orElse(""))
+    inputs.property("taleaClerkPublishableKey", providers.environmentVariable("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY").orElse(""))
+    inputs.files(new File(taleaMobileRoot, "../bun.lock"), new File(taleaMobileRoot, "package.json"))
+    outputs.dir(new File(taleaMobileRoot, "android/app/src/main/assets/talea"))
+}
+tasks.named("preBuild").configure { dependsOn(bundleTaleaWeb) }
+android.sourceSets.main.java.srcDirs += new File(taleaMobileRoot, "plugins/web")
+// The full frontend already contains the game; do not duplicate its media.
+android.sourceSets.main.assets.exclude("alibi/**")
+tasks.matching { it.name.startsWith("createBundle") && it.name.endsWith("JsAndAssets") }.configureEach {
+    inputs.property("taleaWebViewDebug", providers.environmentVariable("EXPO_PUBLIC_WEBVIEW_DEBUG").orElse("false"))
+}

@@ -3,6 +3,7 @@ import { StyleSheet, Switch, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@clerk/clerk-expo';
 import { FlaskConical, Sparkles } from 'lucide-react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
@@ -72,6 +73,7 @@ export function DokuWizardScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<RouteProp<RootStackParamList, 'DokuWizard'>>();
   const backend = useBackend();
+  const { userId } = useAuth();
   const toast = useToast();
   const { i18n } = useTranslation();
   const invalidateContent = useInvalidateContent();
@@ -91,11 +93,12 @@ export function DokuWizardScreen() {
   const canSubmit = topic.trim().length >= 3;
 
   const handleGenerate = useCallback(async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || !userId) return;
 
     setGenerating(true);
     try {
       const doku = (await (backend.doku as any).generateDoku({
+        userId,
         config: {
           topic: topic.trim(),
           domainId: route.params?.domainId,
@@ -137,6 +140,7 @@ export function DokuWizardScreen() {
     toast,
     tone,
     topic,
+    userId,
   ]);
 
   if (generating) {

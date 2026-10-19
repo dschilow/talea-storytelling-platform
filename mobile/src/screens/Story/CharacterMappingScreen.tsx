@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@clerk/clerk-expo';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Check, Sparkles } from 'lucide-react-native';
@@ -54,6 +55,7 @@ export function CharacterMappingScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<MappingRoute>();
   const backend = useBackend();
+  const { userId } = useAuth();
   const toast = useToast();
   const invalidateContent = useInvalidateContent();
   const profileId = useOptionalChildProfiles()?.activeProfileId ?? null;
@@ -95,6 +97,7 @@ export function CharacterMappingScreen() {
       setPhase('text');
 
       const story = (await (backend.story as any).generateFromFairyTale({
+        userId: userId ?? undefined,
         taleId,
         characterMappings: mappings,
         length: 'medium',
@@ -114,7 +117,7 @@ export function CharacterMappingScreen() {
       toast.error('Geschichte konnte nicht erstellt werden', error instanceof Error ? error.message : undefined);
       setGenerating(false);
     }
-  }, [backend.story, invalidateContent, mappings, missingRequired, navigation, profileId, taleId, toast]);
+  }, [backend.story, invalidateContent, mappings, missingRequired, navigation, profileId, taleId, toast, userId]);
 
   if (generating) {
     return <GenerationOverlay phase={phase} recoveryAttempt={null} />;

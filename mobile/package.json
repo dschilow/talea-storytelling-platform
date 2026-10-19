@@ -4,6 +4,9 @@
   "main": "index.js",
   "private": true,
   "scripts": {
+    "build:web": "bun ./scripts/build-web.mjs",
+    "sync-brand": "bun ./scripts/sync-brand.mjs",
+    "test:web": "bun ./scripts/verify-web.mjs",
     "build:alibi": "node ./scripts/build-alibi.mjs",
     "test:alibi": "node ./scripts/test-alibi.mjs",
     "test:alibi:android": "node ./scripts/test-alibi-android.mjs",

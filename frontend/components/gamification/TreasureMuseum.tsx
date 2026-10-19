@@ -544,7 +544,7 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
                 </div>
                 <button
                   type="button"
-                  onClick={() => setSelected(null)}
+                  data-talea-android-back onClick={() => setSelected(null)}
                   className="rounded-full p-2 hover:bg-black/10"
                   aria-label="Schließen"
                 >
@@ -698,7 +698,7 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
                 <button
                   type="button"
                   disabled={redeeming}
-                  onClick={() => setChoiceOpen(false)}
+                  data-talea-android-back onClick={() => setChoiceOpen(false)}
                   className="flex-1 rounded-2xl border px-4 py-3 text-sm font-semibold"
                   style={{ borderColor: isDark ? '#344b61' : '#ded2c3', color: textMuted }}
                 >

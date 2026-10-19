@@ -232,7 +232,7 @@ export const PlayfulCard: React.FC<PlayfulCardProps> = ({
               </div>
               <button
                 type="button"
-                onClick={collapseCard}
+                data-talea-android-back onClick={collapseCard}
                 className="inline-flex h-11 w-11 items-center justify-center rounded-full border bg-white/70 text-slate-700 transition hover:-translate-y-0.5 hover:bg-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#f2e7fb] dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:hover:bg-white/14 dark:focus-visible:ring-[#243753]"
                 aria-label="Karte schliessen"
               >

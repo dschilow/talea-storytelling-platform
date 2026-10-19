@@ -141,7 +141,7 @@ export const MobileSidebar = ({
                         >
                             <div
                                 className="absolute right-10 top-10 z-50 text-neutral-800 dark:text-neutral-200 cursor-pointer"
-                                onClick={() => setOpen(!open)}
+                                data-talea-android-back onClick={() => setOpen(!open)}
                             >
                                 <X />
                             </div>

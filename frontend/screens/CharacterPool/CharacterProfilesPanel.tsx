@@ -72,7 +72,7 @@ const CharacterDetailSheet: React.FC<{
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose}
+        data-talea-android-back onClick={onClose}
         aria-hidden="true"
       />
 
@@ -104,7 +104,7 @@ const CharacterDetailSheet: React.FC<{
 
           <button
             type="button"
-            onClick={onClose}
+            data-talea-android-back onClick={onClose}
             onPointerDown={(event) => event.stopPropagation()}
             className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/35 bg-black/35 text-white backdrop-blur-sm transition hover:bg-black/55 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/40"
             aria-label="Schließen"

@@ -107,7 +107,7 @@ export const NowPlayingSheet: React.FC<{ open: boolean; onClose: () => void }> =
           aria-modal="true"
           aria-label="Wiedergabe"
         >
-          <button type="button" className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={onClose} aria-label="Wiedergabe schließen" />
+          <button type="button" className="absolute inset-0 bg-black/45 backdrop-blur-sm" data-talea-android-back onClick={onClose} aria-label="Wiedergabe schließen" />
 
           <motion.div
             className="relative flex h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] w-full flex-col overflow-hidden rounded-t-[2rem] text-white shadow-2xl md:h-auto md:max-h-[88vh] md:w-[26rem] md:rounded-[2rem]"
@@ -131,7 +131,7 @@ export const NowPlayingSheet: React.FC<{ open: boolean; onClose: () => void }> =
             </div>
 
             <div className="flex touch-none items-center justify-between px-4 pt-2" onPointerDown={(event) => dragControls.start(event)}>
-              <button ref={closeRef} type="button" onClick={onClose} className={cn(glyphButton, 'h-10 w-10')} aria-label="Einklappen">
+              <button ref={closeRef} type="button" data-talea-android-back onClick={onClose} className={cn(glyphButton, 'h-10 w-10')} aria-label="Einklappen">
                 <ChevronDown className="h-6 w-6" />
               </button>
               <span className="mx-auto h-1.5 w-10 rounded-full bg-white/40 md:hidden" aria-hidden />

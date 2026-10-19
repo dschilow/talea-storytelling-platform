@@ -114,7 +114,9 @@ class AlibiSpeechModule(private val context: ReactApplicationContext) : ReactCon
       route(priv, {
         if (counter != token || mediaPromise !== promise) return@route
         startMedia(priv, volume, token, { mp ->
-          context.assets.openFd("alibi/game/alibi/voices/$clip.mp3").use { mp.setDataSource(it.fileDescriptor, it.startOffset, it.length) }
+          val asset = try { context.assets.openFd("talea/game/alibi/voices/$clip.mp3") }
+            catch (_: java.io.IOException) { context.assets.openFd("alibi/game/alibi/voices/$clip.mp3") }
+          asset.use { mp.setDataSource(it.fileDescriptor, it.startOffset, it.length) }
         })
       }, { if (mediaPromise === promise) { mediaPromise = null; promise.reject("PRIVATE_ROUTE", it) } })
     }

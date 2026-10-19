@@ -725,7 +725,7 @@ const LogViewerScreen: React.FC = () => {
                   Download
                 </button>
                 <button
-                  onClick={() => setShowDetails(false)}
+                  data-talea-android-back onClick={() => setShowDetails(false)}
                   style={{
                     padding: `${spacing.sm}px`,
                     borderRadius: `${radii.lg}px`,

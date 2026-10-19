@@ -13,6 +13,7 @@ def bundleAlibi = tasks.register("bundleAlibi", Exec) {
     inputs.files(new File(alibiMobileRoot, "bun.lock"), new File(alibiMobileRoot, "../bun.lock"))
     outputs.dir(new File(alibiMobileRoot, "android/app/src/main/assets/alibi"))
 }
-tasks.named("preBuild").configure { dependsOn(bundleAlibi) }
+// The app's preBuild now packages the entire frontend via bundleTaleaWeb.
+// Keep bundleAlibi available for the isolated game QA harness only.
 // Keep the custom volume-aware speech module outside generated Android files.
 android.sourceSets.main.java.srcDirs += new File(alibiMobileRoot, "plugins/alibi")

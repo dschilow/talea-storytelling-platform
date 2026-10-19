@@ -7,6 +7,7 @@ def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 // A single source of truth: every Android variant contains the current complete
 // web game, including voices, music, effects, art and the collection UI.
 apply from: new File(projectRoot, "plugins/alibi/bundle.gradle")
+apply from: new File(projectRoot, "plugins/web/bundle.gradle")
 
 /**
  * This is the configuration block to customize your React Native Android app.

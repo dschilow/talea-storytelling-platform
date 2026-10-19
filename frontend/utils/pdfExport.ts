@@ -5,6 +5,7 @@
  * Uses jsPDF library for PDF generation
  */
 
+import { isAndroidApp, saveGeneratedFile } from '../platform/native';
 import { jsPDF } from 'jspdf';
 import type { Story } from '../types/story';
 import type { Doku } from '../types/doku';
@@ -709,7 +710,8 @@ export async function exportStoryAsPDF(
     // ============================================================================
 
     const filename = `${story.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`;
-    doc.save(filename);
+    if (isAndroidApp()) await saveGeneratedFile(doc.output('blob'), filename);
+    else doc.save(filename);
 
     if (onProgress) {
       onProgress(100);
@@ -1091,7 +1093,8 @@ export async function exportDokuAsPDF(
     // ============================================================================
 
     const filename = `${doku.title.replace(/[^a-z0-9]/gi, '_')}_${Date.now()}.pdf`;
-    doc.save(filename);
+    if (isAndroidApp()) await saveGeneratedFile(doc.output('blob'), filename);
+    else doc.save(filename);
 
     if (onProgress) {
       onProgress(100);

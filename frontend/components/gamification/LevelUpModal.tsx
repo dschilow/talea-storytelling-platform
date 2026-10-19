@@ -103,7 +103,7 @@ const LevelUpModal: React.FC<LevelUpModalProps> = ({ isOpen, onClose, item, skil
 
                             <div className="relative z-10 p-8 text-center">
                                 <button
-                                    onClick={onClose}
+                                    data-talea-android-back onClick={onClose}
                                     className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
                                 >
                                     <X className="w-6 h-6" />

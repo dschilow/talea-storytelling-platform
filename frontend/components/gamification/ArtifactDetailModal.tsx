@@ -92,7 +92,7 @@ const ArtifactDetailModal: React.FC<ArtifactDetailModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[200] flex items-center justify-center bg-black/55 p-4 backdrop-blur-md"
-          onClick={onClose}
+          data-talea-android-back onClick={onClose}
         >
           <motion.div
             initial={{ opacity: 0, y: 24, scale: 0.96 }}
@@ -117,7 +117,7 @@ const ArtifactDetailModal: React.FC<ArtifactDetailModalProps> = ({
             >
               <button
                 type="button"
-                onClick={onClose}
+                data-talea-android-back onClick={onClose}
                 className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full border"
                 style={{
                   borderColor: isDark ? '#3a4f67' : '#d9cbb9',

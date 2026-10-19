@@ -41,7 +41,7 @@ export const SuggestionDrawer: React.FC<SuggestionDrawerProps> = ({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.22 }}
             className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[2px]"
-            onClick={onClose}
+            data-talea-android-back onClick={onClose}
           />
 
           <motion.section
@@ -76,7 +76,7 @@ export const SuggestionDrawer: React.FC<SuggestionDrawerProps> = ({
 
                 <button
                   type="button"
-                  onClick={onClose}
+                  data-talea-android-back onClick={onClose}
                   className="rounded-lg border border-white/20 bg-white/5 p-2 text-white/80 hover:bg-white/10"
                 >
                   <X className="h-4 w-4" />

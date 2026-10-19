@@ -4,6 +4,20 @@
 
 @import "./styles/brand-tokens.css";
 
+/* Cover the game's private screen while Android's notification shade is open. */
+html[data-talea-platform='android'].talea-native-paused .alibi-stage::after {
+  content: 'Spiel pausiert';
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: grid;
+  place-items: center;
+  background: #0b0d1c;
+  color: #f6efe0;
+  font-family: var(--talea-font-ui);
+  font-size: 20px;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @utility container {

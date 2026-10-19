@@ -1,3 +1,4 @@
+import { isAndroidApp, saveGeneratedFile } from '../../platform/native';
 import React, { useState } from 'react';
 import { Sparkles, Wand2, Star, Heart, ExternalLink } from 'lucide-react';
 
@@ -72,6 +73,7 @@ const AIGeneratedTab: React.FC = () => {
 
   const openImageInNewTab = () => {
     if (!generatedImageUrl) return;
+    if (isAndroidApp()) { window.open(generatedImageUrl, '_blank', 'noopener,noreferrer'); return; }
     const w = window.open('', '_blank', 'noopener,noreferrer');
     if (w) {
       const img = w.document.createElement('img');
@@ -84,12 +86,20 @@ const AIGeneratedTab: React.FC = () => {
     }
   };
 
-  const downloadImage = () => {
+  const downloadImage = async () => {
     if (!generatedImageUrl) return;
-    const a = document.createElement('a');
-    a.href = generatedImageUrl;
-    a.download = (name || 'avatar') + '.webp';
-    a.click();
+    if (!isAndroidApp()) {
+      const anchor = document.createElement('a');
+      anchor.href = generatedImageUrl;
+      anchor.download = (name || 'avatar') + '.webp';
+      anchor.click();
+      return;
+    }
+    try {
+      const response = await fetch(generatedImageUrl);
+      if (!response.ok) throw new Error('Bild konnte nicht geladen werden.');
+      await saveGeneratedFile(await response.blob(), (name || 'avatar') + '.webp');
+    } catch { alert('Das Bild konnte nicht gespeichert werden. Bitte versuche es erneut.'); }
   };
 
   const generateAvatarImage = async () => {

@@ -152,7 +152,7 @@ export const AnimatedCard: React.FC<AnimatedCardProps> = ({
         >
           {/* Close button */}
           <button
-            onClick={handleClick}
+            data-talea-android-back onClick={handleClick}
             className="absolute top-4 right-4 z-10 p-2 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           >
             <X size={20} className="text-gray-600 dark:text-gray-400" />

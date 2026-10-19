@@ -3,6 +3,7 @@ import { SignIn, SignUp } from "@clerk/clerk-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, RefreshCw, Sparkles } from "lucide-react";
 import "./AuthScreen.css";
+import { useAndroidSSO } from '../../platform/auth';
 
 /**
  * Clerk's <SignIn>/<SignUp> widgets mount asynchronously, leaving an empty
@@ -86,6 +87,7 @@ const AuthScreen: React.FC = () => {
       : "signin"
   );
   const [clerkReady, setClerkReady] = useState(false);
+  useAndroidSSO(setMode);
   const [loaderMounted, setLoaderMounted] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);

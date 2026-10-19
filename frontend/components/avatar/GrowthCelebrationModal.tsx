@@ -140,7 +140,7 @@ export const GrowthCelebrationModal: React.FC<GrowthCelebrationProps> = ({
           {/* Backdrop */}
           <motion.div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={onClose}
+            data-talea-android-back onClick={onClose}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -304,7 +304,7 @@ export const GrowthCelebrationModal: React.FC<GrowthCelebrationProps> = ({
             {/* Footer */}
             <div className="px-6 pb-6 pt-2">
               <motion.button
-                onClick={onClose}
+                data-talea-android-back onClick={onClose}
                 className="w-full py-3 px-6 bg-gradient-to-r from-amber-500 to-stone-500 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-shadow"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}

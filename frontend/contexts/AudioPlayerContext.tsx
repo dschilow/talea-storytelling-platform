@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@clerk/clerk-react';
+import { connectAndroidAudio } from '../platform/audio';
 import type { PlaylistItem, ConversionStatus } from '../types/playlist';
 import { MAX_PLAYLIST_ITEMS } from '../types/playlist';
 import { splitTextIntoChunks, splitTextIntoChunksForThorsten, splitTextIntoChunksForXai } from '../utils/ttsChunking';
@@ -176,6 +177,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   backendRef.current = backend;
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => connectAndroidAudio(audioRef.current), []);
 
   // Legacy single-track state
   const [track, setTrack] = useState<AudioTrack | null>(null);
@@ -701,6 +703,8 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return;
     }
 
+    audio.dataset.title = track.title;
+    audio.dataset.artwork = track.coverImageUrl || '';
     audio.src = track.audioUrl;
     audio.load();
     setIsReady(false);

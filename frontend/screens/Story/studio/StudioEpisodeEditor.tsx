@@ -170,7 +170,7 @@ const StudioEpisodeEditor: React.FC<StudioEpisodeEditorProps> = (props) => {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={onClose}
+              data-talea-android-back onClick={onClose}
               className={cn("inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold", palette.border, palette.text)}
             >
               <ArrowLeft className="h-4 w-4" />
@@ -187,7 +187,7 @@ const StudioEpisodeEditor: React.FC<StudioEpisodeEditorProps> = (props) => {
           </div>
           <button
             type="button"
-            onClick={onClose}
+            data-talea-android-back onClick={onClose}
             className={cn("rounded-lg border p-2", palette.border, palette.text)}
             aria-label="Editor schließen"
           >

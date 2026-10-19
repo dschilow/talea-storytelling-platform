@@ -25,6 +25,11 @@ const RARITY_COLORS = {
 
 const TaleaChestReward: React.FC<Props> = ({ artifactId, rarity, onClose, isDark }) => {
     const [stage, setStage] = useState<'closed' | 'open'>('closed');
+    useEffect(() => {
+        const back = () => onClose();
+        window.addEventListener('talea:android-back', back);
+        return () => window.removeEventListener('talea:android-back', back);
+    }, [onClose]);
 
     // Real artifact data lookup (stubbed for now, should come from a central registry)
     const artifactName = artifactId.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
@@ -45,7 +50,7 @@ const TaleaChestReward: React.FC<Props> = ({ artifactId, rarity, onClose, isDark
     }, [color]);
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-md">
+        <div data-talea-android-back="event" className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-md">
             <motion.div
                 className="fixed inset-0 bg-black/60"
                 initial={{ opacity: 0 }}
@@ -138,7 +143,7 @@ const TaleaChestReward: React.FC<Props> = ({ artifactId, rarity, onClose, isDark
 
                             <motion.button
                                 type="button"
-                                onClick={onClose}
+                                data-talea-android-back onClick={onClose}
                                 className="mt-8 flex items-center gap-2 rounded-2xl bg-white px-8 py-3.5 text-sm font-bold text-black shadow-xl"
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}

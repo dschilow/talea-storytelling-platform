@@ -86,7 +86,7 @@ export const CreateSeriesModal: React.FC<CreateSeriesModalProps> = ({
       <div className="mt-2 flex justify-end gap-2">
         <button
           type="button"
-          onClick={onClose}
+          data-talea-android-back onClick={onClose}
           className={cn("inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold", palette.border, palette.text)}
         >
           Abbrechen
@@ -206,7 +206,7 @@ export const CreateEpisodeModal: React.FC<CreateEpisodeModalProps> = ({
       <div className="mt-2 flex justify-end gap-2">
         <button
           type="button"
-          onClick={onClose}
+          data-talea-android-back onClick={onClose}
           className={cn("inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-semibold", palette.border, palette.text)}
         >
           Abbrechen
@@ -248,7 +248,7 @@ const ModalShell: React.FC<{
         </h3>
         <button
           type="button"
-          onClick={onClose}
+          data-talea-android-back onClick={onClose}
           className={cn("rounded-lg border p-2", palette.border, palette.text)}
         >
           <X className="h-4 w-4" />

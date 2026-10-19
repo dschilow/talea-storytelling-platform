@@ -488,7 +488,7 @@ const TaleaLearningPathMapView: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowKapitel(false)}
+              data-talea-android-back onClick={() => setShowKapitel(false)}
             />
             <motion.div
               className="fixed bottom-0 left-0 right-0 z-50 max-h-[70vh] overflow-y-auto rounded-t-[32px] border-t px-6 pb-12 pt-4 shadow-2xl"

@@ -93,7 +93,7 @@ const TaleaMapNodeSheet: React.FC<Props> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose}
+        data-talea-android-back onClick={onClose}
       />
 
       <motion.div
@@ -108,7 +108,7 @@ const TaleaMapNodeSheet: React.FC<Props> = ({
 
         <button
           type="button"
-          onClick={onClose}
+          data-talea-android-back onClick={onClose}
           className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full border"
           style={{ borderColor: brd, color: isDark ? '#8aa0b8' : '#8a9aaa' }}
           aria-label="Schliessen"

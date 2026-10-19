@@ -1,3 +1,4 @@
+import { saveGeneratedFile } from '../../platform/native';
 import React, { useMemo, useState } from 'react';
 import { Check, ChevronDown, Clock3, Coins, Cpu, Download, Image as ImageIcon, Loader2 } from 'lucide-react';
 
@@ -105,15 +106,7 @@ export const AdminGenerationMetrics: React.FC<Props> = ({ metadata, storyId, sto
         ...(typeof warning === 'string' ? { warning } : {}),
       };
       const blob = new Blob([JSON.stringify(downloadDocument, null, 2)], { type: 'application/json;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const anchor = window.document.createElement('a');
-      anchor.href = url;
-      anchor.download = `${safeFilename(storyTitle)}-${storyId.slice(0, 8)}-logs.json`;
-      anchor.style.display = 'none';
-      window.document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      await saveGeneratedFile(blob, `${safeFilename(storyTitle)}-${storyId.slice(0, 8)}-logs.json`);
       setDownloadState('success');
     } catch (error) {
       console.error('[AdminGenerationMetrics] Story logs download failed', error);

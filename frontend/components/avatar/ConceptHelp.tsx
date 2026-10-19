@@ -134,7 +134,7 @@ const ConceptHelp: React.FC<ConceptHelpProps> = ({
               <p className="text-sm font-semibold" style={{ color: surface.titleColor }}>{title}</p>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                data-talea-android-back onClick={() => setOpen(false)}
                 aria-label="Schließen"
                 className="-mr-1 -mt-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition hover:bg-black/10 dark:hover:bg-white/10"
                 style={{ color: surface.textColor }}

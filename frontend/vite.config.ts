@@ -26,7 +26,7 @@ function resolveClerkAuthChunk(): string {
 
 const clerkAuthChunkPath = resolveClerkAuthChunk()
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       '@': path.resolve(__dirname),
@@ -52,6 +52,9 @@ export default defineConfig({
     tailwindcss(),
     react(),
     VitePWA({
+      // Android ships this exact frontend in the APK. Its app shell is served
+      // by the native asset loader; a website service worker must not replace it.
+      disable: mode === 'android',
       injectRegister: false,
       registerType: 'autoUpdate',
       includeAssets: ['talea_logo.png', 'favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'brand/*.svg', 'fonts/*.woff2', 'tavi.png', 'loading-animation.lottie'],
@@ -205,4 +208,4 @@ export default defineConfig({
       },
     },
   }
-})
+}))

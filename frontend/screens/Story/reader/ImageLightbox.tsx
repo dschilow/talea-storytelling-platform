@@ -41,9 +41,9 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({ src, alt, onClose 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.22 }}
-          onClick={onClose}
+          data-talea-android-back onClick={onClose}
         >
-          <button ref={closeRef} type="button" className="rd-lightbox-close" onClick={onClose} aria-label="Bild schließen">
+          <button ref={closeRef} type="button" className="rd-lightbox-close" data-talea-android-back onClick={onClose} aria-label="Bild schließen">
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
           <motion.img

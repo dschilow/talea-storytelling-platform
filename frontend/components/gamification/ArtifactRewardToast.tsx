@@ -34,7 +34,7 @@ const ArtifactRewardToast: React.FC<ArtifactRewardToastProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
-          onClick={onClose}
+          data-talea-android-back onClick={onClose}
         >
           {/* Background Particles */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -93,7 +93,7 @@ const ArtifactRewardToast: React.FC<ArtifactRewardToastProps> = ({
               <div className="relative p-6 text-center">
                 {/* Close button */}
                 <button
-                  onClick={onClose}
+                  data-talea-android-back onClick={onClose}
                   className="absolute top-4 right-4 p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-colors"
                 >
                   <X className="w-5 h-5" />
@@ -235,7 +235,7 @@ const ArtifactRewardToast: React.FC<ArtifactRewardToastProps> = ({
                   </button>
                 )}
                 <button
-                  onClick={onClose}
+                  data-talea-android-back onClick={onClose}
                   className={`${onViewDetails ? 'flex-1' : 'w-full'} py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg`}
                 >
                   Fantastisch! 🎉
