@@ -1,0 +1,51 @@
+/* Talea Originals reader: the story reader's look, with landscape pictures and a card hand-over at the end. */
+
+.og-reader .rd-figure {
+  width: min(100%, 118svh);
+}
+
+@media (min-width: 900px) {
+  .og-reader .rd-figure {
+    width: min(calc(100% + 8rem), 118svh);
+    margin-left: -4rem;
+  }
+}
+
+.og-reader .rd-figure-btn {
+  aspect-ratio: 3 / 2;
+}
+
+.og-reader .rd-figure-img {
+  object-fit: cover;
+}
+
+.og-reader .rd-hero-cover {
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+}
+
+.og-finale {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  text-align: center;
+}
+
+.og-finale-teaser {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 1.1rem 1.4rem;
+  border-radius: 18px;
+  background: var(--rd-surface, rgba(0, 0, 0, 0.04));
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+.og-finale-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}

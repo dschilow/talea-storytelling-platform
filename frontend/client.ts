@@ -1624,6 +1624,25 @@ import {
     getFairyTaleDetails as api_story_generate_from_fairytale_getFairyTaleDetails
 } from "~backend/story/generate-from-fairytale";
 import { get as api_story_get_get } from "~backend/story/get";
+import {
+    libraryAdminApproveEpisode as api_story_library_api_libraryAdminApproveEpisode,
+    libraryAdminCreateCharacter as api_story_library_api_libraryAdminCreateCharacter,
+    libraryAdminCreateEpisode as api_story_library_api_libraryAdminCreateEpisode,
+    libraryAdminDrawPortrait as api_story_library_api_libraryAdminDrawPortrait,
+    libraryAdminGenerateEpisode as api_story_library_api_libraryAdminGenerateEpisode,
+    libraryAdminRedrawPicture as api_story_library_api_libraryAdminRedrawPicture,
+    libraryAdminSeries as api_story_library_api_libraryAdminSeries,
+    libraryAdminUnpublishEpisode as api_story_library_api_libraryAdminUnpublishEpisode,
+    libraryAdminUpdateCharacter as api_story_library_api_libraryAdminUpdateCharacter,
+    libraryAdminUpdateEpisode as api_story_library_api_libraryAdminUpdateEpisode,
+    libraryAdminUpdateEpisodeText as api_story_library_api_libraryAdminUpdateEpisodeText,
+    libraryCollection as api_story_library_api_libraryCollection,
+    libraryEpisode as api_story_library_api_libraryEpisode,
+    librarySeries as api_story_library_api_librarySeries,
+    librarySeriesCharacters as api_story_library_api_librarySeriesCharacters,
+    libraryShelves as api_story_library_api_libraryShelves,
+    saveLibraryProgress as api_story_library_api_saveLibraryProgress
+} from "~backend/story/library-api";
 import { list as api_story_list_list } from "~backend/story/list";
 import { dumpStoryLogs as api_story_log_dump_dumpStoryLogs } from "~backend/story/log-dump";
 import { markRead as api_story_markRead_markRead } from "~backend/story/markRead";
@@ -1633,28 +1652,6 @@ import {
     updateStoryProfileState as api_story_profile_state_updateStoryProfileState
 } from "~backend/story/profile-state";
 import { proxyImage as api_story_proxy_image_proxyImage } from "~backend/story/proxy-image";
-import {
-    composeStudioEpisode as api_story_studio_api_composeStudioEpisode,
-    createStudioCharacter as api_story_studio_api_createStudioCharacter,
-    createStudioEpisode as api_story_studio_api_createStudioEpisode,
-    createStudioEpisodeScene as api_story_studio_api_createStudioEpisodeScene,
-    createStudioSeries as api_story_studio_api_createStudioSeries,
-    generateStudioEpisodeImages as api_story_studio_api_generateStudioEpisodeImages,
-    generateStudioEpisodeSceneImage as api_story_studio_api_generateStudioEpisodeSceneImage,
-    generateStudioEpisodeText as api_story_studio_api_generateStudioEpisodeText,
-    getStudioEpisode as api_story_studio_api_getStudioEpisode,
-    getStudioSeries as api_story_studio_api_getStudioSeries,
-    listStudioCharacters as api_story_studio_api_listStudioCharacters,
-    listStudioEpisodeScenes as api_story_studio_api_listStudioEpisodeScenes,
-    listStudioEpisodes as api_story_studio_api_listStudioEpisodes,
-    listStudioSeries as api_story_studio_api_listStudioSeries,
-    publishStudioEpisode as api_story_studio_api_publishStudioEpisode,
-    splitStudioEpisodeScenes as api_story_studio_api_splitStudioEpisodeScenes,
-    updateStudioCharacter as api_story_studio_api_updateStudioCharacter,
-    updateStudioEpisodeScene as api_story_studio_api_updateStudioEpisodeScene,
-    updateStudioEpisodeText as api_story_studio_api_updateStudioEpisodeText,
-    updateStudioSeries as api_story_studio_api_updateStudioSeries
-} from "~backend/story/studio-api";
 import {
     listTestConfigs as api_story_test_story_generation_listTestConfigs,
     runBatchTests as api_story_test_story_generation_runBatchTests,
@@ -1680,12 +1677,7 @@ export namespace story {
             this.bookStatus = this.bookStatus.bind(this)
             this.bringableArtifacts = this.bringableArtifacts.bind(this)
             this.characterShowcase = this.characterShowcase.bind(this)
-            this.composeStudioEpisode = this.composeStudioEpisode.bind(this)
             this.createShardOffer = this.createShardOffer.bind(this)
-            this.createStudioCharacter = this.createStudioCharacter.bind(this)
-            this.createStudioEpisode = this.createStudioEpisode.bind(this)
-            this.createStudioEpisodeScene = this.createStudioEpisodeScene.bind(this)
-            this.createStudioSeries = this.createStudioSeries.bind(this)
             this.debugLastError = this.debugLastError.bind(this)
             this.debugRecentStories = this.debugRecentStories.bind(this)
             this.deleteArtifact = this.deleteArtifact.bind(this)
@@ -1701,9 +1693,6 @@ export namespace story {
             this.generateCharacterImage = this.generateCharacterImage.bind(this)
             this.generateCharacterLifeStory = this.generateCharacterLifeStory.bind(this)
             this.generateFromFairyTale = this.generateFromFairyTale.bind(this)
-            this.generateStudioEpisodeImages = this.generateStudioEpisodeImages.bind(this)
-            this.generateStudioEpisodeSceneImage = this.generateStudioEpisodeSceneImage.bind(this)
-            this.generateStudioEpisodeText = this.generateStudioEpisodeText.bind(this)
             this.get = this.get.bind(this)
             this.getArtifact = this.getArtifact.bind(this)
             this.getCharacter = this.getCharacter.bind(this)
@@ -1711,10 +1700,24 @@ export namespace story {
             this.getCharacterStats = this.getCharacterStats.bind(this)
             this.getFairyTaleDetails = this.getFairyTaleDetails.bind(this)
             this.getStoryAudio = this.getStoryAudio.bind(this)
-            this.getStudioEpisode = this.getStudioEpisode.bind(this)
-            this.getStudioSeries = this.getStudioSeries.bind(this)
             this.importArtifacts = this.importArtifacts.bind(this)
             this.importCharacters = this.importCharacters.bind(this)
+            this.libraryAdminApproveEpisode = this.libraryAdminApproveEpisode.bind(this)
+            this.libraryAdminCreateCharacter = this.libraryAdminCreateCharacter.bind(this)
+            this.libraryAdminCreateEpisode = this.libraryAdminCreateEpisode.bind(this)
+            this.libraryAdminDrawPortrait = this.libraryAdminDrawPortrait.bind(this)
+            this.libraryAdminGenerateEpisode = this.libraryAdminGenerateEpisode.bind(this)
+            this.libraryAdminRedrawPicture = this.libraryAdminRedrawPicture.bind(this)
+            this.libraryAdminSeries = this.libraryAdminSeries.bind(this)
+            this.libraryAdminUnpublishEpisode = this.libraryAdminUnpublishEpisode.bind(this)
+            this.libraryAdminUpdateCharacter = this.libraryAdminUpdateCharacter.bind(this)
+            this.libraryAdminUpdateEpisode = this.libraryAdminUpdateEpisode.bind(this)
+            this.libraryAdminUpdateEpisodeText = this.libraryAdminUpdateEpisodeText.bind(this)
+            this.libraryCollection = this.libraryCollection.bind(this)
+            this.libraryEpisode = this.libraryEpisode.bind(this)
+            this.librarySeries = this.librarySeries.bind(this)
+            this.librarySeriesCharacters = this.librarySeriesCharacters.bind(this)
+            this.libraryShelves = this.libraryShelves.bind(this)
             this.list = this.list.bind(this)
             this.listArtifacts = this.listArtifacts.bind(this)
             this.listAvailableFairyTales = this.listAvailableFairyTales.bind(this)
@@ -1722,10 +1725,6 @@ export namespace story {
             this.listGeneratedAudio = this.listGeneratedAudio.bind(this)
             this.listGeneratedAudioBySource = this.listGeneratedAudioBySource.bind(this)
             this.listPublishedCharacterLifeStories = this.listPublishedCharacterLifeStories.bind(this)
-            this.listStudioCharacters = this.listStudioCharacters.bind(this)
-            this.listStudioEpisodeScenes = this.listStudioEpisodeScenes.bind(this)
-            this.listStudioEpisodes = this.listStudioEpisodes.bind(this)
-            this.listStudioSeries = this.listStudioSeries.bind(this)
             this.listTestConfigs = this.listTestConfigs.bind(this)
             this.markRead = this.markRead.bind(this)
             this.preGenerateStoryAudio = this.preGenerateStoryAudio.bind(this)
@@ -1734,16 +1733,15 @@ export namespace story {
             this.proxyImage = this.proxyImage.bind(this)
             this.proxyImageStream = this.proxyImageStream.bind(this)
             this.proxyStoryChapterImage = this.proxyStoryChapterImage.bind(this)
-            this.publishStudioEpisode = this.publishStudioEpisode.bind(this)
             this.redeemShardOffer = this.redeemShardOffer.bind(this)
             this.resetRecentUsage = this.resetRecentUsage.bind(this)
             this.resolveGeneratedAudioByCacheKeys = this.resolveGeneratedAudioByCacheKeys.bind(this)
             this.runBatchTests = this.runBatchTests.bind(this)
             this.runTest = this.runTest.bind(this)
             this.saveGeneratedAudio = this.saveGeneratedAudio.bind(this)
+            this.saveLibraryProgress = this.saveLibraryProgress.bind(this)
             this.seedPool = this.seedPool.bind(this)
             this.setCharacterLifeStoryStatus = this.setCharacterLifeStoryStatus.bind(this)
-            this.splitStudioEpisodeScenes = this.splitStudioEpisodeScenes.bind(this)
             this.submitStoryQuizResult = this.submitStoryQuizResult.bind(this)
             this.treasuryOverview = this.treasuryOverview.bind(this)
             this.update = this.update.bind(this)
@@ -1751,10 +1749,6 @@ export namespace story {
             this.updateCharacter = this.updateCharacter.bind(this)
             this.updateCharacterLifeStory = this.updateCharacterLifeStory.bind(this)
             this.updateStoryProfileState = this.updateStoryProfileState.bind(this)
-            this.updateStudioCharacter = this.updateStudioCharacter.bind(this)
-            this.updateStudioEpisodeScene = this.updateStudioEpisodeScene.bind(this)
-            this.updateStudioEpisodeText = this.updateStudioEpisodeText.bind(this)
-            this.updateStudioSeries = this.updateStudioSeries.bind(this)
         }
 
         public async addArtifact(params: RequestType<typeof api_story_artifact_pool_api_addArtifact>): Promise<ResponseType<typeof api_story_artifact_pool_api_addArtifact>> {
@@ -1836,12 +1830,6 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_showcase_characterShowcase>
         }
 
-        public async composeStudioEpisode(params: { seriesId: string, episodeId: string }): Promise<ResponseType<typeof api_story_studio_api_composeStudioEpisode>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/compose`, {method: "POST", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_composeStudioEpisode>
-        }
-
         /**
          * Creates (or returns the existing) pick-1-of-3 offer. Offers avoid owned
          * artifacts, crowns and legendaries; they prefer artifacts that close set
@@ -1851,58 +1839,6 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/artifacts/shards/offer`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_artifact_treasury_api_createShardOffer>
-        }
-
-        public async createStudioCharacter(params: RequestType<typeof api_story_studio_api_createStudioCharacter>): Promise<ResponseType<typeof api_story_studio_api_createStudioCharacter>> {
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                autoGenerateImage: params.autoGenerateImage,
-                description:       params.description,
-                generationPrompt:  params.generationPrompt,
-                imagePrompt:       params.imagePrompt,
-                name:              params.name,
-                role:              params.role,
-                visualProfile:     params.visualProfile,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/characters`, {method: "POST", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_createStudioCharacter>
-        }
-
-        public async createStudioEpisode(params: RequestType<typeof api_story_studio_api_createStudioEpisode>): Promise<ResponseType<typeof api_story_studio_api_createStudioEpisode>> {
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                episodeNumber:        params.episodeNumber,
-                selectedCharacterIds: params.selectedCharacterIds,
-                summary:              params.summary,
-                title:                params.title,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes`, {method: "POST", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_createStudioEpisode>
-        }
-
-        public async createStudioEpisodeScene(params: RequestType<typeof api_story_studio_api_createStudioEpisodeScene>): Promise<ResponseType<typeof api_story_studio_api_createStudioEpisodeScene>> {
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                imagePrompt:             params.imagePrompt,
-                participantCharacterIds: params.participantCharacterIds,
-                sceneOrder:              params.sceneOrder,
-                sceneText:               params.sceneText,
-                title:                   params.title,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/scenes`, {method: "POST", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_createStudioEpisodeScene>
-        }
-
-        public async createStudioSeries(params: RequestType<typeof api_story_studio_api_createStudioSeries>): Promise<ResponseType<typeof api_story_studio_api_createStudioSeries>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series`, {method: "POST", body: JSON.stringify(params)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_createStudioSeries>
         }
 
         public async debugLastError(params: RequestType<typeof api_story_debug_last_error_debugLastError>): Promise<ResponseType<typeof api_story_debug_last_error_debugLastError>> {
@@ -2040,41 +1976,6 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_generate_from_fairytale_generateFromFairyTale>
         }
 
-        public async generateStudioEpisodeImages(params: RequestType<typeof api_story_studio_api_generateStudioEpisodeImages>): Promise<ResponseType<typeof api_story_studio_api_generateStudioEpisodeImages>> {
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                forceRegenerate: params.forceRegenerate,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/generate-images`, {method: "POST", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_generateStudioEpisodeImages>
-        }
-
-        public async generateStudioEpisodeSceneImage(params: RequestType<typeof api_story_studio_api_generateStudioEpisodeSceneImage>): Promise<ResponseType<typeof api_story_studio_api_generateStudioEpisodeSceneImage>> {
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                imagePrompt: params.imagePrompt,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/scenes/${encodeURIComponent(params.sceneId)}/generate-image`, {method: "POST", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_generateStudioEpisodeSceneImage>
-        }
-
-        public async generateStudioEpisodeText(params: RequestType<typeof api_story_studio_api_generateStudioEpisodeText>): Promise<ResponseType<typeof api_story_studio_api_generateStudioEpisodeText>> {
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                maxWords:   params.maxWords,
-                minWords:   params.minWords,
-                userPrompt: params.userPrompt,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/generate-text`, {method: "POST", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_generateStudioEpisodeText>
-        }
-
         /**
          * Retrieves a specific story by ID with all chapters.
          */
@@ -2126,18 +2027,6 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_audio_cache_getStoryAudio>
         }
 
-        public async getStudioEpisode(params: { seriesId: string, episodeId: string }): Promise<ResponseType<typeof api_story_studio_api_getStudioEpisode>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}`, {method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_getStudioEpisode>
-        }
-
-        public async getStudioSeries(params: { seriesId: string }): Promise<ResponseType<typeof api_story_studio_api_getStudioSeries>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}`, {method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_getStudioSeries>
-        }
-
         public async importArtifacts(params: RequestType<typeof api_story_artifact_pool_api_importArtifacts>): Promise<ResponseType<typeof api_story_artifact_pool_api_importArtifacts>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/artifact-pool/import`, {method: "POST", body: JSON.stringify(params)})
@@ -2148,6 +2037,189 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/character-pool/import`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_pool_api_importCharacters>
+        }
+
+        public async libraryAdminApproveEpisode(params: RequestType<typeof api_story_library_api_libraryAdminApproveEpisode>): Promise<ResponseType<typeof api_story_library_api_libraryAdminApproveEpisode>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                now:       params.now,
+                publishAt: params.publishAt,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/episodes/${encodeURIComponent(params.id)}/approve`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryAdminApproveEpisode>
+        }
+
+        public async libraryAdminCreateCharacter(params: RequestType<typeof api_story_library_api_libraryAdminCreateCharacter>): Promise<ResponseType<typeof api_story_library_api_libraryAdminCreateCharacter>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                ageYears:          params.ageYears,
+                allowedInBranches: params.allowedInBranches,
+                name:              params.name,
+                personality:       params.personality,
+                role:              params.role,
+                speechStyle:       params.speechStyle,
+                visualProfileEn:   params.visualProfileEn,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/series/${encodeURIComponent(params.slug)}/characters`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryAdminCreateCharacter>
+        }
+
+        public async libraryAdminCreateEpisode(params: RequestType<typeof api_story_library_api_libraryAdminCreateEpisode>): Promise<ResponseType<typeof api_story_library_api_libraryAdminCreateEpisode>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                idea:    params.idea,
+                logline: params.logline,
+                season:  params.season,
+                title:   params.title,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/series/${encodeURIComponent(params.slug)}/episodes`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryAdminCreateEpisode>
+        }
+
+        public async libraryAdminDrawPortrait(params: { slug: string, characterId: string }): Promise<ResponseType<typeof api_story_library_api_libraryAdminDrawPortrait>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/series/${encodeURIComponent(params.slug)}/characters/${encodeURIComponent(params.characterId)}/portrait`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryAdminDrawPortrait>
+        }
+
+        public async libraryAdminGenerateEpisode(params: RequestType<typeof api_story_library_api_libraryAdminGenerateEpisode>): Promise<ResponseType<typeof api_story_library_api_libraryAdminGenerateEpisode>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                assetOrigin: params.assetOrigin,
+                idea:        params.idea,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/episodes/${encodeURIComponent(params.id)}/generate`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryAdminGenerateEpisode>
+        }
+
+        public async libraryAdminRedrawPicture(params: RequestType<typeof api_story_library_api_libraryAdminRedrawPicture>): Promise<ResponseType<typeof api_story_library_api_libraryAdminRedrawPicture>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                assetOrigin: params.assetOrigin,
+                slot:        params.slot,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/episodes/${encodeURIComponent(params.id)}/redraw`, {method: "POST", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryAdminRedrawPicture>
+        }
+
+        public async libraryAdminSeries(params: { slug: string }): Promise<ResponseType<typeof api_story_library_api_libraryAdminSeries>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/series/${encodeURIComponent(params.slug)}`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryAdminSeries>
+        }
+
+        public async libraryAdminUnpublishEpisode(params: { id: string }): Promise<ResponseType<typeof api_story_library_api_libraryAdminUnpublishEpisode>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/episodes/${encodeURIComponent(params.id)}/unpublish`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryAdminUnpublishEpisode>
+        }
+
+        public async libraryAdminUpdateCharacter(params: RequestType<typeof api_story_library_api_libraryAdminUpdateCharacter>): Promise<ResponseType<typeof api_story_library_api_libraryAdminUpdateCharacter>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                active:            params.active,
+                ageYears:          params.ageYears,
+                allowedInBranches: params.allowedInBranches,
+                name:              params.name,
+                personality:       params.personality,
+                role:              params.role,
+                speechStyle:       params.speechStyle,
+                visualProfileEn:   params.visualProfileEn,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/series/${encodeURIComponent(params.slug)}/characters/${encodeURIComponent(params.characterId)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryAdminUpdateCharacter>
+        }
+
+        public async libraryAdminUpdateEpisode(params: RequestType<typeof api_story_library_api_libraryAdminUpdateEpisode>): Promise<ResponseType<typeof api_story_library_api_libraryAdminUpdateEpisode>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                clue:      params.clue,
+                fields:    params.fields,
+                idea:      params.idea,
+                logline:   params.logline,
+                publishAt: params.publishAt,
+                title:     params.title,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/episodes/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryAdminUpdateEpisode>
+        }
+
+        public async libraryAdminUpdateEpisodeText(params: RequestType<typeof api_story_library_api_libraryAdminUpdateEpisodeText>): Promise<ResponseType<typeof api_story_library_api_libraryAdminUpdateEpisodeText>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                chapters: params.chapters,
+                summary:  params.summary,
+                teaser:   params.teaser,
+                title:    params.title,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/episodes/${encodeURIComponent(params.id)}/text`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryAdminUpdateEpisodeText>
+        }
+
+        public async libraryCollection(params: RequestType<typeof api_story_library_api_libraryCollection>): Promise<ResponseType<typeof api_story_library_api_libraryCollection>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                profileId: params.profileId,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/collection`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryCollection>
+        }
+
+        public async libraryEpisode(params: RequestType<typeof api_story_library_api_libraryEpisode>): Promise<ResponseType<typeof api_story_library_api_libraryEpisode>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                profileId: params.profileId,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/episodes/${encodeURIComponent(params.id)}`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryEpisode>
+        }
+
+        public async librarySeries(params: RequestType<typeof api_story_library_api_librarySeries>): Promise<ResponseType<typeof api_story_library_api_librarySeries>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                profileId: params.profileId,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/series/${encodeURIComponent(params.slug)}`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_librarySeries>
+        }
+
+        public async librarySeriesCharacters(params: { slug: string }): Promise<ResponseType<typeof api_story_library_api_librarySeriesCharacters>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/series/${encodeURIComponent(params.slug)}/characters`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_librarySeriesCharacters>
+        }
+
+        public async libraryShelves(params: RequestType<typeof api_story_library_api_libraryShelves>): Promise<ResponseType<typeof api_story_library_api_libraryShelves>> {
+            // Convert our params into the objects we need for the request
+            const query = makeRecord<string, string | string[]>({
+                profileId: params.profileId,
+            })
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/shelves`, {query, method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryShelves>
         }
 
         /**
@@ -2219,30 +2291,6 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_life_story_api_listPublishedCharacterLifeStories>
         }
 
-        public async listStudioCharacters(params: { seriesId: string }): Promise<ResponseType<typeof api_story_studio_api_listStudioCharacters>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/characters`, {method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_listStudioCharacters>
-        }
-
-        public async listStudioEpisodeScenes(params: { seriesId: string, episodeId: string }): Promise<ResponseType<typeof api_story_studio_api_listStudioEpisodeScenes>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/scenes`, {method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_listStudioEpisodeScenes>
-        }
-
-        public async listStudioEpisodes(params: { seriesId: string }): Promise<ResponseType<typeof api_story_studio_api_listStudioEpisodes>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes`, {method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_listStudioEpisodes>
-        }
-
-        public async listStudioSeries(): Promise<ResponseType<typeof api_story_studio_api_listStudioSeries>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series`, {method: "GET", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_listStudioSeries>
-        }
-
         /**
          * API Endpoint: Listet alle verfügbaren Test-Konfigurationen
          */
@@ -2298,12 +2346,6 @@ export namespace story {
             return this.baseClient.callAPI(`/story/image/story/${params.path.map(encodeURIComponent).join("/")}`, options)
         }
 
-        public async publishStudioEpisode(params: { seriesId: string, episodeId: string }): Promise<ResponseType<typeof api_story_studio_api_publishStudioEpisode>> {
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/publish`, {method: "POST", body: undefined})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_publishStudioEpisode>
-        }
-
         public async redeemShardOffer(params: RequestType<typeof api_story_artifact_treasury_api_redeemShardOffer>): Promise<ResponseType<typeof api_story_artifact_treasury_api_redeemShardOffer>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/artifacts/shards/redeem`, {method: "POST", body: JSON.stringify(params)})
@@ -2347,6 +2389,12 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_audio_library_saveGeneratedAudio>
         }
 
+        public async saveLibraryProgress(params: RequestType<typeof api_story_library_api_saveLibraryProgress>): Promise<ResponseType<typeof api_story_library_api_saveLibraryProgress>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/progress`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_saveLibraryProgress>
+        }
+
         /**
          * ===== SEED CHARACTER POOL =====
          * Seeds the character pool with 18 pre-built characters
@@ -2366,20 +2414,6 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/character-pool/${encodeURIComponent(params.characterId)}/life-story/status`, {method: "POST", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_character_life_story_api_setCharacterLifeStoryStatus>
-        }
-
-        public async splitStudioEpisodeScenes(params: RequestType<typeof api_story_studio_api_splitStudioEpisodeScenes>): Promise<ResponseType<typeof api_story_studio_api_splitStudioEpisodeScenes>> {
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                maxSceneCount:    params.maxSceneCount,
-                minSceneCount:    params.minSceneCount,
-                targetSceneCount: params.targetSceneCount,
-                userPrompt:       params.userPrompt,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/split-scenes`, {method: "POST", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_splitStudioEpisodeScenes>
         }
 
         public async submitStoryQuizResult(params: RequestType<typeof api_story_profile_state_submitStoryQuizResult>): Promise<ResponseType<typeof api_story_profile_state_submitStoryQuizResult>> {
@@ -2471,65 +2505,6 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/story/${encodeURIComponent(params.id)}/state`, {method: "POST", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_profile_state_updateStoryProfileState>
-        }
-
-        public async updateStudioCharacter(params: RequestType<typeof api_story_studio_api_updateStudioCharacter>): Promise<ResponseType<typeof api_story_studio_api_updateStudioCharacter>> {
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                description:      params.description,
-                generationPrompt: params.generationPrompt,
-                imagePrompt:      params.imagePrompt,
-                name:             params.name,
-                regenerateImage:  params.regenerateImage,
-                role:             params.role,
-                visualProfile:    params.visualProfile,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/characters/${encodeURIComponent(params.characterId)}`, {method: "PUT", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_updateStudioCharacter>
-        }
-
-        public async updateStudioEpisodeScene(params: RequestType<typeof api_story_studio_api_updateStudioEpisodeScene>): Promise<ResponseType<typeof api_story_studio_api_updateStudioEpisodeScene>> {
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                imagePrompt:             params.imagePrompt,
-                participantCharacterIds: params.participantCharacterIds,
-                sceneText:               params.sceneText,
-                title:                   params.title,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/scenes/${encodeURIComponent(params.sceneId)}`, {method: "PUT", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_updateStudioEpisodeScene>
-        }
-
-        public async updateStudioEpisodeText(params: RequestType<typeof api_story_studio_api_updateStudioEpisodeText>): Promise<ResponseType<typeof api_story_studio_api_updateStudioEpisodeText>> {
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                approve:   params.approve,
-                storyText: params.storyText,
-                summary:   params.summary,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}/episodes/${encodeURIComponent(params.episodeId)}/text`, {method: "PUT", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_updateStudioEpisodeText>
-        }
-
-        public async updateStudioSeries(params: RequestType<typeof api_story_studio_api_updateStudioSeries>): Promise<ResponseType<typeof api_story_studio_api_updateStudioSeries>> {
-            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
-            const body: Record<string, any> = {
-                canonicalPrompt: params.canonicalPrompt,
-                description:     params.description,
-                logline:         params.logline,
-                status:          params.status,
-                title:           params.title,
-            }
-
-            // Now make the actual call to the API
-            const resp = await this.baseClient.callTypedAPI(`/story/studio/series/${encodeURIComponent(params.seriesId)}`, {method: "PUT", body: JSON.stringify(body)})
-            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_studio_api_updateStudioSeries>
         }
     }
 }

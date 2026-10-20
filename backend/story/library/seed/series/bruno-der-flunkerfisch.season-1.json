@@ -1,0 +1,116 @@
+{
+  "seriesId": "bruno-der-flunkerfisch",
+  "season": 1,
+  "title": "Das Geheimnis des Großen Brunello",
+  "episodes": [
+    {
+      "episode": 1,
+      "title": "Ein Fisch vom Flohmarkt",
+      "logline": "Mats flunkert vor dem neuen Goldfisch: „Ich hab einen Hund, so groß wie ein Pony.“ Plötzlich steht ein ponygroßer, tollpatschiger Hund im 3. Stock, und die Kinder entdecken die Regel.",
+      "plan": {
+        "Flunkerei": "„Ich hab einen Hund, so groß wie ein Pony.“",
+        "Wer flunkert": "Mats",
+        "Was wörtlich passiert": "Ein ponygroßer, tollpatschiger Hund steht im 3. Stock. Die Kinder entdecken die Regel."
+      },
+      "clue": "Der Mann mit dem Fischhut sagt beim Verkauf: „Passt gut auf, was ihr vor ihm sagt.“"
+    },
+    {
+      "episode": 2,
+      "title": "Die Hefte schreiben selbst",
+      "logline": "Ella behauptet: „Ich hab die Hausaufgaben schon gemacht.“ Ihre Hefte schreiben sich selbst, aber nur Quatsch, und morgen muss Ella vorlesen.",
+      "plan": {
+        "Flunkerei": "„Ich hab die Hausaufgaben schon gemacht.“",
+        "Wer flunkert": "Ella",
+        "Was wörtlich passiert": "Die Hefte schreiben sich selbst, aber nur Quatsch. Ella muss morgen vorlesen."
+      },
+      "clue": "Bruno murmelt im Schlaf „Simsalabrunello“."
+    },
+    {
+      "episode": 3,
+      "title": "Frau Pfeffer piept",
+      "logline": "Mats sagt: „Unsere Lehrerin ist ein Roboter.“ Am nächsten Morgen piept Frau Pfeffer bei jeder Antwort und läuft mit Akku-Anzeige.",
+      "plan": {
+        "Flunkerei": "„Unsere Lehrerin ist ein Roboter.“",
+        "Wer flunkert": "Mats",
+        "Was wörtlich passiert": "Frau Pfeffer piept bei jeder Antwort und läuft mit Akku-Anzeige."
+      },
+      "clue": "Im Schulflur hängt ein altes Plakat einer Zaubershow, halb abgerissen."
+    },
+    {
+      "episode": 4,
+      "title": "Mats kommt nicht runter",
+      "logline": "„Ich kann fliegen!“, ruft Mats. Er schwebt und kommt nicht mehr herunter, Ella hält ihn an der Kordel seiner Jacke fest.",
+      "plan": {
+        "Flunkerei": "„Ich kann fliegen!“",
+        "Wer flunkert": "Mats",
+        "Was wörtlich passiert": "Mats schwebt und kommt nicht mehr herunter. Ella hält ihn an der Kordel seiner Jacke."
+      },
+      "clue": "Bruno macht vor Langeweile einen Kartentrick mit der Flosse."
+    },
+    {
+      "episode": 5,
+      "title": "Oma ist zwanzig",
+      "logline": "Oma Rosi prahlt: „Ich bin noch so fit wie mit zwanzig!“ Plötzlich ist sie zwanzig, will Rollschuh fahren und erkennt sich selbst nicht.",
+      "plan": {
+        "Flunkerei": "„Ich bin noch so fit wie mit zwanzig!“",
+        "Wer flunkert": "Oma Rosi",
+        "Was wörtlich passiert": "Oma ist plötzlich zwanzig, will Rollschuh fahren und erkennt sich selbst nicht."
+      },
+      "clue": "Oma erzählt, sie habe als junge Frau den „Großen Brunello“ auf der Bühne gesehen."
+    },
+    {
+      "episode": 6,
+      "title": "Kaisers großer Coup",
+      "logline": "Frau Grimmbach schwärmt: „Mein Kaiser ist der klügste Kater der Welt.“ Kater Kaiser wird genial und baut aus dem Staubsauger eine Fisch-Fang-Maschine.",
+      "plan": {
+        "Flunkerei": "„Mein Kaiser ist der klügste Kater der Welt.“",
+        "Wer flunkert": "Frau Grimmbach",
+        "Was wörtlich passiert": "Kater Kaiser wird genial und baut eine Fisch-Fang-Maschine aus dem Staubsauger."
+      },
+      "clue": "Kaiser schleppt einen alten Zylinder mit einem Fisch-Emblem aus dem Keller."
+    },
+    {
+      "episode": 7,
+      "title": "Papa im All",
+      "logline": "Ella behauptet: „Mein Papa ist Astronaut.“ Papa schwebt im Raumanzug durch die Küche, die Kaffeetassen auch.",
+      "plan": {
+        "Flunkerei": "„Mein Papa ist Astronaut.“",
+        "Wer flunkert": "Ella",
+        "Was wörtlich passiert": "Papa schwebt im Raumanzug durch die Küche, die Kaffeetassen auch."
+      },
+      "clue": "Beim Wort „Brunello“ versteckt sich Bruno hinter seiner Burg."
+    },
+    {
+      "episode": 8,
+      "title": "Der Geburtstag, der nie endet",
+      "logline": "„Heute hab ich Geburtstag!“, flunkert Mats. Jede Stunde beginnt eine neue Geburtstagsparty, und nach der vierten Torte will niemand mehr feiern.",
+      "plan": {
+        "Flunkerei": "„Heute hab ich Geburtstag!“",
+        "Wer flunkert": "Mats",
+        "Was wörtlich passiert": "Jede Stunde beginnt eine neue Geburtstagsparty. Nach der vierten Torte will niemand mehr feiern."
+      },
+      "clue": "Der Mann mit dem Fischhut steht vor dem Haus und beobachtet das Fenster."
+    },
+    {
+      "episode": 9,
+      "title": "Bruno flunkert",
+      "logline": "Bruno selbst sagt: „Mir ist alles egal.“ Er wird grau, stumm und wirklich gleichgültig, und die Kinder müssen ihn zur Wahrheit bringen.",
+      "plan": {
+        "Flunkerei": "„Mir ist alles egal.“",
+        "Wer flunkert": "Bruno",
+        "Was wörtlich passiert": "Bruno wird grau, stumm und wirklich gleichgültig. Die Kinder müssen ihn zur Wahrheit bringen."
+      },
+      "clue": "Bruno gibt zu: Er war der Große Brunello."
+    },
+    {
+      "episode": 10,
+      "title": "Die größte Wahrheit",
+      "logline": "Der Mann mit dem Fischhut ist Brunellos alter Assistent und bietet die Rückverwandlung an. Bruno sagt seine größte Wahrheit und bleibt.",
+      "plan": {
+        "Flunkerei": "–",
+        "Was passiert": "Der Mann mit dem Fischhut ist Brunellos alter Assistent. Er bietet die Rückverwandlung an. Bruno sagt seine größte Wahrheit („Ich will bei euch bleiben.“) und bleibt."
+      },
+      "clue": "Auflösung des Staffelgeheimnisses."
+    }
+  ]
+}

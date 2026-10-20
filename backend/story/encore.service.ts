@@ -6,7 +6,7 @@ export default new Service("story");
 import "./generate";
 import "./book-api";
 import "./generate-from-fairytale";
-import "./studio-api";
+import "./library-api";
 import "./character-pool-api";
 import "./character-bible";
 import "./character-showcase";

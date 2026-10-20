@@ -104,7 +104,7 @@ describe("security regression guards", () => {
     expect(tokenParser).not.toMatch(/payload\?\.\w*metadata/i);
   });
 
-  test("audio doku production, studio and dialogue TTS are admin only", () => {
+  test("audio doku production, library production and dialogue TTS are admin only", () => {
     const audio = source("doku/audio-doku.ts");
     for (const route of ["/audio-dokus/upload-url", "/audio-dokus/generate-cover"]) {
       const after = audio.slice(audio.indexOf(`path: "${route}"`));
@@ -115,10 +115,13 @@ describe("security regression guards", () => {
     const updateBlock = audio.slice(audio.indexOf("export const updateAudioDoku"), audio.indexOf("export const deleteAudioDoku"));
     expect(updateBlock).toContain("ensureAdmin()");
 
-    const studio = source("story/studio-api.ts");
-    const studioRoutes = studio.split('path: "/story/studio/').length - 1;
-    expect(studioRoutes).toBeGreaterThan(0);
-    expect(studio.split("ensureAdmin();").length - 1).toBeGreaterThanOrEqual(studioRoutes);
+    // Library production (generate, edit, approve, cast) is admin only; readers only read.
+    const library = source("story/library-api.ts");
+    const adminRoutes = library.split('path: "/library/admin/').slice(1);
+    expect(adminRoutes.length).toBeGreaterThan(5);
+    for (const route of adminRoutes) {
+      expect(route.slice(0, 400)).toContain("ensureAdmin();");
+    }
 
     expect(source("doku/audio-script.ts").split("ensureAdmin();").length - 1).toBe(2);
     const tts = source("tts/tts.ts");

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { SignedIn, SignedOut, useUser } from "@clerk/clerk-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -34,7 +34,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalUserAccess } from "@/contexts/UserAccessContext";
 import { useOffline } from "@/contexts/OfflineStorageContext";
 import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
-import TaleaStudioWorkspace from "./TaleaStudioWorkspace";
+import OriginalsHome from "../Library/OriginalsHome";
 import CharacterOriginsScreen from "../CharacterPool/CharacterOriginsScreen";
 import { TaleaCardMenu, type TaleaCardMenuAction } from "@/components/talea/TaleaCardMenu";
 import { IconTabs, iconTabId, type IconTabItem } from "@/components/navigation/IconTabs";
@@ -56,7 +56,7 @@ const bodyFont = taleaBodyFont;
 
 type ViewMode = "grid" | "list";
 type SortMode = "newest" | "oldest" | "title";
-type ContentTab = "stories" | "characters" | "studio";
+type ContentTab = "stories" | "originals" | "characters";
 type TranslateFn = TFunction;
 
 const statusMeta: Record<Story["status"], { className: string }> = {
@@ -563,12 +563,12 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
     : remainingStoryCredits === null ? "\u221e" : remainingStoryCredits;
 
   const shelfStories = filteredStories.slice(featuredStory ? 1 : 0);
-  const isStudioTabActive = isAdmin && contentTab === "studio";
   const tabGroupId = useId();
   const contentTabs: IconTabItem<ContentTab>[] = [
     { id: "stories", label: t("storiesScreen.storiesTab"), icon: "stories" },
+    // Talea Originals: the pre-produced series, for every child (admins produce them on the series page).
+    { id: "originals", label: t("storiesScreen.originalsTab", "Originals"), icon: "studio" },
     { id: "characters", label: "Charaktere", icon: "figures" },
-    ...(isAdmin ? [{ id: "studio" as const, label: t("storiesScreen.studioTab"), icon: "studio" as const }] : []),
   ];
 
   return (
@@ -602,8 +602,14 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
           </div>
         </div>
         <p className="mt-1 text-[15px] text-[var(--talea-text-secondary)]">
-          {total} {total === 1 ? "Geschichte" : "Geschichten"}
-          {remainingStoryLabel !== null ? <> · {remainingStoryLabel} übrig in diesem Monat</> : null}
+          {contentTab === "originals" ? (
+            "Talea Originals: Reihen für alle Kinder, jeden Freitag eine neue Folge"
+          ) : (
+            <>
+              {total} {total === 1 ? "Geschichte" : "Geschichten"}
+              {remainingStoryLabel !== null ? <> · {remainingStoryLabel} übrig in diesem Monat</> : null}
+            </>
+          )}
         </p>
 
         <IconTabs
@@ -626,7 +632,9 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
       >
       {contentTab === "characters" ? (
         <CharacterOriginsScreen />
-      ) : !isStudioTabActive ? (
+      ) : contentTab === "originals" ? (
+        <OriginalsHome />
+      ) : (
         <div>
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
@@ -779,12 +787,6 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
             ) : null}
           </div>
         </div>
-      ) : (
-        <div className={cn(taleaSurfaceClass, "p-2")}>
-          <div className={cn(taleaInsetSurfaceClass, "p-0")}>
-            <TaleaStudioWorkspace />
-          </div>
-        </div>
       )}
       </div>
     </div>
@@ -804,7 +806,19 @@ const TaleaStoriesScreen: React.FC = () => {
   const isDark = resolvedTheme === "dark";
 
   const [stories, setStories] = useState<Story[]>([]);
-  const [contentTab, setContentTab] = useState<ContentTab>("stories");
+  // The tab lives in the URL so "back" from a series page lands on Originals again.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const [contentTab, setContentTabState] = useState<ContentTab>(
+    requestedTab === "originals" || requestedTab === "characters" ? requestedTab : "stories"
+  );
+  const setContentTab = useCallback(
+    (value: ContentTab) => {
+      setContentTabState(value);
+      setSearchParams(value === "stories" ? {} : { tab: value }, { replace: true });
+    },
+    [setSearchParams]
+  );
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);

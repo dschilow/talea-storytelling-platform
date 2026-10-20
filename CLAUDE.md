@@ -336,6 +336,13 @@ When updating avatar personality traits, you MUST:
 - Story chapter images use canonical avatar appearance from `visualProfile`
 - Image consistency ensured via vision QA system ([backend/story/vision-qa.ts](backend/story/vision-qa.ts:1))
 
+### Talea Originals (pre-produced series, replaces the old Studio)
+
+- Every child reads the same series; admins produce episodes on the series page (tab "Studio"). Endpoints: [backend/story/library-api.ts](backend/story/library-api.ts:1) — keep endpoint files directly in the service folder, the Encore v1.50 client generator writes wrong import paths for subfolders.
+- Seed: [backend/story/library/seed/](backend/story/library/seed/) (series bible, season plan, written episodes), pictures in `frontend/public/library/`. The seed never overwrites admin edits (characters, plans, texts).
+- Pipeline (Encore-free): [backend/story/library/engine.ts](backend/story/library/engine.ts:1) — Luna plans, Sol writes, Gemini scores 8 dimensions (min 9, max 3 writes), Luna finalizes canon facts, collectible and picture direction. Only approved episodes are canon. Pictures: FLUX 3 Image Klein with ONE reference sheet and bounding boxes per figure ([backend/story/library/images.ts](backend/story/library/images.ts:1)); scenes are action moments, nobody looks at the camera.
+- Tools: `bun --env-file=.env.local run scripts/library/episode-live-test.ts --series <slug> --episode N` (live, no DB), `scripts/library/generate-seed-images.ts`, `encore exec -- bun scripts/library-smoke.ts` (from backend/).
+
 ### Game Voices and Sound Effects (ElevenLabs) — any agent can generate them
 
 The game "Mitternachts-Alibi" (`frontend/screens/Game/alibi/`) plays pre-generated MP3s from `frontend/public/game/alibi/voices/<id>.mp3`, listed in `voices/manifest.json`. Missing clips fall back to the browser voice, so new lines must be generated and committed. Tools: `scripts/game-voices/` (full guide in its `README.md`).

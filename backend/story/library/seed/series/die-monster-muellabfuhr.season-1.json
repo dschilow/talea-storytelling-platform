@@ -1,0 +1,127 @@
+{
+  "seriesId": "die-monster-muellabfuhr",
+  "season": 1,
+  "title": "Die Nacht des Sockenkönigs",
+  "episodes": [
+    {
+      "episode": 1,
+      "title": "Die Nacht bei Oma Hilde",
+      "logline": "Jona entdeckt, dass Oma Hilde nachts Monster fängt. Im ersten Einsatz jagt die Crew einen Socken-Schnüffler, der aus vergessenen Einzelsocken unterm Bett entstanden ist.",
+      "plan": {
+        "Monster": "Socken-Schnüffler",
+        "Ursprung": "Einzelsocken unterm Bett",
+        "Schwäche → Fangtrick": "Frisch gewaschene Wäsche → Falle aus dem Wäschekorb",
+        "Job in der Pension": "Sockenpaare sortieren"
+      },
+      "clue": "Im Wagen liegt eine Socke mit einer winzigen gestrickten Krone."
+    },
+    {
+      "episode": 2,
+      "title": "Das Gähnmonster",
+      "logline": "Ein Gähnmonster aus vergessenen Gute-Nacht-Liedern lässt eine ganze Wohnung gähnen. Es schläft bei jedem Wiegenlied ein, egal wie schief, also muss Jona singen.",
+      "plan": {
+        "Monster": "Gähnmonster",
+        "Ursprung": "Vergessene Gute-Nacht-Lieder",
+        "Schwäche → Fangtrick": "Schläft bei jedem Wiegenlied ein, egal wie schief → Jona singt",
+        "Job in der Pension": "Nachtruhe-Wächter"
+      },
+      "clue": "Oma wundert sich: So viele Notrufe gab es noch nie."
+    },
+    {
+      "episode": 3,
+      "title": "Die Krümelkrake",
+      "logline": "Unter einem Sofa wohnt eine Krümelkrake aus Brotkrumen. Sie ist kitzlig, und die Crew startet einen Kitzelangriff mit dem Handfeger.",
+      "plan": {
+        "Monster": "Krümelkrake",
+        "Ursprung": "Brotkrumen unterm Sofa",
+        "Schwäche → Fangtrick": "Ist kitzlig → Kitzelangriff mit dem Handfeger",
+        "Job in der Pension": "Küchenhilfe"
+      },
+      "clue": "Die Krake murmelt im Schlaf: „Der König ruft.“"
+    },
+    {
+      "episode": 4,
+      "title": "Alarm in der Turnhalle",
+      "logline": "In der Schulturnhalle tobt ein Pupsmonster aus vergessenen Turnbeuteln. Nur frische Luft hilft: alle Fenster auf, und Gertruds Rüssel bläst.",
+      "plan": {
+        "Monster": "Pupsmonster",
+        "Ursprung": "Vergessene Turnbeutel",
+        "Schwäche → Fangtrick": "Frische Luft → alle Fenster auf, Gertruds Rüssel bläst",
+        "Job in der Pension": "Lüftungswart"
+      },
+      "clue": "Vor der Pension sind Abdrücke wie von nassen Socken."
+    },
+    {
+      "episode": 5,
+      "title": "Das Brokkoli-Monster",
+      "logline": "Ein Brokkoli-Monster aus liegengelassenem Gemüse will, dass alle Gemüse essen. Es wird zahm, wenn jemand freiwillig probiert, und Jona nimmt einen Bissen.",
+      "plan": {
+        "Monster": "Brokkoli-Monster",
+        "Ursprung": "Liegengelassenes Gemüse",
+        "Schwäche → Fangtrick": "Wird zahm, wenn jemand freiwillig probiert → Jona probiert einen Bissen",
+        "Job in der Pension": "Gärtner im Pensionsgarten"
+      },
+      "clue": "Flusi niest beim Wort „König“."
+    },
+    {
+      "episode": 6,
+      "title": "Klirrklaus im Keller",
+      "logline": "Im Keller klirrt Klirrklaus aus vergessenen Pfandflaschen. Er will Ordnung und wird ruhig, sobald man ihn in Kästen sortiert.",
+      "plan": {
+        "Monster": "Klirrklaus",
+        "Ursprung": "Vergessene Pfandflaschen",
+        "Schwäche → Fangtrick": "Will Ordnung → wird ruhig, sobald man ihn in Kästen sortiert",
+        "Job in der Pension": "Lagerverwalter"
+      },
+      "clue": "Um Klirrklaus' Hals hängt ein Sockenfaden wie ein Abzeichen."
+    },
+    {
+      "episode": 7,
+      "title": "Kabelsalat",
+      "logline": "Ein Monster aus verknoteten Ladekabeln wird mit jeder Hektik stärker. Nur langsames, geduldiges Entknoten wirkt.",
+      "plan": {
+        "Monster": "Kabelsalat",
+        "Ursprung": "Verknotete Ladekabel",
+        "Schwäche → Fangtrick": "Braucht Geduld → nur langsames Entknoten wirkt, Hektik macht ihn stärker",
+        "Job in der Pension": "Elektriker"
+      },
+      "clue": "Mama Sina erzählt: Den Sockenkönig gab es schon zu ihrer Azubi-Zeit, dann verschwand er."
+    },
+    {
+      "episode": 8,
+      "title": "Gertrud ist weg!",
+      "logline": "Die Knäuelbande aus vergessenen Strickresten hat Gertrud entführt. Weil sie jedem Faden nachrollen, führt eine Spur aus Wolle zurück zu ihrem Versteck.",
+      "plan": {
+        "Monster": "Die Knäuelbande (drei kleine Wollknäuel)",
+        "Ursprung": "Vergessene Strickreste",
+        "Schwäche → Fangtrick": "Rollen jedem Faden nach → Spur aus Wolle zurück zum Versteck",
+        "Job in der Pension": "Strickwerkstatt"
+      },
+      "clue": "Die Knäuelbande hat Gertrud im Auftrag „Seiner Majestät“ entführt. Die Spur führt zum alten Waschsalon."
+    },
+    {
+      "episode": 9,
+      "title": "Jonas erste Solo-Schicht",
+      "logline": "Oma hat sich den Fuß verknackst, und Jona fährt mit Flusi und Gertrud allein. Der Schattenschreck aus vergessenen Nachtlichtern fürchtet warmes Licht.",
+      "plan": {
+        "Monster": "Schattenschreck",
+        "Ursprung": "Vergessene Nachtlichter",
+        "Schwäche → Fangtrick": "Fürchtet warmes Licht → Jona schaltet Gertruds Scheinwerfer ein",
+        "Job in der Pension": "Laternenanzünder"
+      },
+      "clue": "Oma hat sich den Fuß verknackst, Jona fährt mit Flusi und Gertrud allein. Er findet den Waschsalon-Schlüssel."
+    },
+    {
+      "episode": 10,
+      "title": "Der Sockenkönig",
+      "logline": "Im alten Waschsalon wartet der Sockenkönig, gemacht aus allen verlorenen Einzelsocken der Stadt. Er ist nicht böse, nur einsam, und Jona schenkt ihm die passenden Partnersocken.",
+      "plan": {
+        "Monster": "Sockenkönig",
+        "Ursprung": "Alle verlorenen Einzelsocken der Stadt",
+        "Schwäche → Fangtrick": "Einsamkeit → Jona schenkt ihm die passenden Partnersocken",
+        "Job in der Pension": "Nachtportier der Pension"
+      },
+      "clue": "Auflösung des Staffelgeheimnisses."
+    }
+  ]
+}

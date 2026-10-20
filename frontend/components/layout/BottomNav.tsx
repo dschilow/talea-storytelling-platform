@@ -19,7 +19,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { icon: 'home', labelKey: 'navigation.home', path: '/' },
-  { icon: 'stories', labelKey: 'navigation.stories', compactLabel: 'Lesen', path: '/stories' },
+  { icon: 'stories', labelKey: 'navigation.stories', compactLabel: 'Lesen', path: '/stories', aliases: ['/originals', '/episode-reader'] },
   { icon: 'avatars', labelKey: 'navigation.avatars', path: '/avatar' },
   { icon: 'dokus', label: 'Dokus', path: '/doku' },
   { icon: 'game', label: 'Spiel', path: '/spiel', aliases: ['/quiz'] },

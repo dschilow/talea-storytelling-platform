@@ -47,6 +47,8 @@ const StoriesScreen = React.lazy(() => import('./screens/Story/TaleaStoriesScree
 const StoryReaderScreen = React.lazy(() => import('./screens/Story/StoryReaderScreen'));
 const StoryScrollReaderScreen = React.lazy(() => import('./screens/Story/StoryScrollReaderScreen'));
 const CinematicStoryViewer = React.lazy(() => import('./screens/Story/CinematicStoryViewer'));
+const OriginalsSeriesScreen = React.lazy(() => import('./screens/Library/OriginalsSeriesScreen'));
+const OriginalsEpisodeReader = React.lazy(() => import('./screens/Library/OriginalsEpisodeReader'));
 const DokusScreen = React.lazy(() => import('./screens/Doku/TaleaDokusScreen'));
 const ModernDokuWizard = React.lazy(() => import('./screens/Doku/ModernDokuWizard'));
 const CreateAudioDokuScreen = React.lazy(() => import('./screens/Doku/CreateAudioDokuScreen'));
@@ -220,6 +222,8 @@ const RouterContent = () => {
                 <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
                 <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
                 <Route path="/stories" element={<StoriesScreen />} />
+                <Route path="/originals/:slug" element={<OriginalsSeriesScreen />} />
+                <Route path="/episode-reader/:episodeId" element={<OriginalsEpisodeReader />} />
                 <Route path="/community" element={<ModernHomeScreen />} />
                 <Route path="/logs" element={<AdminOnlyRoute><LogViewerScreen /></AdminOnlyRoute>} />
                 <Route path="/doku" element={<DokusScreen />} />

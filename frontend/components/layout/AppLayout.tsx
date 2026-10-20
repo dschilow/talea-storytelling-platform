@@ -34,6 +34,13 @@ function getRouteMeta(pathname: string): RouteMeta {
       },
     },
     {
+      match: (path) => path.startsWith("/originals"),
+      meta: {
+        eyebrow: "Reihen für alle Kinder",
+        title: "Talea Originals",
+      },
+    },
+    {
       match: (path) => path.startsWith("/story"),
       meta: {
         eyebrow: "Geschichtenwerkstatt",
@@ -112,11 +119,13 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
   const isSettingsRoute = location.pathname.startsWith("/settings");
   const isReaderRoute =
     location.pathname.startsWith("/story-reader") ||
-    location.pathname.startsWith("/doku-reader");
+    location.pathname.startsWith("/doku-reader") ||
+    location.pathname.startsWith("/episode-reader");
   const routeMeta = getRouteMeta(location.pathname);
   const usesImmersiveShell =
     location.pathname === "/" ||
     location.pathname.startsWith("/stories") ||
+    location.pathname.startsWith("/originals") ||
     location.pathname.startsWith("/avatar") ||
     location.pathname.startsWith("/story") ||
     location.pathname.startsWith("/doku") ||
