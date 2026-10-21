@@ -36,7 +36,12 @@ const TAKE_MAX_CHARS = 1600;
 const TAKE_ATTEMPTS = 3;
 /** Breath between two takes of the same chapter. */
 const TAKE_GAP_SECONDS = 0.35;
-const LISTENING_CHECK = process.env.TALEA_AUDIO_QA !== "off";
+/**
+ * Listening check (speech-to-text per take, re-record on a missing line). Off by
+ * default since 2026-10-21: the editor does not want to pay for speech-to-text and
+ * re-recordings on top of the voices; the short takes alone fixed the dropped lines.
+ */
+const LISTENING_CHECK = process.env.TALEA_AUDIO_QA === "on";
 /** Spot effects and ambience beds one drama may generate (a 13-minute episode uses 30–50). */
 const MAX_SOUND_ASSETS = 70;
 

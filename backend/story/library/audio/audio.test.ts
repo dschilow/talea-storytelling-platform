@@ -146,7 +146,7 @@ describe("timeline", () => {
     expect(music.filter((cue) => cue.assetPath === "bridge.mp3").length).toBe(1);
     expect(music.filter((cue) => cue.assetPath === "mischief.mp3").length).toBe(2);
     expect(timeline.seconds).toBeCloseTo(timeline.partStarts[3] + 6 + GAPS.tailWithTheme, 5);
-    const pieces = timeline.voice.reduce((sum, piece) => sum + ("silence" in piece ? piece.silence : parts.find((entry) => entry.segments[0].path === piece.path)!.seconds), 0);
+    const pieces = timeline.voice.reduce((sum, piece) => sum + ("silence" in piece ? piece.silence : parts.find((entry) => "path" in entry.segments[0] && entry.segments[0].path === piece.path)!.seconds), 0);
     expect(pieces).toBeCloseTo(timeline.seconds, 5);
   });
 

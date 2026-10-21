@@ -95,7 +95,7 @@ export const EpisodeAudioPanel: React.FC<{ episode: LibraryAdminEpisode; onChang
             {audio.sounds ? <span className="inline-flex items-center gap-1"><Volume2 className="h-3 w-3" aria-hidden="true" />{audio.sounds} Geräusche</span> : null}
             {audio.music ? <span className="inline-flex items-center gap-1"><Music2 className="h-3 w-3" aria-hidden="true" />Musik {audio.music}</span> : null}
             {audio.llmCostUSD ? <span>Drehbuch ${audio.llmCostUSD.toFixed(3)}</span> : null}
-            {audio.takes ? <span>{audio.takes} Takes{audio.retakes ? `, ${audio.retakes} nach Hörprobe neu aufgenommen` : ", alle beim ersten Mal sauber"}</span> : null}
+            {audio.takes ? <span>{audio.takes} Takes{audio.retakes ? `, ${audio.retakes} nach Hörprobe neu aufgenommen` : ""}</span> : null}
             {audio.renderSeconds ? <span>{Math.round(audio.renderSeconds / 60)} Min. Produktion</span> : null}
           </p>
         </div>
