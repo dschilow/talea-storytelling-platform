@@ -115,6 +115,8 @@ export interface AudioTrack {
   description?: string;
   coverImageUrl?: string;
   audioUrl: string;
+  /** Start playback here (seconds), e.g. at a chapter of an audio drama. */
+  startAt?: number;
 }
 
 // ── Extended context value ──────────────────────────────────────────
@@ -836,6 +838,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
           revokeBlobUrl(previousResolved);
         }
 
+        if (next.startAt && next.startAt > 0) {
+          pendingSeekRef.current = { itemId: next.id, time: next.startAt };
+        }
         setShouldAutoplay(options?.autoplay ?? true);
         setTrack({ ...next, audioUrl: playableUrl });
       });

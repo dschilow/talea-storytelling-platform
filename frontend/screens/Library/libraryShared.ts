@@ -1,32 +1,47 @@
 import type {
   EpisodeState,
+  LibraryAdminAudio,
   LibraryAdminCharacter,
   LibraryAdminEpisode,
   LibraryAdminSeriesResponse,
   LibraryCharacter,
   LibraryCollectible,
   LibraryCollectionResponse,
+  LibraryEpisodeAudio,
   LibraryEpisodeCard,
   LibraryEpisodeResponse,
   LibrarySeriesCard,
   LibrarySeriesResponse,
   LibraryShelvesResponse,
 } from "~backend/story/library-api";
+import type { LibraryAudioScriptResponse, LibraryVoiceCastResponse, LibraryVoiceOption, LibraryVoiceRole } from "~backend/story/library-audio-api";
 
 export type {
   EpisodeState,
+  LibraryAdminAudio,
   LibraryAdminCharacter,
   LibraryAdminEpisode,
   LibraryAdminSeriesResponse,
+  LibraryAudioScriptResponse,
   LibraryCharacter,
   LibraryCollectible,
   LibraryCollectionResponse,
+  LibraryEpisodeAudio,
   LibraryEpisodeCard,
   LibraryEpisodeResponse,
   LibrarySeriesCard,
   LibrarySeriesResponse,
   LibraryShelvesResponse,
+  LibraryVoiceCastResponse,
+  LibraryVoiceOption,
+  LibraryVoiceRole,
 };
+
+/** "12:05" for a position in the audio drama. */
+export function formatClock(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
 
 /** The product name of the pre-produced library. */
 export const ORIGINALS_NAME = "Talea Originals";

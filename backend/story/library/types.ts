@@ -60,6 +60,25 @@ export interface SeriesBible {
   imageStyleEn: string;
   /** Rules for later avatar adventures in this world (mode 2); stored, not used yet. */
   branch?: Record<string, string>;
+  /** How the series sounds as an audio drama (voices, music). */
+  audio?: SeriesAudioDirection;
+}
+
+/** A voice in the audio drama: an ElevenLabs voice plus the acting note that colours every line. */
+export interface VoiceRole {
+  voiceId?: string;
+  /** English, 1–4 words, sent as the base audio tag ("grumpy, gravelly, vain"). */
+  persona?: string;
+  /** The figure never talks (a cat, a talking truck that only honks): only sounds. */
+  silent?: boolean;
+}
+
+export interface SeriesAudioDirection {
+  narrator: VoiceRole;
+  /** Default voices by character id; the admin's cast in the database wins over these. */
+  cast: Record<string, VoiceRole>;
+  /** English: instruments and feel of the series' own music (theme, bridges, scene cues). */
+  scoreStyleEn: string;
 }
 
 export interface SeriesInfo {
@@ -156,6 +175,104 @@ export interface EpisodeSeed extends EpisodeContent {
   season: number;
   episode: number;
   publishAt: string;
+}
+
+/* ── Audio drama (Hörspiel) ─────────────────────────────────────────────── */
+
+/** Music cues of a series score. Generated once per series and reused by every episode. */
+export const SCORE_MOODS = ["theme", "bridge", "mischief", "adventure", "mystery", "heart", "spooky", "finale"] as const;
+export type ScoreMood = (typeof SCORE_MOODS)[number];
+/** Moods a scene may ask for (theme and bridge are placed by the timeline itself). */
+export const SCENE_MOODS: ScoreMood[] = ["mischief", "adventure", "mystery", "heart", "spooky", "finale"];
+
+/** A sound the screenplay asks for on one line. */
+export interface ScriptSound {
+  /** English sound-generation prompt: source, material, room. */
+  sound: string;
+  /** Word of the line the sound lands on; missing = the start of the line. */
+  at?: string;
+  /** Seconds, 0.5–6. */
+  seconds?: number;
+}
+
+export interface ScriptLine {
+  /** Speaker key (ERZAEHLER, ELLA, HUGO …). */
+  speaker: string;
+  /** Spoken text with Eleven v4 audio tags. */
+  text: string;
+  sounds?: ScriptSound[];
+}
+
+export interface ScriptScene {
+  /** First line of the scene within its part (0-based). */
+  startLine: number;
+  /** German, for the admin: where and when. */
+  place: string;
+  /** English ambience prompt, empty = no bed. */
+  ambience?: string;
+  /** "low" | "normal" | "high" — how present the place sounds. */
+  ambienceLevel?: "low" | "normal" | "high";
+  music?: ScoreMood | null;
+}
+
+/** One rendered block: the opening, a chapter, the closing. */
+export interface ScriptPart {
+  kind: "opening" | "chapter" | "closing";
+  chapterIndex?: number;
+  title: string;
+  lines: ScriptLine[];
+  scenes: ScriptScene[];
+}
+
+export interface ScriptSpeaker {
+  key: string;
+  name: string;
+  /** Series character id, guest id or "narrator"; extras of the episode have none. */
+  characterId?: string;
+  voiceId: string;
+  voiceName?: string;
+  persona: string;
+  source: "admin" | "series" | "auto" | "episode";
+}
+
+/** The audio screenplay (Drehbuch) an episode is recorded from. */
+export interface AudioScript {
+  version: 1;
+  speakers: ScriptSpeaker[];
+  parts: ScriptPart[];
+  /** Notes of the adaptation (dropped tags, unknown speakers …), for the admin. */
+  notes: string[];
+}
+
+export interface EpisodeAudio {
+  status: "generating" | "ready" | "failed";
+  step?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  error?: string;
+  /** Children hear it only when released (and when they may read the episode). */
+  released: boolean;
+  /** Release on its own as soon as the render is done (chosen at approval). */
+  autoRelease?: boolean;
+  /** Stored bucket URL of the mastered MP3. */
+  url?: string;
+  durationSeconds?: number;
+  /** Start of each chapter in the master, in seconds. */
+  chapterStarts?: number[];
+  /** Fingerprint of the episode text the drama was made from (text edited later = stale). */
+  textHash?: string;
+  script?: AudioScript;
+  stats?: {
+    llmCostUSD?: number;
+    voiceCharacters?: number;
+    sounds?: number;
+    soundAssets?: number;
+    music?: string;
+    seconds?: number;
+    /** Takes recorded and how many had to be recorded again after the listening check. */
+    takes?: number;
+    retakes?: number;
+  };
 }
 
 /** Scores of the independent reader, 0–10 per dimension (concept: minimum 9 everywhere). */

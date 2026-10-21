@@ -9,7 +9,8 @@
 
 import { storyDB } from "../db";
 import { SEED_EPISODES, SEED_SEASONS, SEED_SERIES, episodeId, seedHash } from "./seed";
-import type { ContentStatus, EpisodeContent, EpisodeScores, SeriesBible, SeriesCharacter, SeriesInfo } from "./types";
+import type { AudioScript, ContentStatus, EpisodeAudio, EpisodeContent, EpisodeScores, SeriesBible, SeriesCharacter, SeriesInfo } from "./types";
+import type { VoiceOverride } from "./audio/casting";
 
 export interface GenerationInfo {
   source?: "seed" | "pipeline" | "manual";
@@ -50,6 +51,8 @@ export interface EpisodeRecord {
   scores: EpisodeScores | null;
   generation: GenerationInfo;
   publishAt: Date | null;
+  /** The audio drama without its screenplay (getEpisodeAudioScript loads that). */
+  audio: EpisodeAudio | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -80,6 +83,7 @@ type EpisodeRow = {
   scores: unknown;
   generation: unknown;
   publish_at: Date | null;
+  audio: unknown;
   created_at: Date;
   updated_at: Date;
 };
@@ -116,6 +120,7 @@ function toEpisode(row: EpisodeRow): EpisodeRecord {
     scores: jsonValue<EpisodeScores | null>(row.scores, null),
     generation: jsonValue<GenerationInfo>(row.generation, {}),
     publishAt: row.publish_at ? new Date(row.publish_at) : null,
+    audio: jsonValue<EpisodeAudio | null>(row.audio, null),
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   };
@@ -151,6 +156,10 @@ async function ensureSchema(): Promise<void> {
   await storyDB.exec`CREATE INDEX IF NOT EXISTS idx_library_episodes_visible ON library_episodes(status, publish_at)`;
   await storyDB.exec`CREATE TABLE IF NOT EXISTS library_progress (profile_id TEXT NOT NULL, episode_id TEXT NOT NULL REFERENCES library_episodes(id) ON DELETE CASCADE, user_id TEXT NOT NULL, chapter_index INTEGER NOT NULL DEFAULT 0, started_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, finished_at TIMESTAMPTZ, updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (profile_id, episode_id))`;
   await storyDB.exec`CREATE INDEX IF NOT EXISTS idx_library_progress_user ON library_progress(user_id)`;
+  // Audio dramas (migration 46): the state in `audio`, the screenplay apart — lists never load it.
+  await storyDB.exec`ALTER TABLE library_episodes ADD COLUMN IF NOT EXISTS audio JSONB`;
+  await storyDB.exec`ALTER TABLE library_episodes ADD COLUMN IF NOT EXISTS audio_script JSONB`;
+  await storyDB.exec`CREATE TABLE IF NOT EXISTS library_voice_cast (series_id TEXT NOT NULL REFERENCES library_series(id) ON DELETE CASCADE, speaker_id TEXT NOT NULL, voice_id TEXT, persona TEXT, source TEXT NOT NULL DEFAULT 'admin', updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (series_id, speaker_id))`;
 }
 
 async function syncSeed(): Promise<void> {
@@ -267,18 +276,25 @@ export async function saveCharacter(seriesId: string, character: SeriesCharacter
 
 export async function listEpisodes(seriesId: string): Promise<EpisodeRecord[]> {
   const rows = await storyDB.queryAll<EpisodeRow>`
-    SELECT * FROM library_episodes WHERE series_id = ${seriesId} ORDER BY season, episode
+    SELECT id, series_id, season, episode, title, logline, plan, idea, status, content, bible_version, scores, generation, publish_at, audio, created_at, updated_at
+    FROM library_episodes WHERE series_id = ${seriesId} ORDER BY season, episode
   `;
   return rows.map(toEpisode);
 }
 
 export async function listAllEpisodes(): Promise<EpisodeRecord[]> {
-  const rows = await storyDB.queryAll<EpisodeRow>`SELECT * FROM library_episodes ORDER BY series_id, season, episode`;
+  const rows = await storyDB.queryAll<EpisodeRow>`
+    SELECT id, series_id, season, episode, title, logline, plan, idea, status, content, bible_version, scores, generation, publish_at, audio, created_at, updated_at
+    FROM library_episodes ORDER BY series_id, season, episode
+  `;
   return rows.map(toEpisode);
 }
 
 export async function getEpisode(id: string): Promise<EpisodeRecord | null> {
-  const row = await storyDB.queryRow<EpisodeRow>`SELECT * FROM library_episodes WHERE id = ${id}`;
+  const row = await storyDB.queryRow<EpisodeRow>`
+    SELECT id, series_id, season, episode, title, logline, plan, idea, status, content, bible_version, scores, generation, publish_at, audio, created_at, updated_at
+    FROM library_episodes WHERE id = ${id}
+  `;
   return row ? toEpisode(row) : null;
 }
 
@@ -323,6 +339,43 @@ export async function saveEpisodeState(
         updated_at = CURRENT_TIMESTAMP
     WHERE id = ${id}
   `;
+}
+
+/* ── Audio dramas ───────────────────────────────────────────────────────── */
+
+/** Saves the audio state; `script` replaces the stored screenplay, `null` removes it, undefined keeps it. */
+export async function saveEpisodeAudio(id: string, audio: EpisodeAudio | null, script?: AudioScript | null): Promise<void> {
+  if (script === undefined) {
+    await storyDB.exec`UPDATE library_episodes SET audio = (${json(audio)}::jsonb #>> '{}')::jsonb WHERE id = ${id}`;
+    return;
+  }
+  await storyDB.exec`
+    UPDATE library_episodes SET audio = (${json(audio)}::jsonb #>> '{}')::jsonb, audio_script = (${json(script)}::jsonb #>> '{}')::jsonb WHERE id = ${id}
+  `;
+}
+
+export async function getEpisodeAudioScript(id: string): Promise<AudioScript | null> {
+  const row = await storyDB.queryRow<{ audio_script: unknown }>`SELECT audio_script FROM library_episodes WHERE id = ${id}`;
+  return jsonValue<AudioScript | null>(row?.audio_script, null);
+}
+
+export async function listVoiceCast(seriesId: string): Promise<VoiceOverride[]> {
+  const rows = await storyDB.queryAll<{ speaker_id: string; voice_id: string | null; persona: string | null; source: string }>`
+    SELECT speaker_id, voice_id, persona, source FROM library_voice_cast WHERE series_id = ${seriesId}
+  `;
+  return rows.map((row) => ({ speakerId: row.speaker_id, voiceId: row.voice_id, persona: row.persona, source: row.source === "auto" ? "auto" : "admin" }));
+}
+
+export async function saveVoiceCast(seriesId: string, row: VoiceOverride): Promise<void> {
+  await storyDB.exec`
+    INSERT INTO library_voice_cast (series_id, speaker_id, voice_id, persona, source)
+    VALUES (${seriesId}, ${row.speakerId}, ${row.voiceId ?? null}, ${row.persona ?? null}, ${row.source})
+    ON CONFLICT (series_id, speaker_id) DO UPDATE SET voice_id = EXCLUDED.voice_id, persona = EXCLUDED.persona, source = EXCLUDED.source, updated_at = CURRENT_TIMESTAMP
+  `;
+}
+
+export async function deleteVoiceCast(seriesId: string, speakerId: string): Promise<void> {
+  await storyDB.exec`DELETE FROM library_voice_cast WHERE series_id = ${seriesId} AND speaker_id = ${speakerId}`;
 }
 
 /* ── Progress & collection ──────────────────────────────────────────────── */

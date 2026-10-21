@@ -227,6 +227,51 @@
       "canonCast": "Ella, Mats und Bruno sind dabei; Kaiser und Grimmbach optional.",
       "branchState": "Brunos Spitzname für den Avatar, die Flunker-Karten des Avatars.",
       "spoilerLimit": "Brunello-Herkunft nur, wenn Folge 9 gelesen ist."
+    },
+    "audio": {
+      "narrator": {
+        "voiceId": "8tJgFGd1nr7H5KLTvjjt",
+        "persona": "warm, playful storyteller"
+      },
+      "cast": {
+        "ella": {
+          "voiceId": "xLCJR8xcZX2YjImGFyGw",
+          "persona": "calm, precise, a bit grown-up"
+        },
+        "mats": {
+          "voiceId": "TmOgotzOZDmhlttFp4Lu",
+          "persona": "excited, fast, loud"
+        },
+        "bruno": {
+          "voiceId": "pfvZahoGcT3NdpxRuNkg",
+          "persona": "grumpy, gruff, vain"
+        },
+        "kater-kaiser": {
+          "silent": true,
+          "persona": "bell jingle, purring, offended meow"
+        },
+        "frau-grimmbach": {
+          "voiceId": "VNHNa6nN6yJdVF3YRyuF",
+          "persona": "strict, curt, suspicious"
+        },
+        "oma-rosi": {
+          "voiceId": "p2Wol3C7j3rHbfOrbL18",
+          "persona": "hearty, cheerful, laughing"
+        },
+        "fischhut-mann": {
+          "voiceId": "R3XXDwKMU2YHwBcuYUH3",
+          "persona": "quiet, mysterious"
+        },
+        "mama-brandt": {
+          "voiceId": "cqPdIo76zSHFDcSZpFov",
+          "persona": "warm, a bit out of breath"
+        },
+        "papa-brandt": {
+          "voiceId": "HNYELfQMgCeL9N0RGyxo",
+          "persona": "relaxed, cosy"
+        }
+      },
+      "scoreStyleEn": "playful chamber orchestra for a family comedy: pizzicato strings, clarinet, bassoon, glockenspiel, a hint of vintage magic-show swing with muted trumpet and brushed snare; warm, cheeky, bubbly like an aquarium"
     }
   }
 }

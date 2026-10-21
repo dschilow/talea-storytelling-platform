@@ -49,3 +49,33 @@
   justify-content: center;
   gap: 0.75rem;
 }
+
+/* Read or listen: both ways into the episode sit side by side under the title. */
+.og-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.og-hero-actions .rd-primary-btn,
+.og-hero-actions .og-audio-btn {
+  margin-top: 1.75rem;
+}
+
+.og-audio-btn {
+  min-height: 2.75rem;
+  background: var(--rd-surface, rgba(255, 255, 255, 0.6));
+  backdrop-filter: blur(6px);
+}
+
+.og-audio-draft {
+  margin-left: 0.25rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--rd-line);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--rd-muted);
+}

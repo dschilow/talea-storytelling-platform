@@ -971,6 +971,12 @@ export async function synthesizeDialogueWithTimestamps(options: {
   script: string;
   speakerVoiceMap: Record<string, string>;
   modelId?: string;
+  /** Smaller requests than the model allows (ElevenLabs advises ≤ 2,000 characters for reliable dialogue). */
+  maxCharsPerRequest?: number;
+  /** ISO 639-1; enforces the language and its text normalization (numbers, abbreviations). */
+  languageCode?: string;
+  /** Another seed = another take of the same text. */
+  seed?: number;
 }): Promise<SynthesizeDialogueTimedResult> {
   const apiKey = getElevenLabsApiKey();
   if (!options.speakerVoiceMap || Object.keys(options.speakerVoiceMap).length === 0) {
@@ -995,7 +1001,7 @@ export async function synthesizeDialogueWithTimestamps(options: {
   const renderBatch = async (batch: TimedDialogueInput[], modelId: string): Promise<TimedDialogueSegment> => {
     let response: Response;
     try {
-      response = await fetch(
+      response = await fetchWithBusyRetry(
         `${ELEVENLABS_API_BASE}/text-to-dialogue/with-timestamps?output_format=mp3_44100_128`,
         {
           method: "POST",
@@ -1007,8 +1013,11 @@ export async function synthesizeDialogueWithTimestamps(options: {
           body: JSON.stringify({
             model_id: modelId,
             inputs: batch.map(({ text, voice_id }) => ({ text, voice_id })),
+            ...(options.languageCode ? { language_code: options.languageCode } : {}),
+            ...(options.seed !== undefined ? { seed: options.seed } : {}),
           }),
         },
+        "timed dialogue",
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1096,7 +1105,8 @@ export async function synthesizeDialogueWithTimestamps(options: {
   };
 
   const segments = await withModelFallback(options.modelId?.trim() || DEFAULT_MODEL_ID, (modelId) => {
-    const batches = chunkDialogueInputsForElevenLabs(inputs, getTargetChunkLength(modelId));
+    const limit = options.maxCharsPerRequest ? Math.min(options.maxCharsPerRequest, getTargetChunkLength(modelId)) : getTargetChunkLength(modelId);
+    const batches = chunkDialogueInputsForElevenLabs(inputs, limit);
     log.info(
       `[ElevenLabs] Timed dialogue: ${turns.length} turn(s) in ${batches.length} request(s), model ${modelId}.`,
     );
@@ -1278,7 +1288,7 @@ export async function synthesizeSoundEffect(
 
   let response: Response;
   try {
-    response = await fetch(`${ELEVENLABS_API_BASE}/sound-generation`, {
+    response = await fetchWithBusyRetry(`${ELEVENLABS_API_BASE}/sound-generation`, {
       method: "POST",
       headers: {
         "xi-api-key": apiKey,
@@ -1286,7 +1296,7 @@ export async function synthesizeSoundEffect(
         Accept: isPcm ? "application/octet-stream" : "audio/mpeg",
       },
       body: JSON.stringify(body),
-    });
+    }, "sound generation");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     log.error(`[ElevenLabs] sound-effect request failed before response: ${message}`);
@@ -1309,6 +1319,106 @@ export async function synthesizeSoundEffect(
     .split(";")[0]
     .trim();
   return { audio: bytes, mimeType, durationSeconds };
+}
+
+// ============================================================
+// Speech to text (ElevenLabs Scribe) — listens to a take to find dropped or invented lines
+// ============================================================
+
+const SCRIBE_MODELS = ["scribe_v2", "scribe_v1"];
+
+/** Transcribes an MP3. No auth — the caller gates access. */
+export async function transcribeSpeech(options: { audio: Buffer; languageCode?: string }): Promise<{ text: string; words: Array<{ text: string; start: number; end: number }> }> {
+  const apiKey = getElevenLabsApiKey();
+  let lastError: unknown;
+  for (const modelId of SCRIBE_MODELS) {
+    const form = new FormData();
+    form.append("model_id", modelId);
+    if (options.languageCode) form.append("language_code", options.languageCode);
+    form.append("tag_audio_events", "false");
+    form.append("file", new Blob([new Uint8Array(options.audio)], { type: "audio/mpeg" }), "take.mp3");
+    const response = await fetchWithBusyRetry(`${ELEVENLABS_API_BASE}/speech-to-text`, { method: "POST", headers: { "xi-api-key": apiKey }, body: form, signal: AbortSignal.timeout(120_000) }, `speech-to-text ${modelId}`);
+    if (response.ok) {
+      const payload = (await response.json()) as { text?: string; words?: Array<{ text?: string; type?: string; start?: number | null; end?: number | null }> };
+      return {
+        text: payload.text ?? "",
+        words: (payload.words ?? [])
+          .filter((word) => word.type === "word" && word.text)
+          .map((word) => ({ text: word.text!, start: Number(word.start) || 0, end: Number(word.end) || 0 })),
+      };
+    }
+    const errText = await response.text();
+    lastError = new ElevenLabsHttpError(`ElevenLabs speech-to-text ${response.status}: ${extractElevenLabsErrorMessage(errText)}`, response.status);
+    if (!((response.status === 400 || response.status === 404 || response.status === 422) && /model/i.test(errText))) break;
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+// ============================================================
+// Music (ElevenLabs Music API) — used for the series scores of the audio dramas
+// ============================================================
+
+const MUSIC_MODELS = ["music_v2_5", "music_v1"];
+
+/** An ElevenLabs refusal with its HTTP status, so callers can tell "busy" from "not on this plan". */
+export class ElevenLabsHttpError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * The account allows only a few requests at once (Creator: 2). A 429 means "busy",
+ * not "refused": wait a little and ask again.
+ */
+async function fetchWithBusyRetry(url: string, init: RequestInit, label: string, attempts = 5): Promise<Response> {
+  for (let attempt = 1; ; attempt += 1) {
+    const response = await fetch(url, init);
+    if (response.status !== 429 || attempt >= attempts) return response;
+    const wait = 2500 * attempt + Math.round(Math.random() * 1500);
+    log.info(`[ElevenLabs] ${label}: busy (429), retrying in ${Math.round(wait / 1000)} s`);
+    await response.text().catch(() => undefined);
+    await sleep(wait);
+  }
+}
+
+/**
+ * Composes an instrumental piece. Tries the newest music model first and falls back
+ * to music_v1 when the account or endpoint refuses it. No auth — the caller gates access.
+ */
+export async function composeMusic(options: { prompt: string; lengthSeconds: number }): Promise<Buffer> {
+  const apiKey = getElevenLabsApiKey();
+  const lengthMs = Math.round(Math.max(3, Math.min(600, options.lengthSeconds)) * 1000);
+  let lastError: unknown;
+  for (const modelId of MUSIC_MODELS) {
+    let response: Response;
+    try {
+      response = await fetchWithBusyRetry(`${ELEVENLABS_API_BASE}/music?output_format=mp3_44100_192`, {
+        method: "POST",
+        headers: { "xi-api-key": apiKey, "Content-Type": "application/json", Accept: "audio/mpeg" },
+        body: JSON.stringify({ prompt: options.prompt, music_length_ms: lengthMs, model_id: modelId, force_instrumental: true }),
+        signal: AbortSignal.timeout(300_000),
+      }, `music ${modelId}`);
+    } catch (error) {
+      lastError = error;
+      log.warn(`[ElevenLabs] music request (${modelId}) failed before response: ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
+    if (response.ok) {
+      const bytes = Buffer.from(await response.arrayBuffer());
+      if (bytes.length) return bytes;
+      lastError = new Error("ElevenLabs returned an empty music response.");
+      continue;
+    }
+    const errText = await response.text();
+    log.warn(`[ElevenLabs] music generation (${modelId}) failed (${response.status}): ${errText.slice(0, 400)}`);
+    lastError = new ElevenLabsHttpError(`ElevenLabs music ${response.status}: ${extractElevenLabsErrorMessage(errText)}`, response.status);
+    // Only a refused model is worth another model; a missing plan feature or quota is not.
+    if (!((response.status === 400 || response.status === 404 || response.status === 422) && /model/i.test(errText))) break;
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 export const generateElevenLabsSoundEffect = api<

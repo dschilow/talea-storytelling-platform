@@ -7,6 +7,7 @@ import "./generate";
 import "./book-api";
 import "./generate-from-fairytale";
 import "./library-api";
+import "./library-audio-api";
 import "./character-pool-api";
 import "./character-bible";
 import "./character-showcase";

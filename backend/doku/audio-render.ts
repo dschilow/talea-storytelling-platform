@@ -86,6 +86,10 @@ const OUTRO_CANDIDATES = [
   "AudioDoku/talea-end.mp3",
 ];
 
+/** The Talea jingles (intro ~25 s, end ~4 s) as local files, or null when the build has none. */
+export const resolveTaleaBumper = (kind: "intro" | "outro"): Promise<string | null> =>
+  resolveStaticAsset(kind === "intro" ? INTRO_CANDIDATES : OUTRO_CANDIDATES);
+
 interface RenderScene {
   index: number;
   startLine: number;
@@ -452,229 +456,22 @@ export async function renderAudioDokuMasterBuffer(req: AudioDokuMasterRequest): 
       // Keep cues inside the timeline.
       cues = cues.filter((c) => c.start < dialogueDurationSec + 0.5);
 
-      // --- 3) Generate cue assets (dedupe + cap) -----------------------------
-      const inputArgs: string[] = [];
-      for (const filePath of voiceFiles) inputArgs.push("-i", filePath);
-      let nextInputIndex = voiceFiles.length;
-
-      // Plan first (dedupe + cap), then generate the unique assets in parallel — these
-      // sound-generation calls used to run one after another and dominated render time.
-      type AssetJob = { prompt: string; genDur: number; isLoop: boolean; type: CueType };
-      const assetJobs = new Map<string, AssetJob>();
-      const planned: Array<{ cue: SoundCue; cacheKey: string; isLoop: boolean; atrimWindow: number }> = [];
-
-      for (const cue of cues) {
-        const isLoop = cue.behavior === "loop";
-        const genDur = isLoop
-          ? clamp(Math.min(cue.duration, 18), 6, 24)
-          : clamp(cue.duration, 0.5, 6);
-        const atrimWindow = isLoop
-          ? clamp(cue.duration, 0.5, dialogueDurationSec - cue.start + 2)
-          : genDur;
-
-        const prompt = cue.type === "music" ? moodToMusicPrompt(cue.mood || "calm") : cue.prompt || "";
-        if (!prompt.trim()) continue;
-
-        const cacheKey = `${cue.type}|${cue.mood || prompt}|${Math.round(genDur)}|${isLoop}`;
-        if (!assetJobs.has(cacheKey)) {
-          if (assetJobs.size >= MAX_GENERATED_ASSETS) continue;
-          assetJobs.set(cacheKey, { prompt, genDur, isLoop, type: cue.type });
-        }
-        planned.push({ cue, cacheKey, isLoop, atrimWindow });
-      }
-
-      const jobEntries = [...assetJobs.entries()];
-      const assetFiles: Array<string | null> = new Array(jobEntries.length).fill(null);
-      let nextJob = 0;
-      await Promise.all(
-        Array.from({ length: Math.min(ASSET_CONCURRENCY, jobEntries.length) }, async () => {
-          while (nextJob < jobEntries.length) {
-            const j = nextJob++;
-            const job = jobEntries[j][1];
-            try {
-              const sound = await synthesizeSoundEffect({
-                prompt: job.prompt,
-                durationSeconds: job.genDur,
-                mode: job.isLoop ? "loop" : "oneshot",
-                promptInfluence: job.type === "sfx" ? 0.7 : 0.55,
-              });
-              const filePath = path.join(tmpDir, `cue-${j}.mp3`);
-              await fs.writeFile(filePath, sound.audio);
-              assetFiles[j] = filePath;
-            } catch (err) {
-              log.warn(
-                `[AudioDokuMaster] cue asset (${job.type}) failed, skipping: ${
-                  err instanceof Error ? err.message : String(err)
-                }`,
-              );
-            }
-          }
-        }),
-      );
-
-      const assetCache = new Map<string, number>(); // cacheKey -> input index
-      jobEntries.forEach(([cacheKey], j) => {
-        const filePath = assetFiles[j];
-        if (!filePath) return;
-        inputArgs.push("-i", filePath);
-        assetCache.set(cacheKey, nextInputIndex++);
-      });
-      const generatedAssets = assetCache.size;
-
-      const placed: PlacedCue[] = [];
-      for (const { cue, cacheKey, isLoop, atrimWindow } of planned) {
-        const inputIndex = assetCache.get(cacheKey);
-        if (inputIndex !== undefined) placed.push({ cue, inputIndex, isLoop, atrimWindow });
-      }
-
-      // --- 4) Build the multi-bus ffmpeg graph -------------------------------
-      const filters: string[] = [];
-
-      // Voice source: sample-accurate concat of the turn segments in the decoded domain.
-      if (voiceFiles.length === 1) {
-        filters.push(`[0:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo[vsrc]`);
-      } else {
-        const segLabels: string[] = [];
-        for (let i = 0; i < voiceFiles.length; i += 1) {
-          filters.push(
-            `[${i}:a]aresample=${SAMPLE_RATE},aformat=sample_fmts=fltp:channel_layouts=mono[seg${i}]`,
-          );
-          segLabels.push(`[seg${i}]`);
-        }
-        filters.push(
-          `${segLabels.join("")}concat=n=${voiceFiles.length}:v=0:a=1,aformat=channel_layouts=stereo[vsrc]`,
-        );
-      }
-
-      const busCues: Record<"music" | "ambience" | "sfx", string[]> = {
-        music: [],
-        ambience: [],
-        sfx: [],
-      };
-
-      placed.forEach((p, k) => {
-        const { cue, inputIndex, isLoop, atrimWindow } = p;
-        const startMs = Math.max(0, Math.round(cue.start * 1000));
-        const win = Math.max(0.3, atrimWindow);
-        const fin = clamp(cue.fadeIn, 0, win / 2);
-        const fout = clamp(cue.fadeOut, 0, win / 2);
-        const gain = dbToLinear(cue.gainDb).toFixed(4);
-        const label = `[cue${k}]`;
-
-        const chain = [`[${inputIndex}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo`];
-        if (isLoop) chain.push(`aloop=loop=-1:size=${AMBIENT_LOOP_BUFFER_SAMPLES}`);
-        chain.push(`atrim=0:${win.toFixed(3)}`);
-        if (fin > 0.01) chain.push(`afade=t=in:st=0:d=${fin.toFixed(3)}`);
-        if (fout > 0.01) chain.push(`afade=t=out:st=${(win - fout).toFixed(3)}:d=${fout.toFixed(3)}`);
-        chain.push(`volume=${gain}`);
-        if (Math.abs(cue.pan) > 0.05) {
-          const lGain = cue.pan > 0 ? (1 - cue.pan).toFixed(3) : "1";
-          const rGain = cue.pan < 0 ? (1 + cue.pan).toFixed(3) : "1";
-          chain.push(`pan=stereo|c0=${lGain}*c0|c1=${rGain}*c1`);
-        }
-        chain.push(`adelay=${startMs}|${startMs}`);
-        filters.push(`${chain.join(",")}${label}`);
-        busCues[busOf(cue.type)].push(label);
-      });
-
-      const activeBuses = (Object.keys(busCues) as Array<"music" | "ambience" | "sfx">).filter(
-        (b) => busCues[b].length > 0,
-      );
-
-      // Split the voice into one main copy + one sidechain key per active bus.
-      let voiceMain = "[vsrc]";
-      if (activeBuses.length > 0) {
-        const keyLabels = activeBuses.map((b) => `[vk_${b}]`).join("");
-        filters.push(`[vsrc]asplit=${activeBuses.length + 1}[vmain]${keyLabels}`);
-        voiceMain = "[vmain]";
-      }
-
-      const mixInputs: string[] = [voiceMain];
-      for (const bus of activeBuses) {
-        const labels = busCues[bus];
-        let busRaw: string;
-        if (labels.length === 1) {
-          busRaw = labels[0];
-        } else {
-          busRaw = `[${bus}raw]`;
-          filters.push(`${labels.join("")}amix=inputs=${labels.length}:normalize=0${busRaw}`);
-        }
-        const busOut = `[${bus}bus]`;
-        filters.push(`${busRaw}[vk_${bus}]sidechaincompress=${BUS_DUCK[bus]}${busOut}`);
-        mixInputs.push(busOut);
-      }
-
-      let bodyLabel = voiceMain;
-      if (mixInputs.length > 1) {
-        filters.push(`${mixInputs.join("")}amix=inputs=${mixInputs.length}:normalize=0[body]`);
-        bodyLabel = "[body]";
-      }
-
-      // --- 5) Branding crossfade + master tail -------------------------------
+      // --- 3-5) Assets, multi-bus mix, branding, master ---------------------
       let introPath: string | null = null;
       let outroPath: string | null = null;
       if (includeBranding) {
         introPath = await resolveStaticAsset(INTRO_CANDIDATES);
         outroPath = await resolveStaticAsset(OUTRO_CANDIDATES);
       }
-
-      let progLabel = bodyLabel;
-      if (introPath) {
-        const introIndex = nextInputIndex++;
-        inputArgs.push("-i", introPath);
-        filters.push(
-          `[${introIndex}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo[intro]`,
-        );
-        filters.push(`[intro]${progLabel}acrossfade=d=0.8:c1=tri:c2=tri[pintro]`);
-        progLabel = "[pintro]";
-      }
-      if (outroPath) {
-        const outroIndex = nextInputIndex++;
-        inputArgs.push("-i", outroPath);
-        filters.push(
-          `[${outroIndex}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo[outro]`,
-        );
-        filters.push(`${progLabel}[outro]acrossfade=d=1.0:c1=tri:c2=tri[pouter]`);
-        progLabel = "[pouter]";
-      }
-
-      filters.push(
-        `${progLabel}loudnorm=I=${LOUDNORM_I}:TP=${LOUDNORM_TP}:LRA=${LOUDNORM_LRA},alimiter=limit=0.97[out]`,
-      );
-
-      const outputPath = path.join(tmpDir, "master.mp3");
-      const args = [
-        "-y",
-        ...inputArgs,
-        "-filter_complex",
-        filters.join(";"),
-        "-map",
-        "[out]",
-        "-c:a",
-        "libmp3lame",
-        "-b:a",
-        MP3_BITRATE,
-        "-ar",
-        String(SAMPLE_RATE),
-        outputPath,
-      ];
-
-      log.info(
-        `[AudioDokuMaster] mode=${mode} voice=${dialogueDurationSec.toFixed(1)}s segments=${voiceFiles.length} wordTiming=${hasWordTiming} cues=${cues.length} assets=${generatedAssets} buses=${activeBuses.join("+") || "none"} branding=${Boolean(introPath)}/${Boolean(outroPath)}`,
-      );
-      try {
-        await runFfmpeg(args);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        // Surface the real ffmpeg failure in the logs AND to the (admin-only) client —
-        // a bare "request failed" is undebuggable in production.
-        log.error(`[AudioDokuMaster] ffmpeg master render failed: ${message}`);
-        log.error(`[AudioDokuMaster] filtergraph was: ${filters.join(";")}`);
-        throw APIError.internal(`Studio-Master fehlgeschlagen (ffmpeg): ${message.slice(0, 500)}`);
-      }
-
-      const masterBuffer = await fs.readFile(outputPath);
-      if (!masterBuffer.length) throw APIError.internal("ffmpeg produced an empty master file.");
+      const { audio: masterBuffer, generatedAssets } = await mixStudioMaster({
+        tmpDir,
+        voice: voiceFiles.map((filePath) => ({ path: filePath })),
+        timelineSec: dialogueDurationSec,
+        cues,
+        introPath,
+        outroPath,
+        logTag: `AudioDokuMaster mode=${mode}`,
+      });
 
       const cueCounts: Record<CueType, number> = {
         music: cues.filter((c) => c.type === "music").length,
@@ -696,4 +493,252 @@ export async function renderAudioDokuMasterBuffer(req: AudioDokuMasterRequest): 
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
     }
+}
+
+// ---------------------------------------------------------------------------
+// Studio mix: shared by the audio-doku master and the Originals audio dramas
+// ---------------------------------------------------------------------------
+
+/** One piece of the voice track: a rendered file or a stretch of silence (music bridges, lead-in). */
+export type VoicePiece = { path: string } | { silence: number };
+
+export interface StudioMixRequest {
+  tmpDir: string;
+  /** Played back to back; the cue timeline starts with the first piece. */
+  voice: VoicePiece[];
+  /** Length of the voice track in seconds, silences included. */
+  timelineSec: number;
+  cues: SoundCue[];
+  /** Bumper crossfaded in front of / after the program (null = none). */
+  introPath?: string | null;
+  outroPath?: string | null;
+  maxGeneratedAssets?: number;
+  bitrate?: string;
+  logTag?: string;
+}
+
+export interface StudioMixResult {
+  audio: Buffer;
+  /** Sound assets generated for this mix (prepared files not counted). */
+  generatedAssets: number;
+  /** Cues that ended up in the mix. */
+  placedCues: number;
+}
+
+/**
+ * Generates the cue assets (deduplicated, capped), places every cue on the voice
+ * timeline, ducks three buses under the voice (music deep, ambience medium, sfx
+ * light), crossfades the bumpers, EBU R128-normalizes, limits and encodes once.
+ * Cues with `assetPath` use that file instead of a generated sound.
+ */
+export async function mixStudioMaster(req: StudioMixRequest): Promise<StudioMixResult> {
+  const { tmpDir, timelineSec } = req;
+  const maxAssets = req.maxGeneratedAssets ?? MAX_GENERATED_ASSETS;
+  const tag = req.logTag || "StudioMix";
+  const voicePieces = req.voice.filter((piece) => ("path" in piece ? true : piece.silence > 0.01));
+  if (voicePieces.length === 0) throw APIError.invalidArgument("voice track is empty");
+
+  const inputArgs: string[] = [];
+  const voiceLabels: string[] = [];
+  const filters: string[] = [];
+  let nextInputIndex = 0;
+  voicePieces.forEach((piece, i) => {
+    if ("path" in piece) {
+      inputArgs.push("-i", piece.path);
+      filters.push(`[${nextInputIndex}:a]aresample=${SAMPLE_RATE},aformat=sample_fmts=fltp:channel_layouts=mono[seg${i}]`);
+      nextInputIndex += 1;
+    } else {
+      filters.push(`aevalsrc=0:d=${piece.silence.toFixed(3)}:s=${SAMPLE_RATE},aformat=sample_fmts=fltp:channel_layouts=mono[seg${i}]`);
+    }
+    voiceLabels.push(`[seg${i}]`);
+  });
+  // Voice source: sample-accurate concat of the pieces in the decoded domain.
+  filters.push(
+    voiceLabels.length === 1
+      ? `${voiceLabels[0]}aformat=channel_layouts=stereo[vsrc]`
+      : `${voiceLabels.join("")}concat=n=${voiceLabels.length}:v=0:a=1,aformat=channel_layouts=stereo[vsrc]`,
+  );
+
+  // Plan first (dedupe + cap), then generate the unique assets in parallel.
+  type AssetJob = { prompt: string; genDur: number; isLoop: boolean; type: CueType; path?: string };
+  const assetJobs = new Map<string, AssetJob>();
+  const planned: Array<{ cue: SoundCue; cacheKey: string; isLoop: boolean; atrimWindow: number }> = [];
+  let generatedJobs = 0;
+
+  for (const cue of req.cues) {
+    if (cue.start >= timelineSec) continue;
+    const isLoop = cue.behavior === "loop";
+    const room = Math.max(0.3, timelineSec - cue.start);
+    if (cue.assetPath) {
+      const cacheKey = `file|${cue.assetPath}`;
+      if (!assetJobs.has(cacheKey)) assetJobs.set(cacheKey, { prompt: "", genDur: 0, isLoop, type: cue.type, path: cue.assetPath });
+      planned.push({ cue, cacheKey, isLoop, atrimWindow: clamp(cue.duration, 0.3, room) });
+      continue;
+    }
+    const genDur = isLoop ? clamp(Math.min(cue.duration, 18), 6, 24) : clamp(cue.duration, 0.5, 6);
+    const atrimWindow = isLoop ? clamp(cue.duration, 0.5, room + 2) : Math.min(genDur, room + 2);
+    const prompt = cue.type === "music" ? moodToMusicPrompt(cue.mood || "calm") : cue.prompt || "";
+    if (!prompt.trim()) continue;
+    const cacheKey = `${cue.type}|${cue.mood || prompt}|${Math.round(genDur)}|${isLoop}`;
+    if (!assetJobs.has(cacheKey)) {
+      if (generatedJobs >= maxAssets) continue;
+      assetJobs.set(cacheKey, { prompt, genDur, isLoop, type: cue.type });
+      generatedJobs += 1;
+    }
+    planned.push({ cue, cacheKey, isLoop, atrimWindow });
+  }
+
+  const jobEntries = [...assetJobs.entries()];
+  const assetFiles: Array<string | null> = jobEntries.map(([, job]) => job.path ?? null);
+  const toGenerate = jobEntries.map((_, j) => j).filter((j) => !jobEntries[j][1].path);
+  let nextJob = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(ASSET_CONCURRENCY, toGenerate.length) }, async () => {
+      while (nextJob < toGenerate.length) {
+        const j = toGenerate[nextJob++];
+        const job = jobEntries[j][1];
+        try {
+          const sound = await synthesizeSoundEffect({
+            prompt: job.prompt,
+            durationSeconds: job.genDur,
+            mode: job.isLoop ? "loop" : "oneshot",
+            promptInfluence: job.type === "sfx" ? 0.7 : 0.55,
+          });
+          const filePath = path.join(tmpDir, `cue-${j}.mp3`);
+          await fs.writeFile(filePath, sound.audio);
+          assetFiles[j] = filePath;
+        } catch (err) {
+          log.warn(`[${tag}] cue asset (${job.type}) failed, skipping: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+    }),
+  );
+
+  const assetCache = new Map<string, number>(); // cacheKey -> input index
+  jobEntries.forEach(([cacheKey], j) => {
+    const filePath = assetFiles[j];
+    if (!filePath) return;
+    inputArgs.push("-i", filePath);
+    assetCache.set(cacheKey, nextInputIndex++);
+  });
+  const generatedAssets = toGenerate.filter((j) => assetFiles[j]).length;
+
+  const placed: PlacedCue[] = [];
+  for (const { cue, cacheKey, isLoop, atrimWindow } of planned) {
+    const inputIndex = assetCache.get(cacheKey);
+    if (inputIndex !== undefined) placed.push({ cue, inputIndex, isLoop, atrimWindow });
+  }
+
+  const busCues: Record<"music" | "ambience" | "sfx", string[]> = { music: [], ambience: [], sfx: [] };
+  placed.forEach((p, k) => {
+    const { cue, inputIndex, isLoop, atrimWindow } = p;
+    const startMs = Math.max(0, Math.round(cue.start * 1000));
+    const win = Math.max(0.3, atrimWindow);
+    const fin = clamp(cue.fadeIn, 0, win / 2);
+    const fout = clamp(cue.fadeOut, 0, win / 2);
+    const gain = dbToLinear(cue.gainDb).toFixed(4);
+    const label = `[cue${k}]`;
+
+    const chain = [`[${inputIndex}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo`];
+    if (isLoop) chain.push(`aloop=loop=-1:size=${AMBIENT_LOOP_BUFFER_SAMPLES}`);
+    chain.push(`atrim=0:${win.toFixed(3)}`);
+    if (fin > 0.01) chain.push(`afade=t=in:st=0:d=${fin.toFixed(3)}`);
+    if (fout > 0.01) chain.push(`afade=t=out:st=${(win - fout).toFixed(3)}:d=${fout.toFixed(3)}`);
+    chain.push(`volume=${gain}`);
+    if (Math.abs(cue.pan) > 0.05) {
+      const lGain = cue.pan > 0 ? (1 - cue.pan).toFixed(3) : "1";
+      const rGain = cue.pan < 0 ? (1 + cue.pan).toFixed(3) : "1";
+      chain.push(`pan=stereo|c0=${lGain}*c0|c1=${rGain}*c1`);
+    }
+    chain.push(`adelay=${startMs}|${startMs}`);
+    filters.push(`${chain.join(",")}${label}`);
+    busCues[busOf(cue.type)].push(label);
+  });
+
+  const activeBuses = (Object.keys(busCues) as Array<"music" | "ambience" | "sfx">).filter((b) => busCues[b].length > 0);
+
+  // Split the voice into one main copy + one sidechain key per active bus.
+  let voiceMain = "[vsrc]";
+  if (activeBuses.length > 0) {
+    const keyLabels = activeBuses.map((b) => `[vk_${b}]`).join("");
+    filters.push(`[vsrc]asplit=${activeBuses.length + 1}[vmain]${keyLabels}`);
+    voiceMain = "[vmain]";
+  }
+
+  const mixInputs: string[] = [voiceMain];
+  for (const bus of activeBuses) {
+    const labels = busCues[bus];
+    let busRaw: string;
+    if (labels.length === 1) {
+      busRaw = labels[0];
+    } else {
+      busRaw = `[${bus}raw]`;
+      filters.push(`${labels.join("")}amix=inputs=${labels.length}:normalize=0${busRaw}`);
+    }
+    const busOut = `[${bus}bus]`;
+    filters.push(`${busRaw}[vk_${bus}]sidechaincompress=${BUS_DUCK[bus]}${busOut}`);
+    mixInputs.push(busOut);
+  }
+
+  let progLabel = voiceMain;
+  if (mixInputs.length > 1) {
+    filters.push(`${mixInputs.join("")}amix=inputs=${mixInputs.length}:normalize=0[body]`);
+    progLabel = "[body]";
+  }
+
+  if (req.introPath) {
+    const introIndex = nextInputIndex++;
+    inputArgs.push("-i", req.introPath);
+    filters.push(`[${introIndex}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo[intro]`);
+    filters.push(`[intro]${progLabel}acrossfade=d=0.8:c1=tri:c2=tri[pintro]`);
+    progLabel = "[pintro]";
+  }
+  if (req.outroPath) {
+    const outroIndex = nextInputIndex++;
+    inputArgs.push("-i", req.outroPath);
+    filters.push(`[${outroIndex}:a]aresample=${SAMPLE_RATE},aformat=channel_layouts=stereo[outro]`);
+    filters.push(`${progLabel}[outro]acrossfade=d=1.0:c1=tri:c2=tri[pouter]`);
+    progLabel = "[pouter]";
+  }
+
+  filters.push(`${progLabel}loudnorm=I=${LOUDNORM_I}:TP=${LOUDNORM_TP}:LRA=${LOUDNORM_LRA},alimiter=limit=0.97[out]`);
+
+  // A long drama's graph outgrows a Windows command line (32k): then it travels as a file
+  // (-filter_complex_script works from ffmpeg 5 to 8; production runs Debian's 5.1).
+  const graph = filters.join(";");
+  const graphArgs = graph.length > 24_000 ? ["-filter_complex_script", path.join(tmpDir, "graph.txt")] : ["-filter_complex", graph];
+  if (graphArgs[0] === "-filter_complex_script") await fs.writeFile(graphArgs[1], graph);
+  const outputPath = path.join(tmpDir, "master.mp3");
+  const args = [
+    "-y",
+    ...inputArgs,
+    ...graphArgs,
+    "-map",
+    "[out]",
+    "-c:a",
+    "libmp3lame",
+    "-b:a",
+    req.bitrate || MP3_BITRATE,
+    "-ar",
+    String(SAMPLE_RATE),
+    outputPath,
+  ];
+
+  log.info(
+    `[${tag}] voice=${timelineSec.toFixed(1)}s pieces=${voicePieces.length} cues=${req.cues.length} placed=${placed.length} generated=${generatedAssets} buses=${activeBuses.join("+") || "none"} bumpers=${Boolean(req.introPath)}/${Boolean(req.outroPath)}`,
+  );
+  try {
+    await runFfmpeg(args);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // Surface the real ffmpeg failure in the logs AND to the (admin-only) client —
+    // a bare "request failed" is undebuggable in production.
+    log.error(`[${tag}] ffmpeg master render failed: ${message}`);
+    log.error(`[${tag}] filtergraph was: ${graph}`);
+    throw APIError.internal(`Studio-Master fehlgeschlagen (ffmpeg): ${message.slice(0, 500)}`);
+  }
+
+  const audio = await fs.readFile(outputPath);
+  if (!audio.length) throw APIError.internal("ffmpeg produced an empty master file.");
+  return { audio, generatedAssets, placedCues: placed.length };
 }

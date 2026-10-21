@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Clock3, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock3, Headphones, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { taleaDisplayFont } from "@/components/talea/TaleaPastelPrimitives";
 import { episodeLabel, formatRelease, type LibraryEpisodeCard } from "../libraryShared";
@@ -127,6 +127,11 @@ export const EpisodeTile: React.FC<{
         ) : upcoming ? (
           <span className="absolute inset-x-2.5 bottom-2.5 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-3 py-1.5 text-[12px] font-semibold text-white">
             <Clock3 className="h-3.5 w-3.5" aria-hidden="true" /> {formatRelease(card.publishAt)}
+          </span>
+        ) : null}
+        {card.hasAudio && !card.locked && !upcoming ? (
+          <span className="absolute bottom-3 right-2.5 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
+            <Headphones className="h-3.5 w-3.5" aria-hidden="true" /> Hörspiel
           </span>
         ) : null}
         {progressPct > 0 ? (

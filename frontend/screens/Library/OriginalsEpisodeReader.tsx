@@ -1,18 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowLeft, ChevronDown, Clock, Play } from "lucide-react";
+import { ArrowLeft, ChevronDown, Clock, Headphones, Pause, Play } from "lucide-react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useBackend } from "@/hooks/useBackend";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import type { Chapter } from "@/types/story";
 import { ReaderChapter } from "../Story/reader/ReaderChapter";
 import { ImageLightbox } from "../Story/reader/ImageLightbox";
 import { ReaderHeader, ReaderHeroBackdrop, ReaderProgress, ReaderSectionNav, useReaderScroll } from "../Story/reader/ReaderChrome";
 import { clearChapterPosition, readSavedChapter, saveChapterPosition, useTextScale } from "../Story/reader/useReaderStorage";
 import { CollectibleCard } from "./components/CollectibleCard";
-import { episodeLabel, episodeReaderPath, errorMessage, formatRelease, seriesPath, type LibraryCollectible, type LibraryEpisodeResponse } from "./libraryShared";
+import { episodeLabel, episodeReaderPath, errorMessage, formatClock, formatRelease, seriesPath, type LibraryCollectible, type LibraryEpisodeResponse } from "./libraryShared";
 import "../Story/reader/StoryReader.css";
 import "./OriginalsReader.css";
 
@@ -148,10 +149,13 @@ const EpisodeView: React.FC<{ episode: LibraryEpisodeResponse; isDark: boolean; 
             </p>
             <h1 className="rd-hero-title">{episode.title}</h1>
             {episode.summary ? <p className="rd-hero-summary">{episode.summary}</p> : null}
-            <motion.button type="button" whileTap={{ scale: 0.97 }} className="rd-primary-btn" onClick={() => scrollToItem(savedChapter ?? 0)}>
-              {savedChapter !== null ? `Weiterlesen · Kapitel ${savedChapter + 1}` : "Folge lesen"}
-              <ChevronDown className="h-4 w-4" aria-hidden="true" />
-            </motion.button>
+            <div className="og-hero-actions">
+              <motion.button type="button" whileTap={{ scale: 0.97 }} className="rd-primary-btn" onClick={() => scrollToItem(savedChapter ?? 0)}>
+                {savedChapter !== null ? `Weiterlesen · Kapitel ${savedChapter + 1}` : "Folge lesen"}
+                <ChevronDown className="h-4 w-4" aria-hidden="true" />
+              </motion.button>
+              {episode.audio ? <AudioDramaButton episode={episode} fromChapter={reading ? activeIndex : savedChapter} /> : null}
+            </div>
           </motion.div>
         </section>
 
@@ -204,6 +208,43 @@ const EpisodeView: React.FC<{ episode: LibraryEpisodeResponse; isDark: boolean; 
       <ImageLightbox src={lightbox?.src ?? null} alt={lightbox?.alt ?? ""} onClose={() => setLightbox(null)} />
       <RewardDialog collectible={reward} onClose={() => setReward(null)} />
     </div>
+  );
+};
+
+/**
+ * Plays the episode's audio drama in the app-wide player — from the start, or
+ * from the chapter the child is reading. Admins also hear unreleased dramas.
+ */
+const AudioDramaButton: React.FC<{ episode: LibraryEpisodeResponse; fromChapter: number | null }> = ({ episode, fromChapter }) => {
+  const { track, isPlaying, playTrack, togglePlay } = useAudioPlayer();
+  const audio = episode.audio!;
+  const trackId = `originals-audio:${episode.id}`;
+  const current = track?.id === trackId;
+  const chapterStart = fromChapter !== null && fromChapter > 0 ? audio.chapterStarts[fromChapter] : undefined;
+  const minutes = Math.max(1, Math.round(audio.durationSeconds / 60));
+
+  const play = () => {
+    if (current) {
+      togglePlay();
+      return;
+    }
+    playTrack({
+      id: trackId,
+      title: episode.title,
+      description: `${episode.seriesTitle} · ${episodeLabel(episode)} · Hörspiel`,
+      coverImageUrl: episode.coverImageUrl,
+      audioUrl: audio.url,
+      ...(chapterStart ? { startAt: Math.max(0, chapterStart - 1) } : {}),
+    });
+  };
+
+  const label = current && isPlaying ? "Hörspiel pausieren" : current ? "Hörspiel weiterhören" : chapterStart ? `Ab Kapitel ${fromChapter! + 1} anhören` : `Als Hörspiel anhören · ${minutes} Min.`;
+  return (
+    <motion.button type="button" whileTap={{ scale: 0.97 }} className="rd-secondary-btn og-audio-btn" onClick={play} aria-label={label} title={chapterStart ? `Startet bei ${formatClock(chapterStart)}` : undefined}>
+      {current && isPlaying ? <Pause className="h-4 w-4" aria-hidden="true" /> : <Headphones className="h-4 w-4" aria-hidden="true" />}
+      {label}
+      {!audio.released ? <span className="og-audio-draft">nur Admin</span> : null}
+    </motion.button>
   );
 };
 

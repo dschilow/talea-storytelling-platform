@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { BookOpen, Brush, CalendarClock, ChevronDown, FileText, Loader2, PenLine, Plus, Rocket, Undo2, Wand2 } from "lucide-react";
+import { BookOpen, Brush, CalendarClock, ChevronDown, FileText, Headphones, Loader2, PenLine, Plus, Rocket, Undo2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { useBackend } from "@/hooks/useBackend";
 import { cn } from "@/lib/utils";
 import { taleaDisplayFont, taleaInputClass, taleaInsetSurfaceClass, taleaSurfaceClass } from "@/components/talea/TaleaPastelPrimitives";
 import { CharacterManager } from "./CharacterManager";
+import { EpisodeAudioPanel } from "./EpisodeAudioPanel";
+import { VoiceCastManager } from "./VoiceCastManager";
 import {
   episodeLabel,
   episodeReaderPath,
@@ -57,6 +59,7 @@ const OriginalsStudioPanel: React.FC<{ slug: string; onChanged: () => void }> = 
   const [error, setError] = useState<string | null>(null);
   const [newEpisode, setNewEpisode] = useState<{ title: string; idea: string } | null>(null);
   const wasGenerating = useRef(new Set<string>());
+  const wasRecording = useRef(new Set<string>());
 
   const load = useCallback(async () => {
     try {
@@ -65,6 +68,14 @@ const OriginalsStudioPanel: React.FC<{ slug: string; onChanged: () => void }> = 
       const running = new Set(next.episodes.filter((episode) => episode.state === "generating").map((episode) => episode.id));
       const finished = [...wasGenerating.current].filter((id) => !running.has(id));
       wasGenerating.current = running;
+      const recording = new Set(next.episodes.filter((episode) => episode.audio.status === "generating").map((episode) => episode.id));
+      const recorded = [...wasRecording.current].filter((id) => !recording.has(id));
+      wasRecording.current = recording;
+      for (const id of recorded) {
+        const episode = next.episodes.find((entry) => entry.id === id);
+        if (episode?.audio.status === "ready") toast.success(`Hörspiel „${episode.title}“ ist fertig${episode.audio.released ? " und freigegeben" : " — bitte anhören und freigeben"}.`);
+        if (episode?.audio.status === "failed") toast.error(`Hörspiel „${episode?.title}“: ${episode?.audio.error || "fehlgeschlagen"}`);
+      }
       setData(next);
       setError(null);
       if (finished.length) {
@@ -84,7 +95,7 @@ const OriginalsStudioPanel: React.FC<{ slug: string; onChanged: () => void }> = 
     void load();
   }, [load]);
 
-  const generating = data?.episodes.some((episode) => episode.state === "generating");
+  const generating = data?.episodes.some((episode) => episode.state === "generating" || episode.audio.status === "generating");
   useEffect(() => {
     if (!generating) return;
     const timer = window.setInterval(() => void load(), POLL_MS);
@@ -147,6 +158,8 @@ const OriginalsStudioPanel: React.FC<{ slug: string; onChanged: () => void }> = 
 
       <CharacterManager slug={slug} characters={data.characters} onChanged={() => { void load(); onChanged(); }} />
 
+      <VoiceCastManager slug={slug} />
+
       <details className={cn(taleaInsetSurfaceClass, "p-5")}>
         <summary className="cursor-pointer text-[15px] font-semibold text-[var(--talea-text-primary)]">Serien-Bibel v{data.bibleVersion} (Kanon, Formel, Regeln)</summary>
         <div className="mt-4 grid gap-5 text-[14px] leading-relaxed text-[var(--talea-text-primary)] md:grid-cols-2">
@@ -183,6 +196,9 @@ const EpisodeProduction: React.FC<{ episode: LibraryAdminEpisode; onChanged: () 
   const [idea, setIdea] = useState(episode.idea || "");
   const [busy, setBusy] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  // At release the editor decides about the audio drama too.
+  const [withAudio, setWithAudio] = useState(true);
+  const [releaseAudio, setReleaseAudio] = useState(true);
 
   useEffect(() => setIdea(episode.idea || ""), [episode.idea]);
 
@@ -217,6 +233,12 @@ const EpisodeProduction: React.FC<{ episode: LibraryAdminEpisode; onChanged: () 
               {episode.state === "scheduled" && episode.publishAt ? `Erscheint ${formatRelease(episode.publishAt)}` : STATE_LABELS[episode.state]}
             </span>
             {episode.generation.costUSD ? <span className="normal-case tracking-normal">${episode.generation.costUSD.toFixed(3)}</span> : null}
+            {episode.audio.status !== "none" ? (
+              <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] normal-case tracking-normal", episode.audio.released ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200" : "bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)]")}>
+                {episode.audio.status === "generating" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Headphones className="h-3 w-3" />}
+                {episode.audio.status === "generating" ? "Hörspiel entsteht" : episode.audio.status === "failed" ? "Hörspiel fehlgeschlagen" : episode.audio.released ? "Hörspiel live" : "Hörspiel bereit"}
+              </span>
+            ) : null}
           </span>
           <span className="truncate text-[16px] font-semibold text-[var(--talea-text-primary)]">{episode.title}</span>
           {episode.state === "generating" ? <span className="text-[13px] text-amber-700 dark:text-amber-300">{stepLabel(episode.generation.step)}</span> : null}
@@ -289,6 +311,24 @@ const EpisodeProduction: React.FC<{ episode: LibraryAdminEpisode; onChanged: () 
             <p className="text-[13px] text-amber-700 dark:text-amber-300">Bilder fehlen: {episode.generation.issues.join(" · ")}</p>
           ) : null}
 
+          {episode.hasContent ? <EpisodeAudioPanel episode={episode} onChanged={onChanged} /> : null}
+
+          {episode.state === "in_review" ? (
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-[var(--talea-text-secondary)]">
+              <span className="font-semibold text-[var(--talea-text-primary)]">Beim Freigeben:</span>
+              <label className="inline-flex items-center gap-2">
+                <input type="checkbox" checked={withAudio} onChange={(event) => setWithAudio(event.target.checked)} className="h-4 w-4 accent-[var(--primary)]" />
+                {episode.audio.status === "ready" && !episode.audio.outdated ? "Hörspiel mit veröffentlichen" : "Hörspiel dazu erzeugen"}
+              </label>
+              {withAudio && !(episode.audio.status === "ready" && !episode.audio.outdated) ? (
+                <label className="inline-flex items-center gap-2">
+                  <input type="checkbox" checked={releaseAudio} onChange={(event) => setReleaseAudio(event.target.checked)} className="h-4 w-4 accent-[var(--primary)]" />
+                  Hörspiel automatisch freigeben, sobald es fertig ist
+                </label>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap gap-2">
             {canWrite ? (
               <ActionButton
@@ -311,10 +351,10 @@ const EpisodeProduction: React.FC<{ episode: LibraryAdminEpisode; onChanged: () 
             ) : null}
             {episode.state === "in_review" ? (
               <>
-                <ActionButton icon={<CalendarClock className="h-4 w-4" />} primary busy={busy === "approve"} onClick={() => void run("approve", () => backend.story.libraryAdminApproveEpisode({ id: episode.id }), "Freigegeben für den nächsten Release-Termin.")}>
+                <ActionButton icon={<CalendarClock className="h-4 w-4" />} primary busy={busy === "approve"} onClick={() => void run("approve", () => backend.story.libraryAdminApproveEpisode({ id: episode.id, withAudio, releaseAudio: withAudio && (releaseAudio || (episode.audio.status === "ready" && !episode.audio.outdated)) }), withAudio ? "Freigegeben für den nächsten Release-Termin — mit Hörspiel." : "Freigegeben für den nächsten Release-Termin.")}>
                   Freigeben (nächster Freitag)
                 </ActionButton>
-                <ActionButton icon={<Rocket className="h-4 w-4" />} busy={busy === "now"} onClick={() => void run("now", () => backend.story.libraryAdminApproveEpisode({ id: episode.id, now: true }), "Sofort veröffentlicht.")}>
+                <ActionButton icon={<Rocket className="h-4 w-4" />} busy={busy === "now"} onClick={() => void run("now", () => backend.story.libraryAdminApproveEpisode({ id: episode.id, now: true, withAudio, releaseAudio: withAudio && (releaseAudio || (episode.audio.status === "ready" && !episode.audio.outdated)) }), withAudio ? (episode.audio.status === "ready" && !episode.audio.outdated ? "Sofort veröffentlicht — mit Hörspiel." : "Sofort veröffentlicht — das Hörspiel folgt in ein paar Minuten.") : "Sofort veröffentlicht.")}>
                   Sofort veröffentlichen
                 </ActionButton>
               </>

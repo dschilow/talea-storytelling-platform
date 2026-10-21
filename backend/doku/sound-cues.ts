@@ -50,6 +50,8 @@ export interface SoundCue {
   mood?: MusicMood;
   /** The spoken word a spot effect should land on (used to snap to exact time). */
   anchor?: string;
+  /** A prepared local audio file (e.g. a series score cue): used as is, nothing is generated. */
+  assetPath?: string;
 }
 
 export interface GenerateSoundCuesInput {

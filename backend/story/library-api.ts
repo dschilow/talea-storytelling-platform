@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { ensureAdmin } from "../admin/authz";
 import { resolveRequestedProfileId } from "../helpers/profiles";
 import { resolvePlanForUser } from "../helpers/billing";
-import { maybeUploadImageUrlToBucket, resolveImageUrlForClient } from "../helpers/bucket-storage";
+import { maybeUploadImageUrlToBucket, resolveImageUrlForClient, resolveObjectUrlForClient } from "../helpers/bucket-storage";
 import { CostLedger, withServiceTier } from "./storybook/llm";
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
 import { LIBRARY_MODELS, generateEpisodeText, type CanonEntry, type EpisodeBrief } from "./library/engine";
@@ -35,6 +35,7 @@ import {
   listProgress,
   listSeries,
   saveCharacter,
+  saveEpisodeAudio,
   saveEpisodeState,
   saveProgress,
   createEpisode,
@@ -45,7 +46,8 @@ import {
   type ProgressRecord,
   type SeriesRecord,
 } from "./library/store";
-import type { CharacterRole, Collectible, EpisodeContent, SeriesCharacter } from "./library/types";
+import type { CharacterRole, Collectible, EpisodeAudio, EpisodeContent, SeriesCharacter } from "./library/types";
+import { AUDIO_STEP_LABELS, audioIsGenerating, audioIsReleased, episodeTextHash, startEpisodeAudio } from "./library/audio/production";
 
 const runwareApiKey = secret("RunwareApiKey");
 
@@ -98,6 +100,9 @@ export interface LibraryEpisodeCard {
   available: boolean;
   progress: "new" | "started" | "finished";
   chapterIndex: number;
+  /** There is a released audio drama (Hörspiel) of this episode. */
+  hasAudio: boolean;
+  audioMinutes?: number;
   /** Admins only: where the episode stands in production. */
   state?: EpisodeState;
 }
@@ -157,6 +162,40 @@ export interface LibraryEpisodeResponse {
   nextEpisode?: { id: string; title: string; available: boolean; publishAt?: string };
   previousEpisodeId?: string;
   state?: EpisodeState;
+  /** The audio drama: for children once released, for admins as soon as it exists. */
+  audio?: LibraryEpisodeAudio;
+}
+
+export interface LibraryEpisodeAudio {
+  url: string;
+  durationSeconds: number;
+  /** Start of every chapter in the recording, in seconds. */
+  chapterStarts: number[];
+  released: boolean;
+}
+
+export interface LibraryAdminAudio {
+  status: "none" | "generating" | "ready" | "failed";
+  step?: string;
+  stepLabel?: string;
+  released: boolean;
+  /** Released on its own when the running render is done. */
+  autoRelease: boolean;
+  /** The text changed after the recording. */
+  outdated: boolean;
+  url?: string;
+  durationSeconds?: number;
+  startedAt?: string;
+  finishedAt?: string;
+  error?: string;
+  llmCostUSD?: number;
+  voiceCharacters?: number;
+  sounds?: number;
+  music?: string;
+  renderSeconds?: number;
+  /** Takes recorded / recorded again after the listening check. */
+  takes?: number;
+  retakes?: number;
 }
 
 export interface LibraryProgressResponse {
@@ -195,6 +234,7 @@ export interface LibraryAdminEpisode extends LibraryEpisodeCard {
     issues?: string[];
   };
   scores?: { dimensions: Record<string, number>; mustFix: string[]; notes: string[]; passed: boolean };
+  audio: LibraryAdminAudio;
 }
 
 export interface LibraryAdminSeriesResponse {
@@ -328,7 +368,40 @@ async function episodeCard(episode: EpisodeRecord, visibleIndex: number, context
     available: (visible && !locked) || (context.isAdmin && Boolean(episode.content)),
     progress: progress?.finishedAt ? "finished" : progress ? "started" : "new",
     chapterIndex: progress?.chapterIndex ?? 0,
+    hasAudio: audioIsReleased(episode.audio),
+    ...(audioIsReleased(episode.audio) && episode.audio?.durationSeconds ? { audioMinutes: Math.max(1, Math.round(episode.audio.durationSeconds / 60)) } : {}),
     ...(context.isAdmin ? { state: stateOf(episode) } : {}),
+  };
+}
+
+async function audioView(audio: EpisodeAudio | null, isAdmin: boolean): Promise<LibraryEpisodeAudio | null> {
+  if (!audio?.url || (!audio.released && !isAdmin)) return null;
+  const url = (await resolveObjectUrlForClient(audio.url)) || audio.url;
+  return { url, durationSeconds: audio.durationSeconds ?? 0, chapterStarts: audio.chapterStarts ?? [], released: audio.released };
+}
+
+export async function adminAudioView(episode: EpisodeRecord): Promise<LibraryAdminAudio> {
+  const audio = episode.audio;
+  if (!audio) return { status: "none", released: false, autoRelease: false, outdated: false };
+  const generating = audioIsGenerating(audio);
+  const status: LibraryAdminAudio["status"] = generating ? "generating" : audio.status === "generating" ? "failed" : audio.status;
+  return {
+    status,
+    ...(audio.step ? { step: audio.step, stepLabel: AUDIO_STEP_LABELS[audio.step] ?? audio.step } : {}),
+    released: Boolean(audio.url && audio.released),
+    autoRelease: Boolean(generating && audio.autoRelease),
+    outdated: Boolean(audio.url && audio.textHash && episode.content && audio.textHash !== episodeTextHash(episode.content)),
+    ...(audio.url ? { url: (await resolveObjectUrlForClient(audio.url)) || audio.url, durationSeconds: audio.durationSeconds } : {}),
+    startedAt: audio.startedAt,
+    finishedAt: audio.finishedAt,
+    error: status === "failed" ? audio.error || "Das Hörspiel wurde unterbrochen (z. B. durch ein Deployment). Bitte neu starten." : undefined,
+    llmCostUSD: audio.stats?.llmCostUSD,
+    voiceCharacters: audio.stats?.voiceCharacters,
+    sounds: audio.stats?.sounds,
+    music: audio.stats?.music,
+    renderSeconds: audio.stats?.seconds,
+    takes: audio.stats?.takes,
+    retakes: audio.stats?.retakes,
   };
 }
 
@@ -482,6 +555,7 @@ export const libraryEpisode = api<{ id: string; profileId?: Query<string> }, Lib
     const characters = await listCharacters(series.info.id, true);
     const content = episode.content;
     const inPictures = new Set([content.cover, ...content.chapters.map((chapter) => chapter.image)].flatMap((slot) => slot?.characterIds || []));
+    const audio = await audioView(episode.audio, isAdmin);
     const cast = characters.filter((character) => inPictures.has(character.id) && character.allowedInBranches);
 
     return {
@@ -508,6 +582,7 @@ export const libraryEpisode = api<{ id: string; profileId?: Query<string> }, Lib
       ...(next ? { nextEpisode: { id: next.id, title: next.content?.title || next.title, available: isAdmin ? Boolean(next.content) : isVisible(next), publishAt: next.publishAt?.toISOString() } } : {}),
       ...(previous ? { previousEpisodeId: previous.id } : {}),
       ...(isAdmin ? { state: stateOf(episode) } : {}),
+      ...(audio ? { audio } : {}),
     };
   }
 );
@@ -554,7 +629,7 @@ export const libraryCollection = api<{ profileId?: Query<string> }, LibraryColle
 
 /* ── Admin: series, cast, plan ─────────────────────────────────────────── */
 
-async function adminEpisodeView(episode: EpisodeRecord, index: number): Promise<LibraryAdminEpisode> {
+export async function adminEpisodeView(episode: EpisodeRecord, index: number): Promise<LibraryAdminEpisode> {
   const card = await episodeCard(episode, index, { progress: new Map(), locked: () => false, isAdmin: true });
   const state = stateOf(episode);
   const generation = episode.generation;
@@ -576,6 +651,7 @@ async function adminEpisodeView(episode: EpisodeRecord, index: number): Promise<
       issues: generation.issues,
     },
     ...(episode.scores ? { scores: episode.scores } : {}),
+    audio: await adminAudioView(episode),
   };
 }
 
@@ -941,11 +1017,14 @@ export const libraryAdminGenerateEpisode = api<{ id: string; idea?: string; asse
     if (!episode) throw APIError.notFound("Folge nicht gefunden");
     if (stateOf(episode) === "generating") throw APIError.failedPrecondition("Diese Folge wird gerade geschrieben.");
     if (stateOf(episode) === "published") throw APIError.failedPrecondition("Veröffentlichte Folgen sind Kanon. Erst zurückziehen, dann neu schreiben.");
+    if (audioIsGenerating(episode.audio)) throw APIError.failedPrecondition("Für diese Folge entsteht gerade das Hörspiel. Bitte warten, bis es fertig ist.");
     const idea = req.idea === undefined ? episode.idea : String(req.idea).trim().slice(0, 2000) || null;
     if (req.idea !== undefined) {
       await updateEpisodePlan(episode.id, { title: episode.title, logline: episode.logline, idea, plan: episode.plan, publishAt: episode.publishAt }, episode.generation);
     }
     await saveEpisodeState(episode.id, { status: "generating", generation: { source: "pipeline", step: "queued", startedAt: new Date().toISOString(), idea: idea ?? undefined } });
+    // A new text needs a new recording: the old drama tells another story.
+    if (episode.audio) await saveEpisodeAudio(episode.id, null, null);
     // The job outlives the request: the Railway edge cuts long requests, the page polls the state instead.
     void runGeneration(episode.id, idea, req.assetOrigin);
     const index = (await listEpisodes(episode.seriesId)).findIndex((entry) => entry.id === episode.id);
@@ -977,7 +1056,7 @@ export const libraryAdminRedrawPicture = api<{ id: string; slot: string; assetOr
   }
 );
 
-export const libraryAdminApproveEpisode = api<{ id: string; publishAt?: string; now?: boolean }, LibraryAdminEpisode>(
+export const libraryAdminApproveEpisode = api<{ id: string; publishAt?: string; now?: boolean; withAudio?: boolean; releaseAudio?: boolean }, LibraryAdminEpisode>(
   { expose: true, method: "POST", path: "/library/admin/episodes/:id/approve", auth: true },
   async (req) => {
     ensureAdmin();
@@ -1001,6 +1080,20 @@ export const libraryAdminApproveEpisode = api<{ id: string; publishAt?: string; 
       publishAt = nextReleaseSlot(series.info.releaseCadence, after);
     }
     await saveEpisodeState(episode.id, { status: "approved", generation: { ...episode.generation }, publishAt });
+    if (req.withAudio) {
+      // The editor decides at release: record the drama (or take the finished one) and release it with the episode.
+      const release = req.releaseAudio !== false;
+      const audio = episode.audio;
+      if (audio?.url && audio.status === "ready" && audio.textHash === episodeTextHash(episode.content)) {
+        await saveEpisodeAudio(episode.id, { ...audio, released: release });
+      } else if (audio && audioIsGenerating(audio)) {
+        await saveEpisodeAudio(episode.id, { ...audio, autoRelease: release });
+      } else {
+        await startEpisodeAudio({ ...episode, status: "approved", publishAt }, { release }).catch((error) => {
+          throw APIError.failedPrecondition(`Freigegeben, aber das Hörspiel startete nicht: ${(error as Error).message}`);
+        });
+      }
+    }
     const index = (await listEpisodes(series.info.id)).findIndex((entry) => entry.id === episode.id);
     return adminEpisodeView((await getEpisode(episode.id))!, index);
   }

@@ -192,6 +192,39 @@
       "canonCast": "Oma Hilde, Flusi und Gertrud sind dabei; Kanon-Monster nur als Gast in der Pension.",
       "branchState": "Die vom Avatar gefangenen Monster als persönliche Steckbrief-Sammlung.",
       "spoilerLimit": "Identität des Sockenkönigs nur, wenn Folge 10 gelesen ist."
+    },
+    "audio": {
+      "narrator": {
+        "voiceId": "8tJgFGd1nr7H5KLTvjjt",
+        "persona": "warm, playful storyteller"
+      },
+      "cast": {
+        "jona": {
+          "voiceId": "aHb0rsWUX1Fsr1L8EX7f",
+          "persona": "quiet, careful, thoughtful"
+        },
+        "oma-hilde": {
+          "voiceId": "p2Wol3C7j3rHbfOrbL18",
+          "persona": "loud, hearty, raspy, bossy"
+        },
+        "flusi": {
+          "voiceId": "vTJTqNHBdjAKhdigDXCC",
+          "persona": "tiny, squeaky, giggly"
+        },
+        "gertrud": {
+          "silent": true,
+          "persona": "honks, blinking headlights, hydraulic trunk"
+        },
+        "mama-sina": {
+          "voiceId": "dCnu06FiOZma2KVNUoPZ",
+          "persona": "warm, sly, knowing"
+        },
+        "sockenkoenig": {
+          "voiceId": "re2r5d74PqDzicySNW0I",
+          "persona": "slow, deep, sad"
+        }
+      },
+      "scoreStyleEn": "spooky-fun orchestra for kids: tuba, bassoon, pizzicato strings, celesta, a theremin-like whistle, soft timpani and a friendly rock guitar riff for the garbage truck; creepy-cute, adventurous, never scary"
     }
   }
 }

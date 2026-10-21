@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowLeft, BookOpen, CheckCircle2, Clock3, Lock, Play, RefreshCw } from "lucide-react";
+import { ArrowLeft, BookOpen, CheckCircle2, Clock3, Headphones, Lock, Play, RefreshCw } from "lucide-react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useBackend } from "@/hooks/useBackend";
 import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
@@ -247,6 +247,11 @@ const EpisodeList: React.FC<{ cards: LibraryEpisodeCard[]; seasonTitle?: string;
                   ) : (
                     `${card.readingMinutes || "~10"} Min. Lesezeit`
                   )}
+                  {card.hasAudio && !card.locked && !upcoming ? (
+                    <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-[var(--talea-surface-inset)] px-2 py-0.5 text-[12px] font-semibold text-[var(--primary)]">
+                      <Headphones className="h-3.5 w-3.5" aria-hidden="true" /> Hörspiel{card.audioMinutes ? ` · ${card.audioMinutes} Min.` : ""}
+                    </span>
+                  ) : null}
                 </span>
               </span>
             </button>
