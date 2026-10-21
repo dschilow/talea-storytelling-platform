@@ -1,0 +1,222 @@
+{
+  "seriesId": "die-monster-muellabfuhr",
+  "season": 1,
+  "episode": 2,
+  "title": "Das Gähnmonster",
+  "summary": "In der Pappelallee 9 gähnt seit drei Nächten die ganze Familie, aber keiner kann einschlafen. Schuld ist ein Gähnmonster auf dem Kleiderschrank, und gegen das hilft nur ein Gute-Nacht-Lied. Dumm nur, dass Jona nie vor anderen singt.",
+  "publishAt": "2026-10-23T13:00:00.000Z",
+  "cover": {
+    "url": "/library/series/die-monster-muellabfuhr/s1e2/cover.webp",
+    "sceneEn": "Child's bedroom at night, lit by moonlight and a small lamp. On top of a tall wardrobe sits [gaehnmonster], yawning hugely, a tiny glowing moon deep inside its round mouth. Below, [oma-hilde] holds a round monster bin and yawns so wide that the lid slips from her hand; [jona] yawns behind his hand; [flusi] rolls over backwards on the rug, mid-yawn",
+    "characterIds": [
+      "gaehnmonster",
+      "oma-hilde",
+      "jona",
+      "flusi"
+    ],
+    "outfits": {
+      "jona": "orange high-visibility vest with reflective stripes over striped blue pajamas, yellow rubber boots"
+    },
+    "boxes": {
+      "gaehnmonster": [
+        40,
+        580,
+        330,
+        880
+      ],
+      "oma-hilde": [
+        150,
+        60,
+        1000,
+        360
+      ],
+      "jona": [
+        330,
+        370,
+        1000,
+        580
+      ],
+      "flusi": [
+        720,
+        620,
+        960,
+        800
+      ]
+    }
+  },
+  "guests": [
+    {
+      "id": "gaehnmonster",
+      "name": "Gähnmonster",
+      "role": "Monster dieser Folge, entstanden aus den vergessenen Gute-Nacht-Liedern einer kaputten Spieluhr",
+      "visualProfileEn": "soft night-blue monster the size of a fat sofa cushion, made of crumpled baby-blanket fabric, a crooked pale-yellow knitted nightcap, heavy half-closed sleepy eyes, short soft stubby arms, a big round mouth with a tiny glowing yellow crescent moon deep inside, tiny pale yellow stars floating around it",
+      "referenceUrl": "/library/series/die-monster-muellabfuhr/s1e2/gaehnmonster.webp"
+    }
+  ],
+  "chapters": [
+    {
+      "title": "Gähnalarm",
+      "text": "Am nächsten Samstag zählte Jona wieder: 212 Schritte vom Bahnhof bis zu Oma Hildes kleinem Haus am Betriebshof. Die letzten zwanzig rannte er.\n\nOma Hilde riss die Tür auf, bevor er klingeln konnte. Kurze graue Stachelhaare, eine lila Strähne, die schwarze Lederjacke voller bunter Flicken. „Da ist ja mein Azubi!“, rief sie.\n\nAn diesem Abend ging Jona in seiner orangefarbenen Warnweste ins Bett. Sie reichte ihm bis zu den Knien, auch über dem Schlafanzug. Die gelben Gummistiefel stellte er direkt neben das Klappsofa. „Für den Notfall“, sagte er.\n\nOma lachte und schlug auf den Tisch. Die Pfeffermühle hüpfte hoch, und Oma fing sie auf, ohne hinzusehen.\n\nUm Mitternacht knisterte das alte Funkgerät auf dem Küchenfensterbrett. Jona saß sofort aufrecht. Eine rauschende Stimme sagte: „Gähnalarm. Pappelallee 9, vierter Stock. Alle in der Wohnung gähnen seit drei Nächten.“\n\nOma stand schon in der Küchentür, die orangefarbenen Handschuhe an. Sie runzelte die Stirn und tippte auf die lange Liste am Kühlschrank. „Schon wieder ein Notruf“, murmelte sie. „Komisch. So viele Notrufe gab es noch nie.“ Dann grinste sie wieder. „Stiefel an, Süßer!“\n\nAuf dem Hof wartete Gertrud, der kleine lila Monster-Müllwagen. Ihre runden Scheinwerfer leuchteten wie freundliche Augen, und hinten klapperten drei Tonnen.\n\n„Guten Abend, Gertrud“, sagte Jona höflich. Laster sagte er lieber nicht. Er wusste noch genau, wie beleidigt Gertrud hupen konnte.\n\nGertrud blinkte zweimal. Das hieß wohl: Guten Abend, Azubi.\n\nFlusi hüpfte vorne aufs Armaturenbrett, direkt hinter die große Scheibe. Er war rund, grau und flauschig wie eine riesige Staubflocke. Flusi war ein Staubflusen-Monster, aber eins, das für Oma arbeitete. „Flusi hilft!“, sagte er.\n\nOma schob eine Kassette ein. „Für Gähner nehmen wir ‚Kein Auge zu!‘.“ Sie drehte auf. Die Gitarren heulten, das Schlagzeug donnerte, und Gertrud hupte im Takt. TRÖT-TRÖT-TRÖÖÖT.\n\nDie Pappelallee 9 war ein hohes Haus mit einem engen Treppenhaus. Oma hob eine Tonne vom Wagen und klemmte sie unter den Arm. Im zweiten Stock blieb Flusi stehen. Er zitterte. „HATSCHI!“\n\nOma riss den Deckel der Tonne auf. Jona hielt die Luft an.\n\nAber in der Ecke lag nur eine graue Staubflocke. Eine ganz normale. Flusi beugte sich zu ihr hinunter. „Cousin?“, fragte er.\n\nDie Staubflocke sagte nichts.\n\n„Falscher Alarm, Süßer“, sagte Oma. „Weiter.“\n\nIm vierten Stock öffnete ein Papa im Bademantel die Tür. Er gähnte so weit, dass ihm die Brille auf die Nasenspitze rutschte.\n\n„Sie sind die Sonderabfuhr?“, fragte er. „Uaaah. Entschuldigung. Immer wenn wir gerade einschlafen, gähnt irgendwas ganz laut. Dann müssen wir alle mitgähnen und sind wieder wach. Seit drei Nächten.“ Er zeigte über die Schulter in die Küche. „Früher hab ich meiner Tochter jeden Abend was vorgesungen. Aber seit sie sagt, sie ist zu groß dafür, hab ich keins mehr gesungen. Jetzt weiß ich nicht mal mehr, wie die gingen.“\n\n„Bin ich auch!“, gähnte es aus der Küche. „Zu groß!“\n\nJona zählte mit. Elf Gähner in einer Minute. Zwölf. Dreizehn. Der dreizehnte war sein eigener.\n\nDa zitterte Flusi wieder. Diesmal stärker. „HATSCHI!“\n\nUnd aus dem Kinderzimmer kam ein Geräusch. Lang und tief und so weich wie ein Kissen.\n\n„Uuuuaaaaaaaaah.“",
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e2/ch1.webp",
+        "afterParagraph": 13,
+        "sceneEn": "Narrow stairwell of an old apartment house at night, lit by a weak ceiling lamp. On the floor in the corner of the landing sits [flusi] in profile, nose to nose with a small shapeless tangle of grey dust and fluff lying on the floor, a plain dust clump with no face at all, as if greeting a long-lost cousin. [oma-hilde] stands further back with a round monster bin, its lid flung open, grinning; [jona] stands beside her, holds his breath and stares at Flusi. Only these three figures",
+        "characterIds": [
+          "flusi",
+          "oma-hilde",
+          "jona"
+        ],
+        "outfits": {
+          "jona": "orange high-visibility vest with reflective stripes over striped blue pajamas, yellow rubber boots"
+        },
+        "boxes": {
+          "oma-hilde": [
+            100,
+            40,
+            1000,
+            360
+          ],
+          "jona": [
+            300,
+            380,
+            1000,
+            580
+          ],
+          "flusi": [
+            700,
+            660,
+            950,
+            840
+          ]
+        }
+      }
+    },
+    {
+      "title": "Hundert Schafe",
+      "text": "Oma schickte den Papa zu seiner Tochter in die Küche. „Die Sonderabfuhr braucht Platz“, sagte sie. Dann schlich sie mit Jona ins Kinderzimmer, Flusi zwischen ihnen.\n\nDie Schranktür stand einen Spalt offen. Etwas quoll heraus. Es war so groß wie ein dickes Sofakissen, nachtblau und weich wie eine zerknautschte Babydecke. Auf dem Kopf saß eine schiefe Zipfelmütze. Es hatte schwere, halb geschlossene Augen, und um es herum schwebten winzige blassgelbe Sterne.\n\nDann riss es das Maul auf. Das Maul war rund wie ein Tunnel, und ganz hinten drin leuchtete ein kleiner Mond.\n\n„Uuuuaaaaah.“\n\nJona musste sofort mitgähnen. Flusi gähnte so sehr, dass er nach hinten umrollte. Und unten auf der Straße gähnte Gertrud. Jona sah es durchs offene Fenster: Ihre Motorhaube klappte auf und zu, und die Scheinwerfer blinzelten ganz langsam.\n\n„Ein Gähnmonster“, flüsterte Oma. „Süß.“ Sie klappte den Deckel der Tonne auf. „Na komm. Ab in die Tonne, Sü… UAAAH!“\n\nMitten im Wort musste Oma gähnen. Der Deckel rutschte ihr aus der Hand. Plonk. Das Gähnmonster schwebte gemütlich über das Bett und setzte sich oben auf den Schrank.\n\nDer Papa steckte den Kopf durch die Tür. „Da ist so ein komischer Schatten auf dem Schrank“, gähnte er. Mehr sah er nicht.\n\nJona dachte nach. Jedes Monster hatte genau eine Schwäche, das hatte er letzte Woche gelernt. Dieses hier war müde. Und wer müde war und nicht schlafen konnte …\n\n„Moment … ich weiß die Schwäche!“, rief er. „Es kann nicht einschlafen! Ich zähl ihm Schäfchen!“\n\nZählen konnte Jona gut. Sehr gut. Er stellte sich vor den Schrank und fing an, mit seiner ruhigsten Stimme. „Ein Schaf. Zwei Schafe. Drei Schafe …“\n\nBei siebzehn Schafen fielen Flusi die Augen zu. Bei dreißig schnarchte er. Bei fünfzig lehnte Oma am Türrahmen und blinzelte sehr langsam.\n\n„Neunundneunzig Schafe“, sagte Jona. „Hundert Schafe.“\n\nDas Gähnmonster saß auf dem Schrank und war hellwach. Es sah Jona an. Es sah enttäuscht aus.\n\nOma rieb sich die Augen. „Süßer“, sagte sie, „du hast den Falschen zum Schnarchen gebracht.“\n\nJonas Ohren wurden heiß. Er hatte falsch geraten. Vor Oma. Und vor einem schnarchenden Flusi.\n\n„Woher kommt es denn?“, fragte Oma leise. „Das ist der wichtigste Teil.“\n\nMonster entstehen aus Dingen, die zu lange vergessen wurden. Jona sah zum Schrank. Da war das Monster herausgekommen. Er knipste seine Taschenlampe an und leuchtete hinein. Ganz unten stand ein Karton, grau vom Staub. Darin lag eine alte Spieluhr. Obendrauf saß ein kleiner gelber Mond. Genau so einer wie hinten im Maul des Monsters.\n\nJona drehte vorsichtig an dem Schlüssel. Pling. Plong. Pling. Dann machte es krrk, und die Spieluhr war still. Kaputt.\n\nAber oben auf dem Schrank waren dem Gähnmonster bei den drei Tönen schon die Augen zugefallen. Beim Krrk riss es sie wieder auf und ließ traurig die Zipfelmütze hängen.\n\nJona dachte an den Papa an der Tür. Jetzt weiß ich nicht mal mehr, wie die gingen.\n\n„Moment …“, flüsterte er. „Ich weiß die Schwäche. Diesmal wirklich. Das Monster ist aus dieser Spieluhr gewachsen. Aus ihren Gute-Nacht-Liedern, die hier keiner mehr singt. Wenn ihm jemand eins vorsingt, schläft es ein.“\n\nOma grinste. „Das ist mein Azubi.“ Sie krempelte die Ärmel ihrer Lederjacke hoch. „Ein Gute-Nacht-Lied? Kommt sofort!“\n\nSie setzte ganz leise an. „Schlaf …“ Ihre Stimme wackelte. Oma räusperte sich und holte tief Luft. Sehr tief.\n\nJona bekam ein ungutes Gefühl.",
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e2/ch2.webp",
+        "afterParagraph": 13,
+        "sceneEn": "Child's bedroom at night, moonlight through the window. On top of the wardrobe [gaehnmonster] sits wide awake and looks down, disappointed. In front of the wardrobe [jona] stands in side view, faces the wardrobe and looks up at the monster, counting on his fingers with a calm, serious face. On the rug [flusi] lies on his back, snoring. [oma-hilde] leans drowsily against the door frame, eyes half closed",
+        "characterIds": [
+          "gaehnmonster",
+          "jona",
+          "flusi",
+          "oma-hilde"
+        ],
+        "outfits": {
+          "jona": "orange high-visibility vest with reflective stripes over striped blue pajamas, yellow rubber boots"
+        },
+        "boxes": {
+          "gaehnmonster": [
+            40,
+            600,
+            320,
+            880
+          ],
+          "jona": [
+            320,
+            430,
+            1000,
+            640
+          ],
+          "flusi": [
+            760,
+            180,
+            960,
+            380
+          ],
+          "oma-hilde": [
+            120,
+            0,
+            1000,
+            230
+          ]
+        }
+      }
+    },
+    {
+      "title": "Das schiefste Lied der Welt",
+      "text": "Und dann rutschte Oma in das, was sie immer sang: „KEIN AUGE ZUUU!“ Sie tat so, als hätte sie eine Gitarre im Arm, und stampfte mit dem Stiefel. Draußen hupte Gertrud im Takt. TRÖT-TRÖT-TRÖÖÖT.\n\nFlusi wachte auf. In der Küche fiel ein Löffel herunter.\n\nUnd das Gähnmonster? Es kletterte vom Schrank und tanzte. Es wackelte mit der Zipfelmütze und schwenkte seine weichen Arme. Hellwach. Und sehr glücklich.\n\n„Oma!“, rief Jona. „Das ist doch kein Gute-Nacht-Lied!“\n\nOma hörte auf und hielt sich die Hand vor den Mund. „Ach du Schreck“, sagte sie. „Das passiert mir immer. Wenn ich mich nicht traue, wird's Rock.“\n\nDer Papa wusste kein Lied mehr. Oma traute sich nicht, leise zu singen. Aber Jona kannte eins. Früher hatte Mama es ihm jeden Abend gesungen: „Weißt du, wie viel Sternlein stehen“. Er hatte immer versucht, die Sterne mitzuzählen, und war nie weit gekommen. Irgendwann hatte er gesagt, er sei zu groß für Gute-Nacht-Lieder. Seitdem hatte Mama es nicht mehr gesungen.\n\nJona wollte nicht singen. Nicht vor Oma. Nicht vor einem Monster. In der Schule bewegte er beim Singen nur die Lippen.\n\n„Ich kenn eins“, sagte er trotzdem. Ganz leise. „Aber meine Stimme ist zu dünn. Und schief.“\n\nOma hockte sich neben ihn. „Weißt du, warum ich immer so laut singe?“, flüsterte sie. „Brüllen kann jeder. Aber leise singen trau ich mich nicht. Da hab ich Angst, dass einer lacht.“ Sie drückte seine Hand. „Schief ist auch gesungen, Süßer. Probier's.“\n\nFlusi nahm Jonas andere Hand. Seine Pfote war weich wie Watte. „Flusi hilft“, flüsterte er.\n\nJona zählte bis drei. Dann sang er.\n\n„Weißt du, wie viel Sternlein stehen …“\n\nEs war dieselbe Melodie wie bei der Spieluhr. Seine Stimme war dünn. Beim „blauen Himmelszelt“ rutschte sie weg, ganz hoch und quietschig. Jona wollte aufhören. Aber das Gähnmonster hatte aufgehört zu tanzen. Es stand ganz still und hörte zu.\n\nAlso sang Jona weiter.\n\nHinter ihm in der Tür stand auf einmal der Papa im Bademantel. Er gähnte nicht mehr. Er summte mit, ganz leise. Das Monster war für ihn nur ein Schatten. Aber das Lied fiel ihm wieder ein.\n\nDie Augen des Gähnmonsters wurden schwer. Die kleinen Sterne um seinen Kopf leuchteten schwächer. Es sank auf den Teppich, rollte sich zusammen wie eine Katze und seufzte.\n\nDann schlief es.\n\nGanz vorsichtig legte Oma die Tonne auf die Seite. Dann zog sie ihre Lederjacke aus und legte sie in die Tonne, das weiche Futter nach oben. Jona sang weiter, und Oma rollte das schlafende Monster sanft hinein. Es passte genau.\n\n„Ab in die Tonne, Süße“, flüsterte Oma. Diesmal ohne Gähnen.\n\nIn der ganzen Wohnung wurde es still. Aus der Küche kam leises Schnarchen. Der Papa lehnte im Türrahmen und schnarchte mit. Seine Brille hing schon wieder auf der Nasenspitze. Jona stellte die kaputte Spieluhr auf den Nachttisch. Der Papa wusste ja jetzt wieder ein Lied.\n\nUnten auf der Straße gähnte Gertrud ein letztes Mal. Dann blinkte sie hellwach.\n\nHinter der grünen Tür auf dem Betriebshof lag die Monster-Pension. Dort bekam das Gähnmonster ein warmes Bad mit Seifenschaum, wie jedes neue Monster. Im Schaum blinzelte es und wachte auf.\n\nIn der Ecke saß der Socken-Schnüffler auf seinem Sockenberg. Er sortierte immer noch Sockenpaare und war ganz zerzaust vor Müdigkeit. Das Gähnmonster holte Luft für einen riesigen Gähner. Dann sah es den müden Socken-Schnüffler. Und gähnte ganz leise in seine eigene Zipfelmütze. Danach zog es eine Decke vom Stapel neben der Wanne, schwebte zu ihm hinüber und deckte ihn zu. Bis zur Nase. Der Socken-Schnüffler seufzte und schlief ein.\n\n„Na bitte“, sagte Oma. „Dein neuer Job, Süße: Nachtruhe-Wächter. Du gehst nachts leise herum, verteilst Decken und guckst, ob einer nicht schlafen kann. Gegähnt wird nur in die Mütze.“\n\n„Und was kriegt es dafür?“, fragte Jona.\n\nOma überlegte. „Ein Lied zum Feierabend.“\n\nJona holte den dicken Ordner und schrieb den Steckbrief Nr. 2, ganz ordentlich. Beim Fangtrick zögerte er kurz. Dann schrieb er: Jona singt.\n\nDanach schrubbten Oma und Jona noch die Tonnen und tranken Kakao, bis der Himmel über dem Betriebshof grau wurde. Draußen fing eine Amsel an zu singen. Im selben Moment gähnten alle Monster, die noch wach waren. Das Gähnmonster gähnte am breitesten, in seine Mütze natürlich. Dann schliefen sie ein.\n\nAuf dem Klappsofa dachte Jona an Mama. Zu Hause wollte er sie um das Sternlein-Lied bitten. Nur einmal. Und vielleicht noch einmal.\n\nEr zählte die Risse an der Decke. Eins. Zwei. Drei. Bis elf kam er diesmal nicht.",
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e2/ch3.webp",
+        "afterParagraph": 15,
+        "sceneEn": "Child's bedroom at night in soft moonlight. [jona] stands with his eyes closed and sings, holding [oma-hilde]'s hand on one side and [flusi]'s stubby paw on the other. [oma-hilde] kneels beside him and listens with a soft smile. In front of them [gaehnmonster] sinks sleepily onto the rug and curls up like a cat, the little stars around it fading",
+        "characterIds": [
+          "jona",
+          "oma-hilde",
+          "flusi",
+          "gaehnmonster"
+        ],
+        "outfits": {
+          "jona": "orange high-visibility vest with reflective stripes over striped blue pajamas, yellow rubber boots"
+        },
+        "boxes": {
+          "oma-hilde": [
+            250,
+            40,
+            1000,
+            330
+          ],
+          "jona": [
+            300,
+            330,
+            1000,
+            540
+          ],
+          "flusi": [
+            700,
+            540,
+            950,
+            700
+          ],
+          "gaehnmonster": [
+            620,
+            700,
+            940,
+            980
+          ]
+        }
+      }
+    }
+  ],
+  "collectible": {
+    "type": "monster_profile",
+    "title": "Monster-Steckbrief Nr. 2",
+    "imageUrl": "/library/series/die-monster-muellabfuhr/s1e2/gaehnmonster.webp",
+    "fields": [
+      {
+        "label": "Name",
+        "value": "Gähnmonster"
+      },
+      {
+        "label": "Ursprung",
+        "value": "Vergessene Gute-Nacht-Lieder einer kaputten Spieluhr"
+      },
+      {
+        "label": "Schwäche",
+        "value": "Schläft bei jedem Gute-Nacht-Lied ein, egal wie schief"
+      },
+      {
+        "label": "Fangtrick",
+        "value": "Jona singt „Weißt du, wie viel Sternlein stehen“"
+      },
+      {
+        "label": "Job in der Pension",
+        "value": "Nachtruhe-Wächter: verteilt Decken und gähnt nur in die Mütze"
+      }
+    ]
+  },
+  "teaser": "Nächste Woche: Unter einem Sofa wohnt etwas mit acht Armen. Es ist aus Brotkrümeln gemacht. Und es ist sehr, sehr kitzlig.",
+  "canonFactsAdded": [
+    "Am Kühlschrank in Omas Küche hängt eine lange Liste der Notrufe. So viele Notrufe gab es noch nie.",
+    "Jona geht bei Oma in Warnweste über dem Schlafanzug ins Bett, die Gummistiefel stehen neben dem Klappsofa.",
+    "Gertrud blinkt zweimal zur Begrüßung.",
+    "Omas Song für Gähner-Einsätze: „Kein Auge zu!“. Leise singen traut sich Oma nicht; wenn sie sich nicht traut, wird jedes Lied Rock.",
+    "Mama Sina hat Jona früher jeden Abend „Weißt du, wie viel Sternlein stehen“ vorgesungen. Jona will sie bitten, es wieder zu singen.",
+    "Flusi hält gewöhnliche Staubflocken für Verwandte („Cousin?“).",
+    "Das Gähnmonster wohnt in der Pension und arbeitet als Nachtruhe-Wächter: Es verteilt Decken, gähnt nur in seine Mütze und bekommt ein Lied zum Feierabend.",
+    "Der Socken-Schnüffler sortiert in der Pension nachts Sockenpaare, bis ihn das Gähnmonster zudeckt.",
+    "Monster-Steckbrief Nr. 2 in Omas Ordner: das Gähnmonster, Fangtrick „Jona singt“."
+  ]
+}
