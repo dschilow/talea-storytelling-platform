@@ -41,12 +41,11 @@ export function planSystemPrompt(brief: StoryBrief): string {
     bandNote(brief.band),
     "",
     METHOD_EN,
-    takenNamesLine(brief),
     "",
     FAMILY_RULE_EN,
     "",
     CHILD_SAFETY_RULES_EN,
-  ].filter((line) => line !== undefined).join("\n");
+  ].join("\n");
 }
 
 const PLAN_SHAPE = (brief: StoryBrief, chapters: number) => [
@@ -54,7 +53,7 @@ const PLAN_SHAPE = (brief: StoryBrief, chapters: number) => [
   "{",
   ` "ideas": ["three completely different pitches, one line each: child situation + wonder"],`,
   ` "chosen": 1,`,
-  ` "title": "2–6 words like a real children's book: a thing, creature, exclamation or impossible situation from THIS story; never „${brief.heroes.map((hero) => hero.name).join(" und ")} und …“, never the ending",`,
+  ` "title": "2–6 words like a real children's book: a thing, creature, exclamation or impossible situation from THIS story; it keeps what it promises (a number or creature in the title really happens); never „${brief.heroes.map((hero) => hero.name).join(" und ")} und …“, never the ending",`,
   ` "summary": "two sentences for the story card: the situation and the funny problem, never the ending",`,
   ` "focusHero": "hero id",`,
   ` "childSituation": "who is under which everyday pressure, and why it matters to them",`,
@@ -76,9 +75,14 @@ const PLAN_SHAPE = (brief: StoryBrief, chapters: number) => [
   "}",
 ];
 
-/** Today's choices: they keep Sol off its favourite child situation and its favourite stage. */
+/**
+ * Today's choices: they keep Sol off its favourite child situation and its favourite stage. With the
+ * family-dependent taken names they live in the user prompt, so the long system prompt (rules, style
+ * reference, method) stays byte-identical and the provider can serve it from its cache.
+ */
 function choiceLines(brief: StoryBrief): string[] {
   return [
+    ...(takenNamesLine(brief) ? [takenNamesLine(brief)] : []),
     `TODAY'S CHILD SITUATIONS — your three ideas use three DIFFERENT ones of these, each fitted to the heroes' nature: ${childSituationChoices(brief.seed).map((situation) => `„${situation}“`).join("; ")}.`,
     `TODAY'S PLACES — set the story in one of these, or in an equally fresh one of the genre: ${placeChoices(brief.config.genre, brief.seed).map((place) => `„${place}“`).join("; ")}. Not a festival, party, show or performance (unless the family's wish asks for one) — that stage is worn out.`,
     "The heroes' traits and hobbies colour how they act, speak and solve things; they are not the topic. A hero who loves dancing does not need a dance performance — let the trait show up somewhere unexpected.",
@@ -164,16 +168,15 @@ export function oneShotSystemPrompt(brief: StoryBrief): string {
     "",
     "Before you write, you are also the head writer: you invent the story's own small series bible with this method — silently, in your head.",
     METHOD_EN,
-    takenNamesLine(brief),
     "",
     "OUTPUT, plain text without markdown — these markers stay German, everything else is in the story language:",
     "IDEE: <the chosen idea in one line>",
     "REGEL: <the wonder's one rule, one sentence a child can repeat>",
     "FIGUR: <name> | pool | <pool id> | <companion|troublemaker|grownup|wonder>   (one line per pool figure in the story)",
-    "FIGUR: <name> | neu | <companion|troublemaker|grownup|wonder> | <human|animal|creature|thing> | <concrete English look for the illustrator>   (one line per new named figure)",
+    "FIGUR: <name> | neu | <companion|troublemaker|grownup|wonder> | <human|animal|creature|thing> | <concrete English look for the illustrator>   (one line per new named figure; never the heroes — the app knows them)",
     "FUNDSTÜCK: <artifact id, or keins>",
     ...(learningGoal(brief.config) ? ["WISSEN: <the knowledge core in one or two sentences, true in the real world, as the child should say it afterwards>"] : []),
-    `TITEL: <2–6 words like a real children's book: a thing, creature, exclamation or impossible situation from THIS story; never „${brief.heroes.map((hero) => hero.name).join(" und ")} und …“, never the ending>`,
+    `TITEL: <2–6 words like a real children's book: a thing, creature, exclamation or impossible situation from THIS story; it keeps what it promises (a number or creature in the title really happens); never „${brief.heroes.map((hero) => hero.name).join(" und ")} und …“, never the ending>`,
     "BESCHREIBUNG: <two sentences for the story card: the situation and the funny problem, never the ending>",
     "",
     "KAPITEL 1: <chapter title>",

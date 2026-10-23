@@ -17,12 +17,16 @@ Code: `backend/story/episode/` (Encore-frei, LLM als Port), Tests `backend/story
 
 ## Messung am 23.10.2026
 
-27 Geschichten, nur Text, Sol und Luna direkt über die OpenAI-API (Testskript `scripts/episode/run.ts`), zusammen 2,15 $. Alle Bewertungen hat Claude selbst gelesen, auf derselben Skala wie das Lektorat der Originals.
+32 Geschichten, nur Text, Sol und Luna direkt über die OpenAI-API, Gemini und der Flex-Test über OpenRouter (Testskript `scripts/episode/run.ts`), zusammen 2,25 $, dazu eine Prod-Story mit Bildern. Alle Bewertungen hat Claude selbst gelesen, auf derselben Skala wie das Lektorat der Originals.
 
 | | Note (0–10) | Text-Kosten | Dauer |
 | --- | --- | --- | --- |
 | Heutige Standard-Lane (Dev-Engine, Kimi K2.6), Proben vom 15.10. | ≈ 4 | ≈ 9,5 ¢ (Audit Juli) | 2–4 min |
-| **Talea-Folge One-Shot** (Standard), gleiche Seeds wie die besten Zwei-Schritt-Läufe | **≈ 7,5–8** | **4,0–4,8 ¢** | **≈ 2 min** |
+| **Talea-Folge One-Shot über OpenRouter-Flex** (Standard seit 23.10. abends) | **≈ 7,5–8** | **≈ 2,7 ¢** | **≈ 2 min** |
+| Talea-Folge One-Shot im Standardtarif (Prod-Story 13c3a7d3, OpenRouter, ohne Cache) | ≈ 7 | 6,0 ¢ Text, 7,9 ¢ mit Bildern | ≈ 3 min |
+| Talea-Folge One-Shot, OpenAI direkt (Tests) | ≈ 7,5–8 | 4,0–4,8 ¢ | ≈ 2 min |
+| One-Shot mit Luna als Schreiberin | ≈ 5,5 (wirre Mechanik, blasse Witze) | 0,2 ¢ | 30 s |
+| One-Shot mit Gemini 3.8 Flash | ≈ 6 (macht die Helden zu Brüdern, erfindet eine Brille, „Schnauze halten“) | 2,1 ¢ | 42 s |
 | Talea-Folge zwei Schritte, Sol plant und schreibt | ≈ 7–8 (Schnitt ≈ 7,3) | 8,5–9,3 ¢ | ≈ 3 min |
 | Talea-Folge zwei Schritte, Luna plant, Sol schreibt | ≈ 6,5–7 | ≈ 4 ¢ | ≈ 2 min |
 | Originals, von der Pipeline geschrieben | ≈ 7–7,5 | 2–7 ¢ | |
@@ -35,6 +39,10 @@ Was die Prompts in vier Runden gelernt haben:
 - Konkrete Beispiele in den Regeln landen wörtlich im Text („heiße Ohren“ stand in jeder Geschichte).
 - Eine höhere Denkstufe beim Plan brachte nichts und kostete 3 ¢ mehr.
 - Der JSON-Plan kostete so viel wie die Geschichte selbst (≈ 4.000 Ausgabe-Tokens), bei kurzen Geschichten mehr. Der One-Shot plant still und war beim Lesen gleich gut, bei halbem Preis.
+- Flex über OpenRouter wurde für Sol tatsächlich bedient (`service_tier: flex`), halber Preis, gleiche Dauer. Bei OpenAI direkt war Flex am selben Tag ausgebucht (429). Lehnt OpenRouter Flex ab, wiederholt der Produktionsport den Aufruf im Standardtarif.
+- Prod-Story „Dreizehn Pferde zum Frühstück“ (≈ 7/10): Der Titel versprach 13 Pferde, es kamen 6. Das Auslösewort „später“ wurde nie genannt, und ein Schild erklärte die Magie. Seitdem: Der Titel hält sein Versprechen, eine Figur nennt die Regel samt genauem Auslöser direkt nach dem ersten Effekt (das Kind weiß dann mehr als die Figuren), keine Erklär-Schilder. Probe danach („Drei Gänse auf der Treppe“): ≈ 8.
+- Bilder: Bei 4 Figuren pro Bild plus zusätzlichen Requisiten brauchte dieselbe Story 10 Bilder für 4 Plätze, 2 blieben „flawed“. Jetzt höchstens 3 Figuren pro Bild, wie im Bilderbuch gemessen.
+- Der System-Prompt (Regeln, Stilvorlage, Methode, ≈ 5.000 Tokens) ist für alle Familien einer Altersstufe gleich. Die familienabhängigen Teile (Namensliste, Helden) stehen im User-Prompt, damit der Anbieter-Cache greifen kann.
 - Flex (halber Preis) war bei OpenAI für Sol in allen Testläufen ausgebucht. Der Produktionsport fällt dann ohnehin auf den Standardtarif zurück.
 
 Beste Beispiele: `Logs/episode/r4-magic` („Da knurrt ein Nebelkissen!“), `p-fairy-sol` („Revanche auf vier Heuhufen“), `r2-fairy` („Der Frosch passt nicht“), `v-learn` (Lernmodus Reibung).
@@ -42,8 +50,8 @@ Beste Beispiele: `Logs/episode/r4-magic` („Da knurrt ein Nebelkissen!“), `p-
 ## Schalter
 
 - Wizard (nur Admins): Schritt „Art“, Kachel „Talea-Folge“ → `storybookMode: true`, `storybookEngine: "talea-folge-v1"`.
-- `TALEA_EPISODE_MODE=two-step` statt One-Shot, `TALEA_EPISODE_WRITER_MODEL` ersetzt Sol als Schreiber, `TALEA_EPISODE_PLANNER_MODEL` den Planer im Zwei-Schritt-Modus.
-- Testskript: `--mode one-shot|two-step`, `--planner`, `--hero-file`, `--learning`, `--dry`.
+- `TALEA_EPISODE_FLEX=off` schickt den Schreiber in den Standardtarif (Standard ist Flex), `TALEA_EPISODE_MODE=two-step` statt One-Shot, `TALEA_EPISODE_WRITER_MODEL` ersetzt Sol als Schreiber, `TALEA_EPISODE_PLANNER_MODEL` den Planer im Zwei-Schritt-Modus.
+- Testskript: `--mode one-shot|two-step`, `--writer`, `--planner`, `--hero-file`, `--learning`, `--dry`, `--via-openrouter` (OpenAI-Modelle über OpenRouter wie in Produktion), `--flex`.
 - Kunden bekommen weiterhin die Standard-Lane: `stripAdminOnlyStoryOptions` entfernt alle Lane-Felder. Eine Umstellung der Standard-Lane auf die Talea-Folge ist nicht gebaut und braucht eine Entscheidung.
 
 ## Offen

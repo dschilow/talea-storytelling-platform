@@ -24,6 +24,8 @@ export interface PortOptions {
   out: string;
   maxCalls?: number;
   allowOpenRouter?: boolean;
+  /** Send OpenAI models through OpenRouter too — the production path (needs allowOpenRouter). */
+  forceOpenRouter?: boolean;
   serviceTier?: "flex";
 }
 
@@ -34,7 +36,7 @@ export function createTestPort(options: PortOptions): StorybookLlm & { spent: ()
     if (++calls > (options.maxCalls ?? 12)) throw new Error(`Test call ceiling reached (${options.maxCalls ?? 12}).`);
     const prefix = `${String(calls).padStart(2, "0")}-${request.stage}`;
     await writeFile(join(options.out, `${prefix}.request.json`), JSON.stringify(request, null, 2));
-    const openai = /^openai\//.test(request.model) || !request.model.includes("/");
+    const openai = !options.forceOpenRouter && (/^openai\//.test(request.model) || !request.model.includes("/"));
     const result = openai ? await callOpenAI(request, options) : await callOpenRouter(request, options);
     spent += result.usage.costUSD;
     await writeFile(join(options.out, `${prefix}.response.json`), JSON.stringify(result, null, 2));
@@ -96,15 +98,22 @@ async function callOpenRouter(request: LlmRequest, options: PortOptions): Promis
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new Error("OPENROUTER_API_KEY is missing.");
   const started = Date.now();
-  const response = await post("https://openrouter.ai/api/v1/chat/completions", key, {
+  const body: Record<string, unknown> = {
     model: request.model,
     messages: [{ role: "system", content: request.system }, { role: "user", content: request.user }],
     max_tokens: request.maxTokens,
     response_format: { type: request.json ? "json_object" : "text" },
     reasoning: resolveStorybookReasoning(request.model, request.effort, request.role),
     ...(acceptsTemperature(request.model) && request.temperature !== undefined ? { temperature: request.temperature } : {}),
+    ...(options.serviceTier ? { service_tier: options.serviceTier } : {}),
     usage: { include: true },
-  }, request.timeoutMs);
+  };
+  let response = await post("https://openrouter.ai/api/v1/chat/completions", key, body, request.timeoutMs);
+  if (!response.ok && options.serviceTier) {
+    console.log(`  ${request.stage}: flex refused on OpenRouter (${response.status}), default tier`);
+    delete body.service_tier;
+    response = await post("https://openrouter.ai/api/v1/chat/completions", key, body, request.timeoutMs);
+  }
   const raw = await response.text();
   if (!response.ok) throw new Error(`OpenRouter ${response.status} (${request.stage}, ${request.model}): ${raw.slice(0, 400)}`);
   const data = JSON.parse(raw);
@@ -117,6 +126,7 @@ async function callOpenRouter(request: LlmRequest, options: PortOptions): Promis
     usage: { prompt: u.prompt_tokens || 0, completion: u.completion_tokens || 0, total: u.total_tokens || 0, costUSD: Number(u.cost) || 0, reasoningTokens: u.completion_tokens_details?.reasoning_tokens || 0, cachedPromptTokens: u.prompt_tokens_details?.cached_tokens || 0 },
     durationMs: Date.now() - started,
     finishReason: data.choices?.[0]?.finish_reason,
+    ...(typeof data.service_tier === "string" ? { serviceTier: data.service_tier } : {}),
   };
 }
 

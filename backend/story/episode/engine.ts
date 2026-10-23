@@ -29,6 +29,15 @@ export function resolveEpisodeMode(value = process.env.TALEA_EPISODE_MODE): Epis
   return String(value || "").trim().toLowerCase() === "two-step" ? "two-step" : "one-shot";
 }
 
+/**
+ * The writer runs on OpenRouter's flex tier by default: Sol one-shot 2.7 ¢ instead of 6 ¢ at the same
+ * speed (107 s, served as flex, 2026-10-23). A refused flex call is repeated on the standard tier by the
+ * port, so a story never waits on flex. TALEA_EPISODE_FLEX=off sends everything to the standard tier.
+ */
+export function resolveEpisodeServiceTier(value = process.env.TALEA_EPISODE_FLEX): LlmRequest["serviceTier"] {
+  return String(value || "").trim().toLowerCase() === "off" ? undefined : "flex";
+}
+
 type Observe = (stage: string, payload: Record<string, unknown>) => Promise<void> | void;
 
 const text = (value: unknown, max = 600) => String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
@@ -361,8 +370,11 @@ export async function runEpisodeTextEngine(input: {
   models: StorybookModels;
   ledger: CostLedger;
   observe?: Observe;
-  /** Mode (default: TALEA_EPISODE_MODE, else one-shot), the two-step planner model and the efforts (default "low"). */
-  options?: { mode?: EpisodeMode; plannerModel?: string; planEffort?: LlmRequest["effort"]; writeEffort?: LlmRequest["effort"] };
+  /**
+   * Mode (default: TALEA_EPISODE_MODE, else one-shot), the two-step planner model, the efforts (default "low")
+   * and the service tier of the writer's calls ("flex": half price; a refused flex call is repeated on the standard tier by the port).
+   */
+  options?: { mode?: EpisodeMode; plannerModel?: string; planEffort?: LlmRequest["effort"]; writeEffort?: LlmRequest["effort"]; serviceTier?: LlmRequest["serviceTier"] };
 }): Promise<EpisodeResult> {
   const { brief, models, ledger, llm } = input;
   const observe = async (stage: string, payload: Record<string, unknown>) => {
@@ -426,7 +438,7 @@ async function oneShot(input: EngineInput, observe: Observe): Promise<Written> {
   const maxTokens = Math.ceil(brief.budget.totalWordsMax * 2.6 + 8000);
   const renamed: Written["renamed"] = [];
   const call = async (stage: string, revision?: { raw: string; notes: string[] }) => {
-    const result = await llm({ stage, role: "writer", model: models.writer, system, user: oneShotUserPrompt(brief, revision), json: false, maxTokens, effort: input.options?.writeEffort || "low", timeoutMs: 420_000 });
+    const result = await llm({ stage, role: "writer", model: models.writer, system, user: oneShotUserPrompt(brief, revision), json: false, maxTokens, effort: input.options?.writeEffort || "low", timeoutMs: 420_000, ...(input.options?.serviceTier ? { serviceTier: input.options.serviceTier } : {}) });
     ledger.recordCall(stage, result, "writer");
     const parsed = readOneShot(result.text);
     await observe(stage, { model: result.modelUsed, usage: result.usage, durationMs: result.durationMs, header: parsed.header, words: parsed.story.chapters.map((chapter) => countWords(chapter.text)) });
@@ -471,6 +483,7 @@ async function twoStep(input: EngineInput, observe: Observe): Promise<Written> {
       stage, role: "writer", model: plannerModel, system: planSystem,
       user: planUserPrompt(brief, attempt && normalized ? { plan: planRaw, problems: normalized.problems } : undefined),
       json: true, maxTokens: 12000, effort: input.options?.planEffort || "low", timeoutMs: 240_000,
+      ...(input.options?.serviceTier ? { serviceTier: input.options.serviceTier } : {}),
     });
     ledger.recordCall(stage, result, "writer");
     planRaw = parseJsonObject<any>(result.text);
@@ -486,7 +499,7 @@ async function twoStep(input: EngineInput, observe: Observe): Promise<Written> {
   const system = writerSystemPrompt(brief);
   const maxTokens = Math.ceil(brief.budget.totalWordsMax * 2.6 + 6000);
   const write = async (stage: string, revision?: { chapters: ParsedChapter[]; notes: string[] }) => {
-    const result = await llm({ stage, role: "writer", model: models.writer, system, user: writerUserPrompt(brief, plan, revision), json: false, maxTokens, effort: input.options?.writeEffort || "low", timeoutMs: 360_000 });
+    const result = await llm({ stage, role: "writer", model: models.writer, system, user: writerUserPrompt(brief, plan, revision), json: false, maxTokens, effort: input.options?.writeEffort || "low", timeoutMs: 360_000, ...(input.options?.serviceTier ? { serviceTier: input.options.serviceTier } : {}) });
     ledger.recordCall(stage, result, "writer");
     const story = readStory(result.text);
     await observe(stage, { model: result.modelUsed, usage: result.usage, durationMs: result.durationMs, words: story.chapters.map((chapter) => countWords(chapter.text)) });

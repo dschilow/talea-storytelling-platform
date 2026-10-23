@@ -8,6 +8,7 @@
  *          --twist --rhymes --famous --moral --writer openai/gpt-6.1-sol --planner openai/gpt-6-luna
  *          --plan-effort low --write-effort low --flex --hero-file Logs/test-heroes-alexander-adrian.json
  *          --history <json {stories: []}> --seed <seed> --max-calls 6 --allow-openrouter
+ *          --via-openrouter (OpenAI models through OpenRouter, like production; with --flex its flex tier)
  *
  * Sol and Luna run over api.openai.com with OPENAI_API_KEY; OpenRouter only with --allow-openrouter.
  */
@@ -85,7 +86,8 @@ if (flag("--dry")) {
   process.exit(0);
 }
 
-const llm = createTestPort({ out, maxCalls: Number(option("--max-calls", "6")), allowOpenRouter: flag("--allow-openrouter"), serviceTier: flag("--flex") ? "flex" : undefined });
+const viaOpenRouter = flag("--via-openrouter");
+const llm = createTestPort({ out, maxCalls: Number(option("--max-calls", "6")), allowOpenRouter: flag("--allow-openrouter") || viaOpenRouter, forceOpenRouter: viaOpenRouter, serviceTier: flag("--flex") ? "flex" : undefined });
 const ledger = new CostLedger();
 const started = Date.now();
 try {

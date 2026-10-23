@@ -48,7 +48,7 @@ const LANES: Array<{
     tone: TONE.sky,
     description:
       'Gebaut wie die Talea Originals (Bruno, Monster-Müllabfuhr): pro Geschichte eine eigene kleine Reihenbibel – ein Wunder mit einer Regel, das eine echte Kindersituation wörtlich nimmt, Figuren mit eigener Stimme, Running Gags, ein Mutmoment mit Herz und ein Ende, das alles Angelegte einlöst. Drei volle Kapitel statt fünf kurzer Seiten.',
-    note: 'GPT-6.1 Sol plant und schreibt in einem Aufruf, mit Originals-Kapiteln als Stilvorlage. Etwa 4–5 ¢ Text pro Geschichte, ein Bild pro Kapitel.',
+    note: 'GPT-6.1 Sol plant und schreibt in einem Aufruf (Flex-Tarif), mit Originals-Kapiteln als Stilvorlage. Etwa 3 ¢ Text pro Geschichte, ein Bild pro Kapitel.',
   },
   {
     id: 'wonder',

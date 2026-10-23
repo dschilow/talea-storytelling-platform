@@ -4,8 +4,8 @@ import { buildBrief } from "../storybook/context";
 import { CostLedger, type LlmRequest } from "../storybook/llm";
 import type { CastCandidate } from "../storybook/types";
 import { childSituationChoices, episodeBudget, placeChoices, SAMPLE_NAMES, styleSamples, takenNames } from "./craft";
-import { normalizePlan, planFromHeader, readOneShot, readStory, renameTakenNames, runEpisodeTextEngine, storyChecks } from "./engine";
-import { planSystemPrompt, planUserPrompt, writerSystemPrompt } from "./prompts";
+import { normalizePlan, planFromHeader, readOneShot, readStory, renameTakenNames, resolveEpisodeServiceTier, runEpisodeTextEngine, storyChecks } from "./engine";
+import { oneShotSystemPrompt, oneShotUserPrompt, planSystemPrompt, planUserPrompt, writerSystemPrompt } from "./prompts";
 
 const fox: CastCandidate = {
   id: "pool-fox", name: "Bo Bücherfuchs", species: "animal", whoTheyAre: "Fuchs mit Brille und Büchertasche",
@@ -92,8 +92,21 @@ describe("Talea-Folge craft", () => {
     expect(user).toContain("TODAY'S CHILD SITUATIONS");
     expect(user).toContain("TODAY'S PLACES");
     expect(user).toContain("pool-fox");
-    expect(planSystemPrompt(b)).toContain(SAMPLE_NAMES[0]);
+    expect(user).toContain(SAMPLE_NAMES[0]);
     expect(planSystemPrompt(b)).toContain("Never invent parents");
+  });
+
+  test("the one-shot system prompt is the same for every family of a band, so the provider can cache it", () => {
+    const other = { ...brief(), heroes: [{ id: "hero-x", name: "Ella", age: 6 }] as any, candidates: [], seed: "other" };
+    const cacheable = (text: string) => text.slice(0, text.indexOf("TITEL:"));
+    expect(cacheable(oneShotSystemPrompt(other))).toBe(cacheable(oneShotSystemPrompt(brief())));
+    // Rules, style reference and method — about 5,000 tokens — come before the first family-specific line.
+    expect(oneShotSystemPrompt(brief()).indexOf("TITEL:")).toBeGreaterThan(15000);
+  });
+
+  test("the writer runs on flex unless switched off", () => {
+    expect(resolveEpisodeServiceTier(undefined)).toBe("flex");
+    expect(resolveEpisodeServiceTier("off")).toBeUndefined();
   });
 });
 
@@ -259,6 +272,7 @@ describe("Talea-Folge names", () => {
     const chapters = readStory(story(560, "Ella lachte.")).chapters;
     expect(storyChecks(chapters, plan, b).hard).toEqual([]);
     expect(renameTakenNames(chapters, plan, b).renamed).toEqual([]);
-    expect(planSystemPrompt(b)).not.toMatch(/TAKEN NAMES:[^\n]*Ella/);
+    expect(planUserPrompt(b)).not.toMatch(/TAKEN NAMES:[^\n]*Ella/);
+    expect(oneShotUserPrompt(b)).not.toMatch(/TAKEN NAMES:[^\n]*Ella/);
   });
 });

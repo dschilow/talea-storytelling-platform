@@ -43,7 +43,9 @@ export function episodeBudget(length: string | undefined, band: AgeBand): Length
     totalWordsMin: chapters * min,
     totalWordsMax: chapters * max,
     maxCast: band === "3-5" ? 1 : 2,
-    maxCharactersPerImage: band === "3-5" ? 3 : 4,
+    // FLUX.2 klein draws three figures cleanly (storybook measurement 2026-09-29). Four figures plus
+    // extra props cost story 13c3a7d3 ten pictures for four slots, two still flawed.
+    maxCharactersPerImage: 3,
   };
 }
 
@@ -81,7 +83,7 @@ export const SAMPLE_SIGNATURES = [
 export const METHOD_EN = [
   "THE METHOD — how every Talea Original is built:",
   "1. A REAL CHILD SITUATION starts it: something every child knows, that matters to one hero personally and fits their nature (the task lists today's choices). This feeling is the heart of the story.",
-  "2. ONE WONDER WITH ONE RULE a six-year-old can repeat in a single sentence. The wonder takes the child situation literally and makes it visible. It is SHOWN in chapter 1 by a small first effect, never explained in a lecture. Its consequences are visible and physical and get crazier step by step. The wonder is a someone with a will of its own, or it comes with one (a creature, a talking thing, an animal with an attitude) — not a mere mechanism.",
+  "2. ONE WONDER WITH ONE RULE a six-year-old can repeat in a single sentence. The wonder takes the child situation literally and makes it visible. It is SHOWN in chapter 1 by a small first effect, never explained in a lecture. Right after it, a figure says the rule in one short line — naming the exact trigger (the word, the deed) — or the heroes work it out aloud: the fun is that the listener knows what sets it off while the figures keep setting it off. No convenient signs, notes or books that explain the magic. Its consequences are visible and physical and get crazier step by step. The wonder is a someone with a will of its own, or it comes with one (a creature, a talking thing, an animal with an attitude) — not a mere mechanism.",
   "3. THE EASY WAY OUT FAILS: the heroes try to fix it without facing the real thing. Two or three attempts; each follows from the rule and makes it worse in a new, visible, funny way. Why the obvious shortcut does not work is shown, not claimed.",
   "4. GROWN-UPS are warm and busy and almost discover it — the near-discovery is a gag and raises the pressure. They are never stupid, never conveniently sent away, and they never solve it.",
   "5. THE ENSEMBLE: every figure has ONE unmistakable voice (how they talk, one typical line) and wants something. The heroes complement each other. A comic companion comments on everything — give it a fresh attitude of its own (grumpy, gloomy, greedy, a know-it-all, a scaredy-cat, overly literal, sleepy, a show-off …), not the pompous announcer every time. A troublemaker, never evil, pursues a plan of its own that fails at a small slapstick detail — best because of something the heroes set up earlier.",

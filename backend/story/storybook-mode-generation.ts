@@ -44,7 +44,7 @@ import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
 import { runStorybookTextEngine, STORYBOOK_PIPELINE_ID } from "./storybook/engine";
 import { runWonderTextEngine, WONDER_PIPELINE_ID } from "./wonder/engine";
 import { wonderBudget } from "./wonder/library";
-import { EPISODE_PIPELINE_ID, runEpisodeTextEngine } from "./episode/engine";
+import { EPISODE_PIPELINE_ID, resolveEpisodeServiceTier, runEpisodeTextEngine } from "./episode/engine";
 import { episodeBudget, episodeWriterModel } from "./episode/craft";
 import type { EpisodeResult } from "./episode/types";
 import { castAppearance, describeReferenceLooks, heroAppearance, runDirectorStage, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
@@ -217,9 +217,10 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     models,
     ledger,
     observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId),
-    // Talea-Folge: one-shot by default (≈ 4–5 ¢ text, measured as good as two steps at half the price);
-    // TALEA_EPISODE_MODE=two-step brings back the JSON plan, TALEA_EPISODE_PLANNER_MODEL picks its planner.
-    ...(episodeMode && process.env.TALEA_EPISODE_PLANNER_MODEL ? { options: { plannerModel: process.env.TALEA_EPISODE_PLANNER_MODEL } } : {}),
+    // Talea-Folge: one-shot on the flex tier by default (≈ 2.7 ¢ text, measured as good as two steps on the
+    // standard tier at 8.5 ¢). TALEA_EPISODE_FLEX=off → standard tier, TALEA_EPISODE_MODE=two-step → JSON plan
+    // first, TALEA_EPISODE_PLANNER_MODEL → its planner.
+    ...(episodeMode ? { options: { serviceTier: resolveEpisodeServiceTier(), ...(process.env.TALEA_EPISODE_PLANNER_MODEL ? { plannerModel: process.env.TALEA_EPISODE_PLANNER_MODEL } : {}) } } : {}),
   });
   const wonder = "wonder" in text ? (text as import("./wonder/types").WonderResult).wonder : undefined;
   const episode = "episode" in text ? (text as EpisodeResult).episode : undefined;
