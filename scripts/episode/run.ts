@@ -3,7 +3,8 @@
  *
  *   bun --env-file=.env.local run scripts/episode/run.ts --genre magic --age 6-8 --length medium --flavors lachfreude --out Logs/episode/m1
  *
- * Options: --genre --setting --age --length --flavors a,b --wish "…" --brought <artifactId> --learning science
+ * Options: --mode one-shot|two-step (default TALEA_EPISODE_MODE, else one-shot)
+ *          --genre --setting --age --length --flavors a,b --wish "…" --brought <artifactId> --learning science
  *          --twist --rhymes --famous --moral --writer openai/gpt-6.1-sol --planner openai/gpt-6-luna
  *          --plan-effort low --write-effort low --flex --hero-file Logs/test-heroes-alexander-adrian.json
  *          --history <json {stories: []}> --seed <seed> --max-calls 6 --allow-openrouter
@@ -91,12 +92,12 @@ try {
   const result = await runEpisodeTextEngine({
     llm, brief, models, ledger,
     observe: async (stage, payload) => { await writeFile(join(out, `${stage}.json`), JSON.stringify(payload, null, 2)); },
-    options: { plannerModel: option("--planner"), planEffort: option("--plan-effort") as any, writeEffort: option("--write-effort") as any },
+    options: { mode: option("--mode") as any, plannerModel: option("--planner"), planEffort: option("--plan-effort") as any, writeEffort: option("--write-effort") as any },
   });
   const words = result.pages.map((page) => countWords(page.content));
   const totals = ledger.totals();
   await writeFile(join(out, "plan.json"), JSON.stringify(result.episode.plan, null, 2));
-  await writeFile(join(out, "result.json"), JSON.stringify({ config, candidates: candidates.map((c) => c.name), artifacts: artifacts.map((a) => a.name), words, checks: result.episode.checks, revised: result.episode.revised, stages: ledger.all(), totals, seconds: Math.round((Date.now() - started) / 1000) }, null, 2));
+  await writeFile(join(out, "result.json"), JSON.stringify({ config, mode: result.episode.mode, candidates: candidates.map((c) => c.name), artifacts: artifacts.map((a) => a.name), cast: result.episode.plan.cast, artifact: result.episode.plan.artifact, renamed: result.episode.renamed, words, checks: result.episode.checks, revised: result.episode.revised, stages: ledger.all(), totals, seconds: Math.round((Date.now() - started) / 1000) }, null, 2));
   await writeFile(join(out, "story.md"), `# ${result.title}\n\n_${result.description}_\n\n${result.pages.map((page) => `## ${page.title}\n\n${page.content}`).join("\n\n")}\n`);
   console.log(`■ „${result.title}“ — ${words.join("+")} = ${words.reduce((a, b) => a + b, 0)} words, ${totals.calls} calls, $${totals.costUSD.toFixed(4)}, ${Math.round((Date.now() - started) / 1000)} s`);
   if (result.episode.checks.hard.length || result.episode.checks.soft.length) console.log("  checks:", JSON.stringify(result.episode.checks));

@@ -69,8 +69,8 @@ export function styleSamples(): Array<{ label: string; text: string }> {
   ].filter((sample) => sample.text.length > 200);
 }
 
-/** The series' figures; a planner that names a dog „Bruno“ cost a full rewrite (run r4-mila). */
-export const SAMPLE_NAMES = ["Bruno", "Ella", "Mats", "Grimmbach", "Kaiser", "Brunello", "Jona", "Hilde", "Flusi", "Gertrud", "Sina"];
+/** The series' figures; a planner that names a dog „Bruno“ cost a full rewrite (run r4-mila). „Kaiser“ alone is a word, not a name. */
+export const SAMPLE_NAMES = ["Bruno", "Ella", "Mats", "Grimmbach", "Brunello", "Jona", "Hilde", "Flusi", "Gertrud", "Sina"];
 
 /** Words that only exist in the samples. A story that contains them copied instead of learned. */
 export const SAMPLE_SIGNATURES = [
@@ -90,8 +90,24 @@ export const METHOD_EN = [
   "8. PAYOFFS: everything that solves something was planted earlier in passing. The ending calls back the opening and the running gags; the very last lines are a laugh.",
   "9. THE OPENING shows at once where we are, who is there, what they are doing and why today is different (something is about to happen, a deadline the child can feel), in concrete things — every figure's place in it is clear (who is this grown-up, why is she here).",
   "TAKEN PREMISES: the published Talea series own these — never build a story on them: a fib or a brag that comes true or grows, a spell that only the truth or a confession ends; monsters made of forgotten things.",
-  `TAKEN NAMES: these belong to the Talea series and are never given to a figure: ${SAMPLE_NAMES.join(", ")}.`,
 ].join("\n");
+
+/**
+ * Series names a new figure must not get. A family's own hero or a pool figure may of course be
+ * called Ella or Bruno: those names are never forbidden, never flagged and never renamed.
+ */
+export function takenNames(brief: { heroes: Array<{ name: string }>; candidates: Array<{ name: string }> }): string[] {
+  const own = new Set([...brief.heroes, ...brief.candidates].flatMap((figure) => String(figure.name || "").toLocaleLowerCase("de-DE").split(/\s+/)));
+  return SAMPLE_NAMES.filter((name) => !own.has(name.toLocaleLowerCase("de-DE")));
+}
+
+export function takenNamesLine(brief: Parameters<typeof takenNames>[0]): string {
+  const names = takenNames(brief);
+  return names.length ? `TAKEN NAMES: these belong to the Talea series and are never given to a new figure: ${names.join(", ")}.` : "";
+}
+
+/** Fresh names for a new figure that got a series name anyway (renamed instead of a paid rewrite). */
+export const FRESH_NAMES = ["Pimpel", "Fiete", "Lotti", "Brummel", "Tilli", "Momo", "Wuschel", "Knöpfchen", "Fridolin", "Rieke"];
 
 /**
  * Sol converges on one child situation per prompt (round 1: a fib in both stories; round 2–4: „doing it

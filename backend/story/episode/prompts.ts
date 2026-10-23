@@ -9,7 +9,7 @@ import { isGerman } from "../storybook/craft";
 import { broughtArtifact, heroIdOf, type StoryBrief } from "../storybook/context";
 import { artifactSheetEn, castSheetEn, heroSheetEn, wishLinesEn } from "../storybook/oneshot-prompt-en";
 import { learningGoal, learningWriterLinesEn } from "../storybook/learning";
-import { childSituationChoices, FAMILY_RULE_EN, GENRE_METHOD_EN, METHOD_EN, placeChoices, styleSamples, writingRulesEn } from "./craft";
+import { childSituationChoices, FAMILY_RULE_EN, GENRE_METHOD_EN, METHOD_EN, placeChoices, styleSamples, takenNamesLine, writingRulesEn } from "./craft";
 import type { EpisodePlan } from "./types";
 
 function bandNote(band: StoryBrief["band"]): string {
@@ -41,11 +41,12 @@ export function planSystemPrompt(brief: StoryBrief): string {
     bandNote(brief.band),
     "",
     METHOD_EN,
+    takenNamesLine(brief),
     "",
     FAMILY_RULE_EN,
     "",
     CHILD_SAFETY_RULES_EN,
-  ].join("\n");
+  ].filter((line) => line !== undefined).join("\n");
 }
 
 const PLAN_SHAPE = (brief: StoryBrief, chapters: number) => [
@@ -75,20 +76,40 @@ const PLAN_SHAPE = (brief: StoryBrief, chapters: number) => [
   "}",
 ];
 
+/** Today's choices: they keep Sol off its favourite child situation and its favourite stage. */
+function choiceLines(brief: StoryBrief): string[] {
+  return [
+    `TODAY'S CHILD SITUATIONS — your three ideas use three DIFFERENT ones of these, each fitted to the heroes' nature: ${childSituationChoices(brief.seed).map((situation) => `„${situation}“`).join("; ")}.`,
+    `TODAY'S PLACES — set the story in one of these, or in an equally fresh one of the genre: ${placeChoices(brief.config.genre, brief.seed).map((place) => `„${place}“`).join("; ")}. Not a festival, party, show or performance (unless the family's wish asks for one) — that stage is worn out.`,
+    "The heroes' traits and hobbies colour how they act, speak and solve things; they are not the topic. A hero who loves dancing does not need a dance performance — let the trait show up somewhere unexpected.",
+  ];
+}
+
 export function planUserPrompt(brief: StoryBrief, repair?: { plan: unknown; problems: string[] }): string {
-  const { budget } = brief;
-  const chapters = budget.pages;
   const lines: string[] = [];
   lines.push("TASK: Invent and plan one Talea story with these heroes — one a child wants to hear again and again and retells the next morning.");
   lines.push("First note three completely different ideas (each: a child situation + a wonder that takes it literally) and take the one a child would most want to retell („Stell dir vor, …!“). Then build its bible and chapter plan with the method.");
-  lines.push(`TODAY'S CHILD SITUATIONS — your three ideas use three DIFFERENT ones of these, each fitted to the heroes' nature: ${childSituationChoices(brief.seed).map((situation) => `„${situation}“`).join("; ")}.`);
-  lines.push(`TODAY'S PLACES — set the story in one of these, or in an equally fresh one of the genre: ${placeChoices(brief.config.genre, brief.seed).map((place) => `„${place}“`).join("; ")}. Not a festival, party, show or performance (unless the family's wish asks for one) — that stage is worn out.`);
-  lines.push("The heroes' traits and hobbies colour how they act, speak and solve things; they are not the topic. A hero who loves dancing does not need a dance performance — let the trait show up somewhere unexpected.");
-  lines.push("");
+  lines.push(...choiceLines(brief), "");
+  lines.push(...storyBriefLines(brief, "plan 4–7 concrete beats per chapter"));
+  lines.push(...PLAN_SHAPE(brief, brief.budget.pages));
+  if (repair) {
+    lines.push("");
+    lines.push("YOUR PREVIOUS PLAN had these problems. Return the complete corrected JSON; keep everything that was good:");
+    for (const problem of repair.problems) lines.push(`- ${problem}`);
+    lines.push(`PREVIOUS PLAN: ${JSON.stringify(repair.plan)}`);
+  }
+  return lines.join("\n");
+}
+
+/** Frame, learning arc, rhythm, heroes, pool, new figures, artifacts, history — shared by the planner and the one-shot. */
+function storyBriefLines(brief: StoryBrief, sizeHint: string): string[] {
+  const { budget } = brief;
+  const chapters = budget.pages;
+  const lines: string[] = [];
   lines.push("FRAME:");
   lines.push(`- Story language: ${brief.languageLabel}`);
   lines.push(`- Listeners' age: ${brief.band} years`);
-  lines.push(`- Size: exactly ${chapters} chapters of ${budget.wordsPerPageMin}–${budget.wordsPerPageMax} words each (${budget.totalWordsMin}–${budget.totalWordsMax} words) — enough room for full scenes, so plan 4–7 concrete beats per chapter.`);
+  lines.push(`- Size: exactly ${chapters} chapters of ${budget.wordsPerPageMin}–${budget.wordsPerPageMax} words each (${budget.totalWordsMin}–${budget.totalWordsMax} words) — enough room for full scenes, so ${sizeHint}.`);
   const genre = GENRE_METHOD_EN[String(brief.config.genre || "")];
   for (const line of wishLinesEn(brief.config, "story")) {
     // The genre line of the shared wish list is replaced by this lane's version.
@@ -127,12 +148,54 @@ export function planUserPrompt(brief: StoryBrief, repair?: { plan: unknown; prob
     lines.push("");
   }
   if (brief.blockedTerms.length > 0) lines.push(`These terms must not appear anywhere: ${brief.blockedTerms.join(", ")}`, "");
-  lines.push(...PLAN_SHAPE(brief, chapters));
-  if (repair) {
-    lines.push("");
-    lines.push("YOUR PREVIOUS PLAN had these problems. Return the complete corrected JSON; keep everything that was good:");
-    for (const problem of repair.problems) lines.push(`- ${problem}`);
-    lines.push(`PREVIOUS PLAN: ${JSON.stringify(repair.plan)}`);
+  return lines;
+}
+
+/* ── One-shot: bible and story in one call ──────────────────────────────── */
+
+/**
+ * The two-step plan cost about as much as the story itself (≈ 4,000 JSON tokens of Sol output,
+ * 2026-10-23) — for a short story more than the text. The one-shot plans silently and writes only
+ * the few header lines the app needs (cast, artifact, knowledge) before the chapters.
+ */
+export function oneShotSystemPrompt(brief: StoryBrief): string {
+  return [
+    writerSystemPrompt(brief).replace(/\nOUTPUT, plain text without markdown[\s\S]*$/, ""),
+    "",
+    "Before you write, you are also the head writer: you invent the story's own small series bible with this method — silently, in your head.",
+    METHOD_EN,
+    takenNamesLine(brief),
+    "",
+    "OUTPUT, plain text without markdown — these markers stay German, everything else is in the story language:",
+    "IDEE: <the chosen idea in one line>",
+    "REGEL: <the wonder's one rule, one sentence a child can repeat>",
+    "FIGUR: <name> | pool | <pool id> | <companion|troublemaker|grownup|wonder>   (one line per pool figure in the story)",
+    "FIGUR: <name> | neu | <companion|troublemaker|grownup|wonder> | <human|animal|creature|thing> | <concrete English look for the illustrator>   (one line per new named figure)",
+    "FUNDSTÜCK: <artifact id, or keins>",
+    ...(learningGoal(brief.config) ? ["WISSEN: <the knowledge core in one or two sentences, true in the real world, as the child should say it afterwards>"] : []),
+    `TITEL: <2–6 words like a real children's book: a thing, creature, exclamation or impossible situation from THIS story; never „${brief.heroes.map((hero) => hero.name).join(" und ")} und …“, never the ending>`,
+    "BESCHREIBUNG: <two sentences for the story card: the situation and the funny problem, never the ending>",
+    "",
+    "KAPITEL 1: <chapter title>",
+    "<paragraphs, separated by one blank line>",
+    "",
+    "KAPITEL 2: <chapter title>",
+    "…",
+  ].join("\n");
+}
+
+export function oneShotUserPrompt(brief: StoryBrief, revision?: { raw: string; notes: string[] }): string {
+  const lines: string[] = [];
+  lines.push("TASK: Invent, plan and write one complete Talea story with these heroes — one a child wants to hear again and again and retells the next morning.");
+  lines.push("Plan silently first: three completely different ideas (each: a child situation + a wonder that takes it literally), take the one a child would most want to retell („Stell dir vor, …!“), then work out its bible with the method — rule, voices, two running gags, the easy-way attempts, the near-discovery, the quiet moment, the courage, the payoffs and the final laugh. Then write the header lines and the whole story as living scenes.");
+  lines.push(...choiceLines(brief), "");
+  lines.push(...storyBriefLines(brief, "every chapter carries several full scenes"));
+  const names = [...brief.heroes.map((hero) => hero.name), ...brief.candidates.map((candidate) => candidate.name)];
+  lines.push(`NAMES: named figures are the heroes, the pool figures you cast and your new figures (each listed as FIGUR in the header). Anyone else stays nameless (a neighbour, the baker) and appears only briefly. Heroes and pool: ${names.join(", ")}${brief.config.allowFamousCharacters ? " — plus the requested famous fairy-tale figure under its well-known name" : ""}.`);
+  if (revision) {
+    lines.push("", "The editor read the version below. Return the WHOLE story again (header and chapters) so that every point is solved. Keep what works (gags, lines, scenes); change precisely:");
+    for (const note of revision.notes) lines.push(`- ${note}`);
+    lines.push("", "PREVIOUS VERSION:", revision.raw);
   }
   return lines.join("\n");
 }

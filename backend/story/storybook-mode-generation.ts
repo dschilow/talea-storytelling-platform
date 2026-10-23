@@ -217,7 +217,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     models,
     ledger,
     observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId),
-    // Talea-Folge: Sol plans by default; TALEA_EPISODE_PLANNER_MODEL=openai/gpt-6-luna is the cheap variant (≈ 4 ¢ instead of 8.5 ¢ text, measured about one point weaker).
+    // Talea-Folge: one-shot by default (≈ 4–5 ¢ text, measured as good as two steps at half the price);
+    // TALEA_EPISODE_MODE=two-step brings back the JSON plan, TALEA_EPISODE_PLANNER_MODEL picks its planner.
     ...(episodeMode && process.env.TALEA_EPISODE_PLANNER_MODEL ? { options: { plannerModel: process.env.TALEA_EPISODE_PLANNER_MODEL } } : {}),
   });
   const wonder = "wonder" in text ? (text as import("./wonder/types").WonderResult).wonder : undefined;
@@ -374,7 +375,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     pipeline: pipelineId,
     generationMode: pipelineId,
     ...(wonder ? { wonder } : {}),
-    ...(episode ? { episode: { plan: episode.plan, checks: episode.checks, revised: episode.revised } } : {}),
+    ...(episode ? { episode: { mode: episode.mode, plan: episode.plan, checks: episode.checks, revised: episode.revised, renamed: episode.renamed } } : {}),
     model: models.writer,
     storyModel: models.writer,
     supportModel: models.support,
