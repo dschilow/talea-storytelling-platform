@@ -4,12 +4,13 @@ Direct migration runner for Railway PostgreSQL
 Executes fairy tale SQL migrations 10-13
 """
 
+import os
 import psycopg2
 import sys
 from pathlib import Path
 
 # Railway PostgreSQL connection string
-DATABASE_URL = "postgresql://postgres:HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr@autorack.proxy.rlwy.net:42832/railway"
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 def run_migration(cursor, migration_file):
     """Execute a single migration file"""

@@ -5,7 +5,7 @@ import postgres from "postgres";
 
 // Use Railway PUBLIC URL (TCP Proxy)
 // Format: postgresql://USER:PASSWORD@PROXY_DOMAIN:PROXY_PORT/DATABASE
-const sql = postgres("postgresql://postgres:HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr@junction.proxy.rlwy.net:10945/railway", {
+const sql = postgres(process.env.DATABASE_URL!, {
   max: 1,
   ssl: false,
 });

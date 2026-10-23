@@ -117,7 +117,7 @@ talea-storytelling-platform/
 
 **Generierter MCP Server API Key:**
 ```
-mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0
+<MCP_SERVER_API_KEY>
 ```
 
 **Verwendung:**

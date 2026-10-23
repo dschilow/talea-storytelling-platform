@@ -4,7 +4,7 @@ import fs from 'fs';
 const { Client } = pg;
 
 // PostgreSQL connection details (from Railway)
-const connectionString = 'postgresql://postgres:HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr@postgres.railway.internal:5432/railway';
+const connectionString = process.env.DATABASE_URL;
 
 async function runMigrations() {
   console.log('🔄 Connecting to PostgreSQL...');

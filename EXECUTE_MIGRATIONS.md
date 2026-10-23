@@ -56,13 +56,13 @@ Sollte **50** zurückgeben.
 Wenn du `psql` installiert hast (PostgreSQL Client):
 
 ```bash
-psql "postgresql://postgres:HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr@autorack.proxy.rlwy.net:42832/railway" -f backend/fairytales/migrations/10_add_47_classic_fairy_tales.up.sql
+psql "$DATABASE_PUBLIC_URL" -f backend/fairytales/migrations/10_add_47_classic_fairy_tales.up.sql
 
-psql "postgresql://postgres:HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr@autorack.proxy.rlwy.net:42832/railway" -f backend/fairytales/migrations/11_add_andersen_fairy_tales.up.sql
+psql "$DATABASE_PUBLIC_URL" -f backend/fairytales/migrations/11_add_andersen_fairy_tales.up.sql
 
-psql "postgresql://postgres:HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr@autorack.proxy.rlwy.net:42832/railway" -f backend/fairytales/migrations/12_add_russian_arabian_fairy_tales.up.sql
+psql "$DATABASE_PUBLIC_URL" -f backend/fairytales/migrations/12_add_russian_arabian_fairy_tales.up.sql
 
-psql "postgresql://postgres:HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr@autorack.proxy.rlwy.net:42832/railway" -f backend/fairytales/migrations/13_add_classics_legends_fables.up.sql
+psql "$DATABASE_PUBLIC_URL" -f backend/fairytales/migrations/13_add_classics_legends_fables.up.sql
 ```
 
 ---

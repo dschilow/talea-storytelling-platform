@@ -23,8 +23,8 @@
 
 ```env
 DATABASE_URL=${{Postgres.DATABASE_URL}}
-CLERK_SECRET_KEY=sk_test_K8f5b0LyLp7Y5RXSWQsdGXc4kFTT19mXNsY1hm5PXR
-MCP_SERVER_API_KEY=mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0
+CLERK_SECRET_KEY=sk_test_<CLERK_SECRET_KEY>
+MCP_SERVER_API_KEY=<MCP_SERVER_API_KEY>
 PORT=3000
 NODE_ENV=production
 ```
@@ -39,7 +39,7 @@ NODE_ENV=production
 **Railway Dashboard → talea-mcp-validator → Variables:**
 
 ```env
-MCP_SERVER_API_KEY=mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0
+MCP_SERVER_API_KEY=<MCP_SERVER_API_KEY>
 PORT=8080
 NODE_ENV=production
 ```
@@ -189,7 +189,7 @@ curl https://talea-mcp-validator-production.up.railway.app/health
 ```bash
 curl -X POST https://talea-mcp-main-production.up.railway.app/mcp \
   -H "Content-Type: application/json" \
-  -H "X-MCP-API-Key: mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0" \
+  -H "X-MCP-API-Key: <MCP_SERVER_API_KEY>" \
   -H "Authorization: Bearer <your_clerk_token>" \
   -d '{"method": "tools/list"}'
 
@@ -231,16 +231,16 @@ curl -X POST https://talea-mcp-main-production.up.railway.app/mcp \
 **Option A: Railway Dashboard (Encore Service):**
 
 ```env
-MCP_SERVER_API_KEY=mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0
+MCP_SERVER_API_KEY=<MCP_SERVER_API_KEY>
 ```
 
 **Option B: Encore CLI (Local Dev):**
 
 ```bash
 # If you use encore CLI locally
-encore secret set --type dev MCPServerAPIKey mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0
+encore secret set --type dev MCPServerAPIKey <MCP_SERVER_API_KEY>
 
-encore secret set --type prod MCPServerAPIKey mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0
+encore secret set --type prod MCPServerAPIKey <MCP_SERVER_API_KEY>
 ```
 
 ### Update MCP Client URLs (if needed)

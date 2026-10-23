@@ -7,22 +7,22 @@
 **MCP Main Service:**
 ```env
 DATABASE_URL=${{Postgres.DATABASE_URL}}
-CLERK_SECRET_KEY=sk_test_K8f5b0LyLp7Y5RXSWQsdGXc4kFTT19mXNsY1hm5PXR
-MCP_SERVER_API_KEY=mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0
+CLERK_SECRET_KEY=sk_test_<CLERK_SECRET_KEY>
+MCP_SERVER_API_KEY=<MCP_SERVER_API_KEY>
 PORT=3000
 NODE_ENV=production
 ```
 
 **MCP Validator Service:**
 ```env
-MCP_SERVER_API_KEY=mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0
+MCP_SERVER_API_KEY=<MCP_SERVER_API_KEY>
 PORT=8080
 NODE_ENV=production
 ```
 
 **Encore Backend Service:**
 ```env
-MCP_SERVER_API_KEY=mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0
+MCP_SERVER_API_KEY=<MCP_SERVER_API_KEY>
 ```
 
 ### 2. Railway Build Settings

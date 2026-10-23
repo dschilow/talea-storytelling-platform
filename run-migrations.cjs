@@ -10,7 +10,11 @@ const path = require('path');
 const { Pool } = require('pg');
 
 // Railway PostgreSQL connection (fairytales database)
-const DATABASE_URL = "postgresql://postgres:HqJVXXiJiVtiCOJuOmEatCjuTEULvpjr@autorack.proxy.rlwy.net:42832/railway";
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error("DATABASE_URL is not set (use the Railway DATABASE_PUBLIC_URL).");
+  process.exit(1);
+}
 
 const pool = new Pool({
   connectionString: DATABASE_URL,

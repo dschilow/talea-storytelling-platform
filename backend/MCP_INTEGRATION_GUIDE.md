@@ -52,8 +52,8 @@ Die Talea-Platform nutzt zwei **MCP (Model Context Protocol) Server** um konsist
 Railway Service → Variables:
 ```env
 DATABASE_URL=${POSTGRES.DATABASE_URL}
-CLERK_SECRET_KEY=sk_test_K8f5b0LyLp7Y5RXSWQsdGXc4kFTT19mXNsY1hm5PXR
-MCP_SERVER_API_KEY=mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0
+CLERK_SECRET_KEY=sk_test_<CLERK_SECRET_KEY>
+MCP_SERVER_API_KEY=<MCP_SERVER_API_KEY>
 PORT=3000
 NODE_ENV=production
 ```
@@ -61,7 +61,7 @@ NODE_ENV=production
 #### **MCP Validator Server** (`talea-mcp-validator`)
 Railway Service → Variables:
 ```env
-MCP_SERVER_API_KEY=mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0
+MCP_SERVER_API_KEY=<MCP_SERVER_API_KEY>
 PORT=8080
 NODE_ENV=production
 ```
@@ -69,7 +69,7 @@ NODE_ENV=production
 #### **Encore Backend** (add new secret)
 Railway Service → Variables:
 ```env
-MCP_SERVER_API_KEY=mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0
+MCP_SERVER_API_KEY=<MCP_SERVER_API_KEY>
 ```
 
 ### 2. Encore Secret Configuration
@@ -89,7 +89,7 @@ secrets: [
 
 Then set the secret:
 ```bash
-encore secret set --type dev,prod MCPServerAPIKey mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0
+encore secret set --type dev,prod MCPServerAPIKey <MCP_SERVER_API_KEY>
 ```
 
 ### 3. Railway Service Configuration
@@ -338,7 +338,7 @@ const report = await getValidationReport(storyData);
 ### MCP Server API Key
 - **Required for:** All MCP server calls
 - **Header:** `X-MCP-API-Key: mcp_sk_xxx`
-- **Generated:** `mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0`
+- **Generated:** `<MCP_SERVER_API_KEY>`
 
 ### Clerk Token
 - **Required for:** MCP Main Server (user-specific data)
@@ -360,7 +360,7 @@ curl -X POST https://talea-mcp-main-production.up.railway.app/health
 curl -X POST https://talea-mcp-main-production.up.railway.app/mcp \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <clerk_token>" \
-  -H "X-MCP-API-Key: mcp_sk_7d9f2b8a4e6c1d3f5a7b9c2e4f6a8b0c1d3e5f7a9b0c2d4e6f8a0b2c4d6e8f0" \
+  -H "X-MCP-API-Key: <MCP_SERVER_API_KEY>" \
   -d '{
     "method": "tools/list"
   }'

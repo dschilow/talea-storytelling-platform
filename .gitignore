@@ -73,3 +73,6 @@ scripts/game-art/.cache/
 scripts/game-qa/out/
 .tmp-alibi/
 .performance/
+
+# Railway env exports (contain secrets) - never commit
+.env.railway
