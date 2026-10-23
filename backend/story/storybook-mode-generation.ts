@@ -44,6 +44,9 @@ import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
 import { runStorybookTextEngine, STORYBOOK_PIPELINE_ID } from "./storybook/engine";
 import { runWonderTextEngine, WONDER_PIPELINE_ID } from "./wonder/engine";
 import { wonderBudget } from "./wonder/library";
+import { EPISODE_PIPELINE_ID, runEpisodeTextEngine } from "./episode/engine";
+import { episodeBudget, episodeWriterModel } from "./episode/craft";
+import type { EpisodeResult } from "./episode/types";
 import { castAppearance, describeReferenceLooks, heroAppearance, runDirectorStage, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
 import { generateStorybookImages, publishableImageUrl, type ImageProvider, type StorybookImagesResult } from "./storybook/images";
 import { createOpenRouterJevPort } from "./storybook/jev-openrouter";
@@ -147,11 +150,15 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const startedAt = Date.now();
   const { config } = input;
   const wonderMode = config.storybookEngine === WONDER_PIPELINE_ID;
-  const pipelineId = wonderMode ? WONDER_PIPELINE_ID : STORYBOOK_PIPELINE_ID;
+  // Talea-Folge: the Originals' method for the family's own heroes (chapters with titles, like wonder).
+  const episodeMode = config.storybookEngine === EPISODE_PIPELINE_ID;
+  const chapterMode = wonderMode || episodeMode;
+  const pipelineId = episodeMode ? EPISODE_PIPELINE_ID : wonderMode ? WONDER_PIPELINE_ID : STORYBOOK_PIPELINE_ID;
   const ledger = new CostLedger();
-  const models = resolveStorybookModels(config, { critic: process.env.TALEA_STORYBOOK_CRITIC_MODEL || undefined });
+  const resolved = resolveStorybookModels(config, { critic: process.env.TALEA_STORYBOOK_CRITIC_MODEL || undefined });
+  const models = episodeMode ? { ...resolved, writer: episodeWriterModel(config) } : resolved;
   const band = normalizeAgeBand(config.ageGroup);
-  const budget = wonderMode ? wonderBudget(config.length, band) : resolveLengthBudget(config.length, band);
+  const budget = episodeMode ? episodeBudget(config.length, band) : wonderMode ? wonderBudget(config.length, band) : resolveLengthBudget(config.length, band);
   const seed = stableSeed(input);
   const avatarIds = input.heroes.map((hero) => String(hero.id || "")).filter(Boolean);
 
@@ -204,14 +211,18 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // -------------------------------------------------------------------------
   // 1) Text: concept → plan → draft → review → revision → final A/B.
   // -------------------------------------------------------------------------
-  const text = await (wonderMode ? runWonderTextEngine : runStorybookTextEngine)({
+  const text = await (episodeMode ? runEpisodeTextEngine : wonderMode ? runWonderTextEngine : runStorybookTextEngine)({
     llm,
     brief,
     models,
     ledger,
     observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId),
+    // Talea-Folge: Sol plans by default; TALEA_EPISODE_PLANNER_MODEL=openai/gpt-6-luna is the cheap variant (≈ 4 ¢ instead of 8.5 ¢ text, measured about one point weaker).
+    ...(episodeMode && process.env.TALEA_EPISODE_PLANNER_MODEL ? { options: { plannerModel: process.env.TALEA_EPISODE_PLANNER_MODEL } } : {}),
   });
   const wonder = "wonder" in text ? (text as import("./wonder/types").WonderResult).wonder : undefined;
+  const episode = "episode" in text ? (text as EpisodeResult).episode : undefined;
+  const guests = wonder?.guests || episode?.guests || [];
   const { plan, pages } = text;
   const learning = learningGoal(config);
 
@@ -219,7 +230,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // 2) Illustration direction, then images and developments in parallel.
   // -------------------------------------------------------------------------
   const castInStory = plan.cast
-    .map((member) => candidates.find((candidate) => candidate.id === member.id) || wonder?.guests.find(candidate => candidate.id === member.id))
+    .map((member) => candidates.find((candidate) => candidate.id === member.id) || guests.find(candidate => candidate.id === member.id))
     .filter((candidate): candidate is NonNullable<typeof candidate> => Boolean(candidate));
   const artifactOption = plan.artifact ? artifacts.find((artifact) => artifact.id === plan.artifact!.id) : undefined;
 
@@ -349,8 +360,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const chapters = pages.map((page) => {
     const image = images.pages.get(page.order);
     return {
-      id: `${wonderMode ? "wonder" : "storybook"}-${page.order}`,
-      title: wonderMode ? page.title : pageTitle(config.language, page.order),
+      id: `${episodeMode ? "folge" : wonderMode ? "wonder" : "storybook"}-${page.order}`,
+      title: chapterMode ? page.title : pageTitle(config.language, page.order),
       content: page.content,
       order: page.order,
       imageUrl: publishableImageUrl(image),
@@ -363,6 +374,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     pipeline: pipelineId,
     generationMode: pipelineId,
     ...(wonder ? { wonder } : {}),
+    ...(episode ? { episode: { plan: episode.plan, checks: episode.checks, revised: episode.revised } } : {}),
     model: models.writer,
     storyModel: models.writer,
     supportModel: models.support,
@@ -386,7 +398,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       ...quality,
       benchmarkScore: text.benchmarkScore,
       draftScore: text.draftScore,
-      scale: wonderMode ? "Evidence-based editorial review; no numeric quality claim" : "0-10 vs. published top picture books",
+      scale: episodeMode ? "Deterministic checks only; no numeric quality claim" : wonderMode ? "Evidence-based editorial review; no numeric quality claim" : "0-10 vs. published top picture books",
       releaseReady,
     },
     storybook: {

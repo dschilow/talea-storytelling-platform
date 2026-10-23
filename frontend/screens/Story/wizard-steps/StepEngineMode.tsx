@@ -17,6 +17,7 @@ export interface EngineModeState {
   storybookMode: boolean;
   bookWorkshopMode: boolean;
   wonderStoryMode: boolean;
+  episodeMode: boolean;
   chapterBookMode: boolean;
   aiModel: AIModel;
   aiProvider: AIProvider;
@@ -28,7 +29,7 @@ interface Props {
   updateState: (updates: Partial<EngineModeState>) => void;
 }
 
-type GenerationLane = 'standard' | 'wonder' | 'storybook' | 'chapterbook' | 'workshop' | 'developer';
+type GenerationLane = 'standard' | 'episode' | 'wonder' | 'storybook' | 'chapterbook' | 'workshop' | 'developer';
 
 const LANES: Array<{
   id: GenerationLane;
@@ -39,6 +40,16 @@ const LANES: Array<{
   description: string;
   note?: string;
 }> = [
+  {
+    id: 'episode',
+    title: 'Talea-Folge',
+    badge: 'Neu · Test',
+    icon: 'openBook',
+    tone: TONE.sky,
+    description:
+      'Gebaut wie die Talea Originals (Bruno, Monster-Müllabfuhr): pro Geschichte eine eigene kleine Reihenbibel – ein Wunder mit einer Regel, das eine echte Kindersituation wörtlich nimmt, Figuren mit eigener Stimme, Running Gags, ein Mutmoment mit Herz und ein Ende, das alles Angelegte einlöst. Drei volle Kapitel statt fünf kurzer Seiten.',
+    note: 'GPT-6.1 Sol plant und schreibt (zwei Aufrufe, Originals-Kapitel als Stilvorlage). Etwa 8–9 ¢ Text pro Geschichte, ein Bild pro Kapitel.',
+  },
   {
     id: 'wonder',
     title: 'Wunder & Witz',
@@ -103,7 +114,7 @@ const LANES: Array<{
 /** Admin-only: which pipeline writes the story, and with which model. */
 export default function StepEngineMode({ state, updateState }: Props) {
   const reduceMotion = useReducedMotion();
-  const activeLane: GenerationLane = state.wonderStoryMode ? 'wonder' : state.chapterBookMode
+  const activeLane: GenerationLane = state.episodeMode ? 'episode' : state.wonderStoryMode ? 'wonder' : state.chapterBookMode
     ? 'chapterbook'
     : state.bookWorkshopMode
       ? 'workshop'
@@ -118,7 +129,7 @@ export default function StepEngineMode({ state, updateState }: Props) {
   // the model picker below still lets an admin choose any other one afterwards.
   const select = (lane: GenerationLane) => {
     const modelUpdate: Partial<EngineModeState> =
-      lane === 'storybook' || lane === 'chapterbook' || lane === 'wonder'
+      lane === 'storybook' || lane === 'chapterbook' || lane === 'wonder' || lane === 'episode'
         ? { aiProvider: 'openrouter', openRouterModel: STORYBOOK_OPENROUTER_STORY_MODEL }
         : state.openRouterModel === STORYBOOK_OPENROUTER_STORY_MODEL
           ? { openRouterModel: DEFAULT_OPENROUTER_STORY_MODEL }
@@ -129,6 +140,7 @@ export default function StepEngineMode({ state, updateState }: Props) {
       bookWorkshopMode: lane === 'workshop',
       chapterBookMode: lane === 'chapterbook',
       wonderStoryMode: lane === 'wonder',
+      episodeMode: lane === 'episode',
       ...modelUpdate,
     });
   };

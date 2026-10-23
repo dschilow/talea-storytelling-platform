@@ -227,7 +227,7 @@ export interface StoryConfig {
   // Does not touch developerMode or the standard path.
   storybookMode?: boolean;
   // Explicit wizard selection takes precedence over the legacy server default.
-  storybookEngine?: "storybook-v1" | "storybook-v2" | "book-workshop-v1" | "chapter-book-v1" | "wonder-story-v1";
+  storybookEngine?: "storybook-v1" | "storybook-v2" | "book-workshop-v1" | "chapter-book-v1" | "wonder-story-v1" | "talea-folge-v1";
 
   // Chapter book (chapter-book-v1): a volume of 8-15 chapters read over several
   // evenings, written by a job (book-generation.ts). Chapters and pictures per
