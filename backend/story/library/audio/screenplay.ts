@@ -38,9 +38,15 @@ export interface CastMember {
   description: string;
   persona: string;
   silent: boolean;
+  /** ElevenLabs voice. */
   voiceId?: string;
   voiceName?: string;
+  /** Gemini voice, when the drama is cast for Gemini. */
+  geminiVoice?: string;
   source: ScriptSpeaker["source"];
+  gender?: ScriptSpeaker["gender"];
+  age?: ScriptSpeaker["age"];
+  creature?: boolean;
 }
 
 /* ── Tags and text hygiene ──────────────────────────────────────────────── */
@@ -53,6 +59,12 @@ export const INLINE_TAGS = new Set([
 
 const LEADING_TAG = /^\[([^\]\n]{1,60})\]\s*/;
 const TAG_WORDS = /^[a-z][a-z ,'-]{0,58}$/;
+
+/** The direction a screenplay line starts with ("grumpy, offended") and the rest of the line. */
+export function splitLeadingTag(text: string): { tag: string; body: string } {
+  const match = String(text || "").match(LEADING_TAG);
+  return match ? { tag: match[1].trim(), body: text.slice(match[0].length).trim() } : { tag: "", body: String(text || "").trim() };
+}
 
 /** Text Eleven v4 speaks: no quote marks, no stray stage directions, one line, the leading tag kept. */
 export function cleanLineText(raw: string, persona: string): string {

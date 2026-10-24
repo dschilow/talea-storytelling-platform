@@ -11,6 +11,7 @@ import { storyDB } from "../db";
 import { SEED_EPISODES, SEED_SEASONS, SEED_SERIES, episodeId, seedHash } from "./seed";
 import type { AudioScript, ContentStatus, EpisodeAudio, EpisodeContent, EpisodeScores, SeriesBible, SeriesCharacter, SeriesInfo } from "./types";
 import type { VoiceOverride } from "./audio/casting";
+import type { EngineVoiceOverride } from "./audio/gemini-voices";
 
 export interface GenerationInfo {
   source?: "seed" | "pipeline" | "manual";
@@ -160,6 +161,8 @@ async function ensureSchema(): Promise<void> {
   await storyDB.exec`ALTER TABLE library_episodes ADD COLUMN IF NOT EXISTS audio JSONB`;
   await storyDB.exec`ALTER TABLE library_episodes ADD COLUMN IF NOT EXISTS audio_script JSONB`;
   await storyDB.exec`CREATE TABLE IF NOT EXISTS library_voice_cast (series_id TEXT NOT NULL REFERENCES library_series(id) ON DELETE CASCADE, speaker_id TEXT NOT NULL, voice_id TEXT, persona TEXT, source TEXT NOT NULL DEFAULT 'admin', updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (series_id, speaker_id))`;
+  // Voices of the other engines (migration 47); the persona stays in library_voice_cast, it belongs to the figure.
+  await storyDB.exec`CREATE TABLE IF NOT EXISTS library_voice_engine_cast (series_id TEXT NOT NULL REFERENCES library_series(id) ON DELETE CASCADE, speaker_id TEXT NOT NULL, family TEXT NOT NULL, voice_id TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'admin', updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (series_id, speaker_id, family))`;
 }
 
 async function syncSeed(): Promise<void> {
@@ -376,6 +379,26 @@ export async function saveVoiceCast(seriesId: string, row: VoiceOverride): Promi
 
 export async function deleteVoiceCast(seriesId: string, speakerId: string): Promise<void> {
   await storyDB.exec`DELETE FROM library_voice_cast WHERE series_id = ${seriesId} AND speaker_id = ${speakerId}`;
+}
+
+/** Voices of a series on another engine family (Gemini), by speaker. */
+export async function listEngineVoiceCast(seriesId: string, family: EngineVoiceOverride["family"]): Promise<EngineVoiceOverride[]> {
+  const rows = await storyDB.queryAll<{ speaker_id: string; voice_id: string; source: string }>`
+    SELECT speaker_id, voice_id, source FROM library_voice_engine_cast WHERE series_id = ${seriesId} AND family = ${family}
+  `;
+  return rows.map((row) => ({ speakerId: row.speaker_id, family, voiceId: row.voice_id, source: row.source === "auto" ? "auto" : "admin" }));
+}
+
+export async function saveEngineVoiceCast(seriesId: string, row: EngineVoiceOverride): Promise<void> {
+  await storyDB.exec`
+    INSERT INTO library_voice_engine_cast (series_id, speaker_id, family, voice_id, source)
+    VALUES (${seriesId}, ${row.speakerId}, ${row.family}, ${row.voiceId}, ${row.source})
+    ON CONFLICT (series_id, speaker_id, family) DO UPDATE SET voice_id = EXCLUDED.voice_id, source = EXCLUDED.source, updated_at = CURRENT_TIMESTAMP
+  `;
+}
+
+export async function deleteEngineVoiceCast(seriesId: string, speakerId: string, family: EngineVoiceOverride["family"]): Promise<void> {
+  await storyDB.exec`DELETE FROM library_voice_engine_cast WHERE series_id = ${seriesId} AND speaker_id = ${speakerId} AND family = ${family}`;
 }
 
 /* ── Progress & collection ──────────────────────────────────────────────── */

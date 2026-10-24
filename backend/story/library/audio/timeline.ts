@@ -77,6 +77,27 @@ export function anchorTime(words: WordTime[], span: { start: number; end: number
   return hit ? hit.start : span.start;
 }
 
+/**
+ * Word times inside a line's span when the engine returns none (Gemini): spread by
+ * length, with room for the pause after punctuation. Close enough to land a sound
+ * on its word.
+ */
+export function estimateWordTimes(text: string, start: number, end: number): WordTime[] {
+  const words = text.replace(/\[[^\]]*\]/g, " ").split(/\s+/).filter((word) => /[\p{L}\p{N}]/u.test(word));
+  if (!words.length || end <= start) return [];
+  const letters = words.map((word) => word.replace(/[^\p{L}\p{N}]/gu, "").length + 1);
+  const pauses = words.map((word) => (/[.!?…]["')\]]*$/.test(word) ? 4 : /[,;:–-]$/.test(word) ? 2 : 0));
+  const total = letters.reduce((sum, value, index) => sum + value + pauses[index], 0);
+  const perUnit = (end - start) / total;
+  let cursor = start;
+  return words.map((word, index) => {
+    const spoken = letters[index] * perUnit;
+    const timed = { word: word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ""), start: cursor, end: cursor + spoken };
+    cursor += spoken + pauses[index] * perUnit;
+    return timed;
+  });
+}
+
 /** Char-weighted line spans for a part whose audio came back without timing. */
 export function estimateLineSpans(part: ScriptPart, seconds: number): Array<{ start: number; end: number }> {
   const weights = part.lines.map((line) => Math.max(1, line.text.replace(/\[[^\]]*\]/g, "").trim().length));

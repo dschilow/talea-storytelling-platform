@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { AlertTriangle, Eye, EyeOff, FileAudio, Headphones, Loader2, Mic, Music2, RefreshCw, Volume2 } from "lucide-react";
+import { AlertTriangle, Eye, EyeOff, FileAudio, Headphones, Loader2, Mic, Music2, RefreshCw, Undo2, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { useBackend } from "@/hooks/useBackend";
 import { cn } from "@/lib/utils";
@@ -15,10 +15,35 @@ const STATUS_TONES = {
   failed: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200",
 } as const;
 
+const ENGINE_KEY = "talea.originals.audioEngine";
+const ENGINE_NOTES: Record<string, string> = {
+  elevenlabs: "Captain Comedy, Dialog-Takes",
+  "gemini-lite": "30 Stimmen, Zeile für Zeile",
+  "gemini-flash": "ausdrucksstärker als Lite",
+};
+
+const usd = (value?: number) => (value === undefined ? "–" : `$${value < 0.1 ? value.toFixed(3) : value.toFixed(2)}`);
+
+function rememberedEngine(fallback: string): string {
+  try {
+    return window.localStorage.getItem(ENGINE_KEY) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/** "Stimmen $0.11 · Geräusche $0.66 · Musik $0 · Drehbuch $0.10 = $0.87" */
+const CostLine: React.FC<{ costs: NonNullable<LibraryAdminEpisode["audio"]["costs"]> }> = ({ costs }) => (
+  <span title="Listenpreise; im ElevenLabs-Abo enthaltene Credits sind nicht abgezogen.">
+    Kosten: Stimmen {usd(costs.voicesUSD)} · Geräusche {usd(costs.soundsUSD)} · Musik {usd(costs.musicUSD)} · Drehbuch {usd(costs.scriptUSD)} = <strong>{usd(costs.totalUSD)}</strong>
+  </span>
+);
+
 /**
- * The episode as an audio drama (admins): Captain Comedy narrates, every figure
- * has its own voice, the series' music, ambience and sounds come from the
- * screenplay. Record, listen, release, record again.
+ * The episode as an audio drama (admins): a narrator, every figure with its own
+ * voice (ElevenLabs v4 or Gemini 3.8 TTS), the series' music, ambience and sounds
+ * from the screenplay. Record, listen, compare with the previous recording,
+ * release, record again.
  */
 export const EpisodeAudioPanel: React.FC<{ episode: LibraryAdminEpisode; onChanged: () => void }> = ({ episode, onChanged }) => {
   const backend = useBackend();
@@ -26,7 +51,18 @@ export const EpisodeAudioPanel: React.FC<{ episode: LibraryAdminEpisode; onChang
   const [release, setRelease] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [scriptOpen, setScriptOpen] = useState(false);
+  const [engine, setEngine] = useState(() => rememberedEngine(audio.defaultEngine));
   const textBusy = episode.state === "generating";
+  const chosen = audio.estimates.find((estimate) => estimate.engine === engine) ?? audio.estimates[0];
+
+  const chooseEngine = (value: string) => {
+    setEngine(value);
+    try {
+      window.localStorage.setItem(ENGINE_KEY, value);
+    } catch {
+      // private mode: the choice just is not remembered
+    }
+  };
 
   const run = async (key: string, action: () => Promise<unknown>, success?: string) => {
     setBusy(key);
@@ -44,8 +80,8 @@ export const EpisodeAudioPanel: React.FC<{ episode: LibraryAdminEpisode; onChang
   const record = (keepScript: boolean) =>
     run(
       keepScript ? "re-record" : "record",
-      () => backend.story.libraryAdminGenerateAudio({ id: episode.id, release, keepScript }),
-      "Das Hörspiel entsteht. Das dauert etwa 6–10 Minuten.",
+      () => backend.story.libraryAdminGenerateAudio({ id: episode.id, release, keepScript, engine: chosen?.engine }),
+      `Das Hörspiel entsteht mit ${chosen?.label ?? "der gewählten Engine"}. Das dauert etwa 6–10 Minuten.`,
     );
 
   const status = audio.status;
@@ -60,11 +96,12 @@ export const EpisodeAudioPanel: React.FC<{ episode: LibraryAdminEpisode; onChang
             {audio.released ? "Für Kinder freigegeben" : "Nicht freigegeben"}
           </span>
         ) : null}
+        {audio.engineLabel ? <span className="rounded-full bg-[var(--talea-surface-primary)] px-2 py-0.5 text-[11px] font-semibold text-[var(--talea-text-secondary)]">{audio.engineLabel}</span> : null}
       </div>
 
       {status === "none" ? (
         <p className="text-[14px] leading-relaxed text-[var(--talea-text-secondary)]">
-          Captain Comedy erzählt, jede Figur spricht mit ihrer eigenen Stimme (ElevenLabs v4 mit Emotions-Tags). Dazu kommen die Musik der Reihe, Orts-Atmosphäre und Geräusche nach einem eigenen Hörspiel-Drehbuch.
+          Ein Erzähler und jede Figur mit eigener Stimme (ElevenLabs v4 oder Gemini 3.8), dazu die Musik der Reihe, Orts-Atmosphäre und Geräusche nach einem eigenen Hörspiel-Drehbuch.
         </p>
       ) : null}
 
@@ -94,11 +131,69 @@ export const EpisodeAudioPanel: React.FC<{ episode: LibraryAdminEpisode; onChang
             {audio.voiceCharacters ? <span className="inline-flex items-center gap-1"><Mic className="h-3 w-3" aria-hidden="true" />{audio.voiceCharacters.toLocaleString("de-DE")} Zeichen</span> : null}
             {audio.sounds ? <span className="inline-flex items-center gap-1"><Volume2 className="h-3 w-3" aria-hidden="true" />{audio.sounds} Geräusche</span> : null}
             {audio.music ? <span className="inline-flex items-center gap-1"><Music2 className="h-3 w-3" aria-hidden="true" />Musik {audio.music}</span> : null}
-            {audio.llmCostUSD ? <span>Drehbuch ${audio.llmCostUSD.toFixed(3)}</span> : null}
-            {audio.takes ? <span>{audio.takes} Takes{audio.retakes ? `, ${audio.retakes} nach Hörprobe neu aufgenommen` : ""}</span> : null}
+            {!audio.costs && audio.llmCostUSD ? <span>Drehbuch ${audio.llmCostUSD.toFixed(3)}</span> : null}
+            {audio.reusedSounds ? <span>{audio.reusedSounds} Geräusche wiederverwendet</span> : null}
+            {audio.takes ? (
+              <span>
+                {audio.engine === "elevenlabs" ? `${audio.takes} Takes` : `${audio.takes} Zeilen`}
+                {audio.retakes ? `, ${audio.retakes} ${audio.engine === "elevenlabs" ? "nach Hörprobe" : "nach Längenprüfung"} neu aufgenommen` : ""}
+              </span>
+            ) : null}
             {audio.renderSeconds ? <span>{Math.round(audio.renderSeconds / 60)} Min. Produktion</span> : null}
+            {audio.costs ? <CostLine costs={audio.costs} /> : null}
           </p>
         </div>
+      ) : null}
+
+      {audio.previous ? (
+        <details className="rounded-xl bg-[var(--talea-surface-primary)] p-3">
+          <summary className="cursor-pointer text-[13px] font-semibold text-[var(--talea-text-primary)]">
+            Vorige Fassung zum Vergleichen: {audio.previous.engineLabel}
+            {audio.previous.durationSeconds ? ` · ${formatClock(audio.previous.durationSeconds)} Min.` : ""}
+            {audio.previous.costs ? ` · ${usd(audio.previous.costs.totalUSD)}` : ""}
+          </summary>
+          <div className="mt-2 flex flex-col gap-2">
+            <audio controls preload="none" src={audio.previous.url} className="w-full" aria-label={`Vorige Fassung: ${episode.title}`} />
+            {audio.previous.costs ? <p className="text-[12px] text-[var(--talea-text-secondary)]"><CostLine costs={audio.previous.costs} /></p> : null}
+            {audio.previous.canRestore ? (
+              <div>
+                <PanelButton
+                  icon={<Undo2 className="h-4 w-4" />}
+                  busy={busy === "restore"}
+                  onClick={() => window.confirm(`Die vorige Fassung (${audio.previous!.engineLabel}) wieder verwenden? Die jetzige bleibt als vorige Fassung erhalten.`) && void run("restore", () => backend.story.libraryAdminRestoreAudio({ id: episode.id }), "Vorige Fassung ist wieder aktiv.")}
+                >
+                  Diese Fassung wieder verwenden
+                </PanelButton>
+              </div>
+            ) : (
+              <p className="text-[12px] text-[var(--talea-text-tertiary)]">Aus einem älteren Drehbuch aufgenommen: nur zum Anhören.</p>
+            )}
+          </div>
+        </details>
+      ) : null}
+
+      {status !== "generating" ? (
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="mb-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-[var(--talea-text-tertiary)]">Stimmen-Engine für die nächste Aufnahme</legend>
+          <div className="flex flex-wrap gap-2" role="radiogroup">
+            {audio.estimates.map((estimate) => (
+              <button
+                key={estimate.engine}
+                type="button"
+                role="radio"
+                aria-checked={chosen?.engine === estimate.engine}
+                onClick={() => chooseEngine(estimate.engine)}
+                className={cn(
+                  "flex min-h-[44px] flex-col items-start rounded-2xl border px-3 py-1.5 text-left",
+                  chosen?.engine === estimate.engine ? "border-[var(--primary)] bg-[var(--talea-surface-primary)]" : "border-transparent bg-[var(--talea-surface-primary)]/60",
+                )}
+              >
+                <span className="text-[13px] font-semibold text-[var(--talea-text-primary)]">{estimate.label}</span>
+                <span className="text-[11px] text-[var(--talea-text-secondary)]">Stimmen ≈ {usd(estimate.voicesUSD)} · {ENGINE_NOTES[estimate.engine] ?? ""}</span>
+              </button>
+            ))}
+          </div>
+        </fieldset>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
@@ -123,7 +218,7 @@ export const EpisodeAudioPanel: React.FC<{ episode: LibraryAdminEpisode; onChang
             >
               {audio.released ? "Hörspiel zurückziehen" : "Hörspiel freigeben"}
             </PanelButton>
-            <PanelButton icon={<RefreshCw className="h-4 w-4" />} busy={busy === "re-record"} disabled={textBusy || audio.outdated} onClick={() => window.confirm("Mit demselben Drehbuch neu vertonen (z. B. nach einem Stimmenwechsel)? Das alte Hörspiel bleibt bis dahin online.") && void record(true)}>
+            <PanelButton icon={<RefreshCw className="h-4 w-4" />} busy={busy === "re-record"} disabled={textBusy || audio.outdated} onClick={() => window.confirm(`Mit demselben Drehbuch neu vertonen (${chosen?.label ?? ""})? Das jetzige Hörspiel bleibt bis dahin online und danach als vorige Fassung zum Vergleichen erhalten.`) && void record(true)}>
               Neu vertonen
             </PanelButton>
             <PanelButton icon={<FileAudio className="h-4 w-4" />} busy={busy === "record"} disabled={textBusy} onClick={() => window.confirm("Neues Drehbuch schreiben und komplett neu vertonen?") && void record(false)}>
@@ -192,6 +287,7 @@ const ScriptDialog: React.FC<{ episodeId: string; onClose: () => void }> = ({ ep
           <div className="flex items-center justify-between gap-3 border-b border-[var(--talea-border-light)] px-5 py-3">
             <DialogPrimitive.Title className="flex items-center gap-2 text-[1.1rem] font-bold text-[var(--talea-text-primary)]">
               <Headphones className="h-5 w-5 text-[var(--primary)]" /> Drehbuch: {script?.title || "…"}
+              {script?.engineLabel ? <span className="text-[13px] font-normal text-[var(--talea-text-secondary)]">· Stimmen: {script.engineLabel}</span> : null}
             </DialogPrimitive.Title>
             <DialogPrimitive.Description className="sr-only">Das Hörspiel-Drehbuch mit Sprechern, Regie-Tags, Szenen und Geräuschen.</DialogPrimitive.Description>
             <DialogPrimitive.Close className="h-10 rounded-full px-4 text-[14px] font-semibold text-[var(--talea-text-secondary)]">Schließen</DialogPrimitive.Close>

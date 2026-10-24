@@ -2,19 +2,29 @@
  * Records one episode as an audio drama: cast → screenplay → voices → score →
  * timeline → studio mix. No database here (production.ts stores the result),
  * so a script can run the whole chain against the live services.
+ *
+ * The voices come from one of two engines (engines.ts): ElevenLabs v4 in
+ * dialogue takes, or Gemini 3.8 TTS line by line (gemini-render.ts). Screenplay,
+ * music, sounds and mix are the same for both, so a recording with the other
+ * engine is a fair comparison and "Neu vertonen" can switch engines.
  */
 
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { mixStudioMaster, resolveTaleaBumper } from "../../../doku/audio-render";
+import { mixStudioMaster, resolveTaleaBumper, type SoundCachePort } from "../../../doku/audio-render";
 import { synthesizeDialogueWithTimestamps } from "../../../tts/elevenlabs-dialogue";
 import { transcribeTake } from "./transcribe";
 import type { CostLedger, StorybookLlm } from "../../storybook/llm";
 import { LIBRARY_MODELS } from "../engine";
-import type { AudioScript, EpisodeAudio, EpisodeContent, ScoreMood, ScriptPart, ScriptSpeaker, SeriesBible, SeriesCharacter, SeriesInfo } from "../types";
-import { NARRATOR_ID, pickVoice, type AccountVoice, type ResolvedVoice } from "./casting";
-import { prepareScore, probeSeconds, type ScorePorts } from "./score";
+import type { AudioScript, EpisodeAudioStats, EpisodeContent, ScoreMood, ScriptPart, SeriesBible, SeriesCharacter, SeriesInfo, VoiceEngine } from "../types";
+import { pickVoice, type AccountVoice, type ResolvedVoice } from "./casting";
+import { assignEngineVoices, recastScript, seriesCastMembers, seriesHints, speakerHint, toSpeaker } from "./cast-members";
+import { audioCosts, engineInfo, musicCost, soundCost } from "./engines";
+import { figureHint, pickGeminiVoice, type GeminiCastEntry, type SpeakerDirection } from "./gemini-voices";
+import { renderWithGemini } from "./gemini-render";
+import type { SpeechPort } from "./openrouter-speech";
+import { prepareScore, probeSeconds, scorePrompt, type ScorePorts } from "./score";
 import {
   NARRATOR_KEY,
   adaptChapter,
@@ -22,13 +32,11 @@ import {
   billedCharacters,
   castEpisodeSpeakers,
   dialogueScript,
-  speakerKey,
   type CastMember,
 } from "./screenplay";
 import { buildTimeline, estimateLineSpans, type RenderedPart } from "./timeline";
 import { checkTake, planTakes, type TakeCheck } from "./qa";
 
-const ROLE_LABELS: Record<string, string> = { protagonist: "Hauptfigur", sidekick: "Sidekick", antagonist: "Gegenspieler", recurring: "Nebenfigur der Reihe" };
 /** The account takes two requests at once (Creator plan). */
 const VOICE_CONCURRENCY = 2;
 /** ElevenLabs: dialogue is reliable up to ~2,000 characters per request; longer chapters lost lines. */
@@ -45,6 +53,8 @@ const LISTENING_CHECK = process.env.TALEA_AUDIO_QA === "on";
 /** Spot effects and ambience beds one drama may generate (a 13-minute episode uses 30–50). */
 const MAX_SOUND_ASSETS = 70;
 
+export { geminiFigures, seriesCastMembers, seriesHints, recastScript, assignEngineVoices } from "./cast-members";
+
 export interface DramaInput {
   series: SeriesInfo;
   bible: SeriesBible;
@@ -53,13 +63,23 @@ export interface DramaInput {
   content: EpisodeContent;
   /** Active characters of the series. */
   characters: SeriesCharacter[];
-  /** Voices of the narrator and the series characters (resolveSeriesCast). */
+  /** ElevenLabs voices of the narrator and the series characters (resolveSeriesCast); persona and silence come from here for every engine. */
   seriesCast: ResolvedVoice[];
-  /** The ElevenLabs account's voices. */
+  /** The ElevenLabs account's voices (may be empty when recording with Gemini). */
   voices: AccountVoice[];
   llm: StorybookLlm;
   ledger: CostLedger;
   scorePorts: ScorePorts;
+  /** Voice engine; ElevenLabs v4 when missing. */
+  engine?: VoiceEngine;
+  /** Gemini voices of the narrator and the series characters (resolveGeminiCast); required for Gemini engines. */
+  geminiCast?: GeminiCastEntry[];
+  /** Speech synthesis for Gemini engines (OpenRouter). */
+  speech?: SpeechPort;
+  /** Generated sounds kept between recordings. */
+  soundCache?: SoundCachePort;
+  /** Leave out spot effects and ambience (music stays): a cheaper test recording. */
+  withoutSounds?: boolean;
   /** Record again from this screenplay instead of writing a new one (voices of the series are re-resolved). */
   script?: AudioScript;
   report?: (step: string) => Promise<void>;
@@ -71,7 +91,8 @@ export interface DramaResult {
   audio: Buffer;
   seconds: number;
   chapterStarts: number[];
-  stats: NonNullable<EpisodeAudio["stats"]>;
+  engine: VoiceEngine;
+  stats: EpisodeAudioStats;
 }
 
 interface RecordedTake {
@@ -86,68 +107,28 @@ interface RecordedTake {
   check: TakeCheck | null;
 }
 
-function describe(character: SeriesCharacter): string {
-  return [ROLE_LABELS[character.role] ?? "", character.ageYears ? `${character.ageYears} Jahre` : "", character.personality, character.speechStyle ? `Sprechweise: ${character.speechStyle}` : ""]
-    .filter(Boolean)
-    .join(". ")
-    .replace(/\.\./g, ".");
-}
-
-/** Narrator and series characters as cast members of the screenplay. */
-export function seriesCastMembers(characters: SeriesCharacter[], seriesCast: ResolvedVoice[]): CastMember[] {
-  const narrator = seriesCast.find((voice) => voice.speakerId === NARRATOR_ID);
-  const members: CastMember[] = [
-    { key: NARRATOR_KEY, name: "Erzähler", characterId: NARRATOR_ID, description: "Erzählt die Geschichte.", persona: narrator?.persona || "warm, playful storyteller", silent: false, voiceId: narrator?.voiceId, voiceName: narrator?.voiceName, source: narrator?.source === "admin" ? "admin" : "series" },
-  ];
-  for (const character of characters) {
-    const voice = seriesCast.find((entry) => entry.speakerId === character.id);
-    if (!voice) continue;
-    members.push({
-      key: speakerKey(character.id),
-      name: character.name,
-      characterId: character.id,
-      description: describe(character),
-      persona: voice.persona,
-      silent: voice.silent || !voice.voiceId,
-      voiceId: voice.voiceId,
-      voiceName: voice.voiceName,
-      source: voice.source,
-    });
-  }
-  return members;
-}
-
-const toSpeaker = (member: CastMember): ScriptSpeaker => ({
-  key: member.key,
-  name: member.name,
-  ...(member.characterId ? { characterId: member.characterId } : {}),
-  voiceId: member.voiceId!,
-  ...(member.voiceName ? { voiceName: member.voiceName } : {}),
-  persona: member.persona,
-  source: member.source,
-});
-
-/** A stored screenplay with today's voices of the series (episode guests keep theirs). */
-export function recastScript(script: AudioScript, seriesMembers: CastMember[]): AudioScript {
-  const current = new Map(seriesMembers.filter((member) => !member.silent).map((member) => [member.key, member]));
-  return {
-    ...script,
-    speakers: script.speakers.map((speaker) => {
-      const member = current.get(speaker.key);
-      return member?.voiceId ? { ...speaker, voiceId: member.voiceId, voiceName: member.voiceName, persona: member.persona, source: member.source } : speaker;
-    }),
-  };
+/** What a voice engine hands to the timeline. */
+interface RecordedVoices {
+  parts: RenderedPart[];
+  takes: number;
+  retakes: number;
+  requests: number;
+  voiceSeconds: number;
+  costUSD: number;
+  notes: string[];
 }
 
 /** Stages 1–2: the episode's own speakers get voices, every chapter becomes a screenplay. */
 export async function writeAudioScript(input: DramaInput): Promise<AudioScript> {
   const say = input.log ?? ((message: string) => console.log(`[library-audio] ${message}`));
   const report = input.report ?? (async () => undefined);
-  const seriesMembers = seriesCastMembers(input.characters, input.seriesCast);
+  const family = engineInfo(input.engine).family;
+  const seriesMembers = seriesCastMembers(input.characters, input.seriesCast, { family, geminiCast: input.geminiCast, voices: input.voices });
   const voiceName = new Map(input.voices.map((voice) => [voice.voiceId, voice.name.trim()]));
 
   await report("cast");
   const used = new Set(seriesMembers.map((member) => member.voiceId).filter((id): id is string => Boolean(id)));
+  const usedGemini = new Set(seriesMembers.map((member) => member.geminiVoice).filter((id): id is string => Boolean(id)));
   const drafts = await castEpisodeSpeakers({
     series: input.series,
     bible: input.bible,
@@ -162,16 +143,35 @@ export async function writeAudioScript(input: DramaInput): Promise<AudioScript> 
     const guest = input.content.guests.find((entry) => entry.id === draft.guestId);
     const description = guest?.role ? `Gast dieser Folge: ${guest.role}.` : "Nebenfigur dieser Folge.";
     if (!draft.speaks) return { key: draft.key, name: draft.name, characterId: draft.guestId, description, persona: draft.persona, silent: true, source: "episode" };
+    const hint = figureHint({ name: draft.name, personality: `${description} ${draft.persona}`, gender: draft.gender, age: draft.age });
     let voiceId = draft.voiceId && voiceName.has(draft.voiceId) && !used.has(draft.voiceId) ? draft.voiceId : undefined;
-    if (!voiceId) {
-      const creature = /(monster|tier|hund|drache|geist|wesen|kobold)/i.test(`${draft.name} ${description}`);
-      voiceId = pickVoice({ gender: draft.gender, age: draft.age, creature, seed: draft.key }, input.voices, used)?.voiceId;
-    }
+    if (!voiceId) voiceId = pickVoice({ gender: hint.gender, age: hint.age, creature: hint.creature, seed: draft.key }, input.voices, used)?.voiceId;
     if (voiceId) used.add(voiceId);
-    return { key: draft.key, name: draft.name, characterId: draft.guestId, description, persona: draft.persona, silent: !voiceId, voiceId, voiceName: voiceId ? voiceName.get(voiceId) : undefined, source: "episode" };
+    let geminiVoice: string | undefined;
+    if (family === "gemini") {
+      geminiVoice = pickGeminiVoice({ ...hint, persona: draft.persona, seed: draft.key }, usedGemini).name;
+      usedGemini.add(geminiVoice);
+    }
+    return {
+      key: draft.key,
+      name: draft.name,
+      characterId: draft.guestId,
+      description,
+      persona: draft.persona,
+      // On ElevenLabs a figure without a free voice cannot speak; Gemini always has one.
+      silent: family === "gemini" ? false : !voiceId,
+      voiceId,
+      voiceName: voiceId ? voiceName.get(voiceId) : undefined,
+      geminiVoice,
+      source: "episode",
+      ...(hint.gender ? { gender: hint.gender } : {}),
+      ...(hint.age ? { age: hint.age } : {}),
+      creature: Boolean(hint.creature),
+    };
   });
   const cast = [...seriesMembers, ...episodeMembers];
-  say(`cast: ${cast.map((member) => `${member.key}${member.silent ? " (stumm)" : `=${member.voiceName ?? member.voiceId}`}`).join(", ")}`);
+  const voiceOf = (member: CastMember) => (family === "gemini" ? member.geminiVoice : member.voiceName ?? member.voiceId);
+  say(`cast (${engineInfo(input.engine).label}): ${cast.map((member) => `${member.key}${member.silent ? " (stumm)" : `=${voiceOf(member)}`}`).join(", ")}`);
 
   await report("script");
   const chapters = await Promise.all(
@@ -187,9 +187,10 @@ export async function writeAudioScript(input: DramaInput): Promise<AudioScript> 
     season: input.season,
     episode: input.episode,
     content: input.content,
-    speakers: cast.filter((member) => !member.silent && member.voiceId).map(toSpeaker),
+    // Gemini voices that are still missing are assigned before recording (assignEngineVoices); ElevenLabs members without a voice are silent.
+    speakers: cast.filter((member) => !member.silent && (family === "gemini" || member.voiceId)).map(toSpeaker),
     chapters,
-    notes: input.seriesCast.filter((voice) => voice.replaced).map((voice) => `${voice.name}: Stimme ${voice.replaced} gibt es im ElevenLabs-Konto nicht mehr, neu besetzt.`),
+    notes: family === "elevenlabs" ? input.seriesCast.filter((voice) => voice.replaced).map((voice) => `${voice.name}: Stimme ${voice.replaced} gibt es im ElevenLabs-Konto nicht mehr, neu besetzt.`) : [],
   });
 }
 
@@ -197,45 +198,27 @@ export async function renderAudioDrama(input: DramaInput): Promise<DramaResult> 
   const say = input.log ?? ((message: string) => console.log(`[library-audio] ${message}`));
   const report = input.report ?? (async () => undefined);
   const started = Date.now();
-  const script = input.script ? recastScript(input.script, seriesCastMembers(input.characters, input.seriesCast)) : await writeAudioScript(input);
+  const engine: VoiceEngine = input.engine ?? "elevenlabs";
+  const info = engineInfo(engine);
+  if (info.family === "gemini" && !input.speech) throw new Error(`${info.label}: keine Sprachsynthese angeschlossen (OpenRouter-Key fehlt?).`);
+  const seriesMembers = seriesCastMembers(input.characters, input.seriesCast, { family: info.family, geminiCast: input.geminiCast, voices: input.voices });
+  const written = input.script ? recastScript(input.script, seriesMembers) : await writeAudioScript(input);
+  const script = assignEngineVoices(written, info.family, input.voices, seriesHints(input.characters, input.seriesCast, input.voices));
 
-  const voiceMap = Object.fromEntries(script.speakers.map((speaker) => [speaker.key, speaker.voiceId]));
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "library-audio-"));
   try {
-    /* 3: voices in takes of ≤ 1,600 characters, each one listened to and recorded again when a line is missing */
+    /* 3: voices */
     await report("voices");
-    const jobs = script.parts.flatMap((part, partIndex) =>
-      planTakes(part.lines, part.scenes.map((scene) => scene.startLine), TAKE_MAX_CHARS).map((take) => ({ partIndex, ...take })),
-    );
-    const takes: RecordedTake[] = new Array(jobs.length);
-    let nextTake = 0;
-    await Promise.all(
-      Array.from({ length: Math.min(VOICE_CONCURRENCY, jobs.length) }, async () => {
-        while (nextTake < jobs.length) {
-          const index = nextTake++;
-          const job = jobs[index];
-          takes[index] = await recordTake(script.parts[job.partIndex], job.partIndex, job.from, job.to, `${index + 1}`, voiceMap, tmpDir);
-          const take = takes[index];
-          say(`voices: take ${index + 1}/${jobs.length} (${script.parts[job.partIndex].title}, lines ${job.from + 1}-${job.to}) ${take.seconds.toFixed(1)} s${take.check ? `, heard ${Math.round(take.check.coverage * 100)} %${take.attempts > 1 ? ` after ${take.attempts} takes` : ""}${take.check.passed ? "" : " — CHECK"}` : ""}`);
-        }
-      }),
-    );
-    const rendered = script.parts.map((part, partIndex) => assemblePart(part, takes.filter((take) => take.partIndex === partIndex)));
-    for (const take of takes) {
-      if (take.check && !take.check.passed) {
-        const part = script.parts[take.partIndex];
-        const missing = take.check.missingLines.map((line) => `„${part.lines[take.from + line].text.replace(/\[[^\]]*\]\s*/g, "").slice(0, 60)}“`);
-        script.notes.push(`${part.title}: nach ${take.attempts} Aufnahmen nicht ganz sauber (gehört ${Math.round(take.check.coverage * 100)} %)${missing.length ? `, fehlt evtl.: ${missing.join(", ")}` : ""}${take.check.inventedRun ? `, zusätzlich gehört: „${take.check.inventedRun}“` : ""}. Bitte anhören.`);
-      }
-    }
-    const retakes = takes.reduce((sum, take) => sum + take.attempts - 1, 0);
+    const recorded = info.family === "gemini" ? await recordWithGemini(script, engine, input, tmpDir, say) : await recordWithElevenLabs(script, tmpDir, say);
+    script.notes.push(...recorded.notes);
 
     /* 4: the series score */
     await report("music");
     const sceneMoods = script.parts.flatMap((part) => part.scenes.map((scene) => scene.music)).filter((mood): mood is ScoreMood => Boolean(mood));
+    const styleEn = input.bible.audio?.scoreStyleEn || `playful orchestral music for a children's series, ${input.bible.world.tone}`;
     const score = await prepareScore({
       seriesSlug: input.series.slug,
-      styleEn: input.bible.audio?.scoreStyleEn || `playful orchestral music for a children's series, ${input.bible.world.tone}`,
+      styleEn,
       moods: ["theme", "bridge", ...sceneMoods],
       tmpDir,
       ports: input.scorePorts,
@@ -245,35 +228,52 @@ export async function renderAudioDrama(input: DramaInput): Promise<DramaResult> 
 
     /* 5: timeline and studio mix */
     await report("mix");
-    const timeline = buildTimeline(rendered, score.tracks);
-    const sounds = timeline.cues.filter((cue) => cue.type === "sfx").length;
+    const timeline = buildTimeline(recorded.parts, score.tracks);
+    const cues = input.withoutSounds ? timeline.cues.filter((cue) => cue.type === "music") : timeline.cues;
+    const sounds = cues.filter((cue) => cue.type === "sfx").length;
     const mix = await mixStudioMaster({
       tmpDir,
       voice: timeline.voice,
       timelineSec: timeline.seconds,
-      cues: timeline.cues,
+      cues,
       introPath: null,
       outroPath: await resolveTaleaBumper("outro"),
       maxGeneratedAssets: MAX_SOUND_ASSETS,
       bitrate: "192k",
       logTag: `LibraryAudio ${input.series.slug} s${input.season}e${input.episode}`,
+      soundCache: input.soundCache,
     });
     const seconds = (await measureSeconds(mix.audio, tmpDir)) || timeline.seconds;
-    say(`mix: ${(seconds / 60).toFixed(1)} min, ${timeline.cues.length} cues (${sounds} sounds), ${mix.generatedAssets} generated sound assets`);
+    say(`mix: ${(seconds / 60).toFixed(1)} min, ${cues.length} cues (${sounds} sounds), ${mix.generatedAssets} sound assets generated, ${mix.reusedAssets} reused`);
+
+    const composedMusic = score.composed.filter((mood) => !score.fallbacks.includes(mood)).reduce((sum, mood) => sum + scorePrompt(styleEn, mood).seconds, 0);
+    const musicBySound = score.fallbacks.reduce((sum, mood) => sum + Math.min(30, scorePrompt(styleEn, mood).seconds), 0);
+    const costs = audioCosts({
+      scriptUSD: input.ledger.totals().costUSD,
+      voicesUSD: recorded.costUSD,
+      soundsUSD: soundCost(mix.generatedSeconds),
+      musicUSD: musicCost(composedMusic) + soundCost(musicBySound),
+    });
+    say(`costs (${info.label}): voices $${costs.voicesUSD.toFixed(3)}, sounds $${costs.soundsUSD.toFixed(3)}, music $${costs.musicUSD.toFixed(3)}, script $${costs.scriptUSD.toFixed(3)} = $${costs.totalUSD.toFixed(3)}`);
     return {
       script,
       audio: mix.audio,
       seconds,
       chapterStarts: timeline.chapterStarts.map((value) => Number(value.toFixed(2))),
+      engine,
       stats: {
         llmCostUSD: Number(input.ledger.totals().costUSD.toFixed(4)),
         voiceCharacters: billedCharacters(script),
         sounds,
         soundAssets: mix.generatedAssets,
-        takes: takes.length,
-        retakes,
+        reusedSounds: mix.reusedAssets,
+        takes: recorded.takes,
+        retakes: recorded.retakes,
+        voiceSeconds: Math.round(recorded.voiceSeconds),
+        voiceRequests: recorded.requests,
         music: score.fallbacks.length ? `Soundgenerator (${score.fallbacks.join(", ")})` : score.composed.length ? `neu komponiert: ${score.composed.join(", ")}` : "aus dem Serien-Archiv",
         seconds: Math.round((Date.now() - started) / 1000),
+        costs,
       },
     };
   } finally {
@@ -285,6 +285,73 @@ async function measureSeconds(audio: Buffer, tmpDir: string): Promise<number> {
   const file = path.join(tmpDir, "measure.mp3");
   await fs.writeFile(file, audio);
   return probeSeconds(file);
+}
+
+/* ── Gemini: line by line ───────────────────────────────────────────────── */
+
+async function recordWithGemini(script: AudioScript, engine: VoiceEngine, input: DramaInput, tmpDir: string, say: (message: string) => void): Promise<RecordedVoices> {
+  const hints = seriesHints(input.characters, input.seriesCast, input.voices);
+  const cast = new Map<string, SpeakerDirection & { voice: string }>();
+  for (const speaker of script.speakers) {
+    if (!speaker.geminiVoice) continue;
+    cast.set(speaker.key, { voice: speaker.geminiVoice, name: speaker.name, persona: speaker.persona, narrator: speaker.key === NARRATOR_KEY, hint: speakerHint(speaker, hints) });
+  }
+  say(`voices (${engineInfo(engine).label}): ${[...cast.entries()].map(([key, entry]) => `${key}=${entry.voice}`).join(", ")}`);
+  const { parts, stats } = await renderWithGemini({ script, engine, speech: input.speech!, cast, tmpDir, log: say });
+  say(`voices: ${stats.requests} requests, ${stats.retakes} retakes, ${stats.billedSeconds.toFixed(0)} s billed, $${stats.costUSD.toFixed(4)}`);
+  return {
+    parts,
+    takes: script.parts.reduce((sum, part) => sum + part.lines.length, 0),
+    retakes: stats.retakes,
+    requests: stats.requests,
+    voiceSeconds: parts.reduce((sum, part) => sum + part.seconds, 0),
+    costUSD: stats.costUSD,
+    notes: stats.flagged.map((flag) => `${flag.part}, Zeile ${flag.line} („${flag.text}“): ${flag.reason} — bitte anhören.`),
+  };
+}
+
+/* ── ElevenLabs: dialogue takes ─────────────────────────────────────────── */
+
+async function recordWithElevenLabs(script: AudioScript, tmpDir: string, say: (message: string) => void): Promise<RecordedVoices> {
+  const voiceMap = Object.fromEntries(script.speakers.map((speaker) => [speaker.key, speaker.voiceId]));
+  // Takes of ≤ 1,600 characters, each one listened to (when enabled) and recorded again when a line is missing.
+  const jobs = script.parts.flatMap((part, partIndex) =>
+    planTakes(part.lines, part.scenes.map((scene) => scene.startLine), TAKE_MAX_CHARS).map((take) => ({ partIndex, ...take })),
+  );
+  const takes: RecordedTake[] = new Array(jobs.length);
+  let nextTake = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(VOICE_CONCURRENCY, jobs.length) }, async () => {
+      while (nextTake < jobs.length) {
+        const index = nextTake++;
+        const job = jobs[index];
+        takes[index] = await recordTake(script.parts[job.partIndex], job.partIndex, job.from, job.to, `${index + 1}`, voiceMap, tmpDir);
+        const take = takes[index];
+        say(`voices: take ${index + 1}/${jobs.length} (${script.parts[job.partIndex].title}, lines ${job.from + 1}-${job.to}) ${take.seconds.toFixed(1)} s${take.check ? `, heard ${Math.round(take.check.coverage * 100)} %${take.attempts > 1 ? ` after ${take.attempts} takes` : ""}${take.check.passed ? "" : " — CHECK"}` : ""}`);
+      }
+    }),
+  );
+  const parts = script.parts.map((part, partIndex) => assemblePart(part, takes.filter((take) => take.partIndex === partIndex)));
+  const notes: string[] = [];
+  for (const take of takes) {
+    if (take.check && !take.check.passed) {
+      const part = script.parts[take.partIndex];
+      const missing = take.check.missingLines.map((line) => `„${part.lines[take.from + line].text.replace(/\[[^\]]*\]\s*/g, "").slice(0, 60)}“`);
+      notes.push(`${part.title}: nach ${take.attempts} Aufnahmen nicht ganz sauber (gehört ${Math.round(take.check.coverage * 100)} %)${missing.length ? `, fehlt evtl.: ${missing.join(", ")}` : ""}${take.check.inventedRun ? `, zusätzlich gehört: „${take.check.inventedRun}“` : ""}. Bitte anhören.`);
+    }
+  }
+  const attempts = takes.reduce((sum, take) => sum + take.attempts, 0);
+  // Every attempt is billed (retakes only happen with the listening check on); tags count as characters.
+  const billed = takes.reduce((sum, take) => sum + take.attempts * script.parts[take.partIndex].lines.slice(take.from, take.to).reduce((chars, line) => chars + line.text.length, 0), 0);
+  return {
+    parts,
+    takes: takes.length,
+    retakes: attempts - takes.length,
+    requests: attempts,
+    voiceSeconds: parts.reduce((sum, part) => sum + part.seconds, 0),
+    costUSD: (billed / 1000) * (engineInfo("elevenlabs").usdPer1kChars ?? 0),
+    notes,
+  };
 }
 
 /**

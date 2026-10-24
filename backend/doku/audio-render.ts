@@ -2,6 +2,7 @@ import { api, APIError } from "encore.dev/api";
 import log from "encore.dev/log";
 import { promises as fs } from "fs";
 import { spawn } from "child_process";
+import { createHash } from "crypto";
 import os from "os";
 import path from "path";
 
@@ -502,6 +503,27 @@ export async function renderAudioDokuMasterBuffer(req: AudioDokuMasterRequest): 
 /** One piece of the voice track: a rendered file or a stretch of silence (music bridges, lead-in). */
 export type VoicePiece = { path: string } | { silence: number };
 
+/**
+ * Generated sounds kept between mixes (bucket in production, a folder in live
+ * tests): a second recording of the same screenplay buys no sound twice.
+ */
+export interface SoundCachePort {
+  load(key: string): Promise<Buffer | null>;
+  save(key: string, audio: Buffer): Promise<void>;
+}
+
+/** Bump when the generation settings change, so old cached sounds are not reused. */
+const SOUND_CACHE_VERSION = 1;
+
+/**
+ * Storage key of a generated sound. A loop is keyed by its prompt alone — it is
+ * looped to any length anyway — so the same place sounds the same in every take.
+ */
+export function soundCacheKey(type: string, prompt: string, seconds: number, loop: boolean): string {
+  const id = createHash("sha1").update(`${type}|${prompt.trim().toLowerCase()}|${loop ? "loop" : Math.round(seconds * 10) / 10}`).digest("hex").slice(0, 20);
+  return `sounds/v${SOUND_CACHE_VERSION}/${type}/${id}.mp3`;
+}
+
 export interface StudioMixRequest {
   tmpDir: string;
   /** Played back to back; the cue timeline starts with the first piece. */
@@ -515,12 +537,18 @@ export interface StudioMixRequest {
   maxGeneratedAssets?: number;
   bitrate?: string;
   logTag?: string;
+  /** Reuse generated sounds across mixes (without it every mix generates its own). */
+  soundCache?: SoundCachePort;
 }
 
 export interface StudioMixResult {
   audio: Buffer;
-  /** Sound assets generated for this mix (prepared files not counted). */
+  /** Sound assets generated for this mix (prepared files and cached sounds not counted). */
   generatedAssets: number;
+  /** Seconds of sound generated for this mix (what the sound generation bills). */
+  generatedSeconds: number;
+  /** Sound assets taken from the sound cache. */
+  reusedAssets: number;
   /** Cues that ended up in the mix. */
   placedCues: number;
 }
@@ -579,7 +607,8 @@ export async function mixStudioMaster(req: StudioMixRequest): Promise<StudioMixR
     const atrimWindow = isLoop ? clamp(cue.duration, 0.5, room + 2) : Math.min(genDur, room + 2);
     const prompt = cue.type === "music" ? moodToMusicPrompt(cue.mood || "calm") : cue.prompt || "";
     if (!prompt.trim()) continue;
-    const cacheKey = `${cue.type}|${cue.mood || prompt}|${Math.round(genDur)}|${isLoop}`;
+    // With a sound cache a loop is one asset per prompt (it stores one take per place); without, one per length.
+    const cacheKey = req.soundCache && isLoop ? `${cue.type}|${cue.mood || prompt}|loop` : `${cue.type}|${cue.mood || prompt}|${Math.round(genDur)}|${isLoop}`;
     if (!assetJobs.has(cacheKey)) {
       if (generatedJobs >= maxAssets) continue;
       assetJobs.set(cacheKey, { prompt, genDur, isLoop, type: cue.type });
@@ -591,12 +620,29 @@ export async function mixStudioMaster(req: StudioMixRequest): Promise<StudioMixR
   const jobEntries = [...assetJobs.entries()];
   const assetFiles: Array<string | null> = jobEntries.map(([, job]) => job.path ?? null);
   const toGenerate = jobEntries.map((_, j) => j).filter((j) => !jobEntries[j][1].path);
+  const generated = new Set<number>();
+  let reusedAssets = 0;
+  let generatedSeconds = 0;
   let nextJob = 0;
   await Promise.all(
     Array.from({ length: Math.min(ASSET_CONCURRENCY, toGenerate.length) }, async () => {
       while (nextJob < toGenerate.length) {
         const j = toGenerate[nextJob++];
         const job = jobEntries[j][1];
+        const filePath = path.join(tmpDir, `cue-${j}.mp3`);
+        const storeKey = req.soundCache ? soundCacheKey(job.type, job.prompt, job.genDur, job.isLoop) : null;
+        if (storeKey) {
+          const cached = await req.soundCache!.load(storeKey).catch((err) => {
+            log.warn(`[${tag}] sound cache read failed (${storeKey}): ${err instanceof Error ? err.message : String(err)}`);
+            return null;
+          });
+          if (cached?.length) {
+            await fs.writeFile(filePath, cached);
+            assetFiles[j] = filePath;
+            reusedAssets += 1;
+            continue;
+          }
+        }
         try {
           const sound = await synthesizeSoundEffect({
             prompt: job.prompt,
@@ -604,9 +650,15 @@ export async function mixStudioMaster(req: StudioMixRequest): Promise<StudioMixR
             mode: job.isLoop ? "loop" : "oneshot",
             promptInfluence: job.type === "sfx" ? 0.7 : 0.55,
           });
-          const filePath = path.join(tmpDir, `cue-${j}.mp3`);
           await fs.writeFile(filePath, sound.audio);
           assetFiles[j] = filePath;
+          generated.add(j);
+          generatedSeconds += job.genDur;
+          if (storeKey) {
+            await req.soundCache!.save(storeKey, sound.audio).catch((err) => {
+              log.warn(`[${tag}] sound cache write failed (${storeKey}): ${err instanceof Error ? err.message : String(err)}`);
+            });
+          }
         } catch (err) {
           log.warn(`[${tag}] cue asset (${job.type}) failed, skipping: ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -621,7 +673,7 @@ export async function mixStudioMaster(req: StudioMixRequest): Promise<StudioMixR
     inputArgs.push("-i", filePath);
     assetCache.set(cacheKey, nextInputIndex++);
   });
-  const generatedAssets = toGenerate.filter((j) => assetFiles[j]).length;
+  const generatedAssets = generated.size;
 
   const placed: PlacedCue[] = [];
   for (const { cue, cacheKey, isLoop, atrimWindow } of planned) {
@@ -725,7 +777,7 @@ export async function mixStudioMaster(req: StudioMixRequest): Promise<StudioMixR
   ];
 
   log.info(
-    `[${tag}] voice=${timelineSec.toFixed(1)}s pieces=${voicePieces.length} cues=${req.cues.length} placed=${placed.length} generated=${generatedAssets} buses=${activeBuses.join("+") || "none"} bumpers=${Boolean(req.introPath)}/${Boolean(req.outroPath)}`,
+    `[${tag}] voice=${timelineSec.toFixed(1)}s pieces=${voicePieces.length} cues=${req.cues.length} placed=${placed.length} generated=${generatedAssets} reused=${reusedAssets} buses=${activeBuses.join("+") || "none"} bumpers=${Boolean(req.introPath)}/${Boolean(req.outroPath)}`,
   );
   try {
     await runFfmpeg(args);
@@ -740,5 +792,5 @@ export async function mixStudioMaster(req: StudioMixRequest): Promise<StudioMixR
 
   const audio = await fs.readFile(outputPath);
   if (!audio.length) throw APIError.internal("ffmpeg produced an empty master file.");
-  return { audio, generatedAssets, placedCues: placed.length };
+  return { audio, generatedAssets, generatedSeconds, reusedAssets, placedCues: placed.length };
 }

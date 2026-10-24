@@ -185,6 +185,12 @@ export type ScoreMood = (typeof SCORE_MOODS)[number];
 /** Moods a scene may ask for (theme and bridge are placed by the timeline itself). */
 export const SCENE_MOODS: ScoreMood[] = ["mischief", "adventure", "mystery", "heart", "spooky", "finale"];
 
+/** Voice engines a drama can be recorded with (prices and models in audio/engines.ts). */
+export const VOICE_ENGINES = ["elevenlabs", "gemini-lite", "gemini-flash"] as const;
+export type VoiceEngine = (typeof VOICE_ENGINES)[number];
+/** Engines with the same voice catalog share the cast of a series (Gemini Lite and Flash have the same 30 voices). */
+export type VoiceFamily = "elevenlabs" | "gemini";
+
 /** A sound the screenplay asks for on one line. */
 export interface ScriptSound {
   /** English sound-generation prompt: source, material, room. */
@@ -229,10 +235,18 @@ export interface ScriptSpeaker {
   name: string;
   /** Series character id, guest id or "narrator"; extras of the episode have none. */
   characterId?: string;
+  /** ElevenLabs voice; empty when the speaker was only cast for another engine. */
   voiceId: string;
   voiceName?: string;
+  /** Gemini voice (Puck, Leda …) once the speaker was cast for Gemini. */
+  geminiVoice?: string;
   persona: string;
   source: "admin" | "series" | "auto" | "episode";
+  /** Casting hints for engines without the ElevenLabs catalog (Gemini picks and directs by them). */
+  gender?: "female" | "male";
+  age?: "child" | "adult" | "old";
+  /** An animal, monster or other creature. */
+  creature?: boolean;
 }
 
 /** The audio screenplay (Drehbuch) an episode is recorded from. */
@@ -242,6 +256,51 @@ export interface AudioScript {
   parts: ScriptPart[];
   /** Notes of the adaptation (dropped tags, unknown speakers …), for the admin. */
   notes: string[];
+}
+
+/** What one recording cost, in USD (ElevenLabs at list price; the plan's included credits are not subtracted). */
+export interface AudioCosts {
+  /** Screenplay and casting (LLM). */
+  scriptUSD: number;
+  voicesUSD: number;
+  /** Spot effects and ambience generated for this mix (reused sounds cost nothing). */
+  soundsUSD: number;
+  /** Series music composed for this recording (usually 0: the score is composed once per series). */
+  musicUSD: number;
+  totalUSD: number;
+}
+
+export interface EpisodeAudioStats {
+  llmCostUSD?: number;
+  voiceCharacters?: number;
+  sounds?: number;
+  /** Sound assets generated for this mix. */
+  soundAssets?: number;
+  /** Sound assets taken from the sound cache instead (free). */
+  reusedSounds?: number;
+  music?: string;
+  /** Production time. */
+  seconds?: number;
+  /** ElevenLabs: takes recorded and how many had to be recorded again after the listening check. Gemini: lines recorded again after the length check. */
+  takes?: number;
+  retakes?: number;
+  /** Seconds of speech and voice requests (Gemini: one per line). */
+  voiceSeconds?: number;
+  voiceRequests?: number;
+  costs?: AudioCosts;
+}
+
+/** The recording before the current one, kept to compare engines and voices (one level deep). */
+export interface EpisodeAudioVersion {
+  url: string;
+  engine: VoiceEngine;
+  durationSeconds?: number;
+  chapterStarts?: number[];
+  textHash?: string;
+  finishedAt?: string;
+  stats?: EpisodeAudioStats;
+  /** Recorded from the screenplay that is stored now: only then can it become the current version again. */
+  sameScript: boolean;
 }
 
 export interface EpisodeAudio {
@@ -254,6 +313,10 @@ export interface EpisodeAudio {
   released: boolean;
   /** Release on its own as soon as the render is done (chosen at approval). */
   autoRelease?: boolean;
+  /** Voice engine of the current recording (missing: ElevenLabs, recorded before there was a choice). */
+  engine?: VoiceEngine;
+  /** Engine of the render that is running right now. */
+  pendingEngine?: VoiceEngine;
   /** Stored bucket URL of the mastered MP3. */
   url?: string;
   durationSeconds?: number;
@@ -262,17 +325,8 @@ export interface EpisodeAudio {
   /** Fingerprint of the episode text the drama was made from (text edited later = stale). */
   textHash?: string;
   script?: AudioScript;
-  stats?: {
-    llmCostUSD?: number;
-    voiceCharacters?: number;
-    sounds?: number;
-    soundAssets?: number;
-    music?: string;
-    seconds?: number;
-    /** Takes recorded and how many had to be recorded again after the listening check. */
-    takes?: number;
-    retakes?: number;
-  };
+  stats?: EpisodeAudioStats;
+  previous?: EpisodeAudioVersion;
 }
 
 /** Scores of the independent reader, 0–10 per dimension (concept: minimum 9 everywhere). */

@@ -47,7 +47,9 @@ import {
   type SeriesRecord,
 } from "./library/store";
 import type { CharacterRole, Collectible, EpisodeAudio, EpisodeContent, SeriesCharacter } from "./library/types";
-import { AUDIO_STEP_LABELS, audioIsGenerating, audioIsReleased, episodeTextHash, startEpisodeAudio } from "./library/audio/production";
+import { VOICE_ENGINES } from "./library/types";
+import { audioIsGenerating, audioIsReleased, audioStepLabel, episodeTextHash, startEpisodeAudio } from "./library/audio/production";
+import { defaultVoiceEngine, engineInfo, estimateVoices, proseVolume } from "./library/audio/engines";
 
 const runwareApiKey = secret("RunwareApiKey");
 
@@ -193,9 +195,41 @@ export interface LibraryAdminAudio {
   sounds?: number;
   music?: string;
   renderSeconds?: number;
-  /** Takes recorded / recorded again after the listening check. */
+  /** Takes recorded / recorded again after the listening check (Gemini: lines / lines recorded again after the length check). */
   takes?: number;
   retakes?: number;
+  /** Voice engine of the current recording. */
+  engine?: string;
+  engineLabel?: string;
+  /** Engine of the render that is running (or just failed). */
+  pendingEngineLabel?: string;
+  /** Sounds taken from the sound cache instead of being generated. */
+  reusedSounds?: number;
+  costs?: LibraryAudioCosts;
+  /** The recording before the current one. */
+  previous?: {
+    url: string;
+    engine: string;
+    engineLabel: string;
+    durationSeconds?: number;
+    finishedAt?: string;
+    costs?: LibraryAudioCosts;
+    /** Same screenplay as the current recording: can become the current one again. */
+    canRestore: boolean;
+  };
+  /** Rough cost of the voices of a new recording, per engine. */
+  estimates: Array<{ engine: string; label: string; voicesUSD: number }>;
+  /** Engine new recordings use when the Studio picks none. */
+  defaultEngine: string;
+}
+
+/** USD at list prices (ElevenLabs credits included in the plan are not subtracted). */
+export interface LibraryAudioCosts {
+  scriptUSD: number;
+  voicesUSD: number;
+  soundsUSD: number;
+  musicUSD: number;
+  totalUSD: number;
 }
 
 export interface LibraryProgressResponse {
@@ -380,28 +414,57 @@ async function audioView(audio: EpisodeAudio | null, isAdmin: boolean): Promise<
   return { url, durationSeconds: audio.durationSeconds ?? 0, chapterStarts: audio.chapterStarts ?? [], released: audio.released };
 }
 
+/** What the voices of the next recording will roughly cost on every engine. */
+function voiceEstimates(episode: EpisodeRecord): LibraryAdminAudio["estimates"] {
+  const billed = episode.audio?.stats?.voiceCharacters;
+  // A recorded screenplay is measured; without one the prose stands in (Bruno S1E1: 77 billed characters per line, 79 % spoken).
+  const volume = billed
+    ? { billedChars: billed, spokenChars: Math.round(billed * 0.79), lines: Math.max(1, Math.round(billed / 77)) }
+    : proseVolume((episode.content?.chapters ?? []).reduce((sum, chapter) => sum + chapter.text.length, 0));
+  return VOICE_ENGINES.map((engine) => ({ engine, label: engineInfo(engine).label, voicesUSD: Number(estimateVoices(engine, volume).usd.toFixed(3)) }));
+}
+
 export async function adminAudioView(episode: EpisodeRecord): Promise<LibraryAdminAudio> {
   const audio = episode.audio;
-  if (!audio) return { status: "none", released: false, autoRelease: false, outdated: false };
+  const base = { estimates: voiceEstimates(episode), defaultEngine: defaultVoiceEngine() };
+  if (!audio) return { status: "none", released: false, autoRelease: false, outdated: false, ...base };
   const generating = audioIsGenerating(audio);
   const status: LibraryAdminAudio["status"] = generating ? "generating" : audio.status === "generating" ? "failed" : audio.status;
+  const previous = audio.previous;
   return {
     status,
-    ...(audio.step ? { step: audio.step, stepLabel: AUDIO_STEP_LABELS[audio.step] ?? audio.step } : {}),
+    ...(audio.step ? { step: audio.step, stepLabel: audioStepLabel(audio.step, audio.pendingEngine ?? audio.engine) } : {}),
     released: Boolean(audio.url && audio.released),
     autoRelease: Boolean(generating && audio.autoRelease),
     outdated: Boolean(audio.url && audio.textHash && episode.content && audio.textHash !== episodeTextHash(episode.content)),
-    ...(audio.url ? { url: (await resolveObjectUrlForClient(audio.url)) || audio.url, durationSeconds: audio.durationSeconds } : {}),
+    ...(audio.url ? { url: (await resolveObjectUrlForClient(audio.url)) || audio.url, durationSeconds: audio.durationSeconds, engine: audio.engine ?? "elevenlabs", engineLabel: engineInfo(audio.engine).label } : {}),
+    ...(audio.pendingEngine && (generating || status === "failed") ? { pendingEngineLabel: engineInfo(audio.pendingEngine).label } : {}),
     startedAt: audio.startedAt,
     finishedAt: audio.finishedAt,
     error: status === "failed" ? audio.error || "Das Hörspiel wurde unterbrochen (z. B. durch ein Deployment). Bitte neu starten." : undefined,
     llmCostUSD: audio.stats?.llmCostUSD,
     voiceCharacters: audio.stats?.voiceCharacters,
     sounds: audio.stats?.sounds,
+    reusedSounds: audio.stats?.reusedSounds,
     music: audio.stats?.music,
     renderSeconds: audio.stats?.seconds,
     takes: audio.stats?.takes,
     retakes: audio.stats?.retakes,
+    ...(audio.stats?.costs ? { costs: audio.stats.costs } : {}),
+    ...(previous
+      ? {
+          previous: {
+            url: (await resolveObjectUrlForClient(previous.url)) || previous.url,
+            engine: previous.engine,
+            engineLabel: engineInfo(previous.engine).label,
+            ...(previous.durationSeconds ? { durationSeconds: previous.durationSeconds } : {}),
+            ...(previous.finishedAt ? { finishedAt: previous.finishedAt } : {}),
+            ...(previous.stats?.costs ? { costs: previous.stats.costs } : {}),
+            canRestore: previous.sameScript && !generating,
+          },
+        }
+      : {}),
+    ...base,
   };
 }
 
