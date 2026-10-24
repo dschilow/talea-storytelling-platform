@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { classifyMemory, sanitizeMemoryText } from "./memory-ranking";
+import { classifyMemory, sanitizeMemoryText, summarizeMemoryText } from "./memory-ranking";
 
 describe("memory ranking", () => {
   test("keeps a small acute event in working memory", () => {
@@ -68,5 +68,22 @@ describe("memory ranking", () => {
 
   test("sanitizes control characters and caps prompt text", () => {
     expect(sanitizeMemoryText(" Hallo\n\tWelt ", 11)).toBe("Hallo Welt");
+  });
+
+  test("diary summary ends at a sentence or a word, never mid-word", () => {
+    const sentence = "Mila fand den Schlüssel unter dem Moos und rief alle zusammen. ";
+    const long = sentence.repeat(6);
+    const summary = summarizeMemoryText(long, 240);
+    expect(summary.length).toBeLessThanOrEqual(240);
+    expect(summary.endsWith("zusammen.")).toBe(true);
+
+    const oneSentence = "Mila " + "rannte sehr schnell über die große Wiese ".repeat(10);
+    const cut = summarizeMemoryText(oneSentence, 120);
+    expect(cut.endsWith("…")).toBe(true);
+    expect(cut.length).toBeLessThanOrEqual(120);
+    expect(oneSentence.startsWith(cut.slice(0, -1))).toBe(true);
+    expect(cut.slice(0, -1).endsWith(" ")).toBe(false);
+
+    expect(summarizeMemoryText("Kurz und gut.", 240)).toBe("Kurz und gut.");
   });
 });

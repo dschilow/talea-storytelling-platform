@@ -20,6 +20,7 @@ import {
   Sparkles,
   RefreshCw,
   LogIn,
+  RotateCcw,
 } from "lucide-react";
 
 import { useBackend } from "../../hooks/useBackend";
@@ -80,7 +81,32 @@ function formatDate(value: string, locale = "de-DE") {
 }
 
 function getStoryPreviewText(story: Story) {
+  if (story.status === "error") return "Diese Geschichte konnte nicht fertig werden. Die Story-Münze geht automatisch zurück; starte sie einfach neu.";
+  if (story.status === "generating") return story.summary || story.description || "Talea schreibt gerade an dieser Geschichte …";
   return story.summary || story.description || null;
+}
+
+// The server gives up on a generation after 90 minutes (generation-capacity.ts),
+// but only marks it when the next story starts. Show it as failed right away.
+const STALE_GENERATION_MS = 90 * 60_000;
+
+/** A title the model returned as raw JSON ('{"title": "…"') is shown as its plain text. */
+function cleanStoryTitle(title: string | undefined | null): string {
+  const raw = String(title ?? "").trim();
+  const quoted = raw.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"?/i);
+  const text = (quoted ? quoted[1] : raw)
+    .replace(/\\"/g, '"')
+    .replace(/^[\s{\[#*"'`]+/, "")
+    .replace(/[\s}\]"'`*,]+$/, "")
+    .trim();
+  return text || "Geschichte ohne Titel";
+}
+
+function presentStory(story: Story): Story {
+  const lastActivity = new Date(story.updatedAt || story.createdAt).getTime();
+  const isBook = story.metadata?.book?.format === "chapter-book";
+  const stale = story.status === "generating" && !isBook && Number.isFinite(lastActivity) && Date.now() - lastActivity > STALE_GENERATION_MS;
+  return { ...story, title: cleanStoryTitle(story.title), status: stale ? "error" : story.status };
 }
 
 function normalizeKey(value: unknown): string {
@@ -282,7 +308,8 @@ const GridStoryCard: React.FC<{
   isSavedOffline?: boolean;
   isSavingOffline?: boolean;
   onToggleOffline?: () => void;
-}> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => {
+  onRestart?: () => void;
+}> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline, onRestart }) => {
   const reduceMotion = useReducedMotion();
   const isFeatured = index === 0;
   const imagesSkipped = wereStoryImagesSkipped(story);
@@ -297,6 +324,9 @@ const GridStoryCard: React.FC<{
       : []),
     ...(canDownload && story.status === "complete"
       ? [{ label: "Als PDF laden", icon: isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />, onSelect: onDownloadPdf, disabled: isDownloading }]
+      : []),
+    ...(story.status === "error" && onRestart
+      ? [{ label: "Neu erstellen", icon: <RotateCcw className="h-4 w-4" />, onSelect: onRestart }]
       : []),
     { label: "Löschen", icon: <Trash2 className="h-4 w-4" />, onSelect: onDelete, destructive: true },
   ];
@@ -375,7 +405,8 @@ const ListStoryRow: React.FC<{
   isSavedOffline?: boolean;
   isSavingOffline?: boolean;
   onToggleOffline?: () => void;
-}> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => {
+  onRestart?: () => void;
+}> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline, onRestart }) => {
   const reduceMotion = useReducedMotion();
   const imagesSkipped = wereStoryImagesSkipped(story);
   const actions: TaleaCardMenuAction[] = [
@@ -389,6 +420,9 @@ const ListStoryRow: React.FC<{
       : []),
     ...(canDownload && story.status === "complete"
       ? [{ label: "Als PDF laden", icon: isDownloading ? <Clock3 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />, onSelect: onDownloadPdf, disabled: isDownloading }]
+      : []),
+    ...(story.status === "error" && onRestart
+      ? [{ label: "Neu erstellen", icon: <RotateCcw className="h-4 w-4" />, onSelect: onRestart }]
       : []),
     { label: "Löschen", icon: <Trash2 className="h-4 w-4" />, onSelect: onDelete, destructive: true },
   ];
@@ -721,7 +755,8 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                       <GridStoryCard
                         story={featuredStory}
                         index={0}
-                        onRead={() => goTo(`/story-reader/${featuredStory.id}`)}
+                        onRead={() => goTo(featuredStory.status === "error" ? "/story" : `/story-reader/${featuredStory.id}`)}
+                        onRestart={() => goTo("/story")}
                         onDelete={() => onDeleteStory(featuredStory.id, featuredStory.title)}
                         canDownload={isAdmin}
                         onDownloadPdf={() => onDownloadPdf(featuredStory.id, featuredStory.status)}
@@ -740,7 +775,8 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                             key={story.id}
                             story={story}
                             index={index + 1}
-                            onRead={() => goTo(`/story-reader/${story.id}`)}
+                            onRead={() => goTo(story.status === "error" ? "/story" : `/story-reader/${story.id}`)}
+                            onRestart={() => goTo("/story")}
                             onDelete={() => onDeleteStory(story.id, story.title)}
                             canDownload={isAdmin}
                             onDownloadPdf={() => onDownloadPdf(story.id, story.status)}
@@ -755,7 +791,8 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                             key={story.id}
                             story={story}
                             index={index + 1}
-                            onRead={() => goTo(`/story-reader/${story.id}`)}
+                            onRead={() => goTo(story.status === "error" ? "/story" : `/story-reader/${story.id}`)}
+                            onRestart={() => goTo("/story")}
                             onDelete={() => onDeleteStory(story.id, story.title)}
                             canDownload={isAdmin}
                             onDownloadPdf={() => onDownloadPdf(story.id, story.status)}
@@ -843,7 +880,7 @@ const TaleaStoriesScreen: React.FC = () => {
         offset: 0,
         profileId: activeProfileId || undefined,
       });
-      setStories((response.stories as unknown as Story[]) || []);
+      setStories(((response.stories as unknown as Story[]) || []).map(presentStory));
       setTotal(response.total || 0);
       setHasMore(response.hasMore || false);
     } catch (error) {
@@ -862,7 +899,7 @@ const TaleaStoriesScreen: React.FC = () => {
         offset: stories.length,
         profileId: activeProfileId || undefined,
       });
-      setStories((prev) => [...prev, ...((response.stories as unknown as Story[]) || [])]);
+      setStories((prev) => [...prev, ...((response.stories as unknown as Story[]) || []).map(presentStory)]);
       setHasMore(response.hasMore || false);
     } catch (error) {
       console.error("Error loading more stories:", error);

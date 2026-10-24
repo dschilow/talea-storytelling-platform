@@ -4,6 +4,7 @@ import { BookOpen, LoaderCircle, Quote, RefreshCw, Sparkles, Tag, UserRound, X }
 import { useNavigate } from "react-router-dom";
 
 import { useBackend } from "../../hooks/useBackend";
+import { characterArchetypeLabel, characterRoleLabel, dedupeCharactersByName } from "../../utils/characterLabels";
 import { cn } from "@/lib/utils";
 import {
   TaleaActionButton,
@@ -135,9 +136,11 @@ const CharacterDetailSheet: React.FC<{
               </div>
             )}
             <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent px-6 pb-5 pt-16 sm:px-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/75">
-                {character.role} · {character.archetype}
-              </p>
+              {characterRoleLabel(character.role) || characterArchetypeLabel(character.archetype) ? (
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/75">
+                  {[characterRoleLabel(character.role), characterArchetypeLabel(character.archetype)].filter(Boolean).join(" · ")}
+                </p>
+              ) : null}
               <h3 className="mt-1.5 text-3xl font-semibold text-white sm:text-4xl" style={{ fontFamily: taleaDisplayFont }}>
                 {character.name}
               </h3>
@@ -267,7 +270,7 @@ const CharacterProfilesPanel: React.FC = () => {
   }, [loadProfiles]);
 
   const visibleCharacters = useMemo(
-    () => [...characters].sort((a, b) => a.name.localeCompare(b.name, "de")),
+    () => dedupeCharactersByName(characters, characterDetailText).sort((a, b) => a.name.localeCompare(b.name, "de")),
     [characters]
   );
 
@@ -329,7 +332,9 @@ const CharacterProfilesPanel: React.FC = () => {
                   <div className="flex h-full items-center justify-center"><UserRound className="h-12 w-12 text-[var(--talea-text-tertiary)]" aria-hidden="true" /></div>
                 )}
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-4 pt-12">
-                  <p className="text-xs font-semibold uppercase tracking-[0.15em] text-white/75">{character.role}</p>
+                  {characterRoleLabel(character.role) ? (
+                    <p className="text-xs font-semibold uppercase tracking-[0.15em] text-white/75">{characterRoleLabel(character.role)}</p>
+                  ) : null}
                   <p className="mt-1 text-xl font-semibold text-white" style={{ fontFamily: taleaDisplayFont }}>{character.name}</p>
                 </div>
               </div>

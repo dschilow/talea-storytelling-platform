@@ -9,9 +9,32 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CosmosSceneRoot } from './CosmosSceneRoot';
+import { CosmosFallbackList, CosmosSceneRoot } from './CosmosSceneRoot';
 import { useCosmosState } from './useCosmosState';
 import type { CameraMode } from './CosmosTypes';
+
+// If the 3D scene has not drawn its first frame by then (old GPU, blocked WebGL,
+// software rendering), the 2D view takes over instead of an endless spinner.
+const SCENE_START_TIMEOUT_MS = 10_000;
+const VIEW_STORAGE_KEY = 'talea.cosmos.view';
+
+type CosmosView = '3d' | '2d';
+
+function loadView(): CosmosView {
+  try {
+    return window.localStorage.getItem(VIEW_STORAGE_KEY) === '2d' ? '2d' : '3d';
+  } catch {
+    return '3d';
+  }
+}
+
+function saveView(view: CosmosView) {
+  try {
+    window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+  } catch {
+    // Remembering the view is a convenience only.
+  }
+}
 
 const CosmosScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -21,10 +44,26 @@ const CosmosScreen: React.FC = () => {
   const [cameraMode, setCameraMode] = useState<CameraMode>('system');
   const [hasFocusedDomain, setHasFocusedDomain] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
+  const [view, setView] = useState<CosmosView>(loadView);
+  const [fellBack, setFellBack] = useState(false);
 
   useEffect(() => {
     setSceneReady(false);
   }, [activeAvatarId, activeChildId]);
+
+  const switchView = (next: CosmosView, automatic = false) => {
+    setView(next);
+    setFellBack(automatic);
+    setSceneReady(false);
+    saveView(next);
+    if (next === '2d') setCameraMode('system');
+  };
+
+  useEffect(() => {
+    if (view !== '3d' || isLoading || sceneReady) return;
+    const timer = window.setTimeout(() => switchView('2d', true), SCENE_START_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [view, isLoading, sceneReady]);
 
   return (
     <div
@@ -51,6 +90,12 @@ const CosmosScreen: React.FC = () => {
 
           <div className="ml-auto flex items-center gap-1 rounded-xl border border-white/15 bg-black/35 px-1.5 py-1 backdrop-blur">
             <HeaderModeButton
+              label={view === '3d' ? '2D' : '3D'}
+              active={false}
+              onClick={() => switchView(view === '3d' ? '2d' : '3d')}
+            />
+            {view === '3d' && <>
+            <HeaderModeButton
               label="Übersicht"
               active={cameraMode === 'system'}
               onClick={() => setCameraMode('system')}
@@ -67,6 +112,7 @@ const CosmosScreen: React.FC = () => {
               disabled={!hasFocusedDomain}
               onClick={() => setCameraMode('detail')}
             />
+            </>}
           </div>
         </div>
       </div>
@@ -81,6 +127,17 @@ const CosmosScreen: React.FC = () => {
               className="h-8 w-8 rounded-full border-2 border-purple-500 border-t-transparent"
             />
           </div>
+        ) : view === '2d' ? (
+          <div className="flex h-full flex-col">
+            {fellBack && (
+              <p className="mx-4 mt-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-center text-xs font-semibold text-white/75">
+                Die 3D-Ansicht startet auf diesem Gerät gerade nicht. Hier sind deine Welten als Übersicht.
+              </p>
+            )}
+            <div className="min-h-0 flex-1">
+              <CosmosFallbackList cosmosState={cosmosState} />
+            </div>
+          </div>
         ) : (
           <CosmosSceneRoot
             cosmosState={cosmosState}
@@ -93,11 +150,12 @@ const CosmosScreen: React.FC = () => {
             onFocusAvailabilityChange={setHasFocusedDomain}
             showInternalModeTabs={false}
             onSceneReady={() => setSceneReady(true)}
+            onSceneFailed={() => switchView('2d', true)}
             initialFocusDomainId={initialPlanet}
           />
         )}
 
-        {!isLoading && !sceneReady && (
+        {!isLoading && view === '3d' && !sceneReady && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/15 bg-black/45 px-5 py-4">
               <motion.div

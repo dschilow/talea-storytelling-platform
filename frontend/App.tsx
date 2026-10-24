@@ -28,6 +28,8 @@ import {
 import { AgentProvider } from './agents';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
+import { useClerkLocalization } from './utils/clerkLocalization';
+import { LEGAL_PAGES, isLegalPath } from './screens/Legal/legalInfo';
 import { useWelcomeTour } from './hooks/useWelcomeTour';
 
 const AppLayout = React.lazy(() => import('./components/layout/AppLayout'));
@@ -69,6 +71,7 @@ const OfflineContentScreen = React.lazy(() => import('./screens/Offline/OfflineC
 const CosmosScreen = React.lazy(() => import('./screens/Cosmos/CosmosScreen'));
 const ParentDashboardRoot = React.lazy(() => import('./screens/Cosmos/ParentDashboardRoot'));
 const WelcomeTour = React.lazy(() => import('./screens/Onboarding/WelcomeTour'));
+const LegalPage = React.lazy(() => import('./screens/Legal/LegalPage'));
 
 const GLOBAL_HAPTIC_SELECTOR =
   'button, a[href], [role="button"], input[type="button"], input[type="submit"], [data-haptic]';
@@ -176,7 +179,8 @@ const RouterContent = () => {
     welcomeTour.hasCompleted === false &&
     !isLandingRoute &&
     !isCosmosFullscreenRoute &&
-    !isReaderRoute;
+    !isReaderRoute &&
+    !isLegalPath(location.pathname);
 
   if (!isLoaded && !clerkTimedOut) {
     return null;
@@ -187,7 +191,8 @@ const RouterContent = () => {
     !userAccess.isLoading &&
     userAccess.parentalOnboardingCompleted === false &&
     !onboardingDeferred &&
-    location.pathname !== '/parental-onboarding'
+    location.pathname !== '/parental-onboarding' &&
+    !isLegalPath(location.pathname)
   ) {
     return <Navigate to="/parental-onboarding" replace />;
   }
@@ -201,12 +206,14 @@ const RouterContent = () => {
               <Route path="/" element={<LandingPage />} />
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/auth" element={<AuthScreen />} />
+              {LEGAL_PAGES.map(page => <Route key={page.path} path={page.path} element={<LegalPage />} />)}
               <Route path="*" element={<Navigate to="/" replace />} />
             </>
           ) : (
             <>
               <Route path="/landing" element={<Navigate to="/" replace />} />
               <Route path="/parental-onboarding" element={<ParentalOnboardingScreen />} />
+              {LEGAL_PAGES.map(page => <Route key={page.path} path={page.path} element={<LegalPage />} />)}
               <Route element={<AppLayout />}>
                 <Route path="/" element={<HomeScreen />} />
                 <Route path="/avatar" element={<AvatarsScreen />} />
@@ -678,6 +685,7 @@ function useClerkLoadFailureDetection(onFail: () => void) {
 export default function App() {
   const isOnline = useSyncExternalStore(subscribeToOnlineStatus, getOnlineStatus);
   const [clerkFailed, setClerkFailed] = useState(false);
+  const clerkLocalization = useClerkLocalization();
 
   // Clerk failing to load is the earliest hard evidence that the network is
   // gone. Re-probe immediately so the app drops into offline mode instead of
@@ -716,8 +724,9 @@ export default function App() {
       <Router>
         <React.Suspense fallback={<div className="min-h-screen bg-[var(--talea-page-solid)]" />}>
           <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/landing" element={<LandingPage />} />
+            <Route path="/" element={<LandingPage livePrices={false} />} />
+            <Route path="/landing" element={<LandingPage livePrices={false} />} />
+            {LEGAL_PAGES.map(page => <Route key={page.path} path={page.path} element={<LegalPage />} />)}
             <Route path="*" element={<MissingKeyScreen />} />
           </Routes>
         </React.Suspense>
@@ -734,7 +743,7 @@ export default function App() {
   return (
     <ClerkErrorBoundary fallback={clerkFallback}>
       <Provider store={store}>
-        <ClerkProvider publishableKey={clerkPublishableKey}>
+        <ClerkProvider publishableKey={clerkPublishableKey} localization={clerkLocalization}>
           <ThemeProvider>
             <UserAccessProvider>
               <ChildProfilesProvider>

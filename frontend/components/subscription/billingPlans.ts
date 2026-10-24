@@ -1,3 +1,4 @@
+import { usePlans } from '@clerk/clerk-react/experimental';
 import type { BillingMoneyAmount, BillingPlanResource, BillingSubscriptionPlanPeriod } from '@clerk/shared/types';
 import type { SubscriptionPlan } from '../../constants/planCatalog';
 
@@ -14,8 +15,11 @@ export function taleaPlanForSlug(slug: string): SubscriptionPlan | undefined {
   return undefined;
 }
 
+// Clerk answers a period that is not offered with an amount of 0 rather than
+// leaving it out, so a zero amount means "not bookable", never "free".
 export function priceForPeriod(plan: BillingPlanResource | undefined, period: BillingSubscriptionPlanPeriod) {
-  return plan ? (period === 'annual' ? plan.annualFee : plan.fee) : null;
+  const money = plan ? (period === 'annual' ? plan.annualFee : plan.fee) : null;
+  return money && money.amount > 0 ? money : null;
 }
 
 export function formatBillingMoney(money: BillingMoneyAmount): string {
@@ -24,4 +28,16 @@ export function formatBillingMoney(money: BillingMoneyAmount): string {
   return new Intl.NumberFormat('de-DE', {
     style: 'currency', currency: money.currency, currencyDisplay: 'code',
   }).format(Number(money.amountFormatted));
+}
+
+/** The plans families can book, keyed by Talea plan, exactly as Clerk will charge them. */
+export function useBookablePlans() {
+  const catalog = usePlans({ for: 'user', pageSize: 100 });
+  const plans: Partial<Record<SubscriptionPlan, BillingPlanResource>> = {};
+  for (const plan of catalog.data ?? []) {
+    const key = taleaPlanForSlug(plan.slug);
+    if (key && plan.publiclyVisible && plan.forPayerType === 'user') plans[key] = plan;
+  }
+  const hasAnnual = Object.values(plans).some(plan => priceForPeriod(plan, 'annual'));
+  return { catalog, plans, hasAnnual };
 }

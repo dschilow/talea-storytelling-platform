@@ -1,11 +1,11 @@
 import React from 'react';
 import { SignedIn } from '@clerk/clerk-react';
-import { CheckoutButton, SubscriptionDetailsButton, usePlans, useSubscription } from '@clerk/clerk-react/experimental';
+import { CheckoutButton, SubscriptionDetailsButton, useSubscription } from '@clerk/clerk-react/experimental';
 import { ArrowRight, ArrowRightLeft, CalendarDays, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PLAN_TITLES, type SubscriptionPlan } from '../../constants/planCatalog';
-import PlanComparisonTable, { type PlanComparisonProps } from './PlanComparisonTable';
-import { priceForPeriod, taleaPlanForSlug } from './billingPlans';
+import PlanComparisonTable from './PlanComparisonTable';
+import { priceForPeriod, taleaPlanForSlug, useBookablePlans } from './billingPlans';
 
 const drawerAppearance = {
   elements: {
@@ -19,13 +19,8 @@ export default function BillingPlanPicker({ currentPlan, onBillingChange }: {
   currentPlan: SubscriptionPlan;
   onBillingChange: () => void;
 }) {
-  const catalog = usePlans({ for: 'user', pageSize: 100 });
+  const { catalog, plans } = useBookablePlans();
   const subscription = useSubscription({ for: 'user' });
-  const plans: PlanComparisonProps['plans'] = {};
-  for (const plan of catalog.data ?? []) {
-    const key = taleaPlanForSlug(plan.slug);
-    if (key && plan.publiclyVisible && plan.forPayerType === 'user') plans[key] = plan;
-  }
   const activeItem = subscription.data?.subscriptionItems.find(item =>
     taleaPlanForSlug(item.plan.slug) === currentPlan && ['active', 'past_due'].includes(item.status));
   const refresh = () => {

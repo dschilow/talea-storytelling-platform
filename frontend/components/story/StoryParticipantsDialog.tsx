@@ -5,6 +5,7 @@ import { Quote, Sparkles, Tag, UserRound, Users, X } from "lucide-react";
 import type { Character, Story } from "@/types/story";
 import { cn } from "@/lib/utils";
 import { taleaDisplayFont } from "@/components/talea/TaleaPastelPrimitives";
+import { characterArchetypeLabel, characterRoleLabel } from "@/utils/characterLabels";
 
 interface StoryParticipantsDialogProps {
   story: Story;
@@ -84,8 +85,8 @@ function getParticipants(story: Story): StoryParticipant[] {
     name: participant.name,
     imageUrl: participant.imageUrl || undefined,
     roleLabel: "Charakter" as const,
-    role: humanize(participant.role) || "Charakter",
-    archetype: humanize(participant.archetype),
+    role: characterRoleLabel(participant.role) || "Charakter",
+    archetype: characterArchetypeLabel(participant.archetype),
     description: characterDescription(participant),
     backstory: participant.backstory,
     dominantPersonality:

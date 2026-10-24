@@ -14,6 +14,7 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import ConceptHelp from './ConceptHelp';
 import type { AvatarMemory } from '../../types/avatar';
+import { formatTraitLabel } from '../../constants/traits';
 
 type DiaryFilter = 'all' | 'story' | 'doku';
 
@@ -28,16 +29,19 @@ interface AvatarDiaryProps {
   onRetry: () => void;
 }
 
-const TRAIT_LABELS: Record<string, string> = {
-  knowledge: 'Wissen',
-  creativity: 'Kreativit\u00e4t',
-  vocabulary: 'Wortschatz',
-  courage: 'Mut',
-  curiosity: 'Neugier',
-  teamwork: 'Teamgeist',
-  empathy: 'Empathie',
-  persistence: 'Ausdauer',
-  logic: 'Logik',
+// Entries saved before 24.10.2026 carry a summary cut off after 240 characters,
+// often mid-word. Then the full experience text is shortened at a sentence.
+const DIARY_TEXT_MAX = 320;
+const diaryText = (memory: AvatarMemory): string => {
+  const summary = memory.summary?.trim() || '';
+  const experience = memory.experience?.trim() || '';
+  const summaryWasCut = summary.length > 0 && !/[.!?…"“”)]$/.test(summary) && experience.length > summary.length;
+  const text = summaryWasCut || !summary ? experience : summary;
+  if (text.length <= DIARY_TEXT_MAX) return text;
+  const window = text.slice(0, DIARY_TEXT_MAX);
+  const sentenceEnd = Math.max(window.lastIndexOf('. '), window.lastIndexOf('! '), window.lastIndexOf('? '));
+  if (sentenceEnd >= DIARY_TEXT_MAX / 2) return window.slice(0, sentenceEnd + 1);
+  return `${window.slice(0, Math.max(0, window.lastIndexOf(' '))).replace(/[\s,;:–-]+$/, '')}…`;
 };
 
 const sourceMeta = (type?: AvatarMemory['contentType']) => {
@@ -198,7 +202,7 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
                     </div>
                   </div>
 
-                  <p className="mt-3 text-sm leading-relaxed" style={{ color: isDark ? '#c3d1e0' : '#405970' }}>{memory.summary || memory.experience}</p>
+                  <p className="mt-3 text-sm leading-relaxed" style={{ color: isDark ? '#c3d1e0' : '#405970' }}>{diaryText(memory)}</p>
 
                   {memory.personalityChanges?.length > 0 ? (
                     <div className="mt-4">
@@ -214,7 +218,7 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
                               color: change.change >= 0 ? (isDark ? '#b8d2c8' : '#42675a') : (isDark ? '#d5aeb7' : '#8b5360'),
                             }}
                           >
-                            {change.change >= 0 ? '+' : ''}{change.change} {TRAIT_LABELS[change.trait] || change.trait}
+                            {change.change >= 0 ? '+' : ''}{change.change} {formatTraitLabel(change.trait)}
                           </span>
                         ))}
                       </div>

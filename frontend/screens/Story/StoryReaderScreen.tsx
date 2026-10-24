@@ -546,7 +546,7 @@ const StoryReaderScreen: React.FC = () => {
     Boolean(currentChapter?.scenicImageUrl)
   );
   const primaryChapterImage =
-    currentChapter?.imageUrl || `https://picsum.photos/seed/${story.id}-${currentChapterIndex}/800/400`;
+    currentChapter?.imageUrl || "/landing-assets/journey/story-island.webp";
   const scenicChapterImage = currentChapter?.scenicImageUrl;
   const storyProgress = `${((currentChapterIndex + 1) / (story.chapters?.length || 1)) * 100}%`;
 

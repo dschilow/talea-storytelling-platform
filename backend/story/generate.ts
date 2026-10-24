@@ -431,6 +431,17 @@ function limitList<T>(list: T[] | undefined): T[] | undefined {
  * content types) is dropped, so a hand-crafted request cannot spend more
  * than one story coin is worth.
  */
+/**
+ * Product switch for the lane customer stories run on, set as a Railway variable:
+ * TALEA_CUSTOMER_STORY_ENGINE=talea-folge-v1 writes them with the Talea-Folge
+ * method (one Sol call on the flex tier, about 2 minutes and 3 cents of text,
+ * see docs/talea-folge-pipeline.md). Unset keeps the standard pipeline.
+ */
+function customerStoryEngine(): Pick<StoryConfig, "storybookMode" | "storybookEngine"> {
+  const engine = (process.env.TALEA_CUSTOMER_STORY_ENGINE || "").trim();
+  return engine === "talea-folge-v1" ? { storybookMode: true, storybookEngine: engine } : {};
+}
+
 function stripAdminOnlyStoryOptions(config: StoryConfig): StoryConfig {
   const openRouterModel = CUSTOMER_OPENROUTER_MODELS.has(String(config.openRouterModel || ""))
     ? config.openRouterModel
@@ -476,6 +487,7 @@ function stripAdminOnlyStoryOptions(config: StoryConfig): StoryConfig {
       ? { useFairyTaleTemplate: config.preferences.useFairyTaleTemplate }
       : undefined,
     broughtArtifact: config.broughtArtifact,
+    ...customerStoryEngine(),
   };
 }
 

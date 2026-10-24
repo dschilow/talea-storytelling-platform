@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { MotionConfig } from "framer-motion";
 import App from "./App";
 import "./index.css";
+import "./styles/fonts";
 import "./src/i18n"; // Initialize i18n
 import { installAndroidBridge, isAndroidApp } from './platform/native';
 

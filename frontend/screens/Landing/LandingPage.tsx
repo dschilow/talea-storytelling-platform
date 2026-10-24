@@ -12,8 +12,10 @@ import {
   AUDIO_ACCESS_LABELS, FREE_TRIAL_DAYS, FREE_TRIAL_QUOTAS, PLAN_AUDIO_LIBRARY_ACCESS,
   PLAN_DAILY_LIMITS, PLAN_FEATURE_ROWS, PLAN_IMAGES, PLAN_OFFLINE_LIMITS, PLAN_ORDER,
   PLAN_PRICES, PLAN_PROFILE_LIMITS, PLAN_QUOTAS, PLAN_TAVI_MESSAGES, PLAN_TITLES,
-  formatEuro, type SubscriptionPlan,
+  RECOMMENDED_PLAN, type SubscriptionPlan,
 } from '../../constants/planCatalog';
+import { priceForPeriod, useBookablePlans } from '../../components/subscription/billingPlans';
+import LegalFooterLinks from '../Legal/LegalFooterLinks';
 import JourneyAtmosphere from './JourneyAtmosphere';
 import LandingFilm from './LandingFilm';
 import ViewportImage from './ViewportImage';
@@ -75,7 +77,103 @@ const faqs = [
   { question: 'Wie funktionieren die Kontingente?', answer: 'Eine neu erstellte Geschichte verbraucht eine Story-Münze, eine neue Doku eine Doku-Münze. Die monatlichen Kontingente gelten für alle Kinderprofile zusammen. Bereits gespeicherte Inhalte könnt ihr wieder aufrufen; für neue Inhalte gelten die Kontingente und Tageslimits des gewählten Plans.' },
 ];
 
-export default function LandingPage() {
+type PriceTable = {
+  currency: string;
+  monthly: Partial<Record<SubscriptionPlan, number>>;
+  annual: Partial<Record<SubscriptionPlan, number>>;
+};
+
+// Only for a build without Clerk (local development): the real offer always
+// comes from Clerk Billing, which is what families are charged.
+function catalogPriceTable(): PriceTable {
+  const table: PriceTable = { currency: 'EUR', monthly: {}, annual: {} };
+  for (const plan of PLAN_ORDER) {
+    table.monthly[plan] = PLAN_PRICES[plan].monthly;
+    const yearly = PLAN_PRICES[plan].yearly;
+    if (yearly) table.annual[plan] = yearly;
+  }
+  return table;
+}
+
+function formatPrice(value: number, currency: string): string {
+  return value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + currencySymbol(currency);
+}
+
+function currencySymbol(currency: string): string {
+  try {
+    return new Intl.NumberFormat('de-DE', { style: 'currency', currency }).formatToParts(0).find(part => part.type === 'currency')?.value ?? currency;
+  } catch {
+    return currency;
+  }
+}
+
+type PricingProps = { annual: boolean; setAnnual: (annual: boolean) => void; start: () => void };
+
+/** Prices exactly as Clerk Billing will charge them, so the landing page and checkout never disagree. */
+function LivePricing(props: PricingProps) {
+  const { catalog, plans } = useBookablePlans();
+  if (catalog.isLoading) return <PricingPlans {...props} table={null} />;
+  const table: PriceTable = { currency: '', monthly: { free: 0 }, annual: {} };
+  for (const plan of PLAN_ORDER) {
+    const live = plans[plan];
+    const monthly = priceForPeriod(live, 'month');
+    const annual = priceForPeriod(live, 'annual');
+    if (monthly) {
+      table.monthly[plan] = Number(monthly.amountFormatted);
+      table.currency ||= monthly.currency;
+    }
+    if (annual) table.annual[plan] = Number(annual.amountFormatted);
+  }
+  // Clerk unreachable: show the catalogue rather than an empty pricing section.
+  if (!table.currency) return <PricingPlans {...props} table={catalogPriceTable()} />;
+  return <PricingPlans {...props} table={table} />;
+}
+
+function PricingPlans({ annual: wantsAnnual, setAnnual, start, table }: PricingProps & { table: PriceTable | null }) {
+  const hasAnnual = !!table && Object.keys(table.annual).length > 0;
+  const annual = wantsAnnual && hasAnnual;
+  const recommendedMonthly = table?.monthly[RECOMMENDED_PLAN];
+  const recommendedAnnual = table?.annual[RECOMMENDED_PLAN];
+  const savingPercent = recommendedMonthly && recommendedAnnual
+    ? Math.floor((1 - recommendedAnnual / (recommendedMonthly * 12)) * 100)
+    : 0;
+  return <>
+    {hasAnnual && <div className="billing-switch" role="group" aria-label="Abrechnungszeitraum"><button type="button" aria-pressed={!annual} onClick={() => setAnnual(false)}>Monatlich</button><button type="button" aria-pressed={annual} onClick={() => setAnnual(true)}>Jährlich{savingPercent > 0 && <span>{savingPercent} % sparen</span>}</button></div>}
+    <div className="journey-plan-grid" aria-busy={!table}>{PLAN_ORDER.map(plan => {
+      const Icon = planMeta[plan].icon;
+      const recommended = plan === RECOMMENDED_PLAN;
+      const monthly = table?.monthly[plan];
+      const yearly = table?.annual[plan];
+      const price = annual && yearly ? yearly / 12 : monthly;
+      const bookable = plan === 'free' || monthly !== undefined;
+      const features = [
+        `${PLAN_PROFILE_LIMITS[plan]} ${PLAN_PROFILE_LIMITS[plan] === 1 ? 'Kinderprofil' : 'Kinderprofile'}`,
+        `${PLAN_TAVI_MESSAGES[plan]} Tavi-Nachrichten / Monat`, `${PLAN_IMAGES[plan]} KI-Bilder / Monat`,
+        `Audio-Dokus: ${AUDIO_ACCESS_LABELS[PLAN_AUDIO_LIBRARY_ACCESS[plan]]}`,
+        plan === 'familie' || plan === 'premium' ? 'Elternkontrolle mit Profil-Budgets' : 'Basis-Elternkontrolle',
+        PLAN_OFFLINE_LIMITS[plan] ? `Bis zu ${PLAN_OFFLINE_LIMITS[plan]} Inhalte offline / Profil` : null,
+      ].filter((feature): feature is string => !!feature);
+      return <article key={plan} className={`journey-plan${recommended ? ' journey-plan--featured' : ''}`} aria-label={`Plan ${PLAN_TITLES[plan]}`}>
+        {recommended && <div className="journey-plan-badge"><Heart size={12} />Für die ganze Familie</div>}
+        <div className="plan-top"><span className="plan-icon"><Icon size={21} strokeWidth={1.5} /></span><h3>{PLAN_TITLES[plan]}</h3><p>{planMeta[plan].tagline}</p></div>
+        <div className="plan-price">
+          {!table ? <strong aria-label="Preis wird geladen">…</strong>
+            : plan === 'free' ? <strong>0<span>{currencySymbol(table.currency)}</span></strong>
+            : price !== undefined ? <strong>{price.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}<span>{currencySymbol(table.currency)}</span></strong>
+            : <strong>–</strong>}
+          {bookable && <span> / Monat</span>}
+        </div>
+        <p className="plan-billing">{plan === 'free' ? 'Dauerhaft kostenlos' : !table ? ' ' : !bookable ? 'Zurzeit nicht buchbar' : annual && yearly ? `${formatPrice(yearly, table.currency)} jährlich abgerechnet` : 'Monatlich abgerechnet, monatlich kündbar'}</p>
+        <div className="plan-quota"><div><strong>{PLAN_QUOTAS[plan].stories}</strong><span>Geschichten</span></div><span>+</span><div><strong>{PLAN_QUOTAS[plan].dokus}</strong><span>Dokus</span></div><small>pro Monat · max. je {PLAN_DAILY_LIMITS[plan].stories} pro Tag</small></div>
+        <ul>{features.map(feature => <li key={feature}><Check size={14} />{feature}</li>)}</ul>
+        {plan === 'free' && <p className="free-trial-note">Zum Start: {FREE_TRIAL_QUOTAS.stories} Geschichten + {FREE_TRIAL_QUOTAS.dokus} Dokus in {FREE_TRIAL_DAYS} Tagen.</p>}
+        <button type="button" onClick={start} className="plan-button">{plan === 'free' ? 'Kostenlos starten' : 'Account erstellen'}<ArrowRight size={15} /></button>
+      </article>;
+    })}</div>
+  </>;
+}
+
+export default function LandingPage({ livePrices = true }: { livePrices?: boolean }) {
   const navigate = useNavigate();
   const prefersReducedMotion = useReducedMotion();
   const [gentleMode, setGentleMode] = useState(false);
@@ -361,37 +459,16 @@ export default function LandingPage() {
         </div></section>
         <section id="pricing" className="journey-pricing" aria-labelledby="pricing-title">
           <div className="pricing-heading"><span className="journey-eyebrow"><Sparkles size={14} />Ein Platz für eure Fantasie</span><h2 id="pricing-title">Kleine Preise.<br /><em>Große Geschichten.</em></h2><p>Startet kostenlos. Findet euren Rhythmus.<br />Und wählt den Plan, der zu eurer Familie passt.</p></div>
-          <div className="billing-switch" role="group" aria-label="Abrechnungszeitraum"><button type="button" aria-pressed={!annual} onClick={() => setAnnual(false)}>Monatlich</button><button type="button" aria-pressed={annual} onClick={() => setAnnual(true)}>Jährlich<span>33 % sparen</span></button></div>
-          <div className="journey-plan-grid">{PLAN_ORDER.map(plan => {
-            const Icon = planMeta[plan].icon;
-            const recommended = plan === 'familie';
-            const yearlyPrice = PLAN_PRICES[plan].yearly;
-            const price = annual && yearlyPrice !== null ? yearlyPrice / 12 : PLAN_PRICES[plan].monthly;
-            const features = [
-              `${PLAN_PROFILE_LIMITS[plan]} ${PLAN_PROFILE_LIMITS[plan] === 1 ? 'Kinderprofil' : 'Kinderprofile'}`,
-              `${PLAN_TAVI_MESSAGES[plan]} Tavi-Nachrichten / Monat`, `${PLAN_IMAGES[plan]} KI-Bilder / Monat`,
-              `Audio-Dokus: ${AUDIO_ACCESS_LABELS[PLAN_AUDIO_LIBRARY_ACCESS[plan]]}`,
-              plan === 'familie' || plan === 'premium' ? 'Elternkontrolle mit Profil-Budgets' : 'Basis-Elternkontrolle',
-              PLAN_OFFLINE_LIMITS[plan] ? `Bis zu ${PLAN_OFFLINE_LIMITS[plan]} Inhalte offline / Profil` : null,
-            ].filter((feature): feature is string => !!feature);
-            return <article key={plan} className={`journey-plan${recommended ? ' journey-plan--featured' : ''}`} aria-label={`Plan ${PLAN_TITLES[plan]}`}>
-              {recommended && <div className="journey-plan-badge"><Heart size={12} />Für die ganze Familie</div>}
-              <div className="plan-top"><span className="plan-icon"><Icon size={21} strokeWidth={1.5} /></span><h3>{PLAN_TITLES[plan]}</h3><p>{planMeta[plan].tagline}</p></div>
-              <div className="plan-price"><strong>{price.toLocaleString('de-DE', { minimumFractionDigits: plan === 'free' ? 0 : 2, maximumFractionDigits: 2 })}<span>€</span></strong><span> / Monat</span></div>
-              <p className="plan-billing">{plan === 'free' ? 'Dauerhaft kostenlos' : annual && yearlyPrice !== null ? `${formatEuro(yearlyPrice)} jährlich abgerechnet` : 'Monatlich abgerechnet'}</p>
-              <div className="plan-quota"><div><strong>{PLAN_QUOTAS[plan].stories}</strong><span>Geschichten</span></div><span>+</span><div><strong>{PLAN_QUOTAS[plan].dokus}</strong><span>Dokus</span></div><small>pro Monat · max. je {PLAN_DAILY_LIMITS[plan].stories} pro Tag</small></div>
-              <ul>{features.map(feature => <li key={feature}><Check size={14} />{feature}</li>)}</ul>
-              {plan === 'free' && <p className="free-trial-note">Zum Start: {FREE_TRIAL_QUOTAS.stories} Geschichten + {FREE_TRIAL_QUOTAS.dokus} Dokus in {FREE_TRIAL_DAYS} Tagen.</p>}
-              <button type="button" onClick={start} className="plan-button">{plan === 'free' ? 'Kostenlos starten' : 'Account erstellen'}<ArrowRight size={15} /></button>
-            </article>;
-          })}</div>
-          <p className="pricing-footnote">Nach der Anmeldung wählt ihr euren Plan. Alle Kontingente gelten gemeinsam für eure Kinderprofile.</p>
+          {livePrices
+            ? <LivePricing annual={annual} setAnnual={setAnnual} start={start} />
+            : <PricingPlans annual={annual} setAnnual={setAnnual} start={start} table={catalogPriceTable()} />}
+          <p className="pricing-footnote">Nach der Anmeldung wählt ihr euren Plan. Alle Kontingente gelten gemeinsam für eure Kinderprofile. Bereits erstellte Geschichten und Dokus bleiben auch im kostenlosen Plan lesbar.</p>
           <details className="plan-comparison"><summary>Alle Funktionen vergleichen<ChevronDown size={17} /></summary><div className="plan-comparison-scroll" role="region" aria-label="Planvergleich, horizontal scrollbar" tabIndex={0}><table><caption className="sr-only">Alle Talea-Pläne und ihre Funktionen</caption><thead><tr><th scope="col">Euer Abenteuer enthält</th>{PLAN_ORDER.map(plan => <th key={plan} scope="col">{PLAN_TITLES[plan]}</th>)}</tr></thead><tbody>{PLAN_FEATURE_ROWS.map(row => <tr key={row.label}><th scope="row">{row.label}{row.hint && <small>{row.hint}</small>}</th>{PLAN_ORDER.map(plan => <td key={plan}>{typeof row.values[plan] === 'boolean' ? row.values[plan] ? <Check size={16} aria-label="Enthalten" /> : <X size={15} aria-label="Nicht enthalten" /> : row.values[plan]}</td>)}</tr>)}</tbody></table></div></details>
           <section className="journey-faq" aria-labelledby="faq-title"><div><span className="journey-eyebrow">Noch ein bisschen neugierig?</span><h2 id="faq-title">Gute Fragen.<br /><em>Klare Antworten.</em></h2></div><div className="faq-list">{faqs.map(faq => <details key={faq.question}><summary>{faq.question}<ChevronDown size={17} /></summary><p>{faq.answer}</p></details>)}</div></section>
           <div className="journey-last-call"><span aria-hidden="true">✦</span><h2>Eure Fantasie.<br /><em>Ab hier geht’s weiter.</em></h2><button type="button" className="journey-button" onClick={start}>Unser erstes Abenteuer<ArrowRight size={17} /></button><p>Kostenlos anfangen. Gemeinsam weiterträumen.</p></div>
         </section>
       </main>
-      <footer className="journey-footer"><a className="journey-brand" href="#intro" aria-label="Talea – zum Anfang"><img src="/brand/talea-horizontal-compact.svg" alt="Talea" width="160" height="52" /></a><span>Für kleine Menschen mit großen Ideen.</span><p>© {new Date().getFullYear()} Talea<Link to="/auth">Anmelden</Link><a href="#pricing">Preise</a></p></footer>
+      <footer className="journey-footer"><a className="journey-brand" href="#intro" aria-label="Talea – zum Anfang"><img src="/brand/talea-horizontal-compact.svg" alt="Talea" width="160" height="52" /></a><span>Für kleine Menschen mit großen Ideen.</span><p>© {new Date().getFullYear()} Talea<Link to="/auth">Anmelden</Link><a href="#pricing">Preise</a></p><LegalFooterLinks className="journey-footer-legal" /></footer>
     </div>
   );
 }

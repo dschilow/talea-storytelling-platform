@@ -6,7 +6,17 @@
 
 /* Literata: designed for long-form on-screen reading (variable optical size).
    Playfair Display: titles only. Manrope is already loaded app-wide (index.css). */
-@import url('https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400..700;1,7..72,400..700&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
+@import '@fontsource/literata/400.css';
+@import '@fontsource/literata/500.css';
+@import '@fontsource/literata/600.css';
+@import '@fontsource/literata/700.css';
+@import '@fontsource/literata/400-italic.css';
+@import '@fontsource/literata/500-italic.css';
+@import '@fontsource/literata/600-italic.css';
+@import '@fontsource/literata/700-italic.css';
+@import '@fontsource/playfair-display/600.css';
+@import '@fontsource/playfair-display/700.css';
+@import '@fontsource/playfair-display/600-italic.css';
 
 /* ── Tokens ── */
 .rd-scope {

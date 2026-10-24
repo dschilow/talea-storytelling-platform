@@ -205,11 +205,38 @@ export const getSubcategoryLabel = (subcategory: string, language: 'de' | 'en' |
     'geography': { de: 'Geographie', en: 'Geography', ru: 'География' },
     'astronomy': { de: 'Astronomie', en: 'Astronomy', ru: 'Астрономия' },
     'mathematics': { de: 'Mathematik', en: 'Mathematics', ru: 'Математика' },
-    'chemistry': { de: 'Chemie', en: 'Chemistry', ru: 'Химия' }
+    'chemistry': { de: 'Chemie', en: 'Chemistry', ru: 'Химия' },
+    'geology': { de: 'Geologie', en: 'Geology', ru: 'Геология' },
+    'ecology': { de: 'Ökologie', en: 'Ecology', ru: 'Экология' },
+    'zoology': { de: 'Tierkunde', en: 'Zoology', ru: 'Зоология' },
+    'botany': { de: 'Pflanzenkunde', en: 'Botany', ru: 'Ботаника' },
+    'medicine': { de: 'Medizin', en: 'Medicine', ru: 'Медицина' },
+    'human_body': { de: 'Menschlicher Körper', en: 'Human body', ru: 'Тело человека' },
+    'technology': { de: 'Technik', en: 'Technology', ru: 'Техника' },
+    'engineering': { de: 'Technik', en: 'Engineering', ru: 'Инженерия' },
+    'art': { de: 'Kunst', en: 'Art', ru: 'Искусство' },
+    'music': { de: 'Musik', en: 'Music', ru: 'Музыка' },
+    'literature': { de: 'Literatur', en: 'Literature', ru: 'Литература' },
+    'language': { de: 'Sprache', en: 'Language', ru: 'Язык' },
+    'culture': { de: 'Kultur', en: 'Culture', ru: 'Культура' },
+    'nature': { de: 'Natur', en: 'Nature', ru: 'Природа' },
+    'space': { de: 'Weltall', en: 'Space', ru: 'Космос' },
+    'weather': { de: 'Wetter', en: 'Weather', ru: 'Погода' },
+    'oceanography': { de: 'Meereskunde', en: 'Oceanography', ru: 'Океанология' },
+    'paleontology': { de: 'Dinosaurier & Urzeit', en: 'Paleontology', ru: 'Палеонтология' }
   };
 
-  return knowledgeSubcategoryLabels[subcategory]?.[language] ||
-         subcategory.charAt(0).toUpperCase() + subcategory.slice(1);
+  const key = subcategory.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const readable = subcategory.trim().replace(/[_-]+/g, ' ');
+  return knowledgeSubcategoryLabels[key]?.[language] ||
+         readable.charAt(0).toUpperCase() + readable.slice(1);
+};
+
+/** Label for a stored trait id: "knowledge.physics" → "Physik", "courage" → "Mut". Never the raw id. */
+export const formatTraitLabel = (traitId: string, language: 'de' | 'en' | 'ru' = 'de'): string => {
+  const [base, subcategory] = traitId.split('.');
+  if (subcategory) return getSubcategoryLabel(subcategory, language);
+  return getTraitLabel(base, language);
 };
 
 // Convert backend PersonalityTraits object to frontend TraitValue array

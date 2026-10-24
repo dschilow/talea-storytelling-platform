@@ -250,6 +250,8 @@
 .journey-footer > p { display: flex; gap: 20px; font-size: 12px; }
 .journey-footer .journey-brand > img { width: 145px; }
 .journey-footer > p a { display: inline-flex; align-items: center; min-height: 44px; }
+.journey-footer-legal { display: flex; flex-wrap: wrap; gap: 4px 20px; font-size: 12px; }
+.journey-footer-legal a { display: inline-flex; align-items: center; min-height: 44px; }
 @keyframes island-float { 0%, 100% { transform: translateY(0) rotate(-.4deg); } 50% { transform: translateY(-10px) rotate(.4deg); } }
 @keyframes cloud-drift { from { transform: translateX(-25px); } to { transform: translateX(25px); } }
 @keyframes sound-pulse { from { transform: scaleY(.4); } to { transform: scaleY(1.05); } }

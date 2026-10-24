@@ -33,7 +33,7 @@ export type PlanComparisonProps = {
 export default function PlanComparisonTable({ currentPlan, plans, renderAction }: PlanComparisonProps) {
   const [period, setPeriod] = useState<BillingSubscriptionPlanPeriod>('month');
   const reducedMotion = useReducedMotion();
-  const hasAnnual = Object.values(plans).some(plan => plan?.hasBaseFee && plan.annualFee);
+  const hasAnnual = Object.values(plans).some(plan => plan?.hasBaseFee && priceForPeriod(plan, 'annual'));
   const selectedPeriod = hasAnnual ? period : 'month';
 
   return (
@@ -66,7 +66,8 @@ export default function PlanComparisonTable({ currentPlan, plans, renderAction }
           const Icon = PLAN_ICONS[plan];
           const recommended = plan === RECOMMENDED_PLAN;
           const price = priceForPeriod(plans[plan], selectedPeriod);
-          const monthlyPrice = plans[plan]?.annualMonthlyFee;
+          const annualMonthly = plans[plan]?.annualMonthlyFee;
+          const monthlyPrice = annualMonthly && annualMonthly.amount > 0 ? annualMonthly : null;
           return (
             <motion.section key={plan} aria-label={`Plan ${PLAN_TITLES[plan]}`} initial={reducedMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25, delay: reducedMotion ? 0 : index * 0.04 }} className={`flex min-w-0 flex-col rounded-3xl border p-5 ${recommended ? 'border-[var(--primary)] bg-[color-mix(in_srgb,var(--primary)_7%,var(--talea-surface-primary))] shadow-[var(--talea-shadow-soft)]' : 'border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)]'}`}>
               <div className="mb-5 flex min-h-6 flex-wrap items-center justify-between gap-2 text-xs font-semibold">

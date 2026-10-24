@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, RefreshCw, Sparkles } from "lucide-react";
 import "./AuthScreen.css";
 import { useAndroidSSO } from '../../platform/auth';
+import LegalFooterLinks from '../Legal/LegalFooterLinks';
 
 /**
  * Clerk's <SignIn>/<SignUp> widgets mount asynchronously, leaving an empty
@@ -232,6 +233,7 @@ const AuthScreen: React.FC = () => {
             {mode === "signin" ? "Jetzt registrieren" : "Anmelden"}
           </button>
         </div>
+        <LegalFooterLinks className="auth-legal-links" />
       </div>
     </div>
   );

@@ -107,6 +107,9 @@ export default defineConfig(({ mode }) => ({
           'assets/CosmosScreen-*.js',
           'assets/pdfExport-*.js',
           'assets/html2canvas*.js',
+          // Self-hosted fonts: only the Latin subsets are needed offline; the
+          // others load on demand when a page actually shows such characters.
+          'assets/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2',
         ],
         maximumFileSizeToCacheInBytes: 2 * 1024 * 1024,
         cleanupOutdatedCaches: true,
@@ -133,23 +136,12 @@ export default defineConfig(({ mode }) => ({
         ],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            // Font subsets left out of the precache (see globIgnores).
+            urlPattern: /\/assets\/.*\.woff2$/,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'google-fonts-stylesheets',
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-webfonts',
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
+              cacheName: 'font-subsets',
+              cacheableResponse: { statuses: [200] },
             },
           },
           {

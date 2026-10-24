@@ -82,7 +82,11 @@ export interface TreasuryOverviewResponse {
   shards: number;
   shardsForChoice: number;
   choiceReady: boolean;
+  /** Every distinct treasure the avatar owns (same count as the profile shows). */
   totalOwned: number;
+  /** Owned treasures that belong to a set, crowns included. */
+  ownedInSets: number;
+  /** All treasures that belong to a set, crowns included. */
   totalArtifacts: number;
   sets: TreasurySetView[];
   /** Artifacts without a set assignment (legacy/admin additions). */
@@ -204,6 +208,7 @@ export const treasuryOverview = api<{ avatarId: string }, TreasuryOverviewRespon
 
       const nonCrown = artifacts.filter((entry) => !entry.isCrown);
       const crownOwned = artifacts.some((entry) => entry.isCrown && entry.owned);
+      const allMembersOwned = nonCrown.length > 0 && nonCrown.every((entry) => entry.owned);
       sets.push({
         id: setRow.id,
         name: setRow.name_de,
@@ -215,7 +220,8 @@ export const treasuryOverview = api<{ avatarId: string }, TreasuryOverviewRespon
         totalCount: nonCrown.length,
         crownArtifactId: setRow.crown_artifact_id || undefined,
         crownOwned,
-        completed: crownOwned,
+        // A crown from an earlier unlock alone does not make a set "complete".
+        completed: crownOwned && allMembersOwned,
         artifacts,
       });
     }
@@ -245,7 +251,8 @@ export const treasuryOverview = api<{ avatarId: string }, TreasuryOverviewRespon
       shardsForChoice: SHARDS_PER_CHOICE,
       choiceReady: balance.shards >= SHARDS_PER_CHOICE,
       totalOwned: owned.size,
-      totalArtifacts: poolRows.filter((row) => row.set_id).length,
+      ownedInSets: sets.reduce((sum, set) => sum + set.artifacts.filter((entry) => entry.owned).length, 0),
+      totalArtifacts: sets.reduce((sum, set) => sum + set.artifacts.length, 0),
       sets,
       unsortedArtifacts: unsorted,
       pendingOffer,

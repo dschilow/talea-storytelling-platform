@@ -392,13 +392,14 @@ export const CheckQuiz: React.FC<{ section: DokuSection } & QuizContext> = ({ se
   );
 };
 
+// The experts are invented explainers; the badge must not suggest a real interview.
 const ExpertBadge: React.FC<{ expert: DokuExpert }> = ({ expert }) => (
-  <p className="rp-expert">
+  <p className="rp-expert" title="Eine erfundene Figur, die das Thema erklärt. Die Fakten in der Doku sind geprüft.">
     <span className="rp-expert-mark" aria-hidden="true">
       {(expert.name || expert.role).trim().charAt(0).toUpperCase()}
     </span>
     <span className="rp-expert-text">
-      <span className="rp-expert-label">Fachperson</span>
+      <span className="rp-expert-label">Erfundene Erklärfigur</span>
       {[expert.role, expert.name].filter(Boolean).join(' ')}
     </span>
   </p>

@@ -63,6 +63,8 @@ interface Props {
   onSceneReady?: () => void;
   /** Planet to fly to once the scene is ready (e.g. /cosmos?planet=nature). */
   initialFocusDomainId?: string | null;
+  /** The 3D scene crashed (shader, driver, lost context): the caller can switch to the 2D view. */
+  onSceneFailed?: () => void;
 }
 
 type GrowthPhase = 'idle' | 'flying' | 'growing' | 'card';
@@ -89,6 +91,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   showInternalModeTabs = true,
   onSceneReady,
   initialFocusDomainId = null,
+  onSceneFailed,
 }) => {
   const navigate = useNavigate();
   const { getToken } = useAuth();
@@ -722,11 +725,13 @@ export const CosmosSceneRoot: React.FC<Props> = ({
   if (!webglSupported) {
     return <CosmosFallbackList cosmosState={cosmosState} />;
   }
+  const fallbackList = <CosmosFallbackList cosmosState={cosmosState} />;
 
   const currentGrowthDomain = currentGrowth ? getDomainById(currentGrowth.domainId, sceneDomains) ?? null : null;
 
   return (
     <div className="relative w-full" style={{ height }}>
+      <CosmosCanvasBoundary fallback={fallbackList} onError={onSceneFailed}>
       <Canvas
         camera={{
           position: compact ? [8, 8, 17] : [16, 9, 30],
@@ -871,6 +876,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
           )}
         </Suspense>
       </Canvas>
+      </CosmosCanvasBoundary>
 
       <AnimatePresence mode="sync">
         {transitionFadeKey > 0 && (
@@ -1252,13 +1258,34 @@ function playFocusSound() {
   }
 }
 
-const CosmosFallbackList: React.FC<{ cosmosState: CosmosState }> = ({
+class CosmosCanvasBoundary extends React.Component<
+  { fallback: React.ReactNode; onError?: () => void; children: React.ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.warn('[CosmosSceneRoot] 3D scene failed, showing the 2D view', error);
+    this.props.onError?.();
+  }
+
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+/** The 2D view: every world as a card with its stage; works on any device. */
+export const CosmosFallbackList: React.FC<{ cosmosState: CosmosState }> = ({
   cosmosState,
 }) => {
   const navigate = useNavigate();
 
   return (
-    <div className="grid grid-cols-2 gap-3 p-4">
+    <div className="mx-auto grid h-full max-w-3xl auto-rows-min grid-cols-2 gap-3 overflow-y-auto p-4 sm:grid-cols-3">
       {resolveCosmosDomains(cosmosState.domains.map((entry) => entry.domainId)).map((domain) => {
         const progress = cosmosState.domains.find((d) => d.domainId === domain.id);
         const evolution = computePlanetEvolution(progress ?? emptyProgress(domain.id), domain.planetType);
@@ -1291,6 +1318,9 @@ const CosmosFallbackList: React.FC<{ cosmosState: CosmosState }> = ({
                 }}
               />
             </div>
+            <span className="text-[11px] font-bold" style={{ color: domain.color }}>
+              Neue Doku dazu ›
+            </span>
           </button>
         );
       })}

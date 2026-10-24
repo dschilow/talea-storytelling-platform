@@ -34,6 +34,23 @@ export function sanitizeMemoryText(value: string, maxLength = 240): string {
     .slice(0, maxLength);
 }
 
+/**
+ * Diary text of at most `maxLength` characters that ends at a sentence (or at
+ * least a word) instead of mid-word: the diary shows it to children and parents.
+ */
+export function summarizeMemoryText(value: string, maxLength = 240): string {
+  const text = sanitizeMemoryText(value, Number.MAX_SAFE_INTEGER);
+  if (text.length <= maxLength) return text;
+  const window = text.slice(0, maxLength);
+  const sentenceEnd = Math.max(...[". ", "! ", "? ", ".“ ", "!“ ", "?“ ", '." ', '!" ', '?" '].map((end) => {
+    const index = window.lastIndexOf(end);
+    return index < 0 ? -1 : index + end.length - 1;
+  }));
+  if (sentenceEnd >= maxLength * 0.5) return window.slice(0, sentenceEnd).trim();
+  const wordEnd = window.lastIndexOf(" ", maxLength - 1);
+  return `${window.slice(0, wordEnd > 0 ? wordEnd : maxLength - 1).replace(/[\s,;:–-]+$/, "")}…`;
+}
+
 export function classifyMemory(input: MemoryClassificationInput): MemoryClassification {
   const marker = sanitizeMemoryText(input.developmentDescription || "", 180)
     .normalize("NFD")
@@ -78,7 +95,7 @@ export function classifyMemory(input: MemoryClassificationInput): MemoryClassifi
     tier,
     importance,
     summary:
-      sanitizeMemoryText(input.experience) ||
+      summarizeMemoryText(input.experience) ||
       sanitizeMemoryText(input.storyTitle) ||
       "Gemeinsames Erlebnis",
     tags,

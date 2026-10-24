@@ -196,6 +196,8 @@
   cursor: pointer;
 }
 .auth-toggle button:hover { text-decoration: underline; text-underline-offset: 4px; }
+.auth-legal-links { margin-top: 1rem; display: flex; flex-wrap: wrap; justify-content: center; gap: 0 1.2rem; font-size: .8rem; color: var(--a-text-dim); }
+.auth-legal-links a { display: inline-flex; align-items: center; min-height: 44px; }
 .auth-back {
   position: absolute;
   top: 1.5rem;

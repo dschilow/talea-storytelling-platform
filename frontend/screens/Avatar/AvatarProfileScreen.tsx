@@ -217,7 +217,18 @@ const AvatarProfileScreen: React.FC = () => {
 
   const traits = useMemo(() => normalizeTraits(rawTraits), [rawTraits]);
   const canManage = avatar?.isOwnedByCurrentUser ?? true;
-  const inventoryCount = avatar?.inventory?.length || 0;
+  // Same count as the treasury: each distinct pool treasure once ("artifact_<pool>_<avatar>"),
+  // without repeated unlocks and old pre-treasury inventory rows the treasury never shows.
+  const inventoryCount = useMemo(() => {
+    const suffix = `_${avatar?.id ?? ''}`;
+    const poolIds = new Set(
+      (avatar?.inventory ?? [])
+        .map((item) => String(item?.id ?? ''))
+        .filter((id) => id.startsWith('artifact_') && id.endsWith(suffix) && id.length > 'artifact_'.length + suffix.length)
+        .map((id) => id.slice('artifact_'.length, id.length - suffix.length)),
+    );
+    return poolIds.size;
+  }, [avatar?.id, avatar?.inventory]);
 
   const activeProfile = childProfiles?.profiles.find((profile) => profile.id === activeProfileId) || null;
   const isChildAvatar = avatar?.avatarRole === 'child' || activeProfile?.childAvatarId === avatar?.id;

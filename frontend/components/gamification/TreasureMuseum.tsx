@@ -79,6 +79,7 @@ interface TreasuryOverview {
   shardsForChoice: number;
   choiceReady: boolean;
   totalOwned: number;
+  ownedInSets?: number;
   totalArtifacts: number;
   sets: TreasurySetView[];
   unsortedArtifacts: TreasuryArtifactView[];
@@ -318,7 +319,7 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
               Schatzkammer von {avatarName}
             </h2>
             <p className="mt-1 max-w-2xl text-sm leading-relaxed" style={{ color: textMuted }}>
-              {overview.totalOwned} von {overview.totalArtifacts} Schätzen gesammelt. Vollende ein Set,
+              {overview.totalOwned} {overview.totalOwned === 1 ? 'Schatz' : 'Schätze'} gesammelt, davon {overview.ownedInSets ?? overview.totalOwned} von {overview.totalArtifacts} aus den Sets. Vollende ein Set,
               um seinen legendären Kronen-Schatz zu verdienen — und nimm Artefakte in neue Geschichten mit,
               damit sie Reisen sammeln und aufsteigen.
             </p>
@@ -485,7 +486,8 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
       {/* Unsorted (legacy) artifacts */}
       {overview.unsortedArtifacts.length > 0 && (
         <section className="rounded-[28px] border p-4 sm:p-5" style={panel}>
-          <h3 className="text-lg font-semibold" style={{ color: textMain }}>Weitere Fundstücke</h3>
+          <h3 className="text-lg font-semibold" style={{ color: textMain }}>Weitere Schätze</h3>
+          <p className="text-xs" style={{ color: textMuted }}>Schätze aus früheren Abenteuern, die zu keinem Set gehören.</p>
           <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
             {overview.unsortedArtifacts.map((artifact) => (
               <li key={artifact.id}>

@@ -318,7 +318,7 @@ const StoryScrollReaderScreen: React.FC = () => {
                           Boolean(chapter.imageUrl),
                           Boolean(chapter.scenicImageUrl)
                         );
-                        const primaryImage = chapter.imageUrl || `https://picsum.photos/seed/${story.id}-${index}/900/520`;
+                        const primaryImage = chapter.imageUrl || "/landing-assets/journey/story-island.webp";
                         const scenicImage = chapter.scenicImageUrl;
                         return (
                           <>

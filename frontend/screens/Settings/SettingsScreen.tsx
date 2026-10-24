@@ -53,6 +53,7 @@ import {
   saveStoryOffline,
 } from '../../utils/offlineDb';
 import { useOfflineScope } from '../../contexts/OfflineScopeContext';
+import LegalFooterLinks from '../Legal/LegalFooterLinks';
 import {
   TaleaPageBackground,
   taleaDisplayFont,
@@ -1744,6 +1745,7 @@ export default function SettingsScreen() {
               <SignOutPanel />
             </UserProfile.Page>
           </UserProfile>
+          <LegalFooterLinks className="mt-6 flex flex-wrap justify-center gap-x-6 text-sm font-medium text-[var(--talea-text-secondary)] [&>a]:inline-flex [&>a]:min-h-11 [&>a]:items-center" />
         </div>
       </div>
     </div>
