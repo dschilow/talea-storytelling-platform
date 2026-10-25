@@ -122,7 +122,7 @@ export interface StartAudioOptions {
   release: boolean;
   /** Record again from the stored screenplay (new voices, new mix) instead of writing a new one. */
   keepScript?: boolean;
-  /** Voice engine; the server default (TALEA_AUDIO_ENGINE, else Gemini 3.8 Flash Lite) when missing. */
+  /** Voice engine; Gemini 3.8 Flash Lite when missing. */
   engine?: VoiceEngine;
 }
 

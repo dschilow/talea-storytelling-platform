@@ -15,8 +15,6 @@ const STATUS_TONES = {
   failed: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200",
 } as const;
 
-// v2 since Gemini Flash Lite became the default (2026-10-25): an older remembered choice does not override it.
-const ENGINE_KEY = "talea.originals.audioEngine.v2";
 const ENGINE_NOTES: Record<string, string> = {
   elevenlabs: "Captain Comedy, Dialog-Takes",
   "gemini-lite": "30 Stimmen, Zeile für Zeile",
@@ -24,14 +22,6 @@ const ENGINE_NOTES: Record<string, string> = {
 };
 
 const usd = (value?: number) => (value === undefined ? "–" : `$${value < 0.1 ? value.toFixed(3) : value.toFixed(2)}`);
-
-function rememberedEngine(fallback: string): string {
-  try {
-    return window.localStorage.getItem(ENGINE_KEY) || fallback;
-  } catch {
-    return fallback;
-  }
-}
 
 /** "Stimmen $0.11 · Geräusche $0.66 · Musik $0 · Drehbuch $0.10 = $0.87" */
 const CostLine: React.FC<{ costs: NonNullable<LibraryAdminEpisode["audio"]["costs"]> }> = ({ costs }) => (
@@ -52,18 +42,9 @@ export const EpisodeAudioPanel: React.FC<{ episode: LibraryAdminEpisode; onChang
   const [release, setRelease] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [scriptOpen, setScriptOpen] = useState(false);
-  const [engine, setEngine] = useState(() => rememberedEngine(audio.defaultEngine));
+  const [engine, setEngine] = useState<string>(audio.defaultEngine);
   const textBusy = episode.state === "generating";
   const chosen = audio.estimates.find((estimate) => estimate.engine === engine) ?? audio.estimates[0];
-
-  const chooseEngine = (value: string) => {
-    setEngine(value);
-    try {
-      window.localStorage.setItem(ENGINE_KEY, value);
-    } catch {
-      // private mode: the choice just is not remembered
-    }
-  };
 
   const run = async (key: string, action: () => Promise<unknown>, success?: string) => {
     setBusy(key);
@@ -184,7 +165,7 @@ export const EpisodeAudioPanel: React.FC<{ episode: LibraryAdminEpisode; onChang
                 type="button"
                 role="radio"
                 aria-checked={chosen?.engine === estimate.engine}
-                onClick={() => chooseEngine(estimate.engine)}
+                onClick={() => setEngine(estimate.engine)}
                 className={cn(
                   "flex min-h-[44px] flex-col items-start rounded-2xl border px-3 py-1.5 text-left",
                   chosen?.engine === estimate.engine ? "border-[var(--primary)] bg-[var(--talea-surface-primary)]" : "border-transparent bg-[var(--talea-surface-primary)]/60",

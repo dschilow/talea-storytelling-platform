@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowLeft, ChevronDown, Clock, Headphones, Pause, Play } from "lucide-react";
+import { ArrowLeft, ChevronDown, Clock, Headphones, Pause } from "lucide-react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useBackend } from "@/hooks/useBackend";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -13,7 +13,9 @@ import { ImageLightbox } from "../Story/reader/ImageLightbox";
 import { ReaderHeader, ReaderHeroBackdrop, ReaderProgress, ReaderSectionNav, useReaderScroll } from "../Story/reader/ReaderChrome";
 import { clearChapterPosition, readSavedChapter, saveChapterPosition, useTextScale } from "../Story/reader/useReaderStorage";
 import { CollectibleCard } from "./components/CollectibleCard";
-import { episodeLabel, episodeReaderPath, errorMessage, formatClock, formatRelease, seriesPath, type LibraryCollectible, type LibraryEpisodeResponse } from "./libraryShared";
+import { EpisodeContinuation } from "./components/EpisodeContinuation";
+import { originalsAudioTrack } from "./originalsAudioTrack";
+import { episodeLabel, errorMessage, formatClock, formatRelease, seriesPath, type LibraryCollectible, type LibraryEpisodeResponse } from "./libraryShared";
 import "../Story/reader/StoryReader.css";
 import "./OriginalsReader.css";
 
@@ -71,6 +73,16 @@ const EpisodeView: React.FC<{ episode: LibraryEpisodeResponse; isDark: boolean; 
   const [completion, setCompletion] = useState({ done: episode.progress.finished, pending: false, error: null as string | null });
   const [reward, setReward] = useState<LibraryCollectible | null>(null);
   const lastSaved = useRef(-1);
+  const finaleRef = useRef<HTMLElement>(null);
+  const reduceMotion = useReducedMotion();
+  const { originalsCompletion } = useAudioPlayer();
+
+  useEffect(() => {
+    const source = originalsCompletion?.track.originals;
+    if (originalsCompletion?.status !== "saved" || source?.episodeId !== episode.id || source.profileId !== (profileId ?? episode.profileId)) return;
+    clearChapterPosition(storageKey);
+    setCompletion({ done: true, pending: false, error: null });
+  }, [originalsCompletion, episode.id, episode.profileId, profileId, storageKey]);
 
   // Chapters as the story reader knows them; the picture sits after its paragraph.
   const chapters: Chapter[] = useMemo(
@@ -154,7 +166,7 @@ const EpisodeView: React.FC<{ episode: LibraryEpisodeResponse; isDark: boolean; 
                 {savedChapter !== null ? `Weiterlesen · Kapitel ${savedChapter + 1}` : "Folge lesen"}
                 <ChevronDown className="h-4 w-4" aria-hidden="true" />
               </motion.button>
-              {episode.audio ? <AudioDramaButton episode={episode} fromChapter={reading ? activeIndex : savedChapter} /> : null}
+              {episode.audio ? <AudioDramaButton episode={episode} profileId={profileId} fromChapter={reading ? activeIndex : savedChapter} /> : null}
             </div>
           </motion.div>
         </section>
@@ -176,7 +188,7 @@ const EpisodeView: React.FC<{ episode: LibraryEpisodeResponse; isDark: boolean; 
           ))}
         </article>
 
-        <section className="rd-finale">
+        <section ref={finaleRef} className="rd-finale">
           <div className="rd-finale-inner og-finale">
             <span className="rd-ornament" aria-hidden="true">
               <span className="rd-ornament-line" />
@@ -189,12 +201,9 @@ const EpisodeView: React.FC<{ episode: LibraryEpisodeResponse; isDark: boolean; 
               {completion.done ? "Diese Karte liegt jetzt in deiner Sammlung." : "Lies bis zum Ende, dann wandert diese Karte in deine Sammlung."}
             </p>
             {episode.teaser ? <p className="og-finale-teaser">{episode.teaser}</p> : null}
+            <EpisodeContinuation episode={episode} profileId={profileId ?? episode.profileId} />
             <div className="og-finale-actions">
-              {episode.nextEpisode?.available ? (
-                <button type="button" className="rd-primary-btn" onClick={() => navigate(episodeReaderPath(episode.nextEpisode!.id))}>
-                  <Play className="h-4 w-4 fill-current" aria-hidden="true" /> Nächste Folge: {episode.nextEpisode.title}
-                </button>
-              ) : episode.nextEpisode?.publishAt ? (
+              {!episode.nextEpisode?.available && episode.nextEpisode?.publishAt && Date.parse(episode.nextEpisode.publishAt) > Date.now() ? (
                 <p className="rd-finale-text">Die nächste Folge erscheint {formatRelease(episode.nextEpisode.publishAt)}.</p>
               ) : null}
               <button type="button" className="rd-secondary-btn" onClick={back}>
@@ -206,7 +215,10 @@ const EpisodeView: React.FC<{ episode: LibraryEpisodeResponse; isDark: boolean; 
       </div>
 
       <ImageLightbox src={lightbox?.src ?? null} alt={lightbox?.alt ?? ""} onClose={() => setLightbox(null)} />
-      <RewardDialog collectible={reward} onClose={() => setReward(null)} />
+      <RewardDialog collectible={reward} onClose={() => {
+        setReward(null);
+        finaleRef.current?.scrollIntoView({ behavior: reduceMotion ? "instant" : "smooth", block: "start" });
+      }} />
     </div>
   );
 };
@@ -215,7 +227,7 @@ const EpisodeView: React.FC<{ episode: LibraryEpisodeResponse; isDark: boolean; 
  * Plays the episode's audio drama in the app-wide player — from the start, or
  * from the chapter the child is reading. Admins also hear unreleased dramas.
  */
-const AudioDramaButton: React.FC<{ episode: LibraryEpisodeResponse; fromChapter: number | null }> = ({ episode, fromChapter }) => {
+const AudioDramaButton: React.FC<{ episode: LibraryEpisodeResponse; fromChapter: number | null; profileId?: string }> = ({ episode, fromChapter, profileId }) => {
   const { track, isPlaying, playTrack, togglePlay } = useAudioPlayer();
   const audio = episode.audio!;
   const trackId = `originals-audio:${episode.id}`;
@@ -228,14 +240,7 @@ const AudioDramaButton: React.FC<{ episode: LibraryEpisodeResponse; fromChapter:
       togglePlay();
       return;
     }
-    playTrack({
-      id: trackId,
-      title: episode.title,
-      description: `${episode.seriesTitle} · ${episodeLabel(episode)} · Hörspiel`,
-      coverImageUrl: episode.coverImageUrl,
-      audioUrl: audio.url,
-      ...(chapterStart ? { startAt: Math.max(0, chapterStart - 1) } : {}),
-    });
+    playTrack(originalsAudioTrack(episode, profileId, chapterStart ? Math.max(0, chapterStart - 1) : undefined));
   };
 
   const label = current && isPlaying ? "Hörspiel pausieren" : current ? "Hörspiel weiterhören" : chapterStart ? `Ab Kapitel ${fromChapter! + 1} anhören` : `Als Hörspiel anhören · ${minutes} Min.`;

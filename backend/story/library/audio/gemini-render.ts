@@ -116,6 +116,7 @@ export interface GeminiRenderInput {
 export interface GeminiRenderStats {
   /** Requests sent, retakes included. */
   requests: number;
+  /** Retakes after the audio plausibility check (refusals are tracked separately). */
   retakes: number;
   /** Seconds of audio Gemini generated and billed (padding and retakes included). */
   billedSeconds: number;
@@ -123,6 +124,8 @@ export interface GeminiRenderStats {
   costUSD: number;
   /** Lines that stayed implausible after every take, for the admin. */
   flagged: Array<{ part: string; line: number; text: string; reason: string }>;
+  /** Lines recovered with plain delivery or the same voice on Flash. */
+  recovered: Array<{ label: string; voice: string; engine: VoiceEngine }>;
 }
 
 interface Clip {
@@ -138,7 +141,7 @@ const tokensOf = (text: string, instructions: string): number => Math.ceil((text
 export async function renderWithGemini(input: GeminiRenderInput): Promise<{ parts: RenderedPart[]; stats: GeminiRenderStats }> {
   const say = input.log ?? ((message: string) => console.log(`[library-audio] ${message}`));
   const model = engineInfo(input.engine).model;
-  const stats: GeminiRenderStats = { requests: 0, retakes: 0, billedSeconds: 0, inputTokens: 0, costUSD: 0, flagged: [] };
+  const stats: GeminiRenderStats = { requests: 0, retakes: 0, billedSeconds: 0, inputTokens: 0, costUSD: 0, flagged: [], recovered: [] };
   const jobs = input.script.parts.flatMap((part, partIndex) => part.lines.map((line, lineIndex) => ({ partIndex, lineIndex, line })));
   const clips: Clip[][] = input.script.parts.map((part) => new Array<Clip>(part.lines.length));
   let sampleRate = 0;
@@ -147,25 +150,44 @@ export async function renderWithGemini(input: GeminiRenderInput): Promise<{ part
     const speaker = input.cast.get(line.speaker);
     if (!speaker) throw new Error(`${label}: Sprecher ${line.speaker} hat keine Gemini-Stimme.`);
     const direction = geminiLine(line, speaker);
+    // Keep every spoken word and the cast's voice. A provider refusal can stem
+    // from the direction/tags rather than the story. Try plain delivery once,
+    // then (Lite only) the same voice on Flash. All safety filters stay active.
+    const variants = [
+      { engine: input.engine, model, text: direction.text, instructions: direction.instructions },
+      { engine: input.engine, model, text: spokenText(direction.text), instructions: "Natural standard German." },
+      ...(input.engine === "gemini-lite"
+        ? [{ engine: "gemini-flash" as const, model: engineInfo("gemini-flash").model, text: spokenText(direction.text), instructions: "Natural standard German." }]
+        : []),
+    ];
+    let variant = 0;
     let best: Clip | null = null;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-      let text = direction.text;
       let result;
-      try {
+      for (;;) {
+        const request = variants[variant];
+        const inputTokens = tokensOf(request.text, request.instructions);
         stats.requests += 1;
-        stats.inputTokens += tokensOf(text, direction.instructions);
-        result = await input.speech({ model, voice: speaker.voice, text, instructions: direction.instructions });
-      } catch (error) {
-        // A refused line (400) is tried once more without its reaction tags; anything else ends the take.
-        if (!(error instanceof SpeechError && error.status === 400 && /\[/.test(text))) throw error;
-        text = spokenText(text);
-        stats.requests += 1;
-        stats.inputTokens += tokensOf(text, direction.instructions);
-        result = await input.speech({ model, voice: speaker.voice, text, instructions: direction.instructions });
+        stats.inputTokens += inputTokens;
+        stats.costUSD += geminiVoiceCost(request.engine, 0, inputTokens);
+        try {
+          result = await input.speech({ model: request.model, voice: speaker.voice, text: request.text, instructions: request.instructions });
+          break;
+        } catch (error) {
+          const badTag = error instanceof SpeechError && error.status === 400 && variant === 0 && /\[/.test(request.text) && /(?:bad|invalid|unsupported).*tag/i.test(error.message);
+          if (error instanceof SpeechError && (error.moderation || badTag) && variant + 1 < variants.length) {
+            variant += 1;
+            say(`gemini: ${label} (${speaker.name}, ${speaker.voice}) abgelehnt — ${variant === 1 ? "nimmt mit neutraler Regie neu auf" : "nimmt dieselbe Stimme mit Gemini Flash auf"}`);
+            continue;
+          }
+          if (error instanceof SpeechError) throw new SpeechError(`${label} (${speaker.name}, ${speaker.voice}): ${error.message}`, error.status, error.moderation);
+          throw new Error(`${label} (${speaker.name}, ${speaker.voice}): ${(error as Error)?.message || error}`);
+        }
       }
       sampleRate = sampleRate || result.sampleRate;
       const samples = samplesFromPcm(result.pcm);
       stats.billedSeconds += samples.length / result.sampleRate;
+      stats.costUSD += geminiVoiceCost(variants[variant].engine, samples.length / result.sampleRate, 0);
       const activity = analyzeSpeech(samples, result.sampleRate);
       const check = checkClip(direction.text, activity ? (activity.end - activity.start) / result.sampleRate : null);
       const clip: Clip = { samples, activity: activity ?? { start: 0, end: samples.length, levelDb: -90, peak: 0 }, attempts: attempt, check };
@@ -177,21 +199,31 @@ export async function renderWithGemini(input: GeminiRenderInput): Promise<{ part
         say(`gemini: ${label} ${check.reason} — nimmt neu auf`);
       }
     }
+    if (variant > 0) stats.recovered.push({ label, voice: speaker.voice, engine: variants[variant].engine });
     return best!;
   };
 
   let next = 0;
   let done = 0;
+  let failure: { error: unknown } | undefined;
   const workers = Array.from({ length: Math.min(input.concurrency ?? DEFAULT_CONCURRENCY, jobs.length) }, async () => {
-    while (next < jobs.length) {
+    while (!failure && next < jobs.length) {
       const job = jobs[next++];
       const part = input.script.parts[job.partIndex];
-      clips[job.partIndex][job.lineIndex] = await record(job.line, `${part.title}, Zeile ${job.lineIndex + 1}`);
+      try {
+        clips[job.partIndex][job.lineIndex] = await record(job.line, `${part.title}, Zeile ${job.lineIndex + 1}`);
+      } catch (error) {
+        failure ??= { error };
+        return;
+      }
       done += 1;
       if (done % 25 === 0 || done === jobs.length) say(`gemini: ${done}/${jobs.length} Zeilen`);
     }
   });
   await Promise.all(workers);
+  // Drain the in-flight requests before the caller marks the render failed and
+  // removes its temporary files. Never schedule the rest of a failed episode.
+  if (failure) throw failure.error;
 
   // Every figure at the same presence: one gain per speaker from the median of its lines.
   const levels = new Map<string, number[]>();
@@ -242,6 +274,5 @@ export async function renderWithGemini(input: GeminiRenderInput): Promise<{ part
     parts.push({ part, segments: [{ path: file, seconds }], lineSpans, words, seconds });
   }
 
-  stats.costUSD = geminiVoiceCost(input.engine, stats.billedSeconds, stats.inputTokens);
   return { parts, stats };
 }

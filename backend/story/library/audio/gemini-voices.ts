@@ -305,9 +305,10 @@ export interface GeminiLine {
 export function geminiLine(line: Pick<ScriptLine, "text">, speaker: SpeakerDirection): GeminiLine {
   const { tag, body } = splitLeadingTag(line.text);
   const persona = speaker.persona.trim();
-  const who = speaker.narrator
-    ? `You are the narrator of a German children's radio play: a ${persona || "warm, playful storyteller"} who tells the story with life, humour and clear diction.`
-    : `You are ${speaker.name}, ${describeFigure(speaker.hint)}, in a German children's radio play.${persona ? ` Voice: ${persona}.` : ""}`;
-  const mood = tag && tag.toLowerCase() !== persona.toLowerCase() ? ` Tone of this line: ${tag}.` : "";
-  return { text: body, instructions: `${who}${mood} Speak natural standard German.` };
+  // Gemini 3.8 treats instructions as speech_metadata.style. Short delivery cues
+  // work better than role-play prompts, names, ages or other identity changes:
+  // https://ai.google.dev/gemini-api/docs/speech-generation#prompting-guide
+  const delivery = persona || (speaker.narrator ? "warm, playful storytelling" : "natural, expressive");
+  const mood = tag && tag.toLowerCase() !== persona.toLowerCase() ? ` ${tag}.` : "";
+  return { text: body, instructions: `Natural standard German. ${delivery}.${mood}` };
 }

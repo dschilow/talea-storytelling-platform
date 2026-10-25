@@ -347,7 +347,10 @@ async function recordWithGemini(script: AudioScript, engine: VoiceEngine, input:
     requests: stats.requests,
     voiceSeconds: parts.reduce((sum, part) => sum + part.seconds, 0),
     costUSD: stats.costUSD,
-    notes: stats.flagged.map((flag) => `${flag.part}, Zeile ${flag.line} („${flag.text}“): ${flag.reason} — bitte anhören.`),
+    notes: [
+      ...stats.recovered.map((line) => `${line.label} (${line.voice}): nach Anbieter-Ablehnung mit neutraler Regie${line.engine !== engine ? ` auf ${engineInfo(line.engine).label}` : ""} aufgenommen — bitte anhören.`),
+      ...stats.flagged.map((flag) => `${flag.part}, Zeile ${flag.line} („${flag.text}“): ${flag.reason} — bitte anhören.`),
+    ],
   };
 }
 

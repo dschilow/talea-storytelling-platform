@@ -7,10 +7,10 @@ import { SEED_SERIES } from "../seed";
 import type { AudioScript, ScriptPart } from "../types";
 import { NARRATOR_ID, resolveSeriesCast, type AccountVoice } from "./casting";
 import { assignEngineVoices, geminiFigures, recastScript, seriesCastMembers, seriesHints } from "./cast-members";
-import { audioCosts, engineInfo, estimateVoices, geminiVoiceCost, normalizeEngine, proseVolume, scriptVolume } from "./engines";
+import { audioCosts, defaultVoiceEngine, engineInfo, estimateVoices, geminiVoiceCost, normalizeEngine, proseVolume, scriptVolume } from "./engines";
 import { checkClip, expectedSeconds, gapBetween, LINE_GAPS, renderWithGemini } from "./gemini-render";
-import { GEMINI_NARRATOR, GEMINI_VOICES, describeFigure, figureHint, geminiLine, pickGeminiVoice, resolveGeminiCast } from "./gemini-voices";
-import { SpeechError, openRouterSpeech, type SpeechPort } from "./openrouter-speech";
+import { GEMINI_NARRATOR, GEMINI_VOICES, describeFigure, figureHint, geminiLine, pickGeminiVoice, resolveGeminiCast, type SpeakerDirection } from "./gemini-voices";
+import { SpeechError, openRouterSpeech, type SpeechPort, type SpeechRequest } from "./openrouter-speech";
 import { analyzeSpeech, applyGain, cut, safeGainDb, samplesFromPcm, wavBuffer } from "./pcm";
 import { NARRATOR_KEY } from "./screenplay";
 import { estimateWordTimes } from "./timeline";
@@ -29,6 +29,17 @@ function pcm(lead: number, tone: number, tail: number, amplitude = 0.3, rate = 2
 }
 
 describe("engines", () => {
+  test("Originals always default to Gemini 3.8 Flash Lite even with an old environment override", () => {
+    const previous = process.env.TALEA_AUDIO_ENGINE;
+    try {
+      process.env.TALEA_AUDIO_ENGINE = "elevenlabs";
+      expect(defaultVoiceEngine()).toBe("gemini-lite");
+      expect(engineInfo(defaultVoiceEngine()).model).toBe("google/gemini-3.8-flash-lite-tts");
+    } finally {
+      if (previous === undefined) delete process.env.TALEA_AUDIO_ENGINE;
+      else process.env.TALEA_AUDIO_ENGINE = previous;
+    }
+  });
   test("engine names and families", () => {
     expect(normalizeEngine("Gemini-Lite")).toBe("gemini-lite");
     expect(normalizeEngine("gpt")).toBeUndefined();
@@ -127,12 +138,11 @@ describe("Gemini voices", () => {
   test("a line: the tone tag becomes direction, reactions stay in the text", () => {
     const line = geminiLine({ text: "[grumpy, offended] Flocken. [sighs] Extra-Flocken!" }, { name: "Bruno", persona: "grumpy, gruff, vain", narrator: false, hint: { gender: "male", creature: true } });
     expect(line.text).toBe("Flocken. [sighs] Extra-Flocken!");
-    expect(line.instructions).toContain("You are Bruno, a talking creature with a male voice");
-    expect(line.instructions).toContain("Voice: grumpy, gruff, vain.");
-    expect(line.instructions).toContain("Tone of this line: grumpy, offended.");
+    expect(line.instructions).toBe("Natural standard German. grumpy, gruff, vain. grumpy, offended.");
     const narration = geminiLine({ text: "[warm, playful] Es war einmal." }, { name: "Erzähler", persona: "warm, playful storyteller", narrator: true, hint: {} });
-    expect(narration.instructions).toContain("narrator of a German children's radio play");
-    expect(narration.instructions).not.toContain("Tone of this line: warm, playful storyteller");
+    expect(narration.instructions).toBe("Natural standard German. warm, playful storyteller. warm, playful.");
+    const child = geminiLine({ text: "[calm] Hallo." }, { name: "Ella", persona: "calm, precise", narrator: false, hint: { gender: "female", age: "child", ageYears: 8 } });
+    expect(child.instructions).toBe("Natural standard German. calm, precise. calm.");
     expect(describeFigure({ gender: "male", age: "child", ageYears: 6 })).toBe("a six-year-old boy");
     expect(describeFigure({ gender: "female", age: "old" })).toBe("an old woman");
   });
@@ -252,7 +262,7 @@ describe("recording with Gemini (fake speech)", () => {
     parts,
     notes: [],
   });
-  const cast = new Map([
+  const cast = new Map<string, SpeakerDirection & { voice: string }>([
     [NARRATOR_KEY, { voice: "Puck", name: "Erzähler", persona: "warm, playful storyteller", narrator: true, hint: {} }],
     ["ELLA", { voice: "Erinome", name: "Ella", persona: "calm, precise", narrator: false, hint: { gender: "female" as const, age: "child" as const } }],
   ]);
@@ -279,7 +289,7 @@ describe("recording with Gemini (fake speech)", () => {
     });
     expect(requests.map((request) => request.voice)).toEqual(["Puck", "Erinome", "Puck"]);
     expect(requests[1].text).toBe("Das ist wissenschaftlich unmöglich, Mats.");
-    expect(requests[1].instructions).toContain("a young girl");
+    expect(requests[1].instructions).toBe("Natural standard German. calm, precise. calm.");
     const [rendered] = parts;
     expect(rendered.lineSpans.length).toBe(3);
     const spans = rendered.lineSpans.map((span) => span!);
@@ -324,6 +334,116 @@ describe("recording with Gemini (fake speech)", () => {
     expect(seen).toEqual(["Na gut. [sighs] Dann eben nicht.", "Na gut. Dann eben nicht."]);
   });
 
+  const safety = () => new SpeechError('OpenRouter speech failed with 400: {"error":{"message":"Provider blocked this request through content moderation (provider finish reason: SAFETY)","code":400}}', 400);
+  const brunoCast = new Map([...cast, ["BRUNO", { voice: "Algenib", name: "Bruno", persona: "grumpy, gruff, vain", narrator: false, hint: { gender: "male" as const, creature: true } }]]);
+
+  test("the screenshot's SAFETY refusal recovers even when the spoken text has no tags", async () => {
+    const requests: SpeechRequest[] = [];
+    const speech: SpeechPort = async (request) => {
+      requests.push(request);
+      if (requests.length === 1) throw safety();
+      return { pcm: pcm(0.1, expectedSeconds(request.text), 0.1), sampleRate: 24_000 };
+    };
+    const { parts, stats } = await renderWithGemini({
+      script: script([part([{ speaker: "BRUNO", text: "[grumpy] Gemacht ist gemacht." }])]),
+      engine: "gemini-lite", speech, cast: brunoCast, tmpDir,
+    });
+    expect(requests.map((request) => request.text)).toEqual(["Gemacht ist gemacht.", "Gemacht ist gemacht."]);
+    expect(requests.map((request) => request.voice)).toEqual(["Algenib", "Algenib"]);
+    expect(requests[1].instructions).toBe("Natural standard German.");
+    expect(stats).toMatchObject({ requests: 2, retakes: 0, recovered: [{ label: "Kapitel 1, Zeile 1", voice: "Algenib", engine: "gemini-lite" }] });
+    expect(parts[0].lineSpans).toHaveLength(1);
+  });
+
+  test("a persistent Lite refusal uses Flash in the same voice and accounts for the Flash price", async () => {
+    const requests: SpeechRequest[] = [];
+    const speech: SpeechPort = async (request) => {
+      requests.push(request);
+      if (request.model === engineInfo("gemini-lite").model) throw safety();
+      return { pcm: pcm(0.1, expectedSeconds(request.text), 0.1), sampleRate: 24_000 };
+    };
+    const { stats } = await renderWithGemini({
+      script: script([part([{ speaker: "BRUNO", text: "[grumpy] Gemacht ist [sighs] gemacht." }])]),
+      engine: "gemini-lite", speech, cast: brunoCast, tmpDir,
+    });
+    expect(requests.map((request) => request.model)).toEqual([engineInfo("gemini-lite").model, engineInfo("gemini-lite").model, engineInfo("gemini-flash").model]);
+    expect(requests.map((request) => request.voice)).toEqual(["Algenib", "Algenib", "Algenib"]);
+    expect(requests[2].text).toBe("Gemacht ist gemacht.");
+    expect(stats).toMatchObject({ requests: 3, retakes: 0, recovered: [{ voice: "Algenib", engine: "gemini-flash" }] });
+    expect(stats.costUSD).toBeCloseTo(geminiVoiceCost("gemini-flash", stats.billedSeconds, stats.inputTokens), 8);
+  });
+
+  test("quality retakes keep the recovered request instead of repeating the blocked one", async () => {
+    const requests: SpeechRequest[] = [];
+    const speech: SpeechPort = async (request) => {
+      requests.push(request);
+      if (requests.length === 1) throw safety();
+      return { pcm: requests.length === 2 ? pcm(0.5, 0, 0.5) : pcm(0.1, expectedSeconds(request.text), 0.1), sampleRate: 24_000 };
+    };
+    const { stats } = await renderWithGemini({
+      script: script([part([{ speaker: "BRUNO", text: "[grumpy] Gemacht ist gemacht." }])]),
+      engine: "gemini-lite", speech, cast: brunoCast, tmpDir,
+    });
+    expect(requests).toHaveLength(3);
+    expect(requests[2]).toEqual(requests[1]);
+    expect(stats.retakes).toBe(1);
+    expect(stats.recovered).toHaveLength(1);
+    expect(stats.flagged).toEqual([]);
+  });
+
+  test("refusals remain bounded and report the part, line and voice; no line is silently dropped", async () => {
+    for (const [engine, expectedCalls] of [["gemini-lite", 3], ["gemini-flash", 2]] as const) {
+      let calls = 0;
+      const speech: SpeechPort = async () => { calls += 1; throw safety(); };
+      await expect(renderWithGemini({
+        script: script([part([{ speaker: "BRUNO", text: "[grumpy] Gemacht ist gemacht." }])]),
+        engine, speech, cast: brunoCast, tmpDir,
+      })).rejects.toMatchObject({ message: expect.stringContaining("Kapitel 1, Zeile 1 (Bruno, Algenib)"), status: 400, moderation: true });
+      expect(calls).toBe(expectedCalls);
+    }
+  });
+
+  test("invalid voices, auth, billing and exhausted transport errors never change the model", async () => {
+    for (const status of [400, 401, 402, 403, 429, 503]) {
+      let calls = 0;
+      const speech: SpeechPort = async () => { calls += 1; throw new SpeechError("invalid voice or account unavailable", status); };
+      await expect(renderWithGemini({
+        script: script([part([{ speaker: "ELLA", text: "[calm] Na gut. [sighs] Dann eben nicht." }])]),
+        engine: "gemini-lite", speech, cast, tmpDir,
+      })).rejects.toMatchObject({ status, moderation: false });
+      expect(calls).toBe(1);
+    }
+  });
+
+  test("a fatal error stops the queue and drains outstanding calls before rejecting", async () => {
+    const requests: string[] = [];
+    let rejectFirst!: () => void;
+    let finishSecond!: () => void;
+    let secondStarted!: () => void;
+    const started = new Promise<void>((resolve) => { secondStarted = resolve; });
+    const speech: SpeechPort = (request) => {
+      requests.push(request.text);
+      if (requests.length === 1) return new Promise((_resolve, reject) => { rejectFirst = () => reject(new SpeechError("account unavailable", 402)); });
+      return new Promise((resolve) => {
+        finishSecond = () => resolve({ pcm: pcm(0.1, expectedSeconds(request.text), 0.1), sampleRate: 24_000 });
+        secondStarted();
+      });
+    };
+    let settled = false;
+    const rendered = renderWithGemini({
+      script: script([part(["Erste Zeile.", "Zweite Zeile.", "Dritte Zeile.", "Vierte Zeile."].map((text) => ({ speaker: "ELLA", text })))]),
+      engine: "gemini-lite", speech, cast, tmpDir, concurrency: 2,
+    }).then(() => { settled = true; return null; }, (error: unknown) => { settled = true; return error; });
+    await started;
+    rejectFirst();
+    // Let the first worker catch its refusal; the second call must still be awaited.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(settled).toBe(false);
+    finishSecond();
+    expect(await rendered).toMatchObject({ status: 402 });
+    expect(requests).toEqual(["Erste Zeile.", "Zweite Zeile."]);
+  });
+
   test("scene gaps between lines", async () => {
     const speech: SpeechPort = async (request) => ({ pcm: pcm(0.1, expectedSeconds(request.text), 0.1), sampleRate: 24_000 });
     const { parts } = await renderWithGemini({
@@ -355,6 +475,27 @@ describe("OpenRouter speech client", () => {
     const speech = openRouterSpeech({ apiKey: "k", backoffMs: 1, fetchImpl: (async () => (++calls, new Response("{\"error\":\"bad\"}", { status: 400 }))) as unknown as typeof fetch });
     await expect(speech({ model: "m", voice: "Puck", text: "Hallo" })).rejects.toMatchObject({ status: 400 });
     expect(calls).toBe(1);
+  });
+
+  test("moderation is distinguished from invalid requests, auth failures and billing", async () => {
+    for (const [status, message, moderation] of [
+      [400, "Provider blocked this request through content moderation (provider finish reason: SAFETY)", true],
+      [403, "PROHIBITED_CONTENT", true],
+      [422, "content_filter", true],
+      [400, "Invalid voice", false],
+      [403, "Invalid API key", false],
+      [402, "Insufficient credits", false],
+    ] as const) {
+      let calls = 0;
+      const speech = openRouterSpeech({ apiKey: "k", backoffMs: 1, fetchImpl: (async () => { calls += 1; return new Response(JSON.stringify({ error: { message, code: status } }), { status }); }) as unknown as typeof fetch });
+      await expect(speech({ model: "m", voice: "Algenib", text: "Gemacht ist gemacht." })).rejects.toMatchObject({ status, moderation });
+      expect(calls).toBe(1);
+    }
+  });
+
+  test("moderation metadata is detected before the diagnostic text is truncated", async () => {
+    const speech = openRouterSpeech({ apiKey: "k", fetchImpl: (async () => new Response(JSON.stringify({ error: { message: "x".repeat(450), metadata: { finishReason: "SAFETY" } } }), { status: 400 })) as unknown as typeof fetch });
+    await expect(speech({ model: "m", voice: "Algenib", text: "Hallo." })).rejects.toMatchObject({ status: 400, moderation: true });
   });
 
   test("the request is OpenAI-compatible with PCM and instructions", async () => {

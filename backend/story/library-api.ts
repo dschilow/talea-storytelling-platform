@@ -22,6 +22,7 @@ import { LIBRARY_MODELS, generateEpisodeText, type CanonEntry, type EpisodeBrief
 import { createRunwareCaller, drawPortrait, LIBRARY_IMAGE_MODEL, type ReferenceLoader } from "./library/images";
 import { illustrateEpisode, redrawPicture, type IllustrationContext, type SlotRef } from "./library/production";
 import { nextReleaseSlot } from "./library/schedule";
+import { chooseContinuation, type ContinuationCandidate } from "./library/continuation";
 import {
   ensureLibrary,
   getBible,
@@ -147,6 +148,7 @@ export interface LibrarySeriesResponse {
 
 export interface LibraryEpisodeResponse {
   id: string;
+  profileId?: string;
   seriesId: string;
   seriesSlug: string;
   seriesTitle: string;
@@ -162,10 +164,23 @@ export interface LibraryEpisodeResponse {
   cast: LibraryCharacter[];
   progress: { chapterIndex: number; finished: boolean };
   nextEpisode?: { id: string; title: string; available: boolean; publishAt?: string };
+  recommendation?: LibraryEpisodeRecommendation;
+  audioRecommendation?: LibraryEpisodeRecommendation;
   previousEpisodeId?: string;
   state?: EpisodeState;
   /** The audio drama: for children once released, for admins as soon as it exists. */
   audio?: LibraryEpisodeAudio;
+}
+
+export interface LibraryEpisodeRecommendation {
+  id: string;
+  title: string;
+  seriesTitle: string;
+  season: number;
+  episode: number;
+  coverImageUrl?: string;
+  hasAudio: boolean;
+  kind: "next" | "random";
 }
 
 export interface LibraryEpisodeAudio {
@@ -606,15 +621,44 @@ export const libraryEpisode = api<{ id: string; profileId?: Query<string> }, Lib
     const { userId, profileId, isAdmin, clerkToken } = await profileFor(req.profileId);
     const episodes = await listEpisodes(series.info.id);
     const visible = episodes.filter((entry) => isVisible(entry));
+    const isFree = await freePlan(userId, clerkToken, isAdmin);
     if (!isAdmin) {
       const index = visible.findIndex((entry) => entry.id === episode.id);
       if (index < 0) throw APIError.notFound("Folge nicht gefunden");
-      if (lockRule(series, await freePlan(userId, clerkToken, isAdmin))(episode, index)) {
+      if (lockRule(series, isFree)(episode, index)) {
         throw APIError.permissionDenied("Diese Folge gibt es mit einem Abo.");
       }
     }
     const progressRows = await listProgress(profileId);
     const progress = progressRows.find((row) => row.episodeId === episode.id);
+    const [allSeries, allEpisodes] = await Promise.all([listSeries(), listAllEpisodes()]);
+    const finished = new Set(progressRows.filter((row) => row.finishedAt).map((row) => row.episodeId));
+    const candidates: ContinuationCandidate[] = [];
+    for (const entry of allSeries) {
+      const locked = lockRule(entry, isFree);
+      let visibleIndex = 0;
+      for (const candidate of allEpisodes.filter((row) => row.seriesId === entry.info.id)) {
+        const visible = isVisible(candidate);
+        candidates.push({
+          id: candidate.id, seriesId: candidate.seriesId, season: candidate.season, episode: candidate.episode,
+          available: (visible && !locked(candidate, visibleIndex)) || (isAdmin && Boolean(candidate.content)),
+          hasAudio: audioIsReleased(candidate.audio), finished: finished.has(candidate.id),
+        });
+        if (visible) visibleIndex += 1;
+      }
+    }
+    const recommendationView = async (audioOnly: boolean): Promise<LibraryEpisodeRecommendation | undefined> => {
+      const choice = chooseContinuation(episode, candidates, audioOnly);
+      if (!choice) return undefined;
+      const chosen = allEpisodes.find((row) => row.id === choice.episode.id)!;
+      const chosenSeries = allSeries.find((row) => row.info.id === chosen.seriesId)!;
+      return {
+        id: chosen.id, title: chosen.content!.title, seriesTitle: chosenSeries.info.title,
+        season: chosen.season, episode: chosen.episode, coverImageUrl: await resolveImage(chosen.content!.cover.url),
+        hasAudio: choice.episode.hasAudio, kind: choice.kind,
+      };
+    };
+    const [recommendation, audioRecommendation] = await Promise.all([recommendationView(false), recommendationView(true)]);
     const position = episodes.findIndex((entry) => entry.id === episode.id);
     const next = episodes.slice(position + 1).find((entry) => isAdmin ? Boolean(entry.content) || entry.status !== "planned" : isVisible(entry) || entry.status === "approved");
     const previous = [...episodes.slice(0, position)].reverse().find((entry) => isAdmin ? Boolean(entry.content) : isVisible(entry));
@@ -628,6 +672,7 @@ export const libraryEpisode = api<{ id: string; profileId?: Query<string> }, Lib
       id: episode.id,
       seriesId: series.info.id,
       seriesSlug: series.info.slug,
+      profileId,
       seriesTitle: series.info.title,
       season: episode.season,
       episode: episode.episode,
@@ -645,6 +690,8 @@ export const libraryEpisode = api<{ id: string; profileId?: Query<string> }, Lib
       teaser: content.teaser,
       cast: await Promise.all(cast.map(characterView)),
       progress: { chapterIndex: progress?.chapterIndex ?? 0, finished: Boolean(progress?.finishedAt) },
+      ...(recommendation ? { recommendation } : {}),
+      ...(audioRecommendation ? { audioRecommendation } : {}),
       ...(next ? { nextEpisode: { id: next.id, title: next.content?.title || next.title, available: isAdmin ? Boolean(next.content) : isVisible(next), publishAt: next.publishAt?.toISOString() } } : {}),
       ...(previous ? { previousEpisodeId: previous.id } : {}),
       ...(isAdmin ? { state: stateOf(episode) } : {}),

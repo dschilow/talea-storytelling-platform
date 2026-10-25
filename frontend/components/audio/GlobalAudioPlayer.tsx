@@ -8,6 +8,7 @@ import { PlaylistDrawer } from './PlaylistDrawer';
 import { WaveformEqualizer } from './WaveformEqualizer';
 import { NowPlayingSheet, formatPlaybackTime } from './NowPlayingSheet';
 import { cn } from '@/lib/utils';
+import { OriginalsAudioCompletion } from '../../screens/Library/components/OriginalsAudioCompletion';
 
 /**
  * All audio UI in one place, iOS-style:
@@ -34,11 +35,13 @@ export const GlobalAudioPlayer: React.FC = () => {
     seek,
     close,
     playNext,
+    originalsCompletion,
   } = useAudioPlayer();
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const openSheet = useCallback(() => setSheetOpen(true), []);
   const closeSheet = useCallback(() => setSheetOpen(false), []);
+  useEffect(() => { if (originalsCompletion) setSheetOpen(false); }, [originalsCompletion]);
 
   const isVisible = Boolean(track) || waitingForConversion;
   const isDark = resolvedTheme === 'dark';
@@ -228,6 +231,7 @@ export const GlobalAudioPlayer: React.FC = () => {
       </div>
 
       <NowPlayingSheet open={sheetOpen} onClose={closeSheet} />
+      <OriginalsAudioCompletion />
     </>
   );
 };

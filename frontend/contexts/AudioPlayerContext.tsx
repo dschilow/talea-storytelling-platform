@@ -10,6 +10,7 @@ import { useOfflineScope } from './OfflineScopeContext';
 import { getBlobUrl, isSignedMediaUrl, normalizeOfflineMediaUrl } from '../utils/offlineDb';
 import { getOnlineStatus, isConfirmedOnline } from '../utils/connectivity';
 import type { Chapter } from '../types/story';
+import type { LibraryCollectible } from '~backend/story/library-api';
 import type { TTSRequestOptions, TTSVoiceSettings } from '../types/ttsVoice';
 import {
   buildTTSChunkCacheKey,
@@ -117,6 +118,14 @@ export interface AudioTrack {
   audioUrl: string;
   /** Start playback here (seconds), e.g. at a chapter of an audio drama. */
   startAt?: number;
+  /** The profile which started this Original keeps its progress if profiles change. */
+  originals?: { episodeId: string; profileId?: string; chapterCount: number };
+}
+
+export interface OriginalsPlaybackCompletion {
+  track: AudioTrack;
+  status: 'saving' | 'saved' | 'error';
+  collectible?: LibraryCollectible;
 }
 
 // ── Extended context value ──────────────────────────────────────────
@@ -132,6 +141,9 @@ interface AudioPlayerContextValue {
   pause: () => void;
   seek: (time: number) => void;
   close: () => void;
+  originalsCompletion: OriginalsPlaybackCompletion | null;
+  dismissOriginalsCompletion: () => void;
+  retryOriginalsCompletion: () => void;
 
   // Playlist
   playlist: PlaylistItem[];
@@ -188,6 +200,33 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [duration, setDuration] = useState(0);
   const [isReady, setIsReady] = useState(false);
   const [shouldAutoplay, setShouldAutoplay] = useState(true);
+  const trackRef = useRef(track);
+  trackRef.current = track;
+  const [originalsCompletion, setOriginalsCompletion] = useState<OriginalsPlaybackCompletion | null>(null);
+  const completionRequestRef = useRef(0);
+  const dismissOriginalsCompletion = useCallback(() => {
+    completionRequestRef.current += 1;
+    setOriginalsCompletion(null);
+  }, []);
+  const finishOriginals = useCallback(async (finished: AudioTrack) => {
+    if (!finished.originals) return;
+    const request = ++completionRequestRef.current;
+    setOriginalsCompletion({ track: finished, status: 'saving' });
+    try {
+      const result = await backendRef.current.story.saveLibraryProgress({
+        episodeId: finished.originals.episodeId,
+        profileId: finished.originals.profileId,
+        chapterIndex: Math.max(0, finished.originals.chapterCount - 1),
+        finished: true,
+      });
+      if (request === completionRequestRef.current) setOriginalsCompletion({ track: finished, status: 'saved', collectible: result.collectible });
+    } catch {
+      if (request === completionRequestRef.current) setOriginalsCompletion({ track: finished, status: 'error' });
+    }
+  }, []);
+  const retryOriginalsCompletion = useCallback(() => {
+    if (originalsCompletion) void finishOriginals(originalsCompletion.track);
+  }, [originalsCompletion, finishOriginals]);
 
   // Playlist state
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
@@ -306,6 +345,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const playItemAsTrack = useCallback(
     (item: PlaylistItem) => {
       if (!item.audioUrl) return;
+      dismissOriginalsCompletion();
       const requestedUrl = item.audioUrl;
       const startPaused = restoredPausedItemIdRef.current === item.id;
       if (startPaused) restoredPausedItemIdRef.current = null;
@@ -331,7 +371,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
       });
     },
-    [resolvePlayableUrl, revokeBlobUrl, trackBlobUrl],
+    [resolvePlayableUrl, revokeBlobUrl, trackBlobUrl, dismissOriginalsCompletion],
   );
 
   // ── Source lookup for Audio-Dokus without a usable URL ─────────────
@@ -665,6 +705,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const handlePause = () => setIsPlaying(false);
     const handleEnded = () => {
       setIsPlaying(false);
+      if (trackRef.current?.originals) void finishOriginals(trackRef.current);
       if (isPlaylistActiveRef.current) {
         playNextInternal();
       }
@@ -687,7 +728,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleAudioError);
     };
-  }, [playNextInternal, handleAudioError]);
+  }, [playNextInternal, handleAudioError, finishOriginals]);
 
   // ── Load track into audio element ──────────────────────────────────
   useEffect(() => {
@@ -818,6 +859,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // ── Legacy playTrack (clears playlist) ────────────────────────────
   const playTrack = useCallback(
     (next: AudioTrack, options?: { autoplay?: boolean }) => {
+      dismissOriginalsCompletion();
       if (isPlaylistActive) {
         cancelConversion();
         playlistRef.current.forEach((item) => revokeBlobUrl(item.audioUrl));
@@ -845,18 +887,19 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setTrack({ ...next, audioUrl: playableUrl });
       });
     },
-    [isPlaylistActive, cancelConversion, resolvePlayableUrl, revokeBlobUrl, trackBlobUrl],
+    [isPlaylistActive, cancelConversion, resolvePlayableUrl, revokeBlobUrl, trackBlobUrl, dismissOriginalsCompletion],
   );
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !track) return;
     if (audio.paused) {
+      dismissOriginalsCompletion();
       void audio.play().catch(() => setIsPlaying(false));
     } else {
       audio.pause();
     }
-  }, [track]);
+  }, [track, dismissOriginalsCompletion]);
 
   const pause = useCallback(() => {
     audioRef.current?.pause();
@@ -872,6 +915,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   );
 
   const close = useCallback(() => {
+    dismissOriginalsCompletion();
     const audio = audioRef.current;
     if (audio) {
       audio.pause();
@@ -897,7 +941,7 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setPlaylist([]);
     setCurrentIndex(-1);
     setIsPlaylistActive(false);
-  }, [cancelConversion, revokeBlobUrl]);
+  }, [cancelConversion, revokeBlobUrl, dismissOriginalsCompletion]);
 
   // ── Playlist methods ──────────────────────────────────────────────
   const addToPlaylist = useCallback(
@@ -1399,6 +1443,9 @@ export const AudioPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ c
         pause,
         seek,
         close,
+        originalsCompletion,
+        dismissOriginalsCompletion,
+        retryOriginalsCompletion,
         playlist,
         currentIndex,
         isPlaylistActive,

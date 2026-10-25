@@ -76,12 +76,11 @@ export function normalizeEngine(value: unknown): VoiceEngine | undefined {
 }
 
 /**
- * The engine new recordings use unless the Studio picks another one
- * (`TALEA_AUDIO_ENGINE`). Gemini 3.8 Flash Lite since 2026-10-25: the editor's
- * blind comparison found it good enough at about an eighth of ElevenLabs' price.
+ * New Originals recordings start on Gemini 3.8 Flash Lite. Another engine is
+ * an explicit choice for that recording in the Studio, never a stale default.
  */
 export function defaultVoiceEngine(): VoiceEngine {
-  return normalizeEngine(process.env.TALEA_AUDIO_ENGINE) ?? "gemini-lite";
+  return "gemini-lite";
 }
 
 /** A recording without an engine was made before there was a choice: ElevenLabs. */

@@ -29,10 +29,19 @@ export interface SpeechResult {
 
 export type SpeechPort = (request: SpeechRequest) => Promise<SpeechResult>;
 
+/** OpenRouter can report a provider refusal as 400, 403 or 422. */
+function isModerationRefusal(status: number | undefined, body: string): boolean {
+  return (status === 400 || status === 403 || status === 422) &&
+    /content moderation|content[_ -]filter|\bSAFETY\b|\bPROHIBITED_CONTENT\b/i.test(body);
+}
+
 export class SpeechError extends Error {
-  constructor(message: string, readonly status?: number) {
+  readonly moderation: boolean;
+
+  constructor(message: string, readonly status?: number, moderation?: boolean) {
     super(message);
     this.name = "SpeechError";
+    this.moderation = moderation ?? isModerationRefusal(status, message);
   }
 }
 
@@ -90,8 +99,8 @@ export function openRouterSpeech(options: {
           }
           lastError = new SpeechError(`${label} returned no audio (${pcm.length} bytes)`, 502);
         } else {
-          const body = (await response.text().catch(() => "")).slice(0, 400);
-          lastError = new SpeechError(`${label} failed with ${response.status}: ${body || "<empty>"}`, response.status);
+          const body = await response.text().catch(() => "");
+          lastError = new SpeechError(`${label} failed with ${response.status}: ${body.slice(0, 400) || "<empty>"}`, response.status, isModerationRefusal(response.status, body));
           if (!retryable(response.status)) throw lastError;
           wait = retryAfterMs(response.headers.get("retry-after")) ?? wait;
         }
