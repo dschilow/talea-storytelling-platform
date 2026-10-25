@@ -53,7 +53,7 @@ export const VOICE_ENGINE_INFO: Record<VoiceEngine, VoiceEngineInfo> = {
   },
 };
 
-/** ElevenLabs list prices for the rest of the production (sound generation, music). */
+/** ElevenLabs list prices for the rest of the production (sound generation, music — Gemini makes neither). */
 export const SOUND_USD_PER_MINUTE = 0.12;
 export const MUSIC_USD_PER_MINUTE = 0.15;
 
@@ -75,9 +75,13 @@ export function normalizeEngine(value: unknown): VoiceEngine | undefined {
   return (VOICE_ENGINES as readonly string[]).includes(text) ? (text as VoiceEngine) : undefined;
 }
 
-/** The engine new recordings use unless the Studio picks another one (`TALEA_AUDIO_ENGINE`). */
+/**
+ * The engine new recordings use unless the Studio picks another one
+ * (`TALEA_AUDIO_ENGINE`). Gemini 3.8 Flash Lite since 2026-10-25: the editor's
+ * blind comparison found it good enough at about an eighth of ElevenLabs' price.
+ */
 export function defaultVoiceEngine(): VoiceEngine {
-  return normalizeEngine(process.env.TALEA_AUDIO_ENGINE) ?? "elevenlabs";
+  return normalizeEngine(process.env.TALEA_AUDIO_ENGINE) ?? "gemini-lite";
 }
 
 /** A recording without an engine was made before there was a choice: ElevenLabs. */

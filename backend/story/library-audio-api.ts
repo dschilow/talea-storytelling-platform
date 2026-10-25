@@ -1,8 +1,9 @@
 /**
  * Talea Originals as audio dramas (admins only): record an episode as a
- * Hörspiel (ElevenLabs v4 or Gemini 3.8 TTS), release or withdraw it, switch
- * back to the previous recording, read its screenplay, and cast the voices of a
- * series per engine. Children get the released drama through /library/episodes/:id.
+ * Hörspiel (Gemini 3.8 TTS or ElevenLabs v4), release or withdraw it, switch
+ * back to the previous recording, read its screenplay, cast the voices of a
+ * series per engine, and look after the sound library every story shares.
+ * Children get the released drama through /library/episodes/:id.
  *
  * Kept next to library-api.ts (not in a subfolder): the Encore v1.50 client
  * generator writes wrong import paths for endpoint files in subfolders.
@@ -14,7 +15,7 @@ import { resolveOpenRouterApiKey } from "./openrouter-generation";
 import { adminEpisodeView, type LibraryAdminEpisode } from "./library-api";
 import { NARRATOR_ID, resolveSeriesCast, type AccountVoice } from "./library/audio/casting";
 import { geminiFigures, seriesHints } from "./library/audio/cast-members";
-import { engineInfo, normalizeEngine } from "./library/audio/engines";
+import { defaultVoiceEngine, engineInfo, normalizeEngine } from "./library/audio/engines";
 import { GEMINI_VOICES, geminiVoice, geminiVoiceLabel } from "./library/audio/gemini-voices";
 import { openRouterSpeech } from "./library/audio/openrouter-speech";
 import { audioIsGenerating, geminiCastForStudio, loadAccountVoices, restorePreviousAudio, startEpisodeAudio } from "./library/audio/production";
@@ -28,14 +29,19 @@ import {
   getEpisode,
   getEpisodeAudioScript,
   getSeries,
+  getSound,
   listCharacters,
   listEpisodes,
+  listSounds,
   listVoiceCast,
   saveEngineVoiceCast,
   saveEpisodeAudio,
   saveVoiceCast,
+  updateSound,
   type EpisodeRecord,
 } from "./library/store";
+import type { SoundEntry } from "./library/audio/sound-library";
+import { resolveObjectKeyUrlForClient } from "../helpers/bucket-storage";
 import type { VoiceEngine, VoiceFamily } from "./library/types";
 
 /* ── Response shapes (declared in full: Encore drops undeclared fields) ── */
@@ -95,6 +101,36 @@ export interface LibraryVoicePreviewResponse {
   cached: boolean;
 }
 
+/** One sound of the library every story shares. */
+export interface LibrarySoundView {
+  id: string;
+  /** "sfx" (spot effect) or "ambience" (looped bed). */
+  kind: string;
+  label: string;
+  description: string;
+  tags: string[];
+  /** The prompt it was generated from. */
+  prompt: string;
+  /** Spot effects: length in seconds; 0 for a loop. */
+  seconds: number;
+  /** Recordings that played it. */
+  uses: number;
+  blocked: boolean;
+  origin?: string;
+  createdAt?: string;
+}
+
+export interface LibrarySoundsResponse {
+  sounds: LibrarySoundView[];
+  counts: { sfx: number; ambience: number; blocked: number };
+  /** Plays beyond the first recording of each sound. */
+  reuses: number;
+}
+
+export interface LibrarySoundAudioResponse {
+  url: string;
+}
+
 /* ── Helpers ───────────────────────────────────────────────────────────── */
 
 async function episodeOrThrow(id: string): Promise<EpisodeRecord> {
@@ -118,7 +154,23 @@ function engineOrThrow(value: unknown): VoiceEngine | undefined {
 
 const familyOf = (engine?: VoiceEngine): VoiceFamily => engineInfo(engine).family;
 
-const ROLE_NAMES: Record<string, string> = { protagonist: "Hauptfigur", sidekick: "Bester Freund", antagonist: "Gegenspieler", recurring: "Immer wieder dabei" };
+function soundView(entry: SoundEntry): LibrarySoundView {
+  return {
+    id: entry.id,
+    kind: entry.kind,
+    label: entry.label,
+    description: entry.description,
+    tags: entry.tags,
+    prompt: entry.prompt,
+    seconds: entry.seconds,
+    uses: entry.uses,
+    blocked: entry.blocked,
+    ...(entry.origin ? { origin: entry.origin } : {}),
+    ...(entry.createdAt ? { createdAt: entry.createdAt } : {}),
+  };
+}
+
+const ROLE_NAMES: Record<string, string> ={ protagonist: "Hauptfigur", sidekick: "Bester Freund", antagonist: "Gegenspieler", recurring: "Immer wieder dabei" };
 
 async function seriesContext(slug: string) {
   const series = await getSeries(slug);
@@ -192,7 +244,7 @@ export const libraryAdminGenerateAudio = api<{ id: string; release?: boolean; ke
     if (!episode.content) throw APIError.failedPrecondition("Ohne Text gibt es nichts zu vertonen.");
     if (episode.status === "generating") throw APIError.failedPrecondition("Die Folge wird gerade geschrieben.");
     if (audioIsGenerating(episode.audio)) throw APIError.failedPrecondition("Das Hörspiel entsteht gerade.");
-    if (familyOf(engine) === "gemini" && !resolveOpenRouterApiKey()) throw APIError.failedPrecondition("Für Gemini fehlt der OpenRouter-Schlüssel (Secret OpenRouterAPIKey).");
+    if (familyOf(engine ?? defaultVoiceEngine()) === "gemini" && !resolveOpenRouterApiKey()) throw APIError.failedPrecondition("Für Gemini fehlt der OpenRouter-Schlüssel (Secret OpenRouterAPIKey).");
     try {
       await startEpisodeAudio(episode, { release: Boolean(req.release), keepScript: Boolean(req.keepScript), ...(engine ? { engine } : {}) });
     } catch (error) {
@@ -313,6 +365,64 @@ export const libraryAdminUpdateVoice = api<{ slug: string; speakerId: string; en
       });
     }
     return voiceCast(req.slug, family);
+  }
+);
+
+/* ── Sound library ─────────────────────────────────────────────────────── */
+
+/** Every sound the library holds, newest first. */
+export const libraryAdminSounds = api<void, LibrarySoundsResponse>(
+  { expose: true, method: "GET", path: "/library/admin/sounds", auth: true },
+  async () => {
+    ensureAdmin();
+    await ensureLibrary();
+    const sounds = await listSounds();
+    return {
+      sounds: sounds.map(soundView),
+      counts: {
+        sfx: sounds.filter((sound) => sound.kind === "sfx").length,
+        ambience: sounds.filter((sound) => sound.kind === "ambience").length,
+        blocked: sounds.filter((sound) => sound.blocked).length,
+      },
+      reuses: sounds.reduce((sum, sound) => sum + Math.max(0, sound.uses - 1), 0),
+    };
+  }
+);
+
+/** A signed link to listen to one sound. */
+export const libraryAdminSoundAudio = api<{ id: string }, LibrarySoundAudioResponse>(
+  { expose: true, method: "GET", path: "/library/admin/sounds/:id/audio", auth: true },
+  async (req) => {
+    ensureAdmin();
+    await ensureLibrary();
+    const sound = await getSound(req.id);
+    if (!sound) throw APIError.notFound("Geräusch nicht gefunden");
+    const url = await resolveObjectKeyUrlForClient(`library/${sound.storageKey}`);
+    if (!url || url.startsWith("bucket://")) throw APIError.unavailable("Der Speicher ist nicht erreichbar.");
+    return { url };
+  }
+);
+
+/**
+ * Corrects a sound's name, description or keywords (what later screenplays are
+ * matched against), or blocks it: a blocked sound is never offered again, and a
+ * screenplay that names it gets another one at its next recording.
+ */
+export const libraryAdminUpdateSound = api<{ id: string; label?: string; description?: string; tags?: string[]; blocked?: boolean }, LibrarySoundView>(
+  { expose: true, method: "PUT", path: "/library/admin/sounds/:id", auth: true },
+  async (req) => {
+    ensureAdmin();
+    await ensureLibrary();
+    if (!(await getSound(req.id))) throw APIError.notFound("Geräusch nicht gefunden");
+    const text = (value: string | undefined, max: number) => (value === undefined ? undefined : value.replace(/\s+/g, " ").trim().slice(0, max) || undefined);
+    const tags = req.tags?.map((tag) => tag.toLowerCase().replace(/[^a-z -]/g, "").trim()).filter((tag) => tag.length > 1).slice(0, 16);
+    await updateSound(req.id, {
+      label: text(req.label, 80),
+      description: text(req.description, 320),
+      ...(tags?.length ? { tags } : {}),
+      ...(req.blocked !== undefined ? { blocked: Boolean(req.blocked) } : {}),
+    });
+    return soundView((await getSound(req.id))!);
   }
 );
 

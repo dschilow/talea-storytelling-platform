@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { taleaDisplayFont, taleaInputClass, taleaInsetSurfaceClass, taleaSurfaceClass } from "@/components/talea/TaleaPastelPrimitives";
 import { CharacterManager } from "./CharacterManager";
 import { EpisodeAudioPanel } from "./EpisodeAudioPanel";
+import { SoundLibraryManager } from "./SoundLibraryManager";
 import { VoiceCastManager } from "./VoiceCastManager";
 import {
   episodeLabel,
@@ -159,6 +160,8 @@ const OriginalsStudioPanel: React.FC<{ slug: string; onChanged: () => void }> = 
       <CharacterManager slug={slug} characters={data.characters} onChanged={() => { void load(); onChanged(); }} />
 
       <VoiceCastManager slug={slug} />
+
+      <SoundLibraryManager />
 
       <details className={cn(taleaInsetSurfaceClass, "p-5")}>
         <summary className="cursor-pointer text-[15px] font-semibold text-[var(--talea-text-primary)]">Serien-Bibel v{data.bibleVersion} (Kanon, Formel, Regeln)</summary>

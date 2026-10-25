@@ -7,8 +7,9 @@
  * The voices come from ElevenLabs v4 or Gemini 3.8 TTS (engines.ts); the engine
  * is chosen per recording. The recording before the current one is kept as
  * `previous`, so the Studio can compare engines and switch back without paying
- * for another recording. Generated sounds are cached in the bucket, so recording
- * the same screenplay again (new voices, other engine) buys no sound twice.
+ * for another recording. Generated sounds are cached in the bucket and listed in
+ * the sound library (table library_sounds) every story shares, so a sound is
+ * bought once — not once per episode, and not again for a new recording.
  */
 
 import type { SoundCachePort } from "../../../doku/audio-render";
@@ -27,6 +28,7 @@ import {
   listEngineVoiceCast,
   listVoiceCast,
   saveEngineVoiceCast,
+  dbSoundLibrary,
   saveEpisodeAudio,
   saveVoiceCast,
   type EpisodeRecord,
@@ -120,7 +122,7 @@ export interface StartAudioOptions {
   release: boolean;
   /** Record again from the stored screenplay (new voices, new mix) instead of writing a new one. */
   keepScript?: boolean;
-  /** Voice engine; the server default (TALEA_AUDIO_ENGINE, else ElevenLabs) when missing. */
+  /** Voice engine; the server default (TALEA_AUDIO_ENGINE, else Gemini 3.8 Flash Lite) when missing. */
   engine?: VoiceEngine;
 }
 
@@ -224,6 +226,7 @@ async function produce(episodeId: string, state: EpisodeAudio, options: StartAud
       ...(geminiCast ? { geminiCast } : {}),
       ...(apiKey ? { speech: openRouterSpeech({ apiKey }) } : {}),
       soundCache: bucketSoundCache,
+      soundLibrary: dbSoundLibrary,
       ...(stored ? { script: stored } : {}),
       report,
     });

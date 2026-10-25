@@ -68,6 +68,12 @@ const SFX_LEAD = 0.08;
 
 const normalize = (word: string): string => word.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
 
+/** What the sound generator is asked for a scene's ambience bed (the cache key is made from it). */
+export const ambiencePrompt = (ambience: string): string => `${ambience}, no music, no clear speech`;
+
+/** Length a spot effect is generated with (and keyed by): 0.5–6 s, 1.5 s when the screenplay names none. */
+export const spotSeconds = (seconds?: number): number => Math.round(Math.max(0.5, Math.min(6, seconds ?? 1.5)) * 10) / 10;
+
 /** Start time of the word a sound is anchored to, inside the line's span. */
 export function anchorTime(words: WordTime[], span: { start: number; end: number }, anchor?: string): number {
   if (!anchor) return span.start;
@@ -193,7 +199,7 @@ function placeSceneCues(rendered: RenderedPart, partStart: number, score: Map<Sc
         fadeIn: 1.5,
         fadeOut: 1.5,
         pan: 0,
-        prompt: `${scene.ambience}, no music, no clear speech`,
+        prompt: ambiencePrompt(scene.ambience),
       });
     }
     const bed = scene.music ? score.get(scene.music) : undefined;
@@ -207,7 +213,7 @@ function placeSceneCues(rendered: RenderedPart, partStart: number, score: Map<Sc
       cues.push({
         type: "sfx",
         start: Math.max(0, partStart + anchorTime(words, span, sound.at) - SFX_LEAD),
-        duration: sound.seconds ?? 1.5,
+        duration: spotSeconds(sound.seconds),
         gainDb: SFX_GAIN,
         behavior: "oneshot",
         fadeIn: 0,

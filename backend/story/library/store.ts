@@ -12,6 +12,7 @@ import { SEED_EPISODES, SEED_SEASONS, SEED_SERIES, episodeId, seedHash } from ".
 import type { AudioScript, ContentStatus, EpisodeAudio, EpisodeContent, EpisodeScores, SeriesBible, SeriesCharacter, SeriesInfo } from "./types";
 import type { VoiceOverride } from "./audio/casting";
 import type { EngineVoiceOverride } from "./audio/gemini-voices";
+import type { SoundEntry, SoundLibraryPort } from "./audio/sound-library";
 
 export interface GenerationInfo {
   source?: "seed" | "pipeline" | "manual";
@@ -163,6 +164,8 @@ async function ensureSchema(): Promise<void> {
   await storyDB.exec`CREATE TABLE IF NOT EXISTS library_voice_cast (series_id TEXT NOT NULL REFERENCES library_series(id) ON DELETE CASCADE, speaker_id TEXT NOT NULL, voice_id TEXT, persona TEXT, source TEXT NOT NULL DEFAULT 'admin', updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (series_id, speaker_id))`;
   // Voices of the other engines (migration 47); the persona stays in library_voice_cast, it belongs to the figure.
   await storyDB.exec`CREATE TABLE IF NOT EXISTS library_voice_engine_cast (series_id TEXT NOT NULL REFERENCES library_series(id) ON DELETE CASCADE, speaker_id TEXT NOT NULL, family TEXT NOT NULL, voice_id TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'admin', updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (series_id, speaker_id, family))`;
+  // The sound library every story shares (migration 48).
+  await storyDB.exec`CREATE TABLE IF NOT EXISTS library_sounds (id TEXT PRIMARY KEY, kind TEXT NOT NULL, prompt TEXT NOT NULL, seconds DOUBLE PRECISION NOT NULL DEFAULT 0, label TEXT NOT NULL, description TEXT NOT NULL, tags TEXT NOT NULL DEFAULT '', storage_key TEXT NOT NULL, uses INTEGER NOT NULL DEFAULT 0, blocked BOOLEAN NOT NULL DEFAULT FALSE, origin TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, last_used_at TIMESTAMPTZ)`;
 }
 
 async function syncSeed(): Promise<void> {
@@ -400,6 +403,86 @@ export async function saveEngineVoiceCast(seriesId: string, row: EngineVoiceOver
 export async function deleteEngineVoiceCast(seriesId: string, speakerId: string, family: EngineVoiceOverride["family"]): Promise<void> {
   await storyDB.exec`DELETE FROM library_voice_engine_cast WHERE series_id = ${seriesId} AND speaker_id = ${speakerId} AND family = ${family}`;
 }
+
+/* ── Sound library (shared by every story) ──────────────────────────────── */
+
+interface SoundRow {
+  id: string;
+  kind: string;
+  prompt: string;
+  seconds: number;
+  label: string;
+  description: string;
+  tags: string;
+  storage_key: string;
+  uses: number;
+  blocked: boolean;
+  origin: string | null;
+  created_at: Date;
+}
+
+function toSound(row: SoundRow): SoundEntry {
+  return {
+    id: row.id,
+    kind: row.kind === "ambience" ? "ambience" : "sfx",
+    prompt: row.prompt,
+    seconds: Number(row.seconds) || 0,
+    label: row.label,
+    description: row.description,
+    tags: row.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+    storageKey: row.storage_key,
+    uses: row.uses,
+    blocked: row.blocked,
+    ...(row.origin ? { origin: row.origin } : {}),
+    createdAt: new Date(row.created_at).toISOString(),
+  };
+}
+
+export async function listSounds(): Promise<SoundEntry[]> {
+  const rows = await storyDB.queryAll<SoundRow>`
+    SELECT id, kind, prompt, seconds, label, description, tags, storage_key, uses, blocked, origin, created_at FROM library_sounds ORDER BY created_at DESC
+  `;
+  return rows.map(toSound);
+}
+
+export async function getSound(id: string): Promise<SoundEntry | null> {
+  const row = await storyDB.queryRow<SoundRow>`
+    SELECT id, kind, prompt, seconds, label, description, tags, storage_key, uses, blocked, origin, created_at FROM library_sounds WHERE id = ${id}
+  `;
+  return row ? toSound(row) : null;
+}
+
+/** New sounds; an existing id keeps what it has (an admin may have edited its description). */
+export async function addSounds(entries: SoundEntry[]): Promise<void> {
+  for (const entry of entries) {
+    await storyDB.exec`
+      INSERT INTO library_sounds (id, kind, prompt, seconds, label, description, tags, storage_key, uses, origin, last_used_at)
+      VALUES (${entry.id}, ${entry.kind}, ${entry.prompt}, ${entry.seconds}, ${entry.label}, ${entry.description}, ${entry.tags.join(", ")}, ${entry.storageKey}, ${entry.uses}, ${entry.origin ?? null}, CURRENT_TIMESTAMP)
+      ON CONFLICT (id) DO NOTHING
+    `;
+  }
+}
+
+export async function markSoundsUsed(ids: string[]): Promise<void> {
+  for (const id of ids) {
+    await storyDB.exec`UPDATE library_sounds SET uses = uses + 1, last_used_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+  }
+}
+
+export async function updateSound(id: string, patch: { label?: string; description?: string; tags?: string[]; blocked?: boolean }): Promise<void> {
+  await storyDB.exec`
+    UPDATE library_sounds SET
+      label = COALESCE(${patch.label ?? null}::text, label),
+      description = COALESCE(${patch.description ?? null}::text, description),
+      tags = COALESCE(${patch.tags ? patch.tags.join(", ") : null}::text, tags),
+      blocked = COALESCE(${patch.blocked ?? null}::boolean, blocked),
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${id}
+  `;
+}
+
+/** The library as the audio production uses it. */
+export const dbSoundLibrary: SoundLibraryPort = { list: listSounds, add: addSounds, markUsed: markSoundsUsed };
 
 /* ── Progress & collection ──────────────────────────────────────────────── */
 

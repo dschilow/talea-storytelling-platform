@@ -1,6 +1,7 @@
 /**
  * Local test of the library store against the local Encore database: seed sync,
- * visibility, progress and the collectible hand-over — no Clerk login needed.
+ * visibility, progress, the collectible hand-over and the sound library — no
+ * Clerk login needed.
  *
  *   cd backend
  *   encore exec -- bun scripts/library-smoke.ts
@@ -9,7 +10,8 @@
  */
 
 import { storyDB } from "../story/db";
-import { ensureLibrary, getBible, isVisible, listEpisodes, listProgress, listSeries, saveProgress } from "../story/library/store";
+import { dbSoundLibrary, ensureLibrary, getBible, getSound, isVisible, listEpisodes, listProgress, listSeries, listSounds, saveProgress, updateSound } from "../story/library/store";
+import type { SoundEntry } from "../story/library/audio/sound-library";
 
 const profileId = `smoke-profile-${Date.now()}`;
 const userId = "smoke-user";
@@ -48,5 +50,20 @@ const rows = await listProgress(profileId);
 check(rows.length === 1 && Boolean(rows[0].finishedAt), "progress: one row, finished");
 
 await storyDB.exec`DELETE FROM library_progress WHERE profile_id = ${profileId}`;
+
+// The sound library: new entries, an existing id keeps its edits, uses count, blocking.
+const soundId = `smoke-sound-${Date.now()}`;
+const sound: SoundEntry = { id: soundId, kind: "sfx", prompt: "smoke test door closing", seconds: 1.5, label: "Rauchtest-Tür", description: "A door closes.", tags: ["door", "close"], storageKey: `sounds/v1/sfx/${soundId}.mp3`, uses: 1, blocked: false, origin: "Smoke S1E1" };
+await dbSoundLibrary.add([sound]);
+await updateSound(soundId, { description: "A wooden door closes softly, latch clicks." });
+await dbSoundLibrary.add([{ ...sound, description: "overwritten?" }]);
+await dbSoundLibrary.markUsed([soundId]);
+const stored = await getSound(soundId);
+check(stored?.description === "A wooden door closes softly, latch clicks." && stored.uses === 2, `sounds: an existing id keeps its edited description, uses counted (${stored?.uses})`);
+check(stored?.seconds === 1.5 && stored.tags.join(",") === "door,close" && stored.kind === "sfx", "sounds: length, keywords and kind survive the round trip");
+await updateSound(soundId, { blocked: true });
+check((await listSounds()).find((entry) => entry.id === soundId)?.blocked === true, "sounds: blocked");
+await storyDB.exec`DELETE FROM library_sounds WHERE id = ${soundId}`;
+
 console.log(failures.length ? `\n${failures.length} check(s) failed` : "\nAll checks passed");
 process.exit(failures.length ? 1 : 0);

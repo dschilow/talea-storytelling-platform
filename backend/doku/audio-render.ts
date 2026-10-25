@@ -2,7 +2,6 @@ import { api, APIError } from "encore.dev/api";
 import log from "encore.dev/log";
 import { promises as fs } from "fs";
 import { spawn } from "child_process";
-import { createHash } from "crypto";
 import os from "os";
 import path from "path";
 
@@ -21,6 +20,7 @@ import {
   type SoundCue,
   type CueType,
 } from "./sound-cues";
+import { soundCacheKey, type SoundCachePort } from "./sound-cache";
 
 // ============================================================
 // Audio Director: server-side studio master for audio dokus.
@@ -503,26 +503,7 @@ export async function renderAudioDokuMasterBuffer(req: AudioDokuMasterRequest): 
 /** One piece of the voice track: a rendered file or a stretch of silence (music bridges, lead-in). */
 export type VoicePiece = { path: string } | { silence: number };
 
-/**
- * Generated sounds kept between mixes (bucket in production, a folder in live
- * tests): a second recording of the same screenplay buys no sound twice.
- */
-export interface SoundCachePort {
-  load(key: string): Promise<Buffer | null>;
-  save(key: string, audio: Buffer): Promise<void>;
-}
-
-/** Bump when the generation settings change, so old cached sounds are not reused. */
-const SOUND_CACHE_VERSION = 1;
-
-/**
- * Storage key of a generated sound. A loop is keyed by its prompt alone — it is
- * looped to any length anyway — so the same place sounds the same in every take.
- */
-export function soundCacheKey(type: string, prompt: string, seconds: number, loop: boolean): string {
-  const id = createHash("sha1").update(`${type}|${prompt.trim().toLowerCase()}|${loop ? "loop" : Math.round(seconds * 10) / 10}`).digest("hex").slice(0, 20);
-  return `sounds/v${SOUND_CACHE_VERSION}/${type}/${id}.mp3`;
-}
+export { soundCacheKey, type SoundCachePort } from "./sound-cache";
 
 export interface StudioMixRequest {
   tmpDir: string;

@@ -14,7 +14,7 @@ import type {
   LibrarySeriesResponse,
   LibraryShelvesResponse,
 } from "~backend/story/library-api";
-import type { LibraryAudioScriptResponse, LibraryVoiceCastResponse, LibraryVoiceOption, LibraryVoiceRole } from "~backend/story/library-audio-api";
+import type { LibraryAudioScriptResponse, LibrarySoundsResponse, LibrarySoundView, LibraryVoiceCastResponse, LibraryVoiceOption, LibraryVoiceRole } from "~backend/story/library-audio-api";
 
 export type {
   EpisodeState,
@@ -32,6 +32,8 @@ export type {
   LibrarySeriesCard,
   LibrarySeriesResponse,
   LibraryShelvesResponse,
+  LibrarySoundsResponse,
+  LibrarySoundView,
   LibraryVoiceCastResponse,
   LibraryVoiceOption,
   LibraryVoiceRole,

@@ -6,7 +6,7 @@
  *   cd backend
  *   encore exec -- bun --env-file=../.env.local scripts/library-audio-live.ts --series bruno-der-flunkerfisch [options]
  *
- *   --engine elevenlabs|gemini-lite|gemini-flash   voice engine (default elevenlabs)
+ *   --engine elevenlabs|gemini-lite|gemini-flash   voice engine (default: the server default, Gemini 3.8 Flash Lite)
  *   --script-only          only cast + screenplay (no voice or sound credits)
  *   --from <dir>           record the screenplay saved in <dir>/script.json again (no LLM cost)
  *   --estimate             with --from: print what every engine would cost, record nothing
@@ -14,19 +14,23 @@
  *   --no-sounds            leave out spot effects and ambience (music stays): voices-only test
  *   --gemini-cast a=Voice,b=Voice   fix Gemini voices by speaker id (narrator, ella, …)
  *   --chapters N           only the first N chapters (cheaper test)
+ *   --plan-sounds          cast the screenplay's sounds against the sound library (Luna, ≈ 0.1 ct), print the
+ *                          choices, record nothing; sounds whose audio is already in the local cache join the library
+ *   --no-library           record without the sound library (every sound by its own prompt)
  *   --out Logs/library/audio/<tag>
  *
  * Score and generated sounds are cached in Logs/library/audio/score-cache and
  * …/sound-cache (instead of the bucket): recording the same screenplay again
- * with another engine buys no sound twice. Gemini runs also report the real
- * OpenRouter spend (key usage before/after).
+ * with another engine buys no sound twice. The sound library lives in
+ * …/sound-library.json. Gemini runs also report the real OpenRouter spend (key
+ * usage before/after).
  * Output: script.json, script.md (readable screenplay), drama.mp3, stats.json.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { soundCacheKey, type SoundCachePort } from "../doku/audio-render";
+import { soundCacheKey, type SoundCachePort } from "../doku/sound-cache";
 import { composeMusic, synthesizeSoundEffect } from "../tts/elevenlabs-dialogue";
 import { CostLedger, withServiceTier } from "../story/storybook/llm";
 import { createOpenRouterStorybookLlm } from "../story/storybook/llm-openrouter";
@@ -36,12 +40,15 @@ import { VOICE_ENGINES } from "../story/library/types";
 import { NARRATOR_ID, resolveSeriesCast, type AccountVoice } from "../story/library/audio/casting";
 import { geminiFigures } from "../story/library/audio/cast-members";
 import { renderAudioDrama, writeAudioScript, type DramaInput } from "../story/library/audio/drama";
-import { engineInfo, estimateVoices, normalizeEngine, scriptVolume } from "../story/library/audio/engines";
+import { defaultVoiceEngine, engineInfo, estimateVoices, normalizeEngine, scriptVolume } from "../story/library/audio/engines";
+import { LIBRARY_MODELS } from "../story/library/engine";
 import { geminiVoice, resolveGeminiCast } from "../story/library/audio/gemini-voices";
 import { openRouterSpeech } from "../story/library/audio/openrouter-speech";
 import { loadAccountVoices } from "../story/library/audio/production";
 import type { ScorePorts } from "../story/library/audio/score";
 import { NARRATOR_KEY } from "../story/library/audio/screenplay";
+import { planSoundCasting, soundWishes, wishKey, type SoundEntry, type SoundLibraryPort } from "../story/library/audio/sound-library";
+import { ambiencePrompt, spotSeconds } from "../story/library/audio/timeline";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const args = process.argv.slice(2);
@@ -56,7 +63,9 @@ const estimateOnly = args.includes("--estimate");
 const withoutSounds = args.includes("--no-sounds");
 const budget = option("--budget") ? Number(option("--budget")) : undefined;
 const from = option("--from");
-const engine = normalizeEngine(option("--engine") || "elevenlabs");
+const planSounds = args.includes("--plan-sounds");
+const useLibrary = !args.includes("--no-library");
+const engine = normalizeEngine(option("--engine") || defaultVoiceEngine());
 if (!engine) throw new Error(`--engine must be one of ${VOICE_ENGINES.join(", ")}`);
 const info = engineInfo(engine);
 const out = join(ROOT, option("--out") || `Logs/library/audio/${seriesId}-${engine}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}`);
@@ -84,6 +93,29 @@ const scorePorts: ScorePorts = {
   sound: async (prompt, seconds) => (await synthesizeSoundEffect({ prompt, durationSeconds: seconds, mode: "loop", promptInfluence: 0.5 })).audio,
 };
 const soundCache: SoundCachePort = fileCache("sound-cache");
+
+const libraryFile = join(cacheRoot, "sound-library.json");
+const readLibrary = (): SoundEntry[] => (existsSync(libraryFile) ? JSON.parse(readFileSync(libraryFile, "utf8")) : []);
+const writeLibrary = (entries: SoundEntry[]) => {
+  mkdirSync(cacheRoot, { recursive: true });
+  writeFileSync(libraryFile, JSON.stringify(entries, null, 2));
+};
+const soundLibrary: SoundLibraryPort = {
+  async list() {
+    return readLibrary();
+  },
+  async add(entries) {
+    const all = readLibrary();
+    const known = new Set(all.map((entry) => entry.id));
+    for (const entry of entries) if (!known.has(entry.id)) all.push({ ...entry, createdAt: new Date().toISOString() });
+    writeLibrary(all);
+  },
+  async markUsed(ids) {
+    const all = readLibrary();
+    for (const entry of all) if (ids.includes(entry.id)) entry.uses += 1;
+    writeLibrary(all);
+  },
+};
 
 const openRouterKey = process.env.OPENROUTER_API_KEY || "";
 async function openRouterUsage(): Promise<number | null> {
@@ -120,7 +152,7 @@ function writeScript(script: AudioScript) {
   writeFileSync(join(out, "script.md"), md);
 }
 
-/** New sounds this screenplay would generate (cached ones are free), in seconds of sound. */
+/** New sounds this screenplay would generate (cached ones are free), in seconds of sound — an upper bound: the library may find more. */
 async function newSoundSeconds(script: AudioScript): Promise<number> {
   if (withoutSounds) return 0;
   const seen = new Set<string>();
@@ -128,14 +160,14 @@ async function newSoundSeconds(script: AudioScript): Promise<number> {
   for (const part of script.parts) {
     for (const scene of part.scenes) {
       if (!scene.ambience) continue;
-      const key = soundCacheKey("ambience", `${scene.ambience}, no music, no clear speech`, 18, true);
+      const key = soundCacheKey("ambience", ambiencePrompt(scene.ambience), 18, true);
       if (seen.has(key) || (await soundCache.load(key))) continue;
       seen.add(key);
       seconds += 18;
     }
     for (const line of part.lines) {
       for (const sound of line.sounds ?? []) {
-        const length = Math.max(0.5, Math.min(6, sound.seconds ?? 1.5));
+        const length = spotSeconds(sound.seconds);
         const key = soundCacheKey("sfx", sound.sound, length, false);
         if (seen.has(key) || (await soundCache.load(key))) continue;
         seen.add(key);
@@ -205,6 +237,7 @@ const input: DramaInput = {
   engine,
   ...(geminiCast ? { geminiCast, speech: openRouterSpeech({ apiKey: openRouterKey }) } : {}),
   soundCache,
+  ...(useLibrary ? { soundLibrary } : {}),
   withoutSounds,
   report: async (step) => console.log(`— ${step} (${new Date().toLocaleTimeString("de-DE")})`),
 };
@@ -215,6 +248,25 @@ if (!script) {
   console.log(`screenplay: ${script.parts.reduce((sum, part) => sum + part.lines.length, 0)} lines, $${ledger.totals().costUSD.toFixed(4)} → ${join(out, "script.md")}`);
 }
 if (script.notes.length) console.log(`notes:\n  ${script.notes.join("\n  ")}`);
+
+if (planSounds) {
+  const library = readLibrary();
+  const plan = await planSoundCasting({ script, library, llm, ledger, model: LIBRARY_MODELS.support, origin: `${seed.series.title} S${episode.season}E${episode.episode}`, log: console.log });
+  const byId = new Map([...library, ...plan.fresh].map((entry) => [entry.id, entry]));
+  const tags = { library: "BIBLIOTHEK", episode: "WIE OBEN  ", new: "NEU       " };
+  for (const wish of soundWishes(script)) {
+    const choice = plan.choices.get(wishKey(wish))!;
+    const entry = byId.get(choice.libraryId);
+    const what = choice.source === "new" ? `„${entry?.label}“ — ${entry?.description} [${entry?.tags.join(", ")}]` : `${choice.prompt}${entry ? ` („${entry.label}“)` : ""}`;
+    console.log(`${tags[choice.source]} ${wish.kind === "ambience" ? "Atmo" : `${wish.seconds}s`.padEnd(4)} ${wish.prompt}\n           → ${what}`);
+  }
+  // Sounds an earlier recording already generated have audio: they join the library without costing anything.
+  const present: SoundEntry[] = [];
+  for (const entry of plan.fresh) if (await soundCache.load(entry.storageKey)) present.push({ ...entry, uses: 1 });
+  if (present.length) await soundLibrary.add(present);
+  console.log(`casting: $${ledger.totals().costUSD.toFixed(4)}; ${present.length} sounds with audio in the local cache joined the library (${readLibrary().length} entries)`);
+  process.exit(0);
+}
 
 if (!scriptOnly) {
   const usageBefore = info.family === "gemini" ? await openRouterUsage() : null;

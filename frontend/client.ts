@@ -1648,6 +1648,9 @@ import {
     libraryAdminGenerateAudio as api_story_library_audio_api_libraryAdminGenerateAudio,
     libraryAdminReleaseAudio as api_story_library_audio_api_libraryAdminReleaseAudio,
     libraryAdminRestoreAudio as api_story_library_audio_api_libraryAdminRestoreAudio,
+    libraryAdminSoundAudio as api_story_library_audio_api_libraryAdminSoundAudio,
+    libraryAdminSounds as api_story_library_audio_api_libraryAdminSounds,
+    libraryAdminUpdateSound as api_story_library_audio_api_libraryAdminUpdateSound,
     libraryAdminUpdateVoice as api_story_library_audio_api_libraryAdminUpdateVoice,
     libraryAdminVoiceCast as api_story_library_audio_api_libraryAdminVoiceCast,
     libraryAdminVoicePreview as api_story_library_audio_api_libraryAdminVoicePreview
@@ -1722,10 +1725,13 @@ export namespace story {
             this.libraryAdminReleaseAudio = this.libraryAdminReleaseAudio.bind(this)
             this.libraryAdminRestoreAudio = this.libraryAdminRestoreAudio.bind(this)
             this.libraryAdminSeries = this.libraryAdminSeries.bind(this)
+            this.libraryAdminSoundAudio = this.libraryAdminSoundAudio.bind(this)
+            this.libraryAdminSounds = this.libraryAdminSounds.bind(this)
             this.libraryAdminUnpublishEpisode = this.libraryAdminUnpublishEpisode.bind(this)
             this.libraryAdminUpdateCharacter = this.libraryAdminUpdateCharacter.bind(this)
             this.libraryAdminUpdateEpisode = this.libraryAdminUpdateEpisode.bind(this)
             this.libraryAdminUpdateEpisodeText = this.libraryAdminUpdateEpisodeText.bind(this)
+            this.libraryAdminUpdateSound = this.libraryAdminUpdateSound.bind(this)
             this.libraryAdminUpdateVoice = this.libraryAdminUpdateVoice.bind(this)
             this.libraryAdminVoiceCast = this.libraryAdminVoiceCast.bind(this)
             this.libraryAdminVoicePreview = this.libraryAdminVoicePreview.bind(this)
@@ -2175,6 +2181,24 @@ export namespace story {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryAdminSeries>
         }
 
+        /**
+         * A signed link to listen to one sound.
+         */
+        public async libraryAdminSoundAudio(params: { id: string }): Promise<ResponseType<typeof api_story_library_audio_api_libraryAdminSoundAudio>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/sounds/${encodeURIComponent(params.id)}/audio`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_audio_api_libraryAdminSoundAudio>
+        }
+
+        /**
+         * Every sound the library holds, newest first.
+         */
+        public async libraryAdminSounds(): Promise<ResponseType<typeof api_story_library_audio_api_libraryAdminSounds>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/sounds`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_audio_api_libraryAdminSounds>
+        }
+
         public async libraryAdminUnpublishEpisode(params: { id: string }): Promise<ResponseType<typeof api_story_library_api_libraryAdminUnpublishEpisode>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/library/admin/episodes/${encodeURIComponent(params.id)}/unpublish`, {method: "POST", body: undefined})
@@ -2227,6 +2251,25 @@ export namespace story {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/library/admin/episodes/${encodeURIComponent(params.id)}/text`, {method: "PUT", body: JSON.stringify(body)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_api_libraryAdminUpdateEpisodeText>
+        }
+
+        /**
+         * Corrects a sound's name, description or keywords (what later screenplays are
+         * matched against), or blocks it: a blocked sound is never offered again, and a
+         * screenplay that names it gets another one at its next recording.
+         */
+        public async libraryAdminUpdateSound(params: RequestType<typeof api_story_library_audio_api_libraryAdminUpdateSound>): Promise<ResponseType<typeof api_story_library_audio_api_libraryAdminUpdateSound>> {
+            // Construct the body with only the fields which we want encoded within the body (excluding query string or header fields)
+            const body: Record<string, any> = {
+                blocked:     params.blocked,
+                description: params.description,
+                label:       params.label,
+                tags:        params.tags,
+            }
+
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/library/admin/sounds/${encodeURIComponent(params.id)}`, {method: "PUT", body: JSON.stringify(body)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_story_library_audio_api_libraryAdminUpdateSound>
         }
 
         public async libraryAdminUpdateVoice(params: RequestType<typeof api_story_library_audio_api_libraryAdminUpdateVoice>): Promise<ResponseType<typeof api_story_library_audio_api_libraryAdminUpdateVoice>> {

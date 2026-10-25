@@ -199,6 +199,8 @@ export interface ScriptSound {
   at?: string;
   /** Seconds, 0.5–6. */
   seconds?: number;
+  /** Sound of the shared library this cue plays (set by the sound casting; prompt and length are then the entry's). */
+  libraryId?: string;
 }
 
 export interface ScriptLine {
@@ -218,6 +220,8 @@ export interface ScriptScene {
   ambience?: string;
   /** "low" | "normal" | "high" — how present the place sounds. */
   ambienceLevel?: "low" | "normal" | "high";
+  /** Bed of the shared sound library this scene plays. */
+  ambienceLibraryId?: string;
   music?: ScoreMood | null;
 }
 
@@ -278,6 +282,8 @@ export interface EpisodeAudioStats {
   soundAssets?: number;
   /** Sound assets taken from the sound cache instead (free). */
   reusedSounds?: number;
+  /** Sounds of the screenplay the sound library already had (made for another episode or story). */
+  librarySounds?: number;
   music?: string;
   /** Production time. */
   seconds?: number;

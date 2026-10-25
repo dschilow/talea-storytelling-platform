@@ -7,6 +7,10 @@
  * dialogue takes, or Gemini 3.8 TTS line by line (gemini-render.ts). Screenplay,
  * music, sounds and mix are the same for both, so a recording with the other
  * engine is a fair comparison and "Neu vertonen" can switch engines.
+ *
+ * The screenplay's sounds are cast from the sound library every story shares
+ * (sound-library.ts) while the voices record; only sounds nobody has made yet
+ * are generated, and they join the library with a description.
  */
 
 import { promises as fs } from "node:fs";
@@ -20,10 +24,11 @@ import { LIBRARY_MODELS } from "../engine";
 import type { AudioScript, EpisodeAudioStats, EpisodeContent, ScoreMood, ScriptPart, SeriesBible, SeriesCharacter, SeriesInfo, VoiceEngine } from "../types";
 import { pickVoice, type AccountVoice, type ResolvedVoice } from "./casting";
 import { assignEngineVoices, recastScript, seriesCastMembers, seriesHints, speakerHint, toSpeaker } from "./cast-members";
-import { audioCosts, engineInfo, musicCost, soundCost } from "./engines";
+import { audioCosts, defaultVoiceEngine, engineInfo, musicCost, soundCost } from "./engines";
 import { figureHint, pickGeminiVoice, type GeminiCastEntry, type SpeakerDirection } from "./gemini-voices";
 import { renderWithGemini } from "./gemini-render";
 import type { SpeechPort } from "./openrouter-speech";
+import { applySoundPlan, planSoundCasting, trackSoundCache, type SoundLibraryPort, type SoundPlan } from "./sound-library";
 import { prepareScore, probeSeconds, scorePrompt, type ScorePorts } from "./score";
 import {
   NARRATOR_KEY,
@@ -70,7 +75,7 @@ export interface DramaInput {
   llm: StorybookLlm;
   ledger: CostLedger;
   scorePorts: ScorePorts;
-  /** Voice engine; ElevenLabs v4 when missing. */
+  /** Voice engine; the server default (defaultVoiceEngine) when missing. */
   engine?: VoiceEngine;
   /** Gemini voices of the narrator and the series characters (resolveGeminiCast); required for Gemini engines. */
   geminiCast?: GeminiCastEntry[];
@@ -78,6 +83,8 @@ export interface DramaInput {
   speech?: SpeechPort;
   /** Generated sounds kept between recordings. */
   soundCache?: SoundCachePort;
+  /** Sounds shared by every story (needs the sound cache): the screenplay's sounds are cast from it, new ones join it. */
+  soundLibrary?: SoundLibraryPort;
   /** Leave out spot effects and ambience (music stays): a cheaper test recording. */
   withoutSounds?: boolean;
   /** Record again from this screenplay instead of writing a new one (voices of the series are re-resolved). */
@@ -198,12 +205,25 @@ export async function renderAudioDrama(input: DramaInput): Promise<DramaResult> 
   const say = input.log ?? ((message: string) => console.log(`[library-audio] ${message}`));
   const report = input.report ?? (async () => undefined);
   const started = Date.now();
-  const engine: VoiceEngine = input.engine ?? "elevenlabs";
+  const engine: VoiceEngine = input.engine ?? defaultVoiceEngine();
   const info = engineInfo(engine);
   if (info.family === "gemini" && !input.speech) throw new Error(`${info.label}: keine Sprachsynthese angeschlossen (OpenRouter-Key fehlt?).`);
   const seriesMembers = seriesCastMembers(input.characters, input.seriesCast, { family: info.family, geminiCast: input.geminiCast, voices: input.voices });
-  const written = input.script ? recastScript(input.script, seriesMembers) : await writeAudioScript(input);
+  const written = input.script ? recastScript(input.script, seriesMembers) : await writeAudioScript({ ...input, engine });
   const script = assignEngineVoices(written, info.family, input.voices, seriesHints(input.characters, input.seriesCast, input.voices));
+
+  // The sounds are cast from the shared library while the voices record (it only changes sounds, never lines).
+  const library = !input.withoutSounds && input.soundCache ? input.soundLibrary : undefined;
+  const origin = `${input.series.title} S${input.season}E${input.episode}`;
+  const soundPlanning: Promise<SoundPlan | null> = library
+    ? library
+        .list()
+        .then((entries) => planSoundCasting({ script, library: entries, llm: input.llm, ledger: input.ledger, model: LIBRARY_MODELS.support, origin, log: say }))
+        .catch((error) => {
+          say(`sound library unavailable, every sound is made for this recording: ${(error as Error).message}`);
+          return null;
+        })
+    : Promise.resolve(null);
 
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "library-audio-"));
   try {
@@ -211,6 +231,8 @@ export async function renderAudioDrama(input: DramaInput): Promise<DramaResult> 
     await report("voices");
     const recorded = info.family === "gemini" ? await recordWithGemini(script, engine, input, tmpDir, say) : await recordWithElevenLabs(script, tmpDir, say);
     script.notes.push(...recorded.notes);
+    const soundPlan = await soundPlanning;
+    if (soundPlan) applySoundPlan(script, soundPlan);
 
     /* 4: the series score */
     await report("music");
@@ -231,6 +253,7 @@ export async function renderAudioDrama(input: DramaInput): Promise<DramaResult> 
     const timeline = buildTimeline(recorded.parts, score.tracks);
     const cues = input.withoutSounds ? timeline.cues.filter((cue) => cue.type === "music") : timeline.cues;
     const sounds = cues.filter((cue) => cue.type === "sfx").length;
+    const present = new Set<string>();
     const mix = await mixStudioMaster({
       tmpDir,
       voice: timeline.voice,
@@ -241,10 +264,11 @@ export async function renderAudioDrama(input: DramaInput): Promise<DramaResult> 
       maxGeneratedAssets: MAX_SOUND_ASSETS,
       bitrate: "192k",
       logTag: `LibraryAudio ${input.series.slug} s${input.season}e${input.episode}`,
-      soundCache: input.soundCache,
+      soundCache: input.soundCache ? trackSoundCache(input.soundCache, present) : undefined,
     });
     const seconds = (await measureSeconds(mix.audio, tmpDir)) || timeline.seconds;
     say(`mix: ${(seconds / 60).toFixed(1)} min, ${cues.length} cues (${sounds} sounds), ${mix.generatedAssets} sound assets generated, ${mix.reusedAssets} reused`);
+    if (library && soundPlan) await registerSounds(library, soundPlan, present, say);
 
     const composedMusic = score.composed.filter((mood) => !score.fallbacks.includes(mood)).reduce((sum, mood) => sum + scorePrompt(styleEn, mood).seconds, 0);
     const musicBySound = score.fallbacks.reduce((sum, mood) => sum + Math.min(30, scorePrompt(styleEn, mood).seconds), 0);
@@ -267,6 +291,7 @@ export async function renderAudioDrama(input: DramaInput): Promise<DramaResult> 
         sounds,
         soundAssets: mix.generatedAssets,
         reusedSounds: mix.reusedAssets,
+        ...(soundPlan ? { librarySounds: soundPlan.stats.fromLibrary } : {}),
         takes: recorded.takes,
         retakes: recorded.retakes,
         voiceSeconds: Math.round(recorded.voiceSeconds),
@@ -278,6 +303,22 @@ export async function renderAudioDrama(input: DramaInput): Promise<DramaResult> 
     };
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
+  }
+}
+
+/**
+ * New sounds whose audio now exists join the library (a sound the generator
+ * failed or the asset cap left out does not); every library sound played counts
+ * one use. A storage error costs the library an entry, never the recording.
+ */
+async function registerSounds(library: SoundLibraryPort, plan: SoundPlan, present: Set<string>, say: (message: string) => void): Promise<void> {
+  const added = plan.fresh.filter((entry) => present.has(entry.storageKey)).map((entry) => ({ ...entry, uses: 1 }));
+  try {
+    if (added.length) await library.add(added);
+    if (plan.used.length) await library.markUsed(plan.used);
+    say(`sound library: ${added.length} new sounds stored, ${plan.used.length} reused`);
+  } catch (error) {
+    say(`sound library: could not store the sounds: ${(error as Error).message}`);
   }
 }
 

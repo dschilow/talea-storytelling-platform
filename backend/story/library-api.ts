@@ -205,6 +205,8 @@ export interface LibraryAdminAudio {
   pendingEngineLabel?: string;
   /** Sounds taken from the sound cache instead of being generated. */
   reusedSounds?: number;
+  /** Sounds of the screenplay the shared sound library already had from other episodes or stories. */
+  librarySounds?: number;
   costs?: LibraryAudioCosts;
   /** The recording before the current one. */
   previous?: {
@@ -446,6 +448,7 @@ export async function adminAudioView(episode: EpisodeRecord): Promise<LibraryAdm
     voiceCharacters: audio.stats?.voiceCharacters,
     sounds: audio.stats?.sounds,
     reusedSounds: audio.stats?.reusedSounds,
+    librarySounds: audio.stats?.librarySounds,
     music: audio.stats?.music,
     renderSeconds: audio.stats?.seconds,
     takes: audio.stats?.takes,

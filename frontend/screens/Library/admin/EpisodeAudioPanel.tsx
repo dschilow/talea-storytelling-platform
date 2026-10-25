@@ -15,7 +15,8 @@ const STATUS_TONES = {
   failed: "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200",
 } as const;
 
-const ENGINE_KEY = "talea.originals.audioEngine";
+// v2 since Gemini Flash Lite became the default (2026-10-25): an older remembered choice does not override it.
+const ENGINE_KEY = "talea.originals.audioEngine.v2";
 const ENGINE_NOTES: Record<string, string> = {
   elevenlabs: "Captain Comedy, Dialog-Takes",
   "gemini-lite": "30 Stimmen, Zeile für Zeile",
@@ -101,7 +102,7 @@ export const EpisodeAudioPanel: React.FC<{ episode: LibraryAdminEpisode; onChang
 
       {status === "none" ? (
         <p className="text-[14px] leading-relaxed text-[var(--talea-text-secondary)]">
-          Ein Erzähler und jede Figur mit eigener Stimme (ElevenLabs v4 oder Gemini 3.8), dazu die Musik der Reihe, Orts-Atmosphäre und Geräusche nach einem eigenen Hörspiel-Drehbuch.
+          Ein Erzähler und jede Figur mit eigener Stimme (Gemini 3.8 oder ElevenLabs v4), dazu die Musik der Reihe, Orts-Atmosphäre und Geräusche nach einem eigenen Hörspiel-Drehbuch. Geräusche, die eine andere Geschichte schon hat, kommen aus der Geräusche-Bibliothek.
         </p>
       ) : null}
 
@@ -133,6 +134,7 @@ export const EpisodeAudioPanel: React.FC<{ episode: LibraryAdminEpisode; onChang
             {audio.music ? <span className="inline-flex items-center gap-1"><Music2 className="h-3 w-3" aria-hidden="true" />Musik {audio.music}</span> : null}
             {!audio.costs && audio.llmCostUSD ? <span>Drehbuch ${audio.llmCostUSD.toFixed(3)}</span> : null}
             {audio.reusedSounds ? <span>{audio.reusedSounds} Geräusche wiederverwendet</span> : null}
+            {audio.librarySounds ? <span>{audio.librarySounds} Geräusche aus anderen Folgen (Bibliothek)</span> : null}
             {audio.takes ? (
               <span>
                 {audio.engine === "elevenlabs" ? `${audio.takes} Takes` : `${audio.takes} Zeilen`}
@@ -188,7 +190,7 @@ export const EpisodeAudioPanel: React.FC<{ episode: LibraryAdminEpisode; onChang
                   chosen?.engine === estimate.engine ? "border-[var(--primary)] bg-[var(--talea-surface-primary)]" : "border-transparent bg-[var(--talea-surface-primary)]/60",
                 )}
               >
-                <span className="text-[13px] font-semibold text-[var(--talea-text-primary)]">{estimate.label}</span>
+                <span className="text-[13px] font-semibold text-[var(--talea-text-primary)]">{estimate.label}{estimate.engine === audio.defaultEngine ? " · Standard" : ""}</span>
                 <span className="text-[11px] text-[var(--talea-text-secondary)]">Stimmen ≈ {usd(estimate.voicesUSD)} · {ENGINE_NOTES[estimate.engine] ?? ""}</span>
               </button>
             ))}
