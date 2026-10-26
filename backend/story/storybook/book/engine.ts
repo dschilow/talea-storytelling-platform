@@ -47,6 +47,9 @@ export interface BookContext {
 }
 
 export interface PlannedBook {
+  /** Shared story policy used by new jobs; absent on already-running legacy volumes. */
+  textPipeline?: string;
+  leadId?: string;
   pitch: BookPitch | null;
   casting: CastingResult;
   plan: BookPlan;
