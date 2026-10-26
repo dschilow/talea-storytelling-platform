@@ -1,0 +1,1265 @@
+[
+  {
+    "lane": "episode",
+    "name": "Talea-Folge",
+    "manifest": {
+      "lane": "episode",
+      "seed": "talea-all-pipelines-2026-10-26-a",
+      "models": {
+        "writer": "openai/gpt-6.1-sol",
+        "support": "openai/gpt-6-luna",
+        "critic": "openai/gpt-6-luna"
+      },
+      "transport": "codex-chatgpt-plan",
+      "images": 0,
+      "databaseCalls": 0,
+      "inputSHA256": "16ada8ec4eee5d2e2ffc039a7b9a6591af213c3ccbab7bb2200454e15cbdd46d",
+      "sourceRevision": "a6abb9443b0a43729c8d160afbf9dae3f9eb4edf",
+      "caveat": "Same model family for all calls. Format-specific production budgets. One exploratory sample per lane, not a statistical ranking."
+    },
+    "status": "unverified",
+    "title": "Der Topf läuft weg",
+    "words": 1230,
+    "calls": 1,
+    "mean": 7.9,
+    "reviews": [
+      {
+        "model": "gpt-6-luna",
+        "sourceHash": "78cf7b64a6b082cddb20ecca44d9ccf80b4337835583319caa7e43b6f85be932",
+        "score": 7.7,
+        "invalidEvidence": [
+          "causalityAndRule"
+        ],
+        "review": {
+          "actualLead": "Kicher",
+          "scores": {
+            "causalityAndRule": {
+              "score": 8,
+              "reason": "Die angesagten Zusatzregeln werden wirksam, bis ein Zapfen in Topp landet. Die Kinder beobachten, dass Topps Sprünge gleich lang sind, markieren seinen nächsten Landeplatz und treffen ihn dort. Dass die Regeln dann enden, folgt aus der zuvor genannten Bedingung.",
+              "quote": "Jede angesagte Zusatzregel wird wirklich. „Bis ein Zapfen in mir landet.“"
+            },
+            "leadingCharacterAgency": {
+              "score": 7,
+              "reason": "Kicher erfindet das Spiel, verschärft es durch Zusatzregeln und entscheidet schließlich, Ben beim Gewinn zu helfen. Seine Angst, sonst nicht mehr mitspielen zu dürfen, ist klar. Den Plan entwickeln Nora und Ben, und Ben wirft den entscheidenden Zapfen. Die verlangte Pool-Figur fehlt.",
+              "quote": "Kicher drückte ihm den eingewickelten Löffel in die Hand."
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Nora hält Kicher von einer weiteren Regel ab und findet den freien Landeplatz; Ben erkennt das Muster von Topps Sprüngen und wirft den Zapfen. Beide tragen wirksam zur Lösung bei.",
+              "quote": "„Seine Sprünge sind immer gleich lang.“"
+            },
+            "voiceAndDialogue": {
+              "score": 8,
+              "reason": "Ben reagiert trocken, Nora aufmerksam und Kicher großspurig, bis seine Unsicherheit hörbar wird. Die Dialoge zeigen die Beziehung der Figuren und treiben die Handlung voran; manche Pointen sind deutlich zugespitzt.",
+              "quote": "„Dann wollt ihr vielleicht nicht mehr spielen.“"
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Die lebendigen Löffel, Topps Niesen und Kichers verrutschter Hut sorgen für konkrete, gut vorstellbare Komik. Der Schlussgag greift den Hutwurf wieder auf. Die verlangte Pool-Figur fehlt.",
+              "quote": "Der Zapfen landete in seinem Hut."
+            },
+            "pacing": {
+              "score": 7,
+              "reason": "Die Versuche verändern die Lage: Topp hüpft, die Löffel bekommen Beine und das Spiel wandert zum Brombeerbusch. Der stille Moment mit Kicher sitzt passend. Försterin und Frühstück werden eingeführt, beeinflussen die Lösung aber kaum.",
+              "quote": "Eine Weile raschelten nur die Blätter."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Kurze Sätze, klare Bewegungen und Lautmalerei eignen sich gut zum Vorlesen. Einzelne Erklärungen zum Abmessen der Sprünge sind etwas ausführlich, bleiben verständlich.",
+              "quote": "Pock. Pock. Pock."
+            },
+            "emotionAndPayoff": {
+              "score": 8,
+              "reason": "Kichers Angst, dass die anderen nicht mehr mit ihm spielen, wird im stillen Moment deutlich. Seine Entscheidung, Ben den Gewinn zu ermöglichen, zeigt eine Veränderung durch Handlung. Titel und letzter Hutgag greifen ineinander. Bäcker Braun und sein Brot kommen nicht vor.",
+              "quote": "„Dann wollt ihr vielleicht nicht mehr spielen.“"
+            }
+          },
+          "requestFit": {
+            "score": 5,
+            "reasons": [
+              "Kicher ist die eigenwillige Hauptfigur; Nora und Ben tragen wirksam zur Lösung bei.",
+              "Die Geschichte enthält eine verständliche Wunderregel, einen stillen Moment und einen überraschenden Schlussgag.",
+              "Die verlangte Pool-Figur fehlt vollständig."
+            ]
+          },
+          "formatFit": {
+            "score": 7,
+            "reasons": [
+              "Die Geschichte ist in zwei betitelte Kapitel gegliedert und hat einen abgeschlossenen Handlungsbogen.",
+              "Försterin und Frühstück werden eingeführt, bleiben für die Auflösung aber weitgehend ohne Folgen."
+            ]
+          },
+          "strengths": [
+            "Die Wunderregel erzeugt eine Reihe konkreter Folgen: „Unter jedem Löffel wuchsen vier dünne Holzbeinchen.“",
+            "Kichers Angst zeigt sich im stillen Moment knapp, bevor er Ben den Sieg ermöglicht.",
+            "Der Schlusssatz greift den Hutwurf wieder auf: „Dein Hut gewinnt schon wieder.“"
+          ],
+          "weaknesses": [
+            "Die verlangte Pool-Figur fehlt vollständig.",
+            "Kicher beginnt das Spiel und entscheidet sich für Bens Sieg, aber Nora findet den Plan und Ben erzielt den entscheidenden Treffer.",
+            "Försterin und Frühstück werden eröffnet, ohne die Haupthandlung wesentlich zu beeinflussen."
+          ],
+          "transferableTechnique": "Eine einfache Wunderregel kann die Handlung durch mehrere jeweils neue Folgen vorantreiben. Ein stiller Moment zeigt Kichers Angst, und seine spätere Entscheidung setzt diese Vorbereitung in Handlung um.",
+          "verdict": "Ein lebendiges, gut vorlesbares Koboldabenteuer mit klarer Wunderregel, stillem Moment und rundem Schlussgag. Kicher hat eine erkennbare Schwäche und trifft eine wichtige Wahl, während die Kinder die konkrete Lösung finden. Die verlangte Pool-Hauptfigur fehlt, daher verfehlt die Geschichte einen zentralen Teil des Auftrags."
+        }
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "sourceHash": "78cf7b64a6b082cddb20ecca44d9ccf80b4337835583319caa7e43b6f85be932",
+        "score": 8.1,
+        "invalidEvidence": [],
+        "review": {
+          "actualLead": "Kobold Kicher",
+          "scores": {
+            "causalityAndRule": {
+              "score": 7,
+              "reason": "Kichers Angst vor dem Verlieren verursacht die Verschärfungen; Sprungmessung und eingewickelte Löffelbeine lösen sie nachvollziehbar. Allerdings müsste bereits Bens erster Treffer die Regeln beenden: Das anschließende Niesen wirkt wie eine nachgeschobene Ausnahme. Auch Topps selbstständiger Rückwärtsschritt überschreitet die angesagte Hüpfregel.",
+              "quote": "Jede angesagte Zusatzregel wird wirklich“, brummte Topp. „Bis ein Zapfen in mir landet."
+            },
+            "leadingCharacterAgency": {
+              "score": 9,
+              "reason": "Kicher trägt die Geschichte durch seinen konkreten Spielwunsch, seine manipulativen Zusatzregeln und deren Folgen. Die entscheidende Wahl trifft er selbst: Er überlässt Ben das von ihm entwickelte Hilfsmittel und damit den möglichen Sieg.",
+              "quote": "Kicher drückte ihm den eingewickelten Löffel in die Hand."
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Ben erkennt die gleichbleibenden Sprungweiten und wirft den entscheidenden Zapfen. Nora vermisst und markiert den Landeplatz; außerdem unterbricht sie Kichers nächste unbedachte Regel. Beide Kinder wirken eigenständig, ihre Stimmen könnten sich noch stärker unterscheiden.",
+              "quote": "Damit maß sie Topps letzte drei Sprünge ab."
+            },
+            "voiceAndDialogue": {
+              "score": 8,
+              "reason": "Kichers überspielte Unsicherheit, Topps brummige Körperlogik und Bens trockene Kommentare ergeben lebendige Stimmen. Der leise Austausch über Gewinnen und Mitspielen bleibt konkret. Nora erhält etwas weniger sprachliche Eigenart.",
+              "quote": "Ich will spielen. Aber auch mal gewinnen."
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Die Holzbeinchen erzeugen anschauliche, sanfte Situationskomik: Löffel erkunden Pfützen, überwinden Schuhe und verschwinden im Kragen. Topps unmögliche Nase ergänzt den körperlichen Humor durch eine kindlich zugängliche Absurdität.",
+              "quote": "Du hast keine Nase“, sagte Nora."
+            },
+            "pacing": {
+              "score": 8,
+              "reason": "Die Versuche verschärfen das Problem sinnvoll vom schwierigen Werfen zum wandernden Ziel und widerspenstigen Werkzeug. Der Wurzelmoment schafft eine wirksame Pause vor der gemeinsamen Lösung. Pfützenepisode und Versteckspiel vor der Försterin verlängern den Mittelteil etwas.",
+              "quote": "Eine Weile raschelten nur die Blätter."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Kurze Handlungssätze, klare Sprecherwechsel und wiederkehrende Geräusche lassen sich gut vorlesen. Einzelne Bewegungen bleiben undeutlich, besonders das gleichzeitige Hängenbleiben von Hut und Kicher; auch der Strumpfzipfel verlangt zusätzliche Vorstellungskraft.",
+              "quote": "Sein Hut blieb an einer Wurzel hängen. Kicher blieb im Hut hängen."
+            },
+            "emotionAndPayoff": {
+              "score": 9,
+              "reason": "Die Verlustangst erscheint in einer zurückhaltenden Geste und wird durch Kichers freiwillige Übergabe des Löffels beantwortet. Der Huttreffer bereitet den Schlussgag sauber vor; die drei Schritte verbinden Titel, Hindernis und Lösung. Eine Moralrede bleibt aus.",
+              "quote": "Gewonnen! Leider ausgezeichnet gewonnen!"
+            }
+          },
+          "requestFit": {
+            "score": 9,
+            "reasons": [
+              "Kicher erfüllt als eigenwillige Figur aus dem vorgegebenen Figurenpool die Hauptrolle; beide Kinder begleiten ihn wirksam.",
+              "Das magische Waldabenteuer verbindet sanften Humor, einen stillen Moment und einen vorbereiteten Schlussgag.",
+              "Fest und Prophezeiung fehlen wie gewünscht.",
+              "Die geforderte verständliche Wunderregel wird durch den frühen Treffer mit anschließendem Niesen unnötig unsicher."
+            ]
+          },
+          "formatFit": {
+            "score": 10,
+            "reasons": [
+              "Eine vollständige kurze Vorlesegeschichte mit zwei benannten Kapiteln, abgeschlossener Handlung und Schlussgag.",
+              "Die Kapitel gliedern Zuspitzung und Auflösung sinnvoll."
+            ]
+          },
+          "strengths": [
+            "Charakterentwicklung wird als Entscheidung sichtbar: Mit „Ziel gut.“ übergibt Kicher Ben die Chance, die er selbst nutzen möchte.",
+            "Ein beiläufiger Gegenstand erhält mehrere Funktionen: Der Entengriff eröffnet mit Komik und hilft später bei der Ablenkung der Försterin.",
+            "Der wiederholte Huttreffer verwandelt ein frühes Missgeschick in den passenden Schluss: „Dein Hut gewinnt schon wieder.“"
+          ],
+          "weaknesses": [
+            "Die größte Schwäche betrifft die Regelverbindlichkeit: „Der Zapfen sprang wieder heraus.“ verhindert nach einem bereits erfolgten Treffer die eigentlich angekündigte Auflösung.",
+            "Topps zusätzliche Bewegungsfreiheit bleibt unklar: „Der Topf machte einen langen Schritt rückwärts.“ folgt keiner ausdrücklich gesetzten Regel.",
+            "Noras Sprache ist weniger unverwechselbar als Kichers, Topps und Bens; ihre Stärke liegt vor allem im praktischen Handeln."
+          ],
+          "transferableTechnique": "Eine innere Veränderung durch die Übergabe eines konkreten Vorteils zeigen: Kicher löst das Werkzeugproblem selbst und gibt die Gewinnchance anschließend freiwillig weiter.",
+          "verdict": "Eine starke, warmherzige Vorlesegeschichte mit eigenständigem Hauptcharakter und gelungenem Schlussgag. Für eine rundum überzeugende Fassung muss vor allem die Wunderregel beim ersten Topftreffer konsequent gelten."
+        }
+      }
+    ],
+    "failure": null
+  },
+  {
+    "lane": "wonder",
+    "name": "Wunder & Witz",
+    "manifest": {
+      "lane": "wonder",
+      "seed": "talea-all-pipelines-2026-10-26-a",
+      "models": {
+        "writer": "openai/gpt-6.1-sol",
+        "support": "openai/gpt-6-luna",
+        "critic": "openai/gpt-6-luna"
+      },
+      "transport": "codex-chatgpt-plan",
+      "images": 0,
+      "databaseCalls": 0,
+      "inputSHA256": "16ada8ec4eee5d2e2ffc039a7b9a6591af213c3ccbab7bb2200454e15cbdd46d",
+      "sourceRevision": "a6abb9443b0a43729c8d160afbf9dae3f9eb4edf",
+      "caveat": "Same model family for all calls. Format-specific production budgets. One exploratory sample per lane, not a statistical ranking."
+    },
+    "status": "no-story",
+    "calls": 6,
+    "mean": null,
+    "reviews": null,
+    "failure": {
+      "error": "Error: [wonder-story-v1] Der Plan hat nach dem Lektorat offene Probleme: Kapitel 3–4: Die Rückgabe ist zu arbeitslastig: Nach Busch und Hut folgen vier fast gleichartige Gegenstandsproben, dazu Falten und ein stiller Moment. Kürze die Wiederholungen, etwa indem Ben die vier passenden Zonen in einem Zug zuordnet und die Gruppe sie gemeinsam zurückfärbt; so bleibt mehr Raum für Kichers Entscheidung und den Schlussgag. Kapitel 2–3: Der Busch wird als eine der sieben weißen Sachen gezählt, doch die Regel sagt, dass Farbe an der durchquerten Bandstelle bleibt. Kläre, wie der verwurzelte Busch diese Zone durchquert und wie genau Nora und Kicher das Band auf demselben Weg zurückführen. Zeige die Bewegung eindeutig, damit Bens Beobachtung die Lösung wirklich trägt.",
+      "calls": 6,
+      "stages": [
+        {
+          "stage": "wonder-plan",
+          "modelUsed": "gpt-6.1-sol",
+          "modelRole": "selected-story",
+          "durationMs": 210000,
+          "usage": {
+            "prompt": 24507,
+            "completion": 4394,
+            "total": 28901,
+            "cachedPromptTokens": 12416,
+            "costUSD": 0
+          }
+        },
+        {
+          "stage": "wonder-plan-read",
+          "modelUsed": "gpt-6-luna",
+          "modelRole": "support",
+          "durationMs": 8147,
+          "usage": {
+            "prompt": 23285,
+            "completion": 318,
+            "total": 23603,
+            "cachedPromptTokens": 11776,
+            "costUSD": 0
+          }
+        },
+        {
+          "stage": "wonder-plan-repair",
+          "modelUsed": "gpt-6.1-sol",
+          "modelRole": "selected-story",
+          "durationMs": 146780,
+          "usage": {
+            "prompt": 30112,
+            "completion": 4007,
+            "total": 34119,
+            "cachedPromptTokens": 12416,
+            "costUSD": 0
+          }
+        },
+        {
+          "stage": "wonder-plan-reread",
+          "modelUsed": "gpt-6-luna",
+          "modelRole": "support",
+          "durationMs": 10298,
+          "usage": {
+            "prompt": 22828,
+            "completion": 561,
+            "total": 23389,
+            "cachedPromptTokens": 11776,
+            "costUSD": 0
+          }
+        },
+        {
+          "stage": "wonder-plan-repair-2",
+          "modelUsed": "gpt-6.1-sol",
+          "modelRole": "selected-story",
+          "durationMs": 134473,
+          "usage": {
+            "prompt": 30463,
+            "completion": 4495,
+            "total": 34958,
+            "cachedPromptTokens": 12416,
+            "costUSD": 0
+          }
+        },
+        {
+          "stage": "wonder-plan-reread-2",
+          "modelUsed": "gpt-6-luna",
+          "modelRole": "support",
+          "durationMs": 6847,
+          "usage": {
+            "prompt": 23003,
+            "completion": 273,
+            "total": 23276,
+            "cachedPromptTokens": 11776,
+            "costUSD": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "lane": "standard",
+    "name": "Geschichte",
+    "manifest": {
+      "lane": "standard",
+      "seed": "talea-all-pipelines-2026-10-26-a",
+      "transport": "codex-chatgpt-plan",
+      "writer": "gpt-6.1-sol",
+      "support": "gpt-6-luna",
+      "images": 0,
+      "databaseCalls": 0,
+      "fixtureInfrastructure": "Empty memories, artifacts and history. Supplied canonical pool. Debug skips images; persistence disabled. Production prompts and text checks unchanged."
+    },
+    "status": "quality_gate_failed",
+    "title": "Der Waldpausenhof mit dem Schlangenkürzer",
+    "words": 811,
+    "calls": 15,
+    "mean": 6.5,
+    "reviews": [
+      {
+        "model": "gpt-6-luna",
+        "sourceHash": "ab686adc6ae11397a05fab346aa278b6dd670db9c59fe9509cddf71f606e77ef",
+        "score": 6.3,
+        "invalidEvidence": [],
+        "review": {
+          "actualLead": "Nora",
+          "scores": {
+            "causalityAndRule": {
+              "score": 6,
+              "reason": "Die Kreidebögen wachsen nach Noras Schimpfen und schrumpfen, wenn Ben Krümel entfernt; das gemeinsame Ziehen zur Kerbe löst das Problem. Die Wunderregel bleibt aber unscharf: Warum gerade diese Handlungen wirken, wird nur aus Wiederholungen erschlossen.",
+              "quote": "Geschimpft, wieder länger."
+            },
+            "leadingCharacterAgency": {
+              "score": 6,
+              "reason": "Nora versucht, die Spur zu kürzen, erkennt den drohenden Verlust der Schleife und entscheidet schließlich, die Bruchstücke als Wegzeichen liegen zu lassen. Bens Beobachtungen und Prüfung der Spur bestimmen jedoch stärker, wie die Lösung gelingt.",
+              "quote": "Ich lasse sie als Wegzeichen hier."
+            },
+            "ensembleContribution": {
+              "score": 7,
+              "reason": "Ben entdeckt die Kerbe und führt die Prüfung an; Pip hält am Ende das Ende fest und bleibt diesmal ruhig. Pips Beitrag bleibt kleiner als der der beiden anderen.",
+              "quote": "Pip hielt nur das Ende fest."
+            },
+            "voiceAndDialogue": {
+              "score": 6,
+              "reason": "Noras Ungeduld, Bens vorsichtiges Beobachten und Pips unsichere Späße sind unterscheidbar. Einige Dialoge erklären die Handlung sehr direkt.",
+              "quote": "Zweimal geholfen, zweimal kürzer. Geschimpft, wieder länger."
+            },
+            "humorAndWonder": {
+              "score": 6,
+              "reason": "Die Kreideschlange und Pips Kreisverkehr-Spruch bringen eine sanfte, kindgerechte Komik. Der Spruch wiederholt sich jedoch fast unverändert und wird nicht überraschend weitergedreht.",
+              "quote": "Hoppla, Kreisverkehr im Wald!"
+            },
+            "pacing": {
+              "score": 6,
+              "reason": "Die Wiederholungen machen die Wirkung von Noras Verhalten sichtbar, aber die zweite Entdeckung ähnelt der ersten stark. Die Entscheidung und das gemeinsame Lösen bekommen dagegen genügend Raum.",
+              "quote": "Diesmal flüsterte Pip es."
+            },
+            "readAloud": {
+              "score": 7,
+              "reason": "Kurze Sätze, klare Handlungen und sinnliche Details tragen sich gut beim Vorlesen. Einzelne Formulierungen wirken holprig, etwa die kalten Schnitte.",
+              "quote": "Die Schnitte wird kalt!"
+            },
+            "emotionAndPayoff": {
+              "score": 7,
+              "reason": "Die zerbrochene Schleife macht Noras Verlustangst greifbar, und das Ende greift den fehlenden Zahn mit dem Sonnenlicht wieder auf. Ein stiller Moment entsteht, aber ein überraschender Schlussgag fehlt.",
+              "quote": "Sonnenlicht füllte den fehlenden Zahn."
+            }
+          },
+          "requestFit": {
+            "score": 2,
+            "reasons": [
+              "Nora ist die Hauptfigur; Kobold Kicher, Bäcker Braun und die gewünschte eigenwillige Pool-Figur fehlen.",
+              "Pip ist Begleiter, aber seine Vorratskammer und sein Wunsch, bei keinem Abenteuer zu fehlen, spielen kaum eine Rolle.",
+              "Die Geschichte enthält ein verständliches, wenn auch nur teilweise erklärtes Wunder und einen leisen Schlussmoment, aber weder den geforderten überraschenden Schlussgag noch den magischen Abenteuercharakter."
+            ]
+          },
+          "formatFit": {
+            "score": 7,
+            "reasons": [
+              "Der Text ist eine kurze vollständige Geschichte mit Anfang, Zuspitzung und Abschluss.",
+              "Die drei als Leseseiten markierten Abschnitte bilden keine Kapitel."
+            ]
+          },
+          "strengths": [
+            "Die Gefahr für ein persönliches Erinnerungsstück wird durch eine konkrete Handlung sichtbar: „Knack. Ihre Schleife brach mitten durch das Wort Wurzel.“",
+            "Das Ende verwandelt den fehlenden Teil der Schleife in ein ruhiges, wiederaufgenommenes Bild: „Sonnenlicht füllte den fehlenden Zahn.“"
+          ],
+          "weaknesses": [
+            "Die Hauptfigur und das Abenteuer weichen stark vom Auftrag ab; Nora übernimmt eine Geschichte, die weder Kobold Kicher noch die Pool-Figur enthält.",
+            "Die Ursache der Magie bleibt nur angedeutet, und der Schluss endet still statt mit dem gewünschten überraschenden Gag."
+          ],
+          "transferableTechnique": "Ein Verlustmotiv früh als konkreten Gegenstand einführen und am Ende als verändertes Bild wiederaufnehmen, damit der Schluss emotional vorbereitet wirkt.",
+          "verdict": "Ein klar erzählter, sanft-magischer Text mit einem gelungenen Schlussbild und einer spürbaren kleinen Verlustangst. Als eigenständige Vorlesegeschichte ist er brauchbar; den Auftrag verfehlt er vor allem bei Hauptfigur, Abenteuer und Schlussgag."
+        }
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "sourceHash": "ab686adc6ae11397a05fab346aa278b6dd670db9c59fe9509cddf71f606e77ef",
+        "score": 6.7,
+        "invalidEvidence": [],
+        "review": {
+          "actualLead": "Nora",
+          "scores": {
+            "causalityAndRule": {
+              "score": 6,
+              "reason": "Schimpfen verlängert die Spur, hilfreiches Handeln verkürzt sie: Das wird nachvollziehbar entdeckt. Warum das W die Magie auslöst und gemeinsames Ziehen die übrigen Bögen beseitigt, bleibt jedoch unzureichend vorbereitet.",
+              "quote": "Zweimal geholfen, zweimal kürzer. Geschimpft, wieder länger."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Nora trägt die Handlung mit ihrem Wunsch nach dem kurzen Weg zur Apfelschnitte. Ihr ungeduldiges Schneiden verursacht einen wirklichen Verlust. Schließlich entscheidet sie selbst, die Erinnerungsstücke einzusetzen und Bens Prüfung abzuwarten.",
+              "quote": "Ich lasse sie als Wegzeichen hier. Unser erster Weg bleibt kaputt."
+            },
+            "ensembleContribution": {
+              "score": 6,
+              "reason": "Ben entdeckt den Zusammenhang an der Wurzel und verändert Noras Vorgehen wirksam. Pip verursacht die Verwicklung und hält später das Ende fest, bleibt bei der Lösung aber weitgehend angeleiteter Helfer.",
+              "quote": "Pip hielt nur das Ende fest."
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Noras Ungeduld, Bens knappe Aufmerksamkeit und Pips unsicherer Wortwitz sind unterscheidbar. Besonders Bens Antwort verbindet Handlung und Beziehung. Einige Anweisungen wirken dagegen wie ein erklärendes Bewegungsprotokoll.",
+              "quote": "„Die Schnitte wird kalt!“ „Und deine Schleife wird kleiner.“"
+            },
+            "humorAndWonder": {
+              "score": 6,
+              "reason": "Pips Namenswitz und die körperlich wachsende Kreidespur bieten sanftes Schmunzeln und ein anschauliches Wunder. Der wiederholte Kreisverkehrspruch entwickelt wenig neue Komik; eine überraschende Schlusspointe fehlt.",
+              "quote": "Abkürzen? Ich kürze schon beim Namen!"
+            },
+            "pacing": {
+              "score": 6,
+              "reason": "Bruch, Innehalten und gemeinsamer Versuch bilden eine erkennbare Steigerung. Das wiederholte Prüfen, Zeigen und Positionieren verlangsamt jedoch die kurze Handlung. Die abkühlende Apfelschnitte trägt die behauptete Dringlichkeit nur begrenzt.",
+              "quote": "Er prüfte die Spur ein letztes Mal."
+            },
+            "readAloud": {
+              "score": 7,
+              "reason": "Kurze Dialoge, Geräusche und konkrete Bilder unterstützen das Vorlesen. Die räumliche Beziehung zwischen Kerbe, Kreiderille, Bruchstücken und greifbarem Kreidebogen ist stellenweise schwer vorstellbar.",
+              "quote": "Vor ihnen lag die Kreideschlange wie ein Teller voller weißer Nudeln."
+            },
+            "emotionAndPayoff": {
+              "score": 7,
+              "reason": "Die beschädigte Erinnerung bleibt beschädigt; das gibt Noras Umkehr Gewicht. Schulterkontakt, Teilen und das letzte Lichtbild lösen die Beziehung leise ein. Die Bedeutung der Schleife wird allerdings erst unmittelbar vor ihrem Bruch eingeführt; Titel und Schlussgag fehlen.",
+              "quote": "Sonnenlicht füllte den fehlenden Zahn."
+            }
+          },
+          "requestFit": {
+            "score": 4,
+            "reasons": [
+              "Die Geschichte ist sprachlich überwiegend für Kinder von sechs bis acht Jahren geeignet und enthält ein magisches Abenteuer sowie einen stillen Moment.",
+              "Nora ist eindeutig die Hauptfigur. Die verlangte eigenwillige Figur aus dem Figurenpool übernimmt diese Rolle nicht.",
+              "Nora und Ben handeln wirksam; die vorgesehene Konstellation mit beiden Kindern als Begleitern einer Pool-Hauptfigur wird jedoch verfehlt.",
+              "Pips Angst, nutzlos zu sein, wird knapp sichtbar. Sein Vorratswunsch bleibt beim Nussausruf ohne weitere Handlungskraft.",
+              "Das Wunder ist teilweise verständlich, seine abschließende Auflösung bleibt mechanisch unklar.",
+              "Ein überraschender Schlussgag fehlt. Fest und Prophezeiung kommen auftragsgemäß nicht vor."
+            ]
+          },
+          "formatFit": {
+            "score": 6,
+            "reasons": [
+              "Eine vollständige kurze Geschichte mit Konflikt, Wendung und Abschluss liegt vor.",
+              "Die Gliederung erfolgt in drei Leseseiten statt in die verlangten Kapitel.",
+              "Ein Geschichtentitel fehlt."
+            ]
+          },
+          "strengths": [
+            "Ein Fehler hinterlässt eine bleibende Folge: „Die eingeritzten Buchstaben zerbröselten.“ Dadurch erhält die spätere Entscheidung emotionales Gewicht.",
+            "Beistand wird körperlich gezeigt: „Ben rückte neben Pip, bis ihre Schultern sich berührten.“ Das vermittelt Zugehörigkeit ohne Erklärung.",
+            "Ein konkretes Bild verbindet Verlust und Trost: „Sonnenlicht füllte den fehlenden Zahn.“"
+          ],
+          "weaknesses": [
+            "Die Schlusslösung wechselt vom Entfernen kleiner Hindernisse zum Ziehen an der gesamten Spur, ohne diesen Mechanismus ausreichend vorzubereiten: „Dann zogen beide schweigend zur Kerbe hin.“",
+            "Pips entscheidender Beitrag bleibt fremdgesteuert: „Jetzt deinen Finger in die Kerbe.“ Seine eigene Idee verändert die Lösung nicht.",
+            "Der wiederkehrende Spruch endet lediglich als Verneinung: „Hoppla, kein Kreisverkehr im Wald!“ Eine neue komische Konsequenz entsteht daraus nicht."
+          ],
+          "transferableTechnique": "Einen emotional wichtigen Gegenstand durch den Fehler der Hauptfigur beschädigen und später als praktisches Lösungsmittel einsetzen. Die bleibende Beschädigung verhindert eine folgenlose Rücksetzung.",
+          "verdict": "Eine brauchbare, stellenweise berührende Vorlesegeschichte mit einer handlungsstarken Nora. Für größere Eigenständigkeit fehlen eine klar vorbereitete Wunderauflösung, mehr Entscheidungskraft für Pip und ein überraschender Schluss. Die gewünschte Hauptfigurenkonstellation wird deutlich verfehlt."
+        }
+      }
+    ],
+    "failure": null
+  },
+  {
+    "lane": "storybook",
+    "name": "Bilderbuch",
+    "manifest": {
+      "lane": "storybook",
+      "seed": "talea-all-pipelines-2026-10-26-a",
+      "models": {
+        "writer": "openai/gpt-6.1-sol",
+        "support": "openai/gpt-6-luna",
+        "critic": "openai/gpt-6-luna"
+      },
+      "transport": "codex-chatgpt-plan",
+      "images": 0,
+      "databaseCalls": 0,
+      "inputSHA256": "16ada8ec4eee5d2e2ffc039a7b9a6591af213c3ccbab7bb2200454e15cbdd46d",
+      "sourceRevision": "a6abb9443b0a43729c8d160afbf9dae3f9eb4edf",
+      "caveat": "Same model family for all calls. Format-specific production budgets. One exploratory sample per lane, not a statistical ranking."
+    },
+    "status": "failed",
+    "title": "Der Hut hob ab",
+    "words": 559,
+    "calls": 3,
+    "mean": 7.4,
+    "reviews": [
+      {
+        "model": "gpt-6-luna",
+        "sourceHash": "7a63e62cc98ec7d37df2e2e49aa2429f12d0f48533cc52727e8217aa5aa9dc5d",
+        "score": 7.2,
+        "invalidEvidence": [],
+        "review": {
+          "actualLead": "Kobold Kicher",
+          "scores": {
+            "causalityAndRule": {
+              "score": 8,
+              "reason": "Die Hutregel ist an sichtbare Reaktionen gebunden: Eigenlob bläht ihn auf, Lob für andere lässt ihn schrumpfen. Die Kinder entdecken sie gemeinsam und setzen sie gezielt ein; ein kleiner Sprung zur Regel-Erklärung bleibt.",
+              "quote": "Eigenlob macht ihn groß. Lob für andere macht ihn klein."
+            },
+            "leadingCharacterAgency": {
+              "score": 6,
+              "reason": "Kicher gibt dem Abenteuer mit seinem Zauber und seinem Wunsch, nicht zu verlieren, den Anstoß. Für die Rettung braucht er aber vor allem die Einfälle der Kinder; seine entscheidende eigene Handlung ist das Lob für Nora.",
+              "quote": "Kicher prustete. „Du verbeugst dich wunderbar schlecht!“"
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Nora probiert aus und findet den Anlass zum Loben; Ben beobachtet, erkennt das Muster und trägt seine Idee bei. Beide müssen sich außerdem aufeinander einstellen.",
+              "quote": "„Als er mich gelobt hat, kam er runter.“"
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Kichers großspurige Spielansagen unterscheiden ihn gut von Bens vorsichtiger Beobachtung und Noras Tatendrang. Die Dialoge sind lebendig, an der Regel-Erklärung aber recht bündig.",
+              "quote": "„Ich bin ein hervorragender Springer!“"
+            },
+            "humorAndWonder": {
+              "score": 7,
+              "reason": "Der schwebende Hut, der verlorene Schuh und der Zapfen im Butterbrot sorgen für anschauliche, sanfte Komik. Kichers letztes Eigenlob bringt die Magie als Schlussgag zurück.",
+              "quote": "Er traf seinen eigenen Schuh."
+            },
+            "pacing": {
+              "score": 7,
+              "reason": "Die misslingenden Versuche führen von Schuh über Decke und Pusten zur Beobachtung der Regel. Der stille Moment unter dem Baum gibt der Zuspitzung Luft; die Regel wird danach noch einmal erklärt.",
+              "quote": "Nora setzte sich unter ihn auf die Decke. Ben setzte sich daneben."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Die Bewegungen sind klar, die Sätze gut vorlesbar und die Bilder konkret. Kurze Dialogwechsel geben der Geschichte Rhythmus.",
+              "quote": "Der Hut blähte sich auf wie ein Segel."
+            },
+            "emotionAndPayoff": {
+              "score": 7,
+              "reason": "Kichers Frage, ob die Kinder wieder mit ihm spielen, zeigt seine Angst vor dem Alleinbleiben, und Ben antwortet mit einer Einladung. Der Schlussgag knüpft an die Hutregel an; der stille Moment bleibt knapp.",
+              "quote": "„Spielt ihr trotzdem wieder mit mir?“"
+            }
+          },
+          "requestFit": {
+            "score": 7,
+            "reasons": [
+              "Kicher ist die eigenwillige magische Hauptfigur; Nora und Ben tragen mit eigenen Beiträgen zur Lösung bei.",
+              "Das Wunder ist verständlich und der Text enthält einen stillen Moment sowie einen Schlussgag.",
+              "Kichers Wunsch, das überraschendste Spiel zu erfinden und nie zu verlieren, ist angelegt, aber sein konkreter Wunsch, selbst das Spiel auszuprobieren, bleibt wenig ausgearbeitet."
+            ]
+          },
+          "formatFit": {
+            "score": 8,
+            "reasons": [
+              "Die fünf knappen Leseseiten bilden eine vollständige Geschichte mit Entdeckung, Zuspitzung und Abschluss."
+            ]
+          },
+          "strengths": [
+            "Die Regel lässt sich aus wiederholten sichtbaren Folgen erschließen: „Der Hut schwoll an.“",
+            "Nora und Ben haben unterschiedliche, wirksame Beiträge; besonders klar wird Bens Beobachtung zur Lösung."
+          ],
+          "weaknesses": [
+            "Kicher löst seine Gefahr nicht mit einer eigenen Entscheidung; die Kinder erkennen und erklären den Rettungsweg.",
+            "Die Regel wird nach ihrer Entdeckung noch einmal direkt als Erklärung ausgesprochen."
+          ],
+          "transferableTechnique": "Eine magische Regel durch wiederkehrende, sichtbare Veränderungen zeigen und die Hauptfigur selbst eine unerwartete Folge davon auslösen lassen.",
+          "verdict": "Eine klare, warmherzige Vorlesegeschichte mit gutem Zusammenspiel und einer leicht merkbaren Hutregel. Kicher prägt den Anfang und den Schluss, doch in der entscheidenden Rettung bleibt er eher Anlass als Handlungsträger."
+        }
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "sourceHash": "7a63e62cc98ec7d37df2e2e49aa2429f12d0f48533cc52727e8217aa5aa9dc5d",
+        "score": 7.6,
+        "invalidEvidence": [],
+        "review": {
+          "actualLead": "Kobold Kicher",
+          "scores": {
+            "causalityAndRule": {
+              "score": 7,
+              "reason": "Eigenlob und Fremdlob steuern die Flughöhe anschaulich; Ben entdeckt die Regel aus einer Beobachtung. Allerdings entsteht das Schweben zunächst durch einen unbestimmten Zauber. Auch das Lob einer selbst erfundenen Zusatzregel bleibt ohne klar erkennbare Folge.",
+              "quote": "Eigenlob macht ihn groß. Lob für andere macht ihn klein."
+            },
+            "leadingCharacterAgency": {
+              "score": 7,
+              "reason": "Kicher bildet durch Spielwunsch, Überheblichkeit und Verlustangst das Zentrum. Seine Fehler verursachen die Notlage, seine Anerkennung der anderen ermöglicht die Landung. Entdeckung und Rettungsplan tragen jedoch überwiegend die Kinder; sein Eingeständnis der Niederlage folgt erst danach.",
+              "quote": "Ihr habt gewonnen"
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Ben beobachtet die Wirkung des Lobes und formuliert die Regel. Nora bietet körperliche Hilfe, verspricht zu bleiben und liefert mit ihrer misslungenen Verbeugung den wirksamen Spielanlass. Ihr zunehmendes Zuhören gibt dem Zusammenspiel eine kleine Entwicklung.",
+              "quote": "Diesmal sah sie Ben an und wartete."
+            },
+            "voiceAndDialogue": {
+              "score": 8,
+              "reason": "Kichers großspurige Ausflüchte, Bens knappe Einwürfe und Noras rasche Hilfsimpulse unterscheiden die Stimmen. Seine Frage nach dem Weggehen öffnet unter der Prahlerei eine verletzliche Ebene. Die ausdrückliche Regelerklärung klingt etwas lehrhaft, bleibt aber kindgerecht.",
+              "quote": "Ausgezeichnete Zusatzregel"
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Der einzelne Strumpffuß, das langsame Drehen beim Pusten und der Zapfen im Butterbrot erzeugen konkrete, sanfte Situationskomik. Das körperlich sichtbare Anschwellen macht das Wunder leicht vorstellbar.",
+              "quote": "Der Zapfen plumpste ihr mitten ins Butterbrot."
+            },
+            "pacing": {
+              "score": 8,
+              "reason": "Die kurzen Seiten führen von Entdeckung über misslungene Hilfen zur gemeinsamen Lösung. Jeder Versuch verändert die Lage; das Bleibeversprechen schafft rechtzeitig Ruhe. Der eigentliche Spielwunsch wird zugunsten der Rettung allerdings rasch beiseitegeschoben.",
+              "quote": "Kicher hörte auf zu strampeln."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Kurze Sätze, klare Sprecherwechsel und sichtbare Bewegungen tragen das Vorlesen. Einzelne räumliche Angaben bleiben unpräzise: Wie Kicher über dem Stumpf schwebend bis zur ausgestreckten Hand steigt und Ben den Stumpf freischiebt, muss man ergänzen.",
+              "quote": "Dann aß er vorsichtshalber weiter."
+            },
+            "emotionAndPayoff": {
+              "score": 8,
+              "reason": "Das stille Dabeibleiben beantwortet Kichers Angst durch eine Handlung. Schuh, Butterbrot und Hutregel kehren im Schluss wirksam wieder. Seine schnelle Gegenkorrektur liefert einen passenden Schlussgag, ohne die Eigenwilligkeit vollständig aufzulösen. Ein Titel als zusätzlicher Aufbau fehlt.",
+              "quote": "Spielt ihr trotzdem wieder mit mir?"
+            }
+          },
+          "requestFit": {
+            "score": 9,
+            "reasons": [
+              "Die gewünschte Pool-Figur Kobold Kicher steht im Zentrum; beide Kinder begleiten ihn mit eigenständigen wirksamen Beiträgen.",
+              "Magisches Abenteuer, verständliche Grundregel, sanfter Humor, stiller Moment und überraschender Schlussgag sind vorhanden.",
+              "Es gibt weder Fest noch Prophezeiung.",
+              "Kichers Wunsch, das überraschendste Spiel zu erfinden und selbst nicht zu verlieren, wird aufgebaut, aber nur teilweise als tatsächlich gespielter Wettbewerb eingelöst."
+            ]
+          },
+          "formatFit": {
+            "score": 9,
+            "reasons": [
+              "Fünf knappe Leseseiten ergeben eine vollständige Geschichte mit gut gesetzten Seitenübergängen.",
+              "Die Handlung ist auch ohne Illustrationen weitgehend verständlich.",
+              "Ein eigener Geschichtentitel fehlt."
+            ]
+          },
+          "strengths": [
+            "Charakterfehler werden körperlich sichtbar: „Der Hut wurde breiter.“ Die Magie übersetzt Kichers Prahlerei unmittelbar in ein erzählbares Problem.",
+            "Ein knapper Dialog trägt Gefühl ohne Erklärung: „Wir bleiben“ beantwortet die zuvor ausgesprochene Angst vor dem Verlassenwerden.",
+            "Der Schluss verwendet vorhandene Gegenstände erneut: „Er traf seinen eigenen Schuh.“ So entsteht der Gag aus der Geschichte."
+          ],
+          "weaknesses": [
+            "Die Regel ist an einer Stelle unscharf: „Eine ausgezeichnete Zusatzregel!“ lobt Kichers eigene Erfindung, ohne dass ein erneuter Aufstieg beschrieben wird.",
+            "Die entscheidende Erkenntnis liegt bei Ben: „Als er mich gelobt hat, kam er runter.“ Kichers eigene bewusste Lösungsentscheidung könnte stärker ausfallen.",
+            "Das Wettspiel bleibt unbestimmt: „Ihr habt gewonnen“ benennt eine Niederlage, obwohl zuvor kein klares Gewinnziel vereinbart wurde."
+          ],
+          "transferableTechnique": "Eine Eigenart der Hauptfigur in eine sichtbare magische Wirkung übersetzen, die Begleiter diese Wirkung handelnd entdecken lassen und dieselbe Regel im Schlussgag erneut auslösen.",
+          "verdict": "Eine starke, gut vorlesbare Geschichte mit eigenwilliger Hauptfigur, wirksamen Kindern und sanftem Witz. Für größere Geschlossenheit brauchen Wunderregel und Gewinnbedingung mehr Präzision."
+        }
+      }
+    ],
+    "failure": null
+  },
+  {
+    "lane": "chapterbook",
+    "name": "Kapitelbuch",
+    "manifest": {
+      "lane": "chapterbook",
+      "seed": "talea-all-pipelines-2026-10-26-a",
+      "models": {
+        "writer": "openai/gpt-6.1-sol",
+        "support": "openai/gpt-6-luna",
+        "critic": "openai/gpt-6-luna"
+      },
+      "transport": "codex-chatgpt-plan",
+      "images": 0,
+      "databaseCalls": 0,
+      "inputSHA256": "16ada8ec4eee5d2e2ffc039a7b9a6591af213c3ccbab7bb2200454e15cbdd46d",
+      "sourceRevision": "a6abb9443b0a43729c8d160afbf9dae3f9eb4edf",
+      "caveat": "Same model family for all calls. Format-specific production budgets. One exploratory sample per lane, not a statistical ranking."
+    },
+    "status": "text-produced",
+    "title": "Platsch macht große Wellen",
+    "words": 7621,
+    "calls": 33,
+    "mean": 7.35,
+    "reviews": [
+      {
+        "model": "gpt-6-luna",
+        "sourceHash": "665a550c5240cbf3396675719f9fad31ce9b4e0faf73e7fbec2e95f93daa0e96",
+        "score": 7.5,
+        "invalidEvidence": [],
+        "review": {
+          "actualLead": "Nora",
+          "scores": {
+            "causalityAndRule": {
+              "score": 7,
+              "reason": "Die Wasserregel wird durch die Versuche verständlich: Platsch bewegt vorhandenes Wasser, und ein schiefes Becken rutscht. Die Rettung entsteht aus Abdichten und gezieltem Lenken. Die Hüpferregel wird aber uneinheitlich formuliert: Zunächst heißt es, beim dritten Hüpfer paddelt das Becken los; später rutscht es schon nach einem Hüpfer, sobald es schief steht.",
+              "quote": "Beim dritten Hüpfer paddelt das Becken los."
+            },
+            "leadingCharacterAgency": {
+              "score": 7,
+              "reason": "Nora ist die tatsächliche Hauptfigur. Sie will den Teich retten, findet die Lehmspur, entwickelt die Abdichtung und erkennt nach ihrem voreiligen Versuch ihren Fehler. Ben bestimmt jedoch die entscheidende Kurve und den Rettungsweg. Eine kanonische Figur namens Kicher ist im Manuskript nicht zu finden; Platsch ist die eigenwillige Pool-Figur, bleibt aber Begleiter statt Hauptrolle.",
+              "quote": "„Die Platte liegt falsch“, sagte sie. „Ich bin zu schnell.“"
+            },
+            "ensembleContribution": {
+              "score": 9,
+              "reason": "Ben beobachtet den Wasserverlust, erkennt die Rinne und plant die Kurve. Pip bringt Eicheln für den Weg und hilft beim Transport. Ihre Beiträge wirken auf die Lösung ein, und Nora lässt Ben zunehmend mitbestimmen.",
+              "quote": "„Hier geht es runter. Geradeaus kommt das Wasser vom Teich weg.“"
+            },
+            "voiceAndDialogue": {
+              "score": 8,
+              "reason": "Platschs Amtsgerede, Pips redselige Vorratslogik und Bens knappe Beobachtungen sind unterscheidbar. Noras Stimme bleibt häufiger die der planenden und erklärenden Figur; manche Dialoge benennen den nächsten Arbeitsschritt sehr direkt.",
+              "quote": "„Eine bedeutende Nussrettung.“"
+            },
+            "humorAndWonder": {
+              "score": 7,
+              "reason": "Platschs missglückte Würde, Pips absurde Verstecktipps und das winzige Wasserbecken sorgen für freundlichen Witz und ein klares magisches Bild. Der Humor ist sanft und passt zum Einschlaftext, überrascht aber selten stark.",
+              "quote": "„Der Wegweiser ist offenbar schlecht besetzt“, murmelte Platsch."
+            },
+            "pacing": {
+              "score": 7,
+              "reason": "Die Versuche bringen neue Erkenntnisse: Becken, Lehmprobe, Riss, gescheiterte Abdichtung und schließlich der Umweg. Wiederholtes Prüfen, Planen und Ansagen dehnt die Rettung; die Nuss am Ende ist ein eigener kleiner Nachklang.",
+              "quote": "„Lose Klumpen helfen nicht. Wir brauchen breite Platten und müssen die Ränder festdrücken.“"
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Das Deutsch ist klar, die Bewegungen meist gut nachvollziehbar und die Wasserbilder lassen sich leicht vorlesen. Einzelne erklärende Einschübe bremsen den Rhythmus; die Hüpferregel verlangt beim Vorlesen etwas Nachhalten.",
+              "quote": "Das Becken nahm keine Anweisungen entgegen. Es nahm Platsch mit."
+            },
+            "emotionAndPayoff": {
+              "score": 8,
+              "reason": "Noras Eingeständnis, Bens beachtete Beobachtungen und Platschs Wunsch dazuzugehören erhalten leise, konkrete Momente. Das Schilfblatt und die neue Uferlinie zahlen sich aus; der Schlussgag greift Platschs Namen auf, bleibt aber eher ein sanftes Echo als eine Überraschung.",
+              "quote": "„Du liegst doch schon richtig.“"
+            }
+          },
+          "requestFit": {
+            "score": 6,
+            "reasons": [
+              "Nora trägt die Handlung; Platsch ist die eigenwillige Pool-Figur, aber nicht die Hauptrolle. Kobold Kicher tritt nicht auf.",
+              "Die beiden Kinder leisten wirksame Beiträge; Wunder, stiller Moment und Schlussgag sind vorhanden.",
+              "Das Abenteuer setzt auf sanftes Schmunzeln und enthält weder Fest noch Prophezeiung."
+            ]
+          },
+          "formatFit": {
+            "score": 8,
+            "reasons": [
+              "Der Text ist in acht betitelte Kapitel gegliedert und bietet einen abgeschlossenen Handlungsbogen mit leisem Ausklang.",
+              "Die ausführliche Schrittfolge lässt manche Kapitel eher wie Etappen einer fortlaufenden Rettungsaktion als wie eigenständige Leseabende wirken."
+            ]
+          },
+          "strengths": [
+            "Die Lösung wächst aus beobachtbaren Details und den Fähigkeiten der Figuren: „Unter dem Wurzelstock gluckste es leise.“",
+            "Bens Beobachtungen werden zu Entscheidungen, etwa bei der Kurve und beim Lenken des Beckens.",
+            "Platschs Wunsch, nicht bloß herumzuliegen, erhält eine passende praktische Antwort: „Du bleibst bei uns.“"
+          ],
+          "weaknesses": [
+            "Die Pool-Figur bleibt Begleiter; Kobold Kicher fehlt, sodass die verlangte Hauptrolle nicht erfüllt ist.",
+            "Die Hüpferregel ist nicht durchgehend konsistent: Das Becken rutscht nach einem Hüpfer bei Schräglage, während die Paddelregel den dritten Hüpfer nennt.",
+            "Wiederholte Arbeitsansagen und Erklärungen nehmen der Rettung stellenweise Tempo."
+          ],
+          "transferableTechnique": "Eine Wunderregel durch sichtbare, wiederholte Versuche vermitteln und kleine Gegenstände wie Blatt, Zweig und Lehmprobe als Belege für die Lösung nutzen.",
+          "verdict": "Ein warmes, klar gebautes Abenteuer mit wirksamen Beiträgen der Kinder und einer nachvollziehbaren Rettung. Als Vorlesetext funktioniert es, verfehlt aber die gewünschte Hauptrolle: Platsch ist ein sympathischer Begleiter, während Nora die Geschichte trägt."
+        }
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "sourceHash": "665a550c5240cbf3396675719f9fad31ce9b4e0faf73e7fbec2e95f93daa0e96",
+        "score": 7.2,
+        "invalidEvidence": [],
+        "review": {
+          "actualLead": "Nora",
+          "scores": {
+            "causalityAndRule": {
+              "score": 6,
+              "reason": "Wassertransport statt Wassererzeugung und das Abdichten werden anschaulich erprobt. Die zusätzliche Rutschregel erschwert jedoch das Wunder. Die Paddel erscheinen vor dem dritten Hüpfer bereits vorhanden; im Schlusskapitel bleibt unklar, wie Platschs Bauchkontakt im engen Ast zustande kommt.",
+              "quote": "Bei einem schief gehaltenen Becken“, sagte er sehr förmlich, „genügt unter Umständen bereits ein Hüpfer."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Nora trägt die Handlung mit ihrem konkreten Wunsch, den vertrauten Teich zu erhalten. Sie entwickelt Versuche, verursacht durch Ungeduld die Krise und entscheidet anschließend, Ben die Führung zu überlassen. Ihre Entwicklung wird gelegentlich zu ausdrücklich erklärt.",
+              "quote": "Die Platte liegt falsch“, sagte sie. „Ich bin zu schnell."
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Ben entdeckt die Grenze der Magie, plant die Kurve und führt die Rückfahrt. Nora erprobt und verarbeitet den Lehm. Pip liefert wirksame Transportmittel, Platsch Wassertransport und Plattenpressen. Die Erwachsene löst das Problem nicht.",
+              "quote": "Die Eicheln müssen vorher bereitliegen“, sagte er. „Bis an die Kurve."
+            },
+            "voiceAndDialogue": {
+              "score": 8,
+              "reason": "Platschs Amtswürde, Pips verräterische Geheimniskrämerei und Bens trockene Beobachtungen ergeben unterscheidbare Stimmen. Noras häufiges „Zuerst“ passt zu ihrem Kontrollbedürfnis, wird aber mechanisch. Pips erste Selbstvorstellung klingt auffällig wie eine vorgefertigte Rollenbeschreibung.",
+              "quote": "Eine beeindruckend luftige Lagerung."
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Sanfte Situationskomik entsteht aus geheimen Vorräten mit genauer Wegbeschreibung, dem besetzten Plattdrückbauch und einer rückwärts fahrenden Rettungsleitung. Die Wasserbecken sind einprägsam. Manche Amtspointen wiederholen denselben Witz.",
+              "quote": "Der Ast ist innen länger als außen."
+            },
+            "pacing": {
+              "score": 6,
+              "reason": "Die Versuche bringen überwiegend neue Erkenntnisse und bereiten die Krise vor. Viele Materialtransporte, Plattenkontrollen und Richtungsabsprachen verlangsamen jedoch das Abenteuer. Nach der Teichrettung wird die kleine Nussrettung zu einer ausführlichen zweiten technischen Lösung.",
+              "quote": "Nora fuhr noch einmal über die Verbindungen. Keine Ecke stand hoch."
+            },
+            "readAloud": {
+              "score": 6,
+              "reason": "Überwiegend natürliches Deutsch und gut sprechbare Dialoge. In den entscheidenden Bewegungsabläufen häufen sich räumlich schwierige Beschreibungen. Ein Anschlussfehler lässt Platsch einer kaum sichtbaren Sprecherin nachsehen und plötzlich Wasser in die Nase bekommen, ohne dessen Herkunft zu erzählen.",
+              "quote": "Platsch sah ihr nach. Das war ein Fehler. Das Wasser fiel ihm genau in die Nase."
+            },
+            "emotionAndPayoff": {
+              "score": 8,
+              "reason": "Das gemeinsame Bild verbindet Verlustangst, Zusammenarbeit und die Annahme des veränderten Ufers. Platschs Bleiberecht erhält einen stillen, berührenden Moment. Die vorbereitete Lieblingsnuss wird eingelöst; der letzte kleine Platsch verbindet Figurennamen und Geräusch. Einige Entwicklungsschritte werden zusätzlich ausformuliert.",
+              "quote": "Die neue Linie sah weniger ordentlich aus als die alte. Dafür stimmte sie."
+            }
+          },
+          "requestFit": {
+            "score": 6,
+            "reasons": [
+              "Das tatsächliche Handlungszentrum ist Nora. Die gewünschte eigenwillige Pool-Figur begleitet und ermöglicht die Rettung, führt das Abenteuer aber nicht.",
+              "Platsch ist eine neu eingeführte Figur außerhalb des vorgegebenen Figurenpools. Pip wird erkennbar mit Vorratswunsch und eigenem Beitrag verwendet.",
+              "Beide Kinder handeln wirksam und unterschiedlich; kein Erwachsener übernimmt die Lösung.",
+              "Magisches Abenteuer, sanftes Schmunzeln, stille Momente und ein vorbereiteter Schlussgag sind vorhanden.",
+              "Kein Fest und keine Prophezeiung. Die Verständlichkeit des Wunders leidet an Zusatzregel und räumlichen Unklarheiten."
+            ]
+          },
+          "formatFit": {
+            "score": 9,
+            "reasons": [
+              "Acht betitelte Kapitel bilden eine vollständige, abgeschlossene Handlung mit Entdeckung, Krise, Rettung und Nachklang.",
+              "Die Kapitel bieten geeignete Unterbrechungen für mehrere Vorleseabende.",
+              "Der erste Kapitelname übernimmt zugleich die Funktion eines Gesamttitels; die Gliederung bleibt dennoch erkennbar."
+            ]
+          },
+          "strengths": [
+            "Eine sichtbare Veränderung macht die Magie überprüfbar: „Alles ist mitgekommen“, sagte Ben. „Aber nichts dazu.“",
+            "Figurenkomik entsteht aus widersprüchlichem Handeln: Pip erklärt ihr Versteck für geheim und verrät anschließend seine genaue Lage.",
+            "Zugehörigkeit wird durch eine kleine Handlung vermittelt: „Er rückte sie auch für Platsch zurecht.“",
+            "Das Zeichnungsmotiv trägt die emotionale Entwicklung bis zur akzeptierten neuen Uferlinie."
+          ],
+          "weaknesses": [
+            "Die Wunderregel wird nachträglich komplizierter: „genügt unter Umständen bereits ein Hüpfer.“ Das schwächt die zunächst klare Dreierregel.",
+            "Die räumliche Inszenierung verliert stellenweise ihre Nachvollziehbarkeit: „Das Wasser fiel ihm genau in die Nase.“ Eine vorbereitende Wasserbewegung fehlt.",
+            "Innere Entwicklung wird wiederholt erläutert: „Niemand redete schneller über seine Linie hinweg.“ Die zugehörigen Handlungen vermitteln dies bereits.",
+            "Die gewünschte Pool-Hauptrolle bleibt unerfüllt: Die entscheidende Fehlerkorrektur und Führungsübergabe gehören Nora, während Platsch vor allem ihre Lösung ermöglicht."
+          ],
+          "transferableTechnique": "Ein gemeinsames Bild als Handlungsmotiv verwenden: Es dokumentiert die Ausgangslage, hilft bei der Lösungsplanung und zeigt am Schluss durch eine veränderte Linie die innere Entwicklung.",
+          "verdict": "Ein warmes, stellenweise sehr komisches Kapitelbuch mit starker Nora und wirksamen Begleitern. Für eine überzeugende Endfassung müssen Wunderregel und Bewegungsabläufe klarer, die Arbeitsphasen knapper und die beauftragte Pool-Hauptrolle tatsächlich zentral werden."
+        }
+      }
+    ],
+    "failure": null
+  },
+  {
+    "lane": "workshop",
+    "name": "Buchwerkstatt",
+    "manifest": {
+      "lane": "workshop",
+      "seed": "talea-all-pipelines-2026-10-26-a",
+      "models": {
+        "writer": "openai/gpt-6.1-sol",
+        "support": "openai/gpt-6-luna",
+        "critic": "openai/gpt-6-luna"
+      },
+      "transport": "codex-chatgpt-plan",
+      "images": 0,
+      "databaseCalls": 0,
+      "inputSHA256": "16ada8ec4eee5d2e2ffc039a7b9a6591af213c3ccbab7bb2200454e15cbdd46d",
+      "sourceRevision": "a6abb9443b0a43729c8d160afbf9dae3f9eb4edf",
+      "caveat": "Same model family for all calls. Format-specific production budgets. One exploratory sample per lane, not a statistical ranking."
+    },
+    "status": "accepted",
+    "title": "Pip und die durstige Waldkarte",
+    "words": 489,
+    "calls": 3,
+    "mean": 6.7,
+    "reviews": [
+      {
+        "model": "gpt-6-luna",
+        "sourceHash": "a2f1b174c58d14983377b7dfdbd35584373a408d2a9378c07e19f6410a78ca38",
+        "score": 6.2,
+        "invalidEvidence": [],
+        "review": {
+          "actualLead": "Pip",
+          "scores": {
+            "causalityAndRule": {
+              "score": 6,
+              "reason": "Der Wegestein erklärt die Wasserregel, und das gemeinsame Zeigen öffnet den Zulauf. Die blaue Feder wird aber erst gefunden, nachdem Pip und Nora schon an ihr vorbeigehen; wie sie dort lag, bleibt unklar.",
+              "quote": "Zeigen alle Suchenden gemeinsam darauf, öffnet sich der Zulauf."
+            },
+            "leadingCharacterAgency": {
+              "score": 6,
+              "reason": "Pip treibt den Aufbruch an, nimmt den falschen Weg und entscheidet sich später fürs gemeinsame Suchen und Warten. Die entscheidende Orientierung kommt jedoch von Ben und Nora; Pips eigener Wunsch nach einer Vorratskammer bleibt außen vor.",
+              "quote": "„Ich brauche das Waldbecken. Und ich führe euch hin!“"
+            },
+            "ensembleContribution": {
+              "score": 6,
+              "reason": "Ben setzt mit seinem Einwand einen wichtigen Moment und findet die Feder; Nora liest die Regel und zeichnet den Plan. Ihre Beiträge sind wirksam, doch die Lösung wird vor allem von den Hinweisen des Steins vorgegeben.",
+              "quote": "„Ich möchte auch etwas entscheiden.“"
+            },
+            "voiceAndDialogue": {
+              "score": 6,
+              "reason": "Pips hastige Sprüche und Bens trockene Reaktion unterscheiden sich, doch mehrere Dialoge erklären den nächsten Schritt und die Figuren bleiben knapp gezeichnet.",
+              "quote": "„Den wollte ich überprüfen.“"
+            },
+            "humorAndWonder": {
+              "score": 6,
+              "reason": "Das Blatt als Waldkarte und Pips Bett-Schluss erzeugen ein sanftes Schmunzeln. Das Wunder bleibt klein und anschaulich, bietet aber wenig Überraschung über den Wasserzulauf hinaus.",
+              "quote": "„Die Karte sagt, wir sind im Bett.“"
+            },
+            "pacing": {
+              "score": 7,
+              "reason": "Irrweg, Fund der Feder, Zulauf und Rückweg folgen übersichtlich aufeinander. Der falsche Abzweig ist kurz, aber die Entdeckung der Feder wirkt dadurch etwas zufällig.",
+              "quote": "Nach sieben Schritten standen beide vor einem dichten Brombeerbusch."
+            },
+            "readAloud": {
+              "score": 7,
+              "reason": "Die kurzen Seiten und konkreten Bewegungen eignen sich gut zum Vorlesen. Einzelne Bezüge wie „es“ für Pip sind leicht uneindeutig, und die Lichtung wirkt trotz des Wasserbedarfs nicht bedrohlich dringend.",
+              "quote": "Pip stellte den leeren Nusskorb auf die Waldlichtung und streckte seine Eichhörnchenzunge heraus."
+            },
+            "emotionAndPayoff": {
+              "score": 6,
+              "reason": "Pips vorsichtiges Warten und das stille Plätschern geben der Geschichte einen ruhigen Moment. Der Schlussgag mit dem Bett ist vorbereitet, aber ein emotionaler Ertrag aus Pips Angst, nicht mitspielen zu dürfen, fehlt.",
+              "quote": "Eine Weile hörten sie nur das Plätschern und irgendwo hoch oben einen Vogel."
+            }
+          },
+          "requestFit": {
+            "score": 3,
+            "reasons": [
+              "Pip ist ein eigenwilliger Begleiter, doch die verlangte Pool-Figur Kobold Kicher fehlt vollständig.",
+              "Pips Vorratskammer-Wunsch und seine Angst, fortgeschickt zu werden, spielen keine Rolle; die Geschichte handelt stattdessen vom Durst und einer Waldkarte.",
+              "Es gibt ein verständliches Wunder, einen stillen Moment und einen Schlussgag, aber das Abenteuer ist wenig überraschend."
+            ]
+          },
+          "formatFit": {
+            "score": 7,
+            "reasons": [
+              "Sechs knappe Leseseiten ergeben eine vollständige kleine Geschichte.",
+              "Der Text ist übersichtlich gegliedert, doch ohne Illustrationen bleibt Pips Bezug als „es“ gelegentlich unklar."
+            ]
+          },
+          "strengths": [
+            "Der stille Wasser-Moment erhält Raum und führt Pips Verzicht aufs Drängeln in eine kleine Veränderung: „Pip hockte am Rand. Diesmal drängelte es nicht.“",
+            "Der Schluss verbindet Blattkarte und Bett-Motiv in einer kurzen Pointe: „Die Karte sagt, wir sind im Bett.“"
+          ],
+          "weaknesses": [
+            "Die gewünschte Hauptfigur Kobold Kicher fehlt; Pips eigene Wünsche und Ängste aus dem Figurenprofil tragen die Handlung nicht.",
+            "Die Kinder lösen die Orientierung weitgehend: Nora kennt den Wegplan, Ben entdeckt die Feder und schlägt das gemeinsame Zeigen vor."
+          ],
+          "transferableTechnique": "Eine wiederkehrende Requisite kann eine ruhige Szene und den Schlussgag verbinden: Das Blatt wird erst zur Karte und dann zur Bettdecke.",
+          "verdict": "Eine klare, sanfte Vorlesegeschichte mit einem brauchbaren Schlussbild und gut gesetztem Ruhepunkt. Als eigenständiger Text ist sie ordentlich, verfehlt aber die zentrale Figurenaufgabe: Der verlangte Kobold fehlt, und Pip verfolgt nicht seinen Profilwunsch."
+        }
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "sourceHash": "a2f1b174c58d14983377b7dfdbd35584373a408d2a9378c07e19f6410a78ca38",
+        "score": 7.2,
+        "invalidEvidence": [],
+        "review": {
+          "actualLead": "Pip",
+          "scores": {
+            "causalityAndRule": {
+              "score": 7,
+              "reason": "Die Wunderregel wird früh verständlich genannt und später ohne Ausnahme erfüllt. Pips vorschneller Abzweig verursacht den Umweg. Allerdings liegt die benötigte Feder bequem am Weg; die Regel verlangt kaum eine schwierige Entscheidung.",
+              "quote": "Zeigen alle Suchenden gemeinsam darauf, öffnet sich der Zulauf."
+            },
+            "leadingCharacterAgency": {
+              "score": 7,
+              "reason": "Pip eröffnet die Suche mit einem eigenen Bedürfnis, beansprucht die Führung und verursacht einen konkreten Fehler. Sein bewusstes Warten und Mitmachen verändert sein Verhalten. Entdeckung und Lösung tragen jedoch überwiegend die Kinder; Pips Wahl bleibt wenig zugespitzt.",
+              "quote": "Pip holte Luft, bereit zum nächsten Sprung. Es ließ die Luft langsam wieder heraus."
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Nora entziffert die Regel und merkt sich den Weg. Ben entdeckt die Feder, fordert Raum für seine Beobachtung und schlägt die gemeinsame Handlung vor. Beide Kinder tragen eigenständig zum Erfolg bei, ohne erwachsene Anleitung.",
+              "quote": "Ben schob einen Farnwedel beiseite."
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Pips vorwitzige Ausflüchte, Noras sachliche Orientierung und Bens trockene Bemerkungen ergeben unterscheidbare Stimmen. Bens ausdrücklich formulierter Entscheidungswunsch wirkt etwas pädagogisch, erhält durch Noras Rückkehr aber eine glaubwürdige Antwort.",
+              "quote": "„Den wollte ich überprüfen.“"
+            },
+            "humorAndWonder": {
+              "score": 7,
+              "reason": "Zungenwitz, Brombeer-Ausrede und Blattkarte bieten konkreten, sanften Humor. Das glucksende Wasser macht die Magie sinnlich erfahrbar. Das Wunder selbst bleibt funktional und entwickelt wenig überraschendes Eigenleben.",
+              "quote": "„Sehr buschig.“"
+            },
+            "pacing": {
+              "score": 7,
+              "reason": "Aufbruch, Fehlweg, Entdeckung und gemeinsamer Erfolg folgen übersichtlich aufeinander. Der stille Moment bekommt Platz. Nach der frühen Lösung nimmt der Rückweg relativ viel Raum ein; eine eigentliche Zuspitzung fehlt.",
+              "quote": "Diesmal drängelte es nicht."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Kurze Dialoge, klare Bewegungsfolgen und wechselnde Satzlängen lassen sich gut vorlesen. Geräusche und kleine Körperhandlungen geben Halt. Einzelne Bilder wie die pelzige Fingerspitze sind leicht ungenau, stören die Verständlichkeit aber kaum.",
+              "quote": "Eine Weile hörten sie nur das Plätschern und irgendwo hoch oben einen Vogel."
+            },
+            "emotionAndPayoff": {
+              "score": 7,
+              "reason": "Pips Rücksicht wird durch Warten und Platzmachen gezeigt, nicht durch eine Moralrede. Blattkarte und leerer Korb finden im Bettwitz zusammen. Die emotionale Veränderung bleibt klein; ein Titel als weiteres vorbereitetes Element fehlt.",
+              "quote": "„Die Karte sagt, wir sind im Bett.“"
+            }
+          },
+          "requestFit": {
+            "score": 7,
+            "reasons": [
+              "Pip stammt aus dem vorgegebenen Figurenpool und wird tatsächlich als Hauptfigur aufgebaut; die gewünschte Pool-Hauptrolle fehlt daher nicht.",
+              "Beide Kinder wirken eigenständig mit. Verständliche Magie, stiller Moment und sanfter Schlussgag sind vorhanden; Fest und Prophezeiung kommen nicht vor.",
+              "Pips vorgegebenes Vorratskammer-Ziel und seine Angst, für nutzlos gehalten zu werden, prägen die Geschichte kaum. Stattdessen treibt ihn vor allem Durst an.",
+              "Für ein magisches Abenteuer bleibt die Suche sehr leicht: Ein kurzer Fehlweg bildet nahezu das gesamte Hindernis."
+            ]
+          },
+          "formatFit": {
+            "score": 9,
+            "reasons": [
+              "Sechs knappe Leseseiten ergeben eine vollständige, auch ohne Illustrationen verständliche Geschichte.",
+              "Die Seiten gliedern erkennbare Handlungsschritte und bieten gut vorlesbare Textportionen.",
+              "Ein eigener Geschichtentitel fehlt."
+            ]
+          },
+          "strengths": [
+            "Kleine Handlungen tragen die Entwicklung: „Ihr zuerst“ zeigt Pips gewachsene Rücksicht ohne erklärenden Lehrsatz.",
+            "Ein beiläufiger Gegenstand wird mehrfach umgedeutet: „Das ist meine Waldkarte“ bereitet den abschließenden Bettwitz vor.",
+            "Bens Beitrag wird durch eine konkrete Reaktion anerkannt: „Dann kam sie zurück.“ So erhält die Zusammenarbeit erzählerische Wirkung."
+          ],
+          "weaknesses": [
+            "Die Lösung wird nahezu vollständig vorgegeben: „Wie auf dem Stein steht.“ Die Figuren müssen die Regel befolgen, aber wenig herausfinden.",
+            "Pips anfänglicher Anspruch „Und ich führe euch hin!“ führt zwar zum Fehlweg, doch seine entscheidende Wahl kostet ihn kaum etwas.",
+            "Mit „Es hatte keinen Durst mehr“ ist das äußere Ziel bereits schlicht erfüllt; eine stärkere Verbindung zu Pips persönlichem Figurenwunsch fehlt."
+          ],
+          "transferableTechnique": "Einen einfachen Gegenstand früh beiläufig einführen, im Spiel umdeuten und am Schluss körperlich einsetzen: Blatt, Karte und Bett ergeben hier einen verständlichen, vorbereiteten Überraschungswitz.",
+          "verdict": "Eine gut vorlesbare, sanft komische Geschichte mit wirksamen Kinderfiguren und gelungenem Schlussbild. Für größere Eigenständigkeit braucht Pip einen persönlicheren Wunsch und eine schwierigere, folgenreiche Wahl."
+        }
+      }
+    ],
+    "failure": null
+  },
+  {
+    "lane": "developer",
+    "name": "Developer",
+    "manifest": {
+      "lane": "developer",
+      "seed": "talea-all-pipelines-2026-10-26-a",
+      "transport": "codex-chatgpt-plan",
+      "writer": "gpt-6.1-sol",
+      "support": "gpt-6-luna",
+      "images": 0,
+      "databaseCalls": 0,
+      "fixtureInfrastructure": "Empty memories, artifacts and history. Supplied canonical pool. Debug skips images; persistence disabled. Production prompts and text checks unchanged."
+    },
+    "status": "quality_gate_failed",
+    "title": "Der geheime Kegelwart im Wald",
+    "words": 698,
+    "calls": 12,
+    "mean": 7.3,
+    "reviews": [
+      {
+        "model": "gpt-6-luna",
+        "sourceHash": "a03a9e51514194e4043b9627bfc9430d73913fc296f326503ef692ecb5e90e01",
+        "score": 7.5,
+        "invalidEvidence": [],
+        "review": {
+          "actualLead": "Ben",
+          "scores": {
+            "causalityAndRule": {
+              "score": 8,
+              "reason": "Pips Puster lässt Zapfen rollen; erst seine ungezielten Stöße, dann Noras und Bens genaue Anweisungen führen zu gezielten Treffern. Die Bruchstücke werden nachvollziehbar zur Rinne. Der Übergang vom Pusten zum gezielten Lenken bleibt als Wunderregel eher angedeutet.",
+              "quote": "Zweimal genau gesagt, zweimal getroffen."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Ben trägt die Geschichte mit seinem Wunsch, endlich zu werfen. Er zeigt die Kurve, setzt sich gegen Noras Plan durch und gibt seinen Stock her, um die Bahn zu bauen. Sein Wunsch nach dem Spiel kommt am Schluss wieder auf.",
+              "quote": "Heute bleiben sie hier. Drück sie fest."
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Nora erkennt, dass ihre Unterbrechung Ben ausgebremst hat, und ändert den Aufbau. Pip bringt mit seinen unkontrollierten und später gezielten Pustern sowohl den Konflikt als auch die Lösung in Gang. Bens Beitrag bleibt dabei zentral.",
+              "quote": "Wir nehmen deine Kurve."
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Noras kurze Anweisungen, Pips übermütiger Auftritt und Bens knappe Fragen unterscheiden die Figuren. Ihre Reaktionen wirken meist lebendig, auch wenn manche Sätze den Ablauf etwas deutlich erklären.",
+              "quote": "Auch leichter treffen?"
+            },
+            "humorAndWonder": {
+              "score": 6,
+              "reason": "Pip sorgt mit seinem geheimen Kegelwart-Auftritt und dem kopfüber steckenden Zapfen für sanfte Komik. Das magische Pusten bleibt jedoch vor allem ein Handlungsmittel; ein überraschender Schlussgag fehlt.",
+              "quote": "Nüsse! Äh, ich meine … natürlich helfe ich!"
+            },
+            "pacing": {
+              "score": 7,
+              "reason": "Die Versuche entwickeln sich von unkontrolliertem Pusten über zwei gezielte Treffer bis zur Rinne und dem Kegelstoß. Der Stockbruch setzt einen klaren Wendepunkt. Die Schlussbewegung ist knapp und endet ohne ausgeprägten Nachklang.",
+              "quote": "Knack! Darunter brach Bens Stock entzwei."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Die Bewegungen und Gegenstände sind gut zu verfolgen; kurze Geräusche und klare Sätze tragen den Vorlesefluss. Einzelne Erklärungen wie „Zweimal genau gesagt, zweimal getroffen“ klingen eher nach Regelhinweis als nach natürlichem Gespräch.",
+              "quote": "Tock, tock, tock!"
+            },
+            "emotionAndPayoff": {
+              "score": 7,
+              "reason": "Der Verlust des vertrauten Stocks bekommt durch Bens Berührung des blanken Griffs Gewicht. Seine Entscheidung, die Stücke in die Bahn einzubauen, macht den stillen Moment und die Lösung zu einem gemeinsamen Neubeginn. Der geforderte überraschende Schlussgag wird nicht eingelöst.",
+              "quote": "Das nehme ich sonst immer mit."
+            }
+          },
+          "requestFit": {
+            "score": 4,
+            "reasons": [
+              "Die Geschichte baut Ben als Hauptfigur auf; der geforderte eigenwillige Kobold Kicher als Pool-Figur fehlt vollständig.",
+              "Die Kinder sind wirksame Begleiter: Nora erkennt den Fehler im Aufbau und Pip lenkt die Zapfen gezielt.",
+              "Es gibt ein verständliches magisches Element und einen stillen Moment, aber das Abenteuer ist ein Waldspiel und kein überraschendes Spiel der Pool-Figur.",
+              "Ein überraschender Schlussgag fehlt; die Geschichte endet mit dem nächsten Wurf."
+            ]
+          },
+          "formatFit": {
+            "score": 5,
+            "reasons": [
+              "Der Text ist eine vollständige kurze Vorlesegeschichte mit Anfang, Konflikt, Wendepunkt und Lösung.",
+              "Die drei markierten Leseseiten sind keine ausgeprägten Kapitel.",
+              "Das Manuskript ist in sich geschlossen, aber der Schluss setzt das Spiel fort, statt einen abschließenden Gag zu liefern."
+            ]
+          },
+          "strengths": [
+            "Der Stockbruch knüpft an Bens vertrauten Startstock an und verändert die Bahn, statt bloß ein Hindernis zu sein: „Mit dem kürzeren konnte er kaum noch zeichnen; seine Finger scharrten durch die Erde.“",
+            "Noras Korrektur zeigt sich in einer konkreten Handlung: „Dann setzte sie ihren Kegel an den Bogen.“"
+          ],
+          "weaknesses": [
+            "Die zentrale Wunschfigur Kobold Kicher und das Pool-Setting fehlen; Ben übernimmt die Hauptrolle.",
+            "Die Puste-Regel wird nicht ganz ausgearbeitet: Es bleibt offen, warum die richtige Anweisung den Zapfen durch die Holzrinne lenken kann.",
+            "Der Schlussgag fehlt; das Ende kündigt lediglich den nächsten Wurf an."
+          ],
+          "transferableTechnique": "Ein vertrauter Gegenstand kann durch einen Verlust zur konkreten Lösung des Konflikts werden, wenn die Hauptfigur selbst entscheidet, ihn dafür einzusetzen.",
+          "verdict": "Ein sorgfältig gebautes, gut vorlesbares Waldspiel mit einem überzeugenden Wendepunkt um Bens zerbrochenen Stock. Als eigenständige Kurzgeschichte funktioniert es ordentlich; die geforderte Pool-Hauptfigur und der überraschende Schlussgag fehlen."
+        }
+      },
+      {
+        "model": "gpt-6.1-sol",
+        "sourceHash": "a03a9e51514194e4043b9627bfc9430d73913fc296f326503ef692ecb5e90e01",
+        "score": 7.1,
+        "invalidEvidence": [],
+        "review": {
+          "actualLead": "Ben",
+          "scores": {
+            "causalityAndRule": {
+              "score": 7,
+              "reason": "Unpräzise Hilfe verursacht das Durcheinander; genaue Einzelaufträge funktionieren. Zwei Proben bereiten die Lösung verständlich vor. Warum zusätzlich die Holzrinne nötig ist und wie ein Zapfen sämtliche Kegel erreicht, bleibt räumlich etwas unklar.",
+              "quote": "Zweimal genau gesagt, zweimal getroffen."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Ben trägt den entscheidenden Handlungsbogen: Er möchte seine gebogene Bahn verwirklichen, verschafft seiner Beobachtung Gehör und entscheidet selbst, seinen Erinnerungsstock dafür einzusetzen. Ein eigener folgenreicher Fehler ist weniger ausgeprägt.",
+              "quote": "Heute bleiben sie hier. Drück sie fest. Auch wenn mein Griff dabei in der Erde verschwindet."
+            },
+            "ensembleContribution": {
+              "score": 7,
+              "reason": "Beide Kinder wirken eigenständig: Ben entdeckt die Kurve und opfert seinen Stock; Nora erprobt genaue Anweisungen, verändert ihre Planung und befestigt die Rinne. Pip verursacht Probleme und liefert die entscheidende Pustekraft, bleibt charakterlich jedoch schmal.",
+              "quote": "Nora presste die Stücke tief in den weichen Boden."
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Noras bestimmende Ungeduld, Bens beharrliche Fragen und Pips überschwänglicher Hilfseifer unterscheiden sich hörbar. Einige Dialoge dienen allerdings auffällig der Versuchsauswertung.",
+              "quote": "Nüsse! Äh, ich meine … natürlich helfe ich!"
+            },
+            "humorAndWonder": {
+              "score": 5,
+              "reason": "Kopfüber steckende Zapfen und Pips übereifrige Aufräumhilfe ermöglichen sanftes Schmunzeln. Das Wunder bleibt überwiegend ein Werkzeug zur Bahnplanung; eine überraschende komische Wendung am Schluss fehlt.",
+              "quote": "Einer steckte kopfüber im Moos."
+            },
+            "pacing": {
+              "score": 7,
+              "reason": "Aufbau, Fehlversuche, Stockbruch und gemeinsame Lösung bilden eine klare Steigerung. Die Einzelaufträge ähneln sich zunächst stark; der Verlust erhält anschließend erfreulich viel Ruhe. Der Schluss beendet die Handlung ohne zusätzliche Pointe.",
+              "quote": "Er drehte das längere Stück ein letztes Mal in seiner Hand."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Kurze Sätze, konkrete Handlungen und sparsame Geräusche tragen beim Vorlesen. Einzelne räumliche Angaben sowie der Wechsel zwischen Zapfen und Kegeln verlangen zusätzliche Aufmerksamkeit.",
+              "quote": "Tock, tock, tock! Ein Kegel stieß den nächsten an."
+            },
+            "emotionAndPayoff": {
+              "score": 7,
+              "reason": "Die blank geriebene Griffstelle bereitet Bens Bindung an den Stock überzeugend vor. Sein Loslassen und Noras verändertes Zuhören werden durch Handlungen eingelöst. Die Lösung repariert den Verlust nicht bequem; ein Schlussgag und ein Titel-Setup fehlen.",
+              "quote": "Sein Daumen rieb über die helle Stelle, bis Nora ihre Hand vom nächsten Kegel nahm."
+            }
+          },
+          "requestFit": {
+            "score": 5,
+            "reasons": [
+              "Die gewünschte Hauptrolle einer Figur aus dem vorgegebenen Figurenpool fehlt: Ben trägt den emotionalen und entscheidenden Handlungsbogen.",
+              "Pip ist wirksam beteiligt; sein Vorratswunsch und seine Angst, als klein und nutzlos zu gelten, werden kaum entwickelt.",
+              "Beide Kinder leisten konkrete Beiträge, ein verständliches Pustewunder und ein stiller Moment sind vorhanden.",
+              "Das Geschehen bleibt eher eine magische Spielplatzepisode als ein ausgeprägtes Abenteuer.",
+              "Der überraschende Schlussgag fehlt. Fest und Prophezeiung kommen auftragsgemäß nicht vor."
+            ]
+          },
+          "formatFit": {
+            "score": 6,
+            "reasons": [
+              "Eine vollständige kurze Vorlesegeschichte mit abgeschlossenem Handlungsbogen liegt vor.",
+              "Die drei Abschnitte heißen lediglich „Leseseite“ und sind eher Seitenportionen als ausgestaltete Kapitel.",
+              "Ein Geschichtentitel fehlt."
+            ]
+          },
+          "strengths": [
+            "Ein wiederkehrendes körperliches Detail schafft emotionale Bindung: „Am Griff hatte sein Daumen eine helle Stelle blank gerieben.“",
+            "Beziehungsentwicklung geschieht konkret: „Ich habe dich unterbrochen. Zeig sie mir bis zum Ende.“",
+            "Die Lösung verlangt eine persönliche Entscheidung statt einer folgenlosen magischen Reparatur: „Heute bleiben sie hier.“"
+          ],
+          "weaknesses": [
+            "Die gewünschte Pool-Hauptfigur bleibt Begleiter; Ben erhält mit „Das nehme ich sonst immer mit.“ den zentralen Verlustkonflikt.",
+            "Die Regel wird stellenweise wie ein Lernversuch ausgewertet: „Zweimal genau gesagt, zweimal getroffen.“",
+            "Der letzte Satz setzt lediglich das Spiel fort: „Pip hüpfte darüber, und zwischen den beiden Holzstücken rollte der nächste Zapfen.“"
+          ],
+          "transferableTechnique": "Einen geliebten Gegenstand früh durch eine Gebrauchsspur aufladen und dieselbe Spur bei der entscheidenden Wahl wieder zeigen. So wird Loslassen sichtbar, ohne das Gefühl auszuformulieren.",
+          "verdict": "Eine sorgfältige, leise Spielgeschichte mit starkem Gegenstandsmotiv und überzeugender Kinderkooperation. Literarisch gut, aber beim Wunder etwas funktional und beim Humor zurückhaltend; Pool-Hauptrolle, Kapitelgestaltung und Schlussüberraschung erfüllen den Auftrag nur teilweise."
+        }
+      }
+    ],
+    "failure": null
+  },
+  {
+    "lane": "unified",
+    "name": "Gemeinsamer Kandidat",
+    "manifest": {
+      "lane": "unified",
+      "seed": "talea-all-pipelines-2026-10-26-a",
+      "models": {
+        "writer": "openai/gpt-6.1-sol",
+        "support": "openai/gpt-6-luna",
+        "critic": "openai/gpt-6-luna"
+      },
+      "transport": "codex-chatgpt-plan",
+      "images": 0,
+      "databaseCalls": 0,
+      "inputSHA256": "16ada8ec4eee5d2e2ffc039a7b9a6591af213c3ccbab7bb2200454e15cbdd46d",
+      "sourceRevision": "a6abb9443b0a43729c8d160afbf9dae3f9eb4edf",
+      "caveat": "Same model family for all calls. Format-specific production budgets. One exploratory sample per lane, not a statistical ranking."
+    },
+    "status": "no-story",
+    "calls": 3,
+    "mean": null,
+    "reviews": null,
+    "failure": {
+      "error": "Error: Codex unified-episode-oneshot-repair failed (1): exceeded retry limit, last status: 429 Too Many Requests",
+      "calls": 3,
+      "stages": [
+        {
+          "stage": "episode-oneshot",
+          "modelUsed": "gpt-6.1-sol",
+          "modelRole": "selected-story",
+          "durationMs": 124270,
+          "usage": {
+            "prompt": 29899,
+            "completion": 2320,
+            "total": 32219,
+            "cachedPromptTokens": 29696,
+            "costUSD": 0
+          }
+        },
+        {
+          "stage": "unified-cold-read",
+          "modelUsed": "gpt-6-luna",
+          "modelRole": "support",
+          "durationMs": 7160,
+          "usage": {
+            "prompt": 21816,
+            "completion": 373,
+            "total": 22189,
+            "cachedPromptTokens": 8320,
+            "costUSD": 0
+          }
+        }
+      ]
+    }
+  }
+]
