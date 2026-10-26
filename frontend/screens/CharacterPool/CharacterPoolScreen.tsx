@@ -445,7 +445,7 @@ const CharacterPoolScreen: React.FC = () => {
       }
 
       const confirmReplace = window.confirm(
-        `Vorhandene Charaktere werden durch ${charactersPayload.length} importierte Eintraege ersetzt. Fortfahren?`
+        `${charactersPayload.length} Charaktere werden importiert oder aktualisiert. Nicht enthaltene Charaktere werden deaktiviert; ihre Geschichten bleiben erhalten. Fortfahren?`
       );
       if (!confirmReplace) {
         return;

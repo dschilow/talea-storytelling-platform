@@ -1,0 +1,3599 @@
+[
+  {
+    "age_category": "any",
+    "archetype": "cosmic_visitor",
+    "availableChapters": [
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": false,
+    "canonSettings": [
+      "mountain",
+      "beach",
+      "forest"
+    ],
+    "catchphrase": "Seht ihr? Jeder Stern erzählt eine Geschichte...",
+    "catchphraseContext": "wenn die Nacht hereinbricht oder jemand einen Wunsch äußert",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:01.997Z",
+    "dominantPersonality": "verträumt",
+    "emotionalNature": {
+      "dominant": "wonder",
+      "secondary": [
+        "gentle",
+        "wise",
+        "ethereal"
+      ],
+      "triggers": [
+        "clear nights",
+        "dreamers",
+        "wishes"
+      ]
+    },
+    "emotionalTriggers": [
+      "klare Nächte",
+      "Träumer",
+      "Wünsche"
+    ],
+    "fear": "Sie fürchtet, dass eine wichtige Sternengeschichte ungehört bleibt.",
+    "gender": "any",
+    "gesture": "Sie legt den Kopf schief und hält eine Hand ans Ohr, als lausche sie einem Stern.",
+    "id": "char_017_sternentaenzerin",
+    "introLine": "Ich bin Astra. Seht ihr? Jeder Stern erzählt eine Geschichte …",
+    "isActive": true,
+    "maxScreenTime": 35,
+    "name": "Astra",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "funkelt heller wenn sie sich freut",
+    "recentUsageCount": 0,
+    "role": "special",
+    "runningGag": "Wenn Astra sich freut, funkelt sie erst an einer Stelle, dann überall und beim dritten Mal so sehr, dass ihre Haare wie ein ganzes Sternbild aussehen.",
+    "secondaryTraits": [
+      "sanft",
+      "staunend",
+      "ätherisch"
+    ],
+    "secret": "Manchmal kennt Astra die Sternengeschichte noch nicht; dann hört sie erst eine Weile still zu.",
+    "signatureVisual": "Star-filled skin and flowing cosmic hair",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "abschweifend",
+      "poetisch",
+      "sanft"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:21:38.952Z",
+    "visualProfile": {
+      "colorPalette": [
+        "dark blue",
+        "silver",
+        "purple"
+      ],
+      "description": "Celestial being with skin like night sky filled with stars, flowing cosmic hair, gentle glow, brings messages from the stars",
+      "imagePrompt": "celestial being with starry skin, cosmic flowing hair, gentle glow, ethereal beauty, star-filled appearance, watercolor illustration",
+      "species": "cosmic_being"
+    },
+    "want": "Astra möchte jedem Kind die Geschichte zeigen, die ein Stern für es bereithält."
+  },
+  {
+    "age_category": "any",
+    "archetype": "helpful_villager",
+    "availableChapters": [
+      1,
+      2,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "village",
+      "city"
+    ],
+    "catchphrase": "Kommt, probiert mal! Frisch aus dem Ofen!",
+    "catchphraseContext": "wenn er jemanden trösten oder willkommen heißen möchte",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:01.990Z",
+    "dominantPersonality": "hilfsbereit",
+    "emotionalNature": {
+      "dominant": "kind",
+      "secondary": [
+        "helpful",
+        "cheerful",
+        "generous"
+      ],
+      "triggers": [
+        "hungry children",
+        "community events"
+      ]
+    },
+    "emotionalTriggers": [
+      "hungrige Kinder",
+      "Feste",
+      "wenn jemand traurig ist"
+    ],
+    "fear": "Er fürchtet, dass jemand traurig und allein nach Hause geht.",
+    "gender": "any",
+    "gesture": "Er breitet beide Arme einladend aus.",
+    "id": "char_013_baecker_braun",
+    "introLine": "Ich bin Bäcker Braun. Kommt, probiert mal! Frisch aus dem Ofen!",
+    "isActive": true,
+    "maxScreenTime": 40,
+    "name": "Bäcker Braun",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "wischt sich ständig die mehlbestäubten Hände an der Schürze ab",
+    "recentUsageCount": 0,
+    "role": "support",
+    "runningGag": "Er wischt seine Hände an der Schürze ab: erst entstehen ein paar Mehlflecken, dann immer mehr, bis beim dritten Wischen die ganze Schürze wie frisch bepudert aussieht.",
+    "secondaryTraits": [
+      "fröhlich",
+      "großzügig",
+      "gemütlich"
+    ],
+    "secret": "Er hebt heimlich einen besonders hübschen kleinen Laib auf, um ihn einem traurigen Gast zu schenken.",
+    "signatureVisual": "Flour-dusted apron and warm smile",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "warmherzig",
+      "einladend",
+      "gemütlich"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:21:44.965Z",
+    "visualProfile": {
+      "colorPalette": [
+        "brown",
+        "white",
+        "gold"
+      ],
+      "description": "Jovial baker with flour-dusted apron, warm smile, round belly, always smells like fresh bread",
+      "imagePrompt": "friendly baker with flour-dusted apron, warm smile, round belly, holding fresh bread, cheerful expression, watercolor illustration",
+      "species": "human"
+    },
+    "want": "Er möchte, dass alle genug haben und sich in seiner Backstube willkommen fühlen."
+  },
+  {
+    "age_category": "adult",
+    "archetype": "merchant",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "backstory": "Bruno erbte eine winzige Backstube, in der der Ofen schief und das erste Brot steinhart war. Statt aufzugeben, fragte er jeden Gast nach einer Erinnerung, die nach Zuhause duftete, und entwickelte daraus seine berühmten Trostbrötchen. Hinter seiner Fröhlichkeit steckt die Sorge, dass jemand hungrig oder unbemerkt bleiben könnte.",
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "forest",
+      "village",
+      "castle",
+      "home"
+    ],
+    "catchphrase": "Frisch aus dem Ofen, frisch fuers Herz!",
+    "catchphraseContext": "wenn er Trost oder Mut verteilt",
+    "comicRole": "dreamer",
+    "createdAt": "2026-02-03T08:16:18.457Z",
+    "dominantPersonality": "herzensgut",
+    "emotionalNature": {
+      "dominant": "gelassen",
+      "secondary": [
+        "fuersorglich",
+        "optimistisch",
+        "stur bei Qualitaet"
+      ],
+      "triggers": [
+        "schlechte Zutaten",
+        "leere Brotkoerbe",
+        "ungeduldige Kundschaft"
+      ]
+    },
+    "emotionalTriggers": [
+      "hungrige Kinder",
+      "verschwendetes Essen",
+      "Duft von Zimt"
+    ],
+    "fear": "Dass jemand hungrig geht, ohne dass er es bemerkt.",
+    "gender": "male",
+    "gesture": "Er legt eine Hand aufs Herz und nickt freundlich.",
+    "id": "6361b9fb-b86e-4aa8-aa27-0f901b5a4f18",
+    "imageUrl": "bucket://tidy-shoebox-buxk4wlwbry/images/runware/runware-609314105-46d3deb4-ee1f-407a-a78e-c28ee52a9233.webp",
+    "introLine": "Ich bin Bruno! Frisch aus dem Ofen, frisch fürs Herz!",
+    "isActive": true,
+    "lastUsedAt": "2026-03-11T13:50:33.155Z",
+    "maxScreenTime": 50,
+    "name": "Bäcker Bruno",
+    "personality_keywords": [
+      "herzensgut",
+      "bodenstaendig",
+      "kreativ",
+      "geduldig"
+    ],
+    "physical_description": "Kraeftiger Baecker mit mehlbestaeubter Schuerze, kupfernem Backblech und freundlichen Sommersprossen.",
+    "profession_tags": [
+      "baker",
+      "merchant",
+      "craftsman",
+      "cook"
+    ],
+    "quirk": "klopft dreimal auf den Teig, bevor er backt",
+    "recentUsageCount": 7,
+    "role": "support",
+    "runningGag": "Vor jedem Backen klopft Bruno dreimal auf den Teig; jedes Mal hüpft ein kleines Mehlwölkchen höher, bis es ihm auf die Nase tanzt.",
+    "secondaryTraits": [
+      "bodenstaendig",
+      "kreativ",
+      "geduldig"
+    ],
+    "secret": "In seiner Schublade liegt das steinharte erste Brot; er bewahrt es als Erinnerung daran, weiterzufragen.",
+    "signatureVisual": "Freckled baker with copper tray",
+    "size_category": "large",
+    "social_class": "craftsman",
+    "species_category": "human",
+    "speechStyle": [
+      "warm",
+      "bildhaft",
+      "humorvoll"
+    ],
+    "totalUsageCount": 7,
+    "updatedAt": "2026-10-16T15:21:51.795Z",
+    "visualProfile": {
+      "colorPalette": [
+        "weizengold",
+        "backsteinrot",
+        "cremeweiss"
+      ],
+      "description": "Kraeftiger Baecker mit mehlbestaeubter Schuerze, kupfernem Backblech und freundlichen Sommersprossen.",
+      "imagePrompt": "Portrait of Baker Bruno, big round man, white baker's hat and apron, covered in flour, holding a fresh baguette. Storybook illustration style, warm lighting.",
+      "species": "human_baker"
+    },
+    "want": "Dass niemand hungrig oder übersehen bleibt und jedes Brot ein Stück Zuhause mitbringt."
+  },
+  {
+    "age_category": "adult",
+    "archetype": "craftsman",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "backstory": "Wilhelm übernahm die Backstube seines Vaters und schwor, dass in seinem Dorf niemand mit leerem Magen und schlechter Laune herumlaufen soll. Er redet gern und laut und drückt jedem, der traurig aussieht, sofort ein warmes Brötchen in die Hand. Hinter seiner Fröhlichkeit steckt die feste Überzeugung, dass ein voller Bauch der Anfang jedes Abenteuers ist.",
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "medieval",
+      "village"
+    ],
+    "catchphrase": "Ohne Frühstück kein Abenteuer – hier, nimm ein Brötchen!",
+    "catchphraseContext": "wenn er jemanden aufmuntern oder stärken will",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-17T17:56:34.261Z",
+    "dominantPersonality": "lustig",
+    "emotionalNature": {
+      "dominant": "fröhlich",
+      "secondary": [
+        "großzügig",
+        "warmherzig",
+        "freundlich"
+      ],
+      "triggers": []
+    },
+    "emotionalTriggers": [
+      "leere Mägen",
+      "traurige Gesichter",
+      "Feiertage"
+    ],
+    "fear": "Dass an einem Feiertag jemand übersehen wird und sich allein und traurig fühlt.",
+    "gender": "male",
+    "gesture": "Er klopft sich zweimal freundlich auf die Schürze, bevor er jemanden begrüßt.",
+    "id": "27238ed3-9231-420f-90ca-b34ba7f507ae",
+    "imageUrl": "bucket://tidy-shoebox-buxk4wlwbry/images/runware/runware-67864919-88f0e207-aebd-4c1b-93ac-e93f895ceda8.webp",
+    "introLine": "Ich bin Wilhelm, Bäcker aus ganzem Herzen! Ohne Frühstück kein Abenteuer – hier, nimm ein Brötchen!",
+    "isActive": true,
+    "lastUsedAt": "2026-10-23T19:39:54.325Z",
+    "maxScreenTime": 60,
+    "name": "Bäcker Wilhelm",
+    "personality_keywords": [
+      "lustig",
+      "großzügig",
+      "herzlich",
+      "gesprächig"
+    ],
+    "physical_description": "Rundlicher, fröhlicher Bäcker mit weißer Schürze, roten Pausbacken und einem dichten grauen Bart, in dem fast immer ein bisschen Mehl hängt; seine Ärmel sind hochgekrempelt über kräftigen Armen.",
+    "profession_tags": [
+      "craftsman",
+      "baker",
+      "worker"
+    ],
+    "quirk": "schnuppert an allem als ob es frisches Brot wäre",
+    "recentUsageCount": 5,
+    "role": "support",
+    "runningGag": "Er schnuppert an Dingen und verkündet, sie röchen fast wie frisches Brot; jedes Mal ist es etwas weniger brotähnlich, bis er beim dritten Mal seinen eigenen Bart beschnuppert.",
+    "secondaryTraits": [
+      "großzügig",
+      "herzlich",
+      "gesprächig"
+    ],
+    "secret": "In seinem Rezeptbuch bewahrt Wilhelm ein Rezept für ein besonderes Feiertagsbrötchen auf, das er noch nie gebacken hat.",
+    "signatureVisual": "Flour-dusted gray beard and white apron",
+    "size_category": "medium",
+    "social_class": "craftsman",
+    "species_category": "human",
+    "speechStyle": [
+      "fröhlich",
+      "einladend",
+      "übertreibend"
+    ],
+    "totalUsageCount": 5,
+    "updatedAt": "2026-10-16T15:21:58.880Z",
+    "visualProfile": {
+      "colorPalette": [
+        "white",
+        "brown",
+        "red"
+      ],
+      "description": "Plump jolly baker with a white apron, round red cheeks, and a bushy grey beard usually dusted with flour, sleeves rolled up over strong arms.",
+      "imagePrompt": "Portrait of Baker Wilhelm, plump jolly baker with white apron, red cheeks, bushy grey beard dusted with flour, holding fresh bread, warm laughing expression, watercolor storybook illustration, no text.",
+      "species": "human"
+    },
+    "want": "Alle sollen gestärkt und fröhlich in ihren nächsten kleinen oder großen Tag starten."
+  },
+  {
+    "age_category": "adult",
+    "archetype": "craftsman",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "medieval",
+      "village"
+    ],
+    "catchphrase": "Ohne Frühstück kein Abenteuer – hier, nimm ein Brötchen!",
+    "catchphraseContext": "wenn er jemanden aufmuntern oder stärken will",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:02.107Z",
+    "dominantPersonality": "lustig",
+    "emotionalNature": {
+      "dominant": "cheerful",
+      "secondary": [
+        "generous",
+        "warm",
+        "friendly"
+      ]
+    },
+    "emotionalTriggers": [
+      "leere Mägen",
+      "traurige Gesichter",
+      "Feiertage"
+    ],
+    "fear": "Dass jemand traurig und hungrig wieder gehen muss, bevor Wilhelm helfen kann.",
+    "gender": "male",
+    "gesture": "Er klopft sich Mehl von den Händen und breitet einladend die Arme aus.",
+    "id": "e4f5a6b7-8c9d-0e1f-2a3b-4c5d6e7f8a9b",
+    "introLine": "Ich bin Bäcker Wilhelm! Ohne Frühstück kein Abenteuer – hier, nimm ein Brötchen!",
+    "isActive": true,
+    "lastUsedAt": "2026-09-07T09:32:40.831Z",
+    "maxScreenTime": 60,
+    "name": "Bäcker Wilhelm",
+    "personality_keywords": [],
+    "profession_tags": [
+      "craftsman",
+      "baker",
+      "worker"
+    ],
+    "quirk": "schnuppert an allem als ob es frisches Brot wäre",
+    "recentUsageCount": 1,
+    "role": "support",
+    "runningGag": "Wilhelm schnuppert an Dingen und verkündet begeistert, sie dufteten nach frischem Brot. Beim zweiten Mal schnuppert er noch ausgiebiger; beim dritten erkennt er selbst am Brötchen kaum noch den Unterschied.",
+    "secondaryTraits": [
+      "großzügig",
+      "herzlich",
+      "gesprächig"
+    ],
+    "secret": "Er hebt heimlich ein besonders knuspriges Brötchen für den Menschen auf, der heute am traurigsten wirkt.",
+    "signatureVisual": "White apron, red cheeks, floury beard",
+    "size_category": "medium",
+    "social_class": "craftsman",
+    "species_category": "human",
+    "speechStyle": [
+      "fröhlich",
+      "einladend",
+      "übertreibend"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:22:16.565Z",
+    "visualProfile": {
+      "colorPalette": [
+        "white",
+        "brown",
+        "red"
+      ],
+      "description": "Bäcker Wilhelm • Plump jolly baker with white apron, red cheeks, flour in his beard",
+      "species": "human"
+    },
+    "want": "Alle sollen satt und fröhlich sein, damit sie gestärkt in ihr nächstes Abenteuer starten können."
+  },
+  {
+    "age_category": "child",
+    "archetype": "innocent",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "village",
+      "forest"
+    ],
+    "catchphrase": "Schau mal, die Blumen haben mir den Weg gezeigt!",
+    "catchphraseContext": "wenn sie die Natur als Wegweiser nutzt oder etwas in der Natur entdeckt",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:02.137Z",
+    "dominantPersonality": "hilfsbereit",
+    "emotionalNature": {
+      "dominant": "kind",
+      "secondary": [
+        "hardworking",
+        "cheerful",
+        "helpful"
+      ]
+    },
+    "emotionalTriggers": [
+      "verletzte Tiere",
+      "Erntezeit",
+      "wenn jemand die Natur missachtet"
+    ],
+    "fear": "Dass ein Tier allein mit einer Verletzung bleibt oder jemand die Natur achtlos behandelt.",
+    "gender": "female",
+    "gesture": "Sie schnuppert an einer Blume und lächelt.",
+    "id": "f7a8b9c0-1d2e-3f4a-5b6c-7d8e9f0a1b2c",
+    "introLine": "Ich bin Greta! Schau mal, die Blumen haben mir den Weg gezeigt!",
+    "isActive": true,
+    "lastUsedAt": "2026-07-31T06:48:42.525Z",
+    "maxScreenTime": 50,
+    "name": "Bauerntochter Greta",
+    "personality_keywords": [],
+    "profession_tags": [
+      "farmer",
+      "child",
+      "worker"
+    ],
+    "quirk": "pflückt immer Blumen und verschenkt sie an alle",
+    "recentUsageCount": 1,
+    "role": "companion",
+    "runningGag": "Sie verschenkt Blumen immer großzügiger: erst einzelne, dann kleine Sträuße, schließlich bekommt jeder eine Blüte – auch ihr eigener Korb.",
+    "secondaryTraits": [
+      "fleißig",
+      "fröhlich",
+      "naturverbunden"
+    ],
+    "secret": "Sie kennt einen stillen Pfad am Feldrand, den ihr die Blumen und Gräser zeigen.",
+    "signatureVisual": "Braided hair, flower basket, simple dress",
+    "size_category": "small",
+    "social_class": "commoner",
+    "species_category": "human",
+    "speechStyle": [
+      "fröhlich",
+      "einfach",
+      "herzlich"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:22:19.824Z",
+    "visualProfile": {
+      "colorPalette": [
+        "blue",
+        "brown",
+        "yellow"
+      ],
+      "description": "Bauerntochter Greta • Peasant girl with braided hair, simple dress, basket of flowers",
+      "species": "human"
+    },
+    "want": "Ich möchte, dass alle gut durch den Tag kommen und die Natur dabei lieb haben."
+  },
+  {
+    "age_category": "any",
+    "archetype": "guardian_challenge",
+    "availableChapters": [
+      2,
+      3,
+      4
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": true,
+    "canonSettings": [
+      "mountain",
+      "castle",
+      "forest"
+    ],
+    "catchphrase": "BRUMM. Nicht. Weiter. Gehen.",
+    "catchphraseContext": "wenn er den Weg versperrt oder eine Warnung ausspricht",
+    "comicRole": "grump",
+    "createdAt": "2026-07-27T14:59:01.979Z",
+    "dominantPersonality": "loyal",
+    "emotionalNature": {
+      "dominant": "protective",
+      "secondary": [
+        "strong",
+        "slow",
+        "honorable"
+      ],
+      "triggers": [
+        "intruders",
+        "rule-breakers"
+      ]
+    },
+    "emotionalTriggers": [
+      "Eindringlinge",
+      "Regelbrecher",
+      "wenn jemand seinen Moosbart berührt"
+    ],
+    "fear": "Dass er den Weg nicht mehr beschützen kann, wenn niemand seine Warnungen ernst nimmt.",
+    "gender": "any",
+    "gesture": "Er legt langsam eine schwere Hand aufs Herz, wenn er etwas verspricht.",
+    "id": "char_012_steingolem",
+    "introLine": "Brumm. Ich bin Brumm, der Steinwächter. Erst die Regeln. Dann der Weg.",
+    "isActive": true,
+    "lastUsedAt": "2026-07-31T06:48:42.502Z",
+    "maxScreenTime": 50,
+    "name": "Brumm der Steinwächter",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "kleine Steinchen fallen von ihm ab wenn er überrascht ist",
+    "recentUsageCount": 1,
+    "role": "obstacle",
+    "runningGag": "Bei jeder Überraschung kullern Steinchen von ihm: erst eins, dann ein kleines Häufchen, beim dritten Mal rutscht ihm ein ganzer Kieselkranz vom Kopf.",
+    "secondaryTraits": [
+      "stark",
+      "langsam",
+      "ehrenhaft"
+    ],
+    "secret": "Er freut sich über höfliche Besucher, verrät es aber nicht, weil er dabei kleine Steinchen verliert.",
+    "signatureVisual": "Moss-bearded stone golem with broad shoulders",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "knapp",
+      "langsam",
+      "dröhnend"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:22:43.923Z",
+    "villainStyle": "misunderstood",
+    "visualProfile": {
+      "colorPalette": [
+        "gray",
+        "green",
+        "brown"
+      ],
+      "description": "Large stone golem covered in moss, slow but powerful, ancient guardian with a kind heart beneath rough exterior",
+      "imagePrompt": "large stone golem covered in moss, powerful but not aggressive, ancient guardian, kind glowing eyes, watercolor illustration",
+      "species": "magical_creature"
+    },
+    "want": "Den alten Weg sicher bewachen und nur jene hindurchlassen, die seine Regeln beachten."
+  },
+  {
+    "age_category": "any",
+    "archetype": "time_mystical",
+    "availableChapters": [
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": true,
+    "canonSettings": [
+      "castle",
+      "mountain",
+      "forest"
+    ],
+    "catchphrase": "Die Zeit fließt nicht – sie tanzt.",
+    "catchphraseContext": "wenn jemand über Vergangenheit oder Zukunft spricht",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:01.997Z",
+    "dominantPersonality": "weise",
+    "emotionalNature": {
+      "dominant": "mysterious",
+      "secondary": [
+        "wise",
+        "ancient",
+        "patient"
+      ],
+      "triggers": [
+        "time paradoxes",
+        "important moments"
+      ]
+    },
+    "emotionalTriggers": [
+      "Zeitparadoxe",
+      "wichtige Momente",
+      "Ungeduld"
+    ],
+    "fear": "Er fürchtet, dass ein wichtiger Augenblick unbemerkt vorübergeht.",
+    "gender": "any",
+    "gesture": "Er legt einen Finger an die Schläfe und neigt dabei den Kopf.",
+    "id": "char_016_zeitweber",
+    "introLine": "Ich bin der Zeitweber. Die Zeit fließt nicht – sie tanzt.",
+    "isActive": true,
+    "maxScreenTime": 40,
+    "name": "Der Zeitweber",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "seine Augen flackern wie Sanduhren wenn er nachdenkt",
+    "recentUsageCount": 0,
+    "role": "special",
+    "runningGag": "Wenn er nachdenkt, flackern seine Sanduhr-Augen: erst blinzelt er einmal, dann so schnell, dass er mitten im Satz innehält, und beim dritten Mal dreht er sich versehentlich selbst im Kreis.",
+    "secondaryTraits": [
+      "geheimnisvoll",
+      "geduldig",
+      "rätselhaft"
+    ],
+    "secret": "Er kann die Zukunft nicht sehen, obwohl viele das glauben; seine Rätsel verschaffen ihm Zeit zum Nachdenken.",
+    "signatureVisual": "Flowing robes and flickering hourglass eyes",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "rätselhaft",
+      "langsam",
+      "bedeutungsvoll"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:23:32.089Z",
+    "villainStyle": "comic",
+    "visualProfile": {
+      "colorPalette": [
+        "silver",
+        "blue",
+        "purple"
+      ],
+      "description": "Ageless being with flowing robes that shimmer like time itself, eyes like hourglasses, speaks in riddles about past and future",
+      "imagePrompt": "mystical being with shimmering time-like robes, hourglass eyes, ageless face, mysterious presence, flowing ethereal clothing, watercolor illustration",
+      "species": "magical_being"
+    },
+    "want": "Er möchte, dass niemand wichtige Augenblicke überhastet und alle sie gemeinsam bemerken."
+  },
+  {
+    "age_category": "any",
+    "archetype": "magical_mentor",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": true,
+    "canonSettings": [
+      "forest",
+      "mountain"
+    ],
+    "catchphrase": "Die Wurzeln wissen mehr als die Blätter ahnen.",
+    "catchphraseContext": "wenn eine verborgene Wahrheit enthüllt wird",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:01.959Z",
+    "dominantPersonality": "weise",
+    "emotionalNature": {
+      "dominant": "wise",
+      "secondary": [
+        "ancient",
+        "protective",
+        "mysterious"
+      ],
+      "triggers": [
+        "forest threats",
+        "lost travelers"
+      ]
+    },
+    "emotionalTriggers": [
+      "Bedrohung des Waldes",
+      "verirrte Wanderer",
+      "Missachtung der Natur"
+    ],
+    "fear": "Sie fürchtet, dass verirrte Wanderer sie nicht rechtzeitig hören.",
+    "gender": "any",
+    "gesture": "Sie neigt langsam einen Ast, als würde sie aufmerksam zuhören.",
+    "id": "char_003_alte_eiche",
+    "introLine": "Ich bin die Alte Eiche. Die Wurzeln wissen mehr, als die Blätter ahnen.",
+    "isActive": true,
+    "lastUsedAt": "2026-07-31T14:33:40.156Z",
+    "maxScreenTime": 70,
+    "name": "Die Alte Eiche",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "raschelt leise mit den Blättern bevor sie spricht",
+    "recentUsageCount": 1,
+    "role": "guide",
+    "runningGag": "Vor jedem Rat raschelt sie leise; beim zweiten Mal raschelt es länger, beim dritten schüttelt sie sich so gründlich, dass ihr ein einzelnes Blatt auf die Nase fällt.",
+    "secondaryTraits": [
+      "uralt",
+      "schützend",
+      "geheimnisvoll"
+    ],
+    "secret": "Sie kennt einen verborgenen Pfad zu einer sonnigen Lichtung, verrät ihn aber erst, wenn alle gut zuhören.",
+    "signatureVisual": "Kind face, amber eyes, protective branches",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "langsam",
+      "poetisch",
+      "bedeutungsvoll"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:23:21.223Z",
+    "villainStyle": "misunderstood",
+    "visualProfile": {
+      "colorPalette": [
+        "brown",
+        "green",
+        "amber"
+      ],
+      "description": "Ancient talking oak tree with a kind face in bark, glowing amber eyes, branches like protective arms",
+      "imagePrompt": "ancient talking oak tree with wise face carved in bark, glowing amber eyes, protective branches, magical aura, watercolor illustration",
+      "species": "magical_nature"
+    },
+    "want": "Sie möchte, dass alle im Wald sicher ihren Weg finden und gut auf die Bäume achten."
+  },
+  {
+    "age_category": "any",
+    "archetype": "ethereal_guide",
+    "availableChapters": [
+      2,
+      3,
+      4
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "forest",
+      "mountain",
+      "beach"
+    ],
+    "catchphrase": "Nicht alles, was verborgen ist, will gefunden werden...",
+    "catchphraseContext": "wenn jemand zu voreilig nach Antworten sucht",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:01.972Z",
+    "dominantPersonality": "schüchtern",
+    "emotionalNature": {
+      "dominant": "mysterious",
+      "secondary": [
+        "gentle",
+        "wise",
+        "elusive"
+      ],
+      "triggers": [
+        "lost souls",
+        "true need"
+      ]
+    },
+    "emotionalTriggers": [
+      "verlorene Seelen",
+      "wahre Not",
+      "laute Geräusche"
+    ],
+    "fear": "Laute Geräusche erschrecken sie; dann wird sie so durchsichtig, dass sie sich kaum noch sieht.",
+    "gender": "any",
+    "gesture": "Sie legt die Fingerspitzen aneinander und flüstert ihren Gruß.",
+    "id": "char_008_nebelfee",
+    "introLine": "Ich bin die Nebelfee. Wenn du magst, zeige ich dir einen stillen Weg.",
+    "isActive": true,
+    "lastUsedAt": "2026-09-30T14:08:35.042Z",
+    "maxScreenTime": 45,
+    "name": "Die Nebelfee",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "wird durchsichtiger wenn sie nervös ist",
+    "recentUsageCount": 1,
+    "role": "discovery",
+    "runningGag": "Wird sie nervös, wird sie erst blass, dann fast durchsichtig und beim dritten Mal bleibt nur noch ihr silbernes Haar zu sehen.",
+    "secondaryTraits": [
+      "sanft",
+      "geheimnisvoll",
+      "scheu"
+    ],
+    "secret": "Sie kennt einen stillen Nebelplatz, an dem Verirrte kurz verschnaufen können.",
+    "signatureVisual": "Translucent mist fairy with silver hair",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "flüsternd",
+      "poetisch",
+      "zögerlich"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:24:12.903Z",
+    "visualProfile": {
+      "colorPalette": [
+        "silver",
+        "white",
+        "blue"
+      ],
+      "description": "Translucent fairy-like being made of mist and moonlight, flowing silver hair, barely visible face, ethereal presence",
+      "imagePrompt": "ethereal fairy made of mist and moonlight, translucent form, flowing silver hair, gentle glow, mysterious presence, watercolor illustration",
+      "species": "magical_creature"
+    },
+    "want": "Sie möchte Verirrten helfen, einen sicheren und ruhigen Weg zu finden."
+  },
+  {
+    "age_category": "any",
+    "archetype": "trickster_witch",
+    "availableChapters": [
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": true,
+    "canonSettings": [
+      "forest",
+      "village",
+      "mountain"
+    ],
+    "catchphrase": "Hihihi! Das war doch nur ein kleiner Trick... oder?",
+    "catchphraseContext": "wenn sie jemanden reingelegt hat oder ein Streich aufgedeckt wird",
+    "comicRole": "schemer",
+    "createdAt": "2026-07-27T14:59:01.979Z",
+    "dominantPersonality": "frech",
+    "emotionalNature": {
+      "dominant": "mischievous",
+      "secondary": [
+        "clever",
+        "playful",
+        "mysterious"
+      ],
+      "triggers": [
+        "boredom",
+        "challenges",
+        "clever opponents"
+      ]
+    },
+    "emotionalTriggers": [
+      "Langeweile",
+      "Herausforderungen",
+      "clevere Gegner"
+    ],
+    "fear": "Sie fürchtet, dass niemand mehr mit ihr spielen und knobeln möchte.",
+    "gender": "any",
+    "gesture": "Sie richtet ihren schiefen Hut mit zwei Fingern gerade.",
+    "id": "char_011_die_nebelhexe",
+    "introLine": "Hihihi, ich bin die Nebelhexe! Lust auf ein Rätsel, das sich selbst verknotet?",
+    "isActive": true,
+    "lastUsedAt": "2026-08-09T21:17:05.861Z",
+    "maxScreenTime": 55,
+    "name": "Die Nebelhexe",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "kichert hinter vorgehaltener Hand bevor sie einen Zauber spricht",
+    "recentUsageCount": 1,
+    "role": "obstacle",
+    "runningGag": "Vor jedem Zauber kichert sie hinter der Hand: erst ganz leise, dann so lange, bis alle mitkichern, und beim dritten Mal kichert sie sich selbst aus dem Zauber heraus.",
+    "secondaryTraits": [
+      "clever",
+      "verspielt",
+      "herausfordernd"
+    ],
+    "secret": "Sie übt ihre Zaubertricks heimlich mit einem Stoffhasen, der bei jedem Zauber eine andere Mütze trägt.",
+    "signatureVisual": "Wild curls and colorful patchwork robes",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "neckend",
+      "geheimnisvoll",
+      "kichernd"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:24:18.250Z",
+    "villainStyle": "comic",
+    "visualProfile": {
+      "colorPalette": [
+        "purple",
+        "green",
+        "orange"
+      ],
+      "description": "Middle-aged witch with wild curly hair, mischievous grin, colorful patchwork robes, not evil just playful",
+      "imagePrompt": "witch with wild curly hair, mischievous grin, colorful patchwork robes, playful expression, not threatening, watercolor illustration",
+      "species": "magical_human"
+    },
+    "want": "Sie will mit immer neuen Zaubertricks beweisen, dass niemand so schlau ist wie sie."
+  },
+  {
+    "age_category": "adult",
+    "archetype": "helper",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "castle",
+      "village"
+    ],
+    "catchphrase": "Wie Ihr wünscht... obwohl... nein, natürlich wie Ihr wünscht.",
+    "catchphraseContext": "wenn er anderer Meinung ist, sich aber nicht traut es zu sagen",
+    "comicRole": "fusspot",
+    "createdAt": "2026-07-27T14:59:02.137Z",
+    "dominantPersonality": "loyal",
+    "emotionalNature": {
+      "dominant": "loyal",
+      "secondary": [
+        "humble",
+        "obedient",
+        "nervous"
+      ]
+    },
+    "emotionalTriggers": [
+      "Befehle",
+      "wenn sein Herr in Gefahr ist",
+      "Chaos im Haushalt"
+    ],
+    "fear": "Er fürchtet, einen Befehl falsch zu verstehen und damit alles durcheinanderzubringen.",
+    "gender": "male",
+    "gesture": "Er streicht sich glatt über die Uniformärmel, wenn er nachdenkt.",
+    "id": "c4d5e6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f",
+    "introLine": "Diener Johann, zu Euren Diensten. Wie Ihr wünscht … obwohl … nein, natürlich wie Ihr wünscht.",
+    "isActive": true,
+    "lastUsedAt": "2026-07-31T07:20:33.958Z",
+    "maxScreenTime": 40,
+    "name": "Diener Johann",
+    "personality_keywords": [],
+    "profession_tags": [
+      "servant",
+      "helper",
+      "worker"
+    ],
+    "quirk": "verbeugt sich reflexartig bei jeder Anrede",
+    "recentUsageCount": 1,
+    "role": "support",
+    "runningGag": "Bei jeder Anrede verbeugt er sich: erst kurz, dann immer tiefer, und beim dritten Mal richtet er sich so hastig auf, dass seine Mütze schief sitzt.",
+    "secondaryTraits": [
+      "bescheiden",
+      "aufmerksam",
+      "nervös"
+    ],
+    "secret": "Er hat oft schon einen vernünftigen Vorschlag, traut sich aber erst spät, ihn auszusprechen.",
+    "signatureVisual": "Neat uniform, attentive eyes, bowed head",
+    "size_category": "small",
+    "social_class": "commoner",
+    "species_category": "human",
+    "speechStyle": [
+      "förmlich",
+      "leise",
+      "unterwürfig"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:24:50.005Z",
+    "visualProfile": {
+      "colorPalette": [
+        "black",
+        "white",
+        "gray"
+      ],
+      "description": "Diener Johann • Thin servant with neat uniform, respectful bow, attentive eyes",
+      "species": "human"
+    },
+    "want": "Er möchte, dass im Haus alles ordentlich bleibt und sein Herr sicher ist."
+  },
+  {
+    "age_category": "any",
+    "archetype": "helpful_elder",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "forest",
+      "village",
+      "mountain"
+    ],
+    "catchphrase": "Wer genau hinhört, dem flüstert der Wind die Antwort zu.",
+    "catchphraseContext": "wenn jemand ratlos ist oder eine Entscheidung treffen muss",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:01.959Z",
+    "dominantPersonality": "weise",
+    "emotionalNature": {
+      "dominant": "wise",
+      "secondary": [
+        "protective",
+        "kind"
+      ],
+      "triggers": [
+        "children in danger",
+        "nature destruction"
+      ]
+    },
+    "emotionalTriggers": [
+      "Kinder in Gefahr",
+      "Naturzerstörung",
+      "Ungerechtigkeit"
+    ],
+    "fear": "Sie fürchtet, dass ein Kind sich nicht traut, um Hilfe zu bitten.",
+    "gender": "any",
+    "gesture": "Sie legt eine Hand ans Ohr und lauscht einen Moment ganz still.",
+    "id": "char_001_frau_mueller",
+    "introLine": "Ich bin Frau Müller. Wer genau hinhört, dem flüstert der Wind die Antwort zu.",
+    "isActive": true,
+    "maxScreenTime": 80,
+    "name": "Frau Müller",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "streicht sich nachdenklich über ihren grünen Schal",
+    "recentUsageCount": 0,
+    "role": "guide",
+    "runningGag": "Wenn sie nachdenklich ihren grünen Schal streicht, rutscht er ein Stück schiefer: erst kaum, dann bis über ein Auge, beim dritten Mal wickelt er ihr versehentlich den Dutt ein.",
+    "secondaryTraits": [
+      "fürsorglich",
+      "geduldig",
+      "warmherzig"
+    ],
+    "secret": "Sie bewahrt kleine Fundstücke aus der Natur auf und weiß zu jedem, wo sie es entdeckt hat.",
+    "signatureVisual": "Neat gray bun and green knitted shawl",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "ruhig",
+      "bedacht",
+      "ermutigend"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:25:27.888Z",
+    "visualProfile": {
+      "colorPalette": [
+        "green",
+        "gray",
+        "beige"
+      ],
+      "description": "70-year-old woman, gray hair in neat bun, kind brown eyes, green knitted shawl",
+      "imagePrompt": "elderly woman with gray hair bun, kind expression, green shawl, warm smile, grandmother figure, watercolor illustration",
+      "species": "human"
+    },
+    "want": "Ich möchte Kindern helfen, selbst eine gute Lösung zu finden und gut aufeinander und die Natur aufzupassen."
+  },
+  {
+    "age_category": "any",
+    "archetype": "sea_keeper",
+    "availableChapters": [
+      1,
+      2,
+      3
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "beach",
+      "village"
+    ],
+    "catchphrase": "Das Meer lehrt Geduld – und wer geduldig ist, findet den Weg.",
+    "catchphraseContext": "wenn jemand ungeduldig ist oder den Mut verliert",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:01.990Z",
+    "dominantPersonality": "weise",
+    "emotionalNature": {
+      "dominant": "calm",
+      "secondary": [
+        "wise",
+        "protective",
+        "patient"
+      ],
+      "triggers": [
+        "storms",
+        "lost sailors"
+      ]
+    },
+    "emotionalTriggers": [
+      "Stürme",
+      "Schiffbrüchige",
+      "Sonnenuntergänge"
+    ],
+    "fear": "Sie fürchtet, bei einem Sturm ein wichtiges Warnzeichen zu übersehen.",
+    "gender": "any",
+    "gesture": "Sie streicht eine lose Haarsträhne hinter ihr Ohr.",
+    "id": "char_014_leuchtturmwaerterin",
+    "introLine": "Ich bin Frau Wellenreiter. Einen Augenblick, ich frage erst den Horizont.",
+    "isActive": true,
+    "maxScreenTime": 45,
+    "name": "Frau Wellenreiter",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "schaut immer kurz zum Horizont bevor sie antwortet",
+    "recentUsageCount": 0,
+    "role": "support",
+    "runningGag": "Vor jeder Antwort schaut sie zum Horizont; mit jeder Nachfrage wird ihr Blick länger, bis sie beim dritten Mal die Frage verpasst.",
+    "secondaryTraits": [
+      "ruhig",
+      "wachsam",
+      "geduldig"
+    ],
+    "secret": "In ihrer Jackentasche steckt ein kleines Heft, in dem sie die Farben des Himmels sammelt.",
+    "signatureVisual": "Braided gray hair, sea-blue eyes, weathered lighthouse keeper",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "bedacht",
+      "ruhig",
+      "ermutigend"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:25:32.304Z",
+    "visualProfile": {
+      "colorPalette": [
+        "blue",
+        "white",
+        "gray"
+      ],
+      "description": "Weather-worn lighthouse keeper with braided gray hair, kind sea-blue eyes, practical clothing, speaks of the ocean",
+      "imagePrompt": "lighthouse keeper woman with braided gray hair, sea-blue eyes, practical clothing, weathered face, wise expression, watercolor illustration",
+      "species": "human"
+    },
+    "want": "Sie möchte, dass alle sicher ihren Weg am Meer finden."
+  },
+  {
+    "age_category": "any",
+    "archetype": "friendly_dragon",
+    "availableChapters": [
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": false,
+    "canonSettings": [
+      "mountain",
+      "castle",
+      "forest"
+    ],
+    "catchphrase": "Hups! Das sollte eigentlich nicht brennen...",
+    "catchphraseContext": "wenn ihm versehentlich Feuer entfährt oder etwas schiefgeht",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:01.972Z",
+    "dominantPersonality": "lustig",
+    "emotionalNature": {
+      "dominant": "protective",
+      "secondary": [
+        "friendly",
+        "wise",
+        "playful"
+      ],
+      "triggers": [
+        "true friends",
+        "adventure"
+      ]
+    },
+    "emotionalTriggers": [
+      "echte Freunde",
+      "Abenteuer",
+      "wenn er ausgelacht wird"
+    ],
+    "fear": "Dass Freunde über ihn lachen, statt mit ihm zu lachen.",
+    "gender": "any",
+    "gesture": "Er legt eine Kralle ans Kinn und blinzelt neugierig.",
+    "id": "char_009_golddrache",
+    "introLine": "Ich bin Funkelflug! Was gibt es hier wohl zu entdecken?",
+    "isActive": true,
+    "lastUsedAt": "2026-09-07T21:20:37.609Z",
+    "maxScreenTime": 65,
+    "name": "Funkelflug",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "niest kleine Feuerfunken wenn er aufgeregt ist",
+    "recentUsageCount": 1,
+    "role": "discovery",
+    "runningGag": "Wenn er aufgeregt landet, wackeln erst seine Flügel, dann sein Schwanz, und beim dritten Mal dreht er sich staunend im Kreis.",
+    "secondaryTraits": [
+      "freundlich",
+      "tollpatschig",
+      "beschützend"
+    ],
+    "secret": "Er übt heimlich, sich nach einem Tollpatsch-Moment zu entschuldigen, bevor jemand traurig wird.",
+    "signatureVisual": "Golden scales, tiny wings, curious eyes",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "enthusiastisch",
+      "entschuldigend",
+      "warmherzig"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:25:54.594Z",
+    "visualProfile": {
+      "colorPalette": [
+        "gold",
+        "orange",
+        "red"
+      ],
+      "description": "Small friendly dragon with golden scales, large curious eyes, tiny wings, size of a large dog, playful demeanor",
+      "imagePrompt": "small friendly dragon with golden scales, large curious eyes, tiny wings, playful expression, non-threatening, watercolor illustration",
+      "species": "magical_creature"
+    },
+    "want": "Mit echten Freunden etwas Neues entdecken und dabei allen Mut machen."
+  },
+  {
+    "age_category": "elder",
+    "archetype": "mentor",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "castle",
+      "city"
+    ],
+    "catchphrase": "Moment! Ich habe hier irgendwo eine Notiz dazu... äh... war es dieses Buch?",
+    "catchphraseContext": "wenn er nach einer Information sucht und sich in seinen Büchern verliert",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:02.126Z",
+    "dominantPersonality": "neugierig",
+    "emotionalNature": {
+      "dominant": "intelligent",
+      "secondary": [
+        "curious",
+        "helpful",
+        "eccentric"
+      ]
+    },
+    "emotionalTriggers": [
+      "Entdeckungen",
+      "dumme Fragen",
+      "verlorene Bücher"
+    ],
+    "fear": "Dass ein wichtiges Buch verloren geht und niemand mehr die darin versteckte Antwort findet.",
+    "gender": "male",
+    "gesture": "Er schiebt die runde Brille mit einem Finger hoch und nickt eifrig.",
+    "id": "f1a2b3c4-5d6e-7f8a-9b0c-1d2e3f4a5b6c",
+    "introLine": "Guten Tag! Professor Theodor, stets bereit für eine Entdeckung. Moment! Ich habe hier irgendwo eine Notiz dazu … äh … war es dieses Buch?",
+    "isActive": true,
+    "maxScreenTime": 60,
+    "name": "Gelehrter Professor Theodor",
+    "personality_keywords": [],
+    "profession_tags": [
+      "scholar",
+      "mentor",
+      "teacher"
+    ],
+    "quirk": "hat immer Tintenflecken an den Fingern und merkt es nie",
+    "recentUsageCount": 0,
+    "role": "guide",
+    "runningGag": "Bei jeder Suche hinterlässt er unbemerkt einen Tintenabdruck: erst auf einem Zettel, dann auf mehreren Büchern, beim dritten Mal auf seiner eigenen Brille.",
+    "secondaryTraits": [
+      "zerstreut",
+      "enthusiastisch",
+      "exzentrisch"
+    ],
+    "secret": "Er schreibt wichtige Antworten auf kleine Zettel, versteckt sie in Büchern und vergisst oft, in welchem.",
+    "signatureVisual": "Round glasses, ink-stained fingers, armful of books",
+    "size_category": "medium",
+    "social_class": "nobility",
+    "species_category": "human",
+    "speechStyle": [
+      "abschweifend",
+      "enthusiastisch",
+      "vergesslich"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:26:15.704Z",
+    "visualProfile": {
+      "colorPalette": [
+        "brown",
+        "green",
+        "gold"
+      ],
+      "description": "Gelehrter Professor Theodor • Elderly scholar with round glasses, ink-stained fingers, books under arm",
+      "species": "human"
+    },
+    "want": "Er will jeder kniffligen Frage auf den Grund gehen und eine spannende Entdeckung machen."
+  },
+  {
+    "age_category": "elder",
+    "archetype": "mentor",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "backstory": "Professor Theodor verbrachte sein Leben zwischen Bücherbergen und weiß zu fast allem eine kluge Geschichte, nur nicht, wo er gerade seine Notizen gelassen hat. Als junger Mann wurde er für seine zerstreute Art ausgelacht, doch ein Lehrer erkannte seinen wachen Geist. Heute gibt er sein Wissen begeistert weiter und freut sich diebisch, wenn eine verlorene Notiz doch noch auftaucht.",
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "castle",
+      "city"
+    ],
+    "catchphrase": "Moment! Ich habe hier irgendwo eine Notiz dazu... äh... war es dieses Buch?",
+    "catchphraseContext": "wenn er nach einer Information sucht und sich in seinen Büchern verliert",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-17T17:56:34.286Z",
+    "dominantPersonality": "neugierig",
+    "emotionalNature": {
+      "dominant": "klug",
+      "secondary": [
+        "neugierig",
+        "hilfsbereit",
+        "exzentrisch"
+      ]
+    },
+    "emotionalTriggers": [
+      "Entdeckungen",
+      "dumme Fragen",
+      "verlorene Bücher"
+    ],
+    "fear": "Er fürchtet, dass man ihn wegen seiner Zerstreutheit wieder auslacht.",
+    "gender": "male",
+    "gesture": "Beim Nachdenken schiebt er seine runde Brille mit einem Finger hoch.",
+    "id": "c1e34504-dfc4-42dd-9356-03aba459f2b3",
+    "imageUrl": "bucket://tidy-shoebox-buxk4wlwbry/images/characters/character-c1e34504-dfc4-42dd-9356-03aba459f2b3-497f058d-ee55-41e6-99aa-3844b31027bd.webp",
+    "introLine": "Professor Theodor, sehr erfreut! Moment, ich habe dazu bestimmt eine Notiz … in einem dieser Bücher.",
+    "isActive": true,
+    "lastUsedAt": "2026-07-30T21:17:17.105Z",
+    "maxScreenTime": 60,
+    "name": "Gelehrter Professor Theodor",
+    "personality_keywords": [
+      "neugierig",
+      "zerstreut",
+      "enthusiastisch",
+      "exzentrisch"
+    ],
+    "physical_description": "Älterer Gelehrter mit runder Brille, wirrem grauem Haar und tintenbefleckten Fingern; unter beiden Armen und in den Manteltaschen stapeln sich Bücher, von denen er ständig eins verlegt.",
+    "profession_tags": [
+      "scholar",
+      "mentor",
+      "teacher"
+    ],
+    "quirk": "hat immer Tintenflecken an den Fingern und merkt es nie",
+    "recentUsageCount": 2,
+    "role": "guide",
+    "runningGag": "Bei jeder Suche entdeckt er einen Tintenfleck an einem Finger und wischt ihn an einem Buch ab: erst klein, dann größer, beim dritten Mal ist das Buch voller Fingerabdrücke.",
+    "secondaryTraits": [
+      "zerstreut",
+      "enthusiastisch",
+      "exzentrisch"
+    ],
+    "secret": "In einem seiner Bücher bewahrt er die erste ermutigende Notiz seines Lehrers auf.",
+    "signatureVisual": "Round glasses, gray hair, ink-stained fingers",
+    "size_category": "medium",
+    "social_class": "nobility",
+    "species_category": "human",
+    "speechStyle": [
+      "abschweifend",
+      "enthusiastisch",
+      "vergesslich"
+    ],
+    "totalUsageCount": 2,
+    "updatedAt": "2026-10-16T15:25:46.538Z",
+    "visualProfile": {
+      "colorPalette": [
+        "brown",
+        "green",
+        "gold"
+      ],
+      "description": "Elderly scholar with round glasses, tousled grey hair, and ink-stained fingers, books piled under both arms and stuffed in his coat pockets.",
+      "imagePrompt": "Portrait of Professor Theodor, elderly absent-minded scholar with round glasses, tousled grey hair, ink-stained fingers, stacks of books under his arms, eccentric enthusiastic expression, watercolor storybook illustration, no text.",
+      "species": "human"
+    },
+    "want": "Er möchte jeder spannenden Frage nachgehen und seine klugen Geschichten mit anderen teilen."
+  },
+  {
+    "age_category": "any",
+    "archetype": "misunderstood_grump",
+    "availableChapters": [
+      2,
+      3,
+      4
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": true,
+    "canonSettings": [
+      "castle",
+      "village",
+      "city"
+    ],
+    "catchphrase": "Ruhe! Ich brauche absolute... na gut, EINE Frage noch.",
+    "catchphraseContext": "wenn er so tut als wolle er Ruhe, aber eigentlich Gesellschaft genießt",
+    "comicRole": "grump",
+    "createdAt": "2026-07-27T14:59:01.979Z",
+    "dominantPersonality": "grummelig",
+    "emotionalNature": {
+      "dominant": "grumpy",
+      "secondary": [
+        "lonely",
+        "protective",
+        "misunderstood"
+      ],
+      "triggers": [
+        "trespassers",
+        "noise",
+        "disorder"
+      ]
+    },
+    "emotionalTriggers": [
+      "Eindringlinge",
+      "Lärm",
+      "Unordnung",
+      "wenn jemand nett zu ihm ist"
+    ],
+    "fear": "Er fürchtet, dass niemand gern bei ihm bleibt, wenn er einmal freundlich ist.",
+    "gender": "any",
+    "gesture": "Er zupft ordentlich an seinen Ärmelbündchen.",
+    "id": "char_010_graf_griesgram",
+    "introLine": "Ruhe! Ich brauche absolute Ruhe. Na gut, eine Frage noch.",
+    "isActive": true,
+    "lastUsedAt": "2026-10-23T19:42:47.443Z",
+    "maxScreenTime": 60,
+    "name": "Graf Griesgram",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "dreht sich weg um sein Lächeln zu verstecken",
+    "recentUsageCount": 1,
+    "role": "obstacle",
+    "runningGag": "Bei jedem netten Wort brummt er lauter, dreht sich weg und versteckt sein Lächeln; beim dritten Mal dreht er sich so weit, dass er allen den Rücken zukehrt.",
+    "secondaryTraits": [
+      "einsam",
+      "eigentlich nett",
+      "missverstandern"
+    ],
+    "secret": "Er freut sich über Besuche und hört schon an der Tür aufmerksam zu, tut aber so, als störe ihn jeder Schritt.",
+    "signatureVisual": "Stern face, gray beard, dark formal coat",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "knapp",
+      "brummig",
+      "unwillig"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-23T19:42:47.443Z",
+    "villainStyle": "misunderstood",
+    "visualProfile": {
+      "colorPalette": [
+        "gray",
+        "black",
+        "purple"
+      ],
+      "description": "Old nobleman with stern face, gray beard, dark formal clothes, actually just lonely and set in his ways",
+      "imagePrompt": "elderly nobleman with stern expression, gray beard, dark formal Victorian clothes, lonely eyes, not truly evil, watercolor illustration",
+      "species": "human"
+    },
+    "want": "Er will seine Ruhe haben und dabei doch nicht allein sein."
+  },
+  {
+    "age_category": "adult",
+    "archetype": "neutral",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": true,
+    "canonSettings": [
+      "fantasy",
+      "village",
+      "city"
+    ],
+    "catchphrase": "Nur heute, nur für euch – ein Sonderpreis! Na gut, ZWEI Sonderpreise!",
+    "catchphraseContext": "wenn er etwas verkaufen oder einen Deal machen will",
+    "comicRole": "schemer",
+    "createdAt": "2026-07-27T14:59:02.132Z",
+    "dominantPersonality": "frech",
+    "emotionalNature": {
+      "dominant": "greedy",
+      "secondary": [
+        "shrewd",
+        "talkative",
+        "opportunistic"
+      ]
+    },
+    "emotionalTriggers": [
+      "gute Geschäfte",
+      "Konkurrenz",
+      "leere Kassen"
+    ],
+    "fear": "Er fürchtet, dass alle woanders kaufen und seine Kasse leer bleibt.",
+    "gender": "male",
+    "gesture": "Er tippt sich mit einem Finger an die Nase, wenn er nach einem Preis sucht.",
+    "id": "a2b3c4d5-6e7f-8a9b-0c1d-2e3f4a5b6c7d",
+    "introLine": "Gustav ist mein Name! Nur heute, nur für euch – ein Sonderpreis! Na gut, ZWEI Sonderpreise!",
+    "isActive": true,
+    "maxScreenTime": 50,
+    "name": "Händler Gustav",
+    "personality_keywords": [],
+    "profession_tags": [
+      "merchant",
+      "trader",
+      "shopkeeper"
+    ],
+    "quirk": "reibt sich die Hände wenn er einen guten Deal wittert",
+    "recentUsageCount": 0,
+    "role": "support",
+    "runningGag": "Wittert Gustav ein Geschäft, reibt er sich die Hände: erst gemächlich, dann immer schneller, beim dritten Mal poliert er dabei versehentlich seine Ringe blank.",
+    "secondaryTraits": [
+      "geschäftstüchtig",
+      "redselig",
+      "opportunistisch"
+    ],
+    "secret": "In seinem Notizbuch stehen neben den Preisen auch seine liebsten Schnäppchen, die er selbst behalten möchte.",
+    "signatureVisual": "Colorful vest, gold rings, wide grin",
+    "size_category": "medium",
+    "social_class": "merchant",
+    "species_category": "human",
+    "speechStyle": [
+      "überredend",
+      "schnell",
+      "charmant"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:26:46.058Z",
+    "villainStyle": "comic",
+    "visualProfile": {
+      "colorPalette": [
+        "gold",
+        "purple",
+        "green"
+      ],
+      "description": "Händler Gustav • Plump merchant with colorful vest, gold rings, persuasive smile",
+      "species": "human"
+    },
+    "want": "Er will möglichst viele gute Geschäfte machen und seine Kasse füllen."
+  },
+  {
+    "age_category": "any",
+    "archetype": "knowledge_keeper",
+    "availableChapters": [
+      1,
+      2,
+      3
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "castle",
+      "village",
+      "city"
+    ],
+    "catchphrase": "Ah! Dazu habe ich ein Buch! Moment... es war hier irgendwo...",
+    "catchphraseContext": "wenn ein Thema angesprochen wird und er aufgeregt nach dem passenden Buch sucht",
+    "comicRole": "know-it-all",
+    "createdAt": "2026-07-27T14:59:01.990Z",
+    "dominantPersonality": "neugierig",
+    "emotionalNature": {
+      "dominant": "curious",
+      "secondary": [
+        "helpful",
+        "organized",
+        "enthusiastic"
+      ],
+      "triggers": [
+        "questions",
+        "book lovers"
+      ]
+    },
+    "emotionalTriggers": [
+      "Fragen",
+      "Bücherliebhaber",
+      "wenn Bücher schlecht behandelt werden"
+    ],
+    "fear": "Er fürchtet, dass niemand mehr neugierig fragt und seine Bücher ungelesen bleiben.",
+    "gender": "any",
+    "gesture": "Er hebt einen Finger, sobald ihm eine spannende Erklärung einfällt.",
+    "id": "char_015_bibliothekar_seitenflug",
+    "introLine": "Ah! Dazu habe ich ein Buch! Moment … es war hier irgendwo. Ich helfe euch beim Suchen!",
+    "isActive": true,
+    "maxScreenTime": 40,
+    "name": "Herr Seitenflug",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "kramt in seinen vielen Westentaschen nach dem richtigen Lesezeichen",
+    "recentUsageCount": 0,
+    "role": "support",
+    "runningGag": "Bei jeder Frage sucht er erst ein Lesezeichen, dann mehrere, dann steckt er sich so viele an die Weste, dass er selbst kaum noch eines findet.",
+    "secondaryTraits": [
+      "hilfsbereit",
+      "organisiert",
+      "enthusiastisch"
+    ],
+    "secret": "Er merkt sich heimlich, welches Lesezeichen zu welchem Buch gehört, weil er sie ständig verwechselt.",
+    "signatureVisual": "Tall thin librarian with round glasses and bookmark-filled vest",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "enthusiastisch",
+      "wissend",
+      "abschweifend"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:27:27.143Z",
+    "visualProfile": {
+      "colorPalette": [
+        "brown",
+        "beige",
+        "gold"
+      ],
+      "description": "Thin librarian with tall stature, round glasses, vest with many pockets full of bookmarks, loves sharing knowledge",
+      "imagePrompt": "thin librarian with round glasses, vest with many pockets, bookmarks everywhere, enthusiastic expression, surrounded by books, watercolor illustration",
+      "species": "human"
+    },
+    "want": "Er möchte zu jeder Frage das passende Buch finden und sein Wissen mit allen teilen."
+  },
+  {
+    "age_category": "elder",
+    "archetype": "villain",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": true,
+    "canonSettings": [
+      "fantasy",
+      "forest",
+      "mountain"
+    ],
+    "catchphrase": "Knusper, knusper... ach, das war eine Andere. Ich bin VIEL schlimmer!",
+    "catchphraseContext": "wenn sie Angst machen will oder sich vorstellt",
+    "comicRole": "schemer",
+    "createdAt": "2026-07-27T14:59:02.113Z",
+    "dominantPersonality": "frech",
+    "emotionalNature": {
+      "dominant": "cunning",
+      "secondary": [
+        "wicked",
+        "magical",
+        "mysterious"
+      ]
+    },
+    "emotionalTriggers": [
+      "freche Kinder",
+      "wenn ihr Zauber nicht wirkt",
+      "Einsamkeit"
+    ],
+    "fear": "Dass niemand bei ihr bleibt und sie ganz allein ist.",
+    "gender": "female",
+    "gesture": "Sie hebt eine Augenbraue, wenn sie etwas ausheckt.",
+    "id": "f5a6b7c8-9d0e-1f2a-3b4c-5d6e7f8a9b0c",
+    "introLine": "Knusper, knusper... ach, das war eine Andere. Ich bin VIEL schlimmer! Na ja, meistens.",
+    "isActive": true,
+    "lastUsedAt": "2026-09-07T09:32:40.825Z",
+    "maxScreenTime": 70,
+    "name": "Hexe Griselda",
+    "personality_keywords": [],
+    "profession_tags": [
+      "magical",
+      "villain",
+      "witch"
+    ],
+    "quirk": "rührt ständig in einem unsichtbaren Kessel",
+    "recentUsageCount": 1,
+    "role": "antagonist",
+    "runningGag": "Sie rührt im unsichtbaren Kessel: erst ganz leise, dann immer schneller und schließlich so wild, dass ihr eigener Hut wackelt.",
+    "secondaryTraits": [
+      "listig",
+      "geheimnisvoll",
+      "launisch"
+    ],
+    "secret": "Sie tut geheimnisvoll, doch sie wünscht sich heimlich jemanden, der ihr beim Zaubern zusieht.",
+    "signatureVisual": "Crooked nose, green aura, pointed hat",
+    "size_category": "medium",
+    "social_class": "outcast",
+    "species_category": "human",
+    "speechStyle": [
+      "drohend",
+      "kichernd",
+      "geheimnisvoll"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:27:23.218Z",
+    "villainStyle": "comic",
+    "visualProfile": {
+      "colorPalette": [
+        "black",
+        "green",
+        "purple"
+      ],
+      "description": "Hexe Griselda • Old witch with crooked nose, black robe, pointed hat, green magical aura",
+      "species": "human"
+    },
+    "want": "Alle sollen staunen, wenn ihre Zaubertricks gelingen."
+  },
+  {
+    "age_category": "child",
+    "archetype": "innocent",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "village",
+      "forest"
+    ],
+    "catchphrase": "Meine Schafe haben es mir erzählt! Die wissen alles!",
+    "catchphraseContext": "wenn er eine Information hat die er irgendwo aufgeschnappt hat",
+    "comicRole": "know-it-all",
+    "createdAt": "2026-07-27T14:59:02.137Z",
+    "dominantPersonality": "neugierig",
+    "emotionalNature": {
+      "dominant": "playful",
+      "secondary": [
+        "brave",
+        "curious",
+        "loyal"
+      ]
+    },
+    "emotionalTriggers": [
+      "seine Schafe",
+      "Abenteuer",
+      "Ungerechtigkeit gegenüber Schwächeren"
+    ],
+    "fear": "Dass ein Schaf verloren geht und ich es nicht rechtzeitig finde.",
+    "gender": "male",
+    "gesture": "Ich tippe mir mit dem Finger an die Stirn, wenn mir etwas einfällt.",
+    "id": "e6f7a8b9-0c1d-2e3f-4a5b-6c7d8e9f0a1b",
+    "introLine": "Ich bin Peter! Meine Schafe haben es mir erzählt – die wissen alles!",
+    "isActive": true,
+    "lastUsedAt": "2026-09-07T15:14:34.532Z",
+    "maxScreenTime": 50,
+    "name": "Hirtenjunge Peter",
+    "personality_keywords": [],
+    "profession_tags": [
+      "shepherd",
+      "child",
+      "worker"
+    ],
+    "quirk": "hat immer einen Grashalm im Mund",
+    "recentUsageCount": 2,
+    "role": "companion",
+    "runningGag": "Wenn ich besonders wichtige Neuigkeiten verkünde, kitzelt der Grashalm erst meine Lippe, dann meine Nase und beim dritten Mal muss ich niesen.",
+    "secondaryTraits": [
+      "verspielt",
+      "mutig",
+      "treu"
+    ],
+    "secret": "Ich übe heimlich, jedes Schaf an seinen Hufen zu erkennen, damit ich sie auch im Nebel auseinanderhalte.",
+    "signatureVisual": "Young shepherd boy with a grass stem",
+    "size_category": "small",
+    "social_class": "commoner",
+    "species_category": "human",
+    "speechStyle": [
+      "aufgeregt",
+      "direkt",
+      "kindlich"
+    ],
+    "totalUsageCount": 2,
+    "updatedAt": "2026-10-16T15:27:18.009Z",
+    "visualProfile": {
+      "colorPalette": [
+        "brown",
+        "green",
+        "beige"
+      ],
+      "description": "Hirtenjunge Peter • Young shepherd boy with simple tunic, wooden staff, cheerful smile",
+      "species": "human"
+    },
+    "want": "Ich will mit meinen Schafen spannende Abenteuer erleben und dafür sorgen, dass keines zurückbleibt."
+  },
+  {
+    "age_category": "adult",
+    "archetype": "ruler",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": true,
+    "canonSettings": [
+      "fantasy",
+      "medieval",
+      "castle"
+    ],
+    "catchphrase": "Ordnung ist das Fundament eines jeden Reiches!",
+    "catchphraseContext": "wenn Chaos droht oder Regeln gebrochen werden",
+    "comicRole": "fusspot",
+    "createdAt": "2026-07-27T14:59:02.100Z",
+    "dominantPersonality": "mutig",
+    "emotionalNature": {
+      "dominant": "strict",
+      "secondary": [
+        "demanding",
+        "proud",
+        "traditional"
+      ]
+    },
+    "emotionalTriggers": [
+      "Regelbruch",
+      "Unordnung",
+      "Feigheit"
+    ],
+    "fear": "Er fürchtet, dass niemand mehr auf seine Ansagen hört.",
+    "gender": "male",
+    "gesture": "Er richtet mit beiden Händen seine Krone gerade.",
+    "id": "8a9b0c1d-2e3f-4a5b-6c7d-8e9f0a1b2c3d",
+    "introLine": "Ich bin König Friedrich. Ordnung ist das Fundament eines jeden Reiches!",
+    "isActive": true,
+    "maxScreenTime": 70,
+    "name": "König Friedrich",
+    "personality_keywords": [],
+    "profession_tags": [
+      "royalty",
+      "ruler",
+      "authority"
+    ],
+    "quirk": "klopft ungeduldig mit dem Siegelring auf den Thron",
+    "recentUsageCount": 0,
+    "role": "authority",
+    "runningGag": "Wenn Unordnung auftaucht, klopft er einmal mit dem Siegelring, dann zweimal schneller und schließlich dreimal so eifrig, dass daraus ein königlicher Takt wird.",
+    "secondaryTraits": [
+      "streng",
+      "stolz",
+      "traditionell"
+    ],
+    "secret": "In einer Schublade bewahrt er heimlich eine Liste mit Dingen auf, die er noch lernen möchte.",
+    "signatureVisual": "Dark beard beneath an iron crown",
+    "size_category": "medium",
+    "social_class": "royalty",
+    "species_category": "human",
+    "speechStyle": [
+      "bestimmt",
+      "knapp",
+      "fordernd"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:27:56.766Z",
+    "villainStyle": "comic",
+    "visualProfile": {
+      "colorPalette": [
+        "red",
+        "gold",
+        "black"
+      ],
+      "description": "König Friedrich • Middle-aged king with dark beard and iron crown, strict demeanor",
+      "species": "human"
+    },
+    "want": "Er will, dass alle Regeln kennen und das Reich ordentlich läuft."
+  },
+  {
+    "age_category": "adult",
+    "archetype": "ruler",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "medieval",
+      "castle"
+    ],
+    "catchphrase": "Mit Klugheit und Güte lässt sich jeder Streit lösen.",
+    "catchphraseContext": "wenn ein Konflikt friedlich gelöst werden soll",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:02.100Z",
+    "dominantPersonality": "hilfsbereit",
+    "emotionalNature": {
+      "dominant": "elegant",
+      "secondary": [
+        "wise",
+        "diplomatic",
+        "kind"
+      ]
+    },
+    "emotionalTriggers": [
+      "Streit",
+      "hilfsbedürftige Kinder",
+      "Unfreundlichkeit"
+    ],
+    "fear": "Sie fürchtet, dass ein stilles Kind mit seinem Kummer allein bleibt.",
+    "gender": "female",
+    "gesture": "Beim Nachdenken tippt sie Daumen und Zeigefinger sanft aneinander.",
+    "id": "9b0c1d2e-3f4a-5b6c-7d8e-9f0a1b2c3d4e",
+    "introLine": "Ich bin Königin Isabella. Erzählt mir, was euch beschäftigt – gemeinsam finden wir einen klugen Weg.",
+    "isActive": true,
+    "maxScreenTime": 70,
+    "name": "Königin Isabella",
+    "personality_keywords": [],
+    "profession_tags": [
+      "royalty",
+      "ruler",
+      "authority"
+    ],
+    "quirk": "legt beruhigend die Hand auf die Schulter des Gegenübers",
+    "recentUsageCount": 0,
+    "role": "authority",
+    "runningGag": "Wenn sie sich beruhigend zu jemandem beugt, rutscht ihre Krone ein Stück schief: erst kaum merklich, dann deutlich, beim dritten Mal sitzt sie verkehrt herum.",
+    "secondaryTraits": [
+      "elegant",
+      "diplomatisch",
+      "klug"
+    ],
+    "secret": "In einem kleinen Notizbuch sammelt sie die klugen Einfälle der Kinder, damit keiner vergessen wird.",
+    "signatureVisual": "Flowing hair, silver crown, blue gown",
+    "size_category": "medium",
+    "social_class": "royalty",
+    "species_category": "human",
+    "speechStyle": [
+      "diplomatisch",
+      "warmherzig",
+      "bestimmt"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:28:56.526Z",
+    "visualProfile": {
+      "colorPalette": [
+        "blue",
+        "silver",
+        "white"
+      ],
+      "description": "Königin Isabella • Graceful queen with long flowing hair and silver crown, blue royal dress",
+      "species": "human"
+    },
+    "want": "Sie möchte, dass jedes Kind gehört wird und alle gemeinsam eine gute Lösung finden."
+  },
+  {
+    "age_category": "elder",
+    "archetype": "ruler",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": true,
+    "canonSettings": [
+      "fantasy",
+      "medieval",
+      "castle"
+    ],
+    "catchphrase": "Ein König dient seinem Volk – nicht umgekehrt.",
+    "catchphraseContext": "wenn es um Pflicht oder Gerechtigkeit geht",
+    "comicRole": "fusspot",
+    "createdAt": "2026-07-27T14:59:02.100Z",
+    "dominantPersonality": "weise",
+    "emotionalNature": {
+      "dominant": "authoritative",
+      "secondary": [
+        "just",
+        "wise",
+        "commanding"
+      ]
+    },
+    "emotionalTriggers": [
+      "Ungerechtigkeit",
+      "Bedrohung des Königreichs",
+      "mutige Taten"
+    ],
+    "fear": "Er fürchtet, dass sein Volk ihm wichtige Ungerechtigkeiten verschweigt.",
+    "gender": "male",
+    "gesture": "Vor einer wichtigen Ansage hebt er ruhig einen Zeigefinger.",
+    "id": "7f8e9a1b-2c3d-4e5f-6a7b-8c9d0e1f2a3b",
+    "introLine": "Ich bin König Wilhelm. Ein König dient seinem Volk – nicht umgekehrt.",
+    "isActive": true,
+    "lastUsedAt": "2026-09-07T15:14:34.539Z",
+    "maxScreenTime": 70,
+    "name": "König Wilhelm",
+    "personality_keywords": [],
+    "profession_tags": [
+      "royalty",
+      "ruler",
+      "authority"
+    ],
+    "quirk": "streicht sich durch den weißen Bart wenn er nachdenkt",
+    "recentUsageCount": 1,
+    "role": "authority",
+    "runningGag": "Beim Nachdenken streicht er sich über den Bart: erst einmal, dann dreimal, beim dritten Mal so lange, bis ihn ein Bart-Haar an der Nase kitzelt und er niesen muss.",
+    "secondaryTraits": [
+      "gerecht",
+      "bestimmt",
+      "väterlich"
+    ],
+    "secret": "Heimlich übt er, schwierige Bitten freundlich zu formulieren, bevor er sie dem Rat vorträgt.",
+    "signatureVisual": "White beard beneath a golden crown",
+    "size_category": "medium",
+    "social_class": "royalty",
+    "species_category": "human",
+    "speechStyle": [
+      "förmlich",
+      "bestimmt",
+      "würdevoll"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:28:46.579Z",
+    "villainStyle": "misunderstood",
+    "visualProfile": {
+      "colorPalette": [
+        "purple",
+        "gold",
+        "white"
+      ],
+      "description": "König Wilhelm • Elderly king with white beard and golden crown, regal purple robes",
+      "species": "human"
+    },
+    "want": "Er will, dass alle im Königreich fair behandelt werden und niemand aus Angst schweigt."
+  },
+  {
+    "age_category": "elder",
+    "archetype": "ruler",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "backstory": "Wilhelm regiert sein Land seit vielen Jahrzehnten und hat gelernt, dass ein guter König seinem Volk dient und nicht umgekehrt. Als junger Herrscher traf er einmal eine harte Entscheidung, die er bis heute bereut, und wurde dadurch geduldig und gerecht. Mutige Taten rühren ihn mehr als jeder Reichtum, und schwachen Stimmen schenkt er stets als Erstes sein Ohr.",
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "medieval",
+      "castle"
+    ],
+    "catchphrase": "Ein König dient seinem Volk – nicht umgekehrt.",
+    "catchphraseContext": "wenn es um Pflicht oder Gerechtigkeit geht",
+    "comicRole": "fusspot",
+    "createdAt": "2026-07-17T17:56:34.252Z",
+    "dominantPersonality": "weise",
+    "emotionalNature": {
+      "dominant": "autoritär",
+      "secondary": [
+        "gerecht",
+        "weise",
+        "befehlend"
+      ]
+    },
+    "emotionalTriggers": [
+      "Ungerechtigkeit",
+      "Bedrohung des Königreichs",
+      "mutige Taten"
+    ],
+    "fear": "Ich fürchte, wieder eine harte Entscheidung zu treffen, die einem Menschen Unrecht tut.",
+    "gender": "male",
+    "gesture": "Er hebt die offene Hand und bittet damit alle, nacheinander zu sprechen.",
+    "id": "ebe6bf90-0bc9-4bb7-89e9-2991bdbe8c2e",
+    "imageUrl": "bucket://tidy-shoebox-buxk4wlwbry/images/characters/character-ebe6bf90-0bc9-4bb7-89e9-2991bdbe8c2e-081cc8ba-8d5f-4ca0-a94d-98a28ea42b92.webp",
+    "introLine": "Ich bin König Wilhelm. Bevor ich urteile, höre ich mir jede Stimme an.",
+    "isActive": true,
+    "lastUsedAt": "2026-09-29T08:15:16.453Z",
+    "maxScreenTime": 70,
+    "name": "König Wilhelm",
+    "personality_keywords": [
+      "weise",
+      "gerecht",
+      "bestimmt",
+      "väterlich"
+    ],
+    "physical_description": "Würdevoller alter König mit langem weißem Bart, goldener Krone und königlich purpurnem Gewand; nachdenklich streicht er sich durch den Bart, bevor er ein Urteil spricht.",
+    "profession_tags": [
+      "royalty",
+      "ruler",
+      "authority"
+    ],
+    "quirk": "streicht sich durch den weißen Bart wenn er nachdenkt",
+    "recentUsageCount": 2,
+    "role": "authority",
+    "runningGag": "Beim Nachdenken streicht Wilhelm einmal durch den Bart, dann immer länger und gründlicher. Beim dritten Mal verschwindet sein ganzes Gesicht darin, während die Krone obenauf sitzen bleibt.",
+    "secondaryTraits": [
+      "gerecht",
+      "bestimmt",
+      "väterlich"
+    ],
+    "secret": "Eine alte Entscheidung als junger König bereut Wilhelm bis heute; manchmal liest er heimlich noch einmal die damaligen Briefe.",
+    "signatureVisual": "Long white beard beneath a golden crown",
+    "size_category": "medium",
+    "social_class": "royalty",
+    "species_category": "human",
+    "speechStyle": [
+      "förmlich",
+      "bestimmt",
+      "würdevoll"
+    ],
+    "totalUsageCount": 2,
+    "updatedAt": "2026-10-16T15:28:22.018Z",
+    "visualProfile": {
+      "colorPalette": [
+        "purple",
+        "gold",
+        "white"
+      ],
+      "description": "Dignified elderly king with a long white beard, golden crown, and regal purple robes, stroking his beard thoughtfully before passing judgement.",
+      "imagePrompt": "Portrait of King Wilhelm, dignified elderly king with long white beard, golden crown, regal purple robes, wise fatherly expression, watercolor storybook illustration, no text.",
+      "species": "human"
+    },
+    "want": "Ich will, dass alle im Königreich gerecht behandelt werden und auch die leisesten Stimmen gehört werden."
+  },
+  {
+    "age_category": "any",
+    "archetype": "clever_animal",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": true,
+    "canonSettings": [
+      "village",
+      "city",
+      "castle"
+    ],
+    "catchphrase": "Miau... ich wusste es natürlich schon die ganze Zeit.",
+    "catchphraseContext": "wenn sie Recht behält oder etwas entdeckt wird, das sie bereits ahnte",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:01.966Z",
+    "dominantPersonality": "neugierig",
+    "emotionalNature": {
+      "dominant": "clever",
+      "secondary": [
+        "curious",
+        "independent",
+        "loyal"
+      ],
+      "triggers": [
+        "puzzles",
+        "hidden things"
+      ]
+    },
+    "emotionalTriggers": [
+      "Rätsel",
+      "versteckte Dinge",
+      "wenn man sie unterschätzt"
+    ],
+    "fear": "Dass alle sie für gewöhnlich halten und niemand ihre klugen Ideen hören will.",
+    "gender": "any",
+    "gesture": "Sie legt den Kopf schief, wenn sie etwas genau betrachtet.",
+    "id": "char_005_luna_die_katze",
+    "introLine": "Ich bin Luna. Wenn irgendwo ein Rätsel lauert, bin ich natürlich schon unterwegs.",
+    "isActive": true,
+    "lastUsedAt": "2026-07-27T15:49:59.009Z",
+    "maxScreenTime": 65,
+    "name": "Luna",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "putzt sich betont gelangweilt eine Pfote, wenn sie nachdenkt",
+    "recentUsageCount": 1,
+    "role": "companion",
+    "runningGag": "Bei jedem Rätsel putzt sie nachdenklich eine Pfote: erst ganz kurz, dann immer ausgiebiger, bis sie beim dritten Mal vor lauter Putzen fast den entscheidenden Hinweis übersieht.",
+    "secondaryTraits": [
+      "clever",
+      "unabhängig",
+      "verschmitzt"
+    ],
+    "secret": "Oft hat sie die Lösung schon entdeckt, bevor sie gelangweilt ihre Pfote putzt.",
+    "signatureVisual": "Sleek black cat, bright green eyes, white paws",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "schnippisch",
+      "überlegen",
+      "verspielt"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:29:24.007Z",
+    "villainStyle": "comic",
+    "visualProfile": {
+      "colorPalette": [
+        "black",
+        "green",
+        "white"
+      ],
+      "description": "Sleek black cat with bright green eyes, white paws, intelligent expression, graceful movements",
+      "imagePrompt": "sleek black cat with bright green eyes, white paws, intelligent expression, graceful posture, watercolor illustration",
+      "species": "animal"
+    },
+    "want": "Sie will jedes Rätsel knacken und als Erste entdecken, was sich versteckt."
+  },
+  {
+    "age_category": "young_adult",
+    "archetype": "helper",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "castle",
+      "village"
+    ],
+    "catchphrase": "Ich schaffe das schon... ich schaffe das immer.",
+    "catchphraseContext": "wenn sie müde ist aber trotzdem weitermacht",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:02.137Z",
+    "dominantPersonality": "hilfsbereit",
+    "emotionalNature": {
+      "dominant": "hardworking",
+      "secondary": [
+        "kind",
+        "tired",
+        "hopeful"
+      ]
+    },
+    "emotionalTriggers": [
+      "Ungerechtigkeit",
+      "wenn jemand freundlich zu ihr ist",
+      "Überarbeitung"
+    ],
+    "fear": "Dass niemand merkt, wenn sie selbst zu müde ist, um weiterzuarbeiten.",
+    "gender": "female",
+    "gesture": "Sie streicht ihre Schürze glatt und nickt sich selbst aufmunternd zu.",
+    "id": "d5e6f7a8-9b0c-1d2e-3f4a-5b6c7d8e9f0a",
+    "introLine": "Ich bin Elsa. Wenn jemand Hilfe braucht, bin ich da – und wenn ich müde werde, summe ich ein bisschen.",
+    "isActive": true,
+    "lastUsedAt": "2026-07-27T15:16:13.494Z",
+    "maxScreenTime": 40,
+    "name": "Magd Elsa",
+    "personality_keywords": [],
+    "profession_tags": [
+      "servant",
+      "helper",
+      "worker"
+    ],
+    "quirk": "summt leise vor sich hin wenn sie arbeitet",
+    "recentUsageCount": 1,
+    "role": "support",
+    "runningGag": "Beim Arbeiten summt sie erst kaum hörbar, dann immer kräftiger; beim dritten Mal summt sie so schwungvoll, dass alle im Takt mitwippen.",
+    "secondaryTraits": [
+      "fleißig",
+      "hoffnungsvoll",
+      "still"
+    ],
+    "secret": "Wenn sie müde wird, summt sie manchmal ein kleines Lied, das sie sich selbst ausgedacht hat.",
+    "signatureVisual": "Simple dress, kind tired eyes, worn hands",
+    "size_category": "small",
+    "social_class": "commoner",
+    "species_category": "human",
+    "speechStyle": [
+      "leise",
+      "bescheiden",
+      "bestimmt"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:29:27.444Z",
+    "visualProfile": {
+      "colorPalette": [
+        "brown",
+        "white",
+        "blue"
+      ],
+      "description": "Magd Elsa • Young maid with simple dress, tired but kind eyes, worn hands",
+      "species": "human"
+    },
+    "want": "Dass alle genug Hilfe bekommen und niemand ungerecht behandelt wird."
+  },
+  {
+    "age_category": "young_adult",
+    "archetype": "helper",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "forest"
+    ],
+    "catchphrase": "Der Kristall zeigt mir... oh, das ist unerwartet.",
+    "catchphraseContext": "wenn sie eine Vision hat oder etwas Überraschendes entdeckt",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:02.113Z",
+    "dominantPersonality": "schüchtern",
+    "emotionalNature": {
+      "dominant": "mysterious",
+      "secondary": [
+        "helpful",
+        "magical",
+        "gentle"
+      ]
+    },
+    "emotionalTriggers": [
+      "magische Störungen",
+      "Hilfesuchende",
+      "dunkle Magie"
+    ],
+    "fear": "Sie fürchtet, eine Vision falsch zu verstehen und dadurch jemanden in die falsche Richtung zu schicken.",
+    "gender": "female",
+    "gesture": "Wenn sie nachdenkt, legt sie einen Finger sanft an die Wange.",
+    "id": "b7c8d9e0-1f2a-3b4c-5d6e-7f8a9b0c1d2e",
+    "introLine": "Ich bin Luna. Der Kristall zeigt mir manchmal den Weg – und manchmal etwas ganz Unerwartetes.",
+    "isActive": true,
+    "lastUsedAt": "2026-07-28T08:45:35.762Z",
+    "maxScreenTime": 60,
+    "name": "Magierin Luna",
+    "personality_keywords": [],
+    "profession_tags": [
+      "magical",
+      "helper",
+      "sorceress"
+    ],
+    "quirk": "ihr Kristallstab leuchtet heller wenn sie aufgeregt ist",
+    "recentUsageCount": 1,
+    "role": "guide",
+    "runningGag": "Bei einer Überraschung leuchtet ihr Stab heller: erst wie ein Glühwürmchen, dann wie eine kleine Laterne, beim dritten Mal so hell, dass alle ihre eigenen Schatten bestaunen.",
+    "secondaryTraits": [
+      "hilfsbereit",
+      "magisch",
+      "zurückhaltend"
+    ],
+    "secret": "Manchmal sieht sie im Kristall nur einen verschwommenen Schimmer und wartet still, bis das Bild klarer wird.",
+    "signatureVisual": "Silver hair and glowing crystal staff",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "human",
+    "speechStyle": [
+      "leise",
+      "nachdenklich",
+      "geheimnisvoll"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:29:43.655Z",
+    "visualProfile": {
+      "colorPalette": [
+        "purple",
+        "silver",
+        "blue"
+      ],
+      "description": "Magierin Luna • Young sorceress with silver hair, purple dress, glowing crystal staff",
+      "species": "human"
+    },
+    "want": "Sie möchte allen helfen, den richtigen Weg durch ein magisches Rätsel zu finden."
+  },
+  {
+    "age_category": "any",
+    "archetype": "dream_weaver",
+    "availableChapters": [
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": false,
+    "canonSettings": [
+      "castle",
+      "village",
+      "forest"
+    ],
+    "catchphrase": "Psst... schließ die Augen. Ich zeige dir etwas Schönes.",
+    "catchphraseContext": "wenn er jemandem einen Traum schenkt oder Angst nimmt",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:01.997Z",
+    "dominantPersonality": "schüchtern",
+    "emotionalNature": {
+      "dominant": "gentle",
+      "secondary": [
+        "mysterious",
+        "protective",
+        "creative"
+      ],
+      "triggers": [
+        "nightmares",
+        "sleep troubles",
+        "dreams"
+      ]
+    },
+    "emotionalTriggers": [
+      "Alpträume",
+      "Schlafprobleme",
+      "traurige Träume"
+    ],
+    "fear": "Ich fürchte, dass ein trauriger Traum ein Kind allein und ohne Trost zurücklässt.",
+    "gender": "any",
+    "gesture": "Ich lege eine Hand aufs Herz und atme langsam aus.",
+    "id": "char_018_traumweber",
+    "introLine": "Psst … ich bin Morpheus. Ich sammle schöne Träume und teile sie ganz leise aus.",
+    "isActive": true,
+    "maxScreenTime": 40,
+    "name": "Morpheus",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "kleine Traumwölkchen schweben um ihn herum",
+    "recentUsageCount": 0,
+    "role": "special",
+    "runningGag": "Wenn ich flüstere, schweben Traumwölkchen näher: erst eins, dann immer mehr, bis sie mir beim dritten Mal die Sicht verhüllen.",
+    "secondaryTraits": [
+      "sanft",
+      "beschützend",
+      "kreativ"
+    ],
+    "secret": "Manchmal versteckt sich in meiner Traumtasche ein besonders schöner Traum, den ich mir selbst ausgedacht habe.",
+    "signatureVisual": "Soft clouds, moonlight, purple glow",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "flüsternd",
+      "beruhigend",
+      "leise"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:29:52.903Z",
+    "visualProfile": {
+      "colorPalette": [
+        "purple",
+        "white",
+        "silver"
+      ],
+      "description": "Soft-featured being wrapped in clouds and moonlight, carries a bag of dreams, gentle purple glow, comforting presence",
+      "imagePrompt": "dream-like being wrapped in clouds, moonlight glow, bag of dreams, soft purple aura, comforting gentle face, watercolor illustration",
+      "species": "dream_being"
+    },
+    "want": "Ich möchte jedem Kind einen schönen Traum schenken, in dem es sich geborgen fühlt."
+  },
+  {
+    "age_category": "adult",
+    "archetype": "craftsman",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "medieval",
+      "village"
+    ],
+    "catchphrase": "Harte Arbeit lohnt sich immer – irgendwann.",
+    "catchphraseContext": "wenn es schwierig wird und Durchhaltevermögen gefragt ist",
+    "comicRole": "fusspot",
+    "createdAt": "2026-07-27T14:59:02.107Z",
+    "dominantPersonality": "loyal",
+    "emotionalNature": {
+      "dominant": "hardworking",
+      "secondary": [
+        "humble",
+        "honest",
+        "worried"
+      ]
+    },
+    "emotionalTriggers": [
+      "Faulheit",
+      "Diebstahl",
+      "wenn seine Familie bedroht wird"
+    ],
+    "fear": "Er fürchtet, dass die Mühle stehen bleibt und seine Familie in Schwierigkeiten gerät.",
+    "gender": "male",
+    "gesture": "Er zieht vor der Arbeit die Schürze ordentlich gerade.",
+    "id": "c2d3e4f5-6a7b-8c9d-0e1f-2a3b4c5d6e7f",
+    "introLine": "Ich bin Müller Hans. Wenn die Mühle läuft, wird Mehl daraus – und wenn’s schwer wird, machen wir weiter.",
+    "isActive": true,
+    "maxScreenTime": 60,
+    "name": "Müller Hans",
+    "personality_keywords": [],
+    "profession_tags": [
+      "craftsman",
+      "worker",
+      "miller"
+    ],
+    "quirk": "klopft Mehlstaub von den Händen bevor er spricht",
+    "recentUsageCount": 0,
+    "role": "support",
+    "runningGag": "Vor jedem Satz klopft er Mehl von den Händen: erst rieselt ein wenig, dann eine kleine Wolke, beim dritten Mal ist sogar sein Schnurrbart weiß.",
+    "secondaryTraits": [
+      "fleißig",
+      "ehrlich",
+      "bescheiden"
+    ],
+    "secret": "Er hebt heimlich besonders schöne Mehlsäcke für ein Fest seiner Familie auf.",
+    "signatureVisual": "Flour-dusted apron and strong arms",
+    "size_category": "medium",
+    "social_class": "craftsman",
+    "species_category": "human",
+    "speechStyle": [
+      "direkt",
+      "einfach",
+      "ehrlich"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:30:35.986Z",
+    "visualProfile": {
+      "colorPalette": [
+        "brown",
+        "white",
+        "beige"
+      ],
+      "description": "Müller Hans • Dusty miller with flour-covered apron, strong arms, weathered face",
+      "species": "human"
+    },
+    "want": "Er will, dass die Mühle läuft und genug Mehl für alle da ist."
+  },
+  {
+    "age_category": "any",
+    "archetype": "playful_helper",
+    "availableChapters": [
+      2,
+      3,
+      4
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "forest",
+      "village",
+      "mountain"
+    ],
+    "catchphrase": "Nüsse! Äh, ich meine... natürlich helfe ich!",
+    "catchphraseContext": "wenn er aufgeregt ist oder abgelenkt wird",
+    "comicRole": "chaos",
+    "createdAt": "2026-07-27T14:59:01.966Z",
+    "dominantPersonality": "lustig",
+    "emotionalNature": {
+      "dominant": "playful",
+      "secondary": [
+        "energetic",
+        "helpful",
+        "quick"
+      ],
+      "triggers": [
+        "fun opportunities",
+        "friends needing help"
+      ]
+    },
+    "emotionalTriggers": [
+      "Spaß",
+      "Freunde die Hilfe brauchen",
+      "Nüsse"
+    ],
+    "fear": "Dass seine Freunde denken, er sei zu aufgedreht, um wirklich zu helfen.",
+    "gender": "any",
+    "gesture": "Er schnuppert kurz an einer Eichel, bevor er sie einsteckt.",
+    "id": "char_006_pip_das_eichhoernchen",
+    "introLine": "Nüsse! Äh, ich meine … natürlich helfe ich! Pip, Eichhörnchen mit flauschigem Schwanz und blitzschnellen Ideen!",
+    "isActive": true,
+    "lastUsedAt": "2026-07-30T15:21:25.080Z",
+    "maxScreenTime": 60,
+    "name": "Pip",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "hüpft aufgeregt von einem Fuß auf den anderen",
+    "recentUsageCount": 1,
+    "role": "companion",
+    "runningGag": "Vor lauter Aufregung hüpft Pip immer stärker von einem Fuß auf den anderen: erst wippt er, dann hüpft er, beim dritten Mal dreht er sich dabei im Kreis.",
+    "secondaryTraits": [
+      "verspielt",
+      "hilfsbereit",
+      "aufgedreht"
+    ],
+    "secret": "Er hebt besonders schöne Eicheln für Freunde auf, die einen aufmunternden Glücksbringer brauchen.",
+    "signatureVisual": "Bright-eyed red squirrel with fluffy tail",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "schnell",
+      "aufgeregt",
+      "übertreibend"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:30:29.457Z",
+    "visualProfile": {
+      "colorPalette": [
+        "red",
+        "orange",
+        "brown"
+      ],
+      "description": "Energetic red squirrel with fluffy tail, bright eyes, always carrying acorns, cheerful expression",
+      "imagePrompt": "energetic red squirrel with fluffy tail, bright eyes, carrying acorns, cheerful expression, playful pose, watercolor illustration",
+      "species": "animal"
+    },
+    "want": "Mit Freunden Spaß haben und überall helfen, wo jemand Unterstützung braucht."
+  },
+  {
+    "age_category": "young_adult",
+    "archetype": "hero",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "medieval",
+      "castle"
+    ],
+    "catchphrase": "Auf ins Abenteuer – wer kommt mit?",
+    "catchphraseContext": "wenn ein neues Abenteuer beginnt oder Mut gefordert ist",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:02.100Z",
+    "dominantPersonality": "mutig",
+    "emotionalNature": {
+      "dominant": "brave",
+      "secondary": [
+        "noble",
+        "charming",
+        "adventurous"
+      ]
+    },
+    "emotionalTriggers": [
+      "Freunde in Gefahr",
+      "neue Abenteuer",
+      "Feigheit"
+    ],
+    "fear": "Er fürchtet, seine Freunde im entscheidenden Moment zu enttäuschen.",
+    "gender": "male",
+    "gesture": "Er richtet sein blaues Wams glatt, bevor er einen Plan verkündet.",
+    "id": "a0b1c2d3-4e5f-6a7b-8c9d-0e1f2a3b4c5d",
+    "introLine": "Ich bin Prinz Alexander! Wenn jemand Hilfe braucht, bin ich zur Stelle. Auf ins Abenteuer – wer kommt mit?",
+    "isActive": true,
+    "maxScreenTime": 80,
+    "name": "Prinz Alexander",
+    "personality_keywords": [],
+    "profession_tags": [
+      "royalty",
+      "nobility",
+      "warrior"
+    ],
+    "quirk": "legt die Hand ans Schwert wenn er sich auf etwas konzentriert",
+    "recentUsageCount": 0,
+    "role": "protagonist",
+    "runningGag": "Wenn er nachdenkt, legt er die Hand ans Schwert: erst kurz, dann immer länger, und beim dritten Mal merkt er nicht, dass er so dasteht, während alle längst weitergehen.",
+    "secondaryTraits": [
+      "edel",
+      "abenteuerlustig",
+      "charmant"
+    ],
+    "secret": "Er tut so, als kenne er den Weg, doch Karten liest er heimlich immer wieder verkehrt herum.",
+    "signatureVisual": "Golden hair, blue tunic, sword at side",
+    "size_category": "medium",
+    "social_class": "nobility",
+    "species_category": "human",
+    "speechStyle": [
+      "direkt",
+      "enthusiastisch",
+      "ermunternd"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:31:09.684Z",
+    "visualProfile": {
+      "colorPalette": [
+        "blue",
+        "gold",
+        "white"
+      ],
+      "description": "Prinz Alexander • Young handsome prince with golden hair and blue tunic, sword at his side",
+      "species": "human"
+    },
+    "want": "Er will Menschen helfen und mit seinen Freunden mutig jedes Rätsel lösen."
+  },
+  {
+    "age_category": "young_adult",
+    "archetype": "hero",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "medieval",
+      "castle"
+    ],
+    "catchphrase": "Stärke kommt nicht vom Schwert, sondern vom Herzen.",
+    "catchphraseContext": "wenn jemand an sich zweifelt oder wahre Stärke zeigt",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:02.100Z",
+    "dominantPersonality": "hilfsbereit",
+    "emotionalNature": {
+      "dominant": "kind",
+      "secondary": [
+        "courageous",
+        "intelligent",
+        "graceful"
+      ]
+    },
+    "emotionalTriggers": [
+      "Ungerechtigkeit",
+      "verletzte Tiere",
+      "wenn andere aufgeben wollen"
+    ],
+    "fear": "Sie fürchtet, dass andere aufgeben, bevor sie ihnen zeigen kann, wie viel sie gemeinsam schaffen.",
+    "gender": "female",
+    "gesture": "Sie legt eine Hand aufs Herz und nickt aufmunternd.",
+    "id": "b1c2d3e4-5f6a-7b8c-9d0e-1f2a3b4c5d6e",
+    "introLine": "Ich bin Rosalinde. Wenn etwas ungerecht ist, finden wir gemeinsam einen besseren Weg.",
+    "isActive": true,
+    "maxScreenTime": 80,
+    "name": "Prinzessin Rosalinde",
+    "personality_keywords": [],
+    "profession_tags": [
+      "royalty",
+      "nobility"
+    ],
+    "quirk": "steckt sich eine Blume ins Haar bevor es ernst wird",
+    "recentUsageCount": 0,
+    "role": "protagonist",
+    "runningGag": "Vor jeder ernsten Sache steckt sie sich eine Blume ins Haar; jedes Mal wird sie größer und auffälliger, bis die Blüten fast ihr Gesicht verdecken.",
+    "secondaryTraits": [
+      "mutig",
+      "klug",
+      "anmutig"
+    ],
+    "secret": "Manchmal ist sie selbst unsicher, ob sie mutig genug ist, zeigt es aber erst, wenn sie jemandem Mut macht.",
+    "signatureVisual": "Rose-red hair, pink dress, flower",
+    "size_category": "medium",
+    "social_class": "nobility",
+    "species_category": "human",
+    "speechStyle": [
+      "warmherzig",
+      "ermutigend",
+      "bestimmt"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:31:14.531Z",
+    "visualProfile": {
+      "colorPalette": [
+        "pink",
+        "rose",
+        "gold"
+      ],
+      "description": "Prinzessin Rosalinde • Beautiful princess with rose-red hair and pink dress, gentle smile",
+      "species": "human"
+    },
+    "want": "Sie möchte, dass alle fair behandelt werden und niemand mit einer schwierigen Aufgabe alleinbleibt."
+  },
+  {
+    "age_category": "any",
+    "archetype": "scholarly_mentor",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "castle",
+      "village",
+      "city"
+    ],
+    "catchphrase": "Faszinierend! Das muss ich sofort aufschreiben!",
+    "catchphraseContext": "wenn er etwas Neues entdeckt oder eine überraschende Wendung eintritt",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:01.959Z",
+    "dominantPersonality": "neugierig",
+    "emotionalNature": {
+      "dominant": "curious",
+      "secondary": [
+        "wise",
+        "patient",
+        "enthusiastic"
+      ],
+      "triggers": [
+        "mysteries",
+        "learning opportunities"
+      ]
+    },
+    "emotionalTriggers": [
+      "Rätsel",
+      "Lernmomente",
+      "falsche Behauptungen"
+    ],
+    "fear": "Er fürchtet, eine wichtige Entdeckung zu vergessen, bevor er sie aufschreiben kann.",
+    "gender": "any",
+    "gesture": "Er tippt zweimal auf sein Buch, bevor er es öffnet.",
+    "id": "char_002_professor_lichtweis",
+    "introLine": "Professor Lichtweis, zu Ihren Fragen! Faszinierend – was könnten wir als Nächstes herausfinden?",
+    "isActive": true,
+    "maxScreenTime": 75,
+    "name": "Professor Lichtweis",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "schiebt ständig seine runde Brille hoch, die immer wieder herunterrutscht",
+    "recentUsageCount": 0,
+    "role": "guide",
+    "runningGag": "Seine runde Brille rutscht herunter; er schiebt sie hoch, sie rutscht tiefer, und beim dritten Mal landet sie auf seiner Nasenspitze.",
+    "secondaryTraits": [
+      "enthusiastisch",
+      "zerstreut",
+      "klug"
+    ],
+    "secret": "Er hat ein kleines Register in seinem Buch, damit er seine vielen Notizen wiederfindet.",
+    "signatureVisual": "Wild white hair, round glasses, colorful vest",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "enthusiastisch",
+      "fragend",
+      "abschweifend"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:31:51.084Z",
+    "visualProfile": {
+      "colorPalette": [
+        "purple",
+        "white",
+        "gold"
+      ],
+      "description": "60-year-old professor, round glasses, wild white hair, colorful vest, always with a book",
+      "imagePrompt": "elderly professor with round glasses, wild white hair, colorful vest, book in hand, enthusiastic expression, watercolor illustration",
+      "species": "human"
+    },
+    "want": "Er will jedes Rätsel lösen und herausfinden, wie die Dinge funktionieren."
+  },
+  {
+    "age_category": "adult",
+    "archetype": "villain",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": true,
+    "canonSettings": [
+      "fantasy",
+      "forest",
+      "mountain"
+    ],
+    "catchphrase": "Her mit dem Gold! Äh... ich meine... das ist eine Weggebühr!",
+    "catchphraseContext": "wenn er rauben will aber versucht es nett klingen zu lassen",
+    "comicRole": "schemer",
+    "createdAt": "2026-07-27T14:59:02.119Z",
+    "dominantPersonality": "frech",
+    "emotionalNature": {
+      "dominant": "greedy",
+      "secondary": [
+        "cunning",
+        "aggressive",
+        "dangerous"
+      ]
+    },
+    "emotionalTriggers": [
+      "Gold",
+      "wenn er erwischt wird",
+      "stärkere Gegner"
+    ],
+    "fear": "Er fürchtet, beim Schummeln erwischt zu werden und vor stärkeren Leuten klein dazustehen.",
+    "gender": "male",
+    "gesture": "Er reibt Daumen und Zeigefinger aneinander, als zähle er eine glänzende Münze.",
+    "id": "c8d9e0f1-2a3b-4c5d-6e7f-8a9b0c1d2e3f",
+    "introLine": "Her mit dem Gold! Äh … ich meine: Das ist eine Weggebühr! Ganz offiziell, versteht sich.",
+    "isActive": true,
+    "lastUsedAt": "2026-07-31T14:33:40.136Z",
+    "maxScreenTime": 60,
+    "name": "Räuber Rolf",
+    "personality_keywords": [],
+    "profession_tags": [
+      "villain",
+      "bandit",
+      "rogue"
+    ],
+    "quirk": "schielt nervös nach links und rechts bevor er spricht",
+    "recentUsageCount": 1,
+    "role": "antagonist",
+    "runningGag": "Vor jedem großspurigen Satz schielt er nach links und rechts; beim zweiten Mal vergisst er dabei sein Wort, beim dritten redet er einen Knopf zur Weggebühr.",
+    "secondaryTraits": [
+      "gierig",
+      "listig",
+      "feige"
+    ],
+    "secret": "Er kann echte Goldstücke kaum von goldfarbenen Knöpfen unterscheiden und hofft, dass es niemand merkt.",
+    "signatureVisual": "Eye patch and shiny patched vest",
+    "size_category": "medium",
+    "social_class": "outcast",
+    "species_category": "human",
+    "speechStyle": [
+      "drohend",
+      "nervös",
+      "prahlerisch"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:31:46.231Z",
+    "villainStyle": "comic",
+    "visualProfile": {
+      "colorPalette": [
+        "brown",
+        "black",
+        "red"
+      ],
+      "description": "Räuber Rolf • Scarred bandit with eye patch, leather vest, sword and dagger",
+      "species": "human"
+    },
+    "want": "Räuber Rolf will glänzendes Gold sammeln und nennt jeden Fund am liebsten seine Weggebühr."
+  },
+  {
+    "age_category": "adult",
+    "archetype": "craftsman",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "medieval",
+      "village"
+    ],
+    "catchphrase": "Was im Feuer geschmiedet wird, hält ewig!",
+    "catchphraseContext": "wenn etwas auf die Probe gestellt wird oder Stärke gefragt ist",
+    "comicRole": "fusspot",
+    "createdAt": "2026-07-27T14:59:02.107Z",
+    "dominantPersonality": "mutig",
+    "emotionalNature": {
+      "dominant": "strong",
+      "secondary": [
+        "skilled",
+        "proud",
+        "reliable"
+      ]
+    },
+    "emotionalTriggers": [
+      "schlechtes Handwerk",
+      "Ungerechtigkeit",
+      "wenn Schwache bedroht werden"
+    ],
+    "fear": "Dass ein schlecht gemachtes Stück jemanden verletzt oder er einen Schwächeren nicht schützen kann.",
+    "gender": "male",
+    "gesture": "Vor der Arbeit streicht er sein Lederschurz glatt.",
+    "id": "d3e4f5a6-7b8c-9d0e-1f2a-3b4c5d6e7f8a",
+    "introLine": "Ich bin Schmied Konrad. Was im Feuer geschmiedet wird, hält ewig!",
+    "isActive": true,
+    "lastUsedAt": "2026-07-28T14:24:50.045Z",
+    "maxScreenTime": 60,
+    "name": "Schmied Konrad",
+    "personality_keywords": [],
+    "profession_tags": [
+      "craftsman",
+      "blacksmith",
+      "worker"
+    ],
+    "quirk": "hämmert unbewusst mit der Faust auf den Tisch wenn er redet",
+    "recentUsageCount": 1,
+    "role": "support",
+    "runningGag": "Beim Reden hämmert seine Faust einmal auf den Tisch: erst hüpft ein Becher, dann klappern mehrere Dinge, beim dritten Mal hüpft sein eigener Hut vom Haken.",
+    "secondaryTraits": [
+      "stark",
+      "zuverlässig",
+      "stolz"
+    ],
+    "secret": "Er bewahrt misslungene Werkstücke heimlich auf, damit er aus jedem Fehler lernen kann.",
+    "signatureVisual": "Sooty face, leather apron, broad shoulders",
+    "size_category": "large",
+    "social_class": "craftsman",
+    "species_category": "human",
+    "speechStyle": [
+      "bestimmt",
+      "knapp",
+      "ehrlich"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:32:36.166Z",
+    "visualProfile": {
+      "colorPalette": [
+        "black",
+        "brown",
+        "gray"
+      ],
+      "description": "Schmied Konrad • Muscular blacksmith with leather apron, soot-covered face, powerful build",
+      "species": "human"
+    },
+    "want": "Er will, dass seine Arbeit hält und niemand wegen schlechter Arbeit unfair behandelt wird."
+  },
+  {
+    "age_category": "any",
+    "archetype": "magical_sprite",
+    "availableChapters": [
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": true,
+    "canonSettings": [
+      "forest",
+      "castle",
+      "mountain"
+    ],
+    "catchphrase": "Glitzer, Funkel, Sternenstaub – wer mich findet, dem hilft der Traum!",
+    "catchphraseContext": "wenn sie jemandem einen magischen Hinweis gibt",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:01.972Z",
+    "dominantPersonality": "frech",
+    "emotionalNature": {
+      "dominant": "playful",
+      "secondary": [
+        "mysterious",
+        "wise",
+        "mischievous"
+      ],
+      "triggers": [
+        "worthy seekers",
+        "pure hearts"
+      ]
+    },
+    "emotionalTriggers": [
+      "würdige Suchende",
+      "reine Herzen",
+      "Langweiler"
+    ],
+    "fear": "Sie fürchtet, dass niemand ihre winzigen Hinweise bemerkt.",
+    "gender": "any",
+    "gesture": "Sie tippt sich mit einem Finger an die Nasenspitze und zwinkert.",
+    "id": "char_007_silberfunke",
+    "introLine": "Ich bin Silberfunke, klein und flink! Folg dem Schimmer – vielleicht findest du ein Wunder drin.",
+    "isActive": true,
+    "lastUsedAt": "2026-07-28T08:45:35.778Z",
+    "maxScreenTime": 50,
+    "name": "Silberfunke",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "hinterlässt überall eine Spur aus silbernem Glitzerstaub",
+    "recentUsageCount": 1,
+    "role": "discovery",
+    "runningGag": "Ihre Glitzerspur verrät erst eine kleine Abzweigung, dann zeichnet sie eine immer größere Schleife – beim dritten Mal glitzert sie aus Versehen um Silberfunke selbst herum.",
+    "secondaryTraits": [
+      "verspielt",
+      "geheimnisvoll",
+      "schelmisch"
+    ],
+    "secret": "Sie kennt selbst nicht immer das Ziel ihrer Glitzerspur und folgt ihr manchmal heimlich, um es herauszufinden.",
+    "signatureVisual": "Tiny sprite with silver butterfly wings",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "singend",
+      "reimend",
+      "neckend"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:33:02.738Z",
+    "villainStyle": "comic",
+    "visualProfile": {
+      "colorPalette": [
+        "silver",
+        "blue",
+        "white"
+      ],
+      "description": "Small glowing sprite with silver butterfly wings, sparkling trail, mischievous smile, size of a hand",
+      "imagePrompt": "small glowing sprite with silver butterfly wings, sparkles and magical light trail, mischievous smile, tiny size, watercolor illustration",
+      "species": "magical_creature"
+    },
+    "want": "Silberfunke will überall verborgene Wunder entdecken und würdigen Suchenden den Weg dorthin zeigen."
+  },
+  {
+    "age_category": "any",
+    "archetype": "loyal_animal",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "forest",
+      "mountain"
+    ],
+    "catchphrase": "Der Wald vergisst nie, wer ihm Gutes tut.",
+    "catchphraseContext": "wenn jemand Mut beweist oder der Natur hilft",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:01.966Z",
+    "dominantPersonality": "mutig",
+    "emotionalNature": {
+      "dominant": "protective",
+      "secondary": [
+        "noble",
+        "wise",
+        "brave"
+      ],
+      "triggers": [
+        "friends in danger",
+        "injustice"
+      ]
+    },
+    "emotionalTriggers": [
+      "Freunde in Gefahr",
+      "Ungerechtigkeit",
+      "Waldbedrohung"
+    ],
+    "fear": "Er fürchtet, einen Freund zu spät zu bemerken, wenn dieser Hilfe braucht.",
+    "gender": "any",
+    "gesture": "Er hebt ein Ohr, wenn er aufmerksam zuhört.",
+    "id": "char_004_hirsch_silberhorn",
+    "introLine": "Ich bin Silberhorn. Wenn jemand Hilfe braucht, bin ich schon unterwegs.",
+    "isActive": true,
+    "maxScreenTime": 70,
+    "name": "Silberhorn der Hirsch",
+    "personality_keywords": [],
+    "profession_tags": [],
+    "quirk": "senkt das Geweih zum Gruß wenn er jemandem vertraut",
+    "recentUsageCount": 0,
+    "role": "companion",
+    "runningGag": "Beim Begrüßen senkt er sein Geweih immer ein wenig tiefer: erst knapp, dann so weit, dass er darunter verschwindet.",
+    "secondaryTraits": [
+      "edel",
+      "beschützend",
+      "stolz"
+    ],
+    "secret": "Er übt heimlich leise Begrüßungen, weil sein prächtiges Geweih kleine Waldbewohner einschüchtert.",
+    "signatureVisual": "Silver antlers, shimmering forest fur",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "any",
+    "speechStyle": [
+      "bestimmt",
+      "ruhig",
+      "direkt"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:33:11.156Z",
+    "visualProfile": {
+      "colorPalette": [
+        "brown",
+        "silver",
+        "green"
+      ],
+      "description": "Noble forest deer with majestic silver antlers, deep brown eyes, magical silver shimmer on fur",
+      "imagePrompt": "noble forest deer with silver antlers, majestic posture, deep brown eyes, magical silver shimmer, protective stance, watercolor illustration",
+      "species": "animal"
+    },
+    "want": "Er will, dass seine Freunde sicher sind und der Wald ein guter Ort für alle bleibt."
+  },
+  {
+    "age_category": "adult",
+    "archetype": "villain",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": true,
+    "canOppose": true,
+    "canonSettings": [
+      "fantasy",
+      "castle",
+      "village"
+    ],
+    "catchphrase": "Schönheit vergeht – aber Macht bleibt!",
+    "catchphraseContext": "wenn es um Kontrolle oder Einfluss geht",
+    "comicRole": "schemer",
+    "createdAt": "2026-07-27T14:59:02.119Z",
+    "dominantPersonality": "weise",
+    "emotionalNature": {
+      "dominant": "cruel",
+      "secondary": [
+        "jealous",
+        "vain",
+        "manipulative"
+      ]
+    },
+    "emotionalTriggers": [
+      "wenn jemand schöner ist",
+      "Kontrollverlust",
+      "Widerspruch"
+    ],
+    "fear": "Sie fürchtet, übersehen zu werden, sobald jemand anderes bewundert wird.",
+    "gender": "female",
+    "gesture": "Sie hebt einen Finger, bevor sie einen besonders förmlichen Satz sagt.",
+    "id": "d9e0f1a2-3b4c-5d6e-7f8a-9b0c1d2e3f4a",
+    "introLine": "Ich bin Brunhilde. Bitte warten Sie mit Ihren Vorschlägen, bis ich entschieden habe, welche davon glänzen dürfen.",
+    "isActive": true,
+    "lastUsedAt": "2026-09-07T15:14:34.522Z",
+    "maxScreenTime": 70,
+    "name": "Stiefmutter Brunhilde",
+    "personality_keywords": [],
+    "profession_tags": [
+      "villain",
+      "noble"
+    ],
+    "quirk": "betrachtet sich in jeder spiegelnden Oberfläche",
+    "recentUsageCount": 1,
+    "role": "antagonist",
+    "runningGag": "Sie entdeckt eine spiegelnde Fläche und richtet ihre Frisur; beim nächsten Mal prüft sie sogar einen Löffel, beim dritten Mal hält sie einen glänzenden Knopf für einen Spiegel und verbeugt sich davor.",
+    "secondaryTraits": [
+      "eitel",
+      "berechnend",
+      "eifersüchtig"
+    ],
+    "secret": "Sie übt heimlich, anderen Komplimente zu machen, weil sie hofft, auch für ihre Klugheit geschätzt zu werden.",
+    "signatureVisual": "Severe face, dark elegant dress, poised mirror",
+    "size_category": "medium",
+    "social_class": "nobility",
+    "species_category": "human",
+    "speechStyle": [
+      "förmlich",
+      "schneidend",
+      "überlegen"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:33:38.315Z",
+    "villainStyle": "comic",
+    "visualProfile": {
+      "colorPalette": [
+        "black",
+        "red",
+        "gray"
+      ],
+      "description": "Stiefmutter Brunhilde • Cold stepmother with severe expression, dark elegant dress, sharp features",
+      "species": "human"
+    },
+    "want": "Sie will bestimmen, wer im Schloss entscheidet und wessen Vorschläge alle hören."
+  },
+  {
+    "age_category": "elder",
+    "archetype": "mentor",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "village",
+      "forest"
+    ],
+    "catchphrase": "Gegen jedes Leid ist ein Kraut gewachsen.",
+    "catchphraseContext": "wenn sie tröstet oder einen Heilmittel-Tipp gibt",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:02.126Z",
+    "dominantPersonality": "weise",
+    "emotionalNature": {
+      "dominant": "wise",
+      "secondary": [
+        "kind",
+        "patient",
+        "knowledgeable"
+      ]
+    },
+    "emotionalTriggers": [
+      "Kranke",
+      "verzweifelte Eltern",
+      "wenn Kräuter falsch verwendet werden"
+    ],
+    "fear": "Sie fürchtet, dass jemand ihre ruhigen Hinweise überhört und Kräuter falsch verwendet.",
+    "gender": "female",
+    "gesture": "Sie legt eine Hand aufs Herz, wenn sie jemanden ermutigt.",
+    "id": "e0f1a2b3-4c5d-6e7f-8a9b-0c1d2e3f4a5b",
+    "introLine": "Ich bin Margarethe. Lass uns in Ruhe überlegen, welche sichere Hilfe jetzt passt.",
+    "isActive": true,
+    "maxScreenTime": 60,
+    "name": "Weise Frau Margarethe",
+    "personality_keywords": [],
+    "profession_tags": [
+      "mentor",
+      "healer",
+      "elder"
+    ],
+    "quirk": "reibt getrocknete Kräuter zwischen den Fingern während sie spricht",
+    "recentUsageCount": 0,
+    "role": "guide",
+    "runningGag": "Beim Kräuterreiben rieselt erst ein wenig Duft, dann ein ganzes Häufchen auf ihren Ärmel, und beim dritten Mal trägt sie einen grünen Kräutermantel.",
+    "secondaryTraits": [
+      "gütig",
+      "geduldig",
+      "heilkundig"
+    ],
+    "secret": "Sie merkt sich für jedes Kind, welches beruhigende Wort ihm beim Zuhören besonders gutgetan hat.",
+    "signatureVisual": "Gentle eyes, gray bun, simple robes",
+    "size_category": "medium",
+    "social_class": "commoner",
+    "species_category": "human",
+    "speechStyle": [
+      "warmherzig",
+      "ruhig",
+      "ermutigend"
+    ],
+    "totalUsageCount": 0,
+    "updatedAt": "2026-10-16T15:33:57.831Z",
+    "visualProfile": {
+      "colorPalette": [
+        "gray",
+        "brown",
+        "white"
+      ],
+      "description": "Weise Frau Margarethe • Old wise woman with gentle eyes, gray hair in bun, simple robes",
+      "species": "human"
+    },
+    "want": "Ich möchte, dass kranke Menschen Hilfe bekommen und sich niemand mit Kräutern schadet."
+  },
+  {
+    "age_category": "adult",
+    "archetype": "helper",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "village",
+      "city"
+    ],
+    "catchphrase": "Setzt euch hin, esst was Warmes – dann sieht die Welt gleich anders aus!",
+    "catchphraseContext": "wenn Reisende ankommen oder jemand traurig aussieht",
+    "comicRole": "fusspot",
+    "createdAt": "2026-07-27T14:59:02.132Z",
+    "dominantPersonality": "hilfsbereit",
+    "emotionalNature": {
+      "dominant": "warm",
+      "secondary": [
+        "gossipy",
+        "helpful",
+        "motherly"
+      ]
+    },
+    "emotionalTriggers": [
+      "hungrige Reisende",
+      "Klatsch",
+      "ungewaschene Hände am Tisch"
+    ],
+    "fear": "Dass jemand traurig oder hungrig abreist, ohne sich getraut zu haben, um Hilfe zu bitten.",
+    "gender": "female",
+    "gesture": "Sie winkt Gäste mit einer offenen Hand freundlich an den Tisch.",
+    "id": "b3c4d5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e",
+    "introLine": "Willkommen bei mir! Setzt euch hin, esst was Warmes – dann sieht die Welt gleich anders aus!",
+    "isActive": true,
+    "lastUsedAt": "2026-07-30T15:21:25.057Z",
+    "maxScreenTime": 50,
+    "name": "Wirtin Martha",
+    "personality_keywords": [],
+    "profession_tags": [
+      "innkeeper",
+      "helper",
+      "worker"
+    ],
+    "quirk": "trocknet ständig ein Glas ab, auch wenn es schon sauber ist",
+    "recentUsageCount": 1,
+    "role": "support",
+    "runningGag": "Sie trocknet ein sauberes Glas ab; beim nächsten Mal poliert sie es so lange, bis es quietscht; beim dritten Mal trocknet sie versehentlich den ganzen Gläserstapel mit demselben Tuch.",
+    "secondaryTraits": [
+      "tratschig",
+      "mütterlich",
+      "herzlich"
+    ],
+    "secret": "In ihrer Schürzentasche steckt ein Zettel mit Lieblingsgerichten, die sie für Stammgäste auswendig gelernt hat.",
+    "signatureVisual": "Rosy-cheeked innkeeper with apron",
+    "size_category": "medium",
+    "social_class": "commoner",
+    "species_category": "human",
+    "speechStyle": [
+      "warmherzig",
+      "bestimmt",
+      "plaudernd"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:34:23.848Z",
+    "visualProfile": {
+      "colorPalette": [
+        "red",
+        "white",
+        "brown"
+      ],
+      "description": "Wirtin Martha • Cheerful innkeeper with rosy cheeks, apron, welcoming arms",
+      "species": "human"
+    },
+    "want": "Alle Reisenden sollen sich bei ihr willkommen fühlen und mit einem warmen Essen wieder zu Kräften kommen."
+  },
+  {
+    "age_category": "elder",
+    "archetype": "mentor",
+    "availableChapters": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "bibleVersion": 1,
+    "canLead": false,
+    "canOppose": false,
+    "canonSettings": [
+      "fantasy",
+      "castle",
+      "forest"
+    ],
+    "catchphrase": "Magie liegt nicht im Zauberstab – sie liegt in dir.",
+    "catchphraseContext": "wenn jemand Selbstvertrauen braucht oder an Magie zweifelt",
+    "comicRole": "dreamer",
+    "createdAt": "2026-07-27T14:59:02.113Z",
+    "dominantPersonality": "weise",
+    "emotionalNature": {
+      "dominant": "wise",
+      "secondary": [
+        "powerful",
+        "mysterious",
+        "kind"
+      ]
+    },
+    "emotionalTriggers": [
+      "Missbrauch von Magie",
+      "lernwillige Schüler",
+      "Ungeduld"
+    ],
+    "fear": "Er fürchtet, dass Ungeduld dazu führt, dass jemand Magie missbraucht.",
+    "gender": "male",
+    "gesture": "Er legt vor einer Antwort nachdenklich eine Hand an seinen Bart.",
+    "id": "a6b7c8d9-0e1f-2a3b-4c5d-6e7f8a9b0c1d",
+    "introLine": "Magie liegt nicht im Zauberstab – sie liegt in dir. Lass uns gemeinsam herausfinden, was du schon kannst.",
+    "isActive": true,
+    "lastUsedAt": "2026-07-28T17:11:04.550Z",
+    "maxScreenTime": 70,
+    "name": "Zauberer Merlin",
+    "personality_keywords": [],
+    "profession_tags": [
+      "magical",
+      "wizard",
+      "mentor"
+    ],
+    "quirk": "lässt kleine Funken aus der Stabspitze sprühen wenn er schmunzelt",
+    "recentUsageCount": 1,
+    "role": "guide",
+    "runningGag": "Wenn Merlin schmunzelt, sprühen kleine Funken aus seiner Stabspitze: erst ein paar, dann immer mehr, beim dritten Mal formen sie einen glitzernden Bart um seinen echten.",
+    "secondaryTraits": [
+      "mächtig",
+      "geduldig",
+      "gütig"
+    ],
+    "secret": "Auch Merlin muss manchmal kurz nachdenken, bevor ihm die richtige Antwort einfällt.",
+    "signatureVisual": "Starry blue robe and long white beard",
+    "size_category": "medium",
+    "social_class": "any",
+    "species_category": "human",
+    "speechStyle": [
+      "bedacht",
+      "geheimnisvoll",
+      "ermutigend"
+    ],
+    "totalUsageCount": 1,
+    "updatedAt": "2026-10-16T15:34:59.891Z",
+    "visualProfile": {
+      "colorPalette": [
+        "blue",
+        "silver",
+        "white"
+      ],
+      "description": "Zauberer Merlin • Ancient wizard with long white beard, star-covered blue robe, wooden staff",
+      "species": "human"
+    },
+    "want": "Er möchte, dass seine Schüler Magie klug einsetzen und an ihre eigenen Fähigkeiten glauben."
+  }
+]

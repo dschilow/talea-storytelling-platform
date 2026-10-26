@@ -170,6 +170,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     loadHeroMemories(avatarIds),
     loadCastCandidates({
       enabled: config.useCharacterPool !== false,
+      preferLead: episodeMode && config.avatarIsHero === false,
       genre: config.genre,
       setting: config.setting,
       band,

@@ -11,6 +11,7 @@ import { artifactSheetEn, castSheetEn, heroSheetEn, wishLinesEn } from "../story
 import { learningGoal, learningWriterLinesEn } from "../storybook/learning";
 import { childSituationChoices, FAMILY_RULE_EN, GENRE_METHOD_EN, METHOD_EN, placeChoices, styleSamples, takenNamesLine, writingRulesEn } from "./craft";
 import type { EpisodePlan } from "./types";
+import { episodeCastFocus, episodePoolLead } from "./cast-focus";
 
 function bandNote(band: StoryBrief["band"]): string {
   if (band === "3-5") return "The listeners are three to five: ONE simple, very visible wonder, a problem a small child knows, lots of repetition, a gentle thrill and a big laugh. The rule has no conditions; the attempts are three tries of the same kind, each funnier.";
@@ -37,7 +38,7 @@ function chapterRhythm(chapters: number): string[] {
 
 export function planSystemPrompt(brief: StoryBrief): string {
   return [
-    `You are the head writer of Talea Originals. Families love our stories because they are full and funny: a wonder with one clear rule, figures with unmistakable voices, gags that come back, chaos that escalates step by step, one brave moment with real heart, and an ending that pays off everything planted. Now you develop ONE stand-alone story in which the family's own heroes are the main characters. Everything a child will hear is in ${brief.languageLabel}; these instructions are in English only for you. Think it through silently, then answer with ONE JSON object.`,
+    `You are the head writer of Talea Originals. Families love our stories because they are full and funny: a wonder with one clear rule, figures with unmistakable voices, gags that come back, chaos that escalates step by step, one brave moment with real heart, and an ending that pays off everything planted. Now you develop ONE stand-alone story following the task's CAST FOCUS. Everything a child will hear is in ${brief.languageLabel}; these instructions are in English only for you. Think it through silently, then answer with ONE JSON object.`,
     bandNote(brief.band),
     "",
     METHOD_EN,
@@ -83,7 +84,7 @@ const PLAN_SHAPE = (brief: StoryBrief, chapters: number) => [
 function choiceLines(brief: StoryBrief): string[] {
   return [
     ...(takenNamesLine(brief) ? [takenNamesLine(brief)] : []),
-    `TODAY'S CHILD SITUATIONS — your three ideas use three DIFFERENT ones of these, each fitted to the heroes' nature: ${childSituationChoices(brief.seed).map((situation) => `„${situation}“`).join("; ")}.`,
+    `TODAY'S CHILD SITUATIONS — your three ideas use three DIFFERENT ones of these, each fitted to ${episodePoolLead(brief) ? "the leading figure's" : "the heroes'"} nature: ${childSituationChoices(brief.seed).map((situation) => `„${situation}“`).join("; ")}.`,
     `TODAY'S PLACES — set the story in one of these, or in an equally fresh one of the genre: ${placeChoices(brief.config.genre, brief.seed).map((place) => `„${place}“`).join("; ")}. Not a festival, party, show or performance (unless the family's wish asks for one) — that stage is worn out.`,
     "The heroes' traits and hobbies colour how they act, speak and solve things; they are not the topic. A hero who loves dancing does not need a dance performance — let the trait show up somewhere unexpected.",
   ];
@@ -126,7 +127,10 @@ function storyBriefLines(brief: StoryBrief, sizeHint: string): string[] {
   lines.push("CHAPTER RHYTHM:");
   for (const line of chapterRhythm(chapters)) lines.push(`- ${line}`);
   lines.push("");
-  lines.push("THE HEROES (they are the main characters and have the decisive ideas; their data is in the family's language):");
+  lines.push(...episodeCastFocus(brief), "");
+  lines.push(episodePoolLead(brief)
+    ? "THE FAMILY'S AVATARS (active companions with decisive contributions; data in the family's language):"
+    : "THE HEROES (they are the main characters and have the decisive ideas; their data is in the family's language):");
   for (const [index, hero] of brief.heroes.entries()) lines.push(heroSheetEn({ ...hero, id: heroIdOf(hero, index) }, brief.heroMemories[hero.id] || []));
   lines.push("");
   if (brief.candidates.length > 0) {
@@ -220,6 +224,7 @@ export function writerSystemPrompt(brief: StoryBrief): string {
     ...samples.map((sample) => `<<< ${sample.label}\n${sample.text}\n>>>`),
     "",
     CHILD_SAFETY_RULES_EN,
+    "The task's CAST FOCUS assigns narrative prominence. A named pool figure may lead when the avatars are companions; keep the avatars' decisive contributions and the leading figure's own consequential choice.",
     "",
     "OUTPUT, plain text without markdown — these markers stay German, everything else is in the story language:",
     "TITEL: <title>",
@@ -269,6 +274,7 @@ export function writerUserPrompt(brief: StoryBrief, plan: EpisodePlan, revision?
   for (const line of wishLinesEn(brief.config, "story")) lines.push(`- ${line}`);
   const learning = learningWriterLinesEn(brief.config, { form: "story", band: brief.band, units: budget.pages });
   if (learning.length) lines.push("", ...learning);
+  lines.push("", ...episodeCastFocus(brief));
   lines.push("");
   lines.push("THE HEROES (data in the family's language):");
   for (const [index, hero] of brief.heroes.entries()) lines.push(heroSheetEn({ ...hero, id: heroIdOf(hero, index) }, brief.heroMemories[hero.id] || []));

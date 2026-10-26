@@ -125,6 +125,7 @@ export interface ShortlistInput {
   seed: string;
   limit?: number;
   now?: number;
+  preferLead?: boolean;
 }
 
 /** A varied shortlist of up to `limit` candidates, best fit first. */
@@ -204,7 +205,12 @@ export function shortlistCastCandidates(input: ShortlistInput): CastCandidate[] 
   const caps: Record<CastFunction, number> = { trouble: 2, helper: 2, creature: 2, grownup: 1, other: 1 };
   const picked: typeof scored = [];
   const count = (fn: CastFunction) => picked.filter((entry) => entry.fn === fn).length;
+  if (input.preferLead && limit > 0) {
+    const lead = scored.find(entry => flag(entry.row.can_lead ?? entry.row.canLead) === true);
+    if (lead) picked.push(lead);
+  }
   for (const fn of ["trouble", "helper", "creature"] as CastFunction[]) {
+    if (picked.length >= limit) break;
     const best = scored.find((entry) => entry.fn === fn && !picked.includes(entry));
     if (best) picked.push(best);
   }

@@ -1,0 +1,1411 @@
+{
+  "pipeline": "talea-folge-v1",
+  "baseline": 7.07,
+  "candidate": 7.7,
+  "summaries": [
+    {
+      "group": "Erstvergleich",
+      "pairs": 3,
+      "baseline": 7.25,
+      "candidate": 7.883
+    },
+    {
+      "group": "Nachprüfung",
+      "pairs": 2,
+      "baseline": 6.8,
+      "candidate": 7.425
+    }
+  ],
+  "dimensions": {
+    "causalityAndRule": {
+      "baseline": 6.5,
+      "candidate": 7.5
+    },
+    "leadingCharacterAgency": {
+      "baseline": 7,
+      "candidate": 7.6
+    },
+    "ensembleContribution": {
+      "baseline": 7.3,
+      "candidate": 7.9
+    },
+    "voiceAndDialogue": {
+      "baseline": 7.5,
+      "candidate": 7.8
+    },
+    "humorAndWonder": {
+      "baseline": 7.8,
+      "candidate": 8.1
+    },
+    "pacing": {
+      "baseline": 6.5,
+      "candidate": 7.1
+    },
+    "readAloud": {
+      "baseline": 7.5,
+      "candidate": 7.9
+    },
+    "emotionAndPayoff": {
+      "baseline": 7.1,
+      "candidate": 8
+    }
+  },
+  "preferredCandidate": 8,
+  "preferredBaseline": 2,
+  "ties": 0,
+  "unsupportedQuotes": 3,
+  "improvedRatings": 7,
+  "regressedRatings": 3,
+  "generations": [
+    {
+      "group": "Erstvergleich",
+      "id": "imp",
+      "variant": "baseline",
+      "title": "Kicher hat alle Hände voll",
+      "words": 1102,
+      "calls": 1,
+      "hard": [],
+      "soft": [],
+      "seconds": 98,
+      "effort": "low"
+    },
+    {
+      "group": "Erstvergleich",
+      "id": "imp",
+      "variant": "candidate",
+      "title": "Das Ziel hat Beine",
+      "words": 1245,
+      "calls": 1,
+      "hard": [],
+      "soft": [],
+      "seconds": 157,
+      "effort": "low"
+    },
+    {
+      "group": "Erstvergleich",
+      "id": "witch",
+      "variant": "baseline",
+      "title": "Der Umhang mit dem Gartentor",
+      "words": 1158,
+      "calls": 1,
+      "hard": [],
+      "soft": [],
+      "seconds": 112,
+      "effort": "low"
+    },
+    {
+      "group": "Erstvergleich",
+      "id": "witch",
+      "variant": "candidate",
+      "title": "Der festgeklebte Abschied",
+      "words": 1245,
+      "calls": 1,
+      "hard": [],
+      "soft": [],
+      "seconds": 118,
+      "effort": "low"
+    },
+    {
+      "group": "Erstvergleich",
+      "id": "sleep",
+      "variant": "baseline",
+      "title": "Ein Boot für Morpheus",
+      "words": 486,
+      "calls": 1,
+      "hard": [],
+      "soft": [],
+      "seconds": 75,
+      "effort": "low"
+    },
+    {
+      "group": "Erstvergleich",
+      "id": "sleep",
+      "variant": "candidate",
+      "title": "Ein Bett für Eicheln",
+      "words": 458,
+      "calls": 1,
+      "hard": [],
+      "soft": [],
+      "seconds": 79,
+      "effort": "low"
+    },
+    {
+      "group": "Nachprüfung",
+      "id": "imp",
+      "variant": "baseline",
+      "title": "Der Wald trägt Fäustlinge",
+      "words": 1124,
+      "calls": 1,
+      "hard": [],
+      "soft": [],
+      "seconds": 142,
+      "effort": "low"
+    },
+    {
+      "group": "Nachprüfung",
+      "id": "imp",
+      "variant": "candidate",
+      "title": "Neun Zapfen auf Beinen",
+      "words": 1153,
+      "calls": 1,
+      "hard": [],
+      "soft": [],
+      "seconds": 160,
+      "effort": "low"
+    },
+    {
+      "group": "Nachprüfung",
+      "id": "sleep",
+      "variant": "baseline",
+      "title": "Ein Hut für den Wald",
+      "words": 494,
+      "calls": 1,
+      "hard": [],
+      "soft": [],
+      "seconds": 92,
+      "effort": "low"
+    },
+    {
+      "group": "Nachprüfung",
+      "id": "sleep",
+      "variant": "candidate",
+      "title": "Pantoffeln für den Mond",
+      "words": 487,
+      "calls": 1,
+      "hard": [],
+      "soft": [],
+      "seconds": 96,
+      "effort": "low"
+    }
+  ],
+  "pairs": [
+    {
+      "group": "Erstvergleich",
+      "id": "imp",
+      "files": {
+        "baseline": "ersttest-imp-vorher.md",
+        "candidate": "ersttest-imp-nachher.md"
+      },
+      "baseline": 7.7,
+      "candidate": 8,
+      "reads": [
+        {
+          "model": "gpt-6-luna",
+          "id": "imp",
+          "baseline": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 7,
+                "reason": "Zusatzregeln erzeugen Arme; Rücknahme löst sie, aber die Trefferwertung bleibt unklar."
+              },
+              "leadingCharacterAgency": {
+                "score": 6,
+                "reason": "Kicher treibt die Eskalation, doch Nora und Ben lösen das Spiel."
+              },
+              "ensembleContribution": {
+                "score": 8,
+                "reason": "Beide Kinder finden Schlupflöcher und helfen; Ben bremst Noras vorschnelles Ziehen."
+              },
+              "voiceAndDialogue": {
+                "score": 8,
+                "reason": "Ben bleibt trocken, Wilma brummig; Kichers Ausreden bekommen eine eigene Stimme."
+              },
+              "humorAndWonder": {
+                "score": 8,
+                "reason": "Die applaudierenden Arme und das Griffknäuel liefern anschauliche Komik."
+              },
+              "pacing": {
+                "score": 7,
+                "reason": "Versuche steigern den Regelwitz, doch der lange Griffabschnitt bremst."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Klare Geräusche und Bewegungen; einzelne Wettkampfregeln bleiben schwer nachzuhalten."
+              },
+              "emotionAndPayoff": {
+                "score": 7,
+                "reason": "Kichers Verlustangst berührt; der Türgriff-Schrankgag schließt die Geschichte."
+              }
+            },
+            "findings": [
+              {
+                "severity": "major",
+                "quote": "Nun war Kicher dran. Er gab jedem Stoffarm einen Preis.",
+                "readerCost": "Die Regeln verlangen hochgehaltene Preise; später soll Kicher selbst werfen.",
+                "fix": "Zeige ausdrücklich, ob die Preise beim eigenen Wurf gelten."
+              },
+              {
+                "severity": "minor",
+                "quote": "Der Hut hatte jetzt zwei Treffer.",
+                "readerCost": "Der Hut wirkt als Treffer, obwohl nur Zapfen im Eimer punkten sollten.",
+                "fix": "Klare die Wertung des Huttreffers oder streiche den Punkt."
+              }
+            ],
+            "strongest": {
+              "quote": "Kicher drehte sich darunter weg.\n\nDer Hut blieb stehen.\n\nKicher nicht.",
+              "reason": "Kurzer, gut vorlesbarer Sturz mit präzisem komischem Timing."
+            },
+            "score": 7.2,
+            "unsupportedQuotes": []
+          },
+          "candidate": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 8,
+                "reason": "Zusatzregeln werden wahr; Gesichter lenken das Ziel, Rücken lassen es stehen."
+              },
+              "leadingCharacterAgency": {
+                "score": 7,
+                "reason": "Kicher eskaliert aus Verlustangst und entscheidet am Ende, nicht nachzulegen."
+              },
+              "ensembleContribution": {
+                "score": 9,
+                "reason": "Nora entwickelt die Sperre, Ben erkennt die Rückenregel und führt rückwärts."
+              },
+              "voiceAndDialogue": {
+                "score": 8,
+                "reason": "Bens knappe Beobachtungen und Kichers übermütige Ausrufe unterscheiden sich."
+              },
+              "humorAndWonder": {
+                "score": 9,
+                "reason": "Kürbishosen, Entenfüße und fliehender Hocker bauen eigenständig aufeinander auf."
+              },
+              "pacing": {
+                "score": 8,
+                "reason": "Jeder Regelversuch verändert das Problem; die Lösung bekommt Raum."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Anschauliche Bewegung und Klangwörter; manche Positionswechsel verlangen Aufmerksamkeit."
+              },
+              "emotionAndPayoff": {
+                "score": 8,
+                "reason": "Kicher hilft Ben trotz drohender Niederlage; das Knarren rundet das Spiel ab."
+              }
+            },
+            "findings": [
+              {
+                "severity": "minor",
+                "quote": "Nora legte sechs Tannenzapfen neben den Waldweg.",
+                "readerCost": "Die sechs Zapfen spielen im Rennen kaum eine erkennbare Rolle.",
+                "fix": "Verwende sie als Startmarken oder lass Nora sie wegräumen."
+              }
+            ],
+            "strongest": {
+              "quote": "Kicher presste die Lippen zusammen. Dann sagte er leise: „Drück.“",
+              "reason": "Kicher verzichtet selbst auf die rettende Zusatzregel und ermöglicht Bens Sieg."
+            },
+            "score": 8,
+            "unsupportedQuotes": []
+          },
+          "preferred": "candidate",
+          "verdict": "B entwickelt das Rennen mit jeder Zusatzregel weiter und gibt Nora wie Ben wirksame Rollen. A hat einen starken Running Gag, doch die Preisregel und Wertung verwischen den Spielverlauf; Kicher trägt die Lösung weniger selbst."
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "id": "imp",
+          "candidate": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 8,
+                "reason": "Gesichterregel ermöglicht nachvollziehbare Lösung; Spiegel, Löffel und Entenfüße greifen ineinander."
+              },
+              "leadingCharacterAgency": {
+                "score": 8,
+                "reason": "Kichers Gewinnsucht verursacht Schwierigkeiten; sein bewusster Regelverzicht ermöglicht den Abschluss."
+              },
+              "ensembleContribution": {
+                "score": 9,
+                "reason": "Ben entdeckt die Lösung, Nora ermöglicht Orientierung, Kicher hilft entscheidend."
+              },
+              "voiceAndDialogue": {
+                "score": 8,
+                "reason": "Bens trockene Einwürfe kontrastieren wirkungsvoll mit Kichers prahlerischen Rechtfertigungen."
+              },
+              "humorAndWonder": {
+                "score": 8,
+                "reason": "Kürbishosen und flüchtendes Möbel erzeugen anschauliche, körperliche Komik."
+              },
+              "pacing": {
+                "score": 7,
+                "reason": "Versuche entwickeln sich weiter; Löffelversuch und Försterinnenauftritt dehnen die Verfolgung."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Klare Bewegungen, lebendige Geräusche und kurze Wechsel tragen das Vorlesen."
+              },
+              "emotionAndPayoff": {
+                "score": 8,
+                "reason": "Kichers abgebrochene Zusatzregel zeigt Veränderung; Türgriffschluss bleibt etwas beiläufig."
+              }
+            },
+            "findings": [
+              {
+                "severity": "minor",
+                "quote": "Ich mache hier sauber.",
+                "readerCost": "Der Försterinnenauftritt unterbricht die Zuspitzung, ohne Lösung oder Figurenbeziehung wesentlich zu verändern.",
+                "fix": "Den Auftritt kürzen oder die Bürste für die spätere Orientierung nutzen."
+              },
+              {
+                "severity": "minor",
+                "quote": "Ich verliere dabei sogar.",
+                "readerCost": "Kicher beschreibt seine Bereitschaft zum Verlieren schon vor der entscheidenden Wahl; das schwächt deren Spannung.",
+                "fix": "Hier nur seinen Wunsch nach verlässlichem Mitspielen zeigen und den Verlustverzicht aufsparen."
+              }
+            ],
+            "strongest": {
+              "quote": "Kicher presste die Lippen zusammen. Dann sagte er leise: „Drück.“",
+              "reason": "Eine kleine, sichtbare Entscheidung löst zugleich Spielproblem und inneren Konflikt."
+            },
+            "score": 8,
+            "unsupportedQuotes": []
+          },
+          "baseline": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 7,
+                "reason": "Armregel bleibt klar; zusätzliche Würfe widersprechen der festgelegten Zapfenzahl."
+              },
+              "leadingCharacterAgency": {
+                "score": 9,
+                "reason": "Kicher verursacht das Chaos und wählt selbst den fairen letzten Wurf."
+              },
+              "ensembleContribution": {
+                "score": 8,
+                "reason": "Beide Kinder nutzen Regeln gemeinsam; Ben erkennt die einfache Rücknahme."
+              },
+              "voiceAndDialogue": {
+                "score": 9,
+                "reason": "Wilmas grantige Eigenständigkeit und Bens Kürze beleben Kichers gekränkte Prahlerei."
+              },
+              "humorAndWonder": {
+                "score": 8,
+                "reason": "Huttreffer, Personalbegrüßung und Griffgewirr entwickeln denselben Zauber körperlich weiter."
+              },
+              "pacing": {
+                "score": 8,
+                "reason": "Arme steigern ihre Eigenaktivität; die bekannte Lösung wird emotional verzögert."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Kurze Sätze und gezielte Pausen tragen auch kompliziertere Armbewegungen."
+              },
+              "emotionAndPayoff": {
+                "score": 9,
+                "reason": "Verlustangst, Wilmas Ärmelwunsch und freiwillige Rücknahme ergeben einen warmen Abschluss."
+              }
+            },
+            "findings": [
+              {
+                "severity": "major",
+                "quote": "Drei Zapfen für jeden",
+                "readerCost": "Nach den ausdrücklich dritten Würfen spielen Nora und Ben weiter; Kichers Restwurf bleibt ebenfalls unklar.",
+                "fix": "Würfe konsequent mitzählen und die Preisregel vor den letzten Kinderwürfen einführen."
+              },
+              {
+                "severity": "minor",
+                "quote": "Mein Schrank braucht einen.",
+                "readerCost": "Der Schrank taucht beim bisher reparierten Picknicktisch unvermittelt auf; der Schlussgag wirkt herbeigeführt.",
+                "fix": "Den reparaturbedürftigen Schrank früh neben dem Tisch erwähnen."
+              }
+            ],
+            "strongest": {
+              "quote": "„Ich dachte, ihr geht, wenn ich verliere.“",
+              "reason": "Das schlichte Geständnis macht Kichers Regelmanöver nachträglich emotional verständlich."
+            },
+            "score": 8.2,
+            "unsupportedQuotes": []
+          },
+          "preferred": "baseline",
+          "verdict": "B gewinnt knapp durch Kichers stärkeren inneren Konflikt, Wilmas Eigenleben und den emotional vorbereiteten Regelverzicht. A bietet die sauberere Spielmechanik und die raffiniertere Gemeinschaftslösung. Bs widersprüchliche Wurfzählung bleibt eine erhebliche Schwäche."
+        }
+      ]
+    },
+    {
+      "group": "Erstvergleich",
+      "id": "witch",
+      "files": {
+        "baseline": "ersttest-witch-vorher.md",
+        "candidate": "ersttest-witch-nachher.md"
+      },
+      "baseline": 7.25,
+      "candidate": 8.1,
+      "reads": [
+        {
+          "model": "gpt-6-luna",
+          "id": "witch",
+          "candidate": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 8,
+                "reason": "Wer „Bleib“ sagt, klebt bis „Lebwohl“; die Hexe löst die Bindung bewusst."
+              },
+              "leadingCharacterAgency": {
+                "score": 7,
+                "reason": "Die Hexe hält Pappobald fest und lässt ihn schließlich gehen; Nora und Ben prägen das Duell."
+              },
+              "ensembleContribution": {
+                "score": 8,
+                "reason": "Nora baut den Weg, Ben setzt Grenzen und stellt die entscheidende Frage."
+              },
+              "voiceAndDialogue": {
+                "score": 8,
+                "reason": "Pappobalds Fußgepäck und die Hexensticheleien klingen eigen."
+              },
+              "humorAndWonder": {
+                "score": 8,
+                "reason": "Klebrige Frühstückssachen und der Brotquak-Gag verbinden Komik und Magie."
+              },
+              "pacing": {
+                "score": 7,
+                "reason": "Die Klebeversuche wiederholen sich; der stille Abschied setzt spät einen neuen Ton."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Schlapp, Flupp und klare Körperbilder tragen den Vortrag; viele Verklebungen fordern Orientierung."
+              },
+              "emotionAndPayoff": {
+                "score": 9,
+                "reason": "Der Wunsch nach Rätselgesellschaft macht das Loslassen glaubwürdig und warm."
+              }
+            },
+            "findings": [
+              {
+                "severity": "major",
+                "quote": "Die Hexe versuchte, den Ast wegzutreten. Er schwang hoch und klemmte unter ihrem Umhang fest.",
+                "readerCost": "Die Kleberegel nennt Berührung durch den Sprecher, nicht durch Gegenstände oder Dritte.",
+                "fix": "Erkläre knapp, warum Ast und Frühstück an Pappobald haften."
+              },
+              {
+                "severity": "minor",
+                "quote": "Sieben Jahre waren ziemlich lange“, sagte die Hexe.",
+                "readerCost": "Die lange Trennung wird benannt, aber der Grund ihres damaligen Abschieds bleibt offen.",
+                "fix": "Gib einen kurzen Hinweis, warum Pappobald damals fortging."
+              }
+            ],
+            "strongest": {
+              "quote": "Welches Wort lässt jemanden gehen, obwohl man ihn gern behalten würde?",
+              "reason": "Das Rätsel bündelt die Wunderregel und den emotionalen Abschied."
+            },
+            "score": 7.8,
+            "unsupportedQuotes": []
+          },
+          "baseline": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 6,
+                "reason": "Fädelberts Bindung löst sich beim Verschenken; der Gegenstandstransfer bleibt unklar."
+              },
+              "leadingCharacterAgency": {
+                "score": 7,
+                "reason": "Die Hexe weigert sich zu verschenken und wählt schließlich Fädelbert als Empfänger."
+              },
+              "ensembleContribution": {
+                "score": 8,
+                "reason": "Nora und Ben bemerken Fädelberts Wunsch und helfen der Hexe beim Loslassen."
+              },
+              "voiceAndDialogue": {
+                "score": 7,
+                "reason": "Ben ist trocken und Fädelbert eigen, doch mehrere Figuren erklären ihre Gefühle direkt."
+              },
+              "humorAndWonder": {
+                "score": 8,
+                "reason": "Der Gartentor-Umhang und Fädelberts Zimmerwunsch erzeugen klare Bilder."
+              },
+              "pacing": {
+                "score": 7,
+                "reason": "Die Befestigungen steigern sich, aber Schere, Tür und Tor wiederholen das Festkleben."
+              },
+              "readAloud": {
+                "score": 7,
+                "reason": "Viele Requisiten bleiben verständlich, doch Deichsel, Tor und Umhang verwickeln die Bewegungen."
+              },
+              "emotionAndPayoff": {
+                "score": 8,
+                "reason": "Der Froschflicken begründet die Bindung; Kieselregen liefert einen passenden Schlussgag."
+              }
+            },
+            "findings": [
+              {
+                "severity": "major",
+                "quote": "Bis du ihn freiwillig verschenkst.",
+                "readerCost": "Die Hexe verschenkt den Umhang, doch Fädelbert erhält zusätzlich den ganzen Hof samt Tor.",
+                "fix": "Beschränke die Lösung auf den Umhang oder erkläre die Bindung der übrigen Dinge."
+              },
+              {
+                "severity": "minor",
+                "quote": "Sie schnitt einmal. Der Faden schloss sich hinter der Klinge.",
+                "readerCost": "Der Schnittversuch ändert nichts und liefert nur eine weitere Treppe am Umhang.",
+                "fix": "Kürze den Versuch oder lass ihn eine neue Erkenntnis ermöglichen."
+              }
+            ],
+            "strongest": {
+              "quote": "„Fädelbert. Ich schenke dir mein Umhanghaus.“",
+              "reason": "Die Hexe verwandelt ihr Festhalten in ein Geschenk, das Fädelberts Wunsch erfüllt."
+            },
+            "score": 7.1,
+            "unsupportedQuotes": []
+          },
+          "preferred": "candidate",
+          "verdict": "A verknüpft eine klare Kleberegel mit einem emotionalen Rätselabschied; die wechselnden Verklebungen sind etwas repetitiv. B hat starke Bilder und einen passenden Schlusswitz, doch die Lösung weitet die Umhangregel auf Tor und Wagen aus, ohne sie vorzubereiten."
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "id": "witch",
+          "baseline": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 6,
+                "reason": "Verschenken löst den Zauber verständlich; Schneidetrick und Kieselregen erweitern ihn unbegründet."
+              },
+              "leadingCharacterAgency": {
+                "score": 8,
+                "reason": "Die Hexe verursacht Verwicklungen und entscheidet selbst, ihren Erinnerungsumhang zu verschenken."
+              },
+              "ensembleContribution": {
+                "score": 8,
+                "reason": "Noras voreiliger Schnitt scheitert; Ben erkennt die Umdeutung zum fertigen Haus."
+              },
+              "voiceAndDialogue": {
+                "score": 8,
+                "reason": "Käfers Wohnungsansprüche und Bens trockene Beobachtungen besitzen eigenständige Stimmen."
+              },
+              "humorAndWonder": {
+                "score": 8,
+                "reason": "Kohlräder, schnelle Tasche und bewohnbarer Umhang verbinden Alltagsdinge überraschend."
+              },
+              "pacing": {
+                "score": 7,
+                "reason": "Anbauten verändern die Lage; mehrere Befreiungsversuche verlängern den klaren Grundkonflikt."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Anschauliche Gegenstände und griffige Dialoge; Torpfosten und Tor werden unscharf."
+              },
+              "emotionAndPayoff": {
+                "score": 7,
+                "reason": "Kronenfrosch und Käfers Socke bereiten Loslassen vor; Schlussgag widerspricht Taschenprobe."
+              }
+            },
+            "findings": [
+              {
+                "severity": "major",
+                "quote": "„Bei mir regnet es Kiesel.“",
+                "readerCost": "Der Kiesel bleibt ausdrücklich in der neuen Tasche; sein Auftauchen im alten Umhanghaus hat keine Grundlage.",
+                "fix": "Den Käfer über etwas nachweislich im alten Umhang Zurückgelassenes schimpfen lassen."
+              },
+              {
+                "severity": "minor",
+                "quote": "Beim dritten Schnitt entstand eine winzige Treppe.",
+                "readerCost": "Die erklärte Festnähregel umfasst weder selbstheilende Nähte noch Möbelbildung durch Scherenschnitte.",
+                "fix": "Die Schnitte schlicht scheitern lassen oder die zusätzliche Fadenfähigkeit vorher zeigen."
+              }
+            ],
+            "strongest": {
+              "quote": "„Ohne Socke sah mein Korb auch falsch aus.“",
+              "reason": "Fädelberts eigener Eigensinn wird zum einfühlsamen Spiegel der Verlustangst."
+            },
+            "score": 7.4,
+            "unsupportedQuotes": []
+          },
+          "candidate": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 8,
+                "reason": "Klebekette folgt verständlicher Regel; das früh genannte Abschiedswort löst alles."
+              },
+              "leadingCharacterAgency": {
+                "score": 9,
+                "reason": "Die Hexe hält ihren Gegner fest und entscheidet schließlich gegen Besitzansprüche."
+              },
+              "ensembleContribution": {
+                "score": 8,
+                "reason": "Noras Eile verschärft das Problem; Ben sichert das entscheidende dritte Rätsel."
+              },
+              "voiceAndDialogue": {
+                "score": 9,
+                "reason": "Krötenkönigs Kniebeschwerden treffen auf hexische Ausflüchte und Bens genaue Einwürfe."
+              },
+              "humorAndWonder": {
+                "score": 9,
+                "reason": "Fußgepäck, Brotkrone und quakender Strumpffuß liefern konkrete, variierte Märchenkomik."
+              },
+              "pacing": {
+                "score": 7,
+                "reason": "Klebekette wächst sinnvoll; der späte Stiefelversuch wiederholt bereits bekannte Aussichtslosigkeit."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Lebendige Dialoge und Geräusche; der wachsende Körperknoten verlangt stellenweise Aufmerksamkeit."
+              },
+              "emotionAndPayoff": {
+                "score": 9,
+                "reason": "Rätselrahmen, Abschiedswort und freigeräumter Fußplatz verbinden Gefühl mit sichtbarer Handlung."
+              }
+            },
+            "findings": [
+              {
+                "severity": "minor",
+                "quote": "Wir ziehen die Stiefel aus.",
+                "readerCost": "Nach Ast und Frühstückskette verzögert ein weiterer mechanischer Versuch die längst bekannte emotionale Lösung.",
+                "fix": "Den Stiefelversuch kürzen und direkt in das Gespräch über die sieben Jahre führen."
+              },
+              {
+                "severity": "minor",
+                "quote": "Pappobald, der Klebkönig",
+                "readerCost": "Seine Klebrigkeit verhindert gerade den gewünschten Aufbruch; als Gegenspieler bleibt er überwiegend geduldig.",
+                "fix": "Ihm beim Rätselduell eine eigensinnige Gegenforderung oder einen kleinen eigenen Trick geben."
+              }
+            ],
+            "strongest": {
+              "quote": "„Das zählt als dein Sieg“, sagte die Hexe schließlich.",
+              "reason": "Die Hexe akzeptiert zugleich eine Niederlage und den eigenständigen Wunsch ihres Freundes."
+            },
+            "score": 8.4,
+            "unsupportedQuotes": []
+          },
+          "preferred": "candidate",
+          "verdict": "B verbindet Rätselwunsch, Verlustangst und Abschied zu einer stärkeren Handlung. Die Versuche steigern zunächst das Klebechaos, wiederholen zuletzt aber die Befreiungsidee. A besitzt ein berührendes Umhangmotiv, verliert durch zusätzliche Zauberfähigkeiten und den unlogischen Kieselgag."
+        }
+      ]
+    },
+    {
+      "group": "Erstvergleich",
+      "id": "sleep",
+      "files": {
+        "baseline": "ersttest-sleep-vorher.md",
+        "candidate": "ersttest-sleep-nachher.md"
+      },
+      "baseline": 6.8,
+      "candidate": 7.55,
+      "reads": [
+        {
+          "model": "gpt-6-luna",
+          "id": "sleep",
+          "baseline": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 6,
+                "reason": "Gesprochenes wird zum Wolkenbild; die Birne, das Boot und die Wünsche vermischen die Regel."
+              },
+              "leadingCharacterAgency": {
+                "score": 6,
+                "reason": "Morpheus äußert schließlich seinen Wunsch, doch Nora und Ben liefern fast alle Bilder."
+              },
+              "ensembleContribution": {
+                "score": 6,
+                "reason": "Nora beruhigt und Ben wartet; ihre Beiträge bleiben bei einer kurzen Szene begrenzt."
+              },
+              "voiceAndDialogue": {
+                "score": 7,
+                "reason": "Bens leise Scherze und Morpheus’ Zögern klingen unterscheidbar."
+              },
+              "humorAndWonder": {
+                "score": 7,
+                "reason": "Die Birne beansprucht den Platz und der Pantoffel schläft über ihr."
+              },
+              "pacing": {
+                "score": 5,
+                "reason": "Birne, Pantoffel und Bett wiederholen das Fehlbild, bevor der Traum beginnt."
+              },
+              "readAloud": {
+                "score": 7,
+                "reason": "Sanfte Bilder und kurze Sätze passen zum Einschlafen; die Regel wechselt unklar."
+              },
+              "emotionAndPayoff": {
+                "score": 6,
+                "reason": "Morpheus’ Scham wird benannt, doch sein eigener Traum erhält wenig Ausgestaltung."
+              }
+            },
+            "findings": [
+              {
+                "severity": "major",
+                "quote": "Was ich ins Traumsäckchen sage, kommt als Wolkenbild heraus.",
+                "readerCost": "Die späteren Bilder folgen mal Morpheus’ Worten, mal den Vorschlägen der Kinder.",
+                "fix": "Halte konsequent fest, wessen zuletzt genannte Worte das Bild bestimmen."
+              },
+              {
+                "severity": "minor",
+                "quote": "Morpheus versuchte einen zweiten Ersatztraum.",
+                "readerCost": "Drei fast gleiche Fehlbilder verzögern den stillen, eigenen Traum.",
+                "fix": "Kürze ein Fehlbild oder lass jeden Versuch Morpheus’ Wunsch verändern."
+              }
+            ],
+            "strongest": {
+              "quote": "Der Pantoffel hing über dem Bootsrand.\n\n„Ihr Schuh wird seekrank.“",
+              "reason": "Ein schlichtes, freundliches Schlussbild bringt den Traumwitz auf den Punkt."
+            },
+            "score": 6.2,
+            "unsupportedQuotes": [
+              "Der Pantoffel hing über dem Bootsrand.\n\n„Ihr Schuh wird seekrank.“"
+            ]
+          },
+          "candidate": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 8,
+                "reason": "Das Wölkchen zeigt das zuletzt laut genannte Bild; Morpheus’ eigene Worte erfüllen die Regel."
+              },
+              "leadingCharacterAgency": {
+                "score": 8,
+                "reason": "Morpheus bittet erst um fremde Bilder, dann formuliert er selbst seinen Wunsch."
+              },
+              "ensembleContribution": {
+                "score": 8,
+                "reason": "Nora lässt Raum, Ben erkennt die Regel und bestärkt Morpheus’ eigenen Wunsch."
+              },
+              "voiceAndDialogue": {
+                "score": 8,
+                "reason": "Bens knappe Kommentare, Noras Impulse und Morpheus’ Flüstern tragen die Szene."
+              },
+              "humorAndWonder": {
+                "score": 8,
+                "reason": "Der Pantoffelhase und die kullernden Eicheln bringen sanften, passenden Witz."
+              },
+              "pacing": {
+                "score": 8,
+                "reason": "Zwei fremde Traumbilder führen jeweils anders zum eigenen Wunsch."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Ruhige Wiederholungen und klare Wolkenbilder eignen sich gut zum Vorlesen."
+              },
+              "emotionAndPayoff": {
+                "score": 8,
+                "reason": "Morpheus’ eigener Mondtraum entsteht aus seinem ausgesprochenen Wunsch und begleitet die Runde."
+              }
+            },
+            "findings": [
+              {
+                "severity": "minor",
+                "quote": "Morpheus möchte vor seiner gemütlichen Waldrunde einen eigenen Traum finden.",
+                "readerCost": "Seine Waldrunde bleibt am Ende knapp, sodass der erfüllte Wunsch wenig Raum bekommt.",
+                "fix": "Zeige noch einen ruhigen Moment mit dem Mond während der Runde."
+              }
+            ],
+            "strongest": {
+              "quote": "„Ich möchte meine Waldrunde gehen. Und über mir schwimmt ein Mond in einer Nussschale.“",
+              "reason": "Morpheus formuliert ein eigenes, gut sichtbares Traumbild und nimmt es mit."
+            },
+            "score": 8,
+            "unsupportedQuotes": []
+          },
+          "preferred": "candidate",
+          "verdict": "B gibt dem Wunder eine beständige Regel und lässt Morpheus aus fremden Bildern einen eigenen Wunsch entwickeln. A wiederholt drei Ersatzbilder, bevor sein Traum erscheint, und lässt die Wolkenregel dabei unscharf."
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "id": "sleep",
+          "candidate": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 7,
+                "reason": "Bildwechsel sind nachvollziehbar; Ben benennt die Wunderregel ohne erkennbare Prüfung."
+              },
+              "leadingCharacterAgency": {
+                "score": 7,
+                "reason": "Morpheus wünscht, prüft und formuliert schließlich selbst; Kinder führen ihn stark."
+              },
+              "ensembleContribution": {
+                "score": 8,
+                "reason": "Nora schafft Raum für Ben; dessen Unterscheidung zwischen Träumen und Wünschen hilft."
+              },
+              "voiceAndDialogue": {
+                "score": 7,
+                "reason": "Bens knappe Kommentare tragen; Morpheus bleibt überwiegend sanft und zurückhaltend."
+              },
+              "humorAndWonder": {
+                "score": 8,
+                "reason": "Aufgestandene Pantoffeln und bemützte Kullereicheln bieten sanfte, anschauliche Komik."
+              },
+              "pacing": {
+                "score": 6,
+                "reason": "Drei fremde Bilder variieren dasselbe Scheitern; Morpheus entwickelt seine Wünsche spät."
+              },
+              "readAloud": {
+                "score": 7,
+                "reason": "Ruhiger Rhythmus; einzelne abstrakte Erklärungen überfordern leicht die jüngsten Zuhörer."
+              },
+              "emotionAndPayoff": {
+                "score": 7,
+                "reason": "Eigener Mondtraum und begonnene Runde schließen geborgen; Titelmotiv bleibt eine Zwischenepisode."
+              }
+            },
+            "findings": [
+              {
+                "severity": "minor",
+                "quote": "Darum sammle ich fremde Traumbeschreibungen.",
+                "readerCost": "Die Erklärung über fremde Beschreibungen und eigene Wünsche ist für Dreijährige unnötig abstrakt.",
+                "fix": "Morpheus an einem konkreten Bild zeigen lassen, was sich für ihn richtig anfühlt."
+              },
+              {
+                "severity": "minor",
+                "quote": "Eine Schnecke mit einem Wagen.",
+                "readerCost": "Das dritte fremde Traumbild wiederholt die Suche, ohne Morpheus einem eigenen Bild deutlich näherzubringen.",
+                "fix": "Den Wagen bereits mit Morpheus’ gewünschter ruhiger Runde verbinden."
+              }
+            ],
+            "strongest": {
+              "quote": "Seine Pantoffeln standen bereits auf. Er noch nicht.",
+              "reason": "Die leicht verständliche Bildverdrehung ist komisch, ohne die Einschlafruhe aufzubrechen."
+            },
+            "score": 7.1,
+            "unsupportedQuotes": []
+          },
+          "baseline": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 8,
+                "reason": "Gesprochene Bilder erscheinen zuverlässig; Ersatzbilder sammeln sich sichtbar bis zur Bootslösung."
+              },
+              "leadingCharacterAgency": {
+                "score": 8,
+                "reason": "Morpheus versteckt seinen Wunsch, produziert Ersatzbilder und wagt schließlich dessen Aussprache."
+              },
+              "ensembleContribution": {
+                "score": 7,
+                "reason": "Ben fragt behutsam, Nora wartet; beide gestalten den fertigen Traum mit."
+              },
+              "voiceAndDialogue": {
+                "score": 7,
+                "reason": "Bens Birnenkommentare wirken eigenständig; sein Selbstgeständnis klingt vergleichsweise erwachsen."
+              },
+              "humorAndWonder": {
+                "score": 8,
+                "reason": "Birne im Pantoffel und verdrehtes Bett ergeben eine zusammenhängende kleine Wunderwelt."
+              },
+              "pacing": {
+                "score": 7,
+                "reason": "Gegenstände häufen sich zum Schlussbild; Ersatztraumfolge und Gärtnerin verzögern das Geständnis."
+              },
+              "readAloud": {
+                "score": 6,
+                "reason": "Meist weich und konkret; Großbuchstabenausruf bricht die ausdrücklich gewünschte Einschlafruhe."
+              },
+              "emotionAndPayoff": {
+                "score": 7,
+                "reason": "Frühes Boot und Ersatzbilder finden zusammen; Morpheus’ eigener Wunsch bleibt unspezifisch."
+              }
+            },
+            "findings": [
+              {
+                "severity": "major",
+                "quote": "„EIN BOOT FÜR MICH!“",
+                "readerCost": "Der typografisch geschriene Höhepunkt legt beim Vorlesen eine erschreckende Lautstärke nahe.",
+                "fix": "Den Wunsch deutlich in normaler Stimme sprechen und die Reaktion sanft halten."
+              },
+              {
+                "severity": "minor",
+                "quote": "Mit Platz für alle.",
+                "readerCost": "Der zunächst persönliche Traum wird sofort zum Sammelboot; Morpheus’ besonderer eigener Wunsch bleibt blass.",
+                "fix": "Ein persönliches Detail ergänzen, etwa seinen Lieblingsplatz zum ruhigen Schaukeln."
+              }
+            ],
+            "strongest": {
+              "quote": "Ben setzte die Birne samt Pantoffel darauf.",
+              "reason": "Die vermeintlich misslungenen Ersatzbilder erhalten im gemeinsamen Schlussbild einen gemütlichen Platz."
+            },
+            "score": 7.4,
+            "unsupportedQuotes": []
+          },
+          "preferred": "candidate",
+          "verdict": "A erfüllt den Einschlafauftrag verlässlicher: leise Komik, ein konkreter eigener Mondtraum und ein ruhiger Aufbruch. B verknüpft seine Gegenstände besser und gibt Morpheus mehr Initiative, beschädigt aber mit dem geschrienen Höhepunkt die gewünschte Geborgenheit."
+        }
+      ]
+    },
+    {
+      "group": "Nachprüfung",
+      "id": "imp",
+      "files": {
+        "baseline": "nachpruefung-imp-vorher.md",
+        "candidate": "nachpruefung-imp-nachher.md"
+      },
+      "baseline": 7,
+      "candidate": 7.5,
+      "reads": [
+        {
+          "model": "gpt-6-luna",
+          "id": "imp",
+          "baseline": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 5,
+                "reason": "Die Griffregel wird erklärt, aber nicht sauber zu Ende geführt."
+              },
+              "leadingCharacterAgency": {
+                "score": 5,
+                "reason": "Kicher startet das Spiel, Nora und Ben lösen die entscheidenden Probleme."
+              },
+              "ensembleContribution": {
+                "score": 6,
+                "reason": "Ben findet den Baumtrick; Nora organisiert den Wurf, Kicher bleibt passiv."
+              },
+              "voiceAndDialogue": {
+                "score": 6,
+                "reason": "Ben klingt trocken, doch Kichers Zusatzregeln wiederholen sich ohne klare Entwicklung."
+              },
+              "humorAndWonder": {
+                "score": 7,
+                "reason": "Wollfäustlinge und königlicher Sitz liefern anschauliche Komik."
+              },
+              "pacing": {
+                "score": 5,
+                "reason": "Die Försterin unterbricht den Höhepunkt; Spielende und Schluss ziehen sich."
+              },
+              "readAloud": {
+                "score": 7,
+                "reason": "Klar und bildhaft, mit einigen unnötig verschachtelten Bewegungen."
+              },
+              "emotionAndPayoff": {
+                "score": 5,
+                "reason": "Kichers Angst wird benannt, aber sein eigener Verzicht auf Regeln fehlt."
+              }
+            },
+            "findings": [
+              {
+                "severity": "major",
+                "quote": "„Zusatzregel! Alle Bäume hier bekommen Fäustlinge!“",
+                "readerCost": "Die Regel vergrößert das Chaos, ohne Kichers Niederlage oder Lösung voranzubringen.",
+                "fix": "Lass Kicher die Baumregel für einen konkreten Spielvorteil wählen."
+              },
+              {
+                "severity": "major",
+                "quote": "„Ich kenne auch ein Spiel ohne Zusatzregeln“",
+                "readerCost": "Der angekündigte Verzicht bleibt folgenlos; der Schluss entscheidet wieder per Fehlwurf.",
+                "fix": "Lass Kicher freiwillig eine Regel aufgeben oder Ben den Sieg schenken."
+              }
+            ],
+            "strongest": {
+              "quote": "Kicher schüttelte den Kopf.",
+              "reason": "Sein Verzicht auf eine Zusatzregel zeigt kurz echte Veränderung."
+            },
+            "score": 5.6,
+            "unsupportedQuotes": []
+          },
+          "candidate": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 7,
+                "reason": "Die Regel ist verständlich; das freiwillige Verschenken beendet die Magie."
+              },
+              "leadingCharacterAgency": {
+                "score": 7,
+                "reason": "Kicher verursacht das Chaos und entscheidet am Ende selbst, Ben gewinnen zu lassen."
+              },
+              "ensembleContribution": {
+                "score": 8,
+                "reason": "Nora lenkt, Ben klopft und fordert Mitbestimmung; beide beeinflussen das Spiel."
+              },
+              "voiceAndDialogue": {
+                "score": 8,
+                "reason": "Kichers Ausflüchte, Bens Trockenheit und Quappes Knappheit unterscheiden sich."
+              },
+              "humorAndWonder": {
+                "score": 8,
+                "reason": "Beinige Zapfen, Hutstuhl und Siegergriff verbinden sichtbare Komik mit Magie."
+              },
+              "pacing": {
+                "score": 7,
+                "reason": "Die Versuche eskalieren; die Sitzregel wiederholt das Zapfenlenken teilweise."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Klare Bilder, kurze Klangwörter und gut sprechbare Dialogwechsel."
+              },
+              "emotionAndPayoff": {
+                "score": 8,
+                "reason": "Kicher öffnet die Hand und schenkt Ben den Sieg; der Griff schließt den Witz."
+              }
+            },
+            "findings": [
+              {
+                "severity": "minor",
+                "quote": "„Alle neun Zapfen drehten sich zu ihr um.“",
+                "readerCost": "Die Sitzregel lenkt die Zapfen zur Försterin, doch ihr Ende bleibt etwas abrupt.",
+                "fix": "Zeige kurz, wie die Regel durch Kichers freiwillige Entscheidung aufgehoben wird."
+              }
+            ],
+            "strongest": {
+              "quote": "„Ich schenke dir den Sieg.“",
+              "reason": "Kicher wählt den Verlust selbst und löst damit vorbereitet die Magie."
+            },
+            "score": 7.5,
+            "unsupportedQuotes": [
+              "„Alle neun Zapfen drehten sich zu ihr um.“"
+            ]
+          },
+          "preferred": "candidate",
+          "verdict": "B entwickelt die Regelversuche zu Kichers eigener Entscheidung weiter; A fügt nach ähnlichen Zusatzregeln eine Nebenhandlung mit der Försterin ein und lässt den Schluss vom Fehlwurf abhängen."
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "id": "imp",
+          "candidate": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 6,
+                "reason": "Klare Auflösung, aber Sitzregel und Zapfenlenkung widersprechen sich teilweise."
+              },
+              "leadingCharacterAgency": {
+                "score": 8,
+                "reason": "Kichers Verlustangst verursacht Eskalation; sein freiwilliger Verzicht beendet sie."
+              },
+              "ensembleContribution": {
+                "score": 8,
+                "reason": "Ben entdeckt das Klopfen; Nora baut Wege und überlässt Entscheidungen."
+              },
+              "voiceAndDialogue": {
+                "score": 8,
+                "reason": "Bens Trockenheit und Kichers angestrengte Begeisterung tragen lebendige Wortwechsel."
+              },
+              "humorAndWonder": {
+                "score": 8,
+                "reason": "Verbeugender Hut, wandernde Zapfen und knarrender Siegerpreis ergeben anschauliche Komik."
+              },
+              "pacing": {
+                "score": 7,
+                "reason": "Versuche verändern die Lage; Försterinnenepisode und erneutes Einsammeln verlängern sie."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Rhythmische Geräusche und klare Sätze; einzelne Bewegungen bleiben räumlich unklar."
+              },
+              "emotionAndPayoff": {
+                "score": 8,
+                "reason": "Geöffnete Hand bereitet Verzicht vor; Türgriff wird zum gelungenen Siegerpreis."
+              }
+            },
+            "findings": [
+              {
+                "severity": "major",
+                "quote": "Die Sitzregel ist stärker",
+                "readerCost": "Die Priorität wird erst nachträglich behauptet. Später lassen sich die Zapfen wieder durch Klopfen lenken, obwohl Kicher weiterhin sitzt.",
+                "fix": "Eine eindeutige Rangfolge festlegen und sämtliche Zapfenbewegungen daran ausrichten."
+              },
+              {
+                "severity": "minor",
+                "quote": "Zwei Zapfen kehrten um.",
+                "readerCost": "Warum gerade zwei Zapfen zum erhöht sitzenden Kicher wechseln, erklärt keine Regel. Die Verteilung wirkt vom Szenenbedarf bestimmt.",
+                "fix": "Alle Zapfen nach demselben verständlichen Kriterium reagieren lassen."
+              }
+            ],
+            "strongest": {
+              "quote": "Seine Finger umklammerten den Beutel. Dann öffnete er die Hand.",
+              "reason": "Kichers entscheidender innerer Wechsel wird körperlich sichtbar, bevor er den Sieg verschenkt."
+            },
+            "score": 7.5,
+            "unsupportedQuotes": []
+          },
+          "baseline": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 8,
+                "reason": "Spielende löst Zauber verständlich; nachahmende Baumhände bleiben eine unbegründete Zusatzfähigkeit."
+              },
+              "leadingCharacterAgency": {
+                "score": 9,
+                "reason": "Kicher verursacht Schwierigkeiten und entscheidet selbst, seinen letzten Wurf zuzulassen."
+              },
+              "ensembleContribution": {
+                "score": 8,
+                "reason": "Nora ermöglicht Treffer und Schlusswurf; Ben befreit eigenständig die Wurfbahn."
+              },
+              "voiceAndDialogue": {
+                "score": 8,
+                "reason": "Kichers Ausflüchte, Bens Kommentare und Knarz’ Hängesehnsucht klingen eigenständig."
+              },
+              "humorAndWonder": {
+                "score": 9,
+                "reason": "Wollberge, Schneckenbrunnen und Specht hinter dem Türgriff überraschen konkret."
+              },
+              "pacing": {
+                "score": 8,
+                "reason": "Jede Zusatzregel verändert das Problem; der Schlusswurf bekommt wirksamen Raum."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Anschauliche Bewegungen, gut gesetzte Pausen und kurze Dialoge tragen mühelos."
+              },
+              "emotionAndPayoff": {
+                "score": 9,
+                "reason": "Verlustangst mündet in freiwilligen Wurf; Knarz’ Wunsch bereitet Schlussgag vor."
+              }
+            },
+            "findings": [
+              {
+                "severity": "minor",
+                "quote": "Die Buche bewegte ihre genauso.",
+                "readerCost": "Die Fäustlingsregel erklärt keine Nachahmung. Gerade die Befreiung des Eimers hängt dadurch von einer neuen Fähigkeit ab.",
+                "fix": "Das Nachahmen beim ersten Auftauchen der Baumfäustlinge beiläufig zeigen."
+              },
+              {
+                "severity": "minor",
+                "quote": "Wer hinten liegt, bekommt einen königlichen Sitz!",
+                "readerCost": "Nora liegt ebenfalls hinter Ben, bekommt aber keinen Sitz. Die für alle formulierte Regel wirkt nur auf Kicher.",
+                "fix": "Die Regel ausdrücklich auf Kicher beziehen oder Nora ebenfalls einen Sitz geben."
+              }
+            ],
+            "strongest": {
+              "quote": "Kicher schüttelte den Kopf.",
+              "reason": "Auf Knarz’ Angebot verzichtet Kicher selbst auf die nächste Ausflucht und nimmt den möglichen Fehlwurf an."
+            },
+            "score": 8.4,
+            "unsupportedQuotes": []
+          },
+          "preferred": "baseline",
+          "verdict": "B entwickelt Kichers Tricks zu zunehmend hinderlichen Folgen und einem selbst gewählten Schlusswurf. A besitzt starke Komik, verliert jedoch durch wechselnde Zapfenlogik an Verständlichkeit."
+        }
+      ]
+    },
+    {
+      "group": "Nachprüfung",
+      "id": "sleep",
+      "files": {
+        "baseline": "nachpruefung-sleep-vorher.md",
+        "candidate": "nachpruefung-sleep-nachher.md"
+      },
+      "baseline": 6.6,
+      "candidate": 7.35,
+      "reads": [
+        {
+          "model": "gpt-6-luna",
+          "id": "sleep",
+          "candidate": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 7,
+                "reason": "Sumi ersetzt jedes Bild nach der gesprochenen Traumformel."
+              },
+              "leadingCharacterAgency": {
+                "score": 7,
+                "reason": "Morpheus findet einen eigenen Traum und formuliert ihn schließlich selbst."
+              },
+              "ensembleContribution": {
+                "score": 5,
+                "reason": "Ben hilft mit einer Frage; Nora schlägt den Wunsch vor und hält Sumi bereit."
+              },
+              "voiceAndDialogue": {
+                "score": 6,
+                "reason": "Ben ist trocken, doch Sumi erklärt die Regel und die Figuren sprechen ähnlich."
+              },
+              "humorAndWonder": {
+                "score": 7,
+                "reason": "Pantoffelhasen und der Mond, der sich die Füße abwischt, sind einprägsam."
+              },
+              "pacing": {
+                "score": 7,
+                "reason": "Zwei verwechselte Wörter führen zur Suche; der leise Moment passt, bleibt knapp."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Ruhige, klare Sätze und gut verständliche Traumbilder."
+              },
+              "emotionAndPayoff": {
+                "score": 7,
+                "reason": "Morpheus bekommt einen eigenen Traum; der Schlussgag knüpft an Pantoffeln an."
+              }
+            },
+            "findings": [
+              {
+                "severity": "major",
+                "quote": "„Ich träume von einem Rasen.“",
+                "readerCost": "Die Verwechslung mit Hase ist nicht hörbar plausibel und schwächt die Wunderregel.",
+                "fix": "Wähle ein ähnlich klingendes, zugleich verständliches Wortpaar."
+              },
+              {
+                "severity": "minor",
+                "quote": "„Aus Sumi quoll ein silbernes Schwein.“",
+                "readerCost": "Das Schwein wird sofort durch den Hasen ersetzt; die Folge wirkt wie eine Schleife.",
+                "fix": "Lass Morpheus am ersten Bild erkennbar lernen oder es aktiv verändern."
+              }
+            ],
+            "strongest": {
+              "quote": "„Ich träume von einem Mond mit Moospantoffeln.“",
+              "reason": "Morpheus verbindet eigene Vorlieben mit dem zuvor etablierten Pantoffelmotiv."
+            },
+            "score": 6.8,
+            "unsupportedQuotes": [
+              "„Aus Sumi quoll ein silbernes Schwein.“"
+            ]
+          },
+          "baseline": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 6,
+                "reason": "Das Wölkchen wächst beim Pusten, aber seine Größenregel wird nicht ganz eingelöst."
+              },
+              "leadingCharacterAgency": {
+                "score": 6,
+                "reason": "Morpheus beginnt das Wunder und wählt das Boot, braucht aber viel Anleitung."
+              },
+              "ensembleContribution": {
+                "score": 7,
+                "reason": "Nora und Ben gestalten das Boot gemeinsam und teilen sichtbar die Entscheidung."
+              },
+              "voiceAndDialogue": {
+                "score": 7,
+                "reason": "Ben bleibt trocken, doch Morpheus' leises Missverständnis wiederholt sich."
+              },
+              "humorAndWonder": {
+                "score": 7,
+                "reason": "Der Wolkenbart und der Zapfen als Bootskapitän ergeben sanfte Situationskomik."
+              },
+              "pacing": {
+                "score": 6,
+                "reason": "Dreimaliges Pusten wiederholt denselben Effekt, bevor das Boot die Handlung bündelt."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Weiche Bilder, klare Bewegungen und ruhiger Rhythmus passen zum Vorlesen."
+              },
+              "emotionAndPayoff": {
+                "score": 6,
+                "reason": "Morpheus wird aufgenommen, doch sein Wunsch nach einem eigenen Traum bleibt unerfüllt."
+              }
+            },
+            "findings": [
+              {
+                "severity": "major",
+                "quote": "„Bei jedem Pusten wird mein Traumwölkchen doppelt so groß.“",
+                "readerCost": "Das Wachstum setzt sich beim letzten Pusten nicht fort und wirkt wie eine Ausnahme.",
+                "fix": "Lass Morpheus das Boot ohne weiteres Pusten formen oder die Größe erklären."
+              },
+              {
+                "severity": "major",
+                "quote": "„Mein Traum hat ein BOOT.“",
+                "readerCost": "Der Schluss zeigt ein gemeinsames Boot, aber nicht, dass Morpheus selbst träumt.",
+                "fix": "Gib Morpheus einen konkreten eigenen Traumwunsch im gemeinsamen Bild."
+              }
+            ],
+            "strongest": {
+              "quote": "„Mein Schuh trägt jetzt einen Bart.“",
+              "reason": "Bens knappe Beobachtung macht das riesige Wölkchen kindlich komisch."
+            },
+            "score": 6.5,
+            "unsupportedQuotes": []
+          },
+          "preferred": "candidate",
+          "verdict": "A löst Morpheus' Wunsch in einem eigenen, vorbereiteten Traumbild ein; B wiederholt das Wachsen durch Pusten und endet mit einem Boot, ohne seinen Wunsch zu erfüllen."
+        },
+        {
+          "model": "gpt-6.1-sol",
+          "id": "sleep",
+          "baseline": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 6,
+                "reason": "Verdopplung ist klar; mehrfaches Gegenanpusten ignoriert die bereits erklärte Wirkung."
+              },
+              "leadingCharacterAgency": {
+                "score": 6,
+                "reason": "Morpheus verursacht Wachstum, benennt seinen Wunsch; die Kinder gestalten die Lösung."
+              },
+              "ensembleContribution": {
+                "score": 7,
+                "reason": "Beide Kinder formen das Boot; Ben erhält Raum für eigene Gedanken."
+              },
+              "voiceAndDialogue": {
+                "score": 8,
+                "reason": "Schlafender Löffel und wiederholtes Brotmissverständnis geben den Stimmen spielerische Eigenheit."
+              },
+              "humorAndWonder": {
+                "score": 8,
+                "reason": "Zapfenhut und Schuhbart machen das kleine Wunder sinnlich und komisch."
+              },
+              "pacing": {
+                "score": 5,
+                "reason": "Mehrfaches Pusten wiederholt dieselbe Folge; Spaziergängerin unterbricht ohne wesentliche Entwicklung."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Weiche Bilder, einfache Sätze und Pustegeräusche passen zum ruhigen Vorlesen."
+              },
+              "emotionAndPayoff": {
+                "score": 7,
+                "reason": "Gemeinsames Wolkenboot schafft Geborgenheit; eigener Traum und nächtliche Runde bleiben undeutlich."
+              }
+            },
+            "findings": [
+              {
+                "severity": "major",
+                "quote": "Ich puste sie zurück",
+                "readerCost": "Morpheus wiederholt trotz bekannter Verdopplung denselben Fehler. Die Handlung wächst vor allem mengenmäßig, statt neue Entdeckungen zu ermöglichen.",
+                "fix": "Nach dem zweiten Pusten innehalten und die vorhandene Wolke gemeinsam erkunden."
+              },
+              {
+                "severity": "minor",
+                "quote": "Ich möchte trotzdem mitspielen.",
+                "readerCost": "Der Wunsch nach einem wirklich eigenen Traum verengt sich auf Mitspielen; seine versprochene Traumrunde kommt nicht vor.",
+                "fix": "Das Boot als Morpheus’ eigenen Wunsch gestalten und seine ruhige Weiterreise ermöglichen."
+              }
+            ],
+            "strongest": {
+              "quote": "Sie saßen weich und dicht beieinander.",
+              "reason": "Die gewachsene Wolke wird zum gemeinsamen geborgenen Platz; das Wunder erhält eine fühlbare Funktion."
+            },
+            "score": 6.7,
+            "unsupportedQuotes": []
+          },
+          "candidate": {
+            "dimensions": {
+              "causalityAndRule": {
+                "score": 8,
+                "reason": "Gehörtes ersetzt das vorige Bild; deutliches Sprechen löst das Missverständnis."
+              },
+              "leadingCharacterAgency": {
+                "score": 8,
+                "reason": "Morpheus sucht, wählt persönliche Trauminhalte und spricht schließlich selbst deutlich."
+              },
+              "ensembleContribution": {
+                "score": 8,
+                "reason": "Nora erkennt die Regel; Ben erschließt Morpheus’ eigenen Wunsch."
+              },
+              "voiceAndDialogue": {
+                "score": 8,
+                "reason": "Sumis Nuscheln und Bens Hausschuhkommentare ergänzen Morpheus’ leise Unsicherheit."
+              },
+              "humorAndWonder": {
+                "score": 8,
+                "reason": "Pantoffelhase und schlafender Waschbeckenschuh erzeugen sanfte, gut vorstellbare Albernheit."
+              },
+              "pacing": {
+                "score": 7,
+                "reason": "Drei Bestellungen wiederholen das Muster; persönliche Wunschsuche verändert danach die Handlung."
+              },
+              "readAloud": {
+                "score": 8,
+                "reason": "Kurze Sätze und wiederkehrende Wörter helfen; Raumaufzählung fordert jüngere Zuhörende."
+              },
+              "emotionAndPayoff": {
+                "score": 8,
+                "reason": "Eigener Traum begleitet die Runde; Titel und Pantoffelmotiv finden zusammen."
+              }
+            },
+            "findings": [
+              {
+                "severity": "minor",
+                "quote": "Jetzt weiß ich etwas Größeres.",
+                "readerCost": "Die dritte Bestellung verändert erneut nur das falsche Bild. Warum Morpheus trotz Sumis Hinweis weiter flüstert, bleibt offen.",
+                "fix": "Den dritten Fehlversuch kürzen oder einen erkennbaren Versuch deutlicheren Sprechens einbauen."
+              },
+              {
+                "severity": "minor",
+                "quote": "Auf jedem lag ein Pantoffel. Unter jedem stand ein weiterer.",
+                "readerCost": "Betten, verteilte Schuhe und Waschbecken überladen das sofort verständliche Wunder für die jüngsten Zuhörenden.",
+                "fix": "Den Raum auf ein Bett und den komischen Waschbeckenschuh reduzieren."
+              }
+            ],
+            "strongest": {
+              "quote": "Ich träume von einem Mond mit Moospantoffeln.",
+              "reason": "Morpheus verbindet eigene Vorlieben zu seinem Traum und überwindet dabei selbst das Sprachhindernis."
+            },
+            "score": 7.9,
+            "unsupportedQuotes": []
+          },
+          "preferred": "candidate",
+          "verdict": "B verbindet das verständliche Sprachwunder mit Morpheus’ persönlichem Wunsch und seiner weiteren Traumrunde. A bietet einen besonders geborgenen Schluss, wiederholt zuvor aber mehrfach denselben wissentlich ungeeigneten Lösungsversuch."
+        }
+      ]
+    }
+  ]
+}

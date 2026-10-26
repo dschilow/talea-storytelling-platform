@@ -20,10 +20,11 @@ export async function loadCastCandidates(input: {
   band: AgeBand;
   excludeNames: Set<string>;
   seed: string;
+  preferLead?: boolean;
 }): Promise<CastCandidate[]> {
   if (!input.enabled) return [];
   const rows = await loadPoolRows();
-  return rows.length ? shortlistCastCandidates({ rows, genre: input.genre, setting: input.setting, band: input.band, excludeNames: input.excludeNames, seed: input.seed }) : [];
+  return rows.length ? shortlistCastCandidates({ rows, genre: input.genre, setting: input.setting, band: input.band, excludeNames: input.excludeNames, seed: input.seed, preferLead: input.preferLead }) : [];
 }
 
 /**

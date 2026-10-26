@@ -1,0 +1,1657 @@
+{
+  "source": "C:\\Users\\DimitriSc\\Downloads\\talea-characters-2026-10-26T08-47-19-727Z.json",
+  "sourceSHA256": "d20823450b2bea31a6ff2cf08020a92d115161be6cd5681dccf7d80bed25f5e7",
+  "outputSHA256": "68744449a2e16baf14616868ab3febd50fd85b649bba4c64320ecd3d487cc5f5",
+  "sourceRows": 128,
+  "uniqueNamesBefore": 89,
+  "outputRows": 85,
+  "active": 85,
+  "leadingFigures": 25,
+  "supportingFigures": 60,
+  "sameNameDuplicatesRemoved": 39,
+  "similarNamedFiguresFolded": 4,
+  "removedRows": 43,
+  "preservedImages": 85,
+  "newFigures": 0,
+  "imagesGenerated": 0,
+  "productionWrites": 0,
+  "warnings": [],
+  "changes": [
+    {
+      "id": "b0f8e5b7-5858-4b45-a7a4-58e0219800c0",
+      "name": "Amir Sternfinder",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 0,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "role",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "47140efa-943d-4882-a8df-2734c6440ce4",
+      "name": "Astra",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 0,
+      "fields": [
+        "backstory",
+        "bibleVersion",
+        "fear",
+        "introLine",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "f2ac946c-f313-4b30-aaf6-c095959871ba",
+      "name": "Astronautin Nova",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 21,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "ab87c8eb-4dbe-466b-846e-a4c712edf4c5",
+      "name": "Bäcker Braun",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 1,
+      "fields": [
+        "backstory",
+        "bibleVersion",
+        "comicRole",
+        "fear",
+        "introLine",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "395c7262-6a14-4edc-ac15-cae6ead81314",
+      "name": "Bauerntochter Greta",
+      "active": true,
+      "sourceConceptScore": 6,
+      "usageAtExport": 4,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "7cd7c99a-35cd-460e-9a4e-2e6d5fc53f53",
+      "name": "Bo Bücherfuchs",
+      "active": true,
+      "sourceConceptScore": 8,
+      "usageAtExport": 4,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "canOppose",
+        "introLine",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000011",
+      "name": "Bruchkind Brenno",
+      "active": true,
+      "sourceConceptScore": 8,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "0abc2d3e-e37b-4d4b-bffa-7fe3aadf905a",
+      "name": "Brumm der Steinwächter",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "fear",
+        "introLine",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000001",
+      "name": "Der Geraeusche-Fresser",
+      "active": true,
+      "sourceConceptScore": 8,
+      "usageAtExport": 2,
+      "fields": [
+        "backstory",
+        "bibleVersion",
+        "fear",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000013",
+      "name": "Der Leiser-Mann",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 1,
+      "fields": [
+        "backstory",
+        "bibleVersion",
+        "canLead",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "villainStyle",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000015",
+      "name": "Der Letzte Wehmueter",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000006",
+      "name": "Der Mutlosmacher",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "07734631-6e5f-4399-8b80-a661edd06dbc",
+      "name": "Der Zeitweber",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 1,
+      "fields": [
+        "backstory",
+        "bibleVersion",
+        "canLead",
+        "fear",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000004",
+      "name": "Der Zu-Ordentliche",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "3c457260-8851-4d95-ba26-31915eb24bef",
+      "name": "Detektiv Schnüffel",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 8,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "d95e2556-5c96-4afc-a5ac-dd3584dda128",
+      "name": "Die Alte Eiche",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "fear",
+        "introLine",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000005",
+      "name": "Die Besserwisserin Klotilde",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "6b5e29b8-2b82-42d4-80ef-8749ebd4eab9",
+      "name": "Die Nebelfee",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 3,
+      "fields": [
+        "backstory",
+        "bibleVersion",
+        "fear",
+        "introLine",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "32b6aa71-c615-4847-b060-9a3807bb9097",
+      "name": "Die Nebelhexe",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 3,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "851b0462-7cf9-4efb-9037-d6acbdf9e2f4",
+      "name": "Diener Johann",
+      "active": true,
+      "sourceConceptScore": 6,
+      "usageAtExport": 3,
+      "fields": [
+        "bibleVersion",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000002",
+      "name": "Die Stundendiebin",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "7ae55808-ab5c-484b-a792-76030a875932",
+      "name": "Drache Fauchi",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 8,
+      "fields": [
+        "bibleVersion",
+        "canOppose",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "9b3f10d2-e380-4bbf-8541-76dad6e66356",
+      "name": "Eichhörnchen Flitz",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 13,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "canOppose",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "a8fa1eda-4708-4ddd-bd6e-9bb00d5d6de4",
+      "name": "Fee Rosalie",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 8,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "232f86d7-87be-49a8-a34c-2e61cf28f791",
+      "name": "Feuerwehrfrau Fanni",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 9,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000009",
+      "name": "Fluestertante Flora",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000012",
+      "name": "Frau Gleichgleich",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "29859463-10d3-449d-8664-7829adb23d8f",
+      "name": "Frau Müller",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "introLine",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "ebb35453-c334-4347-bc78-a1914d2323db",
+      "name": "Frau Wellenreiter",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 0,
+      "fields": [
+        "bibleVersion",
+        "fear",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "7dd5269b-fdda-4096-a55c-4c4677fb6eb1",
+      "name": "Frosch Quak",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 15,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "9abcfc66-9434-4fa3-b985-8aca94bcec20",
+      "name": "Funkelflug",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "fear",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "2a301ab9-749c-4b69-b3de-4b35fde5934e",
+      "name": "Graf Griesgram",
+      "active": true,
+      "sourceConceptScore": 8,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "introLine",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000003",
+      "name": "Graumund der Gleichgültige",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "696c0208-7116-4e47-b04d-f289f525c3e8",
+      "name": "Händler Gustav",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 3,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "88164878-35e4-4417-ac74-ee104c7366d3",
+      "name": "Herr Seitenflug",
+      "active": true,
+      "sourceConceptScore": 6,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "5cba02d9-6dad-4100-96b4-afe7d88dbe67",
+      "name": "Hexe Griselda",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 3,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "fear",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "villainStyle",
+        "want"
+      ]
+    },
+    {
+      "id": "ae4893e0-f064-4559-bea2-89c5044f2c9b",
+      "name": "Hexe Kräuterweis",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 13,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "a3fd9fc8-efd1-471b-b1f3-a5702cce7912",
+      "name": "Hirtenjunge Peter",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 4,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "runningGag",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "7676c486-4b50-42a0-a81a-e52d970a95c0",
+      "name": "Juna Windwärts",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "f30ea3db-46db-412f-9049-a7ab23447892",
+      "name": "Kapitän Blubbert",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 11,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "143001e9-4e80-4fb7-b277-27d109ba27f9",
+      "name": "Kobold Kicher",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 17,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "3d6bb7df-40d1-4e89-92d1-3dbc488163b4",
+      "name": "König Friedrich",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "runningGag",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "4512e462-784a-4268-a45e-8a45e651ae0b",
+      "name": "Königin Isabella",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "fe8da689-7dc9-4992-b6ea-ef625cc24b01",
+      "name": "König Karl der Weise",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 7,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000007",
+      "name": "Krummfinger der Sammler",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "runningGag",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "42e27e23-3da1-4c22-8774-e4b310c6b3cd",
+      "name": "Kuno Knopf",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "fear",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "a6cd9fbc-4a85-40c6-9c7f-819f49c230f0",
+      "name": "Lehrerin Lämpel",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 6,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "33db8f80-7cbe-44de-a87c-7bc95b25920b",
+      "name": "Lumi Nachtlicht",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "03360d0c-c12a-42fc-9ee0-e416b9895dd2",
+      "name": "Luna",
+      "active": true,
+      "sourceConceptScore": 8,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "fear",
+        "introLine",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "145269c6-6619-41c8-9db9-6da4d9d9b9d4",
+      "name": "Magd Elsa",
+      "active": true,
+      "sourceConceptScore": 5.5,
+      "usageAtExport": 3,
+      "fields": [
+        "backstory",
+        "bibleVersion",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "0fbe0f74-25a8-4452-9d94-dfcc4463926d",
+      "name": "Magierin Luna",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "dd6aa766-c863-45f1-84b1-dbe04e57b2c1",
+      "name": "Mia Neugier",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 31,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "e3e98635-a94e-4af4-b119-d80f7377c552",
+      "name": "Mina Mosaik",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "role",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "f148c9c6-5567-40b7-897a-5b3e4b0891f8",
+      "name": "Morpheus",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 0,
+      "fields": [
+        "backstory",
+        "bibleVersion",
+        "fear",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b9a37bd1-3563-4675-a1b6-33c304a3ddaf",
+      "name": "Müller Hans",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 4,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000014",
+      "name": "Noch-Einmal-Nick",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "2a560bb7-8250-47c6-9fa3-4fa1bc52d616",
+      "name": "Oma Herzlich",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 8,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "4ee8d216-3d48-4b6e-bf39-5a6730202ef5",
+      "name": "Pip",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 3,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "51b9c213-11b0-4204-86cf-1a6387fa7b45",
+      "name": "Polizist Peter",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 5,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "e30ab8f1-f874-4128-a8a2-c1c1a6b71922",
+      "name": "Postbote Papierschiff",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 6,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "ebfde841-90a4-455b-8e3f-ae1788939964",
+      "name": "Prinz Alexander",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "role",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "0eaed1d5-1c97-476e-acdb-e14bef133b6e",
+      "name": "Prinzessin Rosalinde",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "role",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "fb0a5d5f-e6a1-4d78-9433-6cdc44a7cdfd",
+      "name": "Professor Lichtweis",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "introLine",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "1d94ce9b-f505-44f6-aa04-ac5f7ff699e4",
+      "name": "Räuberhauptmann Rotbart",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 8,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "49a9b894-ecf3-41c3-af41-f2da415ab34d",
+      "name": "Räuber Raubauke",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 6,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "55bfcc2f-2c3d-4d82-a56b-df1bcf110113",
+      "name": "Räuber Rolf",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "fear",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "cacdfbd1-2353-47ca-9ff4-862ca3f3f3e7",
+      "name": "Rika Rindenlauf",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "3ee0a6b0-e175-428e-b3d0-983f2b5b4964",
+      "name": "Ritter Rostfrei",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 6,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "995aa2fa-5c2d-48fa-b7a4-7f3da4f47b6e",
+      "name": "Samu Sanftpfote",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 3,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "fear",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000008",
+      "name": "Schattenjunge Finn",
+      "active": true,
+      "sourceConceptScore": 8,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "4fb5dfda-9c91-4fe9-b7ec-d374825cd0da",
+      "name": "Schmied Konrad",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 3,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "4dd05b89-affe-49ce-b9d5-53cd0496bcee",
+      "name": "Schwarzmagier Vardun",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 14,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "75a9efa5-eb0e-45d4-b2d6-f4931ed860fe",
+      "name": "Silberfunke",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "fear",
+        "maxScreenTime",
+        "runningGag",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "d81b380c-4d6f-4ea9-b7af-a6c99e31c0ee",
+      "name": "Silberhorn der Hirsch",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 0,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "canOppose",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "49f5ee2e-3fbd-4f46-b998-7fba6a124f27",
+      "name": "Stiefmutter Brunhilde",
+      "active": true,
+      "sourceConceptScore": 6,
+      "usageAtExport": 2,
+      "fields": [
+        "backstory",
+        "bibleVersion",
+        "canLead",
+        "fear",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "b1a2c001-1111-4b01-8001-000000000010",
+      "name": "Tante Sorgenfalt",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "f966e1d3-a0e1-4dd0-bf8e-b20709d3b584",
+      "name": "Theo Zeitsam",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 3,
+      "fields": [
+        "bibleVersion",
+        "fear",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "ae2748f6-7f63-4392-928f-04508f84ed80",
+      "name": "Tilda Tüftel",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "canOppose",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "a3550fee-bb55-4acd-948d-398db9d51983",
+      "name": "Troll Grummel",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 7,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "7343e3c1-147d-4633-a936-2f23b00a7d2d",
+      "name": "Weise Frau Margarethe",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 0,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "3b444290-7c71-4d8a-af2f-df56e49c73db",
+      "name": "Wirtin Martha",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "f738e1ed-4bf7-4a36-8d28-f289075c469e",
+      "name": "Wolke Wuschel",
+      "active": true,
+      "sourceConceptScore": 8,
+      "usageAtExport": 2,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "be933e26-57c0-4fb5-9ea5-695ea7fce37e",
+      "name": "Yara Wellenklang",
+      "active": true,
+      "sourceConceptScore": 7.5,
+      "usageAtExport": 0,
+      "fields": [
+        "bibleVersion",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "e728b2d2-f94f-4c53-9266-fecca90e6a3e",
+      "name": "Zauberer Merlin",
+      "active": true,
+      "sourceConceptScore": 6.5,
+      "usageAtExport": 1,
+      "fields": [
+        "bibleVersion",
+        "canLead",
+        "introLine",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    },
+    {
+      "id": "c44eeaee-a615-44de-8fd9-1565d609d7ae",
+      "name": "Zauberer Sternenschweif",
+      "active": true,
+      "sourceConceptScore": 7,
+      "usageAtExport": 5,
+      "fields": [
+        "bibleVersion",
+        "introLine",
+        "maxScreenTime",
+        "runningGag",
+        "secret",
+        "updatedAt",
+        "want"
+      ]
+    }
+  ],
+  "mapping": [
+    {
+      "sourceId": "char_017_sternentaenzerin",
+      "sourceName": "Astra",
+      "canonicalId": "47140efa-943d-4882-a8df-2734c6440ce4",
+      "canonicalName": "Astra",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_013_baecker_braun",
+      "sourceName": "Bäcker Braun",
+      "canonicalId": "ab87c8eb-4dbe-466b-846e-a4c712edf4c5",
+      "canonicalName": "Bäcker Braun",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "6361b9fb-b86e-4aa8-aa27-0f901b5a4f18",
+      "sourceName": "Bäcker Bruno",
+      "canonicalId": "ab87c8eb-4dbe-466b-846e-a4c712edf4c5",
+      "canonicalName": "Bäcker Braun",
+      "reason": "Warme Backstube und Trostgebäck doppeln Braun. Das misslungene erste Brot und das eigene Wunschrezept fließen in Braun ein."
+    },
+    {
+      "sourceId": "27238ed3-9231-420f-90ca-b34ba7f507ae",
+      "sourceName": "Bäcker Wilhelm",
+      "canonicalId": "ab87c8eb-4dbe-466b-846e-a4c712edf4c5",
+      "canonicalName": "Bäcker Braun",
+      "reason": "Versorgt und tröstet mit Brot wie Braun; Brotschnuppern allein trägt keine weitere feste Bäckerfigur."
+    },
+    {
+      "sourceId": "e4f5a6b7-8c9d-0e1f-2a3b-4c5d6e7f8a9b",
+      "sourceName": "Bäcker Wilhelm",
+      "canonicalId": "ab87c8eb-4dbe-466b-846e-a4c712edf4c5",
+      "canonicalName": "Bäcker Braun",
+      "reason": "Versorgt und tröstet mit Brot wie Braun; Brotschnuppern allein trägt keine weitere feste Bäckerfigur."
+    },
+    {
+      "sourceId": "f7a8b9c0-1d2e-3f4a-5b6c-7d8e9f0a1b2c",
+      "sourceName": "Bauerntochter Greta",
+      "canonicalId": "395c7262-6a14-4edc-ac15-cae6ead81314",
+      "canonicalName": "Bauerntochter Greta",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_012_steingolem",
+      "sourceName": "Brumm der Steinwächter",
+      "canonicalId": "0abc2d3e-e37b-4d4b-bffa-7fe3aadf905a",
+      "canonicalName": "Brumm der Steinwächter",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_016_zeitweber",
+      "sourceName": "Der Zeitweber",
+      "canonicalId": "07734631-6e5f-4399-8b80-a661edd06dbc",
+      "canonicalName": "Der Zeitweber",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_003_alte_eiche",
+      "sourceName": "Die Alte Eiche",
+      "canonicalId": "d95e2556-5c96-4afc-a5ac-dd3584dda128",
+      "canonicalName": "Die Alte Eiche",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_008_nebelfee",
+      "sourceName": "Die Nebelfee",
+      "canonicalId": "6b5e29b8-2b82-42d4-80ef-8749ebd4eab9",
+      "canonicalName": "Die Nebelfee",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_011_die_nebelhexe",
+      "sourceName": "Die Nebelhexe",
+      "canonicalId": "32b6aa71-c615-4847-b060-9a3807bb9097",
+      "canonicalName": "Die Nebelhexe",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "c4d5e6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f",
+      "sourceName": "Diener Johann",
+      "canonicalId": "851b0462-7cf9-4efb-9037-d6acbdf9e2f4",
+      "canonicalName": "Diener Johann",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_001_frau_mueller",
+      "sourceName": "Frau Müller",
+      "canonicalId": "29859463-10d3-449d-8664-7829adb23d8f",
+      "canonicalName": "Frau Müller",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_014_leuchtturmwaerterin",
+      "sourceName": "Frau Wellenreiter",
+      "canonicalId": "ebb35453-c334-4347-bc78-a1914d2323db",
+      "canonicalName": "Frau Wellenreiter",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_009_golddrache",
+      "sourceName": "Funkelflug",
+      "canonicalId": "9abcfc66-9434-4fa3-b985-8aca94bcec20",
+      "canonicalName": "Funkelflug",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "f1a2b3c4-5d6e-7f8a-9b0c-1d2e3f4a5b6c",
+      "sourceName": "Gelehrter Professor Theodor",
+      "canonicalId": "fb0a5d5f-e6a1-4d78-9433-6cdc44a7cdfd",
+      "canonicalName": "Professor Lichtweis",
+      "reason": "Zerstreuter, begeisterter Wissensvermittler wie Lichtweis. Lichtweis bleibt der forschende Professor."
+    },
+    {
+      "sourceId": "c1e34504-dfc4-42dd-9356-03aba459f2b3",
+      "sourceName": "Gelehrter Professor Theodor",
+      "canonicalId": "fb0a5d5f-e6a1-4d78-9433-6cdc44a7cdfd",
+      "canonicalName": "Professor Lichtweis",
+      "reason": "Zerstreuter, begeisterter Wissensvermittler wie Lichtweis. Lichtweis bleibt der forschende Professor."
+    },
+    {
+      "sourceId": "char_010_graf_griesgram",
+      "sourceName": "Graf Griesgram",
+      "canonicalId": "2a301ab9-749c-4b69-b3de-4b35fde5934e",
+      "canonicalName": "Graf Griesgram",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "a2b3c4d5-6e7f-8a9b-0c1d-2e3f4a5b6c7d",
+      "sourceName": "Händler Gustav",
+      "canonicalId": "696c0208-7116-4e47-b04d-f289f525c3e8",
+      "canonicalName": "Händler Gustav",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_015_bibliothekar_seitenflug",
+      "sourceName": "Herr Seitenflug",
+      "canonicalId": "88164878-35e4-4417-ac74-ee104c7366d3",
+      "canonicalName": "Herr Seitenflug",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "f5a6b7c8-9d0e-1f2a-3b4c-5d6e7f8a9b0c",
+      "sourceName": "Hexe Griselda",
+      "canonicalId": "5cba02d9-6dad-4100-96b4-afe7d88dbe67",
+      "canonicalName": "Hexe Griselda",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "e6f7a8b9-0c1d-2e3f-4a5b-6c7d8e9f0a1b",
+      "sourceName": "Hirtenjunge Peter",
+      "canonicalId": "a3fd9fc8-efd1-471b-b1f3-a5702cce7912",
+      "canonicalName": "Hirtenjunge Peter",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "8a9b0c1d-2e3f-4a5b-6c7d-8e9f0a1b2c3d",
+      "sourceName": "König Friedrich",
+      "canonicalId": "3d6bb7df-40d1-4e89-92d1-3dbc488163b4",
+      "canonicalName": "König Friedrich",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "9b0c1d2e-3f4a-5b6c-7d8e-9f0a1b2c3d4e",
+      "sourceName": "Königin Isabella",
+      "canonicalId": "4512e462-784a-4268-a45e-8a45e651ae0b",
+      "canonicalName": "Königin Isabella",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "7f8e9a1b-2c3d-4e5f-6a7b-8c9d0e1f2a3b",
+      "sourceName": "König Wilhelm",
+      "canonicalId": "fe8da689-7dc9-4992-b6ea-ef625cc24b01",
+      "canonicalName": "König Karl der Weise",
+      "reason": "Weiser, gerechter Zuhörer wie Karl. Karls leerer Stuhl für die ungehörte Stimme ist das markantere Motiv."
+    },
+    {
+      "sourceId": "ebe6bf90-0bc9-4bb7-89e9-2991bdbe8c2e",
+      "sourceName": "König Wilhelm",
+      "canonicalId": "fe8da689-7dc9-4992-b6ea-ef625cc24b01",
+      "canonicalName": "König Karl der Weise",
+      "reason": "Weiser, gerechter Zuhörer wie Karl. Karls leerer Stuhl für die ungehörte Stimme ist das markantere Motiv."
+    },
+    {
+      "sourceId": "char_005_luna_die_katze",
+      "sourceName": "Luna",
+      "canonicalId": "03360d0c-c12a-42fc-9ee0-e416b9895dd2",
+      "canonicalName": "Luna",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "d5e6f7a8-9b0c-1d2e-3f4a-5b6c7d8e9f0a",
+      "sourceName": "Magd Elsa",
+      "canonicalId": "145269c6-6619-41c8-9db9-6da4d9d9b9d4",
+      "canonicalName": "Magd Elsa",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "b7c8d9e0-1f2a-3b4c-5d6e-7f8a9b0c1d2e",
+      "sourceName": "Magierin Luna",
+      "canonicalId": "0fbe0f74-25a8-4452-9d94-dfcc4463926d",
+      "canonicalName": "Magierin Luna",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_018_traumweber",
+      "sourceName": "Morpheus",
+      "canonicalId": "f148c9c6-5567-40b7-897a-5b3e4b0891f8",
+      "canonicalName": "Morpheus",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "c2d3e4f5-6a7b-8c9d-0e1f-2a3b4c5d6e7f",
+      "sourceName": "Müller Hans",
+      "canonicalId": "b9a37bd1-3563-4675-a1b6-33c304a3ddaf",
+      "canonicalName": "Müller Hans",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_006_pip_das_eichhoernchen",
+      "sourceName": "Pip",
+      "canonicalId": "4ee8d216-3d48-4b6e-bf39-5a6730202ef5",
+      "canonicalName": "Pip",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "a0b1c2d3-4e5f-6a7b-8c9d-0e1f2a3b4c5d",
+      "sourceName": "Prinz Alexander",
+      "canonicalId": "ebfde841-90a4-455b-8e3f-ae1788939964",
+      "canonicalName": "Prinz Alexander",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "b1c2d3e4-5f6a-7b8c-9d0e-1f2a3b4c5d6e",
+      "sourceName": "Prinzessin Rosalinde",
+      "canonicalId": "0eaed1d5-1c97-476e-acdb-e14bef133b6e",
+      "canonicalName": "Prinzessin Rosalinde",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_002_professor_lichtweis",
+      "sourceName": "Professor Lichtweis",
+      "canonicalId": "fb0a5d5f-e6a1-4d78-9433-6cdc44a7cdfd",
+      "canonicalName": "Professor Lichtweis",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "c8d9e0f1-2a3b-4c5d-6e7f-8a9b0c1d2e3f",
+      "sourceName": "Räuber Rolf",
+      "canonicalId": "55bfcc2f-2c3d-4d82-a56b-df1bcf110113",
+      "canonicalName": "Räuber Rolf",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "d3e4f5a6-7b8c-9d0e-1f2a-3b4c5d6e7f8a",
+      "sourceName": "Schmied Konrad",
+      "canonicalId": "4fb5dfda-9c91-4fe9-b7ec-d374825cd0da",
+      "canonicalName": "Schmied Konrad",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_007_silberfunke",
+      "sourceName": "Silberfunke",
+      "canonicalId": "75a9efa5-eb0e-45d4-b2d6-f4931ed860fe",
+      "canonicalName": "Silberfunke",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "char_004_hirsch_silberhorn",
+      "sourceName": "Silberhorn der Hirsch",
+      "canonicalId": "d81b380c-4d6f-4ea9-b7af-a6c99e31c0ee",
+      "canonicalName": "Silberhorn der Hirsch",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "d9e0f1a2-3b4c-5d6e-7f8a-9b0c1d2e3f4a",
+      "sourceName": "Stiefmutter Brunhilde",
+      "canonicalId": "49f5ee2e-3fbd-4f46-b998-7fba6a124f27",
+      "canonicalName": "Stiefmutter Brunhilde",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "e0f1a2b3-4c5d-6e7f-8a9b-0c1d2e3f4a5b",
+      "sourceName": "Weise Frau Margarethe",
+      "canonicalId": "7343e3c1-147d-4633-a936-2f23b00a7d2d",
+      "canonicalName": "Weise Frau Margarethe",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "b3c4d5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e",
+      "sourceName": "Wirtin Martha",
+      "canonicalId": "3b444290-7c71-4d8a-af2f-df56e49c73db",
+      "canonicalName": "Wirtin Martha",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    },
+    {
+      "sourceId": "a6b7c8d9-0e1f-2a3b-4c5d-6e7f8a9b0c1d",
+      "sourceName": "Zauberer Merlin",
+      "canonicalId": "e728b2d2-f94f-4c53-9266-fecca90e6a3e",
+      "canonicalName": "Zauberer Merlin",
+      "reason": "Gleichnamige bildlose Dublette; der Bilddatensatz bleibt maßgeblich."
+    }
+  ]
+}

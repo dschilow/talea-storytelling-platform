@@ -19,6 +19,7 @@ import { parseChapters, type ParsedChapter } from "../library/engine";
 import { EPISODE_PIPELINE_ID, FRESH_NAMES, SAMPLE_SIGNATURES, takenNames } from "./craft";
 import { oneShotSystemPrompt, oneShotUserPrompt, planSystemPrompt, planUserPrompt, writerSystemPrompt, writerUserPrompt } from "./prompts";
 import type { EpisodeCastMember, EpisodePlan, EpisodeResult } from "./types";
+import { episodePoolLead } from "./cast-focus";
 
 export { EPISODE_PIPELINE_ID };
 
@@ -86,6 +87,10 @@ export function normalizePlan(raw: any, brief: StoryBrief): { plan: EpisodePlan;
   if (brief.candidates.length > 0 && pooledCount === 0) problems.push("cast: no figure of the character pool has a role — cast at least one with a real task right into the finale.");
   if (pooledCount > brief.budget.maxCast) problems.push(`cast: at most ${brief.budget.maxCast} pool figures, not ${pooledCount}.`);
   if (newCount > maxNew) problems.push(`cast: at most ${maxNew} new figures, not ${newCount} — merge or drop figures.`);
+  const lead = episodePoolLead(brief);
+  if (lead && !cast.some(member => member.id === lead.id)) {
+    problems.push(`leading figure: ${lead.name} (${lead.id}) must be cast with its own goal and consequential choice.`);
+  }
 
   const rawChapters = Array.isArray(raw?.chapters) ? raw.chapters : [];
   if (rawChapters.length !== chapters) problems.push(`chapters: exactly ${chapters} chapters, not ${rawChapters.length}.`);
@@ -288,6 +293,13 @@ export function storyChecks(chapters: ParsedChapter[], plan: EpisodePlan, brief:
   else if (words < budget.totalWordsMin * 0.9) soft.push(`Slightly short: ${words} words (target ${budget.totalWordsMin}–${budget.totalWordsMax}).`);
   if (words > budget.totalWordsMax * 1.35) soft.push(`Too long: ${words} words (target ${budget.totalWordsMin}–${budget.totalWordsMax}).`);
   const full = chapters.map((chapter) => `${chapter.title}\n${chapter.text}`).join("\n");
+  const lead = episodePoolLead(brief);
+  if (lead) {
+    if (!plan.cast.some(member => member.id === lead.id)) hard.push(`The leading pool figure ${lead.name} is missing from the cast.`);
+    const fold = (value: string) => value.toLocaleLowerCase("de-DE").replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
+    const token = lead.name.trim().split(/\s+/).pop() || lead.name;
+    if (!wordPattern(fold(token)).test(fold(full))) hard.push(`The leading pool figure ${lead.name} never appears by name in the story.`);
+  }
   const own = ownNames(brief);
   for (const signature of SAMPLE_SIGNATURES) {
     // A hero or pool figure called Ella or Bruno is the family's, not a copy.

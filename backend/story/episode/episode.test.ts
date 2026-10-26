@@ -5,7 +5,9 @@ import { CostLedger, type LlmRequest } from "../storybook/llm";
 import type { CastCandidate } from "../storybook/types";
 import { childSituationChoices, episodeBudget, placeChoices, SAMPLE_NAMES, styleSamples, takenNames } from "./craft";
 import { normalizePlan, planFromHeader, readOneShot, readStory, renameTakenNames, resolveEpisodeServiceTier, runEpisodeTextEngine, storyChecks } from "./engine";
-import { oneShotSystemPrompt, oneShotUserPrompt, planSystemPrompt, planUserPrompt, writerSystemPrompt } from "./prompts";
+import { oneShotSystemPrompt, oneShotUserPrompt, planSystemPrompt, planUserPrompt, writerSystemPrompt, writerUserPrompt } from "./prompts";
+import { episodePoolLead } from "./cast-focus";
+import { shortlistCastCandidates } from "../storybook/cast-selection";
 
 const fox: CastCandidate = {
   id: "pool-fox", name: "Bo Bücherfuchs", species: "animal", whoTheyAre: "Fuchs mit Brille und Büchertasche",
@@ -111,6 +113,67 @@ describe("Talea-Folge craft", () => {
 });
 
 describe("Talea-Folge plan", () => {
+  test("a companion choice gives the eligible pool figure the goal and avatars decisive contributions", () => {
+    const b = brief({ avatarIsHero: false });
+    b.candidates = [{ ...fox, canLead: true }];
+    expect(episodePoolLead(b)?.id).toBe(fox.id);
+    for (const prompt of [planUserPrompt(b), oneShotUserPrompt(b), writerUserPrompt(b, normalizePlan(rawPlan(), b).plan)]) {
+      expect(prompt).toContain("Bo Bücherfuchs [pool-fox] is this story's leading figure");
+      expect(prompt).toContain("each with an indispensable idea or deed");
+      expect(prompt).not.toContain("THE HEROES (they are the main characters");
+    }
+  });
+
+  test("explicit avatar leadership and a pool with only support figures keep avatars in front", () => {
+    const b = brief({ avatarIsHero: true });
+    b.candidates = [{ ...fox, canLead: true }];
+    expect(episodePoolLead(b)).toBeUndefined();
+    b.config.avatarIsHero = false;
+    b.candidates[0].canLead = false;
+    expect(episodePoolLead(b)).toBeUndefined();
+    expect(oneShotUserPrompt(b)).toContain("the family's avatars are the main characters");
+  });
+
+  test("the leading figure's supplied want anchors the plot rather than a generic child situation", () => {
+    const b = brief({ avatarIsHero: false });
+    b.candidates = [{ ...fox, canLead: true, want: "Das letzte unbeschriftete Regal seiner Bibliothek füllen." }];
+    for (const prompt of [oneShotUserPrompt(b), planUserPrompt(b), writerUserPrompt(b, normalizePlan(rawPlan(), b).plan)]) {
+      expect(prompt).toContain("THE STORY ENGINE IS THIS FIGURE'S SUPPLIED WANT");
+      expect(prompt).toContain(b.candidates[0].want!);
+      expect(prompt).toContain("they do not replace it with an unrelated lesson");
+    }
+    b.config.avatarIsHero = true;
+    expect(oneShotUserPrompt(b)).not.toContain("THE STORY ENGINE IS THIS FIGURE'S SUPPLIED WANT");
+  });
+
+  test("the selected leading figure cannot disappear from the plan or story", () => {
+    const b = brief({ avatarIsHero: false });
+    b.candidates = [{ ...fox, canLead: true }];
+    const missing = rawPlan();
+    missing.cast = missing.cast.filter((member: any) => member.id !== fox.id);
+    const { plan, problems } = normalizePlan(missing, b);
+    expect(problems.some(problem => problem.includes("leading figure"))).toBe(true);
+    expect(storyChecks(readStory(story(560).replaceAll("Bo Bücherfuchs", "Niemand")).chapters, plan, b).hard.some(problem => problem.includes("leading pool figure"))).toBe(true);
+  });
+
+  test("a German spelling or genitive of the leading figure is recognised", () => {
+    const b = brief({ avatarIsHero: false });
+    b.candidates = [{ ...fox, name: "Der Geraeusche-Fresser", canLead: true }];
+    const raw = rawPlan();
+    raw.cast[0].name = "Der Geraeusche-Fresser";
+    const { plan } = normalizePlan(raw, b);
+    const chapters = readStory(story(560).replaceAll("Bo Bücherfuchs", "Des Geräusche-Fressers Sack")).chapters;
+    expect(storyChecks(chapters, plan, b).hard.filter(problem => problem.includes("leading pool figure"))).toEqual([]);
+  });
+
+  test("companion casting keeps a leading candidate even below high-scoring support candidates", () => {
+    const rows = Array.from({ length: 10 }, (_, i) => ({ id: `support-${i}`, name: `Helfer ${i}`, role: "helper", image_url: "https://example.test/helper.webp", canon_settings: ["forest"], catchphrase: "Hallo", quirk: "winkt", can_lead: false }));
+    const lead = { id: "lead", name: "Wunderwesen", role: "companion", can_lead: true, image_url: "", canon_settings: [] };
+    const picks = shortlistCastCandidates({ rows: [...rows, lead], band: "6-8", setting: "forest", excludeNames: new Set(), seed: "roles", limit: 2, preferLead: true });
+    expect(picks).toHaveLength(2);
+    expect(picks.some(candidate => candidate.id === lead.id && candidate.canLead)).toBe(true);
+  });
+
   test("a complete plan has no problems", () => {
     const { plan, problems } = normalizePlan(rawPlan(), brief());
     expect(problems).toEqual([]);

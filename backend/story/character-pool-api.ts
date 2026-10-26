@@ -5,6 +5,7 @@ import { api, APIError } from "encore.dev/api";
 import { ensureAdmin } from "../admin/authz";
 import { storyDB } from "./db";
 import { bibleFromRow } from "./character-bible-core";
+import { sanitizeCharacter } from "./character-pool-import";
 import type { CharacterTemplate } from "./types";
 import { seedCharacterPool } from "./seed-characters";
 import { runwareGenerateImage } from "../ai/image-generation";
@@ -814,12 +815,25 @@ export const importCharacters = api<ImportCharactersRequest, { success: boolean;
     await ensureImageUrlColumn();
 
     const now = new Date();
-    const sanitized = req.characters.map((character, index) => sanitizeCharacter(character, index, now));
+    let sanitized: ReturnType<typeof sanitizeCharacter>[];
+    try {
+      sanitized = req.characters.map((character, index) => sanitizeCharacter(character, index, now));
+      if (new Set(sanitized.map(character => character.id)).size !== sanitized.length) {
+        throw new Error("Import contains duplicate character ids");
+      }
+    } catch (error) {
+      throw APIError.invalidArgument((error as Error).message);
+    }
 
     try {
       await using tx = await storyDB.begin();
-      await tx.exec`DELETE FROM story_characters WHERE character_id IN (SELECT id FROM character_pool)`;
-      await tx.exec`DELETE FROM character_pool`;
+      // Retain originals and story links. Deleting a pool row also cascades to
+      // its life story and chapters; omission from an import only archives it.
+      const importedIds = sanitized.map(character => character.id);
+      await tx.exec`
+        UPDATE character_pool SET is_active = FALSE, updated_at = ${now}
+        WHERE is_active = TRUE AND NOT (id = ANY(${importedIds}))
+      `;
 
       for (const character of sanitized) {
         await tx.exec`
@@ -832,7 +846,9 @@ export const importCharacters = api<ImportCharactersRequest, { success: boolean;
             size_category, social_class, personality_keywords,
             physical_description, backstory,
             dominant_personality, secondary_traits, catchphrase, catchphrase_context,
-            speech_style, emotional_triggers, quirk
+            speech_style, emotional_triggers, quirk,
+            want, fear, secret, running_gag, gesture, comic_role,
+            can_lead, can_oppose, villain_style, intro_line, signature_visual, bible_version
           ) VALUES (
             ${character.id},
             ${character.name},
@@ -865,8 +881,42 @@ export const importCharacters = api<ImportCharactersRequest, { success: boolean;
             ${character.catchphraseContext || null},
             ${character.speechStyle || []},
             ${character.emotionalTriggers || []},
-            ${character.quirk || null}
+            ${character.quirk || null},
+            ${character.want ?? null}, ${character.fear ?? null}, ${character.secret ?? null},
+            ${character.runningGag ?? null}, ${character.gesture ?? null}, ${character.comicRole ?? null},
+            ${character.canLead ?? false}, ${character.canOppose ?? false}, ${character.villainStyle ?? null},
+            ${character.introLine ?? null}, ${character.signatureVisual ?? null}, ${character.bibleVersion ?? 0}
           )
+          ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name, role = EXCLUDED.role, archetype = EXCLUDED.archetype,
+            emotional_nature = EXCLUDED.emotional_nature, visual_profile = EXCLUDED.visual_profile,
+            image_url = COALESCE(EXCLUDED.image_url, character_pool.image_url), max_screen_time = EXCLUDED.max_screen_time,
+            available_chapters = EXCLUDED.available_chapters, canon_settings = EXCLUDED.canon_settings,
+            recent_usage_count = GREATEST(character_pool.recent_usage_count, EXCLUDED.recent_usage_count),
+            total_usage_count = GREATEST(character_pool.total_usage_count, EXCLUDED.total_usage_count),
+            last_used_at = GREATEST(character_pool.last_used_at, EXCLUDED.last_used_at),
+            is_active = EXCLUDED.is_active, updated_at = ${now},
+            gender = EXCLUDED.gender, age_category = EXCLUDED.age_category,
+            species_category = EXCLUDED.species_category, profession_tags = EXCLUDED.profession_tags,
+            size_category = EXCLUDED.size_category, social_class = EXCLUDED.social_class,
+            personality_keywords = EXCLUDED.personality_keywords,
+            physical_description = EXCLUDED.physical_description, backstory = EXCLUDED.backstory,
+            dominant_personality = EXCLUDED.dominant_personality, secondary_traits = EXCLUDED.secondary_traits,
+            catchphrase = EXCLUDED.catchphrase, catchphrase_context = EXCLUDED.catchphrase_context,
+            speech_style = EXCLUDED.speech_style, emotional_triggers = EXCLUDED.emotional_triggers,
+            quirk = EXCLUDED.quirk,
+            want = COALESCE(EXCLUDED.want, character_pool.want),
+            fear = COALESCE(EXCLUDED.fear, character_pool.fear),
+            secret = COALESCE(EXCLUDED.secret, character_pool.secret),
+            running_gag = COALESCE(EXCLUDED.running_gag, character_pool.running_gag),
+            gesture = COALESCE(EXCLUDED.gesture, character_pool.gesture),
+            comic_role = COALESCE(EXCLUDED.comic_role, character_pool.comic_role),
+            can_lead = CASE WHEN ${character.canLead !== undefined} THEN EXCLUDED.can_lead ELSE character_pool.can_lead END,
+            can_oppose = CASE WHEN ${character.canOppose !== undefined} THEN EXCLUDED.can_oppose ELSE character_pool.can_oppose END,
+            villain_style = CASE WHEN ${character.canOppose === false} THEN NULL ELSE COALESCE(EXCLUDED.villain_style, character_pool.villain_style) END,
+            intro_line = COALESCE(EXCLUDED.intro_line, character_pool.intro_line),
+            signature_visual = COALESCE(EXCLUDED.signature_visual, character_pool.signature_visual),
+            bible_version = GREATEST(character_pool.bible_version, EXCLUDED.bible_version)
         `;
       }
 
@@ -944,208 +994,4 @@ function clampPromptLength(prompt: string, max = 900): string {
     return truncated.slice(0, lastPeriod + 1).trim();
   }
   return truncated.trim();
-}
-
-function isValidUuid(value: string | undefined | null): boolean {
-  if (!value) {
-    return false;
-  }
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(value);
-}
-
-function isRecord(value: unknown): value is Record<string, any> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function toStringOrUndefined(value: unknown): string | undefined {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : undefined;
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return String(value);
-  }
-  return undefined;
-}
-
-function toFiniteNumber(value: unknown, fallback: number): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : fallback;
-  }
-  return fallback;
-}
-
-function toInteger(value: unknown, fallback: number): number {
-  return Math.trunc(toFiniteNumber(value, fallback));
-}
-
-function toBoolean(value: unknown, fallback: boolean): boolean {
-  if (typeof value === "boolean") {
-    return value;
-  }
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true") return true;
-    if (normalized === "false") return false;
-  }
-  return fallback;
-}
-
-function toDate(value: unknown, fallback: Date): Date {
-  if (value instanceof Date && Number.isFinite(value.getTime())) {
-    return value;
-  }
-  if (typeof value === "string" || typeof value === "number") {
-    const parsed = new Date(value);
-    if (Number.isFinite(parsed.getTime())) {
-      return parsed;
-    }
-  }
-  return fallback;
-}
-
-function toNullableDate(value: unknown): Date | null {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-  const parsed = toDate(value, new Date("invalid"));
-  return Number.isFinite(parsed.getTime()) ? parsed : null;
-}
-
-function toNumberArray(value: unknown, fallback: number[]): number[] {
-  if (!value || !Array.isArray(value)) {
-    return fallback;
-  }
-  const numbers = value
-    .map((item) => Number(item))
-    .filter((num) => Number.isFinite(num));
-  return numbers.length > 0 ? numbers : fallback;
-}
-
-function toStringArray(value: unknown, fallback: string[] = []): string[] {
-  if (!value || !Array.isArray(value)) {
-    return fallback;
-  }
-  const strings = value
-    .map(toStringOrUndefined)
-    .filter((str): str is string => Boolean(str))
-    .map((item) => item.trim())
-    .filter((str) => str.length > 0);
-  return strings.length > 0 ? strings : fallback;
-}
-
-function normalizeEnum(value: unknown, allowed: readonly string[], fallback: string): string {
-  const normalized = toStringOrUndefined(value)?.toLowerCase();
-  return normalized && allowed.includes(normalized) ? normalized : fallback;
-}
-
-function inferSpeciesCategory(character: Record<string, any>, visualProfile: CharacterTemplate["visualProfile"]): string {
-  const haystack = [
-    visualProfile.species,
-    visualProfile.description,
-    character.archetype,
-    character.role,
-    character.name,
-  ]
-    .map((value) => toStringOrUndefined(value)?.toLowerCase() || "")
-    .join(" ");
-
-  if (/\b(human|child|girl|boy|knight|wizard|astronaut|detective|baker|princess|prince)\b/.test(haystack)) {
-    return "human";
-  }
-  if (/\b(golem|fairy|spirit|phantom|ghost|witch|magical|mage|sorcerer)\b/.test(haystack)) {
-    return "magical_creature";
-  }
-  if (/\b(troll|dragon|giant|unicorn|mythic)\b/.test(haystack)) {
-    return "mythical";
-  }
-  if (/\b(fire|water|wind|earth|elemental)\b/.test(haystack)) {
-    return "elemental";
-  }
-  if (/\b(duck|squirrel|fox|bird|cat|dog|wolf|bear|animal)\b/.test(haystack)) {
-    return "animal";
-  }
-  return "any";
-}
-
-function sanitizeCharacter(character: any, index: number, now: Date) {
-  const source = isRecord(character) ? character : {};
-  const requestedId = toStringOrUndefined(source.id);
-  const id = isValidUuid(requestedId) ? requestedId! : crypto.randomUUID();
-  const name = toStringOrUndefined(source.name) || `Character ${index + 1}`;
-  const role = toStringOrUndefined(source.role) || "companion";
-  const archetype = toStringOrUndefined(source.archetype) || "support";
-
-  const emotionalSource = isRecord(source.emotionalNature) ? source.emotionalNature : {};
-  const emotionalNature = {
-    dominant: toStringOrUndefined(emotionalSource.dominant) || "calm",
-    secondary: toStringArray(emotionalSource.secondary),
-    triggers: toStringArray(emotionalSource.triggers),
-  };
-
-  const visualSource = isRecord(source.visualProfile) ? source.visualProfile : {};
-  const visualProfile = {
-    description: toStringOrUndefined(visualSource.description) || "",
-    imagePrompt: toStringOrUndefined(visualSource.imagePrompt),
-    species: toStringOrUndefined(visualSource.species) || "unknown",
-    colorPalette: toStringArray(visualSource.colorPalette),
-  };
-
-  const createdAt = toDate(source.createdAt, now);
-  const updatedAt = toDate(source.updatedAt, now);
-  const lastUsedAt = toNullableDate(source.lastUsedAt);
-  const speciesCategory = normalizeEnum(
-    source.species_category,
-    ["human", "humanoid", "animal", "magical_creature", "mythical", "elemental", "any"],
-    inferSpeciesCategory(source, visualProfile)
-  );
-
-  return {
-    id,
-    name,
-    role,
-    archetype,
-    emotionalNature,
-    visualProfile,
-    imageUrl: toStringOrUndefined(source.imageUrl) || null,
-    maxScreenTime: toInteger(source.maxScreenTime, 50),
-    availableChapters: toNumberArray(source.availableChapters, [1, 2, 3, 4, 5]),
-    canonSettings: toStringArray(source.canonSettings),
-    recentUsageCount: toInteger(source.recentUsageCount ?? source.usageCount, 0),
-    totalUsageCount: toInteger(source.totalUsageCount ?? source.usageCount, 0),
-    lastUsedAt,
-    isActive: toBoolean(source.isActive, true),
-    createdAt,
-    updatedAt,
-    gender: normalizeEnum(source.gender, ["male", "female", "neutral", "any"], "any"),
-    age_category: normalizeEnum(
-      source.age_category,
-      ["child", "teenager", "young_adult", "adult", "elder", "ageless", "any"],
-      "any"
-    ),
-    species_category: speciesCategory,
-    profession_tags: toStringArray(source.profession_tags),
-    size_category: normalizeEnum(source.size_category, ["tiny", "small", "medium", "large", "giant", "any"], "medium"),
-    social_class: normalizeEnum(
-      source.social_class,
-      ["royalty", "nobility", "merchant", "craftsman", "commoner", "outcast", "any"],
-      "any"
-    ),
-    personality_keywords: toStringArray(source.personality_keywords),
-    physical_description: toStringOrUndefined(source.physical_description) || visualProfile.description || null,
-    backstory: toStringOrUndefined(source.backstory) || null,
-    // V2 personality fields
-    dominantPersonality: toStringOrUndefined(source.dominantPersonality),
-    secondaryTraits: toStringArray(source.secondaryTraits),
-    catchphrase: toStringOrUndefined(source.catchphrase),
-    catchphraseContext: toStringOrUndefined(source.catchphraseContext),
-    speechStyle: toStringArray(source.speechStyle),
-    emotionalTriggers: toStringArray(source.emotionalTriggers),
-    quirk: toStringOrUndefined(source.quirk),
-  };
 }
