@@ -17,7 +17,6 @@ import {
   Plus,
   Search,
   Trash2,
-  Sparkles,
   RefreshCw,
   LogIn,
   RotateCcw,
@@ -37,6 +36,7 @@ import { useOffline } from "@/contexts/OfflineStorageContext";
 import { useOptionalChildProfiles } from "@/contexts/ChildProfilesContext";
 import OriginalsHome from "../Library/OriginalsHome";
 import CharacterOriginsScreen from "../CharacterPool/CharacterOriginsScreen";
+import { Rail } from "../Library/components/Rail";
 import { TaleaCardMenu, type TaleaCardMenuAction } from "@/components/talea/TaleaCardMenu";
 import { IconTabs, iconTabId, type IconTabItem } from "@/components/navigation/IconTabs";
 import {
@@ -117,7 +117,8 @@ function normalizeKey(value: unknown): string {
 }
 
 function getStoryGenreKey(story: Story): string {
-  return normalizeKey(story.config?.genre);
+  const genre = normalizeKey(story.config?.genre).replace(/-/g, "_");
+  return genre === "fairytale" || genre === "fairy_tale" ? "fairy_tales" : genre;
 }
 
 function getStoryAgeGroupKey(story: Story): string {
@@ -311,7 +312,6 @@ const GridStoryCard: React.FC<{
   onRestart?: () => void;
 }> = ({ story, index, onRead, onDelete, canDownload, onDownloadPdf, isDownloading, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline, onRestart }) => {
   const reduceMotion = useReducedMotion();
-  const isFeatured = index === 0;
   const imagesSkipped = wereStoryImagesSkipped(story);
   const actions: TaleaCardMenuAction[] = [
     ...(canSaveOffline && story.status === "complete" && onToggleOffline
@@ -333,22 +333,19 @@ const GridStoryCard: React.FC<{
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 12 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index, 8) * 0.04, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
       whileTap={reduceMotion ? undefined : { scale: 0.985 }}
-      className={cn(
-        "group relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-soft)] transition-shadow hover:shadow-[var(--talea-shadow-medium)]",
-        isFeatured && "lg:flex-row"
-      )}
-      onClick={onRead}
+      className="group relative flex h-full flex-col overflow-hidden rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-soft)] transition-shadow hover:shadow-[var(--talea-shadow-medium)]"
     >
-      <div className={cn("relative aspect-square w-full shrink-0 overflow-hidden bg-[var(--talea-media-skeleton)]", isFeatured && "lg:w-[36%]")}>
+      <button type="button" onClick={onRead} className="flex flex-1 flex-col text-left focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--primary)]" aria-label={`${story.title} öffnen`}>
+      <div className="relative aspect-[3/2] w-full shrink-0 overflow-hidden bg-[var(--talea-media-skeleton)]">
         <StoryCoverMedia
           src={story.coverImageUrl}
           alt={story.title}
           loading={index < 3 ? "eager" : "lazy"}
-          fetchPriority={isFeatured ? "high" : "auto"}
+          fetchPriority="auto"
           revealDelayMs={index * 35}
           fallbackIconClassName="h-14 w-14"
         />
@@ -357,25 +354,25 @@ const GridStoryCard: React.FC<{
           {imagesSkipped ? <StoryImageSkipChip /> : null}
           <BookChip story={story} />
         </div>
-        <TaleaCardMenu actions={actions} label={`Aktionen für ${story.title}`} className="!absolute right-3 top-3" />
       </div>
 
-      <div className={cn("flex flex-1 flex-col p-4", isFeatured && "lg:justify-center lg:p-7")}>
-        {isFeatured ? <span className={taleaChipClass}>Zuletzt erstellt</span> : null}
+      <div className="flex flex-1 flex-col p-4">
         <h3
-          className={cn("line-clamp-2 font-semibold leading-snug text-[var(--talea-text-primary)]", isFeatured ? "mt-1 text-[1.375rem] lg:text-[1.75rem]" : "text-[17px]")}
+          className="line-clamp-2 text-[17px] font-semibold leading-snug text-[var(--talea-text-primary)]"
           style={{ fontFamily: headingFont }}
         >
           {story.title}
         </h3>
-        <p className={cn("mt-1.5 text-[15px] leading-snug text-[var(--talea-text-secondary)]", isFeatured ? "line-clamp-3 lg:line-clamp-4" : "line-clamp-2")}>
+        <p className="mt-1.5 line-clamp-2 text-[15px] leading-snug text-[var(--talea-text-secondary)]">
           {getStoryPreviewText(story)}
         </p>
         <div className="mt-auto flex items-center justify-between gap-3 pt-3">
-          <StoryParticipantsDialog story={story} maxVisible={isFeatured ? 5 : 3} />
           <span className="shrink-0 text-[13px] text-[var(--talea-text-tertiary)]">{formatDate(story.createdAt)}</span>
         </div>
       </div>
+      </button>
+      <TaleaCardMenu actions={actions} label={`Aktionen für ${story.title}`} className="!absolute right-3 top-3" />
+      <div className="px-4 pb-4"><StoryParticipantsDialog story={story} maxVisible={3} /></div>
     </motion.article>
   );
 };
@@ -429,13 +426,13 @@ const ListStoryRow: React.FC<{
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 8 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index, 8) * 0.04, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
       whileTap={reduceMotion ? undefined : { scale: 0.995 }}
-      onClick={onRead}
-      className="group relative flex cursor-pointer items-center gap-3.5 rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-2.5 pr-3 shadow-[var(--talea-shadow-soft)] transition-shadow hover:shadow-[var(--talea-shadow-medium)] sm:gap-4"
+      className="group relative flex items-start gap-2 rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-2.5 pr-3 shadow-[var(--talea-shadow-soft)] transition-shadow hover:shadow-[var(--talea-shadow-medium)]"
     >
+      <button type="button" onClick={onRead} className="flex min-w-0 flex-1 items-center gap-3.5 rounded-xl text-left focus-visible:outline-2 focus-visible:outline-[var(--primary)] sm:gap-4" aria-label={`${story.title} öffnen`}>
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[var(--talea-media-skeleton)] sm:h-24 sm:w-24">
         <StoryCoverMedia src={story.coverImageUrl} alt={story.title} revealDelayMs={index * 30} fallbackIconClassName="h-8 w-8" />
       </div>
@@ -452,6 +449,8 @@ const ListStoryRow: React.FC<{
           <span>{formatDate(story.createdAt)}</span>
         </div>
       </div>
+
+      </button>
 
       <TaleaCardMenu actions={actions} label={`Aktionen für ${story.title}`} className="self-start [&>button]:bg-[var(--talea-surface-inset)] [&>button]:text-[var(--talea-text-secondary)] [&>button]:backdrop-blur-none" />
     </motion.article>
@@ -531,10 +530,8 @@ type StoriesSignedInContentProps = {
   avatarFilterOptions: { label: string; value: string }[];
   filteredStories: Story[];
   loading: boolean;
+  loadError: string | null;
   hasActiveFilters: boolean;
-  loadingMore: boolean;
-  hasMore: boolean;
-  observerTarget: React.RefObject<HTMLDivElement | null>;
   isAdmin: boolean;
   downloadingStoryId: string | null;
   canUseOffline: boolean;
@@ -573,10 +570,8 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
   avatarFilterOptions,
   filteredStories,
   loading,
+  loadError,
   hasActiveFilters,
-  loadingMore,
-  hasMore,
-  observerTarget,
   isAdmin,
   downloadingStoryId,
   canUseOffline,
@@ -590,13 +585,26 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
   goTo,
 }) => {
   const { t } = useTranslation();
-  const featuredStory = filteredStories[0];
+  const featuredStory = !hasActiveFilters ? filteredStories[0] : undefined;
   // Unknown credits are not shown at all — a bare "-" read like a broken value.
   const remainingStoryLabel = remainingStoryCredits === undefined
     ? null
     : remainingStoryCredits === null ? "\u221e" : remainingStoryCredits;
 
-  const shelfStories = filteredStories.slice(featuredStory ? 1 : 0);
+  const shelves = useMemo(() => {
+    const groups = new Map<string, Story[]>();
+    for (const story of filteredStories) {
+      const key = getStoryGenreKey(story);
+      const group = groups.get(key) || [];
+      group.push(story);
+      groups.set(key, group);
+    }
+    return Array.from(groups, ([key, stories]) => ({
+      key,
+      title: key ? formatGenreLabel(key, t) : "Weitere Geschichten",
+      stories,
+    }));
+  }, [filteredStories, t]);
   const tabGroupId = useId();
   const contentTabs: IconTabItem<ContentTab>[] = [
     { id: "stories", label: t("storiesScreen.storiesTab"), icon: "stories" },
@@ -669,7 +677,24 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
       ) : contentTab === "originals" ? (
         <OriginalsHome />
       ) : (
-        <div>
+        <div className="space-y-6 sm:space-y-8">
+          {featuredStory && !loading && !loadError ? (
+            <section className="relative isolate overflow-hidden rounded-[26px] bg-[#251a16] shadow-[0_24px_60px_-28px_rgba(40,20,10,0.6)]">
+              <div className="relative min-h-[25rem] sm:min-h-[24rem] lg:min-h-[23rem]">
+                {featuredStory.coverImageUrl ? <img src={featuredStory.coverImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-center sm:object-[50%_35%]" /> : null}
+                <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(20,12,8,0.94),rgba(20,12,8,0.25)_90%)] lg:bg-[linear-gradient(to_right,rgba(20,12,8,0.93),rgba(20,12,8,0.25)_85%)]" />
+                <div className="relative flex min-h-[25rem] max-w-2xl flex-col justify-end gap-3 p-6 text-white sm:min-h-[24rem] sm:p-8 lg:min-h-[23rem] lg:justify-center lg:p-12">
+                  <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#ffd9c4]">Aus deiner Sammlung{getStoryGenreKey(featuredStory) ? ` · ${formatGenreLabel(getStoryGenreKey(featuredStory), t)}` : ""}</span>
+                  <h2 className="line-clamp-3 text-[2.1rem] font-bold leading-[1.05] sm:text-[2.8rem]" style={{ fontFamily: headingFont }}>{featuredStory.title}</h2>
+                  {getStoryPreviewText(featuredStory) ? <p className="line-clamp-3 max-w-lg text-[15px] leading-relaxed text-white/90">{getStoryPreviewText(featuredStory)}</p> : null}
+                  <p className="text-sm text-white/75">{formatDate(featuredStory.createdAt)}</p>
+                  <button type="button" onClick={() => goTo(featuredStory.status === "error" ? "/story" : `/story-reader/${featuredStory.id}`)} className="mt-2 inline-flex min-h-12 w-fit items-center gap-2 rounded-full bg-white px-5 text-[15px] font-bold text-[#24160e] transition hover:bg-white/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                    <BookOpen className="h-5 w-5" aria-hidden="true" /> {featuredStory.status === "error" ? "Neu erstellen" : "Geschichte öffnen"}
+                  </button>
+                </div>
+              </div>
+            </section>
+          ) : null}
           <div className="min-w-0">
             <div className="flex items-center gap-2.5">
               <label className="relative min-w-0 flex-1">
@@ -731,10 +756,15 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
               </div>
             </div>
 
-            <div className="mt-5" role="status" aria-live="polite">
+            <div className="mt-5">
               <div>
                 {loading ? (
                   <LoadingState />
+                ) : loadError ? (
+                  <div className={cn(taleaInsetSurfaceClass, "p-8 text-center")} role="alert">
+                    <p className="text-[var(--talea-text-primary)]">{loadError}</p>
+                    <TaleaActionButton className="mt-4" onClick={onRefresh}>Erneut versuchen</TaleaActionButton>
+                  </div>
                 ) : filteredStories.length === 0 ? (
                   <div className={cn(taleaInsetSurfaceClass, "p-8 text-center sm:p-10")}>
                     <h3 className="text-[2rem] font-semibold text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>
@@ -750,78 +780,40 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-6">
-                    {featuredStory ? (
-                      <GridStoryCard
-                        story={featuredStory}
-                        index={0}
-                        onRead={() => goTo(featuredStory.status === "error" ? "/story" : `/story-reader/${featuredStory.id}`)}
-                        onRestart={() => goTo("/story")}
-                        onDelete={() => onDeleteStory(featuredStory.id, featuredStory.title)}
-                        canDownload={isAdmin}
-                        onDownloadPdf={() => onDownloadPdf(featuredStory.id, featuredStory.status)}
-                        isDownloading={downloadingStoryId === featuredStory.id}
-                        canSaveOffline={canUseOffline}
-                        isSavedOffline={isStorySaved(featuredStory.id)}
-                        isSavingOffline={isSaving(featuredStory.id)}
-                        onToggleOffline={() => toggleStory(featuredStory.id)}
-                      />
-                    ) : null}
-
-                    <div className={cn(viewMode === "grid" ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-5" : "flex flex-col gap-3")}>
-                      {shelfStories.map((story, index) =>
-                        viewMode === "grid" ? (
-                          <GridStoryCard
-                            key={story.id}
-                            story={story}
-                            index={index + 1}
-                            onRead={() => goTo(story.status === "error" ? "/story" : `/story-reader/${story.id}`)}
-                            onRestart={() => goTo("/story")}
-                            onDelete={() => onDeleteStory(story.id, story.title)}
-                            canDownload={isAdmin}
-                            onDownloadPdf={() => onDownloadPdf(story.id, story.status)}
-                            isDownloading={downloadingStoryId === story.id}
-                            canSaveOffline={canUseOffline}
-                            isSavedOffline={isStorySaved(story.id)}
-                            isSavingOffline={isSaving(story.id)}
-                            onToggleOffline={() => toggleStory(story.id)}
-                          />
-                        ) : (
-                          <ListStoryRow
-                            key={story.id}
-                            story={story}
-                            index={index + 1}
-                            onRead={() => goTo(story.status === "error" ? "/story" : `/story-reader/${story.id}`)}
-                            onRestart={() => goTo("/story")}
-                            onDelete={() => onDeleteStory(story.id, story.title)}
-                            canDownload={isAdmin}
-                            onDownloadPdf={() => onDownloadPdf(story.id, story.status)}
-                            isDownloading={downloadingStoryId === story.id}
-                            canSaveOffline={canUseOffline}
-                            isSavedOffline={isStorySaved(story.id)}
-                            isSavingOffline={isSaving(story.id)}
-                            onToggleOffline={() => toggleStory(story.id)}
-                          />
-                        )
-                      )}
-                    </div>
+                  <div className="space-y-8">
+                    {shelves.map((shelf) => {
+                      const cards = shelf.stories.map((story, index) => {
+                        const props = {
+                          story, index,
+                          onRead: () => goTo(story.status === "error" ? "/story" : `/story-reader/${story.id}`),
+                          onRestart: () => goTo("/story"),
+                          onDelete: () => onDeleteStory(story.id, story.title),
+                          canDownload: isAdmin,
+                          onDownloadPdf: () => onDownloadPdf(story.id, story.status),
+                          isDownloading: downloadingStoryId === story.id,
+                          canSaveOffline: canUseOffline,
+                          isSavedOffline: isStorySaved(story.id),
+                          isSavingOffline: isSaving(story.id),
+                          onToggleOffline: () => toggleStory(story.id),
+                        };
+                        return viewMode === "grid" ? (
+                          <div key={story.id} className="w-[72vw] max-w-[18rem] shrink-0 snap-start sm:w-[18rem]"><GridStoryCard {...props} /></div>
+                        ) : <ListStoryRow key={story.id} {...props} />;
+                      });
+                      return viewMode === "grid" ? (
+                        <Rail key={shelf.key} title={shelf.title} subtitle={`${shelf.stories.length} ${shelf.stories.length === 1 ? "Geschichte" : "Geschichten"}`}>{cards}</Rail>
+                      ) : (
+                        <section key={shelf.key}>
+                          <h2 className="mb-3 px-1 text-xl font-bold text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>{shelf.title} <span className="text-sm font-medium text-[var(--talea-text-tertiary)]">· {shelf.stories.length}</span></h2>
+                          <div className="flex flex-col gap-3">{cards}</div>
+                        </section>
+                      );
+                    })}
                   </div>
                 )}
               </div>
             </div>
 
-            {hasMore && !loading ? (
-              <div ref={observerTarget} className="mt-12 flex justify-center">
-                {loadingMore ? (
-                  <div className={cn(taleaSurfaceClass, "inline-flex items-center gap-3 px-6 py-4 text-sm font-semibold text-[var(--talea-text-secondary)]")}>
-                    <Clock3 className="h-4 w-4 animate-spin" />
-                    Mehr Stories laden...
-                  </div>
-                ) : (
-                  <div className="h-10" />
-                )}
-              </div>
-            ) : null}
           </div>
         </div>
       )}
@@ -857,8 +849,7 @@ const TaleaStoriesScreen: React.FC = () => {
     [setSearchParams]
   );
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
@@ -870,43 +861,33 @@ const TaleaStoriesScreen: React.FC = () => {
   const [downloadingStoryId, setDownloadingStoryId] = useState<string | null>(null);
   
 
-  const observerTarget = useRef<HTMLDivElement>(null);
+  const loadSequence = useRef(0);
 
   const loadStories = useCallback(async () => {
+    const sequence = ++loadSequence.current;
     try {
       setLoading(true);
-      const response = await backend.story.list({
-        limit: 12,
-        offset: 0,
-        profileId: activeProfileId || undefined,
-      });
-      setStories(((response.stories as unknown as Story[]) || []).map(presentStory));
-      setTotal(response.total || 0);
-      setHasMore(response.hasMore || false);
+      setLoadError(null);
+      const allStories: Story[] = [];
+      let hasMore = true;
+      let total = 0;
+      while (hasMore) {
+        const response = await backend.story.list({ limit: 50, offset: allStories.length, profileId: activeProfileId || undefined });
+        if (sequence !== loadSequence.current) return;
+        const page = (response.stories as unknown as Story[]) || [];
+        allStories.push(...page.map(presentStory));
+        total = response.total || 0;
+        hasMore = Boolean(response.hasMore && page.length);
+      }
+      setStories(allStories);
+      setTotal(total);
     } catch (error) {
       console.error("Error loading stories:", error);
+      if (sequence === loadSequence.current) setLoadError("Deine Geschichten konnten nicht geladen werden. Bitte versuche es erneut.");
     } finally {
-      setLoading(false);
+      if (sequence === loadSequence.current) setLoading(false);
     }
   }, [backend, activeProfileId]);
-
-  const loadMoreStories = useCallback(async () => {
-    if (!hasMore || loadingMore) return;
-    try {
-      setLoadingMore(true);
-      const response = await backend.story.list({
-        limit: 12,
-        offset: stories.length,
-        profileId: activeProfileId || undefined,
-      });
-      setStories((prev) => [...prev, ...((response.stories as unknown as Story[]) || []).map(presentStory)]);
-      setHasMore(response.hasMore || false);
-    } catch (error) {
-      console.error("Error loading more stories:", error);
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [backend, hasMore, loadingMore, stories.length, activeProfileId]);
 
   useEffect(() => {
     if (!authLoaded) {
@@ -916,7 +897,6 @@ const TaleaStoriesScreen: React.FC = () => {
     if (!isSignedIn) {
       setStories([]);
       setTotal(0);
-      setHasMore(false);
       setLoading(false);
       return;
     }
@@ -928,22 +908,8 @@ const TaleaStoriesScreen: React.FC = () => {
     } else {
       setLoading(false);
     }
+    return () => { loadSequence.current += 1; };
   }, [authLoaded, isSignedIn, contentTab, loadStories, activeProfileId, refreshUserAccess]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (contentTab === "stories" && entries[0]?.isIntersecting && hasMore && !loadingMore && !loading) {
-          loadMoreStories();
-        }
-      },
-      { threshold: 0.1 }
-    );
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
-    }
-    return () => observer.disconnect();
-  }, [contentTab, hasMore, loadingMore, loading, loadMoreStories]);
 
   const handleDeleteStory = async (storyId: string, storyTitle: string) => {
     if (!window.confirm(`${t("common.delete", "Löschen")} "${storyTitle}"?`)) return;
@@ -1041,10 +1007,8 @@ const TaleaStoriesScreen: React.FC = () => {
           avatarFilterOptions={avatarFilterOptions}
           filteredStories={filteredStories}
           loading={loading}
+          loadError={loadError}
           hasActiveFilters={hasActiveFilters}
-          loadingMore={loadingMore}
-          hasMore={hasMore}
-          observerTarget={observerTarget}
           isAdmin={isAdmin}
           downloadingStoryId={downloadingStoryId}
           canUseOffline={canUseOffline}

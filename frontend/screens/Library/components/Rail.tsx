@@ -18,7 +18,8 @@ export const Rail: React.FC<{
   const update = useCallback(() => {
     const element = scroller.current;
     if (!element) return;
-    setEdges({ start: element.scrollLeft < 8, end: element.scrollLeft + element.clientWidth >= element.scrollWidth - 8 });
+    const next = { start: element.scrollLeft < 8, end: element.scrollLeft + element.clientWidth >= element.scrollWidth - 8 };
+    setEdges((previous) => previous.start === next.start && previous.end === next.end ? previous : next);
   }, []);
 
   useEffect(() => {
@@ -28,11 +29,11 @@ export const Rail: React.FC<{
     const observer = new ResizeObserver(update);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [update]);
+  }, [update, children]);
 
   const scrollBy = (direction: 1 | -1) => {
     const element = scroller.current;
-    if (element) element.scrollBy({ left: direction * element.clientWidth * 0.85, behavior: "smooth" });
+    if (element) element.scrollBy({ left: direction * element.clientWidth * 0.85, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   };
 
   return (
