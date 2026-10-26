@@ -330,6 +330,8 @@ export interface StorybookGeneratedStory {
     imageUrl?: string;
     imagePrompt?: string;
     imageModel?: string;
+    /** Talea-Folge: one to three pictures, each printed after a paragraph (0-based) of the chapter. `imageUrl` is the first. */
+    images?: Array<{ url: string; afterParagraph: number }>;
   }>;
   avatarDevelopments: StorybookAvatarDevelopment[];
   pendingArtifact?: StorybookPendingArtifact;

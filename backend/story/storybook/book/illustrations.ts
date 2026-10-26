@@ -42,7 +42,10 @@ export function chapterParagraphs(content: string): string[] {
   return String(content || "").split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
 }
 
-export function buildImageSlots(chapters: BookChapter[], plan: BookPlan, perChapter: number, startSlot = 1): ImageSlot[] {
+/** What the picture code reads of a chapter: its number and text (Talea-Folge uses the same machinery). */
+export type ChapterText = Pick<BookChapter, "order" | "content">;
+
+export function buildImageSlots(chapters: ChapterText[], plan: { chapters: Array<{ n: number; pictures?: string[] }> }, perChapter: number, startSlot = 1): ImageSlot[] {
   const slots: ImageSlot[] = [];
   let slot = startSlot;
   for (const chapter of chapters) {
@@ -113,7 +116,7 @@ export interface PictureNote {
   missing: string[];
 }
 
-export function buildPictureNotes(slots: ImageSlot[], shots: IllustrationPlan["pages"], placed: Placement[], entities: VisualEntity[], storyElements: StoryElement[], chapters: BookChapter[]): PictureNote[] {
+export function buildPictureNotes(slots: ImageSlot[], shots: IllustrationPlan["pages"], placed: Placement[], entities: VisualEntity[], storyElements: StoryElement[], chapters: ChapterText[]): PictureNote[] {
   return slots.flatMap((slot, index) => {
     const shot = shots[index];
     if (!shot) return [];
@@ -164,7 +167,7 @@ export function enforceCastPresence(input: {
   slots: ImageSlot[];
   shots: IllustrationShot[];
   entities: VisualEntity[];
-  chapters: BookChapter[];
+  chapters: ChapterText[];
   maxPerImage: number;
   engineFigure?: string;
 }): { shots: IllustrationShot[]; changes: CastPresenceChange[] } {

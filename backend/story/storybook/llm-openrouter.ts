@@ -89,18 +89,42 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
 export interface OpenRouterPortOptions {
   /** Receives every billed attempt, including failed ones, for the cost ledger. */
   onFailedAttempt?: (request: LlmRequest, billed: LlmCallResult | undefined, error: unknown) => void;
+  /**
+   * Pause before a flex call that the provider refused under load is tried on flex once more; 0 = straight to the
+   * standard tier. "Der Riese hinterm Teig" (2026-10-26) lost a flex call in 1.9 s and paid 5.9 ¢ for its text instead of
+   * 2.7 ¢ — a capacity refusal is usually gone a few seconds later.
+   */
+  flexRetryDelayMs?: number;
+}
+
+const DEFAULT_FLEX_RETRY_DELAY_MS = 4_000;
+
+/** A refusal for capacity: an HTTP 429/5xx answer, never billed. Timeouts, empty and truncated answers are something else. */
+export function isFlexRefusal(error: unknown): boolean {
+  if ((error as any)?.billed) return false;
+  return /OpenRouter API error (429|5\d\d)\b|capacity|unavailable|overloaded/i.test(String((error as Error)?.message || error));
 }
 
 export function createOpenRouterStorybookLlm(options: OpenRouterPortOptions = {}): StorybookLlm {
   const standard = standardPort(options);
+  const retryDelay = options.flexRetryDelayMs ?? DEFAULT_FLEX_RETRY_DELAY_MS;
   return async (request) => {
     if (request.serviceTier !== "flex") return standard(request);
     try {
       return await callOnce(request, request.model);
     } catch (err) {
-      // Refused under load, too slow or unusable: the same request once more on the standard tier,
-      // with the usual retry chain behind it — flex never sends a story to a weaker model.
       options.onFailedAttempt?.(request, (err as any)?.billed, err);
+      if (retryDelay > 0 && isFlexRefusal(err)) {
+        console.warn(`[storybook/llm] ${request.stage}: flex refused, trying flex again in ${retryDelay / 1000}s:`, (err as Error)?.message || err);
+        await new Promise((resolve) => setTimeout(resolve, retryDelay));
+        try {
+          return await callOnce(request, request.model);
+        } catch (retryError) {
+          options.onFailedAttempt?.(request, (retryError as any)?.billed, retryError);
+        }
+      }
+      // Refused twice, too slow or unusable: the same request once more on the standard tier,
+      // with the usual retry chain behind it — flex never sends a story to a weaker model.
       const { serviceTier: _flex, ...plain } = request;
       console.warn(`[storybook/llm] ${request.stage}: flex call failed, repeating on the standard tier:`, (err as Error)?.message || err);
       return standard(plain);

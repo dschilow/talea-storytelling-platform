@@ -26,13 +26,18 @@ export const EPISODE_PIPELINE_ID = "talea-folge-v1";
 export function episodeWriterModel(_config?: unknown): string {
   return process.env.TALEA_EPISODE_WRITER_MODEL || STORYBOOK_DEFAULT_WRITER_MODEL;
 }
-/** Chapters × words. The Originals: 3 chapters, 1,600–2,100 words, about 7 words per sentence. */
+/**
+ * Chapters × words. The Originals: 3 chapters, 1,600–2,100 words, about 7 words per sentence. Ages 6–8 were 500–700
+ * per chapter until 2026-10-26: "Der Riese hinterm Teig" came out at 505 / 503 / 579 words — the writer lands on the
+ * floor of the range, and the staccato one-line paragraphs of this voice make that read short (about 10 minutes aloud).
+ * 600–800 aims at 1,800–2,400 words, a good 12 minutes.
+ */
 export function episodeBudget(length: string | undefined, band: AgeBand): LengthBudget {
   const index = length === "short" ? 0 : length === "long" ? 2 : 1;
   const chapters = [2, 3, 4][index];
   const perChapter: Record<AgeBand, [number, number]> = {
     "3-5": [170, 260],
-    "6-8": [500, 700],
+    "6-8": [600, 800],
     "9-12": [650, 900],
   };
   const [min, max] = perChapter[band];
@@ -221,6 +226,10 @@ export function writingRulesEn(band: AgeBand, language: string, german: boolean)
     "- Rhythm like the reference, never a pattern: quick exchanges of dialogue in short paragraphs (often one line of speech plus a gesture), action in paragraphs of two to five sentences, a single sound or word as its own paragraph for a bang. Never four paragraphs in a row of the same shape. Sentence lengths range from two to about eighteen words.",
     "- Lots of dialogue — about half of the paragraphs contain speech, with real back-and-forth. Every figure sounds like itself (the voice from the plan); catchphrases word for word. Figures talk like people in a children's book, not like officials: no stilted formal words as a figure's whole voice.",
     "- Sound words are beats of their own: big when loud, repeated when rhythmic.",
+    // "Der Riese hinterm Teig": „Adrian stellte sich auf die Zehenspitzen neben ihm. Er schob die letzte Sternform …“ — the
+    // picture director and the picture check read it as two different boys.
+    "- A sentence never starts with „Er“ right after a sentence that names two figures the pronoun could mean (two boys; a grown-up and a child) or names one figure and „ihm“/„ihn“ for another: repeat the name. The illustrator reads these sentences too and draws the wrong figure.",
+    "- A chapter title never counts anything (no „Drei schlechte Einfälle“, no „Zwei Wünsche“): it names a place, a thing or the funny moment of the chapter.",
     "- The child laughs first: visible absurdity (an answer that makes no sense in the neatest handwriting), bodies and things in funny trouble, a proud figure whose plan fails at a tiny detail, children's logic that is wrong and right at once, exact silly details in threes (the third the craziest), literal misunderstandings, slapstick with cause and effect, timing (build-up, then one short dry sentence). A dry line for the grown-up reading aloud is a bonus, never the main joke. Never explain a joke. Nobody is laughed at for who they are, nobody is humiliated or hurt.",
     "- Feelings show in body and action, in this story's own images — never the stock ones (hot or glowing ears, a tingling belly, a lump in the throat) — and in what figures do, never in a lecture. No narrator questions. „Plötzlich“ / „suddenly“ at most twice in the whole story.",
     "- Avoid the worn tics of generated stories: no pencil behind anyone's ear, no clipboard or list-ticking organiser, no seat cushions, garlands or curtains as the main props, no grown-up's slogans of the form „Erst …, dann …“, no „mein Links oder dein Links“, no figure that „verkündet“ everything. Grown-ups talk like real people.",

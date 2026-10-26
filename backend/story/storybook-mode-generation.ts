@@ -46,6 +46,7 @@ import { runWonderTextEngine, WONDER_PIPELINE_ID } from "./wonder/engine";
 import { wonderBudget } from "./wonder/library";
 import { EPISODE_PIPELINE_ID, resolveEpisodeServiceTier, runEpisodeTextEngine } from "./episode/engine";
 import { episodeBudget, episodeWriterModel } from "./episode/craft";
+import { chapterPictures, coverStandIn, directEpisodePictures, type EpisodeDirection } from "./episode/pictures";
 import type { EpisodeResult } from "./episode/types";
 import { castAppearance, describeReferenceLooks, heroAppearance, runDirectorStage, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
 import { generateStorybookImages, publishableImageUrl, type ImageProvider, type StorybookImagesResult } from "./storybook/images";
@@ -204,8 +205,17 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   }, pipelineId);
 
   const llm = createOpenRouterStorybookLlm({
-    onFailedAttempt: (request, billed) => {
+    onFailedAttempt: (request, billed, error) => {
       if (billed) ledger.recordCall(`${request.stage}-failed`, billed, request.role);
+      // Why a call had to be repeated (flex refused, empty, truncated): "Der Riese hinterm Teig" paid 5.9 ¢ instead of
+      // 2.7 ¢ for its text after a flex call died in 1.9 s, and nothing in the story's log said why.
+      void logStage(input.storyId, "llm-attempt-failed", {
+        stage: request.stage,
+        model: request.model,
+        tier: request.serviceTier || "standard",
+        billed: Boolean(billed),
+        message: String((error as Error)?.message || error).slice(0, 300),
+      }, pipelineId);
     },
   });
 
@@ -284,15 +294,31 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
 
   const looks = await describeReferenceLooks(llm, entities, models.support);
   if (looks.call) ledger.recordCall("reference-looks", looks.call, "support");
-  const director = await runDirectorStage(llm, { brief, title: text.title, pages, plan, entities: looks.entities }, models.support);
+  // Talea-Folge draws two pictures per chapter, each after the paragraph it shows, and every acting figure at least once
+  // (the chapter book's picture machinery, ./episode/pictures.ts). Every other lane: one picture per page.
+  let direction: EpisodeDirection | undefined;
+  if (episodeMode) {
+    try {
+      direction = await directEpisodePictures({ llm, model: models.support, brief, title: text.title, pages, plan, entities: looks.entities });
+    } catch (err) {
+      console.warn("[storybook] chapter pictures could not be directed, one picture per chapter instead:", (err as Error)?.message || err);
+    }
+  }
+  const director = direction?.director ?? await runDirectorStage(llm, { brief, title: text.title, pages, plan, entities: looks.entities }, models.support);
   if (director.call) ledger.recordCall("illustration-direction", director.call, "support");
   if (director.repairCall) ledger.recordCall("illustration-plan-repair", director.repairCall, "support");
-  await logStage(input.storyId, "illustration-plan", { illustrations: director.illustrations }, pipelineId);
+  const illustrations = direction?.illustrations ?? director.illustrations;
+  // The pages the picture stage sees: the reading segments in Talea-Folge, the story's pages elsewhere.
+  const picturePages = direction?.pages ?? pages;
+  await logStage(input.storyId, "illustration-plan", {
+    illustrations,
+    ...(direction ? { placed: direction.placed, pictures: direction.notes, castPresence: direction.changes, figuresWithoutPicture: direction.unplaced } : {}),
+  }, pipelineId);
 
   const emptyImages: StorybookImagesResult = { pages: new Map(), imagesGenerated: 0, imageCalls: 0, imageCostUSD: 0, qaCalls: [], regenerated: [] };
   const [images, development] = await Promise.all([
     generateStorybookImages({
-      illustrations: director.illustrations,
+      illustrations,
       entities: looks.entities,
       provider: encoreImageProvider(input.storyId),
       seed,
@@ -300,7 +326,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       visionModel: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : models.support,
       fallbackVisionModel: models.critic,
       jev: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : createOpenRouterJevPort(resolveOpenRouterApiKey),
-      pageTexts: Object.fromEntries(pages.map((page) => [page.order, page.content])),
+      pageTexts: Object.fromEntries(picturePages.map((page) => [page.order, page.content])),
       historical: !["modern", "scifi"].includes(config.genre || "") && ["fantasy", "medieval", "castle"].includes(config.setting || ""),
     }).catch((err): StorybookImagesResult => {
       console.warn("[storybook] image stage failed:", err);
@@ -358,9 +384,24 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const totals = ledger.totals();
   const wordCount = pages.reduce((sum, page) => sum + countWords(page.content), 0);
   const durationMs = Date.now() - startedAt;
-  const quality = storybookQuality(text, images, pages.map((page) => page.order));
+  const quality = storybookQuality(text, images, picturePages.map((page) => page.order));
   const { releaseReady } = quality;
-  const chapters = pages.map((page) => {
+  // Talea-Folge: the delivered pictures of every chapter, each with the paragraph it follows.
+  const pictures = direction ? chapterPictures(direction, images.pages) : [];
+  const chapters: StorybookGeneratedStory["chapters"] = pages.map((page) => {
+    if (direction) {
+      const own = pictures.filter((picture) => picture.chapter === page.order);
+      return {
+        id: `folge-${page.order}`,
+        title: page.title,
+        content: page.content,
+        order: page.order,
+        imageUrl: own[0]?.url,
+        imagePrompt: own[0]?.prompt,
+        imageModel: own[0] ? IMAGE_MODEL : undefined,
+        ...(own.length ? { images: own.map((picture) => ({ url: picture.url, afterParagraph: picture.afterParagraph })) } : {}),
+      };
+    }
     const image = images.pages.get(page.order);
     return {
       id: `${episodeMode ? "folge" : wonderMode ? "wonder" : "storybook"}-${page.order}`,
@@ -426,6 +467,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       imageRegenerations: images.regenerated,
       imageQa: [...images.pages.values(), ...(images.cover ? [images.cover] : [])].map((outcome) => ({
         page: outcome.page,
+        ...(direction && outcome.page > 0 ? { chapter: direction.slots[outcome.page - 1]?.chapter, afterParagraph: direction.placed[outcome.page - 1]?.afterParagraph } : {}),
         attempts: outcome.attempts,
         severity: outcome.severity,
         status: outcome.status,
@@ -442,15 +484,21 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const imageOutcomes = [...(images.cover ? [images.cover] : []), ...images.pages.values()];
   // Story c2ff7f42 shipped without a cover. A book always has one: when the
   // cover itself failed, the first clean page picture with figures stands in.
-  const coverStandIn = pages
+  // Talea-Folge: a picture of the first half of the story, never the resolution of the last chapter
+  // ("Der Riese hinterm Teig": the cover was chapter 3's picture).
+  const standInPicture = direction ? coverStandIn(pictures) : undefined;
+  const pageStandIn = pages
     .map((page) => images.pages.get(page.order))
     .find((outcome) => outcome?.status === "passed" && !outcome.vignette && outcome.url);
-  const coverImageUrl = publishableImageUrl(images.cover) || coverStandIn?.url;
+  const coverImageUrl = publishableImageUrl(images.cover) || (direction ? standInPicture?.url : pageStandIn?.url);
   await logStage(input.storyId, "complete", {
     title: text.title,
-    imagesMissing: pages.filter((page) => !publishableImageUrl(images.pages.get(page.order))).map((page) => page.order),
+    imagesMissing: direction
+      ? direction.slots.filter((_, index) => !publishableImageUrl(images.pages.get(index + 1))).map((slot) => `${slot.chapter}.${slot.part + 1}`)
+      : pages.filter((page) => !publishableImageUrl(images.pages.get(page.order))).map((page) => page.order),
     coverMissing: !publishableImageUrl(images.cover),
-    coverFromPage: !publishableImageUrl(images.cover) && coverStandIn ? coverStandIn.page : undefined,
+    coverFromPage: !publishableImageUrl(images.cover) ? (direction ? standInPicture?.chapter : pageStandIn?.page) : undefined,
+    ...(direction ? { pictures: pictures.length, figuresWithoutPicture: direction.unplaced } : {}),
     imageDeliveryIssues: imageOutcomes.filter((outcome) => outcome.errors?.length).map((outcome) => ({ page: outcome.page, referenceLevel: outcome.referenceLevel, errors: outcome.errors })),
     pages: pages.length,
     wordCount,

@@ -30,8 +30,8 @@ function chapterRhythm(chapters: number): string[] {
   return [
     "Chapter 1: arrive in the heroes' world with the figures in action, the child situation and its pressure, the trigger, the wonder's first small effect — briefly great. End on a funny hook that shows the catch.",
     middle === 1
-      ? "Chapter 2: the catch escalates; the easy-way attempts make it worse; a grown-up almost discovers it; a quiet moment where someone admits a weakness. End on a hook."
-      : `Chapters 2–${chapters - 1}: the catch escalates step by step; the easy-way attempts each make it worse; a grown-up almost discovers it; the troublemaker's plan runs in parallel; in chapter ${chapters - 1} the quiet moment. Each chapter ends on a hook.`,
+      ? "Chapter 2: the catch escalates; the easy-way attempts make it worse; a grown-up almost discovers it; a quiet moment where someone admits a weakness. Every attempt brings something new (a new problem, a clue, a figure who changes) — never the same failure twice; the chapter ends in a stranger or worse place than it began, on a hook."
+      : `Chapters 2–${chapters - 1}: the catch escalates step by step; the easy-way attempts each make it worse and each brings something new (a new problem, a clue, a figure who changes), never the same failure twice; a grown-up almost discovers it; the troublemaker's plan runs in parallel; in chapter ${chapters - 1} the quiet moment. Each chapter ends on a hook.`,
     `Chapter ${chapters}: everything collides at the worst moment (the troublemaker's slapstick often triggers it); the courage in front of others; the rule resolves it; the warm reaction; the thing done right for real; the callbacks of the running gags; the final laugh.`,
   ];
 }

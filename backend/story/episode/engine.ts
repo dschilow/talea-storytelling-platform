@@ -282,6 +282,38 @@ export function planFromHeader(header: ReturnType<typeof readOneShot>["header"],
   };
 }
 
+/**
+ * „Er“ right after a sentence that names two figures, or one figure and „ihm“/„ihn“: "Adrian stellte sich auf die
+ * Zehenspitzen neben ihm. Er schob die letzte Sternform ins Regal." was read as two different boys by the picture
+ * director and the picture check ("Der Riese hinterm Teig", 2026-10-26). Returns the offending sentence pairs.
+ */
+export function ambiguousPronouns(text: string, names: string[]): string[] {
+  const heads = [...new Set(names.map((name) => name.trim().split(/\s+/).pop() || "").filter((head) => head.length > 2))];
+  const hits: string[] = [];
+  for (const paragraph of text.split(/\n\s*\n/)) {
+    const sentences = paragraph.split(/(?<=[.!?])\s+(?=[„"»A-ZÄÖÜ])/);
+    for (let index = 1; index < sentences.length; index += 1) {
+      if (!/^Er\s/.test(sentences[index])) continue;
+      const before = sentences[index - 1];
+      const named = heads.filter((head) => wordPattern(head).test(before));
+      if (named.length >= 2 || (named.length === 1 && /(^|[^\p{L}])(ihm|ihn)(?=$|[^\p{L}])/u.test(before))) hits.push(`${before} ${sentences[index]}`.slice(0, 160));
+    }
+  }
+  return hits;
+}
+
+/**
+ * Every line break is a paragraph break. The reader counts paragraphs at blank lines, the PDF export at every line break and
+ * the picture placement stores a paragraph number — a single line break inside a writer's paragraph would put a picture one
+ * paragraph away in one of them.
+ */
+export function tidyParagraphs(text: string): string {
+  return String(text || "").split(/\n+/).map((line) => line.trim()).filter(Boolean).join("\n\n");
+}
+
+/** A title that counts things promises a number the chapter has to keep ("Drei schlechte Einfälle" showed two). */
+export const COUNTING_TITLE = /^(zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|\d+)(\s|$)/i;
+
 /** Hard: the story cannot ship like this. Soft: worth a revision only together with a hard one. */
 export function storyChecks(chapters: ParsedChapter[], plan: EpisodePlan, brief: StoryBrief): { hard: string[]; soft: string[] } {
   const hard: string[] = [];
@@ -319,6 +351,11 @@ export function storyChecks(chapters: ParsedChapter[], plan: EpisodePlan, brief:
   chapters.slice(0, -1).forEach((chapter, index) => {
     const last = chapter.text.trim().split(/\n\n/).pop() || "";
     if (/\?\s*[“"»]?\s*$/.test(last) && !/[„“"»«]/.test(last)) soft.push(`Chapter ${index + 1} ends with a narrator question; end on an event or a line instead.`);
+  });
+  const figureNames = [...brief.heroes.map((hero) => hero.name), ...plan.cast.map((member) => member.name)];
+  chapters.forEach((chapter, index) => {
+    if (COUNTING_TITLE.test((chapter.title || "").trim())) soft.push(`Chapter ${index + 1}: the title „${chapter.title}“ counts things; name a place, a thing or the funny moment instead.`);
+    for (const pair of ambiguousPronouns(chapter.text, figureNames).slice(0, 2)) soft.push(`Chapter ${index + 1}: unclear „Er“ — „${pair}“. Repeat the name.`);
   });
   return { hard, soft };
 }
@@ -386,7 +423,7 @@ export async function runEpisodeTextEngine(input: {
    * Mode (default: TALEA_EPISODE_MODE, else one-shot), the two-step planner model, the efforts (default "low")
    * and the service tier of the writer's calls ("flex": half price; a refused flex call is repeated on the standard tier by the port).
    */
-  options?: { mode?: EpisodeMode; plannerModel?: string; planEffort?: LlmRequest["effort"]; writeEffort?: LlmRequest["effort"]; serviceTier?: LlmRequest["serviceTier"] };
+  options?: { mode?: EpisodeMode; plannerModel?: string; planEffort?: LlmRequest["effort"]; writeEffort?: LlmRequest["effort"]; serviceTier?: LlmRequest["serviceTier"]; authoring?: { system: string; user: (revision?: { raw: string; notes: string[] }) => string } };
 }): Promise<EpisodeResult> {
   const { brief, models, ledger, llm } = input;
   const observe = async (stage: string, payload: Record<string, unknown>) => {
@@ -398,7 +435,10 @@ export async function runEpisodeTextEngine(input: {
   if (story.chapters.length === 0) throw new Error(`[${EPISODE_PIPELINE_ID}] the writer returned no chapters.`);
   await observe("episode-checks", { mode, checks, revised, renamed: written.renamed });
 
-  const pages: StorybookPage[] = story.chapters.map((chapter, index) => ({ order: index + 1, title: chapter.title || plan.chapters[index]?.title || `Kapitel ${index + 1}`, content: chapter.text, paragraphs: chapter.text.split(/\n\n/) }));
+  const pages: StorybookPage[] = story.chapters.map((chapter, index) => {
+    const content = tidyParagraphs(chapter.text);
+    return { order: index + 1, title: chapter.title || plan.chapters[index]?.title || `Kapitel ${index + 1}`, content, paragraphs: content.split(/\n\n/) };
+  });
   return {
     title: story.title || plan.title,
     description: story.description || plan.summary,
@@ -446,11 +486,11 @@ function settle(story: Story, plan: EpisodePlan, brief: StoryBrief, renamed: Wri
 /** Bible and story in one call; the header carries cast, artifact and knowledge. */
 async function oneShot(input: EngineInput, observe: Observe): Promise<Written> {
   const { brief, models, ledger, llm } = input;
-  const system = oneShotSystemPrompt(brief);
+  const system = input.options?.authoring?.system ?? oneShotSystemPrompt(brief);
   const maxTokens = Math.ceil(brief.budget.totalWordsMax * 2.6 + 8000);
   const renamed: Written["renamed"] = [];
   const call = async (stage: string, revision?: { raw: string; notes: string[] }) => {
-    const result = await llm({ stage, role: "writer", model: models.writer, system, user: oneShotUserPrompt(brief, revision), json: false, maxTokens, effort: input.options?.writeEffort || "low", timeoutMs: 420_000, ...(input.options?.serviceTier ? { serviceTier: input.options.serviceTier } : {}) });
+    const result = await llm({ stage, role: "writer", model: models.writer, system, user: input.options?.authoring?.user(revision) ?? oneShotUserPrompt(brief, revision), json: false, maxTokens, effort: input.options?.writeEffort || "low", timeoutMs: 420_000, ...(input.options?.serviceTier ? { serviceTier: input.options.serviceTier } : {}) });
     ledger.recordCall(stage, result, "writer");
     const parsed = readOneShot(result.text);
     await observe(stage, { model: result.modelUsed, usage: result.usage, durationMs: result.durationMs, header: parsed.header, words: parsed.story.chapters.map((chapter) => countWords(chapter.text)) });

@@ -1508,12 +1508,15 @@ export const generate = api<GenerateStoryRequest, Story>(
           imageUrlLen: chapter?.imageUrl?.length,
           order: chapter?.order,
         });
+        // Talea-Folge prints each picture after the paragraph it shows (the chapter book's `images` column);
+        // `image_url` stays the first picture for the story list and the apps that show one picture.
+        const pictures = (chapter as { images?: Array<{ url: string; afterParagraph: number }> }).images;
         await publicationTx.exec`
           INSERT INTO chapters (
-            id, story_id, title, content, image_url, chapter_order, created_at
+            id, story_id, title, content, image_url, images, chapter_order, created_at
           ) VALUES (
             ${chapterId}, ${id}, ${chapter.title}, ${chapter.content},
-            ${chapter.imageUrl}, ${chapter.order}, ${now}
+            ${chapter.imageUrl}, (${pictures?.length ? JSON.stringify(pictures) : null}::jsonb #>> '{}')::jsonb, ${chapter.order}, ${now}
           )
         `;
         insertedChapters.push({

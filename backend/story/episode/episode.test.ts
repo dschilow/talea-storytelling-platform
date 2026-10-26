@@ -4,7 +4,7 @@ import { buildBrief } from "../storybook/context";
 import { CostLedger, type LlmRequest } from "../storybook/llm";
 import type { CastCandidate } from "../storybook/types";
 import { childSituationChoices, episodeBudget, placeChoices, SAMPLE_NAMES, styleSamples, takenNames } from "./craft";
-import { normalizePlan, planFromHeader, readOneShot, readStory, renameTakenNames, resolveEpisodeServiceTier, runEpisodeTextEngine, storyChecks } from "./engine";
+import { ambiguousPronouns, COUNTING_TITLE, normalizePlan, planFromHeader, tidyParagraphs, readOneShot, readStory, renameTakenNames, resolveEpisodeServiceTier, runEpisodeTextEngine, storyChecks } from "./engine";
 import { oneShotSystemPrompt, oneShotUserPrompt, planSystemPrompt, planUserPrompt, writerSystemPrompt, writerUserPrompt } from "./prompts";
 import { episodePoolLead } from "./cast-focus";
 import { shortlistCastCandidates } from "../storybook/cast-selection";
@@ -69,7 +69,7 @@ describe("Talea-Folge craft", () => {
   test("three chapters of 500–700 words for a medium story at 6–8", () => {
     const budget = episodeBudget("medium", "6-8");
     expect(budget.pages).toBe(3);
-    expect(budget.totalWordsMin).toBe(1500);
+    expect(budget.totalWordsMin).toBe(1800);
     expect(episodeBudget("short", "3-5").totalWordsMax).toBeLessThan(budget.totalWordsMin);
   });
 
@@ -337,5 +337,45 @@ describe("Talea-Folge names", () => {
     expect(renameTakenNames(chapters, plan, b).renamed).toEqual([]);
     expect(planUserPrompt(b)).not.toMatch(/TAKEN NAMES:[^\n]*Ella/);
     expect(oneShotUserPrompt(b)).not.toMatch(/TAKEN NAMES:[^\n]*Ella/);
+  });
+});
+
+// "Der Riese hinterm Teig" (2026-10-26)
+describe("clear pronouns, honest titles, a fuller story", () => {
+  const names = ["Alexander", "Adrian", "Magd Elsa", "Knisterich"];
+  test("an \"Er\" after two possible figures, or after one figure and \"ihm\", is flagged; a clear one is not", () => {
+    expect(ambiguousPronouns("Alexander stapelte Backformen. Adrian stellte sich auf die Zehenspitzen neben ihm. Er schob die letzte Sternform ins Regal.", names)).toHaveLength(1);
+    expect(ambiguousPronouns("Alexander reichte Adrian den Korb. Er lachte.", names)).toHaveLength(1);
+    expect(ambiguousPronouns("Alexander stellte den Korb ab. Er sah sich um.", names)).toEqual([]);
+    expect(ambiguousPronouns("Adrian stand auf.\n\nEr lachte.", names)).toEqual([]);
+    expect(ambiguousPronouns("„Komm“, sagte Alexander. Er winkte Adrian.", names)).toEqual([]);
+  });
+
+  test("a title that counts things is a soft defect, an article is not", () => {
+    expect(COUNTING_TITLE.test("Drei schlechte Einfälle")).toBe(true);
+    expect(COUNTING_TITLE.test("2 Wünsche")).toBe(true);
+    expect(COUNTING_TITLE.test("Ein Schritt vor den Riesen")).toBe(false);
+    expect(COUNTING_TITLE.test("Das Rascheln im Mehl")).toBe(false);
+    const b = brief();
+    const { plan } = normalizePlan(rawPlan(), b);
+    const chapters = readStory(story(600).replace("Noch mehr Beine", "Drei schlechte Einfälle")).chapters;
+    expect(storyChecks(chapters, plan, b).soft.some((issue) => issue.includes("counts things"))).toBe(true);
+    expect(storyChecks(readStory(story(600)).chapters, plan, b).soft.some((issue) => issue.includes("counts things"))).toBe(false);
+  });
+
+  test("ages 6-8 get 600–800 words per chapter, and the writer is told about pronouns, titles and new attempts", () => {
+    const budget = episodeBudget("medium", "6-8");
+    expect([budget.wordsPerPageMin, budget.wordsPerPageMax, budget.totalWordsMin, budget.totalWordsMax]).toEqual([600, 800, 1800, 2400]);
+    expect(episodeBudget("long", "6-8").totalWordsMin).toBe(2400);
+    expect(episodeBudget("short", "6-8").totalWordsMax).toBe(1600);
+    const prompt = oneShotSystemPrompt(brief());
+    expect(prompt).toContain("A sentence never starts with „Er“");
+    expect(prompt).toContain("A chapter title never counts anything");
+    expect(oneShotUserPrompt(brief())).toContain("never the same failure twice");
+  });
+
+  test("every line break is a paragraph break, so reader, PDF and picture placement count the same paragraphs", () => {
+    expect(tidyParagraphs("Eins.\nZwei.\n\n\nDrei.  \n")).toBe("Eins.\n\nZwei.\n\nDrei.");
+    expect(tidyParagraphs("")).toBe("");
   });
 });

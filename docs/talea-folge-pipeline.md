@@ -10,8 +10,8 @@ Mit `TALEA_EPISODE_MODE=two-step` läuft die ältere Variante: erst Bibel und Ka
 
 Danach in beiden Modi:
 1. **Namen**: Bekommt eine neue Figur trotz Verbot einen Namen aus den Originals („Bruno“), wird sie überall umbenannt, statt die Geschichte für etwa 5 ¢ neu schreiben zu lassen. Namen von Helden und Pool-Figuren bleiben immer: Ein Kind namens Ella ist kein Kopierfehler.
-2. **Deterministische Prüfung**: Kapitelzahl, Länge, Wörter aus der Stilvorlage, gesperrte Begriffe, mitgebrachtes Artefakt, Erzählerfrage am Kapitelende. Nur harte Fehler lösen genau eine Überarbeitung aus.
-3. Die Bilderbuch-Hülle (`storybook-mode-generation.ts`) übernimmt Bildregie, ein Bild pro Kapitel plus Titelbild, Avatar-Entwicklung, Artefakt-Freischaltung und Pool-Rotation.
+2. **Deterministische Prüfung**: Kapitelzahl, Länge, Wörter aus der Stilvorlage, gesperrte Begriffe, mitgebrachtes Artefakt, Erzählerfrage am Kapitelende; weich: ein „Er“ nach zwei möglichen Figuren (oder nach einer Figur und „ihm/ihn“) und Kapiteltitel, die etwas zählen („Drei schlechte Einfälle“). Nur harte Fehler lösen genau eine Überarbeitung aus.
+3. Die Bilderbuch-Hülle (`storybook-mode-generation.ts`) übernimmt Avatar-Entwicklung, Artefakt-Freischaltung und Pool-Rotation. Die Bilder laufen seit 2026-10-26 über die Maschinerie des Kapitelbuchs (`episode/pictures.ts`): jedes Kapitel wird an Absatzgrenzen in zwei Lesestücke geschnitten (`TALEA_EPISODE_PICTURES`, 1–3, Standard 2), die Bildregie nennt je Bild den Absatz, den es zeigt, und das Bild steht im Reader und im PDF direkt danach (`chapters.images`, `image_url` bleibt das erste Bild). `enforceCastPresence` stellt jede Figur, die in einem Kapitel handelt, in mindestens ein Bild dieses Kapitels (ein Held weicht nie); wer trotzdem in keinem Bild steht, steht im Log unter `figuresWithoutPicture`. Das Titelbild muss sich von allen Seitenbildern unterscheiden; scheitert es, springt ein sauberes Bild der ersten Hälfte ein, nie das letzte.
 
 Code: `backend/story/episode/` (Encore-frei, LLM als Port), Tests `backend/story/episode/episode.test.ts`.
 
@@ -56,6 +56,8 @@ Beste Beispiele: `Logs/episode/r4-magic` („Da knurrt ein Nebelkissen!“), `p-
 
 ## Offen
 
-- Bilder dieser Lane sind nicht live getestet. Die Bilderbuch-Hülle ist erprobt, hier gibt es aber nur 3 Kapitel mit je etwa 600 Wörtern und einem Bild.
+- Die Bilder mit Absatz-Pin und zwei Bildern je Kapitel (2026-10-26) sind per Test, aber nicht live geprüft. Auslöser war die Prod-Story „Der Riese hinterm Teig“ (35c175bb): Bildregie wählte richtige Absätze (22, 58), gespeichert wurde nur eine URL je Kapitel, das PDF druckte die Bilder an den Kapitelanfang, Magd Elsa (handelt in allen drei Kapiteln) stand in keinem der vier Bilder, das Titelbild war eine Kopie des letzten Kapitelbilds. Die App auf dem Handy zeigt weiter nur das erste Bild je Kapitel.
+- Länge Alter 6–8: 600–800 Wörter je Kapitel (vorher 500–700; der Schreiber landete bei 505/503/579 auf dem Boden des Bereichs). Mittel also 1.800–2.400 Wörter statt 1.500–2.100.
+- Kosten: „Der Riese hinterm Teig“ zahlte 5,9 ¢ statt 2,7 ¢ für den Text, weil der Flex-Aufruf nach 1,9 s abgelehnt wurde. Der Port versucht Flex jetzt nach 4 s noch einmal (nur bei 429/5xx ohne Abrechnung), erst dann Standard; jede abgelehnte Anfrage steht als Stufe `llm-attempt-failed` mit Grund im Story-Log.
 - 3–5 Jahre ist schwächer (≈ 5,5–6): Die Methode ist für Kleine zu viel Maschinerie.
 - Gegen Sols Tics hilft keine Regel vollständig (Sitzkissen, „Erst …, dann …“).
