@@ -62,5 +62,11 @@ describe("flex tier (2026-10-16)", () => {
     expect(isFlexRefusal(new Error("OpenRouter API error 503: upstream down"))).toBe(true);
     expect(isFlexRefusal(new Error("[storybook/llm] openai/gpt-6.1-sol timed out after 840s (episode-oneshot)."))).toBe(false);
     expect(isFlexRefusal(Object.assign(new Error("Empty response (capacity)"), { billed: { text: "" } }))).toBe(false);
+    // Story ee4971ca: nothing written, nothing charged, after 1 s — a capacity blip like a 429.
+    const instant = "[storybook/llm] Empty response from openai/gpt-6.1-sol (episode-write, finish_reason=unknown, completion_tokens=0, reasoning_tokens=0, refusal=null).";
+    expect(isFlexRefusal(Object.assign(new Error(instant), { billed: { text: "", usage: { prompt: 0, completion: 0, total: 0, costUSD: 0 } } }))).toBe(true);
+    // Paid tokens that came back empty are not retried on flex.
+    expect(isFlexRefusal(Object.assign(new Error(instant), { billed: { text: "", usage: { prompt: 7000, completion: 0, total: 7000, costUSD: 0.004 } } }))).toBe(false);
+    expect(isFlexRefusal(Object.assign(new Error(instant.replace("completion_tokens=0", "completion_tokens=3500")), { billed: { text: "" } }))).toBe(false);
   });
 });

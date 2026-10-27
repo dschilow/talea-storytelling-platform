@@ -278,6 +278,36 @@ async function loadImageViaCanvasClassic(url: string): Promise<ImageLoadResult> 
   });
 }
 
+// Windows-1252 above Latin-1: the characters jsPDF's built-in fonts (times, helvetica) can still draw.
+const WIN_ANSI_EXTRA = new Set('€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ');
+
+/**
+ * The built-in PDF fonts know only Windows-1252. One character outside it switches jsPDF to two-byte text for the whole
+ * line: "Die riesige Reisewiege" (2026-10-27) printed "A l e x a n d e r … schwappt5 vor", the letters pulled apart,
+ * the line running off the page and its end lost. Typographic spaces and hyphens become plain ones; anything else
+ * the fonts cannot draw (an emoji) is left out.
+ */
+export function pdfSafeText(text: string): string {
+  return text
+    .normalize('NFC')
+    .replace(/[ -   　]/g, ' ')
+    .replace(/[‐-‒−]/g, '-')
+    .replace(/[​-‍⁠﻿]/g, '')
+    .replace(/[^\n\r\t -~ -ÿ]/g, (char) => (WIN_ANSI_EXTRA.has(char) ? char : ''));
+}
+
+/** Every string the document draws or measures goes through pdfSafeText. */
+function withPdfSafeText(doc: jsPDF): jsPDF {
+  const text = doc.text.bind(doc);
+  const split = doc.splitTextToSize.bind(doc);
+  const width = doc.getTextWidth.bind(doc);
+  const safe = (value: unknown) => (typeof value === 'string' ? pdfSafeText(value) : Array.isArray(value) ? value.map((item) => (typeof item === 'string' ? pdfSafeText(item) : item)) : value);
+  doc.text = ((value: any, ...rest: any[]) => text(safe(value) as any, ...rest)) as typeof doc.text;
+  doc.splitTextToSize = ((value: string, ...rest: any[]) => split(pdfSafeText(value), ...rest)) as typeof doc.splitTextToSize;
+  doc.getTextWidth = ((value: string) => width(pdfSafeText(value))) as typeof doc.getTextWidth;
+  return doc;
+}
+
 /**
  * Add text with automatic word wrapping
  */
@@ -368,11 +398,11 @@ export async function exportStoryAsPDF(
 ): Promise<void> {
   try {
     // Create PDF document (A4 format)
-    const doc = new jsPDF({
+    const doc = withPdfSafeText(new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4'
-    });
+    }));
 
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -735,11 +765,11 @@ export async function exportDokuAsPDF(
 ): Promise<void> {
   try {
     // Create PDF document (A4 format)
-    const doc = new jsPDF({
+    const doc = withPdfSafeText(new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
       format: 'a4'
-    });
+    }));
 
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();

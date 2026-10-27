@@ -99,10 +99,18 @@ export interface OpenRouterPortOptions {
 
 const DEFAULT_FLEX_RETRY_DELAY_MS = 4_000;
 
-/** A refusal for capacity: an HTTP 429/5xx answer, never billed. Timeouts, empty and truncated answers are something else. */
+/**
+ * A refusal for capacity: an HTTP 429/5xx answer, never billed. Timeouts and truncated answers are something else; an
+ * empty answer is too, unless nothing was written and nothing charged — story ee4971ca (2026-10-27): flex answered
+ * Sol's write in 1 s with zero tokens for $0, and the story paid the standard tier, 5.1 ¢ instead of ≈ 2.5 ¢.
+ */
 export function isFlexRefusal(error: unknown): boolean {
-  if ((error as any)?.billed) return false;
-  return /OpenRouter API error (429|5\d\d)\b|capacity|unavailable|overloaded/i.test(String((error as Error)?.message || error));
+  const message = String((error as Error)?.message || error);
+  const billed = (error as any)?.billed as LlmCallResult | undefined;
+  if (billed) {
+    return /Empty response/i.test(message) && /completion_tokens=0(?!\d)/.test(message) && !((billed.usage?.costUSD ?? 0) > 0);
+  }
+  return /OpenRouter API error (429|5\d\d)\b|capacity|unavailable|overloaded/i.test(message);
 }
 
 export function createOpenRouterStorybookLlm(options: OpenRouterPortOptions = {}): StorybookLlm {
