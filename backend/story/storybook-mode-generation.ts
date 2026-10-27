@@ -44,7 +44,7 @@ import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
 import { runStorybookTextEngine, STORYBOOK_PIPELINE_ID } from "./storybook/engine";
 import { runWonderTextEngine, WONDER_PIPELINE_ID } from "./wonder/engine";
 import { wonderBudget } from "./wonder/library";
-import { EPISODE_PIPELINE_ID, resolveEpisodeServiceTier, runEpisodeTextEngine } from "./episode/engine";
+import { EPISODE_PIPELINE_ID, resolveEpisodeMode, resolveEpisodeServiceTier, runEpisodeTextEngine } from "./episode/engine";
 import { episodeBudget, episodeProductionLlm, episodeProductionModels, episodeVisionModel } from "./episode/craft";
 import { chapterPictures, coverStandIn, directEpisodePictures, type EpisodeDirection } from "./episode/pictures";
 import { prepareGuestPortraits } from "./episode/guest-portraits";
@@ -278,8 +278,9 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     models,
     ledger,
     observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId),
-    // Planning and editorial review are separate Terra calls; only Sol writes or revises prose.
-    ...(episodeMode ? { options: { mode: "two-step" as const, editorialReview: true, serviceTier: resolveEpisodeServiceTier() } } : {}),
+    // Sol plans silently and writes in one call. The separate Terra plan and editorial review (two-step, 987896c)
+    // cost 1.4 ¢ more per story for the same writer (0ee9af53: 15.3 ¢); TALEA_EPISODE_MODE=two-step brings them back.
+    ...(episodeMode ? { options: { mode: resolveEpisodeMode(), editorialReview: true, serviceTier: resolveEpisodeServiceTier() } } : {}),
   });
   const wonder = "wonder" in text ? (text as import("./wonder/types").WonderResult).wonder : undefined;
   const episode = "episode" in text ? (text as EpisodeResult).episode : undefined;
@@ -378,7 +379,12 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       // TALEA_STORYBOOK_PARALLEL_REDRAW=off: redraw and heroes-only attempt one after another again. The spare costs a
       // picture (0.12 ¢, 0.25 ¢ on FLUX 3) and a vision read whenever the redraw passes, so it is drawn only when the
       // crowd is the trouble (crowdTrouble in storybook/images.ts); it saves ≈ 15 s whenever the redraw fails.
-      parallelRedraw: process.env.TALEA_STORYBOOK_PARALLEL_REDRAW !== "off",
+      // Talea-Folge: never. On FLUX 3 the picture check costs as much as the picture; story 0ee9af53 paid two spares
+      // and their checks (1 ¢) while both redraws passed. Here the heroes-only attempt is drawn only after a failed redraw.
+      parallelRedraw: !episodeMode && process.env.TALEA_STORYBOOK_PARALLEL_REDRAW !== "off",
+      // Talea-Folge: a picture whose only fault is a loosely matched scene is kept. 0ee9af53 redrew two (0.45 and 0.3)
+      // with the same scene and got 0.3 and 0.35 plus a doubled magpie.
+      redrawLooseScene: !episodeMode,
       visionModel: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : episodeMode ? episodeVisionModel() : models.support,
       fallbackVisionModel: models.critic,
       jev: episodeMode || process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : createOpenRouterJevPort(resolveOpenRouterApiKey),

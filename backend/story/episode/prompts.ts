@@ -179,6 +179,8 @@ export function oneShotSystemPrompt(brief: StoryBrief): string {
     "FIGUR: <name> | pool | <pool id> | <companion|troublemaker|grownup|wonder>   (one line per pool figure in the story)",
     "FIGUR: <name> | neu | <companion|troublemaker|grownup|wonder> | <human|animal|creature|thing> | <concrete English look for the illustrator>   (one line per new named figure; never the heroes — the app knows them)",
     "FUNDSTÜCK: <artifact id, or keins>",
+    "WIRKUNG: <the wonder's first visible effect in chapter 1, in one line>",
+    "LACHER: <chapter number> | <the funniest moment of that chapter a child could see in a picture>   (one line per chapter)",
     ...(learningGoal(brief.config) ? ["WISSEN: <the knowledge core in one or two sentences, true in the real world, as the child should say it afterwards>"] : []),
     `TITEL: <2–6 words like a real children's book: a thing, creature, exclamation or impossible situation from THIS story; it keeps what it promises (a number or creature in the title really happens); never „${brief.heroes.map((hero) => hero.name).join(" und ")} und …“, never the ending>`,
     "BESCHREIBUNG: <two sentences for the story card: the situation and the funny problem, never the ending>",

@@ -16,7 +16,7 @@ import { containsBlockedTerm, countWords } from "../storybook/checks";
 import { parseJsonObject, type CostLedger, type LlmRequest, type StorybookLlm, type StorybookModels } from "../storybook/llm";
 import type { CastCandidate, StoryPlan, StorybookPage } from "../storybook/types";
 import { parseChapters, type ParsedChapter } from "../library/engine";
-import { EPISODE_PIPELINE_ID, FRESH_NAMES, SAMPLE_SIGNATURES, takenNames } from "./craft";
+import { EPISODE_PIPELINE_ID, FRESH_NAMES, SAMPLE_ADDRESSES, SAMPLE_SIGNATURES, takenNames } from "./craft";
 import { oneShotSystemPrompt, oneShotUserPrompt, planSystemPrompt, planUserPrompt, writerSystemPrompt, writerUserPrompt } from "./prompts";
 import type { EpisodeCastMember, EpisodePlan, EpisodeResult } from "./types";
 import { episodePoolLead } from "./cast-focus";
@@ -198,9 +198,9 @@ export function renameTakenNames(chapters: ParsedChapter[], plan: EpisodePlan, b
   return { chapters: current, renamed };
 }
 
-/** Header lines of the one-shot (IDEE, REGEL, FIGUR …, FUNDSTÜCK, WISSEN) before the story. */
+/** Header lines of the one-shot (IDEE, REGEL, FIGUR …, FUNDSTÜCK, WIRKUNG, LACHER …, WISSEN) before the story. */
 export function readOneShot(raw: string): {
-  header: { idea: string; rule: string; figures: string[][]; artifactId: string | null; learningCore: string | null };
+  header: { idea: string; rule: string; figures: string[][]; artifactId: string | null; learningCore: string | null; firstEffect: string; laughs: Record<number, string> };
   story: { title: string; description: string; chapters: ParsedChapter[] };
 } {
   const value = String(raw || "").replace(/\r\n/g, "\n");
@@ -208,6 +208,9 @@ export function readOneShot(raw: string): {
   const line = (marker: string) => head.match(new RegExp(`^\\s*${marker}\\s*:\\s*(.+)$`, "im"))?.[1]?.replace(/[*_#]/g, "").trim() || "";
   const figures = [...head.matchAll(/^\s*FIGUR\s*:\s*(.+)$/gim)].map((match) => match[1].split("|").map((part) => part.replace(/[*_#]/g, "").trim()));
   const artifact = line("FUNDST(?:Ü|UE)CK");
+  // The picture director's candidate moments; the two-step plan had them as chapter laughs and the first effect.
+  const laughs: Record<number, string> = {};
+  for (const match of head.matchAll(/^\s*LACHER\s*:\s*(\d+)\s*\|\s*(.+)$/gim)) laughs[Number(match[1])] = match[2].replace(/[*_#]/g, "").trim();
   return {
     header: {
       idea: line("IDEE"),
@@ -215,6 +218,8 @@ export function readOneShot(raw: string): {
       figures,
       artifactId: artifact && !/^kein/i.test(artifact) ? artifact : null,
       learningCore: line("WISSEN") || null,
+      firstEffect: line("WIRKUNG"),
+      laughs,
     },
     story: readStory(value),
   };
@@ -264,7 +269,7 @@ export function planFromHeader(header: ReturnType<typeof readOneShot>["header"],
     summary: story.description,
     focusHero: brief.heroes[0]?.id,
     childSituation: header.idea,
-    wonder: { rule: header.rule, who: "", firstEffect: "", escalation: [], endsWhen: "" },
+    wonder: { rule: header.rule, who: "", firstEffect: header.firstEffect || "", escalation: [], endsWhen: "" },
     heroes: brief.heroes.map((hero) => ({ id: hero.id, name: hero.name, voice: "", contribution: "" })),
     cast,
     runningGags: [],
@@ -274,7 +279,7 @@ export function planFromHeader(header: ReturnType<typeof readOneShot>["header"],
     courage: "",
     solution: "",
     setups: [],
-    chapters: story.chapters.map((chapter) => ({ title: chapter.title, beats: [], laugh: "", ending: "" })),
+    chapters: story.chapters.map((chapter, index) => ({ title: chapter.title, beats: [], laugh: header.laughs?.[index + 1] || "", ending: "" })),
     schoolyardLine: "",
     finalLaugh: "",
     artifact: chosen ? { id: chosen.id, role: "", firstChapter: chapterOf(chosen.name, 1), useChapter: chapterOf(chosen.name, story.chapters.length, true) } : null,
@@ -337,6 +342,10 @@ export function storyChecks(chapters: ParsedChapter[], plan: EpisodePlan, brief:
     // A hero or pool figure called Ella or Bruno is the family's, not a copy.
     if (own.has(signature.toLocaleLowerCase("de-DE"))) continue;
     if (wordPattern(signature).test(full)) hard.push(`„${signature}“ comes from the style reference — replace it with something of this story's own.`);
+  }
+  for (const address of SAMPLE_ADDRESSES) {
+    // An address ends at punctuation („Falscher Alarm, Süßer.“); an adjective goes on to its noun („Süßer Saft“).
+    if (new RegExp(`(^|[^\\p{L}])${escapeRegExp(address)}(?=\\s*([,.!?…;:“"»«]|$))`, "u").test(full)) hard.push(`„${address}“ as a form of address comes from the style reference — let the figures speak in their own way.`);
   }
   const blocked = containsBlockedTerm(full, brief.blockedTerms);
   if (blocked) hard.push(`The blocked term „${blocked}“ appears — remove it completely.`);

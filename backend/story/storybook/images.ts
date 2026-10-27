@@ -153,6 +153,11 @@ export interface GenerateImagesInput {
    * and unused.
    */
   parallelRedraw?: boolean;
+  /**
+   * false: a picture whose only fault is a loosely matched scene (sceneMatch < 0.5) is kept as it is. A redraw renders
+   * the same scene prompt again; on FLUX 3 that never fixed the match (story 0ee9af53) and costs a picture plus a check.
+   */
+  redrawLooseScene?: boolean;
 }
 
 /** Keep rejected candidates for diagnostics, but never attach them to a reading page. */
@@ -717,7 +722,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       return { response: {} as ImageResponse, references: [] as string[], prompt: lastPrompt, level: -1, refused: refusedNow };
     };
 
-    type Attempt = ImageOutcome & { level: number; plan?: Plan["kind"]; refused?: boolean };
+    type Attempt = ImageOutcome & { level: number; plan?: Plan["kind"]; refused?: boolean; looseScene?: boolean };
 
     const note = (kind: string, outcome: Attempt) => {
       const parts = qaSeverityParts(outcome.qa, 0);
@@ -764,7 +769,9 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       const qa = checked ? withSecondOpinion(checked, scores) : undefined;
       const heroNames = plan.onStage.filter((entity) => entity.role === "hero").map((entity) => entity.name);
       const parts = qaSeverityParts(qa, expectedNames.length, { heroNames, cover });
-      return { page: shot.page, url, prompt: got.prompt, attempts: attemptNo, costUSD, qa, severity: parts.hard + parts.soft, status: qaStatus(qa, parts), level: got.level, plan: plan.kind };
+      const sceneless = qa && qa.sceneMatch < 0.5 ? qaSeverityParts({ ...qa, sceneMatch: 1 }, expectedNames.length, { heroNames, cover }) : undefined;
+      const looseScene = Boolean(sceneless && sceneless.hard + sceneless.soft < 10);
+      return { page: shot.page, url, prompt: got.prompt, attempts: attemptNo, costUSD, qa, severity: parts.hard + parts.soft, status: qaStatus(qa, parts), level: got.level, plan: plan.kind, looseScene };
     };
 
     /**
@@ -809,7 +816,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     };
 
     const finish = (outcome: Attempt, attempts: number): ImageOutcome => {
-      const { level, plan: _plan, refused: _refused, ...rest } = outcome;
+      const { level, plan: _plan, refused: _refused, looseScene: _looseScene, ...rest } = outcome;
       return { ...rest, attempts, costUSD, referenceLevel: level, errors: errors.length ? errors : undefined, history };
     };
 
@@ -840,6 +847,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     }
     // A broken checker is not evidence that a new image would help.
     if (!first.qa || first.severity < 10) return finish(first, 1);
+    if (input.redrawLooseScene === false && first.looseScene) return finish(first, 1);
     regenerated.push(shot.page);
 
     // Redraw 1: one more full attempt with a named correction and a simpler composition.

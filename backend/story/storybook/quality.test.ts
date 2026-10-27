@@ -548,6 +548,26 @@ describe("story b10f2dad: the last page must not stay blank", () => {
     expect(page.history?.map((entry) => entry.kind)).toEqual(["full", "reduced-unused", "redraw"]);
   });
 
+  // Story 0ee9af53: two scene-only redraws went from 0.45 to 0.3 and from 0.3 to 0.35 plus a doubled magpie.
+  test("redrawLooseScene off keeps a picture whose only fault is a loose scene; any other fault is still redrawn", async () => {
+    const pages: number[] = [];
+    const loose = await generateStorybookImages({ illustrations: crowd, entities: [...people, dragon], seed: "s", buildReference: reference, visionModel: "test", concurrency: 1, redrawLooseScene: false,
+      llm: async (r) => reply(r, { ...qaWith({}), sceneMatch: 0.3 }),
+      provider: async (request) => { pages.push(request.page); return { url: `https://example.test/${request.page}-${request.seed}.jpg` }; },
+    });
+    const kept = loose.pages.get(7)!;
+    expect(kept.attempts).toBe(1);
+    expect(kept.status).toBe("flawed");
+    expect(publishableImageUrl(kept)).toBeDefined();
+    expect(pages.filter((p) => p === 7)).toHaveLength(1);
+
+    const doubled = await generateStorybookImages({ illustrations: crowd, entities: [...people, dragon], seed: "s", buildReference: reference, visionModel: "test", concurrency: 1, redrawLooseScene: false,
+      llm: async (r) => reply(r, r.stage === "image-qa-p7-1" ? { ...qaWith({ duplicates: ["Adrian drawn 2 times"] }), sceneMatch: 0.3 } : qaWith({})),
+      provider: async (request) => ({ url: `https://example.test/${request.page}-${request.seed}.jpg` }),
+    });
+    expect(doubled.pages.get(7)!.history?.map((entry) => entry.kind)).toEqual(["full", "redraw"]);
+  });
+
   test("when everything fails the least bad salvageable picture is printed, never a blank page", async () => {
     const result = await generateStorybookImages({ illustrations: crowd, entities: [...people, dragon], seed: "s", buildReference: reference, visionModel: "test", concurrency: 1,
       llm: async (r) => reply(r, r.stage.includes("vignette") ? qaWith({ unexpectedCharacters: ["a boy"] }) : qaWith({ featureBleed: ["Fauchi wears sleeves"], duplicates: ["Schwebetopf appears twice"] })),

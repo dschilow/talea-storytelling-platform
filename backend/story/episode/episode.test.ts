@@ -4,7 +4,8 @@ import { buildBrief } from "../storybook/context";
 import { CostLedger, type LlmRequest } from "../storybook/llm";
 import type { CastCandidate } from "../storybook/types";
 import { childSituationChoices, episodeBudget, episodeProductionLlm, episodeProductionModels, placeChoices, SAMPLE_NAMES, styleSamples, takenNames } from "./craft";
-import { ambiguousPronouns, COUNTING_TITLE, normalizePlan, planFromHeader, tidyParagraphs, readOneShot, readStory, renameTakenNames, resolveEpisodeServiceTier, runEpisodeTextEngine, storyChecks } from "./engine";
+import { ambiguousPronouns, COUNTING_TITLE, normalizePlan, planFromHeader, tidyParagraphs, readOneShot, readStory, renameTakenNames, resolveEpisodeServiceTier, runEpisodeTextEngine, storyChecks, toStoryPlan } from "./engine";
+import { storyHighlights } from "./pictures";
 import { oneShotSystemPrompt, oneShotUserPrompt, planSystemPrompt, planUserPrompt, writerSystemPrompt, writerUserPrompt } from "./prompts";
 import { episodePoolLead } from "./cast-focus";
 import { shortlistCastCandidates } from "../storybook/cast-selection";
@@ -218,6 +219,17 @@ describe("Talea-Folge story checks", () => {
     expect(storyChecks(readStory(story(560, "Ein Gespenst!")).chapters, plan, b).hard.some((issue) => issue.includes("Gespenst"))).toBe(true);
     expect(storyChecks(readStory(story(100)).chapters, plan, b).hard.some((issue) => issue.includes("words"))).toBe(true);
   });
+
+  // Story 0ee9af53 paid a full revision for „Süßer Saft lief über seine Finger“.
+  test("Oma's pet names count as a copy only as an address", () => {
+    const b = brief();
+    const { plan } = normalizePlan(rawPlan(), b);
+    const hard = (extra: string) => storyChecks(readStory(story(560, extra)).chapters, plan, b).hard.filter((issue) => issue.includes("Süß"));
+    expect(hard("Süßer Saft lief über seine Finger. Die Süße der Birne blieb.")).toEqual([]);
+    expect(hard("„Stiefel an, Süßer!“")).toHaveLength(1);
+    expect(hard("„Süße“, sagte sie.")).toHaveLength(1);
+    expect(hard("„Falscher Alarm, Süßer“, sagte Oma.")).toHaveLength(1);
+  });
 });
 
 const MODELS = { writer: "openai/gpt-6.1-sol", support: "openai/gpt-6-luna", critic: "google/gemini-3.8-flash" };
@@ -351,6 +363,19 @@ describe("Talea-Folge engine, one-shot", () => {
     expect(parsed.header.figures.length).toBe(2);
     expect(parsed.header.artifactId).toBeNull();
     expect(parsed.story.chapters.length).toBe(3);
+  });
+
+  test("the first effect and the chapter laughs reach the plan the picture director reads", () => {
+    const text = oneShotText(20).replace("FUNDSTÜCK: keins", ["FUNDSTÜCK: keins", "WIRKUNG: Der Kiste wachsen zwei Holzbeine.", "LACHER: 1 | Die Kiste stolpert über die Fußmatte.", "LACHER: 3 | **Kuno trägt Alexander.**"].join("\n"));
+    const parsed = readOneShot(text);
+    const plan = planFromHeader(parsed.header, parsed.story, brief());
+    expect(plan.wonder.firstEffect).toBe("Der Kiste wachsen zwei Holzbeine.");
+    expect(plan.chapters.map((chapter) => chapter.laugh)).toEqual(["Die Kiste stolpert über die Fußmatte.", "", "Kuno trägt Alexander."]);
+    expect(storyHighlights(toStoryPlan(plan, parsed.story.chapters))).toEqual([
+      "The wonder's first visible effect: Der Kiste wachsen zwei Holzbeine.",
+      "Chapter 1: Die Kiste stolpert über die Fußmatte.",
+      "Chapter 3: Kuno trägt Alexander.",
+    ]);
   });
 
   test("a figure listed in the header but absent from the text is not drawn", () => {

@@ -104,8 +104,14 @@ export const SAMPLE_NAMES = ["Bruno", "Ella", "Mats", "Grimmbach", "Brunello", "
 /** Words that only exist in the samples. A story that contains them copied instead of learned. */
 export const SAMPLE_SIGNATURES = [
   "Bruno", "Ella", "Mats", "Grimmbach", "Kater Kaiser", "Flunker", "Plan W", "Blubb", "Simsalabrunello",
-  "Jona", "Oma Hilde", "Flusi", "Gertrud", "Gähnmonster", "Socken-Schnüffler", "Monster-Pension", "Süßer", "Süße",
+  "Jona", "Oma Hilde", "Flusi", "Gertrud", "Gähnmonster", "Socken-Schnüffler", "Monster-Pension",
 ];
+
+/**
+ * Oma's pet names in the Müllabfuhr sample. Only the address is hers („Stiefel an, Süßer!“): story 0ee9af53 paid a
+ * full revision because „Süßer Saft lief über seine Finger“ counted as a copy.
+ */
+export const SAMPLE_ADDRESSES = ["Süßer", "Süße"];
 
 export const METHOD_EN = [
   "THE METHOD — how every Talea Original is built:",
