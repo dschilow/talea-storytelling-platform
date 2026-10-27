@@ -406,6 +406,10 @@ export default function TaleaStoryWizard() {
   const [seriesOpen, setSeriesOpen] = useState(false);
 
   useEffect(() => {
+    if (state.characterSeries !== null) setSeriesOpen(true);
+  }, [state.characterSeries]);
+
+  useEffect(() => {
     if (!userId) return;
     let active = true;
     const controller = new AbortController();
@@ -761,16 +765,14 @@ export default function TaleaStoryWizard() {
         return (
           <div className="space-y-6">
             <Step2CategorySelection state={state} updateState={updateState} />
-            {(seriesLoading || characterSeries.length > 0 || seriesOpen || state.characterSeries !== null) && (
-              <section className="rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-4 sm:p-5">
-                <button type="button" aria-expanded={seriesOpen} onClick={() => setSeriesOpen((open) => !open)} className="flex min-h-11 w-full items-center gap-3 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--talea-surface-inset)] text-[var(--primary)]"><BookOpen aria-hidden className="h-5 w-5" /></span>
-                  <span className="min-w-0 flex-1"><span className="block font-semibold text-[var(--talea-text-primary)]">Figurenabenteuer entdecken</span><span className="block text-sm text-[var(--talea-text-secondary)]">Wiederkehrende Figuren und eure eigenen Folgen</span></span>
-                  <span aria-hidden className="text-xl text-[var(--primary)]">{seriesOpen ? '−' : '+'}</span>
-                </button>
-                {seriesOpen && <div className="mt-5"><StepCharacterSeries selection={state.characterSeries} onSelect={(selection) => updateState({ characterSeries: selection, ...(selection !== null ? { developerMode: false, storybookMode: false, bookWorkshopMode: false, wonderStoryMode: false, episodeMode: false, chapterBookMode: false } : {}) })} series={characterSeries} loading={seriesLoading} error={seriesError} onRetry={() => setSeriesRetry((n) => n + 1)} genre={state.mainCategory} /></div>}
-              </section>
-            )}
+            <section className="rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-4 sm:p-5">
+              <button type="button" aria-expanded={seriesOpen} onClick={() => setSeriesOpen((open) => !open)} className="flex min-h-11 w-full items-center gap-3 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--talea-surface-inset)] text-[var(--primary)]"><BookOpen aria-hidden className="h-5 w-5" /></span>
+                <span className="min-w-0 flex-1"><span className="block font-semibold text-[var(--talea-text-primary)]">Figurenabenteuer entdecken</span><span className="block text-sm text-[var(--talea-text-secondary)]">Wiederkehrende Figuren und eure eigenen Folgen</span></span>
+                <span aria-hidden className="text-xl text-[var(--primary)]">{seriesOpen ? '−' : '+'}</span>
+              </button>
+              {seriesOpen && <div className="mt-5"><StepCharacterSeries selection={state.characterSeries} onSelect={(selection) => updateState({ characterSeries: selection, ...(selection !== null ? { developerMode: false, storybookMode: false, bookWorkshopMode: false, wonderStoryMode: false, episodeMode: false, chapterBookMode: false } : {}) })} series={characterSeries} loading={seriesLoading} error={seriesError} onRetry={() => setSeriesRetry((n) => n + 1)} genre={state.mainCategory} /></div>}
+            </section>
           </div>
         );
       case 'book':
