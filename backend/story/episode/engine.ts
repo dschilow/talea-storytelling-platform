@@ -360,7 +360,7 @@ export function storyChecks(chapters: ParsedChapter[], plan: EpisodePlan, brief:
   return { hard, soft };
 }
 
-function toStoryPlan(plan: EpisodePlan, chapters: ParsedChapter[]): StoryPlan {
+export function toStoryPlan(plan: EpisodePlan, chapters: Array<Pick<ParsedChapter, "text">>): StoryPlan {
   return {
     title: plan.title,
     logline: plan.summary,

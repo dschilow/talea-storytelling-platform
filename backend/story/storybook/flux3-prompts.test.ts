@@ -1,6 +1,6 @@
 // @ts-ignore Bun's test helpers are runtime-only in the Encore project.
 import { describe, expect, test } from "bun:test";
-import { assembleFlux3ImagePrompt, MODERN_CHILDRENS_BOOK_STYLE, type VisualEntity } from "./illustration-stage";
+import { assembleFlux3ImagePrompt, MODERN_CHILDRENS_BOOK_STYLE, withoutTextNegations, wordlessLine, type VisualEntity } from "./illustration-stage";
 
 const alex: VisualEntity = { id: "a", name: "Alexander", kind: "character", role: "hero", species: "human", isHuman: true, appearance: "brown-haired boy in a pale green shirt", forbidden: [] };
 const fox: VisualEntity = { id: "f", name: "Bo", kind: "character", role: "cast", species: "fox", isHuman: false, appearance: "orange fox with round glasses and green vest", forbidden: [] };
@@ -38,5 +38,22 @@ describe("Flux 3 complete picture-book captions", () => {
     expect(prompt).toContain("unoccupied setting");
     expect(prompt).not.toContain("Eyes follow the action");
     expect(prompt).not.toContain("reference image");
+  });
+});
+
+describe("story 26fdd23f: no writing asked for", () => {
+  test("a director's negation about writing leaves the scene, everything else stays", () => {
+    expect(withoutTextNegations("The castle playroom opens into a calm, uncluttered background above, with no lettering.")).toBe("The castle playroom opens into a calm, uncluttered background above.");
+    expect(withoutTextNegations("A wooden sign with no text stands by the gate. No writing anywhere. Mina waves.")).toBe("A wooden sign stands by the gate. Mina waves.");
+    expect(withoutTextNegations("A page without words or numbers lies open; the fox reads it.")).toBe("A page lies open; the fox reads it.");
+    expect(withoutTextNegations("Nobody notices the knot.")).toBe("Nobody notices the knot.");
+  });
+
+  test("the closing line names only the things in the picture that could carry writing", () => {
+    expect(wordlessLine("Mina runs through the meadow.")).toBe("A wordless illustration.");
+    expect(wordlessLine("His piece stands on the final square of the game board.")).toContain("The board's squares show only colours");
+    const prompt = assembleFlux3ImagePrompt({ scene: "Alexander laughs in the meadow, with no lettering.", onStage: [alex], spriteOrder: [alex] });
+    expect(prompt).not.toMatch(/lettering|Books, maps, signs/);
+    expect(prompt).toContain("A wordless illustration.");
   });
 });

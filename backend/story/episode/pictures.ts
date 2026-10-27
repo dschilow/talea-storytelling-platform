@@ -75,19 +75,46 @@ export function segmentPlan(plan: StoryPlan, slots: ImageSlot[], entities: Visua
   };
 }
 
+/**
+ * The moments the plan built each chapter around — its laughs, the wonder's first visible effect and the running gag's
+ * beats. "Das Brett bis zur Tür" (2026-10-27): the plan promised a board square popping up beside Alexander's ear, a
+ * chair spinning with the cat on it and game pieces hopping over a wandering blanket; the director, who saw only the
+ * text, drew the boys tapping a painted donkey, a quiet talk on a chair and the boys walking past an open door.
+ */
+export function storyHighlights(plan: Pick<StoryPlan, "pages" | "ruleIntro" | "runningGag">): string[] {
+  const lines = plan.pages.map((page) => {
+    const moments = String(page.picture || "").split("|").map((moment) => moment.trim()).filter(Boolean);
+    return moments.length ? `Chapter ${page.page}: ${moments.join(" / ")}` : "";
+  }).filter(Boolean);
+  if (plan.ruleIntro) lines.unshift(`The wonder's first visible effect: ${plan.ruleIntro}`);
+  if (plan.runningGag?.beats?.length) lines.push(`Running gag (${plan.runningGag.what}): ${plan.runningGag.beats.join(" / ")}`);
+  return lines;
+}
+
 /** The brief that turns the chapter-book director into this lane's director. */
-export function directorNote(chapterCount: number, perChapter: number, centralFigure?: string): string {
+export function directorNote(chapterCount: number, perChapter: number, centralFigure?: string, highlights: string[] = []): string {
+  const wonder = centralFigure ? `the title figure ${centralFigure}` : "the central wonder";
   return [
     `This is a story of ${chapterCount} chapters. These PAGES are reading segments of its chapters (${perChapter} per chapter, in reading order), numbered locally from 1.`,
-    `Each PAGE lists its paragraphs numbered p1, p2, … For every picture return "paragraph": the number of the ONE paragraph whose moment the picture shows. The picture is printed right after that paragraph, so the scene must show exactly what that paragraph and the one before it tell — who acts there, the place, and every thing in the state the text gives it at that point — never something that happens later or happened earlier, and never a suggested picture that does not fit. Choose a paragraph with a clear, visible action that is at least ${PICTURE_EDGE} paragraphs from the start of its page and at least ${PICTURE_EDGE} from its end (the last paragraphs of a chapter hold its ending: a picture must not show it before the text does).`,
+    `Each PAGE lists its paragraphs numbered p1, p2, … For every picture return "paragraph": the number of the ONE paragraph whose moment the picture shows. The picture is printed right after that paragraph, so the scene must show exactly what that paragraph and the one before it tell — who acts there, the place, and every thing in the state the text gives it at that point — never something that happens later or happened earlier, and never a suggested picture that does not fit. Choose a paragraph that is at least ${PICTURE_EDGE} paragraphs from the start of its page and at least ${PICTURE_EDGE} from its end (the last paragraphs of a chapter hold its ending: a picture must not show it before the text does).`,
+    // Story 26fdd23f: four of six pictures showed people standing, sitting or talking beside a still board; picture 1.1
+    // was the calm opening again (the picture-book rule for page 1), though half a chapter was there to choose from.
+    "The picture-book rule for page 1 (its calm opening moment) does not apply here: page 1 is half a chapter and is chosen like every other page.",
+    `Pick the moment a six-year-old would point at: first ${wonder} visibly doing its magic, then a planned laugh or running gag landing, then a big physical moment (something tumbling, flying, spinning, growing, splashing, popping up). Someone entering, a conversation, an explanation or a quiet look is a picture only when its page holds none of these, and at most one picture in the whole story is such a quiet one. At least half of the pictures show ${wonder} at work.`,
+    ...(highlights.length ? [`MOMENTS THE STORY WAS PLANNED AROUND (the text may tell them a little differently; when one happens in a page's paragraphs, that paragraph is the picture): ${highlights.join(" — ")}.`] : []),
+    `Draw what ${wonder} does in that very instant, concretely and big (a board square springing up beside a face, a strip of squares shooting out and looping round a chair leg) — never ${wonder} just lying there while the others look.`,
+    "Freeze the instant of greatest motion the paragraph allows: feet off the ground, an object in mid-air, a chair mid-spin, cloth and hair swinging. Pick a camera that adds energy — low under a leap, high over a tangle, a diagonal through the frame, the moving thing large in the foreground.",
+    // The illustrator takes no negative prompt: "No text or lettering." at the end of every scene asked for lettering.
+    "Never write about text, letters or lettering in a scene, not even that there is none — the illustrator draws every word it reads.",
     "Figures (at most 3): fill the places in this order — 1) the heroes who are present in the scene of your paragraph: they stay in the picture even when the paragraph is about someone else, and are left out only when they are truly elsewhere; 2) everyone else who acts or speaks in your paragraph or the one before it; 3) the story's title figure or central wonder if it is part of that moment; 4) the others.",
     "Every named figure who acts in a chapter appears in at least one picture of that chapter. When the heroes would fill all places, give the picture whose paragraph is about a cast member to that cast member and ONE hero (the one who acts with them), not to the heroes alone.",
     `${centralFigure ? `The title figure ${centralFigure}` : "The central wonder"} is in at least every second picture.`,
     "Each picture is a moment of action from its paragraph, with the things the text names there (what someone carries, wears or holds, in the state the text gives it) — never figures posing side by side.",
     "For each scene describe one focal action with a concrete weight shift or gesture and a visible expression. Give each other figure a different, meaningful reaction and an explicit gaze target inside the scene. For a quiet paragraph use small gestures, listening, hesitation or wonder rather than inventing running or danger.",
     "Compose like a modern illustrated children's book: vary wide, medium and close views across the sequence; choose an asymmetrical arrangement with foreground, middle ground and background, a clear focal point and breathing room. Let the setting frame the action instead of filling every gap with decorative objects. Keep the important faces and separate silhouettes readable. Use only movement, objects and effects supported by the chosen paragraph.",
-    // The cover was a copy of the last chapter's picture and showed the resolution.
-    `The cover must differ from every page picture: ${centralFigure ? `show ${centralFigure}` : "show the central wonder"} big in the foreground with the heroes reacting to it, in an inviting moment from the first half of the story — never the opening scene of chapter 1 and never a moment from the last chapter.`,
+    // The cover was a copy of the last chapter's picture and showed the resolution. Story 26fdd23f: "Karo fills the
+    // foreground" became a board lying in front of two boys, like a product photo.
+    `The cover must differ from every page picture: ${wonder} big in the foreground in the middle of its magic, the heroes physically reacting to it (leaping back, grabbing for it, laughing), in an inviting moment from the first half of the story — never the opening scene of chapter 1, never a moment from the last chapter, never the figures lined up behind a still ${centralFigure || "wonder"}.`,
   ].join(" ");
 }
 
@@ -114,7 +141,7 @@ export async function directEpisodePictures(input: {
     plan: segmentPlan(input.plan, slots, input.entities),
     entities: input.entities,
     stage: "illustration-direction",
-    note: directorNote(chapters.length, perChapter, wonder),
+    note: directorNote(chapters.length, perChapter, wonder, storyHighlights(input.plan)),
   }, input.model);
   // The prompt asked for every acting figure; the code makes sure of it.
   const enforced = enforceCastPresence({ slots, shots: director.illustrations.pages, entities: input.entities, chapters, maxPerImage: input.brief.budget.maxCharactersPerImage, engineFigure: wonder });

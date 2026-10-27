@@ -20,6 +20,7 @@ import type { StoryBrief } from "./context";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import type { IllustrationPlan, IllustrationShot, StoryElement, StoryPlan, StorybookPage } from "./types";
 import { TALEA_IMAGE_STYLE } from "../../ai/image-style";
+import { usableMarks, type MarkBox } from "../image-reference-sprite";
 
 export const STORYBOOK_IMAGE_STYLE = [
   TALEA_IMAGE_STYLE,
@@ -45,6 +46,8 @@ export interface VisualEntity {
   referenceUrl?: string;
   /** Stable original asset URL/id, before generating expiring signed URLs. */
   referenceKey?: string;
+  /** Logos or writing on the portrait's clothes ([x0, y0, x1, y1] in 0–1000), painted out of the identity sheet. */
+  marks?: MarkBox[];
 }
 
 function clean(value: unknown, max = 300): string {
@@ -246,13 +249,47 @@ export interface ImagePromptInput {
   vignette?: boolean;
 }
 
+const TEXT_WORDS = "(?:visible\\s+)?(?:text|lettering|letters|words|writing|labels?|captions?|signage|numbers|logos?)";
+
+/**
+ * FLUX 3 Klein takes no negative prompt, so a director's "with no lettering" asks for lettering: the cover of story
+ * 26fdd23f ended "… calm, uncluttered background above, with no lettering." and failed three times on writing.
+ */
+export function withoutTextNegations(scene: string): string {
+  return scene
+    .replace(new RegExp(`[,;]?\\s*\\b(?:(?:and|but|with)\\s+)?(?:no|without(?:\\s+any)?)\\s+${TEXT_WORDS}(?:\\s*(?:,|or|and)\\s*${TEXT_WORDS})*(?:\\s+(?:anywhere|at all|in the picture|on (?:it|them)))?`, "gi"), "")
+    .replace(/(^|[.!?])\s*\.(?=\s|$)/g, "$1")
+    .replace(/\s+([.,;!?])/g, "$1")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/**
+ * Things a painter fills with writing, and what they carry instead. Only those in the picture are named: the old
+ * closing line "Books, maps, signs and clothing have plain surfaces …" put framed maps on the walls of scenes that
+ * had none (probe 2026-10-27, story 26fdd23f's scenes).
+ */
+const TEXT_CARRIERS: Array<[RegExp, string]> = [
+  [/\b(game ?boards?|board ?games?|playing boards?|squares?|tiles?|game paths?)\b/i, "the board's squares show only colours and tiny painted pictures"],
+  [/\b(books?|pages?|notebooks?|diar(?:y|ies)|newspapers?|notes?|scrolls?|recipes?)\b/i, "pages show small painted pictures"],
+  [/\b(signs?|signposts?|posters?|labels?|maps?|banners?|tablets?|plaques?|menus?|tickets?|cards?|flags?|chalkboards?|blackboards?)\b/i, "signs, maps and labels carry one small painted symbol"],
+  [/\b(dice|die)\b/i, "dice show dots"],
+];
+
+export function wordlessLine(text: string): string {
+  const carriers = TEXT_CARRIERS.filter(([pattern]) => pattern.test(text)).map(([, line]) => line);
+  if (!carriers.length) return "A wordless illustration.";
+  const sentence = carriers.join("; ");
+  return `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)}. A wordless illustration.`;
+}
+
 /** FLUX 3 reads full scene captions. Keep the director's moment rather than the old 1,900-character FLUX.2 budget. */
 export function assembleFlux3ImagePrompt(input: ImagePromptInput): string {
   const characters = input.onStage.filter((entity) => entity.kind === "character");
   const objects = input.onStage.filter((entity) => entity.kind === "artifact");
   const elements = input.elements || [];
   const living = elements.filter((element) => element.figure);
-  const scene = bindNamesToLooks(nameElementsPlainly(input.scene.trim(), elements), characters);
+  const scene = bindNamesToLooks(nameElementsPlainly(withoutTextNegations(input.scene.trim()), elements), characters);
   const lines = [scene, `${input.style || MODERN_CHILDRENS_BOOK_STYLE}`];
   if (characters.length || living.length) {
     lines.push(input.actionDirection || "One story moment, with each character's weight, gesture and expression responding to the event. Eyes follow the action or another character; side and three-quarter views, separate readable silhouettes. Keep the moment's own energy, including stillness for a quiet scene.");
@@ -269,7 +306,7 @@ export function assembleFlux3ImagePrompt(input: ImagePromptInput): string {
   lines.push(count ? `Exactly ${count} characters in the scene, each visible once: ${[...characters.map((entity) => entity.name), ...living.map((element) => `the ${elementNoun(element)}`)].join(", ")}.` : "An unoccupied setting or still life, showing only the described objects and environment.");
   for (const entity of objects) lines.push(`${entity.name} is a separate object: ${entity.appearance}.`);
   for (const element of elements.filter((element) => !element.figure)) lines.push(`The ${elementNoun(element)}: ${element.look}; a separate object in the scene.`);
-  lines.push("Books, maps, signs and clothing have plain surfaces or simple painted symbols. This is a wordless illustration.");
+  lines.push(wordlessLine([scene, ...input.onStage.map((entity) => entity.appearance), ...elements.map((element) => element.look)].join(" ")));
   return lines.filter(Boolean).join("\n");
 }
 
@@ -581,6 +618,23 @@ function sanitizeShot(raw: any, page: number, entities: VisualEntity[], maxPerIm
 
 const CROWDED = /^(Composition exceeds|Cover must keep every hero)/;
 
+/** The noun a scene calls a figure by besides its name ("the cat" for Der gestiefelte Kater): the head of its tag. */
+function tagNoun(entity: VisualEntity): string | undefined {
+  const head = clean(entity.tag, 60).toLowerCase().split(/\s+(?:in|with|wearing|holding)\s+|,/)[0].trim().split(/\s+/).pop();
+  return head && /^\p{L}{3,}$/u.test(head) ? head : undefined;
+}
+
+/**
+ * A sentence about this figure. An animal or thing is also called by its noun: story 26fdd23f picture 3.2 dropped
+ * Der gestiefelte Kater from a crowded shot, kept "The cat throws up his paws" and got a brown stranger cat.
+ * People keep to their names — "the boy" may be a hero.
+ */
+function calledBy(sentence: string, entity: VisualEntity): boolean {
+  if (mentions(sentence, entity.name)) return true;
+  const noun = entity.isHuman ? undefined : tagNoun(entity);
+  return Boolean(noun && new RegExp(`(^|[^\\p{L}])${escapeRegExp(noun)}(?:e?s)?(?![\\p{L}])`, "iu").test(sentence));
+}
+
 /**
  * Last step after the repair: a shot that is only too crowded is trimmed
  * instead of skipped — heroes stay, then the other figures in the director's
@@ -593,7 +647,23 @@ export function recomposeShot(shot: IllustrationShot, entities: VisualEntity[], 
   if (!errors.length || !errors.every((error) => CROWDED.test(error))) return shot;
   const heroIds = entities.filter((entity) => entity.role === "hero").map((entity) => entity.id);
   const limit = shot.page === 0 ? Math.max(maxPerImage, heroIds.filter((id) => shot.onStage.includes(id)).length) : maxPerImage;
-  const ordered = [...shot.onStage.filter((id) => heroIds.includes(id)), ...shot.onStage.filter((id) => !heroIds.includes(id))];
+  // After the heroes, the figures the scene is about stay: named in the most sentences, then named first (the director
+  // opens with the action and its doer). Story 26fdd23f picture 1.1 (2026-10-27): the board whose square springs up was
+  // dropped for the princess who watches, because she stood further left, and its sentences — the action — went with it.
+  const sentences = shot.scene.split(/(?<=[.!?])\s+/);
+  const weight = (id: string): [number, number] => {
+    const entity = entities.find((entry) => entry.id === id);
+    if (!entity) return [0, Number.MAX_SAFE_INTEGER];
+    const words = [entity.name, ...nameTokens(entity.name), ...(!entity.isHuman && tagNoun(entity) ? [tagNoun(entity)!] : [])];
+    const at = words.map((token) => shot.scene.search(new RegExp(`(^|[^\\p{L}])${escapeRegExp(token)}(?![\\p{L}])`, "iu"))).filter((index) => index >= 0);
+    return [sentences.filter((sentence) => calledBy(sentence, entity)).length, at.length ? Math.min(...at) : Number.MAX_SAFE_INTEGER];
+  };
+  const others = shot.onStage.filter((id) => !heroIds.includes(id)).sort((a, b) => {
+    const [countA, firstA] = weight(a);
+    const [countB, firstB] = weight(b);
+    return countB - countA || firstA - firstB;
+  });
+  const ordered = [...shot.onStage.filter((id) => heroIds.includes(id)), ...others];
   const onStage = ordered.slice(0, limit);
   const figures = (shot.elements || []).filter((name) => storyElements.some((element) => element.name === name && element.figure));
   const keptFigures = figures.slice(0, Math.max(0, limit - onStage.length));
@@ -601,7 +671,7 @@ export function recomposeShot(shot: IllustrationShot, entities: VisualEntity[], 
   const droppedCharacters = entities.filter((entity) => shot.onStage.includes(entity.id) && !onStage.includes(entity.id));
   const droppedFigures = storyElements.filter((element) => figures.includes(element.name) && !keptFigures.includes(element.name));
   const aboutDropped = (sentence: string) =>
-    droppedCharacters.some((entity) => mentions(sentence, entity.name)) || droppedFigures.some((element) => mentionsElement(sentence, element));
+    droppedCharacters.some((entity) => calledBy(sentence, entity)) || droppedFigures.some((element) => mentionsElement(sentence, element));
   const trim = (text: string | undefined) => {
     if (!text) return text;
     const sentences = text.split(/(?<=[.!?])\s+/);
@@ -672,7 +742,7 @@ export function sanitizeIllustrationPlan(raw: any, pageCount: number, plan: Stor
  * story 2db50859 drew Magd Elsa blonde on the cover and brunette on page 3.
  * One cheap vision call reads the fixed look off the reference portraits.
  */
-const referenceLookCache = new Map<string, { look: string; tag?: string; expires: number }>();
+const referenceLookCache = new Map<string, { look: string; tag?: string; marks?: MarkBox[]; expires: number }>();
 const REFERENCE_LOOK_TTL = 24 * 60 * 60 * 1000;
 
 export async function describeReferenceLooks(
@@ -682,9 +752,9 @@ export async function describeReferenceLooks(
 ): Promise<{ entities: VisualEntity[]; call?: LlmCallResult }> {
   // Heroes too: story 5b1b8b7a gave Alexander four different shirts in seven
   // pictures — the avatar profile had no outfit, the sheet alone did not hold it.
-  const keyFor = (entity: VisualEntity) => JSON.stringify(["look-v4", model, entity.id, entity.referenceKey || entity.referenceUrl, entity.species, entity.appearance]);
-  const apply = (entity: VisualEntity, cached?: { look: string; tag?: string }) =>
-    cached ? { ...entity, appearance: cached.look, ...(cached.tag ? { tag: cached.tag } : {}) } : entity;
+  const keyFor = (entity: VisualEntity) => JSON.stringify(["look-v5", model, entity.id, entity.referenceKey || entity.referenceUrl, entity.species, entity.appearance]);
+  const apply = (entity: VisualEntity, cached?: { look: string; tag?: string; marks?: MarkBox[] }) =>
+    cached ? { ...entity, appearance: cached.look, ...(cached.tag ? { tag: cached.tag } : {}), ...(cached.marks?.length ? { marks: cached.marks } : {}) } : entity;
   const now = Date.now();
   for (const [key, value] of referenceLookCache) if (value.expires <= now) referenceLookCache.delete(key);
   const withCachedLooks = entities.map((entity) => apply(entity, referenceLookCache.get(keyFor(entity))));
@@ -704,9 +774,12 @@ export async function describeReferenceLooks(
         // "Der Kieselgarten auf Reisen" (2026-10-16): a small logo on a hero's shirt became pseudo-letters on the cover and
         // sank a picture on "text visible". Garments are described plain.
         "Describe every garment as plain (a shirt with a logo or print is 'plain navy T-shirt'): never mention logos, prints, letters, numbers or writing.",
+        // "Das Brett bis zur Tür" (2026-10-27): FLUX 3 copies such a logo from the portrait even when the look says
+        // "plain" — the marks are painted out of the identity sheet instead (paintOutMarks).
+        "Also marks: for each attachment, a box around every logo, emblem, print, letter, number or bit of writing on the figure's clothes, bag or accessories, as [x0, y0, x1, y1] in 0-1000 units of that attachment's width (x) and height (y), tight around the mark; [] when there is none. Fabric patterns (stripes, dots, stars, checks), folds, seams and buttons are not marks.",
         // Story 774d5a5e: the action sentence binds to this tag, not to a name the image model cannot know.
         "Also a tag for each: at most 6 words that tell this figure apart from the others at a glance — hair or fur colour plus the main garment with its colour (e.g. 'blond boy in dark T-shirt', 'woman in floral apron').",
-        JSON.stringify({ looks: Object.fromEntries(targets.map((entity, index) => [`e${index + 1}`, "…"])), tags: Object.fromEntries(targets.map((entity, index) => [`e${index + 1}`, "…"])) }),
+        JSON.stringify({ looks: Object.fromEntries(targets.map((entity, index) => [`e${index + 1}`, "…"])), tags: Object.fromEntries(targets.map((entity, index) => [`e${index + 1}`, "…"])), marks: Object.fromEntries(targets.map((entity, index) => [`e${index + 1}`, []])) }),
       ].join("\n"),
       json: true,
       maxTokens: 2000,
@@ -717,11 +790,13 @@ export async function describeReferenceLooks(
     const parsed = parseJsonObject<any>(call.text) || {};
     const looks = parsed.looks || {};
     const tags = parsed.tags || {};
+    const marks = parsed.marks || {};
     for (const [index, entity] of targets.entries()) {
       const look = clean(looks[`e${index + 1}`] || looks[entity.name], 220);
       if (look.length < 15 || look === "…") continue;
       const tag = clean(tags[`e${index + 1}`] || tags[entity.name], 60);
-      referenceLookCache.set(keyFor(entity), { look, ...(tag.length >= 5 && tag !== "…" ? { tag } : {}), expires: now + REFERENCE_LOOK_TTL });
+      const boxes = usableMarks(marks[`e${index + 1}`] || marks[entity.name]);
+      referenceLookCache.set(keyFor(entity), { look, ...(tag.length >= 5 && tag !== "…" ? { tag } : {}), ...(boxes.length ? { marks: boxes } : {}), expires: now + REFERENCE_LOOK_TTL });
       while (referenceLookCache.size > 512) referenceLookCache.delete(referenceLookCache.keys().next().value!);
     }
     return {

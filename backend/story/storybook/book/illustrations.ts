@@ -188,6 +188,9 @@ export function enforceCastPresence(input: {
   const narratedHits = (text: string, name: string): number =>
     chapterParagraphs(text).filter((paragraph) => actsIn(paragraph, name)).length;
 
+  // The figure that drives the book (see the end): the moment's text may call it "das Brett", never "Karo", and story
+  // 26fdd23f's picture of the board's square springing up was handed to the princess who watches it.
+  const engine = input.engineFigure ? cast.find((entity) => mentionsName(entity.name, input.engineFigure!) || mentionsName(input.engineFigure!, entity.name)) : undefined;
   const place = (slotIndex: number, entity: VisualEntity, allowSwap: boolean): boolean => {
     const slot = input.slots[slotIndex];
     const shot = shots[slotIndex];
@@ -204,7 +207,8 @@ export function enforceCastPresence(input: {
     const moment = momentOf(slotIndex);
     const segment = slot.text;
     const heroesOn = shot.onStage.filter((id) => heroIds.has(id));
-    const otherAway = shot.onStage.find((id) => !heroIds.has(id) && !mentionsName(moment, byId.get(id)?.name || "\u0000"));
+    const otherAway = shot.onStage.find((id) => !heroIds.has(id) && !mentionsName(moment, byId.get(id)?.name || "\u0000")
+      && !(id === engine?.id && mentionsName(shot.scene, engine.name)));
     // A hero gives way only when this part of the book never names him, and one hero always stays.
     const heroAway = heroesOn.length >= 2 ? heroesOn.find((id) => !mentionsName(segment, byId.get(id)?.name || "\u0000")) : undefined;
     const victim = otherAway ?? heroAway;
@@ -250,7 +254,6 @@ export function enforceCastPresence(input: {
   }
 
   // The figure that drives the book is in at least every second picture of the batch — a book about it must show it.
-  const engine = input.engineFigure ? cast.find((entity) => mentionsName(entity.name, input.engineFigure!) || mentionsName(input.engineFigure!, entity.name)) : undefined;
   if (engine) {
     const wanted = Math.ceil(input.slots.length / 2);
     const has = () => shots.filter((shot) => shot.onStage.includes(engine.id)).length;

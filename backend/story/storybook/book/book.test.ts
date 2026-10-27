@@ -1041,6 +1041,26 @@ describe("Der Erzählmotor (Die Türlaunische, 2026-10-16): wer das Buch antreib
     expect(enforceCastPresence({ slots, shots: fixed, entities, chapters, maxPerImage: 3 }).changes).toEqual([]);
   });
 
+  test("the figure that drives the book never gives way in a picture whose scene is about it", () => {
+    // Story 26fdd23f (2026-10-27): the text says "das Brett", the scene "Karo's square springs up" — and the board was
+    // swapped for the princess who only watches.
+    const make = (id: string, name: string, role: "hero" | "cast"): VisualEntity => ({ id, name, kind: "character", role, species: "human", isHuman: true, appearance: "x", forbidden: [] });
+    const entities = [make("h1", "Alexander", "hero"), make("h2", "Adrian", "hero"), make("c1", "Schnüffel", "cast"), make("c2", "Bäcker Braun", "cast"), make("c3", "Oma Hilde", "cast")];
+    const content = ["Alexander und Adrian standen am Zaun.", "Schnüffel putzte seine Lupe.", "Adrian lachte.", "Alexander ging weiter.", "Oma Hilde winkte.", "Alexander blieb stehen.", "Bäcker Braun öffnete die Tür.", "Adrian trat ein.", "Alexander roch das Brot.", "Braun lachte.", "Adrian nickte.", "Alexander auch."].join("\n\n");
+    const chapters = [{ order: 1, title: "t", recap: "", content }];
+    const slots = buildImageSlots(chapters, parsePlan(planJson(), 12)!, 2);
+    const shots = [
+      { page: 1, scene: "Oma Hilde waves to the boys at the fence.", onStage: ["h1", "h2", "c3"], artifactVisible: false, paragraph: 3 },
+      { page: 2, scene: "Schnüffel's magnifying glass flashes as the boys reach the bakery door.", onStage: ["h1", "h2", "c1"], artifactVisible: false, paragraph: 3 },
+    ] as any;
+    const { shots: fixed } = enforceCastPresence({ slots, shots, entities, chapters, maxPerImage: 3, engineFigure: "Schnüffel" });
+    expect(fixed[1].onStage).toEqual(["h1", "h2", "c1"]);
+    expect(fixed[1].scene).not.toContain("Schnüffel is not in this picture");
+    // Without its scene naming it, the board is a side figure like any other and gives way.
+    const plain = enforceCastPresence({ slots, shots: [shots[0], { ...shots[1], scene: "The boys reach the bakery door." }], entities, chapters, maxPerImage: 3, engineFigure: "Schnüffel" });
+    expect(plain.shots[1].onStage).toEqual(["h1", "h2", "c2"]);
+  });
+
   test("a figure only talked about is not drawn, and a full picture never loses a hero who is in its part of the text", () => {
     // "Der Kieselgarten auf Reisen" (2026-10-16): the troll, only mentioned in dialogue in chapter 3, replaced Alexander;
     // Rotkäppchen replaced Adrian in three full pictures while he acted a paragraph later.

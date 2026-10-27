@@ -80,6 +80,8 @@ export interface ImageQaReport {
   /** The second reader's raw probabilities, for the log. */
   jev?: JevScores;
   textVisible: boolean;
+  /** Where the checker saw writing ("letters on Adrian's T-shirt"): story 26fdd23f lost three pictures to "text visible" and nobody could tell where it was. */
+  textSeen?: string;
   referenceSheetVisible: boolean;
   identityMatch: number;
   sceneMatch: number;
@@ -100,8 +102,8 @@ export interface ImageOutcome {
   vignette?: boolean;
   /** The least bad picture, printed because every clean attempt failed. */
   salvaged?: boolean;
-  /** Every attempt of this page in short form, for the log (story b10f2dad hid why page 7 failed). */
-  history?: Array<{ kind: string; status: string; severity: number; notes: string[] }>;
+  /** Every attempt of this page in short form, for the log (story b10f2dad hid why page 7 failed), with the rejected picture. */
+  history?: Array<{ kind: string; status: string; severity: number; notes: string[]; url?: string }>;
   /** 0 = full identity sheet, 1 = reduced sheet, 2 = no reference, -1 = no picture. */
   referenceLevel?: number;
   /** Why a delivery step failed — goes into the story metadata and logs. */
@@ -220,6 +222,8 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
     ...(many.length ? [`${many.map((element) => element.name).join(", ")} come in numbers by nature: never count them and never report them as duplicates.`] : []),
     "First count how often EACH expected character and story element is drawn (a second person with the same face, hair or outfit counts, a second goose counts, a second girl in the same dress counts even with other hair). Exactly 1 is correct; 2 or more is a duplicate; 0 means missing.",
     ...(expected.some((entity) => entity.kind === "character") ? ["posing: true only when the figures stand or sit side by side facing the viewer, like a group photo, instead of doing the scene's action."] : []),
+    // Story 26fdd23f: three pictures failed on "text visible" ten times and the log could not say where the writing was.
+    "textVisible: true when letters, digits or word-like scribbles are drawn anywhere — a sign, a page, a game board square, a label, a logo or print on clothing. Painted pictures, symbols, dots and patterns are not text, and neither is what the reading page says is written somewhere. textSeen: where and what (e.g. \"scribbled word under a logo on Adrian's shirt\"), empty when there is none.",
     "Return JSON only:",
     JSON.stringify({
       characterCounts: Object.fromEntries(qaCountNames(expected, elements, scene).map((name) => [name, "integer count"])),
@@ -233,6 +237,7 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
       elementMisuse: [],
       posing: false,
       textVisible: false,
+      textSeen: "",
       referenceSheetVisible: false,
       identityMatch: 0.0,
       sceneMatch: 0.0,
@@ -305,6 +310,7 @@ export function parseQaReport(raw: string, expectedNames?: string[]): ImageQaRep
     missing,
     posing: data.posing === true,
     textVisible: data.textVisible === true,
+    ...(data.textVisible === true && String(data.textSeen ?? "").trim() ? { textSeen: String(data.textSeen).trim().slice(0, 160) } : {}),
     referenceSheetVisible: data.referenceSheetVisible === true,
     identityMatch: unit(data.identityMatch),
     sceneMatch: unit(data.sceneMatch),
@@ -391,6 +397,18 @@ export function scopeQaReport(report: ImageQaReport, onStageNames: string[], ele
     elementMisuse: (report.elementMisuse || []).filter(aboutElement),
     roleSwaps: report.roleSwaps.filter(aboutCharacter),
   };
+}
+
+/**
+ * What the heroes-only picture (rung 3) can mend: too many bodies — a double, a stranger, a figure lost in the crowd,
+ * merged limbs, a feature on the wrong figure. Writing, a pose or a wrong action come back without the crowd too: in
+ * story 26fdd23f the spare heroes-only picture drawn next to every redraw (parallelRedraw) was paid for five pictures
+ * and printed for none — twice the redraw passed anyway, three times the spare failed like everything before it.
+ */
+export function crowdTrouble(qa: ImageQaReport | undefined): boolean {
+  if (!qa) return false;
+  return Boolean(qa.duplicates.length || qa.unexpectedCharacters.length || qa.missing?.length || qa.anatomyDefects.length
+    || qa.animalFeaturesOnHumans.length || qa.featureBleed?.length || qa.jevFindings?.length);
 }
 
 /**
@@ -659,7 +677,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
         let references: string[] = [];
         if (sheet.length > 0) {
           try {
-            references = (await buildReference(sheet.map((entity) => ({ imageUrl: entity.referenceUrl!, displayName: entity.name, kind: entity.kind })))).urls;
+            references = (await buildReference(sheet.map((entity) => ({ imageUrl: entity.referenceUrl!, displayName: entity.name, kind: entity.kind, ...(entity.marks?.length ? { marks: entity.marks } : {}) })))).urls;
           } catch (err) {
             errors.push(`sheet ${sheet.map((entity) => entity.name).join("+")}: ${(err as Error)?.message || err}`);
             continue;
@@ -711,7 +729,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
           ? [
               ...outcome.qa.anatomyDefects, ...outcome.qa.animalFeaturesOnHumans, ...outcome.qa.duplicates, ...(outcome.qa.thingDuplicates || []), ...(outcome.qa.jevFindings || []), ...(outcome.qa.featureBleed || []), ...outcome.qa.roleSwaps, ...outcome.qa.unexpectedCharacters, ...outcome.qa.missing?.map((name) => `${name} missing`) || [],
               // The flags too: without them a redraw for writing or a pose left no reason in the log.
-              ...(outcome.qa.textVisible ? [outcome.qa.jev && outcome.qa.jev.text >= JEV_THRESHOLDS.text ? `text visible [jev ${Math.round(outcome.qa.jev.text * 100)}%]` : "text visible"] : []),
+              ...(outcome.qa.textVisible ? [outcome.qa.jev && outcome.qa.jev.text >= JEV_THRESHOLDS.text ? `text visible [jev ${Math.round(outcome.qa.jev.text * 100)}%]` : `text visible${outcome.qa.textSeen ? `: ${outcome.qa.textSeen}` : ""}`] : []),
               ...(outcome.qa.referenceSheetVisible ? ["reference sheet visible"] : []),
               ...(outcome.qa.posing ? ["posing"] : []),
               ...(outcome.qa.identityMatch < 0.6 ? [`identity ${outcome.qa.identityMatch}`] : []),
@@ -720,6 +738,8 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
             ].slice(0, 6)
           : [outcome.status],
         ...(parts.hard >= 999 ? {} : {}),
+        // The rejected picture stays in the bucket; with its address an audit can look at it.
+        ...(outcome.url ? { url: outcome.url } : {}),
       });
     };
 
@@ -835,11 +855,11 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     }
     const correction = correctionFor(first.qa, fullElements.map((element) => element.name));
     // Rung 3: only the heroes and the things (drops the crowd that tangles the picture). With parallelRedraw it is
-    // drawn next to the redraw, so a failed redraw costs no further round.
+    // drawn next to the redraw, so a failed redraw costs no further round — but only when the crowd is the trouble.
     const reduced = reducedPlan();
     const [second, early] = await Promise.all([
       attempt(fullPlan, 2, `${correction} ${REDRAW_KEEPS_SCENE}`, startLevel, redrawLadder),
-      reduced && input.parallelRedraw && !providerDown() ? attempt(reduced, 3, REDRAW_KEEPS_SCENE, 0) : undefined,
+      reduced && input.parallelRedraw && crowdTrouble(first.qa) && !providerDown() ? attempt(reduced, 3, REDRAW_KEEPS_SCENE, 0) : undefined,
     ]);
     if (second.url) candidates.push(second);
     let best = better(second, first) ? second : first;
@@ -853,7 +873,10 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
 
     let attempts = 2;
     let last = second;
-    if (reduced && (early || (!second.refused && !providerDown()))) {
+    // Writing in both pictures has a source the crowd is not (a printed shirt on the sheet, a board with squares in
+    // the scene): story 26fdd23f paid a third picture for the cover and two pages, and all three showed it again.
+    const writingTwice = Boolean(first.qa?.textVisible && second.qa?.textVisible && !crowdTrouble(first.qa) && !crowdTrouble(second.qa));
+    if (reduced && (early || (!second.refused && !providerDown() && !writingTwice))) {
       attempts = 3;
       const third = early ?? await attempt(reduced, 3, REDRAW_KEEPS_SCENE, 0);
       last = third;

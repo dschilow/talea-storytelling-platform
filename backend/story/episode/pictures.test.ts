@@ -5,7 +5,7 @@ import type { VisualEntity } from "../storybook/illustration-stage";
 import type { ImageOutcome } from "../storybook/images";
 import type { LlmCallResult, StorybookLlm } from "../storybook/llm";
 import type { StoryPlan, StorybookPage } from "../storybook/types";
-import { chapterPictures, coverStandIn, directEpisodePictures, directorNote, episodePicturesPerChapter, segmentPlan, type ChapterPicture } from "./pictures";
+import { chapterPictures, coverStandIn, directEpisodePictures, directorNote, episodePicturesPerChapter, segmentPlan, storyHighlights, type ChapterPicture } from "./pictures";
 
 // "Der Riese hinterm Teig" (2026-10-26): the director named paragraph 22 and 58, the story kept one URL per chapter, and
 // Magd Elsa acted in all three chapters while two heroes and the title creature filled every picture.
@@ -120,5 +120,27 @@ describe("Talea-Folge pictures", () => {
     expect(coverStandIn([picture(1, "flawed"), picture(2, "flawed"), picture(3, "passed")])?.url).toBe("u1");
     expect(coverStandIn([picture(3, "passed")])?.url).toBe("u3");
     expect(coverStandIn([])).toBeUndefined();
+  });
+});
+
+describe("story 26fdd23f: the moments a child points at", () => {
+  test("the plan's laughs, the wonder's first effect and the running gag reach the director", () => {
+    const plan = {
+      ruleIntro: "Nach dem ersten „Nochmal“ schiebt sich ein Feld über die Tischkante.",
+      runningGag: { what: "Karo reimt", beats: ["Feld vor der Nase", "Stuhlbein vor dem Stiefel"] },
+      pages: [{ page: 1, picture: "Das Feld schiebt die Figur an Alexanders Ohr. | Der Kater rudert mit den Pfoten." }, { page: 2, picture: "" }],
+    } as unknown as StoryPlan;
+    const highlights = storyHighlights(plan);
+    expect(highlights).toEqual([
+      "The wonder's first visible effect: Nach dem ersten „Nochmal“ schiebt sich ein Feld über die Tischkante.",
+      "Chapter 1: Das Feld schiebt die Figur an Alexanders Ohr. / Der Kater rudert mit den Pfoten.",
+      "Running gag (Karo reimt): Feld vor der Nase / Stuhlbein vor dem Stiefel",
+    ]);
+    const note = directorNote(3, 2, "Karo", highlights);
+    expect(note).toContain("MOMENTS THE STORY WAS PLANNED AROUND");
+    expect(note).toContain("Chapter 1: Das Feld schiebt");
+    expect(note).toContain("page 1 is half a chapter");
+    expect(note).toContain("the title figure Karo visibly doing its magic");
+    expect(directorNote(3, 2, "Karo")).not.toContain("PLANNED AROUND");
   });
 });

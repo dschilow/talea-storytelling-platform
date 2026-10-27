@@ -731,3 +731,70 @@ describe("image prompting from the benchmark of 2026-10-15 (scripts/image-bench)
   });
 });
 
+
+describe("story 26fdd23f: writing in the pictures, the spare picture and the checker's evidence", () => {
+  const dragon: VisualEntity = { id: "f", name: "Drache Fauchi", role: "cast", kind: "character", species: "dragon", isHuman: false, appearance: "small green dragon with orange wings", forbidden: [], referenceUrl: "https://example.test/fauchi.png" };
+  const pot = { name: "Schwebetopf", noun: "copper floating pot", look: "a round copper pot with a whistle tube" };
+  const crowd = { cover: images.cover, pages: [{ page: 7, scene: "Adrian laughs with a spoon. Alexander steps on the chain. Drache Fauchi closes his eyes over a bite of pudding.", onStage: ["a", "b", "f"], artifactVisible: false, elements: ["Schwebetopf"], vignette: "A firm pudding in three portions on plates beside the copper pot." }], storyElements: [pot] };
+  const qaWith = (extra: Record<string, unknown>) => ({ characterCounts: { Alexander: 1, Adrian: 1, "Drache Fauchi": 1, Schwebetopf: 1 }, namedCharactersVisible: 4, anatomyDefects: [], duplicates: [], unexpectedCharacters: [], identityMatch: 1, sceneMatch: .8, ...extra });
+
+  test("writing draws no spare heroes-only picture, and writing twice skips that rung; the checker says where it was", async () => {
+    const calls: number[] = [];
+    const result = await generateStorybookImages({ illustrations: crowd, entities: [...people, dragon], seed: "s", buildReference: reference, visionModel: "test", concurrency: 1, parallelRedraw: true,
+      llm: async (r) => reply(r, r.stage.includes("vignette") ? qaWith({}) : qaWith({ textVisible: true, textSeen: "scribbled word under a logo on Adrian's shirt" })),
+      provider: async (request) => { calls.push(request.page); return { url: `https://example.test/${request.page}-${calls.length}.jpg` }; },
+    });
+    const page = result.pages.get(7)!;
+    // Before: full, redraw ∥ heroes-only, vignette — four pictures and four checks for a page printed as a vignette.
+    expect(calls.filter((p) => p === 7)).toHaveLength(3);
+    expect(page.history?.map((entry) => entry.kind)).toEqual(["full", "redraw", "vignette"]);
+    expect(page.vignette).toBe(true);
+    expect(page.history?.[0].notes).toContain("text visible: scribbled word under a logo on Adrian's shirt");
+    expect(page.history?.[0].url).toMatch(/^https:\/\/example\.test\/7-/);
+    // The cover has no vignette: two pictures, then it borrows a page picture.
+    expect(calls.filter((p) => p === 0)).toHaveLength(2);
+  });
+
+  test("a crowd fault still draws the spare next to the redraw", async () => {
+    const calls: number[] = [];
+    await generateStorybookImages({ illustrations: crowd, entities: [...people, dragon], seed: "s", buildReference: reference, visionModel: "test", concurrency: 1, parallelRedraw: true,
+      llm: async (r) => reply(r, r.stage === "image-qa-p7-1" ? qaWith({ duplicates: ["Adrian drawn 2 times"] }) : qaWith({})),
+      provider: async (request) => { calls.push(request.page); return { url: `https://example.test/${calls.length}.jpg` }; },
+    });
+    expect(calls.filter((p) => p === 7)).toHaveLength(3);
+  });
+
+  test("logos on a portrait's clothes are boxed by the looks reader and reach the identity sheet", async () => {
+    const llm: StorybookLlm = async (r) => reply(r, { looks: { e1: "young boy with spiky blond hair, plain navy T-shirt, jeans" }, tags: { e1: "blond boy in navy T-shirt" }, marks: { e1: [[535, 432, 617, 490], [0, 0, 900, 900]] } });
+    const { entities } = await describeReferenceLooks(llm, [{ ...people[1], id: "marks-1", referenceKey: "bucket://avatar/marks-1" }], "test-marks");
+    // A box over most of the portrait is a misread, never painted.
+    expect(entities[0].marks).toEqual([[535, 432, 617, 490]]);
+    const slots: Array<{ marks?: unknown }> = [];
+    await generateStorybookImages({ illustrations: { cover: { page: 0, scene: "Adrian waves.", onStage: ["marks-1"], artifactVisible: false }, pages: [] }, entities, seed: "s",
+      buildReference: async (sheet) => { slots.push(...sheet); return reference(); }, provider: async () => ({ url: "https://example.test/c.jpg" }) });
+    expect(slots[0].marks).toEqual([[535, 432, 617, 490]]);
+  });
+
+  test("a crowded shot keeps the figure whose action opens the scene", () => {
+    const karo: VisualEntity = { id: "k", name: "Karo", role: "cast", kind: "character", species: "thing", isHuman: false, appearance: "red-and-cream wooden game board", forbidden: [] };
+    const rosa: VisualEntity = { id: "r", name: "Prinzessin Rosalinde", role: "cast", kind: "character", species: "human", isHuman: true, appearance: "princess in a pink gown", forbidden: [] };
+    const shot = { page: 1, scene: "Karo springs a square up beside Alexander's ear. Adrian laughs. Prinzessin Rosalinde watches from the door.", onStage: ["r", "a", "b", "k"], artifactVisible: false, elements: [], planningErrors: ["Composition exceeds 3 figures; recompose instead of dropping identities."] };
+    const trimmed = recomposeShot(shot, [...people, karo, rosa], [], 3);
+    expect(trimmed.onStage).toEqual(["a", "b", "k"]);
+    expect(trimmed.scene).toBe("Karo springs a square up beside Alexander's ear. Adrian laughs.");
+  });
+
+  test("a dropped animal leaves with every sentence that calls it by its noun", () => {
+    const karo: VisualEntity = { id: "k", name: "Karo", role: "cast", kind: "character", species: "thing", isHuman: false, appearance: "red-and-cream wooden game board", tag: "red-and-cream wooden game board", forbidden: [] };
+    const cat: VisualEntity = { id: "c", name: "Der gestiefelte Kater", role: "cast", kind: "character", species: "animal", isHuman: false, appearance: "orange tabby cat", tag: "orange tabby cat in feathered hat", forbidden: [] };
+    const crowded = ["Composition exceeds 3 figures; recompose instead of dropping identities."];
+    // The cat is the action (named twice, once as "the cat"): the board gives way, the cat's sentences stay.
+    const ride = recomposeShot({ page: 6, scene: "Der gestiefelte Kater rides the cushion past Alexander. Karo's lane whips back under the table. The cat throws up his paws. Adrian laughs.", onStage: ["a", "c", "b", "k"], artifactVisible: false, elements: [], planningErrors: crowded }, [...people, karo, cat], [], 3);
+    expect(ride.onStage).toEqual(["a", "c", "b"]);
+    expect(ride.scene).toBe("Der gestiefelte Kater rides the cushion past Alexander. The cat throws up his paws. Adrian laughs.");
+    // The board is the action: the cat gives way, and "the cat" goes with him.
+    const square = recomposeShot({ page: 1, scene: "Karo flips a square up beside Alexander's ear. The board's lane loops round the chair. The cat yawns. Adrian laughs at Der gestiefelte Kater.", onStage: ["a", "b", "k", "c"], artifactVisible: false, elements: [], planningErrors: crowded }, [...people, karo, cat], [], 3);
+    expect(square.onStage).toEqual(["a", "b", "k"]);
+    expect(square.scene).toBe("Karo flips a square up beside Alexander's ear. The board's lane loops round the chair.");
+  });
+});

@@ -45,7 +45,7 @@ import { runStorybookTextEngine, STORYBOOK_PIPELINE_ID } from "./storybook/engin
 import { runWonderTextEngine, WONDER_PIPELINE_ID } from "./wonder/engine";
 import { wonderBudget } from "./wonder/library";
 import { EPISODE_PIPELINE_ID, resolveEpisodeServiceTier, runEpisodeTextEngine } from "./episode/engine";
-import { episodeBudget, episodeProductionLlm, episodeProductionModels } from "./episode/craft";
+import { episodeBudget, episodeProductionLlm, episodeProductionModels, episodeVisionModel } from "./episode/craft";
 import { chapterPictures, coverStandIn, directEpisodePictures, type EpisodeDirection } from "./episode/pictures";
 import { prepareGuestPortraits } from "./episode/guest-portraits";
 import type { EpisodeResult } from "./episode/types";
@@ -376,10 +376,10 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       // round (story 5e583e1e, ≈ 15 s). Runware answers parallel requests; a 429 is retried by the image client.
       concurrency: 8,
       // TALEA_STORYBOOK_PARALLEL_REDRAW=off: redraw and heroes-only attempt one after another again. The spare costs a
-      // picture (0.12 ¢) and a vision read (≈ 3,000 input tokens: 0.04 ¢ on Luna, 0.2–0.3 ¢ on Terra) whenever the
-      // redraw passes; it saves ≈ 15 s whenever the redraw fails.
+      // picture (0.12 ¢, 0.25 ¢ on FLUX 3) and a vision read whenever the redraw passes, so it is drawn only when the
+      // crowd is the trouble (crowdTrouble in storybook/images.ts); it saves ≈ 15 s whenever the redraw fails.
       parallelRedraw: process.env.TALEA_STORYBOOK_PARALLEL_REDRAW !== "off",
-      visionModel: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : models.support,
+      visionModel: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : episodeMode ? episodeVisionModel() : models.support,
       fallbackVisionModel: models.critic,
       jev: episodeMode || process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : createOpenRouterJevPort(resolveOpenRouterApiKey),
       pageTexts: Object.fromEntries(picturePages.map((page) => [page.order, page.content])),
@@ -573,7 +573,12 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     releaseReady,
     quality,
     textQuality: text.textQuality,
-    imageQa: imageOutcomes.map(({ page, status, severity, attempts, qa, vignette }) => ({ page, status, severity, attempts, ...(vignette ? { vignette } : {}), qa })),
+    // Every attempt with its reason and picture: story 26fdd23f lost the cover and two pages after ten calls, and the
+    // log kept only the last verdict.
+    imageQa: imageOutcomes.map(({ page, status, severity, attempts, qa, vignette, history }) => ({ page, status, severity, attempts, ...(vignette ? { vignette } : {}), qa, ...(history?.length ? { history } : {}) })),
+    // The checks are booked with the text calls (textCostUSD); this is their share, next to the picture calls.
+    imageCalls: images.imageCalls + guestPortraits.calls,
+    imageCheckCostUSD: Number(images.qaCalls.reduce((sum, call) => sum + (call.usage?.costUSD || 0), 0).toFixed(6)),
     durationMs,
     timingsMs,
   }, pipelineId);

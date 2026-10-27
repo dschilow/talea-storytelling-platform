@@ -1,7 +1,7 @@
 // @ts-ignore Bun's test runner is available without a production dependency.
 import { describe, expect, test } from "bun:test";
 import sharp from "sharp";
-import { buildSceneIllustrationPrompt, createIdentityReferenceCache, renderIdentitySprite } from "./image-reference-sprite";
+import { buildSceneIllustrationPrompt, createIdentityReferenceCache, paintOutMarks, renderIdentitySprite, usableMarks } from "./image-reference-sprite";
 
 const source = (colour: string, width = 512, height = 512) => sharp({ create: { width, height, channels: 3, background: colour } }).png().toBuffer();
 const pixels = async (buffer: Buffer) => sharp(buffer).removeAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -91,5 +91,39 @@ describe("single reference sprite without injected picture frames", () => {
     expect(prompt).toContain("1: Alexander"); expect(prompt).toContain("2: Adrian");
     expect(prompt).toContain("exactly these characters in the scene: Alexander, Adrian.");
     expect(prompt).not.toMatch(/framed portraits|purple frame|green frame|#[0-9A-F]{6}/i);
+  });
+});
+
+describe("story 26fdd23f: a logo on a hero's shirt", () => {
+  // A navy shirt with a pale logo in the middle, as on Adrian's avatar.
+  const shirt = async () => sharp(await source("#2b3a55", 200, 200)).composite([{ input: await source("#e8d9a0", 20, 12), left: 90, top: 94 }]).png().toBuffer();
+
+  test("the mark is painted in the fabric's colour, the rest of the portrait stays", async () => {
+    const before = await pixels(await shirt());
+    expect(pixel(before, 100, 100)).toEqual([232, 217, 160]);
+    const after = await pixels(await paintOutMarks(await shirt(), [[440, 460, 560, 540]]));
+    const [r, g, b] = pixel(after, 100, 100);
+    expect(Math.abs(r - 43) + Math.abs(g - 58) + Math.abs(b - 85)).toBeLessThan(12);
+    expect(pixel(after, 5, 5)).toEqual([43, 58, 85]);
+  });
+
+  test("boxes out of range, inverted or over most of the portrait are never painted", () => {
+    expect(usableMarks([[440, 460, 560, 540], [0, 0, 900, 900], [600, 600, 500, 700], [-5, 0, 10, 10], "x", [1, 2, 3]])).toEqual([[440, 460, 560, 540]]);
+    expect(usableMarks(undefined)).toEqual([]);
+  });
+
+  test("the sheet carries the painted portrait, for a sprite and for a single inline portrait", async () => {
+    const url = `data:image/png;base64,${(await shirt()).toString("base64")}`;
+    const build = createIdentityReferenceCache(async () => new Response(await shirt()));
+    const single = await pixels(fromReference((await build([{ displayName: "Adrian", imageUrl: url, marks: [[440, 460, 560, 540]] }])).urls[0]));
+    expect(single.info.width).toBe(512);
+    const [r] = pixel(single, 256, 256);
+    expect(r).toBeLessThan(90);
+    const sprite = await pixels(fromReference((await build([
+      { displayName: "Adrian", imageUrl: "https://example.test/adrian.png", marks: [[440, 460, 560, 540]] },
+      { displayName: "Alexander", imageUrl: "https://example.test/alexander.png" },
+    ])).urls[0]));
+    expect(pixel(sprite, 256, 256)[0]).toBeLessThan(90);
+    expect(pixel(sprite, 768, 256)[0]).toBeGreaterThan(180);
   });
 });

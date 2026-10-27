@@ -15,7 +15,7 @@
 import brunoS1E2 from "../library/seed/episodes/bruno-der-flunkerfisch.s1e2.json";
 import monsterS1E2 from "../library/seed/episodes/die-monster-muellabfuhr.s1e2.json";
 import type { AgeBand, LengthBudget } from "../storybook/craft";
-import { STORYBOOK_DEFAULT_WRITER_MODEL, type LlmRequest, type StorybookLlm, type StorybookModels } from "../storybook/llm";
+import { STORYBOOK_DEFAULT_WRITER_MODEL, STORYBOOK_SUPPORT_MODEL, type LlmRequest, type StorybookLlm, type StorybookModels } from "../storybook/llm";
 
 export const EPISODE_PIPELINE_ID = "talea-folge-v1";
 
@@ -30,6 +30,17 @@ export function episodeWriterModel(_config?: unknown): string {
 /** Production role assignment for Talea-Folge. Other story engines keep their own settings. */
 export function episodeProductionModels(): StorybookModels {
   return { writer: STORYBOOK_DEFAULT_WRITER_MODEL, support: "openai/gpt-6.1-terra", critic: "openai/gpt-6.1-terra" };
+}
+
+/**
+ * The picture check reads every picture drawn (7–12 a story). On Terra, the support model, it cost about as much as
+ * the pictures: story 26fdd23f paid 4.1 ¢ for 18 checks next to 4.6 ¢ of pictures. Measured 2026-10-27 on 30 FLUX
+ * pictures with hand-labelled defects (scripts/image-bench/vision-checker-ab.ts): Terra caught 9 of 9, Luna 8 of 9
+ * (the miss a FLUX.2 picture), with the same false alarms on the FLUX 3 ones, at an eighth of the price. Terra stays the
+ * second reader for an unreadable reply. TALEA_EPISODE_VISION_MODEL=openai/gpt-6.1-terra brings it back.
+ */
+export function episodeVisionModel(value = process.env.TALEA_EPISODE_VISION_MODEL): string {
+  return value?.trim() || STORYBOOK_SUPPORT_MODEL;
 }
 
 /** Apply the episode's tier and keep each role on its own model when retrying. */
