@@ -45,7 +45,7 @@ import { runStorybookTextEngine, STORYBOOK_PIPELINE_ID } from "./storybook/engin
 import { runWonderTextEngine, WONDER_PIPELINE_ID } from "./wonder/engine";
 import { wonderBudget } from "./wonder/library";
 import { EPISODE_PIPELINE_ID, resolveEpisodeServiceTier, runEpisodeTextEngine } from "./episode/engine";
-import { episodeBudget, episodeWriterModel } from "./episode/craft";
+import { episodeBudget, episodeProductionLlm, episodeProductionModels } from "./episode/craft";
 import { chapterPictures, coverStandIn, directEpisodePictures, type EpisodeDirection } from "./episode/pictures";
 import { prepareGuestPortraits } from "./episode/guest-portraits";
 import type { EpisodeResult } from "./episode/types";
@@ -158,7 +158,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const pipelineId = episodeMode ? EPISODE_PIPELINE_ID : wonderMode ? WONDER_PIPELINE_ID : STORYBOOK_PIPELINE_ID;
   const ledger = new CostLedger();
   const resolved = resolveStorybookModels(config, { critic: process.env.TALEA_STORYBOOK_CRITIC_MODEL || undefined });
-  const models = episodeMode ? { ...resolved, writer: episodeWriterModel(config) } : resolved;
+  const models = episodeMode ? episodeProductionModels() : resolved;
   const band = normalizeAgeBand(config.ageGroup);
   const budget = episodeMode ? episodeBudget(config.length, band) : wonderMode ? wonderBudget(config.length, band) : resolveLengthBudget(config.length, band);
   const seed = stableSeed(input);
@@ -205,7 +205,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     recentStories: history.recentStories.length,
   }, pipelineId);
 
-  const llm = createOpenRouterStorybookLlm({
+  const openRouterLlm = createOpenRouterStorybookLlm({
     onFailedAttempt: (request, billed, error) => {
       if (billed) ledger.recordCall(`${request.stage}-failed`, billed, request.role);
       // Why a call had to be repeated (flex refused, empty, truncated): "Der Riese hinterm Teig" paid 5.9 ¢ instead of
@@ -219,6 +219,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       }, pipelineId);
     },
   });
+  // Flex covers every episode LLM call, and retries keep the same model.
+  const llm = episodeMode ? episodeProductionLlm(openRouterLlm, resolveEpisodeServiceTier()) : openRouterLlm;
 
   // -------------------------------------------------------------------------
   // 1) Text: concept → plan → draft → review → revision → final A/B.
@@ -229,10 +231,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     models,
     ledger,
     observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId),
-    // Talea-Folge: one-shot on the flex tier by default (≈ 2.7 ¢ text, measured as good as two steps on the
-    // standard tier at 8.5 ¢). TALEA_EPISODE_FLEX=off → standard tier, TALEA_EPISODE_MODE=two-step → JSON plan
-    // first, TALEA_EPISODE_PLANNER_MODEL → its planner.
-    ...(episodeMode ? { options: { serviceTier: resolveEpisodeServiceTier(), ...(process.env.TALEA_EPISODE_PLANNER_MODEL ? { plannerModel: process.env.TALEA_EPISODE_PLANNER_MODEL } : {}) } } : {}),
+    // Planning and editorial review are separate Terra calls; only Sol writes or revises prose.
+    ...(episodeMode ? { options: { mode: "two-step" as const, editorialReview: true, serviceTier: resolveEpisodeServiceTier() } } : {}),
   });
   const wonder = "wonder" in text ? (text as import("./wonder/types").WonderResult).wonder : undefined;
   const episode = "episode" in text ? (text as EpisodeResult).episode : undefined;
@@ -334,7 +334,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       llm,
       visionModel: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : models.support,
       fallbackVisionModel: models.critic,
-      jev: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : createOpenRouterJevPort(resolveOpenRouterApiKey),
+      jev: episodeMode || process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : createOpenRouterJevPort(resolveOpenRouterApiKey),
       pageTexts: Object.fromEntries(picturePages.map((page) => [page.order, page.content])),
       historical: !["modern", "scifi"].includes(config.genre || "") && ["fantasy", "medieval", "castle"].includes(config.setting || ""),
     }).catch((err): StorybookImagesResult => {

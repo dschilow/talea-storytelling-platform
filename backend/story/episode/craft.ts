@@ -15,7 +15,7 @@
 import brunoS1E2 from "../library/seed/episodes/bruno-der-flunkerfisch.s1e2.json";
 import monsterS1E2 from "../library/seed/episodes/die-monster-muellabfuhr.s1e2.json";
 import type { AgeBand, LengthBudget } from "../storybook/craft";
-import { STORYBOOK_DEFAULT_WRITER_MODEL } from "../storybook/llm";
+import { STORYBOOK_DEFAULT_WRITER_MODEL, type LlmRequest, type StorybookLlm, type StorybookModels } from "../storybook/llm";
 
 export const EPISODE_PIPELINE_ID = "talea-folge-v1";
 
@@ -25,6 +25,16 @@ export const EPISODE_PIPELINE_ID = "talea-folge-v1";
  */
 export function episodeWriterModel(_config?: unknown): string {
   return process.env.TALEA_EPISODE_WRITER_MODEL || STORYBOOK_DEFAULT_WRITER_MODEL;
+}
+
+/** Production role assignment for Talea-Folge. Other story engines keep their own settings. */
+export function episodeProductionModels(): StorybookModels {
+  return { writer: STORYBOOK_DEFAULT_WRITER_MODEL, support: "openai/gpt-6.1-terra", critic: "openai/gpt-6.1-terra" };
+}
+
+/** Apply the episode's tier and keep each role on its own model when retrying. */
+export function episodeProductionLlm(llm: StorybookLlm, tier: LlmRequest["serviceTier"]): StorybookLlm {
+  return (request) => llm({ ...request, fallbackModel: request.model, ...(tier && !request.serviceTier ? { serviceTier: tier } : {}) });
 }
 /**
  * Chapters × words. The Originals: 3 chapters, 1,600–2,100 words, about 7 words per sentence. Ages 6–8 were 500–700

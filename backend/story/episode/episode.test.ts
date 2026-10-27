@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { buildBrief } from "../storybook/context";
 import { CostLedger, type LlmRequest } from "../storybook/llm";
 import type { CastCandidate } from "../storybook/types";
-import { childSituationChoices, episodeBudget, placeChoices, SAMPLE_NAMES, styleSamples, takenNames } from "./craft";
+import { childSituationChoices, episodeBudget, episodeProductionLlm, episodeProductionModels, placeChoices, SAMPLE_NAMES, styleSamples, takenNames } from "./craft";
 import { ambiguousPronouns, COUNTING_TITLE, normalizePlan, planFromHeader, tidyParagraphs, readOneShot, readStory, renameTakenNames, resolveEpisodeServiceTier, runEpisodeTextEngine, storyChecks } from "./engine";
 import { oneShotSystemPrompt, oneShotUserPrompt, planSystemPrompt, planUserPrompt, writerSystemPrompt, writerUserPrompt } from "./prompts";
 import { episodePoolLead } from "./cast-focus";
@@ -235,6 +235,55 @@ function oneShotText(words = 560, extra = ""): string {
 }
 
 describe("Talea-Folge engine, two-step", () => {
+  test("the episode wrapper applies flex and preserves the model for all role retries", async () => {
+    const calls: LlmRequest[] = [];
+    const llm = episodeProductionLlm(async (request) => { calls.push(request); return answer(request, "ok"); }, "flex");
+    for (const [stage, model, role] of [["episode-write", "openai/gpt-6.1-sol", "writer"], ["episode-editorial-review", "openai/gpt-6.1-terra", "critic"], ["illustration-direction", "openai/gpt-6.1-terra", "support"]] as const) {
+      await llm({ stage, model, role, system: "", user: "", json: false, maxTokens: 20 });
+    }
+    expect(calls.map((call) => [call.serviceTier, call.fallbackModel])).toEqual([["flex", "openai/gpt-6.1-sol"], ["flex", "openai/gpt-6.1-terra"], ["flex", "openai/gpt-6.1-terra"]]);
+    const standard = episodeProductionLlm(async (request) => { calls.push(request); return answer(request, "ok"); }, undefined);
+    await standard({ stage: "review", model: "openai/gpt-6.1-terra", role: "critic", system: "", user: "", json: true, maxTokens: 20 });
+    expect(calls[3].serviceTier).toBeUndefined();
+  });
+  test("production roles: Terra plans and reviews, Sol writes and revises; a checked rewrite replaces the draft", async () => {
+    const calls: LlmRequest[] = [];
+    const ledger = new CostLedger();
+    const llm = async (request: LlmRequest) => {
+      calls.push(request);
+      if (request.stage === "episode-plan") return answer(request, JSON.stringify(rawPlan()));
+      if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({ issues: [{ severity: "major", quote: "Bo Bücherfuchs lacht.", problem: "Ein Fehler", change: "Verbessern" }], verdict: "prüfen" }));
+      if (request.stage === "episode-editorial-recheck") return answer(request, JSON.stringify({ issues: [], verdict: "gut" }));
+      return answer(request, request.stage === "episode-editorial-revision" ? story(560, "Verbesserter Schluss.") : story(560));
+    };
+    const result = await runEpisodeTextEngine({ llm, brief: brief(), models: episodeProductionModels(), ledger, options: { mode: "two-step", editorialReview: true } });
+    expect(calls.map((call) => [call.stage, call.model])).toEqual([
+      ["episode-plan", "openai/gpt-6.1-terra"], ["episode-write", "openai/gpt-6.1-sol"],
+      ["episode-editorial-review", "openai/gpt-6.1-terra"], ["episode-editorial-revision", "openai/gpt-6.1-sol"],
+      ["episode-editorial-recheck", "openai/gpt-6.1-terra"],
+    ]);
+    expect(ledger.all().map((entry) => entry.modelRole)).toEqual(["support", "selected-story", "support", "selected-story", "support"]);
+    expect(result.episode.revised).toBe(true);
+    expect(result.pages[0].content).toContain("Verbesserter Schluss.");
+  });
+
+  test("unsupported evidence and a failed recheck cannot replace the manuscript", async () => {
+    for (const invalid of ["invented quote", "Bo Bücherfuchs lacht."]) {
+      const calls: string[] = [];
+      const llm = async (request: LlmRequest) => {
+        calls.push(request.stage);
+        if (request.stage === "episode-plan") return answer(request, JSON.stringify(rawPlan()));
+        if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({ issues: [{ severity: "major", quote: invalid, problem: "Problem", change: "Fix" }] }));
+        if (request.stage === "episode-editorial-recheck") return answer(request, "not JSON");
+        return answer(request, request.stage === "episode-editorial-revision" ? story(560, "Neue Fassung.") : story(560));
+      };
+      const result = await runEpisodeTextEngine({ llm, brief: brief(), models: episodeProductionModels(), ledger: new CostLedger(), options: { mode: "two-step", editorialReview: true } });
+      expect(result.episode.revised).toBe(false);
+      expect(result.pages[0].content).not.toContain("Neue Fassung.");
+      expect(calls.includes("episode-editorial-revision")).toBe(invalid !== "invented quote");
+    }
+  });
+
   test("plan → story; a series name of a new figure is renamed, not rewritten", async () => {
     const calls: LlmRequest[] = [];
     const llm = async (request: LlmRequest) => {
