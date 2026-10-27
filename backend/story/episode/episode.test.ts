@@ -339,6 +339,65 @@ describe("Talea-Folge engine, two-step", () => {
 });
 
 describe("Talea-Folge engine, one-shot", () => {
+  test("the production editorial option actually reads a one-shot, with Terra on flex, and records verification", async () => {
+    const calls: LlmRequest[] = [];
+    const llm = episodeProductionLlm(async request => {
+      calls.push(request);
+      return answer(request, request.stage === "episode-editorial-review" ? JSON.stringify({ issues: [], verdict: "ready" }) : oneShotText());
+    }, "flex");
+    const result = await runEpisodeTextEngine({ llm, brief: brief(), models: episodeProductionModels(), ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true, serviceTier: "flex" } });
+    expect(calls.map(call => [call.stage, call.model, call.serviceTier])).toEqual([["episode-oneshot", "openai/gpt-6.1-sol", "flex"], ["episode-editorial-review", "openai/gpt-6.1-terra", "flex"]]);
+    expect(result.textQuality?.status).toBe("passed");
+    expect(result.episode.revised).toBe(false);
+  });
+
+  test("a one-shot revision keeps its header and must pass the second editorial read", async () => {
+    const calls: string[] = [];
+    const llm = async (request: LlmRequest) => {
+      calls.push(request.stage);
+      if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({ issues: [{ severity: "major", quote: "Kuno gähnte.", problem: "A missing causal link", change: "Show the cause in the same moment." }] }));
+      if (request.stage === "episode-editorial-recheck") return answer(request, JSON.stringify({ issues: [], verdict: "ready" }));
+      return answer(request, oneShotText(560, request.stage === "episode-editorial-revision" ? "Die Kiste blieb im Takt." : ""));
+    };
+    const result = await runEpisodeTextEngine({ llm, brief: brief(), models: episodeProductionModels(), ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true } });
+    expect(calls).toEqual(["episode-oneshot", "episode-editorial-review", "episode-editorial-revision", "episode-editorial-recheck"]);
+    expect(result.episode.guests[0].name).toBe("Kuno");
+    expect(result.pages[0].content).toContain("Die Kiste blieb im Takt.");
+    expect(result.textQuality?.status).toBe("passed");
+    expect(result.episode.revised).toBe(true);
+  });
+
+  test("an unreadable or invented editorial finding cannot make a one-shot verified or replace it", async () => {
+    for (const review of ["not JSON", JSON.stringify({ issues: [{ severity: "major", quote: "This sentence is invented.", problem: "bad", change: "rewrite" }] })]) {
+      const calls: string[] = [];
+      const llm = async (request: LlmRequest) => { calls.push(request.stage); return answer(request, request.stage === "episode-editorial-review" ? review : oneShotText()); };
+      const result = await runEpisodeTextEngine({ llm, brief: brief(), models: MODELS, ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true } });
+      expect(calls).toEqual(["episode-oneshot", "episode-editorial-review"]);
+      expect(result.textQuality?.status).toBe("unverified");
+      expect(result.episode.revised).toBe(false);
+    }
+  });
+
+  test("an unresolved major issue keeps the original one-shot and remains failed after the bounded revision", async () => {
+    for (const invalidRecheck of [false, true]) {
+      const calls: string[] = [];
+      const issue = { severity: "major", quote: "Kuno gähnte.", problem: "The essential cause is still missing.", change: "Show the cause." };
+      const llm = async (request: LlmRequest) => {
+        calls.push(request.stage);
+        if (request.stage === "episode-editorial-recheck" && invalidRecheck) return answer(request, "not JSON");
+        if (request.role === "critic") return answer(request, JSON.stringify({ issues: [issue] }));
+        return answer(request, oneShotText(560, request.stage === "episode-editorial-revision" ? "Unaccepted revision." : ""));
+      };
+      const result = await runEpisodeTextEngine({ llm, brief: brief(), models: MODELS, ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true } });
+      expect(calls).toEqual(["episode-oneshot", "episode-editorial-review", "episode-editorial-revision", "episode-editorial-recheck"]);
+      expect(result.pages[0].content).not.toContain("Unaccepted revision.");
+      expect(result.episode.guests[0].name).toBe("Kuno");
+      expect(result.episode.revised).toBe(false);
+      expect(result.textQuality?.status).toBe("failed");
+      expect(result.textQuality?.issues).toContain(issue.problem);
+    }
+  });
+
   test("one call: header gives cast and artifact, chapters come from the text", async () => {
     const stages: string[] = [];
     const b = brief();
@@ -443,7 +502,7 @@ describe("clear pronouns, honest titles, a fuller story", () => {
     expect(episodeBudget("long", "6-8").totalWordsMin).toBe(2400);
     expect(episodeBudget("short", "6-8").totalWordsMax).toBe(1600);
     const prompt = oneShotSystemPrompt(brief());
-    expect(prompt).toContain("A sentence never starts with „Er“");
+    expect(prompt).toContain("natural pronouns carry the same actor");
     expect(prompt).toContain("A chapter title never counts anything");
     expect(oneShotUserPrompt(brief())).toContain("never the same failure twice");
   });

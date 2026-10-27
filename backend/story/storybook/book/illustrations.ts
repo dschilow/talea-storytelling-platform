@@ -15,6 +15,7 @@
 
 import { mentions } from "../checks";
 import { TALEA_IMAGE_STYLE } from "../../../ai/image-style";
+import { isTerrainFigure, terrainIdentityLine } from "../visual-form";
 import { negativePromptFor, runDirectorStage, type VisualEntity } from "../illustration-stage";
 import { generateStorybookImages, publishableImageUrl, type ImageOutcome, type ImageProvider, type ImageRequest } from "../images";
 import type { JevPort } from "../jev";
@@ -350,7 +351,9 @@ export function portraitLook(entity: VisualEntity): { look: string; humanoid: bo
  */
 export function figurePortraitRequest(entity: VisualEntity, seed: string, style = PORTRAIT_STYLE): ImageRequest {
   const { look, humanoid } = portraitLook(entity);
-  const body = humanoid
+  const body = isTerrainFigure(entity)
+    ? `One reference view from above at a diagonal angle: ${look}. ${terrainIdentityLine(entity)} The complete connected surface lies across the picture, with its facial features visible in the material.`
+    : humanoid
     ? `One single figure, full body from head to feet, standing upright and facing the viewer, arms relaxed: ${look}.`
     : `One single ${entity.species === "animal" ? "animal" : "being"}, shown whole and alone — no person, no child: ${look}.`;
   return {

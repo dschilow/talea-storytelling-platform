@@ -20,6 +20,7 @@ import type { StoryBrief } from "./context";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import type { IllustrationPlan, IllustrationShot, StoryElement, StoryPlan, StorybookPage } from "./types";
 import { TALEA_IMAGE_STYLE } from "../../ai/image-style";
+import { isTerrainFigure, terrainIdentityLine } from "./visual-form";
 import { usableMarks, type MarkBox } from "../image-reference-sprite";
 
 export const STORYBOOK_IMAGE_STYLE = [
@@ -299,6 +300,7 @@ export function assembleFlux3ImagePrompt(input: ImagePromptInput): string {
     lines.push(`The single attached reference image is an identity sheet. Its subjects, from left to right: ${input.spriteOrder.map((entity, i) => `${i + 1}. ${entity.name}${entity.kind === "artifact" ? " (object)" : ""}`).join("; ")}. Take each subject's appearance from its own position, while drawing fresh poses in this scene. The illustration is one continuous place reaching every edge.`);
   }
   for (const entity of characters) lines.push(`${entity.name}: ${entity.appearance}. Preserve this individual's species, face, hair or fur, proportions, colours and own clothing${entity.isHuman && entity.role === "hero" ? ", with a child's face and body" : ""}.`);
+  for (const entity of characters) if (isTerrainFigure(entity)) lines.push(terrainIdentityLine(entity));
   const owned = ownershipLine(characters);
   if (owned) lines.push(owned);
   for (const element of living) lines.push(`The ${elementNoun(element)}: ${element.look}. A separate living figure with its own body.`);
@@ -462,6 +464,8 @@ export function buildDirectorSystemPrompt(): string {
     "- Page 1 establishes the setting and introduces the heroes calmly BEFORE the disruption. Show its opening moment, not a frantic montage of everything on that page.",
     "- Exactly one instant, one pose per figure. Prefer separated silhouettes and clearly visible hands; avoid tangles of hands, sacks and bodies. Give each important prop ONE owner and a fixed position. Never combine before and after.",
     "- Repeated places and props keep their layout, material, scale and colour throughout the book (a waterwheel stays a wheel, never a boat).",
+    "- Make the key action physically readable: a covering object is visibly above the figure ducking under it; a falling object's receiving surface is directly below it, clear of any blocking rim or wall. State these relations before decorative details. A living place has one face at one spot in its connected surface, even when that surface loops around an object.",
+    "- When a small exact number of props is part of the plot's payoff, arrange them so each is visible and countable; keep that number in the scene description. This does not apply to decorative leaves, stones or crowds.",
     "- Characters DO something physical and react to each other: running, tumbling, pulling, hiding, reaching, ducking, laughing, gasping. Faces and bodies show the emotion.",
     "- Never a lineup, never characters standing side by side looking at the viewer, never posing.",
     "- Choose a camera for each page and vary it from page to page: wide establishing shot, medium action shot, low angle looking up, high angle looking down, close-up on a reaction or an object.",
@@ -518,6 +522,7 @@ export function buildDirectorUserPrompt(input: {
   lines.push("CHARACTERS AND OBJECTS YOU MAY DRAW (use the ids):");
   for (const [index, entity] of input.entities.entries()) {
     lines.push(`- id e${index + 1}: ${entity.name} — ${entity.kind === "artifact" ? "magic object" : entity.species}; looks: ${entity.appearance || "see reference"}`);
+    if (isTerrainFigure(entity)) lines.push(terrainIdentityLine(entity));
   }
   lines.push("");
   lines.push("PAGES (final text; the planner's suggested picture in brackets):");
@@ -754,7 +759,7 @@ export async function describeReferenceLooks(
   // pictures — the avatar profile had no outfit, the sheet alone did not hold it.
   const keyFor = (entity: VisualEntity) => JSON.stringify(["look-v5", model, entity.id, entity.referenceKey || entity.referenceUrl, entity.species, entity.appearance]);
   const apply = (entity: VisualEntity, cached?: { look: string; tag?: string; marks?: MarkBox[] }) =>
-    cached ? { ...entity, appearance: cached.look, ...(cached.tag ? { tag: cached.tag } : {}), ...(cached.marks?.length ? { marks: cached.marks } : {}) } : entity;
+    cached ? { ...entity, appearance: isTerrainFigure(entity) ? entity.appearance : cached.look, ...(cached.tag && !isTerrainFigure(entity) ? { tag: cached.tag } : {}), ...(cached.marks?.length ? { marks: cached.marks } : {}) } : entity;
   const now = Date.now();
   for (const [key, value] of referenceLookCache) if (value.expires <= now) referenceLookCache.delete(key);
   const withCachedLooks = entities.map((entity) => apply(entity, referenceLookCache.get(keyFor(entity))));

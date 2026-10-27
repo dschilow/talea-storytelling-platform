@@ -26,6 +26,7 @@
  */
 
 import { createHash } from "node:crypto";
+import { isTerrainFigure, terrainIdentityLine } from "./visual-form";
 import { createIdentityReferenceCache, type IdentityReferenceBuilder } from "../image-reference-sprite";
 import { mentions } from "./checks";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
@@ -65,6 +66,10 @@ export interface ImageQaReport {
   unexpectedCharacters: string[];
   /** A named character doing what the scene gives to someone else. */
   roleSwaps: string[];
+  /** Missing/contradicted support, target or prop relation that defines the pictured action. */
+  sceneDefects?: string[];
+  /** Positive, drawable corrections to those observed scene defects. */
+  sceneFixes?: string[];
   /** A story element worn as clothing, drawn as a person, or missing. Not shape/colour details. */
   elementMisuse: string[];
   /** A feature of one character drawn on another (moustache, crown, cape), or facial hair on a child. */
@@ -215,7 +220,8 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
     `Attachment 1 is the illustration.${hasReference ? " Attachment 2 is a technical identity sheet (reference only, NOT part of the artwork)." : ""}`,
     "Expected named characters:",
     list,
-    `Intended scene: ${scene.slice(0, 500)}`,
+    `Intended scene: ${scene.slice(0, 900)}`,
+    ...expected.filter(isTerrainFigure).map(entity => `${terrainIdentityLine(entity)} A separate upright mascot in place of this surface is anatomyDefects, even if the reference portrait looks like that mascot.`),
     ...(pageText ? [`Actual reading page: ${pageText}`, "The illustration depicts ONE moment from the page, not every mentioned person. Reject contradictions in the key action, place or object state; do not require off-panel characters."] : []),
     ...(elements.length ? [`Story elements in this picture: ${elements.map((element) => `${element.name} — ${element.look}`).join("; ")}. Report under elementMisuse ONLY if one is worn as clothing, drawn as a person, or missing entirely — never for shape, size or colour details.`] : []),
     // "Schatto führt Regie": the children's own cast shadows touching the living shadow were counted as its extra arms.
@@ -224,6 +230,9 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
     "Inspect the actual pixels, not the prompt's claims. Look for MERGED bodies and extra limbs on EVERY figure, including animals: human hands or sweater sleeves on a natural goat are defects too. Talking does not change anatomy. Count arms from each shoulder to each hand, including behind the body.",
     "Look carefully at every hand, arm, leg, head and ear. Count fingers where visible. Check every face: children never have a moustache or beard, and no character wears another character's moustache, crown, hat, cape, wings or tail.",
     "Compare who does the KEY action with the intended scene, using the reference sheet to tell the characters apart. Ignore small pose or prop differences — a picture book illustration may interpret the moment freely.",
+    "Check the physical support or target that defines that action: ducking UNDER an object requires that object visibly overhead; landing IN and dripping UNDER preserve inside/outside and above/below. A missing defining object, changed prop state, or reversed spatial relation is sceneDefects, even when the figures look correct. Do not flag decorative details or require a whole chapter in one picture. For each such defect give a short positive instruction in sceneFixes, using only things named in the intended scene or reading page.",
+    "Trace a falling object's visible path to its receiving surface: an intervening wall or rim, or a target off to the side, contradicts a catch or collection scene. A living path or river has one face at one spot in its continuous surface; two separate faces count as a duplicate even though the surface connects them.",
+    "When the intended scene or reading page gives a small exact prop count essential to the payoff, check that count in the pixels and report a mismatch as sceneDefects, with the required arrangement in sceneFixes. Do not count decorative leaves, stones, crowds or unspecified groups; repeated ordinary props are not duplicate characters.",
     ...(many.length ? [`${many.map((element) => element.name).join(", ")} come in numbers by nature: never count them and never report them as duplicates.`] : []),
     "First count how often EACH expected character and story element is drawn (a second person with the same face, hair or outfit counts, a second goose counts, a second girl in the same dress counts even with other hair). Exactly 1 is correct; 2 or more is a duplicate; 0 means missing.",
     ...(expected.some((entity) => entity.kind === "character") ? ["posing: true only when the figures stand or sit side by side facing the viewer, like a group photo, instead of doing the scene's action."] : []),
@@ -239,6 +248,8 @@ export function buildQaPrompt(expected: VisualEntity[], scene: string, hasRefere
       duplicates: [],
       unexpectedCharacters: [],
       roleSwaps: [],
+      sceneDefects: [],
+      sceneFixes: [],
       elementMisuse: [],
       posing: false,
       textVisible: false,
@@ -310,6 +321,8 @@ export function parseQaReport(raw: string, expectedNames?: string[]): ImageQaRep
     duplicates,
     unexpectedCharacters: list(data.unexpectedCharacters),
     roleSwaps: list(data.roleSwaps),
+    sceneDefects: list(data.sceneDefects),
+    sceneFixes: list(data.sceneFixes).map(fix => fix.slice(0, 240)),
     elementMisuse: list(data.elementMisuse),
     featureBleed: list(data.featureBleed),
     missing,
@@ -350,6 +363,7 @@ export function qaSeverityParts(
   if (report.namedCharactersVisible > expectedCharacters) hard += 6;
   // A wrong key action is worth a redraw, but it does not make the page unreadable.
   soft += report.roleSwaps.length * 10;
+  soft += (report.sceneDefects?.length || 0) * 10;
   soft += (report.elementMisuse?.length || 0) * 10;
   soft += (report.jevFindings?.length || 0) * 10;
   // Story 2db50859: Adrian missing on the cover and page 1, Alexander on page 3.
@@ -462,6 +476,7 @@ export function correctionFor(report: ImageQaReport, elementNames: string[] = []
   if (misused.length) fixes.push(`${misused.join(" and ")} shown as its own separate figure or thing.`);
   if (report.referenceSheetVisible) fixes.push("One single full-bleed scene.");
   if (report.roleSwaps.length || report.sceneMatch < 0.5) fixes.push("Freeze the single described action at its stated location; keep each prop with its named owner.");
+  if (report.sceneDefects?.length) fixes.push(...(report.sceneFixes?.length ? report.sceneFixes.slice(0, 3) : ["Show the physical support and target of the action in their described positions, with the stated above/below and inside/outside relations."]));
   if (report.posing) fixes.push("Everyone is busy with the action and turned toward it.");
   if (report.textVisible) fixes.push("A wordless picture: every sign, page, tablet and surface is plain and unmarked or shows a small painted symbol.");
   if (report.identityMatch < 0.6) fixes.push("Match each named figure's age, species, face and outfit to its own reference.");
@@ -740,6 +755,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
               ...(outcome.qa.identityMatch < 0.6 ? [`identity ${outcome.qa.identityMatch}`] : []),
               ...(outcome.qa.sceneMatch < 0.5 ? [`scene ${outcome.qa.sceneMatch}`] : []),
               ...(outcome.qa.elementMisuse || []),
+              ...(outcome.qa.sceneDefects || []),
             ].slice(0, 6)
           : [outcome.status],
         ...(parts.hard >= 999 ? {} : {}),
