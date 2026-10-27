@@ -1,0 +1,128 @@
+{
+  "seriesId": "funkelflug",
+  "episode": 2,
+  "version": 2,
+  "contractHash": "2dd4eb0ce34cfce6dcee09c41b2e080f6da767fb10e13149bcc7f53536771b5f",
+  "models": {
+    "writer": "openai/gpt-6.1-sol",
+    "support": "openai/gpt-6-luna",
+    "critic": "openai/gpt-6.1-terra"
+  },
+  "policy": {
+    "version": 2,
+    "picturesPerChapter": 1,
+    "maxImageCalls": 6,
+    "maxLlmCalls": 12,
+    "llmStopAfterUSD": 0.08,
+    "maxTextRepairs": 1
+  },
+  "fictionalAvatars": [
+    "Nora",
+    "Ben"
+  ],
+  "status": "accepted",
+  "log": {
+    "episode": 2,
+    "storyId": "fictional-v2-funkelflug-2",
+    "avatarIds": [
+      "fictional-nora",
+      "fictional-ben"
+    ],
+    "events": [
+      {
+        "fact": "Der Wind zog über den Fensterladen und die dünne Schnur am Glockenzug.",
+        "quote": "„Der Laden zieht an der Schnur“, sagte Ben. „Und die Schnur zieht an der Glocke.“"
+      },
+      {
+        "fact": "Funkelflug trennte die dünne Schnur vom Glockenzug.",
+        "quote": "Dann zog Funkelflug das letzte Schnurende aus der Schlaufe."
+      },
+      {
+        "fact": "Der Bodenweg erhielt wieder ein verlässliches Glockensignal.",
+        "quote": "Funkelflug zog dreimal am richtigen Glockenseil."
+      }
+    ],
+    "relationships": [
+      {
+        "fact": "Nora überließ Ben eine wichtige Entscheidung.",
+        "quote": "„Ben entscheidet, wann wir ziehen“, sagte Nora."
+      }
+    ],
+    "openThreads": [
+      {
+        "fact": "In der Wegewarte hängt ein frisch benutztes Schild mit einer unbekannten Wegangabe.",
+        "quote": "Auf dem Holz stand: UNTERE RUNDE – BEI OSTWIND."
+      }
+    ],
+    "context": [
+      "Ein würdiger Empfang\nFunkelflug wollte heute endlich wie ein richtiger, wichtiger Drache empfangen werden. Deshalb stand er vor seiner kleinen Höhle und versuchte, sich mit den Zähnen ein gelbes Band umzulegen.",
+      "Das Band war lang. Seine Arme waren kurz.",
+      "Ben zeigte auf die Schnur. Sie zitterte.",
+      "„Der Laden zieht an der Schnur“, sagte Ben. „Und die Schnur zieht an der Glocke.“",
+      "Funkelflug sah zu seinem Amtsband hinunter.",
+      "Nora nahm die Hand zurück.",
+      "„Ben entscheidet, wann wir ziehen“, sagte Nora.",
+      "Funkelflug schnaubte Staub aus der Nase, ohne zu niesen. „Sehr gut. Ich entscheide inzwischen, welcher Fuß mir gehört.“",
+      "„Jetzt.“",
+      "Dann zog Funkelflug das letzte Schnurende aus der Schlaufe.",
+      "Tom ließ den Fensterladen vorsichtig los.",
+      "Gemeinsam wickelten sie das gelbe Band vom Klöppel. An einer Stelle war es dunkel verschmiert. Zwei Buchstaben waren kaum noch zu lesen, und das Ende hatte lange Fransen.",
+      "Funkelflug legte es trotzdem um.",
+      "Dann prüfte er das dicke Seil. Ein kurzer Zug: ein klarer Schlag. Kein Nachläuten. Der Fensterladen klappte, ohne die Glocke mitzunehmen.",
+      "Funkelflug zog dreimal am richtigen Glockenseil.",
+      "Der Klang sprang über den Kiesplatz und den Hang hinunter.",
+      "Später saßen sie vor der Warte auf Toms Decke. Das Brot roch nach Butter, die Apfelschalen knackten, und vom Weg winkten die beiden Wanderer auf ihrem Rückweg.",
+      "Funkelflug hob gerade die Hand, als Ben etwas hinter dem offenen Fensterladen entdeckte.",
+      "Dort hing ein kleines Holzschild an einem blanken Haken. Die helle Stelle darunter zeigte, dass es erst vor Kurzem bewegt worden war.",
+      "Auf dem Holz stand: UNTERE RUNDE – BEI OSTWIND.",
+      "Nora las es zweimal.",
+      "„Wer geht denn hier eine untere Runde?“",
+      "Funkelflug betrachtete die abgelöste Schnur, die ordentlich auf der Fensterbank lag.",
+      "„Jemand, der gern läutet. Aber nicht gern erklärt.“",
+      "Heute blieb das Schild, wo es war. Erst einmal gab es Brot.",
+      "Tom hob seine Apfelspalte. „Auf den Bodenweghüter.“",
+      "Funkelflug stand auf und verbeugte sich feierlich.",
+      "Dabei fiel ihm das ausgefranste Amtsband quer unter die Nase.",
+      "Ben kaute zu Ende.",
+      "„Jetzt hast du einen Schnurrbart.“",
+      "Funkelflug hob das Kinn.",
+      "„Dienstlich.“"
+    ]
+  },
+  "stages": [
+    {
+      "stage": "series-author",
+      "modelUsed": "openai/gpt-6.1-sol",
+      "modelRole": "selected-story",
+      "durationMs": 104176,
+      "usage": {
+        "prompt": 3678,
+        "completion": 3435,
+        "total": 7113,
+        "costUSD": 0.0435435
+      }
+    },
+    {
+      "stage": "series-editorial-review",
+      "modelUsed": "openai/gpt-6.1-terra",
+      "modelRole": "support",
+      "durationMs": 3101,
+      "usage": {
+        "prompt": 4500,
+        "completion": 98,
+        "total": 4598,
+        "costUSD": 0.00611425
+      }
+    }
+  ],
+  "costs": {
+    "prompt": 8178,
+    "completion": 3533,
+    "total": 11711,
+    "costUSD": 0.049657,
+    "calls": 2,
+    "imageCostUSD": 0,
+    "totalUSD": 0.049657
+  },
+  "note": "Real API costs of this run. A reused manuscript is explicitly excluded. Production avatar-development call excluded; no database writes."
+}

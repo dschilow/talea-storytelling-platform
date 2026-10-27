@@ -41,7 +41,7 @@ export default function StepCharacterSeries({ selection, onSelect, series, loadi
     <div className="space-y-5">
       <WizardStepHeading
         title="Wen möchtet ihr treffen?"
-        subtitle="Entdeckt eine Figurenwelt oder setzt ein gemeinsames Abenteuer fort."
+        subtitle="Erlebt eure erste Begegnung mit der Figur und entdeckt ihre Welt. Bei späteren Besuchen geht eure Geschichte weiter."
       />
 
       <div className="space-y-2" aria-label="Geschichtenart auswählen">

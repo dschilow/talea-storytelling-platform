@@ -23,6 +23,15 @@ const { createOpenRouterStorybookLlm, isFlexRefusal } = await import("./llm-open
 const request = { stage: "book-chapters-2-4", role: "writer" as const, model: "openai/gpt-6.1-sol", system: "s", user: "u", json: false, maxTokens: 100, serviceTier: "flex" as const };
 
 describe("flex tier (2026-10-16)", () => {
+  test("a budgeted pipeline makes one attempt and reports failure without hidden retries", async () => {
+    calls.length = 0;
+    flexRefusals = Infinity;
+    const failed: string[] = [];
+    const llm = createOpenRouterStorybookLlm({ singleAttempt: true, onFailedAttempt: r => failed.push(r.stage) });
+    await expect(llm(request)).rejects.toThrow('capacity');
+    expect(calls).toHaveLength(1);
+    expect(failed).toEqual([request.stage]);
+  });
   test("a refused flex call is repeated once on the standard tier with the same model", async () => {
     calls.length = 0;
     flexRefusals = Infinity;

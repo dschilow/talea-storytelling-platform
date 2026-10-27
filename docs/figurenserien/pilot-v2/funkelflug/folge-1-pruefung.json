@@ -1,0 +1,187 @@
+{
+  "seriesId": "funkelflug",
+  "episode": 1,
+  "version": 2,
+  "contractHash": "2dd4eb0ce34cfce6dcee09c41b2e080f6da767fb10e13149bcc7f53536771b5f",
+  "models": {
+    "writer": "openai/gpt-6.1-sol",
+    "support": "openai/gpt-6-luna",
+    "critic": "openai/gpt-6.1-terra"
+  },
+  "imageModel": "runware:400@2",
+  "policy": {
+    "version": 2,
+    "picturesPerChapter": 1,
+    "maxImageCalls": 6,
+    "maxLlmCalls": 12,
+    "llmStopAfterUSD": 0.08,
+    "longLlmStopAfterUSD": 0.12,
+    "maxTextRepairs": 1
+  },
+  "fictionalAvatars": [
+    "Nora",
+    "Ben"
+  ],
+  "reusedTextFrom": "Logs/character-series-v2/funkelflug/episode-1/result.json",
+  "status": "accepted-with-missing-images",
+  "log": {
+    "episode": 1,
+    "storyId": "fictional-v2-funkelflug-1",
+    "avatarIds": [
+      "fictional-nora",
+      "fictional-ben"
+    ],
+    "events": [
+      {
+        "fact": "Funkelflug begegnet Nora, Ben und ihrem Vater Tom zum ersten Mal.",
+        "quote": "„Ich bin Nora. Das ist mein Bruder Ben. Und das ist unser Papa Tom.“"
+      },
+      {
+        "fact": "Gemeinsam öffnen sie den blockierten Bodenweg zur Höhlenwiese.",
+        "quote": "Nach und nach kamen die Wanderer durch den niedrigen Durchgang."
+      },
+      {
+        "fact": "Funkelflug übernimmt vorerst den Bodenweg zur Höhlenwiese.",
+        "quote": "„Ich übernehme vorerst den Bodenweg zur Höhlenwiese“, sagte Funkelflug."
+      }
+    ],
+    "relationships": [
+      {
+        "fact": "Nora und Ben lernen Funkelflug kennen und bewältigen mit ihm ihr erstes Abenteuer.",
+        "quote": "„Ohne eure Zeichen hätte ich die Leute nicht um die Ecke gekriegt“, sagte Funkelflug."
+      }
+    ],
+    "openThreads": [
+      {
+        "fact": "Ein gezeichnetes Zeichen und eine innen verknotete zweite Glockenschnur werfen eine Frage auf.",
+        "quote": "„Wer hat dann heute geläutet?“, fragte Nora."
+      }
+    ],
+    "context": [
+      "Der große kurze Flug\nFunkelflug wollte als richtiger Drache ernst genommen werden. Deshalb stand er auf einem kniehohen Felsen und übte, möglichst gewaltig auf eine leere Wiese hinunterzusehen.",
+      "Er hob seine winzigen Flügel.",
+      "„Genauigkeit wird unterschätzt“, sagte Funkelflug.",
+      "Nora stellte die Dose ab. „Ich bin Nora. Das ist mein Bruder Ben. Und das ist unser Papa Tom.“",
+      "„Funkelflug“, sagte der Drache. „Flugvorführungen und besondere Auftritte.“",
+      "„Jetzt!“, rief er durchs Fenster.",
+      "Nach und nach kamen die Wanderer durch den niedrigen Durchgang. Nora zeigte jedem die rechte Seite. Einer verbeugte sich beim Herauskommen unfreiwillig so tief, dass seine Mütze ins Gras fiel.",
+      "Funkelflug hob sie auf.",
+      "Auf der Höhlenwiese roch es nach warmem Gras und Birnen. Nora öffnete die Dose, Ben breitete endlich die Decke zum Sitzen aus.",
+      "„Ohne eure Zeichen hätte ich die Leute nicht um die Ecke gekriegt“, sagte Funkelflug.",
+      "„Ohne deinen Gang hätten wir noch einen Tisch im Tunnel“, sagte Nora.",
+      "Am steinernen Feuerplatz lag bereits Holz für das kleine Lagerfeuer der Wandergruppe bereit. Als Funkelflug eine staubige Deckenfalte ausschüttelte, kitzelte es ihn in der Nase.",
+      "„Hap—TSCHI!“",
+      "Ein paar Funken hüpften genau dorthin.",
+      "Tom, der oft Lagerfeuer betreute, übernahm sofort den Feuerplatz. Das Wasser stand neben ihm; die Kinder setzten sich mit ihren Broten auf die Picknickdecke.",
+      "Bald knackte es leise. Funkelflug betrachtete seine Nase misstrauisch.",
+      "„Keine Vorführung“, erklärte er.",
+      "Später gingen sie gemeinsam zur Wegewarte. Neben der Tür entdeckte Ben eine Zeichnung im Holz: drei kurze Striche unter einem gebogenen Pfeil.",
+      "„Das Zeichen ist auch am unteren Wegstein“, sagte Nora.",
+      "Unter dem Dach hing das alte Glockenseil. Daneben verlief eine zweite, dünnere Schnur durch den Spalt, den sie beim Läuten gesehen hatten. Hinter dem offenen Fensterladen war sie von innen verknotet.",
+      "Tom fasste nichts an.",
+      "Funkelflug schaute vom Knoten zur Glocke.",
+      "„Die bewegt sich nicht von allein.“",
+      "„Wer hat dann heute geläutet?“, fragte Nora.",
+      "Darauf wusste niemand eine Antwort.",
+      "Funkelflug sah zum nun freien Durchgang hinunter.",
+      "„Ich übernehme vorerst den Bodenweg zur Höhlenwiese“, sagte Funkelflug.",
+      "Die Abendsonne warf seinen Schatten riesengroß gegen die Wand. Auch die Flügel sahen gewaltig aus.",
+      "Ben betrachtete lieber Funkelflugs kleine Füße.",
+      "„Die waren heute besser.“",
+      "Funkelflug wackelte mit den Zehen.",
+      "„Sonderausstattung.“"
+    ]
+  },
+  "pictures": {
+    "accepted": false,
+    "imageCalls": 5,
+    "imagesGenerated": 3,
+    "regenerated": [
+      2
+    ]
+  },
+  "stages": [
+    {
+      "stage": "series-picture-direction",
+      "modelUsed": "openai/gpt-6-luna",
+      "modelRole": "support",
+      "durationMs": 18815,
+      "usage": {
+        "prompt": 5917,
+        "completion": 1399,
+        "total": 7316,
+        "costUSD": 0.00075894
+      }
+    },
+    {
+      "stage": "image-qa-1",
+      "modelUsed": "openai/gpt-6.1-terra",
+      "modelRole": "support",
+      "durationMs": 6292,
+      "usage": {
+        "prompt": 3984,
+        "completion": 213,
+        "total": 4197,
+        "costUSD": 0.00604425
+      }
+    },
+    {
+      "stage": "image-qa-2",
+      "modelUsed": "openai/gpt-6.1-terra",
+      "modelRole": "support",
+      "durationMs": 6777,
+      "usage": {
+        "prompt": 5184,
+        "completion": 217,
+        "total": 5401,
+        "costUSD": 0.00756425
+      }
+    },
+    {
+      "stage": "image-qa-3",
+      "modelUsed": "openai/gpt-6.1-terra",
+      "modelRole": "support",
+      "durationMs": 7975,
+      "usage": {
+        "prompt": 5143,
+        "completion": 339,
+        "total": 5482,
+        "costUSD": 0.008123
+      }
+    },
+    {
+      "stage": "image-qa-4",
+      "modelUsed": "openai/gpt-6.1-terra",
+      "modelRole": "support",
+      "durationMs": 10039,
+      "usage": {
+        "prompt": 5143,
+        "completion": 595,
+        "total": 5738,
+        "costUSD": 0.009403
+      }
+    },
+    {
+      "stage": "image-qa-5",
+      "modelUsed": "openai/gpt-6.1-terra",
+      "modelRole": "support",
+      "durationMs": 5485,
+      "usage": {
+        "prompt": 5184,
+        "completion": 209,
+        "total": 5393,
+        "costUSD": 0.00752425
+      }
+    }
+  ],
+  "costs": {
+    "prompt": 30555,
+    "completion": 2972,
+    "total": 33527,
+    "costUSD": 0.039417,
+    "calls": 6,
+    "imageCostUSD": 0.01313,
+    "totalUSD": 0.052546999999999996
+  },
+  "note": "Real API costs of this run. A reused manuscript is explicitly excluded. Production avatar-development call excluded; no database writes."
+}

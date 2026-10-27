@@ -1,3 +1,4 @@
+// @ts-ignore Bun test helpers are runtime-only in the Encore project.
 import { describe, expect, test } from "bun:test";
 import { chooseSeries, extractSeriesLog, nextSeriesEpisode, seriesPrompt, validateSeriesLog, type CharacterSeriesBible, type SeriesEpisodeLog } from "./core";
 import bibles from "./series-bibles.json";

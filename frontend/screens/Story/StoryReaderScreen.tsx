@@ -18,6 +18,7 @@ import type { Story, Chapter } from '../../types/story';
 import type { Avatar, InventoryItem, Skill } from '../../types/avatar';
 import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExportLoader';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
+import { SeriesArtNotice } from '../../components/story/SeriesArtNotice';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
 import { useOfflineScope } from '../../contexts/OfflineScopeContext';
@@ -597,6 +598,7 @@ const StoryReaderScreen: React.FC = () => {
                     <p className="mt-4 max-w-2xl text-base font-medium leading-7 text-slate-600 dark:text-slate-300">
                       {story.summary}
                     </p>
+                    <SeriesArtNotice story={story} />
                     {imagesSkipped ? (
                       <div className="mt-4 flex max-w-2xl items-start gap-3 rounded-[24px] border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm font-medium text-amber-800 dark:border-amber-900/70 dark:bg-amber-950/30 dark:text-amber-200">
                         <ImageOff className="mt-0.5 h-4 w-4 shrink-0" />

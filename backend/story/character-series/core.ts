@@ -1,4 +1,6 @@
 export const CHARACTER_SERIES_ENGINE = "character-series-v1";
+/** A new personal timeline; previously generated stories stay in the library. */
+export const CHARACTER_SERIES_VERSION = 2;
 
 export interface CharacterSeriesBible {
   id: string;
@@ -18,6 +20,29 @@ export interface SeriesEpisodeLog {
   events: SeriesLogEntry[];
   relationships: SeriesLogEntry[];
   openThreads: SeriesLogEntry[];
+  /** Literal context around the last episode's recorded events, not generated summaries. */
+  context?: string[];
+}
+
+export function withSeriesContext(log: SeriesEpisodeLog, storyText: string): SeriesEpisodeLog {
+  const paragraphs = storyText.replace(/\r\n/g, '\n').split(/\n\n+/).map(p => p.trim()).filter(Boolean);
+  const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
+  const indexes = new Set<number>([0, 1]);
+  for (const item of [...log.events, ...log.relationships, ...log.openThreads]) {
+    const index = paragraphs.findIndex(p => norm(p).includes(norm(item.quote)));
+    if (index >= 0) for (const nearby of [index - 1, index, index + 1]) if (nearby >= 0 && nearby < paragraphs.length) indexes.add(nearby);
+  }
+  // The final stretch often contains a planted object whose question alone would omit its meaning.
+  let ending = 0;
+  for (let i = paragraphs.length - 1; i >= 0 && ending < 1300; i--) { indexes.add(i); ending += paragraphs[i].length; }
+  const context: string[] = [];
+  let chars = 0;
+  for (const i of [...indexes].sort((a, b) => a - b)) {
+    const paragraph = paragraphs[i];
+    if (paragraph.length > 1500 || chars + paragraph.length > 5000) continue;
+    context.push(paragraph); chars += paragraph.length;
+  }
+  return { ...log, context };
 }
 
 /** Deleted episodes leave gaps; the remaining numbers must never go backwards. */
@@ -76,7 +101,8 @@ export function seriesPrompt(bible: CharacterSeriesBible, logs: SeriesEpisodeLog
   const history = logs.map((log) => {
     const involved = avatars.filter((avatar) => log.avatarIds.includes(avatar.id)).map((avatar) => `${avatar.name} [${avatar.id}]`);
     const lines = (entries: SeriesLogEntry[]) => entries.map((entry) => `- „${entry.quote}“`).join("\n") || "- keine";
-    return `FOLGE ${log.episode}; damals beteiligte heutige Avatare: ${involved.join(", ") || "keine"}\nTEXTAUSSCHNITTE ZU EREIGNISSEN:\n${lines(log.events)}\nWEITERE BEZIEHUNGS-AUSSCHNITTE:\n${lines(log.relationships)}\nWEITERE ALS MÖGLICHE FÄDEN MARKIERTE AUSSCHNITTE (spätere Folgen können diese auflösen):\n${lines(log.openThreads)}`;
+    const context = log === logs[logs.length - 1] && log.context?.length ? `\nWÖRTLICHER ZUSAMMENHANG DER LETZTEN FOLGE (Auswahl, keine vollständige Geschichte):\n${log.context.join('\n\n')}` : '';
+    return `FOLGE ${log.episode}; damals beteiligte heutige Avatare: ${involved.join(", ") || "keine"}\nTEXTAUSSCHNITTE ZU EREIGNISSEN:\n${lines(log.events)}\nWEITERE BEZIEHUNGS-AUSSCHNITTE:\n${lines(log.relationships)}\nWEITERE ALS MÖGLICHE FÄDEN MARKIERTE AUSSCHNITTE (spätere Folgen können diese auflösen):\n${lines(log.openThreads)}${context}`;
   }).join("\n\n");
   return [
     "VERBINDLICHE FIGURENSERIE — diese Angaben gehen allgemeinen Ideen- und Wunder-Vorgaben vor. Behalte die Weltregeln, Figuren und ihre Beziehungen bei.",

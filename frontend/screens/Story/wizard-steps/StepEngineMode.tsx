@@ -54,12 +54,12 @@ const LANES: Array<{
   {
     id: 'character-series',
     title: 'Figurenserie',
-    badge: 'Neu · Test',
+    badge: 'Überarbeitet · Test',
     icon: 'books3',
     tone: TONE.mint,
     description:
       'Erlebe mit deinen Avataren die Vorgeschichte einer Talea-Figur und kehre in weiteren Folgen in ihre Welt zurück. Wähle eine Figur selbst oder lass dich passend zur gewählten Welt überraschen.',
-    note: 'Die erste Folge beginnt beim Ursprung; spätere Folgen setzen eure gemeinsamen Abenteuer fort.',
+    note: 'Beim ersten Besuch lernt ihr die Figur und ihre Welt kennen. Danach geht euer gemeinsames Abenteuer weiter – mit einem Bild pro Kapitel und einem Cover.',
   },
   {
     id: 'wonder',

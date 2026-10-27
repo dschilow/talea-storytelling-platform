@@ -1,6 +1,6 @@
 import { APIError } from "encore.dev/api";
 import { storyDB } from "../db";
-import { chooseSeries, CHARACTER_SERIES_ENGINE, nextSeriesEpisode, type CharacterSeriesBible, type SeriesEpisodeLog } from "./core";
+import { chooseSeries, CHARACTER_SERIES_ENGINE, CHARACTER_SERIES_VERSION, nextSeriesEpisode, type CharacterSeriesBible, type SeriesEpisodeLog } from "./core";
 import bibles from "./series-bibles.json";
 
 export const SERIES = bibles as CharacterSeriesBible[];
@@ -16,6 +16,7 @@ export async function seriesProgress(userId: string, profileId: string): Promise
     FROM stories
     WHERE user_id = ${userId} AND primary_profile_id = ${profileId} AND status = 'complete'
       AND config::jsonb->>'storybookEngine' = ${CHARACTER_SERIES_ENGINE}
+      AND config::jsonb->>'characterSeriesVersion' = ${String(CHARACTER_SERIES_VERSION)}
     ORDER BY created_at ASC, id ASC
   `;
 }
@@ -44,6 +45,7 @@ export async function reserveSeries(tx: Awaited<ReturnType<typeof storyDB.begin>
     FROM stories
     WHERE user_id = ${input.userId} AND primary_profile_id = ${input.profileId} AND status = 'complete'
       AND config::jsonb->>'storybookEngine' = ${CHARACTER_SERIES_ENGINE}
+      AND config::jsonb->>'characterSeriesVersion' = ${String(CHARACTER_SERIES_VERSION)}
     GROUP BY config::jsonb->>'characterSeriesId'
   `;
   const pool = await tx.queryAll<{ id: string }>`
@@ -57,6 +59,7 @@ export async function reserveSeries(tx: Awaited<ReturnType<typeof storyDB.begin>
     SELECT config::jsonb->>'characterSeriesId' AS character_series_id FROM stories
     WHERE user_id = ${input.userId} AND primary_profile_id = ${input.profileId}
       AND status = 'generating' AND config::jsonb->>'storybookEngine' = ${CHARACTER_SERIES_ENGINE}
+      AND config::jsonb->>'characterSeriesVersion' = ${String(CHARACTER_SERIES_VERSION)}
   `;
   const activeIds = new Set(activeRows.map((row) => row.character_series_id));
   const idle = available.filter((entry) => !activeIds.has(entry.id));

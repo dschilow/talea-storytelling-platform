@@ -11,6 +11,7 @@ import { TracingBeam } from '../../components/ui/tracing-beam';
 import { TextGradientScroll } from '../../components/ui/text-gradient-scroll';
 import type { Story, Chapter } from '../../types/story';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
+import { SeriesArtNotice } from '../../components/story/SeriesArtNotice';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';
 import { useOfflineScope } from '../../contexts/OfflineScopeContext';
@@ -284,6 +285,7 @@ const StoryScrollReaderScreen: React.FC = () => {
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mb-10 leading-relaxed">
               {story.summary}
             </p>
+            <SeriesArtNotice story={story} />
             <motion.button
               onClick={startReading}
               className="px-10 py-4 bg-gradient-to-r from-stone-600 to-amber-600 text-white font-bold text-lg rounded-full shadow-xl hover:shadow-2xl transition-all"

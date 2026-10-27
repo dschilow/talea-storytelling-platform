@@ -177,6 +177,7 @@ export interface Story {
     imagesGenerated?: number;
     developerMode?: boolean;
     releaseReady?: boolean;
+    characterSeriesArt?: { state: 'complete' | 'partial'; missingChapters: number[]; coverMissing: boolean; approved: number; planned: number };
     status?: "ok" | "quality_gate_failed";
     imagesSkippedDueToQualityGate?: boolean;
     qualityGatePassed?: boolean;

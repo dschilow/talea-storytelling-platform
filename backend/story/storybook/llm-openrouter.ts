@@ -87,6 +87,8 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
 }
 
 export interface OpenRouterPortOptions {
+  /** Budgeted pipelines count every provider request and handle failure themselves. */
+  singleAttempt?: boolean;
   /** Receives every billed attempt, including failed ones, for the cost ledger. */
   onFailedAttempt?: (request: LlmRequest, billed: LlmCallResult | undefined, error: unknown) => void;
   /**
@@ -117,6 +119,10 @@ export function createOpenRouterStorybookLlm(options: OpenRouterPortOptions = {}
   const standard = standardPort(options);
   const retryDelay = options.flexRetryDelayMs ?? DEFAULT_FLEX_RETRY_DELAY_MS;
   return async (request) => {
+    if (options.singleAttempt) {
+      try { return await callOnce(request, request.model); }
+      catch (error) { options.onFailedAttempt?.(request, (error as any)?.billed, error); throw error; }
+    }
     if (request.serviceTier !== "flex") return standard(request);
     try {
       return await callOnce(request, request.model);

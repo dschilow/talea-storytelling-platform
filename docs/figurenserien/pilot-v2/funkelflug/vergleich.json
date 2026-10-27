@@ -1,0 +1,150 @@
+{
+  "date": "2026-10-27",
+  "sourceText": "Logs/character-series-v2/funkelflug/episode-1/result.json",
+  "sourceImages": "Logs/character-series-v2/release-checked/episode-1/result.json",
+  "sourceContinuation": "Logs/character-series-v2/continuity-fix/episode-2/result.json",
+  "fictionalAvatars": [
+    "Nora",
+    "Ben"
+  ],
+  "textQuality": {
+    "status": "passed",
+    "issues": [
+      "Die Funken scheinen zur Deckenfalte zu fliegen; wie sie das Holz am Feuerplatz entzünden, bleibt unklar."
+    ]
+  },
+  "imageModel": "runware:400@2",
+  "imageCalls": 5,
+  "images": [
+    {
+      "page": 0,
+      "status": "passed",
+      "qa": {
+        "anatomyDefects": [],
+        "animalFeaturesOnHumans": [],
+        "duplicates": [],
+        "unexpectedCharacters": [],
+        "roleSwaps": [],
+        "sceneDefects": [],
+        "sceneFixes": [],
+        "elementMisuse": [],
+        "featureBleed": [],
+        "missing": [],
+        "posing": false,
+        "textVisible": false,
+        "referenceSheetVisible": false,
+        "identityMatch": 0.98,
+        "sceneMatch": 0.98,
+        "namedCharactersVisible": 1,
+        "styleMatch": 0.9,
+        "styleDefects": [],
+        "primaryActionClear": true,
+        "criticalSceneDefects": []
+      }
+    },
+    {
+      "page": 1,
+      "status": "passed",
+      "qa": {
+        "anatomyDefects": [],
+        "animalFeaturesOnHumans": [],
+        "duplicates": [],
+        "unexpectedCharacters": [],
+        "roleSwaps": [],
+        "sceneDefects": [],
+        "sceneFixes": [],
+        "elementMisuse": [],
+        "featureBleed": [],
+        "missing": [],
+        "posing": false,
+        "textVisible": false,
+        "referenceSheetVisible": false,
+        "identityMatch": 0.98,
+        "sceneMatch": 0.98,
+        "namedCharactersVisible": 2,
+        "styleMatch": 0.9,
+        "styleDefects": [],
+        "primaryActionClear": true,
+        "criticalSceneDefects": []
+      }
+    },
+    {
+      "page": 2,
+      "status": "failed",
+      "qa": {
+        "anatomyDefects": [
+          "Funkelflug's visible arm is merged with a wing."
+        ],
+        "animalFeaturesOnHumans": [],
+        "duplicates": [],
+        "unexpectedCharacters": [],
+        "roleSwaps": [],
+        "sceneDefects": [
+          "The passage appears open; the board blocking it is not visible.",
+          "Funkelflug's wings are spread rather than folded."
+        ],
+        "sceneFixes": [
+          "Show the broad wooden board blocking the low passage.",
+          "Fold Funkelflug's wings against his back."
+        ],
+        "elementMisuse": [],
+        "featureBleed": [],
+        "missing": [],
+        "posing": false,
+        "textVisible": false,
+        "referenceSheetVisible": false,
+        "identityMatch": 0.9,
+        "sceneMatch": 0.5,
+        "namedCharactersVisible": 2,
+        "styleMatch": 0.9,
+        "styleDefects": [],
+        "primaryActionClear": false,
+        "criticalSceneDefects": [
+          "The missing board leaves the blocked passage and Funkelflug's choice to help unclear."
+        ]
+      }
+    },
+    {
+      "page": 3,
+      "status": "passed",
+      "qa": {
+        "anatomyDefects": [],
+        "animalFeaturesOnHumans": [],
+        "duplicates": [],
+        "unexpectedCharacters": [],
+        "roleSwaps": [],
+        "sceneDefects": [],
+        "sceneFixes": [],
+        "elementMisuse": [],
+        "featureBleed": [],
+        "missing": [],
+        "posing": false,
+        "textVisible": false,
+        "referenceSheetVisible": false,
+        "identityMatch": 1,
+        "sceneMatch": 1,
+        "namedCharactersVisible": 2,
+        "styleMatch": 0.95,
+        "styleDefects": [],
+        "primaryActionClear": true,
+        "criticalSceneDefects": []
+      }
+    }
+  ],
+  "costUSD": {
+    "text": 0.045746499999999996,
+    "artLlm": 0.039417,
+    "imageGeneration": 0.01313,
+    "combined": 0.09829349999999999,
+    "oldUploadedStory": 0.156457
+  },
+  "excluded": "Production avatar-development call, production database/storage operations. Earlier rejected development experiments are excluded from this per-episode comparison. Text and imagery were measured separately; this was not one authenticated production request.",
+  "continuation": {
+    "title": "Die Glocke hat Schluckauf",
+    "textCostUSD": 0.049657,
+    "textQuality": {
+      "status": "passed",
+      "issues": []
+    }
+  }
+}

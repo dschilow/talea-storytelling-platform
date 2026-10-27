@@ -41,6 +41,10 @@ import { loadArtifactOptions, loadCastCandidates, recordCastUsage } from "./stor
 import { loadPoolRows } from "./storybook/casting";
 import { toCastCandidate } from "./storybook/cast-selection";
 import { CHARACTER_SERIES_ENGINE } from "./character-series/core";
+import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, seriesBudget } from "./character-series/authoring";
+import { SERIES_NARRATIVES } from "./character-series/narrative";
+import { runCharacterSeriesTextEngine, seriesLlmBudget } from "./character-series/engine";
+import { directSeriesPictures, generateSeriesImages } from "./character-series/pictures";
 import { loadHeroMemories, loadStorybookHistory } from "./storybook/history";
 import { CostLedger, resolveStorybookModels } from "./storybook/llm";
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
@@ -110,6 +114,7 @@ function pageTitle(language: string | undefined, order: number): string {
 }
 
 function imageSteps(model: string): number {
+  if (model === SERIES_IMAGE_MODEL) return 4;
   if (model === LIBRARY_IMAGE_MODEL) return LIBRARY_IMAGE_STEPS;
   const configured = Number(process.env.TALEA_STORYBOOK_IMAGE_STEPS);
   return Number.isFinite(configured) && configured >= 4 && configured <= 28 ? Math.round(configured) : 4;
@@ -160,14 +165,14 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // Talea-Folge: the Originals' method for the family's own heroes (chapters with titles, like wonder).
   const seriesMode = config.storybookEngine === CHARACTER_SERIES_ENGINE;
   const episodeMode = config.storybookEngine === EPISODE_PIPELINE_ID || seriesMode;
-  const imageModel = episodeMode ? LIBRARY_IMAGE_MODEL : IMAGE_MODEL;
+  const imageModel = seriesMode ? SERIES_IMAGE_MODEL : episodeMode ? LIBRARY_IMAGE_MODEL : IMAGE_MODEL;
   const chapterMode = wonderMode || episodeMode;
   const pipelineId = seriesMode ? CHARACTER_SERIES_ENGINE : episodeMode ? EPISODE_PIPELINE_ID : wonderMode ? WONDER_PIPELINE_ID : STORYBOOK_PIPELINE_ID;
   const ledger = new CostLedger();
   const resolved = resolveStorybookModels(config, { critic: process.env.TALEA_STORYBOOK_CRITIC_MODEL || undefined });
-  const models = episodeMode ? episodeProductionModels() : resolved;
+  const models = seriesMode ? SERIES_MODELS : episodeMode ? episodeProductionModels() : resolved;
   const band = normalizeAgeBand(config.ageGroup);
-  const budget = episodeMode ? episodeBudget(config.length, band) : wonderMode ? wonderBudget(config.length, band) : resolveLengthBudget(config.length, band);
+  const budget = seriesMode ? seriesBudget(config.length, band) : episodeMode ? episodeBudget(config.length, band) : wonderMode ? wonderBudget(config.length, band) : resolveLengthBudget(config.length, band);
   const seed = stableSeed(input);
   const avatarIds = input.heroes.map((hero) => String(hero.id || "")).filter(Boolean);
 
@@ -178,7 +183,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     loadStorybookHistory({ userId: input.userId, currentStoryId: input.storyId }),
     loadHeroMemories(avatarIds),
     loadCastCandidates({
-      enabled: config.useCharacterPool !== false,
+      enabled: !seriesMode && config.useCharacterPool !== false,
       preferLead: episodeMode && config.avatarIsHero === false,
       genre: config.genre,
       setting: config.setting,
@@ -195,7 +200,10 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     const leadRow = (await loadPoolRows()).find((row) => String(row.id) === input.characterSeries!.bible.characterId);
     const lead = leadRow ? toCastCandidate(leadRow) : null;
     if (!lead) throw new Error("Die Hauptfigur dieser Serie ist im aktiven Figurenpool nicht verfügbar.");
-    candidates = [{ ...lead, canLead: true }, ...initialCandidates.filter((candidate) => candidate.id !== lead.id)];
+    const narrative = SERIES_NARRATIVES[input.characterSeries.bible.id];
+    if (!narrative) throw new Error("Diese Figurenwelt hat noch keinen überarbeiteten Serienplan.");
+    const species = input.characterSeries.bible.id === "funkelflug" ? "dragon" : input.characterSeries.bible.id === "nebelfee" ? "fairy" : "human";
+    candidates = [{ ...lead, canLead: true, species, physicalDescription: narrative.look, visualProfile: { ...lead.visualProfile, species, description: narrative.look, imagePrompt: narrative.look } }];
   }
 
   const brief = buildBrief({
@@ -223,6 +231,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   }, pipelineId);
 
   const openRouterLlm = createOpenRouterStorybookLlm({
+    singleAttempt: seriesMode,
     onFailedAttempt: (request, billed, error) => {
       if (billed) ledger.recordCall(`${request.stage}-failed`, billed, request.role);
       // Why a call had to be repeated (flex refused, empty, truncated): "Der Riese hinterm Teig" paid 5.9 ¢ instead of
@@ -237,7 +246,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     },
   });
   // Flex covers every episode LLM call, and retries keep the same model.
-  const llm = episodeMode ? episodeProductionLlm(openRouterLlm, resolveEpisodeServiceTier()) : openRouterLlm;
+  const productionLlm = seriesMode ? openRouterLlm : episodeMode ? episodeProductionLlm(openRouterLlm, resolveEpisodeServiceTier()) : openRouterLlm;
+  const llm = seriesMode ? seriesLlmBudget(productionLlm, config.length) : productionLlm;
 
   // -------------------------------------------------------------------------
   // While the text is written, the picture side gets ready.
@@ -278,7 +288,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   };
   const heroEntities = Promise.all(brief.heroes.map(heroEntity));
   const poolEntities = Promise.all(candidates.map(castEntity));
-  const looksWarmUp = Promise.all([heroEntities, poolEntities])
+  const looksWarmUp = seriesMode ? Promise.resolve() : Promise.all([heroEntities, poolEntities])
     .then(([heroes, pool]) => describeReferenceLooks(llm, [...heroes, ...pool], models.support))
     .then((looks) => { if (looks.call) ledger.recordCall("reference-looks", looks.call, "support"); })
     .catch(() => undefined);
@@ -286,7 +296,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // -------------------------------------------------------------------------
   // 1) Text: concept → plan → draft → review → revision → final A/B.
   // -------------------------------------------------------------------------
-  const text = await (episodeMode ? runEpisodeTextEngine : wonderMode ? runWonderTextEngine : runStorybookTextEngine)({
+  const text = await (seriesMode ? runCharacterSeriesTextEngine : episodeMode ? runEpisodeTextEngine : wonderMode ? runWonderTextEngine : runStorybookTextEngine)({
     llm,
     brief,
     models,
@@ -294,9 +304,9 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId),
     // Sol plans silently and writes in one call. The separate Terra plan and editorial review (two-step, 987896c)
     // cost 1.4 ¢ more per story for the same writer (0ee9af53: 15.3 ¢); TALEA_EPISODE_MODE=two-step brings them back.
-    ...(episodeMode ? { options: { mode: seriesMode ? "one-shot" as const : resolveEpisodeMode(), editorialReview: true, serviceTier: resolveEpisodeServiceTier() } } : {}),
+    ...(episodeMode && !seriesMode ? { options: { mode: resolveEpisodeMode(), editorialReview: true, serviceTier: resolveEpisodeServiceTier() } } : {}),
   });
-  if (seriesMode && (!text.finalChecks.ok || text.textQuality.status === "failed")) {
+  if (seriesMode && (!text.finalChecks.ok || text.textQuality?.status === "failed")) {
     throw new Error("Die Folge konnte die erzählerischen Mindestprüfungen nicht bestehen. Der Serienstand bleibt unverändert.");
   }
   const wonder = "wonder" in text ? (text as import("./wonder/types").WonderResult).wonder : undefined;
@@ -336,14 +346,14 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // Everyone with a portrait was read while the text was written: this finds the looks cached (a call only when the
   // warm-up failed or the writer brought a figure it did not know).
   await looksWarmUp;
-  const known = await describeReferenceLooks(llm, entities, models.support);
+  const known = seriesMode ? { entities, call: undefined } : await describeReferenceLooks(llm, entities, models.support);
   if (known.call) ledger.recordCall("reference-looks", known.call, "support");
 
   // A new, story-local figure has no pool image. Its portrait is drawn from the writer's look — the same look the art
   // director reads — next to the direction instead of before it (story 5e583e1e waited 40 s between text and pictures);
   // the pictures then carry it on every relevant identity sheet. The looks are read from the unchanged entities, so the
   // cached ones are found again.
-  const identities = episodeMode
+  const identities = episodeMode && !seriesMode
     ? prepareGuestPortraits({ entities, guestIds: guests.map((guest) => guest.id), provider: encoreImageProvider(input.storyId, imageModel), seed, readableReference, portraitStyle: MODERN_CHILDRENS_BOOK_STYLE })
         .then(async (portraits) => {
           const looks = await describeReferenceLooks(llm, portraits.entities, models.support);
@@ -357,7 +367,9 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     : Promise.resolve({ entities: known.entities, portraits: [], calls: 0, costUSD: 0 });
   // Talea-Folge draws two pictures per chapter, each after the paragraph it shows, and every acting figure at least once
   // (the chapter book's picture machinery, ./episode/pictures.ts). Every other lane: one picture per page.
-  const directing: Promise<EpisodeDirection | undefined> = episodeMode
+  const directing: Promise<EpisodeDirection | undefined> = seriesMode
+    ? directSeriesPictures({ llm, model: models.support, brief, title: text.title, pages, entities: known.entities })
+    : episodeMode
     ? directEpisodePictures({ llm, model: models.support, brief, title: text.title, pages, plan, entities: known.entities }).catch((err) => {
         console.warn("[storybook] chapter pictures could not be directed, one picture per chapter instead:", (err as Error)?.message || err);
         return undefined;
@@ -383,7 +395,10 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
 
   const emptyImages: StorybookImagesResult = { pages: new Map(), imagesGenerated: 0, imageCalls: 0, imageCostUSD: 0, qaCalls: [], regenerated: [] };
   const [images, development] = await Promise.all([
-    generateStorybookImages({
+    (seriesMode ? generateSeriesImages({
+      illustrations, entities: pictureEntities, provider: encoreImageProvider(input.storyId, imageModel), seed, llm,
+      visionModel: models.critic, pageTexts: Object.fromEntries(picturePages.map(page => [page.order, page.content])),
+    }) : generateStorybookImages({
       illustrations,
       entities: pictureEntities,
       provider: encoreImageProvider(input.storyId, imageModel),
@@ -407,7 +422,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       jev: episodeMode || process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : createOpenRouterJevPort(resolveOpenRouterApiKey),
       pageTexts: Object.fromEntries(picturePages.map((page) => [page.order, page.content])),
       historical: !["modern", "scifi"].includes(config.genre || "") && ["fantasy", "medieval", "castle"].includes(config.setting || ""),
-    }).catch((err): StorybookImagesResult => {
+    })).catch((err): StorybookImagesResult => {
       console.warn("[storybook] image stage failed:", err);
       return emptyImages;
     }),
@@ -417,6 +432,9 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   images.qaCalls.forEach((call, index) => ledger.recordCall(`image-qa-${index + 1}`, call, "support"));
   images.jevCalls?.forEach((call, index) => ledger.recordCall(`image-jev-${index + 1}`, call, "support"));
   if (development.call) ledger.recordCall("avatar-development", development.call, "support");
+  if (seriesMode && (images.cover?.status !== "passed" || illustrations.pages.some(shot => images.pages.get(shot.page)?.status !== "passed"))) {
+    await logStage(input.storyId, "series-images-rejected", { imageCalls: images.imageCalls, imageCostUSD: images.imageCostUSD, policy: SERIES_POLICY, outcomes: [images.cover, ...images.pages.values()] }, pipelineId);
+  }
 
   // -------------------------------------------------------------------------
   // 3) Side effects: pool rotation, artifact economy.
@@ -466,7 +484,17 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const durationMs = Date.now() - startedAt;
   // Where the wait goes (story 5e583e1e had to be read off log timestamps): text includes casting and loading.
   const timingsMs = { text: textDoneAt - startedAt, pictureDirection: directedAt - textDoneAt, images: imagesDoneAt - directedAt, finish: Date.now() - imagesDoneAt };
-  const quality = storybookQuality(text, images, picturePages.map((page) => page.order));
+  const measuredQuality = storybookQuality(text, images, picturePages.map((page) => page.order));
+  // A verified episode remains readable when its illustration budget runs out. Failed pictures stay hidden;
+  // readers get an explicit coverage notice instead of paying for another whole story attempt.
+  const quality = seriesMode ? { ...measuredQuality, releaseReady: measuredQuality.textStatus === 'passed' } : measuredQuality;
+  const characterSeriesArt = seriesMode ? {
+    state: measuredQuality.imagesReady ? 'complete' : 'partial',
+    missingChapters: illustrations.pages.filter(shot => images.pages.get(shot.page)?.status !== 'passed').map(shot => shot.page),
+    coverMissing: images.cover?.status !== 'passed',
+    approved: measuredQuality.acceptedImages,
+    planned: illustrations.pages.length + 1,
+  } : undefined;
   const { releaseReady } = quality;
   // Talea-Folge: the delivered pictures of every chapter, each with the paragraph it follows.
   const pictures = direction ? chapterPictures(direction, images.pages) : [];
@@ -499,7 +527,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const metadata: Record<string, any> = {
     pipeline: pipelineId,
     generationMode: pipelineId,
-    ...(seriesMode ? { characterSeriesLogCandidate: episode?.seriesLogCandidate } : {}),
+    ...(seriesMode ? { characterSeriesLogCandidate: episode?.seriesLogCandidate, characterSeriesPolicy: SERIES_POLICY, characterSeriesArt } : {}),
     ...(wonder ? { wonder } : {}),
     ...(episode ? { episode: { mode: episode.mode, plan: episode.plan, checks: episode.checks, revised: episode.revised, renamed: episode.renamed } } : {}),
     model: models.writer,

@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronDown, Clock, Headphones } from 'lucide-react';
 import type { Avatar, Chapter, Story } from '../../../types/story';
 import { cn } from '../../../lib/utils';
 import { StoryAudioActions } from '../../../components/story/StoryAudioActions';
+import { SeriesArtNotice } from '../../../components/story/SeriesArtNotice';
 import { AdminGenerationMetrics } from '../../../components/story/AdminGenerationMetrics';
 import { StoryAlreadyReadNote } from '../../../components/story/StoryFinaleSheet';
 import { ReaderChapter } from './ReaderChapter';
@@ -200,6 +201,7 @@ export const StoryReaderView: React.FC<StoryReaderViewProps> = ({
 
             <h1 className="rd-hero-title">{story.title}</h1>
             {story.summary && <p className="rd-hero-summary">{story.summary}</p>}
+            <SeriesArtNotice story={story} />
 
             <motion.button
               type="button"

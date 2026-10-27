@@ -10,7 +10,7 @@ import { isOpenRouterCreditLimitError } from "./openrouter-generation";
 import type { Avatar, InventoryItem, Skill } from "../avatar/avatar";
 import { avatar } from "~encore/clients";
 import { storyDB } from "./db";
-import { CHARACTER_SERIES_ENGINE, extractSeriesLog, validateSeriesLog, nextSeriesEpisode, type CharacterSeriesBible, type SeriesEpisodeLog } from "./character-series/core";
+import { CHARACTER_SERIES_ENGINE, CHARACTER_SERIES_VERSION, extractSeriesLog, validateSeriesLog, withSeriesContext, nextSeriesEpisode, type CharacterSeriesBible, type SeriesEpisodeLog } from "./character-series/core";
 import { loadSeriesHistory, reserveSeries } from "./character-series/repository";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
@@ -592,7 +592,8 @@ export const generate = api<GenerateStoryRequest, Story>(
     ]);
     const inferredAgeGroup = ageToAgeGroup(primaryProfile.age);
     const profilePrompt = buildStoryProfilePrompt(primaryProfile);
-    const config: StoryConfig = {
+    // Internal persisted timeline marker, never a client-selectable API option.
+    const config: StoryConfig & { characterSeriesVersion?: number } = {
       ...req.config,
       ageGroup: req.config.ageGroup || inferredAgeGroup || "6-8",
       aiModel: effectiveAiModel,
@@ -609,6 +610,7 @@ export const generate = api<GenerateStoryRequest, Story>(
     if (config.storybookEngine === CHARACTER_SERIES_ENGINE) {
       config.storybookMode = true;
       config.avatarIsHero = false;
+      config.characterSeriesVersion = CHARACTER_SERIES_VERSION;
     }
     let characterSeries: { bible: CharacterSeriesBible; logs: SeriesEpisodeLog[] } | undefined;
     const mcpApiKey = mcpServerApiKey();
@@ -1214,7 +1216,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         const storyText = generatedStory.chapters.map((chapter: any) => `${chapter.title}\n${chapter.content}`).join("\n\n");
         const identity = { episode: nextSeriesEpisode(characterSeries.logs), storyId: id, avatarIds: config.avatarIds };
         const validated = validateSeriesLog(generatedStory.metadata?.characterSeriesLogCandidate, storyText, identity);
-        characterSeriesLog = validated.events.length ? validated : extractSeriesLog({ storyText, ...identity });
+        characterSeriesLog = withSeriesContext(validated.events.length ? validated : extractSeriesLog({ storyText, ...identity }), storyText);
         if (generatedStory.metadata) delete generatedStory.metadata.characterSeriesLogCandidate;
       }
 
