@@ -1105,19 +1105,3 @@ export async function exportDokuAsPDF(
     throw new Error(`PDF-Export fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
-
-/**
- * Check if PDF export is supported in current browser
- */
-export function isPDFExportSupported(): boolean {
-  try {
-    // Check if required APIs are available
-    return !!(
-      typeof document !== 'undefined' &&
-      document.createElement &&
-      HTMLCanvasElement.prototype.toDataURL
-    );
-  } catch {
-    return false;
-  }
-}

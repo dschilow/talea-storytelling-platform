@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { MotionConfig } from "framer-motion";
+import { toast } from "sonner";
 import App from "./App";
 import "./index.css";
 import "./styles/fonts";
@@ -24,6 +25,17 @@ const DISABLE_SW_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const STORAGE_USAGE_THRESHOLD = 0.92;
 const MIN_FREE_BYTES = 64 * 1024 * 1024;
 const VERBOSE_RUNTIME_WARNINGS_FLAG = "talea:verbose-runtime-warnings";
+// A new build waits until it is applied (vite.config.ts: registerType "prompt").
+// Found while the page is still starting, it replaces the old build at once —
+// nothing has been typed, read or played yet. Found later, it waits for a tap,
+// so a story being read or a wizard being filled is never reloaded under the
+// user. Without this, every open tab kept serving yesterday's build.
+const SILENT_UPDATE_WINDOW_MS = 15_000;
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+let userHasInteracted = false;
+for (const type of ["pointerdown", "keydown", "wheel"] as const) {
+  window.addEventListener(type, () => { userHasInteracted = true; }, { once: true, capture: true, passive: true });
+}
 
 function shouldKeepVerboseRuntimeWarnings(): boolean {
   if (import.meta.env.DEV) return true;
@@ -173,8 +185,29 @@ async function setupPwaRegistration(): Promise<void> {
   }
 
   const { registerSW } = await import("virtual:pwa-register");
-  registerSW({
+  const updateSW = registerSW({
     immediate: true,
+    onNeedRefresh() {
+      if (!userHasInteracted && performance.now() < SILENT_UPDATE_WINDOW_MS) {
+        void updateSW(true);
+        return;
+      }
+      toast("Neue Version von Talea", {
+        id: "app-update",
+        description: "Aktualisiere, sobald du gerade nichts eingibst.",
+        duration: Infinity,
+        action: { label: "Aktualisieren", onClick: () => void updateSW(true) },
+      });
+    },
+    onRegisteredSW(_swUrl, registration) {
+      if (!registration) return;
+      // A single-page app never navigates, so the browser would not look for a
+      // new sw.js while the tab stays open.
+      window.setInterval(() => {
+        if (document.visibilityState !== "visible" || !navigator.onLine) return;
+        registration.update().catch(() => {});
+      }, UPDATE_CHECK_INTERVAL_MS);
+    },
     onRegisterError(error) {
       console.warn("[PWA] SW registration failed", error);
     },

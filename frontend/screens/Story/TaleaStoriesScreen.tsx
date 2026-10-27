@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 import { useBackend } from "../../hooks/useBackend";
-import { exportStoryAsPDF, isPDFExportSupported } from "../../utils/pdfExport";
+import { exportStoryAsPDF, isPDFExportSupported } from "../../utils/pdfExportLoader";
 import type { Story } from "../../types/story";
 import { wereStoryImagesSkipped } from "../../utils/storyQualityGate";
 import { StoryParticipantsDialog } from "@/components/story/StoryParticipantsDialog";

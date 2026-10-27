@@ -25,6 +25,7 @@ import {
   refreshConnectivity,
   subscribeToOnlineStatus,
 } from './utils/connectivity';
+import { recoverFromStaleBuild, reloadToLatestVersion } from './utils/appUpdate';
 import { AgentProvider } from './agents';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
@@ -603,6 +604,10 @@ class ClerkErrorBoundary extends React.Component<
   componentDidCatch(error: Error) {
     if (isChunkLoadError(error)) {
       console.warn('[Talea] App component could not be loaded:', error);
+      // Almost always a tab still running the previous build after a deploy.
+      if (recoverFromStaleBuild()) {
+        this.setState({ message: 'Talea wurde aktualisiert. Die neue Version wird geladen …' });
+      }
       return;
     }
     if (isClerkFailure(error)) {
@@ -624,7 +629,7 @@ class ClerkErrorBoundary extends React.Component<
       return (
         <AppCrashScreen
           message={this.state.message}
-          onRetry={() => window.location.reload()}
+          onRetry={() => void reloadToLatestVersion()}
         />
       );
     }
@@ -643,7 +648,7 @@ function useClerkLoadFailureDetection(onFail: () => void) {
           id: 'chunk-load-error',
           description: 'Lade die Seite erneut, sobald du deine Eingaben abgeschlossen hast.',
           duration: Infinity,
-          action: { label: 'Neu laden', onClick: () => window.location.reload() },
+          action: { label: 'Neu laden', onClick: () => void reloadToLatestVersion() },
         });
         return;
       }

@@ -16,7 +16,7 @@ import { FactsComponent } from '../../components/reader/FactsComponent';
 import { ActivityComponent } from '../../components/reader/ActivityComponent';
 import { PersonalityChangeNotification } from '../../components/common/PersonalityDevelopment';
 import { GrowthCelebrationModal } from '../../components/avatar/GrowthCelebrationModal';
-import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
+import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExportLoader';
 import { getOfflineDoku } from '../../utils/offlineDb';
 import { useOfflineScope } from '../../contexts/OfflineScopeContext';
 import { emitMapProgress } from '../Journey/TaleaLearningPathProgressStore';

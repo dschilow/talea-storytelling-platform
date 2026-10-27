@@ -7,7 +7,7 @@ import { colors } from '../../utils/constants/colors';
 import { typography } from '../../utils/constants/typography';
 import { spacing, radii, shadows, animations } from '../../utils/constants/spacing';
 import { AvatarGroup } from '../ui/avatar-group';
-import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
+import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExportLoader';
 import { useBackend } from '../../hooks/useBackend';
 import { useOffline } from '../../contexts/OfflineStorageContext';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';

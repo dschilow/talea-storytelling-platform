@@ -16,7 +16,7 @@ import TreasureRewardsOverlay, { type TreasureRewardsPayload } from '../../compo
 import { GrowthCelebrationModal } from '../../components/avatar/GrowthCelebrationModal';
 import type { Story, Chapter } from '../../types/story';
 import type { Avatar, InventoryItem, Skill } from '../../types/avatar';
-import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
+import { exportStoryAsPDF, isPDFExportSupported } from '../../utils/pdfExportLoader';
 import { AudioPlayer } from '../../components/story/AudioPlayer';
 import { extractStoryParticipantIds } from '../../utils/storyParticipants';
 import { getOfflineStory } from '../../utils/offlineDb';

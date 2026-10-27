@@ -15,7 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { Doku } from '../../types/doku';
-import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExport';
+import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExportLoader';
 import { useBackend } from '../../hooks/useBackend';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useOffline } from '../../contexts/OfflineStorageContext';
