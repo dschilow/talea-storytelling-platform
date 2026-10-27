@@ -38,6 +38,8 @@ interface AvatarFormProps {
   lockedName?: string;
   lockedAge?: number;
   onPreviewInvalidated?: () => void;
+  onComplete?: () => void;
+  isCompleting?: boolean;
 }
 
 /** One wizard step = one screen the user clicks/swipes through. */
@@ -79,6 +81,8 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
   lockedName,
   lockedAge,
   onPreviewInvalidated,
+  onComplete,
+  isCompleting = false,
 }) => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -525,10 +529,10 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
         </span>
 
         {isLast ? (
-          <span className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white" style={{ background: isDark ? 'var(--primary)' : 'var(--primary)' }}>
+          <button type="button" onClick={onComplete} disabled={!onComplete || isCompleting || isGeneratingPreview} className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-55" style={{ background: 'var(--primary)' }}>
             <Check className="h-4 w-4" />
-            Fertig
-          </span>
+            {isCompleting ? 'Speichern…' : 'Fertig'}
+          </button>
         ) : (
           <button
             type="button"

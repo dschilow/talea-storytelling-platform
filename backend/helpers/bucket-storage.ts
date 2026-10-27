@@ -1,6 +1,7 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, PutBucketCorsCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
+import { keyFromOwnImageProxy } from "./avatar-image-url";
 
 type UploadMode = "off" | "data" | "always";
 type AccessMode = "public" | "private";
@@ -506,7 +507,7 @@ export async function normalizeImageUrlForStorage(
   const config = await pickConfig();
   if (!config) return imageUrl;
 
-  const key = extractBucketKey(imageUrl, config);
+  const key = extractBucketKey(imageUrl, config) || keyFromOwnImageProxy(imageUrl, await pickProxyBaseUrl());
   if (!key) return imageUrl;
 
   return buildStoredUrl(config, key);

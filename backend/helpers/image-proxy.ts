@@ -1,4 +1,5 @@
 import { getProxyBaseUrl, resolveImageUrlForClient } from "./bucket-storage";
+import { avatarImageProxyUrl } from "./avatar-image-url";
 
 const encodePathSegment = (value: string): string => encodeURIComponent(value);
 
@@ -8,7 +9,7 @@ export async function buildAvatarImageUrlForClient(
 ): Promise<string | undefined> {
   const base = await getProxyBaseUrl();
   if (base && avatarId) {
-    return `${base}/story/image/avatar/${encodePathSegment(avatarId)}`;
+    return avatarImageProxyUrl(base, avatarId, fallbackImageUrl);
   }
   return await resolveImageUrlForClient(fallbackImageUrl);
 }

@@ -434,21 +434,14 @@ const EditAvatarScreen: React.FC = () => {
         }
 
         const converted = toCompleteFormData(avatarToFormData(avatarData));
-        initialFormDataRef.current = converted;
+        const initialFormData = isChildAvatar && avatarProfile && avatarProfile.age != null
+          ? { ...converted, name: avatarProfile.name, age: avatarProfile.age, characterType: 'human' as const, customCharacterType: undefined }
+          : converted;
+        initialFormDataRef.current = initialFormData;
         initialImageUrlRef.current = (avatarData as any).imageUrl;
         setAvatar(avatarData);
         setPreviewUrl((avatarData as any).imageUrl);
-        setFormData(
-          isChildAvatar && avatarProfile && avatarProfile.age != null
-            ? {
-                ...converted,
-                name: avatarProfile.name,
-                age: avatarProfile.age,
-                characterType: 'human',
-                customCharacterType: undefined,
-              }
-            : converted
-        );
+        setFormData(initialFormData);
       } catch (error) {
         console.error('Could not load avatar for editing:', error);
         if (alive) {
@@ -538,6 +531,9 @@ const EditAvatarScreen: React.FC = () => {
         referenceImageUrl,
       });
 
+      if (!result.imageUrl || result.debugInfo?.success === false) {
+        throw new Error('Image generation returned no usable image');
+      }
       setPreviewUrl(result.imageUrl);
 
 
@@ -606,7 +602,7 @@ const EditAvatarScreen: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!avatarId || !resolvedProfileId || !formData.name.trim()) {
+    if (saving || regeneratingImage || !avatarId || !resolvedProfileId || !formData.name.trim()) {
       return;
     }
     if (!hasChanges) {
@@ -747,7 +743,7 @@ const EditAvatarScreen: React.FC = () => {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !formData.name.trim() || !hasChanges}
+            disabled={saving || regeneratingImage || !formData.name.trim() || !hasChanges}
             className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
             style={{
               borderColor: isDark ? '#425a74' : 'var(--primary)',
@@ -774,6 +770,8 @@ const EditAvatarScreen: React.FC = () => {
               onPreview={handleGeneratePreview}
               previewUrl={previewUrl}
               isGeneratingPreview={regeneratingImage}
+              onComplete={handleSave}
+              isCompleting={saving}
               mode="edit"
               childMode={avatar?.avatarRole === 'child'}
               lockedName={isChildAvatar ? avatarProfile?.name : undefined}
@@ -892,7 +890,7 @@ const EditAvatarScreen: React.FC = () => {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !formData.name.trim() || !hasChanges}
+            disabled={saving || regeneratingImage || !formData.name.trim() || !hasChanges}
             className="inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-white disabled:opacity-55"
             style={{
               borderColor: 'transparent',
