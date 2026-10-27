@@ -5,6 +5,7 @@
  */
 
 import type { SimpleAvatarCanon } from "../avatar/avatar-canon-simple";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 
 /**
  * Build image prompt for story chapters
@@ -31,7 +32,7 @@ export function buildImagePrompt(
 
   // 3. FINALER PROMPT
   return `
-Axel Scheffler watercolor storybook illustration with gentle gouache textures.
+${TALEA_IMAGE_STYLE}.
 ${environment}
 ${composition}
 SCENE: ${scene}
@@ -53,7 +54,7 @@ export class ImagePromptBuilder {
 
   constructor(
     private avatarCanons: Map<string, SimpleAvatarCanon>,
-    private style: string = "Axel Scheffler watercolor"
+    private style: string = TALEA_IMAGE_STYLE
   ) { }
 
   /**

@@ -4,6 +4,8 @@ import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { maybeUploadImageUrlToBucket } from "../helpers/bucket-storage";
 import { summarizeRunwareResponse } from "./image-cost-summary";
+import { runwareImageModelOptions } from "./runware-image-model-options";
+import { withTaleaImageStyle } from "./image-style";
 
 const runwareApiKey = secret("RunwareApiKey");
 
@@ -121,25 +123,21 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
     referencesCount: refImages.length,
   };
 
-  // Build request body for runware:400@4
+  const model = req.model || "runware:400@4";
+  // Flux 3 Klein has different guidance and safety parameters from FLUX.2.
   const requestBody: Record<string, any> = {
     taskType: "imageInference",
     taskUUID: crypto.randomUUID(),
-    model: req.model || "runware:400@4",
+    model,
     numberResults: 1,
     outputType: ["URL"],  // Use URL output for faster response
-    outputFormat: req.outputFormat || "WEBP",
+    ...runwareImageModelOptions({ model, steps: req.steps, CFGScale: req.CFGScale, outputFormat: req.outputFormat,
+      negativePrompt: req.negativePrompt ? enhancePromptForRunware(req.negativePrompt) : undefined }),
     width: normalizeToMultiple64(req.width ?? 1280),
     height: normalizeToMultiple64(req.height ?? 832),
-    steps: req.steps ?? 4,  // runware:400@4 uses fewer steps
-    CFGScale: req.CFGScale ?? 4,
     includeCost: true,
-    // Child safety (2026-10-14): Runware flags NSFW output at no extra cost; flagged pictures are dropped below.
-    checkNSFW: true,
-    acceleration: "high",
     seed: req.seed ?? Math.floor(Math.random() * 2147483647),
-    positivePrompt: enhancePromptForRunware(req.prompt),
-    ...(req.negativePrompt && req.negativePrompt.trim() !== "" ? { negativePrompt: enhancePromptForRunware(req.negativePrompt) } : {}),
+    positivePrompt: enhancePromptForRunware(withTaleaImageStyle(req.prompt)),
   };
 
   // OPTIMIZATION v4.0: Add reference images for character consistency
@@ -343,7 +341,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       numberResults: 1,
       outputType: ["URL"],  // Use URL output for faster response
       outputFormat: img.outputFormat || "WEBP",
-      positivePrompt: enhancePromptForRunware(img.prompt),
+      positivePrompt: enhancePromptForRunware(withTaleaImageStyle(img.prompt)),
       ...(img.negativePrompt && img.negativePrompt.trim() !== "" ? { negativePrompt: enhancePromptForRunware(img.negativePrompt) } : {}),
       width: normalizeToMultiple64(img.width || 1280),
       height: normalizeToMultiple64(img.height || 832),

@@ -1,5 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { runwareGenerateImage } from "./image-generation";
+import { FLUX3_KLEIN_MODEL, FLUX3_KLEIN_STEPS } from "./runware-image-model-options";
+import { TALEA_IMAGE_STYLE } from "./image-style";
 import { maybeUploadImageUrlToBucket, resolveImageUrlForClient } from "../helpers/bucket-storage";
 import type { PhysicalTraits, PersonalityTraits } from "../avatar/avatar";
 import { translateToEnglish } from "./translate";
@@ -10,6 +12,7 @@ interface GenerateAvatarImageRequest {
   characterType: string;
   appearance: string;
   personalityTraits: any; // Make this flexible to accept any personality trait structure
+  /** Legacy clients may send a style; all portraits use the shared Talea Originals medium. */
   style?: "realistic" | "disney" | "anime";
   /** Optional reference image URL (uploaded photo/camera) for character consistency */
   referenceImageUrl?: string;
@@ -60,24 +63,22 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
       const prompt = buildAvatarPrompt(
         translatedCharacterType,
         translatedAppearance,
-        req.personalityTraits,
-        req.style
+        req.personalityTraits
       );
 
       console.info("[ai.avatar-generation] Requesting image", {
-        style: req.style || "disney",
+        style: "talea-originals",
         hasReferenceImage: Boolean(req.referenceImageUrl),
         promptLength: prompt.length,
       });
 
-      // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
-      // FEATURE: Support reference image for character consistency
+      // The shared adapter supplies FLUX 3's safety check and supported parameters.
       const imageResult = await runwareGenerateImage({
         prompt,
+        model: FLUX3_KLEIN_MODEL,
         width: 1024,
         height: 1024,
-        steps: 4,  // runware:400@4 uses fewer steps
-        CFGScale: 4,
+        steps: FLUX3_KLEIN_STEPS,
         outputFormat: "WEBP",
         referenceImages: req.referenceImageUrl ? [req.referenceImageUrl] : undefined,
       });
@@ -118,25 +119,22 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
 function buildAvatarPrompt(
   characterType: string,
   appearance: string,
-  personality: PersonalityTraits,
-  style: string = "disney"
+  personality: PersonalityTraits
 ): string {
   const subject = sanitizeSegment(characterType || "storybook character");
   const appearanceDetails = sanitizeSegment(appearance || "");
   const speciesTag = inferSpeciesTag(characterType, appearance);
   const personalityDescriptor = getPersonalityDescriptor(personality);
-  const styleDescriptor = getStyleDescriptor(style);
 
   const sections = [
-    "Hand-inked European children's storybook watercolor portrait",
+    TALEA_IMAGE_STYLE,
     `SUBJECT ${subject} (${speciesTag})`,
     personalityDescriptor ? `PERSONALITY cues ${personalityDescriptor}` : "",
     appearanceDetails ? `APPEARANCE ${appearanceDetails}` : "",
-    `STYLE ${styleDescriptor}`,
     "COMPOSITION centered waist-up portrait, gentle three-quarter angle, direct eye contact",
     "LIGHTING warm morning rim light, soft bounced fill",
-    "BACKGROUND soft storybook wash, subtle gouache texture, no text",
-    "QUALITY child-safe, clean ink outlines, traditional watercolor pigments, no photographic artifacts"
+    "BACKGROUND plain warm ivory with subtle paper texture",
+    "QUALITY child-safe, clear readable silhouette, consistent hand-drawn gouache medium"
   ];
 
   const prompt = sections
@@ -171,18 +169,6 @@ function inferSpeciesTag(characterType?: string, appearance?: string): string {
   if (isDog) return "canine quadruped companion";
   if (isHuman) return "human with no animal traits";
   return "character with consistent anatomy";
-}
-
-function getStyleDescriptor(style: string | undefined): string {
-  switch (style) {
-    case "anime":
-      return "hand-inked watercolor storybook style with playful animation energy, crisp contours, vibrant palettes";
-    case "realistic":
-      return "hand-inked watercolor storybook realism, gentle shading, authentic proportions, handcrafted texture";
-    case "disney":
-    default:
-      return "classic hand-inked watercolor storybook charm, expressive features, cozy color harmony";
-  }
 }
 
 function getPersonalityDescriptor(personality: PersonalityTraits): string {
@@ -238,7 +224,7 @@ function sanitizeSegment(input: string): string {
     .trim();
 }
 
-function clampPromptLength(prompt: string, maxLength = 900): string {
+function clampPromptLength(prompt: string, maxLength = 4000): string {
   if (prompt.length <= maxLength) {
     return prompt;
   }

@@ -241,7 +241,6 @@ const AvatarWizardScreen: React.FC = () => {
             : characterType?.labelEn || 'human',
         appearance: description,
         personalityTraits: {},
-        style: 'disney',
         referenceImageUrl,
       });
 

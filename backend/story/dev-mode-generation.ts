@@ -30,6 +30,7 @@
  */
 
 import { createHash } from "crypto";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 import { secret } from "encore.dev/config";
 import { ai } from "~encore/clients";
 import { generateWithGemini, isGeminiConfigured } from "./gemini-generation";
@@ -2852,7 +2853,7 @@ async function generateDevModeImages(
   // ip-adapter handles identity via the collage reference, so we describe style
   // generically and append hard constraints against text, extra characters, and
   // duplicate characters. These constraints guard text, ghost figures, type drift, and identity drift.
-  const styleSuffix = ", modern European watercolor picture-book illustration, warm expressive characterization, soft ink outlines, cozy lighting, child-friendly, pure unlettered artwork, blank non-symbolic surfaces, single cohesive scene, entity-appropriate anatomy, each listed character appearing once in a separate clear silhouette";
+  const styleSuffix = `, ${TALEA_IMAGE_STYLE}, single cohesive scene, entity-appropriate anatomy, each listed character appearing once in a separate clear silhouette`;
 
   // Generic per-scene manifest: source kind never implies entity type. The
   // manifest carries canonical per-character attributes and is added before

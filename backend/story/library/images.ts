@@ -15,9 +15,12 @@
 
 import { encodeReferenceSprite, renderIdentitySprite, renderSingleReference } from "../image-reference-sprite";
 import type { EpisodeGuest, ImageSlot, SeriesCharacter } from "./types";
+import { TALEA_IMAGE_STYLE } from "../../ai/image-style";
 
 export const LIBRARY_IMAGE_MODEL = "bfl:flux@3-image-klein";
 export const LIBRARY_IMAGE_STEPS = 16;
+/** The style shared by the Originals seed series and Talea-Folge. */
+export const ORIGINALS_IMAGE_STYLE = TALEA_IMAGE_STYLE;
 /** Landscape pictures for covers and chapters (3:2-ish, ~1 MP). */
 export const SCENE_SIZE = { width: 1216, height: 832 } as const;
 export const PORTRAIT_SIZE = { width: 768, height: 768 } as const;
@@ -105,11 +108,11 @@ function headCountLine(figures: Figure[]): string {
  * (seed run 2026-10-19). The pose now follows the creature: whatever it is,
  * shown the way it naturally is.
  */
-export function buildPortraitPrompt(style: string, figure: Pick<Figure, "visualProfileEn">): string {
+export function buildPortraitPrompt(_style: string, figure: Pick<Figure, "visualProfileEn">): string {
   return [
     `Character reference picture: ${figure.visualProfileEn}.`,
     "The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background.",
-    `${style}.`,
+    `${TALEA_IMAGE_STYLE}.`,
   ].join(" ");
 }
 
@@ -142,7 +145,7 @@ function resolveSceneTokens(scene: string, figures: Figure[], boxed: Set<string>
  */
 export function buildScenePrompt(
   scene: string,
-  style: string,
+  _style: string,
   sheetFigures: Figure[],
   textOnlyFigures: Figure[] = [],
   outfits: Record<string, string> = {},
@@ -154,7 +157,7 @@ export function buildScenePrompt(
     outfits[figure.id] ? `same face, hair and body as on the sheet, but here wearing ${outfits[figure.id]}` : figure.visualProfileEn;
   const all = [...sheetFigures, ...textOnlyFigures];
   const sceneText = resolveSceneTokens(scene.trim().replace(/\.$/, ""), all, boxedIds);
-  const lines = [`${sceneText}.`, ACTION_RULE, `${style}.`];
+  const lines = [`${sceneText}.`, ACTION_RULE, `${TALEA_IMAGE_STYLE}.`];
   // A boxed figure the scene never mentions still needs its token once, or the box has nothing to bind to.
   for (const figure of sheetFigures) {
     if (boxedIds.has(figure.id) && !sceneText.includes(`<${boxToken(figure.id)}>`)) lines.push(`<${boxToken(figure.id)}> is ${figure.name}.`);

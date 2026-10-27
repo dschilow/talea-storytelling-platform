@@ -13,6 +13,7 @@
 
 import { normalizeLanguage } from "../story/avatar-image-optimization";
 import { sanitizeCoverPrompt } from "./cover-prompt";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 
 export const DOKU_IMAGE_QA_MODEL = "openai/gpt-6-luna";
 
@@ -21,9 +22,9 @@ const TEXT_CARRIER =
   /\b(?:signs?|signboards?|signposts?|placards?|posters?|banners?|labels?|labelled|labeled|stickers?|license plates?|number plates?|newspapers?|magazines?|book covers?|blackboards?|chalkboards?|whiteboards?|notice ?boards?|menus?|tickets?|price tags?|name ?tags?|badges?|scoreboards?|billboards?|road signs?|street signs?)\b/i;
 
 const STYLE =
-  "Wordless picture-book illustration in Axel Scheffler watercolor storybook style, every surface plain and unmarked, joyful tone, clear composition, bright warm colors.";
+  `${TALEA_IMAGE_STYLE}. Joyful tone, clear composition.`;
 const REDRAW_STYLE =
-  "Wordless picture-book illustration in Axel Scheffler watercolor storybook style, calm composition with large plain areas, every surface smooth and unmarked, bright warm colors.";
+  `${TALEA_IMAGE_STYLE}. Calm composition with large plain areas, every surface smooth and unmarked.`;
 
 function dropTextCarriers(scene: string): string {
   const kept = scene

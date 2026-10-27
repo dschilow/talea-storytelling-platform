@@ -18,6 +18,7 @@
  */
 
 import type { LifeStoryMood } from "./character-life-story-prompt";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 
 /** FLUX.2 [klein] 4B, like the Bilderbuch pipeline since 2026-10-15 (scripts/image-bench: as good as the 9B, ~30 % cheaper). */
 export const LIFE_STORY_IMAGE_MODEL = "runware:400@4";
@@ -70,9 +71,9 @@ const MOOD_GUIDE: Record<LifeStoryMood, string> = {
 };
 
 const STYLE: Record<LifeStoryMood, string> = {
-  spooky: "Soft watercolour and coloured-pencil picture-book illustration, moody twilight palette of deep blues and violets with warm lantern glow, long soft shadows, gentle storybook eeriness, expressive faces, one full-bleed scene with foreground, middle ground and background.",
-  comic: "Soft watercolour and coloured-pencil picture-book illustration, bright saturated colours, exaggerated comic expressions, lively motion, one full-bleed scene with foreground, middle ground and background.",
-  adventure: "Soft watercolour and coloured-pencil picture-book illustration, vivid adventurous palette, dramatic light, expressive faces, lively motion, one full-bleed scene with foreground, middle ground and background.",
+  spooky: "Twilight blues and violets with warm lantern glow, long soft shadows, gentle eeriness, one full-bleed scene with foreground, middle ground and background.",
+  comic: "Bright colour accents, exaggerated comic expressions, lively motion, one full-bleed scene with foreground, middle ground and background.",
+  adventure: "Adventurous palette, dramatic light, lively motion, one full-bleed scene with foreground, middle ground and background.",
 };
 
 export function buildShotListMessages(input: ShotListInput, feedback: string[] = []): { system: string; user: string } {
@@ -296,6 +297,9 @@ export function composeShotPrompt(input: {
     ? `The attached image shows ${heroName}; use it only for ${heroName}'s face, hair, colours and outfit, in a completely new pose, place and framing, in this book's painting style.`
     : "";
 
-  const prompt = [scene, STYLE[input.mood], who, reference].filter(Boolean).join("\n");
-  return prompt.length <= MAX_PROMPT_CHARS ? prompt : [scene.slice(0, MAX_PROMPT_CHARS - 600), STYLE[input.mood], who.slice(0, 380), reference].filter(Boolean).join("\n");
+  const style = `${TALEA_IMAGE_STYLE}. ${STYLE[input.mood]}`;
+  const prompt = [scene, style, who, reference].filter(Boolean).join("\n");
+  if (prompt.length <= MAX_PROMPT_CHARS) return prompt;
+  const fixed = [style, who.slice(0, 380), reference].filter(Boolean).join("\n");
+  return [scene.slice(0, Math.max(0, MAX_PROMPT_CHARS - fixed.length - 1)), fixed].filter(Boolean).join("\n");
 }

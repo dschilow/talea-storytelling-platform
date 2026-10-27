@@ -1,0 +1,11 @@
+[
+  {"scene":"forest-cover","model":"flux2","correction":"Exactly one brown-haired boy, one blond boy, and one orange fox; each is a distinct separate figure. Never duplicate the fox."},
+  {"scene":"forest-3","model":"flux2","correction":"Exactly one brown-haired boy, one blond boy, and one orange fox. Show all three as distinct figures, once each."},
+  {"scene":"forest-4","model":"flux2","correction":"Show four distinct figures once each: two boys, one orange fox and one adult merchant. The fox has an orange fox head, ears, fur and tail."},
+  {"scene":"cloud-cover","model":"flux2","correction":"Exactly two ordinary human boys and one separate white cloud creature; the cloud is not a child and no child has cloud features or the rainbow scarf."},
+  {"scene":"cloud-2","model":"flux2","correction":"Exactly two boys: one brown-haired and one blond; and one green dragon. Each figure appears once only, with a separate body."},
+  {"scene":"cloud-2","model":"flux3","correction":"Exactly two boys: one brown-haired and one blond; and one green dragon. Each figure appears once only, with a separate body."},
+  {"scene":"cloud-4","model":"flux2","correction":"Show all four characters once: two human boys without wings, a separate green winged dragon, and a white cloud with a rainbow scarf."},
+  {"scene":"witch-cover","model":"flux2","correction":"Exactly two boys in their own shirts, and one separate adult witch in a black hat and black robe. No child wears the witch's outfit."},
+  {"scene":"witch-1","model":"flux2","correction":"Alexander is a brown-haired boy in a green shirt, with no hat; Griselda is the one adult witch in a black pointed hat and robe."}
+]

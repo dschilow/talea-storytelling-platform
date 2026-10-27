@@ -16,6 +16,7 @@
  */
 
 import type { AvatarVisualProfile } from "../avatar/avatar";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 import { normalizeLanguage } from "./avatar-image-optimization";
 
 /**
@@ -82,13 +83,13 @@ export interface ArtStyleConfig {
 }
 
 /**
- * Default Talea art style (Axel Scheffler inspired)
+ * Default Talea Originals art style.
  */
 export const TALEA_DEFAULT_STYLE: ArtStyleConfig = {
-  masterStyle: "Axel Scheffler watercolor storybook illustration",
-  colorPalette: "warm pastels, golden tones, soft earth colors",
-  lineStyle: "bold hand-inked outlines, slightly caricature",
-  lightingStyle: "warm rim light, golden key light, gentle bounce",
+  masterStyle: TALEA_IMAGE_STYLE,
+  colorPalette: "gentle saturated colours, harmonious warm accents",
+  lineStyle: "soft economical ink outlines, rounded friendly shapes",
+  lightingStyle: "cozy light, soft directional key light and gentle bounce",
   textureStyle: "gouache textures, traditional pigments on textured paper",
 };
 
@@ -251,7 +252,7 @@ export function buildCharacterFirstBlock(
   }
 
   // 1. STYLE DECLARATION (compact, at the very start)
-  lines.push(`[STYLE: ${style.masterStyle}, ${style.lineStyle}]`);
+  lines.push(`[STYLE: ${TALEA_IMAGE_STYLE}, ${TALEA_DEFAULT_STYLE.lineStyle}]`);
   lines.push('');
 
   // 2. CHARACTER IDENTITY BLOCKS (most important - never truncate)

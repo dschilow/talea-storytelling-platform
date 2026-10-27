@@ -10,11 +10,13 @@
  * skip assets that already exist).
  *
  * The `prompt` fragment is the SUBJECT only; the shared Talea illustration
- * style (watercolor storybook look, clean background, framing) is appended by
+ * style (Talea Originals gouache, clean background, framing) is appended by
  * the generator so every tile looks like it belongs to the same set.
  *
  * Keep the ids in sync with `frontend/types/avatarForm.ts`.
  */
+
+import { TALEA_IMAGE_STYLE } from "./image-style";
 
 export type WizardAssetGroup =
   | "character"
@@ -201,7 +203,7 @@ export const WIZARD_ASSET_SPECS: WizardAssetSpec[] = [
 
 /** Shared style suffix so every generated tile matches the Talea look. */
 export const WIZARD_ASSET_STYLE =
-  "soft hand-painted children's storybook watercolor illustration, warm pastel palette, " +
+  TALEA_IMAGE_STYLE + ". " +
   "clean simple flat background, centered subject, gentle rim light, rounded shapes, " +
   "child-safe, friendly, no text, no watermark, icon-style single subject";
 

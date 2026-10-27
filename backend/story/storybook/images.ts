@@ -29,7 +29,7 @@ import { createHash } from "node:crypto";
 import { createIdentityReferenceCache, type IdentityReferenceBuilder } from "../image-reference-sprite";
 import { mentions } from "./checks";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
-import { assembleImagePrompt, mentionsElement, negativePromptFor, type VisualEntity } from "./illustration-stage";
+import { assembleFlux3ImagePrompt, assembleImagePrompt, mentionsElement, negativePromptFor, type VisualEntity } from "./illustration-stage";
 import { interpretJev, JEV_MODEL, JEV_THRESHOLDS, jevQuestionsFor, parseJevScores, type JevPort, type JevScores } from "./jev";
 import type { IllustrationPlan, IllustrationShot, StoryElement } from "./types";
 
@@ -138,8 +138,19 @@ export interface GenerateImagesInput {
   /** Jev: a cheap second opinion on tails, doubles and fused bodies; its failure never changes a verdict. */
   jev?: JevPort;
   historical?: boolean;
+  /** Per-pipeline art direction, reused for cover, pages, redraws and vignettes. */
+  imageStyle?: string;
+  actionDirection?: string;
+  imagePromptProfile?: "flux3-modern";
   /** Chapter books draw the cover once, with the first batch only. */
   skipCover?: boolean;
+  /**
+   * Draw rung 3 (heroes and things only) next to the redraw instead of after it. Story 5e583e1e: the slowest of seven
+   * pictures walked its rungs one after another, a render plus a vision read each (≈ 15 s a rung, 60 s in all). Same
+   * seeds and the same choice as in sequence; when the redraw passes, the spare picture and its vision read are paid
+   * and unused.
+   */
+  parallelRedraw?: boolean;
 }
 
 /** Keep rejected candidates for diagnostics, but never attach them to a reading page. */
@@ -448,6 +459,7 @@ async function mapWithLimit<T, R>(items: T[], limit: number, worker: (item: T) =
 }
 
 export async function generateStorybookImages(input: GenerateImagesInput): Promise<StorybookImagesResult> {
+  const buildImagePrompt = input.imagePromptProfile === "flux3-modern" ? assembleFlux3ImagePrompt : assembleImagePrompt;
   const buildReference = input.buildReference || createIdentityReferenceCache();
   const byId = new Map(input.entities.map((entity) => [entity.id, entity]));
   const artifact = input.entities.find((entity) => entity.kind === "artifact");
@@ -633,14 +645,14 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       imageCostUSD = Number((imageCostUSD + cost).toFixed(6));
     };
 
-    let lastRefused = false;
+    // Per delivery, not per picture: the redraw and the heroes-only attempt may run at the same time.
     const deliver = async (plan: Plan, attemptNo: number, extra: string, startLevel: number, ladder: VisualEntity[][]) => {
       let lastPrompt = shot.scene;
-      lastRefused = false;
+      let refusedNow = false;
       for (let level = startLevel; level < ladder.length; level += 1) {
         if (providerDown()) {
           errors.push("image provider unavailable; no further requests");
-          lastRefused = true;
+          refusedNow = true;
           break;
         }
         const sheet = ladder[level];
@@ -653,7 +665,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
             continue;
           }
         }
-        const prompt = assembleImagePrompt({ scene: plan.sceneOf(attemptNo), onStage: plan.drawn, spriteOrder: sheet, elements: plan.elements, correction: extra || undefined });
+        const prompt = buildImagePrompt({ scene: plan.sceneOf(attemptNo), onStage: plan.drawn, spriteOrder: sheet, elements: plan.elements, correction: extra || undefined, style: input.imageStyle, actionDirection: input.actionDirection });
         lastPrompt = prompt;
         imageCalls += 1;
         try {
@@ -669,11 +681,11 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
           addCost(response);
           if (response.url) {
             delivered += 1;
-            return { response, references, prompt, level };
+            return { response, references, prompt, level, refused: false };
           }
           if (response.refused) {
             refused += 1;
-            lastRefused = true;
+            refusedNow = true;
             errors.push(`level ${level}: provider refused (HTTP ${response.httpStatus ?? "?"})`);
             // A rate limit is not a reference problem: descending the ladder only adds requests.
             break;
@@ -684,10 +696,10 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
         }
         console.warn(`[storybook/images] page ${shot.page}: ${errors[errors.length - 1]}`);
       }
-      return { response: {} as ImageResponse, references: [] as string[], prompt: lastPrompt, level: -1 };
+      return { response: {} as ImageResponse, references: [] as string[], prompt: lastPrompt, level: -1, refused: refusedNow };
     };
 
-    type Attempt = ImageOutcome & { level: number; plan?: Plan["kind"] };
+    type Attempt = ImageOutcome & { level: number; plan?: Plan["kind"]; refused?: boolean };
 
     const note = (kind: string, outcome: Attempt) => {
       const parts = qaSeverityParts(outcome.qa, 0);
@@ -714,7 +726,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     const attempt = async (plan: Plan, attemptNo: number, extra: string, startLevel: number, ladder = plan.ladder): Promise<Attempt> => {
       const got = await deliver(plan, attemptNo, extra, startLevel, ladder);
       const url = got.response.url;
-      if (!url) return { page: shot.page, prompt: got.prompt, attempts: attemptNo, costUSD, severity: 999, status: "missing", level: -1, plan: plan.kind };
+      if (!url) return { page: shot.page, prompt: got.prompt, attempts: attemptNo, costUSD, severity: 999, status: "missing", level: -1, plan: plan.kind, refused: got.refused };
       // Exactly the names the prompt asks to count (see qaCountNames): a demanded count the prompt never asked for made every reply "incomplete".
       const expectedNames = qaCountNames(plan.onStage, plan.elements, plan.qaScene);
       const [raw, scores] = await Promise.all([
@@ -741,12 +753,12 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
      * unless it shows a person or a body defect: a calm picture of the thing
      * the page is about is better than a blank page (story b10f2dad page 7).
      */
-    const vignette = async (attemptNo: number, allowBorrowed = false): Promise<Attempt | null> => {
+    const vignette = async (attemptNo: number, allowBorrowed = false, refusedBefore = false): Promise<Attempt | null> => {
       const scene = shot.vignette || (allowBorrowed ? shot.fallbackVignette : undefined);
-      if (cover || !scene || lastRefused || providerDown()) return null;
+      if (cover || !scene || refusedBefore || providerDown()) return null;
       // Things only: a creature in a vignette is a figure without a reference.
       const shown = allElements.filter((element) => !element.figure && mentionsElement(scene, element)).slice(0, 2);
-      const prompt = assembleImagePrompt({ scene, onStage: [], spriteOrder: [], elements: shown, vignette: true });
+      const prompt = buildImagePrompt({ scene, onStage: [], spriteOrder: [], elements: shown, vignette: true, style: input.imageStyle });
       imageCalls += 1;
       let response: ImageResponse = {};
       try {
@@ -777,7 +789,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     };
 
     const finish = (outcome: Attempt, attempts: number): ImageOutcome => {
-      const { level, plan: _plan, ...rest } = outcome;
+      const { level, plan: _plan, refused: _refused, ...rest } = outcome;
       return { ...rest, attempts, costUSD, referenceLevel: level, errors: errors.length ? errors : undefined, history };
     };
 
@@ -802,7 +814,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     if (first.url) candidates.push(first);
     if (!first.url) {
       // Nothing arrived even without a reference: the vignette is the only picture left.
-      const fallback = await vignette(2, true);
+      const fallback = await vignette(2, true, first.refused);
       if (fallback) note("vignette", fallback);
       return fallback && isPublishable(fallback) ? finish(fallback, 2) : finish(first, fallback ? 2 : 1);
     }
@@ -822,18 +834,29 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       startLevel = 0;
     }
     const correction = correctionFor(first.qa, fullElements.map((element) => element.name));
-    const second = await attempt(fullPlan, 2, `${correction} ${REDRAW_KEEPS_SCENE}`, startLevel, redrawLadder);
-    note("redraw", second);
+    // Rung 3: only the heroes and the things (drops the crowd that tangles the picture). With parallelRedraw it is
+    // drawn next to the redraw, so a failed redraw costs no further round.
+    const reduced = reducedPlan();
+    const [second, early] = await Promise.all([
+      attempt(fullPlan, 2, `${correction} ${REDRAW_KEEPS_SCENE}`, startLevel, redrawLadder),
+      reduced && input.parallelRedraw && !providerDown() ? attempt(reduced, 3, REDRAW_KEEPS_SCENE, 0) : undefined,
+    ]);
     if (second.url) candidates.push(second);
     let best = better(second, first) ? second : first;
-    if (isPublishable(best)) return finish(best, 2);
+    if (isPublishable(best)) {
+      // Paid and not needed: logged before the redraw, so the delivered picture stays the last entry.
+      if (early) note("reduced-unused", early);
+      note("redraw", second);
+      return finish(best, 2);
+    }
+    note("redraw", second);
 
-    // Rung 3: only the heroes and the things (drops the crowd that tangles the picture).
-    const reduced = reducedPlan();
     let attempts = 2;
-    if (reduced && !lastRefused && !providerDown()) {
+    let last = second;
+    if (reduced && (early || (!second.refused && !providerDown()))) {
       attempts = 3;
-      const third = await attempt(reduced, 3, REDRAW_KEEPS_SCENE, 0);
+      const third = early ?? await attempt(reduced, 3, REDRAW_KEEPS_SCENE, 0);
+      last = third;
       note("reduced", third);
       if (third.url) candidates.push(third);
       if (better(third, best)) best = third;
@@ -841,7 +864,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
     }
 
     // Rung 4: the people-free picture.
-    const fallback = await vignette(attempts + 1);
+    const fallback = await vignette(attempts + 1, false, Boolean(last.refused));
     if (fallback) {
       attempts += 1;
       note("vignette", fallback);

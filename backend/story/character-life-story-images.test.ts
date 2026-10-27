@@ -1,5 +1,6 @@
 // @ts-ignore Bun's test helpers are runtime-only in the Encore project.
 import { describe, expect, test } from "bun:test";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 import {
   LIFE_STORY_IMAGE_MODEL,
   LIFE_STORY_IMAGE_NEGATIVE,
@@ -130,7 +131,7 @@ describe("Bild-Prompt für ein Kapitel", () => {
   const prompt = composeShotPrompt({ shot: list.chapters[1], figures: list.figures, heroName: input.heroName, heroLook: input.heroLook, mood: "spooky", kind: "chapter", hasReference: true });
 
   test("Ort, Kamera, Aktion und Gegenspieler stehen vorn im Prompt", () => {
-    expect(prompt.indexOf("moonlit rope bridge")).toBeLessThan(prompt.indexOf("Soft watercolour"));
+    expect(prompt.indexOf("moonlit rope bridge")).toBeLessThan(prompt.indexOf(TALEA_IMAGE_STYLE));
     expect(prompt).toContain("low angle looking up");
     expect(prompt).toContain("Bäcker Wilhelm sprints across the beams");
     expect(prompt).toContain("Clearly apart from Bäcker Wilhelm");

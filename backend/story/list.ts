@@ -6,13 +6,7 @@ import { avatarDB } from "../avatar/db";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { buildAvatarImageUrlForClient } from "../helpers/image-proxy";
 import { ensureDefaultProfileForUser, resolveRequestedProfileId } from "../helpers/profiles";
-import { storyMetadataForViewer } from "./metadata-visibility";
-
-function withoutBookPlan(metadata: Record<string, any> | null | undefined): Record<string, any> | null | undefined {
-  if (!metadata?.bookAdmin) return metadata;
-  const { bookAdmin: _plan, ...rest } = metadata;
-  return rest;
-}
+import { storyMetadataForList } from "./metadata-visibility";
 
 interface ListStoriesRequest {
   limit?: number;
@@ -218,66 +212,81 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
     const total = Number(countResult?.count) || 0;
 
     const storyIds = storyRows.map((row) => row.id);
-    const participantRows = storyIds.length > 0
-      ? await storyDB.queryAll<{
-          story_id: string;
-          profile_id: string;
-        }>`
-          SELECT story_id, profile_id
-          FROM story_participants
-          WHERE story_id = ANY(${storyIds})
-        `
-      : [];
+    const parsedConfigs = storyRows.map((row) => parseJsonObject<StoryConfigRecord>(row.config));
+    const avatarIds = Array.from(
+      new Set(parsedConfigs.flatMap((config) => normalizeAvatarIds(config)))
+    );
+
+    // Four independent reads (two databases) one after another cost four round trips per page; the library asks for
+    // a page per 50 stories.
+    const [participantRows, profileStateRows, avatarRows, castRows] = await Promise.all([
+      storyIds.length > 0
+        ? storyDB.queryAll<{
+            story_id: string;
+            profile_id: string;
+          }>`
+            SELECT story_id, profile_id
+            FROM story_participants
+            WHERE story_id = ANY(${storyIds})
+          `
+        : [],
+      storyIds.length > 0
+        ? storyDB.queryAll<{
+            story_id: string;
+            is_favorite: boolean;
+            progress_pct: number;
+            completion_state: "not_started" | "in_progress" | "completed";
+            last_position_sec: number | null;
+            last_played_at: Date | null;
+          }>`
+            SELECT
+              story_id,
+              is_favorite,
+              progress_pct,
+              completion_state,
+              last_position_sec,
+              last_played_at
+            FROM story_profile_state
+            WHERE profile_id = ${activeProfileId}
+              AND story_id = ANY(${storyIds})
+          `
+        : [],
+      avatarIds.length > 0
+        ? avatarDB.queryAll<{
+            id: string;
+            name: string;
+            image_url: string | null;
+            description: string | null;
+            physical_traits: string | null;
+            visual_profile: string | null;
+          }>`
+            SELECT id, name, image_url, description, physical_traits, visual_profile
+            FROM avatars
+            WHERE id = ANY(${avatarIds})
+          `
+        : [],
+      storyIds.length > 0
+        ? storyDB.queryAll<{
+            story_instance_id: string;
+            cast_set: any;
+          }>`
+            SELECT story_instance_id, cast_set
+            FROM story_cast_sets
+            WHERE story_instance_id = ANY(${storyIds})
+          `
+        : [],
+    ]);
+
     const participantsByStoryId = new Map<string, string[]>();
     for (const row of participantRows) {
       const existing = participantsByStoryId.get(row.story_id) || [];
       existing.push(row.profile_id);
       participantsByStoryId.set(row.story_id, existing);
     }
-
-    const profileStateRows = storyIds.length > 0
-      ? await storyDB.queryAll<{
-          story_id: string;
-          is_favorite: boolean;
-          progress_pct: number;
-          completion_state: "not_started" | "in_progress" | "completed";
-          last_position_sec: number | null;
-          last_played_at: Date | null;
-        }>`
-          SELECT
-            story_id,
-            is_favorite,
-            progress_pct,
-            completion_state,
-            last_position_sec,
-            last_played_at
-          FROM story_profile_state
-          WHERE profile_id = ${activeProfileId}
-            AND story_id = ANY(${storyIds})
-        `
-      : [];
     const profileStateByStoryId = new Map<string, (typeof profileStateRows)[number]>(
       profileStateRows.map((row) => [row.story_id, row])
     );
 
-    const parsedConfigs = storyRows.map((row) => parseJsonObject<StoryConfigRecord>(row.config));
-    const avatarIds = Array.from(
-      new Set(parsedConfigs.flatMap((config) => normalizeAvatarIds(config)))
-    );
-    const avatarRows = avatarIds.length > 0
-      ? await avatarDB.queryAll<{
-          id: string;
-          name: string;
-          image_url: string | null;
-          description: string | null;
-          physical_traits: string | null;
-          visual_profile: string | null;
-        }>`
-          SELECT id, name, image_url, description, physical_traits, visual_profile
-          FROM avatars
-          WHERE id = ANY(${avatarIds})
-        `
-      : [];
     const avatarEntries = await Promise.all(
       avatarRows.map(async (avatar) => [
         avatar.id,
@@ -294,16 +303,6 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
     const avatarMap = new Map<string, StoryAvatarParticipant>(avatarEntries);
 
     const baseMetadataByIndex = storyRows.map((row) => parseJsonObject<StoryMetadataRecord>(row.metadata));
-    const castRows = storyIds.length > 0
-      ? await storyDB.queryAll<{
-          story_instance_id: string;
-          cast_set: any;
-        }>`
-          SELECT story_instance_id, cast_set
-          FROM story_cast_sets
-          WHERE story_instance_id = ANY(${storyIds})
-        `
-      : [];
     const castSetByStoryId = new Map<string, Record<string, any> | null>(
       castRows.map((row) => [row.story_instance_id, parseJsonObject<Record<string, any>>(row.cast_set)])
     );
@@ -449,8 +448,9 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
                 lastPlayedAt: profileState.last_played_at ?? undefined,
               }
             : undefined,
-          // The list never carries a chapter book's plan (admins see it in the reader).
-          metadata: (withoutBookPlan(storyMetadataForViewer(metadata, auth.role === "admin")) || undefined) as any,
+          // Only what the library shows. A chapter book's plan, the call ledger and the image checks stay in
+          // story.get (the reader and the admin read them there).
+          metadata: storyMetadataForList(metadata) as any,
           status: storyRow.status,
           isPublic: storyRow.is_public,
           createdAt: storyRow.created_at,

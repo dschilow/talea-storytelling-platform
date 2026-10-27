@@ -3,6 +3,7 @@ import { COLLAGE_MODE_NEGATIVES, GLOBAL_IMAGE_NEGATIVES, MAX_ON_STAGE_CHARACTERS
 import { buildFinalPromptText } from "./image-prompt-builder";
 import { buildCollageReference, buildCollageRefsForSlots, buildRefsForSlots, selectReferenceSlots } from "./reference-images";
 import type { CollageResult } from "./sprite-collage";
+import { TALEA_IMAGE_STYLE } from "../../ai/image-style";
 
 export class TemplateImageDirector implements ImageDirector {
   async createImageSpecs(input: {
@@ -103,7 +104,7 @@ export async function buildCoverSpec(input: {
   const desc = storyDraft.description ? ` ${storyDraft.description}` : "";
   const sceneDescription = `Illustration for the story.${desc}`.trim();
 
-  const style = `high-quality children's storybook illustration, ${getMoodTexture(mood, "SETUP")}${setting ? `, ${setting}` : ""}`;
+  const style = `${TALEA_IMAGE_STYLE}. ${getMoodTexture(mood, "SETUP")}${setting ? `, ${setting}` : ""}`;
   const composition = "wide shot, eye-level, full body visible head-to-toe, balanced composition";
   const blocking = "Characters arranged in a clear grouping, interacting with the scene.";
   const actions = artifactName
@@ -195,7 +196,7 @@ function buildAISpec(
   const normalizedSetting = directive.setting ? toEnglish(directive.setting) : "";
   const environmentParts = dedupeEnvironmentParts([sanitizedEnvironment, normalizedSetting]);
   const environmentLine = environmentParts.length > 0 ? `, ${environmentParts.join(", ")}` : "";
-  const style = `high-quality children's storybook illustration, ${texture}${environmentLine}`;
+  const style = `${TALEA_IMAGE_STYLE}. ${texture}${environmentLine}`;
 
   // Use AI camera angle for composition, ensure full-body constraint
   let composition = sanitizeForbiddenTerms(aiDesc.cameraAngle);
@@ -280,7 +281,7 @@ function buildTemplateSpec(
 // ─── Template Helper Functions (unchanged) ────────────────────────────────
 
 function buildStyle(directive: SceneDirective, beatType: string): string {
-  const base = "high-quality children's storybook illustration";
+  const base = TALEA_IMAGE_STYLE;
   const setting = toEnglish(directive.setting || "").toLowerCase();
   const mood = directive.mood || "COZY";
 
@@ -322,23 +323,23 @@ function buildStyle(directive: SceneDirective, beatType: string): string {
 
 function getMoodTexture(mood: string, beatType: string): string {
   if (mood === "TENSE" || mood === "SCARY_LIGHT") {
-    return "dramatic ink wash style with visible brushstrokes, deep moody shadows cast across the scene, splattered ink edges suggesting danger";
+    return "deep moody shadows and readable silhouettes, restrained dramatic colour accents";
   } else if (mood === "MYSTERIOUS") {
-    return "ethereal watercolor with luminous fog layers, paint bleeding at edges, mysterious glowing highlights peeking through mist, visible paper grain";
+    return "luminous fog layers and mysterious glowing highlights peeking through mist";
   } else if (mood === "MAGICAL") {
-    return "luminous watercolor with paint pooling into sparkling light effects, golden and violet washes blending wet-on-wet, tiny hand-painted sparkle details";
+    return "golden and violet light accents, tiny hand-painted sparkle details";
   } else if (mood === "TRIUMPH") {
-    return "bold expressive watercolor with splashes of gold and warm orange, energetic visible brushwork, paint dripping with joyful abandon, celebratory light burst";
+    return "gold and warm orange colour accents, joyful expressive gestures and celebratory light";
   } else if (mood === "FUNNY") {
-    return "bright loose watercolor with exaggerated playful proportions, wobbly hand-drawn linework, cheerful splashy color pops, visible pencil underdrawing";
+    return "playful expressions, readable comic gestures and cheerful colour accents";
   } else if (mood === "SAD") {
-    return "muted watercolor in rain-washed blue-grey tones, paint diluted and running downward, soft wet-on-wet bleeds suggesting tears, gentle paper texture";
+    return "rain-washed blue-grey tones, gentle expressions and soft light";
   } else if (mood === "BITTERSWEET") {
-    return "warm amber watercolor with soft edges fading to cool blue, gentle light-and-shadow interplay, nostalgic golden-hour palette";
+    return "warm amber light with cool blue accents and a nostalgic golden-hour palette";
   } else if (beatType === "CLIMAX") {
-    return "dynamic watercolor with bold confident strokes, high-contrast color collision, paint splatters suggesting explosive energy, vivid saturated pigments";
+    return "energetic poses, strong readable light contrast and vivid focal colour accents";
   }
-  return "hand-painted watercolor texture with visible brushstrokes, warm palette, soft directional lighting, cozy picture-book atmosphere";
+  return "soft directional lighting and a cozy picture-book atmosphere";
 }
 
 function buildComposition(directive: SceneDirective, beatType: string): string {

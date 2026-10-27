@@ -1,4 +1,5 @@
 import { api } from "encore.dev/api";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 import { getAuthData } from "~encore/auth";
 import { ai, avatar, doku, story } from "~encore/clients";
 import { logTopic } from "../log/logger";
@@ -188,7 +189,7 @@ Du kannst folgende Aktionen ausfuehren. Nutze die passenden Funktionen:
 
 4. BILDER GENERIEREN (generate_image): Erstelle Bilder/Illustrationen mit dem Flux-Modell.
    - Schreibe den Prompt IMMER auf Englisch fuer beste Ergebnisse
-   - Nutze "Axel Scheffler watercolor children's book illustration" als Stil-Basis
+   - Nutze für alle Bilder den Talea-Originals-Stil: weiche Tuschkonturen, Gouache, freundliche Formen, warme Farben, ausdrucksstarke Gesichter, unbeschriftete Flächen.
    - Beschreibe Details wie Farben, Komposition, Stimmung
 
 5. WIZARDS OEFFNEN (open_story_wizard, open_avatar_wizard, open_doku_wizard):
@@ -460,7 +461,7 @@ async function handleGenerateImage(params: {
 
   // Add style prefix for consistent quality
   if (style === "disney") {
-    prompt = `Axel Scheffler watercolor children's book illustration style. ${prompt}. Soft colors, whimsical, warm lighting, detailed, high quality.`;
+    prompt = `${TALEA_IMAGE_STYLE}. ${prompt}`;
   } else if (style === "anime") {
     prompt = `Anime illustration style. ${prompt}. Vibrant colors, detailed, clean lines, high quality.`;
   }

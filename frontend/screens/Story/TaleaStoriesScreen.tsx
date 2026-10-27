@@ -90,6 +90,27 @@ function getStoryPreviewText(story: Story) {
 // but only marks it when the next story starts. Show it as failed right away.
 const STALE_GENERATION_MS = 90 * 60_000;
 
+/**
+ * The library shows the first twelve stories as soon as they arrive, then fetches the rest — 50 per request (the
+ * endpoint's maximum), three requests at a time. It used to ask for one page after the other, so a family with
+ * 150 finished stories waited for four round trips in a row.
+ */
+const FIRST_PAGE = 12;
+const PAGE_SIZE = 50;
+const PAGE_PARALLEL = 3;
+
+/**
+ * The last load of the library per user and child profile, kept while the app is open: coming back to "Lesen" shows
+ * the stories at once and the load only refreshes them behind the scenes. Memory only, never stored.
+ */
+const storiesCache = new Map<string, { stories: Story[]; total: number }>();
+
+/** Pages can overlap when a story is created while the library loads; each story appears once. */
+function mergeStories(previous: Story[], page: Story[]): Story[] {
+  const seen = new Set(previous.map((story) => story.id));
+  return [...previous, ...page.filter((story) => !seen.has(story.id))];
+}
+
 /** A title the model returned as raw JSON ('{"title": "…"') is shown as its plain text. */
 function cleanStoryTitle(title: string | undefined | null): string {
   const raw = String(title ?? "").trim();
@@ -836,9 +857,10 @@ const TaleaStoriesScreen: React.FC = () => {
   const { resolvedTheme } = useTheme();
   const { isAdmin, billing, refresh: refreshUserAccess } = useOptionalUserAccess();
   const { canUseOffline, isStorySaved, isSaving, toggleStory } = useOffline();
-  const { isLoaded: authLoaded, isSignedIn } = useUser();
+  const { isLoaded: authLoaded, isSignedIn, user } = useUser();
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
   const isDark = resolvedTheme === "dark";
+  const cacheKey = `${user?.id || ""}:${activeProfileId || ""}`;
 
   const [stories, setStories] = useState<Story[]>([]);
   // The tab lives in the URL so "back" from a series page lands on Originals again.
@@ -871,35 +893,56 @@ const TaleaStoriesScreen: React.FC = () => {
 
   const loadStories = useCallback(async () => {
     const sequence = ++loadSequence.current;
+    const cached = storiesCache.get(cacheKey);
     try {
-      setLoading(true);
       setLoadError(null);
-      setStories([]);
-      setTotal(0);
-      const allStories: Story[] = [];
-      let hasMore = true;
-      let total = 0;
-      while (hasMore) {
-        const response = await backend.story.list({ limit: allStories.length === 0 ? 12 : 50, offset: allStories.length, profileId: activeProfileId || undefined });
-        if (sequence !== loadSequence.current) return;
-        const page = (response.stories as unknown as Story[]) || [];
-        const presentedPage = page.map(presentStory);
-        const firstPage = allStories.length === 0;
-        allStories.push(...presentedPage);
-        total = Number(response.total) || 0;
-        hasMore = Boolean(response.hasMore && page.length);
-        // Render the first page immediately; append older stories as they arrive.
-        setStories((previous) => firstPage ? presentedPage : [...previous, ...presentedPage]);
+      if (cached) {
+        // Back on "Lesen": show what was loaded last time at once, the load below refreshes it.
+        setStories(cached.stories);
+        setTotal(cached.total);
+        setLoading(false);
+      } else {
+        setLoading(true);
+        setStories([]);
+        setTotal(0);
+      }
+      const request = (offset: number, limit: number) => backend.story.list({ limit, offset, profileId: activeProfileId || undefined });
+      const first = await request(0, FIRST_PAGE);
+      if (sequence !== loadSequence.current) return;
+      const firstPage = ((first.stories as unknown as Story[]) || []).map(presentStory);
+      const total = Number(first.total) || firstPage.length;
+      let loaded = mergeStories([], firstPage);
+      if (!cached) {
+        // Render the first page immediately; the older stories follow as they arrive (the screen sorts by date itself).
+        setStories(loaded);
         setTotal(total);
         setLoading(false);
       }
+      // The total is known now, so every remaining page can be asked for at once.
+      const offsets: number[] = [];
+      for (let offset = firstPage.length; firstPage.length > 0 && offset < total; offset += PAGE_SIZE) offsets.push(offset);
+      let next = 0;
+      const worker = async () => {
+        while (next < offsets.length) {
+          const response = await request(offsets[next++], PAGE_SIZE);
+          if (sequence !== loadSequence.current) return;
+          const page = ((response.stories as unknown as Story[]) || []).map(presentStory);
+          loaded = mergeStories(loaded, page);
+          if (!cached) setStories((previous) => mergeStories(previous, page));
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(PAGE_PARALLEL, offsets.length) }, worker));
+      if (sequence !== loadSequence.current) return;
+      storiesCache.set(cacheKey, { stories: loaded, total });
+      setStories(loaded);
+      setTotal(total);
     } catch (error) {
       console.error("Error loading stories:", error);
       if (sequence === loadSequence.current) setLoadError("Deine Geschichten konnten nicht vollständig geladen werden. Bitte versuche es erneut.");
     } finally {
       if (sequence === loadSequence.current) setLoading(false);
     }
-  }, [backend, activeProfileId]);
+  }, [backend, activeProfileId, cacheKey]);
 
   useEffect(() => {
     if (!authLoaded) {
@@ -929,6 +972,8 @@ const TaleaStoriesScreen: React.FC = () => {
       await backend.story.deleteStory({ id: storyId, profileId: activeProfileId || undefined });
       setStories((prev) => prev.filter((story) => story.id !== storyId));
       setTotal((prev) => Math.max(0, prev - 1));
+      const cached = storiesCache.get(cacheKey);
+      if (cached) storiesCache.set(cacheKey, { stories: cached.stories.filter((story) => story.id !== storyId), total: Math.max(0, cached.total - 1) });
     } catch (error) {
       console.error("Error deleting story:", error);
     }

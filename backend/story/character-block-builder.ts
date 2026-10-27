@@ -4,6 +4,7 @@
  */
 
 import type { AvatarVisualProfile } from "../avatar/avatar";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 import type { MinimalAvatarProfile, SpeciesType } from "./avatar-image-optimization";
 import { normalizeLanguage } from "./avatar-image-optimization";
 import { getAvatarCanon, buildVisualDistinctionWarning } from "../avatar/avatar-canon-simple";
@@ -1037,8 +1038,7 @@ export function buildSceneStyleBlock(
   }
 
   return {
-    masterStyle:
-      "Axel Scheffler watercolor storybook illustration with gentle gouache textures",
+    masterStyle: TALEA_IMAGE_STYLE,
     colorAndLight:
       "warm rim light, soft pastels, hand-inked outlines, subtle vignette",
     atmosphere: "whimsical hopeful mood with gentle story tension",
@@ -1256,6 +1256,7 @@ export function buildCompleteImagePrompt(
       includesHuman
     ),
     ...styleOverrides,
+    masterStyle: TALEA_IMAGE_STYLE,
   };
 
   // NEW STRUCTURED FORMAT: CHARACTERS / SCENE / COMPOSITION / LIGHTING / MOOD
@@ -1348,6 +1349,7 @@ export function buildCompleteImagePrompt(
 
   const sections = [
     charactersSection,
+    TALEA_IMAGE_STYLE,
     sceneSection,
     supportingSection,
     environmentSection,
@@ -1362,7 +1364,6 @@ export function buildCompleteImagePrompt(
     buildSpeciesGuardLine(blocks),
     // CRITICAL: Flux.1 exclusions must be in positive prompt
     fluxExclusions,
-    normalizeLanguage(`${sceneStyle.masterStyle}. ${sceneStyle.mediumDetails}`),
     "No text or typography in image.",
   ].filter(Boolean);
 

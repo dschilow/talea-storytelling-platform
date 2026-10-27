@@ -1,5 +1,6 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 import type {
   StoryConfig,
   Chapter,
@@ -1202,7 +1203,7 @@ export const generateStoryContent = api<
         scene: safeCoverSceneText,
         customStyle: {
           composition: "story cover, title space top, all visible",
-          style: "watercolor cover, warm colors",
+          style: TALEA_IMAGE_STYLE,
           quality: `${coverCharactersData.length} subjects, child-safe`,
         },
         supportingCharacterLines: coverContext.supportingLines,

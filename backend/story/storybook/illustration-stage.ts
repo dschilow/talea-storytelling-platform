@@ -19,9 +19,10 @@ import { mentions, nameTokens } from "./checks";
 import type { StoryBrief } from "./context";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import type { IllustrationPlan, IllustrationShot, StoryElement, StoryPlan, StorybookPage } from "./types";
+import { TALEA_IMAGE_STYLE } from "../../ai/image-style";
 
 export const STORYBOOK_IMAGE_STYLE = [
-  "Children's picture-book illustration, hand-painted gouache and coloured-pencil texture, warm vivid palette.",
+  TALEA_IMAGE_STYLE,
   "Expressive characters with clear silhouettes and readable body language, lively motion, dynamic composition with foreground, middle ground and background,",
   "storytelling details in the environment, soft natural light. One continuous full-bleed scene. No text anywhere.",
 ].join(" ");
@@ -230,7 +231,47 @@ export function ownershipLine(onStage: VisualEntity[]): string {
 export const MAX_IMAGE_PROMPT_CHARS = 1900;
 
 export const STORYBOOK_IMAGE_STYLE_SHORT =
-  "Soft watercolour and coloured-pencil picture-book illustration, warm light palette, one gentle style for every figure, expressive faces, lively motion, one full-bleed scene.";
+  `${TALEA_IMAGE_STYLE}. One gentle style for every figure, expressive body language, one full-bleed scene.`;
+
+export const MODERN_CHILDRENS_BOOK_STYLE = TALEA_IMAGE_STYLE;
+
+export interface ImagePromptInput {
+  scene: string;
+  onStage: VisualEntity[];
+  spriteOrder: VisualEntity[];
+  elements?: StoryElement[];
+  correction?: string;
+  style?: string;
+  actionDirection?: string;
+  vignette?: boolean;
+}
+
+/** FLUX 3 reads full scene captions. Keep the director's moment rather than the old 1,900-character FLUX.2 budget. */
+export function assembleFlux3ImagePrompt(input: ImagePromptInput): string {
+  const characters = input.onStage.filter((entity) => entity.kind === "character");
+  const objects = input.onStage.filter((entity) => entity.kind === "artifact");
+  const elements = input.elements || [];
+  const living = elements.filter((element) => element.figure);
+  const scene = bindNamesToLooks(nameElementsPlainly(input.scene.trim(), elements), characters);
+  const lines = [scene, `${input.style || MODERN_CHILDRENS_BOOK_STYLE}`];
+  if (characters.length || living.length) {
+    lines.push(input.actionDirection || "One story moment, with each character's weight, gesture and expression responding to the event. Eyes follow the action or another character; side and three-quarter views, separate readable silhouettes. Keep the moment's own energy, including stillness for a quiet scene.");
+  }
+  if (input.correction) lines.push(`For this redraw: ${input.correction}`);
+  if (input.spriteOrder.length) {
+    lines.push(`The single attached reference image is an identity sheet. Its subjects, from left to right: ${input.spriteOrder.map((entity, i) => `${i + 1}. ${entity.name}${entity.kind === "artifact" ? " (object)" : ""}`).join("; ")}. Take each subject's appearance from its own position, while drawing fresh poses in this scene. The illustration is one continuous place reaching every edge.`);
+  }
+  for (const entity of characters) lines.push(`${entity.name}: ${entity.appearance}. Preserve this individual's species, face, hair or fur, proportions, colours and own clothing${entity.isHuman && entity.role === "hero" ? ", with a child's face and body" : ""}.`);
+  const owned = ownershipLine(characters);
+  if (owned) lines.push(owned);
+  for (const element of living) lines.push(`The ${elementNoun(element)}: ${element.look}. A separate living figure with its own body.`);
+  const count = characters.length + living.length;
+  lines.push(count ? `Exactly ${count} characters in the scene, each visible once: ${[...characters.map((entity) => entity.name), ...living.map((element) => `the ${elementNoun(element)}`)].join(", ")}.` : "An unoccupied setting or still life, showing only the described objects and environment.");
+  for (const entity of objects) lines.push(`${entity.name} is a separate object: ${entity.appearance}.`);
+  for (const element of elements.filter((element) => !element.figure)) lines.push(`The ${elementNoun(element)}: ${element.look}; a separate object in the scene.`);
+  lines.push("Books, maps, signs and clothing have plain surfaces or simple painted symbols. This is a wordless illustration.");
+  return lines.filter(Boolean).join("\n");
+}
 
 export function assembleImagePrompt(input: {
   scene: string;
@@ -238,6 +279,9 @@ export function assembleImagePrompt(input: {
   spriteOrder: VisualEntity[];
   elements?: StoryElement[];
   correction?: string;
+  /** Optional per-pipeline art direction; other storybook lanes keep their existing style. */
+  style?: string;
+  actionDirection?: string;
   /** Last resort before a blank page: the moment without any person. */
   vignette?: boolean;
 }): string {
@@ -317,7 +361,7 @@ export function nameElementsPlainly(scene: string, elements: StoryElement[]): st
 }
 
 function buildImagePrompt(
-  input: { scene: string; onStage: VisualEntity[]; spriteOrder: VisualEntity[]; elements?: StoryElement[]; correction?: string; vignette?: boolean },
+  input: { scene: string; onStage: VisualEntity[]; spriteOrder: VisualEntity[]; elements?: StoryElement[]; correction?: string; vignette?: boolean; style?: string; actionDirection?: string },
   lookChars: number,
   sceneChars: number
 ): string {
@@ -328,7 +372,8 @@ function buildImagePrompt(
   const slotOf = (entity: VisualEntity) => input.spriteOrder.findIndex((sheet) => sheet.id === entity.id);
 
   const scene = bindNamesToLooks(nameElementsPlainly(clip(input.scene, sceneChars), input.elements || []), characters);
-  const lines: string[] = [scene, STORYBOOK_IMAGE_STYLE_SHORT];
+  const lines: string[] = [scene, input.style || STORYBOOK_IMAGE_STYLE_SHORT];
+  if (input.actionDirection && (characters.length || figureElements.length)) lines.push(input.actionDirection);
   if (input.correction) lines.push(clip(input.correction, 320));
 
   const figures = [
@@ -695,6 +740,8 @@ export interface DirectorStageResult {
   illustrations: IllustrationPlan;
   call?: LlmCallResult;
   repairCall?: LlmCallResult;
+  /** Why the plan went to repair (page 0 = cover). Story 5e583e1e paid 8 s for a repair and the log did not say why. */
+  repairReasons?: Array<{ page: number; errors: string[] }>;
 }
 
 export async function runDirectorStage(
@@ -745,6 +792,7 @@ export async function runDirectorStage(
   }
   const invalid = [...(input.skipCover ? [] : [result.illustrations.cover]), ...result.illustrations.pages].filter((shot) => shot.planningErrors?.length);
   if (!invalid.length) return result;
+  result.repairReasons = invalid.map((shot) => ({ page: shot.page, errors: shot.planningErrors || [] }));
   const recompose = () => {
     const elements = result.illustrations.storyElements || [];
     result.illustrations.cover = recomposeShot(result.illustrations.cover, input.entities, elements, maxPerImage);

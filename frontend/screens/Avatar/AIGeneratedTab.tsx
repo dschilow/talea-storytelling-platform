@@ -116,7 +116,6 @@ const AIGeneratedTab: React.FC = () => {
         characterType,
         appearance,
         personalityTraits,
-        style: 'disney',
       });
 
       console.log('✅ Avatar image generated successfully');

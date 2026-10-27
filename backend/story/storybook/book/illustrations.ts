@@ -14,6 +14,7 @@
  */
 
 import { mentions } from "../checks";
+import { TALEA_IMAGE_STYLE } from "../../../ai/image-style";
 import { negativePromptFor, runDirectorStage, type VisualEntity } from "../illustration-stage";
 import { generateStorybookImages, publishableImageUrl, type ImageOutcome, type ImageProvider, type ImageRequest } from "../images";
 import type { JevPort } from "../jev";
@@ -313,7 +314,7 @@ export function bibleFigureEntities(plan: BookPlan, takenNames: string[]): Visua
 // ---------------------------------------------------------------------------
 
 /** The book's painting style for a figure alone (the page style asks for "one full-bleed scene"). */
-const PORTRAIT_STYLE = "Soft watercolour and coloured-pencil picture-book illustration, warm light palette, expressive friendly face.";
+const PORTRAIT_STYLE = TALEA_IMAGE_STYLE;
 
 function portraitSeed(seed: string, id: string): number {
   let hash = 2166136261;
@@ -344,7 +345,7 @@ export function portraitLook(entity: VisualEntity): { look: string; humanoid: bo
  * One figure, whole, on white: what an identity sheet needs from a portrait. Probe 2026-10-17: "standing upright, arms
  * relaxed" turned a living pebble garden into a boy standing in the well — only a humanoid look gets a standing body.
  */
-export function figurePortraitRequest(entity: VisualEntity, seed: string): ImageRequest {
+export function figurePortraitRequest(entity: VisualEntity, seed: string, style = PORTRAIT_STYLE): ImageRequest {
   const { look, humanoid } = portraitLook(entity);
   const body = humanoid
     ? `One single figure, full body from head to feet, standing upright and facing the viewer, arms relaxed: ${look}.`
@@ -355,7 +356,7 @@ export function figurePortraitRequest(entity: VisualEntity, seed: string): Image
     prompt: [
       body,
       "Plain white background. Nothing else in the picture: no other figure, no scenery, no frame, no lettering.",
-      PORTRAIT_STYLE,
+      style,
     ].join(" "),
     negativePrompt: `${negativePromptFor([entity], false)}, second figure, group of figures, crowd, scenery, landscape, room, furniture, frame, border, character sheet, turnaround, multiple views${humanoid ? "" : ", person, child, boy, girl, human figure, people"}`,
     referenceImages: [],

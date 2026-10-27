@@ -9,6 +9,8 @@ import { sanitizeCharacter } from "./character-pool-import";
 import type { CharacterTemplate } from "./types";
 import { seedCharacterPool } from "./seed-characters";
 import { runwareGenerateImage } from "../ai/image-generation";
+import { FLUX3_KLEIN_MODEL, FLUX3_KLEIN_STEPS } from "../ai/runware-image-model-options";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 import {
   maybeUploadImageUrlToBucket,
   normalizeImageUrlForStorage,
@@ -494,15 +496,14 @@ export const generateCharacterImage = api<GenerateCharacterImageRequest, Generat
     const character = await getCharacter({ id: req.id });
     const prompt = buildCharacterImagePrompt(character, req.style);
 
-    // OPTIMIZATION v4.0: Use runware:400@4 with optimized parameters
+    // The shared adapter supplies FLUX 3's safety check and supported parameters.
     const result = await runwareGenerateImage({
       prompt,
+      model: FLUX3_KLEIN_MODEL,
       width: 1024,
       height: 1024,
-      steps: 4,     // runware:400@4 uses fewer steps
-      CFGScale: 4,
+      steps: FLUX3_KLEIN_STEPS,
       outputFormat: "WEBP",
-      negativePrompt: "photorealistic, horror, grotesque, text, watermark, signature, disfigured, deformed, low quality",
     });
 
     console.log("[CharacterPool] Character image generation completed:", {
@@ -592,12 +593,11 @@ export const batchRegenerateCharacterImages = api<{}, BatchRegenerateImagesRespo
           const prompt = buildCharacterImagePrompt(character, "storybook");
           const result = await runwareGenerateImage({
             prompt,
+            model: FLUX3_KLEIN_MODEL,
             width: 1024,
             height: 1024,
-            steps: 4,
-            CFGScale: 4,
+            steps: FLUX3_KLEIN_STEPS,
             outputFormat: "WEBP",
-            negativePrompt: "photorealistic, horror, grotesque, text, watermark, signature, disfigured, deformed, low quality",
           });
 
           if (result.imageUrl) {
@@ -933,13 +933,13 @@ export const importCharacters = api<ImportCharactersRequest, { success: boolean;
 
 function buildCharacterImagePrompt(
   character: CharacterTemplate,
-  style: GenerateCharacterImageRequest["style"]
+  _style: GenerateCharacterImageRequest["style"]
 ): string {
   const visual = character.visualProfile || { description: "", imagePrompt: "", species: "", colorPalette: [] };
   const emotional = character.emotionalNature || { dominant: "", secondary: [], triggers: [] };
 
   const sections = [
-    "Axel Scheffler inspired watercolor illustration for a children's story",
+    TALEA_IMAGE_STYLE,
     // Use only the imagePrompt field for image generation (dedicated for this purpose)
     visual.imagePrompt ? sanitizeSegment(visual.imagePrompt) : "",
     character.role ? `Narrative role ${sanitizeSegment(character.role)}` : "",
@@ -950,8 +950,7 @@ function buildCharacterImagePrompt(
     visual.colorPalette?.length
       ? `Color palette featuring ${sanitizeSegment(visual.colorPalette.join(", "))}`
       : "",
-    style ? resolveCharacterStyle(style) : resolveCharacterStyle("storybook"),
-    "Composition dynamic three-quarter view, friendly expression, child safe, no text, no watermark"
+    "One single character, readable three-quarter view and friendly expression, plain warm ivory background, child safe, no text, no watermark"
   ];
 
   return clampPromptLength(
@@ -972,19 +971,7 @@ function sanitizeSegment(input: string | undefined | null): string {
     .trim();
 }
 
-function resolveCharacterStyle(style: GenerateCharacterImageRequest["style"] | undefined): string {
-  switch (style) {
-    case "concept":
-      return "Style whimsical concept art, high detail ink lines, layered watercolor washes, gentle fantasy lighting";
-    case "watercolor":
-      return "Style traditional watercolor storybook painting, soft gradients, textured paper, warm highlights";
-    case "storybook":
-    default:
-      return "Style cozy European picture book, expressive gestures, inviting shapes, vibrant yet balanced colors";
-  }
-}
-
-function clampPromptLength(prompt: string, max = 900): string {
+function clampPromptLength(prompt: string, max = 4000): string {
   if (prompt.length <= max) {
     return prompt;
   }

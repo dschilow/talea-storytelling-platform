@@ -6,6 +6,7 @@ import { ensureAdmin } from "../admin/authz";
 import { storyDB } from "./db";
 import type { ArtifactCategory, ArtifactRarity, ArtifactTemplate } from "./types";
 import { runwareGenerateImage } from "../ai/image-generation";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 import {
   maybeUploadImageUrlToBucket,
   normalizeImageUrlForStorage,
@@ -650,18 +651,18 @@ export const importArtifacts = api<ImportArtifactsRequest, { success: boolean; i
 
 function buildArtifactImagePrompt(
   artifact: ArtifactTemplate,
-  style: GenerateArtifactImageRequest["style"]
+  _style: GenerateArtifactImageRequest["style"]
 ): string {
   const name = artifact.name?.en || artifact.name?.de || "magical artifact";
   const keywords = artifact.visualKeywords?.length ? artifact.visualKeywords.join(", ") : name;
 
   const sections = [
-    "storybook illustration of a magical artifact, isolated on a soft background",
+    TALEA_IMAGE_STYLE,
+    "one magical artifact, isolated on a plain warm ivory background",
     keywords,
     artifact.category ? `Category ${artifact.category}` : "",
     artifact.rarity ? `${artifact.rarity} rarity` : "",
     artifact.storyRole ? `Story role ${artifact.storyRole}` : "",
-    style ? resolveArtifactStyle(style) : resolveArtifactStyle("storybook"),
     "centered composition, no text, no watermark"
   ];
 
@@ -681,18 +682,6 @@ function sanitizeSegment(input: string | undefined | null): string {
     .replace(/[^\x20-\x7E]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function resolveArtifactStyle(style: GenerateArtifactImageRequest["style"] | undefined): string {
-  switch (style) {
-    case "concept":
-      return "Style whimsical concept art, crisp linework, soft lighting, high detail";
-    case "watercolor":
-      return "Style traditional watercolor painting, textured paper, gentle gradients";
-    case "storybook":
-    default:
-      return "Style cozy European picture book, rich color, playful shapes";
-  }
 }
 
 function clampPromptLength(prompt: string, max = 900): string {

@@ -3,6 +3,7 @@
 // Token Budget: 0 (Backend Logic only!)
 
 import { storyDB } from "./db";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 import type { StorySkeleton, CharacterTemplate, CharacterRequirement, CharacterAssignment } from "./types";
 import { EnhancedCharacterMatcher } from "./enhanced-character-matcher";
 import type { FairyTaleRoleRequirement } from "./enhanced-character-matcher";
@@ -1357,7 +1358,7 @@ export class Phase2CharacterMatcher {
     if (species === 'magical_creature') colors[0] = 'purple';
 
     // Build image prompt optimized for Runware/Flux
-    const imagePrompt = `${description}, ${adjectives} expression, storybook watercolor illustration, child-friendly fairy tale style, detailed character portrait`;
+    const imagePrompt = `${description}, ${adjectives} expression. ${TALEA_IMAGE_STYLE}. Single character portrait`;
 
     return {
       description,
@@ -1412,7 +1413,7 @@ export class Phase2CharacterMatcher {
       },
       visualProfile: {
         description: `${name} - ${req.role} character with ${dominantEmotion} nature`,
-        imagePrompt: `${name}, ${req.archetype} character, ${dominantEmotion} expression, child-friendly, watercolor illustration`,
+        imagePrompt: `${name}, ${req.archetype} character, ${dominantEmotion} expression. ${TALEA_IMAGE_STYLE}`,
         species,
         colorPalette: ["brown", "beige", "green"], // Generic
       },

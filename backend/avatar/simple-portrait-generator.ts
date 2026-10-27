@@ -5,7 +5,7 @@
  * Based on the 5.7→10.0 optimization guide.
  */
 
-import { AVATAR_CANON } from "./avatar-canon-simple";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 
 /**
  * Generate portrait prompt for avatar
@@ -52,7 +52,7 @@ export function generatePortraitPrompt(
   }
 
   return `
-Hand-inked European children's storybook watercolor portrait with gentle gouache textures.
+${TALEA_IMAGE_STYLE}.
 
 CHARACTER: ${avatar}
 
@@ -64,14 +64,7 @@ APPEARANCE:
 EMOTION: ${emotions[emotion]}
 POSE: ${poses[pose]}
 
-STYLE:
-- Original hand-inked watercolor illustration
-- Soft gouache textures
-- Hand-drawn quality
-- Warm pastel colors
-- Gentle outlines
-- Storybook character design
-- Full body portrait
+COMPOSITION: One full-body portrait on a plain warm ivory background.
   `.trim();
 }
 

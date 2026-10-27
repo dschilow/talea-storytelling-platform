@@ -514,6 +514,40 @@ describe("story b10f2dad: the last page must not stay blank", () => {
     expect(page.history?.map((entry) => entry.kind)).toEqual(["full", "redraw", "reduced"]);
   });
 
+  // Story 5e583e1e: the slowest picture walked full → redraw → reduced → vignette one after another (60 s).
+  test("parallelRedraw draws the heroes-only attempt next to the redraw; the choice stays the same", async () => {
+    let inFlight = 0;
+    let most = 0;
+    const result = await generateStorybookImages({ illustrations: crowd, entities: [...people, dragon], seed: "s", buildReference: reference, visionModel: "test", concurrency: 1, parallelRedraw: true,
+      llm: async (r) => reply(r, r.user.includes("Drache Fauchi") ? qaWith({ duplicates: ["Adrian drawn 2 times"] }) : { ...qaWith({}), characterCounts: { Alexander: 1, Adrian: 1, Schwebetopf: 1 }, namedCharactersVisible: 3 }),
+      provider: async (request) => {
+        inFlight++;
+        most = Math.max(most, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        inFlight--;
+        return { url: `https://example.test/${request.page}-${request.seed}.jpg` };
+      },
+    });
+    const page = result.pages.get(7)!;
+    expect(most).toBe(2);
+    expect(page.status).toBe("passed");
+    expect(page.attempts).toBe(3);
+    expect(page.history?.map((entry) => entry.kind)).toEqual(["full", "redraw", "reduced"]);
+  });
+
+  test("a redraw that passes ships; the spare heroes-only picture is logged as unused, before it", async () => {
+    const pages: number[] = [];
+    const result = await generateStorybookImages({ illustrations: crowd, entities: [...people, dragon], seed: "s", buildReference: reference, visionModel: "test", concurrency: 1, parallelRedraw: true,
+      llm: async (r) => reply(r, r.stage === "image-qa-p7-1" ? qaWith({ duplicates: ["Adrian drawn 2 times"] }) : qaWith({})),
+      provider: async (request) => { pages.push(request.page); return { url: `https://example.test/${request.page}-${request.seed}.jpg` }; },
+    });
+    const page = result.pages.get(7)!;
+    expect(page.status).toBe("passed");
+    expect(page.attempts).toBe(2);
+    expect(pages.filter((p) => p === 7)).toHaveLength(3);
+    expect(page.history?.map((entry) => entry.kind)).toEqual(["full", "reduced-unused", "redraw"]);
+  });
+
   test("when everything fails the least bad salvageable picture is printed, never a blank page", async () => {
     const result = await generateStorybookImages({ illustrations: crowd, entities: [...people, dragon], seed: "s", buildReference: reference, visionModel: "test", concurrency: 1,
       llm: async (r) => reply(r, r.stage.includes("vignette") ? qaWith({ unexpectedCharacters: ["a boy"] }) : qaWith({ featureBleed: ["Fauchi wears sleeves"], duplicates: ["Schwebetopf appears twice"] })),

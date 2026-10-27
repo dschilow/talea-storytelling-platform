@@ -230,7 +230,7 @@ export const TAVI_TOOLS: TaviTool[] = [
           style: {
             type: "string",
             enum: ["disney", "realistic", "anime"],
-            description: "Visual style (default: disney/watercolor children's book style)",
+            description: "Legacy style hint; generated images use the shared Talea Originals children's book style.",
           },
         },
         required: ["prompt"],

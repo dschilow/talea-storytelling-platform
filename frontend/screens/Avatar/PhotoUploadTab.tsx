@@ -24,7 +24,6 @@ const PhotoUploadTab: React.FC = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [artStyle, setArtStyle] = useState<'disney' | 'anime' | 'realistic'>('disney');
   const [loading, setLoading] = useState(false);
   const backend = useBackend();
   const activeProfileId = useOptionalChildProfiles()?.activeProfileId;
@@ -41,12 +40,6 @@ const PhotoUploadTab: React.FC = () => {
     curiosity: 9,
     leadership: 6,
   });
-
-  const artStyles = [
-    { key: 'disney', label: 'Disney-Stil', icon: '🏰', description: 'Märchenhaft und freundlich' },
-    { key: 'anime', label: 'Anime-Stil', icon: '🎌', description: 'Japanischer Manga-Look' },
-    { key: 'realistic', label: 'Realistisch', icon: '📸', description: 'Natürlich und detailliert' },
-  ];
 
   const personalityLabels = {
     courage: { label: 'Mut', icon: '🦁', color: 'bg-red-500' },
@@ -220,40 +213,10 @@ const PhotoUploadTab: React.FC = () => {
       {/* Art Style */}
       <FadeInView delay={300}>
         <Card variant="elevated">
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Kunststil</h2>
-          <p className="text-gray-600 mb-6">
-            Wähle den Stil für deinen Avatar
+          <h2 className="text-xl font-bold text-gray-800 mb-2">Talea-Bilderbuchstil</h2>
+          <p className="text-gray-600">
+            Warme Farben, weiche Tuschkonturen und liebevolle Gouache-Illustrationen – wie bei Bruno und der Monster-Müllabfuhr.
           </p>
-          
-          <div className="grid grid-cols-1 gap-4">
-            {artStyles.map((style) => (
-              <button
-                key={style.key}
-                onClick={() => setArtStyle(style.key as any)}
-                className={`p-4 rounded-lg border-2 transition-colors text-left ${
-                  artStyle === style.key
-                    ? 'border-amber-500 bg-amber-50'
-                    : 'border-gray-300 hover:border-amber-300'
-                }`}
-              >
-                <div className="flex items-center">
-                  <span className="text-2xl mr-3">{style.icon}</span>
-                  <div>
-                    <h3 className={`font-semibold ${
-                      artStyle === style.key ? 'text-amber-700' : 'text-gray-800'
-                    }`}>
-                      {style.label}
-                    </h3>
-                    <p className={`text-sm ${
-                      artStyle === style.key ? 'text-amber-600' : 'text-gray-600'
-                    }`}>
-                      {style.description}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
         </Card>
       </FadeInView>
 
@@ -313,7 +276,7 @@ const PhotoUploadTab: React.FC = () => {
               {name || 'Dein Avatar'}
             </h3>
             <p className="text-sm text-amber-600 font-medium mb-3">
-              {artStyles.find(s => s.key === artStyle)?.label} Stil
+              Moderner Talea-Bilderbuchstil
             </p>
             <p className="text-gray-600 mb-4">
               {description || 'Keine Beschreibung verfügbar'}

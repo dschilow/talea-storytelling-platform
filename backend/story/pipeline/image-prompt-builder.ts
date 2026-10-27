@@ -1,4 +1,5 @@
 ﻿import type { CastSet, ImageSpec } from "./types";
+import { TALEA_IMAGE_STYLE } from "../../ai/image-style";
 const INLINE_TTS_TAG_PATTERN = /\[([^\]\n]{1,40})\]/g;
 const KNOWN_TTS_TAGS = new Set<string>([
   "excited",
@@ -64,7 +65,7 @@ export function buildFinalPromptText(spec: ImageSpec, cast: CastSet, options?: {
   const refEntries = Object.entries(spec.refs || {});
   const isCollageMode = refEntries.length > 0 && refEntries.some(([key]) => key.startsWith("slot_"));
 
-  const styleValue = stripTtsEmotionTags(spec.style || "");
+  const styleValue = TALEA_IMAGE_STYLE;
   const styleBlock = isCollageMode
     ? `STYLE: ${styleValue}, rendered like a hand-painted page from a premium children's picture book, rich environmental detail with foreground-midground-background depth, characters DOING things inside a lived-in world, no text, no words, no watermark, no frames, no borders`
     : `STYLE: ${styleValue}, rendered like a hand-painted page from a premium children's picture book, rich environmental detail with foreground-midground-background depth, characters DOING things inside a lived-in world, no text, no words, no watermark`;
@@ -741,7 +742,7 @@ export function buildSupplementalScenicPrompt(input: {
   const chapterText = String(input.chapterText || "");
   const setting = normalizeScenicField(input.setting || "");
   const mood = normalizeScenicField(input.mood || "cozy");
-  const style = normalizeScenicField(input.style || "high-quality children's storybook illustration, watercolor texture");
+  const style = TALEA_IMAGE_STYLE;
   const chapterNumber = Number(input.chapterNumber || 0);
   const scenicHints = extractScenicHints(chapterText);
 

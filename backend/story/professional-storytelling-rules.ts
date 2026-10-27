@@ -13,6 +13,8 @@
  * The generated story content will be in the target language (German, Russian, etc.).
  */
 
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
+
 // ============================================================================
 // CRITICAL ANTI-PATTERNS TO PREVENT
 // ============================================================================
@@ -593,12 +595,8 @@ export const IMAGE_PROMPT_RULES = {
 
   // Style consistency across all images
   styleConsistency: {
-    baseStyle: 'Watercolor illustration style, Axel Scheffler inspired',
-    alternatives: [
-      'Soft pastel children\'s book illustration',
-      'Whimsical storybook art, warm colors',
-      'Gentle fairy tale illustration style',
-    ],
+    baseStyle: TALEA_IMAGE_STYLE,
+    alternatives: [TALEA_IMAGE_STYLE],
     // Same style must be used across all chapters
     requireConsistent: true,
   },

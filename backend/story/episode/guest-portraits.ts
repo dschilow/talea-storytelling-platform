@@ -8,6 +8,7 @@ export async function prepareGuestPortraits(input: {
   guestIds: string[];
   provider: ImageProvider;
   seed: string;
+  portraitStyle?: string;
   readableReference: (url: string) => Promise<string | undefined>;
 }): Promise<{
   entities: VisualEntity[];
@@ -27,7 +28,7 @@ export async function prepareGuestPortraits(input: {
     }
     calls++;
     try {
-      const response = await input.provider(figurePortraitRequest(entity, input.seed));
+      const response = await input.provider(figurePortraitRequest(entity, input.seed, input.portraitStyle));
       costUSD += Number.isFinite(response.costUSD) ? Number(response.costUSD) : 0;
       if (!response.url) {
         portraits.push({ id: entity.id, name: entity.name, status: "failed" });

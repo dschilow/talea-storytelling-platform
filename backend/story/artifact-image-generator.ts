@@ -7,23 +7,15 @@
 
 import { ai } from "~encore/clients";
 import type { NewArtifact } from "./types";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 
 /**
  * Master style template for all artifact images.
  * Ensures consistent look across all inventory items.
  */
 const ARTIFACT_MASTER_STYLE = [
-    "3d render",
-    "pixar style magical item",
-    "isometric view",
-    "soft magical rim lighting",
-    "volumetric glow",
-    "high detail",
-    "white background",
-    "no shadow",
-    "8k resolution",
-    "studio lighting",
-    "product photography style",
+    TALEA_IMAGE_STYLE,
+    "one single item in a readable three-quarter view, plain warm ivory background, subtle grounding shadow",
 ].join(", ");
 
 /**

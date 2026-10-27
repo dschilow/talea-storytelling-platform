@@ -2,6 +2,7 @@
 import { validateImageSpec } from "./schema-validator";
 import { buildFinalPromptText } from "./image-prompt-builder";
 import { GLOBAL_IMAGE_NEGATIVES } from "./constants";
+import { TALEA_IMAGE_STYLE } from "../../ai/image-style";
 import { buildRefsForSlots, selectReferenceSlots } from "./reference-images";
 
 export interface ImageValidationIssue {
@@ -35,7 +36,7 @@ export function validateAndFixImageSpecs(input: {
       const extraNegatives = hasBird ? ["extra birds", "multiple birds", "two birds"] : [];
 
       if (!current.style || current.style.length < 5) {
-        current.style = "high-quality children's storybook illustration";
+        current.style = TALEA_IMAGE_STYLE;
       }
       if (!current.composition || current.composition.length < 5) {
         current.composition = "wide shot, eye-level, full body visible head-to-toe";

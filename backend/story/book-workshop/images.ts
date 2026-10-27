@@ -4,6 +4,7 @@ import { roundUSD, validCost } from "./budget";
 import { acceptedGeneratedImageUrl } from "../../helpers/imageResultGuard";
 import { buildSceneIllustrationPrompt, createIdentityReferenceCache, type IdentityReferenceBuilder, type IdentitySpriteSlot } from "../image-reference-sprite";
 import type { BookBrief, BookResult } from "./types";
+import { TALEA_IMAGE_STYLE } from "../../ai/image-style";
 
 export const BOOK_IMAGE_MODEL = "runware:400@4";
 export interface ImageJob { page: number; taskId: string; prompt: string; references: string[] }
@@ -59,7 +60,7 @@ export async function illustrateBook(result: BookResult, brief: BookBrief, provi
         job = {
           ...job, references: referenceImage.urls,
           prompt: buildSceneIllustrationPrompt(page.illustration.scene,
-            "Children's book illustration, watercolor and colored pencil, expressive clear silhouettes, warm natural light. " + identities.join(" ") + " Show one moment and one location. Preserve the state of the central object. No written text.",
+            TALEA_IMAGE_STYLE + ". " + identities.join(" ") + " Show one moment and one location. Preserve the state of the central object. No written text.",
             referenceImage, visible.map(p => p.name)),
         };
       } catch {

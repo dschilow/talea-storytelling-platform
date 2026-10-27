@@ -2,6 +2,7 @@
 // Coordinates all 4 phases: Skeleton -> Matching -> Finalization -> Images
 
 import type { StoryConfig, Chapter } from "./generate";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 import { Phase1SkeletonGenerator } from "./phase1-skeleton";
 import type { Phase1GenerationResult } from "./phase1-skeleton";
 import { Phase2CharacterMatcher } from "./phase2-matcher";
@@ -854,7 +855,7 @@ export class FourPhaseOrchestrator {
 
 
 
-        const stylePreset = "watercolor_storybook";
+        const stylePreset = "talea_originals";
 
         // OPTIMIZATION v4.0: Get ALL reference images for characters in this scene
         const { urls: referenceUrls, characterMapping } = await this.selectReferenceImagesForScene(
@@ -1763,7 +1764,7 @@ export class FourPhaseOrchestrator {
 
     // OPTIMIZATION v5.1: Short style, PRIORITIZE scene action
     const promptParts = [
-      "Children's picture book illustration, watercolor style, warm lighting.",
+      `${TALEA_IMAGE_STYLE}.`,
       shotType ? ensurePeriod(`${shotType.toLowerCase()} view`) : '',
       countSentence,
       // CRITICAL: Scene description comes FIRST after basic style to ensure action is included
@@ -2070,7 +2071,7 @@ CRITICAL: Each character appears exactly once and looks distinct.
     const charNames = characterMapping.map(c => c.name).join(' + ');
 
     // ===== 1. STYLE BLOCK (short) =====
-    const styleBlock = `STYLE: high-quality children's storybook illustration, clean linework, soft watercolor shading, warm lighting, cozy cinematic mood, no text, no watermark.`;
+    const styleBlock = `STYLE: ${TALEA_IMAGE_STYLE}.`;
 
     // ===== 2. REFERENCE IMAGES BLOCK =====
     // CRITICAL: Use "Image 1 = CHARACTER" format (more robust than ref_image_1)

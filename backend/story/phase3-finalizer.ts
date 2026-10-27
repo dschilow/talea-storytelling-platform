@@ -3,6 +3,7 @@
 // Token Budget: ~2,000 tokens
 
 import { secret } from "encore.dev/config";
+import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 import type { StoryConfig } from "./generate";
 import type { StorySkeleton, CharacterTemplate, FinalizedStory, ArtifactTemplate, PendingArtifact } from "./types";
 import {
@@ -1043,7 +1044,7 @@ IMAGE DESCRIPTION GUIDE (ENGLISH):
 - Mention all characters with consistent visual traits and outfits.
 - Highlight lighting, mood, camera angle or perspective, and environment specifics.
 - Include recurring motifs or signature items from the story.
-- Art style: watercolor illustration, Axel Scheffler style, warm colors, child-friendly.
+- Art style: ${TALEA_IMAGE_STYLE}.
 
 IMPORTANT LANGUAGE INSTRUCTION:
 - Write the story content (title, description, chapters content) in the requested language: ${config.language || 'de'}.
