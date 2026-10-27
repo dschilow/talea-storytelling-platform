@@ -595,10 +595,6 @@ export default function TaleaStoryWizard() {
       } else {
         setGenerationStep('profiles');
         onPhaseChange('profiles');
-        await wait(1200);
-        setGenerationStep('memories');
-        onPhaseChange('memories');
-        await wait(1200);
         setGenerationStep('text');
         onPhaseChange('text');
       }

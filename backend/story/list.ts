@@ -139,7 +139,7 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
     const defaultProfile = await ensureDefaultProfileForUser(auth.userID, auth.email ?? undefined);
     const includeLegacyUnscoped = activeProfileId === defaultProfile.id;
 
-    const countResult = await storyDB.queryRow<{ count: number }>`
+    const countPromise = storyDB.queryRow<{ count: number }>`
       SELECT COUNT(*) as count
       FROM stories s
       WHERE s.user_id = ${auth.userID}
@@ -163,9 +163,7 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
           )
         )
     `;
-    const total = countResult?.count || 0;
-
-    const storyRows = await storyDB.queryAll<{
+    const storyRowsPromise = storyDB.queryAll<{
       id: string;
       user_id: string;
       primary_profile_id: string | null;
@@ -216,6 +214,8 @@ export const list = api<ListStoriesRequest, ListStoriesResponse>(
       ORDER BY s.created_at DESC
       LIMIT ${limit} OFFSET ${offset}
     `;
+    const [countResult, storyRows] = await Promise.all([countPromise, storyRowsPromise]);
+    const total = Number(countResult?.count) || 0;
 
     const storyIds = storyRows.map((row) => row.id);
     const participantRows = storyIds.length > 0

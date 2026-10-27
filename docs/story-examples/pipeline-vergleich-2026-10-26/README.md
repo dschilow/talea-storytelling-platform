@@ -1,5 +1,7 @@
 # Talea: Vergleich der Story-Pipelines
 
+**Modellläufe beendet:** [Abschluss und Empfehlung](ABSCHLUSS.md). Der gemeinsame Kandidat ist noch nicht abschließend geprüft.
+
 Stand: 26.10.2026, 16:06:29. Laufender Arbeitsbericht; offene Bewertungen sind keine Nullnoten.
 
 ## Methode

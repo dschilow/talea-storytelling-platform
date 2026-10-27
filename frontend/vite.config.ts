@@ -56,7 +56,8 @@ export default defineConfig(({ mode }) => ({
       // by the native asset loader; a website service worker must not replace it.
       disable: mode === 'android',
       injectRegister: false,
-      registerType: 'autoUpdate',
+      // Updates wait until existing tabs close instead of reloading them.
+      registerType: 'prompt',
       includeAssets: ['talea_logo.png', 'favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'brand/*.svg', 'fonts/*.woff2', 'tavi.png', 'loading-animation.lottie'],
       manifest: {
         name: 'Talea – Deine Geschichtenwelt',
@@ -118,7 +119,7 @@ export default defineConfig(({ mode }) => ({
         // a user's first session leaves the offline shell unable to fetch its
         // own lazy chunks.
         clientsClaim: true,
-        skipWaiting: true,
+        skipWaiting: false,
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [
           /^\/api/,

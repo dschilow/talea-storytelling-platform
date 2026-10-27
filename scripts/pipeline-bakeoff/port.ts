@@ -26,6 +26,7 @@ export async function quotaPort(out: string, limit = 45) {
     const fingerprint = occurrence === 1 ? base : `${base}-${occurrence}`;
     const saved = cache.get(fingerprint);
     if (saved) { console.log(`  ${request.stage} · exact replay`); return { ...saved, durationMs: 0, usage: { prompt: 0, completion: 0, total: 0, costUSD: 0 } }; }
+    if (process.argv.includes("--offline") || process.env.TALEA_EVAL_OFFLINE === "1") throw new Error("Offline evaluation: no saved response; no model call was made.");
     let port = ports.get(model);
     if (!port) { port = codexPort(join(out, model), model); ports.set(model, port); }
     let response;

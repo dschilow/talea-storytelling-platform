@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useSyncExternalStore } from 'r
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { ClerkProvider, useUser } from '@clerk/clerk-react';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { MotionConfig } from 'framer-motion';
 import { store } from './store/store';
 
@@ -553,10 +553,7 @@ const OfflineApp = () => (
 
 // Detects a failed lazy-chunk import, which happens when the tab holds a STALE
 // build (its index.html references chunk hashes a newer deploy already removed).
-// The proper recovery is a single hard reload to fetch the fresh index.html + chunks.
-// A sessionStorage guard prevents an infinite reload loop if the fetch keeps failing
-// for a different reason (e.g. genuine outage).
-const CHUNK_RELOAD_GUARD_KEY = 'talea.chunkReloadAttempt';
+// The user must choose when to reload, since an automatic reload loses drafts.
 
 function isChunkLoadError(reason: unknown): boolean {
   const msg = String(
@@ -568,28 +565,6 @@ function isChunkLoadError(reason: unknown): boolean {
     msg.includes('importing a module script failed') ||
     msg.includes("unexpected token '<'") // HTML served in place of a JS module
   );
-}
-
-function reloadForStaleChunks(): boolean {
-  // Offline, a failed chunk means "no network", not "stale build". Reloading
-  // would throw away a working offline shell and can strand the user on the
-  // browser's error page — the offline routes recover on their own instead.
-  if (!getOnlineStatus()) {
-    console.warn('[Talea] Chunk load failed while offline — keeping the current shell.');
-    return false;
-  }
-
-  try {
-    const last = Number(window.sessionStorage.getItem(CHUNK_RELOAD_GUARD_KEY) || '0');
-    // Only auto-reload once per ~10s window to avoid loops.
-    if (Date.now() - last < 10_000) return false;
-    window.sessionStorage.setItem(CHUNK_RELOAD_GUARD_KEY, String(Date.now()));
-  } catch {
-    // sessionStorage unavailable (private mode / SSR) — reload anyway, once.
-  }
-  console.warn('[Talea] Stale build detected (chunk load failed), reloading for fresh assets');
-  window.location.reload();
-  return true;
 }
 
 // Distinguishes a genuine Clerk/auth bootstrap failure from any other render crash.
@@ -615,11 +590,9 @@ class ClerkErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: Error) {
-    // A failed lazy chunk is a stale-build problem, not an auth failure. Don't flip
-    // into an error state (which shows AuthUnavailableScreen) — reloadForStaleChunks
-    // in componentDidCatch handles recovery via a single hard reload.
+    // A failed lazy chunk is a stale-build problem, not an auth failure.
     if (isChunkLoadError(error)) {
-      return { kind: 'none' as const };
+      return { kind: 'crash' as const, message: 'Ein Teil der App konnte nicht geladen werden. Bitte lade die Seite erneut.' };
     }
     if (isClerkFailure(error)) {
       return { kind: 'auth' as const };
@@ -629,7 +602,7 @@ class ClerkErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error) {
     if (isChunkLoadError(error)) {
-      reloadForStaleChunks();
+      console.warn('[Talea] App component could not be loaded:', error);
       return;
     }
     if (isClerkFailure(error)) {
@@ -663,11 +636,15 @@ class ClerkErrorBoundary extends React.Component<
 function useClerkLoadFailureDetection(onFail: () => void) {
   useEffect(() => {
     const handler = (event: PromiseRejectionEvent) => {
-      // A failed lazy chunk surfaces as an unhandled rejection (stale build) —
-      // recover with a single hard reload rather than the auth fallback.
+      // Keep the current screen and let the user decide when to reload.
       if (isChunkLoadError(event.reason)) {
         event.preventDefault();
-        reloadForStaleChunks();
+        toast.warning('Ein Teil der App konnte nicht geladen werden.', {
+          id: 'chunk-load-error',
+          description: 'Lade die Seite erneut, sobald du deine Eingaben abgeschlossen hast.',
+          duration: Infinity,
+          action: { label: 'Neu laden', onClick: () => window.location.reload() },
+        });
         return;
       }
       const msg = String(event.reason?.message || event.reason || '');
@@ -685,6 +662,9 @@ function useClerkLoadFailureDetection(onFail: () => void) {
 export default function App() {
   const isOnline = useSyncExternalStore(subscribeToOnlineStatus, getOnlineStatus);
   const [clerkFailed, setClerkFailed] = useState(false);
+  // Preserve an established session while the offline shell is visible.
+  const hasStartedOnline = React.useRef(isOnline);
+  if (isOnline) hasStartedOnline.current = true;
   const clerkLocalization = useClerkLocalization();
 
   // Clerk failing to load is the earliest hard evidence that the network is
@@ -709,12 +689,8 @@ export default function App() {
     }
   }, [isOnline, clerkFailed]);
 
-  if (!isOnline || clerkFailed) {
-    return (
-      <Provider store={store}>
-        {!isOnline ? <OfflineApp /> : <AuthUnavailableScreen onRetry={() => window.location.reload()} />}
-      </Provider>
-    );
+  if (!hasStartedOnline.current) {
+    return <Provider store={store}><OfflineApp /></Provider>;
   }
 
   if (!clerkPublishableKey) {
@@ -741,6 +717,13 @@ export default function App() {
   );
 
   return (
+    <>
+      {(!isOnline || clerkFailed) && (
+        <Provider store={store}>
+          {!isOnline ? <OfflineApp /> : <AuthUnavailableScreen onRetry={() => window.location.reload()} />}
+        </Provider>
+      )}
+      <div hidden={!isOnline || clerkFailed}>
     <ClerkErrorBoundary fallback={clerkFallback}>
       <Provider store={store}>
         <ClerkProvider publishableKey={clerkPublishableKey} localization={clerkLocalization}>
@@ -767,5 +750,7 @@ export default function App() {
         </ClerkProvider>
       </Provider>
     </ClerkErrorBoundary>
+      </div>
+    </>
   );
 }

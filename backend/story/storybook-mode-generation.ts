@@ -47,6 +47,7 @@ import { wonderBudget } from "./wonder/library";
 import { EPISODE_PIPELINE_ID, resolveEpisodeServiceTier, runEpisodeTextEngine } from "./episode/engine";
 import { episodeBudget, episodeWriterModel } from "./episode/craft";
 import { chapterPictures, coverStandIn, directEpisodePictures, type EpisodeDirection } from "./episode/pictures";
+import { prepareGuestPortraits } from "./episode/guest-portraits";
 import type { EpisodeResult } from "./episode/types";
 import { castAppearance, describeReferenceLooks, heroAppearance, runDirectorStage, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
 import { generateStorybookImages, publishableImageUrl, type ImageProvider, type StorybookImagesResult } from "./storybook/images";
@@ -292,7 +293,15 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     });
   }
 
-  const looks = await describeReferenceLooks(llm, entities, models.support);
+  // A new, story-local figure has no pool image. Draw its identity once before
+  // direction, then use the same portrait on every relevant identity sheet.
+  const guestPortraits = episodeMode
+    ? await prepareGuestPortraits({ entities, guestIds: guests.map((guest) => guest.id), provider: encoreImageProvider(input.storyId), seed, readableReference })
+    : { entities, portraits: [], calls: 0, costUSD: 0 };
+  if (episodeMode) await logStage(input.storyId, "guest-portraits", {
+    portraits: guestPortraits.portraits, calls: guestPortraits.calls, costUSD: guestPortraits.costUSD,
+  }, pipelineId);
+  const looks = await describeReferenceLooks(llm, guestPortraits.entities, models.support);
   if (looks.call) ledger.recordCall("reference-looks", looks.call, "support");
   // Talea-Folge draws two pictures per chapter, each after the paragraph it shows, and every acting figure at least once
   // (the chapter book's picture machinery, ./episode/pictures.ts). Every other lane: one picture per page.
@@ -427,8 +436,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     displayMode: "reading_pages",
     imageModel: IMAGE_MODEL,
     imagesGenerated: images.imagesGenerated,
-    imageCalls: images.imageCalls,
-    imageCostUSD: images.imageCostUSD,
+    imageCalls: images.imageCalls + guestPortraits.calls,
+    imageCostUSD: Number((images.imageCostUSD + guestPortraits.costUSD).toFixed(6)),
     tokensUsed: { prompt: totals.prompt, completion: totals.completion, total: totals.total, totalCostUSD: totals.costUSD, modelUsed: models.writer },
     devModeStages: ledger.all(),
     releaseReady,
@@ -461,6 +470,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       textQuality: text.textQuality,
       pairwise: text.pairwise,
       castUsed: castInStory.map((member) => ({ id: member.id, name: member.name })),
+      ...(episodeMode ? { guestPortraits: guestPortraits.portraits } : {}),
       artifact: plan.artifact ? { ...plan.artifact, awarded: Boolean(pendingArtifact) } : null,
       hardIssues: text.finalChecks.hard.map((issue) => issue.message),
       softIssues: text.finalChecks.soft.map((issue) => issue.message),
@@ -504,8 +514,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     wordCount,
     llmCalls: totals.calls,
     textCostUSD: totals.costUSD,
-    imageCostUSD: images.imageCostUSD,
-    totalCostUSD: Number((totals.costUSD + images.imageCostUSD).toFixed(6)),
+    imageCostUSD: Number((images.imageCostUSD + guestPortraits.costUSD).toFixed(6)),
+    totalCostUSD: Number((totals.costUSD + images.imageCostUSD + guestPortraits.costUSD).toFixed(6)),
     benchmarkScore: text.benchmarkScore,
     draftScore: text.draftScore,
     chosen: text.chosen,

@@ -1,0 +1,20 @@
+[
+  {
+    "case": "fairytale",
+    "judge": "gpt-6.1-terra",
+    "variant": "sol-low",
+    "field": "finding:0",
+    "original": "beim Versuch, würdevoll auszusehen, stieß sie sich selbst mit dem Knie gegen den Hutrand ihres Umhangkragens.",
+    "corrected": "Beim Versuch, würdevoll auszusehen, stieß sie sich selbst mit dem Knie gegen den Hutrand ihres Umhangkragens.",
+    "reason": "Satzanfang im Manuskript großgeschrieben. Inhalt und Note unverändert."
+  },
+  {
+    "case": "fairytale",
+    "judge": "gpt-6.1-terra",
+    "variant": "terra-medium",
+    "field": "strongest",
+    "original": "Ben hat mein schwerstes Rätsel gelöst. Und ich habe verloren.",
+    "corrected": "„Ben hat mein schwerstes Rätsel gelöst“, sagte sie. „Und ich habe verloren.“",
+    "reason": "Der Lektor ließ die Sprecherzuordnung aus und verband zwei Redeteile. Wörtliche Manuskriptfassung wiederhergestellt; Inhalt und Note unverändert."
+  }
+]

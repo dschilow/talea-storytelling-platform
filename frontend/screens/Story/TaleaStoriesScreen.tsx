@@ -758,9 +758,15 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
 
             <div className="mt-5">
               <div>
+                {loadError && filteredStories.length > 0 && (
+                  <div className={cn(taleaInsetSurfaceClass, "mb-4 p-4 text-center")} role="alert">
+                    <p className="text-[var(--talea-text-primary)]">{loadError}</p>
+                    <TaleaActionButton className="mt-3" onClick={onRefresh}>Erneut versuchen</TaleaActionButton>
+                  </div>
+                )}
                 {loading ? (
                   <LoadingState />
-                ) : loadError ? (
+                ) : loadError && filteredStories.length === 0 ? (
                   <div className={cn(taleaInsetSurfaceClass, "p-8 text-center")} role="alert">
                     <p className="text-[var(--talea-text-primary)]">{loadError}</p>
                     <TaleaActionButton className="mt-4" onClick={onRefresh}>Erneut versuchen</TaleaActionButton>
@@ -868,22 +874,28 @@ const TaleaStoriesScreen: React.FC = () => {
     try {
       setLoading(true);
       setLoadError(null);
+      setStories([]);
+      setTotal(0);
       const allStories: Story[] = [];
       let hasMore = true;
       let total = 0;
       while (hasMore) {
-        const response = await backend.story.list({ limit: 50, offset: allStories.length, profileId: activeProfileId || undefined });
+        const response = await backend.story.list({ limit: allStories.length === 0 ? 12 : 50, offset: allStories.length, profileId: activeProfileId || undefined });
         if (sequence !== loadSequence.current) return;
         const page = (response.stories as unknown as Story[]) || [];
-        allStories.push(...page.map(presentStory));
-        total = response.total || 0;
+        const presentedPage = page.map(presentStory);
+        const firstPage = allStories.length === 0;
+        allStories.push(...presentedPage);
+        total = Number(response.total) || 0;
         hasMore = Boolean(response.hasMore && page.length);
+        // Render the first page immediately; append older stories as they arrive.
+        setStories((previous) => firstPage ? presentedPage : [...previous, ...presentedPage]);
+        setTotal(total);
+        setLoading(false);
       }
-      setStories(allStories);
-      setTotal(total);
     } catch (error) {
       console.error("Error loading stories:", error);
-      if (sequence === loadSequence.current) setLoadError("Deine Geschichten konnten nicht geladen werden. Bitte versuche es erneut.");
+      if (sequence === loadSequence.current) setLoadError("Deine Geschichten konnten nicht vollständig geladen werden. Bitte versuche es erneut.");
     } finally {
       if (sequence === loadSequence.current) setLoading(false);
     }

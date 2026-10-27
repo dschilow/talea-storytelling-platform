@@ -1,0 +1,1542 @@
+{
+  "pipeline": "talea-folge-v1",
+  "rubric": {
+    "causalityAndRule": 20,
+    "leadingCharacterAgency": 20,
+    "ensembleContribution": 10,
+    "voiceAndDialogue": 10,
+    "humorAndWonder": 10,
+    "pacing": 10,
+    "readAloud": 10,
+    "emotionAndPayoff": 10
+  },
+  "aggregate": [
+    {
+      "id": "sol-low",
+      "model": "gpt-6.1-sol",
+      "effort": "low",
+      "label": "Sol 6.1 Low",
+      "mean": 7.866666666666666,
+      "byJudge": [
+        {
+          "judge": "gpt-6.1-sol",
+          "mean": 8
+        },
+        {
+          "judge": "gpt-6.1-terra",
+          "mean": 7.733333333333333
+        }
+      ],
+      "hardFailures": 0,
+      "revisions": 0,
+      "chaptersOutsideBudget": 0,
+      "seconds": 520,
+      "inputTokens": 92579,
+      "outputTokens": 10153
+    },
+    {
+      "id": "terra-low",
+      "model": "gpt-6.1-terra",
+      "effort": "low",
+      "label": "Terra 6.1 Low",
+      "mean": 6.316666666666666,
+      "byJudge": [
+        {
+          "judge": "gpt-6.1-sol",
+          "mean": 6.033333333333334
+        },
+        {
+          "judge": "gpt-6.1-terra",
+          "mean": 6.6000000000000005
+        }
+      ],
+      "hardFailures": 0,
+      "revisions": 0,
+      "chaptersOutsideBudget": 4,
+      "seconds": 145,
+      "inputTokens": 90137,
+      "outputTokens": 10512
+    },
+    {
+      "id": "terra-medium",
+      "model": "gpt-6.1-terra",
+      "effort": "medium",
+      "label": "Terra 6.1 Mittel",
+      "mean": 7.033333333333334,
+      "byJudge": [
+        {
+          "judge": "gpt-6.1-sol",
+          "mean": 6.866666666666667
+        },
+        {
+          "judge": "gpt-6.1-terra",
+          "mean": 7.2
+        }
+      ],
+      "hardFailures": 0,
+      "revisions": 0,
+      "chaptersOutsideBudget": 7,
+      "seconds": 158,
+      "inputTokens": 87887,
+      "outputTokens": 11646
+    }
+  ],
+  "rows": [
+    {
+      "case": "magic",
+      "caseLabel": "Magisches Abenteuer",
+      "variant": "sol-low",
+      "variantLabel": "Sol 6.1 Low",
+      "title": "Der Wald spielt verrückt",
+      "file": "magic-sol-low.md",
+      "words": 1976,
+      "perChapter": [
+        619,
+        642,
+        715
+      ],
+      "calls": 1,
+      "revised": false,
+      "checks": {
+        "hard": [],
+        "soft": []
+      },
+      "seconds": 193,
+      "chapterBudget": [
+        600,
+        800
+      ],
+      "chaptersOutsideBudget": 0,
+      "usage": {
+        "prompt": 30931,
+        "completion": 3908,
+        "total": 34839,
+        "costUSD": 0,
+        "calls": 1
+      },
+      "ratings": [
+        {
+          "judge": "gpt-6.1-sol",
+          "variant": "sol-low",
+          "label": "A",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 6,
+              "reason": "Verlust als Auslöser ist verständlich; Wurfzählung und zusätzliche Wirkungen unterlaufen jedoch die Verlässlichkeit."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Kichers Siegeswunsch verursacht das Chaos; seine Entscheidung gegen weitere Zusatzregeln ermöglicht die Befreiung."
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Nora organisiert und wirft; Ben entdeckt den wirksamen Hutumweg und erhält schließlich Entscheidungsspielraum."
+            },
+            "voiceAndDialogue": {
+              "score": 8,
+              "reason": "Rappels mürrische Gegenreden und Bens trockene Beobachtungen bilden klare Gegenstimmen zu Kichers Selbstlob."
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Trichterhüte, hüpfende Schuhe und der Koboldpilz erzeugen anschauliche, körperliche Komik."
+            },
+            "pacing": {
+              "score": 7,
+              "reason": "Die Hutverwandlung steigert sich wirkungsvoll; Aufräumversuch und mehrfaches Feststecken verlängern den Mittelteil."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Klare Sätze, passende Geräusche und wechselnde Rhythmen tragen; die fehlerhafte Punktebilanz verlangt Nachrechnen."
+            },
+            "emotionAndPayoff": {
+              "score": 8,
+              "reason": "Kichers Angst erhält Raum; die freiwillige Revanche beantwortet sie überzeugend, Rappels Schlusswitz bleibt eigenwillig."
+            }
+          },
+          "findings": [
+            {
+              "severity": "major",
+              "quote": "Kicher musste danach noch zweimal werfen.",
+              "readerCost": "Kicher hat bereits zweimal geworfen. Zwei weitere Würfe widersprechen drei Zapfen pro Person und neun Gesamtwürfen.",
+              "fix": "Wurffolge und Punktestand so überarbeiten, dass Kichers entscheidende Wahl innerhalb seiner drei Würfe liegt."
+            },
+            {
+              "severity": "major",
+              "quote": "Sofort sprang der Hut zurück auf seinen Kopf.",
+              "readerCost": "Die Magie erzwingt plötzlich Kopfbedeckung; später hüpfen Schuhe auch ohne unmittelbar folgenden Wurf. Beides erweitert die Regeln unangekündigt.",
+              "fix": "Die Folgen aus den ausgesprochenen Zusatzregeln entwickeln oder die betreffenden Bedingungen vorher verständlich festlegen."
+            }
+          ],
+          "strongest": {
+            "quote": "Dann schob Kicher den Zapfen zu Ben.",
+            "reason": "Kicher verzichtet handelnd auf eine rettende Zusatzregel und vertraut den Kindern den entscheidenden Versuch an."
+          },
+          "verdict": "Gewichtet 7,5/10: Komisch, emotional tragfähig und mit einer starken Hauptfigurenentscheidung; Regelabweichungen schwächen die Auflösung.",
+          "score": 7.5,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        },
+        {
+          "judge": "gpt-6.1-terra",
+          "variant": "sol-low",
+          "label": "A",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 6,
+              "reason": "Die Endregel ist klar, doch Hutwürfe und veränderte Abstände verwischen die ursprünglichen Spielregeln."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Kichers Siegeswunsch verursacht das Durcheinander; seine Entscheidung gegen weitere Zusatzregeln löst es."
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Nora trifft und schafft Raum für Bens entscheidende Idee; Ben entwickelt den Hutwurf."
+            },
+            "voiceAndDialogue": {
+              "score": 8,
+              "reason": "Bens trockene Kommentare und Rappels Brummen heben sich von Kichers eifrigem Selbstlob ab."
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Hüpfschuhe, Pilzhut und der sprechende Beutel erzeugen anschauliche Überraschungen."
+            },
+            "pacing": {
+              "score": 7,
+              "reason": "Die Hutvergrößerung steigert das Problem; Packversuch und Gartentorszene verlängern den Mittelteil."
+            },
+            "readAloud": {
+              "score": 7,
+              "reason": "Klangwörter und klare Dialoge tragen, doch die Wurfabrechnung verlangt erhebliche Aufmerksamkeit."
+            },
+            "emotionAndPayoff": {
+              "score": 8,
+              "reason": "Kichers Verlustangst erhält einen stillen Moment und wird durch die nächste Spielrunde aufgefangen."
+            }
+          },
+          "findings": [
+            {
+              "severity": "major",
+              "quote": "Ben warf. Seine Schuhe machten ihren kleinen Satz. Der Zapfen landete auf dem Hut und rollte los.",
+              "readerCost": "Ben wirft für Kicher, während der Eimer versetzt wurde; der Ausgang wirkt regeltechnisch beliebig.",
+              "fix": "Vorher vereinbaren, wie Stellvertreterwürfe und der neue Eimerstand für alle zählen."
+            },
+            {
+              "severity": "minor",
+              "quote": "Sofort sprang der Hut zurück auf seinen Kopf.",
+              "readerCost": "Dass sich das Spiel nicht einpacken lässt, geht über die erklärte Wunderregel hinaus.",
+              "fix": "Diese Wirkung früh ankündigen oder den Packversuch ohne zusätzliche Magie scheitern lassen."
+            }
+          ],
+          "strongest": {
+            "quote": "„Ich mag das sogar. Aber wenn ich verliere, spielt ihr vielleicht nicht noch mal.“",
+            "reason": "Hinter Kichers Schummeln wird sein Wunsch nach Gesellschaft unmittelbar verständlich."
+          },
+          "verdict": "Ein lebhaftes, gefühlvolles Spielabenteuer mit starkem Kobold; die entscheidende Wurfregel braucht mehr Klarheit.",
+          "score": 7.4,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        }
+      ],
+      "mean": 7.45
+    },
+    {
+      "case": "magic",
+      "caseLabel": "Magisches Abenteuer",
+      "variant": "terra-low",
+      "variantLabel": "Terra 6.1 Low",
+      "title": "Die wilde Warteschlange",
+      "file": "magic-terra-low.md",
+      "words": 2545,
+      "perChapter": [
+        747,
+        879,
+        919
+      ],
+      "calls": 1,
+      "revised": false,
+      "checks": {
+        "hard": [],
+        "soft": []
+      },
+      "seconds": 64,
+      "chapterBudget": [
+        600,
+        800
+      ],
+      "chaptersOutsideBudget": 2,
+      "usage": {
+        "prompt": 30865,
+        "completion": 4426,
+        "total": 35291,
+        "costUSD": 0,
+        "calls": 1
+      },
+      "ratings": [
+        {
+          "judge": "gpt-6.1-sol",
+          "variant": "terra-low",
+          "label": "B",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 5,
+              "reason": "Die Grundregel wird vorgeführt; angesammelte Schwanzlängen, Zugbesitz und Punktevergabe bleiben im weiteren Verlauf widersprüchlich."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Kicher treibt das Geschehen durch eigennützige Regeln und entscheidet schließlich selbst, seinen Zug abzugeben."
+            },
+            "ensembleContribution": {
+              "score": 7,
+              "reason": "Nora experimentiert und organisiert; Ben erkennt die Lösung, erhält aber spät tatsächlichen Einfluss."
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Bens knappe Kommentare und Mucks Schlafwunsch wirken eigenständig; mehrere Pointen folgen derselben Kommentarschablone."
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Die wörtliche Warteschlange, der kreiselnde Hut und Kichers nasser Punkt bieten verständliche Überraschungen."
+            },
+            "pacing": {
+              "score": 5,
+              "reason": "Die bekannte Lösung wird lange vertagt; Kanne und Stumpf erzeugen wiederholte statt wesentlich neue Schwierigkeiten."
+            },
+            "readAloud": {
+              "score": 7,
+              "reason": "Überwiegend flüssiges Deutsch; Schnurverbindungen, Zapfenbesitz und das abschließende Muldenspiel sind schwer nachzuvollziehen."
+            },
+            "emotionAndPayoff": {
+              "score": 7,
+              "reason": "Das Abgeben beantwortet Kichers Angst und Bens Wunsch; der wiederkehrende Hutwitz schließt anschaulich."
+            }
+          },
+          "findings": [
+            {
+              "severity": "major",
+              "quote": "Gibst du deinen Zug ab, verschwindet sie.",
+              "readerCost": "Zunächst verschwindet nur Noras Zuwachs. Später beseitigt einmaliges Abgeben mehrere Zuwächse; Ben besitzt zudem keinen erklärten Schwanzanteil.",
+              "fix": "Festlegen und durchgehend zeigen, ob Zugabgabe alle eigenen Zuwächse oder jeweils nur einen entfernt."
+            },
+            {
+              "severity": "major",
+              "quote": "Nora legte ihn zu ihren übrigen Zapfen.",
+              "readerCost": "Kichers Zapfentreffer wird ohne Regelgrund Nora zugerechnet. Die folgende Punktebilanz übergeht außerdem den angekündigten Gewinn aller Zapfen.",
+              "fix": "Treffer, Gewinner und Zapfenübertragung eindeutig verbinden und den daraus folgenden Spielstand konsequent fortführen."
+            }
+          ],
+          "strongest": {
+            "quote": "„Und ich wach“, sagte Muck.",
+            "reason": "Mucks knapper Einwurf macht die Kosten von Kichers Starrsinn persönlich und komisch zugleich."
+          },
+          "verdict": "Gewichtet 6,7/10: Einprägsame Wunderidee und wirksame Figurenwünsche; unklare Buchführung und ein gedehnter Mittelteil kosten Spannung.",
+          "score": 6.7,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        },
+        {
+          "judge": "gpt-6.1-terra",
+          "variant": "terra-low",
+          "label": "C",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 6,
+              "reason": "Auslöser und Abgabe sind verständlich; die vollständige Schrumpfung nach mehrfachen Ansagen bleibt unklar."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Kichers Gewinnwunsch verschärft das Problem; seine bewusste Zugabgabe ermöglicht die Lösung."
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Ben erkennt die Lösung und plant mit; Nora lässt ihn entscheiden und hilft praktisch."
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Bens knappe Einwürfe und Mucks Schlafwunsch unterscheiden die Figuren, einige Aussagen erklären direkt."
+            },
+            "humorAndWonder": {
+              "score": 7,
+              "reason": "Schuhschleife, nasser Punkt und wandernder Stumpf machen die Magie körperlich erfahrbar."
+            },
+            "pacing": {
+              "score": 7,
+              "reason": "Die Schlange steigert das Durcheinander; die Gießkannenszenen und Bergung verlängern den Schluss."
+            },
+            "readAloud": {
+              "score": 7,
+              "reason": "Die Bilder sind überwiegend klar und rhythmisch; die Schnurführung fordert räumliche Aufmerksamkeit."
+            },
+            "emotionAndPayoff": {
+              "score": 7,
+              "reason": "Kichers Sorge und Bens Mitbestimmung werden eingelöst; der Schlussgag greift einen früheren Satz auf."
+            }
+          },
+          "findings": [
+            {
+              "severity": "major",
+              "quote": "„Ben“, sagte Kicher schließlich, „du darfst meinen Zug haben.“",
+              "readerCost": "Kicher hat mehrfach den Auslösesatz gesagt; unklar bleibt, warum eine Zugabgabe seine ganze Schlangenlänge beseitigt.",
+              "fix": "Festlegen, ob eine Abgabe alle eigenen Ansagen oder jeweils nur eine ausgleicht."
+            },
+            {
+              "severity": "major",
+              "quote": "„Wer einen Türgriff in die Kanne wirft, bekommt alle Zapfen.“",
+              "readerCost": "Nora erhält alle Zapfen, obwohl Kicher den Türgriff und einen Zapfen wirft; die Wertung wirkt willkürlich.",
+              "fix": "Die Zusatzregel so formulieren, dass Noras Gewinn aus dem missglückten Wurf folgt."
+            }
+          ],
+          "strongest": {
+            "quote": "„Wenn ich meinen Zug abgebe, bekomme ich vielleicht keinen mehr“, sagte Kicher.",
+            "reason": "Kichers Wahl kostet ihn gefühlt etwas und verbindet Spielregel mit seiner Angst."
+          },
+          "verdict": "Eine einfallsreiche Warteschlange und eine überzeugende Entscheidung tragen die Geschichte; zwei Wertungen brauchen klarere Regeln.",
+          "score": 7.1,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        }
+      ],
+      "mean": 6.9
+    },
+    {
+      "case": "magic",
+      "caseLabel": "Magisches Abenteuer",
+      "variant": "terra-medium",
+      "variantLabel": "Terra 6.1 Mittel",
+      "title": "Der Hüpfstein-Wettlauf",
+      "file": "magic-terra-medium.md",
+      "words": 2796,
+      "perChapter": [
+        890,
+        1030,
+        876
+      ],
+      "calls": 1,
+      "revised": false,
+      "checks": {
+        "hard": [],
+        "soft": [
+          "Chapter 1: unclear „Er“ — „Ben stand neben Nora am zweiten Stein. Er hielt den Holzfrosch am Kopf.“. Repeat the name."
+        ]
+      },
+      "seconds": 66,
+      "chapterBudget": [
+        600,
+        800
+      ],
+      "chaptersOutsideBudget": 3,
+      "usage": {
+        "prompt": 30865,
+        "completion": 5112,
+        "total": 35977,
+        "costUSD": 0,
+        "calls": 1
+      },
+      "ratings": [
+        {
+          "judge": "gpt-6.1-sol",
+          "variant": "terra-medium",
+          "label": "C",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 5,
+              "reason": "Das Hüpfwort ist zunächst klar; unbegründete Gegenstandswege und der abweichende Schlussauslöser beschädigen die Regel."
+            },
+            "leadingCharacterAgency": {
+              "score": 7,
+              "reason": "Kichers Ehrgeiz bestimmt den Verlauf; seine entscheidende Öffnung erfolgt erst nach dem bereits gewonnenen Wettlauf."
+            },
+            "ensembleContribution": {
+              "score": 7,
+              "reason": "Beide Kinder nutzen Zusatzregeln und lösen gemeinsam den Knoten; Bens Mitbestimmungswunsch verändert das weitere Spielen."
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Kicher, Ben und Muck unterscheiden sich hörbar; manche trockenen Kommentare wirken austauschbar."
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Froschhut, Geräuschorchester und unbeabsichtigte Wortauslöser liefern konkrete Komik; der Schluss überrascht auf Kosten der Regel."
+            },
+            "pacing": {
+              "score": 5,
+              "reason": "Mehrere Stillhalteversuche wiederholen sich; nach dem Wettlauf folgen zahlreiche Spielrunden und mehrfach angesetzte Schlüsse."
+            },
+            "readAloud": {
+              "score": 7,
+              "reason": "Geräusche und kurze Wechsel funktionieren gut; wechselnde Positionen von Beutel, Löffel und Fäden erschweren Orientierung."
+            },
+            "emotionAndPayoff": {
+              "score": 6,
+              "reason": "Mucks Verlassenheitsangst berührt; Kichers Preisgabe des Türgriffs überzeugt stärker als sein wiederholt erklärtes Einlenken."
+            }
+          },
+          "findings": [
+            {
+              "severity": "major",
+              "quote": "Bitte leise weiterspielen.",
+              "readerCost": "Der Schluss behandelt einen Wortbestandteil als Hüpfwort. Frühere Formen wie „weiterspielt“ lösen keinen Sprung aus.",
+              "fix": "Muck ausdrücklich „Weiter“ sagen lassen oder die Auslösung durch Wortbestandteile früh festlegen und konsequent anwenden."
+            },
+            {
+              "severity": "major",
+              "quote": "Am anderen Ende hing der Korb der Waldhüterin.",
+              "readerCost": "Die Verbindung des Korbs mit dem Faden wurde nicht hergestellt. Damit entsteht die zentrale Verwicklung durch nachträgliche Behauptung.",
+              "fix": "Vor Kichers Sprung zeigen, wie der Faden durch den Korbhenkel gerät und beim Hüpfen gespannt wird."
+            }
+          ],
+          "strongest": {
+            "quote": "Kicher zog ihn heraus und hielt ihn Ben hin.",
+            "reason": "Der zuvor stolz vorgeführte Lieblingsgriff wird zum freiwilligen Preis; Kichers Veränderung bekommt einen konkreten Wert."
+          },
+          "verdict": "Gewichtet 6,4/10: Lebendige Situationskomik und ein guter Preis-Moment; unstete Mechanik und ausgedehnte Nachspiele schwächen den Bogen.",
+          "score": 6.4,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        },
+        {
+          "judge": "gpt-6.1-terra",
+          "variant": "terra-medium",
+          "label": "B",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 6,
+              "reason": "Das Hüpfwort ist verständlich, doch Beutelposition und Schlussplopp bleiben räumlich beziehungsweise regelhaft unklar."
+            },
+            "leadingCharacterAgency": {
+              "score": 7,
+              "reason": "Kicher treibt das Spiel mit seinem Gewinnwunsch an und lässt Ben schließlich anfangen."
+            },
+            "ensembleContribution": {
+              "score": 7,
+              "reason": "Ben beobachtet und bestimmt mit; Nora handelt beim Knoten, prägt die Lösung aber weniger."
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Ben kommentiert trocken, Muck brummt schläfrig; manches erklärt die Gefühle recht ausdrücklich."
+            },
+            "humorAndWonder": {
+              "score": 7,
+              "reason": "Froschhut und Suppenhut sind spielerisch, die wiederholten Hüpfer nutzen sich teilweise ab."
+            },
+            "pacing": {
+              "score": 6,
+              "reason": "Der Wettlauf hat mehrere ähnliche Zwischenfälle; nach dem Ziel folgt eine ausgedehnte zweite Spielszene."
+            },
+            "readAloud": {
+              "score": 7,
+              "reason": "Kurze Dialoge und Geräusche lesen sich gut; einzelne Ortswechsel sind schwer nachzuvollziehen."
+            },
+            "emotionAndPayoff": {
+              "score": 7,
+              "reason": "Kicher überlässt Ben glaubhaft den Anfang; Mucks Schlussplopp überrascht ohne klare Vorbereitung."
+            }
+          },
+          "findings": [
+            {
+              "severity": "major",
+              "quote": "Plopp.\n\nMuck saß mitsamt Türgriff auf dem ersten Stein.",
+              "readerCost": "Muck sagt das Hüpfwort nicht; sein Sprung widerspricht der zuvor erklärten Regel.",
+              "fix": "Muck das Wort sagen lassen oder eine entsprechende Wirkung vorher einführen."
+            },
+            {
+              "severity": "major",
+              "quote": "Direkt hinter ihm lag Kichers offener Beutel.",
+              "readerCost": "Kichers zuvor mitgetragener Beutel liegt plötzlich voraus; der anschließende Zwischenfall wirkt unvorbereitet.",
+              "fix": "Zeigen, wann und wie der Beutel zum vierten Stein gelangt."
+            }
+          ],
+          "strongest": {
+            "quote": "Kicher ließ einen Zapfen nach dem anderen auf den Stein fallen. Sechs Stück. Dann schob er sie zu Ben.",
+            "reason": "Die kleine Handlung macht Kichers Entscheidung gegen seinen Siegeszwang sichtbar."
+          },
+          "verdict": "Ein freundliches Spielabenteuer mit schöner Entwicklung für Kicher und Ben, aber unklarer Schlussmagie und Längen.",
+          "score": 6.7,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        }
+      ],
+      "mean": 6.55
+    },
+    {
+      "case": "fairytale",
+      "caseLabel": "Lustiges Märchen",
+      "variant": "sol-low",
+      "variantLabel": "Sol 6.1 Low",
+      "title": "Der Knoten unter dem Frühstück",
+      "file": "fairytale-sol-low.md",
+      "words": 2084,
+      "perChapter": [
+        666,
+        687,
+        731
+      ],
+      "calls": 1,
+      "revised": false,
+      "checks": {
+        "hard": [],
+        "soft": []
+      },
+      "seconds": 215,
+      "chapterBudget": [
+        600,
+        800
+      ],
+      "chaptersOutsideBudget": 0,
+      "usage": {
+        "prompt": 30983,
+        "completion": 4340,
+        "total": 35323,
+        "costUSD": 0,
+        "calls": 1
+      },
+      "ratings": [
+        {
+          "judge": "gpt-6.1-sol",
+          "variant": "sol-low",
+          "label": "C",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 9,
+              "reason": "Vorenthaltene Steine erzeugen Knoten; ihre tatsächliche Übergabe löst sie einzeln. Keil und Mehl bereiten Lösungen vor."
+            },
+            "leadingCharacterAgency": {
+              "score": 9,
+              "reason": "Gegnersuche, wiederholtes Schummeln und die bewusste Steinübergabe verbinden Wunsch, Fehler und entscheidende Wahl der Hexe."
+            },
+            "ensembleContribution": {
+              "score": 9,
+              "reason": "Nora schafft mit dem Keil Zugang; Ben demonstriert die Lösung und fordert wirksame Mitsprache."
+            },
+            "voiceAndDialogue": {
+              "score": 8,
+              "reason": "Hexenausflüchte, Bens Beharrlichkeit und Quasts Eigeninteressen greifen lebendig ineinander; einzelne Pointen wirken konstruiert."
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Erbsenzahn, eingerollte Hexe und auseinandergehende Teppichstrümpfe nutzen den sichtbaren Zauber abwechslungsreich für Situationskomik."
+            },
+            "pacing": {
+              "score": 8,
+              "reason": "Jeder Schummelversuch verändert die Lage; der stille Verlustmoment erhält Platz vor der räumlich klaren Zuspitzung."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Gut verfolgbare Handlungen und abwechslungsreiche Rhythmen; vereinzelte sperrige Formulierungen und Namenswiederholungen stören."
+            },
+            "emotionAndPayoff": {
+              "score": 9,
+              "reason": "Die geöffnete Faust verkörpert Veränderung; erneutes Spielen und der Lochschlussgag lösen Konflikt und Setups ein."
+            }
+          },
+          "findings": [
+            {
+              "severity": "minor",
+              "quote": "Mit Abstand zwischen den Zähnen.",
+              "readerCost": "Bens Siegerspruch hat keinen klaren Bezug zum Ergebnis. Die unverständliche Pointe unterbricht den emotionalen Abschluss.",
+              "fix": "Einen kurzen, konkret auf Kamm, Steine oder Loch bezogenen Kommentar einsetzen."
+            },
+            {
+              "severity": "minor",
+              "quote": "gegen den Hutrand ihres Umhangkragens",
+              "readerCost": "Hutrand und Umhangkragen ergeben kein klar vorstellbares Kleidungsstück; die Körperkomik wird beim Vorlesen undeutlich.",
+              "fix": "Ein eindeutig benanntes Kleidungsdetail verwenden und die Bewegung daran ausrichten."
+            }
+          ],
+          "strongest": {
+            "quote": "Einen Augenblick blieb ihre Faust geschlossen. Dann legte sie Ben den ersten Stein hinein.",
+            "reason": "Die Hexe überwindet ihren Gewinnzwang durch eine konkrete Handlung, die zugleich sichtbar den Zauber verändert."
+          },
+          "verdict": "Gewichtet 8,6/10: Ein starkes, geschlossenes Märchen mit einprägsamer Wunderregel, eigenwilliger Hexe und verdientem, überraschend komischem Ende.",
+          "score": 8.6,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        },
+        {
+          "judge": "gpt-6.1-terra",
+          "variant": "sol-low",
+          "label": "B",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 8,
+              "reason": "Vorenthaltene Steine erzeugen Knoten; die Übergabe löst sie folgerichtig."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Die Hexe will Gegner und Sieg, trickst selbst und überreicht schließlich bewusst die Steine."
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Ben löst zwei Rätsel und fordert Anerkennung; Nora bereitet die Steinübergabe praktisch vor."
+            },
+            "voiceAndDialogue": {
+              "score": 8,
+              "reason": "Bens trockene Bemerkungen, Quasts Teppichstolz und die ausweichende Hexe klingen eigenständig."
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Knotensitz, Erbsenzahn und selbst eingerollte Hexe verbinden sichtbares Wunder mit Situationskomik."
+            },
+            "pacing": {
+              "score": 7,
+              "reason": "Die Knoten steigern den Druck; Erbsen und Einrollen verlängern die mittlere Phase."
+            },
+            "readAloud": {
+              "score": 7,
+              "reason": "Klare Geräusche und kurze Dialoge tragen; einzelne Formulierungen stolpern."
+            },
+            "emotionAndPayoff": {
+              "score": 8,
+              "reason": "Die Angst vor Spielende mündet in eine schwere, vorbereitete Übergabe und eine neue Verabredung."
+            }
+          },
+          "findings": [
+            {
+              "severity": "minor",
+              "quote": "Beim Versuch, würdevoll auszusehen, stieß sie sich selbst mit dem Knie gegen den Hutrand ihres Umhangkragens.",
+              "readerCost": "Das schwer vorstellbare Kleidungsdetail unterbricht eine ansonsten gut sichtbare komische Bewegung.",
+              "fix": "Den Kragen oder einen eindeutig eingeführten Hut als Trefferziel wählen."
+            },
+            {
+              "severity": "minor",
+              "quote": "Mit Abstand zwischen den Zähnen.",
+              "readerCost": "Der Wortwitz nach der wichtigen Gewinnanerkennung bleibt ohne sichtbare Zahnlücke etwas unvermittelt.",
+              "fix": "Eine Zahnlücke vorbereiten oder Ben auf einen bereits sichtbaren Kammwitz zurückkommen lassen."
+            }
+          ],
+          "strongest": {
+            "quote": "Einen Augenblick blieb ihre Faust geschlossen. Dann legte sie Ben den ersten Stein hinein.",
+            "reason": "Eine kleine Handlung zeigt den inneren Widerstand der Hexe und ihre entscheidende Wahl."
+          },
+          "verdict": "Starkes, komisches Märchen mit klarer Wunderregel und einer überzeugend ausgespielten Entscheidung.",
+          "score": 7.8,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": [
+            {
+              "case": "fairytale",
+              "judge": "gpt-6.1-terra",
+              "variant": "sol-low",
+              "field": "finding:0",
+              "original": "beim Versuch, würdevoll auszusehen, stieß sie sich selbst mit dem Knie gegen den Hutrand ihres Umhangkragens.",
+              "corrected": "Beim Versuch, würdevoll auszusehen, stieß sie sich selbst mit dem Knie gegen den Hutrand ihres Umhangkragens.",
+              "reason": "Satzanfang im Manuskript großgeschrieben. Inhalt und Note unverändert."
+            }
+          ]
+        }
+      ],
+      "mean": 8.2
+    },
+    {
+      "case": "fairytale",
+      "caseLabel": "Lustiges Märchen",
+      "variant": "terra-low",
+      "variantLabel": "Terra 6.1 Low",
+      "title": "Die Schnecke sammelt Sieger",
+      "file": "fairytale-terra-low.md",
+      "words": 2592,
+      "perChapter": [
+        765,
+        908,
+        919
+      ],
+      "calls": 1,
+      "revised": false,
+      "checks": {
+        "hard": [],
+        "soft": []
+      },
+      "seconds": 58,
+      "chapterBudget": [
+        600,
+        800
+      ],
+      "chaptersOutsideBudget": 2,
+      "usage": {
+        "prompt": 30923,
+        "completion": 4614,
+        "total": 35537,
+        "costUSD": 0,
+        "calls": 1
+      },
+      "ratings": [
+        {
+          "judge": "gpt-6.1-sol",
+          "variant": "terra-low",
+          "label": "A",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 4,
+              "reason": "Schleimunds Transportregel bekommt wechselnde Ziele; das zentrale Rätsel bleibt ohne überzeugende Antwort."
+            },
+            "leadingCharacterAgency": {
+              "score": 5,
+              "reason": "Die Hexe beginnt das Spiel, überlässt Problemlösungen jedoch lange den Kindern; ihre Aufgabe bleibt widersprüchlich motiviert."
+            },
+            "ensembleContribution": {
+              "score": 7,
+              "reason": "Nora erprobt Lösungen, Ben entwickelt den Rechenplan; ihr Zusammenspiel wirkt praktisch und eigenständig."
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Bens trockene Einwürfe und Pimpernells Ausreden tragen; manche Rätseldialoge drehen sich im Kreis."
+            },
+            "humorAndWonder": {
+              "score": 7,
+              "reason": "Knicksende Schuhe, fahrende Sitzplätze und der Kronenfrosch verbinden anschaulichen Zauber mit verständlicher Komik."
+            },
+            "pacing": {
+              "score": 4,
+              "reason": "Wiederholte Burgfahrten verlängern denselben Konflikt; die Toröffnung verdrängt zeitweise den eigentlichen Hexenkonflikt."
+            },
+            "readAloud": {
+              "score": 6,
+              "reason": "Meist flüssiges Deutsch; wechselnde Bankstandorte und die Rechenmechanik verlangen erhebliche räumliche Vorstellung."
+            },
+            "emotionAndPayoff": {
+              "score": 6,
+              "reason": "Das gemeinsame Warten ermöglicht ein glaubhaftes Eingeständnis; Rätsel und titelgebendes Siegersammeln bleiben unbefriedigend eingelöst."
+            }
+          },
+          "findings": [
+            {
+              "severity": "major",
+              "quote": "Noch nicht auf meinem Platz",
+              "readerCost": "Schleimunds eigener Rätselplatz wird spät zum zusätzlichen Transportziel. Frühere Rückfahrten und die neue Zielbedingung ergeben keine verlässliche Wunderregel.",
+              "fix": "Ein einziges Burgziel festlegen und Rückfahrten konsequent an den jeweiligen Ausgangsplatz binden."
+            },
+            {
+              "severity": "major",
+              "quote": "Ich gebe auf",
+              "readerCost": "Die Hexe löst den letzten Transport selbst aus, obwohl sie im Burghof bleiben will. Wiederholungsfahrten ersetzen ihre zielgerichtete Zuspitzung.",
+              "fix": "Die Hexe aus ihrem Gewinnzwang einen folgenreichen Fehler begehen lassen; eine frühere Burgfahrt dafür streichen."
+            }
+          ],
+          "strongest": {
+            "quote": "Nora wartete. Ben wartete ebenfalls. Schleimund schob den Salatnapf ein Stück zur Seite, damit die Bank mehr Platz hatte.",
+            "reason": "Geduld und eine kleine fürsorgliche Bewegung geben der beschämten Hexe Raum für ihr Eingeständnis."
+          },
+          "verdict": "Gewichtet 5,5/10: Einfallsreiche Einzelkomik und gute Kinderbeiträge, aber eine unsichere Wunderregel und ausgedehnte Umwege schwächen das Märchen.",
+          "score": 5.5,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        },
+        {
+          "judge": "gpt-6.1-terra",
+          "variant": "terra-low",
+          "label": "A",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 5,
+              "reason": "Die Aufgaberegel ist erkennbar, doch Schleimunds eigener Rätselplatz erscheint erst bei der Auflösung."
+            },
+            "leadingCharacterAgency": {
+              "score": 6,
+              "reason": "Die Hexe will gewinnen und entscheidet schließlich selbst, verliert aber lange den Handlungsmittelpunkt."
+            },
+            "ensembleContribution": {
+              "score": 7,
+              "reason": "Nora probiert Lösungen; Ben beobachtet und entwickelt den wirksamen Rechenplan."
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Hexe, Prinz und Ben haben unterscheidbare Stimmen; manche Gespräche kreisen."
+            },
+            "humorAndWonder": {
+              "score": 7,
+              "reason": "Fahrende Plätze, höfliche Schuhe und der Frosch auf der Krone überraschen anschaulich."
+            },
+            "pacing": {
+              "score": 5,
+              "reason": "Mehrfaches Hin- und Herfahren und die Torrettung verzögern die eigentliche Entscheidung."
+            },
+            "readAloud": {
+              "score": 6,
+              "reason": "Viele klare Bilder, aber wechselnde Plätze und Fahrtrichtungen verlangen viel Orientierung."
+            },
+            "emotionAndPayoff": {
+              "score": 6,
+              "reason": "Die Angst vor Einsamkeit trägt die Schlussentscheidung; das zentrale Rätsel bleibt offen."
+            }
+          },
+          "findings": [
+            {
+              "severity": "major",
+              "quote": "Noch nicht auf meinem Platz",
+              "readerCost": "Der neue Zielort verändert spät die zuvor verständliche Fahrregel und überrascht ohne Vorbereitung.",
+              "fix": "Schleimunds eigenen Platz früh erwähnen und die Fahrt dorthin eindeutig in die Regel aufnehmen."
+            },
+            {
+              "severity": "major",
+              "quote": "Die Bank fuhr zurück. Doch die Hexe sprang vorher ab und blieb am Brunnen stehen.",
+              "readerCost": "Wiederholte Fahrten und das anschließende Torproblem schieben den Konflikt der Hexe in den Hintergrund.",
+              "fix": "Eine Fahrt und die Torrettung kürzen; die Hexe früher vor ihre Verlustangst stellen."
+            }
+          ],
+          "strongest": {
+            "quote": "Ich habe verloren. Und jetzt?",
+            "reason": "Die knappe Frage macht die gefürchtete Niederlage zum offenen Anfang weiterer Begegnungen."
+          },
+          "verdict": "Einfallsreiches Märchen mit lebendigem Ensemble, dessen lange Umwege und späte Regelergänzung die Wirkung schwächen.",
+          "score": 6,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        }
+      ],
+      "mean": 5.75
+    },
+    {
+      "case": "fairytale",
+      "caseLabel": "Lustiges Märchen",
+      "variant": "terra-medium",
+      "variantLabel": "Terra 6.1 Mittel",
+      "title": "Die verknotete Nebelhexe",
+      "file": "fairytale-terra-medium.md",
+      "words": 2490,
+      "perChapter": [
+        742,
+        928,
+        820
+      ],
+      "calls": 1,
+      "revised": false,
+      "checks": {
+        "hard": [],
+        "soft": []
+      },
+      "seconds": 63,
+      "chapterBudget": [
+        600,
+        800
+      ],
+      "chaptersOutsideBudget": 2,
+      "usage": {
+        "prompt": 28669,
+        "completion": 4630,
+        "total": 33299,
+        "costUSD": 0,
+        "calls": 1
+      },
+      "ratings": [
+        {
+          "judge": "gpt-6.1-sol",
+          "variant": "terra-medium",
+          "label": "B",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 8,
+              "reason": "Jede verweigerte Niederlage erzeugt nachvollziehbar weitere Knoten; das abschließende Eingeständnis löst genau diesen Zauber."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Die Hexe verursacht aus Gewinnsucht jede Verschärfung und entscheidet schließlich selbst, ihre Niederlage öffentlich anzuerkennen."
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Nora handelt praktisch, Ben beobachtet und plant; Nora hält schließlich bewusst inne und hört zu."
+            },
+            "voiceAndDialogue": {
+              "score": 8,
+              "reason": "Hexenstolz, Bens Knappheit und Knispels missmutige Küchenkommentare ergeben deutlich unterscheidbare Stimmen."
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Teestiefel, Kohlzug und die Hexe im Blumentopf machen den wachsenden Zauber körperlich komisch."
+            },
+            "pacing": {
+              "score": 6,
+              "reason": "Die Folgen wachsen, doch mehrere Umwege verzögern die längst erklärte Lösung; der Gartenweg streckt zusätzlich."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Klare Bewegungen, griffige Geräusche und lebendige Dialoge; einzelne Mengenangaben und Gegenstandswechsel bleiben unsauber."
+            },
+            "emotionAndPayoff": {
+              "score": 7,
+              "reason": "Das Verlustgeständnis verdient den nächsten Besuch; die geliehene Siegertrophäe schwächt die Belohnung."
+            }
+          },
+          "findings": [
+            {
+              "severity": "major",
+              "quote": "Bis du deine Niederlage zugibst, bleibt er.",
+              "readerCost": "Die Lösung steht früh fest. Weitere Rätsel und Transportversuche entwickeln die innere Entscheidung weniger als die äußere Unordnung.",
+              "fix": "Einen Umweg streichen und früher zeigen, weshalb das Eingeständnis für die Hexe den ersehnten Spielpartner gefährdet."
+            },
+            {
+              "severity": "minor",
+              "quote": "Die Kelle gehört der Schlossküche. Ich habe sie mir für meinen Rätselwettstreit geliehen.",
+              "readerCost": "Die Hexe verspricht fremdes Eigentum als Gewinn. Bens anschließendes Zurückgeben wirkt dadurch eher notwendig als überraschend großzügig.",
+              "fix": "Ein eigenes Pfand der Hexe einsetzen oder einen ausdrücklich erlaubten, zeitlich begrenzten Gewinn vereinbaren."
+            }
+          ],
+          "strongest": {
+            "quote": "Ihre Finger hielten den Umhang so fest, dass die bunten Flicken Falten bekamen.",
+            "reason": "Die Handbewegung macht den Preis des folgenden Eingeständnisses sichtbar, ohne ihn auszuerklären."
+          },
+          "verdict": "Gewichtet 7,7/10: Ein gutes, komisches Märchen mit klarer Zauberfolge und handelnder Hauptfigur; die Mitte könnte deutlich knapper sein.",
+          "score": 7.7,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        },
+        {
+          "judge": "gpt-6.1-terra",
+          "variant": "terra-medium",
+          "label": "C",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 8,
+              "reason": "Die wiederholte Formel erzeugt Knoten; das Eingeständnis beendet den Zauber folgerichtig."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Die Hexe sucht Gegner, verschärft aus Gewinnwillen selbst das Problem und gesteht die Niederlage."
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Ben löst Rätsel und plant die Rettung; Nora erprobt und setzt praktische Schritte um."
+            },
+            "voiceAndDialogue": {
+              "score": 8,
+              "reason": "Knispels mürrischer Humor, Bens Kürze und die selbstverräterische Hexe sind gut unterscheidbar."
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Gurkenkekse, Teestiefel und Kohlzug erzeugen konkrete, kindlich verständliche Komik."
+            },
+            "pacing": {
+              "score": 7,
+              "reason": "Die Knoten breiten sich wirksam aus; wiederholte Rätsel und Verweigerungen verlängern die Zuspitzung."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Anschauliche Bewegungen, Klangwörter und abwechslungsreiche Dialoge lassen sich flüssig vorlesen."
+            },
+            "emotionAndPayoff": {
+              "score": 8,
+              "reason": "Die Hexe erkennt Bens Sieg öffentlich an; Kelle, Kekse und Teestiefel kehren befriedigend zurück."
+            }
+          },
+          "findings": [
+            {
+              "severity": "minor",
+              "quote": "Wer bis zwölf mein schwerstes Rätsel löst, gewinnt die Kelle",
+              "readerCost": "Das erste gestellte Rätsel gilt zunächst als schwerstes; später bezeichnet die Hexe ein anderes so.",
+              "fix": "Das erste Rätsel als Auftakt kennzeichnen und den Anspruch auf die Kelle entsprechend klären."
+            },
+            {
+              "severity": "minor",
+              "quote": "Ein Loch.",
+              "readerCost": "Ben löst auch das schwerste Rätsel sofort; die besondere Schwierigkeit ist kaum spürbar.",
+              "fix": "Vor der Antwort einen kurzen eigenen Denkversuch oder einen sichtbaren Hinweis einbauen."
+            }
+          ],
+          "strongest": {
+            "quote": "„Ben hat mein schwerstes Rätsel gelöst“, sagte sie. „Und ich habe verloren.“",
+            "reason": "Die öffentliche Anerkennung verbindet die innere Entscheidung der Hexe unmittelbar mit der Auflösung."
+          },
+          "verdict": "Lebendiges Märchen mit sichtbarer Eskalation, eigenwilliger Hexe und warmem, gut vorbereitetem Schluss.",
+          "score": 7.9,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": [
+            {
+              "case": "fairytale",
+              "judge": "gpt-6.1-terra",
+              "variant": "terra-medium",
+              "field": "strongest",
+              "original": "Ben hat mein schwerstes Rätsel gelöst. Und ich habe verloren.",
+              "corrected": "„Ben hat mein schwerstes Rätsel gelöst“, sagte sie. „Und ich habe verloren.“",
+              "reason": "Der Lektor ließ die Sprecherzuordnung aus und verband zwei Redeteile. Wörtliche Manuskriptfassung wiederhergestellt; Inhalt und Note unverändert."
+            }
+          ]
+        }
+      ],
+      "mean": 7.8
+    },
+    {
+      "case": "bedtime",
+      "caseLabel": "Einschlafgeschichte",
+      "variant": "sol-low",
+      "variantLabel": "Sol 6.1 Low",
+      "title": "Der Teppich unter dem Tisch",
+      "file": "bedtime-sol-low.md",
+      "words": 696,
+      "perChapter": [
+        213,
+        242,
+        241
+      ],
+      "calls": 1,
+      "revised": false,
+      "checks": {
+        "hard": [],
+        "soft": []
+      },
+      "seconds": 112,
+      "chapterBudget": [
+        170,
+        260
+      ],
+      "chaptersOutsideBudget": 0,
+      "usage": {
+        "prompt": 30665,
+        "completion": 1905,
+        "total": 32570,
+        "costUSD": 0,
+        "calls": 1
+      },
+      "ratings": [
+        {
+          "judge": "gpt-6.1-sol",
+          "variant": "sol-low",
+          "label": "B",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 8,
+              "reason": "Das Ortswort bewegt den Teppich samt Ladung; Bens abschließender Ruf nutzt genau diese verständliche Regel."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Nora sucht den perfekten Platz und übergeht Ben; ihr bewusstes Zuhören ermöglicht seine selbst gewählte Lösung."
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Nora erprobt Plätze, Ben erkennt ihre Nachteile und bestimmt das Ziel; Bo unterstützt ohne Übernahme."
+            },
+            "voiceAndDialogue": {
+              "score": 8,
+              "reason": "Bens trockene Bemerkungen, Noras eiliger Tatendrang und Flaus’ zufriedenes Brummeln sind gut unterscheidbar."
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Mitreisender Hocker, Gurkenhut und ungerührtes Tischbein verbinden das Wunder mit konkreter, verständlicher Komik."
+            },
+            "pacing": {
+              "score": 7,
+              "reason": "Die Platzversuche verändern die Situation; eine zusätzliche Lesezeichenposse verzögert den bereits vorbereiteten Aufbruch."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Klare Bewegungen, kurze Dialogwechsel und sanfte Geräusche ergeben einen gut vorlesbaren, geborgenen Verlauf."
+            },
+            "emotionAndPayoff": {
+              "score": 8,
+              "reason": "Noras Hände auf den Knien zeigen ihr Innehalten; Hocker, Versprechen und Teppichspruch finden passende Abschlüsse."
+            }
+          },
+          "findings": [
+            {
+              "severity": "minor",
+              "quote": "Zum Schluss wickelte er eine um das Lesezeichen.",
+              "readerCost": "Die zusätzliche Schlafmützenposse unterbricht Bens endlich begonnene Erklärung und verzögert den Ruheplatz.",
+              "fix": "Die Posse kürzen oder vor Noras Aufforderung zum Weitererzählen platzieren."
+            },
+            {
+              "severity": "minor",
+              "quote": "Der Hut wartet draußen.",
+              "readerCost": "Der Hausschuh steht bereits neben dem Buch; das abschließende Draußen lässt seinen Bezug offen.",
+              "fix": "Den Schlussgag an die sichtbare Position des wartenden Hausschuhs binden."
+            }
+          ],
+          "strongest": {
+            "quote": "Nora wollte schon aufstehen. Dann legte sie beide Hände auf ihre Knie.",
+            "reason": "Eine kleine, gut sichtbare Handlung macht Noras Entscheidung zum Zuhören fühlbar, bevor sie sie ausspricht."
+          },
+          "verdict": "Gut bis stark; gewichteter Wert 7,9. Das einfache Wunder verbindet Figurenkonflikt, Situationskomik und einen ruhigen Abschluss.",
+          "score": 7.9,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        },
+        {
+          "judge": "gpt-6.1-terra",
+          "variant": "sol-low",
+          "label": "C",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 8,
+              "reason": "Das Wort ruft den Teppich samt Ladung; Ben nutzt dieselbe Regel zur Lösung."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Noras Platzsuche scheitert konkret; sie hört Ben zu, der seinen Platz wählt."
+            },
+            "ensembleContribution": {
+              "score": 8,
+              "reason": "Ben bestimmt das Ziel und ruft Flaus; Nora ermöglicht die gemeinsame Entscheidung."
+            },
+            "voiceAndDialogue": {
+              "score": 8,
+              "reason": "Bens trockene Beobachtungen, Flaus’ Brummeln und Bos Kategorien unterscheiden die Figuren."
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Mitreisender Hocker und Gurkenhut verbinden Gegenstände zu verständlicher Situationskomik."
+            },
+            "pacing": {
+              "score": 8,
+              "reason": "Enge, Tisch und Hocker verändern die Versuche; danach folgt ein ruhiger Ausklang."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Klare Bewegungen, kurze Sätze und das gleitende Ssssch tragen den Vortrag."
+            },
+            "emotionAndPayoff": {
+              "score": 8,
+              "reason": "Das Versprechen, der Hocker und Bos Fach erhalten konkrete, sanfte Abschlüsse."
+            }
+          },
+          "findings": [
+            {
+              "severity": "minor",
+              "quote": "Ben legte den Hausschuh daneben.",
+              "readerCost": "Der Hausschuh befand sich zuletzt an Bos Pfote; sein Weg zur Buche bleibt unklar.",
+              "fix": "Zeigen, wie Bo ihn auszieht und mitnimmt."
+            }
+          ],
+          "strongest": {
+            "quote": "Ben betrachtete die vier Holzbeine. „Der möchte auch vorgelesen bekommen.“",
+            "reason": "Bens trockene Stimme macht aus der misslungenen Platzsuche einen freundlichen Gag."
+          },
+          "verdict": "Stark: Das überschaubare Wunder verbindet die Platzsuche mit Bens Mitentscheidung und einem geborgenen Schluss.",
+          "score": 8,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        }
+      ],
+      "mean": 7.95
+    },
+    {
+      "case": "bedtime",
+      "caseLabel": "Einschlafgeschichte",
+      "variant": "terra-low",
+      "variantLabel": "Terra 6.1 Low",
+      "title": "Der Weg im Wölkchen",
+      "file": "bedtime-terra-low.md",
+      "words": 713,
+      "perChapter": [
+        217,
+        250,
+        246
+      ],
+      "calls": 1,
+      "revised": false,
+      "checks": {
+        "hard": [],
+        "soft": []
+      },
+      "seconds": 23,
+      "chapterBudget": [
+        170,
+        260
+      ],
+      "chaptersOutsideBudget": 0,
+      "usage": {
+        "prompt": 28349,
+        "completion": 1472,
+        "total": 29821,
+        "costUSD": 0,
+        "calls": 1
+      },
+      "ratings": [
+        {
+          "judge": "gpt-6.1-sol",
+          "variant": "terra-low",
+          "label": "C",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 5,
+              "reason": "Der Auslöser ist verständlich; Wolkenwachstum, Rückkehr vor Noras Nase und selbständiges Vorausziehen bleiben unvorbereitet."
+            },
+            "leadingCharacterAgency": {
+              "score": 6,
+              "reason": "Noras Vorschläge erzeugen Umwege; Ben kennt das Ziel. Die Wolke bringt beide bereits zum entscheidenden Farn."
+            },
+            "ensembleContribution": {
+              "score": 6,
+              "reason": "Ben benennt den Platz und richtet ihn ein; Nora sammelt Blätter und hört schließlich zu."
+            },
+            "voiceAndDialogue": {
+              "score": 6,
+              "reason": "Ben spricht knapp, Morpheus flüstert erkennbar; mehrere Missverständnisse und Pointen wirken sprachlich hergestellt."
+            },
+            "humorAndWonder": {
+              "score": 6,
+              "reason": "Klopfende Käfer und Blätterhüte sind anschaulich; Käsevergleich und Försterinnenhut bleiben weniger unmittelbar verständlich."
+            },
+            "pacing": {
+              "score": 6,
+              "reason": "Die Käferbilder variieren; wiederholte Wegvorschläge und der Försterinnenauftritt dehnen die Entwicklung vor dem ruhigen Ausklang."
+            },
+            "readAloud": {
+              "score": 7,
+              "reason": "Sanfter Klang und kurze Sätze passen zum Einschlafen; einzelne Dialoganschlüsse erschweren das unmittelbare Verstehen."
+            },
+            "emotionAndPayoff": {
+              "score": 6,
+              "reason": "Decke und Blätter bereiten Geborgenheit vor; das Wolkenproblem bleibt bestehen, Morpheus’ eigener Traumwunsch unentwickelt."
+            }
+          },
+          "findings": [
+            {
+              "severity": "major",
+              "quote": "Da schwebte das Wölkchen mitten in den Farn.",
+              "readerCost": "Die Wolke führt ungefragt zum richtigen Bereich. Dadurch verliert Bens Wegkenntnis entscheidende Wirkung.",
+              "fix": "Ben den Weg weisen lassen und die Wolke erst infolge einer vorbereiteten Regel mitziehen lassen."
+            },
+            {
+              "severity": "major",
+              "quote": "Im Wölkchen fuhren die Käfer noch immer in ihrer Nussschale.",
+              "readerCost": "Das angekündigte Zuviel an Bildern wird weder klar erklärt noch durch Noras Entscheidung sichtbar aufgelöst.",
+              "fix": "Früh festlegen, wie Bilder sich sammeln und wieder verschwinden; Noras Zuhören die Entlastung auslösen lassen."
+            }
+          ],
+          "strongest": {
+            "quote": "Ben breitete die Decke aus. Nora legte ihre gesammelten Blätter an den Rand.",
+            "reason": "Beide tragen mit vorbereiteten Gegenständen zum gemeinsamen Ruheplatz bei; die Geborgenheit entsteht durch Handlungen."
+          },
+          "verdict": "Brauchbar mit deutlichen Schwächen; gewichteter Wert 5,9. Sanfte Atmosphäre und Käferbilder bleiben stärker als Wunderlogik und Figurenentscheidung.",
+          "score": 5.9,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        },
+        {
+          "judge": "gpt-6.1-terra",
+          "variant": "terra-low",
+          "label": "B",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 6,
+              "reason": "Wegvorschläge erzeugen Bilder; deren Überlagerung und späteres Wegschweben bleiben wenig erklärt."
+            },
+            "leadingCharacterAgency": {
+              "score": 7,
+              "reason": "Nora verletzt ihr Versprechen und hört schließlich zu; Ben führt zum eigenen Platz."
+            },
+            "ensembleContribution": {
+              "score": 7,
+              "reason": "Ben kennt und zeigt den Ruheplatz; Nora trägt mit ihren Blättern dazu bei."
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Bens knappe Käsefragen und Morpheus’ leise Missverständnisse geben ihnen eigene Stimmen."
+            },
+            "humorAndWonder": {
+              "score": 7,
+              "reason": "Käfer mit Blätterhüten und der geangelte Socken sind freundlich und anschaulich."
+            },
+            "pacing": {
+              "score": 6,
+              "reason": "Viele Wegvorschläge variieren das Käferbild, verzögern aber Bens bereits bekannten Platz."
+            },
+            "readAloud": {
+              "score": 8,
+              "reason": "Sanfte Geräusche, kurze Dialoge und klare Waldbilder eignen sich zum Vorlesen."
+            },
+            "emotionAndPayoff": {
+              "score": 6,
+              "reason": "Das Zuhören mündet in Ruhe; Morpheus’ Wunsch nach einem eigenen Traum bleibt unberührt."
+            }
+          },
+          "findings": [
+            {
+              "severity": "major",
+              "quote": "Das Wölkchen schwebte ihnen nach, ohne ein neues Bild zu zeigen.",
+              "readerCost": "Die Bilderfülle beruhigt sich ohne erkennbare Handlung oder erklärte Wirkung.",
+              "fix": "Zeigen, wie das Ende der Wegvorschläge das Wölkchen beruhigt."
+            },
+            {
+              "severity": "minor",
+              "quote": "Dann nehmen wir den Weg um den Baum?",
+              "readerCost": "Die vielen ähnlichen Vorschläge bremsen den Weg zur gemütlichen Mulde.",
+              "fix": "Einen Vorschlag streichen und die verbleibenden Versuche stärker unterscheiden."
+            }
+          ],
+          "strongest": {
+            "quote": "Nora hielt den Mund geschlossen. Ben schob die Blätter auseinander und ging vor.",
+            "reason": "Zuhören und Mitentscheiden werden durch einfache Handlungen sichtbar."
+          },
+          "verdict": "Sanft und gut vorlesbar; die Folge der Wölkchenbilder und ihre Beruhigung bleiben unscharf.",
+          "score": 6.7,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        }
+      ],
+      "mean": 6.3
+    },
+    {
+      "case": "bedtime",
+      "caseLabel": "Einschlafgeschichte",
+      "variant": "terra-medium",
+      "variantLabel": "Terra 6.1 Mittel",
+      "title": "Das Rutschblatt",
+      "file": "bedtime-terra-medium.md",
+      "words": 816,
+      "perChapter": [
+        234,
+        274,
+        308
+      ],
+      "calls": 1,
+      "revised": false,
+      "checks": {
+        "hard": [],
+        "soft": []
+      },
+      "seconds": 29,
+      "chapterBudget": [
+        170,
+        260
+      ],
+      "chaptersOutsideBudget": 2,
+      "usage": {
+        "prompt": 28353,
+        "completion": 1904,
+        "total": 30257,
+        "costUSD": 0,
+        "calls": 1
+      },
+      "ratings": [
+        {
+          "judge": "gpt-6.1-sol",
+          "variant": "terra-medium",
+          "label": "A",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 6,
+              "reason": "Der Wortauslöser ist klar; was alles mithüpft und wie Schuhe in Buchbilder gelangen, bleibt unscharf."
+            },
+            "leadingCharacterAgency": {
+              "score": 7,
+              "reason": "Noras Auswahlwunsch, vorschnelle Versuche und abschließendes Einlenken tragen die Handlung; Ben bleibt überwiegend reagierend."
+            },
+            "ensembleContribution": {
+              "score": 6,
+              "reason": "Ben benennt seinen Wunsch; Nora ermöglicht die Auswahl. Flirr belebt, Bo begleitet ohne entscheidenden Beitrag."
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Bens knappe Kommentare passen zu Noras Tatendrang; Flirrs Wiederholung verliert allmählich ihren Reiz."
+            },
+            "humorAndWonder": {
+              "score": 7,
+              "reason": "Winzige Schuhe, wechselnde Hüte und der Nasenschuh bieten anschauliche, körperliche Komik."
+            },
+            "pacing": {
+              "score": 5,
+              "reason": "Mehrere versehentliche Wortauslöser wiederholen denselben Fehler; Flirrs Befreiung verzögert die eigentliche Figurenentscheidung."
+            },
+            "readAloud": {
+              "score": 7,
+              "reason": "Kurze Sätze und Hupp-Rhythmus funktionieren; Schuhpositionen und Übergänge zwischen Gegenstand und Buchbild verwirren stellenweise."
+            },
+            "emotionAndPayoff": {
+              "score": 7,
+              "reason": "Nora nutzt das störende Wunder schließlich fürs Teilen; gemeinsames Lesen löst den Auswahlkonflikt warm auf."
+            }
+          },
+          "findings": [
+            {
+              "severity": "major",
+              "quote": "Bei ‚Rutsch‘ hüpft alles auf der Bank nach rechts",
+              "readerCost": "Die Regel umfasst sprachlich auch sitzende Kinder, tatsächlich hüpfen vor allem ausgewählte Gegenstände.",
+              "fix": "Die Regel auf lose Gegenstände begrenzen und deren Bewegungen durchgehend nachvollziehbar halten."
+            },
+            {
+              "severity": "major",
+              "quote": "Diesmal passe ich auf. Kein Rutsch!",
+              "readerCost": "Nach mehreren gleichen Versehen wirkt Noras erneuter Auslöser konstruiert; die Geschichte tritt auf der Stelle.",
+              "fix": "Einen Wiederholungsversuch streichen und früher zu Bens eigener Idee oder Noras bewusster Entscheidung wechseln."
+            }
+          ],
+          "strongest": {
+            "quote": "„Heute suchst du“, sagte Nora.",
+            "reason": "Nora gibt ihren Vorrang auf und setzt das Wunder anschließend konkret für Bens Wunsch ein."
+          },
+          "verdict": "Brauchbar mit deutlichen Schwächen; gewichteter Wert 6,5. Ein warmer Auswahlkonflikt trägt mehr als die wiederholten Schuhkapriolen.",
+          "score": 6.5,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        },
+        {
+          "judge": "gpt-6.1-terra",
+          "variant": "terra-medium",
+          "label": "A",
+          "dimensions": {
+            "causalityAndRule": {
+              "score": 6,
+              "reason": "Das Auslösewort trägt die Handlung; seine Wirkung auf Festgehaltenes und Sitzende bleibt unklar."
+            },
+            "leadingCharacterAgency": {
+              "score": 8,
+              "reason": "Noras vorschnelle Wahl erzeugt Reibung; sie überlässt Ben bewusst die Entscheidung."
+            },
+            "ensembleContribution": {
+              "score": 7,
+              "reason": "Ben wählt und äußert seinen Wunsch; Nora nutzt die Regel für ihn."
+            },
+            "voiceAndDialogue": {
+              "score": 7,
+              "reason": "Bens trockene Bemerkungen und Flirrs Vergnügen unterscheiden die Stimmen."
+            },
+            "humorAndWonder": {
+              "score": 8,
+              "reason": "Schuhhüte und hüpfende Bücher machen das Wunder anschaulich und komisch."
+            },
+            "pacing": {
+              "score": 6,
+              "reason": "Mehrfaches versehentliches Aussprechen wiederholt denselben Effekt, bevor die Entscheidung kommt."
+            },
+            "readAloud": {
+              "score": 7,
+              "reason": "Kurze Sätze und Hupp-Rufe klingen gut; einzelne Bewegungen bleiben räumlich unklar."
+            },
+            "emotionAndPayoff": {
+              "score": 7,
+              "reason": "Nora gibt Ben Raum; beide Bücher und der Schuhgag finden einen Abschluss."
+            }
+          },
+          "findings": [
+            {
+              "severity": "major",
+              "quote": "Bei ‚Rutsch‘ hüpft alles auf der Bank nach rechts",
+              "readerCost": "Später hüpfen Bücher und Schuhe, während sitzende Figuren offenbar bleiben; das verwischt die Regel.",
+              "fix": "Die Regel auf bewegliche Gegenstände begrenzen und die Beispiele daran ausrichten."
+            },
+            {
+              "severity": "minor",
+              "quote": "Nun nur nicht rutsch …",
+              "readerCost": "Weitere versehentliche Auslöser verlängern denselben Gag und verzögern die ruhige Vorleseszene.",
+              "fix": "Einen Fehlversuch streichen und früher zu Bens Wunsch übergehen."
+            }
+          ],
+          "strongest": {
+            "quote": "Das Hasenbuch hüpfte direkt in Bens Hände.",
+            "reason": "Noras versöhnliche Wahl und die Wunderregel treffen in einer konkreten Bewegung zusammen."
+          },
+          "verdict": "Gut und verspielt, mit einer klaren Versöhnung; die Reichweite der Regel braucht Präzision.",
+          "score": 7,
+          "unsupportedQuotes": [],
+          "overlongQuotes": [],
+          "quoteCorrections": []
+        }
+      ],
+      "mean": 6.75
+    }
+  ]
+}

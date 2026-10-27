@@ -81,3 +81,15 @@ test("a repair with a new supported blocker never replaces the original", async 
   expect(result.pages[0].content).toContain("Nora nahm den Korb.");
   expect(result.textQuality?.status).toBe("failed");
 });
+
+test("a failed repair preserves the draft without certifying its unresolved issue", async () => {
+  const llm: StorybookLlm = async r => {
+    if (r.stage.includes("-repair")) throw new Error("quota unavailable");
+    return response(r.role === "critic" ? rawRead([issue("Nora nahm den Korb.")]) : manuscript());
+  };
+  const result = await runUnifiedTextEngine({ brief: b(), llm, ledger: new CostLedger(), models });
+  expect(result.pages[0].content).toContain("Nora nahm den Korb.");
+  expect(result.textQuality?.status).toBe("failed");
+  expect(result.unified.repairAccepted).toBe(false);
+  expect(result.unified.repairFailure).toContain("quota unavailable");
+});

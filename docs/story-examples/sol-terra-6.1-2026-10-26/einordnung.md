@@ -1,0 +1,15 @@
+# Redaktionelle Einordnung
+
+Für die **unveränderte Talea-Folge-Pipeline würde ich Sol 6.1 auf Low behalten**. Über die drei Aufgaben liegt es bei 7,87/10, Terra Mittel bei 7,03 und Terra Low bei 6,32. Die Zahlen sind die Mittelwerte der beiden anonymisierten Modelllektüren. Meine folgende Einordnung beruht auf der zusätzlichen Lektüre aller neun vollständigen Texte in diesem Chat; dabei war die Herkunft bekannt. Sie ist keine dritte Blindbewertung und kein menschliches Lektorat.
+
+Sol verbindet den Figurenwunsch häufiger mit einer sichtbaren Entscheidung und einer vorbereiteten Lösung. Am deutlichsten gelingt das in [Der Knoten unter dem Frühstück](fairytale-sol-low.md), der stärksten Geschichte des Versuchs (8,20/10): Der zu Beginn eingesetzte Holzkeil öffnet im Finale den Teppichknoten; die Hexe muss die gewonnenen Steine trotzdem selbst herausgeben. Beide Kinder helfen praktisch, ohne ihr die entscheidende Wahl abzunehmen. Einzelne Pointen bleiben unverständlich, besonders „Mit Abstand zwischen den Zähnen.“
+
+Terra Mittel verbessert vor allem das Märchen: [Die verknotete Nebelhexe](fairytale-terra-medium.md) erreicht 7,80/10. Die Nebelknoten wachsen aus der Weigerung, eine Niederlage anzuerkennen; das öffentliche Eingeständnis beendet die Magie. Dagegen verliert sich Terra Low in [Die Schnecke sammelt Sieger](fairytale-terra-low.md) in Hin- und Rückfahrten. Das zentrale Rätsel bleibt sogar am Ende unbeantwortet. Mehr Text erzeugt hier mehr Umwege.
+
+Mehr Denkaufwand hilft Terra nicht durchgehend. Beim Abenteuer ist Low besser als Mittel. Im Mittel-Text [Der Hüpfstein-Wettlauf](magic-terra-medium.md) löst am Schluss „weiterspielen“ einen Sprung aus, obwohl die eingeführte Regel das Wort „Weiter“ verlangt und vorherige zusammengesetzte Formen keinen Sprung ausgelöst haben. Dazu kommen mehrere Nachspiele, nachdem das Rennen bereits entschieden ist. Bei der Einschlafgeschichte bleibt Sols Platzsuche geschlossener; Terras Rutschblatt wiederholt den versehentlichen Wortauslöser, während die erklärte Regel „alles auf der Bank“ tatsächlich nur ausgewählte Gegenstände betrifft.
+
+Auch Sol braucht eine inhaltliche Kontrolle: Im Abenteuer bekommt Kicher trotz dreier Zapfen insgesamt vier Würfe. Keine der neun Folgen scheitert am deterministischen Gate; dieses prüft keine vollständige Erzählkausalität. Die Bewertung ist deshalb keine Freigabe fehlerfreier Texte.
+
+Terra hat einen deutlichen praktischen Vorteil bei der Wartezeit: im Mittel etwa **48 Sekunden auf Low beziehungsweise 53 auf Mittel**, Sol etwa **173 Sekunden**. Diese parallel erhobenen Einzelzeiten sind grobe Beobachtungen. Sol hält alle neun Kapitelbudgets ein; Terra Low überschreitet vier, Terra Mittel sieben. Mittel ist für diesen Versuch die bessere Terra-Einstellung, wenn kurze Wartezeit besonders zählt. Für die fertige Story würde ich derzeit Sol bevorzugen.
+
+Der Befund gilt für drei Aufgaben mit den bestehenden, bereits auf Sol abgestimmten Prompts. Er belegt keine allgemeine Überlegenheit eines Modells und ersetzt keine Wiederholungen oder Vorlesetests mit Kindern. Alle Geschichten und Einzelnoten stehen im [Versuchsbericht](README.md).

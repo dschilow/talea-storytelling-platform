@@ -10,7 +10,7 @@ import { UNIFIED_PIPELINE_ID } from "./config";
 export { UNIFIED_PIPELINE_ID };
 export type UnifiedFormat = "read-aloud" | "picture-book";
 export interface UnifiedResult extends EpisodeResult {
-  unified: { format: UnifiedFormat; read: ColdRead | null; invalidEvidence: string[]; repairAccepted: boolean };
+  unified: { format: UnifiedFormat; read: ColdRead | null; invalidEvidence: string[]; repairAccepted: boolean; repairFailure?: string };
 }
 
 /** Repairs may fix events; they may not win by replacing the story's contract. */
@@ -41,7 +41,9 @@ export async function runUnifiedTextEngine(input: { brief: StoryBrief; llm: Stor
   let checked = await read(result, "unified-cold-read");
   const blockers = (r: typeof checked) => r.read?.issues.filter(i => i.severity === "blocker") || [];
   let repairAccepted = false;
+  let repairFailure: string | undefined;
   if (blockers(checked).length) {
+    try {
     const previous = JSON.stringify({ title: result.title, plan: result.episode.plan, pages: result.pages.map(p => ({ chapter: p.order, title: p.title, text: p.content })) });
     const notes = JSON.stringify({ issues: blockers(checked), keep: checked.read?.keep });
     const repair: StorybookLlm = request => input.llm({ ...request, stage: `unified-${request.stage}-repair`, user: `${request.user}\n\nREPAIR THE EXISTING MANUSCRIPT, not a new story. Keep its premise, cast, title, voice and unaffected scenes. Return the required header and all chapters. Resolve these evidence-checked blockers with the smallest sufficient changes:\n${notes}\nEXISTING MANUSCRIPT:\n${previous}` });
@@ -51,10 +53,14 @@ export async function runUnifiedTextEngine(input: { brief: StoryBrief; llm: Stor
       result = candidate; checked = reread; repairAccepted = true;
     }
     await observe("unified-repair-choice", { repairAccepted, remainingBlockers: blockers(checked), invalidEvidence: reread.invalid });
+    } catch (error) {
+      repairFailure = String(error);
+      await observe("unified-repair-unavailable", { error: repairFailure, keptOriginal: true });
+    }
   }
   const unresolved = [...result.finalChecks.hard.map(i => i.message), ...blockers(checked).map(i => i.problem), ...checked.invalid];
   return { ...result, engineIds: [UNIFIED_PIPELINE_ID], chosen: repairAccepted ? "revision" : result.chosen,
     benchmarkScore: null, draftScore: null,
     textQuality: { status: unresolved.length ? "failed" : checked.read ? "passed" : "unverified", issues: unresolved },
-    unified: { format, read: checked.read, invalidEvidence: checked.invalid, repairAccepted } };
+    unified: { format, read: checked.read, invalidEvidence: checked.invalid, repairAccepted, ...(repairFailure ? { repairFailure } : {}) } };
 }
