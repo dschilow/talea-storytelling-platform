@@ -10,6 +10,7 @@ import type { StoryConfig } from "../generate";
 import { languageName, type AgeBand, type LengthBudget } from "./craft";
 import { learningLinesDe } from "./learning";
 import type { ArtifactOption, CastCandidate, StorybookHero } from "./types";
+import type { CharacterSeriesBible, SeriesEpisodeLog } from "../character-series/core";
 
 export interface StoryBrief {
   config: StoryConfig;
@@ -27,6 +28,7 @@ export interface StoryBrief {
   heroMemories: Record<string, string[]>;
   blockedTerms: string[];
   seed: string;
+  characterSeries?: { bible: CharacterSeriesBible; logs: SeriesEpisodeLog[] };
   /** Test-only switches (scripts/storybook-live-test.ts --variant). Empty in production. */
   experiment?: StorybookExperiment;
 }

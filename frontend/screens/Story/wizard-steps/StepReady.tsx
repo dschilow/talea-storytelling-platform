@@ -55,6 +55,7 @@ interface Props {
   storyCredits?: { limit: number | null; used: number; remaining: number | null; costPerGeneration: 1 } | null;
   generateDisabled?: boolean;
   generateDisabledMessage?: string;
+  characterSeriesLabel?: string;
 }
 
 interface AvatarPreview {
@@ -87,6 +88,7 @@ export default function StepReady({
   storyCredits,
   generateDisabled = false,
   generateDisabledMessage,
+  characterSeriesLabel,
 }: Props) {
   const { t, i18n } = useTranslation();
   const backend = useBackend();
@@ -198,6 +200,17 @@ export default function StepReady({
             <span className="min-w-0 flex-1">
               <span className={captionClass}>{t('wizard.ready.world')}</span>
               <span className={valueClass}>{t(`wizard.categories.${categoryKey(category.id)}.title`)}</span>
+            </span>
+            {chevron}
+          </button>
+        )}
+
+        {characterSeriesLabel && (
+          <button type="button" className={rowClass} onClick={() => onEdit('category')}>
+            <IconSquare icon="openBook" tone={TONE.sky} />
+            <span className="min-w-0 flex-1">
+              <span className={captionClass}>Figurenabenteuer</span>
+              <span className={valueClass}>{characterSeriesLabel}</span>
             </span>
             {chevron}
           </button>

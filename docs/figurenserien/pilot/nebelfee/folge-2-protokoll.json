@@ -1,0 +1,66 @@
+{
+  "seriesId": "nebelfee",
+  "episode": 2,
+  "pipeline": "character-series-v1",
+  "underlyingEngine": "talea-folge-v1",
+  "mode": "one-shot",
+  "modelRoles": {
+    "writer": "openai/gpt-6.1-sol",
+    "support": "openai/gpt-6.1-terra",
+    "critic": "openai/gpt-6.1-terra"
+  },
+  "transport": "codex-chatgpt-plan",
+  "imagesGenerated": 0,
+  "databaseCalls": 0,
+  "fictionalAvatars": [
+    "Nora",
+    "Ben"
+  ],
+  "localPoolSHA256": "68744449a2e16baf14616868ab3febd50fd85b649bba4c64320ecd3d487cc5f5",
+  "bibleSHA256": "747b254bc9eead04b0c2507fe3f10907a624ba5ba6f810c2578c82cbbd3eaca1",
+  "note": "Text-only pilot of the production engine; no Encore request, live cast selection, images, production side effects or OpenRouter billing. Codex quota is consumed on --run.",
+  "status": "accepted",
+  "title": "Der Hut im Vogelnest",
+  "checks": {
+    "ok": true,
+    "hard": [],
+    "soft": []
+  },
+  "textQuality": {
+    "status": "passed",
+    "issues": []
+  },
+  "log": {
+    "episode": 2,
+    "storyId": "fictional-nebelfee-2",
+    "avatarIds": [
+      "fictional-nora",
+      "fictional-ben"
+    ],
+    "events": [
+      {
+        "fact": "Die Nebelfee findet Jettes Hut und wartet mit der Rückgabe auf ein Ersatznest.",
+        "quote": "„Der Hut bleibt hier, bis dein Nest fertig ist.“"
+      },
+      {
+        "fact": "Jette erhält ihren Hut zurück.",
+        "quote": "Jette nahm den Hut entgegen und setzte ihn auf."
+      }
+    ],
+    "relationships": [
+      {
+        "fact": "Nora lässt Ben die Nestunterlage prüfen.",
+        "quote": "„Du prüfst den Boden“, sagte sie zu Ben."
+      }
+    ],
+    "openThreads": [
+      {
+        "fact": "Der eigene Heimweg der Nebelfee bleibt unbekannt.",
+        "quote": "Den eigenen Heimweg kannte sie noch immer nicht."
+      }
+    ]
+  },
+  "logSource": "author-header-validated",
+  "calls": 6,
+  "replayed": 0
+}

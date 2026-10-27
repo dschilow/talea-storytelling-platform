@@ -10,6 +10,8 @@ import { isOpenRouterCreditLimitError } from "./openrouter-generation";
 import type { Avatar, InventoryItem, Skill } from "../avatar/avatar";
 import { avatar } from "~encore/clients";
 import { storyDB } from "./db";
+import { CHARACTER_SERIES_ENGINE, extractSeriesLog, validateSeriesLog, nextSeriesEpisode, type CharacterSeriesBible, type SeriesEpisodeLog } from "./character-series/core";
+import { loadSeriesHistory, reserveSeries } from "./character-series/repository";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { avatarDB } from "../avatar/db";
@@ -227,7 +229,9 @@ export interface StoryConfig {
   // Does not touch developerMode or the standard path.
   storybookMode?: boolean;
   // Explicit wizard selection takes precedence over the legacy server default.
-  storybookEngine?: "storybook-v1" | "storybook-v2" | "book-workshop-v1" | "chapter-book-v1" | "wonder-story-v1" | "talea-folge-v1";
+  storybookEngine?: "storybook-v1" | "storybook-v2" | "book-workshop-v1" | "chapter-book-v1" | "wonder-story-v1" | "talea-folge-v1" | "character-series-v1";
+  /** Omit for a genre-matched character world. Validated against the server catalogue. */
+  characterSeriesId?: string;
 
   // Chapter book (chapter-book-v1): a volume of 8-15 chapters read over several
   // evenings, written by a job (book-generation.ts). Chapters and pictures per
@@ -487,7 +491,9 @@ function stripAdminOnlyStoryOptions(config: StoryConfig): StoryConfig {
       ? { useFairyTaleTemplate: config.preferences.useFairyTaleTemplate }
       : undefined,
     broughtArtifact: config.broughtArtifact,
-    ...customerStoryEngine(),
+    ...(config.storybookEngine === CHARACTER_SERIES_ENGINE
+      ? { storybookMode: true, storybookEngine: CHARACTER_SERIES_ENGINE, characterSeriesId: config.characterSeriesId?.slice(0, 100), avatarIsHero: false }
+      : customerStoryEngine()),
   };
 }
 
@@ -600,6 +606,11 @@ export const generate = api<GenerateStoryRequest, Story>(
         ? req.config.customPrompt
         : mergePromptBlocks(req.config.customPrompt, profilePrompt),
     };
+    if (config.storybookEngine === CHARACTER_SERIES_ENGINE) {
+      config.storybookMode = true;
+      config.avatarIsHero = false;
+    }
+    let characterSeries: { bible: CharacterSeriesBible; logs: SeriesEpisodeLog[] } | undefined;
     const mcpApiKey = mcpServerApiKey();
 
     console.log("[story.generate] Incoming request:", {
@@ -639,6 +650,11 @@ export const generate = api<GenerateStoryRequest, Story>(
     await reserveStoryGenerationCapacity({
       userId: currentUserId,
       createReservation: async (tx) => {
+        if (config.storybookEngine === CHARACTER_SERIES_ENGINE) {
+          const bible = await reserveSeries(tx, { userId: currentUserId, profileId: primaryProfileId, requestedId: config.characterSeriesId, genre: config.genre });
+          config.characterSeriesId = bible.id;
+          characterSeries = { bible, logs: [] };
+        }
         const reserved = await tx.queryRow`
           INSERT INTO stories (
             id, user_id, primary_profile_id, title, description, config, status, created_at, updated_at
@@ -671,6 +687,7 @@ export const generate = api<GenerateStoryRequest, Story>(
     // and refunded in the catch below unless the story is published.
     let coinReserved = false;
     try {
+      if (characterSeries) characterSeries.logs = await loadSeriesHistory(currentUserId, primaryProfileId, characterSeries.bible.id);
       await claimGenerationUsage({
         userId: currentUserId,
         kind: "story",
@@ -890,6 +907,7 @@ export const generate = api<GenerateStoryRequest, Story>(
           })),
           primaryProfileAge: primaryProfile.age,
           blockedTerms,
+          characterSeries,
         });
       } else if (config.developerMode === true) {
         console.log("[story.generate] 🧪 DEVELOPER MODE — adaptive polish cost-optimized quality path (support model for planning/judging, selected model for prose, images enabled, NO personality updates)");
@@ -1188,6 +1206,18 @@ export const generate = api<GenerateStoryRequest, Story>(
         if (scrubbed > 0) console.warn("[child-safety] profanity replaced in generated story", { scrubbed });
       }
 
+      // Only the final, safety-filtered text can become personal continuity.
+      // The existing writer may return a structured log, but every quote is
+      // checked locally. A missing or stale log falls back to literal excerpts.
+      let characterSeriesLog: SeriesEpisodeLog | undefined;
+      if (characterSeries) {
+        const storyText = generatedStory.chapters.map((chapter: any) => `${chapter.title}\n${chapter.content}`).join("\n\n");
+        const identity = { episode: nextSeriesEpisode(characterSeries.logs), storyId: id, avatarIds: config.avatarIds };
+        const validated = validateSeriesLog(generatedStory.metadata?.characterSeriesLogCandidate, storyText, identity);
+        characterSeriesLog = validated.events.length ? validated : extractSeriesLog({ storyText, ...identity });
+        if (generatedStory.metadata) delete generatedStory.metadata.characterSeriesLogCandidate;
+      }
+
       // Extract cost data from pipeline metadata. Stage-based pipelines
       // (developer mode AND the standard quality path) expose one token/cost
       // row per quality stage; the legacy orchestrator keeps its own ledger.
@@ -1453,6 +1483,7 @@ export const generate = api<GenerateStoryRequest, Story>(
       // 🎁 Add artifact metadata so it's persisted and returned to frontend
       const enrichedMetadata = {
         ...generatedStory.metadata,
+        ...(characterSeriesLog ? { characterSeries: { id: characterSeries!.bible.id, log: characterSeriesLog } } : {}),
         processingTime: generatedStory.metadata?.processingTime || pipelineDurationMs,
         totalCost: {
           text: adminGenerationMetrics.costs.storyUSD,

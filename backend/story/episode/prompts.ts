@@ -12,6 +12,7 @@ import { learningGoal, learningWriterLinesEn } from "../storybook/learning";
 import { childSituationChoices, FAMILY_RULE_EN, GENRE_METHOD_EN, METHOD_EN, placeChoices, styleSamples, takenNamesLine, writingRulesEn } from "./craft";
 import type { EpisodePlan } from "./types";
 import { episodeCastFocus, episodePoolLead } from "./cast-focus";
+import { seriesPrompt } from "../character-series/core";
 
 function bandNote(band: StoryBrief["band"]): string {
   if (band === "3-5") return "The listeners are three to five: ONE simple, very visible wonder, a problem a small child knows, lots of repetition, a gentle thrill and a big laugh. The rule has no conditions; the attempts are three tries of the same kind, each funnier.";
@@ -82,6 +83,10 @@ const PLAN_SHAPE = (brief: StoryBrief, chapters: number) => [
  * reference, method) stays byte-identical and the provider can serve it from its cache.
  */
 function choiceLines(brief: StoryBrief): string[] {
+  if (brief.characterSeries) return [
+    "Choose today's concrete problem from the supplied series world and its existing rules. Do not transplant the cast to a random location or replace the premise with a generic child situation.",
+    "The avatars' traits and hobbies colour how they act; each contributes a consequential decision or action without eclipsing the leading figure.",
+  ];
   return [
     ...(takenNamesLine(brief) ? [takenNamesLine(brief)] : []),
     `TODAY'S CHILD SITUATIONS — your three ideas use three DIFFERENT ones of these, each fitted to ${episodePoolLead(brief) ? "the leading figure's" : "the heroes'"} nature: ${childSituationChoices(brief.seed).map((situation) => `„${situation}“`).join("; ")}.`,
@@ -111,6 +116,7 @@ function storyBriefLines(brief: StoryBrief, sizeHint: string): string[] {
   const { budget } = brief;
   const chapters = budget.pages;
   const lines: string[] = [];
+  if (brief.characterSeries) lines.push(seriesPrompt(brief.characterSeries.bible, brief.characterSeries.logs, brief.heroes), "");
   lines.push("FRAME:");
   lines.push(`- Story language: ${brief.languageLabel}`);
   lines.push(`- Listeners' age: ${brief.band} years`);
@@ -125,7 +131,11 @@ function storyBriefLines(brief: StoryBrief, sizeHint: string): string[] {
   const learning = learningWriterLinesEn(brief.config, { form: "story", band: brief.band, units: chapters });
   if (learning.length) lines.push(...learning, "");
   lines.push("CHAPTER RHYTHM:");
-  for (const line of chapterRhythm(chapters)) lines.push(`- ${line}`);
+  if (brief.characterSeries) {
+    lines.push("- Begin in action and make the figure's specific goal clear. Cause and effect connect each new complication. Give the characters room for humour, a hard choice and an earned resolution. The episode ends satisfyingly, even if a larger series question stays open.");
+  } else {
+    for (const line of chapterRhythm(chapters)) lines.push(`- ${line}`);
+  }
   lines.push("");
   lines.push(...episodeCastFocus(brief), "");
   lines.push(episodePoolLead(brief)
@@ -150,7 +160,7 @@ function storyBriefLines(brief: StoryBrief, sizeHint: string): string[] {
     for (const artifact of brief.artifacts) lines.push(artifactSheetEn(artifact));
     lines.push("");
   }
-  if (brief.recentStories.length > 0) {
+  if (!brief.characterSeries && brief.recentStories.length > 0) {
     lines.push("THIS FAMILY ALREADY KNOWS (repeat none of it — neither the wonder nor the main object nor the title pattern):");
     for (const story of brief.recentStories.slice(0, 6)) lines.push(`- ${story}`);
     lines.push("");
@@ -170,7 +180,7 @@ export function oneShotSystemPrompt(brief: StoryBrief): string {
   return [
     writerSystemPrompt(brief).replace(/\nOUTPUT, plain text without markdown[\s\S]*$/, ""),
     "",
-    "Before you write, you are also the head writer: you invent the story's own small series bible with this method — silently, in your head.",
+    brief.characterSeries ? "Before you write, use the supplied series bible as binding canon. The following method is craft guidance, not permission to replace its premise or rules." : "Before you write, you are also the head writer: you invent the story's own small series bible with this method — silently, in your head.",
     METHOD_EN,
     "",
     "OUTPUT, plain text without markdown — these markers stay German, everything else is in the story language:",
@@ -182,6 +192,7 @@ export function oneShotSystemPrompt(brief: StoryBrief): string {
     "WIRKUNG: <the wonder's first visible effect in chapter 1, in one line>",
     "LACHER: <chapter number> | <the funniest moment of that chapter a child could see in a picture>   (one line per chapter)",
     ...(learningGoal(brief.config) ? ["WISSEN: <the knowledge core in one or two sentences, true in the real world, as the child should say it afterwards>"] : []),
+    ...(brief.characterSeries ? ["SERIENLOG: <one-line JSON object with events, relationships, openThreads arrays; each item is {\"fact\":\"short factual statement\",\"quote\":\"exact consecutive passage from the finished story, 12–180 characters\"}. At most 3 events, 2 relationships, 2 still-open threads. Only record what actually happens in THIS version; resolved problems are not open threads. Empty arrays are allowed.>"] : []),
     `TITEL: <2–6 words like a real children's book: a thing, creature, exclamation or impossible situation from THIS story; it keeps what it promises (a number or creature in the title really happens); never „${brief.heroes.map((hero) => hero.name).join(" und ")} und …“, never the ending>`,
     "BESCHREIBUNG: <two sentences for the story card: the situation and the funny problem, never the ending>",
     "",
@@ -196,7 +207,9 @@ export function oneShotSystemPrompt(brief: StoryBrief): string {
 export function oneShotUserPrompt(brief: StoryBrief, revision?: { raw: string; notes: string[] }): string {
   const lines: string[] = [];
   lines.push("TASK: Invent, plan and write one complete Talea story with these heroes — one a child wants to hear again and again and retells the next morning.");
-  lines.push("Plan silently first: three completely different ideas (each: a child situation + a wonder that takes it literally), take the one a child would most want to retell („Stell dir vor, …!“), then work out its bible with the method — rule, voices, two running gags, the easy-way attempts, the near-discovery, the quiet moment, the courage, the payoffs and the final laugh. Then write the header lines and the whole story as living scenes.");
+  lines.push(brief.characterSeries
+    ? "Plan silently first, faithfully using the supplied series bible and personal continuity. Invent an engaging self-contained episode that belongs to this world. Work out distinct voices, causes and consequences, jokes with payoffs, the leading figure's own choices and the avatars' indispensable contributions. Then write the header lines and the whole story as living scenes."
+    : "Plan silently first: three completely different ideas (each: a child situation + a wonder that takes it literally), take the one a child would most want to retell („Stell dir vor, …!“), then work out its bible with the method — rule, voices, two running gags, the easy-way attempts, the near-discovery, the quiet moment, the courage, the payoffs and the final laugh. Then write the header lines and the whole story as living scenes.");
   lines.push(...choiceLines(brief), "");
   lines.push(...storyBriefLines(brief, "every chapter carries several full scenes"));
   const names = [...brief.heroes.map((hero) => hero.name), ...brief.candidates.map((candidate) => candidate.name)];

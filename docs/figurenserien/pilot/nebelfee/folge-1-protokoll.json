@@ -1,0 +1,72 @@
+{
+  "seriesId": "nebelfee",
+  "episode": 1,
+  "pipeline": "character-series-v1",
+  "underlyingEngine": "talea-folge-v1",
+  "mode": "one-shot",
+  "modelRoles": {
+    "writer": "openai/gpt-6.1-sol",
+    "support": "openai/gpt-6.1-terra",
+    "critic": "openai/gpt-6.1-terra"
+  },
+  "transport": "codex-chatgpt-plan",
+  "imagesGenerated": 0,
+  "databaseCalls": 0,
+  "fictionalAvatars": [
+    "Nora",
+    "Ben"
+  ],
+  "localPoolSHA256": "68744449a2e16baf14616868ab3febd50fd85b649bba4c64320ecd3d487cc5f5",
+  "bibleSHA256": "747b254bc9eead04b0c2507fe3f10907a624ba5ba6f810c2578c82cbbd3eaca1",
+  "note": "Text-only pilot of the production engine; no Encore request, live cast selection, images, production side effects or OpenRouter billing. Codex quota is consumed on --run.",
+  "status": "accepted",
+  "title": "Der Stiefel geht allein",
+  "checks": {
+    "ok": true,
+    "hard": [],
+    "soft": []
+  },
+  "textQuality": {
+    "status": "passed",
+    "issues": [
+      "Die Fee will ihren Heimweg finden, doch am Ende richtet sie sich in der Wegwarte ein. Ob sie dort ein neues Zuhause findet, bleibt unausgesprochen."
+    ]
+  },
+  "log": {
+    "episode": 1,
+    "storyId": "fictional-nebelfee-1",
+    "avatarIds": [
+      "fictional-nora",
+      "fictional-ben"
+    ],
+    "events": [
+      {
+        "fact": "Die Fee entdeckt durch Lios Angaben ihre Suchgabe.",
+        "quote": "Zwischen den Brettern erschien ein silberner Faden. Er lief zum Ufer und zwischen die Bäume."
+      },
+      {
+        "fact": "Lio findet mit der Gruppe seinen Heimweg.",
+        "quote": "Lio drückte die niedrige Klinke hinunter. Die grüne Tür ging auf."
+      },
+      {
+        "fact": "Die Fee beginnt eine Rückgabestelle in der Wegwarte.",
+        "quote": "Am nächsten Morgen stellte die Fee ein Regal auf."
+      }
+    ],
+    "relationships": [
+      {
+        "fact": "Nora und Ben begegnen der Nebelfee zum ersten Mal.",
+        "quote": "„Ich bin die Nebelfee“, flüsterte die Gestalt."
+      }
+    ],
+    "openThreads": [
+      {
+        "fact": "Der eigene Heimweg der Fee bleibt unbekannt.",
+        "quote": "„Meinen Anfang weiß ich nicht mehr“, flüsterte sie."
+      }
+    ]
+  },
+  "logSource": "author-header-validated",
+  "calls": 6,
+  "replayed": 4
+}

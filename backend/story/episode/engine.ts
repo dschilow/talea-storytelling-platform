@@ -201,7 +201,7 @@ export function renameTakenNames(chapters: ParsedChapter[], plan: EpisodePlan, b
 /** Header lines of the one-shot (IDEE, REGEL, FIGUR …, FUNDSTÜCK, WIRKUNG, LACHER …, WISSEN) before the story. */
 export function readOneShot(raw: string): {
   header: { idea: string; rule: string; figures: string[][]; artifactId: string | null; learningCore: string | null; firstEffect: string; laughs: Record<number, string> };
-  story: { title: string; description: string; chapters: ParsedChapter[] };
+  story: { title: string; description: string; chapters: ParsedChapter[]; seriesLogCandidate?: unknown };
 } {
   const value = String(raw || "").replace(/\r\n/g, "\n");
   const head = value.split(/^\s*(?:#+\s*)?KAPITEL\s+1\s*[:.–-]/im)[0] || "";
@@ -221,7 +221,7 @@ export function readOneShot(raw: string): {
       firstEffect: line("WIRKUNG"),
       laughs,
     },
-    story: readStory(value),
+    story: { ...readStory(value), seriesLogCandidate: parseJsonObject(line("SERIENLOG")) || undefined },
   };
 }
 
@@ -468,12 +468,12 @@ export async function runEpisodeTextEngine(input: {
     planRepaired: written.planRepaired,
     draftRetried: written.draftRetried,
     textQuality: { status: checks.hard.length ? "failed" : written.editorial?.status || "unverified", issues: [...checks.hard, ...checks.soft, ...(written.editorial?.issues || [])] },
-    episode: { plan, guests: guestsOf(plan), checks, revised, mode, renamed: written.renamed },
+    episode: { plan, guests: guestsOf(plan), checks, revised, mode, renamed: written.renamed, seriesLogCandidate: story.seriesLogCandidate },
   };
 }
 
 type EngineInput = Parameters<typeof runEpisodeTextEngine>[0];
-type Story = { title: string; description: string; chapters: ParsedChapter[] };
+type Story = { title: string; description: string; chapters: ParsedChapter[]; seriesLogCandidate?: unknown };
 interface Written {
   plan: EpisodePlan;
   story: Story;
@@ -494,7 +494,7 @@ function settle(story: Story, plan: EpisodePlan, brief: StoryBrief, renamed: Wri
 }
 
 /** The production editor must read one-shot manuscripts too, not only two-step drafts. */
-async function reviewWritten(input: EngineInput, observe: Observe, written: Written, revise: (notes: string[]) => Promise<{ story: Story; plan: EpisodePlan }>): Promise<Written> {
+async function reviewWritten(input: EngineInput, observe: Observe, written: Written, revise: (notes: string[], previousRaw?: string) => Promise<{ story: Story; plan: EpisodePlan; raw?: string }>): Promise<Written> {
   if (!input.options?.editorialReview || written.story.chapters.length !== input.brief.budget.pages) return written;
   const { brief, models, ledger, llm } = input;
   type Issue = { severity: "major" | "minor"; quote: string; problem: string; change: string };
@@ -523,9 +523,34 @@ async function reviewWritten(input: EngineInput, observe: Observe, written: Writ
     const candidate = await revise(major.map(issue => `${issue.problem} Evidence: ${issue.quote || "missing element"}. Change: ${issue.change}`));
     const candidateRenamed: Written["renamed"] = [];
     const settled = settle(candidate.story, candidate.plan, brief, candidateRenamed);
-    if (settled.story.chapters.length === brief.budget.pages && settled.checks.hard.length <= written.checks.hard.length) {
+    const series = Boolean(brief.characterSeries);
+    const noNewHardIssues = (candidateChecks: Written["checks"], baseline: Written["checks"]) => candidateChecks.hard.every(issue => baseline.hard.includes(issue));
+    const firstHardCheck = series ? noNewHardIssues(settled.checks, written.checks) : settled.checks.hard.length <= written.checks.hard.length;
+    if (settled.story.chapters.length === brief.budget.pages && firstHardCheck) {
       const remaining = await inspect("episode-editorial-recheck", settled.story);
       if (!remaining.some(issue => issue.severity === "major")) return { ...written, ...settled, plan: candidate.plan, renamed: [...written.renamed, ...candidateRenamed], revised: true, editorial: { status: "passed", issues: remaining.map(issue => issue.problem) } };
+      const remainingMajor = remaining.filter(issue => issue.severity === "major");
+      // Only personal series get one additional bounded repair. The second
+      // writer sees the manuscript that was actually rechecked and only
+      // concrete, validated quotations from that recheck, never invented
+      // evidence or the earlier rejected manuscript.
+      if (series && candidate.raw && remainingMajor.every(issue => issue.quote.trim())) {
+        // settle may have renamed a borrowed sample name. Rebuild the prompt
+        // with precisely the chapters the editor saw, and update the header's
+        // names too, rather than handing the writer a pre-settle manuscript.
+        let header = candidate.raw.split(/^\s*(?:#+\s*)?KAPITEL\s+1\s*[:.–-]/im)[0] || "";
+        for (const rename of candidateRenamed) {
+          header = header.replace(wordPattern(rename.from, "gu"), (_match, before: string, genitive: string) => `${before}${rename.to}${genitive}`);
+        }
+        const checkedRaw = `${header.trimEnd()}\n\n${settled.story.chapters.map((chapter, index) => `KAPITEL ${index + 1}: ${chapter.title}\n${chapter.text}`).join("\n\n")}`;
+        const second = await revise(remainingMajor.map(issue => `${issue.problem} Evidence: ${issue.quote}. Change: ${issue.change}`), checkedRaw);
+        const secondRenamed: Written["renamed"] = [];
+        const settledSecond = settle(second.story, second.plan, brief, secondRenamed);
+        if (settledSecond.story.chapters.length === brief.budget.pages && noNewHardIssues(settledSecond.checks, settled.checks) && noNewHardIssues(settledSecond.checks, written.checks)) {
+          const finalIssues = await inspect("episode-editorial-final-check", settledSecond.story);
+          if (!finalIssues.some(issue => issue.severity === "major")) return { ...written, ...settledSecond, plan: second.plan, renamed: [...written.renamed, ...secondRenamed], revised: true, editorial: { status: "passed", issues: finalIssues.map(issue => issue.problem) } };
+        }
+      }
     }
   } catch (error) {
     // An unreadable revision/recheck cannot erase an evidenced major issue in the original.
@@ -567,9 +592,9 @@ async function oneShot(input: EngineInput, observe: Observe): Promise<Written> {
       revised = true;
     }
   }
-  return reviewWritten(input, observe, { plan, story, checks, revised, planRepaired: false, draftRetried, renamed }, async notes => {
-    const candidate = await call("episode-editorial-revision", { raw: draft.raw, notes });
-    return { story: candidate.story, plan: planFromHeader(candidate.header, candidate.story, brief) };
+  return reviewWritten(input, observe, { plan, story, checks, revised, planRepaired: false, draftRetried, renamed }, async (notes, previousRaw) => {
+    const candidate = await call(previousRaw ? "episode-editorial-revision-2" : "episode-editorial-revision", { raw: previousRaw || draft.raw, notes });
+    return { raw: candidate.raw, story: candidate.story, plan: planFromHeader(candidate.header, candidate.story, brief) };
   });
 }
 

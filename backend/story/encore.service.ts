@@ -12,6 +12,7 @@ import "./character-pool-api";
 import "./character-bible";
 import "./character-showcase";
 import "./character-life-story-api";
+import "./character-series-api";
 import "./artifact-pool-api";
 import "./artifact-treasury-api";
 import "./test-story-generation";

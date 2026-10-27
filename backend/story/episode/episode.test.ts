@@ -398,6 +398,61 @@ describe("Talea-Folge engine, one-shot", () => {
     }
   });
 
+  test("personal series repair a newly evidenced recheck issue using the checked candidate and verify again", async () => {
+    const b = brief();
+    b.characterSeries = { bible: { id: "test", characterId: "pool-fox", characterName: "Bo", title: "Test", description: "Test", genres: ["magic"], bible: "A world" }, logs: [] };
+    const calls: LlmRequest[] = [];
+    const firstIssue = { severity: "major", quote: "Kuno gähnte.", problem: "Die Ursache fehlt.", change: "Zeige die Ursache." };
+    const secondIssue = { severity: "major", quote: "Der Schlüssel blieb im Wasser.", problem: "Der Schlüssel wechselt den Ort ohne Ursache.", change: "Zeige, wie er zurückkommt." };
+    const llm = async (request: LlmRequest) => {
+      calls.push(request);
+      if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({ issues: [firstIssue] }));
+      if (request.stage === "episode-editorial-recheck") return answer(request, JSON.stringify({ issues: [secondIssue] }));
+      if (request.stage === "episode-editorial-final-check") return answer(request, JSON.stringify({ issues: [] }));
+      if (request.stage === "episode-editorial-revision") return answer(request, oneShotText(560, "Der Schlüssel blieb im Wasser."));
+      if (request.stage === "episode-editorial-revision-2") return answer(request, oneShotText(560, "Adrian holte den Schlüssel mit einem Stock heraus."));
+      return answer(request, oneShotText());
+    };
+    const result = await runEpisodeTextEngine({ llm, brief: b, models: MODELS, ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true } });
+    expect(calls.map(call => call.stage)).toEqual(["episode-oneshot", "episode-editorial-review", "episode-editorial-revision", "episode-editorial-recheck", "episode-editorial-revision-2", "episode-editorial-final-check"]);
+    const second = calls.find(call => call.stage === "episode-editorial-revision-2")!;
+    expect(second.user).toContain("Der Schlüssel blieb im Wasser.");
+    expect(second.user).toContain("Der Schlüssel wechselt den Ort ohne Ursache.");
+    expect(result.pages[0].content).toContain("Adrian holte den Schlüssel");
+    expect(result.textQuality?.status).toBe("passed");
+    expect(result.episode.revised).toBe(true);
+  });
+
+  test("personal series reject a failed, unverified or newly hard-defective second repair", async () => {
+    for (const failure of ["final-major", "final-invalid", "writer-error", "hard", "unsupported", "missing-quote"]) {
+      const b = brief();
+      b.characterSeries = { bible: { id: "test", characterId: "pool-fox", characterName: "Bo", title: "Test", description: "Test", genres: ["magic"], bible: "A world" }, logs: [] };
+      if (failure === "hard") b.blockedTerms = ["geheimsperrwort"];
+      const calls: string[] = [];
+      const firstIssue = { severity: "major", quote: "Kuno gähnte.", problem: "Die Ursache fehlt.", change: "Erkläre sie." };
+      const secondIssue = { severity: "major", quote: failure === "unsupported" ? "Diese Stelle ist erfunden." : failure === "missing-quote" ? "" : "Der Schlüssel blieb im Wasser.", problem: "Der Schlüssel ist plötzlich woanders.", change: "Zeige den Weg." };
+      const llm = async (request: LlmRequest) => {
+        calls.push(request.stage);
+        if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({ issues: [firstIssue] }));
+        if (request.stage === "episode-editorial-recheck") return answer(request, JSON.stringify({ issues: [secondIssue] }));
+        if (request.stage === "episode-editorial-revision") return answer(request, oneShotText(560, "Der Schlüssel blieb im Wasser."));
+        if (request.stage === "episode-editorial-revision-2") {
+          if (failure === "writer-error") throw new Error("provider unavailable");
+          return answer(request, oneShotText(560, failure === "hard" ? "Das geheimsperrwort ertönte." : "Die zweite Fassung."));
+        }
+        if (request.stage === "episode-editorial-final-check") return answer(request, failure === "final-invalid" ? "not JSON" : JSON.stringify({ issues: [firstIssue] }));
+        return answer(request, oneShotText());
+      };
+      const result = await runEpisodeTextEngine({ llm, brief: b, models: MODELS, ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true } });
+      expect(result.textQuality?.status).toBe("failed");
+      expect(result.episode.revised).toBe(false);
+      expect(result.pages[0].content).not.toContain("Die zweite Fassung.");
+      expect(result.pages[0].content).not.toContain("Der Schlüssel blieb im Wasser.");
+      if (["unsupported", "missing-quote"].includes(failure)) expect(calls).not.toContain("episode-editorial-revision-2");
+      if (failure === "hard") expect(calls).not.toContain("episode-editorial-final-check");
+    }
+  });
+
   test("one call: header gives cast and artifact, chapters come from the text", async () => {
     const stages: string[] = [];
     const b = brief();

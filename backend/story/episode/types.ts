@@ -49,5 +49,6 @@ export interface EpisodeResult extends TextEngineResult {
     mode: "one-shot" | "two-step";
     /** New figures that got a series name and were renamed instead of rewritten. */
     renamed: Array<{ from: string; to: string }>;
+    seriesLogCandidate?: unknown;
   };
 }

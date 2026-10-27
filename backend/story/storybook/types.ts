@@ -293,6 +293,7 @@ export interface StorybookGenerationInput {
   primaryProfileAge?: number | null;
   /** Parental-control terms that must not appear anywhere in the story. */
   blockedTerms?: string[];
+  characterSeries?: { bible: import("../character-series/core").CharacterSeriesBible; logs: import("../character-series/core").SeriesEpisodeLog[] };
 }
 
 export interface StorybookAvatarDevelopment {

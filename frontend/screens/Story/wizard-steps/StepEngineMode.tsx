@@ -18,6 +18,7 @@ export interface EngineModeState {
   bookWorkshopMode: boolean;
   wonderStoryMode: boolean;
   episodeMode: boolean;
+  characterSeries?: string | null;
   chapterBookMode: boolean;
   aiModel: AIModel;
   aiProvider: AIProvider;
@@ -141,6 +142,7 @@ export default function StepEngineMode({ state, updateState }: Props) {
       chapterBookMode: lane === 'chapterbook',
       wonderStoryMode: lane === 'wonder',
       episodeMode: lane === 'episode',
+      characterSeries: null,
       ...modelUpdate,
     });
   };

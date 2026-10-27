@@ -38,6 +38,9 @@ import { recordBroughtArtifact } from "./artifact-treasury";
 import { normalizeAgeBand, resolveLengthBudget } from "./storybook/craft";
 import { buildBrief } from "./storybook/context";
 import { loadArtifactOptions, loadCastCandidates, recordCastUsage } from "./storybook/casting";
+import { loadPoolRows } from "./storybook/casting";
+import { toCastCandidate } from "./storybook/cast-selection";
+import { CHARACTER_SERIES_ENGINE } from "./character-series/core";
 import { loadHeroMemories, loadStorybookHistory } from "./storybook/history";
 import { CostLedger, resolveStorybookModels } from "./storybook/llm";
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
@@ -155,10 +158,11 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const { config } = input;
   const wonderMode = config.storybookEngine === WONDER_PIPELINE_ID;
   // Talea-Folge: the Originals' method for the family's own heroes (chapters with titles, like wonder).
-  const episodeMode = config.storybookEngine === EPISODE_PIPELINE_ID;
+  const seriesMode = config.storybookEngine === CHARACTER_SERIES_ENGINE;
+  const episodeMode = config.storybookEngine === EPISODE_PIPELINE_ID || seriesMode;
   const imageModel = episodeMode ? LIBRARY_IMAGE_MODEL : IMAGE_MODEL;
   const chapterMode = wonderMode || episodeMode;
-  const pipelineId = episodeMode ? EPISODE_PIPELINE_ID : wonderMode ? WONDER_PIPELINE_ID : STORYBOOK_PIPELINE_ID;
+  const pipelineId = seriesMode ? CHARACTER_SERIES_ENGINE : episodeMode ? EPISODE_PIPELINE_ID : wonderMode ? WONDER_PIPELINE_ID : STORYBOOK_PIPELINE_ID;
   const ledger = new CostLedger();
   const resolved = resolveStorybookModels(config, { critic: process.env.TALEA_STORYBOOK_CRITIC_MODEL || undefined });
   const models = episodeMode ? episodeProductionModels() : resolved;
@@ -170,7 +174,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // -------------------------------------------------------------------------
   // 0) Everything the story is built from, loaded in parallel.
   // -------------------------------------------------------------------------
-  const [history, heroMemories, candidates, artifacts] = await Promise.all([
+  const [history, heroMemories, initialCandidates, artifacts] = await Promise.all([
     loadStorybookHistory({ userId: input.userId, currentStoryId: input.storyId }),
     loadHeroMemories(avatarIds),
     loadCastCandidates({
@@ -185,6 +189,15 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     loadArtifactOptions({ avatarIds, brought: config.broughtArtifact, genre: config.genre, language: config.language, seed }),
   ]);
 
+  let candidates = initialCandidates;
+  if (seriesMode) {
+    if (!input.characterSeries) throw new Error("Die Figurenserie und ihre Fortsetzung fehlen.");
+    const leadRow = (await loadPoolRows()).find((row) => String(row.id) === input.characterSeries!.bible.characterId);
+    const lead = leadRow ? toCastCandidate(leadRow) : null;
+    if (!lead) throw new Error("Die Hauptfigur dieser Serie ist im aktiven Figurenpool nicht verfügbar.");
+    candidates = [{ ...lead, canLead: true }, ...initialCandidates.filter((candidate) => candidate.id !== lead.id)];
+  }
+
   const brief = buildBrief({
     config,
     band,
@@ -198,6 +211,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     blockedTerms: input.blockedTerms,
     seed,
   });
+  if (input.characterSeries) brief.characterSeries = input.characterSeries;
 
   await logStage(input.storyId, "premise-and-cast", {
     models,
@@ -280,8 +294,11 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId),
     // Sol plans silently and writes in one call. The separate Terra plan and editorial review (two-step, 987896c)
     // cost 1.4 ¢ more per story for the same writer (0ee9af53: 15.3 ¢); TALEA_EPISODE_MODE=two-step brings them back.
-    ...(episodeMode ? { options: { mode: resolveEpisodeMode(), editorialReview: true, serviceTier: resolveEpisodeServiceTier() } } : {}),
+    ...(episodeMode ? { options: { mode: seriesMode ? "one-shot" as const : resolveEpisodeMode(), editorialReview: true, serviceTier: resolveEpisodeServiceTier() } } : {}),
   });
+  if (seriesMode && (!text.finalChecks.ok || text.textQuality.status === "failed")) {
+    throw new Error("Die Folge konnte die erzählerischen Mindestprüfungen nicht bestehen. Der Serienstand bleibt unverändert.");
+  }
   const wonder = "wonder" in text ? (text as import("./wonder/types").WonderResult).wonder : undefined;
   const episode = "episode" in text ? (text as EpisodeResult).episode : undefined;
   const guests = wonder?.guests || episode?.guests || [];
@@ -482,6 +499,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const metadata: Record<string, any> = {
     pipeline: pipelineId,
     generationMode: pipelineId,
+    ...(seriesMode ? { characterSeriesLogCandidate: episode?.seriesLogCandidate } : {}),
     ...(wonder ? { wonder } : {}),
     ...(episode ? { episode: { mode: episode.mode, plan: episode.plan, checks: episode.checks, revised: episode.revised, renamed: episode.renamed } } : {}),
     model: models.writer,

@@ -12,6 +12,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useBackend } from '../../hooks/useBackend';
+import { fetchCharacterSeries } from '../../utils/characterSeriesApi';
 import { useTranslation } from 'react-i18next';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
 import type { InventoryItem } from '../../types/avatar';
@@ -33,6 +34,7 @@ import {
 import Step1AvatarSelection from './wizard-steps/Step1AvatarSelection';
 import type { BroughtArtifactSelection } from './wizard-steps/ArtifactCompanionPicker';
 import Step2CategorySelection from './wizard-steps/Step2CategorySelection';
+import StepCharacterSeries, { type CharacterSeriesChoice, type CharacterSeriesSelection } from './wizard-steps/StepCharacterSeries';
 import StepStoryShape from './wizard-steps/StepStoryShape';
 import StepExtras from './wizard-steps/StepExtras';
 import { DEFAULT_LEARNING_MODE, type LearningModeValue } from './wizard-steps/LearningModeSection';
@@ -79,6 +81,8 @@ interface WizardState {
   wonderStoryMode: boolean;
   /** Talea-Folge (talea-folge-v1): the Talea Originals' method for the family's own heroes. */
   episodeMode: boolean;
+  /** null: a standalone story; auto or an ID: a personal character series. */
+  characterSeries: CharacterSeriesSelection;
   /** Chapter book (chapter-book-v1): a volume read over several evenings. */
   chapterBookMode: boolean;
   experienceForm: ExperienceForm | null;
@@ -279,7 +283,7 @@ export default function TaleaStoryWizard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const backend = useBackend();
-  const { userId } = useAuth();
+  const { userId, getToken } = useAuth();
   const childProfiles = useOptionalChildProfiles();
   const { isAdmin } = useOptionalUserAccess();
   const activeProfileId = childProfiles?.activeProfileId;
@@ -353,6 +357,7 @@ export default function TaleaStoryWizard() {
     bookWorkshopMode: false,
     wonderStoryMode: false,
     episodeMode: false,
+    characterSeries: null,
     chapterBookMode: false,
     experienceForm: null,
     bookChapters: 12,
@@ -393,6 +398,35 @@ export default function TaleaStoryWizard() {
 
   const lastAppliedProfileRef = React.useRef<string | null>(null);
   const bringDeepLinkAppliedRef = React.useRef(false);
+
+  const [characterSeries, setCharacterSeries] = useState<CharacterSeriesChoice[]>([]);
+  const [seriesLoading, setSeriesLoading] = useState(false);
+  const [seriesError, setSeriesError] = useState<string | null>(null);
+  const [seriesRetry, setSeriesRetry] = useState(0);
+  const [seriesOpen, setSeriesOpen] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    const controller = new AbortController();
+    setSeriesLoading(true);
+    setSeriesError(null);
+    setCharacterSeries([]);
+    (async () => {
+      try {
+        const result = await fetchCharacterSeries(getToken, activeProfileId, controller.signal);
+        if (active) setCharacterSeries(result);
+      } catch (error) {
+        if (active) {
+          console.warn('[StoryWizard] Character series could not be loaded:', error);
+          setSeriesError('Die Figurenwelten konnten gerade nicht geladen werden.');
+        }
+      } finally {
+        if (active) setSeriesLoading(false);
+      }
+    })();
+    return () => { active = false; controller.abort(); };
+  }, [getToken, activeProfileId, userId, seriesRetry]);
 
   // Resolve the Schatzkammer deep link ("mitnehmen") into a full selection.
   useEffect(() => {
@@ -511,13 +545,20 @@ export default function TaleaStoryWizard() {
     if (activeStep > 0) setActiveStep((prev) => prev - 1);
   };
 
+  const selectedSeriesGenre = state.mainCategory === 'fairy-tales' ? 'fairy_tales' : state.mainCategory;
+  const hasMatchingSeries = Boolean(selectedSeriesGenre && characterSeries.some((series) => series.genres?.includes(selectedSeriesGenre)));
+
   /** Why "Weiter" is blocked — shown to the user instead of a dead button. */
   const blockedReason = (): string | null => {
     switch (stepKeys[activeStep]) {
       case 'avatars':
         return state.selectedAvatars.length > 0 ? null : 'Wähle mindestens einen Avatar aus.';
       case 'category':
-        return state.mainCategory !== null ? null : 'Wähle eine Welt aus.';
+        if (state.mainCategory === null) return 'Wähle eine Welt aus.';
+        if (state.characterSeries !== null && (seriesLoading || seriesError || characterSeries.length === 0)) return 'Die Figurenwelten sind gerade nicht verfügbar. Versuche es erneut oder wähle eine neue Geschichte.';
+        if (state.characterSeries === 'auto' && !hasMatchingSeries) return 'Für diese Welt gibt es noch keinen passenden Vorschlag. Wähle eine Figur selbst aus.';
+        if (state.characterSeries !== null && state.characterSeries !== 'auto' && !characterSeries.some((series) => series.id === state.characterSeries)) return 'Wähle eine verfügbare Figur aus.';
+        return null;
       case 'book':
         return state.experienceForm ? null : 'Wähle aus, was für ein Buch es werden soll.';
       case 'shape':
@@ -562,6 +603,12 @@ export default function TaleaStoryWizard() {
   const handleGenerate = async () => {
     if (!userId) {
       alert(t('story.wizard.alerts.loginRequired'));
+      return;
+    }
+
+    if (state.characterSeries !== null && (seriesLoading || seriesError || characterSeries.length === 0 || (state.characterSeries === 'auto' && !hasMatchingSeries) || (state.characterSeries !== 'auto' && !characterSeries.some((series) => series.id === state.characterSeries)))) {
+      setSeriesOpen(true);
+      goToStep('category');
       return;
     }
 
@@ -656,7 +703,7 @@ export default function TaleaStoryWizard() {
           backend.story,
           storyId,
           activeProfileId || undefined,
-          { maxWaitMs: state.wonderStoryMode || state.episodeMode ? 15 * 60_000 : undefined, shouldStop: () => stopWaitingRef.current }
+          { maxWaitMs: state.wonderStoryMode || state.episodeMode || state.characterSeries !== null ? 15 * 60_000 : undefined, shouldStop: () => stopWaitingRef.current }
         );
         if (stopWaitingRef.current) return;
         if (recoveredStory) {
@@ -711,7 +758,21 @@ export default function TaleaStoryWizard() {
       case 'avatars':
         return <Step1AvatarSelection state={state} updateState={updateState} />;
       case 'category':
-        return <Step2CategorySelection state={state} updateState={updateState} />;
+        return (
+          <div className="space-y-6">
+            <Step2CategorySelection state={state} updateState={updateState} />
+            {(seriesLoading || characterSeries.length > 0 || seriesOpen || state.characterSeries !== null) && (
+              <section className="rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-4 sm:p-5">
+                <button type="button" aria-expanded={seriesOpen} onClick={() => setSeriesOpen((open) => !open)} className="flex min-h-11 w-full items-center gap-3 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--talea-surface-inset)] text-[var(--primary)]"><BookOpen aria-hidden className="h-5 w-5" /></span>
+                  <span className="min-w-0 flex-1"><span className="block font-semibold text-[var(--talea-text-primary)]">Figurenabenteuer entdecken</span><span className="block text-sm text-[var(--talea-text-secondary)]">Wiederkehrende Figuren und eure eigenen Folgen</span></span>
+                  <span aria-hidden className="text-xl text-[var(--primary)]">{seriesOpen ? '−' : '+'}</span>
+                </button>
+                {seriesOpen && <div className="mt-5"><StepCharacterSeries selection={state.characterSeries} onSelect={(selection) => updateState({ characterSeries: selection, ...(selection !== null ? { developerMode: false, storybookMode: false, bookWorkshopMode: false, wonderStoryMode: false, episodeMode: false, chapterBookMode: false } : {}) })} series={characterSeries} loading={seriesLoading} error={seriesError} onRetry={() => setSeriesRetry((n) => n + 1)} genre={state.mainCategory} /></div>}
+              </section>
+            )}
+          </div>
+        );
       case 'book':
         return <StepBookFormat state={state} updateState={updateState} />;
       case 'shape':
@@ -722,6 +783,7 @@ export default function TaleaStoryWizard() {
         return (
           <StepReady
             state={state}
+            characterSeriesLabel={state.characterSeries === 'auto' ? 'Überrasch mich' : characterSeries.find((series) => series.id === state.characterSeries)?.title}
             updateState={updateState}
             onEdit={goToStep}
             onGenerate={handleGenerate}
@@ -934,8 +996,9 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
       useFairyTaleTemplate: state.mainCategory === 'fairy-tales' || state.mainCategory === 'magic',
     },
     developerMode: state.developerMode || undefined,
-    storybookMode: state.storybookMode || state.bookWorkshopMode || state.chapterBookMode || state.wonderStoryMode || state.episodeMode || undefined,
-    storybookEngine: state.episodeMode ? 'talea-folge-v1' : state.wonderStoryMode ? 'wonder-story-v1' : state.chapterBookMode ? 'chapter-book-v1' : state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v2' : undefined,
+    storybookMode: state.characterSeries !== null || state.storybookMode || state.bookWorkshopMode || state.chapterBookMode || state.wonderStoryMode || state.episodeMode || undefined,
+    storybookEngine: state.characterSeries !== null ? 'character-series-v1' : state.episodeMode ? 'talea-folge-v1' : state.wonderStoryMode ? 'wonder-story-v1' : state.chapterBookMode ? 'chapter-book-v1' : state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v2' : undefined,
+    characterSeriesId: state.characterSeries && state.characterSeries !== 'auto' ? state.characterSeries : undefined,
     ...(state.chapterBookMode
       ? { bookChapters: state.bookChapters, bookImagesPerChapter: state.bookImagesPerChapter, experienceForm: state.experienceForm || undefined, heroRelation: state.selectedAvatars.length > 1 ? state.heroRelation || undefined : undefined, length: 'long' }
       : {}),
