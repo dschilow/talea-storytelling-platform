@@ -23,14 +23,15 @@ export function applyChapterEdits<T extends { title: string; text: string }>(cha
 }
 
 /** A request cap plus a stop on reported spend; a bounded in-flight request may cross the spend threshold. */
-export function seriesLlmBudget(llm: StorybookLlm, length: string = 'medium'): StorybookLlm {
+export function seriesLlmBudget(llm: StorybookLlm, length: string = 'medium'): StorybookLlm & { canCall: () => boolean } {
   let calls = 0, spent = 0;
   const stopAfter = length === 'long' ? SERIES_POLICY.longLlmStopAfterUSD : SERIES_POLICY.llmStopAfterUSD;
   let tail = Promise.resolve<unknown>(undefined);
-  return request => {
+  const canCall = () => calls < SERIES_POLICY.maxLlmCalls && spent < stopAfter;
+  const bounded: StorybookLlm = request => {
     const run = tail.then(async () => {
       for (let attempt = 0; attempt < 2; attempt++) {
-        if (calls >= SERIES_POLICY.maxLlmCalls || spent >= stopAfter) throw new Error('Das Kostenlimit dieser Figurenfolge ist erreicht.');
+        if (!canCall()) throw Object.assign(new Error('Das Kostenlimit dieser Figurenfolge ist erreicht.'), { code: 'series_budget_exhausted' });
         calls++;
         try {
           const response = await llm({ ...request, fallbackModel: request.model });
@@ -49,6 +50,7 @@ export function seriesLlmBudget(llm: StorybookLlm, length: string = 'medium'): S
     tail = run.catch(() => undefined);
     return run;
   };
+  return Object.assign(bounded, { canCall });
 }
 
 export async function runCharacterSeriesTextEngine(input: {

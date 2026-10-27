@@ -517,6 +517,14 @@ export async function exportStoryAsPDF(
       doc.setTextColor(0);
     }
 
+    if (story.metadata?.characterSeriesArt?.state === 'partial') {
+      doc.setFont('times', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(110);
+      addCenteredLines(doc, 'Nicht alle Illustrationen sind verfügbar. Enthalten sind nur freigegebene Bilder.', pageHeight - 17, contentWidth, 4.5, pageWidth);
+      doc.setTextColor(0);
+    }
+
     updateProgress();
 
     // ============================================================================

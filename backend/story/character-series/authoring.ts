@@ -8,7 +8,7 @@ import { nextSeriesEpisode, seriesPrompt } from './core';
 
 export const SERIES_MODELS = { writer: 'openai/gpt-6.1-sol', support: 'openai/gpt-6-luna', critic: 'openai/gpt-6.1-terra' };
 export const SERIES_IMAGE_MODEL = 'runware:400@2';
-export const SERIES_POLICY = { version: 2, picturesPerChapter: 1, maxImageCalls: 6, maxLlmCalls: 12, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.12, maxTextRepairs: 1 } as const;
+export const SERIES_POLICY = { version: 3, picturesPerChapter: 1, maxImageCalls: 6, maxLlmCalls: 12, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.12, maxTextRepairs: 1 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);

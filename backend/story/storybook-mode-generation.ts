@@ -45,6 +45,7 @@ import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, seriesBudget } from "
 import { SERIES_NARRATIVES } from "./character-series/narrative";
 import { runCharacterSeriesTextEngine, seriesLlmBudget } from "./character-series/engine";
 import { directSeriesPictures, generateSeriesImages } from "./character-series/pictures";
+import { seriesAvatarAppearance } from "./character-series/identity";
 import { loadHeroMemories, loadStorybookHistory } from "./storybook/history";
 import { CostLedger, resolveStorybookModels } from "./storybook/llm";
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
@@ -265,7 +266,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       role: "hero",
       species,
       isHuman,
-      appearance: heroAppearance(hero.visualProfile, ""),
+      appearance: seriesMode ? seriesAvatarAppearance(hero) : heroAppearance(hero.visualProfile, ""),
       forbidden: Array.isArray(hero.visualProfile?.forbiddenFeatures) ? hero.visualProfile.forbiddenFeatures.map(String) : [],
       referenceUrl: await readableReference(hero.imageUrl),
       referenceKey: hero.imageUrl,
@@ -347,6 +348,9 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // warm-up failed or the writer brought a figure it did not know).
   await looksWarmUp;
   const known = seriesMode ? { entities, call: undefined } : await describeReferenceLooks(llm, entities, models.support);
+  if (seriesMode) await logStage(input.storyId, 'series-avatar-references', {
+    avatars: entities.filter(e => e.role === 'hero').map(e => ({ id: e.id, hasReference: Boolean(e.referenceUrl), sourceFingerprint: e.referenceKey ? createHash('sha256').update(e.referenceKey).digest('hex').slice(0, 12) : undefined })),
+  }, pipelineId);
   if (known.call) ledger.recordCall("reference-looks", known.call, "support");
 
   // A new, story-local figure has no pool image. Its portrait is drawn from the writer's look — the same look the art

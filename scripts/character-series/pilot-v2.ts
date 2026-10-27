@@ -27,7 +27,7 @@ const narrative = SERIES_NARRATIVES[seriesId];
 const contractHash = createHash('sha256').update(JSON.stringify(narrative)).digest('hex');
 const root = resolve(opt('--out', `Logs/character-series-v2/${seriesId}`));
 const out = join(root, `episode-${episode}`);
-const published = resolve(`docs/figurenserien/pilot-v2/${seriesId}`);
+const published = resolve(opt('--publish', `docs/figurenserien/pilot-v2/${seriesId}`));
 await mkdir(out, { recursive: true });
 let variables = { ...process.env } as Record<string, string>;
 if (args.includes('--railway') && args.includes('--run')) {

@@ -5,6 +5,7 @@ import { seriesAuthoring, seriesBudget, SERIES_MODELS, SERIES_POLICY } from './a
 import { SERIES_NARRATIVES } from './narrative';
 import { withSeriesContext, seriesPrompt } from './core';
 import { directSeriesPictures, generateSeriesImages, validateSeriesShots, seriesPicturePasses } from './pictures';
+import { readSeriesQa } from './quality';
 import { CostLedger, type StorybookLlm } from '../storybook/llm';
 import { buildBrief } from '../storybook/context';
 import type { VisualEntity } from '../storybook/illustration-stage';
@@ -95,7 +96,8 @@ const entities: VisualEntity[] = [
 ];
 const scene = 'Funkelflug at left pulls a bell rope while Nora at right catches the falling wooden handle, both looking at the rope in the mountain hut.';
 const pages = [1, 2, 3].map(order => ({ order, title: 'Glocke', content: 'Ein Absatz.\n\nDie Glocke bewegte sich.\n\nDas Ende.', paragraphs: [] }));
-const rawPlan = () => ({ cover: { onStage: ['lead'], scene }, pages: pages.map(p => ({ page: p.order, paragraph: 2, onStage: ['lead', 'kid'], scene })) });
+const rawPlan = () => ({ cover: { onStage: ['lead'], scene }, pages: pages.map(p => ({ page: p.order, paragraph: 2, storyQuote: 'Die Glocke bewegte sich.', onStage: ['lead', 'kid'], scene })) });
+const imageReview = (stage: string, fields: Record<string, unknown> = {}) => response(JSON.stringify({ visibleIds: stage.includes('qa-0-') ? ['lead'] : ['lead', 'kid'], identityById: { lead: 1, kid: 1 }, primaryActionClear: true, sceneMatch: 1, styleMatch: 1, defects: [], ...fields }));
 
 describe('series artwork preserves action and lead within a fixed budget', () => {
   test('direction sees the public lead and style, never private avatar portraits', async () => {
@@ -110,9 +112,9 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(inputs).not.toContain(figures[1].referenceUrl!);
   });
   test('a harmless composition difference cannot hide a contradicted primary action', () => {
-    const qa: any = { styleMatch: 0.9, styleDefects: [], primaryActionClear: true, criticalSceneDefects: [], sceneMatch: 0.85, identityMatch: 1, anatomyDefects: [], animalFeaturesOnHumans: [], duplicates: [], unexpectedCharacters: [], roleSwaps: [], elementMisuse: [], sceneDefects: ['A wing is unfolded.'], textVisible: false, referenceSheetVisible: false };
+    const qa = readSeriesQa(imageReview('chapter').text, entities)!;
     expect(seriesPicturePasses(qa)).toBe(true);
-    expect(seriesPicturePasses({ ...qa, primaryActionClear: false, criticalSceneDefects: ['The gag-defining object is absent.'] })).toBe(false);
+    expect(seriesPicturePasses({ ...qa, primaryActionClear: false })).toBe(false);
   });
   test('planning rejects missing lead and allows the lead without all avatars on the cover', () => {
     expect(validateSeriesShots(rawPlan(), pages, entities, 'lead').cover.onStage).toEqual(['lead']);
@@ -121,10 +123,9 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
   });
   test('all four scenes use landscape geometry and an actual art reference; no portrait generation', async () => {
     const requests: any[] = [];
-    const llm: StorybookLlm = async () => response(JSON.stringify({ anatomyDefects: [], animalFeaturesOnHumans: [], duplicates: [], unexpectedCharacters: [], roleSwaps: [], sceneDefects: [], sceneFixes: [], elementMisuse: [], featureBleed: [], characterCounts: { Funkelflug: 1, Nora: 1 }, textVisible: false, referenceSheetVisible: false, identityMatch: 1, sceneMatch: 1, styleMatch: 1, styleDefects: [], primaryActionClear: true, criticalSceneDefects: [] }));
+    const llm: StorybookLlm = async r => imageReview(r.stage);
     const plan = validateSeriesShots(rawPlan(), pages, entities, 'lead');
-    // The cover has only the lead and therefore gets its own correct count.
-    const quality: StorybookLlm = async r => { const reply = await llm(r); if (r.stage.includes('qa-0-')) { const data = JSON.parse(reply.text); delete data.characterCounts.Nora; return response(JSON.stringify(data)); } return reply; };
+    const quality = llm;
     const result = await generateSeriesImages({ illustrations: plan, entities, seed: 'test', provider: async request => { requests.push(request); return { url: 'https://example.test/image.webp', costUSD: 0.0025 }; }, llm: quality, visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
     expect(result.imagesGenerated).toBe(4);
     expect(requests).toHaveLength(4);
@@ -132,7 +133,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
   });
   test('failed action gets at most one extra attempt across the story and never loses the lead', async () => {
     const requests: any[] = [];
-    const qa: StorybookLlm = async () => response(JSON.stringify({ anatomyDefects: [], animalFeaturesOnHumans: [], duplicates: [], unexpectedCharacters: [], roleSwaps: [], sceneDefects: ['The key action is missing.'], sceneFixes: ['Keep the bell action.'], elementMisuse: [], featureBleed: [], characterCounts: { Funkelflug: 1, Nora: 1 }, textVisible: false, referenceSheetVisible: false, identityMatch: 1, sceneMatch: 0.2, styleMatch: 1, styleDefects: [], primaryActionClear: true, criticalSceneDefects: [] }));
+    const qa: StorybookLlm = async r => imageReview(r.stage, { sceneMatch: 0.2, primaryActionClear: false, defects: [{ kind: 'story', detail: 'The key action is missing.', fix: 'Keep the bell action.' }] });
     const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'test', provider: async request => { requests.push(request); return { url: 'https://example.test/image.webp', costUSD: 0.0025 }; }, llm: qa, visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
     expect(result.imageCalls).toBe(5);
     expect(requests.every(r => r.prompt.includes('Funkelflug'))).toBe(true);
@@ -150,8 +151,43 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
   test('long stories keep one image for each of four chapters, with one shared retry allowance', async () => {
     const longPages = [...pages, { ...pages[0], order: 4 }];
     const raw = rawPlan(); raw.pages.push({ ...raw.pages[0], page: 4 });
-    const result = await generateSeriesImages({ illustrations: validateSeriesShots(raw, longPages, entities, 'lead'), entities, seed: 'long', provider: async () => ({ url: 'https://example.test/image.webp', costUSD: 0.0025 }), llm: async () => response(JSON.stringify({ anatomyDefects: [], animalFeaturesOnHumans: [], duplicates: [], unexpectedCharacters: [], roleSwaps: [], sceneDefects: ['Wrong action'], elementMisuse: [], characterCounts: { Funkelflug: 1, Nora: 1 }, textVisible: false, referenceSheetVisible: false, identityMatch: 1, sceneMatch: 0.2, styleMatch: 1, styleDefects: [], primaryActionClear: true, criticalSceneDefects: [] })), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
+    const result = await generateSeriesImages({ illustrations: validateSeriesShots(raw, longPages, entities, 'lead'), entities, seed: 'long', provider: async () => ({ url: 'https://example.test/image.webp', costUSD: 0.0025 }), llm: async r => imageReview(r.stage, { sceneMatch: 0.2, primaryActionClear: false }), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
     expect(result.imageCalls).toBe(SERIES_POLICY.maxImageCalls);
     expect(result.pages.size).toBe(4);
+  });
+  test('all planned chapters are reviewed before an earlier failure can consume the spare budget', async () => {
+    const events: string[] = [];
+    const llm = seriesLlmBudget(async r => {
+      events.push(r.stage);
+      const reply = imageReview(r.stage, r.stage.includes('qa-1-') ? { primaryActionClear: false } : {});
+      return { ...reply, usage: { ...reply.usage, costUSD: 0.021 } };
+    });
+    const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'planned-first', provider: async r => { events.push(`draw-${r.page}`); return { url: 'https://example.test/image.webp', costUSD: 0.0025 }; }, llm, visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
+    expect(result.imageCalls).toBe(4);
+    expect(events).toContain('series-image-qa-3-1');
+    expect(events.some(e => e.startsWith('series-image-qa-') && e.endsWith('-2'))).toBe(false);
+    expect(result.pages.get(3)?.status).toBe('passed');
+    expect(result.regenerated).toHaveLength(0);
+  });
+  test('no paid image is started when its review budget or avatar reference is missing', async () => {
+    let draws = 0;
+    const llm = seriesLlmBudget(async () => ({ ...response('ok'), usage: { prompt: 1, completion: 1, total: 2, costUSD: 0.09 } }));
+    await llm({ stage: 'spent' } as any);
+    const noBudget = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'empty', provider: async () => { draws++; return { url: 'https://example.test/image.webp' }; }, llm, visionModel: 'test', pageTexts: {} });
+    expect(draws).toBe(0);
+    expect(noBudget.pages.get(3)?.errors).toContain('series_budget_exhausted');
+    const missing = entities.map(e => e.role === 'hero' ? { ...e, referenceUrl: undefined } : e);
+    const noReference = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, missing, 'lead'), entities: missing, seed: 'missing', provider: async () => { draws++; return { url: 'https://example.test/image.webp' }; }, llm: async r => imageReview(r.stage), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
+    expect(noReference.pages.get(1)?.errors).toContain('series_avatar_reference_missing');
+    expect(draws).toBe(1); // The cover needs only the available lead; no invented avatar is drawn.
+  });
+  test('a fabricated chapter quote is rejected before paying for an illustration', () => {
+    const raw = rawPlan(); raw.pages[0].storyQuote = 'Ein im Kapitel nicht vorhandener Satz.';
+    expect(() => validateSeriesShots(raw, pages, entities, 'lead')).toThrow('wörtlicher Beleg');
+  });
+  test('a literal quote survives straight quotation marks and dashes', () => {
+    const spoken = pages.map(p => ({ ...p, content: 'Ein Absatz.\n\n„Hallo“, sagte Adrian – und grinste…\n\nDas Ende.' }));
+    const raw = rawPlan(); raw.pages.forEach(p => { p.storyQuote = '"Hallo", sagte Adrian - und grinste...'; });
+    expect(validateSeriesShots(raw, spoken, entities, 'lead').pages[0]).toMatchObject({ storyQuote: '"Hallo", sagte Adrian - und grinste...' });
   });
 });
