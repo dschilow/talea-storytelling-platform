@@ -6,6 +6,7 @@ import { SERIES_NARRATIVES } from './narrative';
 import { withSeriesContext, seriesPrompt } from './core';
 import { directSeriesPictures, generateSeriesImages, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment, seriesReferenceRegions } from './pictures';
 import { readSeriesQa } from './quality';
+import { isPublishable } from '../storybook/images';
 import { CostLedger, type StorybookLlm } from '../storybook/llm';
 import { buildBrief } from '../storybook/context';
 import type { VisualEntity } from '../storybook/illustration-stage';
@@ -37,15 +38,19 @@ describe('Figurenserien revision 2', () => {
   });
   test('a missing arrival triggers one local correction and recheck, preserving other chapters', async () => {
     const calls: string[] = [];
+    let criticSystem = '';
     const llm: StorybookLlm = async r => {
       calls.push(r.stage);
       if (r.stage === 'series-author') return response(text);
-      if (r.stage === 'series-editorial-review') return response(JSON.stringify({ issues: [{ severity: 'major', quote: '', problem: 'Die Kinder sind ohne Begegnung da.', change: 'Den Weg und die erste Begegnung erzählen.' }] }));
+      if (r.stage === 'series-editorial-review') { criticSystem = r.system; return response(JSON.stringify({ issues: [{ severity: 'major', quote: '', problem: 'Die Kinder sind ohne Begegnung da.', change: 'Den Weg und die erste Begegnung erzählen.' }] })); }
       if (r.stage === 'series-local-repair') return response(JSON.stringify({ edits: [{ chapter: 1, before: 'Funkelflug stellte seinen Becher ab. Nora hielt ihn schon fest.', after: 'Funkelflug übte allein. Nora kam vom Weg herauf, weil sie eine Glocke gehört hatte. „Wer bist du?“, fragte sie. „Funkelflug“, sagte der Drache. Nora stellte sich vor. Erst dann fing sie seinen fallenden Becher.' }] }));
       return response('{"issues":[]}');
     };
     const result = await runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() });
     expect(calls).toEqual(['series-author', 'series-editorial-review', 'series-local-repair', 'series-editorial-recheck']);
+    // Story ff6eff04: „Und meine Idee trägt deinen Fisch“ credited Alexander with Adrian's idea and passed the critic.
+    expect(criticSystem).toContain('Attribution stays true');
+    expect(criticSystem).toContain('running gag');
     expect(result.pages[0].content).toContain('Nora kam vom Weg');
     expect(result.pages[1].content).toContain('Gemeinsam prüften sie den Ausgang.');
     expect(result.textQuality?.status).toBe('passed');
@@ -67,9 +72,22 @@ describe('Figurenserien revision 2', () => {
     for (let i = 0; i < SERIES_POLICY.maxLlmCalls; i++) await bounded(request);
     await expect(bounded(request)).rejects.toThrow('Kostenlimit');
     expect(paid).toBe(SERIES_POLICY.maxLlmCalls);
-    const costly = seriesLlmBudget(async () => ({ ...response('ok'), usage: { prompt: 1, completion: 1, total: 2, costUSD: 0.09 } }));
+    const costly = seriesLlmBudget(async () => ({ ...response('ok'), usage: { prompt: 1, completion: 1, total: 2, costUSD: 0.11 } }));
     await costly(request);
     await expect(costly(request)).rejects.toThrow('Kostenlimit');
+  });
+  test('parallel calls run at once but a burst never exceeds the call cap', async () => {
+    let inFlight = 0, peak = 0, paid = 0;
+    const bounded = seriesLlmBudget(async () => {
+      inFlight++; peak = Math.max(peak, inFlight);
+      await new Promise(resolve => setTimeout(resolve, 5));
+      inFlight--; paid++;
+      return response('ok');
+    });
+    const results = await Promise.allSettled(Array.from({ length: SERIES_POLICY.maxLlmCalls + 3 }, () => bounded({ model: 'test', stage: 'burst' } as any)));
+    expect(peak).toBeGreaterThan(1);
+    expect(paid).toBe(SERIES_POLICY.maxLlmCalls);
+    expect(results.filter(r => r.status === 'rejected')).toHaveLength(3);
   });
   test('continuity contains only literal source paragraphs and shows the latest episode context', () => {
     const source = 'Nora kam mit Ben zum Berg.\n\nDas Brett versperrte den Tunnel.\n\nFunkelflug zog den Stift heraus.\n\nDanach aßen sie gemeinsam auf der Wiese.\n\nUnter dem Fenster hing eine zweite Schnur.';
@@ -99,19 +117,57 @@ const pages = [1, 2, 3].map(order => ({ order, title: 'Glocke', content: 'Ein Ab
 const beat = (framing = 'wide') => ({ actorId: 'lead', action: 'pulls the bell rope down', result: 'the wooden handle swings toward Nora', framing });
 const rawPlan = () => ({ cover: { onStage: ['lead'], visualBeat: beat(), scene }, pages: pages.map(p => ({ page: p.order, paragraph: 2, storyQuote: 'Die Glocke bewegte sich.', onStage: ['lead', 'kid'], visualBeat: beat(p.order === 2 ? 'close' : 'wide'), scene })) });
 const imageReview = (stage: string, fields: Record<string, unknown> = {}) => response(JSON.stringify({ visibleIds: stage.includes('qa-0-') ? ['lead'] : ['lead', 'kid'], identityById: { lead: 1, kid: 1 }, posing: false, primaryActionClear: true, sceneMatch: 1, styleMatch: 1, defects: [], ...fields }));
+// Two pictures per chapter: 16 paragraphs per chapter give two reading segments of eight; Pia acts in paragraph 13.
+const segmentChapters = [1, 2, 3].map(order => ({ order, title: `Kapitel ${order}`, content: Array.from({ length: 16 }, (_, i) => `Absatz ${order}.${i + 1}: Funkelflug zog am Glockenseil${i === 12 ? ', und Pia hielt die Leine fest' : ''}, und Nora fing den Griff.`).join('\n\n'), paragraphs: [] }));
+const segmentPlan = (lead: string, options: { coverKid?: boolean; guest?: string } = {}) => ({
+  cover: { onStage: options.coverKid === false ? [lead] : [lead, 'kid'], visualBeat: { ...beat(), actorId: lead }, scene },
+  pages: Array.from({ length: 6 }, (_, i) => {
+    const chapter = Math.floor(i / 2) + 1, part = i % 2;
+    return { page: i + 1, paragraph: 3, storyQuote: `Absatz ${chapter}.${part * 8 + 3}: Funkelflug zog am Glockenseil, und Nora fing den Griff.`, onStage: options.guest && i === 3 ? [lead, options.guest] : [lead, 'kid'], visualBeat: { ...beat(part ? 'close' : 'wide'), actorId: lead }, scene };
+  }),
+});
 
 describe('series artwork preserves action and lead within a fixed budget', () => {
-  test('direction sees the public lead and style, never private avatar portraits', async () => {
+  test('direction sees the public lead and style, never private avatar portraits, and plans two pictures per chapter', async () => {
     const b = brief();
     const figures = entities.map(e => e.id === 'lead' ? { ...e, id: bible.characterId } : e);
-    const raw = rawPlan();
-    raw.cover.onStage = [bible.characterId];
-    raw.cover.visualBeat.actorId = bible.characterId;
-    raw.pages.forEach(p => { p.onStage = [bible.characterId, 'kid']; p.visualBeat.actorId = bible.characterId; });
     let inputs: string[] = [];
-    await directSeriesPictures({ brief: b, model: 'test', title: 'Glocke', pages, entities: figures, llm: async r => { inputs = r.imageInputs || []; expect(r.user).toContain('FIRST CHAPTER PICTURE'); return response(JSON.stringify(raw)); } });
+    let user = '';
+    const stages: string[] = [];
+    const direction = await directSeriesPictures({ brief: b, model: 'test', title: 'Glocke', pages: segmentChapters, entities: figures, llm: async r => { stages.push(r.stage); inputs = r.imageInputs || []; user = r.user; return response(JSON.stringify(segmentPlan(bible.characterId))); } });
     expect(inputs).toContain(figures[0].referenceUrl!);
     expect(inputs).not.toContain(figures[1].referenceUrl!);
+    expect(user).toContain('FIRST CHAPTER PICTURE');
+    expect(user).toContain('PLANNED KEY VISUAL');
+    expect(user).toContain('PAGE 6 — chapter 3, part 2 of 2');
+    expect(stages).toEqual(['series-picture-direction']);
+    expect(direction.slots.map(s => `${s.chapter}.${s.part}`)).toEqual(['1.0', '1.1', '2.0', '2.1', '3.0', '3.1']);
+    // Each picture prints right after the paragraph it shows: segment paragraph 3 is chapter paragraph 3 or 11.
+    expect(direction.placed.map(p => p.afterParagraph)).toEqual([2, 10, 2, 10, 2, 10]);
+  });
+  test('the first plan brings the family onto the cover and an acting guest into a picture; after one repair these are wishes', async () => {
+    const b = brief();
+    const lead = bible.characterId;
+    const figures: VisualEntity[] = [
+      { ...entities[0], id: lead },
+      entities[1],
+      { id: 'pia', name: 'Pia', kind: 'character', role: 'cast', species: 'human', isHuman: true, appearance: 'woman in an orange headscarf', forbidden: [], referenceUrl: 'https://example.test/pia.webp' },
+    ];
+    const repairs: string[] = [];
+    const repaired = await directSeriesPictures({ brief: b, model: 'test', title: 'Glocke', pages: segmentChapters, entities: figures, llm: async r => {
+      if (r.stage === 'series-picture-plan-repair') { repairs.push(r.user); return response(JSON.stringify(segmentPlan(lead, { guest: 'pia' }))); }
+      return response(JSON.stringify(segmentPlan(lead, { coverKid: false })));
+    } });
+    expect(repairs).toHaveLength(1);
+    expect(repairs[0]).toContain('RECURRING GUESTS pia');
+    expect(repaired.illustrations.cover.onStage).toContain('kid');
+    expect(repaired.illustrations.pages.some(p => p.onStage.includes('pia'))).toBe(true);
+    expect(repaired.unplaced).toEqual([]);
+    // A broken repair falls back to the valid first plan instead of failing the whole story.
+    const fallback = await directSeriesPictures({ brief: b, model: 'test', title: 'Glocke', pages: segmentChapters, entities: figures, llm: async r => response(r.stage === 'series-picture-plan-repair' ? 'kein JSON' : JSON.stringify(segmentPlan(lead, { coverKid: false }))) });
+    expect(fallback.illustrations.cover.onStage).toEqual([lead]);
+    expect(fallback.unplaced).toEqual(['Pia']);
+    expect(fallback.director.repairReasons?.[0].errors[0]).toContain('Titelbild');
   });
   test('a harmless composition difference cannot hide a contradicted primary action', () => {
     const qa = readSeriesQa(imageReview('chapter').text, entities)!;
@@ -120,6 +176,8 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
   });
   test('planning rejects missing lead and allows the lead without all avatars on the cover', () => {
     expect(validateSeriesShots(rawPlan(), pages, entities, 'lead').cover.onStage).toEqual(['lead']);
+    // The director's first plan must put the family on the cover; after the repair it is only a wish.
+    expect(() => validateSeriesShots(rawPlan(), pages, entities, 'lead', { strict: true })).toThrow('Titelbild');
     const raw = rawPlan(); raw.cover.onStage = ['kid'];
     expect(() => validateSeriesShots(raw, pages, entities, 'lead')).toThrow('Serienhauptfigur');
   });
@@ -133,11 +191,11 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(requests).toHaveLength(4);
     expect(requests.every(r => r.width === 1216 && r.height === 832 && r.referenceImages.length === 1 && r.prompt.includes('gouache'))).toBe(true);
   });
-  test('failed action gets at most one extra attempt across the story and never loses the lead', async () => {
+  test('failed action gets at most the policy repairs across the story and never loses the lead', async () => {
     const requests: any[] = [];
     const qa: StorybookLlm = async r => imageReview(r.stage, { sceneMatch: 0.2, primaryActionClear: false, defects: [{ kind: 'story', detail: 'The key action is missing.', fix: 'Keep the bell action.' }] });
     const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'test', provider: async request => { requests.push(request); return { url: 'https://example.test/image.webp', costUSD: 0.0025 }; }, llm: qa, visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
-    expect(result.imageCalls).toBe(5);
+    expect(result.imageCalls).toBe(4 + SERIES_POLICY.imageRetries);
     expect(requests.every(r => r.prompt.includes('Funkelflug'))).toBe(true);
     expect(result.imagesGenerated).toBe(0);
     expect(result.pages.get(1)?.status).toBe('failed');
@@ -150,19 +208,41 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(result.pages.size).toBe(3);
     expect(result.imagesGenerated).toBe(0);
   });
-  test('long stories keep one image for each of four chapters, with one shared retry allowance', async () => {
+  test('long stories keep one image for each of four chapters, with a shared repair allowance', async () => {
     const longPages = [...pages, { ...pages[0], order: 4 }];
     const raw = rawPlan(); raw.pages.push({ ...raw.pages[0], page: 4 });
     const result = await generateSeriesImages({ illustrations: validateSeriesShots(raw, longPages, entities, 'lead'), entities, seed: 'long', provider: async () => ({ url: 'https://example.test/image.webp', costUSD: 0.0025 }), llm: async r => imageReview(r.stage, { sceneMatch: 0.2, primaryActionClear: false }), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
-    expect(result.imageCalls).toBe(SERIES_POLICY.maxImageCalls);
+    expect(result.imageCalls).toBe(5 + SERIES_POLICY.imageRetries);
     expect(result.pages.size).toBe(4);
+  });
+  test('all planned pictures are drawn and checked at the same time', async () => {
+    let inFlight = 0, peak = 0;
+    const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'parallel', provider: async () => {
+      inFlight++; peak = Math.max(peak, inFlight);
+      await new Promise(resolve => setTimeout(resolve, 10));
+      inFlight--;
+      return { url: 'https://example.test/image.webp', costUSD: 0.0025 };
+    }, llm: async r => imageReview(r.stage), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
+    expect(peak).toBe(4);
+    expect(result.imagesGenerated).toBe(4);
+  });
+  test('a consistent neighbouring moment is printed as flawed without a repair; a contradiction gets the repair', async () => {
+    const loose = { primaryActionClear: false, sceneMatch: 0.55, defects: [{ kind: 'story', detail: 'The crate is being turned, not yet landed on the coat.', fix: 'Show the crate landing on the coat.' }] };
+    const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'flawed', provider: async () => ({ url: 'https://example.test/image.webp', costUSD: 0.0025 }),
+      llm: async r => imageReview(r.stage, r.stage === 'series-image-qa-1-1' ? { ...loose, storyConsistent: true } : r.stage === 'series-image-qa-2-1' ? { ...loose, storyConsistent: false } : {}), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
+    expect(result.pages.get(1)?.status).toBe('flawed');
+    expect(isPublishable(result.pages.get(1))).toBe(true);
+    expect(result.regenerated).toEqual([2]);
+    expect(result.pages.get(2)?.status).toBe('passed');
+    expect(result.imageCalls).toBe(5);
+    expect(result.imagesGenerated).toBe(4);
   });
   test('all planned chapters are reviewed before an earlier failure can consume the spare budget', async () => {
     const events: string[] = [];
     const llm = seriesLlmBudget(async r => {
       events.push(r.stage);
       const reply = imageReview(r.stage, r.stage.includes('qa-1-') ? { primaryActionClear: false } : {});
-      return { ...reply, usage: { ...reply.usage, costUSD: 0.021 } };
+      return { ...reply, usage: { ...reply.usage, costUSD: 0.026 } };
     });
     const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'planned-first', provider: async r => { events.push(`draw-${r.page}`); return { url: 'https://example.test/image.webp', costUSD: 0.0025 }; }, llm, visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
     expect(result.imageCalls).toBe(4);
@@ -173,7 +253,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
   });
   test('no paid image is started when its review budget or avatar reference is missing', async () => {
     let draws = 0;
-    const llm = seriesLlmBudget(async () => ({ ...response('ok'), usage: { prompt: 1, completion: 1, total: 2, costUSD: 0.09 } }));
+    const llm = seriesLlmBudget(async () => ({ ...response('ok'), usage: { prompt: 1, completion: 1, total: 2, costUSD: 0.11 } }));
     await llm({ stage: 'spent' } as any);
     const noBudget = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'empty', provider: async () => { draws++; return { url: 'https://example.test/image.webp' }; }, llm, visionModel: 'test', pageTexts: {} });
     expect(draws).toBe(0);
@@ -211,17 +291,20 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
   test('a cover is not checked against unrelated chapter-opening actions; chapter evidence stays available', async () => {
     const reviews: any[] = [], drawings: any[] = [];
     await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'cover-scope', provider: async r => { drawings.push(r); return { url: 'https://example.test/image.webp' }; }, llm: async r => { reviews.push(r); return imageReview(r.stage); }, visionModel: 'test', pageTexts: { 1: 'An earlier footprint gag.\n\nDie Glocke bewegte sich.' }, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
-    expect(reviews[0].user).toContain('COVER:');
-    expect(reviews[0].user).not.toContain('earlier footprint gag');
-    expect(reviews[1].user).toContain('Die Glocke bewegte sich.');
-    expect(reviews[1].user).toContain('slot 2 = kid');
-    expect(drawings[1].prompt).toContain('slot 2 (right half) is ONLY Nora');
-    expect(drawings[1].referenceImages).toHaveLength(1); // Only the existing shared sheet; no competing style characters or individual private exports.
+    const coverReview = reviews.find(r => r.stage === 'series-image-qa-0-1');
+    const chapterReview = reviews.find(r => r.stage === 'series-image-qa-1-1');
+    const chapterDrawing = drawings.find(d => d.page === 1);
+    expect(coverReview.user).toContain('COVER:');
+    expect(coverReview.user).not.toContain('earlier footprint gag');
+    expect(chapterReview.user).toContain('Die Glocke bewegte sich.');
+    expect(chapterReview.user).toContain('slot 2 = kid');
+    expect(chapterDrawing.prompt).toContain('slot 2 (right half) is ONLY Nora');
+    expect(chapterDrawing.referenceImages).toHaveLength(1); // Only the existing shared sheet; no competing style characters or individual private exports.
   });
-  test('the one repair prioritises a failed avatar chapter over a failed cover', async () => {
+  test('repairs go to a failed chapter before a failed cover', async () => {
     const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'chapter-first', provider: async () => ({ url: 'https://example.test/image.webp' }), llm: async r => imageReview(r.stage, r.stage.includes('qa-0-') || r.stage.includes('qa-1-1') ? { primaryActionClear: false, defects: [{ kind: 'story', detail: 'The selected exchange is absent.', fix: 'Show the selected exchange.' }] } : {}), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
-    expect(result.imageCalls).toBe(5);
-    expect(result.regenerated).toEqual([1]);
+    expect(result.imageCalls).toBe(6);
+    expect(result.regenerated).toEqual([1, 0]);
     expect(result.pages.get(1)?.status).toBe('passed');
     expect(result.cover?.status).toBe('failed');
   });

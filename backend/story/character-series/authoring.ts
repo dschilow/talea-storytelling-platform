@@ -12,7 +12,7 @@ import { FLUX3_KLEIN_MODEL } from '../../ai/runware-image-model-options';
 const SERIES_GENRE_COLORING: Record<string, string> = {
   fairy_tales: 'Genre coloring — Fairy Tale (Märchen): Keep this series world and its physical rules intact, but give today\'s episode a warm fairy-tale atmosphere: poetic sensory details, the classic rule of three (three tries or three clues), and a timeless, magical-feeling mood.',
   adventure: 'Genre coloring — Adventure (Abenteuer): Emphasize active exploration of the series world, physical obstacles, outdoor routes, discoveries and a tangible, child-appropriate thrill.',
-  magic: 'Genre coloring — Magic & Wonder (Magie): Put the wondrous, mysterious or seemingly magical phenomena of this series world at center stage (while keeping its world rules intact) and let the children figure out how the rule works.',
+  magic: 'Genre coloring — Magic & Wonder (Magie): Put the wondrous, mysterious or seemingly magical phenomena of this series world at center stage (while keeping its world rules intact): its wondrous element (an object, creature or phenomenon of this world) gets an active, visible, surprising moment in chapter 1 or 2, not only in the epilogue, and the children figure out how its rule works.',
   animals: 'Genre coloring — Animal Focus (Tierwelt): Give the animal figures or local creatures of this series world extra spotlight; their authentic animal habits, instincts and funny animal quirks drive the comedy and the solution.',
   scifi: 'Genre coloring — Tinkering & Discovery (Zukunft & Technik): Highlight contraptions, mechanisms, starlight/navigation or cause-and-effect experiments within the series world.',
   modern: 'Genre coloring — Everyday Life (Alltag): Ground the comedy and conflict in relatable everyday child situations, neighbourhood chaos and hands-on teamwork.',
@@ -21,7 +21,13 @@ const SERIES_GENRE_COLORING: Record<string, string> = {
 export const SERIES_MODELS = { writer: 'openai/gpt-6.1-sol', support: 'openai/gpt-6-luna', critic: 'openai/gpt-6.1-terra' };
 export const SERIES_IMAGE_REVIEW_MODEL = SERIES_MODELS.support;
 export const SERIES_IMAGE_MODEL = FLUX3_KLEIN_MODEL;
-export const SERIES_POLICY = { version: 5, picturesPerChapter: 1, maxImageCalls: 6, maxLlmCalls: 12, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.12, maxTextRepairs: 1 } as const;
+/**
+ * Version 6 (story ff6eff04, 2026-10-28): two pictures per chapter like Talea-Folge (cover + 6 for three chapters,
+ * 0.25 ¢ each on FLUX 3 Klein). All planned pictures are drawn and checked at once — four pictures one after another
+ * took 211 s. Up to two repairs, spent only on pictures with a hard fault. The caps stop runaways; a normal episode
+ * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
+ */
+export const SERIES_POLICY = { version: 6, picturesPerChapter: 2, imageRetries: 2, imageConcurrency: 7, maxImageCalls: 12, maxLlmCalls: 24, llmStopAfterUSD: 0.1, longLlmStopAfterUSD: 0.14, maxTextRepairs: 1 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);
@@ -49,11 +55,16 @@ export function seriesContext(brief: StoryBrief): string {
   const blueprint = getSeriesEpisodeBlueprint(bible.id, episode);
   const unlockedCast = getUnlockedSeriesEnsemble(bible.id, episode);
   const featuredGuest = blueprint?.guestId ? unlockedCast.find(c => c.id === blueprint.guestId) : undefined;
+  // Story ff6eff04 (episode 4) resolved its crisis like episode 2: the lead's prized coat became an underlay, as his banner had.
+  const previousTurns = [episode - 1, episode - 2].filter(n => n >= 1)
+    .map(n => ({ n, plan: getSeriesEpisodeBlueprint(bible.id, n) }))
+    .filter(entry => entry.plan && entry.plan.episode !== blueprint?.episode)
+    .map(entry => `ep. ${entry.n}: ${entry.plan!.suspense}`);
   const castToOffer = blueprint ? (featuredGuest ? [featuredGuest] : []) : unlockedCast;
   const castBlock = castToOffer.length
     ? `RECURRING CAST FOR EPISODE ${episode} (at most ONE beyond the lead in this episode; use ONLY this companion if cast):\n` +
       castToOffer.map(c =>
-        `${c.name} [${c.id}; ${c.species}; debut ep. ${c.debutEpisode ?? 1}]: ${c.nature}${c.voice ? ` Voice: ${c.voice}` : ''}${c.catchphrase ? ` Catchphrase: „${c.catchphrase}“` : ''}${c.quirk ? ` Quirk: ${c.quirk}` : ''} English look: ${c.look}`
+        `${c.name} [${c.id}; ${c.species}; debut ep. ${c.debutEpisode ?? 1}]: ${c.nature}${c.voice ? ` Voice: ${c.voice}` : ''}${c.catchphrase ? ` Catchphrase: „${c.catchphrase}“` : ''}${c.quirk ? ` Quirk: ${c.quirk}` : ''}${c.runningGag ? ` Running gag (lands at least once, best inside a slapstick beat): ${c.runningGag}` : ''}${c.gesture ? ` Gesture: ${c.gesture}` : ''} English look: ${c.look}`
       ).join('\n')
     : `RECURRING CAST FOR EPISODE ${episode}: None — focus entirely on ${bible.characterName} and the family's avatars (do not add a second FIGUR line).`;
   const blueprintBlock = blueprint
@@ -66,6 +77,7 @@ export function seriesContext(brief: StoryBrief): string {
         `- Episode hook & starting situation: ${blueprint.hook}`,
         `- Escalating slapstick & comic chain reaction (Chapters 1–2): ${blueprint.slapstick}`,
         `- Suspense, turning point & costly choice (Chapter 3): ${blueprint.suspense}`,
+        ...(previousTurns.length ? [`- Turning points of the two previous episodes of this series (resolve today's crisis with a clearly DIFFERENT device, never the same kind of sacrifice or trick again): ${previousTurns.join(' / ')}`] : []),
         ...(blueprint.avatarRole ? [`- Indispensable role of the 1–3 child avatars: ${blueprint.avatarRole}`] : []),
         `- Recommended punchline / schoolyard line: ${blueprint.joke}`,
         `- Key paintable slapstick visual: ${blueprint.keyVisual}`,
@@ -104,12 +116,13 @@ export function seriesAuthoring(brief: StoryBrief) {
     'TALEA ORIGINALS ESCALATION & COMEDY ENGINE (never write a tidy workshop manual or polite step-by-step chore sequence!):\n' +
       '- Chapter 1 (Arrival, Hook & First Backfire): Open in motion with the lead\'s funny ambition or stubborn quirk. Bring the avatars in naturally. Trigger today\'s problem: the lead\'s overconfident first shortcut seems to work for ten seconds — then backfires into a visible, funny predicament (chapter hook!).\n' +
       '- Chapter 2 (The Easy Way Makes It Worse): Two concrete attempts to fix, hide or shortcut the trouble make the physical situation wilder, funnier and more urgent step by step (a chain reaction, a runaway prop, an impatient neighbour or animal interfering at the worst moment). Never fill chapters with calm logistical sorting, stacking or orderly repair routines. Before the climax, include one short, genuine quiet beat where someone admits a real worry or weakness. End on the peak comic crisis!\n' +
-      '- Chapter 3 (Costly Choice, Turnaround & Callback Payoff): Everything collides at once. Give the lead competence, mistakes, initiative and a costly personal choice (sacrificing a boast, prized prop or stubborn excuse); give every avatar a different decisive observation or action that turns the crisis around in ONE surprising physical moment. Plant the final discovery in an earlier observed clue and a character\'s decision to follow it. Flip the lead\'s running gag back on them, end with a laugh-out-loud punchline, and leave one concrete, planted question from this world for a later episode.',
+      "- Chapter 3 (Costly Choice, Turnaround & Callback Payoff): Everything collides at once. Give the lead competence, mistakes, initiative and a costly personal choice — giving up a boast, the credit for an idea, his pride or his stubborn plan in front of the others; sacrificing a prized object as padding, cover or underlay only when this episode's blueprint asks for it, never as the default trick. Give every avatar a different decisive observation or action that turns the crisis around in ONE surprising physical moment. Plant the final discovery in an earlier observed clue and a character's decision to follow it. Flip the lead's running gag back on them, end with a laugh-out-loud punchline, and leave one concrete, planted question from this world for a later episode. Plant the series clue in chapter 1 or 2, so that between the turnaround and the final laugh there are at most about 150 words: no explanations in reported speech after the climax.\n" +
+      '- Promise: whatever the title or premise promises (a number, a crowd, a creature, a thing) acts on stage at least twice and funnily, never only as backdrop. A recurring guest\'s running gag lands at least once, best inside a slapstick beat.',
     `READ-ALOUD VOICE, DIALOGUE & SOUND WORDS: Short, vivid sentences (4–12 words, average ~7), 2–4 sentences per paragraph for smooth read-aloud flow; single-sentence paragraphs reserved for expressive sound words (RUMMS!, PLATSCH!, KNACK!, SCHWUPP!), punchlines or suspense turns. Write brisk, funny dialogue (~40% of the text) where characters interrupt, boast or counter dryly, plus at least one quotable "schoolyard line" a child will repeat tomorrow. The narrator trusts children to understand the scene: never explain a joke, repeat a moral, use identical reassuring smiles, forced slogans, verse unless requested, or administrative safety lectures.${learningGoal(brief.config) ? ' When LEARNING MODE is active, a character explaining the real-world knowledge fact in children\'s words is wanted and is not a moral lecture.' : ''} World rules constrain events silently.`,
     'Use the supplied series rules, not a newly invented wonder. The genre colours this world, never changes its physics. At most one supplied recurring companion plus briefly unnamed locals; no interchangeable random pool character or new mascot with a familiar Talea name. Their English looks remain fixed.',
     CHILD_SAFETY_RULES_EN,
     'STYLE EXCERPTS from Bruno and Monster-Müllabfuhr: learn timing, escalating slapstick, sound words, specific character reactions, quiet heart and callback punchlines; invent different names, events, gags and wording.\n' + samples,
-    'OUTPUT plain text. Header markers remain German; story content is in the requested language:\nIDEE: concrete comic engine of this episode\nREGEL: the relevant existing world rule, or ordinary cause and effect\nFIGUR: name | pool | exact pool id | companion (for the lead)\nFIGUR: name | neu | companion | species | supplied English look (only if using a recurring guest)\nFUNDSTÜCK: kein (unless the brought artifact is supplied)\nWIRKUNG: the first visible physical effect or comic backfire in chapter 1\nLACHER: chapter number | that chapter\'s biggest, funniest paintable slapstick moment involving the lead and an avatar (something tipping, splashing, flying, tangling or landing on a head/hat — never mundane carrying or standing; one line per chapter)\n' +
+    'OUTPUT plain text. Header markers remain German; story content is in the requested language:\nIDEE: concrete comic engine of this episode\nREGEL: the relevant existing world rule, or ordinary cause and effect\nFIGUR: name | pool | exact pool id | companion (for the lead)\nFIGUR: name | neu | companion | species | supplied English look (only if using a recurring guest)\nFUNDSTÜCK: kein (unless the brought artifact is supplied)\nWIRKUNG: the first visible physical effect or comic backfire in chapter 1\nLACHER: chapter number | that chapter\'s two biggest, funniest paintable slapstick moments involving the lead and an avatar, one from each half of the chapter, separated by " | " (something tipping, splashing, flying, tangling or landing on a head/hat — never mundane carrying or standing; one line per chapter)\n' +
       (learningGoal(brief.config) ? 'WISSEN: the knowledge core in one or two sentences, true in the real world, as the child should say it afterwards\n' : '') +
       'SERIENLOG: one-line JSON {"events":[{"fact":"...","quote":"exact passage of 12–180 characters from THIS final story"}],"relationships":[],"openThreads":[]}; max 3 events, 2 relationships and 2 open threads, all with exact quotes\nTITEL: a specific, intriguing 2–6 word title\nBESCHREIBUNG: two inviting sentences without resolution\nKAPITEL 1: title\nfull prose\nKAPITEL 2: title\nfull prose\n... until the requested number. No other commentary.',
   ].join('\n\n');

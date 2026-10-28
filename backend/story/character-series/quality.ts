@@ -8,6 +8,8 @@ export interface SeriesImageDefect { kind: Kind; detail: string; fix: string }
 export type SeriesQa = ImageQaReport & {
   styleMatch: number; styleDefects: string[]; primaryActionClear: boolean; criticalSceneDefects: string[];
   defects: SeriesImageDefect[]; identityById: Record<string, number>;
+  /** Everything visible agrees with the story, even when the picture shows a neighbouring instant of the chosen scene. */
+  storyConsistent: boolean;
 };
 
 export const SERIES_IMAGE_REVIEW = `Review illustration 1. Attachment 2, when present, is the numbered identity sheet; the last attachment is the style example. Reference people are not extra scene figures.
@@ -16,7 +18,8 @@ Judge observable hand-object contact, setting and meaningful object state. A hel
 The illustration is wordless: never require a word from the source or caption to be readable on a map/tile/note. A visible cleaned patch or pictorial carving can represent the discovery; the prose supplies its name. Garbled tiny prop marks are not a failure to render required text.
 Compare each figure with its OWN reference slot: face, age, ears/teeth, hair/beard, species, distinctive clothes. Count arms and hands carefully on every figure: a person with three or four hands gripping an object, an extra limb, or a blurred/ghost third hand on a shirt is a mandatory kind=anatomy defect. The portrait overrides contradictory prose about appearance. 0.90–1 means a recognisable stylised identity; below 0.90 requires a specific identity defect and correction. Never average figures. Story-required outerwear such as a life jacket is allowed. Portrait poses and loose portrait props are not requirements.
 Report missing/extra/merged people, changed distinctive identity, anatomy (including extra/blurred hands), dangerous support, reversed actor/action, absent central physical consequence, static posing, reference panels, prominent lettering/captions/logos, materially different rendering. An action assigned to the wrong person is kind=identity; dangerous support is kind=safety. Small staging/prop differences are kind=story and do not by themselves negate an otherwise clear physical action. Set primaryActionClear=false when the main physical interaction is actually absent or contradicted. Do not infer a spoken sentence from an open/closed mouth. Allow different camera, gaze, handhold, texture, minor prop details, tiny map/note marks and harmless pose variations. A metaphor does not add clothing; whistling does not add a mouth-held object or smoke. Give one positive drawable correction per observation, at most six.
-JSON: {"visibleIds":["id"],"identityById":{"id":0.98},"posing":false,"primaryActionClear":true,"sceneMatch":0.95,"styleMatch":0.9,"defects":[{"kind":"anatomy|identity|safety|story|unexpected|text|style|composition","detail":"observed problem","fix":"positive correction"}]}. Use the exact supplied character ids in visibleIds and identityById. All scores 0–1. Empty defects only when no fault is observed.`;
+storyConsistent is true when everything visible agrees with the story — the right people, the place, and every object in its true material, shape and state — and the picture shows either the selected instant or another instant the nearby source paragraphs really tell (just before or after it, e.g. two figures turning a crate together right before it lands). It is false when something visible contradicts the story: a swapped object or material (a wooden log for a cloth banner), a wrong setting (open sea for a courtyard), a person doing what another person does, or an event that never happens. Judge storyConsistent independently of primaryActionClear.
+JSON: {"visibleIds":["id"],"identityById":{"id":0.98},"posing":false,"primaryActionClear":true,"storyConsistent":true,"sceneMatch":0.95,"styleMatch":0.9,"defects":[{"kind":"anatomy|identity|safety|story|unexpected|text|style|composition","detail":"observed problem","fix":"positive correction"}]}. Use the exact supplied character ids in visibleIds and identityById. All scores 0–1. Empty defects only when no fault is observed.`;
 
 /** Identity/anatomy/safety remain blocking; harmless staging is retained separately from the release decision. */
 export function readSeriesQa(text: string, expected: VisualEntity[]): SeriesQa | undefined {
@@ -53,6 +56,7 @@ export function readSeriesQa(text: string, expected: VisualEntity[]): SeriesQa |
     identityMatch: Math.min(...identities), sceneMatch: raw.sceneMatch, styleMatch: raw.styleMatch, primaryActionClear: raw.primaryActionClear, posing: raw.posing,
     identityById: Object.fromEntries(expected.map((e, i) => [e.id, identities[i]])),
     defects, criticalSceneDefects: defects.filter(d => d.kind !== 'style' && d.kind !== 'story').map(d => d.detail),
+    storyConsistent: raw.storyConsistent === true,
     anatomyDefects: ofKind('anatomy'), featureBleed: ofKind('identity'), sceneDefects: ofKind('story'), styleDefects: ofKind('style'),
     sceneFixes: defects.map(d => d.fix), missing, duplicates,
     unexpectedCharacters: visibleIds.filter((id: string) => !known.has(id)),
@@ -64,6 +68,16 @@ export function readSeriesQa(text: string, expected: VisualEntity[]): SeriesQa |
 
 export function seriesPicturePasses(qa: SeriesQa | undefined): boolean {
   return Boolean(qa && !qa.posing && !qa.defects.some(d => d.kind !== 'story') && !qa.missing?.length && !qa.duplicates.length && !qa.unexpectedCharacters.length && qa.primaryActionClear && qa.identityMatch >= 0.9 && qa.sceneMatch >= 0.7 && qa.styleMatch >= 0.75);
+}
+
+/**
+ * Story ff6eff04: chapter 3 lost its only picture because the check wanted the crate landing ON the coat; the repair
+ * showed the three turning the crate together — the instant the paragraph before tells — and was dropped as well.
+ * A picture with the right people, intact, in a moment the chapter really tells is printed (status "flawed"); a picture
+ * that contradicts the story or harms an identity, a hand or a face stays out.
+ */
+export function seriesPictureUsable(qa: SeriesQa | undefined): boolean {
+  return Boolean(qa && qa.storyConsistent && !qa.posing && !qa.defects.some(d => d.kind !== 'story') && !qa.missing?.length && !qa.duplicates.length && !qa.unexpectedCharacters.length && qa.identityMatch >= 0.9 && qa.sceneMatch >= 0.45 && qa.styleMatch >= 0.75);
 }
 
 /** Bounded literal evidence near the selected paragraph; no second model or whole chapter per picture read. */

@@ -30,10 +30,22 @@ Dieses Dokument beschreibt die vollständige Architektur der **persönlichen Fig
 4. **Admin-Test-Zähler (`characterSeriesEpisodeOverride`):**
    * Admins können im Story-Wizard unter *„Figurenabenteuer entdecken“* (und über das API-Feld `config.characterSeriesEpisodeOverride`) jede beliebige Folge `1..20` direkt anwählen, um gezielt Debüt-Folgen (z. B. Folge 2, 4, 7) oder Staffelfinals (Folge 10, 20) zu testen.
    * `loadSeriesHistory` in `repository.ts` dedupliziert und sortiert nach `log.episode ASC`, sodass auch nach Admin-Tests in beliebiger Reihenfolge die Serien-Historie konsistent bleibt.
-5. **Kosten-Optimierung ohne Qualitätsverlust (~3,6–4,3 ¢ statt 5,7–8 ¢ pro Folge):**
+5. **Kosten-Optimierung ohne Qualitätsverlust (≈ 5–6 ¢ pro Folge mit Cover + 6 Bildern):**
    * Der 20-Folgen-Plan spart zur Laufzeit einen separaten LLM-Planungs-Call (**0,00 $ Planungskosten**).
    * Sol 6.1 läuft für `character-series-v1` über OpenRouter im **Flex-Tier** (~halber Preis bei gleicher Qualität; automatischer Fallback auf Standard).
    * Alle 15 Ensemble-Figuren besitzen bereits **fertig mit FLUX 3 Klein generierte Porträts** (`frontend/public/library/character-series/characters/<id>.webp` + Eintrag in `character_pool` über Migration 50) – dadurch fallen zur Laufzeit **0,00 $ für Gast-Porträts** an, und die Figuren können direkt auf dem Identity-Sheet der Kapitelbilder mitgezeichnet werden.
+   * Gemessen an *„Zwei Kisten, zwanzig Möwen“* (Folge 4, Version 5 mit 1 Bild pro Kapitel): 4,5 ¢ gesamt (Text 2,5 ¢, Lektorat 0,37 ¢, 4 Bildaufrufe + 1 Reparatur 1,37 ¢, Bildprüfungen 0,17 ¢), 6:08 min, davon 211 s für vier nacheinander gezeichnete und geprüfte Bilder.
+6. **Bilder (`SERIES_POLICY` Version 6, `backend/story/character-series/pictures.ts`):**
+   * **Zwei Bilder pro Kapitel** (Cover + 6 bei drei Kapiteln, je 0,25 ¢ mit FLUX 3 Klein): Jedes Kapitel wird an Absatzgrenzen in zwei Leseabschnitte geteilt (Talea-Folge-Mechanik aus `episode/pictures.ts`). Die Bildregie (Luna) wählt pro Abschnitt den lustigsten, **auf einen Blick lesbaren** Moment; das Bild steht direkt nach dem Absatz, den es zeigt. Der Autor nennt dafür pro Kapitel zwei `LACHER`, je einen pro Kapitelhälfte.
+   * **Besetzung:** Serienfigur auf Cover, im ersten Bild und in mindestens der Hälfte der Bilder; jeder Avatar in mindestens einem Bild; das Cover zeigt die Serienfigur **mit den Kindern**; der Gast der Folge (z. B. Pia) steht in mindestens einem Bild; das geplante `keyVisual` der Folge ist der Cover-Vorschlag. Verfehlt der erste Plan das, gibt es eine Reparatur; danach sind diese Regeln nur noch Wünsche, damit keine Geschichte daran scheitert.
+   * **Alle Bilder werden gleichzeitig gezeichnet und geprüft** (`imageConcurrency`), höchstens zwei Reparaturen pro Folge (`imageRetries`), nur für harte Fehler (Identität, Hände, fehlende oder doppelte Figur, Widerspruch zur Geschichte), Kapitel vor Cover.
+   * Zeigt ein Bild die richtigen Figuren unversehrt in einem **Nachbarmoment derselben Szene** (Prüffeld `storyConsistent`), wird es als `flawed` gedruckt statt verworfen – in Folge 4 fehlte Kapitel 3 deshalb ganz.
+   * Erwartung: ≈ 1,75 ¢ Bilder + ≈ 0,25 ¢ Prüfungen (+ bis zu 0,8 ¢ für zwei Reparaturen); die Bildphase dauert trotz 7 statt 4 Bildern kürzer, weil nichts mehr aufeinander wartet.
+7. **Text-Regeln aus Folge 4 (`authoring.ts`, `engine.ts`):**
+   * Running Gag und Geste des Gasts gehen an den Autor (Pias „In drei Sekunden rutscht die Kiste – RUMMS!“ kam in Folge 4 nie an).
+   * Die Wendepunkte der zwei vorigen Folgen stehen als „nicht wiederholen“ im Bauplan: Folge 4 löste ihre Krise wie Folge 2 mit einem geopferten Lieblingsstück als Unterlage (Mantel statt Banner). Ein solches Opfer ist nur noch erlaubt, wenn der Bauplan es verlangt; sonst gibt die Hauptfigur Angeberei, Ideen-Ruhm, Stolz oder ihren sturen Plan auf.
+   * Den Serienhinweis früh pflanzen: zwischen Wendepunkt und Schlusspointe höchstens ≈ 150 Wörter, keine Erklärung in indirekter Rede. Was Titel oder Prämisse versprechen (z. B. zwanzig Möwen), handelt mindestens zweimal sichtbar und lustig.
+   * Das Serienlektorat (Terra) prüft zusätzlich, wer welche Idee hatte, wer was getan hat und wem was gehört. Eine falsche Zuschreibung („Und meine Idee …“ für die Idee des anderen Kindes) ist `major` und wird lokal korrigiert; Running Gags wie „Eine Idee des Kapitäns“ sind ausgenommen.
 
 ---
 

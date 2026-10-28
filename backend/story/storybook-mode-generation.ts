@@ -58,7 +58,7 @@ import { chapterPictures, coverStandIn, directEpisodePictures, type EpisodeDirec
 import { prepareGuestPortraits } from "./episode/guest-portraits";
 import type { EpisodeResult } from "./episode/types";
 import { castAppearance, describeReferenceLooks, heroAppearance, MODERN_CHILDRENS_BOOK_STYLE, runDirectorStage, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
-import { generateStorybookImages, publishableImageUrl, type ImageProvider, type StorybookImagesResult } from "./storybook/images";
+import { generateStorybookImages, isPublishable, publishableImageUrl, type ImageProvider, type StorybookImagesResult } from "./storybook/images";
 import { createOpenRouterJevPort } from "./storybook/jev-openrouter";
 import { resolveOpenRouterApiKey } from "./openrouter-generation";
 import { storybookQuality } from "./storybook/quality";
@@ -368,8 +368,9 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
           return { entities: known.entities, portraits: [], calls: 0, costUSD: 0 };
         })
     : Promise.resolve({ entities: known.entities, portraits: [], calls: 0, costUSD: 0 });
-  // Talea-Folge draws two pictures per chapter, each after the paragraph it shows, and every acting figure at least once
-  // (the chapter book's picture machinery, ./episode/pictures.ts). Every other lane: one picture per page.
+  // Talea-Folge and the character series draw two pictures per chapter, each after the paragraph it shows, and every
+  // acting figure at least once (the chapter book's picture machinery, ./episode/pictures.ts). Every other lane: one
+  // picture per page.
   const directing: Promise<EpisodeDirection | undefined> = seriesMode
     ? directSeriesPictures({ llm, model: models.support, brief, title: text.title, pages, plan, entities: known.entities })
     : episodeMode
@@ -493,8 +494,9 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const quality = seriesMode ? { ...measuredQuality, releaseReady: measuredQuality.textStatus === 'passed' } : measuredQuality;
   const characterSeriesArt = seriesMode ? {
     state: measuredQuality.imagesReady ? 'complete' : 'partial',
-    missingChapters: illustrations.pages.filter(shot => images.pages.get(shot.page)?.status !== 'passed').map(shot => shot.page),
-    coverMissing: images.cover?.status !== 'passed',
+    // A picture whose check found only a neighbouring instant of its scene ("flawed") is printed and counts as delivered.
+    missingChapters: [...new Set(illustrations.pages.filter(shot => !isPublishable(images.pages.get(shot.page))).map(shot => direction?.slots[shot.page - 1]?.chapter ?? shot.page))],
+    coverMissing: !isPublishable(images.cover),
     approved: measuredQuality.acceptedImages,
     planned: illustrations.pages.length + 1,
   } : undefined;

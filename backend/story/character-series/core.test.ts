@@ -251,4 +251,29 @@ describe("persönliche Figurenserien", () => {
     expect(userPrompt).toContain("Warum Nebel entsteht");
     expect(userPrompt).toContain("Ein blauer Gummistiefel taucht auf");
   });
+
+  test("the writer gets the guest's running gag, the earlier turning points and the varied climax rules", () => {
+    // Story ff6eff04 (Blubbert, episode 4): Pia's predicted „RUMMS!“ never reached the writer, and the climax repeated
+    // episode 2 — the lead's prized coat became an underlay, as his banner had.
+    const b = buildBrief({
+      config: { avatarIds: ["a1", "a2"], genre: "adventure", setting: "varied", ageGroup: "6-8", length: "medium", complexity: "medium", avatarIsHero: false },
+      band: "6-8",
+      budget: { pages: 3, wordsPerPageMin: 450, wordsPerPageMax: 650, totalWordsMin: 1350, totalWordsMax: 1950, maxCast: 2, maxCharactersPerImage: 3 },
+      heroes: [{ id: "a1", name: "Alexander" }, { id: "a2", name: "Adrian" }],
+      candidates: [],
+      artifacts: [],
+      seed: "test-blubbert-4",
+    });
+    b.characterSeries = { bible: series.find((s) => s.id === "kapitaen-blubbert")!, logs: [], episodeOverride: 4 };
+    const ctx = seriesContext(b);
+    const pia = SERIES_ENSEMBLE_BIBLES.find((m) => m.id === "pia-bootsbauerin")!;
+    expect(ctx).toContain(`Running gag (lands at least once, best inside a slapstick beat): ${pia.runningGag}`);
+    expect(ctx).toContain("Turning points of the two previous episodes");
+    expect(ctx).toContain(getSeriesEpisodeBlueprint("kapitaen-blubbert", 2)!.suspense);
+    expect(ctx).toContain(getSeriesEpisodeBlueprint("kapitaen-blubbert", 3)!.suspense);
+    const { system } = seriesAuthoring(b);
+    expect(system).toContain("never as the default trick");
+    expect(system).toContain("at most about 150 words");
+    expect(system).toContain("one from each half of the chapter");
+  });
 });

@@ -1,18 +1,20 @@
 import { createHash } from 'node:crypto';
 import { createIdentityReferenceCache } from '../image-reference-sprite';
 import type { VisualEntity } from '../storybook/illustration-stage';
-import { type ImageOutcome, type ImageProvider, type StorybookImagesResult } from '../storybook/images';
+import { isPublishable, type ImageOutcome, type ImageProvider, type StorybookImagesResult } from '../storybook/images';
 import { parseJsonObject, type StorybookLlm } from '../storybook/llm';
 import type { IllustrationPlan, IllustrationShot, StoryPlan, StorybookPage } from '../storybook/types';
 import type { StoryBrief } from '../storybook/context';
-import { buildImageSlots, pagesFor, placePictures, buildPictureNotes } from '../storybook/book/illustrations';
+import { actsIn, buildImageSlots, pagesFor, placePictures, buildPictureNotes, PICTURE_EDGE } from '../storybook/book/illustrations';
 import { storyHighlights, type EpisodeDirection } from '../episode/pictures';
 import { wordlessLine } from '../storybook/illustration-stage';
 import { ORIGINALS_IMAGE_STYLE, SCENE_SIZE } from '../library/images';
 import { SERIES_POLICY } from './authoring';
-import { readSeriesQa, seriesPicturePasses, seriesPictureSource, SERIES_IMAGE_REVIEW } from './quality';
+import { effectiveSeriesEpisode, logsForEpisode } from './core';
+import { getSeriesEpisodeBlueprint } from './episode-plans';
+import { readSeriesQa, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW } from './quality';
 import type { RunwareReferenceRegion } from '../../ai/runware-image-model-options';
-export { seriesPicturePasses } from './quality';
+export { seriesPicturePasses, seriesPictureUsable } from './quality';
 
 export type SeriesBox = [number, number, number, number];
 export interface SeriesVisualBeat {
@@ -104,8 +106,18 @@ export function seriesReferenceRegions(
 export const SERIES_STYLE_REFERENCE = 'https://www.talea.website/library/series/bruno-der-flunkerfisch/s1e1/ch2.webp';
 export const SERIES_ART_DIRECTION = `${ORIGINALS_IMAGE_STYLE}. Bold readable curved silhouettes, slightly enlarged expressive heads, clear soft ink contours, broad gouache colour shapes and varied comic expressions. Keep texture subordinate to faces and action; the setting supports the joke. Render the referenced identities in this illustration language.`;
 
+export interface SeriesShotRules {
+  /**
+   * The director's first plan must also put the family on the cover, the lead into half of the pictures and every acting
+   * guest into a picture. After the one repair these become wishes, so a story never fails over them.
+   */
+  strict?: boolean;
+  /** Recurring guests with a portrait who act in the story (story ff6eff04: Pia acted in all three chapters and stood in no picture). */
+  guestIds?: string[];
+}
+
 /** Every shot keeps its dramatic subject; a failed picture never turns into an avatar portrait. */
-export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: VisualEntity[], leadId: string): IllustrationPlan {
+export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: VisualEntity[], leadId: string, rules: SeriesShotRules = {}): IllustrationPlan {
   // Every pictured identity needs an existing reference; a style example must never supply a missing guest.
   const ids = new Set(entities.filter(e => e.referenceUrl).map(e => e.id));
   const shot = (candidate: any, page: number): IllustrationShot => {
@@ -133,48 +145,109 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
     const actor = entities.find(e => e.id === beat.actorId)!;
     return { page, onStage, scene: candidate.scene, actionKey: `${actor.name} ${visualBeat.action}; ${visualBeat.result}`, visualBeat, ...(Object.keys(boxes).length ? { boxes } : {}), storyQuote: evidence || undefined, focus: 'scene', artifactVisible: candidate.artifactVisible === true, elements: [], ...(page ? { paragraph: candidate.paragraph } : {}) } as SeriesShot;
   };
-  if (!Array.isArray(raw?.pages) || raw.pages.length !== pages.length || raw.pages.some((p: any, i: number) => p.page !== i + 1)) throw new Error('Die Serienbildplanung enthält nicht genau ein Bild je Kapitel.');
+  if (!Array.isArray(raw?.pages) || raw.pages.length !== pages.length || raw.pages.some((p: any, i: number) => p.page !== i + 1)) throw new Error('Die Serienbildplanung enthält nicht genau ein Bild je Leseabschnitt.');
   const plan = { cover: shot(raw.cover, 0), pages: raw.pages.map((p: any, i: number) => shot(p, i + 1)), storyElements: [] };
-  if (plan.pages.filter((p: IllustrationShot) => p.onStage.includes(leadId)).length < Math.min(2, pages.length)) throw new Error('Die Serienhauptfigur verschwindet aus ihren Kapitelbildern.');
+  const leadPictures = plan.pages.filter((p: IllustrationShot) => p.onStage.includes(leadId)).length;
+  if (leadPictures < Math.min(2, pages.length)) throw new Error('Die Serienhauptfigur verschwindet aus ihren Kapitelbildern.');
   const heroes = entities.filter(e => e.role === 'hero' && e.referenceUrl);
   const capacity = pages.length * 2 - Math.min(2, pages.length);
   if (heroes.length <= capacity && heroes.some(e => !plan.pages.some((p: IllustrationShot) => p.onStage.includes(e.id)))) throw new Error('Ein beteiligter Avatar fehlt in allen Serienbildern.');
   if (pages.length >= 3 && new Set(plan.pages.map((p: SeriesShot) => p.visualBeat.framing)).size < 2) throw new Error('Die Serienbilder brauchen unterschiedliche Bildausschnitte.');
+  if (rules.strict) {
+    if (leadPictures < Math.floor(pages.length / 2)) throw new Error(`Die Serienhauptfigur steht nur in ${leadPictures} von ${pages.length} Kapitelbildern; sie gehört in mindestens die Hälfte.`);
+    if (heroes.length && !plan.cover.onStage.some((id: string) => heroes.some(e => e.id === id))) throw new Error('Das Titelbild zeigt die Serienfigur ohne die Kinder der Familie; mindestens ein Avatar gehört neben sie auf das Cover.');
+    for (const id of rules.guestIds || []) {
+      if (ids.has(id) && !plan.pages.some((p: IllustrationShot) => p.onStage.includes(id))) throw new Error(`${entities.find(e => e.id === id)?.name || id} spielt in der Folge mit, steht aber in keinem Kapitelbild.`);
+    }
+  }
   return plan;
 }
 
 export async function directSeriesPictures(input: { llm: StorybookLlm; model: string; brief: StoryBrief; title: string; pages: StorybookPage[]; plan?: StoryPlan; entities: VisualEntity[] }): Promise<EpisodeDirection> {
-  const leadId = input.brief.characterSeries!.bible.characterId;
-  const slots = buildImageSlots(input.pages.map(p => ({ order: p.order, content: p.content })), { chapters: [] }, 1);
+  const series = input.brief.characterSeries!;
+  const leadId = series.bible.characterId;
+  const perChapter = SERIES_POLICY.picturesPerChapter;
+  const chapters = input.pages.map(p => ({ order: p.order, content: p.content }));
+  // Two pictures per chapter (story ff6eff04 had four pictures for 1,400 words): every chapter is cut into reading
+  // segments at paragraph borders, one picture per segment, printed right after the paragraph it shows — the
+  // Talea-Folge machinery (../episode/pictures.ts).
+  const slots = buildImageSlots(chapters, { chapters: [] }, perChapter);
   const pages = pagesFor(slots);
   const highlights = input.plan ? storyHighlights(input.plan) : [];
+  const episode = effectiveSeriesEpisode(series.logs, series.episodeOverride);
+  const firstEncounter = episode === 1 && logsForEpisode(series.logs, series.episodeOverride).length === 0;
+  const blueprint = getSeriesEpisodeBlueprint(series.bible.id, episode);
+  const heroes = input.entities.filter(e => e.role === 'hero' && e.referenceUrl);
+  const guests = input.entities.filter(e => e.kind === 'character' && e.role === 'cast' && e.id !== leadId && e.referenceUrl && chapters.some(c => actsIn(c.content, e.name)));
+  const rules: SeriesShotRules = { strict: true, guestIds: guests.map(e => e.id) };
   // Only the shared fictional pool lead is newly shown to the director. Private avatar portraits stay out.
   const publicLead = input.entities.find(e => e.id === leadId && e.role === 'cast');
+  const leadShare = Math.max(Math.min(2, pages.length), Math.floor(pages.length / 2));
+  const coverage = [
+    `SERIES LEAD ${leadId}: on the cover, on page 1 and in at least ${leadShare} of the ${pages.length} page pictures.`,
+    heroes.length ? `AVATARS (each in at least one page picture, better two, in the part of their own contribution; at least one of them beside the lead on the cover): ${heroes.map(e => `${e.id} (${e.name})`).join(', ')}.` : '',
+    guests.length ? `RECURRING GUEST${guests.length > 1 ? 'S' : ''} OF THIS EPISODE (in at least one page picture, where the guest does the most): ${guests.map(e => `${e.id} (${e.name})`).join(', ')}.` : '',
+  ].filter(Boolean).join('\n');
+  const pageText = pages.map((p, i) => `PAGE ${p.order} — chapter ${slots[i].chapter}, part ${slots[i].part + 1} of ${slots.filter(s => s.chapter === slots[i].chapter).length}\n${p.content.split(/\n\n/).map((t, k) => `p${k + 1}: ${t}`).join('\n')}`).join('\n\n');
   const call = await input.llm({ stage: 'series-picture-direction', role: 'support', model: input.model, json: true, effort: 'low', maxTokens: 1000 + pages.length * 600,
     imageInputs: [...(publicLead?.referenceUrl ? [publicLead.referenceUrl] : []), SERIES_STYLE_REFERENCE],
     system: [
-      'Direct ONE hilarious, action-packed children\'s book landscape illustration per chapter plus a distinct cover, in the spirit of Talea Originals („Bruno, der Flunkerfisch“, „Die Monster-Müllabfuhr“). 1 to 3 visible referenced characters per image. Lead on cover, page 1 and at least two chapter pictures; include the avatars across their actual contributions (siblings may appear together with the lead). English complete captions, 95–140 words.',
-      'PRIORITISE SLAPSTICK & VISUAL COMEDY OVER CHORES: For each chapter pick its funniest, most dramatic physical mishap, slapstick turn or visual punchline (use the PLANNED CHAPTER HIGHLIGHTS / LACHER when present in the chapter!): something springing loose, tipping over, splashing, landing on someone\'s hat, tangling, a runaway cart/cloth, or an absurd visual contrast. NEVER pick a mundane transport or tidy work beat (merely carrying a roll, holding a frame still, standing by a table, or tying a routine knot) when the chapter contains a funnier physical mishap! Show what a six-year-old would laugh at and point to, caught mid-motion. A physical action and its consequence must exist in the source; never invent unsupported props or magic.',
-      'SETTING FIRST (NO PORTRAIT BACKGROUND BLEED): Start every `scene` caption with the exact setting and lighting of that paragraph (e.g. "Inside the warm wooden paper-mill courtyard with drying racks and a tipped water basin on the stone ground, away from the harbour:"). Explicitly state the indoor room, workshop, forest or mountain setting so the lead\'s portrait background never bleeds into the scene.',
-      'Every shot needs visualBeat {actorId, action, result, framing} and boxes {"id":[top,left,bottom,right]} on a 0–1000 scale of the 3:2 landscape canvas. Start action with an English physical VERB, not watching, speaking, agreeing or deciding. The result must be observable in ONE still. framing is wide, medium or close; use at least TWO scales across three or more chapter pictures. In `boxes`, keep realistic relative sizes (adult ~650–820 tall, child ~480–640 tall and visibly shorter than adults, small creature/dragon/mouse/bird ~260–440 tall) and vary left/center/right placement across chapters so consecutive chapters never repeat a side-by-side 50/50 split.',
-      'Compose an asymmetrical full-body or three-quarter scene with depth, varied camera height, expressive comic faces (wide-eyed surprise, burst of laughter, puffed cheeks, startled leap) and clear hand-to-object contact. The cover shows an inviting, funny physical motif from the first half, with the lead\'s face recognisable, and differs from the chapter pictures. Only identities with an existing supplied reference may be listed in onStage.',
-      'Every page needs storyQuote: an exact 12–500 character passage from THAT chapter evidencing the selected physical event. Give the nearby paragraph number; the image prints AFTER that paragraph. The illustration is wordless. JSON {"cover":{"onStage":["id"],"boxes":{"id":[160,220,920,760]},"visualBeat":{"actorId":"id","action":"pulls the loose strap","result":"the released roll curls over the rail","framing":"wide"},"scene":"..."},"pages":[{"page":1,"paragraph":4,"onStage":["id","id"],"boxes":{"id":[160,60,920,460],"id2":[300,520,920,880]},"storyQuote":"exact source passage","visualBeat":{"actorId":"id","action":"physical verb and object","result":"visible physical consequence","framing":"medium"},"scene":"..."}]}.',
+      `Direct hilarious, action-packed children's book landscape illustrations in the spirit of Talea Originals („Bruno, der Flunkerfisch“, „Die Monster-Müllabfuhr“): ONE picture per PAGE plus a distinct cover. Each PAGE is a reading segment of a chapter (up to ${perChapter} per chapter, in reading order); its paragraphs are numbered locally p1, p2, … 1 to 3 visible referenced characters per image. English complete captions, 70–110 words.`,
+      'CAST COVERAGE (see the task): the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture, in the part of its own contribution; every recurring guest of the episode in at least one page picture, where the guest does the most. The cover shows the lead WITH the avatars (all of them when lead and avatars are at most three, otherwise those with the biggest part): the family wants to find its children on the cover.',
+      "PRIORITISE SLAPSTICK & VISUAL COMEDY OVER CHORES: for each PAGE pick its funniest, most dramatic physical mishap, slapstick turn or visual punchline (use the PLANNED HIGHLIGHTS / LACHER when they happen in that page's paragraphs!): something springing loose, tipping over, splashing, landing on someone's hat, tangling, a runaway cart or cloth, or an absurd visual contrast. NEVER pick a mundane transport or tidy work beat (merely carrying a roll, holding a frame still, standing by a table, or tying a routine knot) when the page contains a funnier physical mishap. The two pictures of a chapter show two different beats with different framing. Show what a six-year-old would laugh at and point to, caught mid-motion. A physical action and its consequence must exist in the source; never invent unsupported props or magic.",
+      'READABLE AT A GLANCE: choose moments whose action reads from across the room — big bodies and big objects in motion (a captain riding a sliding crate across the deck, a tarp billowing over two heads, a gull landing on a hat). Avoid moments that hinge on a small spatial detail (a nose inside a bucket, a sleeve between two shoes, which way a needle points): the illustrator cannot place those reliably and the picture check rejects them. Unnamed animals and crowds the text names (a flock of gulls, a market crowd) may fill the scene without being listed in onStage.',
+      "SETTING FIRST (NO PORTRAIT BACKGROUND BLEED): Start every `scene` caption with the exact setting and lighting of that paragraph (e.g. \"Inside the warm wooden paper-mill courtyard with drying racks and a tipped water basin on the stone ground, away from the harbour:\"). Explicitly state the indoor room, workshop, forest or mountain setting so the lead's portrait background never bleeds into the scene.",
+      'Every shot needs visualBeat {actorId, action, result, framing} and boxes {"id":[top,left,bottom,right]} on a 0–1000 scale of the 3:2 landscape canvas. Start action with an English physical VERB, not watching, speaking, agreeing or deciding. The result must be observable in ONE still. framing is wide, medium or close; use at least TWO scales across three or more page pictures. In `boxes`, keep realistic relative sizes (adult ~650–820 tall, child ~480–640 tall and visibly shorter than adults, small creature/dragon/mouse/bird ~260–440 tall) and vary left/center/right placement so consecutive pictures never repeat a side-by-side 50/50 split.',
+      "Compose an asymmetrical full-body or three-quarter scene with depth, varied camera height, expressive comic faces (wide-eyed surprise, burst of laughter, puffed cheeks, startled leap) and clear hand-to-object contact. The cover shows an inviting, funny physical motif from the first half of the story (the PLANNED KEY VISUAL when the text tells it), with the lead's face recognisable and the avatars beside the lead, and differs from every page picture. Only identities with an existing supplied reference may be listed in onStage.",
+      `Every page needs storyQuote: an exact 12–500 character passage from THAT page evidencing the selected physical event, and "paragraph": the local number of the ONE paragraph of that page whose moment the picture shows. The picture prints right AFTER that paragraph, so it never shows what the text tells later; when the page allows, choose a paragraph at least ${PICTURE_EDGE} paragraphs from its start and from its end. The illustration is wordless. JSON {"cover":{"onStage":["id","id"],"boxes":{"id":[160,220,920,760]},"visualBeat":{"actorId":"id","action":"pulls the loose strap","result":"the released roll curls over the rail","framing":"wide"},"scene":"..."},"pages":[{"page":1,"paragraph":4,"onStage":["id","id"],"boxes":{"id":[160,60,920,460],"id2":[300,520,920,880]},"storyQuote":"exact source passage","visualBeat":{"actorId":"id","action":"physical verb and object","result":"visible physical consequence","framing":"medium"},"scene":"..."}]}.`,
     ].join('\n'),
-    user: (input.brief.characterSeries?.logs.length === 0 ? 'FIRST CHAPTER PICTURE: choose the physical first encounter or its funniest prop mishap/exchange. The introductions remain in the text. Keep identifying faces visible.\n' : '') + (highlights.length ? `PLANNED CHAPTER HIGHLIGHTS / LACHER (prefer these comic set-pieces when choosing the paragraph for each chapter):\n${highlights.join('\n')}\n` : '') + `Draw different physical story beats that read in one still, with different camera scales and varied left/center/right staging. Choose funny slapstick consequences and vivid character reactions rather than calm carrying or sorting chores.\n${publicLead?.referenceUrl ? 'Image 1 is ONLY the public series lead; take face, species and clothes, NEVER its sea/room background or loose portrait props.' : ''} The last image is ONLY the art style (notice the full-room depth, expressive faces and true child-to-creature scale). Reference poses are not scene poses.\nREQUIRED CAST COVERAGE: each avatar appears in a chapter if slots allow: ${input.entities.filter(e => e.role === 'hero').map(e => e.id).join(', ')}. Lead on cover, first encounter and at least two chapters.\nTITLE ${input.title}\nSERIES LEAD ${leadId}\nPICTURABLE IDENTITIES (only these have references):\n${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name} (${e.role === 'hero' ? 'human child, shorter than adults' : e.isHuman ? 'adult human' : e.species}); ${e.appearance}`).join('\n')}\nCHAPTERS:\n${pages.map(p => `CHAPTER ${p.order}: ${p.title}\n${p.content.split(/\n\n/).map((t, i) => `p${i + 1}: ${t}`).join('\n')}`).join('\n\n')}` });
-  let illustrations: IllustrationPlan;
+    user: [
+      firstEncounter ? 'FIRST CHAPTER PICTURE: choose the physical first encounter or its funniest prop mishap/exchange. The introductions remain in the text. Keep identifying faces visible.' : '',
+      highlights.length ? `PLANNED HIGHLIGHTS / LACHER (prefer these comic set-pieces when they happen in a page's paragraphs):\n${highlights.join('\n')}` : '',
+      blueprint?.keyVisual ? `PLANNED KEY VISUAL OF THIS EPISODE (German; the best cover motif when the text tells it, otherwise a page picture): ${blueprint.keyVisual}` : '',
+      'Draw different physical story beats that read in one still, with different camera scales and varied left/center/right staging. Choose funny slapstick consequences and vivid character reactions rather than calm carrying or sorting chores.',
+      `${publicLead?.referenceUrl ? 'Image 1 is ONLY the public series lead; take face, species and clothes, NEVER its sea/room background or loose portrait props. ' : ''}The last image is ONLY the art style (notice the full-room depth, expressive faces and true child-to-creature scale). Reference poses are not scene poses.`,
+      `REQUIRED CAST COVERAGE:\n${coverage}`,
+      `TITLE ${input.title}`,
+      `PICTURABLE IDENTITIES (only these have references):\n${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name} (${e.role === 'hero' ? 'human child, shorter than adults' : e.isHuman ? 'adult human' : e.species}); ${e.appearance}`).join('\n')}`,
+      `PAGES (${pages.length}):\n${pageText}`,
+    ].filter(Boolean).join('\n') });
+  let illustrations!: IllustrationPlan;
   let repairCall: Awaited<ReturnType<StorybookLlm>> | undefined;
   let repairReasons: Array<{ page: number; errors: string[] }> | undefined;
-  try { illustrations = validateSeriesShots(parseJsonObject(call.text), pages, input.entities, leadId); }
+  const first = parseJsonObject<any>(call.text);
+  try { illustrations = validateSeriesShots(first, pages, input.entities, leadId, rules); }
   catch (error) {
     repairReasons = [{ page: 0, errors: [String((error as Error).message)] }];
-    repairCall = await input.llm({ stage: 'series-picture-plan-repair', role: 'support', model: input.model, json: true, effort: 'low', maxTokens: 1000 + pages.length * 600,
-      system: 'Repair only the supplied illustration plan JSON. Each image has 1 to 3 visible referenced characters. Preserve the actual selected physical event unless its evidence or activity is invalid; then choose a funny physical event from that chapter. Every cover/page needs visualBeat {actorId, action, result, framing}; actorId is onStage, action starts with an English physical verb, result is a visible consequence, framing is wide|medium|close. Across three or more chapter pictures use at least TWO framing scales. An introduction, objection, agreement, look or nod alone is not a physical event. Lead on cover, page 1 and at least two chapter images; each avatar appears in at least one image if slots allow. Keep captions, exact page order and paragraph numbers, with no invented objects or events. Return only the corrected plan.',
-      user: `DEFECT ${repairReasons[0].errors.join('; ')}\nLEAD ${leadId}\nAVATARS ${input.entities.filter(e => e.role === 'hero').map(e => e.id).join(', ')}\nALLOWED REFERENCED IDENTITIES ${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name}`).join('; ')}\nEXACTLY ${pages.length} PAGES\nEvery page needs storyQuote: an exact 12–500 character passage from THAT chapter proving the physical event. Its result must read in one still without a temporal comparison. Keep identifying faces visible. Use only source-present props.\nSOURCE CHAPTERS:\n${pages.map(p => `CHAPTER ${p.order}\n${p.content}`).join('\n\n')}\nPLAN\n${call.text}` });
-    illustrations = validateSeriesShots(parseJsonObject(repairCall.text), pages, input.entities, leadId);
+    try {
+      repairCall = await input.llm({ stage: 'series-picture-plan-repair', role: 'support', model: input.model, json: true, effort: 'low', maxTokens: 1000 + pages.length * 600,
+        system: 'Repair only the supplied illustration plan JSON: one picture per PAGE (a reading segment of a chapter), exactly the given pages in order, plus the cover. Each image has 1 to 3 visible referenced characters. Preserve the actual selected physical event unless its evidence or activity is invalid; then choose a funny physical event from that page. Every cover/page needs visualBeat {actorId, action, result, framing}; actorId is onStage, action starts with an English physical verb, result is a visible consequence, framing is wide|medium|close. Across three or more page pictures use at least TWO framing scales. An introduction, objection, agreement, look or nod alone is not a physical event. Cast: the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture; at least one avatar beside the lead on the cover; every listed recurring guest in at least one page picture. "paragraph" is the local paragraph number within its page. Keep captions, page order and paragraph numbers where valid, with no invented objects or events. Return only the corrected plan.',
+        user: `DEFECT ${repairReasons[0].errors.join('; ')}\nLEAD ${leadId}\nAVATARS ${heroes.map(e => e.id).join(', ')}\n${guests.length ? `RECURRING GUESTS ${guests.map(e => e.id).join(', ')}\n` : ''}ALLOWED REFERENCED IDENTITIES ${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name}`).join('; ')}\nEXACTLY ${pages.length} PAGES\nEvery page needs storyQuote: an exact 12–500 character passage from THAT page proving the physical event. Its result must read in one still without a temporal comparison. Keep identifying faces visible. Use only source-present props.\nSOURCE PAGES:\n${pageText}\nPLAN\n${call.text}` });
+      illustrations = validateSeriesShots(parseJsonObject(repairCall.text), pages, input.entities, leadId);
+    } catch (repairError) {
+      // The first plan may have missed only a wish of the strict pass (the family on the cover, a guest): it still draws.
+      try { illustrations = validateSeriesShots(first, pages, input.entities, leadId); } catch { throw repairError; }
+    }
   }
   const placed = placePictures(slots, illustrations.pages);
-  const notes = buildPictureNotes(slots, illustrations.pages, placed, input.entities, [], input.pages.map(p => ({ order: p.order, content: p.content })));
-  return { slots, pages, illustrations, placed, notes, changes: [], unplaced: [], director: { illustrations, call, repairCall, repairReasons } };
+  const notes = buildPictureNotes(slots, illustrations.pages, placed, input.entities, [], chapters);
+  const drawn = new Set([illustrations.cover, ...illustrations.pages].flatMap(shot => shot.onStage));
+  const unplaced = guests.filter(e => !drawn.has(e.id)).map(e => e.name);
+  return { slots, pages, illustrations, placed, notes, changes: [], unplaced, director: { illustrations, call, repairCall, repairReasons } };
+}
+
+/** Runs `work` over `items` with at most `limit` running at once; the results keep the order of the items. */
+async function mapLimited<T, R>(items: T[], limit: number, work: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const lane = async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await work(items[index], index);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, lane));
+  return results;
 }
 
 export async function generateSeriesImages(input: {
@@ -183,7 +256,8 @@ export async function generateSeriesImages(input: {
   buildReference?: ReturnType<typeof createIdentityReferenceCache>;
 }): Promise<StorybookImagesResult> {
   const shots = [input.illustrations.cover, ...input.illustrations.pages];
-  if (shots.length > 5) throw new Error('Die Figurenserie zeichnet höchstens fünf geplante Bilder.');
+  const maxShots = 1 + SERIES_POLICY.picturesPerChapter * 4;
+  if (shots.length > maxShots) throw new Error(`Die Figurenserie zeichnet höchstens ${maxShots} geplante Bilder.`);
   const buildReference = input.buildReference || createIdentityReferenceCache();
   const byId = new Map(input.entities.map(e => [e.id, e]));
   const style = input.styleReferenceUrl || SERIES_STYLE_REFERENCE;
@@ -235,12 +309,15 @@ export async function generateSeriesImages(input: {
         references.length ? `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${slotPositionLabel(i, identities.length)} is ONLY ${e.name}: ${e.appearance}`).join('; ')}. Keep each face, ears, teeth, species and outfit with its OWN person. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, and exactly two arms and two hands with five fingers${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.` : '',
         ...drawn.filter(e => !e.referenceUrl).map(e => `${e.name}: ${e.appearance}.`),
         'Every described object keeps its true material and shape (a cloth banner is flexible fabric, never a wooden log); a joke never adds a garment or a mouth-held prop.',
-        `Exactly ${drawn.length} visible characters, once each: ${drawn.map(e => e.name).join(', ')}. A story instant in one continuous full-bleed setting reaching every edge; completely ignore any sea, ships, sky or background from the reference portraits and paint only the scene's own environment.`,
+        `Exactly ${drawn.length} named characters, once each: ${drawn.map(e => e.name).join(', ')}; only unnamed animals or crowds that the caption itself mentions may join them as extra figures. A story instant in one continuous full-bleed setting reaching every edge; completely ignore any sea, ships, sky or background from the reference portraits and paint only the scene's own environment.`,
         fixes.length ? `Correct these observed problems in the same scene: ${fixes.join(' ')}` : '',
         wordlessLine(moment.scene),
         'Use the shared Talea Originals medium described above; only the identity sheet supplies characters.',
       ].filter(Boolean).join('\n');
-      if (imageCalls >= SERIES_POLICY.maxImageCalls) throw new Error('Das Bildbudget der Figurenfolge ist erreicht.');
+      if (imageCalls >= SERIES_POLICY.maxImageCalls) {
+        history.push({ kind: 'series-budget', status: 'failed', severity: 999, notes: ['Kein weiteres Bild erzeugt: Bildbudget erreicht.'] });
+        return { page: shot.page, prompt, attempts: number, costUSD, severity: 999, status: 'failed', errors: ['series_image_budget_exhausted'], history };
+      }
       imageCalls++;
       const seed = parseInt(createHash('sha256').update(`${input.seed}:${shot.page}:${number}`).digest('hex').slice(0, 8), 16) % 2147483647;
       try {
@@ -266,9 +343,12 @@ export async function generateSeriesImages(input: {
         qa = readSeriesQa(reply.text, drawn);
       }
       const pass = seriesPicturePasses(qa);
+      const usable = !pass && seriesPictureUsable(qa);
+      const status: ImageOutcome['status'] = pass ? 'passed' : usable ? 'flawed' : 'failed';
+      const severity = pass ? 0 : usable ? 5 : 10;
       const notes = qa ? [...qa.defects.map(d => d.detail), ...(qa.missing || []), ...qa.duplicates] : ['Bildprüfung unvollständig'];
-      history.push({ kind: number === 1 ? 'series-scene' : editing ? 'targeted-scene-edit' : 'same-scene-repair', status: pass ? 'passed' : 'failed', severity: pass ? 0 : 10, notes, url: response.url });
-      return { page: shot.page, url: response.url, prompt, attempts: number, costUSD, qa, severity: pass ? 0 : 10, status: pass ? 'passed' : 'failed', history };
+      history.push({ kind: number === 1 ? 'series-scene' : editing ? 'targeted-scene-edit' : 'same-scene-repair', status, severity, notes, url: response.url });
+      return { page: shot.page, url: response.url, prompt, attempts: number, costUSD, qa, severity, status, history };
       } catch (error) {
         history.push({ kind: 'series-image-error', status: 'failed', severity: 999, notes: ['Bild oder Bildprüfung nicht vollständig verfügbar'], ...(imageUrl ? { url: imageUrl } : {}) });
         return { page: shot.page, url: imageUrl, prompt, attempts: number, costUSD, severity: 999, status: 'failed', errors: [(error as any)?.code === 'series_budget_exhausted' ? 'series_budget_exhausted' : imageUrl ? 'series_vision_error' : 'series_provider_error'], history };
@@ -276,16 +356,19 @@ export async function generateSeriesImages(input: {
     };
     return attempt(previous?.qa?.posing && !previous.qa.sceneFixes?.length ? ['Show the selected hand-object interaction and its visible result, with purposeful balance rather than portrait poses.'] : previous?.qa?.sceneFixes || []);
   };
-  // Review every planned picture BEFORE spending the one optional redraw on an earlier chapter.
-  const outcomes: ImageOutcome[] = [];
-  for (const shot of shots) outcomes.push(await render(shot));
-  // Prioritise a missing chapter illustration over a decorative cover correction.
-  const canRetryOutcome = (o: ImageOutcome) => o.status !== 'passed' && (Boolean(o.qa) || (!o.errors?.length && Boolean(o.url)));
-  const chapterRetry = outcomes.findIndex(o => o.page > 0 && canRetryOutcome(o));
-  const retry = chapterRetry >= 0 ? chapterRetry : outcomes.findIndex(canRetryOutcome);
-  if (retry >= 0 && imageCalls < SERIES_POLICY.maxImageCalls && canReview()) {
-    regenerated.push(shots[retry].page);
-    outcomes[retry] = await render(shots[retry], 2, outcomes[retry]);
+  // Every planned picture is drawn and checked at once: one after another, each waited for its 20–45 s check (story
+  // ff6eff04: 211 s for four pictures). Repairs start only when every planned picture has its verdict.
+  const outcomes = await mapLimited(shots, SERIES_POLICY.imageConcurrency, shot => render(shot));
+  // Repairs go only to hard faults, chapters before the cover: a printed "flawed" picture was never improved by a redraw
+  // (ff6eff04 chapter 3, Talea-Folge 0ee9af53).
+  const canRetryOutcome = (o: ImageOutcome) => o.status === 'failed' && (Boolean(o.qa) || (!o.errors?.length && Boolean(o.url)));
+  const retries = outcomes.map((outcome, index) => ({ outcome, index }))
+    .filter(({ outcome }) => canRetryOutcome(outcome))
+    .sort((a, b) => Number(a.outcome.page === 0) - Number(b.outcome.page === 0) || a.index - b.index)
+    .slice(0, Math.max(0, Math.min(SERIES_POLICY.imageRetries, SERIES_POLICY.maxImageCalls - imageCalls)));
+  if (retries.length && canReview()) {
+    for (const { index } of retries) regenerated.push(shots[index].page);
+    await Promise.all(retries.map(async ({ index }) => { outcomes[index] = await render(shots[index], 2, outcomes[index]); }));
   }
-  return { cover: outcomes[0], pages: new Map(outcomes.slice(1).map(o => [o.page, o])), imagesGenerated: outcomes.filter(o => o.status === 'passed').length, imageCalls, imageCostUSD, qaCalls, regenerated };
+  return { cover: outcomes[0], pages: new Map(outcomes.slice(1).map(o => [o.page, o])), imagesGenerated: outcomes.filter(o => isPublishable(o)).length, imageCalls, imageCostUSD, qaCalls, regenerated };
 }

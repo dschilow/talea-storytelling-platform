@@ -1,6 +1,6 @@
 // @ts-ignore Bun test helpers are runtime-only in Encore.
 import { describe, test, expect } from 'bun:test';
-import { readSeriesQa, seriesPicturePasses, seriesPictureSource } from './quality';
+import { readSeriesQa, seriesPicturePasses, seriesPictureSource, seriesPictureUsable } from './quality';
 import { seriesAvatarAppearance } from './identity';
 import type { VisualEntity } from '../storybook/illustration-stage';
 
@@ -74,5 +74,17 @@ describe('series image review after the production PDF', () => {
     expect(qa).toBeDefined();
     expect(seriesPicturePasses(qa)).toBe(true);
     expect(qa?.identityMatch).toBe(0.94);
+  });
+  test('storyConsistent separates a neighbouring instant of the scene from a contradicted story', () => {
+    // Story ff6eff04, chapter 3: the three turn the crate together instead of the selected landing on the coat.
+    const neighbour = { primaryActionClear: false, sceneMatch: 0.55, defects: [{ kind: 'story', detail: 'The crate is held upright; the landing on the coat is absent.', fix: 'Show the crate landing on the coat.' }] };
+    const loose = readSeriesQa(review({ ...neighbour, storyConsistent: true }), cast);
+    expect(seriesPicturePasses(loose)).toBe(false);
+    expect(seriesPictureUsable(loose)).toBe(true);
+    expect(seriesPictureUsable(readSeriesQa(review({ ...neighbour, storyConsistent: false }), cast))).toBe(false);
+    expect(seriesPictureUsable(readSeriesQa(review(neighbour), cast))).toBe(false);
+    expect(seriesPictureUsable(readSeriesQa(review({ ...neighbour, storyConsistent: true, defects: [{ kind: 'anatomy', detail: 'The child has a third hand.', fix: 'Give the child two hands.' }] }), cast))).toBe(false);
+    expect(seriesPictureUsable(readSeriesQa(review({ ...neighbour, storyConsistent: true, posing: true }), cast))).toBe(false);
+    expect(seriesPictureUsable(readSeriesQa(review({ ...neighbour, storyConsistent: true, identityById: { dragon: 0.98, 'child-a': 0.7 } }), cast))).toBe(false);
   });
 });
