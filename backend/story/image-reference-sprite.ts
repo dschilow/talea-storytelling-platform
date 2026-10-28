@@ -133,11 +133,16 @@ export function createIdentityReferenceCache(fetcher: typeof fetch = fetch): Ide
   const downloads = new Map<string, Promise<Buffer>>();
   const sprites = new Map<string, Promise<IdentityReference>>();
   const download = (url: string): Promise<Buffer> => {
-    if (!downloads.has(url)) downloads.set(url, (async () => {
-      const response = await fetcher(url, { signal: AbortSignal.timeout(20_000) });
-      if (!response.ok) throw new Error(`Reference image HTTP ${response.status}`);
-      return Buffer.from(await response.arrayBuffer());
-    })());
+    if (!downloads.has(url)) {
+      const pending = (async () => {
+        const response = await fetcher(url, { signal: AbortSignal.timeout(20_000) });
+        if (!response.ok) throw new Error(`Reference image HTTP ${response.status}`);
+        return Buffer.from(await response.arrayBuffer());
+      })();
+      downloads.set(url, pending);
+      // A transient proxy failure must not poison every later chapter's identity sheet.
+      void pending.catch(() => { if (downloads.get(url) === pending) downloads.delete(url); });
+    }
     return downloads.get(url)!;
   };
   // The portrait as it goes on the sheet: logos and writing on the clothes painted out (see paintOutMarks).
@@ -149,7 +154,8 @@ export function createIdentityReferenceCache(fetcher: typeof fetch = fetch): Ide
   };
   return slots => {
     const key = JSON.stringify(slots);
-    if (!sprites.has(key)) sprites.set(key, (async (): Promise<IdentityReference> => {
+    if (!sprites.has(key)) {
+      const pending = (async (): Promise<IdentityReference> => {
       if (!slots.length) return EMPTY_IDENTITY_REFERENCE;
       if (slots.some(s => !isProviderReadableReference(s.imageUrl))) throw new Error("Reference image is not provider-readable");
       const subjects = slots.map(s => ({ displayName: s.displayName, kind: s.kind || "character" as const }));
@@ -168,7 +174,10 @@ export function createIdentityReferenceCache(fetcher: typeof fetch = fetch): Ide
       }
       const buffer = await encodeReferenceSprite(await renderIdentitySprite(await Promise.all(slots.map(portrait))));
       return { urls: [`data:image/jpeg;base64,${buffer.toString("base64")}`], mode: "sprite", subjects };
-    })());
+      })();
+      sprites.set(key, pending);
+      void pending.catch(() => { if (sprites.get(key) === pending) sprites.delete(key); });
+    }
     return sprites.get(key)!;
   };
 }

@@ -521,7 +521,9 @@ export async function exportStoryAsPDF(
       doc.setFont('times', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(110);
-      addCenteredLines(doc, 'Nicht alle Illustrationen sind verfügbar. Enthalten sind nur freigegebene Bilder.', pageHeight - 17, contentWidth, 4.5, pageWidth);
+      addCenteredLines(doc, story.metadata.characterSeriesArt.approved === 0
+        ? 'Diese Ausgabe enthält keine freigegebenen Illustrationen.'
+        : 'Nicht alle Illustrationen sind verfügbar. Enthalten sind nur freigegebene Bilder.', pageHeight - 17, contentWidth, 4.5, pageWidth);
       doc.setTextColor(0);
     }
 

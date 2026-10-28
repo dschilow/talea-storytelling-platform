@@ -14,7 +14,8 @@ import { CostLedger, type StorybookLlm } from '../../backend/story/storybook/llm
 import { extractStorybookChoiceContent, resolveStorybookReasoning, isTruncatedFinishReason } from '../../backend/story/storybook/llm-guards';
 import { toCastCandidate } from '../../backend/story/storybook/cast-selection';
 import { type VisualEntity } from '../../backend/story/storybook/illustration-stage';
-import { buildRunwareTask, createRunwareCaller } from '../../backend/story/library/images';
+import { buildRunwareTask, createRunwareCaller, LIBRARY_IMAGE_MODEL } from '../../backend/story/library/images';
+import { runwareImageModelOptions } from '../../backend/ai/runware-image-model-options';
 
 const args = process.argv.slice(2);
 const opt = (name: string, fallback: string) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
@@ -119,7 +120,7 @@ try {
   let pictures: any, imageCostUSD = 0;
   if (args.includes('--images')) {
     const entities: VisualEntity[] = [
-      { id: bible.characterId, name: bible.characterName, kind: 'character', role: 'cast', species: seriesId === 'funkelflug' ? 'dragon' : 'human', isHuman: false, appearance: narrative.look, forbidden: [], referenceUrl: publicRef(row.image_url || row.imageUrl) },
+      { id: bible.characterId, name: bible.characterName, kind: 'character', role: 'cast', species: lead.species || 'unknown', isHuman: lead.species === 'human', appearance: narrative.look, forbidden: [], referenceUrl: publicRef(row.image_url || row.imageUrl) },
       ...avatars.map(a => ({ id: a.id, name: a.name, kind: 'character' as const, role: 'hero' as const, species: 'human', isHuman: true, appearance: a.appearance, forbidden: [], referenceUrl: a.imageUrl })),
       ...result.episode.guests.map(g => ({ id: g.id, name: g.name, kind: 'character' as const, role: 'cast' as const, species: g.species, isHuman: g.species === 'human', appearance: g.physicalDescription, forbidden: [] })),
     ];
@@ -134,7 +135,8 @@ try {
     const images = await generateSeriesImages({ illustrations: directed.illustrations, entities, seed: `series-v2-${seriesId}-${episode}`, llm, visionModel: SERIES_MODELS.critic, pageTexts: Object.fromEntries(result.pages.map(p => [p.order, p.content])),
       provider: async request => {
         const task = buildRunwareTask(request);
-        Object.assign(task, { model: opt('--image-model', SERIES_IMAGE_MODEL), steps: 4, CFGScale: 4 });
+        const model = opt('--image-model', SERIES_IMAGE_MODEL);
+        Object.assign(task, { model, ...runwareImageModelOptions({ model, steps: model === 'runware:400@2' ? 4 : undefined, CFGScale: 4, outputFormat: model === LIBRARY_IMAGE_MODEL ? 'WEBP' : 'JPEG' }) });
         const response = await call(task); return { url: response.imageURL, costUSD: response.cost };
       } });
     images.qaCalls.forEach((r, i) => ledger.recordCall(`image-qa-${i + 1}`, r, 'support'));
@@ -144,9 +146,11 @@ try {
     await mkdir(published, { recursive: true });
     for (const item of all) {
       const file = join(published, `folge-${episode}-${item.page === 0 ? 'cover' : `kapitel-${item.page}`}.webp`);
-      if (item.status !== 'passed' || !item.url) { await rm(file, { force: true }); continue; }
+      await Promise.all([rm(file, { force: true }), rm(file.replace(/\.webp$/, '.jpg'), { force: true })]);
+      if (item.status !== 'passed' || !item.url) continue;
       const response = await fetch(item.url); if (!response.ok) throw new Error('Pilot image download failed.');
-      await writeFile(file, new Uint8Array(await response.arrayBuffer()));
+      const extension = response.headers.get('content-type')?.includes('jpeg') ? 'jpg' : 'webp';
+      await writeFile(extension === 'webp' ? file : file.replace(/\.webp$/, '.jpg'), new Uint8Array(await response.arrayBuffer()));
     }
   }
   const report = { seriesId, episode, version: CHARACTER_SERIES_VERSION, contractHash, models: SERIES_MODELS, imageModel: opt('--image-model', SERIES_IMAGE_MODEL), policy: SERIES_POLICY, fictionalAvatars: avatars.map(a => a.name), reusedTextFrom: reusable ? opt('--reuse-text', '') : undefined, status: pictures && !pictures.accepted ? 'accepted-with-missing-images' : 'accepted', result, log, pictures, stages: ledger.all(), costs: { ...ledger.totals(), imageCostUSD, totalUSD: ledger.totals().costUSD + imageCostUSD }, note: 'Real API costs of this run. A reused manuscript is explicitly excluded. Production avatar-development call excluded; no database writes.' };

@@ -9,6 +9,26 @@ const pixel = (r: Awaited<ReturnType<typeof pixels>>, x: number, y: number) => [
 const fromReference = (url: string) => Buffer.from(url.split(",")[1], "base64");
 
 describe("single reference sprite without injected picture frames", () => {
+  test("a temporary download failure does not poison later sheets or shift their identity slots", async () => {
+    const buffers = [await source('#222222'), await source('#bbbbbb')];
+    let firstCalls = 0, secondCalls = 0;
+    const build = createIdentityReferenceCache((async url => {
+      if (String(url).endsWith('a.png')) {
+        if (++firstCalls === 1) return new Response('', { status: 503 });
+        return new Response(new Uint8Array(buffers[0]));
+      }
+      secondCalls++;
+      return new Response(new Uint8Array(buffers[1]));
+    }) as typeof fetch);
+    const slots = [{ displayName: 'First', imageUrl: 'https://example.com/a.png' }, { displayName: 'Second', imageUrl: 'https://example.com/b.png' }];
+    await expect(build(slots)).rejects.toThrow('503');
+    const repaired = await build(slots);
+    expect(repaired.subjects.map(s => s.displayName)).toEqual(['First', 'Second']);
+    expect(repaired.urls).toHaveLength(1);
+    expect(firstCalls).toBe(2);
+    expect(secondCalls).toBe(1);
+    expect((await build(slots)).urls[0]).toBe(repaired.urls[0]);
+  });
   test("source pixels extend to every tile edge, without coloured borders or gutters", async () => {
     const result = await pixels(await renderIdentitySprite([await source("#222222"), await source("#bbbbbb")]));
     expect([result.info.width, result.info.height]).toEqual([1024, 512]);

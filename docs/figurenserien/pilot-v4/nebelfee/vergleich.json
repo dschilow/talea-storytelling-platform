@@ -1,0 +1,177 @@
+{
+  "date": "2026-10-28",
+  "fictionalAvatars": [
+    "Nora",
+    "Ben"
+  ],
+  "imageModel": "bfl:flux@3-image-klein",
+  "testOutputFormat": "JPG",
+  "productionOutputFormat": "WEBP",
+  "sourceTextAndDirection": "Logs/character-series-v4/nebelfee/episode-1/result.json",
+  "sourceAcceptedArt": "Logs/character-series-v4/nebelfee-final/episode-1/result.json",
+  "plannedImages": 4,
+  "acceptedImages": 4,
+  "imageCalls": 5,
+  "images": [
+    {
+      "page": 0,
+      "status": "passed",
+      "attempts": 1,
+      "qa": {
+        "identityMatch": 0.99,
+        "sceneMatch": 1,
+        "styleMatch": 0.95,
+        "primaryActionClear": true,
+        "identityById": {
+          "6b5e29b8-2b82-42d4-80ef-8749ebd4eab9": 0.99
+        },
+        "defects": [],
+        "criticalSceneDefects": [],
+        "anatomyDefects": [],
+        "featureBleed": [],
+        "sceneDefects": [],
+        "styleDefects": [],
+        "sceneFixes": [],
+        "missing": [],
+        "duplicates": [],
+        "unexpectedCharacters": [],
+        "textVisible": false,
+        "referenceSheetVisible": false,
+        "animalFeaturesOnHumans": [],
+        "roleSwaps": [],
+        "elementMisuse": [],
+        "namedCharactersVisible": 1
+      }
+    },
+    {
+      "page": 1,
+      "status": "passed",
+      "attempts": 1,
+      "qa": {
+        "identityMatch": 0.97,
+        "sceneMatch": 0.98,
+        "styleMatch": 0.96,
+        "primaryActionClear": true,
+        "identityById": {
+          "6b5e29b8-2b82-42d4-80ef-8749ebd4eab9": 0.97,
+          "fictional-nora": 0.98
+        },
+        "defects": [],
+        "criticalSceneDefects": [],
+        "anatomyDefects": [],
+        "featureBleed": [],
+        "sceneDefects": [],
+        "styleDefects": [],
+        "sceneFixes": [],
+        "missing": [],
+        "duplicates": [],
+        "unexpectedCharacters": [],
+        "textVisible": false,
+        "referenceSheetVisible": false,
+        "animalFeaturesOnHumans": [],
+        "roleSwaps": [],
+        "elementMisuse": [],
+        "namedCharactersVisible": 2
+      }
+    },
+    {
+      "page": 2,
+      "status": "passed",
+      "attempts": 2,
+      "qa": {
+        "identityMatch": 0.96,
+        "sceneMatch": 0.97,
+        "styleMatch": 0.95,
+        "primaryActionClear": true,
+        "identityById": {
+          "6b5e29b8-2b82-42d4-80ef-8749ebd4eab9": 0.97,
+          "fictional-ben": 0.96
+        },
+        "defects": [],
+        "criticalSceneDefects": [],
+        "anatomyDefects": [],
+        "featureBleed": [],
+        "sceneDefects": [],
+        "styleDefects": [],
+        "sceneFixes": [],
+        "missing": [],
+        "duplicates": [],
+        "unexpectedCharacters": [],
+        "textVisible": false,
+        "referenceSheetVisible": false,
+        "animalFeaturesOnHumans": [],
+        "roleSwaps": [],
+        "elementMisuse": [],
+        "namedCharactersVisible": 2
+      }
+    },
+    {
+      "page": 3,
+      "status": "passed",
+      "attempts": 1,
+      "qa": {
+        "identityMatch": 0.97,
+        "sceneMatch": 0.97,
+        "styleMatch": 0.94,
+        "primaryActionClear": true,
+        "identityById": {
+          "6b5e29b8-2b82-42d4-80ef-8749ebd4eab9": 0.97,
+          "fictional-nora": 0.97
+        },
+        "defects": [],
+        "criticalSceneDefects": [],
+        "anatomyDefects": [],
+        "featureBleed": [],
+        "sceneDefects": [],
+        "styleDefects": [],
+        "sceneFixes": [],
+        "missing": [],
+        "duplicates": [],
+        "unexpectedCharacters": [],
+        "textVisible": false,
+        "referenceSheetVisible": false,
+        "animalFeaturesOnHumans": [],
+        "roleSwaps": [],
+        "elementMisuse": [],
+        "namedCharactersVisible": 2
+      }
+    }
+  ],
+  "costUSD": {
+    "textEditorialDirection": 0.0475263,
+    "finalArt": 0.047166,
+    "combinedComparablePath": 0.0946923,
+    "uploadedProductionStory": 0.090389,
+    "allDevelopmentTrials": 0.147153
+  },
+  "excluded": "Comparable path excludes discarded development variants, avatar development and production persistence. It combines measured reusable text/direction with final artwork; it is not one authenticated production request or a general price promise.",
+  "trials": [
+    {
+      "model": "runware:400@2",
+      "approved": 0,
+      "imageCalls": 5,
+      "costUSD": 0.089927
+    },
+    {
+      "model": "bfl:flux@3-image-klein",
+      "approved": 1,
+      "imageCalls": 1,
+      "costUSD": 0.01006
+    },
+    {
+      "model": "bfl:flux@3-image-klein",
+      "approved": 4,
+      "imageCalls": 5,
+      "costUSD": 0.047166
+    }
+  ],
+  "policy": {
+    "version": 4,
+    "picturesPerChapter": 1,
+    "maxImageCalls": 6,
+    "maxLlmCalls": 12,
+    "llmStopAfterUSD": 0.08,
+    "longLlmStopAfterUSD": 0.12,
+    "maxTextRepairs": 1
+  }
+}

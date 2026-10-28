@@ -190,4 +190,21 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     const raw = rawPlan(); raw.pages.forEach(p => { p.storyQuote = '"Hallo", sagte Adrian - und grinste...'; });
     expect(validateSeriesShots(raw, spoken, entities, 'lead').pages[0]).toMatchObject({ storyQuote: '"Hallo", sagte Adrian - und grinste...' });
   });
+  test('a cover is not checked against unrelated chapter-opening actions; chapter evidence stays available', async () => {
+    const reviews: any[] = [], drawings: any[] = [];
+    await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'cover-scope', provider: async r => { drawings.push(r); return { url: 'https://example.test/image.webp' }; }, llm: async r => { reviews.push(r); return imageReview(r.stage); }, visionModel: 'test', pageTexts: { 1: 'An earlier footprint gag.\n\nDie Glocke bewegte sich.' }, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
+    expect(reviews[0].user).toContain('COVER:');
+    expect(reviews[0].user).not.toContain('earlier footprint gag');
+    expect(reviews[1].user).toContain('Die Glocke bewegte sich.');
+    expect(reviews[1].user).toContain('slot 2 = kid');
+    expect(drawings[1].prompt).toContain('slot 2 (right half) is ONLY Nora');
+    expect(drawings[1].referenceImages).toHaveLength(2); // One existing shared sheet + public style, no separate private exports.
+  });
+  test('the one repair prioritises a failed avatar chapter over a failed cover', async () => {
+    const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'chapter-first', provider: async () => ({ url: 'https://example.test/image.webp' }), llm: async r => imageReview(r.stage, r.stage.includes('qa-0-') || r.stage.includes('qa-1-1') ? { primaryActionClear: false, defects: [{ kind: 'story', detail: 'The selected exchange is absent.', fix: 'Show the selected exchange.' }] } : {}), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
+    expect(result.imageCalls).toBe(5);
+    expect(result.regenerated).toEqual([1]);
+    expect(result.pages.get(1)?.status).toBe('passed');
+    expect(result.cover?.status).toBe('failed');
+  });
 });

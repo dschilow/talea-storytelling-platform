@@ -115,7 +115,6 @@ function pageTitle(language: string | undefined, order: number): string {
 }
 
 function imageSteps(model: string): number {
-  if (model === SERIES_IMAGE_MODEL) return 4;
   if (model === LIBRARY_IMAGE_MODEL) return LIBRARY_IMAGE_STEPS;
   const configured = Number(process.env.TALEA_STORYBOOK_IMAGE_STEPS);
   return Number.isFinite(configured) && configured >= 4 && configured <= 28 ? Math.round(configured) : 4;

@@ -1,0 +1,175 @@
+{
+  "seriesId": "nebelfee",
+  "episode": 1,
+  "version": 2,
+  "contractHash": "e473a7dc25f48b2c084f2f30b9bf33e03885eea124fdcbe7da0f47da2ffad11f",
+  "models": {
+    "writer": "openai/gpt-6.1-sol",
+    "support": "openai/gpt-6-luna",
+    "critic": "openai/gpt-6.1-terra"
+  },
+  "imageModel": "bfl:flux@3-image-klein",
+  "policy": {
+    "version": 4,
+    "picturesPerChapter": 1,
+    "maxImageCalls": 6,
+    "maxLlmCalls": 12,
+    "llmStopAfterUSD": 0.08,
+    "longLlmStopAfterUSD": 0.12,
+    "maxTextRepairs": 1
+  },
+  "fictionalAvatars": [
+    "Nora",
+    "Ben"
+  ],
+  "reusedTextFrom": "Logs/character-series-v4/nebelfee/episode-1/result.json",
+  "status": "accepted",
+  "log": {
+    "episode": 1,
+    "storyId": "fictional-v2-nebelfee-1",
+    "avatarIds": [
+      "fictional-nora",
+      "fictional-ben"
+    ],
+    "events": [
+      {
+        "fact": "Die Nebelfee entdeckt, dass genaue Angaben einzelne Wegabschnitte sichtbar machen.",
+        "quote": "Wo die Träne den Staub traf, schimmerte der Weg. Nur bis zur nächsten Gabelung."
+      },
+      {
+        "fact": "Emil findet mit der Gruppe nach Hause.",
+        "quote": "Emil sauste durch das Gartentor direkt in die Arme seines Vaters."
+      },
+      {
+        "fact": "In der Wegwarte entsteht ein erstes Fundregal.",
+        "quote": "Auf das unterste Brett schrieb Nora mit Kreide: GEFUNDEN."
+      }
+    ],
+    "relationships": [
+      {
+        "fact": "Nora und Ben lernen die Nebelfee erstmals kennen.",
+        "quote": "„Wir kennen dich noch gar nicht“, sagte Ben. „Ich bin Ben. Das ist Nora. Und unsere Mama.“"
+      }
+    ],
+    "openThreads": [
+      {
+        "fact": "Das Betreiberzeichen der Wegwarte kommt der Fee bekannt vor; seine Verbindung zu ihrer Heimat bleibt offen.",
+        "quote": "„Warum kenne ich das Zeichen der alten Wegwarte, wenn ich meinen eigenen Heimweg nicht kenne?“"
+      }
+    ],
+    "context": [
+      "Ein Stiefel verbeugt sich\nDie Nebelfee wollte endlich jemandem seinen verlorenen Weg zurückgeben. Ihren eigenen fand sie schließlich auch nicht.",
+      "Deshalb trug sie einen einzelnen Gummistiefel durch den Wald und befragte ihn sehr genau.",
+      "„Ich suche seinen Menschen“, sagte sie.",
+      "„Wir kennen dich noch gar nicht“, sagte Ben. „Ich bin Ben. Das ist Nora. Und unsere Mama.“",
+      "„Ich bin die Nebelfee.“",
+      "Eine Träne fiel von Emils Kinn.",
+      "Wo die Träne den Staub traf, schimmerte der Weg. Nur bis zur nächsten Gabelung.",
+      "Die Fee stand so schnell auf, dass ihr Haarknoten wippte.",
+      "„Emil!“",
+      "Emil sauste durch das Gartentor direkt in die Arme seines Vaters.",
+      "Der drückte ihn fest, hörte gleichzeitig drei halbe Sätze und sagte schließlich: „Erst mal rein mit deinem nassen Fuß.“",
+      "„Jetzt möchte ich wissen, wem dieses Zeichen gehört hat.“",
+      "Sie entschieden sich, den kurzen Weg zum grauen Dach anzusehen. Nora zeichnete den Abzweig in ihren Plan.",
+      "Das Gebäude stand fest am Ufer, halb hinter Erlen verborgen. Über der Tür waren verwitterte Buchstaben zu lesen: WEGWARTE.",
+      "Die Tür stand angelehnt. Mama schob sie auf. Drinnen roch es nach Staub und trockenem Holz. An der Wand hing eine alte Tafel: BETRIEBSZEICHEN DER WEGWARTE. Darunter saß der Vogel im Kreis.",
+      "Die Fee sah lange hin.",
+      "„Warum kenne ich das Zeichen der alten Wegwarte, wenn ich meinen eigenen Heimweg nicht kenne?“",
+      "Niemand antwortete vorschnell.",
+      "Unter der Tafel lag ein hölzerner Wegpfeil. Keine Schrift, keine eingeritzte Richtung. Ben drehte ihn um. Auch die Rückseite war leer.",
+      "„Der weiß auch nicht weiter“, sagte er.",
+      "Die Fee stellte ihn auf ein verstaubtes Regal. Nora wischte mit einem alten Tuch darüber; Mama prüfte, ob es fest stand.",
+      "Auf das unterste Brett schrieb Nora mit Kreide: GEFUNDEN.",
+      "„Hier könnten verlorene Sachen warten“, sagte sie.",
+      "„Bis wir ihre Menschen finden“, ergänzte die Fee.",
+      "Eine Brombeere stieg aus der Schale und schwebte vor dem Regal.",
+      "Ben sah sie an.",
+      "Die Fee wurde ein wenig durchsichtiger.",
+      "„Das war bestimmt—“",
+      "Nora stellte eine leere Untertasse darunter.",
+      "„Für verlorene Brombeeren.“",
+      "Die Beere sank auf den Teller.",
+      "„Die wird abgeholt“, sagte die Fee. „Sehr bald.“"
+    ]
+  },
+  "pictures": {
+    "accepted": true,
+    "imageCalls": 5,
+    "imagesGenerated": 4,
+    "regenerated": [
+      2
+    ]
+  },
+  "stages": [
+    {
+      "stage": "image-qa-1",
+      "modelUsed": "openai/gpt-6.1-terra",
+      "modelRole": "support",
+      "durationMs": 3194,
+      "usage": {
+        "prompt": 3768,
+        "completion": 100,
+        "total": 3868,
+        "costUSD": 0.00520925
+      }
+    },
+    {
+      "stage": "image-qa-2",
+      "modelUsed": "openai/gpt-6.1-terra",
+      "modelRole": "support",
+      "durationMs": 3792,
+      "usage": {
+        "prompt": 4234,
+        "completion": 140,
+        "total": 4374,
+        "costUSD": 0.00599175
+      }
+    },
+    {
+      "stage": "image-qa-3",
+      "modelUsed": "openai/gpt-6.1-terra",
+      "modelRole": "support",
+      "durationMs": 6078,
+      "usage": {
+        "prompt": 4244,
+        "completion": 250,
+        "total": 4494,
+        "costUSD": 0.00655425
+      }
+    },
+    {
+      "stage": "image-qa-4",
+      "modelUsed": "openai/gpt-6.1-terra",
+      "modelRole": "support",
+      "durationMs": 3741,
+      "usage": {
+        "prompt": 4314,
+        "completion": 145,
+        "total": 4459,
+        "costUSD": 0.00611675
+      }
+    },
+    {
+      "stage": "image-qa-5",
+      "modelUsed": "openai/gpt-6.1-terra",
+      "modelRole": "support",
+      "durationMs": 4676,
+      "usage": {
+        "prompt": 4244,
+        "completion": 138,
+        "total": 4382,
+        "costUSD": 0.00599425
+      }
+    }
+  ],
+  "costs": {
+    "prompt": 20804,
+    "completion": 773,
+    "total": 21577,
+    "costUSD": 0.029866,
+    "calls": 5,
+    "imageCostUSD": 0.017300000000000003,
+    "totalUSD": 0.047166
+  },
+  "note": "Real API costs of this run. A reused manuscript is explicitly excluded. Production avatar-development call excluded; no database writes."
+}

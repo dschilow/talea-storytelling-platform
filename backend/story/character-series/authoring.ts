@@ -5,10 +5,11 @@ import { styleSamples, episodeBudget } from '../episode/craft';
 import type { AgeBand } from '../storybook/craft';
 import { SERIES_NARRATIVES } from './narrative';
 import { nextSeriesEpisode, seriesPrompt } from './core';
+import { FLUX3_KLEIN_MODEL } from '../../ai/runware-image-model-options';
 
 export const SERIES_MODELS = { writer: 'openai/gpt-6.1-sol', support: 'openai/gpt-6-luna', critic: 'openai/gpt-6.1-terra' };
-export const SERIES_IMAGE_MODEL = 'runware:400@2';
-export const SERIES_POLICY = { version: 3, picturesPerChapter: 1, maxImageCalls: 6, maxLlmCalls: 12, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.12, maxTextRepairs: 1 } as const;
+export const SERIES_IMAGE_MODEL = FLUX3_KLEIN_MODEL;
+export const SERIES_POLICY = { version: 4, picturesPerChapter: 1, maxImageCalls: 6, maxLlmCalls: 12, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.12, maxTextRepairs: 1 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);
@@ -44,6 +45,7 @@ export function seriesAuthoring(brief: StoryBrief) {
     'RETURN VISITS: only documented past participants recognise each other. Briefly show why they return today; newcomers get their own introduction. Never replay the founding event or reset an earned skill or friendship.',
     'EPISODE VARIETY: compare the last documented adventure with your new central problem. Do not immediately repeat the same mission with a renamed prop (opening a blocked passage, then opening another blocked passage). Pick a genuinely different conflict from the current arc. Familiar quirks can recur; the main attempted solution and consequence must develop. Never claim an earlier picnic, conversation or success did not happen when the excerpts do not establish that.',
     'Make choices cause complications. Give the lead competence, mistakes, initiative and a costly choice; give every avatar a different consequential action. At least one wrong but reasonable attempt changes the problem. End the immediate adventure with a warm payoff and a final joke; leave a concrete, planted question from this world for a later episode.',
+    'Plant the final discovery in an earlier observed clue and a character\'s decision to follow it; a conveniently stumbled-upon house or matching sign is not a payoff. Keep the central adventure lively through a surprising consequence or a character-specific comic reversal, not a sequence of correct procedures. World rules constrain events silently: mention a rule only when it matters to an action, never insert an untested exit-door or safety specification merely to satisfy the contract.',
     'Distinct voices, sharp visual jokes, varied reactions and sensory particulars. The narrator trusts children to understand the scene. Avoid explaining a joke, repeating a moral, identical reassuring smiles, forced slogans, verse unless requested, and repeated safety administration. Show ordinary precautions once when needed, in action. Adults can take a hazardous hand movement without taking the children\'s choices.',
     'Use the supplied series rules, not a newly invented wonder. The genre colours this world, never changes its physics. At most one supplied recurring companion plus briefly unnamed locals; no interchangeable random pool character or new mascot with a familiar Talea name. Their English looks remain fixed.',
     CHILD_SAFETY_RULES_EN,
