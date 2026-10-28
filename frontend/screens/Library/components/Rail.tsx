@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Clock3, Headphones, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { taleaDisplayFont } from "@/components/talea/TaleaPastelPrimitives";
@@ -10,9 +10,16 @@ export const Rail: React.FC<{
   subtitle?: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Shown before the title, e.g. the portrait of a series figure. */
+  leading?: React.ReactNode;
+  /** A row inside a titled section is one heading level deeper. */
+  titleAs?: "h2" | "h3";
+  /** Opens the row at this tile (e.g. the first unread episode) instead of at the first one. */
+  startIndex?: number;
   children: React.ReactNode;
-}> = ({ title, subtitle, actionLabel, onAction, children }) => {
+}> = ({ title, subtitle, actionLabel, onAction, leading, titleAs: Title = "h2", startIndex = 0, children }) => {
   const scroller = useRef<HTMLDivElement>(null);
+  const startedRef = useRef(false);
   const [edges, setEdges] = useState({ start: true, end: false });
 
   const update = useCallback(() => {
@@ -31,6 +38,21 @@ export const Rail: React.FC<{
     return () => observer.disconnect();
   }, [update, children]);
 
+  // Once, before the first paint: no visible jump, and later swipes are never taken back. A tile that is already fully
+  // visible at the start needs no scrolling (wide screens).
+  useLayoutEffect(() => {
+    if (startedRef.current || startIndex <= 0) return;
+    const element = scroller.current;
+    const tile = element?.children[startIndex] as HTMLElement | undefined;
+    if (!element || !tile) return;
+    startedRef.current = true;
+    const offset = tile.getBoundingClientRect().left - element.getBoundingClientRect().left + element.scrollLeft;
+    if (offset + tile.offsetWidth <= element.clientWidth) return;
+    const padding = parseFloat(getComputedStyle(element).scrollPaddingLeft) || 0;
+    element.scrollLeft = offset - padding;
+    update();
+  }, [startIndex, children, update]);
+
   const scrollBy = (direction: 1 | -1) => {
     const element = scroller.current;
     if (element) element.scrollBy({ left: direction * element.clientWidth * 0.85, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
@@ -39,20 +61,27 @@ export const Rail: React.FC<{
   return (
     <section className="min-w-0">
       <div className="mb-3 flex items-end justify-between gap-4 px-1">
-        <div className="min-w-0">
-          <h2 className="truncate text-[1.25rem] font-bold leading-tight text-[var(--talea-text-primary)] md:text-[1.4rem]" style={{ fontFamily: taleaDisplayFont }}>
-            {title}
-          </h2>
-          {subtitle ? <p className="mt-0.5 text-[14px] text-[var(--talea-text-secondary)]">{subtitle}</p> : null}
+        <div className="flex min-w-0 items-center gap-3">
+          {leading}
+          <div className="min-w-0">
+            <Title className="line-clamp-2 text-[1.25rem] font-bold leading-tight text-[var(--talea-text-primary)] [text-wrap:balance] md:text-[1.4rem]" style={{ fontFamily: taleaDisplayFont }}>
+              {title}
+            </Title>
+            {subtitle ? <p className="mt-0.5 text-[14px] text-[var(--talea-text-secondary)]">{subtitle}</p> : null}
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {actionLabel && onAction ? (
             <button
               type="button"
               onClick={onAction}
-              className="inline-flex h-10 items-center gap-0.5 rounded-full px-3 text-[14px] font-semibold text-[var(--primary)] hover:bg-[var(--talea-surface-inset)] focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
+              className={cn(
+                "inline-flex h-10 items-center gap-0.5 rounded-full px-3 text-[14px] font-semibold text-[var(--primary)] hover:bg-[var(--talea-surface-inset)] focus-visible:outline-2 focus-visible:outline-[var(--primary)]",
+                // Next to a portrait the title needs the room on phones: the action shrinks to its arrow.
+                leading ? "max-sm:w-10 max-sm:justify-center max-sm:bg-[var(--talea-surface-inset)] max-sm:px-0" : undefined,
+              )}
             >
-              {actionLabel}
+              <span className={leading ? "max-sm:sr-only" : undefined}>{actionLabel}</span>
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           ) : null}

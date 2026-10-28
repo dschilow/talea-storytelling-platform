@@ -309,6 +309,10 @@ export default function TaleaStoryWizard() {
   // Deep link from the Schatzkammer: "In eine neue Geschichte mitnehmen".
   const bringArtifactId = searchParams.get('bringArtifact');
   const bringAvatarId = searchParams.get('bringAvatar');
+  // Deep link from the library: "Folge N erstellen" brings the series, the avatars of its last episode and its world (tags).
+  const seriesParam = searchParams.get('series');
+  const deepLinkSeries = seriesParam && /^[a-z0-9-]{1,100}$/.test(seriesParam) ? seriesParam : null;
+  const deepLinkAvatarIds = (searchParams.get('avatars') || '').split(',').map((id) => id.trim()).filter(Boolean).slice(0, 3);
 
   const tagList = tagParam ? tagParam.split(',').map(s => s.trim()) : [];
   const initialCategory = VALID_CATEGORIES.find(c => tagList.includes(c as any)) as WizardState['mainCategory'] || null;
@@ -332,7 +336,7 @@ export default function TaleaStoryWizard() {
   );
 
   const [state, setState] = useState<WizardState>({
-    selectedAvatars: mapAvatarId ? [mapAvatarId] : bringAvatarId ? [bringAvatarId] : [],
+    selectedAvatars: mapAvatarId ? [mapAvatarId] : bringAvatarId ? [bringAvatarId] : deepLinkAvatarIds,
     mainCategory: initialCategory || (isMapAutoFill ? 'adventure' : null),
     subCategory: null,
     ageGroup: isMapAutoFill ? '6-8' : null,
@@ -359,7 +363,7 @@ export default function TaleaStoryWizard() {
     bookWorkshopMode: false,
     wonderStoryMode: false,
     episodeMode: false,
-    characterSeries: null,
+    characterSeries: deepLinkSeries,
     characterSeriesEpisodeOverride: null,
     chapterBookMode: false,
     experienceForm: null,
@@ -498,8 +502,10 @@ export default function TaleaStoryWizard() {
     setState((prev) => ({
       ...prev,
       ageGroup: defaultAgeGroup || prev.ageGroup,
-      selectedAvatars: defaultAvatarIds.length > 0 ? defaultAvatarIds : prev.selectedAvatars,
+      // A next episode keeps the avatars of the last one; the profile default is only a starting point.
+      selectedAvatars: defaultAvatarIds.length > 0 && deepLinkAvatarIds.length === 0 ? defaultAvatarIds : prev.selectedAvatars,
     }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the deep link is read once, with the first profile.
   }, [activeProfile, isMapAutoFill]);
 
   const refreshCredits = useCallback(

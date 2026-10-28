@@ -28,5 +28,12 @@ export function storyMetadataForList(
   if (!metadata) return undefined;
   const slim: Record<string, any> = {};
   for (const key of LIST_METADATA_KEYS) if (metadata[key] !== undefined) slim[key] = metadata[key];
+  // The library shelves a Figurenserie by series and episode number; the episode log itself (events, quotes,
+  // literal context) stays in story.get.
+  const series = metadata.characterSeries;
+  const episode = series?.log?.episode;
+  if (typeof series?.id === "string" && series.id && Number.isSafeInteger(episode) && episode > 0) {
+    slim.characterSeries = { id: series.id, episode };
+  }
   return Object.keys(slim).length > 0 ? slim : undefined;
 }

@@ -47,6 +47,7 @@ const ModernStoryWizard = React.lazy(() => import('./screens/Story/TaleaStoryWiz
 const FairyTaleSelectionScreen = React.lazy(() => import('./screens/Story/FairyTaleSelectionScreen'));
 const CharacterMappingScreen = React.lazy(() => import('./screens/Story/CharacterMappingScreen'));
 const StoriesScreen = React.lazy(() => import('./screens/Story/TaleaStoriesScreen'));
+const CharacterSeriesScreen = React.lazy(() => import('./screens/Story/CharacterSeriesScreen'));
 const StoryReaderScreen = React.lazy(() => import('./screens/Story/StoryReaderScreen'));
 const StoryScrollReaderScreen = React.lazy(() => import('./screens/Story/StoryScrollReaderScreen'));
 const CinematicStoryViewer = React.lazy(() => import('./screens/Story/CinematicStoryViewer'));
@@ -230,6 +231,7 @@ const RouterContent = () => {
                 <Route path="/story-reader-scroll/:storyId" element={<StoryScrollReaderScreen />} />
                 <Route path="/story-reader-old/:storyId" element={<StoryReaderScreen />} />
                 <Route path="/stories" element={<StoriesScreen />} />
+                <Route path="/stories/series/:seriesId" element={<CharacterSeriesScreen />} />
                 <Route path="/originals/:slug" element={<OriginalsSeriesScreen />} />
                 <Route path="/episode-reader/:episodeId" element={<OriginalsEpisodeReader />} />
                 <Route path="/community" element={<ModernHomeScreen />} />

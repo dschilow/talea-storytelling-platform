@@ -9,6 +9,7 @@ import { resetSeriesProgress, SERIES, seriesProgress } from "./character-series/
 interface CharacterSeriesSummary {
   id: string;
   characterId: string;
+  characterName: string;
   title: string;
   description: string;
   genres: string[];
@@ -31,7 +32,7 @@ export const listCharacterSeries = api<{ profileId?: string }, { series: Charact
       const episodes = progress.filter((row) => row.character_series_id === series.id);
       const image = imageById.get(series.characterId);
       return {
-        id: series.id, characterId: series.characterId, title: series.title,
+        id: series.id, characterId: series.characterId, characterName: series.characterName, title: series.title,
         description: series.description, genres: series.genres,
         ...(image ? { imageUrl: (await resolveImageUrlForClient(image).catch(() => undefined)) || image } : {}),
         episodeCount: episodes.length, ...(episodes.length ? { lastStoryId: episodes[episodes.length - 1].id } : {}),

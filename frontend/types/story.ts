@@ -58,10 +58,14 @@ export interface StoryConfig {
   moral?: string;
   avatars?: Avatar[];
   characters?: Character[];
+  avatarIds?: string[];
   aiProvider?: AIProvider;
   openRouterModel?: string;
   contentType?: 'standard' | 'character_life';
   characterId?: string;
+  /** Which writer produced the story; 'character-series-v1' marks a Figurenserie episode. */
+  storybookEngine?: string;
+  characterSeriesId?: string;
   /** Language the story was written in (de | en | fr | es | it | nl | ru). */
   language?: string;
 }
@@ -166,6 +170,15 @@ export interface Story {
   isPublic: boolean;
   avatarDevelopments?: any[];
   avatarParticipants?: Avatar[];
+  /** Reading state of the active child profile (the story list and story.get send it). */
+  profileState?: {
+    profileId: string;
+    isFavorite: boolean;
+    progressPct: number;
+    completionState: 'not_started' | 'in_progress' | 'completed';
+    lastPositionSec?: number;
+    lastPlayedAt?: string;
+  };
   metadata?: {
     tokensUsed?: {
       prompt: number;
@@ -178,6 +191,8 @@ export interface Story {
     developerMode?: boolean;
     releaseReady?: boolean;
     characterSeriesArt?: { state: 'complete' | 'partial'; missingChapters: number[]; coverMissing: boolean; approved: number; planned: number };
+    /** Figurenserie episode: the list sends `{ id, episode }`; story.get the full episode log under `log`. */
+    characterSeries?: { id: string; episode?: number; log?: { episode?: number } };
     status?: "ok" | "quality_gate_failed";
     imagesSkippedDueToQualityGate?: boolean;
     qualityGatePassed?: boolean;

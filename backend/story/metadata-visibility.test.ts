@@ -38,4 +38,13 @@ describe("story list metadata", () => {
     expect(storyMetadataForList(null)).toBeUndefined();
     expect(storyMetadataForList({ ...heavy })).toBeUndefined();
   });
+
+  test("a Figurenserie episode keeps only its series and episode number, never the episode log", () => {
+    const log = { episode: 4, storyId: "s4", avatarIds: ["a1"], events: [{ fact: "x".repeat(300), quote: "y".repeat(300) }], relationships: [], openThreads: [], context: ["z".repeat(2000)] };
+    const slim = storyMetadataForList({ ...heavy, characterSeries: { id: "kapitaen-blubbert", log } });
+    expect(slim).toEqual({ characterSeries: { id: "kapitaen-blubbert", episode: 4 } });
+    expect(storyMetadataForList({ characterSeries: { id: "kapitaen-blubbert", log: { ...log, episode: 0 } } })).toBeUndefined();
+    expect(storyMetadataForList({ characterSeries: { id: "", log } })).toBeUndefined();
+    expect(storyMetadataForList({ characterSeries: { id: "kapitaen-blubbert" } })).toBeUndefined();
+  });
 });

@@ -11,7 +11,11 @@ export interface CharacterSeriesChoice {
   description: string;
   imageUrl?: string | null;
   genres?: string[];
+  /** Episodes that count for the continuation (after an admin reset only the newer ones). */
   episodeCount: number;
+  characterId?: string;
+  characterName?: string;
+  lastStoryId?: string;
 }
 
 /** null: ordinary story; 'auto': let Talea choose; otherwise a series ID. */
