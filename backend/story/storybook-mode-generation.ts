@@ -117,7 +117,7 @@ function pageTitle(language: string | undefined, order: number): string {
 /** Runware through the ai service; stored URL for the story, readable URL for the vision check. */
 export function encoreImageProvider(storyId: string | undefined, model = IMAGE_MODEL): ImageProvider {
   // Prefer direct storage for vision/editing; if signing fails, the existing proxy is still worth a try.
-  return createStorybookImageProvider({ storyId, model, generateImage: ai.generateImage, resolveForVision: async url => await readableReference(url) || await resolveImageUrlForClient(url) });
+  return createStorybookImageProvider({ storyId, model, generateImage: request => ai.generateImage(request), resolveForVision: async url => await readableReference(url) || await resolveImageUrlForClient(url) });
 }
 
 export async function readableReference(imageUrl: string | undefined): Promise<string | undefined> {
