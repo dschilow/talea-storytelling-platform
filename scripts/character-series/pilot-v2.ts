@@ -17,6 +17,8 @@ import { castAppearance, speciesFromProfile, type VisualEntity } from '../../bac
 import { seriesLeadCandidate, seriesReferenceAppearance } from '../../backend/story/character-series/identity';
 import { buildRunwareTask, createRunwareCaller, LIBRARY_IMAGE_MODEL } from '../../backend/story/library/images';
 import { runwareImageModelOptions, runwareReferenceSettings } from '../../backend/ai/runware-image-model-options';
+import { buildImageSlots, pagesFor } from '../../backend/story/storybook/book/illustrations';
+import { isPublishable } from '../../backend/story/storybook/images';
 
 const args = process.argv.slice(2);
 const opt = (name: string, fallback: string) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
@@ -74,7 +76,15 @@ if (args.includes('--dry')) {
 }
 const ledger = new CostLedger();
 let count = 0;
+const reusedDraftPath = args.includes('--reuse-draft') ? opt('--reuse-draft', '') : '';
+const reusedDraft = reusedDraftPath ? JSON.parse(await readFile(reusedDraftPath, 'utf8')).text : undefined;
+if (reusedDraftPath && (typeof reusedDraft !== 'string' || !reusedDraft.trim())) throw new Error('The reusable draft is empty.');
 const rawLlm: StorybookLlm = async request => {
+  // A failed editorial or picture stage can reuse the already-paid fictional draft; it is still reviewed anew.
+  if (request.stage === 'series-author' && reusedDraft) {
+    console.log('series-author · reused draft (editorial review still runs)');
+    return { text: reusedDraft, modelUsed: 'reused-draft', usage: { prompt: 0, completion: 0, total: 0, costUSD: 0 }, durationMs: 0 };
+  }
   const prefix = `${String(++count).padStart(2, '0')}-${request.stage}`;
   const { imageInputs, ...metadata } = request;
   await writeFile(join(out, prefix + '.request.json'), JSON.stringify({ ...metadata, imageInputCount: imageInputs?.length || 0 }, null, 2));
@@ -126,14 +136,22 @@ try {
       ...result.episode.guests.map(g => ({ id: g.id, name: g.name, kind: 'character' as const, role: 'cast' as const, species: g.species, isHuman: g.species === 'human', appearance: g.physicalDescription, forbidden: [] })),
     ];
     const reusedDirection = args.includes('--reuse-direction') ? JSON.parse(await readFile(opt('--reuse-direction', ''), 'utf8')) : undefined;
-    const directed = reusedDirection ? { illustrations: validateSeriesShots(reusedDirection, result.pages, entities, bible.characterId) } : await directSeriesPictures({ llm, model: SERIES_MODELS.support, brief, title: result.title, pages: result.pages, entities });
+    const reusedSlots = reusedDirection?.pages?.length === result.pages.length * SERIES_POLICY.picturesPerChapter
+      ? buildImageSlots(result.pages.map(p => ({ order: p.order, content: p.content })), { chapters: [] }, SERIES_POLICY.picturesPerChapter)
+      : undefined;
+    const reusedPages = reusedSlots ? pagesFor(reusedSlots) : result.pages;
+    const directed = reusedDirection
+      ? { illustrations: validateSeriesShots(reusedDirection, reusedPages, entities, bible.characterId), pages: reusedPages, ...(reusedSlots ? { slots: reusedSlots } : {}) }
+      : await directSeriesPictures({ llm, model: SERIES_MODELS.support, brief, title: result.title, pages: result.pages, entities });
     if ('director' in directed) {
       ledger.recordCall('series-picture-direction', directed.director.call, 'support');
       if (directed.director.repairCall) ledger.recordCall('series-picture-plan-repair', directed.director.repairCall, 'support');
     }
     await writeFile(join(out, 'direction.json'), JSON.stringify(directed.illustrations, null, 2));
     const call = createRunwareCaller(runwareKey!);
-    const images = await generateSeriesImages({ illustrations: directed.illustrations, entities, seed: `series-v2-${seriesId}-${episode}`, llm, visionModel: SERIES_IMAGE_REVIEW_MODEL, pageTexts: Object.fromEntries(result.pages.map(p => [p.order, p.content])),
+    const picturePages = 'pages' in directed ? directed.pages : result.pages;
+    const chapterByPage = 'slots' in directed && directed.slots ? Object.fromEntries(directed.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined;
+    const images = await generateSeriesImages({ illustrations: directed.illustrations, entities, seed: `series-v2-${seriesId}-${episode}`, llm, visionModel: SERIES_IMAGE_REVIEW_MODEL, pageTexts: Object.fromEntries(picturePages.map(p => [p.order, p.content])), chapterByPage,
       provider: async request => {
         const task = buildRunwareTask(request);
         const model = opt('--image-model', SERIES_IMAGE_MODEL);
@@ -146,7 +164,7 @@ try {
     images.qaCalls.forEach((r, i) => ledger.recordCall(`image-qa-${i + 1}`, r, 'support'));
     imageCostUSD = images.imageCostUSD;
     const all = [images.cover!, ...images.pages.values()];
-    pictures = { ...images, pages: [...images.pages], accepted: all.every(i => i.status === 'passed') };
+    pictures = { ...images, pages: [...images.pages], accepted: all.every(isPublishable) };
     await mkdir(published, { recursive: true });
     for (const item of all) {
       const file = join(published, `folge-${episode}-${item.page === 0 ? 'cover' : `kapitel-${item.page}`}.webp`);
@@ -157,7 +175,7 @@ try {
       await writeFile(extension === 'webp' ? file : file.replace(/\.webp$/, '.jpg'), new Uint8Array(await response.arrayBuffer()));
     }
   }
-  const report = { seriesId, episode, version: CHARACTER_SERIES_VERSION, contractHash, models: SERIES_MODELS, imageModel: opt('--image-model', SERIES_IMAGE_MODEL), policy: SERIES_POLICY, fictionalAvatars: avatars.map(a => a.name), reusedTextFrom: reusable ? opt('--reuse-text', '') : undefined, status: pictures && !pictures.accepted ? 'accepted-with-missing-images' : 'accepted', result, log, pictures, stages: ledger.all(), costs: { ...ledger.totals(), imageCostUSD, totalUSD: ledger.totals().costUSD + imageCostUSD }, note: 'Real API costs of this run. A reused manuscript is explicitly excluded. Production avatar-development call excluded; no database writes.' };
+  const report = { seriesId, episode, version: CHARACTER_SERIES_VERSION, contractHash, models: SERIES_MODELS, imageModel: opt('--image-model', SERIES_IMAGE_MODEL), policy: SERIES_POLICY, fictionalAvatars: avatars.map(a => a.name), reusedTextFrom: reusable ? opt('--reuse-text', '') : undefined, reusedDraftFrom: reusedDraftPath || undefined, status: pictures && !pictures.accepted ? 'accepted-with-missing-images' : 'accepted', result, log, pictures, stages: ledger.all(), costs: { ...ledger.totals(), imageCostUSD, totalUSD: ledger.totals().costUSD + imageCostUSD }, note: 'Real API costs of this run. A reused manuscript or draft is explicitly excluded. Production avatar-development call excluded; no database writes.' };
   await writeFile(join(out, 'result.json'), JSON.stringify(report, null, 2));
   await mkdir(published, { recursive: true });
   await writeFile(join(published, `folge-${episode}.md`), `# ${result.title}\n\n${result.description}\n\n${result.pages.map(p => `## ${p.title}\n\n${p.content}`).join('\n\n')}\n`);

@@ -62,6 +62,22 @@ describe('Figurenserien revision 2', () => {
     await expect(runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() })).rejects.toThrow('Textbeleg');
     expect(calls).toHaveLength(2);
   });
+  test('a literal 42-word continuity quote across adjacent paragraphs remains actionable', async () => {
+    const first = 'Funkelflug stellte seinen Becher ab. Nora hielt ihn schon fest.';
+    const quote = 'Mara prüfte den niedrigen Gang von der Wiesenseite. Nora hielt den Spiegel hinein. Das Sonnenlicht wanderte bis unter den Korb.\n\nBen blieb neben Funkelflug am Eingang. Er legte den breiten Trageriemen um dessen Bauch. Mara prüfte den Sitz und blieb dicht dabei.';
+    const amended = quote.replace('Ben blieb neben', 'Mara ging zum Eingang zurück. Ben blieb neben');
+    const manuscript = text.replace(first, `${first}\n\n${quote}`);
+    const llm: StorybookLlm = async r => {
+      if (r.stage === 'series-author') return response(manuscript);
+      if (r.stage === 'series-editorial-review') return response(JSON.stringify({ issues: [{ severity: 'minor', quote, problem: 'Maras Rückweg zum Eingang fehlt.', change: 'Den Rückweg zeigen.' }] }));
+      if (r.stage === 'series-local-repair') return response(JSON.stringify({ edits: [{ chapter: 1, before: quote, after: amended }] }));
+      return response('{"issues":[]}');
+    };
+    expect(quote.split(/\s+/).length).toBe(42);
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() });
+    expect(result.pages[0].content).toContain('Mara ging zum Eingang zurück.');
+    expect(result.chosen).toBe('revision');
+  });
   test('an evidenced minor prop jump gets one local repair instead of being knowingly published', async () => {
     const calls: string[] = [];
     const before = 'Funkelflug stellte seinen Becher ab. Nora hielt ihn schon fest.';
@@ -81,6 +97,61 @@ describe('Figurenserien revision 2', () => {
     expect(result.pages[0].content).toContain(after);
     expect(result.pages[1].content).toContain('Gemeinsam prüften sie den Ausgang.');
     expect(result.chosen).toBe('revision');
+  });
+  test('a new minor continuity gap found on recheck gets one more verified local correction', async () => {
+    const before = 'Funkelflug stellte seinen Becher ab. Nora hielt ihn schon fest.';
+    const after = 'Funkelflug stellte seinen Becher ab. Nora nahm ihn vom Tisch und hielt ihn fest.';
+    const secondBefore = 'Funkelflug zeigte Nora den Bodengang. Gemeinsam prüften sie den Ausgang.';
+    const secondAfter = 'Funkelflug zeigte Nora den Bodengang. Nora nahm das Tuch vom Tisch. Gemeinsam prüften sie den Ausgang.';
+    const stages: string[] = [];
+    const llm: StorybookLlm = async r => {
+      stages.push(r.stage);
+      if (r.stage === 'series-author') return response(text);
+      if (r.stage === 'series-editorial-review') return response(JSON.stringify({ issues: [{ severity: 'minor', quote: before, problem: 'Der Becher wechselt die Hand.', change: 'Nora nimmt ihn vom Tisch.' }] }));
+      if (r.stage === 'series-local-repair') return response(JSON.stringify({ edits: [{ chapter: 1, before, after }] }));
+      if (r.stage === 'series-editorial-recheck') return response(JSON.stringify({ issues: [{ severity: 'minor', quote: secondBefore, problem: 'Nora nimmt das Tuch nicht mit.', change: 'Sie nimmt es vom Tisch.' }] }));
+      if (r.stage === 'series-local-repair-2') return response(JSON.stringify({ edits: [{ chapter: 2, before: secondBefore, after: secondAfter }] }));
+      return response('{"issues":[]}');
+    };
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() });
+    expect(stages).toEqual(['series-author', 'series-editorial-review', 'series-local-repair', 'series-editorial-recheck', 'series-local-repair-2', 'series-editorial-recheck-2']);
+    expect(result.pages[0].content).toContain(after);
+    expect(result.pages[1].content).toContain(secondAfter);
+    expect(result.textQuality?.issues).toEqual([]);
+  });
+  test('an optional second correction rolls back if its recheck finds a major defect', async () => {
+    const before = 'Funkelflug stellte seinen Becher ab. Nora hielt ihn schon fest.';
+    const after = 'Funkelflug stellte seinen Becher ab. Nora nahm ihn vom Tisch und hielt ihn fest.';
+    const secondBefore = 'Funkelflug zeigte Nora den Bodengang. Gemeinsam prüften sie den Ausgang.';
+    const secondAfter = 'Funkelflug zeigte Nora den Bodengang. Nora verlor den Ausgang.';
+    const llm: StorybookLlm = async r => {
+      if (r.stage === 'series-author') return response(text);
+      if (r.stage === 'series-editorial-review') return response(JSON.stringify({ issues: [{ severity: 'minor', quote: before, problem: 'Der Becher wechselt die Hand.', change: 'Nora nimmt ihn vom Tisch.' }] }));
+      if (r.stage === 'series-local-repair') return response(JSON.stringify({ edits: [{ chapter: 1, before, after }] }));
+      if (r.stage === 'series-editorial-recheck') return response(JSON.stringify({ issues: [{ severity: 'minor', quote: secondBefore, problem: 'Eine Handlung fehlt.', change: 'Den Übergang ergänzen.' }] }));
+      if (r.stage === 'series-local-repair-2') return response(JSON.stringify({ edits: [{ chapter: 2, before: secondBefore, after: secondAfter }] }));
+      return response(JSON.stringify({ issues: [{ severity: 'major', quote: secondAfter, problem: 'Der Ausgang geht verloren.', change: 'Den Ausgang behalten.' }] }));
+    };
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() });
+    expect(result.pages[1].content).toContain(secondBefore);
+    expect(result.pages[1].content).not.toContain(secondAfter);
+    expect(result.textQuality?.issues).toContain('Eine Handlung fehlt.');
+  });
+  test('an unavailable optional correction preserves the already checked story', async () => {
+    const before = 'Funkelflug stellte seinen Becher ab. Nora hielt ihn schon fest.';
+    const after = 'Funkelflug stellte seinen Becher ab. Nora nahm ihn vom Tisch und hielt ihn fest.';
+    const second = 'Funkelflug zeigte Nora den Bodengang. Gemeinsam prüften sie den Ausgang.';
+    const llm: StorybookLlm = async r => {
+      if (r.stage === 'series-author') return response(text);
+      if (r.stage === 'series-editorial-review') return response(JSON.stringify({ issues: [{ severity: 'minor', quote: before, problem: 'Der Becher wechselt die Hand.', change: 'Nora nimmt ihn vom Tisch.' }] }));
+      if (r.stage === 'series-local-repair') return response(JSON.stringify({ edits: [{ chapter: 1, before, after }] }));
+      if (r.stage === 'series-editorial-recheck') return response(JSON.stringify({ issues: [{ severity: 'minor', quote: second, problem: 'Ein Übergang fehlt.', change: 'Den Übergang ergänzen.' }] }));
+      throw new Error('model unavailable');
+    };
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() });
+    expect(result.pages[0].content).toContain(after);
+    expect(result.pages[1].content).toContain(second);
+    expect(result.textQuality?.issues).toContain('Ein Übergang fehlt.');
   });
   test('local repair must identify one unique passage and stays bounded', () => {
     expect(() => applyChapterEdits([{ title: '', text: 'Dies ist ein langer Satz. Dies ist ein langer Satz.' }], [{ chapter: 1, before: 'Dies ist ein langer Satz.', after: 'Eine Änderung.' }])).toThrow();
@@ -239,6 +310,129 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(result.pages.size).toBe(3);
     expect(result.imagesGenerated).toBe(0);
   });
+  test('temporary vision errors recheck the same generated picture without a paid redraw', async () => {
+    const drawn: number[] = [], checked: Array<{ stage: string; images?: string[] }> = [];
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'vision-recovery', visionModel: 'test', pageTexts: {},
+      buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='], mode: 'sprite', subjects: [] }),
+      provider: async r => { drawn.push(r.page); return { url: `bucket://story/${r.page}.webp`, viewUrl: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }; },
+      llm: async r => {
+        checked.push({ stage: r.stage, images: r.imageInputs });
+        if (r.stage === 'series-image-qa-2-1') throw new Error('temporary vision outage');
+        if (r.stage === 'series-image-qa-2-1-retry') return response('not valid JSON');
+        return imageReview(r.stage);
+      },
+    });
+    expect(result.imagesGenerated).toBe(4);
+    expect(result.pages.get(2)?.status).toBe('passed');
+    expect(result.pages.get(2)?.history?.map(entry => entry.kind)).toEqual(['series-vision', 'series-scene']);
+    expect(drawn.filter(page => page === 2)).toEqual([2]);
+    expect(result.imageCalls).toBe(4);
+    expect(result.regenerated).toEqual([]);
+    expect(checked.find(entry => entry.stage === 'series-image-qa-2-1-recovery')?.images?.[0]).toBe('https://example.test/2.webp');
+  });
+  test('a vision outage after a redraw also rechecks the redraw before giving up', async () => {
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'redraw-vision-recovery', visionModel: 'test', pageTexts: {},
+      buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
+      provider: async r => ({ url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }),
+      llm: async r => {
+        if (r.stage === 'series-image-qa-1-1') return imageReview(r.stage, { primaryActionClear: false });
+        if (r.stage === 'series-image-qa-1-2' || r.stage === 'series-image-qa-1-2-retry') throw new Error('temporary outage');
+        return imageReview(r.stage);
+      },
+    });
+    expect(result.pages.get(1)?.status).toBe('passed');
+    expect(result.pages.get(1)?.attempts).toBe(2);
+    expect(result.imageCalls).toBe(5);
+    expect(result.imagesGenerated).toBe(4);
+  });
+  test('a recovered vision report still blocks an unsafe picture', async () => {
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'vision-unsafe', visionModel: 'test', pageTexts: {},
+      buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
+      provider: async r => ({ url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }),
+      llm: async r => {
+        if (r.stage.startsWith('series-image-qa-2-1') && !r.stage.endsWith('-recovery')) throw new Error('temporary outage');
+        if (r.stage.startsWith('series-image-qa-2-')) return imageReview(r.stage, { defects: [{ kind: 'safety', detail: 'A child stands beneath an unsupported load.', fix: 'Move the child clear of the unsupported load.' }] });
+        return imageReview(r.stage);
+      },
+    });
+    expect(result.pages.get(2)?.status).toBe('failed');
+    expect(isPublishable(result.pages.get(2))).toBe(false);
+    expect(result.pages.get(2)?.history?.at(-1)?.notes).toContain('A child stands beneath an unsupported load.');
+  });
+  test('a provider that returns no image gets a bounded retry for the missing chapter', async () => {
+    const requests: number[] = [];
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'empty-provider', visionModel: 'test', pageTexts: {},
+      buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
+      provider: async r => { requests.push(r.page); return { url: r.page === 1 && requests.filter(p => p === 1).length === 1 ? undefined : `https://example.test/${r.page}.webp`, costUSD: 0 }; },
+      llm: async r => imageReview(r.stage),
+    });
+    expect(result.pages.get(1)?.status).toBe('passed');
+    expect(result.imageCalls).toBe(5);
+    expect(result.regenerated).toEqual([1]);
+  });
+  test('a provider credit refusal is reported without spending retries on the same refusal', async () => {
+    let draws = 0;
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'provider-credit', visionModel: 'test', pageTexts: {},
+      buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
+      provider: async () => { draws++; return { refused: true, httpStatus: 402 }; }, llm: async r => imageReview(r.stage),
+    });
+    expect(draws).toBe(4);
+    expect(result.imageCalls).toBe(4);
+    expect(result.pages.get(1)?.errors).toEqual(['series_provider_http_402']);
+    expect(result.regenerated).toEqual([]);
+  });
+  test('limited repairs cover separate pictureless chapters before a second picture of one chapter', async () => {
+    const readingPages = Array.from({ length: 6 }, (_, i) => ({ ...pages[i % 3], order: i + 1 }));
+    const raw = rawPlan();
+    raw.pages = readingPages.map((p, i) => ({ ...raw.pages[i % 3], page: p.order }));
+    const plan = validateSeriesShots(raw, readingPages, entities, 'lead');
+    const result = await generateSeriesImages({
+      illustrations: plan, entities, seed: 'chapter-coverage', visionModel: 'test', pageTexts: {},
+      chapterByPage: { 1: 1, 2: 1, 3: 2, 4: 2, 5: 3, 6: 3 },
+      buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
+      provider: async r => ({ url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }),
+      llm: async r => {
+        const page = Number(r.stage.match(/^series-image-qa-(\d+)-/)?.[1]);
+        const first = r.stage === `series-image-qa-${page}-1`;
+        return imageReview(r.stage, first && page >= 3 ? { primaryActionClear: false } : {});
+      },
+    });
+    expect(result.regenerated).toEqual([3, 5, 4, 6]);
+    expect(result.pages.get(3)?.status).toBe('passed');
+    expect(result.pages.get(5)?.status).toBe('passed');
+    expect(result.imagesGenerated).toBe(7);
+    expect(result.imageCalls).toBe(11);
+  });
+  test('retry budget reserves a simpler last chance for pictureless chapters before the cover', async () => {
+    const readingPages = Array.from({ length: 6 }, (_, i) => ({ ...pages[i % 3], order: i + 1 }));
+    const raw = rawPlan();
+    raw.pages = readingPages.map((p, i) => ({ ...raw.pages[i % 3], page: p.order }));
+    const planning: string[] = [];
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(raw, readingPages, entities, 'lead'), entities, seed: 'reserve-empty', visionModel: 'test',
+      pageTexts: Object.fromEntries(readingPages.map(p => [p.order, p.content])),
+      chapterByPage: { 1: 1, 2: 1, 3: 2, 4: 2, 5: 3, 6: 3 },
+      buildReference: async () => ({ urls: [] } as any), provider: async r => ({ url: `https://example.test/${r.page}.webp` }),
+      llm: async r => {
+        if (r.stage === 'series-picture-rescue-plan') { planning.push(r.user); return response('{"pages":[]}'); }
+        const match = r.stage.match(/^series-image-qa-(\d+)-(\d+)$/);
+        const page = Number(match?.[1]), attempt = Number(match?.[2]);
+        return imageReview(r.stage, [0, 1, 2, 5, 6].includes(page) && attempt < 3 ? { primaryActionClear: false } : {});
+      },
+    });
+    expect(result.regenerated).toEqual([1, 5, 2, 1, 5]);
+    expect(planning).toHaveLength(1);
+    expect(JSON.parse(planning[0]).map((item: any) => item.page)).toEqual([1, 5]);
+    expect(result.pages.get(1)?.status).toBe('passed');
+    expect(result.pages.get(5)?.status).toBe('passed');
+    expect(result.cover?.status).toBe('failed');
+    expect(result.imageCalls).toBe(12);
+  });
   test('long stories keep one image for each of four chapters, with a shared repair allowance', async () => {
     const longPages = [...pages, { ...pages[0], order: 4 }];
     const raw = rawPlan(); raw.pages.push({ ...raw.pages[0], page: 4 });
@@ -312,6 +506,35 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(result.imageCalls).toBe(5);
     expect(result.imagesGenerated).toBe(4);
   });
+  test('an empty chapter can retain a reviewed neighbouring moment even after a later unsafe redraw', async () => {
+    let pageOne = 0;
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'chapter-fallback',
+      visionModel: 'test', pageTexts: {}, chapterByPage: { 1: 1, 2: 2, 3: 3 },
+      buildReference: async () => ({ urls: [] } as any),
+      provider: async r => ({ url: `https://example.test/${r.page}-${r.page === 1 ? ++pageOne : 1}.webp` }),
+      llm: async r => {
+        if (r.stage === 'series-image-qa-1-1') return imageReview(r.stage, { posing: true, primaryActionClear: false, storyConsistent: true, defects: [{ kind: 'story', detail: 'The bell is beginning to swing, before the catch.', fix: 'Show the catch.' }] });
+        if (r.stage.startsWith('series-image-qa-1-')) return imageReview(r.stage, { defects: [{ kind: 'identity', detail: 'The dragon is duplicated.', fix: 'Show one dragon.' }] });
+        return imageReview(r.stage);
+      },
+    });
+    expect(result.pages.get(1)?.status).toBe('flawed');
+    expect(result.pages.get(1)?.salvaged).toBe(true);
+    expect(result.pages.get(1)?.url).toBe('https://example.test/1-1.webp');
+    expect(result.pages.get(1)?.history?.at(-1)?.kind).toBe('series-chapter-fallback');
+    expect(result.imagesGenerated).toBe(4);
+  });
+  test('a posed fallback is not published when its chapter already has a good illustration', async () => {
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'chapter-covered',
+      visionModel: 'test', pageTexts: {}, chapterByPage: { 1: 1, 2: 1, 3: 2 },
+      buildReference: async () => ({ urls: [] } as any), provider: async () => ({ url: 'https://example.test/image.webp' }),
+      llm: async r => imageReview(r.stage, r.stage.startsWith('series-image-qa-1-') ? { posing: true, primaryActionClear: false, storyConsistent: true } : {}),
+    });
+    expect(result.pages.get(1)?.status).toBe('failed');
+    expect(result.pages.get(2)?.status).toBe('passed');
+  });
   test('all planned chapters are reviewed before an earlier failure can consume the spare budget', async () => {
     const events: string[] = [];
     const llm = seriesLlmBudget(async r => {
@@ -378,10 +601,71 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
   });
   test('repairs go to a failed chapter before a failed cover', async () => {
     const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'chapter-first', provider: async () => ({ url: 'https://example.test/image.webp' }), llm: async r => imageReview(r.stage, r.stage.includes('qa-0-') || r.stage.includes('qa-1-1') ? { primaryActionClear: false, defects: [{ kind: 'story', detail: 'The selected exchange is absent.', fix: 'Show the selected exchange.' }] } : {}), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
-    expect(result.imageCalls).toBe(6);
-    expect(result.regenerated).toEqual([1, 0]);
+    expect(result.imageCalls).toBe(7);
+    expect(result.regenerated).toEqual([1, 0, 0]);
     expect(result.pages.get(1)?.status).toBe('passed');
     expect(result.cover?.status).toBe('failed');
+  });
+  test('a failed targeted edit gets one independently reviewed fresh variant within the shared budget', async () => {
+    const requests: any[] = [];
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'fresh-variant',
+      visionModel: 'test', pageTexts: {}, chapterByPage: { 1: 1, 2: 2, 3: 3 },
+      buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any),
+      provider: async request => {
+        requests.push(request);
+        return { url: `https://example.test/scene-${request.page}-${requests.filter(r => r.page === request.page).length}.webp`, costUSD: 0.0025 };
+      },
+      llm: async r => imageReview(r.stage, r.stage === 'series-image-qa-1-1' || r.stage === 'series-image-qa-1-2'
+        ? { defects: [{ kind: 'identity', detail: 'A second dragon appears.', fix: 'Show the dragon exactly once.' }] } : {}),
+    });
+    const attempts = requests.filter(r => r.page === 1);
+    expect(attempts).toHaveLength(3);
+    expect(attempts[1].referenceImages).toEqual(['https://example.test/scene-1-1.webp', 'data:image/jpeg;base64,AA==']);
+    expect(attempts[2].referenceImages).toEqual(['data:image/jpeg;base64,AA==']);
+    expect(attempts[2].prompt).not.toContain('existing scene to edit');
+    expect(attempts[2].seed).not.toBe(attempts[1].seed);
+    expect(result.pages.get(1)?.status).toBe('passed');
+    expect(result.pages.get(1)?.history?.map(h => h.status)).toEqual(['failed', 'failed', 'passed']);
+    expect(result.regenerated).toEqual([1, 1]);
+    expect(result.imageCalls).toBe(6);
+    expect(result.imageCostUSD).toBeCloseTo(0.015);
+  });
+  test('a pictureless chapter can use a simpler moment grounded in the same paragraph', async () => {
+    const requests: any[] = [];
+    const story = 'Ein Absatz.\n\nFunkelflug zieht das Glockenseil. Die Glocke bewegt sich.\n\nDas Ende.';
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'simpler-moment',
+      visionModel: 'test', pageTexts: { 1: story }, chapterByPage: { 1: 1, 2: 2, 3: 3 },
+      buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any),
+      provider: async r => { requests.push(r); return { url: `https://example.test/${r.page}-${requests.length}.webp` }; },
+      llm: async r => {
+        if (r.stage === 'series-picture-rescue-plan') return response(JSON.stringify({ pages: [{ page: 1, onStage: ['lead'], storyQuote: 'Funkelflug zieht das Glockenseil.', scene: 'Funkelflug pulls the bell rope.', visualBeat: { actorId: 'lead', action: 'pulls the bell rope down', result: 'the bell starts to swing overhead', framing: 'medium' } }] }));
+        if (r.stage === 'series-image-qa-1-1' || r.stage === 'series-image-qa-1-2') return imageReview(r.stage, { defects: [{ kind: 'identity', detail: 'The dragon is duplicated.', fix: 'Show only one dragon.' }] });
+        return imageReview(r.stage, r.stage === 'series-image-qa-1-3' ? { visibleIds: ['lead'] } : {});
+      },
+    });
+    const last = requests.filter(r => r.page === 1).at(-1);
+    expect(last.prompt).toContain('pulls the bell rope');
+    expect(last.prompt).toContain('A solitary scene with exactly one character');
+    expect(last.prompt).not.toContain('unnamed animals or crowds');
+    expect(last.prompt).not.toContain('Show only one dragon.');
+    expect(result.pages.get(1)?.history?.at(-1)?.kind).toBe('simplified-scene-repair');
+    expect(result.pages.get(1)?.status).toBe('passed');
+    expect(result.imageCalls).toBe(6);
+  });
+  test('an invented rescue quote is ignored and cannot replace the original scene', async () => {
+    const requests: any[] = [];
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'unfounded-rescue',
+      visionModel: 'test', pageTexts: { 1: 'Ein Absatz.\n\nDie Glocke bewegte sich.\n\nDas Ende.' }, chapterByPage: { 1: 1, 2: 2, 3: 3 },
+      buildReference: async () => ({ urls: [] } as any), provider: async r => { requests.push(r); return { url: 'https://example.test/image.webp' }; },
+      llm: async r => r.stage === 'series-picture-rescue-plan'
+        ? response(JSON.stringify({ pages: [{ page: 1, onStage: ['lead'], storyQuote: 'Ein erfundener Satz steht hier.', scene: 'A fabricated green apple is sitting in the middle of a sunny meadow by the mountain.', visualBeat: beat() }] }))
+        : imageReview(r.stage, r.stage === 'series-image-qa-1-1' || r.stage === 'series-image-qa-1-2' ? { primaryActionClear: false } : {}),
+    });
+    expect(requests.filter(r => r.page === 1).at(-1).prompt).not.toContain('fabricated green apple');
+    expect(result.pages.get(1)?.history?.at(-1)?.kind).toBe('same-scene-repair');
   });
   test('the single repair edits the readable existing scene while retaining the shared identity sheet', async () => {
     const requests: any[] = [];

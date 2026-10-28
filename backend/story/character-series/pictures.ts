@@ -12,7 +12,7 @@ import { ORIGINALS_IMAGE_STYLE, SCENE_SIZE } from '../library/images';
 import { SERIES_POLICY } from './authoring';
 import { effectiveSeriesEpisode, logsForEpisode } from './core';
 import { getSeriesEpisodeBlueprint } from './episode-plans';
-import { readSeriesQa, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW } from './quality';
+import { readSeriesQa, seriesPictureChapterFallback, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW } from './quality';
 import type { RunwareReferenceRegion } from '../../ai/runware-image-model-options';
 export { seriesPicturePasses, seriesPictureUsable } from './quality';
 
@@ -257,7 +257,7 @@ async function mapLimited<T, R>(items: T[], limit: number, work: (item: T, index
 
 export async function generateSeriesImages(input: {
   illustrations: IllustrationPlan; entities: VisualEntity[]; provider: ImageProvider; seed: string; llm: StorybookLlm; visionModel: string;
-  pageTexts: Record<number, string>; styleReferenceUrl?: string;
+  pageTexts: Record<number, string>; chapterByPage?: Record<number, number>; styleReferenceUrl?: string;
   buildReference?: ReturnType<typeof createIdentityReferenceCache>;
 }): Promise<StorybookImagesResult> {
   const shots = [input.illustrations.cover, ...input.illustrations.pages];
@@ -268,6 +268,9 @@ export async function generateSeriesImages(input: {
   const style = input.styleReferenceUrl || SERIES_STYLE_REFERENCE;
   let imageCalls = 0, imageCostUSD = 0;
   const editableImages = new Map<number, string>();
+  const chapterFallbacks = new Map<number, ImageOutcome>();
+  // Keep the generated image and its exact evidence when only the vision call failed.
+  const visionRecoveries = new Map<number, () => Promise<ImageOutcome>>();
   const qaCalls: StorybookImagesResult['qaCalls'] = [], regenerated: number[] = [];
   const canReview = () => (input.llm as StorybookLlm & { canCall?: () => boolean }).canCall?.() !== false;
   const slotPositionLabel = (index: number, total: number): string => {
@@ -275,7 +278,7 @@ export async function generateSeriesImages(input: {
     if (total === 3) return index === 0 ? ' (left third)' : index === 1 ? ' (middle third)' : ' (right third)';
     return '';
   };
-  const render = async (shot: IllustrationShot, number = 1, previous?: ImageOutcome): Promise<ImageOutcome> => {
+  const render = async (shot: IllustrationShot, number = 1, previous?: ImageOutcome, simplified = false): Promise<ImageOutcome> => {
     const history: NonNullable<ImageOutcome['history']> = [...(previous?.history || [])];
     let costUSD = previous?.costUSD || 0;
     if (!canReview()) return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD, status: 'failed', severity: 999, errors: ['series_budget_exhausted'], history: [...history, { kind: 'series-budget', status: 'failed', severity: 999, notes: ['Kein weiteres Bild erzeugt: Prüfbudget erreicht.'] }] };
@@ -298,7 +301,8 @@ export async function generateSeriesImages(input: {
       let imageUrl: string | undefined;
       const beat = (shot as SeriesShot).visualBeat;
       const moment = seriesPaintableMoment(shot);
-      const editing = number > 1 ? editableImages.get(shot.page) : undefined;
+      // An edit can preserve a stubborn defect. The final attempt starts a fresh scene with a different seed.
+      const editing = number === 2 ? editableImages.get(shot.page) : undefined;
       const identityAttachment = editing ? 2 : 1;
       const regions = seriesReferenceRegions(identities, beat, editing ? 1 : 0, (shot as SeriesShot).boxes, shot.page);
       const bindNames = (text: string) => identities.reduce((caption, entity, i) => {
@@ -317,7 +321,9 @@ export async function generateSeriesImages(input: {
         references.length ? `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${slotPositionLabel(i, identities.length)} is ONLY ${e.name}: ${e.appearance}`).join('; ')}. Keep each face, ears, teeth, species and outfit with its OWN person. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, and exactly two arms and two hands with five fingers${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.` : '',
         ...drawn.filter(e => !e.referenceUrl).map(e => `${e.name}: ${e.appearance}.`),
         'Every described object keeps its true material and shape (a cloth banner is flexible fabric, never a wooden log); a joke never adds a garment or a mouth-held prop.',
-        `Exactly ${drawn.length} named characters, once each: ${drawn.map(e => e.name).join(', ')}; only unnamed animals or crowds that the caption itself mentions may join them as extra figures. A story instant in one continuous full-bleed setting reaching every edge; completely ignore any sea, ships, sky or background from the reference portraits and paint only the scene's own environment.`,
+        simplified
+          ? `A solitary scene with exactly one character, ${drawn[0]?.name}, shown only once. The surrounding landscape is uninhabited: no other figures, creatures, spectators, faces or portraits anywhere in the background. Keep only the setting of this scene, not the reference portrait's background.`
+          : `Exactly ${drawn.length} named characters, once each: ${drawn.map(e => e.name).join(', ')}; only unnamed animals or crowds that the caption itself mentions may join them as extra figures. A story instant in one continuous full-bleed setting reaching every edge; completely ignore any sea, ships, sky or background from the reference portraits and paint only the scene's own environment.`,
         fixes.length ? `Correct these observed problems in the same scene: ${fixes.join(' ')}` : '',
         wordlessLine(moment.scene),
         'Use the shared Talea Originals medium described above; only the identity sheet supplies characters.',
@@ -334,35 +340,47 @@ export async function generateSeriesImages(input: {
       const editable = response.viewUrl || response.url;
       if (editable && /^(https?:\/\/|data:image\/)/i.test(editable)) editableImages.set(shot.page, editable);
       costUSD += response.costUSD || 0; imageCostUSD += response.costUSD || 0;
-      if (!response.url) return { page: shot.page, prompt, attempts: number, costUSD, severity: 999, status: 'missing', history };
-      const reviewUser = `${shot.page === 0 ? 'COVER: judge the selected character-in-world composition. No chapter action is compulsory.' : 'CHAPTER PICTURE: judge this selected moment, allowing harmless staging differences.'}\nEXPECTED IDENTITIES:\n${drawn.map(e => `${e.id}: ${e.name}; ${e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\nPROPOSED CAPTION:\n${moment.scene}\nPRIMARY STORY FACT: ${moment.fact}\n${shot.page === 0 ? '' : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph, (shot as SeriesShot).storyQuote)}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name})`).join('; ')}.` : 'No identity sheet is attached.'} The last attachment is the public style example.`;
-      let reply = await input.llm({ stage: `series-image-qa-${shot.page}-${number}`, role: 'support', model: input.visionModel, effort: 'low', json: true, maxTokens: 1000, timeoutMs: 60000,
-        system: SERIES_IMAGE_REVIEW,
-        user: reviewUser,
-        imageInputs: [response.viewUrl || response.url, ...references, style] });
-      qaCalls.push(reply);
-      let qa = readSeriesQa(reply.text, drawn);
-      if (!qa && canReview()) {
-        reply = await input.llm({ stage: `series-image-qa-${shot.page}-${number}-retry`, role: 'support', model: input.visionModel, effort: 'low', json: true, maxTokens: 1000, timeoutMs: 60000,
-          system: SERIES_IMAGE_REVIEW,
-          user: reviewUser,
-          imageInputs: [response.viewUrl || response.url, ...references, style] });
-        qaCalls.push(reply);
-        qa = readSeriesQa(reply.text, drawn);
+      if (!response.url) {
+        const reason = response.refused && response.httpStatus ? `series_provider_http_${response.httpStatus}` : 'series_provider_missing';
+        history.push({ kind: 'series-provider', status: 'missing', severity: 999, notes: [reason] });
+        return { page: shot.page, prompt, attempts: number, costUSD, severity: 999, status: 'missing', errors: [reason], history };
       }
-      const pass = seriesPicturePasses(qa);
-      const usable = !pass && seriesPictureUsable(qa);
-      const status: ImageOutcome['status'] = pass ? 'passed' : usable ? 'flawed' : 'failed';
-      const severity = pass ? 0 : usable ? 5 : 10;
-      const notes = qa ? [...qa.defects.map(d => d.detail), ...(qa.missing || []), ...qa.duplicates] : ['Bildprüfung unvollständig'];
-      history.push({ kind: number === 1 ? 'series-scene' : editing ? 'targeted-scene-edit' : 'same-scene-repair', status, severity, notes, url: response.url });
-      return { page: shot.page, url: response.url, prompt, attempts: number, costUSD, qa, severity, status, history };
+      const reviewUser = `${shot.page === 0 ? 'COVER: judge the selected character-in-world composition. No chapter action is compulsory.' : 'CHAPTER PICTURE: judge this selected moment, allowing harmless staging differences.'}\nEXPECTED IDENTITIES:\n${drawn.map(e => `${e.id}: ${e.name}; ${e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\nPROPOSED CAPTION:\n${moment.scene}\nPRIMARY STORY FACT: ${moment.fact}\n${shot.page === 0 ? '' : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph, (shot as SeriesShot).storyQuote)}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name})`).join('; ')}.` : 'No identity sheet is attached.'} The last attachment is the public style example.`;
+      const review = async (stage: string) => {
+        try {
+          const reply = await input.llm({ stage, role: 'support', model: input.visionModel, effort: 'low', json: true, maxTokens: 1000, timeoutMs: 60000,
+            system: SERIES_IMAGE_REVIEW, user: reviewUser, imageInputs: [response.viewUrl || response.url!, ...references, style] });
+          qaCalls.push(reply);
+          return readSeriesQa(reply.text, drawn);
+        } catch { return undefined; }
+      };
+      const verdict = (qa: NonNullable<ReturnType<typeof readSeriesQa>>): ImageOutcome => {
+        const pass = seriesPicturePasses(qa, shot.page === 0);
+        const usable = !pass && seriesPictureUsable(qa);
+        const status: ImageOutcome['status'] = pass ? 'passed' : usable ? 'flawed' : 'failed';
+        const severity = pass ? 0 : usable ? 5 : 10;
+        const notes = [...qa.defects.map(d => d.detail), ...(qa.missing || []), ...qa.duplicates];
+        history.push({ kind: number === 1 ? 'series-scene' : editing ? 'targeted-scene-edit' : simplified ? 'simplified-scene-repair' : 'same-scene-repair', status, severity, notes, url: response.url });
+        const outcome: ImageOutcome = { page: shot.page, url: response.url, prompt, attempts: number, costUSD, qa, severity, status, history };
+        if (shot.page !== 0 && !pass && seriesPictureChapterFallback(qa)) chapterFallbacks.set(shot.page, outcome);
+        return outcome;
+      };
+      let qa = await review(`series-image-qa-${shot.page}-${number}`);
+      if (!qa && canReview()) qa = await review(`series-image-qa-${shot.page}-${number}-retry`);
+      if (qa) return verdict(qa);
+      history.push({ kind: 'series-vision', status: 'failed', severity: 999, notes: ['Bildprüfung nicht verfügbar oder unlesbar; das erzeugte Bild bleibt für eine erneute Prüfung erhalten.'], url: response.url });
+      const unverified: ImageOutcome = { page: shot.page, url: response.url, prompt, attempts: number, costUSD, severity: 999, status: 'failed', errors: ['series_vision_error'], history };
+      visionRecoveries.set(shot.page, async () => {
+        const recovered = await review(`series-image-qa-${shot.page}-${number}-recovery`);
+        return recovered ? verdict(recovered) : unverified;
+      });
+      return unverified;
       } catch (error) {
         history.push({ kind: 'series-image-error', status: 'failed', severity: 999, notes: ['Bild oder Bildprüfung nicht vollständig verfügbar'], ...(imageUrl ? { url: imageUrl } : {}) });
         return { page: shot.page, url: imageUrl, prompt, attempts: number, costUSD, severity: 999, status: 'failed', errors: [(error as any)?.code === 'series_budget_exhausted' ? 'series_budget_exhausted' : imageUrl ? 'series_vision_error' : 'series_provider_error'], history };
       }
     };
-    return attempt(previous?.qa?.posing && !previous.qa.sceneFixes?.length ? ['Show the selected hand-object interaction and its visible result, with purposeful balance rather than portrait poses.'] : previous?.qa?.sceneFixes || []);
+    return attempt(simplified ? [] : previous?.qa?.posing && !previous.qa.sceneFixes?.length ? ['Show the selected hand-object interaction and its visible result, with purposeful balance rather than portrait poses.'] : previous?.qa?.sceneFixes || []);
   };
   // Every planned picture is drawn and checked at once: one after another, each waited for its 20–45 s check (story
   // ff6eff04: 211 s for four pictures). Repairs start only when every planned picture has its verdict.
@@ -374,16 +392,96 @@ export async function generateSeriesImages(input: {
   await mapLimited(referenceRecoveries, SERIES_POLICY.imageConcurrency, async ({ outcome, index }) => {
     outcomes[index] = await render(shots[index], 1, outcome);
   });
+  // A temporary vision outage must not throw away a paid image or force a redraw.
+  // Review the original image once more after the initial wave, keeping the same safety gates.
+  const reviewedAgain = new Set<string>();
+  const recoverUnverified = async () => {
+    const unverified = outcomes.map((outcome, index) => ({ outcome, index }))
+      .filter(({ outcome }) => outcome.errors?.includes('series_vision_error') && visionRecoveries.has(outcome.page) && !reviewedAgain.has(`${outcome.page}:${outcome.attempts}`));
+    await mapLimited(unverified, SERIES_POLICY.imageConcurrency, async ({ outcome, index }) => {
+      if (!canReview()) return;
+      reviewedAgain.add(`${outcome.page}:${outcome.attempts}`);
+      outcomes[index] = await visionRecoveries.get(outcome.page)!();
+    });
+  };
+  await recoverUnverified();
   // Repairs go only to hard faults, chapters before the cover: a printed "flawed" picture was never improved by a redraw
   // (ff6eff04 chapter 3, Talea-Folge 0ee9af53).
-  const canRetryOutcome = (o: ImageOutcome) => o.status === 'failed' && (Boolean(o.qa) || (!o.errors?.length && Boolean(o.url)));
-  const retries = outcomes.map((outcome, index) => ({ outcome, index }))
-    .filter(({ outcome }) => canRetryOutcome(outcome))
-    .sort((a, b) => Number(a.outcome.page === 0) - Number(b.outcome.page === 0) || a.index - b.index)
-    .slice(0, Math.max(0, Math.min(SERIES_POLICY.imageRetries, SERIES_POLICY.maxImageCalls - imageCalls)));
-  if (retries.length && canReview()) {
-    for (const { index } of retries) regenerated.push(shots[index].page);
-    await Promise.all(retries.map(async ({ index }) => { outcomes[index] = await render(shots[index], 2, outcomes[index]); }));
+  const canRetryOutcome = (o: ImageOutcome) => (o.status === 'failed' && (Boolean(o.qa) || o.errors?.includes('series_provider_error'))) ||
+    (o.status === 'missing' && !o.errors?.includes('series_provider_http_402'));
+  // A complicated multi-person action may fail even after an edit. For a still-pictureless chapter, ask for a
+  // simpler moment from the very same paragraph, so it can remain at its original position in the book.
+  const simplerShots = async (indexes: number[]): Promise<Map<number, IllustrationShot>> => {
+    const eligible = indexes.map(index => {
+      const shot = shots[index];
+      const paragraphs = (input.pageTexts[shot.page] || '').split(/\n\n+/).filter(Boolean);
+      const paragraph = paragraphs[(shot.paragraph || 1) - 1];
+      return { index, shot, paragraph };
+    }).filter(item => Boolean(item.paragraph));
+    if (!eligible.length || !canReview()) return new Map();
+    try {
+      const reply = await input.llm({ stage: 'series-picture-rescue-plan', role: 'support', model: input.visionModel, effort: 'low', json: true, maxTokens: 1800, timeoutMs: 60000,
+        system: 'Choose a simpler, drawable moment from each exact source paragraph for a children’s book. It replaces a failed complex illustration at the same paragraph. Show exactly ONE of the allowed characters doing one visible physical action already stated in the paragraph. Choose one simpler part of the event, not the full interaction that already failed. Do not include other people or infer new events, props, clothes or words in the image. Use an exact literal source quote from that paragraph. The original scene is context for the location, not a mandate to repeat the failed action. Describe the simpler action and established setting in English. If no honest single-character moment exists, omit that page. Return JSON {"pages":[{"page":number,"onStage":["id"],"storyQuote":"exact quote","scene":"English visual scene","visualBeat":{"actorId":"id","action":"physical verb and action","result":"visible consequence","framing":"wide|medium|close"}}]}.',
+        user: JSON.stringify(eligible.map(({ shot, paragraph }) => ({ page: shot.page, paragraph, originalScene: shot.scene, allowed: shot.onStage.map(id => ({ id, name: byId.get(id)?.name })) }))),
+      });
+      qaCalls.push(reply);
+      const raw = parseJsonObject(reply.text) as any;
+      if (!Array.isArray(raw.pages)) return new Map();
+      const result = new Map<number, IllustrationShot>();
+      for (const { index, shot, paragraph } of eligible) {
+        const candidate = raw.pages.find((item: any) => item?.page === shot.page);
+        const ids = candidate?.onStage;
+        const beat = candidate?.visualBeat;
+        const quote = typeof candidate?.storyQuote === 'string' ? candidate.storyQuote.trim() : '';
+        const normalise = (value: string) => value.normalize('NFC').replace(/\s+/g, ' ').trim();
+        if (!Array.isArray(ids) || ids.length !== 1 || ids.some((id: unknown) => typeof id !== 'string' || !shot.onStage.includes(id))) continue;
+        if (typeof candidate.scene !== 'string' || candidate.scene.trim().length < 20 || candidate.scene.length > 1200 || quote.length < 12 || quote.length > 500 || !normalise(paragraph).includes(normalise(quote))) continue;
+        if (!beat || !ids.includes(beat.actorId) || typeof beat.action !== 'string' || beat.action.length < 12 || beat.action.length > 220 || QUIET_ACTION.test(beat.action.trim()) || typeof beat.result !== 'string' || beat.result.length < 12 || beat.result.length > 260 || HIDDEN_IDENTITY.test(beat.result) || !['wide', 'medium', 'close'].includes(beat.framing)) continue;
+        result.set(index, { ...shot, onStage: ids, scene: candidate.scene, storyQuote: quote, visualBeat: beat } as SeriesShot);
+      }
+      return result;
+    } catch {
+      return new Map(); // The original selected scene remains available if redirection fails.
+    }
+  };
+  // First edit the failed scene; only if it still fails, spend any remaining budget on a fresh variant.
+  // Recompute coverage between waves so chapters with no usable picture receive priority each time.
+  for (const number of [2, 3]) {
+    const candidates = outcomes.map((outcome, index) => ({ outcome, index }))
+      .filter(({ outcome }) => canRetryOutcome(outcome) && outcome.attempts <= 2)
+      .sort((a, b) => Number(a.outcome.page === 0) - Number(b.outcome.page === 0) || a.index - b.index);
+    const covered = new Set(outcomes.filter(o => o.page !== 0 && isPublishable(o)).map(o => input.chapterByPage?.[o.page]).filter((chapter): chapter is number => chapter !== undefined));
+    const firstInEmptyChapter = new Set<number>();
+    const priority = candidates.filter(({ outcome }) => {
+      const chapter = input.chapterByPage?.[outcome.page];
+      if (outcome.page === 0 || chapter === undefined || covered.has(chapter) || firstInEmptyChapter.has(chapter)) return false;
+      firstInEmptyChapter.add(chapter);
+      return true;
+    });
+    const selected = new Set(priority.map(({ index }) => index));
+    const available = Math.max(0, Math.min(SERIES_POLICY.imageRetries - regenerated.length, SERIES_POLICY.maxImageCalls - imageCalls));
+    // Keep room for one more attempt per empty chapter instead of using every retry on first edits or the cover.
+    const reserved = number === 2 ? Math.min(priority.length, Math.max(0, available - priority.length)) : 0;
+    const retries = [...priority, ...candidates.filter(({ index }) => !selected.has(index))].slice(0, available - reserved);
+    if (retries.length && canReview()) {
+      const rescueIndexes = number === 3 ? priority.filter(({ outcome }) => outcome.attempts === 2 && Boolean(outcome.qa)).map(({ index }) => index).filter(index => retries.some(item => item.index === index)) : [];
+      const simplified = await simplerShots(rescueIndexes);
+      for (const { index } of retries) regenerated.push(shots[index].page);
+      await Promise.all(retries.map(async ({ index }) => { outcomes[index] = await render(simplified.get(index) || shots[index], outcomes[index].attempts + 1, outcomes[index], simplified.has(index)); }));
+      await recoverUnverified();
+    }
+  }
+  // Prefer a reviewed, story-consistent neighbouring moment to a completely blank chapter. It remains marked flawed;
+  // identity, safety, anatomy, extra figures and mismatched settings still prevent publication.
+  const covered = new Set(outcomes.filter(o => o.page !== 0 && isPublishable(o)).map(o => input.chapterByPage?.[o.page]).filter((chapter): chapter is number => chapter !== undefined));
+  for (let index = 1; index < outcomes.length; index++) {
+    const current = outcomes[index];
+    const chapter = input.chapterByPage?.[current.page];
+    const fallback = chapterFallbacks.get(current.page);
+    if (chapter === undefined || covered.has(chapter) || !fallback?.url) continue;
+    outcomes[index] = { ...fallback, status: 'flawed', salvaged: true, attempts: current.attempts, costUSD: current.costUSD,
+      history: [...(current.history || []), { kind: 'series-chapter-fallback', status: 'flawed', severity: 5, notes: ['Texttreuer benachbarter Moment statt eines bildlosen Kapitels.'], url: fallback.url }] };
+    covered.add(chapter);
   }
   return { cover: outcomes[0], pages: new Map(outcomes.slice(1).map(o => [o.page, o])), imagesGenerated: outcomes.filter(o => isPublishable(o)).length, imageCalls, imageCostUSD, qaCalls, regenerated };
 }

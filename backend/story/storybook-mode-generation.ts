@@ -32,7 +32,6 @@ import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { logTopic } from "../log/logger";
 import { resolveImageUrlForClient, resolveImageUrlForProxyAccess } from "../helpers/bucket-storage";
 import { buildArtifactImageUrlForClient } from "../helpers/image-proxy";
-import { acceptedGeneratedImageUrl } from "../helpers/imageResultGuard";
 import { recordStoryArtifact } from "./artifact-matcher";
 import { recordBroughtArtifact } from "./artifact-treasury";
 import { normalizeAgeBand, resolveLengthBudget } from "./storybook/craft";
@@ -65,7 +64,8 @@ import { storybookQuality } from "./storybook/quality";
 import { runDevelopmentStage } from "./storybook/developments";
 import { learningGoal } from "./storybook/learning";
 import { artifactHeadToken, countWords } from "./storybook/checks";
-import { LIBRARY_IMAGE_MODEL, LIBRARY_IMAGE_STEPS } from "./library/images";
+import { LIBRARY_IMAGE_MODEL } from "./library/images";
+import { createStorybookImageProvider } from "./storybook/image-provider";
 import type { CastCandidate, StorybookGeneratedStory, StorybookGenerationInput } from "./storybook/types";
 
 export { STORYBOOK_PIPELINE_ID };
@@ -114,39 +114,10 @@ function pageTitle(language: string | undefined, order: number): string {
   return `Seite ${order}`;
 }
 
-function imageSteps(model: string): number {
-  if (model === LIBRARY_IMAGE_MODEL) return LIBRARY_IMAGE_STEPS;
-  const configured = Number(process.env.TALEA_STORYBOOK_IMAGE_STEPS);
-  return Number.isFinite(configured) && configured >= 4 && configured <= 28 ? Math.round(configured) : 4;
-}
-
 /** Runware through the ai service; stored URL for the story, readable URL for the vision check. */
 export function encoreImageProvider(storyId: string | undefined, model = IMAGE_MODEL): ImageProvider {
-  return async (request) => {
-    const image = await ai.generateImage({
-      prompt: request.prompt,
-      negativePrompt: request.negativePrompt,
-      model,
-      width: request.width,
-      height: request.height,
-      steps: imageSteps(model),
-      ...(model === LIBRARY_IMAGE_MODEL ? {} : { CFGScale: 4 }),
-      seed: request.seed,
-      outputFormat: model === LIBRARY_IMAGE_MODEL ? "WEBP" : "JPEG",
-      referenceImages: request.referenceImages.length > 0 ? request.referenceImages : undefined,
-      ...(model === LIBRARY_IMAGE_MODEL && request.referenceRegions?.length ? { referenceRegions: request.referenceRegions } : {}),
-      logContext: { storyId, stage: request.logStage || (request.page === 0 ? "storybook-image-cover" : "storybook-image-page"), chapter: request.logStage ? undefined : request.page || undefined },
-    });
-    const url = acceptedGeneratedImageUrl(image) || undefined;
-    const response = (image as any)?.debugInfo?.responseReceived;
-    const rows = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? response : [];
-    const costUSD = rows.reduce((sum: number, row: any) => sum + (Number(row?.cost) > 0 ? Number(row.cost) : 0), 0);
-    const viewUrl = url ? await resolveImageUrlForClient(url).catch(() => undefined) : undefined;
-    const httpStatus = Number((image as any)?.debugInfo?.responseStatus) || undefined;
-    // The client already waited and retried; a refusal now means the provider is limiting us.
-    const refused = !url && (httpStatus === 429 || httpStatus === 402 || (httpStatus !== undefined && httpStatus >= 500));
-    return { url, viewUrl, costUSD, ...(refused ? { refused: true, httpStatus } : {}) };
-  };
+  // Prefer direct storage for vision/editing; if signing fails, the existing proxy is still worth a try.
+  return createStorybookImageProvider({ storyId, model, generateImage: ai.generateImage, resolveForVision: async url => await readableReference(url) || await resolveImageUrlForClient(url) });
 }
 
 export async function readableReference(imageUrl: string | undefined): Promise<string | undefined> {
@@ -404,6 +375,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     (seriesMode ? generateSeriesImages({
       illustrations, entities: pictureEntities, provider: encoreImageProvider(input.storyId, imageModel), seed, llm,
       visionModel: SERIES_IMAGE_REVIEW_MODEL, pageTexts: Object.fromEntries(picturePages.map(page => [page.order, page.content])),
+      chapterByPage: direction ? Object.fromEntries(direction.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined,
     }) : generateStorybookImages({
       illustrations,
       entities: pictureEntities,

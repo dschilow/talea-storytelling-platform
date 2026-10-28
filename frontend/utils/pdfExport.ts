@@ -11,6 +11,7 @@ import type { Story } from '../types/story';
 import type { Doku } from '../types/doku';
 import { getBackendUrl } from '../config';
 import { stripTtsEmotionMarkersForDisplay } from './chapterImagePlacement';
+import { chapterTailStart } from './pdfChapterTail';
 import i18n from '../src/i18n';
 
 // Type definitions for image loading
@@ -619,6 +620,8 @@ export async function exportStoryAsPDF(
         const lineHeight = 6.6;
         const paragraphGap = 3.2;
         const bottomLimit = pageHeight - 22; // leave room for the page number
+        const paragraphLines = paragraphs.map((paragraph) => doc.splitTextToSize(paragraph, contentWidth) as string[]);
+        const tailStart = chapterTailStart(paragraphLines.map((lines) => lines.length), (bookImages || []).map((image) => Math.min(image.afterParagraph, paragraphs.length - 1)));
 
         for (const [paragraphIndex, paragraph] of paragraphs.entries()) {
           // Pre-measure the paragraph so a long block does not get split into
@@ -626,17 +629,13 @@ export async function exportStoryAsPDF(
           // fit in the remaining space AND it fits on a fresh page, move it to
           // the next page as one unit; only genuinely page-spanning paragraphs
           // are allowed to break mid-way.
-          const wrapped = doc.splitTextToSize(paragraph, contentWidth) as string[];
+          const wrapped = paragraphLines[paragraphIndex];
           const blockHeight = wrapped.length * lineHeight;
-          // Keep the last two paragraphs of a chapter together: its closing line (the hook) alone on a
-          // page looked broken ("Die segelnden Wörter", page 10). Only without a picture in between.
-          if (
-            paragraphs.length >= 3 &&
-            paragraphIndex === paragraphs.length - 2 &&
-            !(bookImages || []).some((image) => Math.min(image.afterParagraph, paragraphs.length - 1) === paragraphIndex)
-          ) {
-            const lastWrapped = doc.splitTextToSize(paragraphs[paragraphs.length - 1], contentWidth) as string[];
-            const together = blockHeight + paragraphGap + lastWrapped.length * lineHeight;
+          // Keep several short closing beats together when they would otherwise leave a nearly empty page
+          // ("Die Sonne auf der Bremse": a page held only KLICK and the next sentence).
+          if (paragraphIndex === tailStart) {
+            const tail = paragraphLines.slice(tailStart);
+            const together = tail.reduce((height, lines) => height + lines.length * lineHeight, 0) + (tail.length - 1) * paragraphGap;
             if (bottomLimit - yPos < together && together <= bottomLimit - margin) {
               doc.addPage();
               yPos = margin;

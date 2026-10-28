@@ -1,6 +1,6 @@
 // @ts-ignore Bun test helpers are runtime-only in Encore.
 import { describe, test, expect } from 'bun:test';
-import { readSeriesQa, seriesPicturePasses, seriesPictureSource, seriesPictureUsable } from './quality';
+import { readSeriesQa, seriesPictureChapterFallback, seriesPicturePasses, seriesPictureSource, seriesPictureUsable } from './quality';
 import { seriesAvatarAppearance } from './identity';
 import type { VisualEntity } from '../storybook/illustration-stage';
 
@@ -44,9 +44,18 @@ describe('series image review after the production PDF', () => {
   });
   test('minor staging does not blank a recognisable active illustration; lost action and unsafe support still do', () => {
     const variation = [{ kind: 'story', detail: 'The tiny map marks differ from the source wording.', fix: 'Keep the prop marks pictorial.' }];
-    expect(seriesPicturePasses(readSeriesQa(review({ defects: variation }), cast))).toBe(true);
+    expect(seriesPicturePasses(readSeriesQa(review({ defects: variation, storyConsistent: true }), cast))).toBe(true);
     expect(seriesPicturePasses(readSeriesQa(review({ defects: variation, primaryActionClear: false }), cast))).toBe(false);
     expect(seriesPicturePasses(readSeriesQa(review({ defects: [{ kind: 'safety', detail: 'The child is underneath an unsupported loaded board.', fix: 'Keep the child beside the supported board.' }] }), cast))).toBe(false);
+  });
+  test('an explicit story contradiction cannot pass on an optimistic action flag alone', () => {
+    const contradiction = [{ kind: 'story', detail: 'The berries hit the child’s bare hair instead of his hat.', fix: 'Show the berries landing on the hat.', blocksAction: true }];
+    const qa = readSeriesQa(review({ defects: contradiction, storyConsistent: false, primaryActionClear: true }), cast);
+    expect(seriesPicturePasses(qa)).toBe(false);
+    expect(seriesPictureUsable(qa)).toBe(false);
+    expect(seriesPicturePasses(qa, true)).toBe(true); // The cover establishes the cast and world, not a specific instant.
+    const minor = [{ kind: 'story', detail: 'Tilda holds a wrench instead of a button, while the crown lands.', fix: 'Show the small button.', blocksAction: false }];
+    expect(seriesPicturePasses(readSeriesQa(review({ defects: minor, storyConsistent: false, primaryActionClear: true }), cast))).toBe(true);
   });
   test('literal nearby evidence replaces an entire repeated chapter in the picture prompt', () => {
     const text = ['first', 'The mouse turns the handle.', 'The door opens.', 'They wave.', ...Array(80).fill('Unrelated later event.')].join('\n\n');
@@ -85,6 +94,9 @@ describe('series image review after the production PDF', () => {
     expect(seriesPictureUsable(readSeriesQa(review(neighbour), cast))).toBe(false);
     expect(seriesPictureUsable(readSeriesQa(review({ ...neighbour, storyConsistent: true, defects: [{ kind: 'anatomy', detail: 'The child has a third hand.', fix: 'Give the child two hands.' }] }), cast))).toBe(false);
     expect(seriesPictureUsable(readSeriesQa(review({ ...neighbour, storyConsistent: true, posing: true }), cast))).toBe(false);
+    expect(seriesPictureChapterFallback(readSeriesQa(review({ ...neighbour, sceneMatch: 0.9, storyConsistent: true, posing: true }), cast))).toBe(true);
+    expect(seriesPictureChapterFallback(readSeriesQa(review({ ...neighbour, storyConsistent: false, posing: true }), cast))).toBe(false);
+    expect(seriesPictureChapterFallback(readSeriesQa(review({ ...neighbour, storyConsistent: true, defects: [{ kind: 'identity', detail: 'The dragon is doubled.', fix: 'Keep one dragon.' }] }), cast))).toBe(false);
     expect(seriesPictureUsable(readSeriesQa(review({ ...neighbour, storyConsistent: true, identityById: { dragon: 0.98, 'child-a': 0.7 } }), cast))).toBe(false);
   });
 });

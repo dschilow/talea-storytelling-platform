@@ -41,6 +41,9 @@ describe("avatar image persistence", () => {
         if (direct.hostname === "backend.example.test" || !direct.pathname.endsWith("/images/avatars/portrait.webp") || !direct.searchParams.has("X-Amz-Signature")) throw new Error("Generation still uses the public proxy instead of a signed storage URL");
       }
       if (await resolveImageUrlForProxyAccess(other) !== other) throw new Error("Foreign proxy was treated as our bucket reference");
+      const { buildStoryChapterImageUrlForClient } = await import(${JSON.stringify(new URL("./image-proxy.ts", import.meta.url).href)});
+      if (await buildStoryChapterImageUrlForClient("story-id", 2) !== undefined) throw new Error("An empty chapter incorrectly advertises a picture URL");
+      if (await buildStoryChapterImageUrlForClient("story-id", 2, stored) !== "https://backend.example.test/story/image/story/story-id/chapter/2") throw new Error("A chapter with an image lost its stable proxy URL");
     `;
     const result = spawnSync(process.execPath, ["-e", source], { encoding: "utf8" });
     expect(result.stderr).toBe("");

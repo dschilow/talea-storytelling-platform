@@ -30,6 +30,8 @@ export async function buildStoryChapterImageUrlForClient(
   chapterNumber: number,
   fallbackImageUrl?: string
 ): Promise<string | undefined> {
+  // Do not advertise an endpoint that cannot return an image for an empty chapter.
+  if (!fallbackImageUrl) return undefined;
   const base = await getProxyBaseUrl();
   if (base && storyId && Number.isFinite(chapterNumber) && chapterNumber > 0) {
     return `${base}/story/image/story/${encodePathSegment(storyId)}/chapter/${chapterNumber}`;
