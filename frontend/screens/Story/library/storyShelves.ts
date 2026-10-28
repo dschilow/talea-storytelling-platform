@@ -202,3 +202,10 @@ export function joinNames(names: string[], max = 3): string {
 }
 
 export const episodeWord = (count: number) => `${count} ${count === 1 ? "Folge" : "Folgen"}`;
+
+/** "Überrasch mich" in the wizard: a figure the family has not met yet if there is one, else any. */
+export function pickSurpriseSeries(series: CharacterSeriesChoice[], random: () => number = Math.random): CharacterSeriesChoice | undefined {
+  const fresh = series.filter((item) => item.episodeCount === 0);
+  const pool = fresh.length ? fresh : series;
+  return pool[Math.min(pool.length - 1, Math.floor(random() * pool.length))];
+}

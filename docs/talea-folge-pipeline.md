@@ -49,10 +49,10 @@ Beste Beispiele: `Logs/episode/r4-magic` („Da knurrt ein Nebelkissen!“), `p-
 
 ## Schalter
 
-- Wizard (nur Admins): Schritt „Art“, Kachel „Talea-Folge“ → `storybookMode: true`, `storybookEngine: "talea-folge-v1"`.
+- Wizard (für alle): erste Seite „Was möchtet ihr erleben?“, Karte „Eigene Geschichte“ → `storybookMode: true`, `storybookEngine: "talea-folge-v1"` (Admins können darunter eine Test-Pipeline wählen).
 - `TALEA_EPISODE_FLEX=off` schickt den Schreiber in den Standardtarif (Standard ist Flex), `TALEA_EPISODE_MODE=two-step` statt One-Shot, `TALEA_EPISODE_WRITER_MODEL` ersetzt Sol als Schreiber, `TALEA_EPISODE_PLANNER_MODEL` den Planer im Zwei-Schritt-Modus.
 - Testskript: `--mode one-shot|two-step`, `--writer`, `--planner`, `--hero-file`, `--learning`, `--dry`, `--via-openrouter` (OpenAI-Modelle über OpenRouter wie in Produktion), `--flex`.
-- Kunden bekommen weiterhin die Standard-Lane: `stripAdminOnlyStoryOptions` entfernt alle Lane-Felder. Eine Umstellung der Standard-Lane auf die Talea-Folge ist nicht gebaut und braucht eine Entscheidung.
+- Kunden (seit 28.10.2026): „Eigene Geschichte“ läuft auf der Talea-Folge, „Figurenabenteuer“ auf der Figurenserie (`backend/story/customer-story-lane.ts`); alle anderen Lane-Felder werden entfernt. Anfragen ohne Lane (Tavi, ältere Apps) folgen `TALEA_CUSTOMER_STORY_ENGINE` (`talea-folge-v1`, sonst Standard-Pipeline).
 
 ## Offen
 

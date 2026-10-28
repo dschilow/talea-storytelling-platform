@@ -25,11 +25,13 @@ interface Avatar {
 interface Props {
   state: { selectedAvatars: string[] };
   updateState: (updates: any) => void;
+  /** A Figurenserie takes at most three avatars (the series figure leads); a story four. */
+  maxAvatars?: number;
 }
 
 const accent = 'var(--primary)';
 
-export default function Step1AvatarSelection({ state, updateState }: Props) {
+export default function Step1AvatarSelection({ state, updateState, maxAvatars = 4 }: Props) {
   const backend = useBackend();
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -69,9 +71,9 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
     }
   };
 
-  // The step header promises "Wähle 1-4 Avatare" — enforce it instead of
-  // letting the child pick every avatar they own and blow up the cast.
-  const MAX_AVATARS = 4;
+  // The step header promises the limit — enforce it instead of letting the child
+  // pick every avatar they own and blow up the cast.
+  const MAX_AVATARS = maxAvatars;
 
   const toggleAvatar = (id: string) => {
     if (state.selectedAvatars.includes(id)) {
@@ -124,7 +126,7 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
     const noun = selectedCount === 1 ? t('wizard.common.avatarSingular') : t('wizard.summary.avatars');
     const suffix = selectedCount >= MAX_AVATARS ? ` — ${t('wizard.common.avatarMaxReached')}` : '';
     return `${selectedCount} ${noun} ${t('common.selected')}${suffix}`;
-  }, [selectedCount, t]);
+  }, [selectedCount, t, MAX_AVATARS]);
 
   if (loading) {
     return (
@@ -141,7 +143,10 @@ export default function Step1AvatarSelection({ state, updateState }: Props) {
 
   return (
     <div className="space-y-6">
-      <WizardStepHeading title={t('wizard.titles.avatars')} subtitle={t('wizard.subtitles.avatars')} />
+      <WizardStepHeading
+        title={t('wizard.titles.avatars')}
+        subtitle={maxAvatars === 4 ? t('wizard.subtitles.avatars') : `Bis zu ${maxAvatars} Avatare erleben das Abenteuer mit der Serienfigur.`}
+      />
 
       {avatars.length === 0 ? (
         <motion.div

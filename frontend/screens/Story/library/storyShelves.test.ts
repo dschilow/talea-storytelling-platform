@@ -7,6 +7,7 @@ import {
   isNewStory,
   joinNames,
   pickFeaturedStory,
+  pickSurpriseSeries,
   seriesStoryPath,
   splitSeriesRuns,
   wizardCategoryOf,
@@ -170,5 +171,16 @@ describe("library shelves", () => {
     expect(isNewStory(story("read", { minute: 1, read: true }), now)).toBe(false);
     expect(isNewStory(story("writing", { minute: 1, status: "generating" }), now)).toBe(false);
     expect(isNewStory(story("old", { minute: -8 * 24 * 60 }), now)).toBe(false);
+  });
+
+  test("Überrasch mich prefers a figure the family has not met yet", () => {
+    const met = { ...blubbert, episodeCount: 4 };
+    const fresh = { ...nebelfee, episodeCount: 0 };
+    expect(pickSurpriseSeries([met, fresh], () => 0)?.id).toBe("nebelfee");
+    expect(pickSurpriseSeries([met, fresh], () => 0.999)?.id).toBe("nebelfee");
+    expect(pickSurpriseSeries([met, { ...fresh, episodeCount: 2 }], () => 0.999)?.id).toBe("nebelfee");
+    expect(pickSurpriseSeries([met, { ...fresh, episodeCount: 2 }], () => 0)?.id).toBe("kapitaen-blubbert");
+    expect(pickSurpriseSeries([met], () => 1)?.id).toBe("kapitaen-blubbert");
+    expect(pickSurpriseSeries([])).toBeUndefined();
   });
 });

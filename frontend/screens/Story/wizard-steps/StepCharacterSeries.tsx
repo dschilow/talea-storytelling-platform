@@ -2,6 +2,7 @@ import React from 'react';
 import { BookOpen, Check, RotateCcw, Sparkles } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { pickSurpriseSeries } from '../library/storyShelves';
 import { idleTileClass, selectedTileClass, WizardStepHeading } from './wizardChoices';
 
 /** The choices come from the server, including this profile's own progress. */
@@ -18,17 +19,16 @@ export interface CharacterSeriesChoice {
   lastStoryId?: string;
 }
 
-/** null: ordinary story; 'auto': let Talea choose; otherwise a series ID. */
+/** null: no figure chosen yet; otherwise a series ID ('auto' only from older links: the server picks one). */
 export type CharacterSeriesSelection = string | null;
 
 interface Props {
   selection: CharacterSeriesSelection;
-  onSelect: (selection: CharacterSeriesSelection) => void;
+  onSelect: (seriesId: string) => void;
   series: CharacterSeriesChoice[];
   loading: boolean;
   error: string | null;
   onRetry: () => void;
-  genre: string | null;
   isAdmin?: boolean;
   episodeOverride?: number | null;
   onEpisodeOverrideChange?: (episode: number | null) => void;
@@ -38,8 +38,9 @@ interface Props {
 
 const folgen = (count: number) => `${count} ${count === 1 ? 'Folge' : 'Folgen'}`;
 
-export default function StepCharacterSeries({ selection, onSelect, series, loading, error, onRetry, genre, isAdmin, episodeOverride, onEpisodeOverrideChange, onResetProgress }: Props) {
+export default function StepCharacterSeries({ selection, onSelect, series, loading, error, onRetry, isAdmin, episodeOverride, onEpisodeOverrideChange, onResetProgress }: Props) {
   const [reset, setReset] = React.useState<{ busy: boolean; message: string | null; error: string | null }>({ busy: false, message: null, error: null });
+  const [surprised, setSurprised] = React.useState<string | null>(null);
   React.useEffect(() => { setReset({ busy: false, message: null, error: null }); }, [selection]);
   const selectedSeries = selection && selection !== 'auto' ? series.find((item) => item.id === selection) : undefined;
   const handleReset = async () => {
@@ -54,39 +55,29 @@ export default function StepCharacterSeries({ selection, onSelect, series, loadi
       setReset({ busy: false, message: null, error: resetError instanceof Error && resetError.message ? resetError.message : 'Der Zähler konnte nicht zurückgesetzt werden.' });
     }
   };
-  const apiGenre = genre === 'fairy-tales' ? 'fairy_tales' : genre;
-  const matches = (item: CharacterSeriesChoice) => Boolean(apiGenre && item.genres?.includes(apiGenre));
-  const hasGenreMatch = series.some(matches);
-  const sorted = [...series].sort((a, b) => Number(matches(b)) - Number(matches(a)));
+  const surprise = () => {
+    const pick = pickSurpriseSeries(series);
+    if (!pick) return;
+    setSurprised(pick.id);
+    onSelect(pick.id);
+  };
+  // Figures you already know first: their next episode is waiting.
+  const sorted = [...series].sort((a, b) => Number(b.episodeCount > 0) - Number(a.episodeCount > 0));
   const buttonClass = (selected: boolean) => cn(
     'flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]',
     selected ? selectedTileClass : idleTileClass,
   );
+  const surprisedSeries = surprised && surprised === selection ? series.find((item) => item.id === surprised) : undefined;
 
   return (
     <div className="space-y-5">
       <WizardStepHeading
         title="Wen möchtet ihr treffen?"
-        subtitle="Erlebt eure erste Begegnung mit der Figur und entdeckt ihre Welt. Bei späteren Besuchen geht eure Geschichte weiter."
+        subtitle="Beim ersten Besuch lernt ihr die Figur und ihre Welt kennen. Danach geht eure Serie Folge für Folge weiter."
       />
 
-      <div className="space-y-2" aria-label="Geschichtenart auswählen">
-        <button type="button" aria-pressed={selection === null} className={buttonClass(selection === null)} onClick={() => onSelect(null)}>
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--talea-surface-inset)] text-[var(--primary)]"><BookOpen aria-hidden className="h-6 w-6" /></span>
-          <span className="min-w-0 flex-1"><span className="block font-semibold text-[var(--talea-text-primary)]">Eine neue Geschichte</span><span className="block text-sm text-[var(--talea-text-secondary)]">Ein eigenes Abenteuer für eure Avatare.</span></span>
-          {selection === null && <Check aria-hidden className="h-5 w-5 shrink-0 text-[var(--primary)]" />}
-        </button>
-
-        <button type="button" aria-pressed={selection === 'auto'} disabled={loading || Boolean(error) || !hasGenreMatch} className={cn(buttonClass(selection === 'auto'), 'disabled:cursor-not-allowed disabled:opacity-50')} onClick={() => onSelect('auto')}>
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--talea-surface-inset)] text-[var(--primary)]"><Sparkles aria-hidden className="h-6 w-6" /></span>
-          <span className="min-w-0 flex-1"><span className="block font-semibold text-[var(--talea-text-primary)]">Überrasch mich</span><span className="block text-sm text-[var(--talea-text-secondary)]">Talea findet eine passende Figurenwelt für euch.</span></span>
-          {selection === 'auto' && <Check aria-hidden className="h-5 w-5 shrink-0 text-[var(--primary)]" />}
-        </button>
-        {!loading && !error && apiGenre && series.length > 0 && !hasGenreMatch && <p className="px-1 text-sm text-[var(--talea-text-secondary)]">Für diese Welt gibt es noch keinen passenden Vorschlag. Ihr könnt eine Figur selbst auswählen.</p>}
-      </div>
-
       <section aria-labelledby="character-series-heading">
-        <h3 id="character-series-heading" className="mb-2 text-sm font-semibold text-[var(--talea-text-secondary)]">Oder wählt eine Figur</h3>
+        <h3 id="character-series-heading" className="sr-only">Figuren</h3>
         {loading && <p role="status" className="py-3 text-sm text-[var(--talea-text-secondary)]">Figurenwelten werden geladen …</p>}
         {error && <div role="alert" className="rounded-2xl border border-[var(--talea-border-light)] p-4 text-sm text-[var(--talea-text-secondary)]"><p>{error}</p><button type="button" onClick={onRetry} className="mt-2 min-h-11 font-semibold text-[var(--primary)] underline focus-visible:outline-2 focus-visible:outline-[var(--primary)]">Erneut versuchen</button></div>}
         {!loading && !error && series.length === 0 && <p className="py-3 text-sm text-[var(--talea-text-secondary)]">Gerade sind keine Figurenwelten verfügbar.</p>}
@@ -94,14 +85,24 @@ export default function StepCharacterSeries({ selection, onSelect, series, loadi
           {sorted.map((item) => {
             const selected = selection === item.id;
             return (
-              <button key={item.id} type="button" aria-pressed={selected} onClick={() => onSelect(item.id)} className={cn(buttonClass(selected), 'items-start')}>
-                {item.imageUrl ? <img src={item.imageUrl} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" /> : <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-[var(--talea-surface-inset)] text-[var(--primary)]"><BookOpen aria-hidden className="h-6 w-6" /></span>}
-                <span className="min-w-0 flex-1"><span className="block font-semibold text-[var(--talea-text-primary)]">{item.title}</span><span className="mt-0.5 block text-sm leading-snug text-[var(--talea-text-secondary)]">{item.description}</span><span className="mt-1.5 block text-xs font-medium text-[var(--primary)]">{matches(item) ? 'Passt zu deiner Welt · ' : ''}{item.episodeCount > 0 ? `${item.episodeCount} ${item.episodeCount === 1 ? 'Folge erlebt' : 'Folgen erlebt'} · Weitererzählen` : 'Erstes Abenteuer'}</span></span>
+              <button key={item.id} type="button" aria-pressed={selected} onClick={() => { setSurprised(null); onSelect(item.id); }} className={cn(buttonClass(selected), 'items-start')}>
+                {item.imageUrl ? <img src={item.imageUrl} alt="" className="h-16 w-16 shrink-0 rounded-full bg-white object-cover shadow-[0_4px_12px_rgba(40,20,10,0.12)]" /> : <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[var(--talea-surface-inset)] text-[var(--primary)]"><BookOpen aria-hidden className="h-6 w-6" /></span>}
+                <span className="min-w-0 flex-1"><span className="block font-semibold text-[var(--talea-text-primary)]">{item.title}</span><span className="mt-0.5 block text-sm leading-snug text-[var(--talea-text-secondary)]">{item.description}</span><span className="mt-1.5 block text-xs font-semibold text-[var(--primary)]">{item.episodeCount > 0 ? `${folgen(item.episodeCount)} erlebt · Folge ${item.episodeCount + 1} wartet` : 'Erstes Abenteuer · Folge 1'}</span></span>
                 {selected && <Check aria-hidden className="h-5 w-5 shrink-0 text-[var(--primary)]" />}
               </button>
             );
           })}
         </div>
+        {series.length > 1 ? (
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <button type="button" onClick={surprise} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--talea-surface-inset)] px-4 text-[15px] font-semibold text-[var(--primary)] transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
+              <Sparkles aria-hidden className="h-4 w-4" /> Überrasch mich
+            </button>
+            <p role="status" aria-live="polite" className="text-[14px] text-[var(--talea-text-secondary)] empty:hidden">
+              {surprisedSeries ? `Talea hat ${surprisedSeries.characterName || surprisedSeries.title} für euch ausgesucht.` : ''}
+            </p>
+          </div>
+        ) : null}
       </section>
 
       {isAdmin && selection !== null && onEpisodeOverrideChange && (

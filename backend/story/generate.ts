@@ -12,6 +12,7 @@ import { avatar } from "~encore/clients";
 import { storyDB } from "./db";
 import { avatarSeriesFingerprint, CHARACTER_SERIES_ENGINE, CHARACTER_SERIES_VERSION, effectiveSeriesEpisode, extractSeriesLog, validateSeriesLog, withSeriesContext, nextSeriesEpisode, type CharacterSeriesBible, type SeriesEpisodeLog } from "./character-series/core";
 import { loadSeriesHistory, reserveSeries } from "./character-series/repository";
+import { customerStoryLane } from "./customer-story-lane";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { avatarDB } from "../avatar/db";
@@ -435,19 +436,10 @@ function limitList<T>(list: T[] | undefined): T[] | undefined {
  * changes cost or bypasses the product pipeline (model choice, candidate
  * counts, rewrite passes, token caps, developer/storybook engines, editorial
  * content types) is dropped, so a hand-crafted request cannot spend more
- * than one story coin is worth.
+ * than one story coin is worth. The lane is decided by customerStoryLane:
+ * the wizard's "Eigene Geschichte" (Talea-Folge) or "Figurenabenteuer"
+ * (Figurenserie); without a lane the Railway switch TALEA_CUSTOMER_STORY_ENGINE.
  */
-/**
- * Product switch for the lane customer stories run on, set as a Railway variable:
- * TALEA_CUSTOMER_STORY_ENGINE=talea-folge-v1 writes them with the Talea-Folge
- * method (one Sol call on the flex tier, about 2 minutes and 3 cents of text,
- * see docs/talea-folge-pipeline.md). Unset keeps the standard pipeline.
- */
-function customerStoryEngine(): Pick<StoryConfig, "storybookMode" | "storybookEngine"> {
-  const engine = (process.env.TALEA_CUSTOMER_STORY_ENGINE || "").trim();
-  return engine === "talea-folge-v1" ? { storybookMode: true, storybookEngine: engine } : {};
-}
-
 function stripAdminOnlyStoryOptions(config: StoryConfig): StoryConfig {
   const openRouterModel = CUSTOMER_OPENROUTER_MODELS.has(String(config.openRouterModel || ""))
     ? config.openRouterModel
@@ -493,9 +485,7 @@ function stripAdminOnlyStoryOptions(config: StoryConfig): StoryConfig {
       ? { useFairyTaleTemplate: config.preferences.useFairyTaleTemplate }
       : undefined,
     broughtArtifact: config.broughtArtifact,
-    ...(config.storybookEngine === CHARACTER_SERIES_ENGINE
-      ? { storybookMode: true, storybookEngine: CHARACTER_SERIES_ENGINE, characterSeriesId: config.characterSeriesId?.slice(0, 100), avatarIsHero: false }
-      : customerStoryEngine()),
+    ...customerStoryLane(config, process.env.TALEA_CUSTOMER_STORY_ENGINE),
   };
 }
 

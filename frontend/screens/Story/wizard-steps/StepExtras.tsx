@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { cn } from '@/lib/utils';
 import ArtifactCompanionPicker, { type BroughtArtifactSelection } from './ArtifactCompanionPicker';
 import LearningModeSection, { type LearningModeValue } from './LearningModeSection';
 import { ChoiceTile, TONE, WISH_CHOICES, WizardSectionTitle, WizardStepHeading, type WizardWish } from './wizardChoices';
@@ -13,21 +14,24 @@ interface Props {
     learningMode: LearningModeValue;
   };
   updateState: (updates: any) => void;
+  /** Wishes that do not apply (a Figurenserie: its figure leads, and its cast is planned). */
+  hiddenWishes?: WizardWish[];
 }
 
 /**
  * Everything optional on one page, so the main path stays four quick choices:
  * picture wishes, a treasure to take along, learning, and an own wish in words.
  */
-export default function StepExtras({ state, updateState }: Props) {
+export default function StepExtras({ state, updateState, hiddenWishes = [] }: Props) {
   const { t } = useTranslation();
+  const wishes = WISH_CHOICES.filter((choice) => !hiddenWishes.includes(choice.id));
 
   return (
     <div className="space-y-7">
       <WizardStepHeading title={t('wizard.titles.extras')} subtitle={t('wizard.subtitles.extras')} />
 
-      <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-        {WISH_CHOICES.map((choice) => (
+      <div className={cn('grid gap-2.5 sm:gap-3', wishes.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3')}>
+        {wishes.map((choice) => (
           <ChoiceTile
             key={choice.id}
             compact

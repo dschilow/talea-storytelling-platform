@@ -142,7 +142,7 @@ export const AvatarFaces: React.FC<{ people: Array<Pick<Avatar, "id" | "name" | 
   );
 };
 
-/** A series figure's portrait: watercolour on white, so it sits in a white medallion. */
+/** The series lead's pool portrait (square, full picture), cropped into a round medallion. */
 export const SeriesPortrait: React.FC<{ src?: string; size?: "sm" | "md" | "lg"; className?: string }> = ({ src, size = "md", className }) => (
   <span
     aria-hidden="true"

@@ -52,6 +52,9 @@ Dieses Dokument beschreibt die vollständige Architektur der **persönlichen Fig
    * Die Zuordnung ist reine Logik in `library/storyShelves.ts` (getestet): eine Geschichte gehört zur Serie, wenn `config.storybookEngine = "character-series-v1"`; die Liste `/stories` liefert dafür schlank `metadata.characterSeries = { id, episode }` (`metadata-visibility.ts`, nie das Folgenlog). Nach einem Admin-Reset zählen nur die neuesten `episodeCount` fertigen Folgen; ältere stehen auf der Serienseite unter „Frühere Folgen“.
    * Serienseite `/stories/series/:seriesId` (`CharacterSeriesScreen.tsx`): Hero mit Porträt, alle Folgen, „Folge N erstellen“, „Mit dabei“ (Avatare und getroffene Figuren mit Profil) und für Admins der Zähler-Reset. Sie liest denselben Speicher-Cache wie die Bibliothek (`library/useStoryLibrary.ts`) und öffnet daher sofort.
    * „Folge N erstellen“ öffnet den Wizard mit `/story?series=<id>&avatars=<ids>&tags=<welt>`: Serie, die Avatare der letzten Folge und ihre Welt sind schon gewählt.
+9. **Wizard (`frontend/screens/Story/TaleaStoryWizard.tsx`, `wizard-steps/StepStoryKind.tsx`):**
+   * Erste Seite für alle: „Was möchtet ihr erleben?“ mit zwei Karten, **Eigene Geschichte** (Talea-Folge) und **Figurenabenteuer** (Figurenserie, mit den Porträts der Figuren und „Kapitän Blubbert wartet auf eure nächste Folge“). Danach: Avatare (bei der Serie höchstens 3), **Figur** statt Welt („Wen möchtet ihr treffen?“, bekannte Figuren zuerst mit „Folge N wartet“, „Überrasch mich“ nimmt bevorzugt eine noch nicht getroffene Figur), Länge und Gefühl, Wünsche (ohne „Avatar ist Held“ und „Berühmte Figuren“, die in der Serie nicht gelten), Zusammenfassung mit Figur und Folgennummer. Die Welt der Folge kommt aus der Serie (oder aus dem Deep Link der letzten Folge).
+   * Die Test-Pipelines der Admins liegen eingeklappt unter „Eigene Geschichte“; die KI-Modell-Auswahl ist entfernt.
 
 ---
 

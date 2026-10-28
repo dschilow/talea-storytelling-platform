@@ -55,7 +55,8 @@ interface Props {
   storyCredits?: { limit: number | null; used: number; remaining: number | null; costPerGeneration: 1 } | null;
   generateDisabled?: boolean;
   generateDisabledMessage?: string;
-  characterSeriesLabel?: string;
+  /** A Figurenserie: the figure and the episode the next story will be ("Kapitän Blubbert · Folge 5"). */
+  series?: { label: string; imageUrl?: string | null };
 }
 
 interface AvatarPreview {
@@ -88,7 +89,7 @@ export default function StepReady({
   storyCredits,
   generateDisabled = false,
   generateDisabledMessage,
-  characterSeriesLabel,
+  series,
 }: Props) {
   const { t, i18n } = useTranslation();
   const backend = useBackend();
@@ -137,13 +138,14 @@ export default function StepReady({
     .filter((choice): choice is NonNullable<typeof choice> => Boolean(choice));
   const bookForm = BOOK_FORMS.find((form) => form.id === state.experienceForm);
 
-  // Hauptrolle and Happy End start switched on; only a change from that is news.
+  // Hauptrolle and Happy End start switched on; only a change from that is news. In a series the figure leads and the
+  // cast is planned, so those two wishes are not offered there.
   const extras = [
     state.rhymes && t('wizard.wishes.rhymes.title'),
     state.moral && t('wizard.wishes.moral.title'),
-    state.famousCharacters && t('wizard.wishes.famousCharacters.title'),
+    !series && state.famousCharacters && t('wizard.wishes.famousCharacters.title'),
     state.surpriseEnd && t('wizard.wishes.surpriseEnd.title'),
-    !state.avatarIsHero && t('wizard.ready.withoutHero'),
+    !series && !state.avatarIsHero && t('wizard.ready.withoutHero'),
     !state.happyEnd && t('wizard.ready.withoutHappyEnd'),
     state.broughtArtifact && t('wizard.ready.treasure', { name: state.broughtArtifact.name }),
     state.learningMode.enabled &&
@@ -194,7 +196,7 @@ export default function StepReady({
           {chevron}
         </button>
 
-        {category && (
+        {category && !series && (
           <button type="button" className={rowClass} onClick={() => onEdit('category')}>
             <IconSquare icon={category.icon} tone={category.tone} />
             <span className="min-w-0 flex-1">
@@ -205,12 +207,18 @@ export default function StepReady({
           </button>
         )}
 
-        {characterSeriesLabel && (
+        {series && (
           <button type="button" className={rowClass} onClick={() => onEdit('category')}>
-            <IconSquare icon="openBook" tone={TONE.sky} />
+            {series.imageUrl ? (
+              <span className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-white ring-2 ring-[var(--talea-surface-primary)]">
+                <img src={series.imageUrl} alt="" className="h-full w-full object-cover" />
+              </span>
+            ) : (
+              <IconSquare icon="books3" tone={TONE.mint} />
+            )}
             <span className="min-w-0 flex-1">
               <span className={captionClass}>Figurenabenteuer</span>
-              <span className={valueClass}>{characterSeriesLabel}</span>
+              <span className={valueClass}>{series.label}</span>
             </span>
             {chevron}
           </button>
