@@ -8,7 +8,7 @@ const entries = bibles.map((b, index) => {
   const originNames = { before: 'Davor', arrival: 'Der eigene Anlass und Weg der Avatare', encounter: 'Die erste Begegnung', trouble: 'Das Abenteuer und der Fehlversuch', choice: 'Die entscheidende Wahl', after: 'Ergebnis und offene Serienfrage' };
   const text = [
     `## ${index + 1}. ${b.title}`, `### Serienversprechen\n\n${n.promise}`,
-    `### Hauptfigur\n\n${n.lead}\n\n**Stimme:** ${n.voice}\n\n**Fester Bildentwurf:** ${n.look}`,
+    `### Hauptfigur\n\n${n.lead}\n\n**Stimme:** ${n.voice}\n\n**Aussehen:** Die vorhandene Poolfigur mit ihrer Bildreferenz und ihrem gespeicherten visuellen Profil. Die Serienbibel legt kein zweites Aussehen fest.`,
     `### Die Welt vor der ersten Begegnung\n\n${n.world}`,
     `### Verbindliche Regeln\n\n${n.rules.map(r => `- ${r}`).join('\n')}`,
     `### Festes Ensemble\n\n${n.ensemble.map(c => `- **${c.name}** (${c.species}): ${c.nature}\n  Aussehen: ${c.look}`).join('\n')}`,

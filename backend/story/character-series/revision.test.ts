@@ -4,7 +4,7 @@ import { applyChapterEdits, runCharacterSeriesTextEngine, seriesLlmBudget } from
 import { seriesAuthoring, seriesBudget, SERIES_MODELS, SERIES_POLICY } from './authoring';
 import { SERIES_NARRATIVES } from './narrative';
 import { withSeriesContext, seriesPrompt } from './core';
-import { directSeriesPictures, generateSeriesImages, validateSeriesShots, seriesPicturePasses } from './pictures';
+import { directSeriesPictures, generateSeriesImages, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment } from './pictures';
 import { readSeriesQa } from './quality';
 import { CostLedger, type StorybookLlm } from '../storybook/llm';
 import { buildBrief } from '../storybook/context';
@@ -96,8 +96,9 @@ const entities: VisualEntity[] = [
 ];
 const scene = 'Funkelflug at left pulls a bell rope while Nora at right catches the falling wooden handle, both looking at the rope in the mountain hut.';
 const pages = [1, 2, 3].map(order => ({ order, title: 'Glocke', content: 'Ein Absatz.\n\nDie Glocke bewegte sich.\n\nDas Ende.', paragraphs: [] }));
-const rawPlan = () => ({ cover: { onStage: ['lead'], scene }, pages: pages.map(p => ({ page: p.order, paragraph: 2, storyQuote: 'Die Glocke bewegte sich.', onStage: ['lead', 'kid'], scene })) });
-const imageReview = (stage: string, fields: Record<string, unknown> = {}) => response(JSON.stringify({ visibleIds: stage.includes('qa-0-') ? ['lead'] : ['lead', 'kid'], identityById: { lead: 1, kid: 1 }, primaryActionClear: true, sceneMatch: 1, styleMatch: 1, defects: [], ...fields }));
+const beat = (framing = 'wide') => ({ actorId: 'lead', action: 'pulls the bell rope down', result: 'the wooden handle swings toward Nora', framing });
+const rawPlan = () => ({ cover: { onStage: ['lead'], visualBeat: beat(), scene }, pages: pages.map(p => ({ page: p.order, paragraph: 2, storyQuote: 'Die Glocke bewegte sich.', onStage: ['lead', 'kid'], visualBeat: beat(p.order === 2 ? 'close' : 'wide'), scene })) });
+const imageReview = (stage: string, fields: Record<string, unknown> = {}) => response(JSON.stringify({ visibleIds: stage.includes('qa-0-') ? ['lead'] : ['lead', 'kid'], identityById: { lead: 1, kid: 1 }, posing: false, primaryActionClear: true, sceneMatch: 1, styleMatch: 1, defects: [], ...fields }));
 
 describe('series artwork preserves action and lead within a fixed budget', () => {
   test('direction sees the public lead and style, never private avatar portraits', async () => {
@@ -105,7 +106,8 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     const figures = entities.map(e => e.id === 'lead' ? { ...e, id: bible.characterId } : e);
     const raw = rawPlan();
     raw.cover.onStage = [bible.characterId];
-    raw.pages.forEach(p => p.onStage = [bible.characterId, 'kid']);
+    raw.cover.visualBeat.actorId = bible.characterId;
+    raw.pages.forEach(p => { p.onStage = [bible.characterId, 'kid']; p.visualBeat.actorId = bible.characterId; });
     let inputs: string[] = [];
     await directSeriesPictures({ brief: b, model: 'test', title: 'Glocke', pages, entities: figures, llm: async r => { inputs = r.imageInputs || []; expect(r.user).toContain('FIRST CHAPTER PICTURE'); return response(JSON.stringify(raw)); } });
     expect(inputs).toContain(figures[0].referenceUrl!);
@@ -129,7 +131,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     const result = await generateSeriesImages({ illustrations: plan, entities, seed: 'test', provider: async request => { requests.push(request); return { url: 'https://example.test/image.webp', costUSD: 0.0025 }; }, llm: quality, visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
     expect(result.imagesGenerated).toBe(4);
     expect(requests).toHaveLength(4);
-    expect(requests.every(r => r.width === 1216 && r.height === 832 && r.referenceImages.length === 2 && r.prompt.includes('STYLE EXAMPLE'))).toBe(true);
+    expect(requests.every(r => r.width === 1216 && r.height === 832 && r.referenceImages.length === 1 && r.prompt.includes('gouache'))).toBe(true);
   });
   test('failed action gets at most one extra attempt across the story and never loses the lead', async () => {
     const requests: any[] = [];
@@ -177,13 +179,29 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(draws).toBe(0);
     expect(noBudget.pages.get(3)?.errors).toContain('series_budget_exhausted');
     const missing = entities.map(e => e.role === 'hero' ? { ...e, referenceUrl: undefined } : e);
-    const noReference = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, missing, 'lead'), entities: missing, seed: 'missing', provider: async () => { draws++; return { url: 'https://example.test/image.webp' }; }, llm: async r => imageReview(r.stage), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
+    const noReference = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities: missing, seed: 'missing', provider: async () => { draws++; return { url: 'https://example.test/image.webp' }; }, llm: async r => imageReview(r.stage), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
     expect(noReference.pages.get(1)?.errors).toContain('series_avatar_reference_missing');
     expect(draws).toBe(1); // The cover needs only the available lead; no invented avatar is drawn.
   });
-  test('a fabricated chapter quote is rejected before paying for an illustration', () => {
+  test('a paraphrased model quote is replaced by actual source evidence before drawing', () => {
     const raw = rawPlan(); raw.pages[0].storyQuote = 'Ein im Kapitel nicht vorhandener Satz.';
-    expect(() => validateSeriesShots(raw, pages, entities, 'lead')).toThrow('wörtlicher Beleg');
+    expect(validateSeriesShots(raw, pages, entities, 'lead').pages[0]).toMatchObject({ storyQuote: 'Die Glocke bewegte sich.' });
+  });
+  test('speech-only plans and a uniform sequence of portrait framings are rejected before drawing', () => {
+    const passive = rawPlan(); passive.pages[1].visualBeat.action = 'agrees to take the shorter route';
+    expect(() => validateSeriesShots(passive, pages, entities, 'lead')).toThrow('körperliche Handlung');
+    const uniform = rawPlan(); uniform.pages.forEach(p => p.visualBeat.framing = 'medium');
+    expect(() => validateSeriesShots(uniform, pages, entities, 'lead')).toThrow('unterschiedliche Bildausschnitte');
+    const wrongActor = rawPlan(); wrongActor.pages[0].visualBeat.actorId = 'off-panel-child';
+    expect(() => validateSeriesShots(wrongActor, pages, entities, 'lead')).toThrow('körperliche Handlung');
+  });
+  test('written clue text does not enlarge a hand-sized location token into a table', () => {
+    const shot = { page: 2, onStage: ['kid'], scene: 'Nora scrubs a clay location tile with a damp cloth. The letters T and STEG appear after BUCH on the tile. Ben leans closer.', visualBeat: { ...beat('close'), actorId: 'kid', action: 'rubs the dirty place tile clean', result: 'the letters T and STEG appear after BUCH' } };
+    const rendered = seriesPaintableMoment(shot as any);
+    expect(rendered.scene).toContain('palm-sized clay token');
+    expect(rendered.scene).not.toContain('STEG');
+    expect(rendered.fact).toContain('clean patch');
+    expect(rendered.fact).not.toContain('letters');
   });
   test('a literal quote survives straight quotation marks and dashes', () => {
     const spoken = pages.map(p => ({ ...p, content: 'Ein Absatz.\n\n„Hallo“, sagte Adrian – und grinste…\n\nDas Ende.' }));
@@ -198,7 +216,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(reviews[1].user).toContain('Die Glocke bewegte sich.');
     expect(reviews[1].user).toContain('slot 2 = kid');
     expect(drawings[1].prompt).toContain('slot 2 (right half) is ONLY Nora');
-    expect(drawings[1].referenceImages).toHaveLength(2); // One existing shared sheet + public style, no separate private exports.
+    expect(drawings[1].referenceImages).toHaveLength(1); // Only the existing shared sheet; no competing style characters or individual private exports.
   });
   test('the one repair prioritises a failed avatar chapter over a failed cover', async () => {
     const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'chapter-first', provider: async () => ({ url: 'https://example.test/image.webp' }), llm: async r => imageReview(r.stage, r.stage.includes('qa-0-') || r.stage.includes('qa-1-1') ? { primaryActionClear: false, defects: [{ kind: 'story', detail: 'The selected exchange is absent.', fix: 'Show the selected exchange.' }] } : {}), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
@@ -206,5 +224,16 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(result.regenerated).toEqual([1]);
     expect(result.pages.get(1)?.status).toBe('passed');
     expect(result.cover?.status).toBe('failed');
+  });
+  test('the single repair edits the readable existing scene while retaining the shared identity sheet', async () => {
+    const requests: any[] = [];
+    const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'edit', provider: async r => { requests.push(r); return { url: `bucket://story/${r.page}.webp`, viewUrl: `https://example.test/scene-${r.page}.webp` }; }, llm: async r => imageReview(r.stage, r.stage === 'series-image-qa-1-1' ? { defects: [{ kind: 'anatomy', detail: 'The child has an extra hand.', fix: 'Give the child two hands holding the handle.' }] } : {}), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
+    expect(requests).toHaveLength(5);
+    expect(requests[4].referenceImages).toEqual(['https://example.test/scene-1.webp', 'data:image/jpeg;base64,AA==']);
+    expect(requests[4].prompt).toContain('Image 1 is the existing scene to edit');
+    expect(requests[4].prompt).toContain('Image 2 is only the identity sheet');
+    expect(requests[4].referenceRegions.map((r: any) => r.referenceIndex)).toEqual([1, 1]);
+    expect(result.pages.get(1)?.status).toBe('passed');
+    expect(result.pages.get(1)?.history?.at(-1)?.kind).toBe('targeted-scene-edit');
   });
 });

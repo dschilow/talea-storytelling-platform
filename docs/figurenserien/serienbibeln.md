@@ -14,7 +14,7 @@ Die Nebelfee will anderen den Weg zurückgeben und ihren eigenen Heimweg finden.
 
 **Stimme:** Leise, genau, mit trockenen Ausflüchten: Das war bestimmt der Wind. Sie kann sich ärgern und widersprechen; nicht in jedem Kapitel verschwinden oder entschuldigen.
 
-**Fester Bildentwurf:** small fairy made of pale silvery mist, long silver hair, translucent pale blue dress, expressive round face; solid enough hands to carry small objects, sometimes her edges fade
+**Aussehen:** Die vorhandene Poolfigur mit ihrer Bildreferenz und ihrem gespeicherten visuellen Profil. Die Serienbibel legt kein zweites Aussehen fest.
 
 ### Die Welt vor der ersten Begegnung
 
@@ -95,7 +95,7 @@ Funkelflug will als richtiger Drache ernst genommen werden. Er kann nicht fliege
 
 **Stimme:** Begeistert, vollmundig und bei Gegenwind erfinderisch: Das war eine Zwischenlandung. Er kann trocken nachlegen und auch einmal recht haben. Kein zwanghafter Reim nach jeder Handlung.
 
-**Fester Bildentwurf:** small golden dragon, round expressive face, short snout, tiny wings much too small to carry him, two arms two legs, long tail with small spikes; determined eyebrows and varied expressions, no clothes
+**Aussehen:** Die vorhandene Poolfigur mit ihrer Bildreferenz und ihrem gespeicherten visuellen Profil. Die Serienbibel legt kein zweites Aussehen fest.
 
 ### Die Welt vor der ersten Begegnung
 
@@ -176,7 +176,7 @@ Der Graf wünscht sich Gesellschaft und fürchtet, dabei die Kontrolle zu verlie
 
 **Stimme:** Förmlich, knapp, mit übergenauen Ausnahmen und trockenem Stolz. Er sagt Besuch ab, während er Tassen hinstellt. Kein belehrender Erwachsener, der in jeder Folge dieselbe Einsamkeit überwindet.
 
-**Fester Bildentwurf:** older round-faced count with bushy grey eyebrows, neatly combed grey hair, burgundy waistcoat, cream shirt, dark trousers, expressive stern mouth that betrays a smile
+**Aussehen:** Die vorhandene Poolfigur mit ihrer Bildreferenz und ihrem gespeicherten visuellen Profil. Die Serienbibel legt kein zweites Aussehen fest.
 
 ### Die Welt vor der ersten Begegnung
 
@@ -257,7 +257,7 @@ Blubbert will als Entdecker gelten und niemanden zurücklassen. Er ist ein guter
 
 **Stimme:** Seemännisch, bildhaft, kurze große Ansagen. Einen hervorragenden Einfall der anderen nennt er gern eine Idee des Kapitäns. Der Gag wird später gegen ihn gewendet.
 
-**Fester Bildentwurf:** round friendly sea captain, curly brown beard, navy coat with brass buttons, striped cream shirt, blue captain cap, sturdy boots
+**Aussehen:** Die vorhandene Poolfigur mit ihrer Bildreferenz und ihrem gespeicherten visuellen Profil. Die Serienbibel legt kein zweites Aussehen fest.
 
 ### Die Welt vor der ersten Begegnung
 
@@ -338,7 +338,7 @@ Tilda ist erfinderisch, ehrgeizig und liebt ihre unscheinbare Lieblingsklammer. 
 
 **Stimme:** Schnelle genaue Wörter für Dinge, begeistert beim Vorführen, trocken beleidigt bei unvernünftiger Nutzung. Sie hört zu, darf widersprechen und braucht keine Lehrsatzrede.
 
-**Fester Bildentwurf:** young inventor girl with dark brown bob, bright curious eyes, mustard work apron over teal shirt, blue trousers, pencil behind one ear, small red clamp on apron
+**Aussehen:** Die vorhandene Poolfigur mit ihrer Bildreferenz und ihrem gespeicherten visuellen Profil. Die Serienbibel legt kein zweites Aussehen fest.
 
 ### Die Welt vor der ersten Begegnung
 

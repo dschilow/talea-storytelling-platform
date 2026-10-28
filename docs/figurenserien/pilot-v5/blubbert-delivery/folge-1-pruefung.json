@@ -1,0 +1,182 @@
+{
+  "seriesId": "kapitaen-blubbert",
+  "episode": 1,
+  "version": 2,
+  "contractHash": "362b36e51c5df8eb71aa3f4861e09fc19f42d0772fcf7d1c812c7a543986532f",
+  "models": {
+    "writer": "openai/gpt-6.1-sol",
+    "support": "openai/gpt-6-luna",
+    "critic": "openai/gpt-6.1-terra"
+  },
+  "imageModel": "bfl:flux@3-image-klein",
+  "policy": {
+    "version": 5,
+    "picturesPerChapter": 1,
+    "maxImageCalls": 6,
+    "maxLlmCalls": 12,
+    "llmStopAfterUSD": 0.08,
+    "longLlmStopAfterUSD": 0.12,
+    "maxTextRepairs": 1
+  },
+  "fictionalAvatars": [
+    "Nora",
+    "Ben"
+  ],
+  "reusedTextFrom": "Logs/character-series-v5/blubbert-flux3/episode-1/result.json",
+  "status": "accepted",
+  "log": {
+    "episode": 1,
+    "storyId": "fictional-v2-kapitaen-blubbert-1",
+    "avatarIds": [
+      "fictional-nora",
+      "fictional-ben"
+    ],
+    "events": [
+      {
+        "fact": "Nora und Ben lernen Blubbert bei seiner ersten verantwortlichen Kapitänsfahrt kennen.",
+        "quote": "„Kapitän Blubbert. Heute meine erste Fahrt mit eigener Verantwortung.“"
+      },
+      {
+        "fact": "Die Crew entdeckt und erprobt den Muschelkompass.",
+        "quote": "„Er zeigt also keine Geschichte“, sagte Ben. „Er zeigt einen Ort.“"
+      },
+      {
+        "fact": "Die Sitzpolster werden am Buchtsteg geliefert.",
+        "quote": "Am Buchtsteg warteten bereits zwei Leute auf die neuen Sitzpolster."
+      }
+    ],
+    "relationships": [
+      {
+        "fact": "Nora und Ben sind Geschwister und Pia ist ihre Tante.",
+        "quote": "Nora und ihr kleiner Bruder Ben kamen mit ihrer Tante Pia über den Kai."
+      },
+      {
+        "fact": "Blubbert lernt Nora und Ben als Mitglieder seiner ersten Crew kennen.",
+        "quote": "„Dann begrüße ich meine erste Mannschaft!“"
+      }
+    ],
+    "openThreads": [
+      {
+        "fact": "Ein altes Ortsplättchen zeigt ein steinernes Tor auf einer Insel, die auf den aktuellen Karten fehlt.",
+        "quote": "Keine zeigte eine Insel mit einem steinernen Tor."
+      }
+    ],
+    "context": [
+      "Alles hoch, aber ordentlich!\nKapitän Blubbert stellte sich auf die Zehenspitzen und nagelte ein Schild an seinen Bootsmast: ENTDECKERFAHRT.",
+      "Dann hängte er sechs dicke Sitzpolster darüber.",
+      "Blubbert rückte seine Mütze zurecht. Ringsum rumpelte der Hafen längst durch seinen Morgen. Eine Frau rollte leere Fischkisten über die Pflastersteine. Im Nachbarboot klapperte Geschirr. Über einer Tür hing ein einzelner tropfender Gummistiefel.",
+      "Nora und ihr kleiner Bruder Ben kamen mit ihrer Tante Pia über den Kai. Nora trug den Lieferschein, Ben eine Tüte mit vier belegten Broten. Pia hatte die neuen Sitzpolster angefertigt und sollte heute als erfahrene Bootsbauerin mitfahren.",
+      "„Dritter Steg, zweites Boot“, las Nora vor.",
+      "„Hier. Und bevor wir weiterstapeln: Das sind Nora und Ben, meine Nichte und mein Neffe. Die angemeldeten Mitreisenden.“",
+      "Blubbert verbeugte sich. „Kapitän Blubbert. Heute meine erste Fahrt mit eigener Verantwortung.“",
+      "„Ich kann Listen prüfen“, sagte Nora.",
+      "„Ich möchte auch mitentscheiden“, sagte Ben.",
+      "„Dann begrüße ich meine erste Mannschaft!“",
+      "Er zeigte ihnen das Boot: hinten sein Platz am Steuer, mittschiffs Pias Arbeitsecke mit Werkzeugkasten, vorne die breite Sitzbank. Unter deren Klappe lagerten Leinen.",
+      "„Jetzt ist es anders! Wir wissen, wo das ist.“",
+      "„Er zeigt also keine Geschichte“, sagte Ben. „Er zeigt einen Ort.“",
+      "Blubbert sah nach Osten. Hinter der Landzunge wartete vielleicht doch noch etwas Unbekanntes.",
+      "Er hatte goldene Fransen.",
+      "Er hatte ihn eigenhändig gebügelt.",
+      "„Ab damit“, sagte er.",
+      "Pia knotete den Wimpel um die oberen Polster. Die goldenen Fransen standen zwischen zwei gelben Kissen hervor wie ein sehr feiner Besen.",
+      "Am Buchtsteg warteten bereits zwei Leute auf die neuen Sitzpolster.",
+      "Sie halfen beim Abladen und brachten der Mannschaft eine Kanne Apfelsaft. Blubbert bekam das erste Glas. Er stellte es auf einen gelben Sitz und sank zufrieden daneben.",
+      "„Ausgezeichnet geliefert“, sagte Pia.",
+      "Unter dem Polster knisterte sein Wimpel.",
+      "Nach dem Essen holte Nora das Buchtsteg-Plättchen hervor.",
+      "„Die Rillen hinten möchte ich noch sehen.“",
+      "Sie bat um eine Bürste und schrubbte den festgesetzten Schmutz heraus. Erst erschien eine Uferlinie. Dann zwei hohe Pfosten aus aufeinandergezeichneten Steinblöcken. Darüber lag ein gewaltiger Querstein.",
+      "Ein steinernes Tor.",
+      "Pia breitete ihre aktuellen Küstenkarten auf dem Tisch aus. Sie suchten vom Hafen bis weit über das Kiefernkap hinaus.",
+      "Keine zeigte eine Insel mit einem steinernen Tor.",
+      "„Nächstes Mal vergleichen wir auch die alten Hafenkarten“, schlug Nora vor.",
+      "„Ein hervorragender Einfall“, sagte Blubbert. „Eine Idee des Kapitäns!“",
+      "Ben nickte ernst.",
+      "„Dass Nora die Idee hatte?“",
+      "Blubbert öffnete den Mund.",
+      "Dann klappte unter ihm die goldene Franse hervor.",
+      "„Ich brauche erst mal einen neuen Wimpel.“"
+    ]
+  },
+  "pictures": {
+    "accepted": true,
+    "imageCalls": 5,
+    "imagesGenerated": 4,
+    "regenerated": [
+      0
+    ]
+  },
+  "stages": [
+    {
+      "stage": "image-qa-1",
+      "modelUsed": "openai/gpt-6-luna",
+      "modelRole": "support",
+      "durationMs": 6036,
+      "usage": {
+        "prompt": 3595,
+        "completion": 278,
+        "total": 3873,
+        "costUSD": 0.0005883
+      }
+    },
+    {
+      "stage": "image-qa-2",
+      "modelUsed": "openai/gpt-6-luna",
+      "modelRole": "support",
+      "durationMs": 5428,
+      "usage": {
+        "prompt": 4102,
+        "completion": 316,
+        "total": 4418,
+        "costUSD": 0.000670675
+      }
+    },
+    {
+      "stage": "image-qa-3",
+      "modelUsed": "openai/gpt-6-luna",
+      "modelRole": "support",
+      "durationMs": 5138,
+      "usage": {
+        "prompt": 4083,
+        "completion": 297,
+        "total": 4380,
+        "costUSD": 0.0006588
+      }
+    },
+    {
+      "stage": "image-qa-4",
+      "modelUsed": "openai/gpt-6-luna",
+      "modelRole": "support",
+      "durationMs": 4261,
+      "usage": {
+        "prompt": 4157,
+        "completion": 242,
+        "total": 4399,
+        "costUSD": 0.00064055
+      }
+    },
+    {
+      "stage": "image-qa-5",
+      "modelUsed": "openai/gpt-6-luna",
+      "modelRole": "support",
+      "durationMs": 6290,
+      "usage": {
+        "prompt": 3595,
+        "completion": 422,
+        "total": 4017,
+        "costUSD": 0.0006603
+      }
+    }
+  ],
+  "costs": {
+    "prompt": 19532,
+    "completion": 1555,
+    "total": 21087,
+    "costUSD": 0.003219,
+    "calls": 5,
+    "imageCostUSD": 0.0137,
+    "totalUSD": 0.016919
+  },
+  "note": "Real API costs of this run. A reused manuscript is explicitly excluded. Production avatar-development call excluded; no database writes."
+}

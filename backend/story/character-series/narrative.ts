@@ -3,7 +3,6 @@ export interface SeriesNarrative {
   promise: string;
   lead: string;
   voice: string;
-  look: string;
   world: string;
   rules: string[];
   ensemble: Array<{ id: string; name: string; species: string; nature: string; look: string }>;
@@ -16,7 +15,6 @@ export const SERIES_NARRATIVES: Record<string, SeriesNarrative> = {
     promise: 'Verlorene Wege, eigensinnige Fundstücke und ein Haus, dessen frühere Bewohner Spuren hinterlassen haben. Ein Suchabenteuer mit überraschenden Besitzern, falschen Fährten und sichtbaren Gegenständen in kaum sichtbaren Händen.',
     lead: 'Die Nebelfee will anderen den Weg zurückgeben und ihren eigenen Heimweg finden. Sie deutet Hinweise zu schnell, gerade wenn sie ihr Hoffnung machen; sie ist aufmerksam, stolz auf ihre Arbeit und heimlich naschhaft.',
     voice: 'Leise, genau, mit trockenen Ausflüchten: Das war bestimmt der Wind. Sie kann sich ärgern und widersprechen; nicht in jedem Kapitel verschwinden oder entschuldigen.',
-    look: 'small fairy made of pale silvery mist, long silver hair, translucent pale blue dress, expressive round face; solid enough hands to carry small objects, sometimes her edges fade',
     world: 'Ein Waldsee mit zwei ähnlichen Stegen und alten Wanderwegen. Eine verlassene Wegwarte steht fest am Ufer; ein unbeschrifteter hölzerner Wegpfeil liegt darin. Die Fee kennt ihre frühere Heimat nicht mehr.',
     rules: ['Eine konkrete Angabe zum vermissten Ding oder Weg UND dessen letztem bekannten Ort lässt den nächsten Abschnitt einer Spur bis zu einer Kreuzung schimmern. Für den nächsten Abschnitt braucht es einen neuen Hinweis; keine Zielortung oder Gedankenleserei.', 'Die Fee kann Dinge tragen; beim Verblassen setzt sie sie ab. Getragene Dinge bleiben sichtbar. Laute Geräusche oder Verlegenheit können ihre Kontur schwächen, nicht jede Schwierigkeit lösen.', 'Von innen bleibt der gewöhnliche Ausgang der Wegwarte sichtbar, auch wenn der Nebel draußen aufzieht. Das Holzschild ist ein gewöhnlicher Gegenstand. Wünsche, Hüte und Lieder werden nicht plötzlich lebendig.'],
     ensemble: [
@@ -35,7 +33,6 @@ export const SERIES_NARRATIVES: Record<string, SeriesNarrative> = {
     promise: 'Drachenberg-Abenteuer: winzige Flügel, riesige Landeplätze, widerspenstiger Bergwind und eine aufgegebene Wegewarte, in der wieder eine Glocke läutet. Große Drachen können fliegen; gerade die kleinen Zugänge und Bodenwege brauchen Funkelflug.',
     lead: 'Funkelflug will als richtiger Drache ernst genommen werden. Er kann nicht fliegen und überspielt das mit großen Ansagen. Er kennt kleine Felsgänge, bemerkt Luftzüge und kann hartnäckig an einer Aufgabe bleiben. Seine Hilfsbereitschaft und sein Ruhmverlangen geraten aneinander.',
     voice: 'Begeistert, vollmundig und bei Gegenwind erfinderisch: Das war eine Zwischenlandung. Er kann trocken nachlegen und auch einmal recht haben. Kein zwanghafter Reim nach jeder Handlung.',
-    look: 'small golden dragon, round expressive face, short snout, tiny wings much too small to carry him, two arms two legs, long tail with small spikes; determined eyebrows and varied expressions, no clothes',
     world: 'Ein bewohnter Drachenberg mit Bodenwegen, großen Landeplattformen und einer verlassenen Wegewarte neben einer kleinen Höhle. Drei Glockenschläge waren früher das Zeichen für einen offenen Bodenweg. Seit Jahren schweigt die Glocke. Die Berge sind kein Freizeitpark für Gastgeberprüfungen.',
     rules: ['Funkelflugs Flügel tragen ihn nicht. Sprünge bleiben Sprünge; eine Rettung verleiht ihm keine plötzliche Flugkraft. Sein kleiner Körper erreicht Dinge, die große Drachen nicht erreichen.', 'Beim Niesen können kleine Funken entstehen. Sie folgen seiner Nase, nicht seinem Wunsch. Es gibt kein absichtlich herbeigezaubertes Großfeuer.', 'Wind, Echo und Glocke sind räumlich erklärbar. Die alte Glocke bewegt sich nur, wenn etwas an Seil oder Mechanik zieht. Ein neues Rätsel muss aus einem zuvor gezeigten Detail entstehen.'],
     ensemble: [
@@ -54,7 +51,6 @@ export const SERIES_NARRATIVES: Record<string, SeriesNarrative> = {
     promise: 'Eine Beziehungskomödie um ein Haus mit unmöglichen Regeln, verschwundenen Einladungen und Nachbarn, die alle etwas anderes wollen. Hinter jeder Hausordnung steckt eine konkrete alte Geschichte, nicht immer ein trauriges Geheimnis.',
     lead: 'Der Graf wünscht sich Gesellschaft und fürchtet, dabei die Kontrolle zu verlieren. Er kann hervorragend beobachten, backt heimlich und erinnert sich präzise. Seine selbst geschaffenen Ausnahmen machen seine Regeln immer unbrauchbarer.',
     voice: 'Förmlich, knapp, mit übergenauen Ausnahmen und trockenem Stolz. Er sagt Besuch ab, während er Tassen hinstellt. Kein belehrender Erwachsener, der in jeder Folge dieselbe Einsamkeit überwindet.',
-    look: 'older round-faced count with bushy grey eyebrows, neatly combed grey hair, burgundy waistcoat, cream shirt, dark trousers, expressive stern mouth that betrays a smile',
     world: 'Ein großes altes Haus mit Garten am Dorf. Der Mittwochstisch war früher offen für Nachbarn; heute stehen die Stühle in der Abstellkammer. Das Haus und seine Gegenstände sind gewöhnlich, nicht heimlich lebendig.',
     rules: ['Menschen verursachen die Verwicklungen. Keine magische Tür und keine Zufallserbschaft löst einen Konflikt.', 'Johann hat freie Tage und eigene Vorhaben. Der Graf muss selbst handeln. Alte Briefe geben Belege, keine allwissenden Antworten.', 'Einmal begründete Einladungen und Freundschaften bleiben wahr. Der Graf darf grummelig bleiben, ohne nach jeder Folge wieder ganz allein zu sein.'],
     ensemble: [
@@ -73,7 +69,6 @@ export const SERIES_NARRATIVES: Record<string, SeriesNarrative> = {
     promise: 'Inselreisen mit falschen Karten, eigenwilliger Fracht und einem Kapitän, der fremde Einfälle zu gern zu seinen erklärt. Eine Insel mit einem steinernen Tor fehlt auf allen aktuellen Karten.',
     lead: 'Blubbert will als Entdecker gelten und niemanden zurücklassen. Er ist ein guter Seemann, aber hört Einwände zu spät. Ein Avatar kann sich irren, während Blubberts Erfahrung die Gruppe weiterbringt.',
     voice: 'Seemännisch, bildhaft, kurze große Ansagen. Einen hervorragenden Einfall der anderen nennt er gern eine Idee des Kapitäns. Der Gag wird später gegen ihn gewendet.',
-    look: 'round friendly sea captain, curly brown beard, navy coat with brass buttons, striped cream shirt, blue captain cap, sturdy boots',
     world: 'Ein Küstenhafen, ein kleines Segelboot mit sichtbaren Arbeitsplätzen und Inseln mit eigenen Bewohnern und Regeln. Die Ursprungsreise bleibt nah an der Küste und ist Blubberts erste verantwortliche Fahrt als Kapitän. Pia fährt als erfahrene Bootsbauerin mit; Blubbert trifft die Entscheidungen und steuert.',
     rules: ['Der Muschelkompass zeigt nur zu einem hinreichend bekannten Ort, den die Reisenden mit einer echten Ortsangabe benennen können. Eine Insel aus einer vagen Geschichte reicht nicht.', 'Die Anwesenden legen gemeinsam ein Ortsplättchen in die Muschelschale und richten sie offen aus. Das ist eine sichtbare gemeinsame Handlung, kein Gedanken- oder Lügendetektor.', 'Der Kompass zeigt eine Richtung, keine sichere Route, kein Wetter und keine Gegenstände. Karten, Strömung und Erfahrung bleiben nötig. Die Crew kann ihr Ziel gemeinsam ändern.'],
     ensemble: [
@@ -92,7 +87,6 @@ export const SERIES_NARRATIVES: Record<string, SeriesNarrative> = {
     promise: 'Werkstattabenteuer mit klugen Erfindungen, unerwarteten Nutzern und einer alten Maschine, die zu mehreren früheren Aufgaben passt. Erfinden ist Ausprobieren, Bewahren und manchmal bewusstes Nichtbauen.',
     lead: 'Tilda ist erfinderisch, ehrgeizig und liebt ihre unscheinbare Lieblingsklammer. Sie möchte beeindrucken und übersieht manchmal den tatsächlichen Gebrauch. Sie kann komplizierte Dinge gut bauen; die einfachste Idee gewinnt nicht grundsätzlich.',
     voice: 'Schnelle genaue Wörter für Dinge, begeistert beim Vorführen, trocken beleidigt bei unvernünftiger Nutzung. Sie hört zu, darf widersprechen und braucht keine Lehrsatzrede.',
-    look: 'young inventor girl with dark brown bob, bright curious eyes, mustard work apron over teal shirt, blue trousers, pencil behind one ear, small red clamp on apron',
     world: 'Eine Dorfwerkstatt mit Ideenfenster, Hof und alten reparierbaren Geräten. Das Ideenfenster wird erst nach dem Ursprung geöffnet. Im Schuppen steht ein unvollständiger mechanischer Apparat mit mehreren passenden Anbaustellen.',
     rules: ['Erfindungen folgen sichtbarer Mechanik, Material und Nutzung. Keine Universalmaschine, keine heimlich magische Batterie.', 'Ein Test hat erkennbare Bedingungen; Fehler verändern die Lage. Ein Erwachsener übernimmt gefährliche Handgriffe, nicht die ganze Problemlösung.', 'Erfolgreiche Entwürfe und Erfahrungen bleiben erhalten. Neue Wünsche erzeugen neue Konflikte statt dieselbe Nachfragelektion zu wiederholen.'],
     ensemble: [

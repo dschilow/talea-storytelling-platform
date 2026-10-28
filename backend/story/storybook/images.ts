@@ -33,6 +33,7 @@ import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import { assembleFlux3ImagePrompt, assembleImagePrompt, mentionsElement, negativePromptFor, type VisualEntity } from "./illustration-stage";
 import { interpretJev, JEV_MODEL, JEV_THRESHOLDS, jevQuestionsFor, parseJevScores, type JevPort, type JevScores } from "./jev";
 import type { IllustrationPlan, IllustrationShot, StoryElement } from "./types";
+import type { RunwareReferenceRegion } from "../../ai/runware-image-model-options";
 
 export interface ImageRequest {
   page: number;
@@ -41,6 +42,8 @@ export interface ImageRequest {
   prompt: string;
   negativePrompt: string;
   referenceImages: string[];
+  /** Cell-to-scene binding within existing references, supported by FLUX 3 only. */
+  referenceRegions?: RunwareReferenceRegion[];
   seed: number;
   width: number;
   height: number;

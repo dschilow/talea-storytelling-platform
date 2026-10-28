@@ -41,11 +41,11 @@ import { loadArtifactOptions, loadCastCandidates, recordCastUsage } from "./stor
 import { loadPoolRows } from "./storybook/casting";
 import { toCastCandidate } from "./storybook/cast-selection";
 import { CHARACTER_SERIES_ENGINE } from "./character-series/core";
-import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, seriesBudget } from "./character-series/authoring";
+import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, SERIES_IMAGE_REVIEW_MODEL, seriesBudget } from "./character-series/authoring";
 import { SERIES_NARRATIVES } from "./character-series/narrative";
 import { runCharacterSeriesTextEngine, seriesLlmBudget } from "./character-series/engine";
 import { directSeriesPictures, generateSeriesImages } from "./character-series/pictures";
-import { seriesAvatarAppearance } from "./character-series/identity";
+import { seriesAvatarAppearance, seriesLeadCandidate, seriesReferenceAppearance } from "./character-series/identity";
 import { loadHeroMemories, loadStorybookHistory } from "./storybook/history";
 import { CostLedger, resolveStorybookModels } from "./storybook/llm";
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
@@ -134,6 +134,7 @@ export function encoreImageProvider(storyId: string | undefined, model = IMAGE_M
       seed: request.seed,
       outputFormat: model === LIBRARY_IMAGE_MODEL ? "WEBP" : "JPEG",
       referenceImages: request.referenceImages.length > 0 ? request.referenceImages : undefined,
+      ...(model === LIBRARY_IMAGE_MODEL && request.referenceRegions?.length ? { referenceRegions: request.referenceRegions } : {}),
       logContext: { storyId, stage: request.logStage || (request.page === 0 ? "storybook-image-cover" : "storybook-image-page"), chapter: request.logStage ? undefined : request.page || undefined },
     });
     const url = acceptedGeneratedImageUrl(image) || undefined;
@@ -202,8 +203,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     if (!lead) throw new Error("Die Hauptfigur dieser Serie ist im aktiven Figurenpool nicht verfügbar.");
     const narrative = SERIES_NARRATIVES[input.characterSeries.bible.id];
     if (!narrative) throw new Error("Diese Figurenwelt hat noch keinen überarbeiteten Serienplan.");
-    const species = input.characterSeries.bible.id === "funkelflug" ? "dragon" : input.characterSeries.bible.id === "nebelfee" ? "fairy" : "human";
-    candidates = [{ ...lead, canLead: true, species, physicalDescription: narrative.look, visualProfile: { ...lead.visualProfile, species, description: narrative.look, imagePrompt: narrative.look } }];
+    candidates = [seriesLeadCandidate(lead)];
   }
 
   const brief = buildBrief({
@@ -280,7 +280,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       role: "cast",
       species,
       isHuman,
-      appearance: castAppearance(member.visualProfile, member.physicalDescription),
+      appearance: seriesMode ? seriesReferenceAppearance(castAppearance(member.visualProfile, member.physicalDescription)) : castAppearance(member.visualProfile, member.physicalDescription),
       forbidden: [],
       referenceUrl: await readableReference(member.imageUrl),
       referenceKey: member.imageUrl,
@@ -400,7 +400,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const [images, development] = await Promise.all([
     (seriesMode ? generateSeriesImages({
       illustrations, entities: pictureEntities, provider: encoreImageProvider(input.storyId, imageModel), seed, llm,
-      visionModel: models.critic, pageTexts: Object.fromEntries(picturePages.map(page => [page.order, page.content])),
+      visionModel: SERIES_IMAGE_REVIEW_MODEL, pageTexts: Object.fromEntries(picturePages.map(page => [page.order, page.content])),
     }) : generateStorybookImages({
       illustrations,
       entities: pictureEntities,

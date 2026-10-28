@@ -6,16 +6,17 @@ import { createHash } from 'node:crypto';
 import bibles from '../../backend/story/character-series/series-bibles.json';
 import { CHARACTER_SERIES_ENGINE, CHARACTER_SERIES_VERSION, validateSeriesLog, extractSeriesLog, withSeriesContext, type SeriesEpisodeLog } from '../../backend/story/character-series/core';
 import { SERIES_NARRATIVES } from '../../backend/story/character-series/narrative';
-import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, seriesAuthoring, seriesBudget } from '../../backend/story/character-series/authoring';
+import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, SERIES_IMAGE_REVIEW_MODEL, seriesAuthoring, seriesBudget } from '../../backend/story/character-series/authoring';
 import { runCharacterSeriesTextEngine, seriesLlmBudget } from '../../backend/story/character-series/engine';
-import { directSeriesPictures, generateSeriesImages } from '../../backend/story/character-series/pictures';
+import { directSeriesPictures, generateSeriesImages, validateSeriesShots } from '../../backend/story/character-series/pictures';
 import { buildBrief } from '../../backend/story/storybook/context';
 import { CostLedger, type StorybookLlm } from '../../backend/story/storybook/llm';
 import { extractStorybookChoiceContent, resolveStorybookReasoning, isTruncatedFinishReason } from '../../backend/story/storybook/llm-guards';
 import { toCastCandidate } from '../../backend/story/storybook/cast-selection';
-import { type VisualEntity } from '../../backend/story/storybook/illustration-stage';
+import { castAppearance, speciesFromProfile, type VisualEntity } from '../../backend/story/storybook/illustration-stage';
+import { seriesLeadCandidate, seriesReferenceAppearance } from '../../backend/story/character-series/identity';
 import { buildRunwareTask, createRunwareCaller, LIBRARY_IMAGE_MODEL } from '../../backend/story/library/images';
-import { runwareImageModelOptions } from '../../backend/ai/runware-image-model-options';
+import { runwareImageModelOptions, runwareReferenceSettings } from '../../backend/ai/runware-image-model-options';
 
 const args = process.argv.slice(2);
 const opt = (name: string, fallback: string) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
@@ -63,7 +64,7 @@ if (episode === 2) {
   if (previous.contractHash !== contractHash || !previous.log) throw new Error('First episode with this contract is missing.');
   logs = [withSeriesContext(previous.log, previous.result.pages.map((p: any) => p.title + '\n' + p.content).join('\n\n'))];
 }
-const brief = buildBrief({ config, band: '6-8', budget: seriesBudget(config.length, '6-8'), heroes: avatars, candidates: [{ ...lead, canLead: true, physicalDescription: narrative.look }], artifacts: [], seed: `series-v2-${seriesId}-${episode}` });
+const brief = buildBrief({ config, band: '6-8', budget: seriesBudget(config.length, '6-8'), heroes: avatars, candidates: [seriesLeadCandidate(lead)], artifacts: [], seed: `series-v2-${seriesId}-${episode}` });
 brief.characterSeries = { bible, logs };
 if (args.includes('--dry')) {
   const prompt = seriesAuthoring(brief);
@@ -120,23 +121,26 @@ try {
   let pictures: any, imageCostUSD = 0;
   if (args.includes('--images')) {
     const entities: VisualEntity[] = [
-      { id: bible.characterId, name: bible.characterName, kind: 'character', role: 'cast', species: lead.species || 'unknown', isHuman: lead.species === 'human', appearance: narrative.look, forbidden: [], referenceUrl: publicRef(row.image_url || row.imageUrl) },
+      { id: bible.characterId, name: bible.characterName, kind: 'character', role: 'cast', ...speciesFromProfile(lead.visualProfile, lead.species), appearance: seriesReferenceAppearance(castAppearance(lead.visualProfile, lead.physicalDescription)), forbidden: [], referenceUrl: publicRef(row.image_url || row.imageUrl) },
       ...avatars.map(a => ({ id: a.id, name: a.name, kind: 'character' as const, role: 'hero' as const, species: 'human', isHuman: true, appearance: a.appearance, forbidden: [], referenceUrl: a.imageUrl })),
       ...result.episode.guests.map(g => ({ id: g.id, name: g.name, kind: 'character' as const, role: 'cast' as const, species: g.species, isHuman: g.species === 'human', appearance: g.physicalDescription, forbidden: [] })),
     ];
     const reusedDirection = args.includes('--reuse-direction') ? JSON.parse(await readFile(opt('--reuse-direction', ''), 'utf8')) : undefined;
-    const directed = reusedDirection ? { illustrations: reusedDirection } : await directSeriesPictures({ llm, model: SERIES_MODELS.support, brief, title: result.title, pages: result.pages, entities });
+    const directed = reusedDirection ? { illustrations: validateSeriesShots(reusedDirection, result.pages, entities, bible.characterId) } : await directSeriesPictures({ llm, model: SERIES_MODELS.support, brief, title: result.title, pages: result.pages, entities });
     if ('director' in directed) {
       ledger.recordCall('series-picture-direction', directed.director.call, 'support');
       if (directed.director.repairCall) ledger.recordCall('series-picture-plan-repair', directed.director.repairCall, 'support');
     }
     await writeFile(join(out, 'direction.json'), JSON.stringify(directed.illustrations, null, 2));
     const call = createRunwareCaller(runwareKey!);
-    const images = await generateSeriesImages({ illustrations: directed.illustrations, entities, seed: `series-v2-${seriesId}-${episode}`, llm, visionModel: SERIES_MODELS.critic, pageTexts: Object.fromEntries(result.pages.map(p => [p.order, p.content])),
+    const images = await generateSeriesImages({ illustrations: directed.illustrations, entities, seed: `series-v2-${seriesId}-${episode}`, llm, visionModel: SERIES_IMAGE_REVIEW_MODEL, pageTexts: Object.fromEntries(result.pages.map(p => [p.order, p.content])),
       provider: async request => {
         const task = buildRunwareTask(request);
         const model = opt('--image-model', SERIES_IMAGE_MODEL);
-        Object.assign(task, { model, ...runwareImageModelOptions({ model, steps: model === 'runware:400@2' ? 4 : undefined, CFGScale: 4, outputFormat: model === LIBRARY_IMAGE_MODEL ? 'WEBP' : 'JPEG' }) });
+        const outputFormat = opt('--format', model === LIBRARY_IMAGE_MODEL ? 'WEBP' : 'JPEG') as 'WEBP' | 'JPEG' | 'PNG';
+        if (!['WEBP', 'JPEG', 'PNG'].includes(outputFormat)) throw new Error('Unsupported image output format.');
+        Object.assign(task, { model, ...runwareImageModelOptions({ model, steps: model === 'runware:400@2' ? 4 : undefined, CFGScale: 4, outputFormat }) });
+        Object.assign(task, runwareReferenceSettings(model, request.referenceRegions, request.referenceImages.length));
         const response = await call(task); return { url: response.imageURL, costUSD: response.cost };
       } });
     images.qaCalls.forEach((r, i) => ledger.recordCall(`image-qa-${i + 1}`, r, 'support'));

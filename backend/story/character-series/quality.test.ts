@@ -8,9 +8,13 @@ const cast: VisualEntity[] = [
   { id: 'dragon', name: 'Funkelflug', kind: 'character', role: 'cast', species: 'dragon', isHuman: false, appearance: 'golden dragon, no clothes', forbidden: [] },
   { id: 'child-a', name: 'Nora', kind: 'character', role: 'hero', species: 'human', isHuman: true, appearance: 'girl with red glasses', forbidden: [] },
 ];
-const review = (fields: Record<string, unknown> = {}) => JSON.stringify({ visibleIds: ['dragon', 'child-a'], identityById: { dragon: 0.98, 'child-a': 0.98 }, primaryActionClear: true, sceneMatch: 0.95, styleMatch: 0.9, defects: [], ...fields });
+const review = (fields: Record<string, unknown> = {}) => JSON.stringify({ visibleIds: ['dragon', 'child-a'], identityById: { dragon: 0.98, 'child-a': 0.98 }, posing: false, primaryActionClear: true, sceneMatch: 0.95, styleMatch: 0.9, defects: [], ...fields });
 
 describe('series image review after the production PDF', () => {
+  test('correct identities in a passive lineup still do not illustrate the physical event', () => {
+    expect(seriesPicturePasses(readSeriesQa(review({ posing: true }), cast))).toBe(false);
+    expect(readSeriesQa(review({ posing: undefined }), cast)).toBeUndefined();
+  });
   test('recognised real trousers added by a wreath metaphor reject an otherwise clear scene', () => {
     const qa = readSeriesQa(review({ defects: [{ kind: 'identity', detail: 'The bare dragon wears actual trousers beneath the wreath.', fix: 'Keep only the flower wreath around the bare scaled belly.' }] }), cast);
     expect(seriesPicturePasses(qa)).toBe(false);
@@ -35,8 +39,14 @@ describe('series image review after the production PDF', () => {
     expect(seriesPicturePasses(readSeriesQa(review(), cast))).toBe(true);
   });
   test('caption ownership errors are material even when the generated picture follows the wrong caption', () => {
-    const qa = readSeriesQa(review({ defects: [{ kind: 'story', detail: 'The caption assigns the other child\'s whistling to the visible child.', fix: 'The visible child introduces herself with empty hands and mouth.' }] }), cast);
+    const qa = readSeriesQa(review({ defects: [{ kind: 'identity', detail: 'The caption assigns the other child\'s whistling to the visible child.', fix: 'The visible child introduces herself with empty hands and mouth.' }] }), cast);
     expect(seriesPicturePasses(qa)).toBe(false);
+  });
+  test('minor staging does not blank a recognisable active illustration; lost action and unsafe support still do', () => {
+    const variation = [{ kind: 'story', detail: 'The tiny map marks differ from the source wording.', fix: 'Keep the prop marks pictorial.' }];
+    expect(seriesPicturePasses(readSeriesQa(review({ defects: variation }), cast))).toBe(true);
+    expect(seriesPicturePasses(readSeriesQa(review({ defects: variation, primaryActionClear: false }), cast))).toBe(false);
+    expect(seriesPicturePasses(readSeriesQa(review({ defects: [{ kind: 'safety', detail: 'The child is underneath an unsupported loaded board.', fix: 'Keep the child beside the supported board.' }] }), cast))).toBe(false);
   });
   test('literal nearby evidence replaces an entire repeated chapter in the picture prompt', () => {
     const text = ['first', 'The mouse turns the handle.', 'The door opens.', 'They wave.', ...Array(80).fill('Unrelated later event.')].join('\n\n');

@@ -8,8 +8,9 @@ import { nextSeriesEpisode, seriesPrompt } from './core';
 import { FLUX3_KLEIN_MODEL } from '../../ai/runware-image-model-options';
 
 export const SERIES_MODELS = { writer: 'openai/gpt-6.1-sol', support: 'openai/gpt-6-luna', critic: 'openai/gpt-6.1-terra' };
+export const SERIES_IMAGE_REVIEW_MODEL = SERIES_MODELS.support;
 export const SERIES_IMAGE_MODEL = FLUX3_KLEIN_MODEL;
-export const SERIES_POLICY = { version: 4, picturesPerChapter: 1, maxImageCalls: 6, maxLlmCalls: 12, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.12, maxTextRepairs: 1 } as const;
+export const SERIES_POLICY = { version: 5, picturesPerChapter: 1, maxImageCalls: 6, maxLlmCalls: 12, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.12, maxTextRepairs: 1 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);

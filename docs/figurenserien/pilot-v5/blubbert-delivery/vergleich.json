@@ -1,0 +1,187 @@
+{
+  "date": "2026-10-28",
+  "fictionalAvatars": [
+    "Nora",
+    "Ben"
+  ],
+  "imageModel": "bfl:flux@3-image-klein",
+  "imageReviewModel": "openai/gpt-6-luna",
+  "directorModel": "openai/gpt-6-luna",
+  "nativeReferenceRegions": true,
+  "planned": 4,
+  "approved": 4,
+  "calls": 5,
+  "images": [
+    {
+      "page": 0,
+      "status": "passed",
+      "attempts": 2,
+      "qa": {
+        "identityMatch": 0.98,
+        "sceneMatch": 0.96,
+        "styleMatch": 0.94,
+        "primaryActionClear": true,
+        "posing": false,
+        "identityById": {
+          "f30ea3db-46db-412f-9049-a7ab23447892": 0.98
+        },
+        "defects": [],
+        "criticalSceneDefects": [],
+        "anatomyDefects": [],
+        "featureBleed": [],
+        "sceneDefects": [],
+        "styleDefects": [],
+        "sceneFixes": [],
+        "missing": [],
+        "duplicates": [],
+        "unexpectedCharacters": [],
+        "textVisible": false,
+        "referenceSheetVisible": false,
+        "animalFeaturesOnHumans": [],
+        "roleSwaps": [],
+        "elementMisuse": [],
+        "namedCharactersVisible": 1
+      }
+    },
+    {
+      "page": 1,
+      "status": "passed",
+      "attempts": 1,
+      "qa": {
+        "identityMatch": 0.98,
+        "sceneMatch": 0.96,
+        "styleMatch": 0.98,
+        "primaryActionClear": true,
+        "posing": false,
+        "identityById": {
+          "f30ea3db-46db-412f-9049-a7ab23447892": 0.98,
+          "fictional-nora": 0.98
+        },
+        "defects": [],
+        "criticalSceneDefects": [],
+        "anatomyDefects": [],
+        "featureBleed": [],
+        "sceneDefects": [],
+        "styleDefects": [],
+        "sceneFixes": [],
+        "missing": [],
+        "duplicates": [],
+        "unexpectedCharacters": [],
+        "textVisible": false,
+        "referenceSheetVisible": false,
+        "animalFeaturesOnHumans": [],
+        "roleSwaps": [],
+        "elementMisuse": [],
+        "namedCharactersVisible": 2
+      }
+    },
+    {
+      "page": 2,
+      "status": "passed",
+      "attempts": 1,
+      "qa": {
+        "identityMatch": 0.98,
+        "sceneMatch": 0.95,
+        "styleMatch": 0.96,
+        "primaryActionClear": true,
+        "posing": false,
+        "identityById": {
+          "fictional-nora": 0.98,
+          "fictional-ben": 0.98
+        },
+        "defects": [],
+        "criticalSceneDefects": [],
+        "anatomyDefects": [],
+        "featureBleed": [],
+        "sceneDefects": [],
+        "styleDefects": [],
+        "sceneFixes": [],
+        "missing": [],
+        "duplicates": [],
+        "unexpectedCharacters": [],
+        "textVisible": false,
+        "referenceSheetVisible": false,
+        "animalFeaturesOnHumans": [],
+        "roleSwaps": [],
+        "elementMisuse": [],
+        "namedCharactersVisible": 2
+      }
+    },
+    {
+      "page": 3,
+      "status": "passed",
+      "attempts": 1,
+      "qa": {
+        "identityMatch": 0.97,
+        "sceneMatch": 0.97,
+        "styleMatch": 0.94,
+        "primaryActionClear": true,
+        "posing": false,
+        "identityById": {
+          "f30ea3db-46db-412f-9049-a7ab23447892": 0.98,
+          "fictional-nora": 0.97
+        },
+        "defects": [],
+        "criticalSceneDefects": [],
+        "anatomyDefects": [],
+        "featureBleed": [],
+        "sceneDefects": [],
+        "styleDefects": [],
+        "sceneFixes": [],
+        "missing": [],
+        "duplicates": [],
+        "unexpectedCharacters": [],
+        "textVisible": false,
+        "referenceSheetVisible": false,
+        "animalFeaturesOnHumans": [],
+        "roleSwaps": [],
+        "elementMisuse": [],
+        "namedCharactersVisible": 2
+      }
+    }
+  ],
+  "comparison": [
+    {
+      "run": "blubbert-approved",
+      "model": "bfl:flux@3-image-klein",
+      "approved": 3,
+      "imageCalls": 5,
+      "imageUSD": 0.0125,
+      "qaUSD": 0.00351,
+      "imagePhaseUSD": 0.01601
+    },
+    {
+      "run": "blubbert-approved-flux2",
+      "model": "runware:400@2",
+      "approved": 3,
+      "imageCalls": 5,
+      "imageUSD": 0.00741,
+      "qaUSD": 0.00373,
+      "imagePhaseUSD": 0.01114
+    },
+    {
+      "run": "blubbert-delivery",
+      "model": "bfl:flux@3-image-klein",
+      "approved": 4,
+      "imageCalls": 5,
+      "imageUSD": 0.0137,
+      "qaUSD": 0.003219,
+      "imagePhaseUSD": 0.016919
+    }
+  ],
+  "costsUSD": {
+    "textAndEditorial": 0.0478169,
+    "direction": 0.00098548,
+    "finalImagesAndChecks": 0.016919,
+    "combinedComparablePath": 0.06572138,
+    "uploadedStoryImagePhase": 0.051111000000000004,
+    "allDevelopmentTrials": 0.39408239
+  },
+  "notes": [
+    "Public fictional test only; no authenticated family story or avatar-development writes.",
+    "Matched FLUX2/FLUX3 control used the same source, seed, plan, size, WEBP and identity sheet; both approved 3/4 before native regions.",
+    "The final FLUX3 run adds supported native regions and local editing; it is not a model-only comparison or proof of general failure rates.",
+    "The comparable path combines reused measured text/direction with final art. Avatar development and production persistence are excluded.",
+    "All development trials include failed plans and abandoned/invalid intermediate tests, distinct from the comparable per-story path."
+  ]
+}

@@ -4,7 +4,7 @@ import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { maybeUploadImageUrlToBucket } from "../helpers/bucket-storage";
 import { summarizeRunwareResponse } from "./image-cost-summary";
-import { runwareImageModelOptions } from "./runware-image-model-options";
+import { runwareImageModelOptions, runwareReferenceSettings, type RunwareReferenceRegion } from "./runware-image-model-options";
 import { withTaleaImageStyle } from "./image-style";
 
 const runwareApiKey = secret("RunwareApiKey");
@@ -21,6 +21,8 @@ export interface ImageGenerationRequest {
   outputFormat?: "WEBP" | "PNG" | "JPEG";
   /** OPTIMIZATION v3.0: Reference images for IP-Adapter character consistency */
   referenceImages?: string[];
+  /** Cells on the existing shared identity sheet, bound into a FLUX 3 scene. */
+  referenceRegions?: RunwareReferenceRegion[];
   /** IP-Adapter weight (0.0-1.0) - higher = more similar to reference */
   ipAdapterWeight?: number;
   /**
@@ -133,6 +135,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
     outputType: ["URL"],  // Use URL output for faster response
     ...runwareImageModelOptions({ model, steps: req.steps, CFGScale: req.CFGScale, outputFormat: req.outputFormat,
       negativePrompt: req.negativePrompt ? enhancePromptForRunware(req.negativePrompt) : undefined }),
+    ...runwareReferenceSettings(model, req.referenceRegions, refImages.length),
     width: normalizeToMultiple64(req.width ?? 1280),
     height: normalizeToMultiple64(req.height ?? 832),
     includeCost: true,
