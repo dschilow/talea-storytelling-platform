@@ -4,7 +4,7 @@ import { applyChapterEdits, runCharacterSeriesTextEngine, seriesLlmBudget } from
 import { seriesAuthoring, seriesBudget, SERIES_MODELS, SERIES_POLICY } from './authoring';
 import { SERIES_NARRATIVES } from './narrative';
 import { withSeriesContext, seriesPrompt } from './core';
-import { directSeriesPictures, generateSeriesImages, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment } from './pictures';
+import { directSeriesPictures, generateSeriesImages, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment, seriesReferenceRegions } from './pictures';
 import { readSeriesQa } from './quality';
 import { CostLedger, type StorybookLlm } from '../storybook/llm';
 import { buildBrief } from '../storybook/context';
@@ -235,5 +235,21 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(requests[4].referenceRegions.map((r: any) => r.referenceIndex)).toEqual([1, 1]);
     expect(result.pages.get(1)?.status).toBe('passed');
     expect(result.pages.get(1)?.history?.at(-1)?.kind).toBe('targeted-scene-edit');
+  });
+  test('bounding boxes scale children shorter than adults, vary across chapters and support three figures', () => {
+    const captainAndKids: VisualEntity[] = [
+      { id: 'captain', name: 'Kapitän Blubbert', kind: 'character', role: 'cast', species: 'human', isHuman: true, appearance: 'old sailor with white beard', forbidden: [], referenceUrl: 'https://example.test/captain.webp' },
+      { id: 'kid1', name: 'Adrian', kind: 'character', role: 'hero', species: 'human', isHuman: true, appearance: 'blond boy', forbidden: [], referenceUrl: 'https://example.test/kid1.webp' },
+      { id: 'kid2', name: 'Alexander', kind: 'character', role: 'hero', species: 'human', isHuman: true, appearance: 'brown-haired boy', forbidden: [], referenceUrl: 'https://example.test/kid2.webp' },
+    ];
+    const ch1 = seriesReferenceRegions(captainAndKids.slice(0, 2), { actorId: 'kid1', action: 'lifts the rope', result: 'the rope rises', framing: 'medium' }, 0, undefined, 1);
+    const ch2 = seriesReferenceRegions(captainAndKids.slice(0, 2), { actorId: 'kid1', action: 'lifts the rope', result: 'the rope rises', framing: 'medium' }, 0, undefined, 2);
+    // Child top is lower in frame (larger y0) than adult top so the child never towers over the adult.
+    expect(ch1[1].targetBox[0]).toBeGreaterThan(ch1[0].targetBox[0]);
+    // Consecutive chapters flip left/right default placement to avoid repetitive 50/50 split-screens.
+    expect(ch1[0].targetBox[1]).not.toBe(ch2[0].targetBox[1]);
+    // Three characters (lead + both sibling avatars) are supported on one sheet.
+    const trio = seriesReferenceRegions(captainAndKids, { actorId: 'captain', action: 'holds the wheel', result: 'the boat turns', framing: 'wide' }, 0, undefined, 1);
+    expect(trio).toHaveLength(3);
   });
 });

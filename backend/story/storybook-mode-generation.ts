@@ -245,8 +245,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       }, pipelineId);
     },
   });
-  // Flex covers every episode LLM call, and retries keep the same model.
-  const productionLlm = seriesMode ? openRouterLlm : episodeMode ? episodeProductionLlm(openRouterLlm, resolveEpisodeServiceTier()) : openRouterLlm;
+  // Flex covers every episode LLM call (including character-series), and retries keep the same model.
+  const productionLlm = episodeMode ? episodeProductionLlm(openRouterLlm, resolveEpisodeServiceTier()) : openRouterLlm;
   const llm = seriesMode ? seriesLlmBudget(productionLlm, config.length) : productionLlm;
 
   // -------------------------------------------------------------------------
@@ -371,7 +371,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // Talea-Folge draws two pictures per chapter, each after the paragraph it shows, and every acting figure at least once
   // (the chapter book's picture machinery, ./episode/pictures.ts). Every other lane: one picture per page.
   const directing: Promise<EpisodeDirection | undefined> = seriesMode
-    ? directSeriesPictures({ llm, model: models.support, brief, title: text.title, pages, entities: known.entities })
+    ? directSeriesPictures({ llm, model: models.support, brief, title: text.title, pages, plan, entities: known.entities })
     : episodeMode
     ? directEpisodePictures({ llm, model: models.support, brief, title: text.title, pages, plan, entities: known.entities }).catch((err) => {
         console.warn("[storybook] chapter pictures could not be directed, one picture per chapter instead:", (err as Error)?.message || err);

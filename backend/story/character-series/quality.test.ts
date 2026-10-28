@@ -57,10 +57,22 @@ describe('series image review after the production PDF', () => {
   });
   test('facial invariants stay with their own avatar rather than generic colour descriptions', () => {
     const first = seriesAvatarAppearance({ name: 'Nora', visualProfile: { face: { otherFeatures: ['distinct protruding ears'] }, mustIncludeFeatures: [{ priority: 1, promptDescription: 'distinct protruding ears' }] } });
-    const second = seriesAvatarAppearance({ name: 'Ben', visualProfile: { face: { mouth: 'wide front tooth gap' } } });
+    const second = seriesAvatarAppearance({ name: 'Ben', visualProfile: { face: { shape: 'round', mouth: 'wide front tooth gap' }, hair: { color: 'blonde', length: 'short', style: 'short' }, skin: { tone: 'very light skin' } } });
     expect(first).toContain('distinct protruding ears');
     expect(first).not.toContain('tooth gap');
     expect(second).toContain('wide front tooth gap');
+    expect(second).toContain('round face');
+    expect(second).not.toContain('short short');
+    expect(second).not.toContain('skin skin');
     expect(second).not.toContain('protruding ears');
+  });
+  test('vision QA resolves character names and slot aliases instead of dropping valid cover reviews', () => {
+    const qa = readSeriesQa(review({
+      visibleIds: ['Funkelflug', 'slot 2'],
+      identityById: { Funkelflug: 0.96, seriesfigure2: 0.94 },
+    }), cast);
+    expect(qa).toBeDefined();
+    expect(seriesPicturePasses(qa)).toBe(true);
+    expect(qa?.identityMatch).toBe(0.94);
   });
 });
