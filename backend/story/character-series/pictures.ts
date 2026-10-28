@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { createIdentityReferenceCache } from '../image-reference-sprite';
+import { createIdentityReferenceCache, IdentityReferenceError } from '../image-reference-sprite';
 import type { VisualEntity } from '../storybook/illustration-stage';
 import { isPublishable, type ImageOutcome, type ImageProvider, type StorybookImagesResult } from '../storybook/images';
 import { parseJsonObject, type StorybookLlm } from '../storybook/llm';
@@ -49,6 +49,11 @@ function isSmallCreature(entity: VisualEntity): boolean {
   return !entity.isHuman && /\b(dragon|drache|fairy|fee|mouse|maus|raven|rabe|seagull|moewe|bird|vogel|marmot|murmeltier|cat|katze|frog|frosch|squirrel|rabbit|hase|tortoise|schildkröte)\b/i.test(`${entity.species} ${entity.appearance}`);
 }
 
+/** Tilda is a nine-year-old series lead; a human pool figure is not necessarily an adult. */
+function isChildFigure(entity: VisualEntity): boolean {
+  return entity.isHuman && (entity.role === 'hero' || /\b(?:child|boy|girl)\b/i.test(entity.appearance));
+}
+
 function validSeriesBox(value: unknown): value is SeriesBox {
   if (!Array.isArray(value) || value.length !== 4 || !value.every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1000)) return false;
   const [top, left, bottom, right] = value;
@@ -58,7 +63,7 @@ function validSeriesBox(value: unknown): value is SeriesBox {
 function defaultTargetBox(entity: VisualEntity, index: number, total: number, primary: boolean, page: number): SeriesBox {
   const [top, bottom]: [number, number] = isSmallCreature(entity)
     ? [primary ? 420 : 460, primary ? 920 : 940]
-    : entity.role === 'hero'
+    : isChildFigure(entity)
     ? [primary ? 280 : 320, primary ? 940 : 920]
     : [primary ? 140 : 180, primary ? 940 : 920];
   if (total === 1) return [top, 200, bottom, 800];
@@ -83,13 +88,13 @@ export function seriesReferenceRegions(
   page = 1,
 ): RunwareReferenceRegion[] {
   const cell = 1000 / identities.length;
-  const hasAdultHuman = identities.some(e => e.isHuman && e.role !== 'hero');
+  const hasAdultHuman = identities.some(e => e.isHuman && !isChildFigure(e));
   const rawBoxes = identities.map((entity, i) => {
     const primary = entity.id === beat?.actorId;
     const custom = boxes?.[entity.id];
     if (validSeriesBox(custom)) {
       const [t, l, b, r] = custom.map(n => Math.round(n)) as SeriesBox;
-      const adjustedTop = entity.role === 'hero' && hasAdultHuman ? Math.max(t, 280) : t;
+      const adjustedTop = isChildFigure(entity) && hasAdultHuman ? Math.max(t, 280) : t;
       if (b - adjustedTop >= 180) return [adjustedTop, l, b, r] as SeriesBox;
     }
     return defaultTargetBox(entity, i, identities.length, primary, page);
@@ -209,7 +214,7 @@ export async function directSeriesPictures(input: { llm: StorybookLlm; model: st
       `${publicLead?.referenceUrl ? 'Image 1 is ONLY the public series lead; take face, species and clothes, NEVER its sea/room background or loose portrait props. ' : ''}The last image is ONLY the art style (notice the full-room depth, expressive faces and true child-to-creature scale). Reference poses are not scene poses.`,
       `REQUIRED CAST COVERAGE:\n${coverage}`,
       `TITLE ${input.title}`,
-      `PICTURABLE IDENTITIES (only these have references):\n${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name} (${e.role === 'hero' ? 'human child, shorter than adults' : e.isHuman ? 'adult human' : e.species}); ${e.appearance}`).join('\n')}`,
+      `PICTURABLE IDENTITIES (only these have references):\n${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name} (${isChildFigure(e) ? 'human child, shorter than adults' : e.isHuman ? 'adult human' : e.species}); ${e.appearance}`).join('\n')}`,
       `PAGES (${pages.length}):\n${pageText}`,
     ].filter(Boolean).join('\n') });
   let illustrations!: IllustrationPlan;
@@ -283,8 +288,11 @@ export async function generateSeriesImages(input: {
       // One free preparation retry; no image or LLM is billed until the complete sheet is ready.
       const prepared = identities.length ? await buildReference(slots).catch(() => buildReference(slots)) : undefined;
       references = prepared?.urls.slice(0, 1) || [];
-    } catch {
-      return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD, severity: 999, status: 'failed', errors: ['series_reference_error'], history: [...history, { kind: 'series-reference', status: 'failed', severity: 999, notes: ['Identitätsreferenz nicht verfügbar; kein Ersatzkind erzeugt und kein Bildaufruf bezahlt.'] }] };
+    } catch (error) {
+      const diagnostic = error instanceof IdentityReferenceError
+        ? `${error.code}${error.httpStatus ? ` (HTTP ${error.httpStatus})` : ''}`
+        : 'reference_preparation_failed';
+      return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD, severity: 999, status: 'failed', errors: ['series_reference_error', diagnostic], history: [...history, { kind: 'series-reference', status: 'failed', severity: 999, notes: [`Identitätsreferenz nicht verfügbar: ${diagnostic}; kein Ersatzkind erzeugt und kein Bildaufruf bezahlt.`] }] };
     }
     const attempt = async (fixes: string[]): Promise<ImageOutcome> => {
       let imageUrl: string | undefined;
@@ -359,6 +367,13 @@ export async function generateSeriesImages(input: {
   // Every planned picture is drawn and checked at once: one after another, each waited for its 20–45 s check (story
   // ff6eff04: 211 s for four pictures). Repairs start only when every planned picture has its verdict.
   const outcomes = await mapLimited(shots, SERIES_POLICY.imageConcurrency, shot => render(shot));
+  // Give transient preparation failures one recovery pass after all first attempts have settled.
+  // These pictures have never reached the provider: keep attempt/seed 1 and the paid redraw allowance.
+  const referenceRecoveries = outcomes.map((outcome, index) => ({ outcome, index }))
+    .filter(({ outcome }) => outcome.attempts === 0 && outcome.errors?.includes('series_reference_error'));
+  await mapLimited(referenceRecoveries, SERIES_POLICY.imageConcurrency, async ({ outcome, index }) => {
+    outcomes[index] = await render(shots[index], 1, outcome);
+  });
   // Repairs go only to hard faults, chapters before the cover: a printed "flawed" picture was never improved by a redraw
   // (ff6eff04 chapter 3, Talea-Folge 0ee9af53).
   const canRetryOutcome = (o: ImageOutcome) => o.status === 'failed' && (Boolean(o.qa) || (!o.errors?.length && Boolean(o.url)));

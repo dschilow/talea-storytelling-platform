@@ -9,6 +9,21 @@ const pixel = (r: Awaited<ReturnType<typeof pixels>>, x: number, y: number) => [
 const fromReference = (url: string) => Buffer.from(url.split(",")[1], "base64");
 
 describe("single reference sprite without injected picture frames", () => {
+  test("a 200 response with corrupt bytes is evicted and retried without replacing any identity", async () => {
+    const image = await source('#bbbbbb');
+    let attempts = 0;
+    const build = createIdentityReferenceCache((async url => {
+      if (String(url).endsWith('a.png') && ++attempts === 1) return new Response('<html>temporary proxy error</html>');
+      return new Response(new Uint8Array(image));
+    }) as typeof fetch);
+    const slots = [{ displayName: 'First', imageUrl: 'https://example.com/a.png' }, { displayName: 'Second', imageUrl: 'https://example.com/b.png' }];
+    await expect(build(slots)).rejects.toThrow('could not be decoded');
+    const repaired = await build(slots);
+    expect(attempts).toBe(2);
+    expect(repaired.subjects.map(s => s.displayName)).toEqual(['First', 'Second']);
+    expect(repaired.urls).toHaveLength(1);
+    expect((await sharp(fromReference(repaired.urls[0])).metadata()).width).toBe(1024);
+  });
   test("a temporary download failure does not poison later sheets or shift their identity slots", async () => {
     const buffers = [await source('#222222'), await source('#bbbbbb')];
     let firstCalls = 0, secondCalls = 0;

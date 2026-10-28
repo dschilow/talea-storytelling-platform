@@ -29,11 +29,18 @@ describe("avatar image persistence", () => {
       import { mock } from "bun:test";
       mock.module("encore.dev/config", () => ({ secret: () => () => undefined }));
       Object.assign(process.env, { BUCKET_ENDPOINT: "https://storage.example.test", BUCKET_NAME: "test-bucket", BUCKET_ACCESS_KEY_ID: "test-id", BUCKET_SECRET_ACCESS_KEY: "test-secret", BUCKET_ACCESS_MODE: "private", IMAGE_PROXY_BASE_URL: "https://backend.example.test" });
-      const { normalizeImageUrlForStorage } = await import(${JSON.stringify(new URL("./bucket-storage.ts", import.meta.url).href)});
+      const { normalizeImageUrlForStorage, resolveImageUrlForProxyAccess } = await import(${JSON.stringify(new URL("./bucket-storage.ts", import.meta.url).href)});
       const image = await normalizeImageUrlForStorage("https://backend.example.test/story/image?key=images%2Favatars%2Fportrait.webp");
       if (image !== "bucket://test-bucket/images/avatars/portrait.webp") throw new Error("Preview did not resolve to its bucket key");
       const other = "https://other.example/story/image?key=images%2Favatars%2Fportrait.webp";
       if (await normalizeImageUrlForStorage(other) !== other) throw new Error("Foreign proxy was treated as our bucket");
+      // Server-side generation must bypass the public proxy (f346d2d6: HTTP 500 for both avatars).
+      const stored = "bucket://test-bucket/images/avatars/portrait.webp";
+      for (const source of [stored, "https://backend.example.test/story/image?key=images%2Favatars%2Fportrait.webp"]) {
+        const direct = new URL(await resolveImageUrlForProxyAccess(source));
+        if (direct.hostname === "backend.example.test" || !direct.pathname.endsWith("/images/avatars/portrait.webp") || !direct.searchParams.has("X-Amz-Signature")) throw new Error("Generation still uses the public proxy instead of a signed storage URL");
+      }
+      if (await resolveImageUrlForProxyAccess(other) !== other) throw new Error("Foreign proxy was treated as our bucket reference");
     `;
     const result = spawnSync(process.execPath, ["-e", source], { encoding: "utf8" });
     expect(result.stderr).toBe("");

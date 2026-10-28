@@ -17,6 +17,14 @@ export interface IdentityReference {
 export type IdentityReferenceBuilder = (slots: IdentitySpriteSlot[]) => Promise<IdentityReference>;
 export const EMPTY_IDENTITY_REFERENCE: IdentityReference = { urls: [], mode: "none", subjects: [] };
 
+/** Safe to put in generation diagnostics: no source URL, signed query or portrait bytes. */
+export class IdentityReferenceError extends Error {
+  constructor(public readonly code: 'reference_http' | 'reference_fetch' | 'reference_decode', public readonly httpStatus?: number) {
+    super(httpStatus ? `Reference image HTTP ${httpStatus}` : code === 'reference_decode' ? 'Reference image could not be decoded' : 'Reference image download failed');
+    this.name = 'IdentityReferenceError';
+  }
+}
+
 export function isProviderReadableReference(imageUrl: string | undefined): imageUrl is string {
   const value = String(imageUrl || "").trim();
   return /^(https?:\/\/|data:image\/(?:png|jpe?g|webp);base64,)/i.test(value) ||
@@ -135,9 +143,20 @@ export function createIdentityReferenceCache(fetcher: typeof fetch = fetch): Ide
   const download = (url: string): Promise<Buffer> => {
     if (!downloads.has(url)) {
       const pending = (async () => {
-        const response = await fetcher(url, { signal: AbortSignal.timeout(20_000) });
-        if (!response.ok) throw new Error(`Reference image HTTP ${response.status}`);
-        return Buffer.from(await response.arrayBuffer());
+        let response: Response;
+        let buffer: Buffer;
+        try {
+          response = await fetcher(url, { signal: AbortSignal.timeout(20_000) });
+          if (!response.ok) throw new IdentityReferenceError('reference_http', response.status);
+          buffer = Buffer.from(await response.arrayBuffer());
+        } catch (error) {
+          throw error instanceof IdentityReferenceError ? error : new IdentityReferenceError('reference_fetch');
+        }
+        // A 200 HTML error page or truncated image must be evicted as well. Otherwise every
+        // preparation retry reuses the same undecodable bytes and all later sheets fail.
+        try { await sharp(buffer, { limitInputPixels: 40_000_000 }).resize(1, 1).raw().toBuffer(); }
+        catch { throw new IdentityReferenceError('reference_decode'); }
+        return buffer;
       })();
       downloads.set(url, pending);
       // A transient proxy failure must not poison every later chapter's identity sheet.

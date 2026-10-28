@@ -7,6 +7,7 @@ import { withSeriesContext, seriesPrompt } from './core';
 import { directSeriesPictures, generateSeriesImages, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment, seriesReferenceRegions } from './pictures';
 import { readSeriesQa } from './quality';
 import { isPublishable } from '../storybook/images';
+import { IdentityReferenceError } from '../image-reference-sprite';
 import { CostLedger, type StorybookLlm } from '../storybook/llm';
 import { buildBrief } from '../storybook/context';
 import type { VisualEntity } from '../storybook/illustration-stage';
@@ -60,6 +61,26 @@ describe('Figurenserien revision 2', () => {
     const llm: StorybookLlm = async r => { calls.push(r.stage); return response(r.stage === 'series-author' ? text : '{"issues":[{"severity":"major","quote":"Ein nicht vorhandener Satz.","problem":"Fehler","change":"Ändern"}]}'); };
     await expect(runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() })).rejects.toThrow('Textbeleg');
     expect(calls).toHaveLength(2);
+  });
+  test('an evidenced minor prop jump gets one local repair instead of being knowingly published', async () => {
+    const calls: string[] = [];
+    const before = 'Funkelflug stellte seinen Becher ab. Nora hielt ihn schon fest.';
+    const after = 'Funkelflug stellte seinen Becher ab. Nora nahm ihn vom Tisch und hielt ihn fest.';
+    const llm: StorybookLlm = async r => {
+      calls.push(r.stage);
+      if (r.stage === 'series-author') return response(text);
+      if (r.stage === 'series-editorial-review') return response(JSON.stringify({ issues: [{ severity: 'minor', quote: before, problem: 'Der Becher wechselt ohne Handlung in Noras Hand.', change: 'Nora nimmt den Becher vom Tisch.' }] }));
+      if (r.stage === 'series-local-repair') {
+        expect(r.user).toContain('Der Becher wechselt ohne Handlung');
+        return response(JSON.stringify({ edits: [{ chapter: 1, before, after }] }));
+      }
+      return response('{"issues":[]}');
+    };
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() });
+    expect(calls).toEqual(['series-author', 'series-editorial-review', 'series-local-repair', 'series-editorial-recheck']);
+    expect(result.pages[0].content).toContain(after);
+    expect(result.pages[1].content).toContain('Gemeinsam prüften sie den Ausgang.');
+    expect(result.chosen).toBe('revision');
   });
   test('local repair must identify one unique passage and stays bounded', () => {
     expect(() => applyChapterEdits([{ title: '', text: 'Dies ist ein langer Satz. Dies ist ein langer Satz.' }], [{ chapter: 1, before: 'Dies ist ein langer Satz.', after: 'Eine Änderung.' }])).toThrow();
@@ -191,6 +212,16 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(requests).toHaveLength(4);
     expect(requests.every(r => r.width === 1216 && r.height === 832 && r.referenceImages.length === 1 && r.prompt.includes('gouache'))).toBe(true);
   });
+  test('a child series lead such as Tilda keeps child proportions alongside an adult', () => {
+    const cast: VisualEntity[] = [
+      { ...entities[0], id: 'tilda', name: 'Tilda', species: 'human', isHuman: true, appearance: 'nine-year-old girl inventor with curly dark hair' },
+      { ...entities[0], id: 'adult', name: 'Mama', species: 'human', isHuman: true, appearance: 'adult woman' },
+    ];
+    const regions = seriesReferenceRegions(cast);
+    expect(regions[0].targetBox[0]).toBeGreaterThan(regions[1].targetBox[0]);
+    const custom = seriesReferenceRegions(cast, undefined, 0, { tilda: [160, 100, 920, 450] });
+    expect(custom[0].targetBox[0]).toBe(280);
+  });
   test('failed action gets at most the policy repairs across the story and never loses the lead', async () => {
     const requests: any[] = [];
     const qa: StorybookLlm = async r => imageReview(r.stage, { sceneMatch: 0.2, primaryActionClear: false, defects: [{ kind: 'story', detail: 'The key action is missing.', fix: 'Keep the bell action.' }] });
@@ -225,6 +256,50 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     }, llm: async r => imageReview(r.stage), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
     expect(peak).toBe(4);
     expect(result.imagesGenerated).toBe(4);
+  });
+  test('reference preparation recovers all seven pictures without spending paid redraws', async () => {
+    // f346d2d6: the only successful picture contained just the lead; every avatar sheet failed.
+    const readingPages = Array.from({ length: 6 }, (_, i) => ({ ...pages[i % 3], order: i + 1 }));
+    const raw = rawPlan();
+    raw.cover.onStage = ['lead', 'kid'];
+    raw.pages = readingPages.map((p, i) => ({ ...raw.pages[i % 3], page: p.order, onStage: i === 0 ? ['lead'] : ['lead', 'kid'] }));
+    const plan = validateSeriesShots(raw, readingPages, entities, 'lead');
+    const stages: string[] = [], drawn: number[] = [];
+    let together = 0;
+    const result = await generateSeriesImages({
+      illustrations: plan, entities, seed: 'f346d2d6', visionModel: 'test', pageTexts: {},
+      buildReference: async slots => {
+        if (slots.length > 1 && ++together <= 12) throw new IdentityReferenceError('reference_http', 503);
+        return { urls: ['data:image/jpeg;base64,AA=='], mode: slots.length > 1 ? 'sprite' : 'single', subjects: slots.map(s => ({ displayName: s.displayName, kind: 'character' })) };
+      },
+      provider: async r => { drawn.push(r.page); return { url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }; },
+      llm: async r => {
+        stages.push(r.stage);
+        const shot = [plan.cover, ...plan.pages].find(s => r.stage.startsWith(`series-image-qa-${s.page}-`))!;
+        return response(JSON.stringify({ visibleIds: shot.onStage, identityById: Object.fromEntries(shot.onStage.map(id => [id, 1])), posing: false, primaryActionClear: true, sceneMatch: 1, styleMatch: 1, defects: [] }));
+      },
+    });
+    expect(result.imagesGenerated).toBe(7);
+    expect(result.imageCalls).toBe(7);
+    expect(result.imageCostUSD).toBeCloseTo(0.0175);
+    expect(new Set(drawn).size).toBe(7);
+    expect(result.regenerated).toEqual([]);
+    expect(stages.every(s => s.endsWith('-1'))).toBe(true);
+    expect(result.cover?.history?.[0].notes).toContain('Identitätsreferenz nicht verfügbar: reference_http (HTTP 503); kein Ersatzkind erzeugt und kein Bildaufruf bezahlt.');
+  });
+  test('permanent reference failures stay bounded, diagnostic and never create a replacement child', async () => {
+    let preparations = 0, paid = 0;
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'offline', visionModel: 'test', pageTexts: {},
+      buildReference: async () => { preparations++; throw new IdentityReferenceError('reference_http', 500); },
+      provider: async () => { paid++; return { url: 'https://example.test/unused.webp' }; }, llm: async r => imageReview(r.stage),
+    });
+    expect(preparations).toBe(16); // Four shots, two preparations each, one recovery pass.
+    expect(paid).toBe(0);
+    expect(result.imageCalls).toBe(0);
+    expect(result.imagesGenerated).toBe(0);
+    expect(result.pages.get(1)?.errors).toEqual(['series_reference_error', 'reference_http (HTTP 500)']);
+    expect(result.pages.get(1)?.history).toHaveLength(2);
   });
   test('a consistent neighbouring moment is printed as flawed without a repair; a contradiction gets the repair', async () => {
     const loose = { primaryActionClear: false, sceneMatch: 0.55, defects: [{ kind: 'story', detail: 'The crate is being turned, not yet landed on the coat.', fix: 'Show the crate landing on the coat.' }] };

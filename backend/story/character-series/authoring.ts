@@ -22,12 +22,13 @@ export const SERIES_MODELS = { writer: 'openai/gpt-6.1-sol', support: 'openai/gp
 export const SERIES_IMAGE_REVIEW_MODEL = SERIES_MODELS.support;
 export const SERIES_IMAGE_MODEL = FLUX3_KLEIN_MODEL;
 /**
- * Version 6 (story ff6eff04, 2026-10-28): two pictures per chapter like Talea-Folge (cover + 6 for three chapters,
+ * Version 7 (story f346d2d6): direct storage references, bounded free preparation recovery and local repairs of minor
+ * continuity defects. Two pictures per chapter like Talea-Folge (cover + 6 for three chapters,
  * 0.25 ¢ each on FLUX 3 Klein). All planned pictures are drawn and checked at once — four pictures one after another
  * took 211 s. Up to two repairs, spent only on pictures with a hard fault. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 6, picturesPerChapter: 2, imageRetries: 2, imageConcurrency: 7, maxImageCalls: 12, maxLlmCalls: 24, llmStopAfterUSD: 0.1, longLlmStopAfterUSD: 0.14, maxTextRepairs: 1 } as const;
+export const SERIES_POLICY = { version: 7, picturesPerChapter: 2, imageRetries: 2, imageConcurrency: 7, maxImageCalls: 12, maxLlmCalls: 24, llmStopAfterUSD: 0.1, longLlmStopAfterUSD: 0.14, maxTextRepairs: 1 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);
@@ -140,7 +141,7 @@ export function seriesAuthoring(brief: StoryBrief) {
     learningLines.length ? learningLines.join('\n') : '',
     ...brief.artifacts.filter(a => a.broughtBy).map(a => `BROUGHT ARTIFACT — present from arrival, its rule stays fixed: ${artifactSheetEn(a)}`),
     brief.blockedTerms.length ? `Blocked words: ${brief.blockedTerms.join(', ')}` : '',
-    'Silently check the opening route and meeting, everyone\'s locations and knowledge, who owns or moves each prop, what changed because of each choice, and the planted final question. Then return the whole episode.',
+    'Silently check the opening route and meeting, everyone\'s locations and knowledge, who owns or moves each prop, what changed because of each choice, and the planted final question. Track concrete prop locations across chapters: a prop fastened somewhere cannot later fall from its former hiding place without being returned there. Introduce a tool before someone removes it from under something. Show necessary transitions in a short action, without explanatory recaps. Then return the whole episode.',
   ].filter(Boolean).join('\n\n');
   return { system, user };
 }

@@ -30,7 +30,7 @@ import { createHash } from "crypto";
 import { ai } from "~encore/clients";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { logTopic } from "../log/logger";
-import { resolveImageUrlForClient } from "../helpers/bucket-storage";
+import { resolveImageUrlForClient, resolveImageUrlForProxyAccess } from "../helpers/bucket-storage";
 import { buildArtifactImageUrlForClient } from "../helpers/image-proxy";
 import { acceptedGeneratedImageUrl } from "../helpers/imageResultGuard";
 import { recordStoryArtifact } from "./artifact-matcher";
@@ -152,7 +152,9 @@ export function encoreImageProvider(storyId: string | undefined, model = IMAGE_M
 export async function readableReference(imageUrl: string | undefined): Promise<string | undefined> {
   if (!imageUrl) return undefined;
   try {
-    const resolved = await resolveImageUrlForClient(imageUrl);
+    // Model references are read server-side. Do not fetch our own public image proxy:
+    // f346d2d6 lost six of seven pictures when that proxy returned HTTP 500 for the avatars.
+    const resolved = await resolveImageUrlForProxyAccess(imageUrl);
     return resolved && /^(https?:|data:image\/)/i.test(resolved) ? resolved : undefined;
   } catch {
     return undefined;

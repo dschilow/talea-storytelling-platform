@@ -252,7 +252,7 @@ export async function resolveImageUrlForProxyAccess(
   const config = await pickConfig();
   if (!config) return imageUrl;
 
-  const key = extractBucketKey(imageUrl, config);
+  const key = extractBucketKey(imageUrl, config) || keyFromOwnImageProxy(imageUrl, await pickProxyBaseUrl());
   if (!key) return imageUrl;
 
   if (config.accessMode === "public") {
