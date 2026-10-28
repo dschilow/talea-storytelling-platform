@@ -28,7 +28,7 @@ export interface StoryBrief {
   heroMemories: Record<string, string[]>;
   blockedTerms: string[];
   seed: string;
-  characterSeries?: { bible: CharacterSeriesBible; logs: SeriesEpisodeLog[] };
+  characterSeries?: { bible: CharacterSeriesBible; logs: SeriesEpisodeLog[]; episodeOverride?: number };
   /** Test-only switches (scripts/storybook-live-test.ts --variant). Empty in production. */
   experiment?: StorybookExperiment;
 }

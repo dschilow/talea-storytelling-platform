@@ -83,6 +83,8 @@ interface WizardState {
   episodeMode: boolean;
   /** null: a standalone story; auto or an ID: a personal character series. */
   characterSeries: CharacterSeriesSelection;
+  /** Admin-only test override for the character series episode number (1..20). */
+  characterSeriesEpisodeOverride: number | null;
   /** Chapter book (chapter-book-v1): a volume read over several evenings. */
   chapterBookMode: boolean;
   experienceForm: ExperienceForm | null;
@@ -358,6 +360,7 @@ export default function TaleaStoryWizard() {
     wonderStoryMode: false,
     episodeMode: false,
     characterSeries: null,
+    characterSeriesEpisodeOverride: null,
     chapterBookMode: false,
     experienceForm: null,
     bookChapters: 12,
@@ -771,7 +774,7 @@ export default function TaleaStoryWizard() {
                 <span className="min-w-0 flex-1"><span className="block font-semibold text-[var(--talea-text-primary)]">Figurenabenteuer entdecken</span><span className="block text-sm text-[var(--talea-text-secondary)]">Wiederkehrende Figuren und eure eigenen Folgen</span></span>
                 <span aria-hidden className="text-xl text-[var(--primary)]">{seriesOpen ? '−' : '+'}</span>
               </button>
-              {seriesOpen && <div className="mt-5"><StepCharacterSeries selection={state.characterSeries} onSelect={(selection) => updateState({ characterSeries: selection, ...(selection !== null ? { developerMode: false, storybookMode: false, bookWorkshopMode: false, wonderStoryMode: false, episodeMode: false, chapterBookMode: false } : {}) })} series={characterSeries} loading={seriesLoading} error={seriesError} onRetry={() => setSeriesRetry((n) => n + 1)} genre={state.mainCategory} /></div>}
+              {seriesOpen && <div className="mt-5"><StepCharacterSeries selection={state.characterSeries} onSelect={(selection) => updateState({ characterSeries: selection, ...(selection === null ? { characterSeriesEpisodeOverride: null } : {}), ...(selection !== null ? { developerMode: false, storybookMode: false, bookWorkshopMode: false, wonderStoryMode: false, episodeMode: false, chapterBookMode: false } : {}) })} series={characterSeries} loading={seriesLoading} error={seriesError} onRetry={() => setSeriesRetry((n) => n + 1)} genre={state.mainCategory} isAdmin={isAdmin === true} episodeOverride={state.characterSeriesEpisodeOverride} onEpisodeOverrideChange={(ep) => updateState({ characterSeriesEpisodeOverride: ep })} /></div>}
             </section>
           </div>
         );
@@ -1001,6 +1004,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     storybookMode: state.characterSeries !== null || state.storybookMode || state.bookWorkshopMode || state.chapterBookMode || state.wonderStoryMode || state.episodeMode || undefined,
     storybookEngine: state.characterSeries !== null ? 'character-series-v1' : state.episodeMode ? 'talea-folge-v1' : state.wonderStoryMode ? 'wonder-story-v1' : state.chapterBookMode ? 'chapter-book-v1' : state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v2' : undefined,
     characterSeriesId: state.characterSeries && state.characterSeries !== 'auto' ? state.characterSeries : undefined,
+    characterSeriesEpisodeOverride: state.characterSeries !== null && state.characterSeriesEpisodeOverride ? state.characterSeriesEpisodeOverride : undefined,
     ...(state.chapterBookMode
       ? { bookChapters: state.bookChapters, bookImagesPerChapter: state.bookImagesPerChapter, experienceForm: state.experienceForm || undefined, heroRelation: state.selectedAvatars.length > 1 ? state.heroRelation || undefined : undefined, length: 'long' }
       : {}),

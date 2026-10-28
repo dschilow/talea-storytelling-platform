@@ -77,7 +77,23 @@ export async function runCharacterSeriesTextEngine(input: {
   story = { ...story, chapters: renamed.chapters };
   const narrative = SERIES_NARRATIVES[brief.characterSeries.bible.id];
   const guests = plan.cast.filter(c => c.from === 'new');
-  if (guests.length > 1 || guests.some(c => !narrative.ensemble.some(allowed => allowed.name === c.name))) throw new Error('Die Figurenfolge hat ihre feste Besetzung verlassen.');
+  const matchEnsemble = (c: { id: string; name: string }) => {
+    const normName = c.name.trim().toLocaleLowerCase('de-DE');
+    const normId = c.id.trim().toLocaleLowerCase('de-DE');
+    return narrative.ensemble.find(allowed => {
+      const aName = allowed.name.toLocaleLowerCase('de-DE');
+      const aTokens = aName.split(/\s+/).filter(t => t.length >= 3 && !/^(oma|opa|herr|frau)$/i.test(t));
+      return allowed.id.toLocaleLowerCase('de-DE') === normId || aName === normName || aTokens.includes(normName);
+    });
+  };
+  if (guests.length > 1 || guests.some(c => !matchEnsemble(c))) throw new Error('Die Figurenfolge hat ihre feste Besetzung verlassen.');
+  for (const guest of guests) {
+    const matched = matchEnsemble(guest)!;
+    guest.id = matched.id;
+    guest.name = matched.name;
+    guest.species = matched.species;
+    guest.lookEn = matched.look || guest.lookEn;
+  }
   const manuscript = () => story.chapters.map((c, i) => `KAPITEL ${i + 1}: ${c.title}\n${c.text}`).join('\n\n');
   type Issue = { severity: 'major' | 'minor'; quote: string; problem: string; change: string };
   const inspect = async (stage: string): Promise<Issue[]> => {
@@ -114,6 +130,17 @@ export async function runCharacterSeriesTextEngine(input: {
     title: story.title || plan.title, description: story.description || plan.summary, pages, plan: toStoryPlan(plan, story.chapters), pitches: [], engineIds: [CHARACTER_SERIES_ENGINE], review: null, pairwise: null, chosen: revised ? 'revision' : 'draft',
     finalChecks: { ok: true, hard: [], soft: checks.soft.map(message => ({ code: 'series_soft', severity: 'soft' as const, message })) }, benchmarkScore: null, draftScore: null, planRepaired: false, draftRetried: false,
     textQuality: { status: 'passed', issues: [...checks.soft, ...issues.map(i => i.problem)] },
-    episode: { plan, guests: guests.map(c => ({ id: c.id, name: c.name, species: c.species, whoTheyAre: c.comicPattern || c.role, personality: [], speechStyle: [], physicalDescription: c.lookEn || '', visualProfile: { description: c.lookEn || '', species: c.species } })), checks, revised, mode: 'one-shot', renamed: renamed.renamed, seriesLogCandidate: story.seriesLogCandidate },
+    episode: { plan, guests: guests.map(c => {
+      const matched = matchEnsemble(c);
+      const imageUrl = matched?.imageUrl
+        ? (/^https?:\/\//i.test(matched.imageUrl) ? matched.imageUrl : `https://www.talea.website${matched.imageUrl}`)
+        : undefined;
+      return {
+        id: c.id, name: c.name, species: c.species, whoTheyAre: c.comicPattern || c.role,
+        personality: [], speechStyle: [], physicalDescription: c.lookEn || '',
+        ...(imageUrl ? { imageUrl } : {}),
+        visualProfile: { description: c.lookEn || '', imagePrompt: c.lookEn || '', species: c.species },
+      };
+    }), checks, revised, mode: 'one-shot', renamed: renamed.renamed, seriesLogCandidate: story.seriesLogCandidate },
   };
 }

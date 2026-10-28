@@ -1,0 +1,152 @@
+{
+  "milo-postmaus": {
+    "id": "milo-postmaus",
+    "poolId": "char_series_milo_postmaus",
+    "name": "Milo",
+    "localUrl": "/library/character-series/characters/milo-postmaus.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a02d21/ws/3/ii/2d852d00-556d-4f8b-a334-9ff5d3a51cf3.webp",
+    "costUSD": 0.0012,
+    "seed": 42,
+    "prompt": "Character reference picture: small brown field mouse standing upright, oversized blue canvas post satchel with brass buckle, bright red postman cap, large rounded ears, holding a tiny ink stamp. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "riko-rabe": {
+    "id": "riko-rabe",
+    "poolId": "char_series_riko_rabe",
+    "name": "Riko",
+    "localUrl": "/library/character-series/characters/riko-rabe.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a07dlim3/ws/3/ii/820db4fe-7b68-4a3c-a3b2-ebac0cd800ad.webp",
+    "costUSD": 0.0025,
+    "seed": 42,
+    "prompt": "Character reference picture: glossy black raven with deep blue sheen, one comical crooked tail feather sticking out, wearing a small brass ring on a leather cord around his neck, sharp expressive eyes. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "borste-dachs": {
+    "id": "borste-dachs",
+    "poolId": "char_series_borste_dachs",
+    "name": "Borste",
+    "localUrl": "/library/character-series/characters/borste-dachs.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a07dlim3/ws/3/ii/47b81506-9e9e-4417-86d0-0cd088478947.webp",
+    "costUSD": 0.0012,
+    "seed": 42,
+    "prompt": "Character reference picture: stocky elderly European badger with black-and-white striped snout, wearing a brown leather carpenter apron with wooden pegs, small brass magnifying lens on a string, carrying a short wooden mallet. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "oma-schuppe": {
+    "id": "oma-schuppe",
+    "poolId": "char_series_oma_schuppe",
+    "name": "Oma Schuppe",
+    "localUrl": "/library/character-series/characters/oma-schuppe.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a05d22/ws/3/ii/b9cf75a2-3283-4c21-b859-4b21fa45f7c9.webp",
+    "costUSD": 0.0025,
+    "seed": 42,
+    "prompt": "Character reference picture: large friendly moss-green elderly dragon with warm cream belly scales, broad kindly snout, small round brass spectacles perched on her nose, wearing an orange canvas gardening satchel with herbs poking out. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "mucks": {
+    "id": "mucks",
+    "poolId": "char_series_mucks_murmeltier",
+    "name": "Mucks",
+    "localUrl": "/library/character-series/characters/mucks.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a05d22/ws/3/ii/2dc657a5-1152-4e5c-bd16-6d360d773c86.webp",
+    "costUSD": 0.0025,
+    "seed": 42,
+    "prompt": "Character reference picture: stocky brown alpine marmot with a pale cream muzzle, two prominent front teeth, wearing a knitted blue woollen cap tilted to one side, sturdy short digging paws. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "zirbel-gams": {
+    "id": "zirbel-gams",
+    "poolId": "char_series_zirbel_gams",
+    "name": "Zirbel",
+    "localUrl": "/library/character-series/characters/zirbel-gams.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a02d21/ws/3/ii/14feb1b3-7861-4a1c-92ab-ae10ba61924b.webp",
+    "costUSD": 0.0025,
+    "seed": 42,
+    "prompt": "Character reference picture: nimble young alpine chamois mountain goat with warm tan fur, dark facial mask stripes, one slightly crooked left horn, wearing a red leather collar with a small brass bell and a wicker backpack basket. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "ada": {
+    "id": "ada",
+    "poolId": "char_series_ada_schach",
+    "name": "Ada",
+    "localUrl": "/library/character-series/characters/ada.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a01d21/ws/3/ii/04070ad2-7ece-4331-b9e0-2d25285c9350.webp",
+    "costUSD": 0.0025,
+    "seed": 42,
+    "prompt": "Character reference picture: friendly middle-aged woman with short curly auburn hair, round tortoiseshell spectacles, wearing a tailored olive-green coat over a cream blouse, carrying a checkered cloth chess bag. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "johann": {
+    "id": "johann",
+    "poolId": "char_series_johann_hausmeister",
+    "name": "Johann",
+    "localUrl": "/library/character-series/characters/johann.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a01d21/ws/3/ii/c223b96b-a83a-4ebb-9b89-58fbac4f087e.webp",
+    "costUSD": 0.0025,
+    "seed": 42,
+    "prompt": "Character reference picture: tall neat elderly man with combed white hair, wearing a navy waistcoat over a pale blue shirt, dark trousers, holding a small brass pocket watch on a chain, calm dry expression. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "pepe-brieftraegerhund": {
+    "id": "pepe-brieftraegerhund",
+    "poolId": "char_series_pepe_posthund",
+    "name": "Pepe",
+    "localUrl": "/library/character-series/characters/pepe-brieftraegerhund.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a06dlim3/ws/3/ii/b7ce0b58-c73a-408c-81b1-2ff74ce75f20.webp",
+    "costUSD": 0.0025,
+    "seed": 42,
+    "prompt": "Character reference picture: plump wire-haired dachshund-terrier mix with scruffy caramel fur, one floppy ear up and one down, wearing a small yellow-and-blue striped postal dog vest with a side pocket, holding an envelope corner in his mouth. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "pia-bootsbauerin": {
+    "id": "pia-bootsbauerin",
+    "poolId": "char_series_pia_bootsbauerin",
+    "name": "Pia",
+    "localUrl": "/library/character-series/characters/pia-bootsbauerin.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a06dlim3/ws/3/ii/bdd3dd25-c616-4c9b-90ce-6f1a604cabd0.webp",
+    "costUSD": 0.0025,
+    "seed": 42,
+    "prompt": "Character reference picture: capable adult woman shipwright with a thick dark braid, bright orange headscarf, teal rolled-sleeve work shirt, brown canvas dungarees with a wooden folding ruler in the pocket, warm observant smile. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "lotta-moewe": {
+    "id": "lotta-moewe",
+    "poolId": "char_series_lotta_moewe",
+    "name": "Lotta",
+    "localUrl": "/library/character-series/characters/lotta-moewe.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a06dlim3/ws/3/ii/599660c8-098b-4a8d-876c-b248c0555491.webp",
+    "costUSD": 0.0025,
+    "seed": 42,
+    "prompt": "Character reference picture: plump white harbour seagull with slate-grey wings, bright yellow hooked beak, yellow webbed feet, and one distinctive crooked tail feather sticking out to the side, cheeky alert expression. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "kalli-hafenmeister": {
+    "id": "kalli-hafenmeister",
+    "poolId": "char_series_kalli_hafenmeister",
+    "name": "Kalli Krabbe",
+    "localUrl": "/library/character-series/characters/kalli-hafenmeister.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a06dlim3/ws/3/ii/9e93c78d-9687-4d07-b5d2-24a4cb1c5086.webp",
+    "costUSD": 0.0025,
+    "seed": 42,
+    "prompt": "Character reference picture: short energetic elderly harbour tender with rosy cheeks and bushy white sideburns, wearing an oversized bright yellow oilskin sou’wester hat and yellow raincoat over red knitted jumper, brass spyglass on a strap. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "mina-mosaik": {
+    "id": "mina-mosaik",
+    "poolId": "char_series_mina_mosaik",
+    "name": "Mina",
+    "localUrl": "/library/character-series/characters/mina-mosaik.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a04d20/ws/3/ii/988fb8df-781a-4d56-8fe7-abe81e7ee5a2.webp",
+    "costUSD": 0.0025,
+    "seed": 42,
+    "prompt": "Character reference picture: cheerful girl with two short dark braids, wearing a coral-red jacket over a striped top, blue skirt over dark leggings, carrying a shoulder bag brimming with colourful painted wooden tiles. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "kuno-knopf": {
+    "id": "kuno-knopf",
+    "poolId": "char_series_kuno_knopf",
+    "name": "Kuno",
+    "localUrl": "/library/character-series/characters/kuno-knopf.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a03d21/ws/3/ii/9c6cf63e-0ca4-4cf0-8aa1-f4883918e4d0.webp",
+    "costUSD": 0.0025,
+    "seed": 42,
+    "prompt": "Character reference picture: small boy with tousled reddish-copper hair and freckles, wearing a green knitted jumper with one oversized bright blue button on the chest, brown shorts with bulging pockets, holding a tiny tin box. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "rostig-werkstattgans": {
+    "id": "rostig-werkstattgans",
+    "poolId": "char_series_rostig_gans",
+    "name": "Rostig",
+    "localUrl": "/library/character-series/characters/rostig-werkstattgans.webp",
+    "runwareUrl": "https://im.runware.ai/image/os/a03d21/ws/3/ii/3b47ed6b-ea41-4d50-bd0f-35698facff79.webp",
+    "costUSD": 0.0025,
+    "seed": 42,
+    "prompt": "Character reference picture: proud white domestic goose with bright orange beak and feet, a small brass-rimmed leather tinkerer goggle strap resting on top of her head, a smudge of dark grease on one wing feather, standing alert. The whole figure is visible in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  }
+}

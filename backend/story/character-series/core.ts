@@ -17,11 +17,89 @@ export interface SeriesEpisodeLog {
   episode: number;
   storyId: string;
   avatarIds: string[];
+  /** Snapshot fingerprints of participating avatars (name + description + appearance) to detect later avatar edits. */
+  avatarFingerprints?: Record<string, string>;
   events: SeriesLogEntry[];
   relationships: SeriesLogEntry[];
   openThreads: SeriesLogEntry[];
   /** Literal context around the last episode's recorded events, not generated summaries. */
   context?: string[];
+}
+
+export interface SeriesAvatarLike {
+  id: string;
+  name: string;
+  description?: string;
+  visualProfile?: unknown;
+  physicalTraits?: unknown;
+}
+
+/** Deterministic fingerprint of an avatar's identity and appearance so edits trigger a fresh re-introduction. */
+export function avatarSeriesFingerprint(avatar: SeriesAvatarLike): string {
+  const vp = avatar.visualProfile && typeof avatar.visualProfile === 'object' ? avatar.visualProfile as Record<string, any> : {};
+  const pt = avatar.physicalTraits && typeof avatar.physicalTraits === 'object' ? avatar.physicalTraits as Record<string, any> : {};
+  const parts = [
+    String(avatar.name || '').trim().toLowerCase(),
+    String(avatar.description || '').trim().toLowerCase(),
+    String(pt.appearance || '').trim().toLowerCase(),
+    JSON.stringify({
+      hair: vp.hair,
+      eyes: vp.eyes,
+      skin: vp.skin,
+      clothing: vp.clothingCanonical,
+      accessories: vp.accessories,
+      mustInclude: vp.mustIncludeFeatures,
+    }),
+  ];
+  let hash = 2166136261;
+  const raw = parts.join('|');
+  for (let i = 0; i < raw.length; i++) {
+    hash = Math.imul(hash ^ raw.charCodeAt(i), 16777619) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
+export interface ClassifiedSeriesAvatars<T extends SeriesAvatarLike = SeriesAvatarLike> {
+  familiar: T[];
+  newcomers: T[];
+  changed: T[];
+  returningAfterGap: T[];
+}
+
+/** At least 1 and at most 3 avatars may participate in a character series episode. */
+export function validateSeriesAvatarCount(avatars: ReadonlyArray<unknown>): void {
+  if (!Array.isArray(avatars) || avatars.length < 1 || avatars.length > 3) {
+    throw new Error('An einer Figurenfolge nehmen mindestens ein und höchstens drei Avatare teil.');
+  }
+}
+
+/** Classify participating avatars so newcomers and modified/returning avatars are explicitly (re-)introduced in-scene. */
+export function classifySeriesAvatars<T extends SeriesAvatarLike>(logs: SeriesEpisodeLog[], avatars: T[]): ClassifiedSeriesAvatars<T> {
+  const familiar: T[] = [];
+  const newcomers: T[] = [];
+  const changed: T[] = [];
+  const returningAfterGap: T[] = [];
+  const lastLog = logs[logs.length - 1];
+  for (const avatar of avatars) {
+    const priorLogs = logs.filter(l => l.avatarIds.includes(avatar.id));
+    if (priorLogs.length === 0) {
+      newcomers.push(avatar);
+      continue;
+    }
+    const lastSeenLog = priorLogs[priorLogs.length - 1];
+    const priorFp = lastSeenLog.avatarFingerprints?.[avatar.id];
+    const hasRichInput = Boolean(avatar.description || avatar.visualProfile || avatar.physicalTraits);
+    if (priorFp && hasRichInput && priorFp !== avatarSeriesFingerprint(avatar)) {
+      changed.push(avatar);
+      continue;
+    }
+    if (lastLog && !lastLog.avatarIds.includes(avatar.id)) {
+      returningAfterGap.push(avatar);
+      continue;
+    }
+    familiar.push(avatar);
+  }
+  return { familiar, newcomers, changed, returningAfterGap };
 }
 
 export function withSeriesContext(log: SeriesEpisodeLog, storyText: string): SeriesEpisodeLog {
@@ -55,6 +133,22 @@ export function nextSeriesEpisode(logs: SeriesEpisodeLog[]): number {
     previous = log.episode;
   }
   return previous + 1;
+}
+
+/** Admin episode counter override (1..40) or the natural next episode number. */
+export function effectiveSeriesEpisode(logs: SeriesEpisodeLog[], episodeOverride?: number): number {
+  if (typeof episodeOverride === 'number' && Number.isInteger(episodeOverride) && episodeOverride >= 1 && episodeOverride <= 40) {
+    return episodeOverride;
+  }
+  return nextSeriesEpisode(logs);
+}
+
+/** Filter history to episodes strictly preceding the target episode when an admin tests a specific episode number. */
+export function logsForEpisode(logs: SeriesEpisodeLog[], episodeOverride?: number): SeriesEpisodeLog[] {
+  if (typeof episodeOverride === 'number' && Number.isInteger(episodeOverride) && episodeOverride >= 1 && episodeOverride <= 40) {
+    return logs.filter(l => l.episode < episodeOverride);
+  }
+  return logs;
 }
 
 /** Selection is deterministic for a given shortlist; genre fit precedes rotation. */
@@ -97,19 +191,21 @@ export function extractSeriesLog(input: {
   };
 }
 
-export function seriesPrompt(bible: CharacterSeriesBible, logs: SeriesEpisodeLog[], avatars: Array<{ id: string; name: string }>): string {
-  const history = logs.map((log) => {
+export function seriesPrompt(bible: CharacterSeriesBible, logs: SeriesEpisodeLog[], avatars: SeriesAvatarLike[], episodeOverride?: number): string {
+  const effectiveLogs = logsForEpisode(logs, episodeOverride);
+  const targetEpisode = effectiveSeriesEpisode(logs, episodeOverride);
+  const history = effectiveLogs.map((log) => {
     const involved = avatars.filter((avatar) => log.avatarIds.includes(avatar.id)).map((avatar) => `${avatar.name} [${avatar.id}]`);
     const lines = (entries: SeriesLogEntry[]) => entries.map((entry) => `- „${entry.quote}“`).join("\n") || "- keine";
-    const context = log === logs[logs.length - 1] && log.context?.length ? `\nWÖRTLICHER ZUSAMMENHANG DER LETZTEN FOLGE (Auswahl, keine vollständige Geschichte):\n${log.context.join('\n\n')}` : '';
+    const context = log === effectiveLogs[effectiveLogs.length - 1] && log.context?.length ? `\nWÖRTLICHER ZUSAMMENHANG DER LETZTEN FOLGE (Auswahl, keine vollständige Geschichte):\n${log.context.join('\n\n')}` : '';
     return `FOLGE ${log.episode}; damals beteiligte heutige Avatare: ${involved.join(", ") || "keine"}\nTEXTAUSSCHNITTE ZU EREIGNISSEN:\n${lines(log.events)}\nWEITERE BEZIEHUNGS-AUSSCHNITTE:\n${lines(log.relationships)}\nWEITERE ALS MÖGLICHE FÄDEN MARKIERTE AUSSCHNITTE (spätere Folgen können diese auflösen):\n${lines(log.openThreads)}${context}`;
   }).join("\n\n");
   return [
     "VERBINDLICHE FIGURENSERIE — diese Angaben gehen allgemeinen Ideen- und Wunder-Vorgaben vor. Behalte die Weltregeln, Figuren und ihre Beziehungen bei.",
     `SERIE: ${bible.title}\n${bible.bible}`,
-    logs.length === 0
+    effectiveLogs.length === 0 && targetEpisode === 1
       ? "ERSTE FOLGE: Erzähle das in der Serienbibel beschriebene Ursprungsgeschehen als vollständige Handlung in lebendigen Szenen. Die ausgewählten Avatare sind schon während dieses Geschehens aktiv beteiligt und beeinflussen Entscheidungen und Ausgang; Vorgeschichte nicht bloß nacherzählen. Die Figur handelt selbst."
-      : `FORTSETZUNG: Dies ist Folge ${nextSeriesEpisode(logs)}. Die folgenden Ausschnitte stammen aus früheren Folgen, sind aber keine vollständige Zusammenfassung. Wenn ein Ereignis oder ein Zusammenhang daraus nicht klar hervorgeht, erfinde keine bestimmte Erinnerung daran. Nur Avatare, die in einer Folge genannt sind, erinnern sich an diese Begegnung. Lasse nicht beteiligte Avatare sich natürlich vorstellen. Erzähle ein eigenes abgeschlossenes Abenteuer und entwickle Figur und Beziehung behutsam weiter.\n${history}`,
-    "Die Serienfigur hat ein eigenes Ziel und trifft eine wichtige Entscheidung. Jeder Avatar trägt durch eine eigene Handlung entscheidend bei. Humor und Spannung entstehen aus Figuren, Konflikten und Weltregeln; keine willkürlichen Zauberlösungen, keine moralische Predigt. Löse das konkrete Abenteuer befriedigend und lasse allenfalls einen größeren Faden offen.",
+      : `FORTSETZUNG: Dies ist Folge ${targetEpisode}. Die folgenden Ausschnitte stammen aus früheren Folgen, sind aber keine vollständige Zusammenfassung. Wenn ein Ereignis oder ein Zusammenhang daraus nicht klar hervorgeht, erfinde keine bestimmte Erinnerung daran. Nur Avatare, die in einer Folge genannt sind, erinnern sich an diese Begegnung. Lasse nicht beteiligte oder veränderte Avatare sich natürlich in Kapitel 1 vorstellen. Erzähle ein eigenes abgeschlossenes Abenteuer und entwickle Figur und Beziehung behutsam weiter.${history ? `\n${history}` : ''}`,
+    "AVATAR-ROLLE (1–3 Avatare): Die Serienfigur bleibt der Star und Motor der Folge (mit ihrem eigenen Ziel, ihrem komischen Fehler und ihrer schweren Entscheidung), aber die 1–3 Kinder-Avatare sind unverzichtbare, aktive Mitstreiter! Jeder beteiligte Avatar liefert eine eigene kluge Beobachtung oder tatkräftige Handlung, ohne die das Abenteuer nicht gelingt.",
   ].join("\n\n");
 }

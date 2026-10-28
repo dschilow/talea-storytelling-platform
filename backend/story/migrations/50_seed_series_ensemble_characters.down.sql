@@ -1,0 +1,2 @@
+-- Migration 50 down: Remove seeded character-series ensemble figures
+DELETE FROM character_pool WHERE id IN ('char_series_milo_postmaus', 'char_series_riko_rabe', 'char_series_borste_dachs', 'char_series_oma_schuppe', 'char_series_mucks_murmeltier', 'char_series_zirbel_gams', 'char_series_ada_schach', 'char_series_johann_hausmeister', 'char_series_pepe_posthund', 'char_series_pia_bootsbauerin', 'char_series_lotta_moewe', 'char_series_kalli_hafenmeister', 'char_series_mina_mosaik', 'char_series_kuno_knopf', 'char_series_rostig_gans');

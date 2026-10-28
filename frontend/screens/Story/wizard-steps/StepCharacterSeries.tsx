@@ -25,9 +25,12 @@ interface Props {
   error: string | null;
   onRetry: () => void;
   genre: string | null;
+  isAdmin?: boolean;
+  episodeOverride?: number | null;
+  onEpisodeOverrideChange?: (episode: number | null) => void;
 }
 
-export default function StepCharacterSeries({ selection, onSelect, series, loading, error, onRetry, genre }: Props) {
+export default function StepCharacterSeries({ selection, onSelect, series, loading, error, onRetry, genre, isAdmin, episodeOverride, onEpisodeOverrideChange }: Props) {
   const apiGenre = genre === 'fairy-tales' ? 'fairy_tales' : genre;
   const matches = (item: CharacterSeriesChoice) => Boolean(apiGenre && item.genres?.includes(apiGenre));
   const hasGenreMatch = series.some(matches);
@@ -77,6 +80,33 @@ export default function StepCharacterSeries({ selection, onSelect, series, loadi
           })}
         </div>
       </section>
+
+      {isAdmin && selection !== null && onEpisodeOverrideChange && (
+        <div className="rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3.5 text-sm">
+          <label htmlFor="admin-series-episode-override" className="block font-semibold text-[var(--talea-text-primary)]">
+            Admin-Test: Folgen-Zähler wählen (Folge 1–20)
+          </label>
+          <p className="mt-0.5 text-xs text-[var(--talea-text-secondary)]">
+            Testet gezielt den vorgeplanten Episoden-Blueprint (inkl. gestaffelter Gast-Auftritte ab Folge 2, 4 und 7).
+          </p>
+          <select
+            id="admin-series-episode-override"
+            value={episodeOverride ?? ''}
+            onChange={(e) => {
+              const v = e.target.value ? Number(e.target.value) : null;
+              onEpisodeOverrideChange(v && Number.isInteger(v) ? v : null);
+            }}
+            className="mt-2 w-full rounded-xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] px-3 py-2 text-sm font-medium text-[var(--talea-text-primary)]"
+          >
+            <option value="">Automatisch (Nächste reguläre Folge)</option>
+            {Array.from({ length: 20 }, (_, i) => i + 1).map((ep) => (
+              <option key={ep} value={ep}>
+                Folge {ep} {ep === 1 ? '(Ursprung / Erste Begegnung)' : ep === 2 ? '(Gast 1 Debüt)' : ep === 4 ? '(Gast 2 Debüt)' : ep === 7 ? '(Gast 3 Debüt)' : ep === 10 ? '(Staffel-1-Finale)' : ep === 20 ? '(Großes Finale)' : `(Staffel ${ep <= 10 ? 1 : 2})`}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,11 +1,22 @@
 import type { StoryBrief } from '../storybook/context';
-import { heroSheetEn, artifactSheetEn } from '../storybook/oneshot-prompt-en';
+import { heroSheetEn, artifactSheetEn, wishLinesEn } from '../storybook/oneshot-prompt-en';
+import { learningGoal, learningWriterLinesEn } from '../storybook/learning';
 import { CHILD_SAFETY_RULES_EN } from '../../helpers/child-safety';
 import { styleSamples, episodeBudget } from '../episode/craft';
 import type { AgeBand } from '../storybook/craft';
 import { SERIES_NARRATIVES } from './narrative';
-import { nextSeriesEpisode, seriesPrompt } from './core';
+import { classifySeriesAvatars, effectiveSeriesEpisode, logsForEpisode, seriesPrompt, validateSeriesAvatarCount } from './core';
+import { getSeriesEpisodeBlueprint, getUnlockedSeriesEnsemble } from './episode-plans';
 import { FLUX3_KLEIN_MODEL } from '../../ai/runware-image-model-options';
+
+const SERIES_GENRE_COLORING: Record<string, string> = {
+  fairy_tales: 'Genre coloring — Fairy Tale (Märchen): Keep this series world and its physical rules intact, but give today\'s episode a warm fairy-tale atmosphere: poetic sensory details, the classic rule of three (three tries or three clues), and a timeless, magical-feeling mood.',
+  adventure: 'Genre coloring — Adventure (Abenteuer): Emphasize active exploration of the series world, physical obstacles, outdoor routes, discoveries and a tangible, child-appropriate thrill.',
+  magic: 'Genre coloring — Magic & Wonder (Magie): Put the wondrous, mysterious or seemingly magical phenomena of this series world at center stage (while keeping its world rules intact) and let the children figure out how the rule works.',
+  animals: 'Genre coloring — Animal Focus (Tierwelt): Give the animal figures or local creatures of this series world extra spotlight; their authentic animal habits, instincts and funny animal quirks drive the comedy and the solution.',
+  scifi: 'Genre coloring — Tinkering & Discovery (Zukunft & Technik): Highlight contraptions, mechanisms, starlight/navigation or cause-and-effect experiments within the series world.',
+  modern: 'Genre coloring — Everyday Life (Alltag): Ground the comedy and conflict in relatable everyday child situations, neighbourhood chaos and hands-on teamwork.',
+};
 
 export const SERIES_MODELS = { writer: 'openai/gpt-6.1-sol', support: 'openai/gpt-6-luna', critic: 'openai/gpt-6.1-terra' };
 export const SERIES_IMAGE_REVIEW_MODEL = SERIES_MODELS.support;
@@ -20,25 +31,70 @@ export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand)
 
 export function seriesContext(brief: StoryBrief): string {
   if (!brief.characterSeries) throw new Error('Die Serienbibel fehlt.');
-  const { bible, logs } = brief.characterSeries;
+  validateSeriesAvatarCount(brief.heroes);
+  const { bible, logs, episodeOverride } = brief.characterSeries;
   const narrative = SERIES_NARRATIVES[bible.id];
   if (!narrative) throw new Error(`Die Figurenwelt ${bible.id} hat noch keinen Serienplan.`);
-  const episode = nextSeriesEpisode(logs);
-  // The arc is a menu of possible developments, never an assertion that a numbered milestone happened.
-  const arc = narrative.arcs[Math.min(narrative.arcs.length - 1, Math.floor((episode - 1) / 10))];
+  const effectiveLogs = logsForEpisode(logs, episodeOverride);
+  const episode = effectiveSeriesEpisode(logs, episodeOverride);
+  const classified = classifySeriesAvatars(effectiveLogs, brief.heroes);
+  const introNotes: string[] = [];
+  if (effectiveLogs.length > 0) {
+    if (classified.familiar.length) introNotes.push(`Bereits mit der Serienfigur vertraut: ${classified.familiar.map(a => `${a.name} [${a.id}]`).join(', ')}.`);
+    if (classified.newcomers.length) introNotes.push(`NEU IN DIESER SERIE (noch nie dabei gewesen – MUSS in Kapitel 1 bei der Ankunft namentlich und szenisch vorgestellt werden!): ${classified.newcomers.map(a => `${a.name} [${a.id}]`).join(', ')}.`);
+    if (classified.changed.length) introNotes.push(`SEIT DEM LETZTEN BESUCH VERÄNDERT (Avatar wurde angepasst – MUSS in Kapitel 1 mit seiner Veränderung / seinem neuen Auftritt frisch wieder eingeführt werden!): ${classified.changed.map(a => `${a.name} [${a.id}]`).join(', ')}.`);
+    if (classified.returningAfterGap.length) introNotes.push(`NACH PAUSE WIEDER DABEI (war in der letzten Folge nicht dabei – in Kapitel 1 herzlich wieder begrüßen und in den aktuellen Stand holen!): ${classified.returningAfterGap.map(a => `${a.name} [${a.id}]`).join(', ')}.`);
+  }
+  const arc = narrative.arcs[Math.min(narrative.arcs.length - 1, Math.floor((episode - 1) / 5))];
+  const blueprint = getSeriesEpisodeBlueprint(bible.id, episode);
+  const unlockedCast = getUnlockedSeriesEnsemble(bible.id, episode);
+  const featuredGuest = blueprint?.guestId ? unlockedCast.find(c => c.id === blueprint.guestId) : undefined;
+  const castToOffer = blueprint ? (featuredGuest ? [featuredGuest] : []) : unlockedCast;
+  const castBlock = castToOffer.length
+    ? `RECURRING CAST FOR EPISODE ${episode} (at most ONE beyond the lead in this episode; use ONLY this companion if cast):\n` +
+      castToOffer.map(c =>
+        `${c.name} [${c.id}; ${c.species}; debut ep. ${c.debutEpisode ?? 1}]: ${c.nature}${c.voice ? ` Voice: ${c.voice}` : ''}${c.catchphrase ? ` Catchphrase: „${c.catchphrase}“` : ''}${c.quirk ? ` Quirk: ${c.quirk}` : ''} English look: ${c.look}`
+      ).join('\n')
+    : `RECURRING CAST FOR EPISODE ${episode}: None — focus entirely on ${bible.characterName} and the family's avatars (do not add a second FIGUR line).`;
+  const blueprintBlock = blueprint
+    ? [
+        `THIS EPISODE'S PRE-PLANNED BLUEPRINT (Episode ${episode}, Season ${blueprint.season}):`,
+        `- Suggested title direction: „${blueprint.titleIdea}“`,
+        featuredGuest
+          ? `- Featured recurring companion for this episode: ${featuredGuest.name} [${featuredGuest.id}]${blueprint.guestDebut ? ` — GRAND DEBUT IN THIS EPISODE! Neither the avatars nor the reader have met ${featuredGuest.name} before; stage their funny first entrance: ${featuredGuest.debutScene}` : ''}`
+          : '- Cast focus: Series lead + the family\'s avatars (no recurring guest needed in this episode).',
+        `- Episode hook & starting situation: ${blueprint.hook}`,
+        `- Escalating slapstick & comic chain reaction (Chapters 1–2): ${blueprint.slapstick}`,
+        `- Suspense, turning point & costly choice (Chapter 3): ${blueprint.suspense}`,
+        ...(blueprint.avatarRole ? [`- Indispensable role of the 1–3 child avatars: ${blueprint.avatarRole}`] : []),
+        `- Recommended punchline / schoolyard line: ${blueprint.joke}`,
+        `- Key paintable slapstick visual: ${blueprint.keyVisual}`,
+        `- Series mystery clue to plant/resolve at the end: ${blueprint.clue}`,
+      ].join('\n')
+    : '';
   return [
     `SERIES ${bible.title}; lead ${bible.characterName} [${bible.characterId}]; episode ${episode}.`,
     `SERIES PROMISE: ${narrative.promise}`, `LEAD: ${narrative.lead}\nVOICE: ${narrative.voice}`, `WORLD: ${narrative.world}`,
     `RULES:\n${narrative.rules.map(rule => `- ${rule}`).join('\n')}`,
-    `RECURRING CAST (at most ONE beyond the lead in this episode; choose only someone the plot needs):\n${narrative.ensemble.map(c => `${c.name} [${c.id}; ${c.species}]: ${c.nature} English look: ${c.look}`).join('\n')}`,
-    logs.length === 0 ? `ORIGIN — facts before the meeting: ${narrative.origin.before}\nAVATAR ARRIVAL: ${narrative.origin.arrival}\nFIRST ENCOUNTER: ${narrative.origin.encounter}\nTROUBLE: ${narrative.origin.trouble}\nCHOICE: ${narrative.origin.choice}\nNEW STATE AND SERIES QUESTION: ${narrative.origin.after}`
+    castBlock,
+    effectiveLogs.length === 0 && episode === 1
+      ? `ORIGIN — facts before the meeting: ${narrative.origin.before}\nAVATAR ARRIVAL: ${narrative.origin.arrival}\nFIRST ENCOUNTER: ${narrative.origin.encounter}\nTROUBLE: ${narrative.origin.trouble}\nCHOICE: ${narrative.origin.choice}\nNEW STATE AND SERIES QUESTION: ${narrative.origin.after}`
       : `CURRENT ARC QUESTION: ${arc.question}\nPossible different conflicts (invent a fresh consequence, do not tick these off): ${arc.possibilities.join(' / ')}\nAn earned change, only if actually prepared: ${arc.earnedChange}`,
-    seriesPrompt({ ...bible, bible: 'Use the world contract above; the detailed editorial archive is not a list of events that already occurred.' }, logs, brief.heroes),
-  ].join('\n\n');
+    blueprintBlock,
+    introNotes.length ? `AVATAR-EINFÜHRUNG IN KAPITEL 1 (FOLGE ${episode}):\n${introNotes.join('\n')}` : '',
+    seriesPrompt({ ...bible, bible: 'Use the world contract and episode blueprint above; the detailed editorial archive is not a list of events that already occurred.' }, logs, brief.heroes, episodeOverride),
+  ].filter(Boolean).join('\n\n');
 }
 
 export function seriesAuthoring(brief: StoryBrief) {
-  const first = brief.characterSeries?.logs.length === 0;
+  validateSeriesAvatarCount(brief.heroes);
+  const logs = brief.characterSeries?.logs || [];
+  const episodeOverride = brief.characterSeries?.episodeOverride;
+  const effectiveLogs = logsForEpisode(logs, episodeOverride);
+  const episode = effectiveSeriesEpisode(logs, episodeOverride);
+  const first = effectiveLogs.length === 0 && episode === 1;
+  const classified = classifySeriesAvatars(effectiveLogs, brief.heroes);
+  const needsAvatarIntro = first || classified.newcomers.length > 0 || classified.changed.length > 0 || classified.returningAfterGap.length > 0;
   const samples = styleSamples().map(s => `<<< ${s.label}\n${s.text.slice(0, 3200)}\n>>>`).join('\n\n');
   const system = [
     `Write an original read-aloud children's series episode in ${brief.languageLabel} for ages ${brief.band} with the comedic punch, escalating chaos, warm heart and page-turning rhythm of Talea Originals („Bruno, der Flunkerfisch“, „Die Monster-Müllabfuhr“). Lead with the series figure's desire and comic contradiction. A family enters a world that already has a life of its own.`,
@@ -49,17 +105,26 @@ export function seriesAuthoring(brief: StoryBrief) {
       '- Chapter 1 (Arrival, Hook & First Backfire): Open in motion with the lead\'s funny ambition or stubborn quirk. Bring the avatars in naturally. Trigger today\'s problem: the lead\'s overconfident first shortcut seems to work for ten seconds — then backfires into a visible, funny predicament (chapter hook!).\n' +
       '- Chapter 2 (The Easy Way Makes It Worse): Two concrete attempts to fix, hide or shortcut the trouble make the physical situation wilder, funnier and more urgent step by step (a chain reaction, a runaway prop, an impatient neighbour or animal interfering at the worst moment). Never fill chapters with calm logistical sorting, stacking or orderly repair routines. Before the climax, include one short, genuine quiet beat where someone admits a real worry or weakness. End on the peak comic crisis!\n' +
       '- Chapter 3 (Costly Choice, Turnaround & Callback Payoff): Everything collides at once. Give the lead competence, mistakes, initiative and a costly personal choice (sacrificing a boast, prized prop or stubborn excuse); give every avatar a different decisive observation or action that turns the crisis around in ONE surprising physical moment. Plant the final discovery in an earlier observed clue and a character\'s decision to follow it. Flip the lead\'s running gag back on them, end with a laugh-out-loud punchline, and leave one concrete, planted question from this world for a later episode.',
-    'READ-ALOUD VOICE, DIALOGUE & SOUND WORDS: Short, vivid sentences (4–12 words, average ~7), 2–4 sentences per paragraph for smooth read-aloud flow; single-sentence paragraphs reserved for expressive sound words (RUMMS!, PLATSCH!, KNACK!, SCHWUPP!), punchlines or suspense turns. Write brisk, funny dialogue (~40% of the text) where characters interrupt, boast or counter dryly, plus at least one quotable "schoolyard line" a child will repeat tomorrow. The narrator trusts children to understand the scene: never explain a joke, repeat a moral, use identical reassuring smiles, forced slogans, verse unless requested, or administrative safety lectures. World rules constrain events silently.',
+    `READ-ALOUD VOICE, DIALOGUE & SOUND WORDS: Short, vivid sentences (4–12 words, average ~7), 2–4 sentences per paragraph for smooth read-aloud flow; single-sentence paragraphs reserved for expressive sound words (RUMMS!, PLATSCH!, KNACK!, SCHWUPP!), punchlines or suspense turns. Write brisk, funny dialogue (~40% of the text) where characters interrupt, boast or counter dryly, plus at least one quotable "schoolyard line" a child will repeat tomorrow. The narrator trusts children to understand the scene: never explain a joke, repeat a moral, use identical reassuring smiles, forced slogans, verse unless requested, or administrative safety lectures.${learningGoal(brief.config) ? ' When LEARNING MODE is active, a character explaining the real-world knowledge fact in children\'s words is wanted and is not a moral lecture.' : ''} World rules constrain events silently.`,
     'Use the supplied series rules, not a newly invented wonder. The genre colours this world, never changes its physics. At most one supplied recurring companion plus briefly unnamed locals; no interchangeable random pool character or new mascot with a familiar Talea name. Their English looks remain fixed.',
     CHILD_SAFETY_RULES_EN,
     'STYLE EXCERPTS from Bruno and Monster-Müllabfuhr: learn timing, escalating slapstick, sound words, specific character reactions, quiet heart and callback punchlines; invent different names, events, gags and wording.\n' + samples,
-    'OUTPUT plain text. Header markers remain German; story content is in the requested language:\nIDEE: concrete comic engine of this episode\nREGEL: the relevant existing world rule, or ordinary cause and effect\nFIGUR: name | pool | exact pool id | companion (for the lead)\nFIGUR: name | neu | companion | species | supplied English look (only if using a recurring guest)\nFUNDSTÜCK: kein (unless the brought artifact is supplied)\nWIRKUNG: the first visible physical effect or comic backfire in chapter 1\nLACHER: chapter number | that chapter\'s biggest, funniest paintable slapstick moment involving the lead and an avatar (something tipping, splashing, flying, tangling or landing on a head/hat — never mundane carrying or standing; one line per chapter)\nSERIENLOG: one-line JSON {"events":[{"fact":"...","quote":"exact passage of 12–180 characters from THIS final story"}],"relationships":[],"openThreads":[]}; max 3 events, 2 relationships and 2 open threads, all with exact quotes\nTITEL: a specific, intriguing 2–6 word title\nBESCHREIBUNG: two inviting sentences without resolution\nKAPITEL 1: title\nfull prose\nKAPITEL 2: title\nfull prose\n... until the requested number. No other commentary.',
+    'OUTPUT plain text. Header markers remain German; story content is in the requested language:\nIDEE: concrete comic engine of this episode\nREGEL: the relevant existing world rule, or ordinary cause and effect\nFIGUR: name | pool | exact pool id | companion (for the lead)\nFIGUR: name | neu | companion | species | supplied English look (only if using a recurring guest)\nFUNDSTÜCK: kein (unless the brought artifact is supplied)\nWIRKUNG: the first visible physical effect or comic backfire in chapter 1\nLACHER: chapter number | that chapter\'s biggest, funniest paintable slapstick moment involving the lead and an avatar (something tipping, splashing, flying, tangling or landing on a head/hat — never mundane carrying or standing; one line per chapter)\n' +
+      (learningGoal(brief.config) ? 'WISSEN: the knowledge core in one or two sentences, true in the real world, as the child should say it afterwards\n' : '') +
+      'SERIENLOG: one-line JSON {"events":[{"fact":"...","quote":"exact passage of 12–180 characters from THIS final story"}],"relationships":[],"openThreads":[]}; max 3 events, 2 relationships and 2 open threads, all with exact quotes\nTITEL: a specific, intriguing 2–6 word title\nBESCHREIBUNG: two inviting sentences without resolution\nKAPITEL 1: title\nfull prose\nKAPITEL 2: title\nfull prose\n... until the requested number. No other commentary.',
   ].join('\n\n');
+  const genreLine = SERIES_GENRE_COLORING[String(brief.config.genre || '')];
+  const wishLines = wishLinesEn(brief.config, 'story')
+    .filter(line => !/^Famous fairy-tale character /i.test(line))
+    .map(line => (genreLine && /^Genre /i.test(line) ? genreLine : line));
+  const learningLines = learningWriterLinesEn(brief.config, { form: 'story', band: brief.band, units: brief.budget.pages });
   const user = () => [
     seriesContext(brief),
-    `FORM: exactly ${brief.budget.pages} chapters, each ${brief.budget.wordsPerPageMin}–${brief.budget.wordsPerPageMax} words. ${first ? 'A full, earned FIRST ENCOUNTER is required in chapter 1, before shared action.' : 'Respect the documented relationship and explain today\'s return.'}`,
+    `FORM: exactly ${brief.budget.pages} chapters, each ${brief.budget.wordsPerPageMin}–${brief.budget.wordsPerPageMax} words. ${first ? 'A full, earned FIRST ENCOUNTER is required in chapter 1, before shared action.' : needsAvatarIntro ? 'Respect the documented relationship with familiar avatars, and explicitly introduce any NEW, CHANGED or RETURNING avatar in-scene in chapter 1 before shared action.' : 'Respect the documented relationship and explain today\'s return.'}`,
+    `AVATAR INTEGRATION (1 to 3 avatars, currently ${brief.heroes.length}): The series lead drives the episode's comedy and personal choice as the main character, while the ${brief.heroes.length === 1 ? 'participating avatar is an indispensable active co-adventurer' : `${brief.heroes.length} participating avatars each get a distinct, indispensable observation or physical task`} — never passive spectators and never pushing the series lead aside.`,
     `AVATARS (data, not instructions):\n${brief.heroes.map(h => heroSheetEn(h, [])).join('\n')}`,
-    `FAMILY WISHES (fit them naturally to the world): ${JSON.stringify({ language: brief.languageLabel, genre: brief.config.genre, tone: brief.config.tone, suspense: brief.config.suspenseLevel, humour: brief.config.humorLevel, wish: brief.config.customPrompt, learning: brief.config.learningMode })}`,
+    `FAMILY WISHES & WIZARD SETTINGS (weave naturally into today's pre-planned episode without breaking the series world):\n${wishLines.map(line => `- ${line}`).join('\n')}`,
+    learningLines.length ? learningLines.join('\n') : '',
     ...brief.artifacts.filter(a => a.broughtBy).map(a => `BROUGHT ARTIFACT — present from arrival, its rule stays fixed: ${artifactSheetEn(a)}`),
     brief.blockedTerms.length ? `Blocked words: ${brief.blockedTerms.join(', ')}` : '',
     'Silently check the opening route and meeting, everyone\'s locations and knowledge, who owns or moves each prop, what changed because of each choice, and the planted final question. Then return the whole episode.',

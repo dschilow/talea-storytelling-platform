@@ -23,13 +23,15 @@ export async function seriesProgress(userId: string, profileId: string): Promise
 
 export async function loadSeriesHistory(userId: string, profileId: string, seriesId: string): Promise<SeriesEpisodeLog[]> {
   const rows = (await seriesProgress(userId, profileId)).filter((row) => row.character_series_id === seriesId);
-  const logs = rows.map((row) => {
+  const byEpisode = new Map<number, SeriesEpisodeLog>();
+  for (const row of rows) {
     const log = metadataObject(row.metadata)?.characterSeries?.log as SeriesEpisodeLog | undefined;
-    if (!log || log.storyId !== row.id || !Array.isArray(log.events) || !log.events.length || !Array.isArray(log.avatarIds) || !Array.isArray(log.relationships) || !Array.isArray(log.openThreads)) {
+    if (!log || log.storyId !== row.id || !Number.isSafeInteger(log.episode) || log.episode < 1 || !Array.isArray(log.events) || !log.events.length || !Array.isArray(log.avatarIds) || !Array.isArray(log.relationships) || !Array.isArray(log.openThreads)) {
       throw APIError.failedPrecondition("Die Fortsetzung kann nicht geladen werden: Ein früheres Folgenlog fehlt oder ist unvollständig.");
     }
-    return log;
-  });
+    byEpisode.set(log.episode, log);
+  }
+  const logs = [...byEpisode.values()].sort((a, b) => a.episode - b.episode);
   try { nextSeriesEpisode(logs); } catch {
     throw APIError.failedPrecondition("Die Fortsetzung kann nicht geladen werden: Die Folgenzahlen sind nicht streng aufsteigend.");
   }

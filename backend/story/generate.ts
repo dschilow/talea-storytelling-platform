@@ -10,7 +10,7 @@ import { isOpenRouterCreditLimitError } from "./openrouter-generation";
 import type { Avatar, InventoryItem, Skill } from "../avatar/avatar";
 import { avatar } from "~encore/clients";
 import { storyDB } from "./db";
-import { CHARACTER_SERIES_ENGINE, CHARACTER_SERIES_VERSION, extractSeriesLog, validateSeriesLog, withSeriesContext, nextSeriesEpisode, type CharacterSeriesBible, type SeriesEpisodeLog } from "./character-series/core";
+import { avatarSeriesFingerprint, CHARACTER_SERIES_ENGINE, CHARACTER_SERIES_VERSION, effectiveSeriesEpisode, extractSeriesLog, validateSeriesLog, withSeriesContext, nextSeriesEpisode, type CharacterSeriesBible, type SeriesEpisodeLog } from "./character-series/core";
 import { loadSeriesHistory, reserveSeries } from "./character-series/repository";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
@@ -232,6 +232,8 @@ export interface StoryConfig {
   storybookEngine?: "storybook-v1" | "storybook-v2" | "book-workshop-v1" | "chapter-book-v1" | "wonder-story-v1" | "talea-folge-v1" | "character-series-v1";
   /** Omit for a genre-matched character world. Validated against the server catalogue. */
   characterSeriesId?: string;
+  /** Admin-only test override to jump directly to a specific episode number (1..40). */
+  characterSeriesEpisodeOverride?: number;
 
   // Chapter book (chapter-book-v1): a volume of 8-15 chapters read over several
   // evenings, written by a job (book-generation.ts). Chapters and pictures per
@@ -612,7 +614,7 @@ export const generate = api<GenerateStoryRequest, Story>(
       config.avatarIsHero = false;
       config.characterSeriesVersion = CHARACTER_SERIES_VERSION;
     }
-    let characterSeries: { bible: CharacterSeriesBible; logs: SeriesEpisodeLog[] } | undefined;
+    let characterSeries: { bible: CharacterSeriesBible; logs: SeriesEpisodeLog[]; episodeOverride?: number } | undefined;
     const mcpApiKey = mcpServerApiKey();
 
     console.log("[story.generate] Incoming request:", {
@@ -655,7 +657,10 @@ export const generate = api<GenerateStoryRequest, Story>(
         if (config.storybookEngine === CHARACTER_SERIES_ENGINE) {
           const bible = await reserveSeries(tx, { userId: currentUserId, profileId: primaryProfileId, requestedId: config.characterSeriesId, genre: config.genre });
           config.characterSeriesId = bible.id;
-          characterSeries = { bible, logs: [] };
+          const episodeOverride = auth?.role === "admin" && typeof config.characterSeriesEpisodeOverride === "number" && Number.isInteger(config.characterSeriesEpisodeOverride) && config.characterSeriesEpisodeOverride >= 1 && config.characterSeriesEpisodeOverride <= 40
+            ? config.characterSeriesEpisodeOverride
+            : undefined;
+          characterSeries = { bible, logs: [], ...(episodeOverride ? { episodeOverride } : {}) };
         }
         const reserved = await tx.queryRow`
           INSERT INTO stories (
@@ -1214,9 +1219,12 @@ export const generate = api<GenerateStoryRequest, Story>(
       let characterSeriesLog: SeriesEpisodeLog | undefined;
       if (characterSeries) {
         const storyText = generatedStory.chapters.map((chapter: any) => `${chapter.title}\n${chapter.content}`).join("\n\n");
-        const identity = { episode: nextSeriesEpisode(characterSeries.logs), storyId: id, avatarIds: config.avatarIds };
+        const episodeNumber = effectiveSeriesEpisode(characterSeries.logs, characterSeries.episodeOverride);
+        const avatarFingerprints = Object.fromEntries(avatarDetails.map((a) => [a.id, avatarSeriesFingerprint(a)]));
+        const identity = { episode: episodeNumber, storyId: id, avatarIds: config.avatarIds };
         const validated = validateSeriesLog(generatedStory.metadata?.characterSeriesLogCandidate, storyText, identity);
-        characterSeriesLog = withSeriesContext(validated.events.length ? validated : extractSeriesLog({ storyText, ...identity }), storyText);
+        const baseLog = validated.events.length ? validated : extractSeriesLog({ storyText, ...identity });
+        characterSeriesLog = { ...withSeriesContext(baseLog, storyText), avatarFingerprints };
         if (generatedStory.metadata) delete generatedStory.metadata.characterSeriesLogCandidate;
       }
 
