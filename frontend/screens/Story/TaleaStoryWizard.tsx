@@ -12,7 +12,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { useBackend } from '../../hooks/useBackend';
-import { fetchCharacterSeries } from '../../utils/characterSeriesApi';
+import { fetchCharacterSeries, resetCharacterSeries } from '../../utils/characterSeriesApi';
 import { useTranslation } from 'react-i18next';
 import LevelUpModal from '../../components/gamification/LevelUpModal';
 import type { InventoryItem } from '../../types/avatar';
@@ -544,6 +544,14 @@ export default function TaleaStoryWizard() {
     setState((prev) => ({ ...prev, ...updates }));
   };
 
+  /** Admin test tool: the series starts again at episode 1 for the active profile. */
+  const handleSeriesReset = async (seriesId: string) => {
+    const result = await resetCharacterSeries(getToken, seriesId, activeProfileId);
+    updateState({ characterSeriesEpisodeOverride: null });
+    setSeriesRetry((n) => n + 1);
+    return result.resetEpisodes;
+  };
+
   const handleNext = () => {
     if (activeStep < labels.length - 1) setActiveStep((prev) => prev + 1);
   };
@@ -774,7 +782,7 @@ export default function TaleaStoryWizard() {
                 <span className="min-w-0 flex-1"><span className="block font-semibold text-[var(--talea-text-primary)]">Figurenabenteuer entdecken</span><span className="block text-sm text-[var(--talea-text-secondary)]">Wiederkehrende Figuren und eure eigenen Folgen</span></span>
                 <span aria-hidden className="text-xl text-[var(--primary)]">{seriesOpen ? '−' : '+'}</span>
               </button>
-              {seriesOpen && <div className="mt-5"><StepCharacterSeries selection={state.characterSeries} onSelect={(selection) => updateState({ characterSeries: selection, ...(selection === null ? { characterSeriesEpisodeOverride: null } : {}), ...(selection !== null ? { developerMode: false, storybookMode: false, bookWorkshopMode: false, wonderStoryMode: false, episodeMode: false, chapterBookMode: false } : {}) })} series={characterSeries} loading={seriesLoading} error={seriesError} onRetry={() => setSeriesRetry((n) => n + 1)} genre={state.mainCategory} isAdmin={isAdmin === true} episodeOverride={state.characterSeriesEpisodeOverride} onEpisodeOverrideChange={(ep) => updateState({ characterSeriesEpisodeOverride: ep })} /></div>}
+              {seriesOpen && <div className="mt-5"><StepCharacterSeries selection={state.characterSeries} onSelect={(selection) => updateState({ characterSeries: selection, ...(selection === null ? { characterSeriesEpisodeOverride: null } : {}), ...(selection !== null ? { developerMode: false, storybookMode: false, bookWorkshopMode: false, wonderStoryMode: false, episodeMode: false, chapterBookMode: false } : {}) })} series={characterSeries} loading={seriesLoading} error={seriesError} onRetry={() => setSeriesRetry((n) => n + 1)} genre={state.mainCategory} isAdmin={isAdmin === true} episodeOverride={state.characterSeriesEpisodeOverride} onEpisodeOverrideChange={(ep) => updateState({ characterSeriesEpisodeOverride: ep })} onResetProgress={isAdmin === true ? handleSeriesReset : undefined} /></div>}
             </section>
           </div>
         );

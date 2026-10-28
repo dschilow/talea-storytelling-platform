@@ -5,20 +5,59 @@ import bibles from "./series-bibles.json";
 
 export const SERIES = bibles as CharacterSeriesBible[];
 
+let resetTable: Promise<void> | undefined;
+/**
+ * Admin test resets (2026-10-28: "4 Folgen erlebt" after a day of tests). The migration creates the table too; creating
+ * it here on first use means a boot that skipped the migration run never breaks the series list.
+ */
+export function ensureSeriesResetTable(): Promise<void> {
+  if (!resetTable) {
+    resetTable = storyDB.exec`CREATE TABLE IF NOT EXISTS character_series_resets (user_id TEXT NOT NULL, profile_id TEXT NOT NULL, series_id TEXT NOT NULL, reset_at TIMESTAMP NOT NULL, reset_by TEXT NOT NULL, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (user_id, profile_id, series_id))`
+      .catch((error) => { resetTable = undefined; throw error; });
+  }
+  return resetTable;
+}
+
 function metadataObject(raw: unknown): any {
   if (typeof raw === "string") { try { return JSON.parse(raw); } catch { return {}; } }
   return raw && typeof raw === "object" ? raw : {};
 }
 
+/** The episodes that count: complete series stories of this profile, from after the series' last admin reset. */
 export async function seriesProgress(userId: string, profileId: string): Promise<Array<{ id: string; title: string; metadata: unknown; character_series_id: string }>> {
+  await ensureSeriesResetTable();
   return storyDB.queryAll`
-    SELECT id, title, metadata, config::jsonb->>'characterSeriesId' AS character_series_id
-    FROM stories
-    WHERE user_id = ${userId} AND primary_profile_id = ${profileId} AND status = 'complete'
-      AND config::jsonb->>'storybookEngine' = ${CHARACTER_SERIES_ENGINE}
-      AND config::jsonb->>'characterSeriesVersion' = ${String(CHARACTER_SERIES_VERSION)}
-    ORDER BY created_at ASC, id ASC
+    SELECT s.id, s.title, s.metadata, s.config::jsonb->>'characterSeriesId' AS character_series_id
+    FROM stories s
+    LEFT JOIN character_series_resets r
+      ON r.user_id = s.user_id AND r.profile_id = s.primary_profile_id AND r.series_id = s.config::jsonb->>'characterSeriesId'
+    WHERE s.user_id = ${userId} AND s.primary_profile_id = ${profileId} AND s.status = 'complete'
+      AND s.config::jsonb->>'storybookEngine' = ${CHARACTER_SERIES_ENGINE}
+      AND s.config::jsonb->>'characterSeriesVersion' = ${String(CHARACTER_SERIES_VERSION)}
+      AND (r.reset_at IS NULL OR s.created_at > r.reset_at)
+    ORDER BY s.created_at ASC, s.id ASC
   `;
+}
+
+/**
+ * Admin test reset: the series starts again at episode 1 for this profile. Nothing is deleted — the earlier stories stay
+ * readable, they only stop counting for the counter and the continuation. The reset point is the newest story of the
+ * series (also one still generating) and never leaves the database, so the timestamp-without-zone column cannot shift.
+ */
+export async function resetSeriesProgress(input: { userId: string; profileId: string; seriesId: string; resetBy: string }): Promise<{ resetEpisodes: number }> {
+  const counted = (await seriesProgress(input.userId, input.profileId)).filter((row) => row.character_series_id === input.seriesId).length;
+  await storyDB.exec`
+    INSERT INTO character_series_resets (user_id, profile_id, series_id, reset_at, reset_by)
+    SELECT s.user_id, s.primary_profile_id, ${input.seriesId}::text, MAX(s.created_at), ${input.resetBy}::text
+    FROM stories s
+    WHERE s.user_id = ${input.userId} AND s.primary_profile_id = ${input.profileId}
+      AND s.config::jsonb->>'storybookEngine' = ${CHARACTER_SERIES_ENGINE}
+      AND s.config::jsonb->>'characterSeriesId' = ${input.seriesId}
+    GROUP BY s.user_id, s.primary_profile_id
+    ON CONFLICT (user_id, profile_id, series_id) DO UPDATE
+      SET reset_at = GREATEST(character_series_resets.reset_at, EXCLUDED.reset_at), reset_by = EXCLUDED.reset_by, updated_at = CURRENT_TIMESTAMP
+  `;
+  return { resetEpisodes: counted };
 }
 
 export async function loadSeriesHistory(userId: string, profileId: string, seriesId: string): Promise<SeriesEpisodeLog[]> {
@@ -42,13 +81,17 @@ export async function loadSeriesHistory(userId: string, profileId: string, serie
 export async function reserveSeries(tx: Awaited<ReturnType<typeof storyDB.begin>>, input: {
   userId: string; profileId: string; requestedId?: string; genre: string;
 }): Promise<CharacterSeriesBible> {
+  await ensureSeriesResetTable();
   const rows = await tx.queryAll<{ character_series_id: string; count: number }>`
-    SELECT config::jsonb->>'characterSeriesId' AS character_series_id, COUNT(*)::int AS count
-    FROM stories
-    WHERE user_id = ${input.userId} AND primary_profile_id = ${input.profileId} AND status = 'complete'
-      AND config::jsonb->>'storybookEngine' = ${CHARACTER_SERIES_ENGINE}
-      AND config::jsonb->>'characterSeriesVersion' = ${String(CHARACTER_SERIES_VERSION)}
-    GROUP BY config::jsonb->>'characterSeriesId'
+    SELECT s.config::jsonb->>'characterSeriesId' AS character_series_id, COUNT(*)::int AS count
+    FROM stories s
+    LEFT JOIN character_series_resets r
+      ON r.user_id = s.user_id AND r.profile_id = s.primary_profile_id AND r.series_id = s.config::jsonb->>'characterSeriesId'
+    WHERE s.user_id = ${input.userId} AND s.primary_profile_id = ${input.profileId} AND s.status = 'complete'
+      AND s.config::jsonb->>'storybookEngine' = ${CHARACTER_SERIES_ENGINE}
+      AND s.config::jsonb->>'characterSeriesVersion' = ${String(CHARACTER_SERIES_VERSION)}
+      AND (r.reset_at IS NULL OR s.created_at > r.reset_at)
+    GROUP BY s.config::jsonb->>'characterSeriesId'
   `;
   const pool = await tx.queryAll<{ id: string }>`
     SELECT id FROM character_pool WHERE is_active = TRUE AND id = ANY(${SERIES.map((series) => series.characterId)})

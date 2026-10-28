@@ -1,9 +1,10 @@
-import { api } from "encore.dev/api";
+import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
+import { ensureAdmin } from "../admin/authz";
 import { resolveRequestedProfileId } from "../helpers/profiles";
 import { resolveImageUrlForClient } from "../helpers/bucket-storage";
 import { storyDB } from "./db";
-import { SERIES, seriesProgress } from "./character-series/repository";
+import { resetSeriesProgress, SERIES, seriesProgress } from "./character-series/repository";
 
 interface CharacterSeriesSummary {
   id: string;
@@ -36,5 +37,20 @@ export const listCharacterSeries = api<{ profileId?: string }, { series: Charact
         episodeCount: episodes.length, ...(episodes.length ? { lastStoryId: episodes[episodes.length - 1].id } : {}),
       };
     })) };
+  },
+);
+
+/** Admin test tool: the counter of one series starts again at 0 for the chosen profile; the stories stay in the library. */
+export const resetCharacterSeries = api<{ seriesId: string; profileId?: string }, { seriesId: string; resetEpisodes: number }>(
+  { expose: true, method: "POST", path: "/story/character-series/reset", auth: true },
+  async ({ seriesId, profileId }) => {
+    const admin = ensureAdmin();
+    const series = SERIES.find((entry) => entry.id === seriesId);
+    if (!series) throw APIError.invalidArgument("Diese Figurenserie gibt es nicht.");
+    const auth = getAuthData()!;
+    const activeProfileId = await resolveRequestedProfileId({ userId: admin.userID, requestedProfileId: profileId, fallbackName: auth.email ?? undefined });
+    const result = await resetSeriesProgress({ userId: admin.userID, profileId: activeProfileId, seriesId: series.id, resetBy: admin.userID });
+    console.log("[character-series] admin reset", { seriesId: series.id, profileId: activeProfileId, resetEpisodes: result.resetEpisodes });
+    return { seriesId: series.id, resetEpisodes: result.resetEpisodes };
   },
 );

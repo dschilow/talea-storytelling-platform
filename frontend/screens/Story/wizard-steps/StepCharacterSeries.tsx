@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Check, Sparkles } from 'lucide-react';
+import { BookOpen, Check, RotateCcw, Sparkles } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { idleTileClass, selectedTileClass, WizardStepHeading } from './wizardChoices';
@@ -28,9 +28,28 @@ interface Props {
   isAdmin?: boolean;
   episodeOverride?: number | null;
   onEpisodeOverrideChange?: (episode: number | null) => void;
+  /** Admin test tool: resets this profile's counter of one series and resolves with the number of episodes reset. */
+  onResetProgress?: (seriesId: string) => Promise<number>;
 }
 
-export default function StepCharacterSeries({ selection, onSelect, series, loading, error, onRetry, genre, isAdmin, episodeOverride, onEpisodeOverrideChange }: Props) {
+const folgen = (count: number) => `${count} ${count === 1 ? 'Folge' : 'Folgen'}`;
+
+export default function StepCharacterSeries({ selection, onSelect, series, loading, error, onRetry, genre, isAdmin, episodeOverride, onEpisodeOverrideChange, onResetProgress }: Props) {
+  const [reset, setReset] = React.useState<{ busy: boolean; message: string | null; error: string | null }>({ busy: false, message: null, error: null });
+  React.useEffect(() => { setReset({ busy: false, message: null, error: null }); }, [selection]);
+  const selectedSeries = selection && selection !== 'auto' ? series.find((item) => item.id === selection) : undefined;
+  const handleReset = async () => {
+    if (!selectedSeries || !onResetProgress) return;
+    const confirmed = window.confirm(`Folgen-Zähler von „${selectedSeries.title}“ für dieses Profil auf 0 setzen?\n\nDie bisherigen ${folgen(selectedSeries.episodeCount)} bleiben in der Bibliothek, zählen aber nicht mehr. Die nächste Geschichte beginnt wieder mit Folge 1.`);
+    if (!confirmed) return;
+    setReset({ busy: true, message: null, error: null });
+    try {
+      const count = await onResetProgress(selectedSeries.id);
+      setReset({ busy: false, message: `${folgen(count)} zurückgesetzt. Die nächste Geschichte ist wieder Folge 1.`, error: null });
+    } catch (resetError) {
+      setReset({ busy: false, message: null, error: resetError instanceof Error && resetError.message ? resetError.message : 'Der Zähler konnte nicht zurückgesetzt werden.' });
+    }
+  };
   const apiGenre = genre === 'fairy-tales' ? 'fairy_tales' : genre;
   const matches = (item: CharacterSeriesChoice) => Boolean(apiGenre && item.genres?.includes(apiGenre));
   const hasGenreMatch = series.some(matches);
@@ -105,6 +124,27 @@ export default function StepCharacterSeries({ selection, onSelect, series, loadi
               </option>
             ))}
           </select>
+          {selectedSeries && onResetProgress && (
+            <div className="mt-3 border-t border-amber-400/30 pt-3">
+              <p className="font-semibold text-[var(--talea-text-primary)]">Admin-Test: Folgen-Zähler zurücksetzen</p>
+              <p className="mt-0.5 text-xs text-[var(--talea-text-secondary)]">
+                {selectedSeries.episodeCount > 0
+                  ? `${selectedSeries.title}: ${folgen(selectedSeries.episodeCount)} für dieses Profil gezählt. Danach beginnt die Serie wieder mit Folge 1; die Geschichten bleiben in der Bibliothek.`
+                  : `${selectedSeries.title}: Der Zähler steht auf 0, die nächste Geschichte ist Folge 1.`}
+              </p>
+              <button
+                type="button"
+                onClick={handleReset}
+                disabled={reset.busy || selectedSeries.episodeCount === 0}
+                className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-xl border border-amber-500/50 px-3 py-2 text-sm font-semibold text-[var(--talea-text-primary)] transition-colors hover:bg-amber-400/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RotateCcw aria-hidden className={cn('h-4 w-4', reset.busy && 'animate-spin')} />
+                {reset.busy ? 'Wird zurückgesetzt …' : 'Zähler auf 0 setzen'}
+              </button>
+            </div>
+          )}
+          <p role="status" aria-live="polite" className="mt-1.5 text-xs font-medium text-[var(--talea-text-primary)] empty:hidden">{reset.message}</p>
+          {reset.error && <p role="alert" className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">{reset.error}</p>}
         </div>
       )}
     </div>

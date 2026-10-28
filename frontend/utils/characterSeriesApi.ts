@@ -23,3 +23,23 @@ export async function fetchCharacterSeries(
   }
   return (payload as { series: CharacterSeriesChoice[] }).series;
 }
+
+/** Admin test tool: the series counter of this profile starts again at 0; the earlier stories stay in the library. */
+export async function resetCharacterSeries(
+  getToken: () => Promise<string | null>,
+  seriesId: string,
+  profileId?: string | null,
+): Promise<{ seriesId: string; resetEpisodes: number }> {
+  const token = await getToken();
+  const response = await fetch(new URL('/story/character-series/reset', getBackendUrl()).toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
+    body: JSON.stringify({ seriesId, ...(profileId ? { profileId } : {}) }),
+  });
+  if (!response.ok) {
+    const detail = await response.json().then((body: { message?: unknown }) => (typeof body?.message === 'string' ? body.message : ''), () => '');
+    throw new Error(detail || `Zähler zurücksetzen: HTTP ${response.status}`);
+  }
+  return (await response.json()) as { seriesId: string; resetEpisodes: number };
+}

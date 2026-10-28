@@ -2,6 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   avatarSeriesFingerprint,
   chooseSeries,
@@ -103,7 +104,7 @@ describe("persönliche Figurenserien", () => {
 
   test("all 5 series have 20 pre-planned episodes, staggered 3-character ensembles, avatarRoles and generated FLUX 3 portraits", () => {
     expect(SERIES_ENSEMBLE_BIBLES).toHaveLength(15);
-    const publicRoot = join(import.meta.dir, "..", "..", "..", "frontend", "public");
+    const publicRoot = fileURLToPath(new URL("../../../frontend/public", import.meta.url));
     for (const member of SERIES_ENSEMBLE_BIBLES) {
       expect(member.debutEpisode).toBeGreaterThanOrEqual(1);
       expect(member.debutEpisode).toBeLessThanOrEqual(10);
