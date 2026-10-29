@@ -69,11 +69,20 @@ export function readSeriesQa(text: string, expected: VisualEntity[]): SeriesQa |
   };
 }
 
+/**
+ * The review asks for a named identity defect below 0.90. A lower score without one is an unsupported number: Gemini
+ * scored two recognisable children 0.82/0.78 without a word in story e83e44e2, after 0.97/0.96 for the same picture
+ * a run before. Below 0.75 a figure counts as replaced even unexplained.
+ */
+function identityHolds(qa: SeriesQa): boolean {
+  return qa.identityMatch >= 0.9 || (qa.identityMatch >= 0.75 && !qa.defects.some(d => d.kind === 'identity'));
+}
+
 export function seriesPicturePasses(qa: SeriesQa | undefined, cover = false): boolean {
   // A reviewer can mark the action clear while explicitly describing a contradiction (e.g. berries on hair
   // instead of the hat in the source). Do not let that optimistic flag silently override its own finding in
   // chapter pictures. Covers are character-in-world compositions and do not promise one exact story instant.
-  return Boolean(qa && !qa.posing && !qa.defects.some(d => d.kind !== 'story') && !(qa.defects.some(d => d.kind === 'story' && d.blocksAction) && !cover) && !qa.missing?.length && !qa.duplicates.length && !qa.unexpectedCharacters.length && (cover || qa.primaryActionClear) && qa.identityMatch >= 0.9 && qa.sceneMatch >= 0.7 && qa.styleMatch >= 0.75);
+  return Boolean(qa && !qa.posing && !qa.defects.some(d => d.kind !== 'story') && !(qa.defects.some(d => d.kind === 'story' && d.blocksAction) && !cover) && !qa.missing?.length && !qa.duplicates.length && !qa.unexpectedCharacters.length && (cover || qa.primaryActionClear) && identityHolds(qa) && qa.sceneMatch >= 0.7 && qa.styleMatch >= 0.75);
 }
 
 /**
@@ -83,12 +92,18 @@ export function seriesPicturePasses(qa: SeriesQa | undefined, cover = false): bo
  * that contradicts the story or harms an identity, a hand or a face stays out.
  */
 export function seriesPictureUsable(qa: SeriesQa | undefined): boolean {
-  return Boolean(qa && qa.storyConsistent && !qa.posing && !qa.defects.some(d => d.kind !== 'story' && d.kind !== 'detail') && !qa.missing?.length && !qa.duplicates.length && !qa.unexpectedCharacters.length && qa.identityMatch >= 0.9 && qa.sceneMatch >= 0.45 && qa.styleMatch >= 0.75);
+  return Boolean(qa && qa.storyConsistent && !qa.posing && !qa.defects.some(d => d.kind !== 'story' && d.kind !== 'detail') && !qa.missing?.length && !qa.duplicates.length && !qa.unexpectedCharacters.length && identityHolds(qa) && qa.sceneMatch >= 0.45 && qa.styleMatch >= 0.75);
 }
 
-/** Last resort for an otherwise empty chapter: a plausible adjacent instant, even if the reviewer finds it posed. */
-export function seriesPictureChapterFallback(qa: SeriesQa | undefined): boolean {
-  return Boolean(qa && qa.storyConsistent && !qa.defects.some(d => d.kind !== 'story' && d.kind !== 'detail') && !qa.missing?.length && !qa.duplicates.length && !qa.unexpectedCharacters.length && qa.identityMatch >= 0.9 && qa.sceneMatch >= 0.7 && qa.styleMatch >= 0.75);
+/**
+ * After the last paid redraw a page keeps its best reviewed attempt instead of a hole in the book (story e83e44e2
+ * printed one of seven pictures): the action may be loose or a neighbouring instant; a posed picture only fills a
+ * chapter that would otherwise have none. Anatomy, identity, safety, lettering, unexpected things, extra or missing
+ * figures, reference panels and a different object or setting (the review puts those below sceneMatch 0.65) still keep
+ * a picture out.
+ */
+export function seriesPictureLastResort(qa: SeriesQa | undefined, emptyChapter = false): boolean {
+  return Boolean(qa && (!qa.posing || emptyChapter) && !qa.defects.some(d => d.kind !== 'story' && d.kind !== 'detail' && d.kind !== 'style') && !qa.missing?.length && !qa.duplicates.length && !qa.unexpectedCharacters.length && identityHolds(qa) && qa.sceneMatch >= 0.65 && qa.styleMatch >= 0.75);
 }
 
 /** Bounded literal evidence near the selected paragraph; no second model or whole chapter per picture read. */

@@ -1,0 +1,52 @@
+{
+  "nebelfee": {
+    "seriesId": "nebelfee",
+    "poolId": "6b5e29b8-2b82-42d4-80ef-8749ebd4eab9",
+    "name": "Die Nebelfee",
+    "localUrl": "/library/character-series/leads/nebelfee.webp",
+    "source": "bucket://tidy-shoebox-buxk4wlwbry/images/characters/character-6b5e29b8-2b82-42d4-80ef-8749ebd4eab9-cd76d662-3c96-4000-abaa-4fed8fb03c3a.webp",
+    "seed": 7,
+    "model": "bfl:flux@3-image-klein",
+    "prompt": "Character reference picture: slender young fairy with very long flowing silver-white hair, translucent pale-blue wings, light blue knee-length dress with short puffed sleeves, bare feet. Exactly the character of the reference image: same face, age, hair, eyes, species, clothes and colours. The whole figure is visible from head to feet in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background; no furniture, tools, props, scenery, water or sky. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "funkelflug": {
+    "seriesId": "funkelflug",
+    "poolId": "9abcfc66-9434-4fa3-b985-8aca94bcec20",
+    "name": "Funkelflug",
+    "localUrl": "/library/character-series/leads/funkelflug.webp",
+    "source": "bucket://tidy-shoebox-buxk4wlwbry/images/characters/character-9abcfc66-9434-4fa3-b985-8aca94bcec20-1dfd665e-bc2a-4486-9d1b-85af3c91b606.webp",
+    "seed": 7,
+    "model": "bfl:flux@3-image-klein",
+    "prompt": "Character reference picture: small round golden-yellow baby dragon with tiny pink-lined wings, big brown eyes, pink nose, cream belly scales, short tail, a few golden sparks at its nose. Exactly the character of the reference image: same face, age, hair, eyes, species, clothes and colours. The whole figure is visible from head to feet in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background; no furniture, tools, props, scenery, water or sky. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "graf-griesgram": {
+    "seriesId": "graf-griesgram",
+    "poolId": "2a301ab9-749c-4b69-b3de-4b35fde5934e",
+    "name": "Graf Griesgram",
+    "localUrl": "/library/character-series/leads/graf-griesgram.webp",
+    "source": "bucket://tidy-shoebox-buxk4wlwbry/images/characters/character-2a301ab9-749c-4b69-b3de-4b35fde5934e-ae8a092e-725a-4759-82e6-2af1ddc98e3c.webp",
+    "seed": 11,
+    "model": "bfl:flux@3-image-klein",
+    "prompt": "Character reference picture: tall, thin grumpy old count with full adult proportions (the head about one seventh of his height), swept-back white hair, bushy white beard and moustache, stern frown, black high-collared buttoned coat over a dark waistcoat, dark trousers, polished black shoes, empty hands. Exactly the character of the reference image: same face, age, hair, eyes, species, clothes and colours. The whole figure is visible from head to feet in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background; no furniture, tools, props, scenery, water or sky. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "kapitaen-blubbert": {
+    "seriesId": "kapitaen-blubbert",
+    "poolId": "f30ea3db-46db-412f-9049-a7ab23447892",
+    "name": "Kapitän Blubbert",
+    "localUrl": "/library/character-series/leads/kapitaen-blubbert.webp",
+    "source": "bucket://tidy-shoebox-buxk4wlwbry/images/runware/runware-1208276573-f7f6ca30-803e-48f7-80ef-f6195f4aecc3.webp",
+    "seed": 23,
+    "model": "bfl:flux@3-image-klein",
+    "prompt": "Character reference picture: tall stout old sea captain with full adult proportions (the head about one seventh of his height), a full white beard and moustache, white captain's cap with a dark blue band and a gold badge, blue-and-white striped shirt with rolled sleeves, brown belt, dark grey trousers, dark boots, empty hands. Exactly the character of the reference image: same face, age, hair, eyes, species, clothes and colours. The whole figure is visible from head to feet in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background; no furniture, tools, props, scenery, water or sky. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  },
+  "tilda-tueftel": {
+    "seriesId": "tilda-tueftel",
+    "poolId": "ae2748f6-7f63-4392-928f-04508f84ed80",
+    "name": "Tilda Tüftel",
+    "localUrl": "/library/character-series/leads/tilda-tueftel.webp",
+    "source": "bucket://tidy-shoebox-buxk4wlwbry/images/characters/character-ae2748f6-7f63-4392-928f-04508f84ed80-93a52bb4-ca37-416d-b020-a4915c926181.webp",
+    "seed": 7,
+    "model": "bfl:flux@3-image-klein",
+    "prompt": "Character reference picture: nine-year-old girl inventor with big curly dark-brown hair, large round grey safety goggles over her eyes, light blue long-sleeved shirt with rolled sleeves, yellow overalls with a bib pocket, a black wristwatch, dark shoes, empty hands. Exactly the character of the reference image: same face, age, hair, eyes, species, clothes and colours. The whole figure is visible from head to feet in the calm, natural pose of what it is, three-quarter view, centered with space around it, alone on a plain pure white background; no furniture, tools, props, scenery, water or sky. Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked."
+  }
+}

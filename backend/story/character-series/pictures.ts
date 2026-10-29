@@ -12,7 +12,7 @@ import { ORIGINALS_IMAGE_STYLE, SCENE_SIZE } from '../library/images';
 import { SERIES_POLICY } from './authoring';
 import { effectiveSeriesEpisode, logsForEpisode } from './core';
 import { getSeriesEpisodeBlueprint } from './episode-plans';
-import { readSeriesQa, seriesPictureChapterFallback, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW } from './quality';
+import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW, type SeriesQa } from './quality';
 import type { RunwareReferenceRegion } from '../../ai/runware-image-model-options';
 export { seriesPicturePasses, seriesPictureUsable } from './quality';
 
@@ -129,12 +129,19 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
     const onStage = Array.isArray(candidate?.onStage) ? [...new Set<string>(candidate.onStage)] : [];
     if (!onStage.length || onStage.length > 3 || onStage.some(id => !ids.has(id)) || typeof candidate?.scene !== 'string' || candidate.scene.length < 45 || candidate.scene.length > 1900) throw new Error('Die Serienbildplanung hat keine klare, gültige Besetzung.');
     if ((page === 0 || page === 1) && !onStage.includes(leadId)) throw new Error('Die Serienhauptfigur fehlt in ihrem Titel- oder Einstiegsbild.');
-    const paragraphs = pages[page - 1]?.content.split(/\n\n/).length || 0;
-    if (page > 0 && (!Number.isInteger(candidate.paragraph) || candidate.paragraph < 1 || candidate.paragraph > paragraphs)) throw new Error('Das Serienbild gehört zu keinem Absatz des Kapitels.');
-    const quote = typeof candidate.storyQuote === 'string' ? candidate.storyQuote.trim() : '';
+    const pageParagraphs = page > 0 ? pages[page - 1]?.content.split(/\n\n/) || [] : [];
+    const quote: string = typeof candidate.storyQuote === 'string' ? candidate.storyQuote.trim() : '';
     // Models quote German „…“ as straight quotes; only the words have to be the chapter's own.
     const norm = (s: string) => s.normalize('NFC').replace(/[„“”"«»]/g, '"').replace(/[‚‘’']/g, "'").replace(/…/g, '...').replace(/[–—]/g, '-').replace(/\s+/g, ' ').trim();
-    const paragraphText = page > 0 ? pages[page - 1].content.split(/\n\n+/)[candidate.paragraph - 1]?.trim() : '';
+    // Story e83e44e2: the director quoted the paper flag behind Tilda's ear (paragraph 6) but named paragraph 16, the
+    // clamp on the brake lever; the picture printed ten paragraphs late and its rescue redrew the brake lever. The quoted
+    // words decide; a quote across paragraphs counts at its last sentence, the visible consequence.
+    const lastSentence = quote.split(/(?<=[.!?…])\s+/).filter(s => s.length >= 12).pop();
+    const quoted = [quote, lastSentence].filter((s): s is string => Boolean(s && s.length >= 12))
+      .map(probe => pageParagraphs.findIndex(p => norm(p).includes(norm(probe)))).find(at => at >= 0);
+    const paragraph = quoted !== undefined ? quoted + 1 : candidate.paragraph;
+    if (page > 0 && (!Number.isInteger(paragraph) || paragraph < 1 || paragraph > pageParagraphs.length)) throw new Error('Das Serienbild gehört zu keinem Absatz des Kapitels.');
+    const paragraphText = page > 0 ? pageParagraphs[paragraph - 1]?.trim() : '';
     // Ground a paraphrased model quote in the actual selected source paragraph, never in invented evidence.
     const evidence = page > 0 && (quote.length < 12 || quote.length > 500 || !norm(pages[page - 1].content).includes(norm(quote))) ? (paragraphText || '').slice(0, 500) : quote;
     if (page > 0 && evidence.length < 12) throw new Error('Dem Serienbild fehlt ein wörtlicher Beleg aus seinem Kapitel.');
@@ -150,10 +157,21 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
       }
     }
     const actor = entities.find(e => e.id === beat.actorId)!;
-    return { page, onStage, scene: candidate.scene, actionKey: `${actor.name} ${visualBeat.action}; ${visualBeat.result}`, visualBeat, ...(Object.keys(boxes).length ? { boxes } : {}), storyQuote: evidence || undefined, focus: 'scene', artifactVisible: candidate.artifactVisible === true, elements: [], ...(page ? { paragraph: candidate.paragraph } : {}) } as SeriesShot;
+    return { page, onStage, scene: candidate.scene, actionKey: `${actor.name} ${visualBeat.action}; ${visualBeat.result}`, visualBeat, ...(Object.keys(boxes).length ? { boxes } : {}), storyQuote: evidence || undefined, focus: 'scene', artifactVisible: candidate.artifactVisible === true, elements: [], ...(page ? { paragraph } : {}) } as SeriesShot;
   };
-  if (!Array.isArray(raw?.pages) || raw.pages.length !== pages.length || raw.pages.some((p: any, i: number) => p.page !== i + 1)) throw new Error('Die Serienbildplanung enthält nicht genau ein Bild je Leseabschnitt.');
-  const plan = { cover: shot(raw.cover, 0), pages: raw.pages.map((p: any, i: number) => shot(p, i + 1)), storyElements: [] };
+  // Haiku planned pages 1, 1, 2, 3, 3, 4, 5, 6 and its repair returned the same (pilot 2026-10-29): one picture per
+  // page is kept, the first that validates, instead of failing the whole story.
+  const planned: any[] = Array.isArray(raw?.pages) ? raw.pages : [];
+  const proposals = pages.map((_, i) => planned.filter((p: any) => p?.page === i + 1));
+  // The repair has to know what is wrong; a bare "not one picture per segment" made Haiku return the same plan.
+  if (proposals.some(list => !list.length)) throw new Error(`Die Serienbildplanung enthält nicht genau ein Bild je Leseabschnitt: erwartet pages ${pages.map((_, i) => i + 1).join(', ')} je einmal, erhalten ${planned.map(p => p?.page).join(', ') || 'keine'}; es fehlt page ${proposals.map((list, i) => list.length ? 0 : i + 1).filter(Boolean).join(', ')}.`);
+  const firstValid = (list: any[], page: number): SeriesShot => {
+    for (const [i, candidate] of list.entries()) {
+      try { return shot(candidate, page) as SeriesShot; } catch (error) { if (i === list.length - 1) throw error; }
+    }
+    throw new Error('Die Serienbildplanung enthält nicht genau ein Bild je Leseabschnitt.');
+  };
+  const plan = { cover: shot(raw.cover, 0), pages: proposals.map((list, i) => firstValid(list, i + 1)), storyElements: [] };
   const leadPictures = plan.pages.filter((p: IllustrationShot) => p.onStage.includes(leadId)).length;
   if (leadPictures < Math.min(2, pages.length)) throw new Error('Die Serienhauptfigur verschwindet aus ihren Kapitelbildern.');
   const heroes = entities.filter(e => e.role === 'hero' && e.referenceUrl);
@@ -200,7 +218,8 @@ export async function directSeriesPictures(input: { llm: StorybookLlm; model: st
   const call = await input.llm({ stage: 'series-picture-direction', role: 'support', model: input.model, json: true, effort: 'low', maxTokens: directionTokens,
     imageInputs: [...(publicLead?.referenceUrl ? [publicLead.referenceUrl] : []), SERIES_STYLE_REFERENCE],
     system: [
-      `Direct hilarious, action-packed children's book landscape illustrations in the spirit of Talea Originals („Bruno, der Flunkerfisch“, „Die Monster-Müllabfuhr“): ONE picture per PAGE plus a distinct cover. Each PAGE is a reading segment of a chapter (up to ${perChapter} per chapter, in reading order); its paragraphs are numbered locally p1, p2, … 1 to 3 visible referenced characters per image. English complete captions, 70–110 words.`,
+      // Haiku planned two pictures per chapter instead of one per page in all three runs on 2026-10-29 ([1,1,2,2,3,3,4,5]).
+      `Direct hilarious, action-packed children's book landscape illustrations in the spirit of Talea Originals („Bruno, der Flunkerfisch“, „Die Monster-Müllabfuhr“): exactly ONE picture per PAGE plus a distinct cover. A PAGE is already a reading segment of a chapter (a chapter has up to ${perChapter} PAGES), so "pages" holds exactly ${pages.length} entries with page = ${pages.map(p => p.order).join(', ')}, each number once and in this order — never two pictures for one PAGE. Its paragraphs are numbered locally p1, p2, … 1 to 3 visible referenced characters per image. English complete captions, 70–110 words.`,
       'CAST COVERAGE (see the task): the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture, in the part of its own contribution; every recurring guest of the episode in at least one page picture, where the guest does the most. The cover shows the lead WITH the avatars (all of them when lead and avatars are at most three, otherwise those with the biggest part): the family wants to find its children on the cover.',
       "PRIORITISE SLAPSTICK & VISUAL COMEDY OVER CHORES: for each PAGE pick its funniest, most dramatic physical mishap, slapstick turn or visual punchline (use the PLANNED HIGHLIGHTS / LACHER when they happen in that page's paragraphs!): something springing loose, tipping over, splashing, landing on someone's hat, tangling, a runaway cart or cloth, or an absurd visual contrast. NEVER pick a mundane transport or tidy work beat (merely carrying a roll, holding a frame still, standing by a table, or tying a routine knot) when the page contains a funnier physical mishap. The two pictures of a chapter show two different beats with different framing. Show what a six-year-old would laugh at and point to, caught mid-motion. A physical action and its consequence must exist in the source; never invent unsupported props or magic.",
       'READABLE AT A GLANCE: choose moments whose action reads from across the room — big bodies and big objects in motion (a captain riding a sliding crate across the deck, a tarp billowing over two heads, a gull landing on a hat). Avoid moments that hinge on a small spatial detail (a nose inside a bucket, a sleeve between two shoes, which way a needle points): the illustrator cannot place those reliably and the picture check rejects them. Unnamed animals and crowds the text names (a flock of gulls, a market crowd) may fill the scene without being listed in onStage.',
@@ -229,7 +248,7 @@ export async function directSeriesPictures(input: { llm: StorybookLlm; model: st
     repairReasons = [{ page: 0, errors: [String((error as Error).message)] }];
     try {
       repairCall = await input.llm({ stage: 'series-picture-plan-repair', role: 'support', model: input.model, json: true, effort: 'low', maxTokens: directionTokens,
-        system: 'Repair only the supplied illustration plan JSON: one picture per PAGE (a reading segment of a chapter), exactly the given pages in order, plus the cover. Each image has 1 to 3 visible referenced characters. Preserve the actual selected physical event unless its evidence or activity is invalid; then choose a funny physical event from that page. Every cover/page needs visualBeat {actorId, action, result, framing}; actorId is onStage, action starts with an English physical verb, result is a visible consequence, framing is wide|medium|close. Across three or more page pictures use at least TWO framing scales. An introduction, objection, agreement, look or nod alone is not a physical event. Cast: the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture; at least one avatar beside the lead on the cover; every listed recurring guest in at least one page picture. "paragraph" is the local paragraph number within its page. Keep captions, page order and paragraph numbers where valid, with no invented objects or events. Return only the corrected plan.',
+        system: 'Repair only the supplied illustration plan JSON: one picture per PAGE (a reading segment of a chapter), exactly the given pages in order, plus the cover. The DEFECT is real: never return the plan unchanged; for a missing page choose a funny physical event from that page\'s own paragraphs. Each image has 1 to 3 visible referenced characters. Preserve the actual selected physical event unless its evidence or activity is invalid; then choose a funny physical event from that page. Every cover/page needs visualBeat {actorId, action, result, framing}; actorId is onStage, action starts with an English physical verb, result is a visible consequence, framing is wide|medium|close. Across three or more page pictures use at least TWO framing scales. An introduction, objection, agreement, look or nod alone is not a physical event. Cast: the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture; at least one avatar beside the lead on the cover; every listed recurring guest in at least one page picture. "paragraph" is the local paragraph number within its page. Keep captions, page order and paragraph numbers where valid, with no invented objects or events. Return only the corrected plan.',
         user: `DEFECT ${repairReasons[0].errors.join('; ')}\nLEAD ${leadId}\nAVATARS ${heroes.map(e => e.id).join(', ')}\n${guests.length ? `RECURRING GUESTS ${guests.map(e => e.id).join(', ')}\n` : ''}ALLOWED REFERENCED IDENTITIES ${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name}`).join('; ')}\nEXACTLY ${pages.length} PAGES\nEvery page needs storyQuote: an exact 12–500 character passage from THAT page proving the physical event. Its result must read in one still without a temporal comparison. Keep identifying faces visible. Use only source-present props.\nSOURCE PAGES:\n${pageText}\nPLAN\n${call.text}` });
       illustrations = validateSeriesShots(parseJsonObject(repairCall.text), pages, input.entities, leadId);
     } catch (repairError) {
@@ -260,6 +279,8 @@ async function mapLimited<T, R>(items: T[], limit: number, work: (item: T, index
 
 export async function generateSeriesImages(input: {
   illustrations: IllustrationPlan; entities: VisualEntity[]; provider: ImageProvider; seed: string; llm: StorybookLlm; visionModel: string;
+  /** Reads a picture once when the vision model answers empty or unreadably (Gemini refused one picture on every try). */
+  visionFallbackModel?: string;
   pageTexts: Record<number, string>; chapterByPage?: Record<number, number>; styleReferenceUrl?: string;
   buildReference?: ReturnType<typeof createIdentityReferenceCache>;
 }): Promise<StorybookImagesResult> {
@@ -271,7 +292,8 @@ export async function generateSeriesImages(input: {
   const style = input.styleReferenceUrl || SERIES_STYLE_REFERENCE;
   let imageCalls = 0, imageCostUSD = 0;
   const editableImages = new Map<number, string>();
-  const chapterFallbacks = new Map<number, ImageOutcome>();
+  // Every reviewed attempt per page: after the last redraw a page keeps its best one rather than staying empty.
+  const reviewed = new Map<number, ImageOutcome[]>();
   // Keep the generated image and its exact evidence when only the vision call failed.
   const visionRecoveries = new Map<number, () => Promise<ImageOutcome>>();
   const qaCalls: StorybookImagesResult['qaCalls'] = [], regenerated: number[] = [];
@@ -321,7 +343,7 @@ export async function generateSeriesImages(input: {
         beat ? bindNames(`Freeze the physical instant: ${byId.get(beat.actorId)?.name} ${moment.fact}. ${beat.framing.toUpperCase()} framing, asymmetric foreground and depth, dynamic three-quarter or side postures and vivid comic facial expressions. Bodies change balance with the action; each hand visibly works on its own object. The depicted scene determines setting, gesture and camera, while the reference sheet determines only character identity.`) : '',
         SERIES_ART_DIRECTION,
         regions.map(r => `<${r.id}> is ${r.description}, taken only from its own sheet cell and placed in its assigned scene region. Draw this figure exactly once in the caption's new action; the cell's resting pose and portrait background have no part in this scene.`).join('\n'),
-        references.length ? `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${slotPositionLabel(i, identities.length)} is ONLY ${e.name}: ${e.appearance}`).join('; ')}. Keep each face, ears, teeth, species and outfit with its OWN person. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, and exactly two arms and two hands with five fingers${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.` : '',
+        references.length ? `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${slotPositionLabel(i, identities.length)} is ONLY ${e.name}: ${e.appearance}`).join('; ')}. Keep each face, ears, teeth, species and outfit with its OWN person. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, rounded human ears, and exactly two arms and two hands, each with five separate fingers${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.` : '',
         ...drawn.filter(e => !e.referenceUrl).map(e => `${e.name}: ${e.appearance}.`),
         'Every described object keeps its true material and shape (a cloth banner is flexible fabric, never a wooden log); a joke never adds a garment or a mouth-held prop.',
         simplified
@@ -349,9 +371,10 @@ export async function generateSeriesImages(input: {
         return { page: shot.page, prompt, attempts: number, costUSD, severity: 999, status: 'missing', errors: [reason], history };
       }
       const reviewUser = `${shot.page === 0 ? 'COVER: judge the selected character-in-world composition. No chapter action is compulsory.' : 'CHAPTER PICTURE: judge this selected moment, allowing harmless staging differences.'}\nEXPECTED IDENTITIES:\n${drawn.map(e => `${e.id}: ${e.name}; ${e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\nPROPOSED CAPTION:\n${moment.scene}\nPRIMARY STORY FACT: ${moment.fact}\n${shot.page === 0 ? '' : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph, (shot as SeriesShot).storyQuote)}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name})`).join('; ')}.` : 'No identity sheet is attached.'} The last attachment is the public style example.`;
-      const review = async (stage: string) => {
+      const review = async (stage: string, model = input.visionModel) => {
         try {
-          const reply = await input.llm({ stage, role: 'support', model: input.visionModel, effort: 'low', json: true, maxTokens: /claude-haiku-5\.5/i.test(input.visionModel) ? 4000 : 1000, timeoutMs: 60000,
+          // Gemini 3.8 Flash thinks at effort low; 1,000 tokens left its JSON cut short.
+          const reply = await input.llm({ stage, role: 'support', model, effort: 'low', json: true, maxTokens: /claude-haiku-5\.5|gemini/i.test(model) ? 4000 : 1000, timeoutMs: 60000,
             system: SERIES_IMAGE_REVIEW, user: reviewUser, imageInputs: [response.viewUrl || response.url!, ...references, style] });
           qaCalls.push(reply);
           return readSeriesQa(reply.text, drawn);
@@ -364,12 +387,12 @@ export async function generateSeriesImages(input: {
         const severity = pass ? 0 : usable ? 5 : 10;
         const notes = [...qa.defects.map(d => d.detail), ...(qa.missing || []), ...qa.duplicates];
         history.push({ kind: number === 1 ? 'series-scene' : editing ? 'targeted-scene-edit' : simplified ? 'simplified-scene-repair' : 'same-scene-repair', status, severity, notes, url: response.url });
-        const outcome: ImageOutcome = { page: shot.page, url: response.url, prompt, attempts: number, costUSD, qa, severity, status, history };
-        if (shot.page !== 0 && !pass && seriesPictureChapterFallback(qa)) chapterFallbacks.set(shot.page, outcome);
+        const outcome: ImageOutcome = { page: shot.page, url: response.url, prompt, attempts: number, costUSD, qa, severity, status, history: [...history] };
+        reviewed.set(shot.page, [...(reviewed.get(shot.page) || []), outcome]);
         return outcome;
       };
       let qa = await review(`series-image-qa-${shot.page}-${number}`);
-      if (!qa && canReview()) qa = await review(`series-image-qa-${shot.page}-${number}-retry`);
+      if (!qa && canReview()) qa = await review(`series-image-qa-${shot.page}-${number}-retry`, input.visionFallbackModel);
       if (qa) return verdict(qa);
       history.push({ kind: 'series-vision', status: 'failed', severity: 999, notes: ['Bildprüfung nicht verfügbar oder unlesbar; das erzeugte Bild bleibt für eine erneute Prüfung erhalten.'], url: response.url });
       const unverified: ImageOutcome = { page: shot.page, url: response.url, prompt, attempts: number, costUSD, severity: 999, status: 'failed', errors: ['series_vision_error'], history };
@@ -474,17 +497,24 @@ export async function generateSeriesImages(input: {
       await recoverUnverified();
     }
   }
-  // Prefer a reviewed, story-consistent neighbouring moment to a completely blank chapter. It remains marked flawed;
-  // identity, safety, anatomy, extra figures and mismatched settings still prevent publication.
-  const covered = new Set(outcomes.filter(o => o.page !== 0 && isPublishable(o)).map(o => input.chapterByPage?.[o.page]).filter((chapter): chapter is number => chapter !== undefined));
-  for (let index = 1; index < outcomes.length; index++) {
-    const current = outcomes[index];
-    const chapter = input.chapterByPage?.[current.page];
-    const fallback = chapterFallbacks.get(current.page);
-    if (chapter === undefined || covered.has(chapter) || !fallback?.url) continue;
-    outcomes[index] = { ...fallback, status: 'flawed', salvaged: true, attempts: current.attempts, costUSD: current.costUSD,
-      history: [...(current.history || []), { kind: 'series-chapter-fallback', status: 'flawed', severity: 5, notes: ['Texttreuer benachbarter Moment statt eines bildlosen Kapitels.'], url: fallback.url }] };
-    covered.add(chapter);
+  // A page (and the cover) keeps its best reviewed attempt whose only fault is a loose action or moment, rather than
+  // printing nothing; a posed attempt only fills a chapter that has no picture at all. It remains marked flawed;
+  // identity, safety, anatomy, lettering, extra figures and a different object or setting still prevent publication.
+  for (const posedForEmptyChapter of [false, true]) {
+    const covered = new Set(outcomes.filter(o => o.page !== 0 && isPublishable(o)).map(o => input.chapterByPage?.[o.page]).filter((chapter): chapter is number => chapter !== undefined));
+    for (let index = 0; index < outcomes.length; index++) {
+      const current = outcomes[index];
+      if (isPublishable(current)) continue;
+      const chapter = input.chapterByPage?.[current.page];
+      const emptyChapter = posedForEmptyChapter && current.page !== 0 && chapter !== undefined && !covered.has(chapter);
+      if (posedForEmptyChapter && !emptyChapter) continue;
+      const best = (reviewed.get(current.page) || []).filter(o => o.url && seriesPictureLastResort(o.qa as SeriesQa, emptyChapter))
+        .sort((a, b) => (b.qa!.sceneMatch - a.qa!.sceneMatch) || (b.qa!.identityMatch - a.qa!.identityMatch))[0];
+      if (!best) continue;
+      outcomes[index] = { ...best, status: 'flawed', severity: 5, salvaged: true, attempts: current.attempts, costUSD: current.costUSD,
+        history: [...(current.history || []), { kind: 'series-best-attempt', status: 'flawed', severity: 5, notes: [best.qa?.posing ? 'Texttreuer, aber gestellter Moment statt eines bildlosen Kapitels.' : 'Bester geprüfter Versuch, nur die Handlung sitzt lose, statt eines fehlenden Bildes.'], url: best.url }] };
+      if (chapter !== undefined) covered.add(chapter);
+    }
   }
   return { cover: outcomes[0], pages: new Map(outcomes.slice(1).map(o => [o.page, o])), imagesGenerated: outcomes.filter(o => isPublishable(o)).length, imageCalls, imageCostUSD, qaCalls, regenerated };
 }

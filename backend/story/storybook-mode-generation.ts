@@ -40,11 +40,11 @@ import { loadArtifactOptions, loadCastCandidates, recordCastUsage } from "./stor
 import { loadPoolRows } from "./storybook/casting";
 import { toCastCandidate } from "./storybook/cast-selection";
 import { CHARACTER_SERIES_ENGINE } from "./character-series/core";
-import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, SERIES_IMAGE_REVIEW_MODEL, seriesBudget } from "./character-series/authoring";
+import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, seriesBudget } from "./character-series/authoring";
 import { SERIES_NARRATIVES } from "./character-series/narrative";
 import { runCharacterSeriesTextEngine, seriesLlmBudget } from "./character-series/engine";
 import { directSeriesPictures, generateSeriesImages } from "./character-series/pictures";
-import { seriesAvatarAppearance, seriesLeadCandidate, seriesReferenceAppearance } from "./character-series/identity";
+import { seriesAvatarAppearance, seriesLeadCandidate, seriesLeadReference, seriesReferenceAppearance } from "./character-series/identity";
 import { loadHeroMemories, loadStorybookHistory } from "./storybook/history";
 import { CostLedger, resolveStorybookModels } from "./storybook/llm";
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
@@ -244,6 +244,11 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       referenceKey: hero.imageUrl,
     };
   };
+  // The series lead is drawn from its clean series portrait; the pool portrait's workbench, ships and pipe went into
+  // the scenes (story e83e44e2). Until the frontend serves the portrait, the pool portrait stays.
+  const seriesLead = seriesMode && brief.characterSeries
+    ? { id: brief.characterSeries.bible.characterId, reference: seriesLeadReference(brief.characterSeries.bible.id) }
+    : undefined;
   const castEntity = async (member: CastCandidate): Promise<VisualEntity> => {
     const { species, isHuman } = speciesFromProfile(member.visualProfile, member.species);
     return {
@@ -255,7 +260,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       isHuman,
       appearance: seriesMode ? seriesReferenceAppearance(castAppearance(member.visualProfile, member.physicalDescription)) : castAppearance(member.visualProfile, member.physicalDescription),
       forbidden: [],
-      referenceUrl: await readableReference(member.imageUrl),
+      referenceUrl: (seriesLead?.id === member.id && await seriesLead.reference) || await readableReference(member.imageUrl),
       referenceKey: member.imageUrl,
     };
   };
@@ -374,7 +379,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const [images, development] = await Promise.all([
     (seriesMode ? generateSeriesImages({
       illustrations, entities: pictureEntities, provider: encoreImageProvider(input.storyId, imageModel), seed, llm,
-      visionModel: SERIES_IMAGE_REVIEW_MODEL, pageTexts: Object.fromEntries(picturePages.map(page => [page.order, page.content])),
+      visionModel: SERIES_IMAGE_REVIEW_MODEL, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL, pageTexts: Object.fromEntries(picturePages.map(page => [page.order, page.content])),
       chapterByPage: direction ? Object.fromEntries(direction.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined,
     }) : generateStorybookImages({
       illustrations,

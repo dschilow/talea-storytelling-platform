@@ -2,7 +2,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { CastCandidate } from '../storybook/types';
 import { castAppearance, speciesFromProfile } from '../storybook/illustration-stage';
-import { seriesLeadCandidate } from './identity';
+import { seriesLeadCandidate, seriesLeadReference, seriesReferenceAppearance } from './identity';
 
 const lead = (fields: Partial<CastCandidate> = {}): CastCandidate => ({
   id: 'captain', name: 'Kapitän Blubbert', species: 'human', whoTheyAre: 'ein Kapitän',
@@ -46,5 +46,18 @@ describe('series lead identity follows the canonical pool portrait', () => {
     const selected = seriesLeadCandidate(lead({ visualProfile: { species: 'human', imagePrompt: '', description: ' ' } }));
     expect(castAppearance(selected.visualProfile, selected.physicalDescription)).toBe('');
     expect(selected.visualProfile.species).toBe('human');
+  });
+  test('the clean series portrait is used only once the frontend serves it as an image', async () => {
+    const answer = (type: string, ok = true) => (async () => new Response(null, { status: ok ? 200 : 404, headers: { 'content-type': type } })) as unknown as typeof fetch;
+    expect(await seriesLeadReference('tilda-tueftel', answer('image/webp'))).toBe('https://www.talea.website/library/character-series/leads/tilda-tueftel.webp');
+    // Before the deploy the single-page app answers every path with its HTML.
+    expect(await seriesLeadReference('tilda-tueftel', answer('text/html'))).toBeUndefined();
+    expect(await seriesLeadReference('tilda-tueftel', answer('image/webp', false))).toBeUndefined();
+    expect(await seriesLeadReference('tilda-tueftel', (async () => { throw new Error('offline'); }) as unknown as typeof fetch)).toBeUndefined();
+    expect(await seriesLeadReference('unknown-series', answer('image/webp'))).toBeUndefined();
+  });
+  test('portrait props such as a pipe or tools do not enter the series look', () => {
+    expect(seriesReferenceAppearance('Tilda Tueftel, nine-year-old girl inventor with curly dark hair, round safety goggles, yellow overalls and colorful tools'))
+      .toBe('Tilda Tueftel, nine-year-old girl inventor with curly dark hair, round safety goggles, yellow overalls');
   });
 });

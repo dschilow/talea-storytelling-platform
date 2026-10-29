@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import bibles from '../../backend/story/character-series/series-bibles.json';
 import { CHARACTER_SERIES_ENGINE, CHARACTER_SERIES_VERSION, validateSeriesLog, extractSeriesLog, withSeriesContext, type SeriesEpisodeLog } from '../../backend/story/character-series/core';
 import { SERIES_NARRATIVES } from '../../backend/story/character-series/narrative';
-import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, SERIES_IMAGE_REVIEW_MODEL, seriesAuthoring, seriesBudget } from '../../backend/story/character-series/authoring';
+import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, seriesAuthoring, seriesBudget } from '../../backend/story/character-series/authoring';
 import { runCharacterSeriesTextEngine, seriesLlmBudget } from '../../backend/story/character-series/engine';
 import { directSeriesPictures, generateSeriesImages, validateSeriesShots } from '../../backend/story/character-series/pictures';
 import { buildBrief } from '../../backend/story/storybook/context';
@@ -14,7 +14,8 @@ import { CostLedger, type StorybookLlm } from '../../backend/story/storybook/llm
 import { extractStorybookChoiceContent, resolveStorybookReasoning, isTruncatedFinishReason } from '../../backend/story/storybook/llm-guards';
 import { toCastCandidate } from '../../backend/story/storybook/cast-selection';
 import { castAppearance, speciesFromProfile, type VisualEntity } from '../../backend/story/storybook/illustration-stage';
-import { seriesLeadCandidate, seriesReferenceAppearance } from '../../backend/story/character-series/identity';
+import { seriesLeadCandidate, seriesReferenceAppearance, SERIES_LEAD_REFERENCES } from '../../backend/story/character-series/identity';
+import { existsSync } from 'node:fs';
 import { buildRunwareTask, createRunwareCaller, LIBRARY_IMAGE_MODEL } from '../../backend/story/library/images';
 import { runwareImageModelOptions, runwareReferenceSettings } from '../../backend/ai/runware-image-model-options';
 import { buildImageSlots, pagesFor } from '../../backend/story/storybook/book/illustrations';
@@ -131,7 +132,7 @@ try {
   let pictures: any, imageCostUSD = 0;
   if (args.includes('--images')) {
     const entities: VisualEntity[] = [
-      { id: bible.characterId, name: bible.characterName, kind: 'character', role: 'cast', ...speciesFromProfile(lead.visualProfile, lead.species), appearance: seriesReferenceAppearance(castAppearance(lead.visualProfile, lead.physicalDescription)), forbidden: [], referenceUrl: publicRef(row.image_url || row.imageUrl) },
+      { id: bible.characterId, name: bible.characterName, kind: 'character', role: 'cast', ...speciesFromProfile(lead.visualProfile, lead.species), appearance: seriesReferenceAppearance(castAppearance(lead.visualProfile, lead.physicalDescription)), forbidden: [], referenceUrl: SERIES_LEAD_REFERENCES[seriesId] && existsSync('frontend/public' + SERIES_LEAD_REFERENCES[seriesId]) ? await inline('frontend/public' + SERIES_LEAD_REFERENCES[seriesId]) : publicRef(row.image_url || row.imageUrl) },
       ...avatars.map(a => ({ id: a.id, name: a.name, kind: 'character' as const, role: 'hero' as const, species: 'human', isHuman: true, appearance: a.appearance, forbidden: [], referenceUrl: a.imageUrl })),
       ...result.episode.guests.map(g => ({ id: g.id, name: g.name, kind: 'character' as const, role: 'cast' as const, species: g.species, isHuman: g.species === 'human', appearance: g.physicalDescription, forbidden: [] })),
     ];
@@ -151,7 +152,7 @@ try {
     const call = createRunwareCaller(runwareKey!);
     const picturePages = 'pages' in directed ? directed.pages : result.pages;
     const chapterByPage = 'slots' in directed && directed.slots ? Object.fromEntries(directed.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined;
-    const images = await generateSeriesImages({ illustrations: directed.illustrations, entities, seed: `series-v2-${seriesId}-${episode}`, llm, visionModel: SERIES_IMAGE_REVIEW_MODEL, pageTexts: Object.fromEntries(picturePages.map(p => [p.order, p.content])), chapterByPage,
+    const images = await generateSeriesImages({ illustrations: directed.illustrations, entities, seed: `series-v2-${seriesId}-${episode}`, llm, visionModel: SERIES_IMAGE_REVIEW_MODEL, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL, pageTexts: Object.fromEntries(picturePages.map(p => [p.order, p.content])), chapterByPage,
       provider: async request => {
         const task = buildRunwareTask(request);
         const model = opt('--image-model', SERIES_IMAGE_MODEL);

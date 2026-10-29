@@ -1,6 +1,6 @@
 // @ts-ignore Bun test helpers are runtime-only in Encore.
 import { describe, test, expect } from 'bun:test';
-import { readSeriesQa, seriesPictureChapterFallback, seriesPicturePasses, seriesPictureSource, seriesPictureUsable } from './quality';
+import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable } from './quality';
 import { seriesAvatarAppearance } from './identity';
 import type { VisualEntity } from '../storybook/illustration-stage';
 
@@ -62,11 +62,11 @@ describe('series image review after the production PDF', () => {
     const qa = readSeriesQa(review({ storyConsistent: true, defects: [detail] }), cast);
     expect(seriesPicturePasses(qa)).toBe(false);
     expect(seriesPictureUsable(qa)).toBe(true);
-    expect(seriesPictureChapterFallback(qa)).toBe(true);
+    expect(seriesPictureLastResort(qa)).toBe(true);
     for (const kind of ['identity', 'anatomy', 'unexpected', 'safety']) {
       const hard = readSeriesQa(review({ storyConsistent: true, defects: [{ ...detail, kind }] }), cast);
       expect(seriesPictureUsable(hard)).toBe(false);
-      expect(seriesPictureChapterFallback(hard)).toBe(false);
+      expect(seriesPictureLastResort(hard)).toBe(false);
     }
     expect(seriesPictureUsable(readSeriesQa(review({ storyConsistent: false, defects: [detail] }), cast))).toBe(false);
     expect(seriesPictureUsable(readSeriesQa(review({ storyConsistent: true, identityById: { dragon: 0.98, 'child-a': 0.7 }, defects: [detail] }), cast))).toBe(false);
@@ -114,9 +114,26 @@ describe('series image review after the production PDF', () => {
     expect(seriesPictureUsable(readSeriesQa(review(neighbour), cast))).toBe(false);
     expect(seriesPictureUsable(readSeriesQa(review({ ...neighbour, storyConsistent: true, defects: [{ kind: 'anatomy', detail: 'The child has a third hand.', fix: 'Give the child two hands.' }] }), cast))).toBe(false);
     expect(seriesPictureUsable(readSeriesQa(review({ ...neighbour, storyConsistent: true, posing: true }), cast))).toBe(false);
-    expect(seriesPictureChapterFallback(readSeriesQa(review({ ...neighbour, sceneMatch: 0.9, storyConsistent: true, posing: true }), cast))).toBe(true);
-    expect(seriesPictureChapterFallback(readSeriesQa(review({ ...neighbour, storyConsistent: false, posing: true }), cast))).toBe(false);
-    expect(seriesPictureChapterFallback(readSeriesQa(review({ ...neighbour, storyConsistent: true, defects: [{ kind: 'identity', detail: 'The dragon is doubled.', fix: 'Keep one dragon.' }] }), cast))).toBe(false);
+    // A posed picture fills only a chapter that would otherwise have none.
+    expect(seriesPictureLastResort(readSeriesQa(review({ ...neighbour, sceneMatch: 0.9, storyConsistent: true, posing: true }), cast), true)).toBe(true);
+    expect(seriesPictureLastResort(readSeriesQa(review({ ...neighbour, sceneMatch: 0.9, storyConsistent: true, posing: true }), cast))).toBe(false);
+    expect(seriesPictureLastResort(readSeriesQa(review({ ...neighbour, storyConsistent: false, posing: true }), cast), true)).toBe(false);
+    expect(seriesPictureLastResort(readSeriesQa(review({ ...neighbour, storyConsistent: true, defects: [{ kind: 'identity', detail: 'The dragon is doubled.', fix: 'Keep one dragon.' }] }), cast))).toBe(false);
     expect(seriesPictureUsable(readSeriesQa(review({ ...neighbour, storyConsistent: true, identityById: { dragon: 0.98, 'child-a': 0.7 } }), cast))).toBe(false);
+  });
+  test('an unexplained low identity score keeps recognisable figures; a named identity defect still blocks (e83e44e2)', () => {
+    // Gemini scored the flag picture 0.97/0.96 and, a run later, 0.82/0.78 without naming any defect.
+    expect(seriesPicturePasses(readSeriesQa(review({ identityById: { dragon: 0.82, 'child-a': 0.78 }, sceneMatch: 0.75 }), cast))).toBe(true);
+    const elfEars = readSeriesQa(review({ identityById: { dragon: 0.98, 'child-a': 0.78 }, defects: [{ kind: 'identity', detail: 'Nora has huge pointed elf ears.', fix: 'Give Nora her own rounded ears.' }] }), cast);
+    expect(seriesPicturePasses(elfEars)).toBe(false);
+    expect(seriesPictureLastResort(elfEars)).toBe(false);
+  });
+  test('after the last redraw a loose action is printed instead of a hole; a wrong setting, a missing hand or lettering is not', () => {
+    const loose = { primaryActionClear: false, storyConsistent: false, sceneMatch: 0.68, defects: [{ kind: 'story', detail: 'Tilda runs forward instead of tripping backward behind the cart.', fix: 'Show her pulled backward by the apron.', blocksAction: true }] };
+    expect(seriesPictureUsable(readSeriesQa(review(loose), cast))).toBe(false);
+    expect(seriesPictureLastResort(readSeriesQa(review(loose), cast))).toBe(true);
+    expect(seriesPictureLastResort(readSeriesQa(review({ ...loose, sceneMatch: 0.5 }), cast))).toBe(false);
+    expect(seriesPictureLastResort(readSeriesQa(review({ ...loose, defects: [...loose.defects, { kind: 'anatomy', detail: 'The left arm ends in a stump without a hand.', fix: 'Draw the left hand.' }] }), cast))).toBe(false);
+    expect(seriesPictureLastResort(readSeriesQa(review({ ...loose, defects: [{ kind: 'text', detail: 'The sign carries garbled letters.', fix: 'Leave the sign plain.' }] }), cast))).toBe(false);
   });
 });

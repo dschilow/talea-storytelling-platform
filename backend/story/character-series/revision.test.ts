@@ -1,7 +1,7 @@
 // @ts-ignore Bun test helpers are runtime-only in the Encore project.
 import { describe, expect, test } from 'bun:test';
 import { applyChapterEdits, runCharacterSeriesTextEngine, seriesLlmBudget } from './engine';
-import { seriesAuthoring, seriesBudget, SERIES_MODELS, SERIES_IMAGE_REVIEW_MODEL, SERIES_POLICY } from './authoring';
+import { seriesAuthoring, seriesBudget, SERIES_MODELS, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, SERIES_POLICY } from './authoring';
 import { SERIES_NARRATIVES } from './narrative';
 import { withSeriesContext, seriesPrompt } from './core';
 import { directSeriesPictures, generateSeriesImages, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment, seriesReferenceRegions } from './pictures';
@@ -23,9 +23,10 @@ const text = `FIGUR: Funkelflug | pool | ${bible.characterId} | companion\nTITEL
 const response = (value: string) => ({ text: value, modelUsed: 'test', usage: { prompt: 1, completion: 1, total: 2, costUSD: 0 }, durationMs: 0 });
 
 describe('Figurenserien revision 2', () => {
-  test('Sol writes while Haiku reviews the text and plans and reviews images', () => {
+  test('Sol writes, Haiku reviews the text and plans the pictures, Gemini reviews them with Terra as fallback', () => {
     expect(SERIES_MODELS).toEqual({ writer: 'openai/gpt-6.1-sol', support: 'anthropic/claude-haiku-5.5', critic: 'anthropic/claude-haiku-5.5' });
-    expect(SERIES_IMAGE_REVIEW_MODEL).toBe(SERIES_MODELS.support);
+    expect(SERIES_IMAGE_REVIEW_MODEL).toBe('google/gemini-3.8-flash');
+    expect(SERIES_IMAGE_REVIEW_FALLBACK_MODEL).toBe('openai/gpt-6.1-terra');
   });
   test('every catalogue world has its own arrival, encounter, motor and four developed arcs', () => {
     for (const b of bibles) {
@@ -63,11 +64,27 @@ describe('Figurenserien revision 2', () => {
     expect(result.pages[1].content).toContain('Gemeinsam prüften sie den Ausgang.');
     expect(result.textQuality?.status).toBe('passed');
   });
-  test('unsupported findings fail without paying for a rewrite', async () => {
-    const calls: string[] = [];
+  test('unsupported findings are dropped without paying for a rewrite or failing the story', async () => {
+    const calls: string[] = [], logged: string[] = [];
     const llm: StorybookLlm = async r => { calls.push(r.stage); return response(r.stage === 'series-author' ? text : '{"issues":[{"severity":"major","quote":"Ein nicht vorhandener Satz.","problem":"Fehler","change":"Ändern"}]}'); };
-    await expect(runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() })).rejects.toThrow('Textbeleg');
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger(), observe: stage => { logged.push(stage); } });
     expect(calls).toHaveLength(2);
+    expect(logged).toContain('series-editorial-review-unsupported');
+    expect(result.chosen).toBe('draft');
+  });
+  test('a quote shortened with an ellipsis is evidence when its pieces stand in the text in order', async () => {
+    const calls: string[] = [];
+    const quote = 'Funkelflug zeigte Nora den Bodengang. … Der Drache steckte seine Nase durch die Tür.';
+    const llm: StorybookLlm = async r => {
+      calls.push(r.stage);
+      if (r.stage === 'series-author') return response(text);
+      if (r.stage === 'series-editorial-review') return response(JSON.stringify({ issues: [{ severity: 'minor', quote, problem: 'Der Weg zur Tür fehlt.', change: 'Den Weg zeigen.' }] }));
+      if (r.stage === 'series-local-repair') return response(JSON.stringify({ edits: [{ chapter: 2, before: 'Der Drache steckte seine Nase durch die Tür.', after: 'Der Drache lief zur Tür und steckte seine Nase hindurch.' }] }));
+      return response('{"issues":[]}');
+    };
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() });
+    expect(calls).toContain('series-local-repair');
+    expect(result.pages[1].content).toContain('Der Drache lief zur Tür');
   });
   test('a literal 42-word continuity quote across adjacent paragraphs remains actionable', async () => {
     const first = 'Funkelflug stellte seinen Becher ab. Nora hielt ihn schon fest.';
@@ -171,7 +188,7 @@ describe('Figurenserien revision 2', () => {
     for (let i = 0; i < SERIES_POLICY.maxLlmCalls; i++) await bounded(request);
     await expect(bounded(request)).rejects.toThrow('Kostenlimit');
     expect(paid).toBe(SERIES_POLICY.maxLlmCalls);
-    const costly = seriesLlmBudget(async () => ({ ...response('ok'), usage: { prompt: 1, completion: 1, total: 2, costUSD: 0.11 } }));
+    const costly = seriesLlmBudget(async () => ({ ...response('ok'), usage: { prompt: 1, completion: 1, total: 2, costUSD: SERIES_POLICY.llmStopAfterUSD + 0.01 } }));
     await costly(request);
     await expect(costly(request)).rejects.toThrow('Kostenlimit');
   });
@@ -441,13 +458,16 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
         return imageReview(r.stage, [1, 2, 5, 6].includes(page) && attempt < 3 ? { primaryActionClear: false } : {});
       },
     });
-    expect(result.regenerated).toEqual([1, 5, 2, 1, 5]);
+    expect(result.regenerated).toEqual([1, 5, 2, 6, 0, 1, 5]);
     expect(planning).toHaveLength(1);
     expect(JSON.parse(planning[0]).map((item: any) => item.page)).toEqual([1, 5]);
     expect(result.pages.get(1)?.status).toBe('passed');
     expect(result.pages.get(5)?.status).toBe('passed');
+    // Their second pictures only missed the action: the best attempt is printed instead of nothing.
+    expect(result.pages.get(2)).toMatchObject({ status: 'flawed', salvaged: true });
+    expect(result.pages.get(6)?.history?.at(-1)?.kind).toBe('series-best-attempt');
     expect(result.cover?.status).toBe('failed');
-    expect(result.imageCalls).toBe(12);
+    expect(result.imageCalls).toBe(SERIES_POLICY.maxImageCalls);
   });
   test('long stories keep one image for each of four chapters, with a shared repair allowance', async () => {
     const longPages = [...pages, { ...pages[0], order: 4 }];
@@ -538,8 +558,23 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(result.pages.get(1)?.status).toBe('flawed');
     expect(result.pages.get(1)?.salvaged).toBe(true);
     expect(result.pages.get(1)?.url).toBe('https://example.test/1-1.webp');
-    expect(result.pages.get(1)?.history?.at(-1)?.kind).toBe('series-chapter-fallback');
+    expect(result.pages.get(1)?.history?.at(-1)?.kind).toBe('series-best-attempt');
     expect(result.imagesGenerated).toBe(4);
+  });
+  test('an empty or unreadable vision answer is read once by the fallback model before the picture is given up', async () => {
+    const reviewers: Array<[string, string]> = [];
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'vision-fallback', visionModel: 'gemini', visionFallbackModel: 'terra', pageTexts: {},
+      buildReference: async () => ({ urls: [] } as any), provider: async r => ({ url: `https://example.test/${r.page}.webp` }),
+      llm: async r => {
+        reviewers.push([r.stage, r.model]);
+        if (r.stage === 'series-image-qa-2-1') throw new Error('Empty response from gemini');
+        return imageReview(r.stage);
+      },
+    });
+    expect(reviewers).toContainEqual(['series-image-qa-2-1-retry', 'terra']);
+    expect(result.pages.get(2)?.status).toBe('passed');
+    expect(result.imageCalls).toBe(4);
   });
   test('a posed fallback is not published when its chapter already has a good illustration', async () => {
     const result = await generateSeriesImages({
@@ -556,7 +591,8 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     const llm = seriesLlmBudget(async r => {
       events.push(r.stage);
       const reply = imageReview(r.stage, r.stage.includes('qa-1-') ? { primaryActionClear: false } : {});
-      return { ...reply, usage: { ...reply.usage, costUSD: 0.026 } };
+      // Four checks together cross the spend stop.
+      return { ...reply, usage: { ...reply.usage, costUSD: SERIES_POLICY.llmStopAfterUSD / 4 + 0.001 } };
     });
     const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'planned-first', provider: async r => { events.push(`draw-${r.page}`); return { url: 'https://example.test/image.webp', costUSD: 0.0025 }; }, llm, visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
     expect(result.imageCalls).toBe(4);
@@ -567,7 +603,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
   });
   test('no paid image is started when its review budget or avatar reference is missing', async () => {
     let draws = 0;
-    const llm = seriesLlmBudget(async () => ({ ...response('ok'), usage: { prompt: 1, completion: 1, total: 2, costUSD: 0.11 } }));
+    const llm = seriesLlmBudget(async () => ({ ...response('ok'), usage: { prompt: 1, completion: 1, total: 2, costUSD: SERIES_POLICY.llmStopAfterUSD + 0.01 } }));
     await llm({ stage: 'spent' } as any);
     const noBudget = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'empty', provider: async () => { draws++; return { url: 'https://example.test/image.webp' }; }, llm, visionModel: 'test', pageTexts: {} });
     expect(draws).toBe(0);
@@ -576,6 +612,26 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     const noReference = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities: missing, seed: 'missing', provider: async () => { draws++; return { url: 'https://example.test/image.webp' }; }, llm: async r => imageReview(r.stage), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
     expect(noReference.pages.get(1)?.errors).toContain('series_avatar_reference_missing');
     expect(draws).toBe(1); // The cover needs only the available lead; no invented avatar is drawn.
+  });
+  test('the quoted paragraph, not the named number, places the picture (e83e44e2)', () => {
+    const long = pages.map(p => ({ ...p, content: Array.from({ length: 16 }, (_, i) => i === 5 ? 'Alexander hob gerade ein Fähnchen. Dessen Papier faltete sich hinter ihr Ohr.' : `Absatz ${i + 1} erzählt etwas.`).join('\n\n') }));
+    const raw = rawPlan(); raw.pages.forEach(p => { p.paragraph = 16; p.storyQuote = 'Dessen Papier faltete sich hinter ihr Ohr.'; });
+    expect(validateSeriesShots(raw, long, entities, 'lead').pages[0]).toMatchObject({ paragraph: 6 });
+    // A quote across two paragraphs counts at its last sentence; an unquoted page keeps the named paragraph.
+    raw.pages[0].storyQuote = 'Absatz 9 erzählt etwas. Absatz 10 erzählt etwas.';
+    expect(validateSeriesShots(raw, long, entities, 'lead').pages[0]).toMatchObject({ paragraph: 10 });
+    raw.pages[0].storyQuote = 'Ein im Kapitel nicht vorhandener Satz.';
+    expect(validateSeriesShots(raw, long, entities, 'lead').pages[0]).toMatchObject({ paragraph: 16 });
+  });
+  test('a page planned twice keeps one picture instead of failing the plan', () => {
+    const raw: any = rawPlan();
+    // The first proposal for page 1 is speech only; the second one is drawn.
+    raw.pages = [{ ...raw.pages[0], visualBeat: { ...raw.pages[0].visualBeat, action: 'agrees to wait' } }, ...raw.pages];
+    const plan = validateSeriesShots(raw, pages, entities, 'lead');
+    expect(plan.pages.map(p => p.page)).toEqual([1, 2, 3]);
+    expect((plan.pages[0] as any).visualBeat.action).toBe('pulls the bell rope down');
+    raw.pages = raw.pages.filter((p: any) => p.page !== 2);
+    expect(() => validateSeriesShots(raw, pages, entities, 'lead')).toThrow('genau ein Bild je Leseabschnitt');
   });
   test('a paraphrased model quote is replaced by actual source evidence before drawing', () => {
     const raw = rawPlan(); raw.pages[0].storyQuote = 'Ein im Kapitel nicht vorhandener Satz.';

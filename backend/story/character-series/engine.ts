@@ -104,11 +104,24 @@ export async function runCharacterSeriesTextEngine(input: {
     const data = parseJsonObject<{ issues: Issue[] }>(response.text);
     if (!Array.isArray(data?.issues) || data.issues.length > 2) throw new Error('Das Serienlektorat ist nicht lesbar.');
     const norm = (s: string) => s.normalize('NFC').replace(/[„“”]/g, '"').replace(/\s+/g, ' ').trim();
-    for (const issue of data.issues) {
-      if (!['major', 'minor'].includes(issue.severity) || typeof issue.quote !== 'string' || !issue.problem || !issue.change || issue.quote.length > 800 || issue.quote.trim().split(/\s+/).length > 80 || (issue.quote && !norm(source).includes(norm(issue.quote)))) throw new Error('Das Serienlektorat enthält keinen gültigen Textbeleg.');
-    }
-    await observe(stage + '-findings', { issues: data.issues });
-    return data.issues;
+    if (data.issues.some(issue => !['major', 'minor'].includes(issue?.severity) || typeof issue.quote !== 'string' || !issue.problem || !issue.change)) throw new Error('Das Serienlektorat ist nicht lesbar.');
+    // Haiku shortened a two-paragraph quote with "…" (pilot 2026-10-29) and the whole story failed. Literal pieces in
+    // their order count as evidence; a finding without any is dropped and logged rather than failing a finished story.
+    const text = norm(source);
+    const literal = (quote: string) => {
+      const pieces = norm(quote).split(/\s*(?:\.\.\.|…)\s*/).filter(Boolean);
+      if (!pieces.length || (pieces.length > 1 && pieces.some(piece => piece.length < 12))) return false;
+      let from = 0;
+      return pieces.every(piece => {
+        const at = text.indexOf(piece, from);
+        from = at + piece.length;
+        return at >= 0;
+      });
+    };
+    const supported = data.issues.filter(issue => !issue.quote || (issue.quote.length <= 800 && issue.quote.trim().split(/\s+/).length <= 80 && literal(issue.quote)));
+    if (supported.length < data.issues.length) await observe(stage + '-unsupported', { dropped: data.issues.filter(issue => !supported.includes(issue)) });
+    await observe(stage + '-findings', { issues: supported });
+    return supported;
   };
   let checks = storyChecks(story.chapters, plan, brief);
   let issues = await inspect('series-editorial-review');
