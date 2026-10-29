@@ -25,6 +25,9 @@ const args = process.argv.slice(2);
 const opt = (name: string, fallback: string) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
 if (!args.includes('--run') && !args.includes('--dry')) throw new Error('Use --run or --dry.');
 const seriesId = opt('--series', 'funkelflug'), episode = Number(opt('--episode', '1'));
+// Role trials: --writer/--critic/--director/--vision replace one model each; the defaults are production's.
+const models = { ...SERIES_MODELS, writer: opt('--writer', SERIES_MODELS.writer), critic: opt('--critic', SERIES_MODELS.critic), support: opt('--director', SERIES_MODELS.support) };
+const visionModel = opt('--vision', SERIES_IMAGE_REVIEW_MODEL);
 if (![1, 2].includes(episode)) throw new Error('Pilot supports episodes 1 and 2.');
 const bible = bibles.find(b => b.id === seriesId)!;
 if (!bible) throw new Error('Unknown series.');
@@ -123,8 +126,8 @@ if (args.includes('--review-contracts')) {
 }
 try {
   const reusable = args.includes('--reuse-text') ? JSON.parse(await readFile(opt('--reuse-text', ''), 'utf8')) : undefined;
-  if (reusable && (reusable.seriesId !== seriesId || reusable.contractHash !== contractHash || reusable.result?.textQuality?.status !== 'passed' || !reusable.result?.finalChecks?.ok)) throw new Error('The reusable manuscript is not verified for this series contract.');
-  const result: Awaited<ReturnType<typeof runCharacterSeriesTextEngine>> = reusable?.result || await runCharacterSeriesTextEngine({ brief, llm, ledger, models: SERIES_MODELS, observe: async (stage, payload) => { await writeFile(join(out, stage + '.json'), JSON.stringify(payload, null, 2)); } });
+  if (reusable && (reusable.seriesId !== seriesId || (reusable.contractHash !== contractHash && !args.includes('--any-contract')) || reusable.result?.textQuality?.status !== 'passed' || !reusable.result?.finalChecks?.ok)) throw new Error('The reusable manuscript is not verified for this series contract.');
+  const result: Awaited<ReturnType<typeof runCharacterSeriesTextEngine>> = reusable?.result || await runCharacterSeriesTextEngine({ brief, llm, ledger, models, observe: async (stage, payload) => { await writeFile(join(out, stage + '.json'), JSON.stringify(payload, null, 2)); } });
   const storyText = result.pages.map(p => p.title + '\n' + p.content).join('\n\n');
   const identity = { episode, storyId: `fictional-v2-${seriesId}-${episode}`, avatarIds: avatars.map(a => a.id) };
   const validated = validateSeriesLog(result.episode.seriesLogCandidate, storyText, identity);
@@ -143,7 +146,7 @@ try {
     const reusedPages = reusedSlots ? pagesFor(reusedSlots) : result.pages;
     const directed = reusedDirection
       ? { illustrations: validateSeriesShots(reusedDirection, reusedPages, entities, bible.characterId), pages: reusedPages, ...(reusedSlots ? { slots: reusedSlots } : {}) }
-      : await directSeriesPictures({ llm, model: SERIES_MODELS.support, brief, title: result.title, pages: result.pages, entities });
+      : await directSeriesPictures({ llm, model: models.support, brief, title: result.title, pages: result.pages, entities });
     if ('director' in directed) {
       ledger.recordCall('series-picture-direction', directed.director.call, 'support');
       if (directed.director.repairCall) ledger.recordCall('series-picture-plan-repair', directed.director.repairCall, 'support');
@@ -152,7 +155,7 @@ try {
     const call = createRunwareCaller(runwareKey!);
     const picturePages = 'pages' in directed ? directed.pages : result.pages;
     const chapterByPage = 'slots' in directed && directed.slots ? Object.fromEntries(directed.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined;
-    const images = await generateSeriesImages({ illustrations: directed.illustrations, entities, seed: `series-v2-${seriesId}-${episode}`, llm, visionModel: SERIES_IMAGE_REVIEW_MODEL, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL, pageTexts: Object.fromEntries(picturePages.map(p => [p.order, p.content])), chapterByPage,
+    const images = await generateSeriesImages({ illustrations: directed.illustrations, entities, seed: `series-v2-${seriesId}-${episode}`, llm, visionModel, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL, pageTexts: Object.fromEntries(picturePages.map(p => [p.order, p.content])), chapterByPage,
       provider: async request => {
         const task = buildRunwareTask(request);
         const model = opt('--image-model', SERIES_IMAGE_MODEL);
@@ -176,7 +179,7 @@ try {
       await writeFile(extension === 'webp' ? file : file.replace(/\.webp$/, '.jpg'), new Uint8Array(await response.arrayBuffer()));
     }
   }
-  const report = { seriesId, episode, version: CHARACTER_SERIES_VERSION, contractHash, models: SERIES_MODELS, imageModel: opt('--image-model', SERIES_IMAGE_MODEL), policy: SERIES_POLICY, fictionalAvatars: avatars.map(a => a.name), reusedTextFrom: reusable ? opt('--reuse-text', '') : undefined, reusedDraftFrom: reusedDraftPath || undefined, status: pictures && !pictures.accepted ? 'accepted-with-missing-images' : 'accepted', result, log, pictures, stages: ledger.all(), costs: { ...ledger.totals(), imageCostUSD, totalUSD: ledger.totals().costUSD + imageCostUSD }, note: 'Real API costs of this run. A reused manuscript or draft is explicitly excluded. Production avatar-development call excluded; no database writes.' };
+  const report = { seriesId, episode, version: CHARACTER_SERIES_VERSION, contractHash, models: { ...models, vision: visionModel }, imageModel: opt('--image-model', SERIES_IMAGE_MODEL), policy: SERIES_POLICY, fictionalAvatars: avatars.map(a => a.name), reusedTextFrom: reusable ? opt('--reuse-text', '') : undefined, reusedDraftFrom: reusedDraftPath || undefined, status: pictures && !pictures.accepted ? 'accepted-with-missing-images' : 'accepted', result, log, pictures, stages: ledger.all(), costs: { ...ledger.totals(), imageCostUSD, totalUSD: ledger.totals().costUSD + imageCostUSD }, note: 'Real API costs of this run. A reused manuscript or draft is explicitly excluded. Production avatar-development call excluded; no database writes.' };
   await writeFile(join(out, 'result.json'), JSON.stringify(report, null, 2));
   await mkdir(published, { recursive: true });
   await writeFile(join(published, `folge-${episode}.md`), `# ${result.title}\n\n${result.description}\n\n${result.pages.map(p => `## ${p.title}\n\n${p.content}`).join('\n\n')}\n`);

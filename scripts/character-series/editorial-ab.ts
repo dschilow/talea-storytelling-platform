@@ -4,7 +4,7 @@
  * contract is rebuilt for the given series and episode, as the writer and critic saw it.
  *
  *   cd backend; encore exec -- bun --env-file=../.env.local ../scripts/character-series/editorial-ab.ts \
- *     --text <story.json> --series tilda-tueftel [--episode 1] [--models anthropic/claude-haiku-5.5,openai/gpt-6.1-terra] [--runs 2]
+ *     --text <story.json> --series tilda-tueftel [--episode 1] [--heroes Nora,Ben] [--models anthropic/claude-haiku-5.5,openai/gpt-6.1-terra] [--runs 2]
  */
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -23,7 +23,8 @@ const models = (arg('models') || `${SERIES_MODELS.critic},openai/gpt-6.1-terra`)
 const story = JSON.parse(await readFile(resolve(process.env.INIT_CWD || process.cwd(), arg('text')!), 'utf8')) as { title: string; chapters: Array<{ title: string; paragraphs: string[] }> };
 
 const bible = bibles.find(b => b.id === series)!;
-const heroes = [{ id: 'alexander', name: 'Alexander', age: 8 }, { id: 'adrian', name: 'Adrian', age: 7 }];
+// --heroes Nora,Ben for pilot manuscripts; the family's own avatars by default.
+const heroes = (arg('heroes') || 'Alexander,Adrian').split(',').map((name, i) => ({ id: name.toLowerCase(), name, age: 8 - i }));
 const brief = buildBrief({
   config: { avatarIds: heroes.map(h => h.id), storybookMode: true, characterSeriesId: series, genre: 'adventure', setting: 'village', ageGroup: '6-8', length: 'medium', language: 'de', avatarIsHero: false } as any,
   band: '6-8', budget: seriesBudget('medium', '6-8'), heroes: heroes as any,

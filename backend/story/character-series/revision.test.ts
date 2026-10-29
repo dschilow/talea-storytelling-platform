@@ -623,6 +623,11 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     raw.pages[0].storyQuote = 'Ein im Kapitel nicht vorhandener Satz.';
     expect(validateSeriesShots(raw, long, entities, 'lead').pages[0]).toMatchObject({ paragraph: 16 });
   });
+  test('a one-word paragraph borrows its neighbour as evidence instead of failing the plan', () => {
+    const short = pages.map(p => ({ ...p, content: 'Pia prüfte die neue Leine mit einem Griff.\n\n„Hält.“\n\nDas Ende.' }));
+    const raw = rawPlan(); raw.pages.forEach(p => { p.storyQuote = 'Ein im Kapitel nicht vorhandener Satz.'; });
+    expect(validateSeriesShots(raw, short, entities, 'lead').pages[0]).toMatchObject({ storyQuote: 'Pia prüfte die neue Leine mit einem Griff. „Hält.“' });
+  });
   test('a page planned twice keeps one picture instead of failing the plan', () => {
     const raw: any = rawPlan();
     // The first proposal for page 1 is speech only; the second one is drawn.

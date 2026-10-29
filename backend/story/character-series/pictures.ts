@@ -143,7 +143,10 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
     if (page > 0 && (!Number.isInteger(paragraph) || paragraph < 1 || paragraph > pageParagraphs.length)) throw new Error('Das Serienbild gehört zu keinem Absatz des Kapitels.');
     const paragraphText = page > 0 ? pageParagraphs[paragraph - 1]?.trim() : '';
     // Ground a paraphrased model quote in the actual selected source paragraph, never in invented evidence.
-    const evidence = page > 0 && (quote.length < 12 || quote.length > 500 || !norm(pages[page - 1].content).includes(norm(quote))) ? (paragraphText || '').slice(0, 500) : quote;
+    // A one-word paragraph („Hält.“) is too short as evidence (pilot 2026-10-29 lost the whole story): its neighbour joins it.
+    const fallbackEvidence = paragraphText && paragraphText.length >= 12 ? paragraphText
+      : (paragraph > 1 ? pageParagraphs.slice(paragraph - 2, paragraph) : pageParagraphs.slice(0, 2)).join(' ').trim();
+    const evidence = page > 0 && (quote.length < 12 || quote.length > 500 || !norm(pages[page - 1].content).includes(norm(quote))) ? fallbackEvidence.slice(0, 500) : quote;
     if (page > 0 && evidence.length < 12) throw new Error('Dem Serienbild fehlt ein wörtlicher Beleg aus seinem Kapitel.');
     const beat = candidate.visualBeat;
     // Haiku may put the valid framing beside visualBeat rather than inside it; the meaning is identical.
@@ -214,7 +217,8 @@ export async function directSeriesPictures(input: { llm: StorybookLlm; model: st
     guests.length ? `RECURRING GUEST${guests.length > 1 ? 'S' : ''} OF THIS EPISODE (in at least one page picture, where the guest does the most): ${guests.map(e => `${e.id} (${e.name})`).join(', ')}.` : '',
   ].filter(Boolean).join('\n');
   const pageText = pages.map((p, i) => `PAGE ${p.order} — chapter ${slots[i].chapter}, part ${slots[i].part + 1} of ${slots.filter(s => s.chapter === slots[i].chapter).length}\n${p.content.split(/\n\n/).map((t, k) => `p${k + 1}: ${t}`).join('\n')}`).join('\n\n');
-  const directionTokens = /claude-haiku-5\.5/i.test(input.model) ? 3000 + pages.length * 1800 : 1000 + pages.length * 600;
+  // A ceiling, not a price: only used tokens are billed, and a thinking model needs the room before its JSON.
+  const directionTokens = 3000 + pages.length * 1800;
   const call = await input.llm({ stage: 'series-picture-direction', role: 'support', model: input.model, json: true, effort: 'low', maxTokens: directionTokens,
     imageInputs: [...(publicLead?.referenceUrl ? [publicLead.referenceUrl] : []), SERIES_STYLE_REFERENCE],
     system: [
@@ -373,8 +377,8 @@ export async function generateSeriesImages(input: {
       const reviewUser = `${shot.page === 0 ? 'COVER: judge the selected character-in-world composition. No chapter action is compulsory.' : 'CHAPTER PICTURE: judge this selected moment, allowing harmless staging differences.'}\nEXPECTED IDENTITIES:\n${drawn.map(e => `${e.id}: ${e.name}; ${e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\nPROPOSED CAPTION:\n${moment.scene}\nPRIMARY STORY FACT: ${moment.fact}\n${shot.page === 0 ? '' : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph, (shot as SeriesShot).storyQuote)}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name})`).join('; ')}.` : 'No identity sheet is attached.'} The last attachment is the public style example.`;
       const review = async (stage: string, model = input.visionModel) => {
         try {
-          // Gemini 3.8 Flash thinks at effort low; 1,000 tokens left its JSON cut short.
-          const reply = await input.llm({ stage, role: 'support', model, effort: 'low', json: true, maxTokens: /claude-haiku-5\.5|gemini/i.test(model) ? 4000 : 1000, timeoutMs: 60000,
+          // Gemini thinks at effort low before its JSON; 1,000 tokens left it cut short.
+          const reply = await input.llm({ stage, role: 'support', model, effort: 'low', json: true, maxTokens: 4000, timeoutMs: 60000,
             system: SERIES_IMAGE_REVIEW, user: reviewUser, imageInputs: [response.viewUrl || response.url!, ...references, style] });
           qaCalls.push(reply);
           return readSeriesQa(reply.text, drawn);
@@ -446,7 +450,7 @@ export async function generateSeriesImages(input: {
     }).filter(item => Boolean(item.paragraph));
     if (!eligible.length || !canReview()) return new Map();
     try {
-      const reply = await input.llm({ stage: 'series-picture-rescue-plan', role: 'support', model: input.visionModel, effort: 'low', json: true, maxTokens: /claude-haiku-5\.5/i.test(input.visionModel) ? 5000 : 1800, timeoutMs: 60000,
+      const reply = await input.llm({ stage: 'series-picture-rescue-plan', role: 'support', model: input.visionModel, effort: 'low', json: true, maxTokens: 5000, timeoutMs: 60000,
         system: 'Choose a simpler, drawable moment from each exact source paragraph for a children’s book. It replaces a failed complex illustration at the same paragraph. Show exactly ONE of the allowed characters doing one visible physical action already stated in the paragraph. Choose one simpler part of the event, not the full interaction that already failed. Do not include other people or infer new events, props, clothes or words in the image. Use an exact literal source quote from that paragraph. The original scene is context for the location, not a mandate to repeat the failed action. Describe the simpler action and established setting in English. If no honest single-character moment exists, omit that page. Return JSON {"pages":[{"page":number,"onStage":["id"],"storyQuote":"exact quote","scene":"English visual scene","visualBeat":{"actorId":"id","action":"physical verb and action","result":"visible consequence","framing":"wide|medium|close"}}]}.',
         user: JSON.stringify(eligible.map(({ shot, paragraph }) => ({ page: shot.page, paragraph, originalScene: shot.scene, allowed: shot.onStage.map(id => ({ id, name: byId.get(id)?.name })) }))),
       });
