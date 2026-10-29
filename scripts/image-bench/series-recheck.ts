@@ -9,7 +9,7 @@
  *     --log <logs.json> --text <story.json> --portraits <id>=<file>,… --images <dir> [--labels <labels.json>]
  * Pilot run of scripts/character-series/pilot-v2.ts (its saved review requests are replayed as they were):
  *     --pilot <out>/episode-1 --set <name> --portraits <id>=<file>,… --images <dir> [--labels <labels.json>]
- * Common: [--models anthropic/claude-haiku-5.5,openai/gpt-6.1-terra:think] [--runs 2] [--only p1-3,p4-1] [--out <jsonl>] [--flex]
+ * Common: [--models anthropic/claude-haiku-5.5,openai/gpt-6.1-terra:think] [--runs 2] [--only p1-3,p4-1] [--out <jsonl>] [--flex] [--no-style] [--px 768]
  *
  * A model suffixed with ":think" runs in the critic role (Claude then thinks at effort low; production's support role
  * switches Claude's thinking off). Pictures missing in --images are downloaded (bucket keys through the production proxy).
@@ -38,6 +38,9 @@ const proxy = "https://backend-2-production-3de1.up.railway.app/story/image?key=
 const labels = arg("labels") ? JSON.parse(await readFile(path(arg("labels")!), "utf8")) as Record<string, { label: string }> : {};
 const portraits = new Map((arg("portraits") || "").split(",").filter(Boolean).map(pair => pair.split("=") as [string, string]));
 const flex = process.argv.includes("--flex");
+/** Cost levers: --no-style drops the style example from the attachments, --px N shrinks the picture (long side). */
+const noStyle = process.argv.includes("--no-style");
+const maxPx = Number(arg("px") || 0);
 const forbidden = new Map((arg("forbidden") || "").split(",").filter(Boolean).map(pair => pair.split("=") as [string, string]));
 
 /** One review as production sent it: the picture, the figures on the identity sheet (in slot order) and the user text. */
@@ -132,7 +135,7 @@ const picture = async (id: string, url: string) => {
     if (!response.ok) throw new Error(`${id}: HTTP ${response.status}`);
     await writeFile(file, Buffer.from(await response.arrayBuffer()));
   }
-  return `data:image/jpeg;base64,${(await sharp(await readFile(file)).jpeg({ quality: 90 }).toBuffer()).toString("base64")}`;
+  return `data:image/jpeg;base64,${(await sharp(await readFile(file)).resize(maxPx ? { width: maxPx, height: maxPx, fit: "inside", withoutEnlargement: true } : {}).jpeg({ quality: 90 }).toBuffer()).toString("base64")}`;
 };
 
 const cases = arg("pilot") ? await pilotCases(path(arg("pilot")!), arg("set") || basename(dirname(path(arg("pilot")!)))) : await productionCases();
@@ -148,7 +151,7 @@ for (const item of cases) {
       const started = Date.now();
       let row: any;
       try {
-        const reply = await llm({ stage: "series-recheck", role: mode === "think" ? "critic" : "support", model, fallbackModel: model, effort: "low", json: true, maxTokens: /claude|gemini|deepseek/.test(model) ? 4000 : 2500, timeoutMs: 120_000, ...(flex ? { serviceTier: "flex" as const } : {}), system: SERIES_IMAGE_REVIEW, user: item.user, imageInputs: [image, sheet, SERIES_STYLE_REFERENCE] });
+        const reply = await llm({ stage: "series-recheck", role: mode === "think" ? "critic" : "support", model, fallbackModel: model, effort: "low", json: true, maxTokens: /claude|gemini|deepseek/.test(model) ? 4000 : 2500, timeoutMs: 120_000, ...(flex ? { serviceTier: "flex" as const } : {}), system: SERIES_IMAGE_REVIEW, user: item.user, imageInputs: noStyle ? [image, sheet] : [image, sheet, SERIES_STYLE_REFERENCE] });
         const qa = readSeriesQa(reply.text, item.drawn);
         const pass = seriesPicturePasses(qa, item.cover);
         const usable = !pass && seriesPictureUsable(qa);
