@@ -14,6 +14,7 @@ import { effectiveSeriesEpisode, logsForEpisode } from './core';
 import { getSeriesEpisodeBlueprint } from './episode-plans';
 import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW_COMPACT, type SeriesQa } from './quality';
 import { FLUX3_KLEIN_MODEL, type RunwareReferenceRegion } from '../../ai/runware-image-model-options';
+import { StorybookSafetyBlock } from '../storybook/llm-guards';
 export { seriesPicturePasses, seriesPictureUsable } from './quality';
 
 export type SeriesBox = [number, number, number, number];
@@ -400,6 +401,14 @@ export async function generateSeriesImages(input: {
         return { page: shot.page, prompt, attempts: number, costUSD, severity: 999, status: 'missing', errors: [reason], history };
       }
       const reviewUser = `${shot.page === 0 ? 'COVER: judge the selected character-in-world composition. No chapter action is compulsory.' : 'CHAPTER PICTURE: judge this selected moment, allowing harmless staging differences.'}\nEXPECTED IDENTITIES:\n${drawn.map(e => `${e.id}: ${e.name}; ${e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\nPROPOSED CAPTION:\n${moment.scene}\nPRIMARY STORY FACT: ${moment.fact}\n${shot.page === 0 ? '' : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph, (shot as SeriesShot).storyQuote)}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name})`).join('; ')}.` : 'No identity sheet is attached.'}`;
+      let safetyBlock: StorybookSafetyBlock | undefined;
+      const blockedOutcome = (block: StorybookSafetyBlock): ImageOutcome => {
+        const reason = block.reason;
+        history.push({ kind: 'series-vision-blocked', status: 'failed', severity: 999,
+          notes: [`Prüfanbieter hat die Anfrage gesperrt (${reason}); kein Bildurteil, keine automatische Wiederholung oder Ersatzprüfung.`], url: response.url });
+        return { page: shot.page, url: response.url, prompt, attempts: number, costUSD, severity: 999, status: 'failed',
+          errors: ['series_vision_safety_blocked', reason], history };
+      };
       // Story 289c11a4: five flex checks hung for 120 s each (the story took 558 s) and went to Terra at 3.4x the price.
       // Flex gets 40 s; a check that misses it is repeated on the standard tier of the SAME model (0.2 ct more, seconds),
       // and only an empty or unreadable answer goes to the fallback reader.
@@ -410,7 +419,10 @@ export async function generateSeriesImages(input: {
             system: SERIES_IMAGE_REVIEW_COMPACT, user: reviewUser, imageInputs: [response.viewUrl || response.url!, ...references] });
           qaCalls.push(reply);
           return readSeriesQa(reply.text, drawn);
-        } catch { return undefined; }
+        } catch (error) {
+          if (error instanceof StorybookSafetyBlock) safetyBlock = error;
+          return undefined;
+        }
       };
       const verdict = (qa: NonNullable<ReturnType<typeof readSeriesQa>>): ImageOutcome => {
         const pass = seriesPicturePasses(qa, shot.page === 0);
@@ -428,16 +440,19 @@ export async function generateSeriesImages(input: {
       let qa = bypassPrimary
         ? await review(`series-image-qa-${shot.page}-${number}-fallback`, fallback!, 'standard')
         : await review(`series-image-qa-${shot.page}-${number}`);
+      if (safetyBlock) return blockedOutcome(safetyBlock);
       if (!qa && !bypassPrimary) primaryReadFailures++;
       // 10d99c0f paid eight Terra readers after 17 empty Gemini calls, then lost two drawn pictures to the call cap.
       // At most two immediate reads; no repeated empty primary before the cheaper, independent endpoint.
       if (!qa && canReview()) qa = await review(`series-image-qa-${shot.page}-${number}-${bypassPrimary || !fallback ? 'retry' : 'fallback'}`,
         bypassPrimary || !fallback ? input.visionModel : fallback, 'standard');
+      if (safetyBlock) return blockedOutcome(safetyBlock);
       if (qa) return verdict(qa);
       history.push({ kind: 'series-vision', status: 'failed', severity: 999, notes: ['Bildprüfung nicht verfügbar oder unlesbar; das erzeugte Bild bleibt für eine erneute Prüfung erhalten.'], url: response.url });
       const unverified: ImageOutcome = { page: shot.page, url: response.url, prompt, attempts: number, costUSD, severity: 999, status: 'failed', errors: ['series_vision_error'], history };
       visionRecoveries.set(shot.page, async () => {
         const recovered = await review(`series-image-qa-${shot.page}-${number}-recovery`, fallback || input.visionModel, 'standard');
+        if (safetyBlock) return blockedOutcome(safetyBlock);
         return recovered ? verdict(recovered) : unverified;
       });
       return unverified;

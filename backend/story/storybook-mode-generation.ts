@@ -43,6 +43,7 @@ import { CHARACTER_SERIES_ENGINE } from "./character-series/core";
 import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, seriesBudget } from "./character-series/authoring";
 import { SERIES_NARRATIVES } from "./character-series/narrative";
 import { runCharacterSeriesTextEngine, seriesLlmBudget } from "./character-series/engine";
+import { StorybookSafetyBlock } from "./storybook/llm-guards";
 import { directSeriesPictures, generateSeriesImages } from "./character-series/pictures";
 import { seriesAvatarAppearance, seriesLeadCandidate, seriesLeadReference, seriesReferenceAppearance } from "./character-series/identity";
 import { loadHeroMemories, loadStorybookHistory } from "./storybook/history";
@@ -214,6 +215,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
         model: request.model,
         tier: request.serviceTier || "standard",
         billed: Boolean(billed),
+        ...(error instanceof StorybookSafetyBlock ? { code: error.code, providerReason: error.reason } : {}),
         message: String((error as Error)?.message || error).slice(0, 300),
       }, pipelineId);
     },

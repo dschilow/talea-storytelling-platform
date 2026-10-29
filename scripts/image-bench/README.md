@@ -51,3 +51,50 @@ Der Judge (`openai/gpt-6-luna`, low) ist nicht unfehlbar — er war zuerst bei H
 Vor jeder Entscheidung die `montage-*.jpg` selbst ansehen.
 
 Runware rechnet FLUX.2 klein nach Rechenzeit ab (siehe Memory „runware-klein-time-billing“): die Kosten schwanken je Aufruf. Immer über viele Bilder mitteln.
+
+## Figurenserie: gepaarter FLUX-3-Promptvergleich
+
+`series-prompt-ab.ts` vergleicht **Erstversuche**, ohne automatische Neuzeichnung. Der bisherige Prompt und der
+Prüfauftrag werden durch die echte `generateSeriesImages`-Funktion mit kostenlosen Test-Ports erzeugt.
+Die alternativen Captions in `lib/series-caption.ts` sind **nur Experimente**, kein Produktionsstandard.
+
+```powershell
+# Ohne --run: nur Anfragen vorbereiten, keine bezahlten Aufrufe.
+bun scripts\image-bench\series-prompt-ab.ts --fixture "<fixture.json>" --out "Logs\image-bench\<lauf>"
+
+bun --env-file=.env.local scripts\image-bench\series-prompt-ab.ts --fixture "<fixture.json>" --out "Logs\image-bench\<lauf>" --variants "production,caption,multi,flux2kv" --seeds "5201,5202" --run --budget 1.50
+
+# Isoliert den Einfluss der Positionsbindung; ungeprüfte Bilder erhalten ausdrücklich keine Freigabe.
+bun --env-file=.env.local scripts\image-bench\series-prompt-ab.ts --fixture "<fixture.json>" --out "Logs\image-bench\<lauf>" --variants "caption-free,multi-free" --seeds "5201,5202" --run --generate-only --budget 1.50
+```
+
+Das Fixture ist ein JSON-Array mit `id`, `referenceProvenance`, `shot` (originaler `IllustrationShot` einschließlich
+`visualBeat` und optionaler `boxes`), `entities` (je `VisualEntity` plus lokalem Porträtpfad `file`) und `source`
+(Textbeleg der Szene). `--only "id1,id2"` begrenzt die Fälle. Die Variante `existing` liest stattdessen ein
+lokales `existingImage`. Fehlende Originalporträts müssen unter `referenceProvenance` als Einschränkung stehen;
+andere Testporträts sind kein identischer Produktions-Replay.
+
+| Variante | Caption | Referenzen | Positionsbindung |
+|---|---|---|---|
+| `production` | Unveränderte Produktionsanfrage | Ein Identitätsbogen | Wie Produktion |
+| `caption` | Zusammenhängende Szenencaption, beschreibende Regionen | Derselbe Bogen | Ja |
+| `multi` | Dieselbe Caption-Methode | Einzelporträts | Ja |
+| `caption-free` / `multi-free` | Dieselbe Caption-Methode | Bogen / Einzelporträts | Nein |
+| `flux2kv` | Unveränderter FLUX-2-Produktionsprompt | Derselbe Bogen | Nein |
+
+Die Prüfung verwendet Gemini 3.8 Flash und die unveränderten Produktionskriterien, auf Standard statt Flex.
+Transportfehler, explizite Provider-Sperren und echte Bildurteile werden getrennt erfasst. Ein
+`SAFETY`-/`PROHIBITED_CONTENT`-Block wird **nicht** erneut geschickt oder an einen Ersatzprüfer weitergereicht.
+`--generate-only` schaltet ausschließlich die Prüfung dieses lokalen Experiments aus; es schreibt keine Bilder
+in Geschichten und verändert keine Freigaberegel.
+
+`charges.jsonl` reserviert vor jeder Anfrage konservativ Budget; bei gemeldeten Kosten wird die Reservierung
+ersetzt. Fehlt eine Kostenangabe, bleibt sie bestehen. Der Cache verhindert identische Neukäufe, auch nach
+einem Neustart. Es gibt keine verdeckten API-Retries. Geänderte Anfragen mit derselben Test-ID verlangen ein neues
+Ausgabeverzeichnis; bei mehreren Verzeichnissen muss deren Gesamtbudget zusätzlich zusammengezählt werden.
+Ergebnisse: einzelne Resultat-JSONs, Bilder, Anfragen mit Referenz-Hashes und `summary.json`.
+Die Zusammenfassung enthält alle gespeicherten Testfälle des Verzeichnisses, auch nach mehreren Teilläufen.
+Unbekannte Gebühren stehen als `null`, nicht als kostenloser Aufruf. `--run --cache-only` verarbeitet ausschließlich
+vorhandene API-Antworten; ein fehlender Cache-Eintrag löst keinen neuen API-Aufruf aus.
+
+Messung und Grenzen des ersten Vergleichs: [Kosten- und Bildaudit vom 29.10.2026](../../docs/character-series-cost-audit-2026-10-29.md#flux-vergleich-mit-fünf-weiteren-geschichten).

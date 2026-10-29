@@ -6,6 +6,7 @@ import { SERIES_NARRATIVES } from './narrative';
 import { withSeriesContext, seriesPrompt } from './core';
 import { directSeriesPictures, generateSeriesImages, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment, seriesReferenceRegions } from './pictures';
 import { readSeriesQa } from './quality';
+import { StorybookSafetyBlock } from '../storybook/llm-guards';
 import { isPublishable } from '../storybook/images';
 import { IdentityReferenceError } from '../image-reference-sprite';
 import { CostLedger, type StorybookLlm } from '../storybook/llm';
@@ -355,6 +356,74 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(result.imageCostUSD).toBeCloseTo(0.01);
     expect(result.pages.size).toBe(3);
     expect(result.imagesGenerated).toBe(0);
+  });
+  test('an explicit provider block retains the image but never retries, changes judge or redraws it', async () => {
+    const checked: string[] = [];
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'safety-block',
+      visionModel: 'primary', visionFallbackModel: 'fallback', pageTexts: {},
+      provider: async r => ({ url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }),
+      llm: async r => { checked.push(r.stage); throw new StorybookSafetyBlock(r.model, r.stage, 'SAFETY'); },
+      buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
+    });
+    expect(checked).toHaveLength(4);
+    expect(checked.every(stage => /^series-image-qa-\d-1$/.test(stage))).toBe(true);
+    expect(result.imageCalls).toBe(4);
+    expect(result.imageCostUSD).toBeCloseTo(0.01);
+    expect(result.regenerated).toEqual([]);
+    expect(result.imagesGenerated).toBe(0);
+    expect(result.pages.get(1)).toMatchObject({ url: 'https://example.test/1.webp', status: 'failed', errors: ['series_vision_safety_blocked', 'SAFETY'] });
+    expect(result.pages.get(1)?.history?.[0].kind).toBe('series-vision-blocked');
+    expect(isPublishable(result.pages.get(1)!)).toBe(false);
+  });
+  test('a fallback reader safety block is final, while other pictures still pass', async () => {
+    const checked: string[] = [];
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'fallback-block',
+      visionModel: 'primary', visionFallbackModel: 'fallback', pageTexts: {},
+      provider: async r => ({ url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }),
+      llm: async r => {
+        checked.push(r.stage);
+        if (r.stage === 'series-image-qa-2-1') throw new Error('Temporary outage');
+        if (r.stage === 'series-image-qa-2-1-fallback') throw new StorybookSafetyBlock(r.model, r.stage, 'PROHIBITED_CONTENT');
+        return imageReview(r.stage);
+      },
+      buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
+    });
+    expect(checked.filter(stage => stage.startsWith('series-image-qa-2-'))).toEqual(['series-image-qa-2-1', 'series-image-qa-2-1-fallback']);
+    expect(result.pages.get(2)?.errors).toContain('series_vision_safety_blocked');
+    expect(result.imageCalls).toBe(4);
+    expect(result.imagesGenerated).toBe(3);
+  });
+  test('a zero-token safety block also stops the outer text budget wrapper', async () => {
+    let calls = 0;
+    const bounded = seriesLlmBudget(async r => {
+      calls++;
+      throw new StorybookSafetyBlock(r.model, r.stage, 'SAFETY', { ...response(''), usage: { prompt: 0, completion: 0, total: 0, costUSD: 0 } });
+    });
+    await expect(bounded({ stage: 'series-author', role: 'writer', model: 'test', system: '', user: '', json: false, maxTokens: 100 }))
+      .rejects.toThrow('provider_reason=SAFETY');
+    expect(calls).toBe(1);
+  });
+  test('a safety block discovered during delayed recovery stays out of the redraw queue', async () => {
+    const checked: string[] = [];
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'recovery-block',
+      visionModel: 'primary', pageTexts: {},
+      provider: async r => ({ url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }),
+      llm: async r => {
+        checked.push(r.stage);
+        if (r.stage === 'series-image-qa-2-1-recovery') throw new StorybookSafetyBlock(r.model, r.stage, 'SAFETY');
+        if (r.stage.startsWith('series-image-qa-2-1')) throw new Error('Temporary outage');
+        return imageReview(r.stage);
+      },
+      buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
+    });
+    expect(result.imageCalls).toBe(4);
+    expect(result.pages.get(2)?.errors).toContain('series_vision_safety_blocked');
+    expect(checked.filter(stage => stage.startsWith('series-image-qa-2-'))).toEqual([
+      'series-image-qa-2-1', 'series-image-qa-2-1-retry', 'series-image-qa-2-1-recovery',
+    ]);
   });
   test('temporary vision errors recheck the same generated picture without a paid redraw', async () => {
     const drawn: number[] = [], checked: Array<{ stage: string; images?: string[] }> = [];

@@ -6,6 +6,7 @@ import { CHARACTER_SERIES_ENGINE, logsForEpisode } from './core';
 import { seriesAuthoring, seriesContext, SERIES_POLICY } from './authoring';
 import { SERIES_NARRATIVES } from './narrative';
 import { applySeriesSpellingCorrections, seriesLocalEdits, SERIES_LOCAL_EDIT_CONTRACT, SERIES_SPELLING_CONTRACT, type SeriesEditorialIssue } from './editorial';
+import { StorybookSafetyBlock } from '../storybook/llm-guards';
 
 export interface ChapterEdit { chapter: number; before: string; after: string }
 
@@ -43,6 +44,7 @@ export function seriesLlmBudget(llm: StorybookLlm, length: string = 'medium'): S
       } catch (error) {
         const billed = (error as any)?.billed;
         spent += Math.max(0, Number(billed?.usage?.costUSD) || 0);
+        if (error instanceof StorybookSafetyBlock) throw error;
         const emptyAndFree = billed && billed.usage?.total === 0 && billed.usage?.costUSD === 0;
         const capacity = !billed && /\b(429|502|503)\b|capacity unavailable/i.test(String((error as Error)?.message));
         // Vision has its own flex -> standard -> independent-reader recovery. Nesting this free retry doubled every

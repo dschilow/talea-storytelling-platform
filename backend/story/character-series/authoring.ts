@@ -27,6 +27,7 @@ export const SERIES_MODELS = { writer: 'openai/gpt-6.1-sol', support: 'anthropic
  * real fault (a missing hand, elf ears, a fingerless hand on the cover). Terra let the missing hand through twice;
  * Haiku with thinking let the elf ears through (scripts/image-bench/series-recheck.ts, 2026-10-29). Gemini answered
  * one picture empty on every try, so a failed read goes once to Terra instead of losing the paid picture.
+ * Explicit provider safety blocks are different: log the reason and stop without retrying or changing readers.
  */
 export const SERIES_IMAGE_REVIEW_MODEL = 'google/gemini-3.8-flash';
 export const SERIES_IMAGE_REVIEW_FALLBACK_MODEL = 'google/gemini-3.5-flash-lite';

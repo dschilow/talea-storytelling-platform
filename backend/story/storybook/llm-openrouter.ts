@@ -11,7 +11,7 @@ import {
   extractOpenRouterCostUSD,
   getOpenRouterModelPricing,
 } from "../openrouter-generation";
-import { acceptsTemperature, extractStorybookChoiceContent, isTruncatedFinishReason, resolveStorybookReasoning } from "./llm-guards";
+import { acceptsTemperature, extractStorybookChoiceContent, isTruncatedFinishReason, providerSafetyReason, resolveStorybookReasoning, StorybookSafetyBlock } from "./llm-guards";
 import { fallbackModelFor, retryRequestFor, serviceTierTimeoutMs, type LlmCallResult, type LlmRequest, type StorybookLlm } from "./llm";
 
 const DEFAULT_TIMEOUT_MS = 180_000;
@@ -45,6 +45,8 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
     });
   } catch (err) {
     if ((err as any)?.name === "AbortError") throw new Error(`[storybook/llm] ${model} timed out after ${timeoutMs / 1000}s (${request.stage}).`);
+    const reason = providerSafetyReason(err);
+    if (reason) throw new StorybookSafetyBlock(model, request.stage, reason);
     throw err;
   } finally {
     clearTimeout(timeout);
@@ -73,6 +75,8 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
     finishReason,
     ...(typeof data?.service_tier === "string" ? { serviceTier: data.service_tier } : {}),
   };
+  const safetyReason = providerSafetyReason(data);
+  if (safetyReason) throw new StorybookSafetyBlock(model, request.stage, safetyReason, result);
   if (!text) {
     const error = new Error(`[storybook/llm] Empty response from ${model} (${request.stage}, finish_reason=${finishReason}, completion_tokens=${completionTokens}, reasoning_tokens=${result.usage.reasoningTokens ?? 0}, refusal=${JSON.stringify(choice?.message?.refusal ?? null)}).`);
     (error as any).billed = result;
@@ -107,6 +111,7 @@ const DEFAULT_FLEX_RETRY_DELAY_MS = 4_000;
  * Sol's write in 1 s with zero tokens for $0, and the story paid the standard tier, 5.1 ¢ instead of ≈ 2.5 ¢.
  */
 export function isFlexRefusal(error: unknown): boolean {
+  if (error instanceof StorybookSafetyBlock) return false;
   const message = String((error as Error)?.message || error);
   const billed = (error as any)?.billed as LlmCallResult | undefined;
   if (billed) {
@@ -128,6 +133,7 @@ export function createOpenRouterStorybookLlm(options: OpenRouterPortOptions = {}
       return await callOnce(request, request.model);
     } catch (err) {
       options.onFailedAttempt?.(request, (err as any)?.billed, err);
+      if (err instanceof StorybookSafetyBlock) throw err;
       if (retryDelay > 0 && isFlexRefusal(err)) {
         console.warn(`[storybook/llm] ${request.stage}: flex refused, trying flex again in ${retryDelay / 1000}s:`, (err as Error)?.message || err);
         await new Promise((resolve) => setTimeout(resolve, retryDelay));
@@ -135,6 +141,7 @@ export function createOpenRouterStorybookLlm(options: OpenRouterPortOptions = {}
           return await callOnce(request, request.model);
         } catch (retryError) {
           options.onFailedAttempt?.(request, (retryError as any)?.billed, retryError);
+          if (retryError instanceof StorybookSafetyBlock) throw retryError;
         }
       }
       // Refused twice, too slow or unusable: the same request once more on the standard tier,
@@ -152,6 +159,7 @@ function standardPort(options: OpenRouterPortOptions): StorybookLlm {
       return await callOnce(request, request.model);
     } catch (err) {
       options.onFailedAttempt?.(request, (err as any)?.billed, err);
+      if (err instanceof StorybookSafetyBlock) throw err;
       const retry = retryRequestFor(request, err);
       console.warn(`[storybook/llm] ${request.stage}: ${request.model} failed, retrying once with ${retry.model} (effort ${retry.request.effort || "default"}):`, (err as Error)?.message || err);
       try {
@@ -159,6 +167,7 @@ function standardPort(options: OpenRouterPortOptions): StorybookLlm {
         return retry.model === request.model ? retried : { ...retried, fallbackFrom: request.model };
       } catch (retryError) {
         options.onFailedAttempt?.({ ...retry.request, model: retry.model }, (retryError as any)?.billed, retryError);
+        if (retryError instanceof StorybookSafetyBlock) throw retryError;
         // The same model failed twice (Sol 6.1 answered empty three times in one batch,
         // 2026-09-30): only now does the other model write the story.
         if (retry.model === request.model) {

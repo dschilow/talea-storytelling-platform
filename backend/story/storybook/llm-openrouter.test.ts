@@ -1,13 +1,19 @@
 // @ts-ignore Bun's test helpers are runtime-only in the Encore project.
-import { describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import { providerSafetyReason, StorybookSafetyBlock } from "./llm-guards";
 
 // The OpenRouter call is replaced: flex can be refused, the standard tier always answers.
 const calls: Array<{ serviceTier?: string; model: string }> = [];
 /** How many flex calls the provider refuses before it serves one. */
 let flexRefusals = Infinity;
+const supplied: Array<{ data?: unknown; error?: Error }> = [];
+afterEach(() => { supplied.length = 0; });
 mock.module("../openrouter-generation", () => ({
   callOpenRouterChatCompletion: async (input: { serviceTier?: string; model: string }) => {
     calls.push({ serviceTier: input.serviceTier, model: input.model });
+    const next = supplied.shift();
+    if (next?.error) throw next.error;
+    if (next) return { data: next.data, request: {}, model: input.model };
     if (input.serviceTier === "flex" && flexRefusals-- > 0) throw new Error("OpenRouter API error 429: flex capacity unavailable");
     return {
       data: { choices: [{ finish_reason: "stop", message: { content: "Es war einmal." } }], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15, cost: 0.001 }, service_tier: input.serviceTier || "default" },
@@ -31,6 +37,74 @@ describe("flex tier (2026-10-16)", () => {
     await expect(llm(request)).rejects.toThrow('capacity');
     expect(calls).toHaveLength(1);
     expect(failed).toEqual([request.stage]);
+  });
+
+  describe("explicit provider blocks", () => {
+    const blocked = { choices: [{ finish_reason: "error", native_finish_reason: "SAFETY", message: { refusal: null } }] };
+
+    test("recognises native and top-level blocks but not ordinary empty replies, quota or authentication errors", () => {
+      expect(providerSafetyReason(blocked)).toBe("SAFETY");
+      expect(providerSafetyReason({ error: { code: 403, message: "Gemini blocked the request: PROHIBITED_CONTENT" } })).toBe("PROHIBITED_CONTENT");
+      expect(providerSafetyReason({ choices: [{ finish_reason: "content_filter" }] })).toBe("CONTENT_FILTER");
+      expect(providerSafetyReason({ choices: [{ message: { refusal: "I cannot process this request." } }] })).toBe("REFUSAL");
+      expect(providerSafetyReason({ choices: [{ finish_reason: "error", message: { refusal: null } }] })).toBeUndefined();
+      expect(providerSafetyReason({ error: { code: 403, message: "Account permission missing" } })).toBeUndefined();
+      expect(providerSafetyReason(new Error("OpenRouter API error 429: quota exhausted"))).toBeUndefined();
+    });
+
+    for (const serviceTier of ["flex", undefined] as const) {
+      test(`a native safety block on ${serviceTier || "standard"} is reported once without tier or model fallback`, async () => {
+        calls.length = 0;
+        flexRefusals = 0;
+        supplied.push({ data: blocked });
+        const failures: unknown[] = [];
+        await expect(createOpenRouterStorybookLlm({ flexRetryDelayMs: 1, onFailedAttempt: (_r, _b, error) => failures.push(error) })({ ...request, serviceTier }))
+          .rejects.toThrow("provider_reason=SAFETY");
+        expect(calls).toHaveLength(1);
+        expect(failures).toHaveLength(1);
+        expect(failures[0]).toBeInstanceOf(StorybookSafetyBlock);
+        expect(isFlexRefusal(failures[0])).toBe(false);
+      });
+    }
+
+    test("an HTTP block keeps a bounded reason instead of a raw provider payload", async () => {
+      calls.length = 0;
+      supplied.push({ error: new Error('OpenRouter API error 403: {"error":{"message":"PROHIBITED_CONTENT","metadata":{"raw":"https://private.example/ref?token=never-log"}}}') });
+      const errors: unknown[] = [];
+      await expect(createOpenRouterStorybookLlm({ onFailedAttempt: (_r, _b, error) => errors.push(error) })(request)).rejects.toThrow("PROHIBITED_CONTENT");
+      expect(calls).toHaveLength(1);
+      expect(String(errors[0])).not.toContain("never-log");
+    });
+
+    test("a block on the second flex attempt stops before the standard tier", async () => {
+      calls.length = 0;
+      supplied.push({ error: new Error("OpenRouter API error 429: capacity unavailable") }, { data: blocked });
+      await expect(createOpenRouterStorybookLlm({ flexRetryDelayMs: 1 })(request)).rejects.toThrow("provider_reason=SAFETY");
+      expect(calls.map(c => c.serviceTier)).toEqual(["flex", "flex"]);
+    });
+
+    test("a blocked retried completion never invokes a third model", async () => {
+      calls.length = 0;
+      supplied.push({ data: { choices: [{ finish_reason: "stop", message: { content: "" } }] } }, { data: blocked });
+      await expect(createOpenRouterStorybookLlm()({ ...request, serviceTier: undefined })).rejects.toThrow("provider_reason=SAFETY");
+      expect(calls).toHaveLength(2);
+    });
+
+    test("a top-level HTTP-200 error is not mistaken for a free empty completion", async () => {
+      calls.length = 0;
+      supplied.push({ data: { error: { code: 403, message: "Gemini blocked the request: PROHIBITED_CONTENT" } } });
+      await expect(createOpenRouterStorybookLlm()(request)).rejects.toThrow("provider_reason=PROHIBITED_CONTENT");
+      expect(calls).toHaveLength(1);
+    });
+    test("a refused response preserves a reported charge in the failed-attempt ledger", async () => {
+      calls.length = 0;
+      supplied.push({ data: { ...blocked, usage: { prompt_tokens: 120, completion_tokens: 20, total_tokens: 140, cost: 0.002 } } });
+      const costs: number[] = [];
+      await expect(createOpenRouterStorybookLlm({ onFailedAttempt: (_r, billed) => { if (billed) costs.push(billed.usage.costUSD); } })(request))
+        .rejects.toThrow("provider_reason=SAFETY");
+      expect(costs).toEqual([0.002]);
+      expect(calls).toHaveLength(1);
+    });
   });
   test("a refused flex call is repeated once on the standard tier with the same model", async () => {
     calls.length = 0;

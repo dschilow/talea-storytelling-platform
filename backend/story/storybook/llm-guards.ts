@@ -1,4 +1,47 @@
-import type { LlmRole, ReasoningEffort } from "./llm";
+import type { LlmCallResult, LlmRole, ReasoningEffort } from "./llm";
+
+export class StorybookSafetyBlock extends Error {
+  readonly code = "llm_safety_blocked";
+
+  constructor(model: string, stage: string, public readonly reason: string, public readonly billed?: LlmCallResult) {
+    super(`[storybook/llm] ${model} blocked the request (${stage}, provider_reason=${reason}). No automatic retry.`);
+    this.name = "StorybookSafetyBlock";
+  }
+}
+
+/** A provider refusal is not an empty completion or a capacity outage. Never log its raw payload here. */
+export function providerSafetyReason(value: unknown): string | undefined {
+  if (value instanceof StorybookSafetyBlock) return value.reason;
+  if (value instanceof Error) {
+    const body = value.message.match(/^OpenRouter API error \d{3}:\s*([\s\S]+)$/)?.[1];
+    if (!body) return undefined;
+    try { return providerSafetyReason(JSON.parse(body)); }
+    catch { return providerSafetyReason({ error: { message: body } }); }
+  }
+  const record = (entry: unknown): Record<string, unknown> | undefined =>
+    entry && typeof entry === "object" && !Array.isArray(entry) ? entry as Record<string, unknown> : undefined;
+  const data = record(value);
+  if (!data) return undefined;
+  const code = (entry: unknown): string | undefined => {
+    if (typeof entry !== "string") return undefined;
+    return entry.toUpperCase().match(/\b(PROHIBITED_CONTENT|IMAGE_SAFETY|SAFETY|CONTENT_FILTER|BLOCKLIST)\b/)?.[1];
+  };
+  const errorReason = (entry: unknown): string | undefined => {
+    const error = record(entry);
+    const metadata = record(error?.metadata);
+    return code(error?.code) || code(metadata?.provider_code) || code(metadata?.error_type) || code(error?.message);
+  };
+  const rootReason = errorReason(data.error);
+  if (rootReason) return rootReason;
+  for (const item of Array.isArray(data.choices) ? data.choices : []) {
+    const choice = record(item);
+    const reason = code(choice?.native_finish_reason) || code(choice?.finish_reason) || errorReason(choice?.error);
+    if (reason) return reason;
+    const refusal = record(choice?.message)?.refusal;
+    if (typeof refusal === "string" && refusal.trim()) return "REFUSAL";
+  }
+  return undefined;
+}
 
 export type StorybookReasoningOptions = {
   effort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
