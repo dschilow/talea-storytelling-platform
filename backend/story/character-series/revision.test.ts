@@ -317,13 +317,13 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(requests).toHaveLength(4);
     expect(requests.every(r => r.width === 1216 && r.height === 832 && r.referenceImages.length === 1 && r.prompt.includes('gouache'))).toBe(true);
   });
-  test('FLUX.2 klein 4B gets plain names and no scene-region binding; FLUX 3 keeps both', async () => {
+  test('FLUX.2 klein gets plain names and no scene-region binding; FLUX 3 keeps both', async () => {
     const run = async (imageModel?: string) => {
       const requests: any[] = [];
       await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'test', imageModel, provider: async request => { requests.push(request); return { url: 'https://example.test/image.webp', costUSD: 0.0025 }; }, llm: async r => imageReview(r.stage), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
       return requests;
     };
-    const flux2 = await run('runware:400@4');
+    const flux2 = await run('runware:400@6');
     expect(flux2.length).toBeGreaterThan(0);
     expect(flux2.every(r => !/<[a-z0-9_-]+> is /i.test(r.prompt))).toBe(true);
     const flux3 = await run('bfl:flux@3-image-klein');

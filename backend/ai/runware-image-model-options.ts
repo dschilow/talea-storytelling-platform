@@ -1,4 +1,6 @@
 export const FLUX2_KLEIN_4B_MODEL = "runware:400@4";
+/** Same 9B weights as runware:400@2; the reference tokens are cached after the first step, so a scene drawn from a sheet runs faster. */
+export const FLUX2_KLEIN_9B_KV_MODEL = "runware:400@6";
 export const FLUX3_KLEIN_MODEL = "bfl:flux@3-image-klein";
 export const FLUX3_KLEIN_STEPS = 16;
 
