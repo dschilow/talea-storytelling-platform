@@ -29,6 +29,8 @@ interface SeriesShot extends IllustrationShot {
   storyQuote?: string;
   visualBeat: SeriesVisualBeat;
   boxes?: Record<string, SeriesBox>;
+  /** A malformed cover plan reused this valid, source-grounded chapter motif instead of losing the paid manuscript. */
+  coverSourcePage?: number;
 }
 
 /** The prose carries written clues. Do not turn a tiny written clue into a giant sign/table in the illustration. */
@@ -174,7 +176,21 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
     }
     throw new Error('Die Serienbildplanung enthält nicht genau ein Bild je Leseabschnitt.');
   };
-  const plan = { cover: shot(raw.cover, 0), pages: proposals.map((list, i) => firstValid(list, i + 1)), storyElements: [] };
+  const pageShots = proposals.map((list, i) => firstValid(list, i + 1));
+  let cover: IllustrationShot;
+  try { cover = shot(raw.cover, 0); }
+  catch (error) {
+    // 9019823b and 23302f05 lost their completed text on the cover's visualBeat schema. Reuse a chapter motif that
+    // passed every cast, evidence and physical-action check; never manufacture a new action or accept an invalid cast.
+    const heroes = entities.filter(e => e.role === 'hero' && e.referenceUrl);
+    const source = pageShots.find(p => p.onStage.includes(leadId) && p.onStage.some(id => heroes.some(e => e.id === id)))
+      || pageShots.find(p => p.onStage.includes(leadId));
+    if (!source) throw error;
+    const { paragraph: _paragraph, storyQuote: _quote, ...motif } = source;
+    cover = { ...motif, page: 0, coverSourcePage: source.page, onStage: [...source.onStage], visualBeat: { ...source.visualBeat, framing: 'wide' },
+      scene: `${source.scene} Distinct wide cover composition of this same story moment, with the lead's face clearly visible.` } as SeriesShot;
+  }
+  const plan = { cover, pages: pageShots, storyElements: [] };
   const leadPictures = plan.pages.filter((p: IllustrationShot) => p.onStage.includes(leadId)).length;
   if (leadPictures < Math.min(2, pages.length)) throw new Error('Die Serienhauptfigur verschwindet aus ihren Kapitelbildern.');
   const heroes = entities.filter(e => e.role === 'hero' && e.referenceUrl);

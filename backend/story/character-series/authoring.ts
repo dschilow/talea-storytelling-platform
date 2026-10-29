@@ -32,6 +32,8 @@ export const SERIES_IMAGE_REVIEW_MODEL = 'google/gemini-3.8-flash';
 export const SERIES_IMAGE_REVIEW_FALLBACK_MODEL = 'openai/gpt-6.1-terra';
 export const SERIES_IMAGE_MODEL = FLUX3_KLEIN_MODEL;
 /**
+ * Version 12 (abfc9b06, 9019823b, 23302f05): a malformed cover plan reuses a validated chapter motif; spelling is
+ * corrected locally, minor repairs keep the manuscript without resending the catalogue, and vision owns its retries.
  * Version 11 (story e83e44e2): Gemini reads the pictures, a picture prints after the paragraph it quotes, a page keeps
  * its best reviewed attempt when only its action stays loose, and two more redraws (a real fault on Gemini is a
  * hand or an ear, worth one more picture at 0.25 ¢). Measured Tilda pilot: 11 Gemini checks 4.9 ¢, Sol draft plus two
@@ -44,7 +46,7 @@ export const SERIES_IMAGE_MODEL = FLUX3_KLEIN_MODEL;
  * took 211 s. Up to five repairs, spent on pictures with a hard fault or provider failure. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 11, picturesPerChapter: 2, imageRetries: 7, imageConcurrency: 7, maxImageCalls: 14, maxLlmCalls: 34, llmStopAfterUSD: 0.16, longLlmStopAfterUSD: 0.2, maxTextRepairs: 2 } as const;
+export const SERIES_POLICY = { version: 12, picturesPerChapter: 2, imageRetries: 7, imageConcurrency: 7, maxImageCalls: 14, maxLlmCalls: 34, llmStopAfterUSD: 0.16, longLlmStopAfterUSD: 0.2, maxTextRepairs: 2 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);

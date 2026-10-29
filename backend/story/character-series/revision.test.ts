@@ -290,11 +290,13 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(seriesPicturePasses(qa)).toBe(true);
     expect(seriesPicturePasses({ ...qa, primaryActionClear: false })).toBe(false);
   });
-  test('planning rejects missing lead and allows the lead without all avatars on the cover', () => {
+  test('planning recovers an invalid cover from a valid motif but still rejects a missing lead in chapter 1', () => {
     expect(validateSeriesShots(rawPlan(), pages, entities, 'lead').cover.onStage).toEqual(['lead']);
     // The director's first plan must put the family on the cover; after the repair it is only a wish.
     expect(() => validateSeriesShots(rawPlan(), pages, entities, 'lead', { strict: true })).toThrow('Titelbild');
     const raw = rawPlan(); raw.cover.onStage = ['kid'];
+    expect(validateSeriesShots(raw, pages, entities, 'lead').cover).toMatchObject({ onStage: ['lead', 'kid'], coverSourcePage: 1 });
+    raw.pages[0].onStage = ['kid'];
     expect(() => validateSeriesShots(raw, pages, entities, 'lead')).toThrow('Serienhauptfigur');
   });
   test('a valid framing next to visualBeat is accepted, while invalid values remain rejected', () => {
