@@ -19,6 +19,8 @@ import { existsSync } from "node:fs";
 import { join, resolve, basename, dirname } from "node:path";
 import sharp from "sharp";
 import { createOpenRouterStorybookLlm } from "../../backend/story/storybook/llm-openrouter";
+import { callOpenRouterChatCompletion, extractOpenRouterCostUSD } from "../../backend/story/openrouter-generation";
+import { extractStorybookChoiceContent } from "../../backend/story/storybook/llm-guards";
 import { readSeriesQa, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW } from "../../backend/story/character-series/quality";
 import { seriesPaintableMoment, SERIES_STYLE_REFERENCE } from "../../backend/story/character-series/pictures";
 import { buildImageSlots, pagesFor } from "../../backend/story/storybook/book/illustrations";
@@ -140,18 +142,30 @@ const picture = async (id: string, url: string) => {
 
 const cases = arg("pilot") ? await pilotCases(path(arg("pilot")!), arg("set") || basename(dirname(path(arg("pilot")!)))) : await productionCases();
 const llm = createOpenRouterStorybookLlm();
+/**
+ * "model@medium": a direct call with that reasoning effort. Production cannot set it for Claude (the support role switches
+ * its thinking off, the critic role caps it at low), so the probe bypasses resolveStorybookReasoning for this trial.
+ */
+const directCall = async (model: string, effort: "low" | "medium" | "high", user: string, imageInputs: string[]) => {
+  const started = Date.now();
+  const response = await callOpenRouterChatCompletion({ messages: [{ role: "system", content: SERIES_IMAGE_REVIEW }, { role: "user", content: user }], model, responseFormat: "json_object", maxTokens: 8000, reasoning: { effort, exclude: true }, includeReasoning: false, imageInputs, signal: AbortSignal.timeout(150_000) } as any);
+  const text = extractStorybookChoiceContent(response.data?.choices?.[0]);
+  if (!text) throw new Error(`empty answer (${response.data?.choices?.[0]?.finish_reason})`);
+  return { text, usage: { costUSD: extractOpenRouterCostUSD(response.data) ?? 0 }, ms: Date.now() - started };
+};
 const rows: any[] = [];
 for (const item of cases) {
   if (only && !only.includes(item.id)) continue;
   const image = await picture(item.id, item.url);
   const sheet = await sheetFor(item.drawn);
   for (const spec of models) {
-    const [model, mode] = spec.split(":");
+    const [specModel, forcedEffort] = spec.split("@");
+    const [model, mode] = specModel.split(":");
     for (let run = 1; run <= runs; run++) {
       const started = Date.now();
       let row: any;
       try {
-        const reply = await llm({ stage: "series-recheck", role: mode === "think" ? "critic" : "support", model, fallbackModel: model, effort: (arg("effort") || "low") as "low" | "medium" | "high", json: true, maxTokens: /claude|gemini|deepseek/.test(model) || arg("effort") ? 6000 : 2500, timeoutMs: 120_000, ...(flex ? { serviceTier: "flex" as const } : {}), system: SERIES_IMAGE_REVIEW, user: item.user, imageInputs: noStyle ? [image, sheet] : [image, sheet, SERIES_STYLE_REFERENCE] });
+        const reply = forcedEffort ? await directCall(model, forcedEffort as "low" | "medium" | "high", item.user, [image, sheet, ...(noStyle ? [] : [SERIES_STYLE_REFERENCE])]) : await llm({ stage: "series-recheck", role: mode === "think" ? "critic" : "support", model, fallbackModel: model, effort: (arg("effort") || "low") as "low" | "medium" | "high", json: true, maxTokens: /claude|gemini|deepseek/.test(model) || arg("effort") ? 6000 : 2500, timeoutMs: 120_000, ...(flex ? { serviceTier: "flex" as const } : {}), system: SERIES_IMAGE_REVIEW, user: item.user, imageInputs: noStyle ? [image, sheet] : [image, sheet, SERIES_STYLE_REFERENCE] });
         const qa = readSeriesQa(reply.text, item.drawn);
         const pass = seriesPicturePasses(qa, item.cover);
         const usable = !pass && seriesPictureUsable(qa);
