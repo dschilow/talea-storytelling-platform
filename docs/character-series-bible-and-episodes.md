@@ -82,7 +82,11 @@ Alle 15 Figuren sind mit `drawPortrait` (`bfl:flux@3-image-klein`, 768×768, wei
 
 ---
 
-## 3. Opus-5.5-Gegenprüfung & Qualitäts-Score (0–10)
+## 3. Redaktionelle Prüfung und historische Modellbewertungen
+
+**Aktueller Planstand vom 29. Oktober 2026:** [Prüfung und Einzelbewertungen aller 100 Folgen](character-series-editorial-review-2026-10-29.md). Die erneute Redaktion fand trotz der früheren hohen Bewertungen konkrete Kausalitätsfehler, widersprüchliche Figurenbögen und unvorbereitete Lösungen. Alle Folgen besitzen jetzt `continuity`; Autor und Lektorat erhalten diese Notiz gemeinsam mit dem Plan. Tatsächlich protokollierte Familiengeschichten haben Vorrang vor geänderten Plänen. Nach Folge 20 wird kein Ursprungsplan zyklisch wiederholt.
+
+Die nachfolgende Tabelle dokumentiert den **früheren Modellreview**. Seine pauschalen Nachher-Werte sind keine aktuelle Fehlerfreiheitsbewertung und werden durch die verlinkte Einzelprüfung ergänzt.
 
 Alle 5 Serien-Dateien (100 Episoden + 15 Figuren) wurden durch **Claude Opus 5.5 (`claude-opus-5.5`)** auf Logik, Einhaltung der Weltregeln, Ein-Gast-Beschränkung (`guests.length <= 1`), Debüt-Reihenfolge, Slapstick-Eskalation und aktive 1–3-Avatar-Rollen geprüft und anschließend vollständig überarbeitet:
 
@@ -118,7 +122,8 @@ Erstelle eine neue Datei nach dem Interface `SeriesPlanFile` aus `../episode-pla
     2. **Debüt-Schutz:** Eine Ensemble-Figur darf in keiner Episode `1 .. (debutEpisode - 1)` namentlich erwähnt werden (auch nicht in `clue`!). Bei ihrem ersten Auftritt `guestDebut: true` setzen.
     3. **Stumme Tiere beachten:** Wenn ein Tier laut Weltregel nicht spricht (wie Möwe Lotta, Hund Pepe, Gans Rostig), muss `joke` ein gesprochener Satz der **Hauptfigur** oder eines **Avatars** sein – niemals wörtliche Rede des Tieres!
     4. **Keine benannten Einmal-Nebenfiguren:** Einmalige Dorfbewohner bleiben im Plan unbenannt (*„der alte Uhrmacher“*, *„die ehemalige Wegwartin“*), damit der Writer keine zweite `FIGUR: ... | neu`-Zeile anlegt.
-    5. **Konkrete `avatarRole` (Pflichtfeld!):** Immer zweiteilig formulieren: *„Avatar A entdeckt/beobachtet [konkretes Detail]; Avatar B führt [konkrete Handlung/Mechanik] aus.“* So funktionieren 1, 2 oder 3 Avatare als unverzichtbare Mitstreiter, während die Serienfigur den komischen Fehler und die emotionale Wahl behält.
+    5. **Konkrete `avatarRole` (Pflichtfeld!):** Aufgaben für Beobachtung und Handlung konkret benennen. A/B sind Platzhalter: Bei einem Avatar folgen seine Aufgaben nacheinander, die Serienfigur übernimmt gleichzeitige Handgriffe; bei drei Avataren bekommt das dritte Kind eine notwendige Koordination oder Entscheidung. Die Serienfigur behält den komischen Fehler und die emotionale Wahl.
+    6. **`continuity` (Pflichtfeld):** Notiere, welche frühere Fähigkeit, Freundschaft, Objektposition oder Regel erhalten bleibt und wie der neue Hinweis vorbereitet wird. Frühere Pläne sind keine Belege für tatsächlich erzählte Ereignisse. Bei fehlenden Voraussetzungen oder abweichender Familiengeschichte wird ein notwendiger Übergang in der aktuellen Handlung gezeigt. Ordne die vier `narrative.arcs` den Folgen 1–5, 6–10, 11–15 und 16–20 zu.
 
 ### Schritt 3: Neue Serie in `backend/story/character-series/episode-plans.ts` registrieren
 Importiere `<NEUE>_SERIES` in `backend/story/character-series/episode-plans.ts` und füge sie in `SERIES_PLAN_FILES` ein.

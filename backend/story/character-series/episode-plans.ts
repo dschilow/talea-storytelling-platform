@@ -56,6 +56,8 @@ export interface SeriesEpisodeBlueprint {
   joke: string;
   keyVisual: string;
   clue: string;
+  /** Editorial carry-over and causal constraints; recorded family history remains authoritative. */
+  continuity: string;
 }
 
 export interface SeriesPlanFile {
@@ -83,13 +85,12 @@ export const SERIES_EPISODE_PLANS: Record<string, SeriesEpisodeBlueprint[]> = Ob
 
 /**
  * Returns the concrete episode blueprint for episode N (1..20).
- * Episodes beyond 20 cycle with evolved variations while preserving the full unlocked cast.
+ * After the two planned seasons, write a new adventure from recorded history rather than replaying the origin.
  */
 export function getSeriesEpisodeBlueprint(seriesId: string, episode: number): SeriesEpisodeBlueprint | undefined {
   const list = SERIES_EPISODE_PLANS[seriesId];
-  if (!list?.length) return undefined;
-  const index = Math.max(0, Math.min(list.length - 1, ((Math.max(1, episode) - 1) % list.length)));
-  return list[index];
+  if (!list?.length || !Number.isInteger(episode) || episode < 1 || episode > list.length) return undefined;
+  return list[episode - 1];
 }
 
 /**
