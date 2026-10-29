@@ -69,6 +69,8 @@ const OPENROUTER_MODEL_PRICING: Record<string, OpenRouterPricing> = {
   // catalog on 2026-09-25 — half of gpt-5.6-luna. Pro is the same model with
   // reasoning.mode=pro, at the same token price.
   "openai/gpt-6-luna": { inputCostPer1M: 0.1, outputCostPer1M: 0.5 },
+  // Haiku 5.5's standard rate for requests up to 100k input tokens (2026-10-28).
+  "anthropic/claude-haiku-5.5": { inputCostPer1M: 0.1, outputCostPer1M: 0.5 },
   // Default critic of the Bilderbuch-Modus (storybook-v2). Catalog 2026-09-25.
   "anthropic/claude-sonnet-5": { inputCostPer1M: 2.0, outputCostPer1M: 10.0 },
   // Default critic of the Bilderbuch-Modus since 2026-09-28. Catalog price.
@@ -129,8 +131,12 @@ export function isOpenRouterModelId(model?: string | null): boolean {
   return normalized.includes("/") || normalized.startsWith("~");
 }
 
-export function getOpenRouterModelPricing(model?: string | null): OpenRouterPricing {
+export function getOpenRouterModelPricing(model?: string | null, promptTokens?: number): OpenRouterPricing {
   const normalized = normalizeOpenRouterModel(model);
+  // The entire request is billed at the long-context rate above 100k input tokens.
+  if (normalized === "anthropic/claude-haiku-5.5" && (promptTokens ?? 0) > 100_000) {
+    return { inputCostPer1M: 0.5, outputCostPer1M: 2.5 };
+  }
   return OPENROUTER_MODEL_PRICING[normalized] || {
     inputCostPer1M: 0.75,
     outputCostPer1M: 3.5,
@@ -167,7 +173,7 @@ export function splitOpenRouterCostUSD(
   promptTokens: number,
   completionTokens: number,
 ): { inputCostUSD: number; outputCostUSD: number } {
-  const pricing = getOpenRouterModelPricing(model);
+  const pricing = getOpenRouterModelPricing(model, promptTokens);
   const inputWeight = Math.max(0, promptTokens) * pricing.inputCostPer1M;
   const outputWeight = Math.max(0, completionTokens) * pricing.outputCostPer1M;
   const totalWeight = inputWeight + outputWeight;

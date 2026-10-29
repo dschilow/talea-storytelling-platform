@@ -139,8 +139,10 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
     const evidence = page > 0 && (quote.length < 12 || quote.length > 500 || !norm(pages[page - 1].content).includes(norm(quote))) ? (paragraphText || '').slice(0, 500) : quote;
     if (page > 0 && evidence.length < 12) throw new Error('Dem Serienbild fehlt ein wörtlicher Beleg aus seinem Kapitel.');
     const beat = candidate.visualBeat;
-    if (!beat || !onStage.includes(beat.actorId) || typeof beat.action !== 'string' || beat.action.trim().length < 12 || beat.action.length > 220 || QUIET_ACTION.test(beat.action.trim()) || typeof beat.result !== 'string' || beat.result.trim().length < 12 || beat.result.length > 260 || HIDDEN_IDENTITY.test(beat.result) || !['wide', 'medium', 'close'].includes(beat.framing)) throw new Error(`Serienbild ${page} braucht eine körperliche Handlung: actorId muss auf onStage stehen; Handlung und sichtbare Folge müssen konkret sein, ohne vollständig verdeckte Identität. Ein gültiger Bildausschnitt ist erforderlich.`);
-    const visualBeat: SeriesVisualBeat = { actorId: beat.actorId, action: beat.action.trim(), result: beat.result.trim(), framing: beat.framing };
+    // Haiku may put the valid framing beside visualBeat rather than inside it; the meaning is identical.
+    const framing = beat?.framing ?? candidate?.framing;
+    if (!beat || !onStage.includes(beat.actorId) || typeof beat.action !== 'string' || beat.action.trim().length < 12 || beat.action.length > 220 || QUIET_ACTION.test(beat.action.trim()) || typeof beat.result !== 'string' || beat.result.trim().length < 12 || beat.result.length > 260 || HIDDEN_IDENTITY.test(beat.result) || !['wide', 'medium', 'close'].includes(framing)) throw new Error(`Serienbild ${page} braucht eine körperliche Handlung: actorId muss auf onStage stehen; Handlung und sichtbare Folge müssen konkret sein, ohne vollständig verdeckte Identität. Ein gültiger Bildausschnitt ist erforderlich.`);
+    const visualBeat: SeriesVisualBeat = { actorId: beat.actorId, action: beat.action.trim(), result: beat.result.trim(), framing };
     const boxes: Record<string, SeriesBox> = {};
     if (candidate?.boxes && typeof candidate.boxes === 'object') {
       for (const id of onStage) {
@@ -194,7 +196,8 @@ export async function directSeriesPictures(input: { llm: StorybookLlm; model: st
     guests.length ? `RECURRING GUEST${guests.length > 1 ? 'S' : ''} OF THIS EPISODE (in at least one page picture, where the guest does the most): ${guests.map(e => `${e.id} (${e.name})`).join(', ')}.` : '',
   ].filter(Boolean).join('\n');
   const pageText = pages.map((p, i) => `PAGE ${p.order} — chapter ${slots[i].chapter}, part ${slots[i].part + 1} of ${slots.filter(s => s.chapter === slots[i].chapter).length}\n${p.content.split(/\n\n/).map((t, k) => `p${k + 1}: ${t}`).join('\n')}`).join('\n\n');
-  const call = await input.llm({ stage: 'series-picture-direction', role: 'support', model: input.model, json: true, effort: 'low', maxTokens: 1000 + pages.length * 600,
+  const directionTokens = /claude-haiku-5\.5/i.test(input.model) ? 3000 + pages.length * 1800 : 1000 + pages.length * 600;
+  const call = await input.llm({ stage: 'series-picture-direction', role: 'support', model: input.model, json: true, effort: 'low', maxTokens: directionTokens,
     imageInputs: [...(publicLead?.referenceUrl ? [publicLead.referenceUrl] : []), SERIES_STYLE_REFERENCE],
     system: [
       `Direct hilarious, action-packed children's book landscape illustrations in the spirit of Talea Originals („Bruno, der Flunkerfisch“, „Die Monster-Müllabfuhr“): ONE picture per PAGE plus a distinct cover. Each PAGE is a reading segment of a chapter (up to ${perChapter} per chapter, in reading order); its paragraphs are numbered locally p1, p2, … 1 to 3 visible referenced characters per image. English complete captions, 70–110 words.`,
@@ -225,7 +228,7 @@ export async function directSeriesPictures(input: { llm: StorybookLlm; model: st
   catch (error) {
     repairReasons = [{ page: 0, errors: [String((error as Error).message)] }];
     try {
-      repairCall = await input.llm({ stage: 'series-picture-plan-repair', role: 'support', model: input.model, json: true, effort: 'low', maxTokens: 1000 + pages.length * 600,
+      repairCall = await input.llm({ stage: 'series-picture-plan-repair', role: 'support', model: input.model, json: true, effort: 'low', maxTokens: directionTokens,
         system: 'Repair only the supplied illustration plan JSON: one picture per PAGE (a reading segment of a chapter), exactly the given pages in order, plus the cover. Each image has 1 to 3 visible referenced characters. Preserve the actual selected physical event unless its evidence or activity is invalid; then choose a funny physical event from that page. Every cover/page needs visualBeat {actorId, action, result, framing}; actorId is onStage, action starts with an English physical verb, result is a visible consequence, framing is wide|medium|close. Across three or more page pictures use at least TWO framing scales. An introduction, objection, agreement, look or nod alone is not a physical event. Cast: the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture; at least one avatar beside the lead on the cover; every listed recurring guest in at least one page picture. "paragraph" is the local paragraph number within its page. Keep captions, page order and paragraph numbers where valid, with no invented objects or events. Return only the corrected plan.',
         user: `DEFECT ${repairReasons[0].errors.join('; ')}\nLEAD ${leadId}\nAVATARS ${heroes.map(e => e.id).join(', ')}\n${guests.length ? `RECURRING GUESTS ${guests.map(e => e.id).join(', ')}\n` : ''}ALLOWED REFERENCED IDENTITIES ${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name}`).join('; ')}\nEXACTLY ${pages.length} PAGES\nEvery page needs storyQuote: an exact 12–500 character passage from THAT page proving the physical event. Its result must read in one still without a temporal comparison. Keep identifying faces visible. Use only source-present props.\nSOURCE PAGES:\n${pageText}\nPLAN\n${call.text}` });
       illustrations = validateSeriesShots(parseJsonObject(repairCall.text), pages, input.entities, leadId);
@@ -348,7 +351,7 @@ export async function generateSeriesImages(input: {
       const reviewUser = `${shot.page === 0 ? 'COVER: judge the selected character-in-world composition. No chapter action is compulsory.' : 'CHAPTER PICTURE: judge this selected moment, allowing harmless staging differences.'}\nEXPECTED IDENTITIES:\n${drawn.map(e => `${e.id}: ${e.name}; ${e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\nPROPOSED CAPTION:\n${moment.scene}\nPRIMARY STORY FACT: ${moment.fact}\n${shot.page === 0 ? '' : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph, (shot as SeriesShot).storyQuote)}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name})`).join('; ')}.` : 'No identity sheet is attached.'} The last attachment is the public style example.`;
       const review = async (stage: string) => {
         try {
-          const reply = await input.llm({ stage, role: 'support', model: input.visionModel, effort: 'low', json: true, maxTokens: 1000, timeoutMs: 60000,
+          const reply = await input.llm({ stage, role: 'support', model: input.visionModel, effort: 'low', json: true, maxTokens: /claude-haiku-5\.5/i.test(input.visionModel) ? 4000 : 1000, timeoutMs: 60000,
             system: SERIES_IMAGE_REVIEW, user: reviewUser, imageInputs: [response.viewUrl || response.url!, ...references, style] });
           qaCalls.push(reply);
           return readSeriesQa(reply.text, drawn);
@@ -420,7 +423,7 @@ export async function generateSeriesImages(input: {
     }).filter(item => Boolean(item.paragraph));
     if (!eligible.length || !canReview()) return new Map();
     try {
-      const reply = await input.llm({ stage: 'series-picture-rescue-plan', role: 'support', model: input.visionModel, effort: 'low', json: true, maxTokens: 1800, timeoutMs: 60000,
+      const reply = await input.llm({ stage: 'series-picture-rescue-plan', role: 'support', model: input.visionModel, effort: 'low', json: true, maxTokens: /claude-haiku-5\.5/i.test(input.visionModel) ? 5000 : 1800, timeoutMs: 60000,
         system: 'Choose a simpler, drawable moment from each exact source paragraph for a children’s book. It replaces a failed complex illustration at the same paragraph. Show exactly ONE of the allowed characters doing one visible physical action already stated in the paragraph. Choose one simpler part of the event, not the full interaction that already failed. Do not include other people or infer new events, props, clothes or words in the image. Use an exact literal source quote from that paragraph. The original scene is context for the location, not a mandate to repeat the failed action. Describe the simpler action and established setting in English. If no honest single-character moment exists, omit that page. Return JSON {"pages":[{"page":number,"onStage":["id"],"storyQuote":"exact quote","scene":"English visual scene","visualBeat":{"actorId":"id","action":"physical verb and action","result":"visible consequence","framing":"wide|medium|close"}}]}.',
         user: JSON.stringify(eligible.map(({ shot, paragraph }) => ({ page: shot.page, paragraph, originalScene: shot.scene, allowed: shot.onStage.map(id => ({ id, name: byId.get(id)?.name })) }))),
       });

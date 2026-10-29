@@ -17,7 +17,7 @@ import { fallbackModelFor, retryRequestFor, serviceTierTimeoutMs, type LlmCallRe
 const DEFAULT_TIMEOUT_MS = 180_000;
 
 function estimateCost(model: string, promptTokens: number, completionTokens: number): number {
-  const pricing = getOpenRouterModelPricing(model);
+  const pricing = getOpenRouterModelPricing(model, promptTokens);
   return Number(((promptTokens * pricing.inputCostPer1M + completionTokens * pricing.outputCostPer1M) / 1_000_000).toFixed(6));
 }
 

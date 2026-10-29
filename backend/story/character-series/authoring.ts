@@ -18,7 +18,8 @@ const SERIES_GENRE_COLORING: Record<string, string> = {
   modern: 'Genre coloring — Everyday Life (Alltag): Ground the comedy and conflict in relatable everyday child situations, neighbourhood chaos and hands-on teamwork.',
 };
 
-export const SERIES_MODELS = { writer: 'openai/gpt-6.1-sol', support: 'openai/gpt-6-luna', critic: 'openai/gpt-6.1-terra' };
+/** Haiku replaces both the support and editorial roles; Sol remains the writer. */
+export const SERIES_MODELS = { writer: 'openai/gpt-6.1-sol', support: 'anthropic/claude-haiku-5.5', critic: 'anthropic/claude-haiku-5.5' };
 export const SERIES_IMAGE_REVIEW_MODEL = SERIES_MODELS.support;
 export const SERIES_IMAGE_MODEL = FLUX3_KLEIN_MODEL;
 /**

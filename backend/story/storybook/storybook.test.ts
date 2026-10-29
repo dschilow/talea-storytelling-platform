@@ -166,6 +166,8 @@ describe("model routing", () => {
     expect(resolveStorybookReasoning("anthropic/claude-sonnet-5", "medium", "critic")).toEqual({ effort: "low", exclude: true });
     expect(resolveStorybookReasoning("anthropic/claude-sonnet-5", "none", "critic")).toEqual({ enabled: false, exclude: true });
     expect(resolveStorybookReasoning("anthropic/claude-sonnet-5", "low", "writer")).toEqual({ enabled: false, exclude: true });
+    expect(resolveStorybookReasoning("anthropic/claude-haiku-5.5", "low", "critic")).toEqual({ effort: "low", exclude: true });
+    expect(resolveStorybookReasoning("anthropic/claude-haiku-5.5", "low", "support")).toEqual({ enabled: false, exclude: true });
   });
 });
 

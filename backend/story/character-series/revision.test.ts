@@ -1,7 +1,7 @@
 // @ts-ignore Bun test helpers are runtime-only in the Encore project.
 import { describe, expect, test } from 'bun:test';
 import { applyChapterEdits, runCharacterSeriesTextEngine, seriesLlmBudget } from './engine';
-import { seriesAuthoring, seriesBudget, SERIES_MODELS, SERIES_POLICY } from './authoring';
+import { seriesAuthoring, seriesBudget, SERIES_MODELS, SERIES_IMAGE_REVIEW_MODEL, SERIES_POLICY } from './authoring';
 import { SERIES_NARRATIVES } from './narrative';
 import { withSeriesContext, seriesPrompt } from './core';
 import { directSeriesPictures, generateSeriesImages, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment, seriesReferenceRegions } from './pictures';
@@ -23,6 +23,10 @@ const text = `FIGUR: Funkelflug | pool | ${bible.characterId} | companion\nTITEL
 const response = (value: string) => ({ text: value, modelUsed: 'test', usage: { prompt: 1, completion: 1, total: 2, costUSD: 0 }, durationMs: 0 });
 
 describe('Figurenserien revision 2', () => {
+  test('Sol writes while Haiku reviews the text and plans and reviews images', () => {
+    expect(SERIES_MODELS).toEqual({ writer: 'openai/gpt-6.1-sol', support: 'anthropic/claude-haiku-5.5', critic: 'anthropic/claude-haiku-5.5' });
+    expect(SERIES_IMAGE_REVIEW_MODEL).toBe(SERIES_MODELS.support);
+  });
   test('every catalogue world has its own arrival, encounter, motor and four developed arcs', () => {
     for (const b of bibles) {
       const n = SERIES_NARRATIVES[b.id];
@@ -40,10 +44,11 @@ describe('Figurenserien revision 2', () => {
   test('a missing arrival triggers one local correction and recheck, preserving other chapters', async () => {
     const calls: string[] = [];
     let criticSystem = '';
+    let criticTokens = 0;
     const llm: StorybookLlm = async r => {
       calls.push(r.stage);
       if (r.stage === 'series-author') return response(text);
-      if (r.stage === 'series-editorial-review') { criticSystem = r.system; return response(JSON.stringify({ issues: [{ severity: 'major', quote: '', problem: 'Die Kinder sind ohne Begegnung da.', change: 'Den Weg und die erste Begegnung erzählen.' }] })); }
+      if (r.stage === 'series-editorial-review') { criticSystem = r.system; criticTokens = r.maxTokens; return response(JSON.stringify({ issues: [{ severity: 'major', quote: '', problem: 'Die Kinder sind ohne Begegnung da.', change: 'Den Weg und die erste Begegnung erzählen.' }] })); }
       if (r.stage === 'series-local-repair') return response(JSON.stringify({ edits: [{ chapter: 1, before: 'Funkelflug stellte seinen Becher ab. Nora hielt ihn schon fest.', after: 'Funkelflug übte allein. Nora kam vom Weg herauf, weil sie eine Glocke gehört hatte. „Wer bist du?“, fragte sie. „Funkelflug“, sagte der Drache. Nora stellte sich vor. Erst dann fing sie seinen fallenden Becher.' }] }));
       return response('{"issues":[]}');
     };
@@ -51,6 +56,8 @@ describe('Figurenserien revision 2', () => {
     expect(calls).toEqual(['series-author', 'series-editorial-review', 'series-local-repair', 'series-editorial-recheck']);
     // Story ff6eff04: „Und meine Idee trägt deinen Fisch“ credited Alexander with Adrian's idea and passed the critic.
     expect(criticSystem).toContain('Attribution stays true');
+    expect(criticSystem).toContain('„ihre“ can be plural');
+    expect(criticTokens).toBe(16000);
     expect(criticSystem).toContain('running gag');
     expect(result.pages[0].content).toContain('Nora kam vom Weg');
     expect(result.pages[1].content).toContain('Gemeinsam prüften sie den Ausgang.');
@@ -272,6 +279,14 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(() => validateSeriesShots(rawPlan(), pages, entities, 'lead', { strict: true })).toThrow('Titelbild');
     const raw = rawPlan(); raw.cover.onStage = ['kid'];
     expect(() => validateSeriesShots(raw, pages, entities, 'lead')).toThrow('Serienhauptfigur');
+  });
+  test('a valid framing next to visualBeat is accepted, while invalid values remain rejected', () => {
+    const raw: any = rawPlan();
+    raw.pages[1].framing = raw.pages[1].visualBeat.framing;
+    delete raw.pages[1].visualBeat.framing;
+    expect((validateSeriesShots(raw, pages, entities, 'lead').pages[1] as any).visualBeat.framing).toBe('close');
+    raw.pages[1].framing = 'imaginary';
+    expect(() => validateSeriesShots(raw, pages, entities, 'lead')).toThrow('Bildausschnitt');
   });
   test('all four scenes use landscape geometry and an actual art reference; no portrait generation', async () => {
     const requests: any[] = [];
