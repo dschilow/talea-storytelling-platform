@@ -1,3 +1,4 @@
+export const FLUX2_KLEIN_4B_MODEL = "runware:400@4";
 export const FLUX3_KLEIN_MODEL = "bfl:flux@3-image-klein";
 export const FLUX3_KLEIN_STEPS = 16;
 

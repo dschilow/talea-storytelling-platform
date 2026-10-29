@@ -317,6 +317,18 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(requests).toHaveLength(4);
     expect(requests.every(r => r.width === 1216 && r.height === 832 && r.referenceImages.length === 1 && r.prompt.includes('gouache'))).toBe(true);
   });
+  test('FLUX.2 klein 4B gets plain names and no scene-region binding; FLUX 3 keeps both', async () => {
+    const run = async (imageModel?: string) => {
+      const requests: any[] = [];
+      await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'test', imageModel, provider: async request => { requests.push(request); return { url: 'https://example.test/image.webp', costUSD: 0.0025 }; }, llm: async r => imageReview(r.stage), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
+      return requests;
+    };
+    const flux2 = await run('runware:400@4');
+    expect(flux2.length).toBeGreaterThan(0);
+    expect(flux2.every(r => !/<[a-z0-9_-]+> is /i.test(r.prompt))).toBe(true);
+    const flux3 = await run('bfl:flux@3-image-klein');
+    expect(flux3.every(r => /<[a-z0-9_-]+> is /i.test(r.prompt) && r.referenceRegions.length > 0)).toBe(true);
+  });
   test('a child series lead such as Tilda keeps child proportions alongside an adult', () => {
     const cast: VisualEntity[] = [
       { ...entities[0], id: 'tilda', name: 'Tilda', species: 'human', isHuman: true, appearance: 'nine-year-old girl inventor with curly dark hair' },

@@ -13,7 +13,7 @@ import { SERIES_POLICY } from './authoring';
 import { effectiveSeriesEpisode, logsForEpisode } from './core';
 import { getSeriesEpisodeBlueprint } from './episode-plans';
 import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW_COMPACT, type SeriesQa } from './quality';
-import type { RunwareReferenceRegion } from '../../ai/runware-image-model-options';
+import { FLUX3_KLEIN_MODEL, type RunwareReferenceRegion } from '../../ai/runware-image-model-options';
 export { seriesPicturePasses, seriesPictureUsable } from './quality';
 
 export type SeriesBox = [number, number, number, number];
@@ -307,6 +307,8 @@ export async function generateSeriesImages(input: {
   /** Reads a picture once when the vision model answers empty or unreadably (Gemini refused one picture on every try). */
   visionFallbackModel?: string;
   pageTexts: Record<number, string>; chapterByPage?: Record<number, number>; styleReferenceUrl?: string;
+  /** The model behind `provider`. Only FLUX 3 Klein binds sheet cells to scene regions; others get plain names. */
+  imageModel?: string;
   buildReference?: ReturnType<typeof createIdentityReferenceCache>;
 }): Promise<StorybookImagesResult> {
   const shots = [input.illustrations.cover, ...input.illustrations.pages];
@@ -317,6 +319,7 @@ export async function generateSeriesImages(input: {
   let imageCalls = 0, imageCostUSD = 0;
   // Per episode, never process-global: one family's provider outage cannot change another family's route.
   let primaryReadFailures = 0;
+  const regionBound = !input.imageModel || input.imageModel === FLUX3_KLEIN_MODEL;
   const editableImages = new Map<number, string>();
   // Every reviewed attempt per page: after the last redraw a page keeps its best one rather than staying empty.
   const reviewed = new Map<number, ImageOutcome[]>();
@@ -356,7 +359,7 @@ export async function generateSeriesImages(input: {
       const editing = number === 2 ? editableImages.get(shot.page) : undefined;
       const identityAttachment = editing ? 2 : 1;
       const regions = seriesReferenceRegions(identities, beat, editing ? 1 : 0, (shot as SeriesShot).boxes, shot.page);
-      const bindNames = (text: string) => identities.reduce((caption, entity, i) => {
+      const bindNames = (text: string) => !regionBound ? text : identities.reduce((caption, entity, i) => {
         const aliases = [...new Set([entity.name, ...entity.name.split(/\s+/).filter(n => n.length >= 3 && !/^(der|die|das|graf|captain|kapitän)$/i.test(n))])].sort((a, b) => b.length - a.length).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
         return caption.replace(new RegExp(`\\b(?:${aliases.join('|')})\\b`, 'gi'), `<${regions[i].id}>`);
       }, text);
@@ -368,7 +371,7 @@ export async function generateSeriesImages(input: {
       ].join('\n') : [bindNames(moment.scene),
         beat ? bindNames(`Freeze the physical instant: ${byId.get(beat.actorId)?.name} ${moment.fact}. ${beat.framing.toUpperCase()} framing, asymmetric foreground and depth, dynamic three-quarter or side postures and vivid comic facial expressions. Bodies change balance with the action; each hand visibly works on its own object. The depicted scene determines setting, gesture and camera, while the reference sheet determines only character identity.`) : '',
         SERIES_ART_DIRECTION,
-        regions.map(r => `<${r.id}> is ${r.description}, taken only from its own sheet cell and placed in its assigned scene region. Draw this figure exactly once in the caption's new action; the cell's resting pose and portrait background have no part in this scene.`).join('\n'),
+        regionBound ? regions.map(r => `<${r.id}> is ${r.description}, taken only from its own sheet cell and placed in its assigned scene region. Draw this figure exactly once in the caption's new action; the cell's resting pose and portrait background have no part in this scene.`).join('\n') : '',
         references.length ? `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${slotPositionLabel(i, identities.length)} is ONLY ${e.name}: ${e.appearance}`).join('; ')}. Keep each face, ears, teeth, species and outfit with its OWN person. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, rounded human ears, and exactly two arms and two hands, each with five separate fingers${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.` : '',
         ...drawn.filter(e => !e.referenceUrl).map(e => `${e.name}: ${e.appearance}.`),
         'Every described object keeps its true material and shape (a cloth banner is flexible fabric, never a wooden log); a joke never adds a garment or a mouth-held prop.',
@@ -386,7 +389,7 @@ export async function generateSeriesImages(input: {
       imageCalls++;
       const seed = parseInt(createHash('sha256').update(`${input.seed}:${shot.page}:${number}`).digest('hex').slice(0, 8), 16) % 2147483647;
       try {
-      const response = await input.provider({ prompt: editing ? prompt + '\n' + regions.map(r => `<${r.id}> is ${r.description}.`).join(' ') : prompt, negativePrompt: '', referenceImages: [...(editing ? [editing] : []), ...references], referenceRegions: regions, width: SCENE_SIZE.width, height: SCENE_SIZE.height, seed, page: shot.page, logStage: editing ? 'series-image-edit' : shot.page === 0 ? 'series-image-cover' : 'series-image-chapter' });
+      const response = await input.provider({ prompt: editing && regionBound ? prompt + '\n' + regions.map(r => `<${r.id}> is ${r.description}.`).join(' ') : prompt, negativePrompt: '', referenceImages: [...(editing ? [editing] : []), ...references], referenceRegions: regions, width: SCENE_SIZE.width, height: SCENE_SIZE.height, seed, page: shot.page, logStage: editing ? 'series-image-edit' : shot.page === 0 ? 'series-image-cover' : 'series-image-chapter' });
       imageUrl = response.url;
       const editable = response.viewUrl || response.url;
       if (editable && /^(https?:\/\/|data:image\/)/i.test(editable)) editableImages.set(shot.page, editable);

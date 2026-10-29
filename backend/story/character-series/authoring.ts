@@ -7,7 +7,7 @@ import type { AgeBand } from '../storybook/craft';
 import { SERIES_NARRATIVES } from './narrative';
 import { classifySeriesAvatars, effectiveSeriesEpisode, logsForEpisode, seriesPrompt, validateSeriesAvatarCount } from './core';
 import { getSeriesEpisodeBlueprint, getUnlockedSeriesEnsemble } from './episode-plans';
-import { FLUX3_KLEIN_MODEL } from '../../ai/runware-image-model-options';
+import { FLUX2_KLEIN_4B_MODEL } from '../../ai/runware-image-model-options';
 
 const SERIES_GENRE_COLORING: Record<string, string> = {
   fairy_tales: 'Genre coloring — Fairy Tale (Märchen): Keep this series world and its physical rules intact, but give today\'s episode a warm fairy-tale atmosphere: poetic sensory details, the classic rule of three (three tries or three clues), and a timeless, magical-feeling mood.',
@@ -30,7 +30,8 @@ export const SERIES_MODELS = { writer: 'openai/gpt-6.1-sol', support: 'anthropic
  */
 export const SERIES_IMAGE_REVIEW_MODEL = 'google/gemini-3.8-flash';
 export const SERIES_IMAGE_REVIEW_FALLBACK_MODEL = 'google/gemini-3.5-flash-lite';
-export const SERIES_IMAGE_MODEL = FLUX3_KLEIN_MODEL;
+/** FLUX.2 klein 4B again (2026-10-29, a test against FLUX 3 Klein); TALEA_SERIES_IMAGE_MODEL=bfl:flux@3-image-klein switches back. */
+export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_KLEIN_4B_MODEL;
 /**
  * Version 12 (abfc9b06, 9019823b, 23302f05): a malformed cover plan reuses a validated chapter motif; spelling is
  * corrected locally, minor repairs keep the manuscript without resending the catalogue, and vision owns its retries.
