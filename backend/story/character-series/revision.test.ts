@@ -437,7 +437,8 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
         if (r.stage === 'series-picture-rescue-plan') { planning.push(r.user); return response('{"pages":[]}'); }
         const match = r.stage.match(/^series-image-qa-(\d+)-(\d+)$/);
         const page = Number(match?.[1]), attempt = Number(match?.[2]);
-        return imageReview(r.stage, [0, 1, 2, 5, 6].includes(page) && attempt < 3 ? { primaryActionClear: false } : {});
+        if (page === 0) return imageReview(r.stage, { defects: [{ kind: 'safety', detail: 'A child is beneath an unsupported load.', fix: 'Move the child clear.' }] });
+        return imageReview(r.stage, [1, 2, 5, 6].includes(page) && attempt < 3 ? { primaryActionClear: false } : {});
       },
     });
     expect(result.regenerated).toEqual([1, 5, 2, 1, 5]);
@@ -615,7 +616,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(chapterDrawing.referenceImages).toHaveLength(1); // Only the existing shared sheet; no competing style characters or individual private exports.
   });
   test('repairs go to a failed chapter before a failed cover', async () => {
-    const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'chapter-first', provider: async () => ({ url: 'https://example.test/image.webp' }), llm: async r => imageReview(r.stage, r.stage.includes('qa-0-') || r.stage.includes('qa-1-1') ? { primaryActionClear: false, defects: [{ kind: 'story', detail: 'The selected exchange is absent.', fix: 'Show the selected exchange.' }] } : {}), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
+    const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'chapter-first', provider: async () => ({ url: 'https://example.test/image.webp' }), llm: async r => imageReview(r.stage, r.stage.includes('qa-0-') ? { defects: [{ kind: 'safety', detail: 'A child is beneath an unsupported load.', fix: 'Move the child clear.' }] } : r.stage.includes('qa-1-1') ? { primaryActionClear: false, defects: [{ kind: 'story', detail: 'The selected exchange is absent.', fix: 'Show the selected exchange.' }] } : {}), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
     expect(result.imageCalls).toBe(7);
     expect(result.regenerated).toEqual([1, 0, 0]);
     expect(result.pages.get(1)?.status).toBe('passed');

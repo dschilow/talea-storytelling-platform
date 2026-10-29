@@ -31,7 +31,7 @@ export const SERIES_IMAGE_MODEL = FLUX3_KLEIN_MODEL;
  * took 211 s. Up to five repairs, spent on pictures with a hard fault or provider failure. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 9, picturesPerChapter: 2, imageRetries: 5, imageConcurrency: 7, maxImageCalls: 12, maxLlmCalls: 28, llmStopAfterUSD: 0.1, longLlmStopAfterUSD: 0.14, maxTextRepairs: 2 } as const;
+export const SERIES_POLICY = { version: 10, picturesPerChapter: 2, imageRetries: 5, imageConcurrency: 7, maxImageCalls: 12, maxLlmCalls: 28, llmStopAfterUSD: 0.1, longLlmStopAfterUSD: 0.14, maxTextRepairs: 2 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);

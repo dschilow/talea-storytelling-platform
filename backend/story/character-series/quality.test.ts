@@ -57,6 +57,26 @@ describe('series image review after the production PDF', () => {
     const minor = [{ kind: 'story', detail: 'Tilda holds a wrench instead of a button, while the crown lands.', fix: 'Show the small button.', blocksAction: false }];
     expect(seriesPicturePasses(readSeriesQa(review({ defects: minor, storyConsistent: false, primaryActionClear: true }), cast))).toBe(true);
   });
+  test('small unobservable features are retained as a noted flaw, while identity and anatomy defects block', () => {
+    const detail = { kind: 'detail', detail: 'The small tooth gap is not visible from this angle.', fix: 'Keep the character recognisable.' };
+    const qa = readSeriesQa(review({ storyConsistent: true, defects: [detail] }), cast);
+    expect(seriesPicturePasses(qa)).toBe(false);
+    expect(seriesPictureUsable(qa)).toBe(true);
+    expect(seriesPictureChapterFallback(qa)).toBe(true);
+    for (const kind of ['identity', 'anatomy', 'unexpected', 'safety']) {
+      const hard = readSeriesQa(review({ storyConsistent: true, defects: [{ ...detail, kind }] }), cast);
+      expect(seriesPictureUsable(hard)).toBe(false);
+      expect(seriesPictureChapterFallback(hard)).toBe(false);
+    }
+    expect(seriesPictureUsable(readSeriesQa(review({ storyConsistent: false, defects: [detail] }), cast))).toBe(false);
+    expect(seriesPictureUsable(readSeriesQa(review({ storyConsistent: true, identityById: { dragon: 0.98, 'child-a': 0.7 }, defects: [detail] }), cast))).toBe(false);
+  });
+  test('cover does not require the chapter action but still rejects safety and identity faults', () => {
+    const qa = readSeriesQa(review({ primaryActionClear: false, storyConsistent: true, defects: [{ kind: 'story', detail: 'The cart action is absent from the cover.', fix: 'Keep the cover composition.', blocksAction: true }] }), cast);
+    expect(seriesPicturePasses(qa, true)).toBe(true);
+    expect(seriesPicturePasses(qa, false)).toBe(false);
+    expect(seriesPicturePasses(readSeriesQa(review({ primaryActionClear: false, defects: [{ kind: 'identity', detail: 'The girl is replaced by another person.', fix: 'Show the correct girl.' }] }), cast), true)).toBe(false);
+  });
   test('literal nearby evidence replaces an entire repeated chapter in the picture prompt', () => {
     const text = ['first', 'The mouse turns the handle.', 'The door opens.', 'They wave.', ...Array(80).fill('Unrelated later event.')].join('\n\n');
     const source = seriesPictureSource(text, 2, 'The mouse turns the handle.');
