@@ -9,7 +9,7 @@
  *     --log <logs.json> --text <story.json> --portraits <id>=<file>,… --images <dir> [--labels <labels.json>]
  * Pilot run of scripts/character-series/pilot-v2.ts (its saved review requests are replayed as they were):
  *     --pilot <out>/episode-1 --set <name> --portraits <id>=<file>,… --images <dir> [--labels <labels.json>]
- * Common: [--models anthropic/claude-haiku-5.5,openai/gpt-6.1-terra:think] [--runs 2] [--only p1-3,p4-1] [--out <jsonl>] [--flex] [--no-style] [--px 768]
+ * Common: [--models anthropic/claude-haiku-5.5,openai/gpt-6.1-terra:think] [--runs 2] [--only p1-3,p4-1] [--out <jsonl>] [--flex] [--no-style] [--px 768] [--effort low|medium|high]
  *
  * A model suffixed with ":think" runs in the critic role (Claude then thinks at effort low; production's support role
  * switches Claude's thinking off). Pictures missing in --images are downloaded (bucket keys through the production proxy).
@@ -151,7 +151,7 @@ for (const item of cases) {
       const started = Date.now();
       let row: any;
       try {
-        const reply = await llm({ stage: "series-recheck", role: mode === "think" ? "critic" : "support", model, fallbackModel: model, effort: "low", json: true, maxTokens: /claude|gemini|deepseek/.test(model) ? 4000 : 2500, timeoutMs: 120_000, ...(flex ? { serviceTier: "flex" as const } : {}), system: SERIES_IMAGE_REVIEW, user: item.user, imageInputs: noStyle ? [image, sheet] : [image, sheet, SERIES_STYLE_REFERENCE] });
+        const reply = await llm({ stage: "series-recheck", role: mode === "think" ? "critic" : "support", model, fallbackModel: model, effort: (arg("effort") || "low") as "low" | "medium" | "high", json: true, maxTokens: /claude|gemini|deepseek/.test(model) || arg("effort") ? 6000 : 2500, timeoutMs: 120_000, ...(flex ? { serviceTier: "flex" as const } : {}), system: SERIES_IMAGE_REVIEW, user: item.user, imageInputs: noStyle ? [image, sheet] : [image, sheet, SERIES_STYLE_REFERENCE] });
         const qa = readSeriesQa(reply.text, item.drawn);
         const pass = seriesPicturePasses(qa, item.cover);
         const usable = !pass && seriesPictureUsable(qa);
