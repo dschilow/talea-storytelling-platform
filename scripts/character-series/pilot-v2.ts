@@ -16,6 +16,7 @@ import { toCastCandidate } from '../../backend/story/storybook/cast-selection';
 import { castAppearance, speciesFromProfile, type VisualEntity } from '../../backend/story/storybook/illustration-stage';
 import { seriesLeadCandidate, seriesReferenceAppearance, SERIES_LEAD_REFERENCES } from '../../backend/story/character-series/identity';
 import { existsSync } from 'node:fs';
+import { episodeProductionLlm } from '../../backend/story/episode/craft';
 import { buildRunwareTask, createRunwareCaller, LIBRARY_IMAGE_MODEL } from '../../backend/story/library/images';
 import { runwareImageModelOptions, runwareReferenceSettings } from '../../backend/ai/runware-image-model-options';
 import { buildImageSlots, pagesFor } from '../../backend/story/storybook/book/illustrations';
@@ -95,8 +96,8 @@ const rawLlm: StorybookLlm = async request => {
   console.log(`${request.stage} · ${request.model}`);
   const started = Date.now();
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(request.timeoutMs || 180000),
-    body: JSON.stringify({ model: request.model, max_tokens: request.maxTokens, reasoning: resolveStorybookReasoning(request.model, request.effort, request.role), usage: { include: true }, ...(request.json ? { response_format: { type: 'json_object' } } : {}),
+    method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(request.serviceTier === 'flex' ? Math.min(900000, (request.timeoutMs || 180000) * 2) : request.timeoutMs || 180000),
+    body: JSON.stringify({ model: request.model, max_tokens: request.maxTokens, ...(request.serviceTier === 'flex' ? { service_tier: 'flex' } : {}), reasoning: resolveStorybookReasoning(request.model, request.effort, request.role), usage: { include: true }, ...(request.json ? { response_format: { type: 'json_object' } } : {}),
       messages: [{ role: 'system', content: request.system }, { role: 'user', content: imageInputs?.length ? [{ type: 'text', text: request.user }, ...imageInputs.map(url => ({ type: 'image_url', image_url: { url } }))] : request.user }] }),
   });
   const data: any = await response.json();
@@ -106,7 +107,8 @@ const rawLlm: StorybookLlm = async request => {
   if (!result.text || isTruncatedFinishReason(result.finishReason)) { ledger.recordCall(request.stage + '-failed', result, request.role); throw Object.assign(new Error('Incomplete model response.'), { billed: result }); }
   return result;
 };
-const llm = seriesLlmBudget(rawLlm);
+// --flex: the production tier (every call on flex, as episodeProductionLlm does), with its slow tail and its timeouts.
+const llm = seriesLlmBudget(args.includes('--flex') ? episodeProductionLlm(rawLlm, 'flex') : rawLlm);
 if (args.includes('--review-contracts')) {
   const review = await llm({ stage: 'series-contract-review', role: 'critic', model: SERIES_MODELS.writer, json: true, effort: 'low', maxTokens: 3000, timeoutMs: 180000,
     system: 'Prüfe als kritisches Kinderbuchlektorat diese fünf Serienverträge für 6–8 Jahre: echter erster Zugang der Avatare, klare Vorgeschichte, kausale und begrenzte Weltregeln, konsistente Gegenstände und Zeitverhältnisse, Figuren mit Initiative und variierende Folgenmotoren über vier Bögen. Melde höchstens fünf konkrete Widersprüche oder erhebliche Unklarheiten. Jede Kritik braucht einen exakten kurzen Textbeleg aus einem Feld des gelieferten Vertrags. Kein Lob aus Höflichkeit, keine erfundenen Probleme und keine neue Geschichte. JSON {"issues":[{"seriesId":"...","field":"origin.after","quote":"exakter Feldtextauszug","severity":"major|minor","problem":"...","change":"konkrete kleine Verbesserung"}]}.',

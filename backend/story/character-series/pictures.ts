@@ -379,10 +379,13 @@ export async function generateSeriesImages(input: {
         return { page: shot.page, prompt, attempts: number, costUSD, severity: 999, status: 'missing', errors: [reason], history };
       }
       const reviewUser = `${shot.page === 0 ? 'COVER: judge the selected character-in-world composition. No chapter action is compulsory.' : 'CHAPTER PICTURE: judge this selected moment, allowing harmless staging differences.'}\nEXPECTED IDENTITIES:\n${drawn.map(e => `${e.id}: ${e.name}; ${e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\nPROPOSED CAPTION:\n${moment.scene}\nPRIMARY STORY FACT: ${moment.fact}\n${shot.page === 0 ? '' : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph, (shot as SeriesShot).storyQuote)}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name})`).join('; ')}.` : 'No identity sheet is attached.'} The last attachment is the public style example.`;
-      const review = async (stage: string, model = input.visionModel) => {
+      // Story 289c11a4: five flex checks hung for 120 s each (the story took 558 s) and went to Terra at 3.4x the price.
+      // Flex gets 40 s; a check that misses it is repeated on the standard tier of the SAME model (0.2 ct more, seconds),
+      // and only an empty or unreadable answer goes to the fallback reader.
+      const review = async (stage: string, model = input.visionModel, tier: 'flex' | 'standard' = 'flex') => {
         try {
           // Gemini thinks at effort low before its JSON; 1,000 tokens left it cut short.
-          const reply = await input.llm({ stage, role: 'support', model, effort: 'low', json: true, maxTokens: 4000, timeoutMs: 60000,
+          const reply = await input.llm({ stage, role: 'support', model, effort: 'low', json: true, maxTokens: 4000, timeoutMs: tier === 'flex' ? 20000 : 60000, serviceTier: tier,
             system: SERIES_IMAGE_REVIEW, user: reviewUser, imageInputs: [response.viewUrl || response.url!, ...references, style] });
           qaCalls.push(reply);
           return readSeriesQa(reply.text, drawn);
@@ -400,12 +403,13 @@ export async function generateSeriesImages(input: {
         return outcome;
       };
       let qa = await review(`series-image-qa-${shot.page}-${number}`);
-      if (!qa && canReview()) qa = await review(`series-image-qa-${shot.page}-${number}-retry`, input.visionFallbackModel);
+      if (!qa && canReview()) qa = await review(`series-image-qa-${shot.page}-${number}-retry`, input.visionModel, 'standard');
+      if (!qa && canReview() && input.visionFallbackModel && input.visionFallbackModel !== input.visionModel) qa = await review(`series-image-qa-${shot.page}-${number}-fallback`, input.visionFallbackModel, 'standard');
       if (qa) return verdict(qa);
       history.push({ kind: 'series-vision', status: 'failed', severity: 999, notes: ['Bildprüfung nicht verfügbar oder unlesbar; das erzeugte Bild bleibt für eine erneute Prüfung erhalten.'], url: response.url });
       const unverified: ImageOutcome = { page: shot.page, url: response.url, prompt, attempts: number, costUSD, severity: 999, status: 'failed', errors: ['series_vision_error'], history };
       visionRecoveries.set(shot.page, async () => {
-        const recovered = await review(`series-image-qa-${shot.page}-${number}-recovery`);
+        const recovered = await review(`series-image-qa-${shot.page}-${number}-recovery`, input.visionModel, 'standard');
         return recovered ? verdict(recovered) : unverified;
       });
       return unverified;
@@ -441,7 +445,10 @@ export async function generateSeriesImages(input: {
   await recoverUnverified();
   // Repairs go only to hard faults, chapters before the cover: a printed "flawed" picture was never improved by a redraw
   // (ff6eff04 chapter 3, Talea-Folge 0ee9af53).
-  const canRetryOutcome = (o: ImageOutcome) => (o.status === 'failed' && (Boolean(o.qa) || o.errors?.includes('series_provider_error'))) ||
+  // A picture whose only fault is a loose action (right people, right setting, nothing broken) is not redrawn: it is printed
+  // as the best attempt below. Story 289c11a4 spent 7 redraws, 2.3 ct of pictures and 1.6 ct of checks on such pictures and
+  // none of them got better; the redraws are for what a new seed can fix (a hand, a face, a double, lettering, a lost figure).
+  const canRetryOutcome = (o: ImageOutcome) => (o.status === 'failed' && ((Boolean(o.qa) && !seriesPictureLastResort(o.qa as SeriesQa)) || o.errors?.includes('series_provider_error'))) ||
     (o.status === 'missing' && !o.errors?.includes('series_provider_http_402'));
   // A complicated multi-person action may fail even after an edit. For a still-pictureless chapter, ask for a
   // simpler moment from the very same paragraph, so it can remain at its original position in the book.

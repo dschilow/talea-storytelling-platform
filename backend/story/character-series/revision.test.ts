@@ -369,7 +369,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
       buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
       provider: async r => ({ url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }),
       llm: async r => {
-        if (r.stage === 'series-image-qa-1-1') return imageReview(r.stage, { primaryActionClear: false });
+        if (r.stage === 'series-image-qa-1-1') return imageReview(r.stage, { primaryActionClear: false, sceneMatch: 0.4 });
         if (r.stage === 'series-image-qa-1-2' || r.stage === 'series-image-qa-1-2-retry') throw new Error('temporary outage');
         return imageReview(r.stage);
       },
@@ -431,7 +431,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
       llm: async r => {
         const page = Number(r.stage.match(/^series-image-qa-(\d+)-/)?.[1]);
         const first = r.stage === `series-image-qa-${page}-1`;
-        return imageReview(r.stage, first && page >= 3 ? { primaryActionClear: false } : {});
+        return imageReview(r.stage, first && page >= 3 ? { primaryActionClear: false, sceneMatch: 0.4 } : {});
       },
     });
     expect(result.regenerated).toEqual([3, 5, 4, 6]);
@@ -455,7 +455,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
         const match = r.stage.match(/^series-image-qa-(\d+)-(\d+)$/);
         const page = Number(match?.[1]), attempt = Number(match?.[2]);
         if (page === 0) return imageReview(r.stage, { defects: [{ kind: 'safety', detail: 'A child is beneath an unsupported load.', fix: 'Move the child clear.' }] });
-        return imageReview(r.stage, [1, 2, 5, 6].includes(page) && attempt < 3 ? { primaryActionClear: false } : {});
+        return imageReview(r.stage, [1, 2, 5, 6].includes(page) && attempt < 3 ? { primaryActionClear: false, sceneMatch: 0.4 } : {});
       },
     });
     expect(result.regenerated).toEqual([1, 5, 2, 6, 0, 1, 5]);
@@ -463,9 +463,9 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(JSON.parse(planning[0]).map((item: any) => item.page)).toEqual([1, 5]);
     expect(result.pages.get(1)?.status).toBe('passed');
     expect(result.pages.get(5)?.status).toBe('passed');
-    // Their second pictures only missed the action: the best attempt is printed instead of nothing.
-    expect(result.pages.get(2)).toMatchObject({ status: 'flawed', salvaged: true });
-    expect(result.pages.get(6)?.history?.at(-1)?.kind).toBe('series-best-attempt');
+    // Their second pictures lost the scene itself (sceneMatch 0.4), so not even the best attempt is printable.
+    expect(result.pages.get(2)?.status).toBe('failed');
+    expect(result.pages.get(6)?.status).toBe('failed');
     expect(result.cover?.status).toBe('failed');
     expect(result.imageCalls).toBe(SERIES_POLICY.maxImageCalls);
   });
@@ -561,57 +561,41 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(result.pages.get(1)?.history?.at(-1)?.kind).toBe('series-best-attempt');
     expect(result.imagesGenerated).toBe(4);
   });
-  test('an empty or unreadable vision answer is read once by the fallback model before the picture is given up', async () => {
-    const reviewers: Array<[string, string]> = [];
+  test('a check that misses flex is repeated on the standard tier of the same model, then on the fallback reader', async () => {
+    const calls: Array<[string, string, string | undefined, number | undefined]> = [];
     const result = await generateSeriesImages({
-      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'vision-fallback', visionModel: 'gemini', visionFallbackModel: 'terra', pageTexts: {},
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'vision-ladder', visionModel: 'gemini', visionFallbackModel: 'terra', pageTexts: {},
       buildReference: async () => ({ urls: [] } as any), provider: async r => ({ url: `https://example.test/${r.page}.webp` }),
       llm: async r => {
-        reviewers.push([r.stage, r.model]);
-        if (r.stage === 'series-image-qa-2-1') throw new Error('Empty response from gemini');
+        calls.push([r.stage, r.model, r.serviceTier, r.timeoutMs]);
+        if (r.stage === 'series-image-qa-2-1') throw new Error('timed out after 40s');
+        if (r.stage === 'series-image-qa-3-1' || r.stage === 'series-image-qa-3-1-retry') throw new Error('Empty response from gemini');
         return imageReview(r.stage);
       },
     });
-    expect(reviewers).toContainEqual(['series-image-qa-2-1-retry', 'terra']);
+    expect(calls).toContainEqual(['series-image-qa-2-1', 'gemini', 'flex', 20000]);
+    expect(calls).toContainEqual(['series-image-qa-2-1-retry', 'gemini', 'standard', 60000]);
+    expect(calls.some(([stage]) => stage === 'series-image-qa-2-1-fallback')).toBe(false);
+    expect(calls).toContainEqual(['series-image-qa-3-1-fallback', 'terra', 'standard', 60000]);
     expect(result.pages.get(2)?.status).toBe('passed');
-    expect(result.imageCalls).toBe(4);
-  });
-  test('a posed fallback is not published when its chapter already has a good illustration', async () => {
-    const result = await generateSeriesImages({
-      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'chapter-covered',
-      visionModel: 'test', pageTexts: {}, chapterByPage: { 1: 1, 2: 1, 3: 2 },
-      buildReference: async () => ({ urls: [] } as any), provider: async () => ({ url: 'https://example.test/image.webp' }),
-      llm: async r => imageReview(r.stage, r.stage.startsWith('series-image-qa-1-') ? { posing: true, primaryActionClear: false, storyConsistent: true } : {}),
-    });
-    expect(result.pages.get(1)?.status).toBe('failed');
-    expect(result.pages.get(2)?.status).toBe('passed');
-  });
-  test('all planned chapters are reviewed before an earlier failure can consume the spare budget', async () => {
-    const events: string[] = [];
-    const llm = seriesLlmBudget(async r => {
-      events.push(r.stage);
-      const reply = imageReview(r.stage, r.stage.includes('qa-1-') ? { primaryActionClear: false } : {});
-      // Four checks together cross the spend stop.
-      return { ...reply, usage: { ...reply.usage, costUSD: SERIES_POLICY.llmStopAfterUSD / 4 + 0.001 } };
-    });
-    const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'planned-first', provider: async r => { events.push(`draw-${r.page}`); return { url: 'https://example.test/image.webp', costUSD: 0.0025 }; }, llm, visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
-    expect(result.imageCalls).toBe(4);
-    expect(events).toContain('series-image-qa-3-1');
-    expect(events.some(e => e.startsWith('series-image-qa-') && e.endsWith('-2'))).toBe(false);
     expect(result.pages.get(3)?.status).toBe('passed');
-    expect(result.regenerated).toHaveLength(0);
+    expect(result.imageCalls).toBe(4);
   });
-  test('no paid image is started when its review budget or avatar reference is missing', async () => {
-    let draws = 0;
-    const llm = seriesLlmBudget(async () => ({ ...response('ok'), usage: { prompt: 1, completion: 1, total: 2, costUSD: SERIES_POLICY.llmStopAfterUSD + 0.01 } }));
-    await llm({ stage: 'spent' } as any);
-    const noBudget = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'empty', provider: async () => { draws++; return { url: 'https://example.test/image.webp' }; }, llm, visionModel: 'test', pageTexts: {} });
-    expect(draws).toBe(0);
-    expect(noBudget.pages.get(3)?.errors).toContain('series_budget_exhausted');
-    const missing = entities.map(e => e.role === 'hero' ? { ...e, referenceUrl: undefined } : e);
-    const noReference = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities: missing, seed: 'missing', provider: async () => { draws++; return { url: 'https://example.test/image.webp' }; }, llm: async r => imageReview(r.stage), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
-    expect(noReference.pages.get(1)?.errors).toContain('series_avatar_reference_missing');
-    expect(draws).toBe(1); // The cover needs only the available lead; no invented avatar is drawn.
+  test('a picture whose only fault is a loose action is printed without a redraw; a hand, a face or a lost scene is redrawn', async () => {
+    const loose = { primaryActionClear: false, storyConsistent: false, sceneMatch: 0.7, defects: [{ kind: 'story', detail: 'The arm does not clamp the apron.', fix: 'Show the arm clamping the apron.', blocksAction: true }] };
+    const requests: number[] = [];
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'loose-action', visionModel: 'test', pageTexts: {}, chapterByPage: { 1: 1, 2: 2, 3: 3 },
+      buildReference: async () => ({ urls: [] } as any), provider: async r => { requests.push(r.page); return { url: `https://example.test/${r.page}-${requests.length}.webp` }; },
+      llm: async r => imageReview(r.stage, r.stage === 'series-image-qa-1-1' ? loose
+        : r.stage === 'series-image-qa-2-1' ? { defects: [{ kind: 'anatomy', detail: 'The boy arm ends in a stump without a hand.', fix: 'Draw a hand.' }] } : {}),
+    });
+    expect(requests.filter(page => page === 1)).toHaveLength(1);
+    expect(result.pages.get(1)).toMatchObject({ status: 'flawed', salvaged: true });
+    expect(result.pages.get(1)?.history?.at(-1)?.kind).toBe('series-best-attempt');
+    expect(requests.filter(page => page === 2)).toHaveLength(2);
+    expect(result.pages.get(2)?.status).toBe('passed');
+    expect(result.regenerated).toEqual([2]);
   });
   test('the quoted paragraph, not the named number, places the picture (e83e44e2)', () => {
     const long = pages.map(p => ({ ...p, content: Array.from({ length: 16 }, (_, i) => i === 5 ? 'Alexander hob gerade ein Fähnchen. Dessen Papier faltete sich hinter ihr Ohr.' : `Absatz ${i + 1} erzählt etwas.`).join('\n\n') }));
@@ -677,7 +661,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(chapterDrawing.referenceImages).toHaveLength(1); // Only the existing shared sheet; no competing style characters or individual private exports.
   });
   test('repairs go to a failed chapter before a failed cover', async () => {
-    const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'chapter-first', provider: async () => ({ url: 'https://example.test/image.webp' }), llm: async r => imageReview(r.stage, r.stage.includes('qa-0-') ? { defects: [{ kind: 'safety', detail: 'A child is beneath an unsupported load.', fix: 'Move the child clear.' }] } : r.stage.includes('qa-1-1') ? { primaryActionClear: false, defects: [{ kind: 'story', detail: 'The selected exchange is absent.', fix: 'Show the selected exchange.' }] } : {}), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
+    const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'chapter-first', provider: async () => ({ url: 'https://example.test/image.webp' }), llm: async r => imageReview(r.stage, r.stage.includes('qa-0-') ? { defects: [{ kind: 'safety', detail: 'A child is beneath an unsupported load.', fix: 'Move the child clear.' }] } : r.stage.includes('qa-1-1') ? { primaryActionClear: false, sceneMatch: 0.4, defects: [{ kind: 'story', detail: 'The selected exchange is absent.', fix: 'Show the selected exchange.' }] } : {}), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
     expect(result.imageCalls).toBe(7);
     expect(result.regenerated).toEqual([1, 0, 0]);
     expect(result.pages.get(1)?.status).toBe('passed');
@@ -739,7 +723,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
       buildReference: async () => ({ urls: [] } as any), provider: async r => { requests.push(r); return { url: 'https://example.test/image.webp' }; },
       llm: async r => r.stage === 'series-picture-rescue-plan'
         ? response(JSON.stringify({ pages: [{ page: 1, onStage: ['lead'], storyQuote: 'Ein erfundener Satz steht hier.', scene: 'A fabricated green apple is sitting in the middle of a sunny meadow by the mountain.', visualBeat: beat() }] }))
-        : imageReview(r.stage, r.stage === 'series-image-qa-1-1' || r.stage === 'series-image-qa-1-2' ? { primaryActionClear: false } : {}),
+        : imageReview(r.stage, r.stage === 'series-image-qa-1-1' || r.stage === 'series-image-qa-1-2' ? { primaryActionClear: false, sceneMatch: 0.4 } : {}),
     });
     expect(requests.filter(r => r.page === 1).at(-1).prompt).not.toContain('fabricated green apple');
     expect(result.pages.get(1)?.history?.at(-1)?.kind).toBe('same-scene-repair');

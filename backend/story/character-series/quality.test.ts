@@ -64,7 +64,7 @@ describe('series image review after the production PDF', () => {
     expect(seriesPictureUsable(qa)).toBe(true);
     expect(seriesPictureLastResort(qa)).toBe(true);
     for (const kind of ['identity', 'anatomy', 'unexpected', 'safety']) {
-      const hard = readSeriesQa(review({ storyConsistent: true, defects: [{ ...detail, kind }] }), cast);
+      const hard = readSeriesQa(review({ storyConsistent: true, defects: [{ ...detail, detail: 'A concrete visible fault.', kind }] }), cast);
       expect(seriesPictureUsable(hard)).toBe(false);
       expect(seriesPictureLastResort(hard)).toBe(false);
     }
@@ -127,6 +127,15 @@ describe('series image review after the production PDF', () => {
     const elfEars = readSeriesQa(review({ identityById: { dragon: 0.98, 'child-a': 0.78 }, defects: [{ kind: 'identity', detail: 'Nora has huge pointed elf ears.', fix: 'Give Nora her own rounded ears.' }] }), cast);
     expect(seriesPicturePasses(elfEars)).toBe(false);
     expect(seriesPictureLastResort(elfEars)).toBe(false);
+  });
+  test('a missing tooth gap is a detail, a different person is still an identity fault (289c11a4)', () => {
+    const gap = readSeriesQa(review({ storyConsistent: true, identityById: { dragon: 0.98, 'child-a': 0.78 }, sceneMatch: 0.9, defects: [{ kind: 'identity', detail: 'Nora lacks her prominent front tooth gap, showing fully formed small teeth instead.', fix: 'Render a gap between her front teeth.' }] }), cast)!;
+    expect(gap.defects[0].kind).toBe('detail');
+    // Printed as a noted flaw instead of failing the picture.
+    expect(seriesPictureUsable(gap)).toBe(true);
+    const other = readSeriesQa(review({ identityById: { dragon: 0.98, 'child-a': 0.78 }, defects: [{ kind: 'identity', detail: 'A different girl with other teeth replaces Nora.', fix: 'Show Nora.' }] }), cast)!;
+    expect(other.defects[0].kind).toBe('identity');
+    expect(seriesPicturePasses(other)).toBe(false);
   });
   test('after the last redraw a loose action is printed instead of a hole; a wrong setting, a missing hand or lettering is not', () => {
     const loose = { primaryActionClear: false, storyConsistent: false, sceneMatch: 0.68, defects: [{ kind: 'story', detail: 'Tilda runs forward instead of tripping backward behind the cart.', fix: 'Show her pulled backward by the apron.', blocksAction: true }] };

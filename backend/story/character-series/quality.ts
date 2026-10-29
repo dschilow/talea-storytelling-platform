@@ -49,7 +49,10 @@ export function readSeriesQa(text: string, expected: VisualEntity[]): SeriesQa |
   if (scores.some(n => typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > 1) || typeof raw.primaryActionClear !== 'boolean' || typeof raw.posing !== 'boolean' || !Array.isArray(raw.visibleIds) || raw.visibleIds.some((id: unknown) => typeof id !== 'string') || !Array.isArray(raw.defects)) return undefined;
   const rawDefects = raw.defects.slice(0, 6);
   if (rawDefects.some((d: any) => !KINDS.includes(d?.kind) || typeof d.detail !== 'string' || d.detail.trim().length < 3 || d.detail.length > 400 || typeof d.fix !== 'string' || d.fix.trim().length < 3 || d.fix.length > 400 || (d.blocksAction !== undefined && typeof d.blocksAction !== 'boolean'))) return undefined;
-  const defects = rawDefects as SeriesImageDefect[];
+  // A missing tooth gap is a detail of a printed child, not a different person (Gemini filed it as identity three times in
+  // story 289c11a4 and failed two pictures with it); everything else about the identity keeps its kind.
+  const TOOTH_GAP = /\b(?:tooth|teeth)\b/i;
+  const defects = (rawDefects as SeriesImageDefect[]).map(d => d.kind === 'identity' && TOOTH_GAP.test(d.detail) && !/\b(?:different|another|wrong|swapped|replaced)\b.*\b(?:person|child|boy|girl|face)\b/i.test(d.detail) ? { ...d, kind: 'detail' as Kind } : d);
   const visibleIds = (raw.visibleIds as string[]).map(resolveId);
   const ofKind = (kind: Kind) => defects.filter(d => d.kind === kind).map(d => d.detail);
   const known = new Map(expected.map(e => [e.id, e.name]));

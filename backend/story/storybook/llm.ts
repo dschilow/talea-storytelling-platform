@@ -59,8 +59,11 @@ export interface LlmRequest {
   timeoutMs?: number;
   /** Where a failed call goes instead of the default other-family model (a cheap planner falls back to the writer, not to Flash-Lite). */
   fallbackModel?: string;
-  /** "flex": half price, slower; a refused or failed flex call is repeated on the standard tier. */
-  serviceTier?: "flex";
+  /**
+   * "flex": half price, slower; a refused or failed flex call is repeated on the standard tier. "standard" keeps a
+   * request off flex even where a pipeline sends everything on flex (a picture check that must answer in seconds).
+   */
+  serviceTier?: "flex" | "standard";
 }
 
 export interface LlmCallResult {

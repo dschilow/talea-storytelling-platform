@@ -41,7 +41,7 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
       includeReasoning: false,
       signal: controller.signal,
       imageInputs: request.imageInputs,
-      serviceTier: request.serviceTier,
+      serviceTier: request.serviceTier === "flex" ? "flex" : undefined,
     });
   } catch (err) {
     if ((err as any)?.name === "AbortError") throw new Error(`[storybook/llm] ${model} timed out after ${timeoutMs / 1000}s (${request.stage}).`);
