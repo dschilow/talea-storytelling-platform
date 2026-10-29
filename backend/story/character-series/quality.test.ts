@@ -11,6 +11,29 @@ const cast: VisualEntity[] = [
 const review = (fields: Record<string, unknown> = {}) => JSON.stringify({ visibleIds: ['dragon', 'child-a'], identityById: { dragon: 0.98, 'child-a': 0.98 }, posing: false, primaryActionClear: true, sceneMatch: 0.95, styleMatch: 0.9, defects: [], ...fields });
 
 describe('series image review after the production PDF', () => {
+  test('a checked loose still stays visible, but an explicit material contradiction never does', () => {
+    const fields = { primaryActionClear: false, sceneMatch: 0.6, storyConsistent: false, materialContradiction: false,
+      defects: [{ kind: 'story', detail: 'The sign is held rather than visibly sliding.', fix: 'Tilt the sign.', blocksAction: false }] };
+    const loose = readSeriesQa(review(fields), cast);
+    expect(seriesPicturePasses(loose)).toBe(false);
+    expect(seriesPictureUsable(loose)).toBe(true);
+    expect(seriesPictureLastResort(loose)).toBe(true);
+    const contradiction = readSeriesQa(review({ ...fields, materialContradiction: true, sceneMatch: 0.95, primaryActionClear: true, storyConsistent: true }), cast);
+    expect(seriesPicturePasses(contradiction, true)).toBe(false);
+    expect(seriesPictureUsable(contradiction)).toBe(false);
+    expect(seriesPictureLastResort(contradiction, true)).toBe(false);
+    for (const kind of ['anatomy', 'identity', 'safety', 'unexpected', 'text']) {
+      const broken = readSeriesQa(review({ ...fields, defects: [{ kind, detail: 'Concrete visible defect.', fix: 'Repair the visible defect.' }] }), cast);
+      expect(seriesPictureUsable(broken)).toBe(false);
+      expect(seriesPictureLastResort(broken)).toBe(false);
+    }
+    expect(readSeriesQa(review({ materialContradiction: 'false' }), cast)).toBeUndefined();
+  });
+  test('unexplained style scores do not drop a sound image; a visible style fault still blocks', () => {
+    expect(seriesPicturePasses(readSeriesQa(review({ styleMatch: 0.74 }), cast))).toBe(true);
+    expect(seriesPicturePasses(readSeriesQa(review({ styleMatch: 0.74, defects: [{ kind: 'style', detail: 'Photorealistic rendering.', fix: 'Use hand-drawn illustration.' }] }), cast))).toBe(false);
+    expect(seriesPictureLastResort(readSeriesQa(review({ styleMatch: 0.5 }), cast))).toBe(false);
+  });
   test('correct identities in a passive lineup still do not illustrate the physical event', () => {
     expect(seriesPicturePasses(readSeriesQa(review({ posing: true }), cast))).toBe(false);
     expect(readSeriesQa(review({ posing: undefined }), cast)).toBeUndefined();

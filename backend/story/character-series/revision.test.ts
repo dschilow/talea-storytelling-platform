@@ -23,10 +23,10 @@ const text = `FIGUR: Funkelflug | pool | ${bible.characterId} | companion\nTITEL
 const response = (value: string) => ({ text: value, modelUsed: 'test', usage: { prompt: 1, completion: 1, total: 2, costUSD: 0 }, durationMs: 0 });
 
 describe('Figurenserien revision 2', () => {
-  test('Sol writes, Haiku reviews the text and plans the pictures, Gemini reviews them with Terra as fallback', () => {
+  test('Sol writes, Haiku reviews the text and plans the pictures, Gemini reviews them with the bounded Flash-Lite fallback', () => {
     expect(SERIES_MODELS).toEqual({ writer: 'openai/gpt-6.1-sol', support: 'anthropic/claude-haiku-5.5', critic: 'anthropic/claude-haiku-5.5' });
     expect(SERIES_IMAGE_REVIEW_MODEL).toBe('google/gemini-3.8-flash');
-    expect(SERIES_IMAGE_REVIEW_FALLBACK_MODEL).toBe('openai/gpt-6.1-terra');
+    expect(SERIES_IMAGE_REVIEW_FALLBACK_MODEL).toBe('google/gemini-3.5-flash-lite');
   });
   test('every catalogue world has its own arrival, encounter, motor and four developed arcs', () => {
     for (const b of bibles) {
@@ -460,7 +460,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
         return imageReview(r.stage, [1, 2, 5, 6].includes(page) && attempt < 3 ? { primaryActionClear: false, sceneMatch: 0.4 } : {});
       },
     });
-    expect(result.regenerated).toEqual([1, 5, 2, 6, 0, 1, 5]);
+    expect(result.regenerated).toEqual([1, 5, 1, 5]);
     expect(planning).toHaveLength(1);
     expect(JSON.parse(planning[0]).map((item: any) => item.page)).toEqual([1, 5]);
     expect(result.pages.get(1)?.status).toBe('passed');
@@ -469,7 +469,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(result.pages.get(2)?.status).toBe('failed');
     expect(result.pages.get(6)?.status).toBe('failed');
     expect(result.cover?.status).toBe('failed');
-    expect(result.imageCalls).toBe(SERIES_POLICY.maxImageCalls);
+    expect(result.imageCalls).toBe(7 + SERIES_POLICY.imageRetries);
   });
   test('long stories keep one image for each of four chapters, with a shared repair allowance', async () => {
     const longPages = [...pages, { ...pages[0], order: 4 }];
@@ -563,10 +563,35 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(result.pages.get(1)?.history?.at(-1)?.kind).toBe('series-best-attempt');
     expect(result.imagesGenerated).toBe(4);
   });
-  test('a check that misses flex is repeated on the standard tier of the same model, then on the fallback reader', async () => {
+  test('primary outages do not exhaust seven pictures, and the circuit is isolated between families', async () => {
+    const readingPages = Array.from({ length: 6 }, (_, i) => ({ ...pages[i % 3], order: i + 1 }));
+    const raw = rawPlan(); raw.pages = readingPages.map((p, i) => ({ ...raw.pages[i % 3], page: p.order }));
+    const illustrations = validateSeriesShots(raw, readingPages, entities, 'lead');
+    const calls: string[] = [], otherCalls: string[] = [];
+    const base = { illustrations, entities, seed: 'concurrent-families', visionModel: 'primary', visionFallbackModel: 'cheap', pageTexts: {},
+      buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any), provider: async (r: any) => ({ url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }) };
+    const [result, other] = await Promise.all([
+      generateSeriesImages({ ...base, llm: seriesLlmBudget(async r => {
+        calls.push(r.stage);
+        expect(r.imageInputs).toHaveLength(2); // Scene + identities. No unrelated style image on every check.
+        if (r.model === 'primary') throw Object.assign(new Error('Empty'), { billed: { usage: { total: 0, costUSD: 0 } } });
+        expect(r.model).toBe('cheap');
+        return imageReview(r.stage, r.stage === 'series-image-qa-3-1-fallback' ? { defects: [{ kind: 'anatomy', detail: 'The child has a third hand.', fix: 'Show two hands.' }] } : {});
+      }) }),
+      generateSeriesImages({ ...base, llm: seriesLlmBudget(async r => { otherCalls.push(r.model); return imageReview(r.stage); }) }),
+    ]);
+    expect(result.imagesGenerated).toBe(7);
+    expect(result.imageCalls).toBe(8);
+    expect(calls).toHaveLength(15); // Seven free failures, seven reads, one checked anatomy repair.
+    expect(calls).toContain('series-image-qa-3-2-fallback');
+    expect(calls.some(stage => stage.endsWith('-retry') || stage.endsWith('-recovery'))).toBe(false);
+    expect(other.imagesGenerated).toBe(7);
+    expect(otherCalls).toEqual(Array(7).fill('primary'));
+  });
+  test('a failed primary goes directly to the fallback reader, without repeating the empty primary', async () => {
     const calls: Array<[string, string, string | undefined, number | undefined]> = [];
     const result = await generateSeriesImages({
-      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'vision-ladder', visionModel: 'gemini', visionFallbackModel: 'terra', pageTexts: {},
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'vision-ladder', visionModel: 'gemini', visionFallbackModel: 'flash-lite', pageTexts: {},
       buildReference: async () => ({ urls: [] } as any), provider: async r => ({ url: `https://example.test/${r.page}.webp` }),
       llm: async r => {
         calls.push([r.stage, r.model, r.serviceTier, r.timeoutMs]);
@@ -576,9 +601,9 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
       },
     });
     expect(calls).toContainEqual(['series-image-qa-2-1', 'gemini', 'flex', 20000]);
-    expect(calls).toContainEqual(['series-image-qa-2-1-retry', 'gemini', 'standard', 60000]);
-    expect(calls.some(([stage]) => stage === 'series-image-qa-2-1-fallback')).toBe(false);
-    expect(calls).toContainEqual(['series-image-qa-3-1-fallback', 'terra', 'standard', 60000]);
+    expect(calls).toContainEqual(['series-image-qa-2-1-fallback', 'flash-lite', 'standard', 60000]);
+    expect(calls.some(([stage]) => stage.endsWith('-retry'))).toBe(false);
+    expect(calls).toContainEqual(['series-image-qa-3-1-fallback', 'flash-lite', 'standard', 60000]);
     expect(result.pages.get(2)?.status).toBe('passed');
     expect(result.pages.get(3)?.status).toBe('passed');
     expect(result.imageCalls).toBe(4);

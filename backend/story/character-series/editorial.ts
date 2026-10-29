@@ -9,6 +9,27 @@ export interface SeriesEditorialIssue {
 
 export const SERIES_SPELLING_CONTRACT = 'Prioritise contradictory actions and missing prop handovers over proofreading. Use the two issues slots for actual continuity/logic findings. A character who explicitly lets go cannot still be holding the same object later without taking it again; a held tool changes owner through a shown handover. Return minor spelling typos separately in optional spelling:[{severity:"minor",kind:"spelling",quote:"exact source sentence",problem:"typo",change:"correction",edit:{before:"single misspelled word",after:"correct word"}}], at most three. Retain issues:[] when there are no logic findings. A local one-letter insertion/deletion, adjacent transposition or case correction can then be applied without another model call. Never classify a name, ownership change or content rewrite as spelling.';
 
+export const SERIES_LOCAL_EDIT_CONTRACT = 'For a MINOR continuity issue with a clear one- or two-sentence fix, also return kind:"continuity" and edit:{before:"exact unique source passage containing the quoted evidence",after:"same passage with only the small repair"}. Keep before 12–600 characters and after at most 900; preserve voice, names, objects and jokes. Never supply this edit for a major issue or an uncertain diagnosis. The edit will be checked against the source and the resulting full manuscript will be reviewed again.';
+
+/** All-or-nothing proposal; exact local evidence is necessary, and the engine MUST re-review the edited manuscript. */
+export function seriesLocalEdits(chapters: Array<{ text: string }>, issues: SeriesEditorialIssue[]): Array<{ chapter: number; before: string; after: string }> | undefined {
+  if (!issues.length || issues.length > 2) return undefined;
+  const edits: Array<{ chapter: number; before: string; after: string }> = [];
+  for (const issue of issues) {
+    const { before, after } = issue.edit || {};
+    if (issue.severity !== 'minor' || issue.kind !== 'continuity' || typeof before !== 'string' || typeof after !== 'string'
+      || before.length < 12 || before.length > 600 || !after.trim() || after.length > 900 || after.length > before.length + 350
+      || !issue.quote || !before.includes(issue.quote) || before === after) return undefined;
+    const matches = chapters.flatMap((c, index) => c.text.includes(before) && c.text.indexOf(before) === c.text.lastIndexOf(before) ? [index] : []);
+    // A duplicate in any chapter makes the proposal ambiguous, even when another chapter contains it once.
+    if (matches.length !== 1 || chapters.some(c => c.text.indexOf(before) !== c.text.lastIndexOf(before))) return undefined;
+    const chapter = matches[0] + 1;
+    if (edits.some(e => e.chapter === chapter && (e.before.includes(before) || before.includes(e.before)))) return undefined;
+    edits.push({ chapter, before, after });
+  }
+  return edits;
+}
+
 /** Only a single inserted/deleted letter, an adjacent transposition or case correction; no word substitutions. */
 function smallSpellingChange(before: string, after: string): boolean {
   const a = before.toLocaleLowerCase('de-DE'), b = after.toLocaleLowerCase('de-DE');

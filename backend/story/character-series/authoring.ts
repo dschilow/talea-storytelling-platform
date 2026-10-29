@@ -29,7 +29,7 @@ export const SERIES_MODELS = { writer: 'openai/gpt-6.1-sol', support: 'anthropic
  * one picture empty on every try, so a failed read goes once to Terra instead of losing the paid picture.
  */
 export const SERIES_IMAGE_REVIEW_MODEL = 'google/gemini-3.8-flash';
-export const SERIES_IMAGE_REVIEW_FALLBACK_MODEL = 'openai/gpt-6.1-terra';
+export const SERIES_IMAGE_REVIEW_FALLBACK_MODEL = 'google/gemini-3.5-flash-lite';
 export const SERIES_IMAGE_MODEL = FLUX3_KLEIN_MODEL;
 /**
  * Version 12 (abfc9b06, 9019823b, 23302f05): a malformed cover plan reuses a validated chapter motif; spelling is
@@ -46,7 +46,7 @@ export const SERIES_IMAGE_MODEL = FLUX3_KLEIN_MODEL;
  * took 211 s. Up to five repairs, spent on pictures with a hard fault or provider failure. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 12, picturesPerChapter: 2, imageRetries: 7, imageConcurrency: 7, maxImageCalls: 14, maxLlmCalls: 34, llmStopAfterUSD: 0.16, longLlmStopAfterUSD: 0.2, maxTextRepairs: 2 } as const;
+export const SERIES_POLICY = { version: 13, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);
@@ -147,7 +147,7 @@ export function seriesAuthoring(brief: StoryBrief) {
       // Bremsgriff in two chapters, a six-year-old cannot picture it, and the picture director drew its pawl and clamp 0 times in 3 tries.
       // A supervising mother then held, fitted and repaired things the children and Tilda should have done.
       '- Simple devices: a device in this episode has at most THREE named parts, in plain child words (the lever, the clamp, the wheel, the basket) and the technical nouns of the plan (Sperrklinke, Raste, Schelle, Gestänge, Feststellhebel) are translated into them. Each part is touched or moved on stage before it matters, and the point of every scene is what the PEOPLE do and what visibly happens to them, never how the mechanism works inside. Any adult who happens to be there (a parent, a neighbour) only watches, waves or says one line: the children and the lead do ALL carrying, fitting, fixing and deciding, and the adult never solves the problem.\n' +
-      '- Clear geometry: before a slapstick beat, one short clause shows where each person stands or faces relative to the prop and which way it moves, so a child can picture it and an illustrator can draw it in one still; nobody is pulled "backwards" unless the reader knows which way they were facing. Every joke must land for a six-year-old from the situation alone, without adult inference.',
+      '- Clear geometry: before a slapstick beat, one short clause shows where each person stands or faces relative to the prop and which way it moves, so a child can picture it and an illustrator can draw it in one still; nobody is pulled "backwards" unless the reader knows which way they were facing. Keep a device at one physical scale: a full-size loaded cart does not become a tabletop toy. A held brake must be released before rolling; distinguish a slowing brake from a fully locked brake through the visible result, without a technical lecture. Plant the final mystery object in an earlier noticed detail. Every joke must land for a six-year-old from the situation alone, without adult inference.',
     `READ-ALOUD VOICE, DIALOGUE & SOUND WORDS: Short, vivid sentences (4–12 words, average ~7), 2–4 sentences per paragraph for smooth read-aloud flow; single-sentence paragraphs reserved for expressive sound words (RUMMS!, PLATSCH!, KNACK!, SCHWUPP!), punchlines or suspense turns. Write brisk, funny dialogue (~40% of the text) where characters interrupt, boast or counter dryly, plus at least one quotable "schoolyard line" a child will repeat tomorrow. The narrator trusts children to understand the scene: never explain a joke, repeat a moral, use identical reassuring smiles, forced slogans, verse unless requested, or administrative safety lectures.${learningGoal(brief.config) ? ' When LEARNING MODE is active, a character explaining the real-world knowledge fact in children\'s words is wanted and is not a moral lecture.' : ''} World rules constrain events silently.`,
     'Use the supplied series rules, not a newly invented wonder. The genre colours this world, never changes its physics. At most one supplied recurring companion plus briefly unnamed locals; no interchangeable random pool character or new mascot with a familiar Talea name. Their English looks remain fixed.',
     CHILD_SAFETY_RULES_EN,

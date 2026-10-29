@@ -12,7 +12,7 @@ import { ORIGINALS_IMAGE_STYLE, SCENE_SIZE } from '../library/images';
 import { SERIES_POLICY } from './authoring';
 import { effectiveSeriesEpisode, logsForEpisode } from './core';
 import { getSeriesEpisodeBlueprint } from './episode-plans';
-import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW, type SeriesQa } from './quality';
+import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW_COMPACT, type SeriesQa } from './quality';
 import type { RunwareReferenceRegion } from '../../ai/runware-image-model-options';
 export { seriesPicturePasses, seriesPictureUsable } from './quality';
 
@@ -241,6 +241,7 @@ export async function directSeriesPictures(input: { llm: StorybookLlm; model: st
       // Haiku planned two pictures per chapter instead of one per page in all three runs on 2026-10-29 ([1,1,2,2,3,3,4,5]).
       `Direct hilarious, action-packed children's book landscape illustrations in the spirit of Talea Originals („Bruno, der Flunkerfisch“, „Die Monster-Müllabfuhr“): exactly ONE picture per PAGE plus a distinct cover. A PAGE is already a reading segment of a chapter (a chapter has up to ${perChapter} PAGES), so "pages" holds exactly ${pages.length} entries with page = ${pages.map(p => p.order).join(', ')}, each number once and in this order — never two pictures for one PAGE. Its paragraphs are numbered locally p1, p2, … 1 to 3 visible referenced characters per image. English complete captions, 70–110 words.`,
       'CAST COVERAGE (see the task): the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture, in the part of its own contribution; every recurring guest of the episode in at least one page picture, where the guest does the most. The cover shows the lead WITH the avatars (all of them when lead and avatars are at most three, otherwise those with the biggest part): the family wants to find its children on the cover.',
+      'CHRONOLOGY BEFORE COVERAGE: every onStage person must already be physically present in that exact source moment. Never put a child inside a workshop while the child is still arriving outside. For page 1, select a later encounter beat after the arrival when needed; do not add a spectator to an earlier solo action just to meet coverage. Copy each recurring large prop’s established material, size, wheels and shape consistently across captions. Show ONE visible state: a sign held or tilted after slipping is drawable; a still must not prove its rolling trajectory or exact elbow contact.',
       "PRIORITISE SLAPSTICK & VISUAL COMEDY OVER CHORES: for each PAGE pick its funniest, most dramatic physical mishap, slapstick turn or visual punchline (use the PLANNED HIGHLIGHTS / LACHER when they happen in that page's paragraphs!): something springing loose, tipping over, splashing, landing on someone's hat, tangling, a runaway cart or cloth, or an absurd visual contrast. NEVER pick a mundane transport or tidy work beat (merely carrying a roll, holding a frame still, standing by a table, or tying a routine knot) when the page contains a funnier physical mishap. The two pictures of a chapter show two different beats with different framing. Show what a six-year-old would laugh at and point to, caught mid-motion. A physical action and its consequence must exist in the source; never invent unsupported props or magic.",
       // Measured on 70 first attempts of the pilots (2026-10-29): 2 figures passed the picture check first time in 48 %, 3 figures in 31 %;
       // wide framing 26 %, medium 47 %; a result that hides a body part ("only knees and face stick out") 1 of 5; and pictures with two
@@ -313,8 +314,9 @@ export async function generateSeriesImages(input: {
   if (shots.length > maxShots) throw new Error(`Die Figurenserie zeichnet höchstens ${maxShots} geplante Bilder.`);
   const buildReference = input.buildReference || createIdentityReferenceCache();
   const byId = new Map(input.entities.map(e => [e.id, e]));
-  const style = input.styleReferenceUrl || SERIES_STYLE_REFERENCE;
   let imageCalls = 0, imageCostUSD = 0;
+  // Per episode, never process-global: one family's provider outage cannot change another family's route.
+  let primaryReadFailures = 0;
   const editableImages = new Map<number, string>();
   // Every reviewed attempt per page: after the last redraw a page keeps its best one rather than staying empty.
   const reviewed = new Map<number, ImageOutcome[]>();
@@ -394,7 +396,7 @@ export async function generateSeriesImages(input: {
         history.push({ kind: 'series-provider', status: 'missing', severity: 999, notes: [reason] });
         return { page: shot.page, prompt, attempts: number, costUSD, severity: 999, status: 'missing', errors: [reason], history };
       }
-      const reviewUser = `${shot.page === 0 ? 'COVER: judge the selected character-in-world composition. No chapter action is compulsory.' : 'CHAPTER PICTURE: judge this selected moment, allowing harmless staging differences.'}\nEXPECTED IDENTITIES:\n${drawn.map(e => `${e.id}: ${e.name}; ${e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\nPROPOSED CAPTION:\n${moment.scene}\nPRIMARY STORY FACT: ${moment.fact}\n${shot.page === 0 ? '' : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph, (shot as SeriesShot).storyQuote)}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name})`).join('; ')}.` : 'No identity sheet is attached.'} The last attachment is the public style example.`;
+      const reviewUser = `${shot.page === 0 ? 'COVER: judge the selected character-in-world composition. No chapter action is compulsory.' : 'CHAPTER PICTURE: judge this selected moment, allowing harmless staging differences.'}\nEXPECTED IDENTITIES:\n${drawn.map(e => `${e.id}: ${e.name}; ${e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\nPROPOSED CAPTION:\n${moment.scene}\nPRIMARY STORY FACT: ${moment.fact}\n${shot.page === 0 ? '' : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph, (shot as SeriesShot).storyQuote)}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name})`).join('; ')}.` : 'No identity sheet is attached.'}`;
       // Story 289c11a4: five flex checks hung for 120 s each (the story took 558 s) and went to Terra at 3.4x the price.
       // Flex gets 40 s; a check that misses it is repeated on the standard tier of the SAME model (0.2 ct more, seconds),
       // and only an empty or unreadable answer goes to the fallback reader.
@@ -402,7 +404,7 @@ export async function generateSeriesImages(input: {
         try {
           // Gemini thinks at effort low before its JSON; 1,000 tokens left it cut short.
           const reply = await input.llm({ stage, role: 'support', model, effort: 'low', json: true, maxTokens: 4000, timeoutMs: tier === 'flex' ? 20000 : 60000, serviceTier: tier,
-            system: SERIES_IMAGE_REVIEW, user: reviewUser, imageInputs: [response.viewUrl || response.url!, ...references, style] });
+            system: SERIES_IMAGE_REVIEW_COMPACT, user: reviewUser, imageInputs: [response.viewUrl || response.url!, ...references] });
           qaCalls.push(reply);
           return readSeriesQa(reply.text, drawn);
         } catch { return undefined; }
@@ -418,14 +420,21 @@ export async function generateSeriesImages(input: {
         reviewed.set(shot.page, [...(reviewed.get(shot.page) || []), outcome]);
         return outcome;
       };
-      let qa = await review(`series-image-qa-${shot.page}-${number}`);
-      if (!qa && canReview()) qa = await review(`series-image-qa-${shot.page}-${number}-retry`, input.visionModel, 'standard');
-      if (!qa && canReview() && input.visionFallbackModel && input.visionFallbackModel !== input.visionModel) qa = await review(`series-image-qa-${shot.page}-${number}-fallback`, input.visionFallbackModel, 'standard');
+      const fallback = input.visionFallbackModel && input.visionFallbackModel !== input.visionModel ? input.visionFallbackModel : undefined;
+      const bypassPrimary = primaryReadFailures >= 2 && Boolean(fallback);
+      let qa = bypassPrimary
+        ? await review(`series-image-qa-${shot.page}-${number}-fallback`, fallback!, 'standard')
+        : await review(`series-image-qa-${shot.page}-${number}`);
+      if (!qa && !bypassPrimary) primaryReadFailures++;
+      // 10d99c0f paid eight Terra readers after 17 empty Gemini calls, then lost two drawn pictures to the call cap.
+      // At most two immediate reads; no repeated empty primary before the cheaper, independent endpoint.
+      if (!qa && canReview()) qa = await review(`series-image-qa-${shot.page}-${number}-${bypassPrimary || !fallback ? 'retry' : 'fallback'}`,
+        bypassPrimary || !fallback ? input.visionModel : fallback, 'standard');
       if (qa) return verdict(qa);
       history.push({ kind: 'series-vision', status: 'failed', severity: 999, notes: ['Bildprüfung nicht verfügbar oder unlesbar; das erzeugte Bild bleibt für eine erneute Prüfung erhalten.'], url: response.url });
       const unverified: ImageOutcome = { page: shot.page, url: response.url, prompt, attempts: number, costUSD, severity: 999, status: 'failed', errors: ['series_vision_error'], history };
       visionRecoveries.set(shot.page, async () => {
-        const recovered = await review(`series-image-qa-${shot.page}-${number}-recovery`, input.visionModel, 'standard');
+        const recovered = await review(`series-image-qa-${shot.page}-${number}-recovery`, fallback || input.visionModel, 'standard');
         return recovered ? verdict(recovered) : unverified;
       });
       return unverified;

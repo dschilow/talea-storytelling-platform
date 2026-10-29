@@ -20,6 +20,45 @@ const reply = (text: string) => ({ text, modelUsed: 'test', usage: { prompt: 1, 
 const prose = `FIGUR: Funkelflug | pool | ${bible.characterId} | companion\nTITEL: Der Glockenhof\nBESCHREIBUNG: Ein Abenteuer am Berg.\nIDEE: Gemeinsam die Glocke erreichen.\nREGEL: Funkelflug fliegt nicht.\nFUNDSTÜCK: kein\nKAPITEL 1: Der Hof\nFunkelflug stellte den Becher ab. Nora nahm ihn vom Tisch.\n\nAlexander zeigte auf das geschlossene Hofenster.\nKAPITEL 2: Der Weg\nNora trug den Becher zur Glocke. Funkelflug zog am Seil.\n\nDer Weg war wieder offen, und beide gingen zusammen weiter.`;
 
 describe('production failures and avoidable series cost, abfc9b06', () => {
+  test('minor source-grounded editorial proposals skip Sol but always recheck the complete manuscript', async () => {
+    const stages: string[] = [], quote = 'Nora nahm ihn vom Tisch.';
+    const after = 'Nora griff nach dem Becher und nahm ihn vom Tisch.';
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), models: SERIES_MODELS, ledger: new CostLedger(), llm: async r => {
+      stages.push(r.stage);
+      if (r.stage === 'series-author') return reply(prose);
+      if (r.stage === 'series-editorial-review') return reply(JSON.stringify({ issues: [{ severity: 'minor', kind: 'continuity', quote, problem: 'Der Griff fehlt.', change: 'Den Griff zeigen.', edit: { before: quote, after } }] }));
+      expect(r.stage).toBe('series-editorial-recheck');
+      expect(r.user).toContain(after);
+      expect(r.user).toContain('Nora trug den Becher zur Glocke.');
+      return reply('{"issues":[]}');
+    } });
+    expect(stages).toEqual(['series-author', 'series-editorial-review', 'series-editorial-recheck']);
+    expect(result.pages[0].content).toContain(after);
+  });
+
+  test('an unsafe editorial proposal is rolled back before the independent writer repairs the original', async () => {
+    const quote = 'Nora nahm ihn vom Tisch.', unsafe = 'Nora flog ohne Flügel über den Hof.';
+    let writer = false;
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), models: SERIES_MODELS, ledger: new CostLedger(), llm: async r => {
+      if (r.stage === 'series-author') return reply(prose);
+      if (r.stage === 'series-editorial-review') return reply(JSON.stringify({ issues: [{ severity: 'minor', kind: 'continuity', quote, problem: 'Der Griff fehlt.', change: 'Den Griff zeigen.', edit: { before: quote, after: unsafe } }] }));
+      if (r.stage === 'series-editorial-recheck') return reply(JSON.stringify({ issues: [{ severity: 'major', quote: unsafe, problem: 'Weltregel verletzt.', change: 'Nora bleibt am Boden.' }] }));
+      if (r.stage === 'series-local-repair-2') { writer = true; expect(r.user).not.toContain(unsafe); expect(r.user).toContain(quote); return reply(JSON.stringify({ edits: [{ chapter: 1, before: quote, after: 'Nora griff nach dem Becher und nahm ihn vom Tisch.' }] })); }
+      return reply('{"issues":[]}');
+    } });
+    expect(writer).toBe(true);
+    expect(result.pages[0].content).not.toContain(unsafe);
+  });
+
+  test('minor repair outages preserve the last reviewed manuscript', async () => {
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), models: SERIES_MODELS, ledger: new CostLedger(), llm: async r => {
+      if (r.stage === 'series-author') return reply(prose);
+      if (r.stage === 'series-editorial-review') return reply(JSON.stringify({ issues: [{ severity: 'minor', quote: 'Nora nahm ihn vom Tisch.', problem: 'Der Griff fehlt.', change: 'Den Griff zeigen.' }] }));
+      throw new Error('Provider offline');
+    } });
+    expect(result.pages[0].content).toContain('Nora nahm ihn vom Tisch.');
+    expect(result.textQuality?.issues).toContain('Der Griff fehlt.');
+  });
   test('a cited spelling correction finishes with author plus reviewer, without Sol repair and another whole-story check', async () => {
     const stages: string[] = [];
     const result = await runCharacterSeriesTextEngine({ brief: brief(), models: SERIES_MODELS, ledger: new CostLedger(), llm: async r => {

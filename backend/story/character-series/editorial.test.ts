@@ -1,9 +1,25 @@
 // @ts-ignore Bun test helpers are runtime-only in Encore.
 import { describe, expect, test } from 'bun:test';
-import { applySeriesSpellingCorrections, type SeriesEditorialIssue } from './editorial';
+import { applySeriesSpellingCorrections, seriesLocalEdits, type SeriesEditorialIssue } from './editorial';
 
 const typo = (before = 'Hofenster', after = 'Hoffenster'): SeriesEditorialIssue => ({ severity: 'minor', kind: 'spelling',
   quote: `Alexander zeigte auf das geschlossene ${before}.`, problem: 'Tippfehler', change: 'Schreibweise korrigieren.', edit: { before, after } });
+
+describe('reviewer-proposed local continuity edits', () => {
+  const before = 'Tilda pustete den Zipfel fort.';
+  const issue: SeriesEditorialIssue = { severity: 'minor', kind: 'continuity', quote: before, problem: 'Der Zipfel taucht später wieder auf.', change: 'An der Schürze behalten.', edit: { before, after: 'Tilda löste den Zipfel und drückte ihn an ihre Schürze.' } };
+  test('only a unique, short, evidenced correction is eligible for full re-review', () => {
+    expect(seriesLocalEdits([{ text: before }, { text: 'Sie kehrten zurück.' }], [issue])).toEqual([{ chapter: 1, ...issue.edit }]);
+    for (const invalid of [{ ...issue, severity: 'major' }, { ...issue, quote: 'Nicht im Text.' }, { ...issue, kind: 'spelling' },
+      { ...issue, edit: { before, after: 'x'.repeat(901) } }, { ...issue, edit: { before, after: before } }]) {
+      expect(seriesLocalEdits([{ text: before }], [invalid as SeriesEditorialIssue])).toBeUndefined();
+    }
+    expect(seriesLocalEdits([{ text: before }, { text: before }], [issue])).toBeUndefined();
+    expect(seriesLocalEdits([{ text: before + before }, { text: before }], [issue])).toBeUndefined();
+    expect(seriesLocalEdits([{ text: before }], [issue, issue])).toBeUndefined();
+    expect(seriesLocalEdits([{ text: before }], [issue, { ...issue, edit: undefined }])).toBeUndefined();
+  });
+});
 
 describe('bounded spelling corrections', () => {
   test('the exact production typo changes locally without rewriting the sentence or the next chapter', () => {
