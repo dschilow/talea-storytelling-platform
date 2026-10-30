@@ -3,14 +3,14 @@
  *
  * `navigator.onLine` only reports whether a network interface is up, so a
  * captive portal, a plane's wifi or a dead uplink all read as "online" and the
- * app would keep trying to reach a backend that is not there. Every connectivity
- * decision (offline app shell, offline audio resolution) therefore goes through
- * this module, which verifies reachability with a real request.
+ * app would keep trying to reach a backend that is not there. Connectivity
+ * decisions therefore use real requests to both the frontend and the backend.
  */
+
+import { getBackendUrl } from '../config';
 
 export type ConnectivityStatus = 'online' | 'offline' | 'checking';
 
-const PROBE_URL = '/config.js';
 const PROBE_TIMEOUT_MS = 4000;
 // Re-probing on every listener call would hammer the network; a short floor
 // keeps repeated checks cheap while staying responsive to real changes.
@@ -35,27 +35,37 @@ function setStatus(next: ConnectivityStatus): void {
 }
 
 /**
- * Verifies real reachability. A HEAD request is used on purpose: the service
- * worker only ever caches GET, so this can never be answered from cache and
- * report a stale "online".
+ * Either server responding proves that the network is reachable, even if that
+ * server returned an HTTP error. The frontend HEAD bypasses the service worker
+ * cache; the backend version endpoint is never cached by the worker. Checking
+ * both prevents a failed frontend request from hiding a working backend (also
+ * relevant to Android, whose frontend is packaged locally).
  */
+export async function probeConnectivity(backendUrl: string, request: typeof fetch = fetch): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+  const probe = (url: string, method: 'HEAD' | 'GET') =>
+    request(url, { method, cache: 'no-store', signal: controller.signal });
+  try {
+    await Promise.any([
+      probe('/config.js', 'HEAD'),
+      probe(`${backendUrl}/health/version`, 'GET'),
+    ]);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+    controller.abort();
+  }
+}
+
 export async function checkRealConnectivity(): Promise<boolean> {
   if (inFlightProbe) return inFlightProbe;
 
   inFlightProbe = (async () => {
     try {
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
-      try {
-        const response = await fetch(PROBE_URL, {
-          method: 'HEAD',
-          cache: 'no-store',
-          signal: controller.signal,
-        });
-        return response.ok;
-      } finally {
-        window.clearTimeout(timeout);
-      }
+      return await probeConnectivity(getBackendUrl());
     } catch {
       return false;
     } finally {
@@ -69,8 +79,10 @@ export async function checkRealConnectivity(): Promise<boolean> {
 
 async function probeAndPublish(): Promise<boolean> {
   const reachable = await checkRealConnectivity();
-  setStatus(reachable ? 'online' : 'offline');
-  return reachable;
+  // A response that arrives after the browser's offline event must not undo it.
+  const online = reachable && (typeof navigator === 'undefined' || navigator.onLine);
+  setStatus(online ? 'online' : 'offline');
+  return online;
 }
 
 /**
