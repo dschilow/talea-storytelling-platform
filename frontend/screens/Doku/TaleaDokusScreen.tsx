@@ -5,7 +5,6 @@ import {
   BookmarkCheck,
   BookOpen,
   ChevronDown,
-  Filter,
   Grid3X3,
   Headphones,
   ListPlus,
@@ -14,6 +13,7 @@ import {
   Lock,
   Mic,
   Pencil,
+  PanelsTopLeft,
   Play,
   Plus,
   Search,
@@ -28,6 +28,8 @@ import type { TFunction } from 'i18next';
 
 import { DokuCard } from '../../components/cards/DokuCard';
 import { DokuLibraryItem, type DokuViewMode } from '../../components/cards/DokuLibraryItem';
+import { DokuLibraryShelves } from './DokuLibraryShelves';
+import { LibraryHero } from '../Story/library/StoryLibraryParts';
 import type { TaleaCardMenuAction } from '@/components/talea/TaleaCardMenu';
 import { IconTabs, iconTabId, type IconTabItem } from '@/components/navigation/IconTabs';
 import { useBackend } from '../../hooks/useBackend';
@@ -39,7 +41,6 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { useOffline } from '../../contexts/OfflineStorageContext';
 import { useOptionalChildProfiles } from '@/contexts/ChildProfilesContext';
-import ProgressiveImage from '@/components/common/ProgressiveImage';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 import { cn } from '@/lib/utils';
@@ -107,6 +108,16 @@ function formatTopicLabel(topic: string, unknownFallback = 'Unbekannt'): string 
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function dokuShelfLabel(doku: Doku): string {
+  const labels = { nature: 'Natur & Tiere', science: 'Forschung & Wissenschaft', history: 'Reisen in die Vergangenheit', technology: 'Technik & Erfindungen', culture: 'Kunst & Kultur' };
+  const perspective = doku.metadata?.configSnapshot?.perspective;
+  return perspective ? labels[perspective] : 'Wissen für Neugierige';
+}
+
+function audioShelfLabel(doku: AudioDoku): string {
+  return formatTopicLabel(doku.category || '', 'Wissen zum Zuhören');
 }
 
 function getPalette(_isDark: boolean): Palette {
@@ -371,7 +382,7 @@ const TaleaDokusScreen: React.FC = () => {
   const [audioUpgradeMessage, setAudioUpgradeMessage] = useState<string | null>(null);
   const openedNotificationEpisode = useRef<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('tags') ?? '');
-  const [viewMode, setViewMode] = useState<DokuViewMode>('grid');
+  const [viewMode, setViewMode] = useState<DokuViewMode>('shelf');
   const [activeTab, setActiveTab] = useState<DokuTab>(
     searchParams.get('mode') === 'audio' ? 'audio' : 'mine'
   );
@@ -660,7 +671,7 @@ const TaleaDokusScreen: React.FC = () => {
 
   const handlePlayAllAudioDokus = () => {
     const items = filteredAudioDokus
-      .filter((d) => d.audioUrl)
+      .filter((d) => !d.locked && d.audioUrl)
       .map((d) => ({
         id: `audiodoku-${d.id}`,
         trackId: d.id,
@@ -794,12 +805,38 @@ const TaleaDokusScreen: React.FC = () => {
       (activeTab === 'discover' && loadingPublic) ||
       (activeTab === 'audio' && loadingAudio));
 
-  const hasActiveFilters =
-    topicFilter !== 'all' ||
-    ageGroupFilter !== 'all' ||
-    depthFilter !== 'all' ||
-    audioScopeFilter !== 'all' ||
-    sortMode !== 'newest';
+  const hasActiveFilters = query.length > 0 || sortMode !== 'newest' || (activeTab === 'audio'
+    ? audioScopeFilter !== 'all'
+    : topicFilter !== 'all' || ageGroupFilter !== 'all' || depthFilter !== 'all');
+  const showShelves = viewMode === 'shelf' && !hasActiveFilters;
+  const resetFilters = () => {
+    setSearchQuery('');
+    setSortMode('newest');
+    setTopicFilter('all');
+    setAgeGroupFilter('all');
+    setDepthFilter('all');
+    setAudioScopeFilter('all');
+  };
+  const collectionView = viewMode === 'list' ? 'list' : 'grid';
+  const textDokus = activeTab === 'discover' ? filteredPublicDokus : filteredMyDokus;
+  const featuredDoku = textDokus.find((doku) => doku.status === 'complete' && doku.coverImageUrl)
+    ?? textDokus.find((doku) => doku.status === 'complete');
+  const featuredAudio = filteredAudioDokus.find((doku) => !doku.locked && doku.coverImageUrl)
+    ?? filteredAudioDokus.find((doku) => !doku.locked) ?? filteredAudioDokus[0];
+
+  const renderDoku = (doku: Doku, index: number, mode: DokuViewMode) => (
+    <DokuCard key={doku.id} doku={doku} viewMode={mode} imageLoading={index < 4 ? 'eager' : 'lazy'}
+      onRead={(item) => navigate(`/doku-reader/${item.id}`)}
+      onDelete={activeTab === 'mine' ? handleDeleteDoku : undefined}
+      onTogglePublic={activeTab === 'mine' ? handleTogglePublic : undefined} />
+  );
+  const renderAudio = (doku: AudioDoku, index: number, mode: DokuViewMode) => (
+    <AudioDokuCard key={doku.id} doku={doku} index={index} viewMode={mode}
+      onPlay={() => doku.locked ? handlePlayAudio(doku) : setAudioModal(doku)} onAddToQueue={() => handleAddAudioToQueue(doku)}
+      isAdmin={isAdmin} onEdit={() => handleEditAudioDoku(doku)} onDelete={() => handleDeleteAudioDoku(doku)}
+      canSaveOffline={canUseOffline} isSavedOffline={isAudioDokuSaved(doku.id)} isSavingOffline={isSaving(doku.id)}
+      onToggleOffline={() => toggleAudioDoku(doku)} />
+  );
 
   const countLabel = (loading: boolean, count: number) => (loading ? '…' : count);
   const dokuTabs: IconTabItem<DokuTab>[] = [
@@ -814,7 +851,7 @@ const TaleaDokusScreen: React.FC = () => {
 
 
   return (
-    <div className="relative min-h-screen pb-28" style={{ color: palette.text, fontFamily: bodyFont }}>
+    <div className="relative min-h-screen overflow-x-hidden pb-28" style={{ color: palette.text, fontFamily: bodyFont }}>
       <DokuBackground isDark={isDark} />
 
       <UpgradePlanModal
@@ -841,7 +878,7 @@ const TaleaDokusScreen: React.FC = () => {
         <div className={cn(taleaPageShellClass, 'relative z-10 space-y-5 pt-2 sm:space-y-6 sm:pt-4')}>
           {/* Header: large title + count line, like an iOS large-title screen */}
           <motion.header
-            initial={{ opacity: 0, y: -8 }}
+            initial={reduceMotion ? false : { opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
             className="px-1"
@@ -877,8 +914,10 @@ const TaleaDokusScreen: React.FC = () => {
               </div>
             </div>
             <p className="mt-1 text-[15px]" style={{ color: palette.muted }}>
-              {totalMy} {totalMy === 1 ? 'Doku' : 'Dokus'}
-              {remainingDokuLabel !== null ? <> · {remainingDokuLabel} übrig in diesem Monat</> : null}
+              {activeTab === 'audio' ? 'Deine Hörwelt: Wissen und neue Entdeckungen für die Ohren.' : activeTab === 'discover' ? 'Wissensabenteuer aus der Talea-Community entdecken.' : <>
+                {totalMy} {totalMy === 1 ? 'Doku' : 'Dokus'}
+                {remainingDokuLabel !== null ? <> · {remainingDokuLabel} übrig in diesem Monat</> : null}
+              </>}
             </p>
 
             <IconTabs
@@ -892,15 +931,32 @@ const TaleaDokusScreen: React.FC = () => {
             />
           </motion.header>
 
+          <div id={`doku-panel-${activeTab}`} role="tabpanel" aria-labelledby={iconTabId('doku', activeTab)} className="min-w-0 space-y-6 sm:space-y-8">
+          {showShelves && !isInitialLoading && (activeTab === 'audio' ? featuredAudio && !audioAccessMessage ? (
+            <LibraryHero key={featuredAudio.id} ariaLabel="Audio-Doku entdecken" imageUrl={featuredAudio.coverImageUrl}
+              eyebrow={`Deine Hörwelt · ${audioShelfLabel(featuredAudio)}`} title={featuredAudio.title}
+              text={featuredAudio.description} meta={featuredAudio.ageGroup ? `Für ${featuredAudio.ageGroup} Jahre · Audio-Doku` : 'Audio-Doku'}
+              primary={{ label: featuredAudio.locked ? 'Mit Abo anhören' : 'Jetzt anhören', icon: <Play className="h-5 w-5 fill-current" />, onClick: () => handlePlayAudio(featuredAudio) }}
+              secondary={{ label: 'Mehr erfahren', icon: <Headphones className="h-5 w-5" />, onClick: () => setAudioModal(featuredAudio) }} />
+          ) : null : featuredDoku && (activeTab !== 'discover' || !publicAccessMessage) ? (
+            <LibraryHero key={featuredDoku.id} ariaLabel="Doku entdecken" imageUrl={featuredDoku.coverImageUrl}
+              eyebrow={`${activeTab === 'mine' ? 'Deine Wissenswelt' : 'Zum Entdecken'} · ${dokuShelfLabel(featuredDoku)}`}
+              title={featuredDoku.title} text={featuredDoku.summary || featuredDoku.topic}
+              meta={featuredDoku.metadata?.configSnapshot?.ageGroup ? `Für ${featuredDoku.metadata.configSnapshot.ageGroup} Jahre · Doku` : 'Lesen, staunen und Neues entdecken'}
+              primary={{ label: 'Jetzt entdecken', icon: <BookOpen className="h-5 w-5" />, onClick: () => navigate(`/doku-reader/${featuredDoku.id}`) }}
+              secondary={activeTab === 'mine' ? { label: 'Neue Doku', icon: <Plus className="h-5 w-5" />, onClick: () => navigate('/doku/create') } : undefined} />
+          ) : null)}
+
           {/* Search, then sort + filter as compact pills */}
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
             className="space-y-2.5"
           >
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-              <label className="relative min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <label className="relative min-w-[10rem] flex-1">
+                <span className="sr-only">{activeTab === 'audio' ? 'Audio-Dokus durchsuchen' : 'Dokus durchsuchen'}</span>
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-tertiary)]" />
                 <input
                   type="search"
@@ -925,12 +981,13 @@ const TaleaDokusScreen: React.FC = () => {
                 )}
               </label>
 
-              <div role="radiogroup" aria-label="Ansicht" className="flex shrink-0 self-start rounded-[0.7rem] bg-[var(--talea-surface-inset)] p-0.5">
+              <div role="group" aria-label="Ansicht" className="flex shrink-0 rounded-[0.7rem] bg-[var(--talea-surface-inset)] p-0.5">
                 {([
+                  { id: 'shelf', label: 'Entdeckungsansicht', icon: <PanelsTopLeft className="h-4 w-4" /> },
                   { id: 'grid', label: 'Rasteransicht', icon: <Grid3X3 className="h-4 w-4" /> },
                   { id: 'list', label: 'Listenansicht', icon: <LayoutList className="h-4 w-4" /> },
                 ] as Array<{ id: DokuViewMode; label: string; icon: React.ReactNode }>).map((mode) => (
-                  <button key={mode.id} type="button" role="radio" aria-checked={viewMode === mode.id} aria-label={mode.label} onClick={() => setViewMode(mode.id)} className={cn('inline-flex h-11 w-11 items-center justify-center rounded-[0.55rem] transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]', viewMode === mode.id ? 'bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)] shadow-[var(--talea-shadow-soft)]' : 'text-[var(--talea-text-tertiary)]')}>
+                  <button key={mode.id} type="button" aria-pressed={viewMode === mode.id} aria-label={mode.label} title={mode.label} onClick={() => setViewMode(mode.id)} className={cn('inline-flex h-11 w-11 items-center justify-center rounded-[0.55rem] transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]', viewMode === mode.id ? 'bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)] shadow-[var(--talea-shadow-soft)]' : 'text-[var(--talea-text-tertiary)]')}>
                     {mode.icon}
                   </button>
                 ))}
@@ -966,17 +1023,17 @@ const TaleaDokusScreen: React.FC = () => {
                   Filter
                 </button>
 
+                {activeTab === 'audio' && filteredAudioDokus.filter((doku) => !doku.locked && doku.audioUrl).length > 1 && (
+                  <button type="button" onClick={handlePlayAllAudioDokus} className="inline-flex h-11 items-center gap-2 rounded-full bg-[var(--talea-surface-inset)] px-3.5 text-[14px] font-semibold text-[var(--primary)] focus-visible:outline-2 focus-visible:outline-[var(--primary)]">
+                    <Play className="h-4 w-4 fill-current" aria-hidden="true" />
+                    {t('doku.audioPlayAll', 'Alle abspielen')}
+                  </button>
+                )}
+
                 {hasActiveFilters && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setSortMode('newest');
-                      setTopicFilter('all');
-                      setAgeGroupFilter('all');
-                      setDepthFilter('all');
-                      setAudioScopeFilter('all');
-                    }}
+                    onClick={resetFilters}
                     className="h-11 px-2 text-[14px] font-semibold text-[var(--primary)] hover:opacity-75"
                   >
                     Zurücksetzen
@@ -1057,12 +1114,9 @@ const TaleaDokusScreen: React.FC = () => {
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              id={`doku-panel-${activeTab}`}
-              role="tabpanel"
-              aria-labelledby={iconTabId('doku', activeTab)}
-              initial={{ opacity: 0, y: 8 }}
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             >
               {isInitialLoading ? (
@@ -1075,26 +1129,17 @@ const TaleaDokusScreen: React.FC = () => {
                         <EmptyState
                           palette={palette}
                           message={
-                            query
+                            hasActiveFilters
                               ? t('doku.noDokusQuery', 'Keine Doku passt zum Suchbegriff.')
                               : t('doku.noDokus', 'Noch keine Dokus')
                           }
-                          actionLabel={!query ? t('doku.createNew', 'Neue Doku') : undefined}
-                          onAction={!query ? () => navigate('/doku/create') : undefined}
+                          actionLabel={hasActiveFilters ? 'Filter zurücksetzen' : t('doku.createNew', 'Neue Doku')}
+                          onAction={hasActiveFilters ? resetFilters : () => navigate('/doku/create')}
                         />
                       ) : (
-                        <div className={viewMode === 'grid' ? "grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4" : "flex flex-col gap-3"}>
-                          {filteredMyDokus.map((doku, index) => (
-                            <DokuCard
-                              key={doku.id}
-                              doku={doku}
-                              viewMode={viewMode}
-                              imageLoading={index < 4 ? 'eager' : 'lazy'}
-                              onRead={(item) => navigate(`/doku-reader/${item.id}`)}
-                              onDelete={handleDeleteDoku}
-                              onTogglePublic={handleTogglePublic}
-                            />
-                          ))}
+                        showShelves ? <DokuLibraryShelves items={filteredMyDokus} groupLabel={dokuShelfLabel} renderItem={(doku, index) => renderDoku(doku, index, 'shelf')} onShowAll={() => setViewMode('grid')} /> :
+                        <div className={collectionView === 'grid' ? "grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4" : "flex flex-col gap-3"}>
+                          {filteredMyDokus.map((doku, index) => renderDoku(doku, index, collectionView))}
                         </div>
                       )}
 
@@ -1123,16 +1168,17 @@ const TaleaDokusScreen: React.FC = () => {
                         <EmptyState
                           palette={palette}
                           message={
-                            query
+                            hasActiveFilters
                               ? t('doku.noPublicDokusQuery', 'Keine Entdecken-Doku passt zum Suchbegriff.')
                               : t('doku.noPublicDokus', 'Noch keine öffentlichen Dokus')
                           }
+                          actionLabel={hasActiveFilters ? 'Filter zurücksetzen' : undefined}
+                          onAction={hasActiveFilters ? resetFilters : undefined}
                         />
                       ) : (
-                        <div className={viewMode === 'grid' ? "grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4" : "flex flex-col gap-3"}>
-                          {filteredPublicDokus.map((doku, index) => (
-                            <DokuCard key={doku.id} doku={doku} viewMode={viewMode} imageLoading={index < 4 ? 'eager' : 'lazy'} onRead={(item) => navigate(`/doku-reader/${item.id}`)} />
-                          ))}
+                        showShelves ? <DokuLibraryShelves items={filteredPublicDokus} groupLabel={dokuShelfLabel} renderItem={(doku, index) => renderDoku(doku, index, 'shelf')} onShowAll={() => setViewMode('grid')} /> :
+                        <div className={collectionView === 'grid' ? "grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4" : "flex flex-col gap-3"}>
+                          {filteredPublicDokus.map((doku, index) => renderDoku(doku, index, collectionView))}
                         </div>
                       )}
 
@@ -1167,51 +1213,20 @@ const TaleaDokusScreen: React.FC = () => {
                         <EmptyState
                           palette={palette}
                           message={
-                            query
+                            hasActiveFilters
                               ? t('doku.noAudioDokusQuery', 'Keine Audio-Doku passt zum Suchbegriff.')
                               : t('doku.noAudioDokus', 'Noch keine Audio-Dokus verfügbar')
                           }
-                          actionLabel={isAdmin && !query ? t('doku.audioCreateButton', 'Audio-Doku erstellen') : undefined}
-                          onAction={isAdmin && !query ? () => navigate('/createaudiodoku') : undefined}
+                          actionLabel={hasActiveFilters ? 'Filter zurücksetzen' : isAdmin ? t('doku.audioCreateButton', 'Audio-Doku erstellen') : undefined}
+                          onAction={hasActiveFilters ? resetFilters : isAdmin ? () => navigate('/createaudiodoku') : undefined}
                         />
                       ) : (
                         <>
-                          {filteredAudioDokus.length > 1 && (
-                            <div className="mb-4 flex justify-end">
-                              <motion.button
-                                whileHover={reduceMotion ? undefined : { scale: 1.02, y: -1 }}
-                                whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-                                onClick={handlePlayAllAudioDokus}
-                                className="inline-flex items-center gap-2 rounded-full border-0 px-4 py-2 text-xs font-semibold text-white shadow-md"
-                                style={{
-                                  background:
-                                    'linear-gradient(135deg, var(--talea-accent-lavender) 0%, color-mix(in srgb, var(--talea-accent-rose) 70%, white) 100%)',
-                                }}
-                              >
-                                <Play className="h-4 w-4" fill="currentColor" aria-hidden="true" />
-                                {t('doku.audioPlayAll', 'Alle abspielen')}
-                              </motion.button>
+                          {showShelves ? <DokuLibraryShelves audio items={filteredAudioDokus} groupLabel={audioShelfLabel} renderItem={(doku, index) => renderAudio(doku, index, 'shelf')} onShowAll={() => setViewMode('grid')} /> : (
+                            <div className={collectionView === 'grid' ? "grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4" : "flex flex-col gap-3"}>
+                              {filteredAudioDokus.map((doku, index) => renderAudio(doku, index, collectionView))}
                             </div>
                           )}
-                          <div className={viewMode === 'grid' ? "grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4" : "flex flex-col gap-3"}>
-                            {filteredAudioDokus.map((doku, i) => (
-                              <AudioDokuCard
-                                key={doku.id}
-                                doku={doku}
-                                index={i}
-                                viewMode={viewMode}
-                                onPlay={() => setAudioModal(doku)}
-                                onAddToQueue={() => handleAddAudioToQueue(doku)}
-                                isAdmin={isAdmin}
-                                onEdit={() => handleEditAudioDoku(doku)}
-                                onDelete={() => handleDeleteAudioDoku(doku)}
-                                canSaveOffline={canUseOffline}
-                                isSavedOffline={isAudioDokuSaved(doku.id)}
-                                isSavingOffline={isSaving(doku.id)}
-                                onToggleOffline={() => toggleAudioDoku(doku)}
-                              />
-                            ))}
-                          </div>
                         </>
                       )}
                     </section>
@@ -1220,6 +1235,7 @@ const TaleaDokusScreen: React.FC = () => {
               )}
             </motion.div>
           </AnimatePresence>
+          </div>
         </div>
 
         {audioModal && (
@@ -1229,7 +1245,10 @@ const TaleaDokusScreen: React.FC = () => {
               if (audioPlayer.track?.id === `audiodoku-${audioModal.id}`) audioPlayer.pause();
               setAudioModal(null);
             }}
-            onPlay={() => handlePlayAudio(audioModal)}
+            onPlay={() => {
+              if (audioModal.locked) setAudioModal(null);
+              handlePlayAudio(audioModal);
+            }}
             isPlaying={audioPlayer.track?.id === `audiodoku-${audioModal.id}`}
             audioError={audioError}
             palette={palette}

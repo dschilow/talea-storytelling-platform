@@ -178,6 +178,7 @@ export interface LibraryHeroAction {
 
 /** The billboard on top of "Meine Geschichten": one story, the picture carries the mood, the scrim keeps words readable. */
 export const LibraryHero: React.FC<{
+  ariaLabel?: string;
   imageUrl?: string;
   eyebrow: string;
   title: string;
@@ -186,10 +187,10 @@ export const LibraryHero: React.FC<{
   portraitUrl?: string;
   primary: LibraryHeroAction;
   secondary?: LibraryHeroAction;
-}> = ({ imageUrl, eyebrow, title, text, meta, portraitUrl, primary, secondary }) => {
+}> = ({ ariaLabel = "Weiterlesen", imageUrl, eyebrow, title, text, meta, portraitUrl, primary, secondary }) => {
   const reduceMotion = useReducedMotion();
   return (
-    <section aria-label="Weiterlesen" className="relative isolate overflow-hidden rounded-[26px] bg-[#251a16] shadow-[0_24px_60px_-28px_rgba(40,20,10,0.6)]">
+    <section aria-label={ariaLabel} className="relative isolate overflow-hidden rounded-[26px] bg-[#251a16] shadow-[0_24px_60px_-28px_rgba(40,20,10,0.6)]">
       <div className="relative min-h-[25rem] sm:min-h-[24rem] lg:min-h-[23rem]">
         {imageUrl ? (
           <motion.img
