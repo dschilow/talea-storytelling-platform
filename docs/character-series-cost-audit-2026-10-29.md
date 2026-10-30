@@ -255,3 +255,38 @@ Für alle Bild- und Textproben dieses Nachtrags wurden **0,201574025 USD** ausdr
 Weitere **0,14 USD** bleiben vorsorglich für drei Antworten ohne Kostenangabe und einen unterbrochenen
 Aufruf reserviert. Angerechnet auf die Testgrenze: **0,341574025 USD**, keine behauptete Rechnung über die
 reservierten Beträge.
+
+## 30.10.2026, 13:29: Bildplan-Abbruch nach bereits geprüftem Text
+
+Der Lauf `6f079b98` scheiterte auf dem Deployment von `f3ee2e5a` in
+`validateSeriesShots`: Bild 4 hatte ungültige `visualBeat`-Zusatzdaten (Akteur, Handlung, Folge oder
+Bildausschnitt). Die konkrete verletzte Teilbedingung ließ sich nachträglich nicht unterscheiden, weil
+die damalige Sammelmeldung und die Logs weder Einzelgründe noch Rohpläne enthielten. Der Text hatte
+seine Korrektur und Nachprüfung bereits bestanden. FLUX und Luna hatten noch keinen Bildauftrag erhalten.
+
+Policy 15 verhindert diesen Format-Abbruch:
+
+- Eindeutige Figurennamen werden auf ihre Referenz-IDs abgebildet; `"4"` und `"CLOSE-UP SHOT"` werden
+  sicher normalisiert. Kurze konkrete Angaben wie „pulls rope“ scheitern nicht mehr an zwölf Zeichen.
+- Erst- und Reparaturplan werden bei Bedarf pro Seite zusammengeführt. Eine Reparatur darf nicht die
+  bereits gültigen Seiten des ersten Plans zerstören.
+- Nach höchstens **einem** Reparaturaufruf darf eine vorhandene Szene ohne defekte Zusatzmetadaten
+  weitergehen. Besetzung, vorhandene Referenzen, zugehöriger Absatz und wörtlicher Textbeleg bleiben
+  Pflicht. Es wird keine neue Handlung oder erfundene Ersatzfigur hergestellt.
+- Die Wiederherstellung wird ausdrücklich als `series-picture-plan-recovered` protokolliert.
+  Ungültige Erst- und Reparaturpläne samt Einzelgründen werden für die Administration gespeichert.
+- Eine ausdrücklich vom Anbieter gesperrte Reparaturanfrage wird nicht durch diese Wiederherstellung
+  umgangen. Die normale Bildprüfung bleibt für jede erzeugte Illustration obligatorisch.
+- Der geprüfte Text wird **vor** der Bildplanung unter `adminGenerationMetrics.seriesDraft` gesichert.
+  Ein späterer Fehler behält diesen privaten Entwurf. Die bestehende Metadatenfilterung verbirgt ihn
+  vor normalen Lesern und der Listenansicht; die Veröffentlichung erfolgt dadurch nicht vorzeitig.
+
+Der Regressionstest stellt den protokollierten Abbruchpfad mit wiederholt defekter Bild-4-Metadatenstruktur
+nach: zwei begrenzte Planungsaufrufe, anschließend sieben Bildaufträge und sieben Prüfungen mit Test-Ports.
+Weitere Fälle prüfen Teilreparaturen, beschädigte andere Seiten, mehrdeutige Namen, fehlende Referenzen,
+unbelegte Absätze und Provider-Sperren. Der verlorene Original-Rohplan wird dabei nicht als verfügbar
+oder exakt wiedergegeben behauptet. Echte Anbieter- oder Datenbankausfälle bleiben möglich; diese
+Änderung entfernt den belegten Format-Abbruch und schützt bereits bezahlten Text.
+
+Verifikation: **239 Tests über zehn betroffene Testdateien bestanden**; die geänderten Dateien haben
+keine Typdiagnostik. Die bereits vorhandenen projektweiten TypeScript-Fehler bleiben davon unberührt.

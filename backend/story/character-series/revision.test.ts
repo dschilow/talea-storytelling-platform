@@ -277,6 +277,142 @@ const segmentPlan = (lead: string, options: { coverKid?: boolean; guest?: string
   }),
 });
 
+describe('series picture planning recovery after story 6f079b98', () => {
+  test('unambiguous names, normal framing spellings and concise physical beats validate without a paid repair', () => {
+    const raw = rawPlan();
+    raw.pages[1].onStage = ['Funkelflug', 'Nora'];
+    raw.pages[1].visualBeat = { actorId: ' Funkelflug ', action: 'pulls rope', result: 'bell tips', framing: ' CLOSE-UP SHOT ' };
+    const plan = validateSeriesShots(raw, pages, entities, 'lead');
+    expect(plan.pages[1].onStage).toEqual(['lead', 'kid']);
+    expect(plan.pages[1]).toMatchObject({ visualBeat: { actorId: 'lead', action: 'pulls rope', result: 'bell tips', framing: 'close' } });
+  });
+
+  test('decimal-string page and paragraph numbers are normalized without accepting fractions or guesses', () => {
+    const raw = rawPlan();
+    const stringNumbers = { ...raw, pages: raw.pages.map(p => ({ ...p, page: String(p.page), paragraph: String(p.paragraph) })) };
+    expect(validateSeriesShots(stringNumbers, pages, entities, 'lead').pages.map(p => p.page)).toEqual([1, 2, 3]);
+    stringNumbers.pages[1].page = '2.5';
+    expect(() => validateSeriesShots(stringNumbers, pages, entities, 'lead')).toThrow('Leseabschnitt');
+  });
+
+  test('ambiguous names and unknown reference identities are not guessed or dropped', () => {
+    const raw = rawPlan();
+    raw.pages[1].onStage = ['lead', 'Nora'];
+    const figures = [...entities, { ...entities[1], id: 'other', name: 'Nora' }];
+    expect(() => validateSeriesShots(raw, pages, figures, 'lead', { allowSceneFallback: true })).toThrow('Besetzung');
+    raw.pages[1].onStage = ['lead', 'invented-child'];
+    expect(() => validateSeriesShots(raw, pages, entities, 'lead', { allowSceneFallback: true })).toThrow('Besetzung');
+  });
+
+  test('a repeatedly malformed page-four beat keeps its grounded scene and still goes through image QA', async () => {
+    const b = brief();
+    const figures = entities.map(e => e.id === 'lead' ? { ...e, id: bible.characterId } : e);
+    const original = segmentPlan(bible.characterId);
+    const broken = { ...original, pages: original.pages.map(p => p.page === 4
+      ? { ...p, visualBeat: { ...p.visualBeat, actorId: 'not-on-stage', action: 'agrees to wait', framing: 'portrait' } } : p) };
+    const calls: string[] = [];
+    const observed: Array<{ stage: string; payload: Record<string, unknown> }> = [];
+    const direction = await directSeriesPictures({
+      brief: b, model: 'test', title: 'Glocke', pages: segmentChapters, entities: figures,
+      llm: async r => { calls.push(r.stage); return response(JSON.stringify(broken)); },
+      observe: (stage, payload) => { observed.push({ stage, payload }); },
+    });
+    expect(calls).toEqual(['series-picture-direction', 'series-picture-plan-repair']);
+    expect(observed[0]).toMatchObject({ stage: 'series-picture-plan-invalid', payload: { issues: [{ page: 4 }] } });
+    expect(observed.at(-1)).toMatchObject({ stage: 'series-picture-plan-recovered', payload: { mode: 'source-grounded-scenes' } });
+    const recovered = direction.illustrations.pages[3];
+    expect(recovered.scene).toBe(original.pages[3].scene);
+    expect(recovered.onStage).toEqual(original.pages[3].onStage);
+    expect(recovered).not.toHaveProperty('visualBeat');
+    expect(recovered).toMatchObject({ storyQuote: original.pages[3].storyQuote });
+    expect(direction.director.repairReasons?.some(issue => issue.page === 4 && issue.errors.some(message => message.includes('visualBeat.actorId')))).toBe(true);
+
+    const checked: string[] = [];
+    const shots = [direction.illustrations.cover, ...direction.illustrations.pages];
+    const images = await generateSeriesImages({
+      illustrations: direction.illustrations, entities: figures, seed: 'recovered-plan',
+      pageTexts: Object.fromEntries(direction.pages.map(p => [p.order, p.content])), visionModel: 'test',
+      buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
+      provider: async r => {
+        expect(r.prompt).toContain('bell rope');
+        expect(r.prompt).not.toContain('undefined');
+        return { url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 };
+      },
+      llm: async r => {
+        checked.push(r.stage);
+        const page = Number(r.stage.match(/^series-image-qa-(\d+)-/)?.[1]);
+        const ids = shots.find(s => s.page === page)!.onStage;
+        return imageReview(r.stage, { visibleIds: ids, identityById: Object.fromEntries(ids.map(id => [id, 1])) });
+      },
+    });
+    expect(images.imageCalls).toBe(7);
+    expect(checked).toHaveLength(7);
+    expect(images.imagesGenerated).toBe(7);
+  });
+
+  test('valid first-plan pages survive a repair that fixes page four but damages or omits other pages', async () => {
+    const b = brief();
+    const figures = entities.map(e => e.id === 'lead' ? { ...e, id: bible.characterId } : e);
+    const good = segmentPlan(bible.characterId);
+    const first = { ...good, pages: good.pages.map(p => p.page === 4 ? { ...p, visualBeat: { ...p.visualBeat, framing: 'bad' } } : p) };
+    const repairedPage = { ...good.pages[3], scene: good.pages[3].scene + ' The bell tilts above them.' };
+    for (const repaired of [
+      { ...good, pages: good.pages.map(p => p.page === 4 ? repairedPage : p.page === 1 ? { ...p, onStage: ['invented-child'] } : p) },
+      { pages: [repairedPage] },
+    ]) {
+      let count = 0;
+      const direction = await directSeriesPictures({
+        brief: b, model: 'test', title: 'Glocke', pages: segmentChapters, entities: figures,
+        llm: async r => { count++; return response(JSON.stringify(r.stage === 'series-picture-direction' ? first : repaired)); },
+      });
+      expect(count).toBe(2);
+      expect(direction.illustrations.pages[0].scene).toBe(good.pages[0].scene);
+      expect(direction.illustrations.pages[3].scene).toBe(repairedPage.scene);
+      expect(direction.illustrations.pages[3]).toHaveProperty('visualBeat');
+      expect(direction.illustrations.pages).toHaveLength(6);
+    }
+  });
+
+  test('source recovery never replaces valid repaired metadata with an earlier malformed beat', () => {
+    const raw = rawPlan();
+    const invalid = { ...raw.pages[1], visualBeat: { ...raw.pages[1].visualBeat, framing: 'bad' } };
+    raw.pages = [raw.pages[0], invalid, raw.pages[1], raw.pages[2]];
+    const plan = validateSeriesShots(raw, pages, entities, 'lead', { allowSceneFallback: true });
+    expect(plan.pages[1]).toMatchObject({ visualBeat: { framing: 'close' } });
+    expect(plan.pages[1]).not.toHaveProperty('planningRecovery');
+  });
+
+  test('missing source paragraphs, missing references and empty captions remain hard failures', () => {
+    for (const change of [
+      { paragraph: 999, storyQuote: 'Not present in the source paragraph.' },
+      { scene: '' },
+      { onStage: ['lead', 'invented-child'] },
+    ]) {
+      const raw = rawPlan();
+      Object.assign(raw.pages[1], change);
+      expect(() => validateSeriesShots(raw, pages, entities, 'lead', { allowSceneFallback: true })).toThrow();
+    }
+    expect(() => validateSeriesShots(rawPlan(), pages, entities.map(e => ({ ...e, referenceUrl: undefined })), 'lead', { allowSceneFallback: true })).toThrow('Besetzung');
+  });
+
+  test('a safety-blocked plan repair is not bypassed by scene recovery', async () => {
+    const b = brief();
+    const figures = entities.map(e => e.id === 'lead' ? { ...e, id: bible.characterId } : e);
+    const raw = segmentPlan(bible.characterId);
+    raw.pages[3].visualBeat.actorId = 'unknown';
+    const stages: string[] = [];
+    await expect(directSeriesPictures({
+      brief: b, model: 'test', title: 'Glocke', pages: segmentChapters, entities: figures,
+      llm: async r => {
+        stages.push(r.stage);
+        if (r.stage === 'series-picture-plan-repair') throw new StorybookSafetyBlock(r.model, r.stage, 'SAFETY');
+        return response(JSON.stringify(raw));
+      },
+    })).rejects.toThrow('provider_reason=SAFETY');
+    expect(stages).toEqual(['series-picture-direction', 'series-picture-plan-repair']);
+  });
+});
+
 describe('series artwork preserves action and lead within a fixed budget', () => {
   test('all picture checks use medium for one, two or three figures, including cover and fallback reader', async () => {
     for (const count of [1, 2, 3]) {

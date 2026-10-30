@@ -1,6 +1,6 @@
 // @ts-ignore Bun's test helpers are runtime-only in the Encore project.
 import { describe, expect, test } from "bun:test";
-import { storyMetadataForList } from "./metadata-visibility";
+import { storyMetadataForList, storyMetadataForViewer } from "./metadata-visibility";
 
 const heavy = {
   devModeStages: Array.from({ length: 32 }, (_, index) => ({ stage: `step-${index}`, usage: { prompt: 3000, completion: 400, total: 3400 }, modelUsed: "openai/gpt-6-luna", durationMs: 8000 })),
@@ -14,6 +14,14 @@ const heavy = {
 };
 
 describe("story list metadata", () => {
+  test("a saved series manuscript stays private after a later illustration failure", () => {
+    const metadata = { pipeline: "character-series-v1", error: { message: "Bildplanung fehlgeschlagen" },
+      adminGenerationMetrics: { seriesDraft: { stage: "text-ready", result: { title: "Glocke", pages: [{ content: "Bezahlter, geprüfter Text." }] } } } };
+    expect(storyMetadataForViewer(metadata, false)).not.toHaveProperty("adminGenerationMetrics");
+    expect(storyMetadataForViewer(metadata, true)?.adminGenerationMetrics.seriesDraft.result.pages[0].content).toBe("Bezahlter, geprüfter Text.");
+    expect(storyMetadataForList(metadata)).toEqual({ pipeline: "character-series-v1" });
+    expect(metadata.adminGenerationMetrics.seriesDraft.stage).toBe("text-ready");
+  });
   test("keeps what the library reads", () => {
     const slim = storyMetadataForList({
       ...heavy,

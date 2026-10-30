@@ -28,6 +28,7 @@
 
 import { createHash } from "crypto";
 import { ai } from "~encore/clients";
+import { storyDB } from "./db";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { logTopic } from "../log/logger";
 import { resolveImageUrlForClient, resolveImageUrlForProxyAccess } from "../helpers/bucket-storage";
@@ -290,6 +291,22 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   if (seriesMode && (!text.finalChecks.ok || text.textQuality?.status === "failed")) {
     throw new Error("Die Folge konnte die erzählerischen Mindestprüfungen nicht bestehen. Der Serienstand bleibt unverändert.");
   }
+  if (seriesMode && input.storyId && input.userId) {
+    const checkpoint = { seriesDraft: { savedAt: new Date().toISOString(), pipeline: pipelineId, stage: "text-ready",
+      result: text, models, costs: ledger.totals() } };
+    const saved = await storyDB.queryRow<{ id: string }>`
+      UPDATE stories
+      SET metadata = jsonb_set(
+        COALESCE(NULLIF(metadata, 'null'::jsonb), '{}'::jsonb),
+        '{adminGenerationMetrics}',
+        COALESCE(NULLIF(metadata->'adminGenerationMetrics', 'null'::jsonb), '{}'::jsonb) || ${JSON.stringify(checkpoint)}::jsonb,
+        true
+      ), updated_at = ${new Date()}
+      WHERE id = ${input.storyId} AND user_id = ${input.userId} AND status = 'generating'
+      RETURNING id
+    `;
+    if (!saved) throw new Error("Der geprüfte Geschichtentext konnte vor der Bildplanung nicht gesichert werden.");
+  }
   const wonder = "wonder" in text ? (text as import("./wonder/types").WonderResult).wonder : undefined;
   const episode = "episode" in text ? (text as EpisodeResult).episode : undefined;
   const guests = wonder?.guests || episode?.guests || [];
@@ -353,7 +370,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // acting figure at least once (the chapter book's picture machinery, ./episode/pictures.ts). Every other lane: one
   // picture per page.
   const directing: Promise<EpisodeDirection | undefined> = seriesMode
-    ? directSeriesPictures({ llm, model: models.support, brief, title: text.title, pages, plan, entities: known.entities })
+    ? directSeriesPictures({ llm, model: models.support, brief, title: text.title, pages, plan, entities: known.entities,
+        observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId) })
     : episodeMode
     ? directEpisodePictures({ llm, model: models.support, brief, title: text.title, pages, plan, entities: known.entities }).catch((err) => {
         console.warn("[storybook] chapter pictures could not be directed, one picture per chapter instead:", (err as Error)?.message || err);

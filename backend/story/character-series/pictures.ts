@@ -28,8 +28,9 @@ export interface SeriesVisualBeat {
 interface SeriesShot extends IllustrationShot {
   actionKey: string;
   storyQuote?: string;
-  visualBeat: SeriesVisualBeat;
+  visualBeat?: SeriesVisualBeat;
   boxes?: Record<string, SeriesBox>;
+  planningRecovery?: string[];
   /** A malformed cover plan reused this valid, source-grounded chapter motif instead of losing the paid manuscript. */
   coverSourcePage?: number;
 }
@@ -122,14 +123,36 @@ export interface SeriesShotRules {
   strict?: boolean;
   /** Recurring guests with a portrait who act in the story (story ff6eff04: Pia acted in all three chapters and stood in no picture). */
   guestIds?: string[];
+  /** After the bounded repair, retain a source-grounded caption without malformed auxiliary beat metadata. */
+  allowSceneFallback?: boolean;
+}
+
+class SeriesPicturePlanError extends Error {
+  constructor(public readonly page: number, public readonly fields: string[]) {
+    super(`Serienbild ${page} braucht eine körperliche Handlung und einen gültigen Bildausschnitt: ${fields.join('; ')}.`);
+    this.name = 'SeriesPicturePlanError';
+  }
 }
 
 /** Every shot keeps its dramatic subject; a failed picture never turns into an avatar portrait. */
 export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: VisualEntity[], leadId: string, rules: SeriesShotRules = {}): IllustrationPlan {
   // Every pictured identity needs an existing reference; a style example must never supply a missing guest.
   const ids = new Set(entities.filter(e => e.referenceUrl).map(e => e.id));
-  const shot = (candidate: any, page: number): IllustrationShot => {
-    const onStage = Array.isArray(candidate?.onStage) ? [...new Set<string>(candidate.onStage)] : [];
+  const ordinal = (value: unknown): number | undefined => {
+    const number = typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value) : value;
+    return typeof number === 'number' && Number.isSafeInteger(number) && number >= 0 ? number : undefined;
+  };
+  const resolveId = (value: unknown): string => {
+    if (typeof value !== 'string') return '';
+    const id = value.trim();
+    if (ids.has(id)) return id;
+    const name = id.toLocaleLowerCase('de-DE');
+    const matches = entities.filter(e => ids.has(e.id) && (e.name.toLocaleLowerCase('de-DE') === name ||
+      e.name.split(/\s+/).some(part => part.length >= 3 && !/^(der|die|das|graf|captain|kapitän)$/i.test(part) && part.toLocaleLowerCase('de-DE') === name)));
+    return matches.length === 1 ? matches[0].id : id;
+  };
+  const shot = (candidate: any, page: number, allowSceneFallback = rules.allowSceneFallback): SeriesShot => {
+    const onStage = Array.isArray(candidate?.onStage) ? [...new Set<string>(candidate.onStage.map(resolveId))] : [];
     if (!onStage.length || onStage.length > 3 || onStage.some(id => !ids.has(id)) || typeof candidate?.scene !== 'string' || candidate.scene.length < 45 || candidate.scene.length > 1900) throw new Error('Die Serienbildplanung hat keine klare, gültige Besetzung.');
     if ((page === 0 || page === 1) && !onStage.includes(leadId)) throw new Error('Die Serienhauptfigur fehlt in ihrem Titel- oder Einstiegsbild.');
     const pageParagraphs = page > 0 ? pages[page - 1]?.content.split(/\n\n/) || [] : [];
@@ -142,39 +165,56 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
     const lastSentence = quote.split(/(?<=[.!?…])\s+/).filter(s => s.length >= 12).pop();
     const quoted = [quote, lastSentence].filter((s): s is string => Boolean(s && s.length >= 12))
       .map(probe => pageParagraphs.findIndex(p => norm(p).includes(norm(probe)))).find(at => at >= 0);
-    const paragraph = quoted !== undefined ? quoted + 1 : candidate.paragraph;
-    if (page > 0 && (!Number.isInteger(paragraph) || paragraph < 1 || paragraph > pageParagraphs.length)) throw new Error('Das Serienbild gehört zu keinem Absatz des Kapitels.');
-    const paragraphText = page > 0 ? pageParagraphs[paragraph - 1]?.trim() : '';
+    const paragraph = quoted !== undefined ? quoted + 1 : ordinal(candidate.paragraph);
+    if (page > 0 && (paragraph === undefined || !Number.isInteger(paragraph) || paragraph < 1 || paragraph > pageParagraphs.length)) throw new Error('Das Serienbild gehört zu keinem Absatz des Kapitels.');
+    const paragraphText = page > 0 && paragraph !== undefined ? pageParagraphs[paragraph - 1]?.trim() : '';
     // Ground a paraphrased model quote in the actual selected source paragraph, never in invented evidence.
     // A one-word paragraph („Hält.“) is too short as evidence (pilot 2026-10-29 lost the whole story): its neighbour joins it.
     const fallbackEvidence = paragraphText && paragraphText.length >= 12 ? paragraphText
-      : (paragraph > 1 ? pageParagraphs.slice(paragraph - 2, paragraph) : pageParagraphs.slice(0, 2)).join(' ').trim();
+      : (paragraph !== undefined && paragraph > 1 ? pageParagraphs.slice(paragraph - 2, paragraph) : pageParagraphs.slice(0, 2)).join(' ').trim();
     const evidence = page > 0 && (quote.length < 12 || quote.length > 500 || !norm(pages[page - 1].content).includes(norm(quote))) ? fallbackEvidence.slice(0, 500) : quote;
     if (page > 0 && evidence.length < 12) throw new Error('Dem Serienbild fehlt ein wörtlicher Beleg aus seinem Kapitel.');
     const beat = candidate.visualBeat;
     // Haiku may put the valid framing beside visualBeat rather than inside it; the meaning is identical.
-    const framing = beat?.framing ?? candidate?.framing;
-    if (!beat || !onStage.includes(beat.actorId) || typeof beat.action !== 'string' || beat.action.trim().length < 12 || beat.action.length > 220 || QUIET_ACTION.test(beat.action.trim()) || typeof beat.result !== 'string' || beat.result.trim().length < 12 || beat.result.length > 260 || HIDDEN_IDENTITY.test(beat.result) || !['wide', 'medium', 'close'].includes(framing)) throw new Error(`Serienbild ${page} braucht eine körperliche Handlung: actorId muss auf onStage stehen; Handlung und sichtbare Folge müssen konkret sein, ohne vollständig verdeckte Identität. Ein gültiger Bildausschnitt ist erforderlich.`);
-    const visualBeat: SeriesVisualBeat = { actorId: beat.actorId, action: beat.action.trim(), result: beat.result.trim(), framing };
+    const frameValue = beat?.framing ?? candidate?.framing;
+    const framing = typeof frameValue === 'string'
+      ? frameValue.trim().toLowerCase().replace(/\s+shot$/, '').replace(/[- ]up$/, '') : '';
+    const actorId = resolveId(beat?.actorId);
+    const action = typeof beat?.action === 'string' ? beat.action.trim() : '';
+    const result = typeof beat?.result === 'string' ? beat.result.trim() : '';
+    const errors: string[] = [];
+    if (!onStage.includes(actorId)) errors.push('visualBeat.actorId fehlt oder steht nicht auf onStage');
+    if (action.length < 3 || action.length > 220 || QUIET_ACTION.test(action)) errors.push('visualBeat.action ist leer, unbrauchbar oder nur eine Gesprächshandlung');
+    if (result.length < 3 || result.length > 260 || HIDDEN_IDENTITY.test(result)) errors.push('visualBeat.result ist leer, unbrauchbar oder verdeckt die Identität vollständig');
+    if (framing !== 'wide' && framing !== 'medium' && framing !== 'close') errors.push('visualBeat.framing muss wide, medium oder close sein');
+    if (errors.length && (!allowSceneFallback || page === 0)) throw new SeriesPicturePlanError(page, errors);
+    const visualBeat: SeriesVisualBeat | undefined = !errors.length && (framing === 'wide' || framing === 'medium' || framing === 'close')
+      ? { actorId, action, result, framing } : undefined;
     const boxes: Record<string, SeriesBox> = {};
     if (candidate?.boxes && typeof candidate.boxes === 'object') {
       for (const id of onStage) {
         if (validSeriesBox(candidate.boxes[id])) boxes[id] = candidate.boxes[id].map((n: number) => Math.round(n)) as SeriesBox;
       }
     }
-    const actor = entities.find(e => e.id === beat.actorId)!;
-    return { page, onStage, scene: candidate.scene, actionKey: `${actor.name} ${visualBeat.action}; ${visualBeat.result}`, visualBeat, ...(Object.keys(boxes).length ? { boxes } : {}), storyQuote: evidence || undefined, focus: 'scene', artifactVisible: candidate.artifactVisible === true, elements: [], ...(page ? { paragraph } : {}) } as SeriesShot;
+    const actor = visualBeat ? entities.find(e => e.id === visualBeat.actorId) : undefined;
+    return { page, onStage, scene: candidate.scene, actionKey: visualBeat && actor ? `${actor.name} ${visualBeat.action}; ${visualBeat.result}` : candidate.scene,
+      ...(visualBeat ? { visualBeat } : {}), ...(errors.length ? { planningRecovery: errors } : {}),
+      ...(Object.keys(boxes).length ? { boxes } : {}), storyQuote: evidence || undefined, focus: 'scene', artifactVisible: candidate.artifactVisible === true, elements: [], ...(page ? { paragraph } : {}) };
   };
   // Haiku planned pages 1, 1, 2, 3, 3, 4, 5, 6 and its repair returned the same (pilot 2026-10-29): one picture per
   // page is kept, the first that validates, instead of failing the whole story.
   const planned: any[] = Array.isArray(raw?.pages) ? raw.pages : [];
-  const proposals = pages.map((_, i) => planned.filter((p: any) => p?.page === i + 1));
+  const proposals = pages.map((_, i) => planned.filter((p: any) => ordinal(p?.page) === i + 1));
   // The repair has to know what is wrong; a bare "not one picture per segment" made Haiku return the same plan.
   if (proposals.some(list => !list.length)) throw new Error(`Die Serienbildplanung enthält nicht genau ein Bild je Leseabschnitt: erwartet pages ${pages.map((_, i) => i + 1).join(', ')} je einmal, erhalten ${planned.map(p => p?.page).join(', ') || 'keine'}; es fehlt page ${proposals.map((list, i) => list.length ? 0 : i + 1).filter(Boolean).join(', ')}.`);
   const firstValid = (list: any[], page: number): SeriesShot => {
-    for (const [i, candidate] of list.entries()) {
-      try { return shot(candidate, page) as SeriesShot; } catch (error) { if (i === list.length - 1) throw error; }
+    let failure: unknown;
+    for (const allowSceneFallback of rules.allowSceneFallback ? [false, true] : [false]) {
+      for (const candidate of list) {
+        try { return shot(candidate, page, allowSceneFallback); } catch (error) { failure = error; }
+      }
     }
+    if (failure) throw failure;
     throw new Error('Die Serienbildplanung enthält nicht genau ein Bild je Leseabschnitt.');
   };
   const pageShots = proposals.map((list, i) => firstValid(list, i + 1));
@@ -188,7 +228,8 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
       || pageShots.find(p => p.onStage.includes(leadId));
     if (!source) throw error;
     const { paragraph: _paragraph, storyQuote: _quote, ...motif } = source;
-    cover = { ...motif, page: 0, coverSourcePage: source.page, onStage: [...source.onStage], visualBeat: { ...source.visualBeat, framing: 'wide' },
+    cover = { ...motif, page: 0, coverSourcePage: source.page, onStage: [...source.onStage],
+      ...(source.visualBeat ? { visualBeat: { ...source.visualBeat, framing: 'wide' } } : {}),
       scene: `${source.scene} Distinct wide cover composition of this same story moment, with the lead's face clearly visible.` } as SeriesShot;
   }
   const plan = { cover, pages: pageShots, storyElements: [] };
@@ -197,7 +238,10 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
   const heroes = entities.filter(e => e.role === 'hero' && e.referenceUrl);
   const capacity = pages.length * 2 - Math.min(2, pages.length);
   if (heroes.length <= capacity && heroes.some(e => !plan.pages.some((p: IllustrationShot) => p.onStage.includes(e.id)))) throw new Error('Ein beteiligter Avatar fehlt in allen Serienbildern.');
-  if (pages.length >= 3 && new Set(plan.pages.map((p: SeriesShot) => p.visualBeat.framing)).size < 2) throw new Error('Die Serienbilder brauchen unterschiedliche Bildausschnitte.');
+  if (pages.length >= 3 && new Set(plan.pages.map(p => p.visualBeat?.framing).filter(Boolean)).size < 2) {
+    if (!rules.allowSceneFallback) throw new Error('Die Serienbilder brauchen unterschiedliche Bildausschnitte.');
+    plan.pages[0].planningRecovery = [...(plan.pages[0].planningRecovery || []), 'Bildausschnitt-Variation ist nach der Reparatur unvollständig; die belegten Szenen bleiben erhalten'];
+  }
   if (rules.strict) {
     if (leadPictures < Math.floor(pages.length / 2)) throw new Error(`Die Serienhauptfigur steht nur in ${leadPictures} von ${pages.length} Kapitelbildern; sie gehört in mindestens die Hälfte.`);
     if (heroes.length && !plan.cover.onStage.some((id: string) => heroes.some(e => e.id === id))) throw new Error('Das Titelbild zeigt die Serienfigur ohne die Kinder der Familie; mindestens ein Avatar gehört neben sie auf das Cover.');
@@ -208,7 +252,11 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
   return plan;
 }
 
-export async function directSeriesPictures(input: { llm: StorybookLlm; model: string; brief: StoryBrief; title: string; pages: StorybookPage[]; plan?: StoryPlan; entities: VisualEntity[] }): Promise<EpisodeDirection> {
+export async function directSeriesPictures(input: {
+  llm: StorybookLlm; model: string; brief: StoryBrief; title: string; pages: StorybookPage[];
+  plan?: StoryPlan; entities: VisualEntity[];
+  observe?: (stage: string, payload: Record<string, unknown>) => void | Promise<void>;
+}): Promise<EpisodeDirection> {
   const series = input.brief.characterSeries!;
   const leadId = series.bible.characterId;
   const perChapter = SERIES_POLICY.picturesPerChapter;
@@ -269,18 +317,44 @@ export async function directSeriesPictures(input: { llm: StorybookLlm; model: st
   let illustrations!: IllustrationPlan;
   let repairCall: Awaited<ReturnType<StorybookLlm>> | undefined;
   let repairReasons: Array<{ page: number; errors: string[] }> | undefined;
-  const first = parseJsonObject<any>(call.text);
+  const first = parseJsonObject<Record<string, unknown>>(call.text);
+  let repaired: Record<string, unknown> | null = null;
+  const issue = (error: unknown) => ({ page: error instanceof SeriesPicturePlanError ? error.page : 0,
+    errors: [error instanceof Error ? error.message : String(error)] });
   try { illustrations = validateSeriesShots(first, pages, input.entities, leadId, rules); }
   catch (error) {
-    repairReasons = [{ page: 0, errors: [String((error as Error).message)] }];
+    repairReasons = [issue(error)];
+    await input.observe?.('series-picture-plan-invalid', { issues: [...repairReasons], plan: first, usage: call.usage });
     try {
       repairCall = await input.llm({ stage: 'series-picture-plan-repair', role: 'support', model: input.model, json: true, effort: 'low', maxTokens: directionTokens,
         system: 'Repair only the supplied illustration plan JSON: one picture per PAGE (a reading segment of a chapter), exactly the given pages in order, plus the cover. The DEFECT is real: never return the plan unchanged; for a missing page choose a funny physical event from that page\'s own paragraphs. Each image has 1 to 3 visible referenced characters. Preserve the actual selected physical event unless its evidence or activity is invalid; then choose a funny physical event from that page. Every cover/page needs visualBeat {actorId, action, result, framing}; actorId is onStage, action starts with an English physical verb, result is a visible consequence, framing is wide|medium|close. Across three or more page pictures use at least TWO framing scales. An introduction, objection, agreement, look or nod alone is not a physical event. Cast: the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture; at least one avatar beside the lead on the cover; every listed recurring guest in at least one page picture. "paragraph" is the local paragraph number within its page. Keep captions, page order and paragraph numbers where valid, with no invented objects or events. Return only the corrected plan.',
         user: `DEFECT ${repairReasons[0].errors.join('; ')}\nLEAD ${leadId}\nAVATARS ${heroes.map(e => e.id).join(', ')}\n${guests.length ? `RECURRING GUESTS ${guests.map(e => e.id).join(', ')}\n` : ''}ALLOWED REFERENCED IDENTITIES ${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name}`).join('; ')}\nEXACTLY ${pages.length} PAGES\nEvery page needs storyQuote: an exact 12–500 character passage from THAT page proving the physical event. Its result must read in one still without a temporal comparison. Keep identifying faces visible. Use only source-present props.\nSOURCE PAGES:\n${pageText}\nPLAN\n${call.text}` });
-      illustrations = validateSeriesShots(parseJsonObject(repairCall.text), pages, input.entities, leadId);
+      repaired = parseJsonObject<Record<string, unknown>>(repairCall.text);
+      illustrations = validateSeriesShots(repaired, pages, input.entities, leadId);
     } catch (repairError) {
-      // The first plan may have missed only a wish of the strict pass (the family on the cover, a guest): it still draws.
-      try { illustrations = validateSeriesShots(first, pages, input.entities, leadId); } catch { throw repairError; }
+      if (repairError instanceof StorybookSafetyBlock) throw repairError;
+      repairReasons.push(issue(repairError));
+      await input.observe?.('series-picture-plan-repair-invalid', { issues: [...repairReasons], plan: repaired, usage: repairCall?.usage });
+      // Keep valid first-plan shots when a repair fixes one page but damages another.
+      const combined = { cover: repaired?.cover ?? first?.cover,
+        pages: [...(Array.isArray(first?.pages) ? first.pages : []), ...(Array.isArray(repaired?.pages) ? repaired.pages : [])] };
+      try {
+        illustrations = validateSeriesShots(combined, pages, input.entities, leadId);
+      } catch {
+        // Only auxiliary beat metadata and camera variety are optional here. Cast, references, paragraph and
+        // literal source evidence still validate before any image is bought; the normal image QA remains mandatory.
+        illustrations = validateSeriesShots(combined, pages, input.entities, leadId, { allowSceneFallback: true });
+      }
+      const recovered = [illustrations.cover, ...illustrations.pages].flatMap(p => {
+        const notes = (p as SeriesShot).planningRecovery;
+        return notes?.length ? [{ page: p.page, errors: notes }] : [];
+      });
+      repairReasons.push(...recovered);
+      console.warn('[character-series] Illustration plan recovered after bounded repair', {
+        recoveredPages: recovered.map(p => p.page), issues: repairReasons,
+      });
+      await input.observe?.('series-picture-plan-recovered', { mode: recovered.length ? 'source-grounded-scenes' : 'valid-shots-merged',
+        issues: repairReasons, illustrations });
     }
   }
   const placed = placePictures(slots, illustrations.pages);
