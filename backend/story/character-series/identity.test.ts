@@ -61,15 +61,21 @@ describe('series lead identity follows the canonical pool portrait', () => {
     expect(seriesAvatarReferenceContext(hero)).toBe('7 years old, 120 cm tall, purple hair');
     expect(seriesAvatarReferenceContext({ visualProfile: { ageNumeric: -1, heightCm: 10000 } } as any)).toBe('');
     expect(seriesAvatarReferenceContext({ visualProfile: {
-      ageNumeric: 8, hair: { color: 'brown', length: 'short', style: 'short', type: 'short' }, eyes: { color: 'green' },
+      ageNumeric: 8, gender: 'male', hair: { color: 'brown', length: 'short', style: 'short', type: 'short' }, eyes: { color: 'green' },
       mustIncludeFeatures: [{ promptDescription: 'very large protruding ears' }],
-    } } as any)).toBe('8 years old, short brown hair, green eyes');
+    } } as any)).toBe('8 years old, male, short brown hair, green eyes');
     expect(seriesAvatarReferenceContext({ visualProfile: {
       ageNumeric: 5, hair: { color: 'blonde', length: 'short', style: 'short' }, eyes: { color: 'blue' },
     } } as any)).toBe('5 years old, short blonde hair, blue eyes');
     expect(seriesAvatarReferenceContext({ visualProfile: {
       hair: { color: {}, length: 'unknown' }, eyes: { color: 'unknown' },
     } } as any)).toBe('');
+    expect(seriesAvatarReferenceContext({ visualProfile: { gender: 'unknown' } } as any)).toBe('');
+  });
+  test('registered gender is an identity anchor, not an instruction to turn a nonhuman avatar into a child', () => {
+    const hero = { name: 'Flocke', description: 'a plush bear', visualProfile: { gender: 'female', species: 'plush_bear' } };
+    expect(seriesAvatarReferenceContext(hero)).toBe('female');
+    expect(seriesAvatarReferenceContext({ ...hero, visualProfile: { ...hero.visualProfile, gender: 'nonbinary' } })).toBe('nonbinary');
   });
   test('portrait props such as a pipe or tools do not enter the series look', () => {
     expect(seriesReferenceAppearance('Tilda Tueftel, nine-year-old girl inventor with curly dark hair, round safety goggles, yellow overalls and colorful tools'))

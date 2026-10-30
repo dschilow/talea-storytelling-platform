@@ -47,7 +47,7 @@ export function seriesLlmBudget(llm: StorybookLlm, length: string = 'medium'): S
         if (error instanceof StorybookSafetyBlock) throw error;
         const emptyAndFree = billed && billed.usage?.total === 0 && billed.usage?.costUSD === 0;
         const capacity = !billed && /\b(429|502|503)\b|capacity unavailable/i.test(String((error as Error)?.message));
-        // Vision has its own flex -> standard -> independent-reader recovery. Nesting this free retry doubled every
+        // Vision has its own primary -> independent-reader recovery. Nesting this free retry doubled every
         // empty check in abfc9b06 (eight empty attempts for two pictures), consuming calls needed by other pictures.
         if (attempt > 0 || request.stage?.startsWith('series-image-qa-') || (!emptyAndFree && !capacity)) throw error;
       }

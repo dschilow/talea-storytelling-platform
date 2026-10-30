@@ -6,12 +6,11 @@ import { parseJsonObject, type StorybookLlm } from '../storybook/llm';
 import type { IllustrationPlan, IllustrationShot, StoryPlan, StorybookPage } from '../storybook/types';
 import type { StoryBrief } from '../storybook/context';
 import { actsIn, buildImageSlots, pagesFor, placePictures, buildPictureNotes, PICTURE_EDGE } from '../storybook/book/illustrations';
-import { storyHighlights, type EpisodeDirection } from '../episode/pictures';
+import type { EpisodeDirection } from '../episode/pictures';
 import { wordlessLine } from '../storybook/illustration-stage';
 import { ORIGINALS_IMAGE_STYLE, SCENE_SIZE } from '../library/images';
 import { SERIES_IMAGE_REVIEW_EFFORT, SERIES_POLICY } from './authoring';
 import { effectiveSeriesEpisode, logsForEpisode } from './core';
-import { getSeriesEpisodeBlueprint } from './episode-plans';
 import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW_COMPACT, type SeriesQa } from './quality';
 import { FLUX3_KLEIN_MODEL, type RunwareReferenceRegion } from '../../ai/runware-image-model-options';
 import { StorybookSafetyBlock } from '../storybook/llm-guards';
@@ -46,8 +45,9 @@ export function seriesPaintableMoment(shot: IllustrationShot): { scene: string; 
   return { scene, fact };
 }
 
-const QUIET_ACTION = /^(?:looks?|watches?|observes?|studies|notices?|listens?|agrees?|introduces?|objects?|says?|talks?|speaks?|asks?|answers?|feels?|realises?|realizes?|decides?|understands?|thinks?|waits?|stands?|sits?|nods?)\b/i;
+const NON_VISUAL_ACTION = /^(?:looks?|watches?|observes?|studies|notices?|listens?|agrees?|introduces?|objects?|says?|talks?|speaks?|asks?|answers?|feels?|realises?|realizes?|decides?|understands?|thinks?|waits?|nods?)\b/i;
 const HIDDEN_IDENTITY = /\b(?:completely|fully|entirely)\s+(?:hides?|obscures?|covers?)\b.*\b(?:face|head|identity)\b/i;
+const VISIBLE_STAGING = 'ONLY VISIBLE STAGING in scene and visualBeat: every noun can become an object in the image. Exclude dialogue topics, memories, comparisons, wishes, future plans and invisible thoughts from these fields; quoted story evidence may retain them. Something merely mentioned in speech is NOT physically there. For a quiet conversation describe the actual people, their positions, expressions and empty resting hands, not what they discuss. A drawing is an image ON paper, never a living extra figure; include one only if the source says that drawing is actually present.';
 
 function isSmallCreature(entity: VisualEntity): boolean {
   return !entity.isHuman && /\b(dragon|drache|fairy|fee|mouse|maus|raven|rabe|seagull|moewe|bird|vogel|marmot|murmeltier|cat|katze|frog|frosch|squirrel|rabbit|hase|tortoise|schildkröte)\b/i.test(`${entity.species} ${entity.appearance}`);
@@ -162,9 +162,22 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
     // Story e83e44e2: the director quoted the paper flag behind Tilda's ear (paragraph 6) but named paragraph 16, the
     // clamp on the brake lever; the picture printed ten paragraphs late and its rescue redrew the brake lever. The quoted
     // words decide; a quote across paragraphs counts at its last sentence, the visible consequence.
-    const lastSentence = quote.split(/(?<=[.!?…])\s+/).filter(s => s.length >= 12).pop();
-    const quoted = [quote, lastSentence].filter((s): s is string => Boolean(s && s.length >= 12))
-      .map(probe => pageParagraphs.findIndex(p => norm(p).includes(norm(probe)))).find(at => at >= 0);
+    const quoted = (() => {
+      if (quote.length < 12 || quote.length > 500) return undefined;
+      const paragraphs = pageParagraphs.map(norm);
+      const source = paragraphs.join(' ');
+      const needle = norm(quote);
+      let end = -1;
+      const ends = paragraphs.map(p => (end += p.length + 1));
+      const matches = new Set<number>();
+      for (let at = source.indexOf(needle); at >= 0; at = source.indexOf(needle, at + 1)) {
+        const index = ends.findIndex(boundary => boundary >= at + needle.length - 1);
+        if (index >= 0) matches.add(index);
+      }
+      if (matches.size === 1) return [...matches][0];
+      const preferred = ordinal(candidate.paragraph);
+      return preferred !== undefined && matches.has(preferred - 1) ? preferred - 1 : undefined;
+    })();
     const paragraph = quoted !== undefined ? quoted + 1 : ordinal(candidate.paragraph);
     if (page > 0 && (paragraph === undefined || !Number.isInteger(paragraph) || paragraph < 1 || paragraph > pageParagraphs.length)) throw new Error('Das Serienbild gehört zu keinem Absatz des Kapitels.');
     const paragraphText = page > 0 && paragraph !== undefined ? pageParagraphs[paragraph - 1]?.trim() : '';
@@ -172,7 +185,7 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
     // A one-word paragraph („Hält.“) is too short as evidence (pilot 2026-10-29 lost the whole story): its neighbour joins it.
     const fallbackEvidence = paragraphText && paragraphText.length >= 12 ? paragraphText
       : (paragraph !== undefined && paragraph > 1 ? pageParagraphs.slice(paragraph - 2, paragraph) : pageParagraphs.slice(0, 2)).join(' ').trim();
-    const evidence = page > 0 && (quote.length < 12 || quote.length > 500 || !norm(pages[page - 1].content).includes(norm(quote))) ? fallbackEvidence.slice(0, 500) : quote;
+    const evidence = page > 0 && quoted === undefined ? fallbackEvidence.slice(0, 500) : quote;
     if (page > 0 && evidence.length < 12) throw new Error('Dem Serienbild fehlt ein wörtlicher Beleg aus seinem Kapitel.');
     const beat = candidate.visualBeat;
     // Haiku may put the valid framing beside visualBeat rather than inside it; the meaning is identical.
@@ -184,7 +197,7 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
     const result = typeof beat?.result === 'string' ? beat.result.trim() : '';
     const errors: string[] = [];
     if (!onStage.includes(actorId)) errors.push('visualBeat.actorId fehlt oder steht nicht auf onStage');
-    if (action.length < 3 || action.length > 220 || QUIET_ACTION.test(action)) errors.push('visualBeat.action ist leer, unbrauchbar oder nur eine Gesprächshandlung');
+    if (action.length < 3 || action.length > 220 || NON_VISUAL_ACTION.test(action)) errors.push('visualBeat.action ist leer, unbrauchbar oder nur eine Gesprächshandlung');
     if (result.length < 3 || result.length > 260 || HIDDEN_IDENTITY.test(result)) errors.push('visualBeat.result ist leer, unbrauchbar oder verdeckt die Identität vollständig');
     if (framing !== 'wide' && framing !== 'medium' && framing !== 'close') errors.push('visualBeat.framing muss wide, medium oder close sein');
     if (errors.length && (!allowSceneFallback || page === 0)) throw new SeriesPicturePlanError(page, errors);
@@ -266,10 +279,8 @@ export async function directSeriesPictures(input: {
   // Talea-Folge machinery (../episode/pictures.ts).
   const slots = buildImageSlots(chapters, { chapters: [] }, perChapter);
   const pages = pagesFor(slots);
-  const highlights = input.plan ? storyHighlights(input.plan) : [];
   const episode = effectiveSeriesEpisode(series.logs, series.episodeOverride);
   const firstEncounter = episode === 1 && logsForEpisode(series.logs, series.episodeOverride).length === 0;
-  const blueprint = getSeriesEpisodeBlueprint(series.bible.id, episode);
   const heroes = input.entities.filter(e => e.role === 'hero' && e.referenceUrl);
   const guests = input.entities.filter(e => e.kind === 'character' && e.role === 'cast' && e.id !== leadId && e.referenceUrl && chapters.some(c => actsIn(c.content, e.name)));
   const rules: SeriesShotRules = { strict: true, guestIds: guests.map(e => e.id) };
@@ -283,31 +294,28 @@ export async function directSeriesPictures(input: {
   ].filter(Boolean).join('\n');
   const pageText = pages.map((p, i) => `PAGE ${p.order} — chapter ${slots[i].chapter}, part ${slots[i].part + 1} of ${slots.filter(s => s.chapter === slots[i].chapter).length}\n${p.content.split(/\n\n/).map((t, k) => `p${k + 1}: ${t}`).join('\n')}`).join('\n\n');
   // A ceiling, not a price: only used tokens are billed, and a thinking model needs the room before its JSON.
-  const directionTokens = 3000 + pages.length * 1800;
-  const call = await input.llm({ stage: 'series-picture-direction', role: 'support', model: input.model, json: true, effort: 'low', maxTokens: directionTokens,
+  const directionTokens = 2000 + pages.length * 1000;
+  const call = await input.llm({ stage: 'series-picture-direction', role: 'support', model: input.model, json: true, effort: 'medium', maxTokens: directionTokens, serviceTier: 'standard', timeoutMs: 120000,
     imageInputs: [...(publicLead?.referenceUrl ? [publicLead.referenceUrl] : []), SERIES_STYLE_REFERENCE],
     system: [
       // Haiku planned two pictures per chapter instead of one per page in all three runs on 2026-10-29 ([1,1,2,2,3,3,4,5]).
-      `Direct hilarious, action-packed children's book landscape illustrations in the spirit of Talea Originals („Bruno, der Flunkerfisch“, „Die Monster-Müllabfuhr“): exactly ONE picture per PAGE plus a distinct cover. A PAGE is already a reading segment of a chapter (a chapter has up to ${perChapter} PAGES), so "pages" holds exactly ${pages.length} entries with page = ${pages.map(p => p.order).join(', ')}, each number once and in this order — never two pictures for one PAGE. Its paragraphs are numbered locally p1, p2, … 1 to 3 visible referenced characters per image. English complete captions, 70–110 words.`,
+      `Illustrate the FINISHED children's story faithfully, with lively expressions and clear landscape compositions. Exactly ONE picture per PAGE plus a distinct cover. A PAGE is already a reading segment of a chapter (up to ${perChapter} PAGES per chapter): return exactly ${pages.length} page entries, numbered ${pages.map(p => p.order).join(', ')} in order. Paragraph numbers p1, p2, ... restart on each PAGE. Each picture has 1 to 3 referenced figures and a concise English scene caption of 35–65 words.`,
       'CAST COVERAGE (see the task): the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture, in the part of its own contribution; every recurring guest of the episode in at least one page picture, where the guest does the most. The cover shows the lead WITH the avatars (all of them when lead and avatars are at most three, otherwise those with the biggest part): the family wants to find its children on the cover.',
       'For a referenced avatar identify them by name and action only; do not describe their hair, ears, teeth, face, clothing or other visible appearance in captions. The identity sheet supplies those details. Nonvisual age or height may be used for scale.',
-      'CHRONOLOGY BEFORE COVERAGE: every onStage person must already be physically present in that exact source moment. Never put a child inside a workshop while the child is still arriving outside. For page 1, select a later encounter beat after the arrival when needed; do not add a spectator to an earlier solo action just to meet coverage. Copy each recurring large prop’s established material, size, wheels and shape consistently across captions. Show ONE visible state: a sign held or tilted after slipping is drawable; a still must not prove its rolling trajectory or exact elbow contact.',
-      "PRIORITISE SLAPSTICK & VISUAL COMEDY OVER CHORES: for each PAGE pick its funniest, most dramatic physical mishap, slapstick turn or visual punchline (use the PLANNED HIGHLIGHTS / LACHER when they happen in that page's paragraphs!): something springing loose, tipping over, splashing, landing on someone's hat, tangling, a runaway cart or cloth, or an absurd visual contrast. NEVER pick a mundane transport or tidy work beat (merely carrying a roll, holding a frame still, standing by a table, or tying a routine knot) when the page contains a funnier physical mishap. The two pictures of a chapter show two different beats with different framing. Show what a six-year-old would laugh at and point to, caught mid-motion. A physical action and its consequence must exist in the source; never invent unsupported props or magic.",
-      // Measured on 70 first attempts of the pilots (2026-10-29): 2 figures passed the picture check first time in 48 %, 3 figures in 31 %;
-      // wide framing 26 %, medium 47 %; a result that hides a body part ("only knees and face stick out") 1 of 5; and pictures with two
-      // different jobs for two figures swapped the jobs (Nora carries, Tilda watches). Every failed first picture costs a redraw and a check.
-      'DRAWABLE FIRST TIME (the image model fails on these, every redraw costs money): (1) ONE figure does the physical action and the visible result is on that figure or on an object flying, falling, tipping or spilling; the other figure only REACTS (laughs, ducks, catches, points, covers its ears) and never has its own separate job in the same picture. (2) Prefer exactly TWO figures per page picture, the series lead being one of them on page 1 and on at least half of the pages; a third figure only on the cover or when it is the one catching or reacting. (3) Prefer MEDIUM framing, CLOSE for a small prop, and WIDE for at most one page picture. (4) The result must show every body part, never "only the knees and face stick out", "the lid hides her head" or "half inside the box". (5) A machine part is a plain big shape (an arm, a crate, a cart); never a mechanism closing, clamping, locking or catching a thing the picture must show working: show its comic EFFECT instead (the person pulled along, the books flying). (6) No tiny props (a clip, a peg, a lever, a needle) as the point of the picture. If the page\'s funniest beat breaks these, pick another beat of the page.',
-      'READABLE AT A GLANCE: choose moments whose action reads from across the room — big bodies and big objects in motion (a captain riding a sliding crate across the deck, a tarp billowing over two heads, a gull landing on a hat). Avoid moments that hinge on a small spatial detail (a nose inside a bucket, a sleeve between two shoes, which way a needle points): the illustrator cannot place those reliably and the picture check rejects them. Unnamed animals and crowds the text names (a flock of gulls, a market crowd) may fill the scene without being listed in onStage.',
-      "SETTING FIRST (NO PORTRAIT BACKGROUND BLEED): Start every `scene` caption with the exact setting and lighting of that paragraph (e.g. \"Inside the warm wooden paper-mill courtyard with drying racks and a tipped water basin on the stone ground, away from the harbour:\"). Explicitly state the indoor room, workshop, forest or mountain setting so the lead's portrait background never bleeds into the scene.",
+      'SOURCE FIRST: for each PAGE, first copy storyQuote, a consecutive 12–500 character passage that actually states the selected action AND its visible result. Then set paragraph to the LAST local paragraph needed for that result, even if it is the last paragraph of the page. Only then derive onStage, visualBeat and scene from that passage. Do not cite a vague lead-in, an earlier dialogue line or the start of an action while drawing its later result. Never borrow an event from another PAGE. The finished prose, not a planned gag or an imagined improvement, is the authority.',
+      VISIBLE_STAGING,
+      'CAST AT THIS MOMENT: include only figures physically present at this source moment. If a child arrives later in the PAGE, choose a moment after that arrival or leave the child out. Prefer the actual participants, not an extra spectator to meet coverage. Keep the source actor and helper; do not replace them with a guest to satisfy a quota. Cover and coverage wishes never override chronology.',
+      'Choose the most expressive TRUE moment in the segment. A physical joke is welcome when it actually occurs there. A quiet arrival, someone carrying an object or helping with a real task is better than an invented mishap. A funny result from an earlier page must not be repeated in a later picture. Give the two pictures of each chapter different moments.',
+      // In 70 pilot first attempts, two figures were more reliable than three (48% vs. 31%).
+      'DRAWABLE: prefer TWO figures and medium framing, with one clear action and readable faces. A third figure belongs only when actually participating. Cooperating figures may keep their real roles; never invent a different action to simplify the composition. Prefer a large object or visible consequence over tiny mechanical workings. Keep each recurring prop’s established material, size and shape. All prominent figures are listed in onStage; an explicitly mentioned distant crowd may be incidental silhouettes, not extra foreground children.',
+      'SETTING: start scene with the actual location already established by this text, followed by the figures and the visible action. An outdoor courtyard is outdoors, not an indoor room. Reference images supply identity and rendering only, never their background or props. Do not add irrelevant settings, excluded places or appearance details.',
       'Every shot needs visualBeat {actorId, action, result, framing} and boxes {"id":[top,left,bottom,right]} on a 0–1000 scale of the 3:2 landscape canvas. Start action with an English physical VERB, not watching, speaking, agreeing or deciding. The result must be observable in ONE still. framing is wide, medium or close; use at least TWO scales across three or more page pictures. In `boxes`, keep realistic relative sizes (adult ~650–820 tall, child ~480–640 tall and visibly shorter than adults, small creature/dragon/mouse/bird ~260–440 tall) and vary left/center/right placement so consecutive pictures never repeat a side-by-side 50/50 split.',
-      "Compose an asymmetrical full-body or three-quarter scene with depth, varied camera height, expressive comic faces (wide-eyed surprise, burst of laughter, puffed cheeks, startled leap) and clear hand-to-object contact. The cover shows an inviting, funny physical motif from the first half of the story (the PLANNED KEY VISUAL when the text tells it), with the lead's face recognisable and the avatars beside the lead, and differs from every page picture. Only identities with an existing supplied reference may be listed in onStage.",
-      `Every page needs storyQuote: an exact 12–500 character passage from THAT page evidencing the selected physical event, and "paragraph": the local number of the ONE paragraph of that page whose moment the picture shows. The picture prints right AFTER that paragraph, so it never shows what the text tells later; when the page allows, choose a paragraph at least ${PICTURE_EDGE} paragraphs from its start and from its end. The illustration is wordless. JSON {"cover":{"onStage":["id","id"],"boxes":{"id":[160,220,920,760]},"visualBeat":{"actorId":"id","action":"pulls the loose strap","result":"the released roll curls over the rail","framing":"wide"},"scene":"..."},"pages":[{"page":1,"paragraph":4,"onStage":["id","id"],"boxes":{"id":[160,60,920,460],"id2":[300,520,920,880]},"storyQuote":"exact source passage","visualBeat":{"actorId":"id","action":"physical verb and object","result":"visible physical consequence","framing":"medium"},"scene":"..."}]}.`,
+      "Compose a full-body or three-quarter scene with depth and expressive faces. The cover uses a real motif from the first half of the story, with the lead and avatars, never the resolved ending. The illustration is wordless. Only identities with supplied references may be onStage.",
+      `The picture prints right AFTER paragraph; never draw a result before its text. Prefer ${PICTURE_EDGE} paragraphs of spacing from segment edges only when the true moment allows it. Before returning, check each caption's actors, objects and result against its quote and ensure paragraph is not earlier than any part of the depicted event. JSON {"cover":{"onStage":["id","id"],"boxes":{"id":[160,220,920,760]},"visualBeat":{"actorId":"id","action":"physical verb and object","result":"source-grounded visible result","framing":"wide"},"scene":"..."},"pages":[{"page":1,"storyQuote":"exact passage stating the event AND result","paragraph":4,"onStage":["id","id"],"boxes":{"id":[160,60,920,460],"id2":[300,520,920,880]},"visualBeat":{"actorId":"id","action":"physical verb and object","result":"visible result already stated in the quote","framing":"medium"},"scene":"..."}]}.`,
     ].join('\n'),
     user: [
-      firstEncounter ? 'FIRST CHAPTER PICTURE: choose the physical first encounter or its funniest prop mishap/exchange. The introductions remain in the text. Keep identifying faces visible.' : '',
-      highlights.length ? `PLANNED HIGHLIGHTS / LACHER (prefer these comic set-pieces when they happen in a page's paragraphs):\n${highlights.join('\n')}` : '',
-      blueprint?.keyVisual ? `PLANNED KEY VISUAL OF THIS EPISODE (German; the best cover motif when the text tells it, otherwise a page picture): ${blueprint.keyVisual}` : '',
-      'Draw different physical story beats that read in one still, with different camera scales and varied left/center/right staging. Choose funny slapstick consequences and vivid character reactions rather than calm carrying or sorting chores.',
+      firstEncounter ? 'FIRST CHAPTER PICTURE: choose a real encounter or exchange from this segment, after the relevant people arrive. Keep identifying faces visible.' : '',
+      'Work from the finished PAGES below, one segment at a time. Copy the complete source event before describing its picture.',
       `${publicLead?.referenceUrl ? 'Image 1 is ONLY the public series lead; take face, species and clothes, NEVER its sea/room background or loose portrait props. ' : ''}The last image is ONLY the art style (notice the full-room depth, expressive faces and true child-to-creature scale). Reference poses are not scene poses.`,
       `REQUIRED CAST COVERAGE:\n${coverage}`,
       `TITLE ${input.title}`,
@@ -326,9 +334,9 @@ export async function directSeriesPictures(input: {
     repairReasons = [issue(error)];
     await input.observe?.('series-picture-plan-invalid', { issues: [...repairReasons], plan: first, usage: call.usage });
     try {
-      repairCall = await input.llm({ stage: 'series-picture-plan-repair', role: 'support', model: input.model, json: true, effort: 'low', maxTokens: directionTokens,
-        system: 'Repair only the supplied illustration plan JSON: one picture per PAGE (a reading segment of a chapter), exactly the given pages in order, plus the cover. The DEFECT is real: never return the plan unchanged; for a missing page choose a funny physical event from that page\'s own paragraphs. Each image has 1 to 3 visible referenced characters. Preserve the actual selected physical event unless its evidence or activity is invalid; then choose a funny physical event from that page. Every cover/page needs visualBeat {actorId, action, result, framing}; actorId is onStage, action starts with an English physical verb, result is a visible consequence, framing is wide|medium|close. Across three or more page pictures use at least TWO framing scales. An introduction, objection, agreement, look or nod alone is not a physical event. Cast: the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture; at least one avatar beside the lead on the cover; every listed recurring guest in at least one page picture. "paragraph" is the local paragraph number within its page. Keep captions, page order and paragraph numbers where valid, with no invented objects or events. Return only the corrected plan.',
-        user: `DEFECT ${repairReasons[0].errors.join('; ')}\nLEAD ${leadId}\nAVATARS ${heroes.map(e => e.id).join(', ')}\n${guests.length ? `RECURRING GUESTS ${guests.map(e => e.id).join(', ')}\n` : ''}ALLOWED REFERENCED IDENTITIES ${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name}`).join('; ')}\nEXACTLY ${pages.length} PAGES\nEvery page needs storyQuote: an exact 12–500 character passage from THAT page proving the physical event. Its result must read in one still without a temporal comparison. Keep identifying faces visible. Use only source-present props.\nSOURCE PAGES:\n${pageText}\nPLAN\n${call.text}` });
+      repairCall = await input.llm({ stage: 'series-picture-plan-repair', role: 'support', model: input.model, json: true, effort: 'medium', maxTokens: directionTokens, serviceTier: 'standard', timeoutMs: 120000,
+        system: 'Repair only the supplied illustration plan JSON: one picture per PAGE (a reading segment of a chapter), exactly the given pages in order, plus the cover. The DEFECT is real: never return the plan unchanged; for a missing page choose a real physical event from that page\'s own paragraphs. Each image has 1 to 3 visible referenced characters. Preserve the selected event unless its evidence or activity is invalid; then choose a true moment from that page. Every cover/page needs visualBeat {actorId, action, result, framing}; actorId is onStage, action starts with an English physical verb or concrete posture, result is visible, framing is wide|medium|close. Across three or more page pictures use at least TWO framing scales. An introduction, objection or agreement alone is not a visible event; a concrete seated or standing arrangement can be. Cast: the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture; at least one avatar beside the lead on the cover; every listed recurring guest in at least one page picture. "paragraph" is the local paragraph number within its page. Keep captions, page order and paragraph numbers where valid, with no invented objects or events. Return only the corrected plan.',
+        user: `DEFECT ${repairReasons[0].errors.join('; ')}\nLEAD ${leadId}\nAVATARS ${heroes.map(e => e.id).join(', ')}\n${guests.length ? `RECURRING GUESTS ${guests.map(e => e.id).join(', ')}\n` : ''}ALLOWED REFERENCED IDENTITIES ${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name}`).join('; ')}\nEXACTLY ${pages.length} PAGES\nEvery page needs storyQuote: an exact 12–500 character passage from THAT page proving the physical event AND its result. paragraph is the LAST paragraph needed for the complete event. Include only people already physically present there; never borrow a later gag or add a spectator to meet coverage. A quiet true action is better than an invented mishap. Its result must read in one still without a temporal comparison. Keep identifying faces visible. Use only source-present props.\n${VISIBLE_STAGING}\nSOURCE PAGES:\n${pageText}\nPLAN\n${call.text}` });
       repaired = parseJsonObject<Record<string, unknown>>(repairCall.text);
       illustrations = validateSeriesShots(repaired, pages, input.entities, leadId);
     } catch (repairError) {
@@ -445,15 +453,15 @@ export async function generateSeriesImages(input: {
         `The finished scene has exactly one ${drawn.map(e => e.name).join(' and one ')}. Each human has exactly two arms and two hands with five fingers. If a person or hand is duplicated, keep the one integrated with the main interaction and remove the extra copy completely, restoring the setting behind it.`,
         'Keep the original framing and successful details. Do not reconstruct the entire scene from the identity portraits.',
       ].join('\n') : [bindNames(moment.scene),
-        beat ? bindNames(`Freeze the physical instant: ${byId.get(beat.actorId)?.name} ${moment.fact}. ${beat.framing.toUpperCase()} framing, asymmetric foreground and depth, dynamic three-quarter or side postures and vivid comic facial expressions. Bodies change balance with the action; each hand visibly works on its own object. The depicted scene determines setting, gesture and camera, while the reference sheet determines only character identity.`) : '',
+        beat ? bindNames(`Depict this visible moment: ${byId.get(beat.actorId)?.name} ${moment.fact}. ${beat.framing.toUpperCase()} framing with foreground and depth. Posture and expression follow this actual moment: lively during a mishap, gentle during a quiet exchange. Hands perform only the described action or rest naturally; do not invent objects to occupy them. The scene determines setting, gesture and camera; the reference sheet determines character identity, not its pose or held props.`) : '',
         SERIES_ART_DIRECTION,
         regionBound ? regions.map(r => `<${r.id}> is ${r.description}, taken only from its own sheet cell and placed in its assigned scene region. Draw this figure exactly once in the caption's new action; the cell's resting pose and portrait background have no part in this scene.`).join('\n') : '',
-        references.length ? `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${slotPositionLabel(i, identities.length)} is ONLY ${e.name}${e.role === 'hero' ? (e.referenceContext ? ` (${e.referenceContext})` : '') : `: ${e.appearance}`}`).join('; ')}. Keep each face, ears, teeth, species and outfit with its OWN person. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, natural human ears matching the reference, and exactly two arms and two hands, each with five separate fingers${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.` : '',
+        references.length ? `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${slotPositionLabel(i, identities.length)} is ONLY ${e.name}${e.role === 'hero' ? (e.referenceContext ? ` (${e.referenceContext})` : '') : `: ${e.appearance}`}`).join('; ')}. Keep each face, hair, species and outfit with its OWN person. Ignore objects held in the portraits unless this scene explicitly needs them. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, natural human ears matching the reference, and exactly two arms and two hands, each with five separate fingers, plus two legs${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.` : '',
         ...drawn.filter(e => !e.referenceUrl).map(e => `${e.name}: ${e.appearance}.`),
-        'Every described object keeps its true material and shape (a cloth banner is flexible fabric, never a wooden log); a joke never adds a garment or a mouth-held prop.',
+        'Every described object keeps its source material, size and shape. Props come only from this scene, never from a portrait or a conversation topic.',
         simplified
           ? `A solitary scene with exactly one character, ${drawn[0]?.name}, shown only once. The surrounding landscape is uninhabited: no other figures, creatures, spectators, faces or portraits anywhere in the background. Keep only the setting of this scene, not the reference portrait's background.`
-          : `Exactly ${drawn.length} named characters, once each: ${drawn.map(e => e.name).join(', ')}; only unnamed animals or crowds that the caption itself mentions may join them as extra figures. A story instant in one continuous full-bleed setting reaching every edge; completely ignore any sea, ships, sky or background from the reference portraits and paint only the scene's own environment.`,
+          : `Exactly ${drawn.length} foreground characters, once each: ${drawn.map(e => e.name).join(', ')}. No additional foreground children or replacement faces. A crowd explicitly named in the caption stays distant incidental silhouettes. A story instant in one continuous full-bleed setting reaching every edge; ignore the reference portraits' backgrounds and paint only the scene's own environment.`,
         fixes.length ? `Correct these observed problems in the same scene: ${fixes.join(' ')}` : '',
         wordlessLine(moment.scene),
         'Use the shared Talea Originals medium described above; only the identity sheet supplies characters.',
@@ -486,12 +494,11 @@ export async function generateSeriesImages(input: {
         return { page: shot.page, url: response.url, prompt, attempts: number, costUSD, severity: 999, status: 'failed',
           errors: ['series_vision_safety_blocked', reason], history };
       };
-      // Story 289c11a4: five flex checks hung for 120 s each (the story took 558 s) and went to Terra at 3.4x the price.
-      // Flex gets 40 s; a check that misses it is repeated on the standard tier of the SAME model (0.2 ct more, seconds),
-      // and only an empty or unreadable answer goes to the fallback reader.
-      const review = async (stage: string, model = input.visionModel, tier: 'flex' | 'standard' = 'flex') => {
+      // ef08de38: three Flex timeouts sent the remaining checks to Gemini ($0.0413).
+      // The inexpensive primary stays on its normal tier; only a genuine reader outage uses the fallback.
+      const review = async (stage: string, model = input.visionModel) => {
         try {
-          const reply = await input.llm({ stage, role: 'support', model, effort: SERIES_IMAGE_REVIEW_EFFORT, json: true, maxTokens: 6000, timeoutMs: tier === 'flex' ? 20000 : 60000, serviceTier: tier,
+          const reply = await input.llm({ stage, role: 'support', model, effort: SERIES_IMAGE_REVIEW_EFFORT, json: true, maxTokens: 6000, timeoutMs: 60000, serviceTier: 'standard',
             system: SERIES_IMAGE_REVIEW_COMPACT, user: reviewUser, imageInputs: [response.viewUrl || response.url!, ...references] });
           qaCalls.push(reply);
           return readSeriesQa(reply.text, drawn);
@@ -514,20 +521,20 @@ export async function generateSeriesImages(input: {
       const fallback = input.visionFallbackModel && input.visionFallbackModel !== input.visionModel ? input.visionFallbackModel : undefined;
       const bypassPrimary = primaryReadFailures >= 2 && Boolean(fallback);
       let qa = bypassPrimary
-        ? await review(`series-image-qa-${shot.page}-${number}-fallback`, fallback!, 'standard')
+        ? await review(`series-image-qa-${shot.page}-${number}-fallback`, fallback!)
         : await review(`series-image-qa-${shot.page}-${number}`);
       if (safetyBlock) return blockedOutcome(safetyBlock);
       if (!qa && !bypassPrimary) primaryReadFailures++;
       // 10d99c0f paid eight Terra readers after 17 empty Gemini calls, then lost two drawn pictures to the call cap.
-      // At most two immediate reads; no repeated empty primary before the cheaper, independent endpoint.
+      // At most two immediate reads; no repeated empty primary before the independent reader.
       if (!qa && canReview()) qa = await review(`series-image-qa-${shot.page}-${number}-${bypassPrimary || !fallback ? 'retry' : 'fallback'}`,
-        bypassPrimary || !fallback ? input.visionModel : fallback, 'standard');
+        bypassPrimary || !fallback ? input.visionModel : fallback);
       if (safetyBlock) return blockedOutcome(safetyBlock);
       if (qa) return verdict(qa);
       history.push({ kind: 'series-vision', status: 'failed', severity: 999, notes: ['Bildprüfung nicht verfügbar oder unlesbar; das erzeugte Bild bleibt für eine erneute Prüfung erhalten.'], url: response.url });
       const unverified: ImageOutcome = { page: shot.page, url: response.url, prompt, attempts: number, costUSD, severity: 999, status: 'failed', errors: ['series_vision_error'], history };
       visionRecoveries.set(shot.page, async () => {
-        const recovered = await review(`series-image-qa-${shot.page}-${number}-recovery`, fallback || input.visionModel, 'standard');
+        const recovered = await review(`series-image-qa-${shot.page}-${number}-recovery`, fallback || input.visionModel);
         if (safetyBlock) return blockedOutcome(safetyBlock);
         return recovered ? verdict(recovered) : unverified;
       });
@@ -596,7 +603,7 @@ export async function generateSeriesImages(input: {
         const normalise = (value: string) => value.normalize('NFC').replace(/\s+/g, ' ').trim();
         if (!Array.isArray(ids) || ids.length !== 1 || ids.some((id: unknown) => typeof id !== 'string' || !shot.onStage.includes(id))) continue;
         if (typeof candidate.scene !== 'string' || candidate.scene.trim().length < 20 || candidate.scene.length > 1200 || quote.length < 12 || quote.length > 500 || !normalise(paragraph).includes(normalise(quote))) continue;
-        if (!beat || !ids.includes(beat.actorId) || typeof beat.action !== 'string' || beat.action.length < 12 || beat.action.length > 220 || QUIET_ACTION.test(beat.action.trim()) || typeof beat.result !== 'string' || beat.result.length < 12 || beat.result.length > 260 || HIDDEN_IDENTITY.test(beat.result) || !['wide', 'medium', 'close'].includes(beat.framing)) continue;
+        if (!beat || !ids.includes(beat.actorId) || typeof beat.action !== 'string' || beat.action.length < 12 || beat.action.length > 220 || NON_VISUAL_ACTION.test(beat.action.trim()) || typeof beat.result !== 'string' || beat.result.length < 12 || beat.result.length > 260 || HIDDEN_IDENTITY.test(beat.result) || !['wide', 'medium', 'close'].includes(beat.framing)) continue;
         result.set(index, { ...shot, onStage: ids, scene: candidate.scene, storyQuote: quote, visualBeat: beat } as SeriesShot);
       }
       return result;

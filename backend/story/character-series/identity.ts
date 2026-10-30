@@ -79,9 +79,11 @@ export function seriesAvatarReferenceContext(hero: StorybookHero): string {
   const hair = [...new Set([profile?.hair?.length, profile?.hair?.style, profile?.hair?.type, profile?.hair?.color]
     .map(field).filter(value => value && !/^(?:unknown|none|null|undefined)$/i.test(value)))].join(' ');
   const eyes = field(profile?.eyes?.color);
+  const gender = field(profile?.gender).toLowerCase();
   return [
     typeof age === 'number' && Number.isFinite(age) && age >= 0 && age <= 120 ? `${age} years old` : '',
     typeof height === 'number' && Number.isFinite(height) && height >= 30 && height <= 250 ? `${height} cm tall` : '',
+    gender === 'male' || gender === 'female' || gender === 'nonbinary' ? gender : '',
     hair ? `${hair} hair` : '',
     eyes && !/^(?:unknown|none|null|undefined)$/i.test(eyes) ? `${eyes} eyes` : '',
   ].filter(Boolean).join(', ');

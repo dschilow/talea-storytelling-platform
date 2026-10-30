@@ -1,7 +1,7 @@
 // @ts-ignore Bun test helpers are runtime-only in the Encore project.
 import { describe, expect, test } from 'bun:test';
 import { applyChapterEdits, runCharacterSeriesTextEngine, seriesLlmBudget } from './engine';
-import { seriesAuthoring, seriesBudget, SERIES_MODELS, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, SERIES_IMAGE_REVIEW_EFFORT, SERIES_POLICY } from './authoring';
+import { seriesAuthoring, seriesBudget, SERIES_MODELS, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, SERIES_IMAGE_REVIEW_EFFORT, SERIES_PICTURE_DIRECTION_MODEL, SERIES_POLICY } from './authoring';
 import { SERIES_NARRATIVES } from './narrative';
 import { withSeriesContext, seriesPrompt } from './core';
 import { directSeriesPictures, generateSeriesImages, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment, seriesReferenceRegions } from './pictures';
@@ -10,7 +10,7 @@ import { SERIES_EDITORIAL_CRAFT } from './editorial';
 import { StorybookSafetyBlock } from '../storybook/llm-guards';
 import { isPublishable } from '../storybook/images';
 import { IdentityReferenceError } from '../image-reference-sprite';
-import { CostLedger, type StorybookLlm } from '../storybook/llm';
+import { CostLedger, withServiceTier, type StorybookLlm } from '../storybook/llm';
 import { buildBrief } from '../storybook/context';
 import type { VisualEntity } from '../storybook/illustration-stage';
 import bibles from './series-bibles.json';
@@ -31,6 +31,7 @@ describe('Figurenserien revision 2', () => {
     expect(author.system).toContain('not stage directions');
     expect(author.system).toContain('End on the strongest callback');
     expect(author.system).toContain("one avatar's practical observation");
+    expect(author.system).toContain('not the same confession');
     expect(author.system).not.toContain('average ~7');
     expect(author.user()).toContain('ending fulfils the opening task and title');
   });
@@ -55,8 +56,9 @@ describe('Figurenserien revision 2', () => {
     expect(recheckUser).toContain('do not open a new round');
     expect(result.pages[0].content).toContain('Der fliegt besser als du.');
   });
-  test('Sol writes, Haiku reviews the text and plans the pictures, Luna reviews them with the bounded Gemini fallback', () => {
+  test('Sol writes, Haiku reviews the text, Luna plans and reviews pictures with the bounded Gemini fallback', () => {
     expect(SERIES_MODELS).toEqual({ writer: 'openai/gpt-6.1-sol', support: 'anthropic/claude-haiku-5.5', critic: 'anthropic/claude-haiku-5.5' });
+    expect(SERIES_PICTURE_DIRECTION_MODEL).toBe('openai/gpt-6-luna');
     expect(SERIES_IMAGE_REVIEW_MODEL).toBe('openai/gpt-6-luna');
     expect(SERIES_IMAGE_REVIEW_FALLBACK_MODEL).toBe('google/gemini-3.8-flash');
     expect(SERIES_IMAGE_REVIEW_FALLBACK_MODEL).not.toBe(SERIES_IMAGE_REVIEW_MODEL);
@@ -414,6 +416,43 @@ describe('series picture planning recovery after story 6f079b98', () => {
 });
 
 describe('series artwork preserves action and lead within a fixed budget', () => {
+  test('cheap image checks stay on standard even while the story uses Flex, avoiding the costly timeout route', async () => {
+    const checked: string[] = [];
+    const llm = withServiceTier(async r => {
+      expect(r.serviceTier).toBe('standard');
+      expect(r.effort).toBe('medium');
+      expect(r.timeoutMs).toBe(60000);
+      expect(r.model).toBe('luna');
+      checked.push(r.stage);
+      return imageReview(r.stage);
+    }, 'flex');
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'no-flex-vision',
+      visionModel: 'luna', visionFallbackModel: 'expensive-reader', pageTexts: {}, llm,
+      provider: async r => ({ url: `https://example.test/${r.page}.webp`, costUSD: 0.00169 }),
+      buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
+    });
+    expect(checked).toHaveLength(4);
+    expect(checked.some(stage => stage.includes('fallback') || stage.includes('retry'))).toBe(false);
+    expect(result.imageCalls).toBe(4);
+    expect(result.imagesGenerated).toBe(4);
+  });
+  test('scene prompts do not force busy hands or import held portrait props into quiet moments', async () => {
+    const prompts: string[] = [];
+    await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'visible-staging',
+      visionModel: 'test', pageTexts: {}, llm: async r => imageReview(r.stage),
+      provider: async r => { prompts.push(r.prompt); return { url: `https://example.test/${r.page}.webp`, costUSD: 0 }; },
+      buildReference: async () => ({ urls: ['https://example.test/sheet.webp'], mode: 'sprite', subjects: [] }),
+    });
+    expect(prompts).toHaveLength(4);
+    for (const prompt of prompts) {
+      expect(prompt).toContain('Ignore objects held in the portraits');
+      expect(prompt).toContain('or rest naturally');
+      expect(prompt).toContain('Props come only from this scene');
+      expect(prompt).not.toContain('each hand visibly works on its own object');
+    }
+  });
   test('all picture checks use medium for one, two or three figures, including cover and fallback reader', async () => {
     for (const count of [1, 2, 3]) {
       const figures: VisualEntity[] = [...entities, { ...entities[1], id: 'guest', name: 'Ben' }].slice(0, count);
@@ -464,11 +503,22 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     let inputs: string[] = [];
     let user = '';
     const stages: string[] = [];
-    const direction = await directSeriesPictures({ brief: b, model: 'test', title: 'Glocke', pages: segmentChapters, entities: figures, llm: async r => { stages.push(r.stage); inputs = r.imageInputs || []; user = r.user; return response(JSON.stringify(segmentPlan(bible.characterId))); } });
+    const direction = await directSeriesPictures({ brief: b, model: 'test', title: 'Glocke', pages: segmentChapters, entities: figures, llm: async r => {
+      expect(r.serviceTier).toBe('standard');
+      expect(r.effort).toBe('medium');
+      expect(r.maxTokens).toBe(8000);
+      expect(r.timeoutMs).toBe(120000);
+      expect(r.system).toContain('SOURCE FIRST');
+      expect(r.system).toContain('ONLY VISIBLE STAGING');
+      expect(r.system).toContain('LAST local paragraph');
+      stages.push(r.stage); inputs = r.imageInputs || []; user = r.user;
+      return response(JSON.stringify(segmentPlan(bible.characterId)));
+    } });
     expect(inputs).toContain(figures[0].referenceUrl!);
     expect(inputs).not.toContain(figures[1].referenceUrl!);
     expect(user).toContain('FIRST CHAPTER PICTURE');
-    expect(user).toContain('PLANNED KEY VISUAL');
+    expect(user).not.toContain('PLANNED KEY VISUAL');
+    expect(user).not.toContain('PLANNED HIGHLIGHTS');
     expect(user).toContain('PAGE 6 — chapter 3, part 2 of 2');
     expect(stages).toEqual(['series-picture-direction']);
     expect(direction.slots.map(s => `${s.chapter}.${s.part}`)).toEqual(['1.0', '1.1', '2.0', '2.1', '3.0', '3.1']);
@@ -905,7 +955,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
         return imageReview(r.stage);
       },
     });
-    expect(calls).toContainEqual(['series-image-qa-2-1', 'gemini', 'flex', 20000]);
+    expect(calls).toContainEqual(['series-image-qa-2-1', 'gemini', 'standard', 60000]);
     expect(calls).toContainEqual(['series-image-qa-2-1-fallback', 'flash-lite', 'standard', 60000]);
     expect(calls.some(([stage]) => stage.endsWith('-retry'))).toBe(false);
     expect(calls).toContainEqual(['series-image-qa-3-1-fallback', 'flash-lite', 'standard', 60000]);
@@ -938,6 +988,22 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(validateSeriesShots(raw, long, entities, 'lead').pages[0]).toMatchObject({ paragraph: 10 });
     raw.pages[0].storyQuote = 'Ein im Kapitel nicht vorhandener Satz.';
     expect(validateSeriesShots(raw, long, entities, 'lead').pages[0]).toMatchObject({ paragraph: 16 });
+  });
+  test('a cross-paragraph quote ends at its full source span, not an earlier repeated last sentence', () => {
+    const sourcePages = pages.map(p => ({ ...p, content: 'Nora hielt den Griff.\n\nFunkelflug zog am langen Seil.\n\nNora hielt den Griff.\n\nDanach ging die Tür auf.' }));
+    const raw = rawPlan();
+    raw.pages.forEach(p => { p.paragraph = 4; p.storyQuote = 'Funkelflug zog am langen Seil. Nora hielt den Griff.'; });
+    expect(validateSeriesShots(raw, sourcePages, entities, 'lead').pages.every(p => p.paragraph === 3)).toBe(true);
+    raw.pages.forEach(p => { p.paragraph = 3; p.storyQuote = 'Nora hielt den Griff.'; });
+    expect(validateSeriesShots(raw, sourcePages, entities, 'lead').pages.every(p => p.paragraph === 3)).toBe(true);
+  });
+  test('a concrete seated moment is drawable without paying to replace it with an invented mishap', () => {
+    const raw = rawPlan();
+    raw.pages[0].visualBeat.action = 'sits beside the child on the bench';
+    raw.pages[0].visualBeat.result = 'both figures sit together beside the workshop';
+    expect(() => validateSeriesShots(raw, pages, entities, 'lead')).not.toThrow();
+    raw.pages[0].visualBeat.action = 'decides to be a better friend';
+    expect(() => validateSeriesShots(raw, pages, entities, 'lead')).toThrow('Gesprächshandlung');
   });
   test('a one-word paragraph borrows its neighbour as evidence instead of failing the plan', () => {
     const short = pages.map(p => ({ ...p, content: 'Pia prüfte die neue Leine mit einem Griff.\n\n„Hält.“\n\nDas Ende.' }));

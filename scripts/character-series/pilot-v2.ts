@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import bibles from '../../backend/story/character-series/series-bibles.json';
 import { CHARACTER_SERIES_ENGINE, CHARACTER_SERIES_VERSION, validateSeriesLog, extractSeriesLog, withSeriesContext, type SeriesEpisodeLog } from '../../backend/story/character-series/core';
 import { SERIES_NARRATIVES } from '../../backend/story/character-series/narrative';
-import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, seriesAuthoring, seriesBudget } from '../../backend/story/character-series/authoring';
+import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, SERIES_PICTURE_DIRECTION_MODEL, seriesAuthoring, seriesBudget } from '../../backend/story/character-series/authoring';
 import { runCharacterSeriesTextEngine, seriesLlmBudget } from '../../backend/story/character-series/engine';
 import { directSeriesPictures, generateSeriesImages, validateSeriesShots } from '../../backend/story/character-series/pictures';
 import { buildBrief } from '../../backend/story/storybook/context';
@@ -27,7 +27,7 @@ const opt = (name: string, fallback: string) => args.includes(name) ? args[args.
 if (!args.includes('--run') && !args.includes('--dry')) throw new Error('Use --run or --dry.');
 const seriesId = opt('--series', 'funkelflug'), episode = Number(opt('--episode', '1'));
 // Role trials: --writer/--critic/--director/--vision replace one model each; the defaults are production's.
-const models = { ...SERIES_MODELS, writer: opt('--writer', SERIES_MODELS.writer), critic: opt('--critic', SERIES_MODELS.critic), support: opt('--director', SERIES_MODELS.support) };
+const models = { ...SERIES_MODELS, writer: opt('--writer', SERIES_MODELS.writer), critic: opt('--critic', SERIES_MODELS.critic), director: opt('--director', SERIES_PICTURE_DIRECTION_MODEL) };
 const visionModel = opt('--vision', SERIES_IMAGE_REVIEW_MODEL);
 if (![1, 2].includes(episode)) throw new Error('Pilot supports episodes 1 and 2.');
 const bible = bibles.find(b => b.id === seriesId)!;
@@ -148,7 +148,7 @@ try {
     const reusedPages = reusedSlots ? pagesFor(reusedSlots) : result.pages;
     const directed = reusedDirection
       ? { illustrations: validateSeriesShots(reusedDirection, reusedPages, entities, bible.characterId), pages: reusedPages, ...(reusedSlots ? { slots: reusedSlots } : {}) }
-      : await directSeriesPictures({ llm, model: models.support, brief, title: result.title, pages: result.pages, entities });
+      : await directSeriesPictures({ llm, model: models.director, brief, title: result.title, pages: result.pages, entities });
     if ('director' in directed) {
       ledger.recordCall('series-picture-direction', directed.director.call, 'support');
       if (directed.director.repairCall) ledger.recordCall('series-picture-plan-repair', directed.director.repairCall, 'support');

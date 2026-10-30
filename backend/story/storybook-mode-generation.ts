@@ -41,7 +41,7 @@ import { loadArtifactOptions, loadCastCandidates, recordCastUsage } from "./stor
 import { loadPoolRows } from "./storybook/casting";
 import { toCastCandidate } from "./storybook/cast-selection";
 import { CHARACTER_SERIES_ENGINE } from "./character-series/core";
-import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, seriesBudget } from "./character-series/authoring";
+import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, SERIES_PICTURE_DIRECTION_MODEL, seriesBudget } from "./character-series/authoring";
 import { SERIES_NARRATIVES } from "./character-series/narrative";
 import { runCharacterSeriesTextEngine, seriesLlmBudget } from "./character-series/engine";
 import { StorybookSafetyBlock } from "./storybook/llm-guards";
@@ -371,7 +371,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // acting figure at least once (the chapter book's picture machinery, ./episode/pictures.ts). Every other lane: one
   // picture per page.
   const directing: Promise<EpisodeDirection | undefined> = seriesMode
-    ? directSeriesPictures({ llm, model: models.support, brief, title: text.title, pages, plan, entities: known.entities,
+    ? directSeriesPictures({ llm, model: SERIES_PICTURE_DIRECTION_MODEL, brief, title: text.title, pages, plan, entities: known.entities,
         observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId) })
     : episodeMode
     ? directEpisodePictures({ llm, model: models.support, brief, title: text.title, pages, plan, entities: known.entities }).catch((err) => {

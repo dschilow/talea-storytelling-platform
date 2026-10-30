@@ -80,8 +80,7 @@ export function pagesFor(slots: ImageSlot[]): StorybookPage[] {
 }
 
 /**
- * Paragraphs kept free at both ends of a segment: a picture at the very start or end would crowd the neighbouring
- * picture or give away the chapter's ending ("Die segelnden Wörter": a picture showed the hook twelve paragraphs early).
+ * Preferred spacing for the director. It must not move an already chosen source anchor before the event it shows.
  */
 export const PICTURE_EDGE = 3;
 
@@ -89,7 +88,7 @@ export interface Placement {
   /** The picture follows this paragraph (0-based) of the chapter. */
   afterParagraph: number;
   by: "director" | "middle";
-  /** The paragraph the director named, after the edge rule (1-based within the segment). */
+  /** The paragraph the director named (1-based within the segment). */
   paragraph?: number;
 }
 
@@ -97,11 +96,8 @@ export interface Placement {
 export function placePictures(slots: ImageSlot[], shots: Array<{ paragraph?: number } | undefined>): Placement[] {
   return slots.map((slot, index) => {
     const wanted = Number(shots[index]?.paragraph);
-    const lowest = PICTURE_EDGE;
-    const highest = slot.count - PICTURE_EDGE;
-    if (!Number.isInteger(wanted) || wanted < 1 || wanted > slot.count || highest < lowest) return { afterParagraph: slot.afterParagraph, by: "middle" as const };
-    const paragraph = Math.min(highest, Math.max(lowest, wanted));
-    return { afterParagraph: slot.first + paragraph - 1, by: "director" as const, paragraph };
+    if (!Number.isInteger(wanted) || wanted < 1 || wanted > slot.count) return { afterParagraph: slot.afterParagraph, by: "middle" as const };
+    return { afterParagraph: slot.first + wanted - 1, by: "director" as const, paragraph: wanted };
   });
 }
 

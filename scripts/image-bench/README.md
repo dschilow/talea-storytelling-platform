@@ -83,7 +83,8 @@ andere Testporträts sind kein identischer Produktions-Replay.
 | `flux2kv` | Unveränderter FLUX-2-Produktionsprompt | Derselbe Bogen | Nein |
 
 Die Prüfung verwendet standardmäßig den konfigurierten Produktionsprüfer (seit der Modellentscheidung am
-30.10.2026 GPT-6 Luna) und die unveränderten Produktionskriterien, auf Standard statt Flex.
+30.10.2026 GPT-6 Luna) und die unveränderten Produktionskriterien. Auch die Produktion prüft seit Policy 16
+ausdrücklich auf Standard statt Flex, damit kurze Flex-Zeitlimits nicht unnötig den teuren Ersatzleser auslösen.
 `--judge-model google/gemini-3.8-flash` wählt den bisherigen Prüfer ausdrücklich.
 Transportfehler, explizite Provider-Sperren und echte Bildurteile werden getrennt erfasst. Ein
 `SAFETY`-/`PROHIBITED_CONTENT`-Block wird **nicht** erneut geschickt oder an einen Ersatzprüfer weitergereicht.
@@ -104,6 +105,17 @@ und `--judge-effort production|low|medium|high`. Standard ist die Produktionspr�
 unabhängig von der Figurenanzahl. Explizites `low` oder `high` dient nur Experimenten. Je Modell/Prüfvariante ein eigenes Ausgabeverzeichnis
 verwenden. Der Modellname und die vollständige Prüfanfrage gehen in Ergebnis beziehungsweise Cache-Schlüssel ein;
 unbekannte Prüfmodelle werden wegen des kalkulierten Kostenlimits abgelehnt.
+
+QA-Version 3 zählt zuerst alle sichtbaren Vordergrundfiguren in `observedFigures` und ordnet sie erst danach
+den Referenzen zu (`matchedId`, bei einer fremden Figur `null`). Fehlende, zusätzliche und doppelte Figuren
+werden daraus abgeleitet; eine vorbefüllte Liste erwarteter IDs genügt nicht. Alte gespeicherte QA-Berichte
+bleiben lesbar. Für Prüfervergleiche echte Identitäts-/Anatomiefehler **und** gute Kontrollen aufnehmen.
+Ein höherer Denkaufwand ist kein Qualitätsnachweis: Im Vier-Bilder-Vergleich vom 30.10. war `high` teurer
+und übersah zwei Besetzungsfehler. Luna `high` erhält im Benchmark bis zu 10.000 Tokens; Produktion bleibt `medium`.
+
+Die Bildregie verwendet ebenfalls Luna medium, plant aus dem fertigen Manuskript und trennt sichtbare
+Gegenstände von bloßen Gesprächsthemen. Ein wörtliches Quellenzitat allein beweist noch keine passende Caption:
+beim Auswerten auch Figuren, Handlung und den letzten benötigten Quellabsatz prüfen.
 
 `production` bezeichnet in diesem historischen **FLUX-3**-Vergleich weiterhin den FLUX-3-Prompt. Für neue
 Proben mit dem Figurenserien-Standard **FLUX 2 9B KV** ausdrücklich `--variants flux2kv` wählen. Mit

@@ -256,7 +256,7 @@ for (const c of chosen) {
         const effort = judgeEffort === 'medium' || judgeEffort === 'high' ? judgeEffort
           : judgeEffort === 'production' && baseline.review.effort === 'medium' ? 'medium' : 'low';
         const reviewBody = {
-          model: judgeModel, max_tokens: effort === 'low' ? 4000 : 6000,
+          model: judgeModel, max_tokens: effort === 'high' && judgeModel === 'openai/gpt-6-luna' ? 10000 : effort === 'low' ? 4000 : 6000,
           ...(acceptsTemperature(judgeModel) ? { temperature: 0 } : {}),
           usage: { include: true },
           reasoning: resolveStorybookReasoning(judgeModel, effort, 'support'), response_format: { type: 'json_object' },

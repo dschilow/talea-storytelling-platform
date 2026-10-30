@@ -14,6 +14,68 @@ const publicationReview = (fields: Record<string, unknown> = {}) => review({
   visibleHandsById: { dragon: ['left paw on rope', 'right paw raised'], 'child-a': ['left hand raised', 'right hand holding cup'] },
   sceneCompatible: true, storyConsistent: true, materialContradiction: false, ...fields,
 });
+const inventoryReview = (fields: Record<string, unknown> = {}) => publicationReview({
+  reviewVersion: 3,
+  observedFigures: [
+    { position: 'left', appearance: 'small golden dragon', matchedId: 'dragon' },
+    { position: 'right', appearance: 'girl with red glasses', matchedId: 'child-a' },
+  ],
+  ...fields,
+});
+
+describe('visible cast inventory before name assignment', () => {
+  test('a valid inventory is the authority for presence, not a prefilled list of expected ids', () => {
+    const qa = readSeriesQa(inventoryReview({ visibleIds: ['invented-id'] }), cast);
+    expect(qa?.reviewVersion).toBe(3);
+    expect(seriesPicturePasses(qa)).toBe(true);
+    expect(qa?.missing).toEqual([]);
+    expect(qa?.unexpectedCharacters).toEqual([]);
+  });
+  test('an unreferenced foreground person blocks despite optimistic identity scores and expected-id lists', () => {
+    const qa = readSeriesQa(inventoryReview({ observedFigures: [
+      { position: 'left', appearance: 'small golden dragon', matchedId: 'dragon' },
+      { position: 'right', appearance: 'girl with red glasses', matchedId: 'child-a' },
+      { position: 'middle bench', appearance: 'an unknown child in an orange shirt', matchedId: null },
+    ] }), cast);
+    expect(seriesPictureUsable(qa)).toBe(false);
+    expect(qa?.unexpectedCharacters).toEqual(['unmatched-figure-3']);
+    expect(qa?.sceneFixes?.join(' ')).toContain('Remove the unreferenced figure');
+  });
+  test('a replacement is not silently assigned to the missing avatar', () => {
+    const qa = readSeriesQa(inventoryReview({ observedFigures: [
+      { position: 'left', appearance: 'small golden dragon', matchedId: 'dragon' },
+      { position: 'middle', appearance: 'a different child with long hair and another face', matchedId: null },
+    ] }), cast);
+    expect(qa?.missing).toEqual(['Nora']);
+    expect(qa?.recognizableById?.['child-a']).toBe(false);
+    expect(seriesPicturePasses(qa)).toBe(false);
+    expect(seriesPictureLastResort(qa, true)).toBe(false);
+    expect(qa?.sceneFixes?.join(' ')).toContain('Replace the unmatched figure');
+    expect(qa?.sceneFixes?.join(' ')).toContain('Nora');
+  });
+  test('duplicate identities and an empty illustration are negative findings, not empty-review failures', () => {
+    const duplicate = readSeriesQa(inventoryReview({ observedFigures: [
+      { position: 'left', appearance: 'golden dragon', matchedId: 'dragon' },
+      { position: 'right', appearance: 'another identical dragon', matchedId: 'dragon' },
+    ] }), cast);
+    expect(duplicate?.duplicates).toEqual(['Funkelflug']);
+    expect(seriesPictureUsable(duplicate)).toBe(false);
+    const empty = readSeriesQa(inventoryReview({ observedFigures: [] }), cast);
+    expect(empty).toBeDefined();
+    expect(empty?.missing).toEqual(['Funkelflug', 'Nora']);
+    expect(empty?.sceneFixes).toHaveLength(2);
+    expect(seriesPictureUsable(empty)).toBe(false);
+  });
+  test('unmatched labels are rejected safely and incomplete inventories never publish', () => {
+    const qa = readSeriesQa(inventoryReview({ observedFigures: [
+      { position: 'front', appearance: 'a stranger', matchedId: 'not-an-allowed-id' },
+    ] }), cast);
+    expect(qa?.unexpectedCharacters).toEqual(['unmatched-figure-1']);
+    expect(seriesPictureUsable(qa)).toBe(false);
+    expect(readSeriesQa(inventoryReview({ observedFigures: undefined }), cast)).toBeUndefined();
+    expect(readSeriesQa(inventoryReview({ observedFigures: [{ position: 'front', matchedId: null }] }), cast)).toBeUndefined();
+  });
+});
 
 describe('publication review: recognisable figures before precise staging', () => {
   test('a role swap stays printable even when diagnostic identity and scene scores are low', () => {
@@ -103,7 +165,7 @@ describe('publication review: recognisable figures before precise staging', () =
     expect(readSeriesQa(publicationReview({ anatomyOkById: { dragon: true, 'child-a': 'true' } }), cast)).toBeUndefined();
     expect(readSeriesQa(publicationReview({ visibleHandsById: { dragon: [], 'child-a': 'two hands' } }), cast)).toBeUndefined();
     expect(readSeriesQa(publicationReview({ defects: [{ kind: 'story', detail: 'A swapped action.', fix: 'Swap it.' }] }), cast)).toBeUndefined();
-    expect(readSeriesQa(publicationReview({ reviewVersion: 3 }), cast)).toBeUndefined();
+    expect(readSeriesQa(publicationReview({ reviewVersion: 99 }), cast)).toBeUndefined();
   });
   test('recognition and anatomy aliases resolve in the same slot order as visual scores', () => {
     const qa = readSeriesQa(publicationReview({

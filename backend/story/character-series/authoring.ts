@@ -18,8 +18,10 @@ const SERIES_GENRE_COLORING: Record<string, string> = {
   modern: 'Genre coloring — Everyday Life (Alltag): Ground the comedy and conflict in relatable everyday child situations, neighbourhood chaos and hands-on teamwork.',
 };
 
-/** Haiku plans the pictures and reviews the text (with thinking as critic); Sol remains the writer. */
+/** Haiku handles text support and editorial review; Sol remains the writer. */
 export const SERIES_MODELS = { writer: 'openai/gpt-6.1-sol', support: 'anthropic/claude-haiku-5.5', critic: 'anthropic/claude-haiku-5.5' };
+/** Luna follows the finished source more faithfully than the measured Haiku direction runs. */
+export const SERIES_PICTURE_DIRECTION_MODEL = 'openai/gpt-6-luna';
 /**
  * Luna is the primary visual check by product choice (2026-10-30); Gemini is the technical-outage reader.
  * Luna caught the third arm and wrong hair colour in the small publication-policy comparison at lower cost,
@@ -36,6 +38,8 @@ export const SERIES_IMAGE_REVIEW_EFFORT = 'medium';
  */
 export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_KLEIN_9B_KV_MODEL;
 /**
+ * Version 16: standard-tier Luna plans from finished source spans and inventories every visible foreground figure;
+ * exact source anchors and quiet physical moments avoid premature pictures and unnecessary plan repairs.
  * Version 15: a grounded scene survives malformed auxiliary director metadata after one bounded repair;
  * valid proposals are merged per page, and the verified manuscript is checkpointed before illustration work.
  * Version 14: publication QA checks each figure's recognisability and anatomy explicitly; minor action/prop changes
@@ -54,7 +58,7 @@ export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_
  * took 211 s. Up to five repairs, spent on pictures with a hard fault or provider failure. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 15, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
+export const SERIES_POLICY = { version: 16, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);
@@ -157,7 +161,7 @@ export function seriesAuthoring(brief: StoryBrief) {
       // A supervising mother then held, fitted and repaired things the children and Tilda should have done.
       '- Simple devices: a device in this episode has at most THREE named parts, in plain child words (the lever, the clamp, the wheel, the basket) and the technical nouns of the plan (Sperrklinke, Raste, Schelle, Gestänge, Feststellhebel) are translated into them. Each part is touched or moved on stage before it matters, and the point of every scene is what the PEOPLE do and what visibly happens to them, never how the mechanism works inside. Any adult who happens to be there (a parent, a neighbour) only watches, waves or says one line: the children and the lead do ALL carrying, fitting, fixing and deciding, and the adult never solves the problem.\n' +
       '- Clear action, not stage directions: name a position only when it explains a collision, a surprise or a choice. Do not repeatedly arrange the entire cast left/right/centre for the illustrator. Keep a device at one physical scale and show a necessary cause before its consequence. Ordinary setting-down, cleaning and handovers can stay implicit or take one sentence unless they change the outcome; never turn the climax into an inventory of occupied hands. Plant the final mystery object in an earlier noticed detail. Every joke must land for a six-year-old from the situation alone, without adult inference.',
-    `READ-ALOUD VOICE, DIALOGUE & SOUND WORDS: Use a varied, natural speaking rhythm: short sentences for surprise, longer connected sentences for a clear cause, place or feeling; do not march through identical seven-word sentences. Build small flowing paragraphs, with isolated lines for a real turn, silence or punchline. Write brisk dialogue where the lead's boast, one avatar's practical observation and another's unexpected question or action are distinguishable; follow their supplied personalities rather than assigning fixed sibling stereotypes. Each exchange changes the plan, relationship or pressure, not just reports the next task. Give each avatar a want or hesitation, not only a job. Keep a quiet emotional moment specific and brief. Recurring gags change their consequence; another splash on another body part is not a new comic mechanism. End on the strongest callback: do not explain the punchline or add two weaker jokes after it. Never repeat a moral, use identical reassuring smiles, forced slogans, verse unless requested, or administrative safety lectures.${learningGoal(brief.config) ? ' When LEARNING MODE is active, a character explaining the real-world knowledge fact in children\'s words is wanted and is not a moral lecture.' : ''} World rules constrain events silently.`,
+    `READ-ALOUD VOICE, DIALOGUE & SOUND WORDS: Use a varied, natural speaking rhythm: short sentences for surprise, longer connected sentences for a clear cause, place or feeling; do not march through identical seven-word sentences. Build small flowing paragraphs, with isolated lines for a real turn, silence or punchline. Write brisk dialogue where the lead's boast, one avatar's practical observation and another's unexpected question or action are distinguishable; follow their supplied personalities rather than assigning fixed sibling stereotypes. Each exchange changes the plan, relationship or pressure, not just reports the next task. Give each avatar a want or hesitation, not only a job. Keep a quiet emotional moment specific and brief: it responds to today's concrete loss or worry, not the same confession about wanting to present something finished or perfect in every episode. Let a familiar flaw produce a different choice as documented relationships grow. Recurring gags change their consequence; another splash on another body part is not a new comic mechanism. End on the strongest callback: do not explain the punchline or add two weaker jokes after it. Never repeat a moral, use identical reassuring smiles, forced slogans, verse unless requested, or administrative safety lectures.${learningGoal(brief.config) ? ' When LEARNING MODE is active, a character explaining the real-world knowledge fact in children\'s words is wanted and is not a moral lecture.' : ''} World rules constrain events silently.`,
     'Use the supplied series rules, not a newly invented wonder. The genre colours this world, never changes its physics. At most one supplied recurring companion plus briefly unnamed locals; no interchangeable random pool character or new mascot with a familiar Talea name. Their English looks remain fixed.',
     CHILD_SAFETY_RULES_EN,
     'STYLE EXCERPTS from Bruno and Monster-Müllabfuhr: learn timing, escalating slapstick, sound words, specific character reactions, quiet heart and callback punchlines; invent different names, events, gags and wording.\n' + samples,

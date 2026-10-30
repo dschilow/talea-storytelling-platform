@@ -602,7 +602,7 @@ describe("pictures sit after the paragraph they show (audit 2026-10-16: 11 of 16
     expect(pagesFor(slots)[1].paragraphs).toEqual(["Absatz 7.", "Absatz 8.", "Absatz 9.", "Absatz 10.", "Absatz 11.", "Absatz 12."]);
   });
 
-  test("the director's paragraph decides the place; edges keep pictures apart and the chapter's ending out", () => {
+  test("the director's source paragraph decides the place, including the first and last paragraph", () => {
     const slots = buildImageSlots([{ ...chapters[0], content: Array.from({ length: 50 }, (_, index) => `Absatz ${index + 1}.`).join("\n\n") }], parsePlan(planJson(), 12)!, 2);
     expect(slots.map((slot) => [slot.first, slot.count])).toEqual([[0, 25], [25, 25]]);
     // p7 of the second segment = chapter paragraph 32, i.e. after index 31
@@ -610,19 +610,18 @@ describe("pictures sit after the paragraph they show (audit 2026-10-16: 11 of 16
       { afterParagraph: 11, by: "director", paragraph: 12 },
       { afterParagraph: 31, by: "director", paragraph: 7 },
     ]);
-    // too early / too late is pulled to the edge rule: at least 3 paragraphs in, at least 3 before the segment's end
-    expect(placePictures(slots, [{ paragraph: 1 }, { paragraph: 25 }]).map((place) => place.paragraph)).toEqual([PICTURE_EDGE, 25 - PICTURE_EDGE]);
-    expect(placePictures(slots, [{ paragraph: 25 }, { paragraph: 25 }])[1].afterParagraph).toBe(49 - PICTURE_EDGE);
+    // Spacing is a planning preference, never a reason to show the chosen event before it is told.
+    expect(placePictures(slots, [{ paragraph: 1 }, { paragraph: 25 }]).map((place) => place.paragraph)).toEqual([1, 25]);
+    expect(placePictures(slots, [{ paragraph: 25 }, { paragraph: 25 }])[1].afterParagraph).toBe(49);
   });
 
-  test("no usable paragraph, or a segment too short for the edges: the middle of the segment, as before", () => {
+  test("only an invalid or absent anchor uses the middle; valid anchors also work in short segments", () => {
     const slots = buildImageSlots(chapters, parsePlan(planJson(), 12)!, 2);
     expect(placePictures(slots, [undefined, {}]).map((place) => [place.by, place.afterParagraph])).toEqual([["middle", 2], ["middle", 8]]);
-    // Six paragraphs leave exactly one place between the edges; five leave none.
-    expect(placePictures(slots, [{ paragraph: 4 }, { paragraph: 4 }]).map((place) => [place.by, place.paragraph])).toEqual([["director", 3], ["director", 3]]);
+    expect(placePictures(slots, [{ paragraph: 4 }, { paragraph: 4 }]).map((place) => [place.by, place.paragraph])).toEqual([["director", 4], ["director", 4]]);
     const short = buildImageSlots([{ ...chapters[0], content: Array.from({ length: 10 }, (_, index) => `A${index}.`).join("\n\n") }], parsePlan(planJson(), 12)!, 2);
     expect(short.map((slot) => slot.count)).toEqual([5, 5]);
-    expect(placePictures(short, [{ paragraph: 3 }, { paragraph: 3 }]).map((place) => place.by)).toEqual(["middle", "middle"]);
+    expect(placePictures(short, [{ paragraph: 3 }, { paragraph: 3 }]).map((place) => place.by)).toEqual(["director", "director"]);
     const roomy = buildImageSlots([{ ...chapters[0], content: Array.from({ length: 20 }, (_, index) => `A${index}.`).join("\n\n") }], parsePlan(planJson(), 12)!, 2);
     expect(placePictures(roomy, [{ paragraph: 0 }, { paragraph: 99 }, ]).map((place) => place.by)).toEqual(["middle", "middle"]);
   });

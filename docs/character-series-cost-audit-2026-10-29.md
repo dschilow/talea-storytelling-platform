@@ -296,3 +296,118 @@ Zusätzlich wurde die tatsächliche Checkpoint-Abfrage mit PostgreSQL/PGlite geg
 `stories.metadata TEXT`-Definition ausgeführt: SQL-NULL, JSON-null, leere und bestehende Metadaten,
 Erhalt der Kostenmetriken sowie Benutzer-/Statusschutz. Die Speicherung castet für den atomaren Merge
 nach JSONB und anschließend zurück nach TEXT; dafür ist keine Datenbankmigration nötig.
+
+## 30.10.2026: Trichter und Papierladen – Kosten, Fremdfiguren und Bildpositionen
+
+Grundlage: beide bereitgestellten PDFs und Logs, die gespeicherten Manuskripte, sämtliche verfügbaren
+Bildversuche und die aktuellen Originalporträts. „Trichter“ ist Folge 9; „Papierladen“ wurde ausdrücklich
+mit Folgen-Override 7 erzeugt. Die Reihenfolge der Generierungen ist deshalb kein Kontinuitätsfehler.
+
+### Der Kostensprung
+
+| Bestandteil | Trichter `6340a8e8`, USD | Papierladen `ef08de38`, USD |
+|---|---:|---:|
+| Sol-Erstentwurf | 0,017177 | 0,028122 |
+| Bildprüfung, bereits in den LLM-Kosten enthalten | 0,002943 | 0,042897 |
+| Alle LLM-Aufrufe | 0,025542 | 0,076559 |
+| Bilder | 0,013520 | 0,016900 |
+| **Gesamt laut Log** | **0,039062** | **0,093459** |
+| Gedruckte Bildplätze einschließlich Cover | 7 | 5 |
+
+Der Aufschlag beträgt 0,054397 USD. **73,4 % stammen aus der Bildprüfung**: Drei Luna-Flex-Aufrufe liefen
+in ein 40-Sekunden-Zeitlimit; danach kamen die teureren Gemini-Ersatzprüfungen zum Einsatz. Weitere
+20,1 % erklären sich durch den Sol-Cache: Der Trichter-Entwurf nutzte fast vollständig einen vorhandenen
+Eingabecache, der Papierladen-Entwurf schrieb einen neuen. Die zusätzlichen Bildkosten erklären 6,2 %.
+Die Entwurfssicherung in der Datenbank erzeugt keinen weiteren Sol-Aufruf.
+
+Eine fehlgeschlagene Anfrage ohne Abrechnungsbeleg ist nicht nachweislich kostenlos. Der explizit von
+Gemini gesperrte Papierladen-Kandidat auf Bildplatz 6 wurde von den Wiederholungsversuchen ausgeschlossen.
+
+### Erkannte Besetzungs- und Quellenfehler
+
+Im veröffentlichten Papierladen-Bild von Kapitel 3 ersetzt ein anders aussehendes Kind den älteren
+Familienavatar. Die damalige Prüfung ordnete es trotzdem dessen ID zu und gab 0,91 Ähnlichkeit an.
+Ein anderer, abgelehnter Versuch zeigt tatsächlich vier Vordergrundfiguren statt der vorgesehenen drei.
+
+Das gedruckte Kapitel-3-Bild steht bereits nach dem richtigen Bauchfang-Absatz. Im Trichter sind dagegen
+mehrere Captions einem früheren oder fremden Ereignis zugeordnet. Ein Zitat wie „Oben knackte ein trockener
+Halm“ belegt noch nicht das spätere Stroh auf der Nase. Zusätzlich verschob die gemeinsame Bildplatzierung
+gültige Quellabsätze vom Segmentrand nach innen und konnte damit ein Ereignis vorwegnehmen.
+
+### Policy 16
+
+- **FLUX 2 Klein 9B KV bleibt der Bildstandard.** Sol bleibt der Autor, Haiku das Textlektorat.
+- **Luna medium prüft auf Standard, mit 60 Sekunden Zeitlimit.** Gemini bleibt Ersatzleser bei technischen
+  Problemen. Explizite Anbietersperren werden weiterhin weder wiederholt noch an andere Prüfer weitergereicht.
+- **QA-Version 3 inventarisiert zuerst jede sichtbare Vordergrundfigur.** Position und Aussehen werden
+  beschrieben, erst dann folgt eine Referenz-ID oder `null`. Eine Ersatzfigur kann keinen fehlenden Avatar
+  allein durch dessen erwartete ID auffüllen. Das Programm leitet fehlende, zusätzliche und doppelte
+  Figuren aus dieser Liste ab und erzeugt konkrete Korrekturhinweise. Erkennbarkeit und Anatomie bleiben
+  Pflicht; kleine Rollen-, Kleidungs- oder Requisitenabweichungen bleiben tolerierbar.
+- **Die Bildregie verwendet Luna medium auf Standard**, ohne zusätzlichen Kontrollaufruf. Der fertige
+  Text bestimmt die Bilder; alte geplante Gags und Folgenvorschauen werden nicht mehr mitgeliefert.
+  Der geprüfte Sechs-Segment-Auftrag hat 8.000 Tokens Platz und 120 Sekunden Zeitlimit.
+- **Quellenanker bleiben unverändert.** Mehrabsätzige Zitate werden vollständig zugeordnet und am Ende
+  des belegten Ereignisses platziert. Bei wiederholten Zitaten zählt der passende ausdrücklich gewählte
+  Absatz. Randabstände sind nur eine Planungsempfehlung. Das gilt auch für die gemeinsame Platzierung
+  in Talea-Folge und Kapitelbuch.
+- **Gesprächsthemen werden nicht als Gegenstände gezeichnet.** In einem Zwischentest entstand aus einem
+  nur erwähnten, noch zu malenden Tier eine zusätzliche lebendige Figur auf der Bank. Captions und
+  `visualBeat` beschreiben deshalb nur sichtbare Personen, Gegenstände und Körperhaltungen. Ruhige,
+  konkrete Sitzmomente sind zulässig; Hände müssen nicht künstlich mit Gegenständen beschäftigt werden.
+  Werkzeuge aus Referenzporträts werden nicht übernommen, sofern die Szene sie nicht braucht.
+- **Identitätsanker enthalten auch das registrierte Geschlecht**, zusätzlich zu Alter, Größe, Haaren
+  und Augen. Nichtmenschliche Avatare werden dadurch nicht zu Kindern umgedeutet.
+- **Der Schreibauftrag variiert die leisen Momente:** Die Figuren reagieren auf das konkrete heutige
+  Problem, statt in jeder Folge dieselbe Sorge vor einer unfertigen oder unperfekten Vorführung auszusprechen.
+  Dafür wird kein weiterer Schreib- oder Lektoratsaufruf eingeführt.
+
+### Gemessene Prüf- und Bildproben
+
+Der erste Vergleich nutzte vier identische vorhandene Bilder und Originalreferenzen:
+
+| Prüfung | Kosten für vier Bilder, USD | Ergebnis |
+|---|---:|---|
+| Luna medium, alter Vertrag | 0,003488 | Ersatzfigur erkannt, zusätzliche vierte Figur übersehen |
+| Luna high, alter Vertrag | 0,005984 | Beide Besetzungsfehler übersehen; gutes Bild fälschlich wegen eines dritten Fußes abgelehnt |
+| Luna medium, Inventarvertrag und aktuelle Anker | 0,004453 | Beide Fehler erkannt, beide guten Kontrollen angenommen |
+
+`high` war in diesem kleinen Vergleich rund 72 % teurer als das bisherige `medium`, ohne Qualitätsgewinn.
+Zwei weitere Kontrollen wurden anschließend geprüft: ein echter dritter Arm wurde erkannt, ein korrekt
+überlappender fremder Arm nicht dem falschen Kind zugerechnet. Kosten: 0,002527 USD. Damit stimmen alle
+sechs Kontrollurteile mit der Sichtprüfung überein; das ist keine allgemeine Fehlerfreiheitsquote.
+
+Haiku vermischte auch nach einer ersten Promptänderung weiterhin Ereignisse und Quellabsätze.
+Eine weitere Haiku-Wiederholung war kein echter Thinking-A/B-Test: Der bestehende Adapter deaktiviert
+Thinking für diese Support-Rolle unabhängig vom angegebenen Effort. Ein frühes Luna-Regieexperiment
+mit längerem Prompt lief nach 90 Sekunden aus; dafür liegt kein Kostenbeleg vor.
+
+Die abschließende, kompakte Luna-Regie plante die zwölf Kapitelbildmomente beider Manuskripte in jeweils
+einem Aufruf, ohne Reparatur. Gemessene Kosten: **0,003926 und 0,004437 USD**, Dauer etwa **56 und 67 Sekunden**.
+Die Quellen und Positionen wurden nachgelesen. Das ist sorgfältigere, aber langsamere Regie als die
+vorherigen Haiku-Aufrufe; eine generelle Beschleunigung wird nicht behauptet.
+
+Die Bildexperimente wurden nicht auf erfolgreiche Ausgaben beschränkt:
+
+| Bildprobe mit FLUX 2 KV | Erstversuche | Sofort angenommen | Kosten einschließlich Prüfung, USD |
+|---|---:|---:|---:|
+| Zwei alte schwierige Motive, je zwei Seeds, neue Identitätsanker | 4 | 2 | 0,011698 |
+| Neue Regie, noch ohne Trennung von Gesprächsthema und Bildinhalt | 4 | 1 | 0,010903 |
+| Abschließende sichtbare Szenenbeschreibung und bereinigte Referenzanweisungen; drei Motive, je zwei Seeds | 6 | 5 | 0,018317 |
+
+Beim letzten Sechserlauf blieb eine zusätzliche, teilweise verdeckte Figur übrig. Die neue Prüfung
+erkannte sie. **Eine echte lokale Korrektur über den Produktions-Bildpfad** entfernte sie; die anschließende
+Luna-medium-Prüfung bestand. Zusatzkosten: 0,001690 USD Bild plus 0,000788 USD Prüfung. Damit waren in
+dieser begrenzten Probe **alle sechs Bilder verwendbar, fünf sofort und eines nach einer Korrektur**,
+für zusammen **0,020795 USD**. Auch das korrigierte Bild wurde visuell angesehen. Die ursprüngliche
+negative Prüfung wurde für den Reparaturtest aus dem Cache verwendet, nicht erneut bezahlt.
+
+Die Zwischen- und Endproben verwenden teilweise unterschiedliche Szenen; daraus lässt sich kein
+statistisch gesicherter prozentualer Qualitätsgewinn ableiten. FLUX kann weiterhin Figuren oder Gliedmaßen
+duplizieren. Die Bildprüfung und die begrenzte Korrektur bleiben erforderlich.
+
+Verifikation: **408 Regressionstests in 13 Dateien**; TypeScript hat mit den beiden mitgeprüften Skripten
+80 bereits vorhandene Diagnosen sowohl im HEAD-Vergleich als auch nach der Änderung, **keine neuen**.
+Das ist kein fehlerfreier Gesamt-Typecheck. Es wurde keine vollständige neue Produktionsgeschichte
+bezahlt, keine gespeicherte Familiengeschichte ersetzt und keine Folgenchronologie weitergeschrieben.
+Die neuen Gesamtkosten einer vollständigen Geschichte müssen am nächsten realen Lauf geprüft werden.
