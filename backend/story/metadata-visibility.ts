@@ -4,8 +4,8 @@ export function storyMetadataForViewer(
 ): Record<string, any> | null | undefined {
   if (!metadata || isAdmin) return metadata;
 
-  // bookAdmin holds a chapter book's plan and bible: future chapters must never reach the reader.
-  const { adminGenerationMetrics: _adminGenerationMetrics, bookAdmin: _bookAdmin, ...publicMetadata } = metadata;
+  // Private plans and draft manuscripts must never reach normal readers.
+  const { adminGenerationMetrics: _adminGenerationMetrics, bookAdmin: _bookAdmin, seriesAdmin: _seriesAdmin, ...publicMetadata } = metadata;
   return publicMetadata;
 }
 

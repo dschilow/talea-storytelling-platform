@@ -277,9 +277,11 @@ Policy 15 verhindert diesen Format-Abbruch:
   Ungültige Erst- und Reparaturpläne samt Einzelgründen werden für die Administration gespeichert.
 - Eine ausdrücklich vom Anbieter gesperrte Reparaturanfrage wird nicht durch diese Wiederherstellung
   umgangen. Die normale Bildprüfung bleibt für jede erzeugte Illustration obligatorisch.
-- Der geprüfte Text wird **vor** der Bildplanung unter `adminGenerationMetrics.seriesDraft` gesichert.
+- Der geprüfte Text wird **vor** der Bildplanung unter `seriesAdmin.textDraft` gesichert.
   Ein späterer Fehler behält diesen privaten Entwurf. Die bestehende Metadatenfilterung verbirgt ihn
   vor normalen Lesern und der Listenansicht; die Veröffentlichung erfolgt dadurch nicht vorzeitig.
+  Der Entwurf bleibt von den Kostenmetriken getrennt, damit ein abgebrochener Lauf keine unvollständigen
+  Metriken an die Admin-Anzeige liefert.
 
 Der Regressionstest stellt den protokollierten Abbruchpfad mit wiederholt defekter Bild-4-Metadatenstruktur
 nach: zwei begrenzte Planungsaufrufe, anschließend sieben Bildaufträge und sieben Prüfungen mit Test-Ports.

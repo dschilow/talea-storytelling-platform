@@ -16,11 +16,13 @@ const heavy = {
 describe("story list metadata", () => {
   test("a saved series manuscript stays private after a later illustration failure", () => {
     const metadata = { pipeline: "character-series-v1", error: { message: "Bildplanung fehlgeschlagen" },
-      adminGenerationMetrics: { seriesDraft: { stage: "text-ready", result: { title: "Glocke", pages: [{ content: "Bezahlter, geprüfter Text." }] } } } };
+      seriesAdmin: { textDraft: { stage: "text-ready", result: { title: "Glocke", pages: [{ content: "Bezahlter, geprüfter Text." }] } } } };
+    expect(storyMetadataForViewer(metadata, false)).not.toHaveProperty("seriesAdmin");
     expect(storyMetadataForViewer(metadata, false)).not.toHaveProperty("adminGenerationMetrics");
-    expect(storyMetadataForViewer(metadata, true)?.adminGenerationMetrics.seriesDraft.result.pages[0].content).toBe("Bezahlter, geprüfter Text.");
+    expect(storyMetadataForViewer(metadata, true)?.seriesAdmin.textDraft.result.pages[0].content).toBe("Bezahlter, geprüfter Text.");
+    expect(storyMetadataForViewer(metadata, true)).not.toHaveProperty("adminGenerationMetrics");
     expect(storyMetadataForList(metadata)).toEqual({ pipeline: "character-series-v1" });
-    expect(metadata.adminGenerationMetrics.seriesDraft.stage).toBe("text-ready");
+    expect(metadata.seriesAdmin.textDraft.stage).toBe("text-ready");
   });
   test("keeps what the library reads", () => {
     const slim = storyMetadataForList({

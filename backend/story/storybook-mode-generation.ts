@@ -292,14 +292,14 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     throw new Error("Die Folge konnte die erzählerischen Mindestprüfungen nicht bestehen. Der Serienstand bleibt unverändert.");
   }
   if (seriesMode && input.storyId && input.userId) {
-    const checkpoint = { seriesDraft: { savedAt: new Date().toISOString(), pipeline: pipelineId, stage: "text-ready",
+    const checkpoint = { textDraft: { savedAt: new Date().toISOString(), pipeline: pipelineId, stage: "text-ready",
       result: text, models, costs: ledger.totals() } };
     const saved = await storyDB.queryRow<{ id: string }>`
       UPDATE stories
       SET metadata = jsonb_set(
         COALESCE(NULLIF(metadata, 'null'::jsonb), '{}'::jsonb),
-        '{adminGenerationMetrics}',
-        COALESCE(NULLIF(metadata->'adminGenerationMetrics', 'null'::jsonb), '{}'::jsonb) || ${JSON.stringify(checkpoint)}::jsonb,
+        '{seriesAdmin}',
+        COALESCE(NULLIF(metadata->'seriesAdmin', 'null'::jsonb), '{}'::jsonb) || ${JSON.stringify(checkpoint)}::jsonb,
         true
       ), updated_at = ${new Date()}
       WHERE id = ${input.storyId} AND user_id = ${input.userId} AND status = 'generating'
