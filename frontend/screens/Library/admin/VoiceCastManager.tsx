@@ -8,10 +8,10 @@ import { errorMessage, type LibraryVoiceCastResponse, type LibraryVoiceOption, t
 
 const SOURCE_LABELS: Record<string, string> = { admin: "Von dir gewählt", series: "Standard der Reihe", auto: "Automatisch gewählt" };
 
-/** One cast per voice catalog: Gemini Lite and Flash share the same 30 voices. */
+/** Gemini Lite and Flash share one cast. */
 const FAMILIES = [
   { id: "elevenlabs", engine: "elevenlabs", label: "ElevenLabs", note: "Stimmen aus dem ElevenLabs-Konto, Hörprobe von ElevenLabs." },
-  { id: "gemini", engine: "gemini-lite", label: "Gemini", note: "30 Gemini-Stimmen; Alter und Wesen kommen aus der Regie. Die Hörprobe spricht einen Satz der Figur (≈ 0,06 ct)." },
+  { id: "gemini", engine: "gemini-lite", label: "Gemini", note: "Wähle eine Stimme und höre sie zuerst an. Die deutschen Stimmen stammen aus Googles erweitertem Katalog; Altersangaben beschreiben die Stimme. Eine Hörprobe kostet ca. 0,06 ct." },
 ] as const;
 
 /**
@@ -28,6 +28,7 @@ export const VoiceCastManager: React.FC<{ slug: string }> = ({ slug }) => {
   const [saving, setSaving] = useState<string | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState<string | null>(null);
+  const [selectedVoices, setSelectedVoices] = useState<Record<string, string>>({});
   const player = useRef<HTMLAudioElement | null>(null);
   const engine = FAMILIES.find((entry) => entry.id === family)!.engine;
 
@@ -35,6 +36,7 @@ export const VoiceCastManager: React.FC<{ slug: string }> = ({ slug }) => {
     let alive = true;
     setData(null);
     setError(null);
+    setSelectedVoices({});
     backend.story
       .libraryAdminVoiceCast({ slug, engine })
       .then((response) => alive && setData(response))
@@ -47,8 +49,12 @@ export const VoiceCastManager: React.FC<{ slug: string }> = ({ slug }) => {
 
   // German voices first on ElevenLabs: the dramas are German, other voices speak with an accent.
   const voices = useMemo(
-    () => [...(data?.voices || [])].sort((a, b) => Number(b.traits.includes("Deutsch")) - Number(a.traits.includes("Deutsch")) || a.name.localeCompare(b.name)),
-    [data],
+    () => [...(data?.voices || [])].sort((a, b) => {
+      const german = Number(b.traits.includes("Deutsch")) - Number(a.traits.includes("Deutsch"));
+      const age = family === "gemini" && !german ? (Number(a.traits.match(/(\d+) Jahre/)?.[1]) || 999) - (Number(b.traits.match(/(\d+) Jahre/)?.[1]) || 999) : 0;
+      return german || age || a.name.localeCompare(b.name, "de", { numeric: true });
+    }),
+    [data, family],
   );
   const byId = useMemo(() => new Map(voices.map((voice) => [voice.voiceId, voice])), [voices]);
 
@@ -56,6 +62,11 @@ export const VoiceCastManager: React.FC<{ slug: string }> = ({ slug }) => {
     setSaving(role.speakerId);
     try {
       setData(await backend.story.libraryAdminUpdateVoice({ slug, speakerId: role.speakerId, engine, ...change }));
+      if (change.voiceId || change.reset) setSelectedVoices((current) => {
+        const next = { ...current };
+        delete next[role.speakerId];
+        return next;
+      });
       toast.success(change.reset ? `${role.name}: wieder automatische bzw. Standard-Stimme.` : `${role.name} gespeichert. Gilt ab der nächsten Aufnahme.`);
     } catch (saveError) {
       toast.error(errorMessage(saveError, "Speichern hat nicht geklappt."));
@@ -126,9 +137,11 @@ export const VoiceCastManager: React.FC<{ slug: string }> = ({ slug }) => {
       {data ? (
         <ul className="mt-4 grid gap-3 md:grid-cols-2">
           {data.roles.map((role) => {
-            const voice = role.voiceId ? byId.get(role.voiceId) : undefined;
+            const selectedVoiceId = family === "gemini" ? selectedVoices[role.speakerId] ?? role.voiceId : role.voiceId;
+            const voice = selectedVoiceId ? byId.get(selectedVoiceId) : undefined;
             const key = voice ? `${role.speakerId}:${voice.voiceId}` : "";
             const canPreview = Boolean(voice && (data.generatedPreviews || voice.previewUrl));
+            const hasVoiceChange = family === "gemini" && Boolean(selectedVoiceId && selectedVoiceId !== role.voiceId);
             return (
               <li key={role.speakerId} className={cn(taleaSurfaceClass, "flex flex-col gap-2.5 p-4")}>
                 <div className="flex items-start justify-between gap-2">
@@ -146,17 +159,26 @@ export const VoiceCastManager: React.FC<{ slug: string }> = ({ slug }) => {
                 {role.replaced ? <p className="text-[12px] text-amber-700 dark:text-amber-300">Die eingestellte Stimme gibt es im ElevenLabs-Konto nicht mehr; vertreten durch eine automatische Wahl.</p> : null}
                 <div className="flex items-center gap-2">
                   <select
-                    value={role.voiceId || ""}
+                    value={selectedVoiceId || ""}
                     disabled={saving !== null}
-                    onChange={(event) => event.target.value && void save(role, { voiceId: event.target.value })}
+                    onChange={(event) => {
+                      const voiceId = event.target.value;
+                      if (!voiceId) return;
+                      if (family === "gemini") setSelectedVoices((current) => ({ ...current, [role.speakerId]: voiceId }));
+                      else void save(role, { voiceId });
+                    }}
                     className={cn(taleaInputClass, "min-w-0 flex-1")}
                     aria-label={`Stimme für ${role.name}`}
                   >
-                    {!role.voiceId ? <option value="">— keine Stimme —</option> : null}
-                    {voices.map((option) => (
-                      <option key={option.voiceId} value={option.voiceId}>
-                        {option.name}{option.traits ? ` (${option.traits})` : ""}
-                      </option>
+                    {!selectedVoiceId ? <option value="">— keine Stimme —</option> : null}
+                    {family === "gemini" ? [true, false].map((german) => (
+                      <optgroup key={String(german)} label={german ? "Deutsch · zusätzliche Stimmen" : "Gemini · Standardstimmen"}>
+                        {voices.filter((option) => option.traits.includes("Deutsch") === german).map((option) => (
+                          <option key={option.voiceId} value={option.voiceId}>{option.name} ({option.traits})</option>
+                        ))}
+                      </optgroup>
+                    )) : voices.map((option) => (
+                      <option key={option.voiceId} value={option.voiceId}>{option.name}{option.traits ? ` (${option.traits})` : ""}</option>
                     ))}
                   </select>
                   <button
@@ -169,6 +191,11 @@ export const VoiceCastManager: React.FC<{ slug: string }> = ({ slug }) => {
                     {loadingPreview === key ? <Loader2 className="h-4 w-4 animate-spin" /> : playing === key ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                   </button>
                 </div>
+                {hasVoiceChange ? (
+                  <button type="button" onClick={() => void save(role, { voiceId: selectedVoiceId })} disabled={saving !== null} className="self-start rounded-full bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40">
+                    Stimme für {role.name} übernehmen
+                  </button>
+                ) : null}
                 {voice?.description ? <p className="line-clamp-2 text-[12px] text-[var(--talea-text-tertiary)]">{voice.description}</p> : null}
                 <div className="flex items-center gap-2">
                   <input

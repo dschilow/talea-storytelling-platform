@@ -1,11 +1,9 @@
 /**
  * Gemini voices of the audio dramas — Encore-free.
  *
- * Gemini 3.8 TTS has 30 prebuilt voices (no clones, no child voices). A figure is
- * made by voice plus direction: Gemini follows age and mood in the instructions
- * closely (measured 2026-10-24: Fenrir speaks at 131 Hz as a father and at 308 Hz
- * as "a seven-year-old boy"), so a boy keeps a male voice and an old woman a
- * mature one. Every figure keeps its Gemini voice from episode to episode, like
+ * Gemini 3.8 TTS has 30 standard voices plus an extended German catalog. Automatic
+ * casting uses the standard voices; the extended voices can be chosen in Studio.
+ * Every figure keeps its Gemini voice from episode to episode, like
  * with ElevenLabs: admin choice → stored automatic pick → new automatic pick.
  *
  * The screenplay is written for Eleven v4. Gemini performs the reaction tags in
@@ -15,6 +13,7 @@
  */
 
 import type { ScriptLine, VoiceFamily } from "../types";
+import { GEMINI_GERMAN_VOICES } from "./gemini-german-voices";
 import { splitLeadingTag } from "./screenplay";
 
 export type VoiceGender = "female" | "male";
@@ -23,13 +22,17 @@ export type VoiceAge = "child" | "adult" | "old";
 export interface GeminiVoice {
   /** API voice name. */
   name: string;
-  gender: VoiceGender;
+  gender: VoiceGender | "neutral";
   /** Google's one-word character of the voice. */
   trait: string;
   /** German, for the Studio. */
   traitDe: string;
   /** Ages the voice plays convincingly with the right direction (Google's traits plus the 2026-10-24 audition). */
   ages: VoiceAge[];
+  displayName?: string;
+  language?: "de-DE";
+  ageYears?: number;
+  pitch?: "low" | "medium" | "high";
 }
 
 export const GEMINI_VOICES: readonly GeminiVoice[] = [
@@ -68,7 +71,23 @@ export const GEMINI_VOICES: readonly GeminiVoice[] = [
 /** The narrator of every Talea Original on Gemini (Captain Comedy has no Gemini twin): upbeat, playful, male. */
 export const GEMINI_NARRATOR = "Puck";
 
-const BY_NAME = new Map(GEMINI_VOICES.map((voice) => [voice.name.toLowerCase(), voice]));
+const GERMAN_VOICE_NAMES: Record<string, string> = {
+  advisor: "Beratung", assistant: "Assistenz", concierge: "Concierge", csagent: "Kundenservice",
+  podcaster: "Podcast", storyteller: "Erzählen", techagent: "Technik", training: "Moderation", tutor: "Lernhilfe",
+};
+
+/** Additional German voices are selectable, but do not change automatic casting. */
+export const GEMINI_EXTRA_VOICES: readonly GeminiVoice[] = GEMINI_GERMAN_VOICES.map(([name, gender, pitch, ageYears]) => {
+  const [, , category, number] = name.split("-");
+  return {
+    name, gender, pitch, ageYears, language: "de-DE" as const,
+    displayName: `${GERMAN_VOICE_NAMES[category] ?? category} ${number}`,
+    trait: "German", traitDe: "Deutsch", ages: [ageYears >= 60 ? "old" : "adult"],
+  };
+});
+export const GEMINI_ALL_VOICES: readonly GeminiVoice[] = [...GEMINI_VOICES, ...GEMINI_EXTRA_VOICES];
+
+const BY_NAME = new Map(GEMINI_ALL_VOICES.map((voice) => [voice.name.toLowerCase(), voice]));
 
 /** The catalog entry of a voice name, case-insensitive ("puck" → Puck). */
 export function geminiVoice(name?: string | null): GeminiVoice | undefined {
@@ -77,7 +96,9 @@ export function geminiVoice(name?: string | null): GeminiVoice | undefined {
 
 /** "Puck · männlich · gut gelaunt" for pickers. */
 export function geminiVoiceLabel(voice: GeminiVoice): string {
-  return `${voice.gender === "female" ? "weiblich" : "männlich"} · ${voice.traitDe}`;
+  const gender = voice.gender === "female" ? "weiblich" : voice.gender === "male" ? "männlich" : "neutral";
+  const pitch = voice.pitch === "high" ? "hohe Stimme" : voice.pitch === "medium" ? "mittlere Stimme" : voice.pitch === "low" ? "tiefe Stimme" : undefined;
+  return [voice.language ? "Deutsch" : undefined, gender, voice.ageYears ? `${voice.ageYears} Jahre` : undefined, pitch ?? voice.traitDe].filter(Boolean).join(" · ");
 }
 
 /* ── Hints: who a figure is ────────────────────────────────────────────── */

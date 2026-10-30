@@ -9,7 +9,7 @@ import { NARRATOR_ID, resolveSeriesCast, type AccountVoice } from "./casting";
 import { assignEngineVoices, geminiFigures, recastScript, seriesCastMembers, seriesHints } from "./cast-members";
 import { audioCosts, defaultVoiceEngine, engineInfo, estimateVoices, geminiVoiceCost, normalizeEngine, proseVolume, scriptVolume } from "./engines";
 import { checkClip, expectedSeconds, gapBetween, LINE_GAPS, renderWithGemini } from "./gemini-render";
-import { GEMINI_NARRATOR, GEMINI_VOICES, describeFigure, figureHint, geminiLine, pickGeminiVoice, resolveGeminiCast, type SpeakerDirection } from "./gemini-voices";
+import { GEMINI_ALL_VOICES, GEMINI_EXTRA_VOICES, GEMINI_NARRATOR, GEMINI_VOICES, describeFigure, figureHint, geminiLine, geminiVoice, geminiVoiceLabel, pickGeminiVoice, resolveGeminiCast, type SpeakerDirection } from "./gemini-voices";
 import { createSpeechGate, SpeechError, openRouterSpeech, type SpeechPort, type SpeechRequest } from "./openrouter-speech";
 import { analyzeSpeech, applyGain, cut, safeGainDb, samplesFromPcm, wavBuffer } from "./pcm";
 import { NARRATOR_KEY } from "./screenplay";
@@ -74,6 +74,28 @@ describe("Gemini voices", () => {
     expect(GEMINI_VOICES.length).toBe(30);
     expect(GEMINI_VOICES.filter((voice) => voice.gender === "female").length).toBe(14);
     expect(GEMINI_VOICES.some((voice) => voice.name === GEMINI_NARRATOR)).toBe(true);
+  });
+
+  test("the German catalog is selectable with descriptive labels and unique IDs", () => {
+    expect(GEMINI_EXTRA_VOICES.length).toBe(87);
+    expect(new Set(GEMINI_ALL_VOICES.map((voice) => voice.name.toLowerCase())).size).toBe(GEMINI_ALL_VOICES.length);
+    const voice = geminiVoice("DE-DE-ASSISTANT-11")!;
+    expect(voice).toMatchObject({ name: "de-de-assistant-11", displayName: "Assistenz 11", ageYears: 23, language: "de-DE" });
+    expect(geminiVoiceLabel(voice)).toBe("Deutsch · weiblich · 23 Jahre · hohe Stimme");
+  });
+
+  test("a manually chosen German voice remains assigned and reaches the screenplay", () => {
+    const { bible } = series("bruno-der-flunkerfisch");
+    const { cast } = resolveSeriesCast({ bible, characters: bible.characters, overrides: [], voices: ACCOUNT });
+    const resolved = resolveGeminiCast({
+      figures: geminiFigures(bible.characters, cast, ACCOUNT),
+      overrides: [{ speakerId: "ella", voiceId: "de-de-assistant-11", source: "admin" }],
+      narratorId: NARRATOR_ID,
+    });
+    expect(resolved.cast.find((entry) => entry.speakerId === "ella")).toMatchObject({ voice: "de-de-assistant-11", source: "admin" });
+    const members = seriesCastMembers(bible.characters, cast, { family: "gemini", geminiCast: resolved.cast, voices: ACCOUNT });
+    expect(members.find((member) => member.key === "ELLA")?.geminiVoice).toBe("de-de-assistant-11");
+    expect(resolved.autoPicks.every((pick) => !pick.voiceId.startsWith("de-de-"))).toBe(true);
   });
 
   test("figures are read from the visual profile, the ElevenLabs labels and the name", () => {

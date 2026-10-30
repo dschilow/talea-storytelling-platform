@@ -17,7 +17,7 @@ const STATUS_TONES = {
 
 const ENGINE_NOTES: Record<string, string> = {
   elevenlabs: "Captain Comedy, Dialog-Takes",
-  "gemini-lite": "30 Stimmen, Zeile für Zeile",
+  "gemini-lite": "Viele Stimmen, Zeile für Zeile",
   "gemini-flash": "ausdrucksstärker als Lite",
 };
 

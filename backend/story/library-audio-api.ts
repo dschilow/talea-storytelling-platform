@@ -16,7 +16,7 @@ import { adminEpisodeView, type LibraryAdminEpisode } from "./library-api";
 import { NARRATOR_ID, resolveSeriesCast, type AccountVoice } from "./library/audio/casting";
 import { geminiFigures, seriesHints } from "./library/audio/cast-members";
 import { defaultVoiceEngine, engineInfo, normalizeEngine } from "./library/audio/engines";
-import { GEMINI_VOICES, geminiVoice, geminiVoiceLabel } from "./library/audio/gemini-voices";
+import { GEMINI_ALL_VOICES, geminiVoice, geminiVoiceLabel } from "./library/audio/gemini-voices";
 import { openRouterSpeech } from "./library/audio/openrouter-speech";
 import { audioIsGenerating, geminiCastForStudio, loadAccountVoices, restorePreviousAudio, startEpisodeAudio } from "./library/audio/production";
 import { NARRATOR_KEY } from "./library/audio/screenplay";
@@ -206,7 +206,7 @@ async function voiceCast(slug: string, family: VoiceFamily): Promise<LibraryVoic
         silent: entry.silent,
         source: entry.source,
       })),
-      voices: GEMINI_VOICES.map((voice) => ({ voiceId: voice.name, name: voice.name, traits: geminiVoiceLabel(voice), description: `Google: ${voice.trait}` })),
+      voices: GEMINI_ALL_VOICES.map((voice) => ({ voiceId: voice.name, name: voice.displayName ?? voice.name, traits: geminiVoiceLabel(voice), description: voice.language ? "Deutsche Stimme aus Googles erweiterter Bibliothek. Die Altersangabe stammt aus dem Stimmenkatalog." : `Google: ${voice.trait}` })),
     };
   }
 
