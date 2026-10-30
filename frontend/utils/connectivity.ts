@@ -21,6 +21,7 @@ let status: ConnectivityStatus = typeof navigator === 'undefined' || navigator.o
   : 'offline';
 let lastProbeAt = 0;
 let inFlightProbe: Promise<boolean> | null = null;
+let networkRevision = 0;
 
 const listeners = new Set<() => void>();
 
@@ -63,26 +64,25 @@ export async function probeConnectivity(backendUrl: string, request: typeof fetc
 export async function checkRealConnectivity(): Promise<boolean> {
   if (inFlightProbe) return inFlightProbe;
 
-  inFlightProbe = (async () => {
-    try {
-      return await probeConnectivity(getBackendUrl());
-    } catch {
-      return false;
-    } finally {
+  const probe = probeConnectivity(getBackendUrl()).catch(() => false);
+  inFlightProbe = probe;
+  try {
+    return await probe;
+  } finally {
+    if (inFlightProbe === probe) {
       lastProbeAt = Date.now();
       inFlightProbe = null;
     }
-  })();
-
-  return inFlightProbe;
+  }
 }
 
 async function probeAndPublish(): Promise<boolean> {
+  const revision = networkRevision;
   const reachable = await checkRealConnectivity();
-  // A response that arrives after the browser's offline event must not undo it.
-  const online = reachable && (typeof navigator === 'undefined' || navigator.onLine);
-  setStatus(online ? 'online' : 'offline');
-  return online;
+  // An OS/browser network hint can be wrong (VPNs, virtual network adapters).
+  // A real response wins, but a probe from BEFORE a network event is stale.
+  if (revision === networkRevision) setStatus(reachable ? 'online' : 'offline');
+  return reachable;
 }
 
 /**
@@ -164,18 +164,22 @@ function syncRecheckLoop(): void {
 if (typeof window !== 'undefined') {
   listeners.add(syncRecheckLoop);
 
-  if (status === 'checking') {
-    void probeAndPublish();
-  }
+  // Verify even when the browser initially claims to be offline.
+  void probeAndPublish();
   syncRecheckLoop();
 
   window.addEventListener('online', () => {
+    networkRevision++;
+    inFlightProbe = null;
     setStatus('checking');
     void probeAndPublish();
   });
 
   window.addEventListener('offline', () => {
+    networkRevision++;
+    inFlightProbe = null;
     setStatus('offline');
+    void probeAndPublish();
   });
 
   // Returning to the tab is the moment a user most expects the app to be in

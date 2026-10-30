@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, FileText, Headphones, Play, Search, WifiOff } from 'lucide-react';
+import { BookOpen, FileText, Headphones, Play, RotateCw, Search, WifiOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { Story } from '../../types/story';
 import type { Doku } from '../../types/doku';
@@ -31,6 +31,8 @@ import {
   taleaSurfaceClass,
 } from '../../components/talea/TaleaPastelPrimitives';
 import { cn } from '@/lib/utils';
+import { checkRealConnectivity, refreshConnectivity } from '../../utils/connectivity';
+import { reloadToLatestVersion } from '../../utils/appUpdate';
 
 type OfflineTab = 'stories' | 'dokus' | 'audio';
 
@@ -52,7 +54,24 @@ const OfflineContentScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<OfflineTab>('stories');
   const [query, setQuery] = useState('');
+  const [reconnecting, setReconnecting] = useState(false);
+  const [connectionError, setConnectionError] = useState('');
   const licenseNotice = scope ? offlineLicenseMessage(getOfflineLicense(scope.userId)) : null;
+
+  const reconnect = async () => {
+    setReconnecting(true);
+    setConnectionError('');
+    try {
+      if (await checkRealConnectivity()) {
+        refreshConnectivity();
+        await reloadToLatestVersion();
+      } else {
+        setConnectionError('Talea ist gerade nicht erreichbar. Bitte prüfe deine Verbindung und versuche es erneut.');
+      }
+    } finally {
+      setReconnecting(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -273,6 +292,16 @@ const OfflineContentScreen: React.FC = () => {
                   ? 'Noch keine Inhalte für offline gespeichert.'
                   : 'Deine gespeicherten Inhalte — lesen und hören funktioniert ohne Internet.'}
               </p>
+              <button
+                type="button"
+                onClick={() => void reconnect()}
+                disabled={reconnecting}
+                className={cn(taleaChipClass, 'mt-3 gap-2 disabled:opacity-60')}
+              >
+                <RotateCw className={cn('h-3.5 w-3.5', reconnecting && 'motion-safe:animate-spin')} aria-hidden />
+                {reconnecting ? 'Verbindung wird geprüft …' : 'Erneut verbinden'}
+              </button>
+              {connectionError && <p role="status" className="mt-2 text-sm text-[var(--talea-text-secondary)]">{connectionError}</p>}
             </div>
 
             <div className={cn(taleaInsetSurfaceClass, 'flex items-center gap-2 px-4 py-3')}>

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Talea neu starten</title>
+    <style>
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #fff7ec; color: #33281e; font: 1rem/1.6 system-ui, sans-serif; }
+      main { max-width: 30rem; padding: 2rem; text-align: center; }
+      h1 { font-size: 1.75rem; }
+      button { border: 0; border-radius: 2rem; padding: .85rem 1.5rem; background: #705491; color: white; font: inherit; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Talea wird neu gestartet</h1>
+      <p id="status" role="status">Die aktuelle Version wird geladen. Deine gespeicherten Inhalte bleiben erhalten.</p>
+      <button id="retry" type="button" hidden>Erneut versuchen</button>
+      <noscript>Bitte aktiviere JavaScript, um Talea zu starten.</noscript>
+    </main>
+    <script>
+      // /auth is excluded from navigation fallback in existing service workers.
+      // This document can therefore rescue clients still running an old bundle.
+      // Unregister only the worker; leave IndexedDB, cookies and caches intact.
+      async function restart() {
+        try {
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map(registration => registration.unregister()));
+          }
+          // /auth also bypasses the old worker during the final navigation.
+          // A unique query avoids any HTTP-cached copy of the entry document.
+          window.location.replace('/auth?talea-recovery=' + Date.now());
+        } catch {
+          document.getElementById('status').textContent = 'Der Neustart hat nicht geklappt. Bitte versuche es erneut.';
+          document.getElementById('retry').hidden = false;
+        }
+      }
+      document.getElementById('retry').addEventListener('click', restart);
+      restart();
+    </script>
+  </body>
+</html>

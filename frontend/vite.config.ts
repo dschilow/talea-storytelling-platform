@@ -103,6 +103,8 @@ export default defineConfig(({ mode }) => ({
         globIgnores: [
           // CRITICAL: config.js is generated dynamically at container startup
           'config.js',
+          // The repair document must always bypass a stale offline app shell.
+          'auth/recover.html',
           // Online-only features (3D cosmos, PDF export) — no need to reserve
           // ~1.6 MB of the offline budget for chunks that cannot work offline.
           'assets/three-vendor-*.js',

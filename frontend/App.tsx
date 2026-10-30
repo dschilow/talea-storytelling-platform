@@ -399,7 +399,7 @@ const AuthUnavailableScreen: React.FC<{ onRetry?: () => void }> = ({ onRetry }) 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <button
           type="button"
-          onClick={onRetry ?? (() => window.location.reload())}
+          onClick={onRetry ?? (() => void reloadToLatestVersion())}
           style={{
             border: 'none',
             borderRadius: '999px',
@@ -412,6 +412,9 @@ const AuthUnavailableScreen: React.FC<{ onRetry?: () => void }> = ({ onRetry }) 
         >
           Erneut laden
         </button>
+        <a href="/auth/recover.html" style={{ color: colors.text.primary, alignSelf: 'center' }}>
+          App neu starten
+        </a>
       </div>
     </div>
   </div>
@@ -719,7 +722,7 @@ export default function App() {
 
   const clerkFallback = (
     <Provider store={store}>
-      <AuthUnavailableScreen onRetry={() => window.location.reload()} />
+      <AuthUnavailableScreen onRetry={() => void reloadToLatestVersion()} />
     </Provider>
   );
 
@@ -727,7 +730,7 @@ export default function App() {
     <>
       {(!isOnline || clerkFailed) && (
         <Provider store={store}>
-          {!isOnline ? <OfflineApp /> : <AuthUnavailableScreen onRetry={() => window.location.reload()} />}
+          {!isOnline ? <OfflineApp /> : <AuthUnavailableScreen onRetry={() => void reloadToLatestVersion()} />}
         </Provider>
       )}
       <div hidden={!isOnline || clerkFailed}>
