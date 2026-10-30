@@ -1,15 +1,12 @@
-import React, { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { TaleaCardMenu, type TaleaCardMenuAction } from '../talea/TaleaCardMenu';
+import React, { useState } from 'react';
+import type { TaleaCardMenuAction } from '../talea/TaleaCardMenu';
+import { DokuLibraryItem, type DokuViewMode } from './DokuLibraryItem';
 import {
   Bookmark,
   BookmarkCheck,
-  BookOpen,
   Download,
-  FlaskConical,
   Globe,
   Headphones,
-  Lightbulb,
   Lock,
   Loader2,
   Trash2,
@@ -17,10 +14,8 @@ import {
 import type { Doku } from '../../types/doku';
 import { exportDokuAsPDF, isPDFExportSupported } from '../../utils/pdfExportLoader';
 import { useBackend } from '../../hooks/useBackend';
-import { useTheme } from '../../contexts/ThemeContext';
 import { useOffline } from '../../contexts/OfflineStorageContext';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
-import ProgressiveImage from '../common/ProgressiveImage';
 
 interface DokuCardProps {
   doku: Doku;
@@ -28,24 +23,7 @@ interface DokuCardProps {
   onDelete?: (dokuId: string, dokuTitle: string) => void;
   onTogglePublic?: (dokuId: string, currentIsPublic: boolean) => void;
   imageLoading?: 'lazy' | 'eager';
-}
-
-type Palette = {
-  card: string;
-  border: string;
-  text: string;
-  muted: string;
-  soft: string;
-};
-
-function getPalette(_: boolean): Palette {
-  return {
-    card: 'var(--talea-surface-primary)',
-    border: 'var(--talea-border-light)',
-    text: 'var(--talea-text-primary)',
-    muted: 'var(--talea-text-secondary)',
-    soft: 'var(--talea-surface-inset)',
-  };
+  viewMode?: DokuViewMode;
 }
 
 function statusLabel(status: Doku['status']) {
@@ -80,16 +58,13 @@ function buildDokuNarrationText(doku: DokuNarrationInput): string {
   return blocks.join('\n\n').trim();
 }
 
-export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTogglePublic, imageLoading = 'lazy' }) => {
-  const [hovered, setHovered] = useState(false);
+export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTogglePublic, imageLoading = 'lazy', viewMode = 'grid' }) => {
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [isAddingToPlaylist, setIsAddingToPlaylist] = useState(false);
   const backend = useBackend();
-  const { resolvedTheme } = useTheme();
   const { canUseOffline, isDokuSaved, isSaving, toggleDoku } = useOffline();
   const { startDokuConversion, playlist } = useAudioPlayer();
 
-  const palette = useMemo(() => getPalette(resolvedTheme === 'dark'), [resolvedTheme]);
   const isInPlaylist = playlist.some((item) => item.parentDokuId === doku.id);
 
   const handleDelete = () => onDelete?.(doku.id, doku.title);
@@ -175,131 +150,24 @@ export const DokuCard: React.FC<DokuCardProps> = ({ doku, onRead, onDelete, onTo
       : []),
   ];
 
-  const statusColor =
-    doku.status === 'complete'
-      ? 'var(--talea-success)'
-      : doku.status === 'generating'
-      ? 'var(--talea-warning)'
-      : 'var(--talea-danger)';
+  const badge = doku.status !== 'complete' ? (
+    <span className="inline-flex rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-glass-bg)] px-3 py-1 text-[11px] font-semibold text-[var(--talea-text-primary)] shadow-sm backdrop-blur">
+      {statusLabel(doku.status)}
+    </span>
+  ) : undefined;
 
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-      onHoverStart={() => setHovered(true)}
-      onHoverEnd={() => setHovered(false)}
-      onClick={() => onRead(doku)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onRead(doku);
-        }
-      }}
-      role="button"
-      tabIndex={0}
-      aria-label={`Doku lesen: ${doku.title}`}
-      className="group cursor-pointer outline-none focus-visible:ring-4 focus-visible:ring-[var(--primary)]/20 rounded-[1.375rem]"
-    >
-      <div
-        className="w-full overflow-hidden rounded-[1.375rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-soft)] transition-shadow duration-300 group-hover:shadow-[var(--talea-shadow-medium)]"
-      >
-        {/* Cover: aspect-square, kein Crop dank object-contain + farbiger Hintergrund */}
-        <div
-          className="relative aspect-square w-full overflow-hidden"
-          style={{
-            background:
-              'linear-gradient(135deg, color-mix(in srgb, var(--primary) 18%, var(--talea-surface-inset)) 0%, var(--talea-surface-inset) 60%, color-mix(in srgb, var(--talea-accent-sky) 14%, var(--talea-surface-inset)) 100%)',
-          }}
-        >
-          <ProgressiveImage
-            src={doku.coverImageUrl}
-            alt={doku.title}
-            loading={imageLoading}
-            fetchPriority={imageLoading === 'eager' ? 'high' : 'auto'}
-            containerClassName="absolute inset-0 h-full w-full"
-            imageClassName="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]"
-            skeletonClassName="bg-[var(--talea-media-skeleton)]"
-            fallback={
-              <div className="flex h-full w-full items-center justify-center">
-                <FlaskConical className="h-16 w-16" style={{ color: palette.muted }} />
-              </div>
-            }
-          />
-
-          {/* Only a status that deviates from "done" is worth a badge. */}
-          {doku.status !== 'complete' ? (
-            <span
-              className="absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold backdrop-blur-md"
-              style={{ background: 'var(--talea-media-chrome-bg)', color: 'var(--talea-media-foreground)' }}
-            >
-              <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: statusColor }} />
-              {statusLabel(doku.status)}
-            </span>
-          ) : null}
-
-          <TaleaCardMenu actions={menuActions} label={`Aktionen für ${doku.title}`} className="!absolute right-3 top-3" />
-
-          {/* Hover CTA */}
-          <AnimatePresence>
-            {hovered && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 8 }}
-                transition={{ duration: 0.18 }}
-                className="pointer-events-none absolute bottom-3 left-3 right-3 z-10 flex items-center justify-center"
-              >
-                <div
-                  className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-semibold shadow-lg backdrop-blur-md"
-                  style={{
-                    borderColor: 'var(--talea-media-control-border)',
-                    background: 'var(--talea-media-control-bg)',
-                    color: 'var(--talea-media-foreground)',
-                  }}
-                >
-                  <BookOpen className="h-3.5 w-3.5" />
-                  Lesen
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Body */}
-        <div className="space-y-2.5 p-4">
-          <h3
-            className="line-clamp-2 text-base font-semibold leading-snug"
-            style={{ color: palette.text, fontFamily: 'var(--talea-font-display)' }}
-          >
-            {doku.title}
-          </h3>
-
-          <p className="line-clamp-2 text-xs leading-relaxed" style={{ color: palette.muted }}>
-            {doku.topic || 'Ein spannender Wissensartikel zum Entdecken und Lernen.'}
-          </p>
-
-          <div className="flex items-center justify-between pt-1 text-[11px]" style={{ color: palette.muted }}>
-            <span>
-              {new Date(doku.createdAt).toLocaleDateString('de-DE', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              })}
-            </span>
-            <span
-              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium"
-              style={{
-                background: 'color-mix(in srgb, var(--primary) 14%, var(--talea-surface-inset))',
-                color: 'var(--talea-text-primary)',
-              }}
-            >
-              <Lightbulb className="h-3 w-3" />
-              Lernen
-            </span>
-          </div>
-        </div>
-      </div>
-    </motion.article>
+    <DokuLibraryItem
+      title={doku.title}
+      cover={doku.coverImageUrl}
+      eyebrow={doku.topic || 'Doku'}
+      description={doku.summary}
+      metadata={new Date(doku.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })}
+      badge={badge}
+      loading={imageLoading}
+      viewMode={viewMode}
+      actions={menuActions}
+      onOpen={() => onRead(doku)}
+    />
   );
 };

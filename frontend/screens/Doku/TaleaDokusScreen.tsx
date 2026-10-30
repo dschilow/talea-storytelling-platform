@@ -6,8 +6,10 @@ import {
   BookOpen,
   ChevronDown,
   Filter,
+  Grid3X3,
   Headphones,
   ListPlus,
+  LayoutList,
   Loader2,
   Lock,
   Mic,
@@ -25,6 +27,8 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 
 import { DokuCard } from '../../components/cards/DokuCard';
+import { DokuLibraryItem, type DokuViewMode } from '../../components/cards/DokuLibraryItem';
+import type { TaleaCardMenuAction } from '@/components/talea/TaleaCardMenu';
 import { IconTabs, iconTabId, type IconTabItem } from '@/components/navigation/IconTabs';
 import { useBackend } from '../../hooks/useBackend';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
@@ -121,284 +125,43 @@ function getPalette(_isDark: boolean): Palette {
 const DokuBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => <TaleaPageBackground isDark={isDark} />;
 
 // ────────────────────────────────────────────────────────────────────────────────
-// Audio Doku Card (aspect-square, klar als Audio erkennbar)
-// ────────────────────────────────────────────────────────────────────────────────
-const ICON_BTN =
-  'inline-flex h-9 w-9 items-center justify-center rounded-full border backdrop-blur-md transition-all hover:scale-105 active:scale-95';
-
+// Audio-Dokus share the story library's cover and list presentation.
 const AudioDokuCard: React.FC<{
   doku: AudioDoku;
   index: number;
+  viewMode: DokuViewMode;
   onPlay: () => void;
-  onAddToQueue?: () => void;
-  palette: Palette;
+  onAddToQueue: () => void;
   isAdmin?: boolean;
-  onEdit?: () => void;
-  onDelete?: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
   canSaveOffline?: boolean;
   isSavedOffline?: boolean;
   isSavingOffline?: boolean;
-  onToggleOffline?: () => void;
-}> = ({
-  doku,
-  index,
-  onPlay,
-  onAddToQueue,
-  palette,
-  isAdmin,
-  onEdit,
-  onDelete,
-  canSaveOffline,
-  isSavedOffline,
-  isSavingOffline,
-  onToggleOffline,
-}) => {
+  onToggleOffline: () => void;
+}> = ({ doku, index, viewMode, onPlay, onAddToQueue, isAdmin, onEdit, onDelete, canSaveOffline, isSavedOffline, isSavingOffline, onToggleOffline }) => {
   const { t } = useTranslation();
-  const reduceMotion = useReducedMotion();
-
-  return (
-    <motion.article
-      initial={reduceMotion ? false : { opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.025, 0.4), duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={reduceMotion ? undefined : { y: -6 }}
-      onClick={onPlay}
-      onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) return;
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onPlay();
-        }
-      }}
-      role="button"
-      tabIndex={0}
-      aria-label={`Audio-Doku: ${doku.title}`}
-      className="group w-full cursor-pointer overflow-hidden rounded-[1.75rem] border text-left outline-none transition-all duration-300 hover:shadow-[0_24px_48px_rgba(33,44,62,0.18)] focus-visible:ring-4 focus-visible:ring-[var(--talea-accent-lavender)]/30"
-      style={{
-        borderColor: palette.border,
-        background: palette.panel,
-        boxShadow: '0 10px 24px rgba(33,44,62,0.10)',
-      }}
-    >
-      {/* Square cover, kein Crop */}
-      <div
-        className="relative aspect-square w-full overflow-hidden"
-        style={{
-          background:
-            'linear-gradient(135deg, color-mix(in srgb, var(--talea-accent-lavender) 26%, var(--talea-surface-inset)) 0%, var(--talea-surface-inset) 55%, color-mix(in srgb, var(--talea-accent-rose) 18%, var(--talea-surface-inset)) 100%)',
-        }}
-      >
-        {/* Blurred background fill — als <img>, damit lazy loading greift */}
-        {doku.coverImageUrl && (
-          <img
-            src={doku.coverImageUrl}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-65 blur-2xl"
-            aria-hidden
-          />
-        )}
-
-        {/* Foreground cover - voll sichtbar */}
-        <div className="absolute inset-0 flex items-center justify-center p-3">
-          <div className="relative h-full w-full overflow-hidden rounded-[1.25rem] shadow-[0_14px_30px_rgba(0,0,0,0.18)]">
-            <ProgressiveImage
-              src={doku.coverImageUrl}
-              alt={doku.title}
-              revealDelayMs={index * 30}
-              containerClassName="h-full w-full"
-              imageClassName="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.05]"
-              skeletonClassName="bg-[var(--talea-media-skeleton)]"
-              fallback={
-                <div className="flex h-full w-full items-center justify-center bg-white/40">
-                  <Headphones className="h-12 w-12" style={{ color: palette.muted }} />
-                </div>
-              }
-            />
-
-            {/* Waveform-Andeutung am unteren Rand des Bildes */}
-            <div className="pointer-events-none absolute inset-x-3 bottom-3 flex items-end justify-center gap-0.5 opacity-80">
-              {[3, 5, 7, 4, 8, 6, 9, 5, 7, 4, 6, 8, 5, 4, 6].map((h, i) => (
-                <motion.span
-                  key={i}
-                  initial={reduceMotion ? false : { scaleY: 0.4 }}
-                  animate={reduceMotion ? { scaleY: 1 } : { scaleY: [0.4, 1, 0.5, 0.8, 0.4] }}
-                  transition={{
-                    duration: 1.4,
-                    repeat: reduceMotion ? 0 : Infinity,
-                    delay: i * 0.06,
-                    ease: 'easeInOut',
-                  }}
-                  className="block w-[2px] origin-bottom rounded-full bg-white/85"
-                  style={{ height: `${h * 2}px` }}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Opaque badge stays readable over every cover image. */}
-        <div className="absolute left-3 top-3 z-10">
-          <span
-            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold"
-            style={{
-              borderColor: 'var(--talea-brand-cream)',
-              background: 'var(--talea-brand-cream)',
-              color: 'var(--talea-brand-brown)',
-            }}
-          >
-            {doku.locked ? <Lock className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
-            {doku.locked ? t('doku.audioLockedBadge', 'Mit Abo') : 'Audio'}
-          </span>
-        </div>
-
-        {/* Action icons */}
-        <div className="absolute right-3 top-3 z-10 flex items-center gap-1.5">
-          {canSaveOffline && onToggleOffline && !doku.locked && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleOffline();
-              }}
-              disabled={isSavingOffline}
-              className={ICON_BTN}
-              style={{
-                borderColor: 'var(--talea-media-chrome-border)',
-                background: 'var(--talea-media-chrome-bg)',
-                color: 'var(--talea-media-foreground)',
-              }}
-              aria-label={
-                isSavedOffline
-                  ? t('doku.removeOffline', 'Offline-Speicherung entfernen')
-                  : t('doku.saveOffline', 'Offline speichern')
-              }
-            >
-              {isSavingOffline ? (
-                <Loader2 className="h-4 w-4 motion-safe:animate-spin" />
-              ) : isSavedOffline ? (
-                <BookmarkCheck className="h-4 w-4" />
-              ) : (
-                <Bookmark className="h-4 w-4" />
-              )}
-            </button>
-          )}
-
-          {isAdmin && onEdit && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onEdit();
-              }}
-              className={ICON_BTN}
-              style={{
-                borderColor: 'var(--talea-media-chrome-border)',
-                background: 'var(--talea-media-chrome-bg)',
-                color: 'var(--talea-media-foreground)',
-              }}
-              aria-label={t('doku.editAudioDoku', 'Audio-Doku bearbeiten')}
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-          )}
-
-          {isAdmin && onDelete && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onDelete();
-              }}
-              className={ICON_BTN}
-              style={{
-                borderColor: 'var(--talea-danger-border)',
-                background: 'color-mix(in srgb, var(--talea-danger-soft) 90%, transparent)',
-                color: 'var(--talea-danger)',
-              }}
-              aria-label={t('doku.deleteAudioDoku', 'Audio-Doku löschen')}
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Big Play button: on hover with a mouse, always on touch screens, where a
-            child who cannot read needs to see that this card plays something. */}
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
-          <motion.div
-            initial={reduceMotion ? false : { scale: 0.85 }}
-            whileHover={reduceMotion ? undefined : { scale: 1 }}
-            className="inline-flex h-16 w-16 items-center justify-center rounded-full border-2 shadow-[0_18px_40px_rgba(0,0,0,0.3)]"
-            style={{
-              borderColor: 'var(--talea-brand-cream)',
-              background: 'var(--primary)',
-              color: 'var(--primary-foreground)',
-            }}
-          >
-            <Play className="h-6 w-6 translate-x-[2px]" fill="currentColor" />
-          </motion.div>
-
-          {onAddToQueue && (
-            <button
-              type="button"
-              className="pointer-events-auto absolute bottom-4 right-4 inline-flex h-11 w-11 items-center justify-center rounded-full border backdrop-blur-md transition-transform motion-safe:hover:scale-105"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddToQueue();
-              }}
-              style={{
-                borderColor: 'var(--talea-media-control-border)',
-                background: 'var(--talea-media-control-bg)',
-                color: 'var(--talea-media-foreground)',
-              }}
-              title={t('doku.addToQueue', 'Zur Warteschlange')}
-              aria-label={t('doku.addToQueue', 'Zur Warteschlange hinzufügen')}
-            >
-              <ListPlus className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="space-y-2.5 p-4">
-        <h4
-          className="line-clamp-2 text-base font-semibold leading-snug"
-          style={{ color: palette.text, fontFamily: headingFont }}
-        >
-          {doku.title}
-        </h4>
-        <p className="line-clamp-2 text-xs leading-relaxed" style={{ color: palette.muted }}>
-          {doku.description}
-        </p>
-        {(doku.ageGroup || doku.category) && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
-            {doku.ageGroup && (
-              <span
-                className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                style={{
-                  background: 'color-mix(in srgb, var(--talea-accent-lavender) 14%, var(--talea-surface-inset))',
-                  color: palette.text,
-                }}
-              >
-                Alter {doku.ageGroup}
-              </span>
-            )}
-            {doku.category && (
-              <span
-                className="rounded-full px-2 py-0.5 text-[10px] font-medium"
-                style={{ background: palette.soft, color: palette.muted }}
-              >
-                {doku.category}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-    </motion.article>
-  );
+  const actions: TaleaCardMenuAction[] = [
+    ...(!doku.locked && doku.audioUrl ? [{ label: t('doku.addToQueue', 'Zur Warteschlange hinzufügen'), icon: <ListPlus className="h-4 w-4" />, onSelect: onAddToQueue }] : []),
+    ...(canSaveOffline && !doku.locked ? [{ label: isSavedOffline ? t('doku.removeOffline', 'Offline-Speicherung entfernen') : t('doku.saveOffline', 'Offline speichern'), icon: isSavingOffline ? <Loader2 className="h-4 w-4 motion-safe:animate-spin" /> : isSavedOffline ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />, onSelect: onToggleOffline, disabled: isSavingOffline }] : []),
+    ...(isAdmin ? [
+      { label: t('doku.editAudioDoku', 'Audio-Doku bearbeiten'), icon: <Pencil className="h-4 w-4" />, onSelect: onEdit },
+      { label: t('doku.deleteAudioDoku', 'Audio-Doku löschen'), icon: <Trash2 className="h-4 w-4" />, onSelect: onDelete, destructive: true },
+    ] : []),
+  ];
+  return <DokuLibraryItem
+    title={doku.title}
+    cover={doku.coverImageUrl}
+    eyebrow={doku.category || 'Audio-Doku'}
+    description={doku.description}
+    metadata={[doku.ageGroup ? 'Alter ' + doku.ageGroup : null, new Date(doku.createdAt).toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' })].filter(Boolean).join(' · ')}
+    badge={<span className="inline-flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">{doku.locked ? <Lock className="h-3.5 w-3.5" /> : <Headphones className="h-3.5 w-3.5" />}{doku.locked ? t('doku.audioLockedBadge', 'Mit Abo') : 'Audio'}</span>}
+    audio
+    loading={index < 4 ? 'eager' : 'lazy'}
+    viewMode={viewMode}
+    actions={actions}
+    onOpen={onPlay}
+  />;
 };
 
 // ────────────────────────────────────────────────────────────────────────────────
@@ -541,7 +304,7 @@ const AudioModal: React.FC<{
 const SectionLoading: React.FC<{ palette: Palette }> = ({ palette }) => {
   const reduceMotion = useReducedMotion();
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4">
       {Array.from({ length: 8 }).map((_, i) => (
         <motion.div
           key={i}
@@ -608,6 +371,7 @@ const TaleaDokusScreen: React.FC = () => {
   const [audioUpgradeMessage, setAudioUpgradeMessage] = useState<string | null>(null);
   const openedNotificationEpisode = useRef<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(searchParams.get('tags') ?? '');
+  const [viewMode, setViewMode] = useState<DokuViewMode>('grid');
   const [activeTab, setActiveTab] = useState<DokuTab>(
     searchParams.get('mode') === 'audio' ? 'audio' : 'mine'
   );
@@ -1161,6 +925,17 @@ const TaleaDokusScreen: React.FC = () => {
                 )}
               </label>
 
+              <div role="radiogroup" aria-label="Ansicht" className="flex shrink-0 self-start rounded-[0.7rem] bg-[var(--talea-surface-inset)] p-0.5">
+                {([
+                  { id: 'grid', label: 'Rasteransicht', icon: <Grid3X3 className="h-4 w-4" /> },
+                  { id: 'list', label: 'Listenansicht', icon: <LayoutList className="h-4 w-4" /> },
+                ] as Array<{ id: DokuViewMode; label: string; icon: React.ReactNode }>).map((mode) => (
+                  <button key={mode.id} type="button" role="radio" aria-checked={viewMode === mode.id} aria-label={mode.label} onClick={() => setViewMode(mode.id)} className={cn('inline-flex h-11 w-11 items-center justify-center rounded-[0.55rem] transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]', viewMode === mode.id ? 'bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)] shadow-[var(--talea-shadow-soft)]' : 'text-[var(--talea-text-tertiary)]')}>
+                    {mode.icon}
+                  </button>
+                ))}
+              </div>
+
               <div className="flex flex-wrap items-center gap-2">
                 <label className="relative">
                   <span className="sr-only">{t('common.sort', 'Sortierung')}</span>
@@ -1308,11 +1083,12 @@ const TaleaDokusScreen: React.FC = () => {
                           onAction={!query ? () => navigate('/doku/create') : undefined}
                         />
                       ) : (
-                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        <div className={viewMode === 'grid' ? "grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4" : "flex flex-col gap-3"}>
                           {filteredMyDokus.map((doku, index) => (
                             <DokuCard
                               key={doku.id}
                               doku={doku}
+                              viewMode={viewMode}
                               imageLoading={index < 4 ? 'eager' : 'lazy'}
                               onRead={(item) => navigate(`/doku-reader/${item.id}`)}
                               onDelete={handleDeleteDoku}
@@ -1353,9 +1129,9 @@ const TaleaDokusScreen: React.FC = () => {
                           }
                         />
                       ) : (
-                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        <div className={viewMode === 'grid' ? "grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4" : "flex flex-col gap-3"}>
                           {filteredPublicDokus.map((doku, index) => (
-                            <DokuCard key={doku.id} doku={doku} imageLoading={index < 4 ? 'eager' : 'lazy'} onRead={(item) => navigate(`/doku-reader/${item.id}`)} />
+                            <DokuCard key={doku.id} doku={doku} viewMode={viewMode} imageLoading={index < 4 ? 'eager' : 'lazy'} onRead={(item) => navigate(`/doku-reader/${item.id}`)} />
                           ))}
                         </div>
                       )}
@@ -1417,15 +1193,15 @@ const TaleaDokusScreen: React.FC = () => {
                               </motion.button>
                             </div>
                           )}
-                          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                          <div className={viewMode === 'grid' ? "grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4" : "flex flex-col gap-3"}>
                             {filteredAudioDokus.map((doku, i) => (
                               <AudioDokuCard
                                 key={doku.id}
                                 doku={doku}
                                 index={i}
+                                viewMode={viewMode}
                                 onPlay={() => setAudioModal(doku)}
                                 onAddToQueue={() => handleAddAudioToQueue(doku)}
-                                palette={palette}
                                 isAdmin={isAdmin}
                                 onEdit={() => handleEditAudioDoku(doku)}
                                 onDelete={() => handleDeleteAudioDoku(doku)}
