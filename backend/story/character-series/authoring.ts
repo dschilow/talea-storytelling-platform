@@ -21,16 +21,14 @@ const SERIES_GENRE_COLORING: Record<string, string> = {
 /** Haiku plans the pictures and reviews the text (with thinking as critic); Sol remains the writer. */
 export const SERIES_MODELS = { writer: 'openai/gpt-6.1-sol', support: 'anthropic/claude-haiku-5.5', critic: 'anthropic/claude-haiku-5.5' };
 /**
- * The picture check is Gemini 3.8 Flash. Story e83e44e2 printed one of seven pictures: Haiku in the support role reads
- * without thinking and rejected every attempt (0 of 14 good checks kept), mostly for "ears not protruding enough" on
- * recognisable children, while the same 12 attempts re-read by Gemini kept 9 of 12 good checks and stopped every
- * real fault (a missing hand, elf ears, a fingerless hand on the cover). Terra let the missing hand through twice;
- * Haiku with thinking let the elf ears through (scripts/image-bench/series-recheck.ts, 2026-10-29). Gemini answered
- * one picture empty on every try, so a failed read goes once to Terra instead of losing the paid picture.
- * Explicit provider safety blocks are different: log the reason and stop without retrying or changing readers.
+ * Luna is the primary visual check by product choice (2026-10-30); Gemini is the technical-outage reader.
+ * Luna caught the third arm and wrong hair colour in the small publication-policy comparison at lower cost,
+ * but was stricter on a borderline hair shade. Keep the same recognisability and anatomy criteria for both.
+ * Explicit provider safety blocks are final, never retried or routed to another reader.
  */
-export const SERIES_IMAGE_REVIEW_MODEL = 'google/gemini-3.8-flash';
-export const SERIES_IMAGE_REVIEW_FALLBACK_MODEL = 'google/gemini-3.5-flash-lite';
+export const SERIES_IMAGE_REVIEW_MODEL = 'openai/gpt-6-luna';
+export const SERIES_IMAGE_REVIEW_FALLBACK_MODEL = 'google/gemini-3.8-flash';
+export const SERIES_IMAGE_REVIEW_EFFORT = 'medium';
 /**
  * FLUX.2 klein 9B KV again (2026-10-29, a test against FLUX 3 Klein): the 9B weights with a reference cache, made for
  * scenes drawn from one identity sheet. TALEA_SERIES_IMAGE_MODEL switches model: runware:400@4 (4B), runware:400@2 (9B),
@@ -38,6 +36,8 @@ export const SERIES_IMAGE_REVIEW_FALLBACK_MODEL = 'google/gemini-3.5-flash-lite'
  */
 export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_KLEIN_9B_KV_MODEL;
 /**
+ * Version 14: publication QA checks each figure's recognisability and anatomy explicitly; minor action/prop changes
+ * do not consume redraws. The writer and existing editorial pass prioritise the opening promise and its payoff.
  * Version 12 (abfc9b06, 9019823b, 23302f05): a malformed cover plan reuses a validated chapter motif; spelling is
  * corrected locally, minor repairs keep the manuscript without resending the catalogue, and vision owns its retries.
  * Version 11 (story e83e44e2): Gemini reads the pictures, a picture prints after the paragraph it quotes, a page keeps
@@ -52,7 +52,7 @@ export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_
  * took 211 s. Up to five repairs, spent on pictures with a hard fault or provider failure. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 13, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
+export const SERIES_POLICY = { version: 14, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);
@@ -148,13 +148,14 @@ export function seriesAuthoring(brief: StoryBrief) {
       // real delivery in one sentence; their suspense never rose above a chore.
       "- Chapter 3 (Costly Choice, Turnaround & Callback Payoff): Everything collides at once. The decisive attempt happens live, where the stake is decided and while it is at its worst (the shower starts on the slope, the boat drifts toward the rocks), and stays uncertain until its last beat; give it a real scene of at least 150 words, never a calm rehearsal followed by a one-sentence report of the real event. A quick test may prepare it. Give the lead competence, mistakes, initiative and a costly personal choice — giving up a boast, the credit for an idea, his pride or his stubborn plan in front of the others; sacrificing a prized object as padding, cover or underlay only when this episode's blueprint asks for it, never as the default trick. Give every avatar a distinct meaningful contribution to the turnaround, without making the solution a long sequence of instructions. Let the physical result be clear and surprising. Plant the final discovery in an earlier observed clue and a character's decision to follow it. Flip the lead's running gag back on them, end with a laugh-out-loud punchline, and leave one concrete, planted question from this world for a later episode. Plant the series clue in chapter 1 or 2, so that between the turnaround and the final laugh there are at most about 150 words: no explanations in reported speech after the climax.\n" +
       '- Promise: whatever the title or premise promises (a number, a crowd, a creature, a thing) acts on stage at least twice and funnily, never only as backdrop. A recurring guest\'s running gag lands at least once, best inside a slapstick beat.\n' +
+      '- Earn the original promise: the climax changes the problem the opening gave the children, not just a newly introduced technical subproblem. Show the practical result reaching the people who needed it; a prepared object waiting to be taken away is not the promised outcome. A discovery helps the solution or stays a short secondary clue. Title, chapter titles and ending describe what actually happens. Allow believable time for cleaning, making and travelling; do not fit several minutes of work between two bell strokes.\n' +
       '- Comic variety: every big laugh of an episode works differently (a chain reaction, a runaway prop, a misunderstanding taken literally, a deadpan reply, a boast contradicted on the spot, an animal with its own plan). At most ONE thing lands on a head or hat per episode, and never reuse a comparison such as "like a little roof".\n' +
       // Story 289c11a4 (episode 1 of Tilda, 7/10): the device was told with Sperrklinke, Raste, Schelle, Bremsgestänge, Griffrohre and
       // Bremsgriff in two chapters, a six-year-old cannot picture it, and the picture director drew its pawl and clamp 0 times in 3 tries.
       // A supervising mother then held, fitted and repaired things the children and Tilda should have done.
       '- Simple devices: a device in this episode has at most THREE named parts, in plain child words (the lever, the clamp, the wheel, the basket) and the technical nouns of the plan (Sperrklinke, Raste, Schelle, Gestänge, Feststellhebel) are translated into them. Each part is touched or moved on stage before it matters, and the point of every scene is what the PEOPLE do and what visibly happens to them, never how the mechanism works inside. Any adult who happens to be there (a parent, a neighbour) only watches, waves or says one line: the children and the lead do ALL carrying, fitting, fixing and deciding, and the adult never solves the problem.\n' +
-      '- Clear geometry: before a slapstick beat, one short clause shows where each person stands or faces relative to the prop and which way it moves, so a child can picture it and an illustrator can draw it in one still; nobody is pulled "backwards" unless the reader knows which way they were facing. Keep a device at one physical scale: a full-size loaded cart does not become a tabletop toy. A held brake must be released before rolling; distinguish a slowing brake from a fully locked brake through the visible result, without a technical lecture. Plant the final mystery object in an earlier noticed detail. Every joke must land for a six-year-old from the situation alone, without adult inference.',
-    `READ-ALOUD VOICE, DIALOGUE & SOUND WORDS: Short, vivid sentences (4–12 words, average ~7), 2–4 sentences per paragraph for smooth read-aloud flow; single-sentence paragraphs reserved for expressive sound words (RUMMS!, PLATSCH!, KNACK!, SCHWUPP!), punchlines or suspense turns. Write brisk, funny dialogue (~40% of the text) where characters interrupt, boast or counter dryly, plus at least one quotable "schoolyard line" a child will repeat tomorrow. The narrator trusts children to understand the scene: never explain a joke, repeat a moral, use identical reassuring smiles, forced slogans, verse unless requested, or administrative safety lectures.${learningGoal(brief.config) ? ' When LEARNING MODE is active, a character explaining the real-world knowledge fact in children\'s words is wanted and is not a moral lecture.' : ''} World rules constrain events silently.`,
+      '- Clear action, not stage directions: name a position only when it explains a collision, a surprise or a choice. Do not repeatedly arrange the entire cast left/right/centre for the illustrator. Keep a device at one physical scale and show a necessary cause before its consequence. Ordinary setting-down, cleaning and handovers can stay implicit or take one sentence unless they change the outcome; never turn the climax into an inventory of occupied hands. Plant the final mystery object in an earlier noticed detail. Every joke must land for a six-year-old from the situation alone, without adult inference.',
+    `READ-ALOUD VOICE, DIALOGUE & SOUND WORDS: Use a varied, natural speaking rhythm: short sentences for surprise, longer connected sentences for a clear cause, place or feeling; do not march through identical seven-word sentences. Build small flowing paragraphs, with isolated lines for a real turn, silence or punchline. Write brisk dialogue where the lead's boast, one avatar's practical observation and another's unexpected question or action are distinguishable; follow their supplied personalities rather than assigning fixed sibling stereotypes. Each exchange changes the plan, relationship or pressure, not just reports the next task. Give each avatar a want or hesitation, not only a job. Keep a quiet emotional moment specific and brief. Recurring gags change their consequence; another splash on another body part is not a new comic mechanism. End on the strongest callback: do not explain the punchline or add two weaker jokes after it. Never repeat a moral, use identical reassuring smiles, forced slogans, verse unless requested, or administrative safety lectures.${learningGoal(brief.config) ? ' When LEARNING MODE is active, a character explaining the real-world knowledge fact in children\'s words is wanted and is not a moral lecture.' : ''} World rules constrain events silently.`,
     'Use the supplied series rules, not a newly invented wonder. The genre colours this world, never changes its physics. At most one supplied recurring companion plus briefly unnamed locals; no interchangeable random pool character or new mascot with a familiar Talea name. Their English looks remain fixed.',
     CHILD_SAFETY_RULES_EN,
     'STYLE EXCERPTS from Bruno and Monster-Müllabfuhr: learn timing, escalating slapstick, sound words, specific character reactions, quiet heart and callback punchlines; invent different names, events, gags and wording.\n' + samples,
@@ -181,7 +182,7 @@ export function seriesAuthoring(brief: StoryBrief) {
     learningLines.length ? learningLines.join('\n') : '',
     ...brief.artifacts.filter(a => a.broughtBy).map(a => `BROUGHT ARTIFACT — present from arrival, its rule stays fixed: ${artifactSheetEn(a)}`),
     brief.blockedTerms.length ? `Blocked words: ${brief.blockedTerms.join(', ')}` : '',
-    'Silently check the opening route and meeting, everyone\'s locations and knowledge, who owns or moves each prop, what changed because of each choice, and the planted final question. Track who holds each important tool as well as its location across chapters; when a different person uses it, show the handover in one natural action. Track concrete prop locations across chapters: a prop fastened somewhere cannot later fall from its former hiding place without being returned there. Introduce a tool before someone removes it from under something. Show necessary transitions in a short action, without explanatory recaps. Then return the whole episode.',
+    'Silently check that the ending fulfils the opening task and title, the three chapters change the situation rather than repeat a gag, each avatar matters as a person, the final joke stops at its punchline, and time is physically plausible. Check the opening route, documented relationships, important object states and planted final question. Make a handover explicit only when ownership or simultaneous actions would otherwise contradict each other. Do not narrate every routine movement. Then return the whole episode.',
   ].filter(Boolean).join('\n\n');
   return { system, user };
 }

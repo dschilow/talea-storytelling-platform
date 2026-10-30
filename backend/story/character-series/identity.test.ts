@@ -56,10 +56,20 @@ describe('series lead identity follows the canonical pool portrait', () => {
     expect(await seriesLeadReference('tilda-tueftel', (async () => { throw new Error('offline'); }) as unknown as typeof fetch)).toBeUndefined();
     expect(await seriesLeadReference('unknown-series', answer('image/webp'))).toBeUndefined();
   });
-  test('avatar reference context only includes valid age and height', () => {
+  test('avatar reference context includes valid scale and stable hair and eye anchors', () => {
     const hero: any = { visualProfile: { ageNumeric: 7, heightCm: 120, hair: { color: 'purple' } } };
-    expect(seriesAvatarReferenceContext(hero)).toBe('7 years old, 120 cm tall');
+    expect(seriesAvatarReferenceContext(hero)).toBe('7 years old, 120 cm tall, purple hair');
     expect(seriesAvatarReferenceContext({ visualProfile: { ageNumeric: -1, heightCm: 10000 } } as any)).toBe('');
+    expect(seriesAvatarReferenceContext({ visualProfile: {
+      ageNumeric: 8, hair: { color: 'brown', length: 'short', style: 'short', type: 'short' }, eyes: { color: 'green' },
+      mustIncludeFeatures: [{ promptDescription: 'very large protruding ears' }],
+    } } as any)).toBe('8 years old, short brown hair, green eyes');
+    expect(seriesAvatarReferenceContext({ visualProfile: {
+      ageNumeric: 5, hair: { color: 'blonde', length: 'short', style: 'short' }, eyes: { color: 'blue' },
+    } } as any)).toBe('5 years old, short blonde hair, blue eyes');
+    expect(seriesAvatarReferenceContext({ visualProfile: {
+      hair: { color: {}, length: 'unknown' }, eyes: { color: 'unknown' },
+    } } as any)).toBe('');
   });
   test('portrait props such as a pipe or tools do not enter the series look', () => {
     expect(seriesReferenceAppearance('Tilda Tueftel, nine-year-old girl inventor with curly dark hair, round safety goggles, yellow overalls and colorful tools'))

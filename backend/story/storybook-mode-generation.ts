@@ -471,9 +471,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // Where the wait goes (story 5e583e1e had to be read off log timestamps): text includes casting and loading.
   const timingsMs = { text: textDoneAt - startedAt, pictureDirection: directedAt - textDoneAt, images: imagesDoneAt - directedAt, finish: Date.now() - imagesDoneAt };
   const measuredQuality = storybookQuality(text, images, picturePages.map((page) => page.order));
-  // A verified episode remains readable when its illustration budget runs out. Failed pictures stay hidden;
-  // readers get an explicit coverage notice instead of paying for another whole story attempt.
-  const quality = seriesMode ? { ...measuredQuality, releaseReady: measuredQuality.textStatus === 'passed' } : measuredQuality;
+  // Keep the paid manuscript readable, but a partly illustrated book is not a release-ready edition.
+  const quality = measuredQuality;
   const characterSeriesArt = seriesMode ? {
     state: measuredQuality.imagesReady ? 'complete' : 'partial',
     // A picture whose check found only a neighbouring instant of its scene ("flawed") is printed and counts as delivered.

@@ -9,6 +9,110 @@ const cast: VisualEntity[] = [
   { id: 'child-a', name: 'Nora', kind: 'character', role: 'hero', species: 'human', isHuman: true, appearance: 'girl with red glasses', forbidden: [] },
 ];
 const review = (fields: Record<string, unknown> = {}) => JSON.stringify({ visibleIds: ['dragon', 'child-a'], identityById: { dragon: 0.98, 'child-a': 0.98 }, posing: false, primaryActionClear: true, sceneMatch: 0.95, styleMatch: 0.9, defects: [], ...fields });
+const publicationReview = (fields: Record<string, unknown> = {}) => review({
+  reviewVersion: 2, recognizableById: { dragon: true, 'child-a': true }, anatomyOkById: { dragon: true, 'child-a': true },
+  visibleHandsById: { dragon: ['left paw on rope', 'right paw raised'], 'child-a': ['left hand raised', 'right hand holding cup'] },
+  sceneCompatible: true, storyConsistent: true, materialContradiction: false, ...fields,
+});
+
+describe('publication review: recognisable figures before precise staging', () => {
+  test('a role swap stays printable even when diagnostic identity and scene scores are low', () => {
+    const qa = readSeriesQa(publicationReview({
+      identityById: { dragon: 0.72, 'child-a': 0.55 }, sceneMatch: 0.45, styleMatch: 0.65,
+      primaryActionClear: false, storyConsistent: false, materialContradiction: true,
+      defects: [{ kind: 'story', detail: 'The two characters swapped who turns the crank.', fix: 'Swap their actions.', blocksAction: true, blocking: false }],
+    }), cast);
+    expect(seriesPicturePasses(qa)).toBe(false);
+    expect(seriesPictureUsable(qa)).toBe(true);
+    expect(seriesPictureLastResort(qa)).toBe(true);
+    expect(qa?.sceneFixes).toEqual([]);
+    expect(qa?.criticalSceneDefects).toEqual([]);
+  });
+  test('a second brush, paint dot, pose or small style difference does not buy another image', () => {
+    for (const kind of ['unexpected', 'detail', 'composition', 'style', 'text']) {
+      const qa = readSeriesQa(publicationReview({
+        posing: true, primaryActionClear: false,
+        defects: [{ kind, detail: 'A minor nonblocking variation.', fix: 'Optional cosmetic adjustment.', blocking: false }],
+      }), cast);
+      expect(seriesPictureUsable(qa)).toBe(true);
+      expect(seriesPictureLastResort(qa)).toBe(true);
+      expect(qa?.sceneFixes).toEqual([]);
+    }
+  });
+  test('a lower numeric score alone is not a second hidden gate after explicit recognition', () => {
+    expect(seriesPicturePasses(readSeriesQa(publicationReview({
+      identityById: { dragon: 0.7, 'child-a': 0.68 }, sceneMatch: 0.6, styleMatch: 0.64,
+    }), cast))).toBe(true);
+  });
+  test('false recognition or anatomy on one individual cannot be averaged away', () => {
+    for (const field of ['recognizableById', 'anatomyOkById']) {
+      const qa = readSeriesQa(publicationReview({ [field]: { dragon: true, 'child-a': false } }), cast);
+      expect(seriesPicturePasses(qa)).toBe(false);
+      expect(seriesPictureUsable(qa)).toBe(false);
+      expect(seriesPictureLastResort(qa, true)).toBe(false);
+    }
+  });
+  test('three separately observed human hands override an optimistic anatomy flag', () => {
+    const qa = readSeriesQa(publicationReview({ visibleHandsById: {
+      dragon: ['one paw on the rope'], 'child-a': ['hand on left of card', 'hand on right of card', 'third hand pointing'],
+    } }), cast);
+    expect(qa?.anatomyOkById?.['child-a']).toBe(false);
+    expect(seriesPictureUsable(qa)).toBe(false);
+    expect(qa?.anatomyDefects).toContain('Nora has 3 separately visible hands.');
+    const cropped = readSeriesQa(publicationReview({ visibleHandsById: { dragon: [], 'child-a': [] } }), cast);
+    expect(seriesPicturePasses(cropped)).toBe(true);
+  });
+  test('anatomy, safety and actual identity faults stay blocking even with contradictory optimistic booleans', () => {
+    for (const [kind, detail] of [
+      ['anatomy', 'Mina has two hands on a card plus a third pointing hand.'],
+      ['anatomy', 'An extra arm emerges behind the jacket.'],
+      ['identity', 'The blond child has another character’s dark hair and face.'],
+      ['safety', 'A child has an unsafe mouth-held smoking object.'],
+    ]) {
+      const qa = readSeriesQa(publicationReview({ defects: [{ kind, detail, fix: 'Repair the visible fault.', blocking: false }] }), cast);
+      expect(seriesPictureUsable(qa)).toBe(false);
+      expect(seriesPictureLastResort(qa, true)).toBe(false);
+      expect(qa?.sceneFixes).toEqual(['Repair the visible fault.']);
+    }
+  });
+  test('a hard defect cannot disappear after six cosmetic observations', () => {
+    const cosmetic = { kind: 'detail', detail: 'A tiny paint dot.', fix: 'Optional paint adjustment.', blocking: false };
+    const qa = readSeriesQa(publicationReview({ defects: [
+      ...Array.from({ length: 6 }, () => cosmetic),
+      { kind: 'anatomy', detail: 'A third hand emerges behind the jacket.', fix: 'Remove the third hand.', blocking: true },
+    ] }), cast);
+    expect(seriesPictureUsable(qa)).toBe(false);
+    expect(qa?.anatomyDefects).toContain('A third hand emerges behind the jacket.');
+    expect(readSeriesQa(publicationReview({ defects: Array.from({ length: 13 }, () => cosmetic) }), cast)).toBeUndefined();
+  });
+  test('an unrelated scene, prominent text, reference panels or an extra main figure stay out', () => {
+    expect(seriesPictureUsable(readSeriesQa(publicationReview({ sceneCompatible: false }), cast))).toBe(false);
+    for (const kind of ['text', 'composition', 'unexpected', 'story']) {
+      const qa = readSeriesQa(publicationReview({ defects: [{ kind, detail: 'A real publication blocker.', fix: 'Repair the blocker.', blocking: true }] }), cast);
+      expect(seriesPictureUsable(qa)).toBe(false);
+    }
+    for (const visibleIds of [['dragon'], ['dragon', 'child-a', 'another-person'], ['dragon', 'child-a', 'child-a']]) {
+      expect(seriesPictureUsable(readSeriesQa(publicationReview({ visibleIds }), cast))).toBe(false);
+    }
+  });
+  test('v2 requires explicit checks for every figure and valid defect classification', () => {
+    for (const field of ['recognizableById', 'anatomyOkById', 'visibleHandsById', 'sceneCompatible']) {
+      expect(readSeriesQa(publicationReview({ [field]: undefined }), cast)).toBeUndefined();
+    }
+    expect(readSeriesQa(publicationReview({ recognizableById: { dragon: true } }), cast)).toBeUndefined();
+    expect(readSeriesQa(publicationReview({ anatomyOkById: { dragon: true, 'child-a': 'true' } }), cast)).toBeUndefined();
+    expect(readSeriesQa(publicationReview({ visibleHandsById: { dragon: [], 'child-a': 'two hands' } }), cast)).toBeUndefined();
+    expect(readSeriesQa(publicationReview({ defects: [{ kind: 'story', detail: 'A swapped action.', fix: 'Swap it.' }] }), cast)).toBeUndefined();
+    expect(readSeriesQa(publicationReview({ reviewVersion: 3 }), cast)).toBeUndefined();
+  });
+  test('recognition and anatomy aliases resolve in the same slot order as visual scores', () => {
+    const qa = readSeriesQa(publicationReview({
+      recognizableById: { Funkelflug: true, 'slot 2': true }, anatomyOkById: { seriesfigure1: true, Nora: true },
+    }), cast);
+    expect(seriesPicturePasses(qa)).toBe(true);
+    expect(qa?.recognizableById).toEqual({ dragon: true, 'child-a': true });
+  });
+});
 
 describe('series image review after the production PDF', () => {
   test('a checked loose still stays visible, but an explicit material contradiction never does', () => {

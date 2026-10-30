@@ -1,11 +1,12 @@
 // @ts-ignore Bun test helpers are runtime-only in the Encore project.
 import { describe, expect, test } from 'bun:test';
 import { applyChapterEdits, runCharacterSeriesTextEngine, seriesLlmBudget } from './engine';
-import { seriesAuthoring, seriesBudget, SERIES_MODELS, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, SERIES_POLICY } from './authoring';
+import { seriesAuthoring, seriesBudget, SERIES_MODELS, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, SERIES_IMAGE_REVIEW_EFFORT, SERIES_POLICY } from './authoring';
 import { SERIES_NARRATIVES } from './narrative';
 import { withSeriesContext, seriesPrompt } from './core';
 import { directSeriesPictures, generateSeriesImages, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment, seriesReferenceRegions } from './pictures';
 import { readSeriesQa } from './quality';
+import { SERIES_EDITORIAL_CRAFT } from './editorial';
 import { StorybookSafetyBlock } from '../storybook/llm-guards';
 import { isPublishable } from '../storybook/images';
 import { IdentityReferenceError } from '../image-reference-sprite';
@@ -24,10 +25,42 @@ const text = `FIGUR: Funkelflug | pool | ${bible.characterId} | companion\nTITEL
 const response = (value: string) => ({ text: value, modelUsed: 'test', usage: { prompt: 1, completion: 1, total: 2, costUSD: 0 }, durationMs: 0 });
 
 describe('Figurenserien revision 2', () => {
-  test('Sol writes, Haiku reviews the text and plans the pictures, Gemini reviews them with the bounded Flash-Lite fallback', () => {
+  test('the writing contract prioritises the promised payoff, natural rhythm and distinct voices', () => {
+    const author = seriesAuthoring(brief());
+    expect(author.system).toContain('Earn the original promise');
+    expect(author.system).toContain('not stage directions');
+    expect(author.system).toContain('End on the strongest callback');
+    expect(author.system).toContain("one avatar's practical observation");
+    expect(author.system).not.toContain('average ~7');
+    expect(author.user()).toContain('ending fulfils the opening task and title');
+  });
+  test('the existing editorial pass checks craft, and a repair is rechecked without a new minor-handover hunt', async () => {
+    let firstUser = '', recheckUser = '';
+    const quoted = 'Funkelflug stellte seinen Becher ab. Nora hielt ihn schon fest.';
+    const llm: StorybookLlm = async r => {
+      if (r.stage === 'series-author') return response(text);
+      if (r.stage === 'series-editorial-review') {
+        firstUser = r.user;
+        return response(JSON.stringify({ issues: [{ severity: 'minor', kind: 'craft', quote: quoted,
+          problem: 'Die Figuren führen nur eine Tätigkeit aus.', change: 'Eine kurze eigensinnige Reaktion statt Erklärung.' }] }));
+      }
+      if (r.stage === 'series-local-repair') return response(JSON.stringify({ edits: [{ chapter: 1, before: quoted, after: 'Funkelflug stellte seinen Becher ab. Nora fing ihn auf. „Der fliegt besser als du.“' }] }));
+      recheckUser = r.user;
+      return response('{"issues":[]}');
+    };
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() });
+    expect(firstUser).toContain(SERIES_EDITORIAL_CRAFT);
+    expect(firstUser).toContain('ordinary sequential actions');
+    expect(recheckUser).toContain('RECHECK FOCUS');
+    expect(recheckUser).toContain('do not open a new round');
+    expect(result.pages[0].content).toContain('Der fliegt besser als du.');
+  });
+  test('Sol writes, Haiku reviews the text and plans the pictures, Luna reviews them with the bounded Gemini fallback', () => {
     expect(SERIES_MODELS).toEqual({ writer: 'openai/gpt-6.1-sol', support: 'anthropic/claude-haiku-5.5', critic: 'anthropic/claude-haiku-5.5' });
-    expect(SERIES_IMAGE_REVIEW_MODEL).toBe('google/gemini-3.8-flash');
-    expect(SERIES_IMAGE_REVIEW_FALLBACK_MODEL).toBe('google/gemini-3.5-flash-lite');
+    expect(SERIES_IMAGE_REVIEW_MODEL).toBe('openai/gpt-6-luna');
+    expect(SERIES_IMAGE_REVIEW_FALLBACK_MODEL).toBe('google/gemini-3.8-flash');
+    expect(SERIES_IMAGE_REVIEW_FALLBACK_MODEL).not.toBe(SERIES_IMAGE_REVIEW_MODEL);
+    expect(SERIES_IMAGE_REVIEW_EFFORT).toBe('medium');
   });
   test('every catalogue world has its own arrival, encounter, motor and four developed arcs', () => {
     for (const b of bibles) {
@@ -245,6 +278,50 @@ const segmentPlan = (lead: string, options: { coverKid?: boolean; guest?: string
 });
 
 describe('series artwork preserves action and lead within a fixed budget', () => {
+  test('all picture checks use medium for one, two or three figures, including cover and fallback reader', async () => {
+    for (const count of [1, 2, 3]) {
+      const figures: VisualEntity[] = [...entities, { ...entities[1], id: 'guest', name: 'Ben' }].slice(0, count);
+      const onStage = figures.map(e => e.id);
+      const checks: Array<{ model: string; effort?: string; maxTokens: number }> = [];
+      const result = await generateSeriesImages({
+        illustrations: { cover: { page: 0, onStage, scene, artifactVisible: false }, pages: [{ page: 1, onStage, scene, artifactVisible: false }] },
+        entities: figures, seed: `medium-${count}`, pageTexts: {},
+        visionModel: SERIES_IMAGE_REVIEW_MODEL, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL,
+        provider: async r => ({ url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }),
+        buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
+        llm: async r => {
+          checks.push({ model: r.model, effort: r.effort, maxTokens: r.maxTokens });
+          if (r.model === SERIES_IMAGE_REVIEW_MODEL) throw new Error('Temporary reader outage');
+          return imageReview(r.stage, { visibleIds: onStage, identityById: Object.fromEntries(onStage.map(id => [id, 1])) });
+        },
+      });
+      expect(result.imagesGenerated).toBe(2);
+      expect(checks).toHaveLength(4);
+      expect(checks.every(check => check.effort === 'medium' && check.maxTokens === 6000)).toBe(true);
+      expect(checks.filter(check => check.model === SERIES_IMAGE_REVIEW_MODEL)).toHaveLength(2);
+      expect(checks.filter(check => check.model === SERIES_IMAGE_REVIEW_FALLBACK_MODEL)).toHaveLength(2);
+    }
+  });
+  test('v2 keeps all recognisable intact role-swapped first attempts with no paid repairs', async () => {
+    const requests: number[] = [];
+    const quality: StorybookLlm = async r => imageReview(r.stage, {
+      reviewVersion: 2, recognizableById: { lead: true, kid: true }, anatomyOkById: { lead: true, kid: true },
+      visibleHandsById: { lead: [], kid: ['one hand on rope', 'other hand beside body'] },
+      sceneCompatible: true, materialContradiction: true, primaryActionClear: false, sceneMatch: 0.45,
+      identityById: { lead: 0.72, kid: 0.55 },
+      defects: [{ kind: 'story', detail: 'The two figures swap their actions.', fix: 'Swap the actions.', blocking: false, blocksAction: true }],
+    });
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'minor-actions',
+      provider: async r => { requests.push(r.page); return { url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }; },
+      llm: quality, visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
+    });
+    expect(result.imagesGenerated).toBe(4);
+    expect(requests).toHaveLength(4);
+    expect(result.imageCalls).toBe(4);
+    expect(result.regenerated).toEqual([]);
+    expect([...result.pages.values()].every(o => isPublishable(o) && o.attempts === 1)).toBe(true);
+  });
   test('direction sees the public lead and style, never private avatar portraits, and plans two pictures per chapter', async () => {
     const b = brief();
     const figures = entities.map(e => e.id === 'lead' ? { ...e, id: bible.characterId } : e);

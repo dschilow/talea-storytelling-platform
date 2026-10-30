@@ -20,7 +20,7 @@ import type { VisualEntity } from '../../backend/story/storybook/illustration-st
 import type { IllustrationShot } from '../../backend/story/storybook/types';
 import type { ImageRequest } from '../../backend/story/storybook/images';
 import type { LlmRequest } from '../../backend/story/storybook/llm';
-import { providerSafetyReason, StorybookSafetyBlock } from '../../backend/story/storybook/llm-guards';
+import { acceptsTemperature, providerSafetyReason, resolveStorybookReasoning, StorybookSafetyBlock } from '../../backend/story/storybook/llm-guards';
 
 interface TestCase {
   id: string;
@@ -49,6 +49,7 @@ interface Result {
   variant: string;
   seed: number;
   model: string;
+  judgeModel?: string;
   file?: string;
   imageCostUSD?: number;
   judgeCostUSD?: number;
@@ -72,6 +73,12 @@ const variants = arg('variants', 'production,caption,multi,flux2kv')!.split(',')
 if (variants.some(v => !['production', 'caption', 'multi', 'caption-free', 'multi-free', 'flux2kv', 'existing'].includes(v))) throw new Error('Unbekannte Promptvariante.');
 const seeds = arg('seeds', '5201,5202')!.split(',').map(Number);
 if (!seeds.length || seeds.some(seed => !Number.isInteger(seed) || seed < 0 || seed > 2147483647)) throw new Error('Ungültige Seeds.');
+const judgeEffort = arg('judge-effort', 'production');
+if (!['production', 'low', 'medium', 'high'].includes(judgeEffort!)) throw new Error('Ungültige Prüftiefe.');
+const judgeModel = arg('judge-model', SERIES_IMAGE_REVIEW_MODEL)!;
+if (!['google/gemini-3.8-flash', 'google/gemini-3.5-flash-lite', 'openai/gpt-6-luna'].includes(judgeModel)) {
+  throw new Error('Prüfmodell nicht für das Kostenlimit dieses Benchmarks freigegeben.');
+}
 const selected = arg('only')?.split(',');
 const cases: TestCase[] = JSON.parse(await readFile(resolve(fixture), 'utf8'));
 if (!Array.isArray(cases) || !cases.length) throw new Error('Das Fixture enthält keine Testfälle.');
@@ -210,13 +217,14 @@ for (const c of chosen) {
     };
     await writeFile(join(out, 'requests', `${id}.json`), JSON.stringify({ ...body, inputs: { referenceImages: references.map(hash) }, referenceProvenance: c.referenceProvenance }, null, 2));
     if (!run) { console.log(`${id}: ${body.positivePrompt.length} chars; ${references.length} references`); continue; }
-    const result: Result = { id, caseId: c.id, variant, seed, model, status: 'image-error', generationKey: hash({ kind: 'image', body }) };
+    const result: Result = { id, caseId: c.id, variant, seed, model, judgeModel, status: 'image-error', generationKey: hash({ kind: 'image', body }) };
     const resultFile = join(out, `${id}.json`);
     try {
       if (existsSync(resultFile)) {
         const saved: Result = JSON.parse(await readFile(resultFile, 'utf8'));
         const generationKey = hash({ kind: 'image', body });
         if (variant !== 'existing' && saved.generationKey !== generationKey) throw new Error(`Test ${id} geändert: neues Ausgabeverzeichnis verwenden.`);
+        if (saved.judgeModel && saved.judgeModel !== judgeModel) throw new Error(`Prüfmodell für ${id} geändert: neues Ausgabeverzeichnis verwenden.`);
         if (generateOnly) {
           results.push(saved);
           console.log(`${id}: cached ${saved.status}`);
@@ -245,10 +253,13 @@ for (const c of chosen) {
       result.status = 'unreviewed';
       if (!generateOnly) {
         result.status = 'review-error';
+        const effort = judgeEffort === 'medium' || judgeEffort === 'high' ? judgeEffort
+          : judgeEffort === 'production' && baseline.review.effort === 'medium' ? 'medium' : 'low';
         const reviewBody = {
-          model: SERIES_IMAGE_REVIEW_MODEL, max_tokens: 4000, temperature: 0,
+          model: judgeModel, max_tokens: effort === 'low' ? 4000 : 6000,
+          ...(acceptsTemperature(judgeModel) ? { temperature: 0 } : {}),
           usage: { include: true },
-          reasoning: { effort: 'low' }, response_format: { type: 'json_object' },
+          reasoning: resolveStorybookReasoning(judgeModel, effort, 'support'), response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: baseline.review.system },
             { role: 'user', content: [
@@ -299,6 +310,6 @@ if (run) {
       judgeCostUSD: rows.some(r => r.judgeKey && charges.get(r.judgeKey)?.state === 'reserved')
         ? null : rows.reduce((sum, r) => sum + (r.judgeCostUSD || 0), 0) };
   });
-  await writeFile(join(out, 'summary.json'), JSON.stringify({ capUSD: cap, accountedUSD: accounted(), uncertainCharges: [...charges.values()].filter(c => c.state === 'reserved'), judge: SERIES_IMAGE_REVIEW_MODEL, summary, results: allResults }, null, 2));
+  await writeFile(join(out, 'summary.json'), JSON.stringify({ capUSD: cap, accountedUSD: accounted(), uncertainCharges: [...charges.values()].filter(c => c.state === 'reserved'), judge: judgeModel, summary, results: allResults }, null, 2));
   console.log(JSON.stringify({ accountedUSD: accounted(), summary }, null, 2));
 }

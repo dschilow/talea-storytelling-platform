@@ -161,3 +161,97 @@ haben keine Typdiagnostik; der Gesamtprojekt-Typcheck enthält weiterhin bereits
 Modellumstellung. Der FLUX-2-9B-KV-Standard bleibt unverändert. Ein belastbarer weiterer Vergleich braucht
 die Original-Avatarreferenzen und wieder verwertbare Prüfantworten. Die gemessenen Unterschiede reichen
 nicht für eine zugesicherte Erstversuchsquote oder eine pauschale Ersparnis.
+
+## 30.10.2026: Nasenpunkte – Freigabe nach Erkennbarkeit und Anatomie
+
+„Die Maschine mit den Nasenpunkten“ (`6c5a7f55`) enthält 1.521 Wörter und drei Kapitel. Der PDF hat elf Seiten,
+aber nur **ein unterschiedliches Bild**, zusätzlich als Cover verwendet. Elf Bildaufrufe kosteten
+0,02171 USD, die Prüfung 0,020129 USD; fünf Kapitelbildplätze und das eigene Cover fehlen. Der Log enthält
+verwertbare Bildurteile, keine technischen Zustellfehler.
+
+Die Hauptursache war hier die Freigabepolitik: vertauschte Handlungen wurden als Identitätsfehler und
+„materialContradiction“ eingestuft, ein zweiter Pinsel oder ein zusätzlicher Farbtupfer als harter Fehler.
+Die Identitätsscores lagen deshalb teilweise unter 0,75, obwohl dieselben Figuren erkennbar waren.
+Das erzeugte teure Korrekturen und schließlich Lücken. Ein korrigierter Versuch hatte tatsächlich einen
+zusätzlichen Arm; eine gelockerte Prüfung darf diesen nicht übersehen.
+
+### Neue Regeln, Policy 14
+
+- **Erkennbarkeit pro Figur**, nicht ein pauschaler 90-Prozent-Score. Definierende Haarfarbe und Frisur
+  bleiben wichtig: blond wird nicht zu dunkelbraun. Kleine lichtbedingte Farbabweichungen, Posen und
+  Kleidungsdetails sind keine neue Identität.
+- **Anatomie pro Figur**, einschließlich der Nebenfiguren. Die Prüfung benennt die sichtbaren Hände;
+  mehr als zwei bei einem Menschen sperren das Bild auch bei einem widersprüchlichen positiven Gesamturteil.
+  Verdeckung und normale Überlappungen zählen nicht als fehlende Körperteile.
+- **Handlungstausch, kleine Requisiten- und Farbfleckenabweichungen sind weich.** Solche Bilder werden als
+  nutzbar gespeichert, ohne Neuzeichnung. Wirklich falsche Figuren, Anatomie, problematische Inhalte,
+  fremde Szenen, Referenztafeln und große störende Schrift bleiben blockierend.
+- Neue Prüfurteile tragen `reviewVersion: 2` und explizite Erkennbarkeits-/Anatomiefelder. Unvollständige
+  Antworten gelten nicht als Freigabe; ältere gespeicherte Urteile behalten ihre bisherigen Regeln.
+- Auf ausdrücklichen Nutzerwunsch arbeitet die Bildprüfung immer auf `medium`, unabhängig von der
+  Figurenanzahl; das gilt auch für Cover und technische Ersatzprüfung. In den Proben übersah `low` den
+  zusätzlichen Arm, `medium` fand ihn. `high` war teurer und brach am Tokenlimit ab; es wurde nicht übernommen.
+- Die knappe Avatar-Referenzbeschreibung ergänzt jetzt **Haarfarbe, Frisur und Augenfarbe** neben Alter
+  und Größe. Sie fügt keine ausgeschmückten Ohren- oder Zahnregeln hinzu, die das Bildmodell überzeichnet.
+- Ein unvollständig bebildertes Buch bleibt lesbar und gespeichert, erhält aber nicht mehr
+  `releaseReady: true` allein wegen eines freigegebenen Texts.
+
+### Reale Bildproben und günstigere Prüfer
+
+Diesmal waren die **echten aktuellen Avatar-Porträts** über die angemeldete Anwendung verfügbar.
+Die vorhandenen Bildversuche wurden mit diesen Porträts erneut geprüft. Brauchbare Bilder mit zwei Pinseln,
+Farbtupfern und vertauschten Handlungen konnten bestehen; der klar falsche Haarton blieb ein Identitätsfehler.
+
+Vier gemeinsame Kontrollbilder verglichen zwei brauchbare Szenen, einen dritten Arm und den falschen Haarton:
+
+| Prüfer | Gemessene Kosten für vier Prüfungen, USD | Beobachtung |
+|---|---:|---|
+| Gemini 3.8 Flash, passende Prüftiefe | 0,0286905 | Brauchbare Szenen bleiben; `medium` erkennt den zusätzlichen Arm; falsche Haarfarbe bleibt gesperrt |
+| Gemini 3.5 Flash-Lite | 0,0178507 | Übersah den dritten Arm |
+| GPT-6 Luna | 0,003586825 | Erkannte Arm- und Haarfehler, beanstandete zusätzlich einen grenzwertig hellen Braunton |
+
+Die Stichprobe ist klein und kein allgemeines Modellranking. Auf ausdrücklichen Nutzerwunsch wurde am
+30.10.2026 **Luna zum Hauptprüfer** der Figurenabenteuer gewählt; **Gemini 3.8 Flash bleibt technischer
+Ausfall-Ersatz**. Die Erkennbarkeits- und Anatomiekriterien bleiben gleich. Ein reguläres negatives
+Bildurteil löst keinen Modellwechsel aus, und eine ausdrückliche Provider-Sperre wird weiterhin
+**nicht** durch einen Ersatzprüfer umgangen.
+
+Zwei neue Bilder der zuvor dunkelhaarig gezeichneten Figur wurden gezielt mit **FLUX 2 Klein 9B KV**,
+Originalporträts und den neuen Haarankern erzeugt. Beide zeigten die richtige blonde Haarfarbe und wurden
+als erkennbar, anatomisch intakt und nutzbar bewertet. Der Farbtupfer auf der jeweils anderen Nase blieb
+ein nichtblockierender Hinweis. Bilder zusammen: **0,00338 USD**, Prüfungen im Standardtarif:
+**0,015003 USD**. Das belegt diese zwei Fälle, nicht eine allgemeine 100-Prozent-Quote.
+
+In anderen Proben gab es weiterhin ausdrückliche Gemini-Sperren trotz vorheriger verwertbarer Prüfungen
+ähnlicher Bilder. Diese wurden beendet und separat ausgewiesen. Fehlende Gebührenangaben bleiben im
+Testjournal reserviert, nicht als kostenlos behauptet. Ein unterbrochener Aufruf wurde ebenfalls nicht
+blind erneut gekauft. Die Produktionsverbesserung löst deshalb nicht jedes mögliche Anbieterproblem.
+
+### Textqualität
+
+Redaktionelle Bewertung der Originalfassung: **6,5/10**. Der Einstieg, trockene Dialoge und Tildas kurzer
+ehrlicher Moment funktionieren. Abzüge: wiederholte Farbspritzer, genaue Aufstellungen und Handgriffe
+statt fließender Erzählung, der Marktauftrag bleibt auf der Werkbank, die Schluss-Pointe wird weiter erklärt.
+
+Der Schreibauftrag fordert jetzt eine sichtbare Einlösung des Anfangsversprechens, glaubhafte Zeit,
+unterschiedliche komische Folgen, eigenständige Avatarstimmen und weniger technische Bewegungsprotokolle.
+Das bestehende Lektorat erhält dieselben Schwerpunkte, ohne zusätzlichen Standard-Aufruf. Nachprüfungen
+konzentrieren sich auf die behobenen Probleme und neue schwere Fehler, nicht immer neue Kleinigkeiten.
+
+Ein isolierter Lektorats-Replay am vorhandenen Manuskript zeigte auch eine Grenze: Haiku meldete zunächst
+keinen Mangel. Mit den getrennt protokollierten redaktionellen Befunden schrieb Sol eine begrenzte
+Schlusskorrektur: Die Gruppe bringt das Schild tatsächlich zum Markt, die Melodie hilft, Besucher folgen,
+Tilda steht für die Verspätung ein, und der letzte Spruch bleibt die Pointe. Die erneute Prüfung hatte
+keine offenen Befunde. **0,0232865 USD**, 1.619 Wörter danach. Redaktionell etwa **7,5/10**, keine automatisch
+erreichte oder garantierte Kinderbuchnote. Die Überarbeitung liegt lokal; gespeicherte Geschichten wurden
+nicht ohne einen gesonderten Aktualisierungsschritt überschrieben.
+
+Validierung: **226 gezielte Tests bestanden**, keine Typdiagnostik in den geänderten Dateien. Der gesamte
+Projekt-Typcheck hat weiterhin vorhandene Fehler. Der zusätzlich geprüfte Kontinuitätstest fordert noch
+die alten Formulierungen „supplied children“, während der vorherige Commit für nichtmenschliche Avatare
+bereits „supplied avatars“ verwendet; dieser unabhängige Altfehler wurde nicht mitgeändert.
+
+Für alle Bild- und Textproben dieses Nachtrags wurden **0,201574025 USD** ausdrücklich gemeldet.
+Weitere **0,14 USD** bleiben vorsorglich für drei Antworten ohne Kostenangabe und einen unterbrochenen
+Aufruf reserviert. Angerechnet auf die Testgrenze: **0,341574025 USD**, keine behauptete Rechnung über die
+reservierten Beträge.

@@ -9,7 +9,7 @@ import { actsIn, buildImageSlots, pagesFor, placePictures, buildPictureNotes, PI
 import { storyHighlights, type EpisodeDirection } from '../episode/pictures';
 import { wordlessLine } from '../storybook/illustration-stage';
 import { ORIGINALS_IMAGE_STYLE, SCENE_SIZE } from '../library/images';
-import { SERIES_POLICY } from './authoring';
+import { SERIES_IMAGE_REVIEW_EFFORT, SERIES_POLICY } from './authoring';
 import { effectiveSeriesEpisode, logsForEpisode } from './core';
 import { getSeriesEpisodeBlueprint } from './episode-plans';
 import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW_COMPACT, type SeriesQa } from './quality';
@@ -401,7 +401,9 @@ export async function generateSeriesImages(input: {
         history.push({ kind: 'series-provider', status: 'missing', severity: 999, notes: [reason] });
         return { page: shot.page, prompt, attempts: number, costUSD, severity: 999, status: 'missing', errors: [reason], history };
       }
-      const reviewUser = `${shot.page === 0 ? 'COVER: judge the selected character-in-world composition. No chapter action is compulsory.' : 'CHAPTER PICTURE: judge this selected moment, allowing harmless staging differences.'}\nEXPECTED IDENTITIES:\n${drawn.map(e => `${e.id}: ${e.name}; ${e.role === 'hero' && e.referenceUrl ? (e.referenceContext || 'identity from reference sheet') : e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\nPROPOSED CAPTION:\n${moment.scene}\nPRIMARY STORY FACT: ${moment.fact}\n${shot.page === 0 ? '' : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph, (shot as SeriesShot).storyQuote)}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name})`).join('; ')}.` : 'No identity sheet is attached.'}`;
+      const sourceQuote = (shot as SeriesShot).storyQuote;
+      const source = shot.page === 0 ? '' : sourceQuote ? `SOURCE MOMENT: ${sourceQuote}` : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph).slice(0, 800);
+      const reviewUser = `${shot.page === 0 ? 'COVER: recognisable characters in their world; no exact chapter action is compulsory.' : 'CHAPTER PICTURE: recognisable intact characters in this setting and activity. Actor/prop/pose differences are minor.'}\nEXPECTED IDENTITIES (human or nonhuman anatomy as specified):\n${drawn.map(e => `${e.id}: ${e.name}; ${e.isHuman ? 'human' : e.species}; ${e.role === 'hero' && e.referenceUrl ? (e.referenceContext || 'identity from reference sheet') : e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\nSCENE CONTEXT, not an exact-action test:\n${moment.scene}\n${source}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name})`).join('; ')}.` : 'No identity sheet is attached.'}`;
       let safetyBlock: StorybookSafetyBlock | undefined;
       const blockedOutcome = (block: StorybookSafetyBlock): ImageOutcome => {
         const reason = block.reason;
@@ -415,8 +417,7 @@ export async function generateSeriesImages(input: {
       // and only an empty or unreadable answer goes to the fallback reader.
       const review = async (stage: string, model = input.visionModel, tier: 'flex' | 'standard' = 'flex') => {
         try {
-          // Gemini thinks at effort low before its JSON; 1,000 tokens left it cut short.
-          const reply = await input.llm({ stage, role: 'support', model, effort: 'low', json: true, maxTokens: 4000, timeoutMs: tier === 'flex' ? 20000 : 60000, serviceTier: tier,
+          const reply = await input.llm({ stage, role: 'support', model, effort: SERIES_IMAGE_REVIEW_EFFORT, json: true, maxTokens: 6000, timeoutMs: tier === 'flex' ? 20000 : 60000, serviceTier: tier,
             system: SERIES_IMAGE_REVIEW_COMPACT, user: reviewUser, imageInputs: [response.viewUrl || response.url!, ...references] });
           qaCalls.push(reply);
           return readSeriesQa(reply.text, drawn);

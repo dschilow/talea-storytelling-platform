@@ -82,7 +82,9 @@ andere Testporträts sind kein identischer Produktions-Replay.
 | `caption-free` / `multi-free` | Dieselbe Caption-Methode | Bogen / Einzelporträts | Nein |
 | `flux2kv` | Unveränderter FLUX-2-Produktionsprompt | Derselbe Bogen | Nein |
 
-Die Prüfung verwendet Gemini 3.8 Flash und die unveränderten Produktionskriterien, auf Standard statt Flex.
+Die Prüfung verwendet standardmäßig den konfigurierten Produktionsprüfer (seit der Modellentscheidung am
+30.10.2026 GPT-6 Luna) und die unveränderten Produktionskriterien, auf Standard statt Flex.
+`--judge-model google/gemini-3.8-flash` wählt den bisherigen Prüfer ausdrücklich.
 Transportfehler, explizite Provider-Sperren und echte Bildurteile werden getrennt erfasst. Ein
 `SAFETY`-/`PROHIBITED_CONTENT`-Block wird **nicht** erneut geschickt oder an einen Ersatzprüfer weitergereicht.
 `--generate-only` schaltet ausschließlich die Prüfung dieses lokalen Experiments aus; es schreibt keine Bilder
@@ -96,5 +98,15 @@ Ergebnisse: einzelne Resultat-JSONs, Bilder, Anfragen mit Referenz-Hashes und `s
 Die Zusammenfassung enthält alle gespeicherten Testfälle des Verzeichnisses, auch nach mehreren Teilläufen.
 Unbekannte Gebühren stehen als `null`, nicht als kostenloser Aufruf. `--run --cache-only` verarbeitet ausschließlich
 vorhandene API-Antworten; ein fehlender Cache-Eintrag löst keinen neuen API-Aufruf aus.
+
+Für den Prüfervergleich gibt es `--judge-model google/gemini-3.8-flash|google/gemini-3.5-flash-lite|openai/gpt-6-luna`
+und `--judge-effort production|low|medium|high`. Standard ist die Produktionsprüftiefe: immer `medium`,
+unabhängig von der Figurenanzahl. Explizites `low` oder `high` dient nur Experimenten. Je Modell/Prüfvariante ein eigenes Ausgabeverzeichnis
+verwenden. Der Modellname und die vollständige Prüfanfrage gehen in Ergebnis beziehungsweise Cache-Schlüssel ein;
+unbekannte Prüfmodelle werden wegen des kalkulierten Kostenlimits abgelehnt.
+
+`production` bezeichnet in diesem historischen **FLUX-3**-Vergleich weiterhin den FLUX-3-Prompt. Für neue
+Proben mit dem Figurenserien-Standard **FLUX 2 9B KV** ausdrücklich `--variants flux2kv` wählen. Mit
+`--variants existing` und `existingImage` im Fixture werden nur die vorhandenen Bilder gelesen, keine neuen gekauft.
 
 Messung und Grenzen des ersten Vergleichs: [Kosten- und Bildaudit vom 29.10.2026](../../docs/character-series-cost-audit-2026-10-29.md#flux-vergleich-mit-fünf-weiteren-geschichten).

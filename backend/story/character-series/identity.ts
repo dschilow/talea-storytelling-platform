@@ -68,13 +68,21 @@ export function seriesAvatarAppearance(hero: StorybookHero): string {
   return merged.slice(0, 1100);
 }
 
-/** Only measurements supplement the portrait; the portrait supplies the actual identity. */
+/** A few stable visual anchors supplement the portrait without amplifying tiny facial features. */
 export function seriesAvatarReferenceContext(hero: StorybookHero): string {
   const profile = hero.visualProfile;
   const age = profile?.ageNumeric;
   const height = profile?.heightCm;
+  const field = (value: unknown): string => typeof value === 'string'
+    ? value.replace(/[{}[\]\r\n]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60)
+    : '';
+  const hair = [...new Set([profile?.hair?.length, profile?.hair?.style, profile?.hair?.type, profile?.hair?.color]
+    .map(field).filter(value => value && !/^(?:unknown|none|null|undefined)$/i.test(value)))].join(' ');
+  const eyes = field(profile?.eyes?.color);
   return [
     typeof age === 'number' && Number.isFinite(age) && age >= 0 && age <= 120 ? `${age} years old` : '',
     typeof height === 'number' && Number.isFinite(height) && height >= 30 && height <= 250 ? `${height} cm tall` : '',
+    hair ? `${hair} hair` : '',
+    eyes && !/^(?:unknown|none|null|undefined)$/i.test(eyes) ? `${eyes} eyes` : '',
   ].filter(Boolean).join(', ');
 }
