@@ -31,7 +31,7 @@ export default function Step3Appearance({ formData, updateFormData }: Step3Appea
         <p className="text-muted-foreground text-sm">Wie sieht dein Avatar aus?</p>
       </div>
 
-      {!isAnimal && (
+      {!isAnimal && formData.characterType !== 'plush' && (
         <>
           <HairColorSelector
             value={formData.hairColor}

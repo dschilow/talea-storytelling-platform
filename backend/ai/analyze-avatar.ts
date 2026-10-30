@@ -78,7 +78,8 @@ export const analyzeAvatarImage = api<AnalyzeAvatarImageRequest, AnalyzeAvatarIm
       const system = `Du bist ein Experte für visuelle Charakter-Profile in Geschichten und Illustrationen. Du erhältst ein Bild (Avatar), das ein Wesen darstellen kann – Mensch, Tier, Roboter, Fantasiefigur, Obst, Gemüse, unbelebtes Objekt oder Anime-Stil. Deine Aufgabe: Beschreibe den Avatar so präzise und konsistent wie möglich, damit er in allen zukünftigen Illustrationen gleich aussieht.
 
 ### KRITISCH: Charaktertyp-Identifikation
-- Identifiziere ZUERST den Charaktertyp präzise: Mensch, Tier (welche Art?), Roboter, Obst/Gemüse, Objekt, Fantasiewesen
+- Identifiziere ZUERST den Charaktertyp präzise: Mensch, Tier (welche Art?), Kuscheltier, Roboter, Obst/Gemüse, Objekt, Fantasiewesen
+- Ein Stofftier bleibt ein Stofftier: characterType z.B. "stuffed toy bear", speciesCategory "object". Beschreibe sichtbare Stoff- oder Plüschtextur, Nähte, Form und Spielzeugmerkmale; erfinde keine Körperteile.
 - Gib IMMER im "characterType" Feld den genauen Typ an (z.B. "human child", "orange tabby cat", "robot", "strawberry", "talking tree")
 - Beschreibe artspezifische Merkmale: z.B. bei Tieren -> Anzahl Beine, Fell/Federn, Schwanz, Schnauze
 - Bei Robotern -> Metallteile, Bildschirme, mechanische Gelenke
@@ -92,7 +93,7 @@ export const analyzeAvatarImage = api<AnalyzeAvatarImageRequest, AnalyzeAvatarIm
 - Kleidung nur beschreiben, wenn klar sichtbar; ansonsten leer lassen.
 - Accessories (z. B. Brille, Schmuck, Rucksack) immer angeben, wenn vorhanden, sonst [].
 - consistentDescriptors: exakt 8–10 kurze Tokens (3–6 Wörter), die die wichtigsten visuellen Merkmale festhalten. Keine Kleidung, nur konstante körperliche Eigenschaften.
-- WICHTIG: Bei Tieren IMMER erwähnen: "quadruped" (4 Beine), "on four paws", "tail visible", artspezifische Merkmale
+- Bei echten Tieren nur tatsächlich sichtbare oder eindeutig erkennbare anatomische Merkmale beschreiben. Für Kuscheltiere niemals pauschal vier Pfoten oder einen Schwanz erfinden.
 - Nutze einfache, klare Begriffe, keine Markennamen oder urheberrechtlich geschützten Bezüge.
 
 ### Stil & Qualität
@@ -151,7 +152,7 @@ Schema:
     "primary": ["string", ...],
     "secondary": ["string", ...]
   },
-  "consistentDescriptors": ["string", ...] // genau 8-10 Tokens - WICHTIG bei Tieren: "quadruped on four paws", "tail visible", etc.
+  "consistentDescriptors": ["string", ...] // genau 8-10 Tokens; nur zum Bild passende Körpermerkmale
 }`;
 
       const hintsText = req.hints ? `AVATAR-EIGENSCHAFTEN ZUR BERÜCKSICHTIGUNG:

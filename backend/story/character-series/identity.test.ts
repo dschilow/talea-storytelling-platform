@@ -2,7 +2,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { CastCandidate } from '../storybook/types';
 import { castAppearance, speciesFromProfile } from '../storybook/illustration-stage';
-import { seriesLeadCandidate, seriesLeadReference, seriesReferenceAppearance } from './identity';
+import { seriesAvatarReferenceContext, seriesLeadCandidate, seriesLeadReference, seriesReferenceAppearance } from './identity';
 
 const lead = (fields: Partial<CastCandidate> = {}): CastCandidate => ({
   id: 'captain', name: 'Kapitän Blubbert', species: 'human', whoTheyAre: 'ein Kapitän',
@@ -55,6 +55,11 @@ describe('series lead identity follows the canonical pool portrait', () => {
     expect(await seriesLeadReference('tilda-tueftel', answer('image/webp', false))).toBeUndefined();
     expect(await seriesLeadReference('tilda-tueftel', (async () => { throw new Error('offline'); }) as unknown as typeof fetch)).toBeUndefined();
     expect(await seriesLeadReference('unknown-series', answer('image/webp'))).toBeUndefined();
+  });
+  test('avatar reference context only includes valid age and height', () => {
+    const hero: any = { visualProfile: { ageNumeric: 7, heightCm: 120, hair: { color: 'purple' } } };
+    expect(seriesAvatarReferenceContext(hero)).toBe('7 years old, 120 cm tall');
+    expect(seriesAvatarReferenceContext({ visualProfile: { ageNumeric: -1, heightCm: 10000 } } as any)).toBe('');
   });
   test('portrait props such as a pipe or tools do not enter the series look', () => {
     expect(seriesReferenceAppearance('Tilda Tueftel, nine-year-old girl inventor with curly dark hair, round safety goggles, yellow overalls and colorful tools'))

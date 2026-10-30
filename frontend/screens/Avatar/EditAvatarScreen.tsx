@@ -529,13 +529,17 @@ const EditAvatarScreen: React.FC = () => {
         appearance: description,
         personalityTraits: {},
         referenceImageUrl,
+        referenceSubject: isChildAvatar ? 'human' : 'auto',
+        referenceNotes: data.additionalDescription?.trim(),
       });
 
       if (!result.imageUrl || result.debugInfo?.success === false) {
         throw new Error('Image generation returned no usable image');
       }
       setPreviewUrl(result.imageUrl);
-
+      if (!isChildAvatar && result.referenceSubject === 'plush' && data.characterType !== 'plush') {
+        setFormData((current) => ({ ...current, characterType: 'plush', customCharacterType: undefined }));
+      }
 
       const { showSuccessToast } = await import('../../utils/toastUtils');
       showSuccessToast('Neues Avatar-Bild generiert.');

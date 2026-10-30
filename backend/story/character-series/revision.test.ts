@@ -318,6 +318,17 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(requests).toHaveLength(4);
     expect(requests.every(r => r.width === 1216 && r.height === 832 && r.referenceImages.length === 1 && r.prompt.includes('gouache'))).toBe(true);
   });
+  test('referenced avatars use the sheet and measurements, not profile appearance in generated prompts or QA', async () => {
+    const requests: any[] = [];
+    const reviews: string[] = [];
+    const figures = [entities[0], { ...entities[1], appearance: 'distinctive purple hair and pointed ears', referenceContext: '7 years old, 120 cm tall' }];
+    await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, figures, 'lead'), entities: figures, seed: 'identity', imageModel: 'runware:400@6', provider: async r => { requests.push(r); return { url: 'https://example.test/result.webp' }; }, llm: async r => { reviews.push(r.user); return imageReview(r.stage); }, visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
+    const chapter = requests.find(r => r.page === 1);
+    expect(chapter.prompt).toContain('slot 2 (right half) is ONLY Nora (7 years old, 120 cm tall)');
+    expect(chapter.prompt).not.toContain('distinctive purple hair');
+    expect(reviews.find(r => r.includes('CHAPTER PICTURE'))).not.toContain('distinctive purple hair');
+    expect(chapter.prompt).toContain('small golden dragon');
+  });
   test('FLUX.2 klein gets plain names and no scene-region binding; FLUX 3 keeps both', async () => {
     const run = async (imageModel?: string) => {
       const requests: any[] = [];

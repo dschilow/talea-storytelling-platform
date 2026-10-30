@@ -67,3 +67,14 @@ export function seriesAvatarAppearance(hero: StorybookHero): string {
     .trim();
   return merged.slice(0, 1100);
 }
+
+/** Only measurements supplement the portrait; the portrait supplies the actual identity. */
+export function seriesAvatarReferenceContext(hero: StorybookHero): string {
+  const profile = hero.visualProfile;
+  const age = profile?.ageNumeric;
+  const height = profile?.heightCm;
+  return [
+    typeof age === 'number' && Number.isFinite(age) && age >= 0 && age <= 120 ? `${age} years old` : '',
+    typeof height === 'number' && Number.isFinite(height) && height >= 30 && height <= 250 ? `${height} cm tall` : '',
+  ].filter(Boolean).join(', ');
+}

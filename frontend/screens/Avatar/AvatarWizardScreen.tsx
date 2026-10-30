@@ -242,13 +242,24 @@ const AvatarWizardScreen: React.FC = () => {
         appearance: description,
         personalityTraits: {},
         referenceImageUrl,
+        referenceSubject: effectiveChildMode ? 'human' : 'auto',
+        referenceNotes: formData.additionalDescription?.trim(),
       });
 
       if (latestPromptSignatureRef.current !== requestSignature) {
         return;
       }
 
-      generatedPreviewSignatureRef.current = requestSignature;
+      if (!result.imageUrl || result.debugInfo?.success === false) throw new Error('Image generation returned no usable image');
+      if (!effectiveChildMode && result.referenceSubject === 'plush' && formData.characterType !== 'plush') {
+        const detectedForm: AvatarFormData = { ...formData, characterType: 'plush', customCharacterType: undefined };
+        const detectedSignature = getAvatarVisualPromptSignature(detectedForm, referenceImageUrl);
+        latestPromptSignatureRef.current = detectedSignature;
+        generatedPreviewSignatureRef.current = detectedSignature;
+        setFormData(detectedForm);
+      } else {
+        generatedPreviewSignatureRef.current = requestSignature;
+      }
       setPreviewUrl(result.imageUrl);
       import('../../utils/toastUtils').then(({ showSuccessToast }) => {
         showSuccessToast(t('avatar.wizard.previewSuccess', 'Dein Avatar-Bild ist fertig!'));

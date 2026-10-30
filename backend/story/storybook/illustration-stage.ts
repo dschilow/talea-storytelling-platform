@@ -41,6 +41,8 @@ export interface VisualEntity {
   isHuman: boolean;
   /** English appearance line — the identity lock. */
   appearance: string;
+  /** Nonvisual scale context for a referenced avatar, e.g. age and height. */
+  referenceContext?: string;
   /** At most ~6 words that tell the figure apart at a glance ("blond boy in dark T-shirt"). */
   tag?: string;
   forbidden: string[];

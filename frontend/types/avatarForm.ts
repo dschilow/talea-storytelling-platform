@@ -6,6 +6,7 @@
 // Character Types with icons and English translations for image generation
 export const CHARACTER_TYPES = [
   { id: 'human', labelDe: 'Mensch', labelEn: 'human', icon: '👦', category: 'common' },
+  { id: 'plush', labelDe: 'Kuscheltier', labelEn: 'stuffed toy', icon: '🧸', category: 'common' },
   { id: 'dog', labelDe: 'Hund', labelEn: 'dog', icon: '🐕', category: 'animal' },
   { id: 'cat', labelDe: 'Katze', labelEn: 'cat', icon: '🐱', category: 'animal' },
   { id: 'rabbit', labelDe: 'Hase', labelEn: 'rabbit', icon: '🐰', category: 'animal' },
@@ -240,6 +241,12 @@ export function getHeightDescription(height: number, age: number): string {
 
 // Convert form data to English description for image generation
 export function formDataToDescription(data: AvatarFormData): string {
+  if (data.characterType === 'plush') {
+    const color = FUR_COLORS_ANIMAL.find(f => f.id === data.skinTone)?.labelEn;
+    const eyes = EYE_COLORS.find(e => e.id === data.eyeColor)?.labelEn;
+    const features = data.specialFeatures.map(id => SPECIAL_FEATURES.find(f => f.id === id)?.labelEn).filter(Boolean);
+    return ['stuffed toy with soft fabric texture', color, eyes ? `${eyes} eyes` : '', ...features, data.additionalDescription?.trim()].filter(Boolean).join(', ');
+  }
   const characterType = CHARACTER_TYPES.find(t => t.id === data.characterType);
   const gender = GENDERS.find(g => g.id === data.gender);
   const hairColor = HAIR_COLORS.find(h => h.id === data.hairColor);
@@ -741,6 +748,17 @@ export function inferSpecialFeaturesFromVisualProfile(
 }
 
 export function formDataToVisualProfile(data: AvatarFormData): AvatarVisualProfileRecord {
+  if (data.characterType === 'plush') {
+    return {
+      characterType: 'stuffed toy', speciesCategory: 'object', locomotion: 'other',
+      ageApprox: `${data.age} years old`, ageNumeric: data.age, gender: 'unknown',
+      skin: { tone: '', distinctiveFeatures: [] },
+      hair: { color: '', type: 'none', length: 'none', style: '' },
+      eyes: { color: '' }, face: { otherFeatures: [] }, accessories: [],
+      consistentDescriptors: ['stuffed toy', 'soft fabric'],
+      additionalNotes: data.additionalDescription?.trim() || undefined,
+    };
+  }
   const base = buildBaseVisualProfile(data) as AvatarVisualProfileRecord;
   const invariants = buildManagedInvariants(data);
   const selected = new Set<SpecialFeatureId>(data.specialFeatures);
@@ -964,6 +982,8 @@ export function mergeVisualProfileForEditor(
     : {};
   const hasExisting = Object.keys(existing).length > 0;
   const generated = formDataToVisualProfile(data);
+  // A changed species invalidates the old human/animal identity and anatomy.
+  if (data.characterType === 'plush' && dirtyFields.has('characterType')) return generated;
   const result = mergeVisualProfileWithForm(existing, data);
   const isDirty = (...fields: AvatarFormField[]) =>
     !hasExisting || fields.some((field) => dirtyFields.has(field));

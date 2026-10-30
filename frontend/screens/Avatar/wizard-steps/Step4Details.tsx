@@ -60,6 +60,7 @@ export default function Step4Details({
           Foto als Vorlage
           <span className="text-muted-foreground/70 font-normal ml-1">(wenn du magst)</span>
         </label>
+        <p className="text-xs text-muted-foreground/70">Du kannst auch dein Kuscheltier fotografieren.</p>
         <ImageUploadCamera
           onImageSelected={(dataUrl) => onReferenceImageChange(dataUrl)}
           currentImage={referenceImageUrl}

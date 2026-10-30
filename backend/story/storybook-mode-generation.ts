@@ -45,7 +45,7 @@ import { SERIES_NARRATIVES } from "./character-series/narrative";
 import { runCharacterSeriesTextEngine, seriesLlmBudget } from "./character-series/engine";
 import { StorybookSafetyBlock } from "./storybook/llm-guards";
 import { directSeriesPictures, generateSeriesImages } from "./character-series/pictures";
-import { seriesAvatarAppearance, seriesLeadCandidate, seriesLeadReference, seriesReferenceAppearance } from "./character-series/identity";
+import { seriesAvatarAppearance, seriesAvatarReferenceContext, seriesLeadCandidate, seriesLeadReference, seriesReferenceAppearance } from "./character-series/identity";
 import { loadHeroMemories, loadStorybookHistory } from "./storybook/history";
 import { CostLedger, resolveStorybookModels } from "./storybook/llm";
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
@@ -241,6 +241,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       species,
       isHuman,
       appearance: seriesMode ? seriesAvatarAppearance(hero) : heroAppearance(hero.visualProfile, ""),
+      ...(seriesMode ? { referenceContext: seriesAvatarReferenceContext(hero) } : {}),
       forbidden: Array.isArray(hero.visualProfile?.forbiddenFeatures) ? hero.visualProfile.forbiddenFeatures.map(String) : [],
       referenceUrl: await readableReference(hero.imageUrl),
       referenceKey: hero.imageUrl,

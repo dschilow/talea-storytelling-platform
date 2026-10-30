@@ -9,7 +9,7 @@ import { sanitizeCharacter } from "./character-pool-import";
 import type { CharacterTemplate } from "./types";
 import { seedCharacterPool } from "./seed-characters";
 import { runwareGenerateImage } from "../ai/image-generation";
-import { FLUX3_KLEIN_MODEL, FLUX3_KLEIN_STEPS } from "../ai/runware-image-model-options";
+import { FLUX2_KLEIN_9B_KV_MODEL } from "../ai/runware-image-model-options";
 import { TALEA_IMAGE_STYLE } from "../ai/image-style";
 import {
   maybeUploadImageUrlToBucket,
@@ -496,13 +496,12 @@ export const generateCharacterImage = api<GenerateCharacterImageRequest, Generat
     const character = await getCharacter({ id: req.id });
     const prompt = buildCharacterImagePrompt(character, req.style);
 
-    // The shared adapter supplies FLUX 3's safety check and supported parameters.
     const result = await runwareGenerateImage({
       prompt,
-      model: FLUX3_KLEIN_MODEL,
+      model: FLUX2_KLEIN_9B_KV_MODEL,
       width: 1024,
       height: 1024,
-      steps: FLUX3_KLEIN_STEPS,
+      steps: 4,
       outputFormat: "WEBP",
     });
 
@@ -593,10 +592,10 @@ export const batchRegenerateCharacterImages = api<{}, BatchRegenerateImagesRespo
           const prompt = buildCharacterImagePrompt(character, "storybook");
           const result = await runwareGenerateImage({
             prompt,
-            model: FLUX3_KLEIN_MODEL,
+            model: FLUX2_KLEIN_9B_KV_MODEL,
             width: 1024,
             height: 1024,
-            steps: FLUX3_KLEIN_STEPS,
+            steps: 4,
             outputFormat: "WEBP",
           });
 
@@ -939,9 +938,10 @@ function buildCharacterImagePrompt(
   const emotional = character.emotionalNature || { dominant: "", secondary: [], triggers: [] };
 
   const sections = [
+    "A single isolated full-body character reference, complete figure from head to feet or natural body extremities, centered with generous empty margin, plain white background, no scenery or props unless part of the character itself.",
     TALEA_IMAGE_STYLE,
     // Use only the imagePrompt field for image generation (dedicated for this purpose)
-    visual.imagePrompt ? sanitizeSegment(visual.imagePrompt) : "",
+    visual.imagePrompt ? sanitizeSegment(visual.imagePrompt) : sanitizeSegment(visual.description || character.physical_description || ""),
     character.role ? `Narrative role ${sanitizeSegment(character.role)}` : "",
     character.archetype ? `Archetype ${sanitizeSegment(character.archetype)}` : "",
     emotional.dominant ? `Emotional tone ${sanitizeSegment(emotional.dominant)}` : "",
@@ -950,7 +950,7 @@ function buildCharacterImagePrompt(
     visual.colorPalette?.length
       ? `Color palette featuring ${sanitizeSegment(visual.colorPalette.join(", "))}`
       : "",
-    "One single character, readable three-quarter view and friendly expression, plain warm ivory background, child safe, no text, no watermark"
+    "Final composition: one complete character, head to feet or body extremities fully visible with space around them, isolated against a plain white background with no setting or unrelated props, child safe, no text, no watermark"
   ];
 
   return clampPromptLength(
@@ -966,7 +966,7 @@ function sanitizeSegment(input: string | undefined | null): string {
     return "";
   }
   return String(input)
-    .replace(/[^\x20-\x7E]/g, " ")
+    .replace(/[\x00-\x1F\x7F]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

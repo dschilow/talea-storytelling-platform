@@ -274,7 +274,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
       case 'appearance':
         return (
           <div className="space-y-5">
-            {!isAnimal && (
+            {!isAnimal && formData.characterType !== 'plush' && (
               <>
                 <HairColorSelector value={formData.hairColor} onChange={(hairColor) => updateFormData({ hairColor })} darkMode={isDark} />
                 <HairStyleSelector value={formData.hairStyle} onChange={(hairStyle) => updateFormData({ hairStyle })} darkMode={isDark} />

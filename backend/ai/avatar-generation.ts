@@ -1,4 +1,6 @@
 import { api, APIError } from "encore.dev/api";
+import { secret } from "encore.dev/config";
+import { detectAvatarReferenceSubject, isPlushType } from "./avatar-reference-subject";
 import { runwareGenerateImage } from "./image-generation";
 import { FLUX3_KLEIN_MODEL, FLUX3_KLEIN_STEPS } from "./runware-image-model-options";
 import { TALEA_IMAGE_STYLE } from "./image-style";
@@ -8,6 +10,8 @@ import { translateToEnglish } from "./translate";
 import { getAuthData } from "~encore/auth";
 import { claimMeteredUsage, refundMeteredUsage } from "../helpers/billing";
 
+const openAIKey = secret("OpenAIKey");
+
 interface GenerateAvatarImageRequest {
   characterType: string;
   appearance: string;
@@ -16,12 +20,17 @@ interface GenerateAvatarImageRequest {
   style?: "realistic" | "disney" | "anime";
   /** Optional reference image URL (uploaded photo/camera) for character consistency */
   referenceImageUrl?: string;
+  /** Child-self avatars remain human even if a toy is visible in their photo. */
+  referenceSubject?: "auto" | "human";
+  /** User-entered changes, separate from the form defaults. */
+  referenceNotes?: string;
 }
 
 interface GenerateAvatarImageResponse {
   imageUrl: string;
   prompt: string;
   debugInfo?: any;
+  referenceSubject?: "plush" | "other" | "unknown";
 }
 function isStructuredEnglishVisualText(value: string): boolean {
   const text = String(value || "").trim();
@@ -36,7 +45,7 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
   { expose: true, method: "POST", path: "/ai/generate-avatar", auth: true },
   async (req) => {
     const auth = getAuthData()!;
-    if ((req.characterType || "").length > 120 || (req.appearance || "").length > 2_000) {
+    if ((req.characterType || "").length > 120 || (req.appearance || "").length > 2_000 || (req.referenceNotes || "").length > 2_000) {
       throw APIError.invalidArgument("Avatar description is too long.");
     }
     const usageClaim = await claimMeteredUsage({
@@ -47,8 +56,13 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
     });
 
     try {
-      const rawCharacterType = req.characterType || "";
-      const rawAppearance = req.appearance || "";
+      const explicitPlush = isPlushType(req.characterType || "");
+      const detected = explicitPlush ? "plush" : req.referenceImageUrl && req.referenceSubject !== "human"
+        ? await detectAvatarReferenceSubject((await resolveImageUrlForClient(req.referenceImageUrl)) || req.referenceImageUrl, openAIKey())
+        : "unknown";
+      const plush = detected === "plush" && req.referenceSubject !== "human";
+      const rawCharacterType = plush ? "stuffed toy" : req.characterType || "";
+      const rawAppearance = plush && req.referenceImageUrl ? (req.referenceNotes || "") : req.appearance || "";
       const characterIsEnglish = isStructuredEnglishVisualText(rawCharacterType);
       const appearanceIsEnglish = isStructuredEnglishVisualText(rawAppearance);
       console.info("[ai.avatar-generation] Preparing visual prompt", {
@@ -63,7 +77,9 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
       const prompt = buildAvatarPrompt(
         translatedCharacterType,
         translatedAppearance,
-        req.personalityTraits
+        req.personalityTraits,
+        Boolean(req.referenceImageUrl),
+        plush
       );
 
       console.info("[ai.avatar-generation] Requesting image", {
@@ -108,6 +124,7 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
         imageUrl: resolvedImageUrl || finalImageUrl || imageResult.imageUrl,
         prompt,
         debugInfo: imageResult.debugInfo,
+        referenceSubject: plush ? "plush" : detected,
       };
     } catch (error) {
       await refundMeteredUsage(usageClaim);
@@ -119,7 +136,9 @@ export const generateAvatarImage = api<GenerateAvatarImageRequest, GenerateAvata
 function buildAvatarPrompt(
   characterType: string,
   appearance: string,
-  personality: PersonalityTraits
+  personality: PersonalityTraits,
+  hasReference: boolean,
+  plush: boolean
 ): string {
   const subject = sanitizeSegment(characterType || "storybook character");
   const appearanceDetails = sanitizeSegment(appearance || "");
@@ -128,10 +147,11 @@ function buildAvatarPrompt(
 
   const sections = [
     TALEA_IMAGE_STYLE,
-    `SUBJECT ${subject} (${speciesTag})`,
+    hasReference ? "Use the attached photo as the primary identity reference. Preserve the subject's recognizable face, hair, skin tone and distinctive features while translating them into the illustrated style. Apply explicitly requested appearance changes and clothing from the written description." : "",
+    plush ? `SUBJECT a beloved stuffed toy character. ${hasReference ? "Preserve its toy species, soft fabric or plush texture, stitched details, proportions and distinctive features from the reference." : "Give it soft fabric or plush texture and recognizable toy proportions."} It may move and express feelings in the story, while remaining visibly a toy. No real animal or human replacement.` : `SUBJECT ${subject} (${speciesTag})`,
     personalityDescriptor ? `PERSONALITY cues ${personalityDescriptor}` : "",
     appearanceDetails ? `APPEARANCE ${appearanceDetails}` : "",
-    "COMPOSITION centered waist-up portrait, gentle three-quarter angle, direct eye contact",
+    plush ? "COMPOSITION the complete toy centered, all limbs and extremities visible, gentle three-quarter view" : "COMPOSITION centered waist-up portrait, gentle three-quarter angle, direct eye contact",
     "LIGHTING warm morning rim light, soft bounced fill",
     "BACKGROUND plain warm ivory with subtle paper texture",
     "QUALITY child-safe, clear readable silhouette, consistent hand-drawn gouache medium"

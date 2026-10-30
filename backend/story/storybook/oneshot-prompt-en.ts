@@ -1,3 +1,4 @@
+import { isPlushType } from "../../ai/avatar-reference-subject";
 /**
  * Storybook Pipeline — the one-shot writer prompt in English (default since
  * 2026-10-14; `experiment.germanPrompt` brings back the German one).
@@ -115,6 +116,7 @@ export function wishLinesEn(config: StoryBrief["config"], form: LearningForm = "
 
 export function heroSheetEn(hero: StorybookHero & { id: string }, memories: string[]): string {
   const bits: string[] = [];
+  if (isPlushType(String(hero.visualProfile?.characterType || hero.physicalTraits?.characterType || ""))) bits.push("a stuffed toy companion, with its toy form and fabric texture; it may act and speak");
   if (typeof hero.age === "number" && hero.age > 0) bits.push(`${hero.age} years`);
   const narrative = hero.narrativeProfile && typeof hero.narrativeProfile === "object" ? hero.narrativeProfile : {};
   const personality = [clean(narrative.dominantPersonality, 48), ...(Array.isArray(narrative.traits) ? narrative.traits.map((t: unknown) => clean(t, 70)) : [])].filter(Boolean);
