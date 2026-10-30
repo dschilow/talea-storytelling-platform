@@ -30,9 +30,11 @@
       "title": "Frau Pfeffer piept",
       "logline": "Mats sagt: „Unsere Lehrerin ist ein Roboter.“ Am nächsten Morgen piept Frau Pfeffer bei jeder Antwort und läuft mit Akku-Anzeige.",
       "plan": {
-        "Flunkerei": "„Unsere Lehrerin ist ein Roboter.“",
+        "Flunkerei": "„Unsere Lehrerin ist ein Roboter. Ein echter. Mit Akku.“",
         "Wer flunkert": "Mats",
-        "Was wörtlich passiert": "Frau Pfeffer piept bei jeder Antwort und läuft mit Akku-Anzeige."
+        "Was wörtlich passiert": "Frau Pfeffer piept bei jeder Antwort und läuft mit Akku-Anzeige.",
+        "Erzählform und Folgenhandlung": "Schulkomödie: Die perfekte Roboterlehrerin nimmt dem Theater alles Lebendige. Mats könnte unbemerkt bei Ella gestehen, entscheidet sich aber für die Wahrheit vor Lia.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Lia wird Freundin statt Publikum für Angeberei. Ella zeichnet das beschädigte Zauberplakat ab; Frau Pfeffer sucht ein vollständiges Exemplar. Die Notiz führt zum Vergleich mit Oma Rosis Erinnerung in 5."
       },
       "clue": "Im Schulflur hängt ein altes Plakat einer Zaubershow, halb abgerissen."
     },
@@ -43,62 +45,78 @@
       "plan": {
         "Flunkerei": "„Ich kann fliegen!“",
         "Wer flunkert": "Mats",
-        "Was wörtlich passiert": "Mats schwebt und kommt nicht mehr herunter. Ella hält ihn an der Kordel seiner Jacke."
+        "Was wörtlich passiert": "Mats schwebt und kommt nicht mehr herunter. Ella hält ihn an der Kordel seiner Jacke.",
+        "Erzählform und Folgenhandlung": "Räumliche Komödie: Mats will Ellas Aufräumplan ausweichen, prahlt mit seiner Flugkunst und steckt plötzlich oben fest. Diesmal muss er seine Höhenangst zugeben und Hilfe annehmen; Lia hilft praktisch.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Lia kennt seit 3 das Plopp-Geheimnis, aber weder Ursache noch sprechenden Fisch. Bruno bleibt in ihrer Gegenwart freiwillig stumm. Ella bemerkt seinen Flossentrick; die Ähnlichkeit zum Plakat bleibt eine private Vermutung bis 5.",
+        "Druck und Mutmoment": "Mats will Ellas Aufräumplan ausweichen, behauptet seine Flugkunst und traut sich oben nicht, Angst zuzugeben. Die Wahrheit berichtigt zuerst die Flugbehauptung, dann benennt Mats seine Angst. Keine Wiederholung der Lia-Angeberhandlung aus Folge 3."
       },
       "clue": "Bruno macht vor Langeweile einen Kartentrick mit der Flosse."
     },
     {
       "episode": 5,
       "title": "Oma ist zwanzig",
-      "logline": "Oma Rosi prahlt: „Ich bin noch so fit wie mit zwanzig!“ Plötzlich ist sie zwanzig, will Rollschuh fahren und erkennt sich selbst nicht.",
+      "logline": "Oma Rosi behauptet vor Bruno: Ich bin zwanzig! Plötzlich ist sie wirklich zwanzig. Beim Rollentausch mit den Enkeln zeigt sich, was ihr an ihrem heutigen Leben wichtig ist.",
       "plan": {
-        "Flunkerei": "„Ich bin noch so fit wie mit zwanzig!“",
+        "Flunkerei": "„Ich bin zwanzig!“",
         "Wer flunkert": "Oma Rosi",
-        "Was wörtlich passiert": "Oma ist plötzlich zwanzig, will Rollschuh fahren und erkennt sich selbst nicht."
+        "Was wörtlich passiert": "Oma ist plötzlich zwanzig, will Rollschuh fahren und erkennt sich selbst nicht.",
+        "Erzählform und Folgenhandlung": "Rollentausch: Eine Erwachsene flunkert ihr Alter. Die Kinder müssen herausfinden, warum die junge Oma weiter die alte Rosi sein möchte.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Oma erkennt das Plakat als Auftritt des Großen Brunello. Ella fragt erstmals, ob Bruno etwas verheimlicht, um bei ihnen bleiben zu dürfen. Keine Bestätigung seiner Identität.",
+        "Auflösung und Motivation": "Oma selbst muss das echte Alter zugeben; kein Kind kann sie erlösen. Sie genießt zunächst ihre neue Beweglichkeit, möchte aber als Oma ernst genommen werden. Keine Krankheits- oder Unfallszenen."
       },
       "clue": "Oma erzählt, sie habe als junge Frau den „Großen Brunello“ auf der Bühne gesehen."
     },
     {
       "episode": 6,
       "title": "Kaisers großer Coup",
-      "logline": "Frau Grimmbach schwärmt: „Mein Kaiser ist der klügste Kater der Welt.“ Kater Kaiser wird genial und baut aus dem Staubsauger eine Fisch-Fang-Maschine.",
+      "logline": "Frau Grimmbach behauptet vor Bruno bewusst falsch, sie habe Kaiser schon Maschinen bauen sehen. Prompt baut der Kater eine Fischfangmaschine. Ausgerechnet Grimmbach muss mit ihrem Heft helfen und die Wahrheit sagen.",
       "plan": {
-        "Flunkerei": "„Mein Kaiser ist der klügste Kater der Welt.“",
-        "Wer flunkert": "Frau Grimmbach",
-        "Was wörtlich passiert": "Kater Kaiser wird genial und baut eine Fisch-Fang-Maschine aus dem Staubsauger."
+        "Flunkerei": "„Kaiser kann Maschinen bauen. Das habe ich selbst gesehen.“",
+        "Wer flunkert": "Frau Grimmbach, bewusst und gegen besseres Wissen; bloße Katzenliebe löst nichts aus",
+        "Was wörtlich passiert": "Kater Kaiser wird genial und baut eine Fisch-Fang-Maschine aus dem Staubsauger.",
+        "Erzählform und Folgenhandlung": "Kammerspiel als Einbruchskomödie: Grimmbach behauptet wider besseres Wissen, Kaiser könne Maschinen bauen und sie habe es gesehen. Der geniale Kater baut eine Fischfangmaschine; Ella braucht Grimmbachs Hilfe.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Grimmbachs schriftliche Beobachtungen werden zur nutzbaren Quelle. Sie selbst muss ihre Behauptung berichtigen. Der Zylinder mit Fischzeichen passt zum Plakat; Kaiser bleibt Rivale mit einer kurzen unfreiwilligen Zusammenarbeit."
       },
       "clue": "Kaiser schleppt einen alten Zylinder mit einem Fisch-Emblem aus dem Keller."
     },
     {
       "episode": 7,
       "title": "Papa im All",
-      "logline": "Ella behauptet: „Mein Papa ist Astronaut.“ Papa schwebt im Raumanzug durch die Küche, die Kaffeetassen auch.",
+      "logline": "Ella flunkert, Papa sei Astronaut und führe heute ein schwereloses Training in ihrer Küche vor. Papa und die Kaffeetassen schweben, während Ella versucht, die Suche nach dem Zylinder zu verbergen.",
       "plan": {
-        "Flunkerei": "„Mein Papa ist Astronaut.“",
+        "Flunkerei": "„Mein Papa ist Astronaut. Er zeigt uns heute ein schwereloses Training in unserer Küche!“",
         "Wer flunkert": "Ella",
-        "Was wörtlich passiert": "Papa schwebt im Raumanzug durch die Küche, die Kaffeetassen auch."
+        "Was wörtlich passiert": "Papa schwebt im Raumanzug durch die Küche, die Kaffeetassen auch.",
+        "Erzählform und Folgenhandlung": "Familienfarce: Ella behauptet eine schwerelose Astronautenvorführung, um die Suche nach dem Zylinder zu verdecken. Papa präsentiert stolz ein Training, das er gar nicht versteht.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Ella merkt, dass vermeintlicher Schutz neue Probleme schafft. Die Kinder fragen Bruno nach Brunello; sein Verstecken ist eine Antwort durch Verhalten.",
+        "Ort der Flunkerei": "Im Wohnzimmer vor dem Aquarium, als Papa nach der Suche der Kinder fragt. Die Vorführung findet erst danach in der Küche statt."
       },
       "clue": "Beim Wort „Brunello“ versteckt sich Bruno hinter seiner Burg."
     },
     {
       "episode": 8,
       "title": "Der Geburtstag, der nie endet",
-      "logline": "„Heute hab ich Geburtstag!“, flunkert Mats. Jede Stunde beginnt eine neue Geburtstagsparty, und nach der vierten Torte will niemand mehr feiern.",
+      "logline": "Mats behauptet, seine Geburtstagsfeier beginne heute jede Stunde ganz von vorn. Nach der vierten Torte will niemand mehr feiern. Er bemerkt die müden Gäste und entscheidet sich selbst für die Wahrheit.",
       "plan": {
-        "Flunkerei": "„Heute hab ich Geburtstag!“",
+        "Flunkerei": "„Heute beginnt meine Geburtstagsfeier jede Stunde wieder ganz von vorn!“",
         "Wer flunkert": "Mats",
-        "Was wörtlich passiert": "Jede Stunde beginnt eine neue Geburtstagsparty. Nach der vierten Torte will niemand mehr feiern."
+        "Was wörtlich passiert": "Jede Stunde beginnt eine neue Geburtstagsparty. Nach der vierten Torte will niemand mehr feiern.",
+        "Erzählform und Folgenhandlung": "Wiederkehrender Festablauf: Mats behauptet ausdrücklich, seine Geburtstagsfeier beginne heute jede Stunde von vorn. Anfangs überdreht, später still und erschöpft. Er gesteht, weil er seine Gäste wahrnimmt.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Lia kehrt als Gast zurück; Freundschaft muss nicht ständig beeindruckt werden. Die Kinder erkennen den Mann mit dem Fischhut vom Kauf wieder und suchen von sich aus Kontakt."
       },
       "clue": "Der Mann mit dem Fischhut steht vor dem Haus und beobachtet das Fenster."
     },
     {
       "episode": 9,
-      "title": "Bruno flunkert",
-      "logline": "Bruno selbst sagt: „Mir ist alles egal.“ Er wird grau, stumm und wirklich gleichgültig, und die Kinder müssen ihn zur Wahrheit bringen.",
+      "title": "Bruno wird still",
+      "logline": "Mats behauptet vor dem Aquarium aus Ärger, Bruno sei alles egal. Mats beendet den Zauber mit der Wahrheit, aber das verletzte Vertrauen bleibt. Bruno entscheidet sich selbst, von Brunello zu erzählen.",
       "plan": {
-        "Flunkerei": "„Mir ist alles egal.“",
-        "Wer flunkert": "Bruno",
-        "Was wörtlich passiert": "Bruno wird grau, stumm und wirklich gleichgültig. Die Kinder müssen ihn zur Wahrheit bringen."
+        "Flunkerei": "„Unserem Bruno ist alles egal.“",
+        "Wer flunkert": "Mats",
+        "Was wörtlich passiert": "Bruno wird gleichgültig und still. Mats sagt vor Ella die Wahrheit, der Zauber endet früh. Erst im anschließenden echten Gespräch gesteht Bruno freiwillig seine Herkunft.",
+        "Erzählform und Folgenhandlung": "Beziehungskrise: Mats behauptet aus Ärger, Bruno sei alles egal. Er korrigiert das vor Ella. Die Magie endet früh; das verlorene Vertrauen bleibt.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Bruno sagt freiwillig, was er bisher vermieden hat: Er war Brunello. Diese Folge löst einen Teil des Rätsels und eröffnet die emotionale Frage des Finales.",
+        "Ton": "Komisch blass statt krank: Bruno ignoriert Extra-Flocken und nennt seine Burg nur Stein. Kein Bild einer Erkrankung, keine Behauptung, Depression lasse sich durch ein Geständnis heilen."
       },
       "clue": "Bruno gibt zu: Er war der Große Brunello."
     },
@@ -108,7 +126,10 @@
       "logline": "Der Mann mit dem Fischhut ist Brunellos alter Assistent und bietet die Rückverwandlung an. Bruno sagt seine größte Wahrheit und bleibt.",
       "plan": {
         "Flunkerei": "–",
-        "Was passiert": "Der Mann mit dem Fischhut ist Brunellos alter Assistent. Er bietet die Rückverwandlung an. Bruno sagt seine größte Wahrheit („Ich will bei euch bleiben.“) und bleibt."
+        "Was passiert": "Der Mann mit dem Fischhut ist Brunellos alter Assistent. Er bietet die Rückverwandlung an. Bruno sagt seine größte Wahrheit („Ich will bei euch bleiben.“) und bleibt.",
+        "Erzählform und Folgenhandlung": "Ruhigeres Finale mit einer echten Wahl: Der Assistent bringt die Möglichkeit der Rückkehr. Die Kinder dürfen Bruno nicht zu ihrer Wunschentscheidung drängen.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Bruno bleibt aus eigenem Wunsch. Rückbezüge auf Plakat, Zylinder, Karten und Lias Freundschaft tragen die Auflösung. Eine neue Staffel braucht eine neue Beziehungssituation statt erneut dieselbe Herkunftsfrage.",
+        "Magieregel und freie Wahl": "Der Assistent bringt keine neue Magie. Er kann nur erklären, welche ursprüngliche Flunkerei Bruno berichtigen könnte. Wahrheit über eine andere Sache löst diesen alten Zauber nicht. Brunos heutiger Bleibewunsch ist freiwillig; die Kinder drängen ihn nicht. Die finale Dialogführung muss gesondert lektoriert werden."
       },
       "clue": "Auflösung des Staffelgeheimnisses."
     }

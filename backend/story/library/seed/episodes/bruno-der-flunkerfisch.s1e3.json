@@ -1,0 +1,387 @@
+{
+  "seriesId": "bruno-der-flunkerfisch",
+  "season": 1,
+  "episode": 3,
+  "bibleVersion": 2,
+  "publishAt": "2026-10-30T14:00:00.000Z",
+  "title": "Frau Pfeffer piept",
+  "summary": "Mats behauptet vor Brunos Aquarium, seine Lehrerin sei ein Roboter. Am nächsten Morgen kann Frau Pfeffer alles perfekt – sogar einem Papierlöwen die Mähne wegschneiden. Und ausgerechnet die neue Lia soll Mats für besonders schlau halten.",
+  "guests": [
+    {
+      "id": "lia",
+      "name": "Lia",
+      "role": "Neue Freundin in Mats' Klasse; baut Bühnen und macht Geräusche mit der Zunge",
+      "visualProfileEn": "six-year-old girl with warm tan skin, straight chin-length black bob haircut, lively dark eyes, teal dungarees over a cream long-sleeve shirt, red sneakers, a small plain red toy toolbox used as a pencil case",
+      "referenceUrl": "/library/series/bruno-der-flunkerfisch/s1e3/lia.webp"
+    },
+    {
+      "id": "frau-pfeffer",
+      "name": "Frau Pfeffer",
+      "role": "Mats' Lehrerin, für einen Vormittag ein sehr ordentlicher Roboter",
+      "visualProfileEn": "friendly grown-up female primary school teacher about 40, adult height and proportions, brown chin-length bob haircut, a tiny cherry hairclip, blue knitted cardigan over a pale blouse, dark trousers, red flat shoes, warm expressive face",
+      "referenceUrl": "/library/series/bruno-der-flunkerfisch/s1e3/frau-pfeffer.webp"
+    }
+  ],
+  "cover": {
+    "url": "/library/series/bruno-der-flunkerfisch/s1e3/cover.webp",
+    "sceneEn": "Sunny primary school classroom with plain warm walls and a green chalkboard bearing only round circles. [frau-pfeffer], a friendly robot with silver articulated wrists and her blue cardigan, meticulously lines up plain school shoes by size on a low bench. A tiny green battery icon with two bars glows on her cardigan. [lia] sits on a chair with her mismatched dotted and striped SOCKS visible, keeping her red shoes held tightly to her chest with a determined expression. [mats] beside her stares at the strict shoe arrangement in disbelief. Exactly three figures, clear funny expressions, empty plain unmarked walls, no other children or objects with faces",
+    "characterIds": [
+      "frau-pfeffer",
+      "lia",
+      "mats"
+    ],
+    "outfits": {
+      "frau-pfeffer": "her same familiar face, brown bob haircut and cherry hairclip, blue cardigan and red flat shoes, but transformed into a friendly mechanical robot: articulated silver wrists and fingers, subtle silver joints, a tiny luminous unlabeled battery icon on her blue cardigan"
+    },
+    "boxes": {
+      "frau-pfeffer": [
+        40,
+        30,
+        980,
+        340
+      ],
+      "lia": [
+        340,
+        370,
+        970,
+        630
+      ],
+      "mats": [
+        300,
+        680,
+        980,
+        950
+      ]
+    }
+  },
+  "chapters": [
+    {
+      "title": "Ein ziemlich guter Grund",
+      "text": "„Piep“, sagte Mats.\n\nElla sah von ihrem Planer auf. „Was?“\n\n„So redet Frau Pfeffer. Guten Morgen, Kinder. Piep. Hefte raus. Piep. Mats, bitte zuhören. Doppelpiep.“\n\nEr stand im Wohnzimmer vor Brunos rundem Glas. Papa war mit dem Wäschekorb im Keller, Mama noch bei der Arbeit. Der Goldfisch schwamm um seine Steinburg und tat, als interessierte ihn das alles nicht. Seine linke Flosse blieb trotzdem mitten im Wasser stehen.\n\n„Heute sollten wir erzählen, was wir am Wochenende gemacht haben“, sagte Mats. „Bei mir kam nichts raus.“\n\n„Du hast doch mit Papa einen Drachen gebaut.“\n\n„Im Kopf war alles da. Im Mund nicht.“\n\nMats zog an seiner rutschenden Socke. Heute war Lia neu in seine Klasse gekommen. Sie hatte einen roten Werkzeugkoffer als Federmäppchen und konnte mit der Zunge ein Geräusch machen wie ein abfahrender Zug. Mats hatte ihr unbedingt etwas Tolles erzählen wollen. Stattdessen hatte er vorne gestanden und „Äh“ gesagt. Dreimal.\n\nFrau Pfeffer hatte freundlich genickt. „Morgen kommen wir noch einmal zu dir, Mats. In Ruhe.“\n\nSeitdem lag dieses Morgen in seinem Bauch wie ein Stein.\n\n„Sie vergisst nie was“, murmelte er. „Wie eine Maschine.“\n\nBruno spuckte eine Flocke aus. „Maschinen verlangen keine Extra-Flocken. Schlechte Erfindung.“\n\nMats richtete sich auf. Eine echte Maschine vergaß so ein Morgen vielleicht. „Unsere Lehrerin ist ein Roboter“, sagte er laut. „Ein echter. Mit Akku.“\n\nTief im Glas knackte es. Wie ein Kiesel, der gegen eine Scheibe tippt.\n\nElla wurde ganz still. Mats auch.\n\nNeben dem Regal hingen zwei Flunker-Karten. Ein ponygroßer Hund. Hausaufgaben, die sich selbst geschrieben hatten. Was man vor Bruno flunkerte, wurde wahr. Ganz wörtlich.\n\n„Plan A“, sagte Ella langsam. „Vor dem Glas erst denken, dann reden.“\n\n„Das war nicht geflunkert, das war ausgedacht!“\n\n„Du hast nicht gesagt: Stell dir vor.“\n\nBruno schwamm hinter seine Burg. „Ich hab nichts gehört. Ich bin nur der Fisch, bei dem es passiert.“\n\n„Sag jemandem laut die Wahrheit über deine Flunkerei“, sagte Ella. „Du musst dafür nicht bei Bruno sein. Sag's mir jetzt. Dann ist es vorbei.“\n\nMats sah auf seine Schuhe. „Und wenn sie als Roboter das Morgen vergisst? Dann muss ich nicht noch mal vorne stehen.“\n\n„Und wenn nicht?“\n\n„Dann sag ich's. Morgen früh. Gleich.“\n\nElla schob ihre rote Brille hoch. Sie kannte dieses Gleich.\n\nAm nächsten Morgen stand Lia vor dem Klassenzimmer und machte das Geräusch einer quietschenden Bremse.\n\n„Mein Zug hat Verspätung“, erklärte sie. „Die Bremsen sind aus Zunge.“\n\nMats lachte. Da ging die Tür auf.\n\nFrau Pfeffer trug ihre blaue Strickjacke, ihre roten Schuhe und ihren Haarclip mit den zwei Kirschen. Aus den Ärmeln ragten silberne Arme mit klappernden Gelenken. Sie lief schnurgerade vom Pult zur Tafel und bog in einem perfekten rechten Winkel ab. Surr-klick.\n\nAuf ihrer Strickjacke leuchtete ein kleines Fenster. Darin standen vier grüne Balken, wie auf Papas Handy.\n\n„Guten Morgen. Piep.“\n\nFrau Pfeffer spitzte achtundzwanzig Bleistifte in elf Sekunden. Die Kirschen an ihrem Haarclip blinkten dabei rot, abwechselnd, wie eine winzige Ampel. Dann zeichnete sie einen Kreis an die Tafel, so rund, dass Mats ein bisschen schwindelig wurde.\n\nDie Klasse klatschte.\n\n„Beifall erkannt“, sagte Frau Pfeffer. „Zugabe.“\n\nSie zeichnete noch einen Kreis. Und noch einen. Bald sah die Tafel aus wie eine Portion Seifenblasen.\n\nLia beugte sich zu Mats. „Ist die immer so?“\n\nSie sah ihn an, als wäre er der Einzige, der Bescheid wusste.\n\nMats nickte.\n\nIm Fenster auf Frau Pfeffers Strickjacke ging ein Balken aus.",
+      "images": [
+        {
+          "url": "/library/series/bruno-der-flunkerfisch/s1e3/ch1.webp",
+          "sceneEn": "Cozy apartment living room at the windowsill shelf. [mats] stands in side view and has just said something boastful, one finger raised, while his older sister [ella] looks at him with sudden concern and holds a closed planner. [bruno] swims safely inside his round water-filled glass tank above the tiny stone castle, one fin raised and grumpy eyes fixed on Mats. Two plain blank little cards pinned beside the shelf, a few delicate bell strings far from the tank. Exactly these three figures",
+          "characterIds": [
+            "mats",
+            "ella",
+            "bruno"
+          ],
+          "afterParagraph": 13,
+          "boxes": {
+            "mats": [
+              300,
+              30,
+              980,
+              300
+            ],
+            "ella": [
+              180,
+              330,
+              980,
+              620
+            ],
+            "bruno": [
+              250,
+              690,
+              650,
+              960
+            ]
+          }
+        },
+        {
+          "url": "/library/series/bruno-der-flunkerfisch/s1e3/ch1-2.webp",
+          "sceneEn": "Sunny primary school classroom. [frau-pfeffer] as a friendly mechanical robot with silver articulated wrists draws many perfect plain circles across an otherwise blank green blackboard, enthusiastically holding chalk. A tiny unlabeled green battery icon on her blue cardigan. [mats] and [lia] watch from their shared desk, leaning toward one another, amused and astonished; Lia's little red toolbox pencil case lies closed on the desk. Only these three figures, no text or equations",
+          "characterIds": [
+            "frau-pfeffer",
+            "mats",
+            "lia"
+          ],
+          "afterParagraph": 32,
+          "outfits": {
+            "frau-pfeffer": "her same familiar face, brown bob haircut and cherry hairclip, blue cardigan and red flat shoes, but transformed into a friendly mechanical robot: articulated silver wrists and fingers, subtle silver joints, a tiny luminous unlabeled battery icon on her blue cardigan"
+          },
+          "boxes": {
+            "frau-pfeffer": [
+              30,
+              30,
+              980,
+              350
+            ],
+            "mats": [
+              380,
+              440,
+              980,
+              680
+            ],
+            "lia": [
+              380,
+              720,
+              980,
+              960
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/bruno-der-flunkerfisch/s1e3/ch1.webp",
+        "sceneEn": "Cozy apartment living room at the windowsill shelf. [mats] stands in side view and has just said something boastful, one finger raised, while his older sister [ella] looks at him with sudden concern and holds a closed planner. [bruno] swims safely inside his round water-filled glass tank above the tiny stone castle, one fin raised and grumpy eyes fixed on Mats. Two plain blank little cards pinned beside the shelf, a few delicate bell strings far from the tank. Exactly these three figures",
+        "characterIds": [
+          "mats",
+          "ella",
+          "bruno"
+        ],
+        "afterParagraph": 13,
+        "boxes": {
+          "mats": [
+            300,
+            30,
+            980,
+            300
+          ],
+          "ella": [
+            180,
+            330,
+            980,
+            620
+          ],
+          "bruno": [
+            250,
+            690,
+            650,
+            960
+          ]
+        }
+      }
+    },
+    {
+      "title": "Bitte nicht wackeln",
+      "text": "„Wir basteln heute Figuren für unser Klassentheater“, sagte Frau Pfeffer. „Piep.“\n\nMats atmete auf. Basteln ging ohne Reden. Er schnitt aus gelbem Papier einen Löwen. Vorläufig war es ein Pfannkuchen mit Beinen, aber die Mähne war wild und zackig und wunderbar.\n\nLia klappte eine kleine Bühne aus Pappe auf. Die Vorhänge hatte sie mit Büroklammern aus ihrem Werkzeugkoffer festgemacht. „Du kannst den Löwen sprechen“, sagte sie.\n\nMats' Schere blieb stehen.\n\nVorne drehte Frau Pfeffer den Kopf. Surr-klick. „Unsaubere Schnittkante erkannt.“\n\nSie nahm den Löwen, schnitt alle Zacken gerade und legte ihn zurück. Jetzt hatte er keine Mähne mehr.\n\n„Das war sein Fell“, sagte Mats.\n\n„Überstehendes Papier entfernt. Piep.“\n\nDann räumte Frau Pfeffer auf. Sie sortierte das Papier nach Farben. Die Scheren nach Größe. Die Kinder nach Schuhgröße.\n\n„Ich sitze aber neben Mats“, sagte Lia.\n\n„Schuhgröße unpassend.“\n\n„Dann ziehe ich die Schuhe aus.“\n\n„Neue Schuhgröße berechnen.“ Frau Pfeffer beugte sich über Lias Socken. Eine hatte Punkte, die andere Streifen. Die Kirschen an ihrem Haarclip blinkten immer schneller. Klick-klick-klick.\n\nMats musste lachen. Bis er Lia sah. Sie saß barfuß auf ihrem neuen Platz ganz hinten und schnalzte leise mit der Zunge. Tk. Tk. Tk. Kein Zug. Nur ein kleines, unsicheres Geräusch.\n\nIm Fenster leuchteten noch zwei Balken.\n\nIn der großen Pause zog Mats seine Schwester hinter den Kastanienbaum.\n\n„Sie hat den Löwen rasiert“, flüsterte er.\n\nElla schob ihre Brille hoch. „Sag mir die Wahrheit. Hier. Keiner sieht zu.“\n\n„Aber sie hat das Morgen vergessen!“ Mats trat gegen ein Blatt. „Sie hat mich nicht mal angeguckt. Wenn sie wieder normal ist, muss ich vorne stehen. Mit den Ähs.“\n\nElla sagte nichts. Das war schlimmer als jede Antwort.\n\n„Was passiert, wenn der Akku leer ist?“, fragte Mats leise.\n\n„Der Zauber hört nicht von allein auf. Das weißt du.“ Ella sah zum Fenster. „Vielleicht bleibt sie dann einfach stehen. Den ganzen Tag. Mit der Kreide in der Hand.“\n\n„Dann gibt's kein Theater“, sagte Mats. Er sah zu Lias Platz ganz hinten. „Und sie sitzt da den ganzen Tag allein.“\n\nDurch die Scheibe sahen sie Frau Pfeffer. Sie legte die Kreidestücke in eine Reihe. Drehte jedes eine Vierteldrehung weiter. Dann prüfte sie, ob die Reihe noch ordentlich war.\n\nIm Schulflur stand Frau Grimmbach aus dem Erdgeschoss, neben sich einen Beutel mit Theaterkostümen. Sie half heute beim Nähen. In der Hand hielt sie ihr schwarzes Heft.\n\n„Brandt“, sagte sie zu Mats. „Ihre Lehrerin hat gerade sämtliche Knöpfe an meiner Strickjacke vermessen. Mit einem Geodreieck.“\n\nSie schrieb etwas auf. Mit drei Ausrufezeichen.\n\nHinter ihr hing ein altes Plakat, halb abgerissen. Ein Mann im schwarzen Umhang stand auf einer Bühne und hielt einen Fächer aus Spielkarten. Vom Namen waren nur die letzten Buchstaben übrig: NELLO. Über seiner Hand schwebte eine weiße Mondsichel.\n\nElla blieb stehen.\n\n„Simsalabrunello“, flüsterte sie. Genau das hatte Bruno im Schlaf gemurmelt. Und die Mondsichel sah aus wie sein Fleck über dem linken Auge.\n\nAus Mats' Klassenzimmer kam ein langes Piepen.\n\nFrau Pfeffer stand vor Lias Bühne. Im Fenster auf ihrer Strickjacke blinkte nur noch ein Balken, jetzt orange. Sie bewegte sich langsam, wie in Zeitlupe.\n\n„Sparmodus“, sagte sie. „Theater beginnt in zwei Minuten. Alle Figuren erhalten gleichen Text.“\n\nVor jedes Kind legte sie einen Zettel. Lia las vor: „Guten Tag. Ich bin eine Figur. Guten Tag. Ich bin eine Figur.“\n\n„Ohne Fehler“, sagte Frau Pfeffer zufrieden.\n\n„Aber mein Löwe soll brüllen“, sagte Mats.\n\n„Zu laut.“\n\nLia klappte die Pappbühne zu. „Dann spiele ich nicht mit.“\n\nMats sah auf seinen Löwen. Ohne Mähne. Ohne Brüllen. Sehr ordentlich. Auf einmal wünschte er sich die echte Frau Pfeffer zurück. Die, die bei einem guten Löwengebrüll so tat, als müsste sie sich am Tisch festhalten. Auch wenn sie ihn danach nach seinem Wochenende fragte.",
+      "images": [
+        {
+          "url": "/library/series/bruno-der-flunkerfisch/s1e3/ch2.webp",
+          "sceneEn": "Primary school craft desk, a close clear view of a small FLAT YELLOW PAPER CUTOUT lying on the tabletop: a plain oval yellow paper body, four narrow yellow paper legs, a thin yellow tail and a completely BALD smooth ROUND paper head, without a mane or fur. It is a roughly scissor-cut two-dimensional paper lion the size of a child's palm, made from a single sheet of yellow construction paper. [frau-pfeffer], a friendly robot with articulated silver wrists, holds small blunt school scissors over the paper scraps she just trimmed from its head. [mats] stares in dismay at his bald paper animal. [lia] holds a glue stick beside their simple folded cardboard puppet theatre, a small tabletop craft object. Exactly three people, no living animal, puppet or toy lion",
+          "characterIds": [
+            "frau-pfeffer",
+            "mats",
+            "lia"
+          ],
+          "afterParagraph": 6,
+          "outfits": {
+            "frau-pfeffer": "her same familiar face, brown bob haircut and cherry hairclip, blue cardigan and red flat shoes, but transformed into a friendly mechanical robot: articulated silver wrists and fingers, subtle silver joints, a tiny luminous unlabeled battery icon on her blue cardigan"
+          },
+          "boxes": {
+            "frau-pfeffer": [
+              40,
+              20,
+              980,
+              330
+            ],
+            "mats": [
+              280,
+              370,
+              980,
+              640
+            ],
+            "lia": [
+              300,
+              700,
+              980,
+              960
+            ]
+          }
+        },
+        {
+          "url": "/library/series/bruno-der-flunkerfisch/s1e3/ch2-2.webp",
+          "sceneEn": "Quiet old primary school corridor, warm daylight. [ella] in red round glasses studies a half-torn vintage magic-show poster on the noticeboard and makes a small drawing in her open planner, its pages seen from the back and unmarked. [mats] points at a small white crescent moon floating near the hand of a tiny illustrated stage magician wearing a dark cape on the poster. The poster is a wordless illustration with torn blank edges, no lettering anywhere. The two children look intrigued by the crescent clue, not at the viewer",
+          "characterIds": [
+            "ella",
+            "mats"
+          ],
+          "afterParagraph": 27,
+          "boxes": {
+            "ella": [
+              200,
+              50,
+              980,
+              340
+            ],
+            "mats": [
+              300,
+              680,
+              980,
+              940
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/bruno-der-flunkerfisch/s1e3/ch2.webp",
+        "sceneEn": "Primary school craft desk, a close clear view of a small FLAT YELLOW PAPER CUTOUT lying on the tabletop: a plain oval yellow paper body, four narrow yellow paper legs, a thin yellow tail and a completely BALD smooth ROUND paper head, without a mane or fur. It is a roughly scissor-cut two-dimensional paper lion the size of a child's palm, made from a single sheet of yellow construction paper. [frau-pfeffer], a friendly robot with articulated silver wrists, holds small blunt school scissors over the paper scraps she just trimmed from its head. [mats] stares in dismay at his bald paper animal. [lia] holds a glue stick beside their simple folded cardboard puppet theatre, a small tabletop craft object. Exactly three people, no living animal, puppet or toy lion",
+        "characterIds": [
+          "frau-pfeffer",
+          "mats",
+          "lia"
+        ],
+        "afterParagraph": 6,
+        "outfits": {
+          "frau-pfeffer": "her same familiar face, brown bob haircut and cherry hairclip, blue cardigan and red flat shoes, but transformed into a friendly mechanical robot: articulated silver wrists and fingers, subtle silver joints, a tiny luminous unlabeled battery icon on her blue cardigan"
+        },
+        "boxes": {
+          "frau-pfeffer": [
+            40,
+            20,
+            980,
+            330
+          ],
+          "mats": [
+            280,
+            370,
+            980,
+            640
+          ],
+          "lia": [
+            300,
+            700,
+            980,
+            960
+          ]
+        }
+      }
+    },
+    {
+      "title": "Drei Ähs und ein Löwe",
+      "text": "Frau Pfeffer hob die Hand, damit es ruhig wurde. Surr. Die Hand blieb oben. Der Mund blieb offen. Die Kirschen hörten auf zu blinken.\n\nSie stand vor der Tafel wie ein Denkmal mit Kirschen.\n\nLia drehte sich zu Mats um. „Du hast gesagt, die ist immer so. Wie hört das auf?“\n\nMats öffnete den Mund.\n\n„Äh“, sagte er.\n\nDa war es wieder. Das erste Äh von gestern.\n\nEr konnte aufs Klo gehen und unterwegs Ella im Flur suchen. Ihr zuflüstern: Ich hab geflunkert. Dann wäre Frau Pfeffer wieder Frau Pfeffer. Und Lia würde nie erfahren, wie wenig er Bescheid wusste.\n\nAber Lia saß barfuß ganz hinten. Ihre Bühne lag zugeklappt auf dem Tisch. Und sie hatte ihn gefragt. Nicht Ella.\n\nMats blieb sitzen. Er nahm seinen kahlen Löwen fest in die Hand. Mit dem Löwen ging es ein bisschen leichter.\n\n„Ich hab gestern zu Hause gesagt, unsere Lehrerin ist ein Roboter“, sagte er. „Das war geflunkert. Frau Pfeffer ist kein Roboter.“ Er schluckte. „Und dir hab ich zugenickt, weil du gedacht hast, ich weiß Bescheid. Dabei wollte ich bloß nicht noch mal von meinem Wochenende erzählen. Da kam gestern nur Äh.“\n\nPLOPP.\n\nDas Fenster auf der Strickjacke war weg. Die Arme und Hände waren wieder ganz normal. Die Kirschen waren nur Kirschen. Frau Pfeffer ließ den Arm sinken und sah verwundert auf die vielen ordentlichen Zettel.\n\n„Wer hat denn überall denselben Satz hingeschrieben?“\n\nDie Kinder sahen einander an. Sie erinnerten sich. Frau Pfeffer nicht. Erwachsene vergessen das Magische, sobald ein Zauber endet.\n\nLia schob ihr einen Zettel hin. „Ihre Schrift.“\n\nFrau Pfeffer setzte ihre Lesebrille auf. „Tatsächlich. Das ist ja ein fürchterlich langweiliges Theaterstück.“\n\nMats lachte. Diesmal klang es richtig.\n\nFrau Pfeffer hielt seinen Löwen hoch. „Und was ist dem passiert?“\n\n„Friseur“, sagte Lia.\n\nDann sah Frau Pfeffer Mats an. „Wir wollten ja noch zu dir kommen. Wegen deinem Wochenende.“\n\nIn Mats' Bauch lag wieder der Stein.\n\nLia holte ihre Schuhe und setzte sich neben ihn. Sie öffnete die Pappflügel ihrer Bühne. „Ich kann auch Äh“, flüsterte sie. „Ich mach bloß meistens ein Zuggeräusch draus.“\n\n„Wirklich?“\n\nSie nickte und machte einen sehr kleinen, sehr schüchternen Zug.\n\n„Darf der Löwe erzählen?“, fragte Mats.\n\n„Der Löwe darf“, sagte Frau Pfeffer. „Und er darf sich Zeit lassen.“\n\nMats steckte das Tier durch den Pappvorhang.\n\n„Äh“, sagte der Löwe.\n\nAlle warteten. Keiner kicherte.\n\n„Ich komme gerade vom Friseur. Und am Wochenende hab ich mit meinem Papa einen Drachen gebaut. Er ist in einem Baum gelandet. Der Drachen, nicht der Papa.“\n\nJetzt lachte die Klasse, und Mats wusste genau, worüber. Lia machte schnipp-schnapp mit der Zunge. Mats brüllte. So laut, dass Frau Pfeffer sich am Tisch festhalten musste. Sie lachte dabei. Ganz ohne Piep.\n\nNach der Schule wartete Ella am Flurplakat. Sie hatte die Mondsichel, den Kartenfächer und die letzten Buchstaben in ihren Planer abgezeichnet. Daneben stand: Brunello?\n\nFrau Pfeffer kam mit einem Stapel Hefte vorbei. „Das hing früher im alten Saal. Da gab es mal Zaubershows.“ Sie tippte auf die abgerissene Ecke. „Ich schau im Keller nach. Vielleicht haben wir noch ein ganzes.“\n\nAls sie weg war, stupste Lia Mats an. „Als du die Wahrheit gesagt hast, hat es plopp gemacht.“\n\n„Das ist ein Geheimnis“, sagte Mats. „Ein ziemlich großes.“\n\nLia klopfte auf ihren roten Werkzeugkoffer. „Da passt viel rein.“\n\nZu Hause bimmelten die elf Glöckchen an Ellas Kater-Alarm ums Regal. Papa trug gerade Einkaufstüten in die Küche, und die Wohnungstür stand noch offen.\n\nVor dem Regal saß Kater Kaiser. Vor ihm lag Papas Hausschuh, den er offenbar als Trittstufe benutzen wollte. Leider war es ein sehr weicher Hausschuh. Immer wenn Kaiser eine Pfote daraufsetzte, kippte er zur Seite. Der Hausschuh auch.\n\nBruno sah aus sicherer Höhe zu. „Er übt seit zehn Minuten“, sagte er. „Ich geb ihm noch zwei.“\n\nElla trug Kaiser zur Tür. Mats hob den Hausschuh mit der Grillzange auf und stellte ihn in den Flur. Seit der Sache mit dem ponygroßen Hund ließ Papa seine Hausschuhe nicht mehr aus den Augen. Fast nicht mehr.\n\nDann hielt Ella ihren Planer vor das Glas. „Bruno. Kennst du einen Zauberer, der Brunello heißt?“\n\nBruno fand seine Burg plötzlich sehr, sehr interessant. „Flocken“, sagte er. „Ich kenne Flocken.“\n\nElla pinnte Flunker-Karte Nr. 3 neben das Regal. Unten schrieb Mats selbst dazu: Die Wahrheit gesagt. Vor Lia. Mutig.\n\n„Sie kommt am Samstag spielen“, sagte er.\n\nBruno spähte über seine Burg. „Soso. Hab ich's nicht gesagt? Ich hab's gesagt.“\n\n„Was denn?“\n\nBruno überlegte. „Dass meine Flocken alle sind.“\n\nUnten im Erdgeschoss schlug Frau Grimmbach ihr Heft auf und stutzte. Da stand ein Eintrag in ihrer eigenen Schrift, und sie konnte sich nicht erinnern, ihn geschrieben zu haben.\n\n„Eintrag 48: Lehrerin Pfeffer vermisst Knöpfe mit Geodreieck. Sortiert Kinder nach Schuhgröße!!!“\n\nSie betrachtete den Knopf an ihrem Ärmel. Dann holte sie ein Lineal.",
+      "images": [
+        {
+          "url": "/library/series/bruno-der-flunkerfisch/s1e3/ch3.webp",
+          "sceneEn": "Warm primary school classroom, close view of THREE people seated at one ordinary craft desk. [mats] sits clearly visible from waist up behind the desk, his head well above the table and his mouth open in a funny roar. In his right hand he holds a palm-sized completely FLAT yellow PAPER animal, a bald smooth round head, oval body and four narrow paper legs, cut from a single sheet of yellow paper. On the desktop in front of his wrist are TWO LOW BROWN CARDBOARD FLAPS folded upright, each only as high as a mug, forming a tiny paper puppet screen. [lia] sits beside Mats making snipping sounds with her mouth; her head is at the same height as Mats' head. [frau-pfeffer] fully HUMAN again, ordinary hands, blue cardigan and cherry hairclip, sits on the right smiling and theatrically holding the desk. Three faces all clearly visible and at similar seated height, simple tabletop craft, plain classroom walls",
+          "characterIds": [
+            "mats",
+            "lia",
+            "frau-pfeffer"
+          ],
+          "afterParagraph": 30,
+          "boxes": {
+            "mats": [
+              330,
+              180,
+              980,
+              430
+            ],
+            "lia": [
+              320,
+              480,
+              980,
+              710
+            ],
+            "frau-pfeffer": [
+              250,
+              750,
+              980,
+              990
+            ]
+          }
+        },
+        {
+          "url": "/library/series/bruno-der-flunkerfisch/s1e3/ch3-2.webp",
+          "sceneEn": "Late afternoon in the Brandt living room. [ella] pins a small plain blank card beside the round water-filled aquarium while [mats] proudly stands beside her holding a pencil. [bruno] with the white crescent over his left eye swims close to the inner glass and looks at Mats, seemingly grumpy but secretly fond. Ella's closed planner rests on the shelf. Three figures, gently emotional, plain unmarked cards, no lettering",
+          "characterIds": [
+            "ella",
+            "mats",
+            "bruno"
+          ],
+          "afterParagraph": 42,
+          "boxes": {
+            "ella": [
+              160,
+              30,
+              980,
+              320
+            ],
+            "mats": [
+              300,
+              350,
+              980,
+              620
+            ],
+            "bruno": [
+              280,
+              710,
+              650,
+              960
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/bruno-der-flunkerfisch/s1e3/ch3.webp",
+        "sceneEn": "Warm primary school classroom, close view of THREE people seated at one ordinary craft desk. [mats] sits clearly visible from waist up behind the desk, his head well above the table and his mouth open in a funny roar. In his right hand he holds a palm-sized completely FLAT yellow PAPER animal, a bald smooth round head, oval body and four narrow paper legs, cut from a single sheet of yellow paper. On the desktop in front of his wrist are TWO LOW BROWN CARDBOARD FLAPS folded upright, each only as high as a mug, forming a tiny paper puppet screen. [lia] sits beside Mats making snipping sounds with her mouth; her head is at the same height as Mats' head. [frau-pfeffer] fully HUMAN again, ordinary hands, blue cardigan and cherry hairclip, sits on the right smiling and theatrically holding the desk. Three faces all clearly visible and at similar seated height, simple tabletop craft, plain classroom walls",
+        "characterIds": [
+          "mats",
+          "lia",
+          "frau-pfeffer"
+        ],
+        "afterParagraph": 30,
+        "boxes": {
+          "mats": [
+            330,
+            180,
+            980,
+            430
+          ],
+          "lia": [
+            320,
+            480,
+            980,
+            710
+          ],
+          "frau-pfeffer": [
+            250,
+            750,
+            980,
+            990
+          ]
+        }
+      }
+    }
+  ],
+  "collectible": {
+    "type": "flunker_card",
+    "title": "Flunker-Karte Nr. 3",
+    "imageUrl": "/library/series/bruno-der-flunkerfisch/s1e3/ch2.webp",
+    "fields": [
+      {
+        "label": "Flunkerei",
+        "value": "Unsere Lehrerin ist ein Roboter. Ein echter. Mit Akku."
+      },
+      {
+        "label": "Wer flunkert",
+        "value": "Mats"
+      },
+      {
+        "label": "Was wörtlich passiert",
+        "value": "Frau Pfeffer piept, sortiert alles und schneidet sogar die Löwenmähne ordentlich ab."
+      },
+      {
+        "label": "Die Wahrheit",
+        "value": "Frau Pfeffer ist kein Roboter. Mats wollte Lia beeindrucken."
+      },
+      {
+        "label": "Mutmoment",
+        "value": "Die Wahrheit vor Lia sagen, obwohl Mats auch heimlich zu Ella gehen könnte."
+      }
+    ]
+  },
+  "teaser": "Nächsten Freitag: Mats kann fliegen! Leider kann er nicht landen. Und Lia steht unten und hat eine ziemlich praktische Frage.",
+  "canonFactsAdded": [
+    "Frau Pfeffer ist Mats' Lehrerin. Sie mag lebendiges Theater und spielt bei einem Löwengebrüll begeistert mit.",
+    "Lia ist neu in Mats' Klasse: roter Werkzeugkoffer als Mäppchen, sie baut Pappbühnen und macht mit der Zunge Geräusche, auch wenn sie unsicher ist.",
+    "Mats wird bei Erzählrunden manchmal still. Vor Lia sagt er freiwillig die Wahrheit, statt den Zauber heimlich vor Ella zu beenden. Lia bleibt seine Freundin und kommt am Samstag spielen.",
+    "Im Schulflur hängt ein halb abgerissenes Zaubershow-Plakat: Namensrest NELLO und eine weiße Mondsichel. Ella zeichnet beides in ihren Planer und verbindet es mit Brunos Schlafwort Simsalabrunello.",
+    "Frau Pfeffer will nach einem vollständigen Exemplar des alten Plakats suchen. Brunos Herkunft ist weiter unbestätigt.",
+    "Lia bemerkt das Plopp beim Geständnis, und Mats nennt es ein Geheimnis. Sie hört Bruno nicht sprechen. Mats' Klasse erinnert sich an die Roboterlehrerin, kennt aber weder die Ursache noch Bruno.",
+    "Nach dem Geständnis erzählt Mats mit seinem Papierlöwen vom Drachenbauen mit Papa. Lia hilft mit Zungengeräuschen. Ella fragt Bruno nach Brunello; er weicht mit Flocken und seiner Burg aus.",
+    "Flunker-Karte Nr. 3: Roboterlehrerin, von Mats vor Lia aufgelöst. Grimmbachs neuer Heft-Eintrag ist Nr. 48 und betrifft nach Schuhgröße sortierte Kinder und Knöpfe."
+  ]
+}

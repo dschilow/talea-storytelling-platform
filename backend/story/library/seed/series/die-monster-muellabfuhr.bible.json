@@ -6,7 +6,7 @@
     "logline": "Jona übernachtet am Wochenende bei Oma Hilde und entdeckt, dass sie nachts keinen normalen Müllwagen fährt. Sie fängt Monster, die aus vergessenen Dingen entstanden sind, und Jona wird ihr Azubi.",
     "genre": "Abenteuer, Grusel-Komik, Sammeln",
     "status": "active",
-    "activeBibleVersion": 1,
+    "activeBibleVersion": 2,
     "releaseCadence": {
       "weekday": 5,
       "hourLocal": 15,
@@ -21,7 +21,7 @@
   },
   "bible": {
     "seriesId": "die-monster-muellabfuhr",
-    "version": 1,
+    "version": 2,
     "world": {
       "setting": "Betriebshof hinter dem Bahnhof einer deutschen Stadt. Oma Hilde wohnt im kleinen Haus direkt am Hof, hinter einer grünen Tür auf dem Hof liegt die Monster-Pension. Nachts führen die Einsätze in Kinderzimmer, Keller, Turnhallen und Waschsalons. Für Erwachsene außerhalb der Crew ist Oma Hilde die „nächtliche Sonderabfuhr“.",
       "tone": "Abenteuer mit Grusel-Komik: ein bisschen gruselig, nie bedrohlich, viel Herz für die einsamen Monster. Lustig zuerst, spannend als zweites, nie belehrend.",
@@ -32,7 +32,10 @@
         "Gefangene Monster kommen in die Monster-Pension. Dort bekommen sie einen Job, der zu ihnen passt.",
         "Menschen außerhalb der Crew sehen Monster nur als Unordnung oder Schatten.",
         "Die Nachtschicht endet beim ersten Vogelgezwitscher. Dann schlafen alle Monster ein.",
-        "Jonas Mama weiß Bescheid: Sie war als Kind selbst Azubi. Es gibt keine Geheimnisse vor den Eltern."
+        "Jonas Mama weiß Bescheid: Sie war als Kind selbst Azubi. Es gibt keine Geheimnisse vor den Eltern.",
+        "Die Folgenformel ist ein flexibler Vorrat, keine zwingende Szenenreihenfolge. Jede Folge löst ein eigenes Problem und verändert eine Beziehung oder eine Erkenntnis dauerhaft; frühere Hinweise verursachen spätere Handlungen. Bereits Gelerntes bleibt erhalten.",
+        "Neue Monster werden fürsorglich und passend zu ihrem Material gereinigt: Wasser nur, wenn es ihnen bekommt. Brotkrümel werden sanft trocken gebürstet. Ein freiwillig beachtetes Stopp ist Rücksicht, keine zweite magische Schwäche.",
+        "Auf Nachteinsätzen bleibt eine erwachsene Person bei Jona. Oma ist die Stammfahrerin; Mama Sina darf als ehemalige Azubine vertreten, während Jona die Einsatzleitung übernimmt. Gertrud bleibt der einzige Wagen."
       ]
     },
     "characters": [
@@ -92,7 +95,7 @@
         "id": "sockenkoenig",
         "name": "Der Sockenkönig",
         "role": "antagonist",
-        "personality": "Ein riesiges Monster aus allen verlorenen Einzelsocken der Stadt. Einsam, nicht böse. Öffnet nachts heimlich die Klappe der Monster-Pension, weil er Gesellschaft sucht.",
+        "personality": "Ein riesiges Monster aus verlorenen Einzelsocken der Stadt. Einsam, nicht böse. Sein nächtlicher Ruf weckt vergessene Dinge früher; er schaut von außen durch die Pensionsklappe, ob ihm jemand gefolgt ist, und befreit keine Pensionsgäste.",
         "speechStyle": "Vor Folge 10 nur Spuren und Schatten; wenn er spricht, dann langsam, tief und traurig.",
         "visualProfileEn": "tall figure made entirely of mismatched single socks, a crown knitted from socks, long dangling arms, sad droopy eyes",
         "referenceStripKey": "/library/series/die-monster-muellabfuhr/characters/sockenkoenig.webp",
@@ -123,7 +126,7 @@
       "Monster werden nie verletzt, zerstört oder bestraft.",
       "Jedes Monster hat genau eine Schwäche, die zu seinem Ursprung passt.",
       "Flusi bleibt auf der Seite der Crew.",
-      "Oma Hilde ist die Fahrerin, Gertrud der einzige Wagen.",
+      "Oma Hilde ist die Stammfahrerin, Gertrud der einzige Wagen. Als erwachsene ehemalige Azubine darf Mama Sina vertreten; Jona fährt nie selbst.",
       "Die Eltern wissen von der Nachtschicht; es gibt keine Geheimnisse vor ihnen.",
       "Der Sockenkönig wird vor Folge 10 nicht vollständig gezeigt, nur Spuren und Schatten."
     ],
@@ -137,7 +140,7 @@
       {
         "season": 1,
         "title": "Die Nacht des Sockenkönigs",
-        "mystery": "Jemand öffnet nachts heimlich die Klappe der Monster-Pension, deshalb gibt es immer mehr Notrufe. Wer steckt dahinter?",
+        "mystery": "Wer ruft nachts die vergessenen Dinge wach, und wer schaut heimlich durch die Klappe der Monster-Pension? Kein Pensionsgast fehlt; trotzdem häufen sich neue Notrufe.",
         "clues": [
           {
             "episode": 1,
@@ -149,7 +152,7 @@
           },
           {
             "episode": 3,
-            "clue": "Die Krümelkrake murmelt im Schlaf: „Der König ruft.“"
+            "clue": "Die Krake murmelt im Schlaf: „Der König ruft.“"
           },
           {
             "episode": 4,
@@ -169,18 +172,18 @@
           },
           {
             "episode": 8,
-            "clue": "Die Knäuelbande hat Gertrud im Auftrag „Seiner Majestät“ entführt. Die Spur führt zum alten Waschsalon."
+            "clue": "Die Knäuelbande hat Gertrud mit einer falschen Pannenspur im Auftrag Seiner Majestät weggelockt. Die Spur führt zum alten Waschsalon."
           },
           {
             "episode": 9,
-            "clue": "Oma hat sich den Fuß verknackst, Jona fährt mit Flusi und Gertrud allein. Er findet den Waschsalon-Schlüssel."
+            "clue": "Unter den Schattenspielfiguren liegt der Schlüssel zum alten Waschsalon. Jona erkennt das Zeichen, das Mama in Folge 7 beschrieben hat."
           },
           {
             "episode": 10,
             "clue": "Auflösung des Staffelgeheimnisses."
           }
         ],
-        "resolution": "Hinter den geöffneten Klappen steckt der Sockenkönig. Er ist aus allen verlorenen Einzelsocken der Stadt entstanden und befreit Monster, weil er Gesellschaft sucht. Jona findet in der Pension die Partnersocken, die der Socken-Schnüffler aus Folge 1 gesammelt hat. Der Sockenkönig wird ganz und bekommt den Job als Nachtportier der Pension."
+        "resolution": "Der einsame Sockenkönig entstand im alten Waschsalon aus verlorenen Einzelsocken. Die Kronensocke aus Folge 1 ist eine abgefallene Zacke seiner gestrickten Krone. Nachts summt er einen Ruf, der lange vergessene Dinge früher erwachen lässt; daher kommen die zusätzlichen Notrufe aus anderen Haushalten. Er öffnet die Pensionsklappe von außen, um zu schauen, ob jemand seinem Ruf gefolgt ist. Er befreit keine Pensionsgäste; die nassen Abdrücke stammen von seinem Weg vom Waschsalon. Seine einzige ursprungsbezogene Schwäche ist die Sehnsucht jeder Einzelsocke nach ihrem Partner. Jona findet den Partner der Kronensocke in der seit Folge 4 wachsenden Kiste des Schnüfflers. Der König wird ruhig und weich. Die Krake deckt den Tisch, das Gähnmonster bringt Decken, die Crew lädt ihn ein. Ganz bedeutet, dass er mit den Partnersocken zusammengehört; er löst sich nicht auf und bleibt eine Sockengestalt. Er wird Nachtportier. Sein Ruf begrüßt künftig die von Oma gebrachten neuen Gäste; vergessene Dinge werden nicht mehr ungewollt vorzeitig geweckt. Die Klappe ist nun ein betreuter Eingang."
       }
     ],
     "imageStyleEn": "Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked",

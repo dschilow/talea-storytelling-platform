@@ -6,7 +6,7 @@
     "logline": "Ella und Mats kaufen auf dem Flohmarkt einen griesgrämigen Goldfisch, der sprechen kann. Jede Flunkerei vor seinem Aquarium wird wahr, wörtlich und nie so, wie gemeint.",
     "genre": "Alltags-Fantasy, Chaos-Humor",
     "status": "active",
-    "activeBibleVersion": 1,
+    "activeBibleVersion": 2,
     "releaseCadence": {
       "weekday": 5,
       "hourLocal": 15,
@@ -21,18 +21,20 @@
   },
   "bible": {
     "seriesId": "bruno-der-flunkerfisch",
-    "version": 1,
+    "version": 2,
     "world": {
       "setting": "Mehrfamilienhaus Lindenweg 7 in einer deutschen Kleinstadt. Familie Brandt wohnt im 3. Stock, Frau Grimmbach mit Kater Kaiser im Erdgeschoss. Brunos rundes Aquarium steht im Wohnzimmer der Brandts auf dem Regal am Fenster.",
       "tone": "Lustig zuerst, spannend als zweites, nie belehrend. Chaos-Humor aus dem Unterschied zwischen gemeint und gesagt, mit einem warmen Herz in der Mitte.",
       "rules": [
         "Eine Flunkerei wird wahr, wenn sie laut im selben Raum wie Brunos Aquarium ausgesprochen wird.",
         "Sie wird wörtlich wahr. Der Witz entsteht aus dem Unterschied zwischen gemeint und gesagt.",
-        "Der Zauber endet nur, wenn der Flunkerer laut vor mindestens einer anderen Person die Wahrheit sagt.",
-        "Wenn der Zauber endet, vergessen Erwachsene alles Magische. Kinder erinnern sich. Was jemand während des Zaubers aufgeschrieben hat, bleibt auf dem Papier stehen.",
+        "Der jeweilige Zauber endet nur, wenn der Flunkerer laut vor mindestens einer anderen Person die Wahrheit über seine konkrete Flunkerei sagt. Eine wahre Aussage über etwas anderes löst ihn nicht auf.",
+        "Wenn ein Zauber endet, vergessen die Erwachsenen, die ihn miterlebt haben, dessen magische Vorgänge. Kinder erinnern sich. Andere, weiterhin bestehende Zauber werden nicht vergessen. Was jemand selbst während des Zaubers aufgeschrieben hat, bleibt auf dem Papier stehen.",
         "Bruno kann den Zauber weder auslösen noch stoppen. Er ist nur der Fisch, bei dem es passiert.",
         "Bruno spricht nur, wenn keine Erwachsenen im Raum sind. Erwachsene hören nur „Blubb“.",
-        "Ausgedachte Geschichten, die klar als Spiel gemeint sind („Stell dir vor …“), lösen nichts aus. Nur echte Flunkereien."
+        "Ausgedachte Geschichten, die klar als Spiel gemeint sind („Stell dir vor …“), lösen nichts aus. Nur echte Flunkereien.",
+        "Die Folgenformel ist ein flexibler Vorrat, keine zwingende Szenenreihenfolge. Jede Folge löst ein eigenes Problem und verändert eine Beziehung oder eine Erkenntnis dauerhaft; frühere Hinweise verursachen spätere Handlungen. Bereits Gelerntes bleibt erhalten.",
+        "Lia, neue Klassenfreundin von Mats aus Folge 3, kommt als Gast in 4 und 8 wieder. Sie baut gern kleine Bühnen und macht bei Unsicherheit Geräusche mit der Zunge. Sie hört Bruno nicht sprechen; eine Erweiterung seines Vertrautenkreises erfordert eine eigene Kanonentscheidung."
       ]
     },
     "characters": [
@@ -215,7 +217,7 @@
             "clue": "Auflösung des Staffelgeheimnisses."
           }
         ],
-        "resolution": "Bruno war einmal der Bühnenzauberer „Der Große Brunello“. Er hat so viel geflunkert, dass sein eigener Trick ihn in einen Fisch verwandelt hat. Der Mann mit dem Fischhut ist Brunellos alter Assistent und bietet in Folge 10 die Rückverwandlung an: Bruno könnte wieder Mensch werden, wenn er seine größte Wahrheit sagt. Seine Wahrheit lautet: „Ich will bei euch bleiben.“ Deshalb bleibt er glücklich ein Fisch."
+        "resolution": "Bruno war der Bühnenzauberer Der Große Brunello. Das runde Glas und die Steinburg gehörten zu seiner Requisite. Privat, außerhalb eines Spiels oder einer Bühnenrolle, behauptete er vor dem Glas und seinem Assistenten wider besseres Wissen: Ich bin bereits ein Goldfisch in diesem Glas. Er wollte einen unmöglichen Trick als bereits gelungen ausgeben; sein Stolz verhinderte den Widerruf. Der Zauber machte die Behauptung wörtlich wahr. Sein alter Assistent, der Mann mit dem Fischhut, erinnert sich, weil dieser alte Zauber nie beendet wurde. Er gab Bruno an die Brandts in der Hoffnung, dass Bruno dort ohne Angeberei angenommen würde. Im Finale bietet er keine neue Magie, sondern erklärt die Möglichkeit, die konkrete alte Behauptung zu berichtigen. Die Kinder lassen Bruno frei wählen. Bruno möchte bleiben und sagt seine heutige größte Wahrheit: Ich will bei euch bleiben. Sie betrifft nicht die alte Flunkerei und beendet sie nicht. Bruno bleibt aus eigenem Wunsch Fisch. Die exakte Dialogführung und die Frage, wie er sein früheres Versagen ehrlich anerkennt und zugleich seine heutige Gestalt frei behalten kann, brauchen beim Schreiben des Finales ein eigenes Lektorat; keine Wortklauberei als fertige emotionale Auflösung ausgeben."
       }
     ],
     "imageStyleEn": "Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked",

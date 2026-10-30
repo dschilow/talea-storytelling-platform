@@ -92,7 +92,7 @@ const EpisodeView: React.FC<{ episode: LibraryEpisodeResponse; isDark: boolean; 
         title: chapter.title,
         content: chapter.text,
         order: index + 1,
-        ...(chapter.imageUrl ? { images: [{ url: chapter.imageUrl, afterParagraph: chapter.afterParagraph ?? 3 }] } : {}),
+        images: chapter.images?.length ? chapter.images : chapter.imageUrl ? [{ url: chapter.imageUrl, afterParagraph: chapter.afterParagraph ?? 3 }] : undefined,
       })),
     [episode],
   );

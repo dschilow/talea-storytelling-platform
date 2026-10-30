@@ -3,12 +3,25 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { parseChapters, sanitizeSlot, SCORE_DIMENSIONS, buildSeriesContext, type EpisodeBrief } from "./engine";
 import { boundingBoxesFor, boxToken, buildPortraitPrompt, buildScenePrompt, buildRunwareTask, figuresFor, LIBRARY_IMAGE_MODEL } from "./images";
-import { SEED_EPISODES, SEED_SEASONS, SEED_SERIES } from "./seed";
+import { SEED_EPISODES, SEED_SEASONS, SEED_SERIES, SEED_LEGACY_BIBLES } from "./seed";
 import { nextReleaseSlot, zonedTime } from "./schedule";
+import { chapterImages, parseImageSlot, slotOf, withSlotUrl } from "./image-slots";
+import type { EpisodeContent } from "./types";
 
 const PUBLIC = join(import.meta.dir, "..", "..", "..", "frontend", "public");
 
 describe("library seed", () => {
+  test("the editorial revision preserves the bibles of earlier episodes", () => {
+    expect(SEED_LEGACY_BIBLES).toHaveLength(2);
+    for (const { series, bible } of SEED_SERIES) {
+      expect(series.activeBibleVersion).toBe(2);
+      expect(bible.version).toBe(2);
+      expect(SEED_LEGACY_BIBLES.find(entry => entry.series.id === series.id)?.bible.version).toBe(1);
+      for (const episode of SEED_EPISODES.filter(entry => entry.seriesId === series.id)) {
+        expect(episode.bibleVersion ?? 1).toBe(episode.episode < 3 ? 1 : 2);
+      }
+    }
+  });
   test("every series has a full season plan and a bible the pipeline can use", () => {
     for (const { series, bible } of SEED_SERIES) {
       const season = SEED_SEASONS.find((entry) => entry.seriesId === series.id);
@@ -31,7 +44,7 @@ describe("library seed", () => {
       const words = episode.chapters.reduce((sum, chapter) => sum + chapter.text.split(/\s+/).length, 0);
       expect(words).toBeGreaterThan(1300);
       expect(words).toBeLessThan(2100);
-      for (const slot of [episode.cover, ...episode.chapters.map((chapter) => chapter.image!)]) {
+      for (const slot of [episode.cover, ...episode.chapters.flatMap(chapterImages)]) {
         expect(slot.url && existsSync(join(PUBLIC, slot.url))).toBe(true);
         for (const id of slot.characterIds) expect(known.has(id)).toBe(true);
         expect(slot.characterIds.length).toBeLessThanOrEqual(4);
@@ -39,8 +52,13 @@ describe("library seed", () => {
       }
       for (const chapter of episode.chapters) {
         const paragraphs = chapter.text.split(/\n\n/).length;
-        expect(chapter.image!.afterParagraph!).toBeGreaterThan(1);
-        expect(chapter.image!.afterParagraph!).toBeLessThan(paragraphs - 1);
+        const pictures = chapterImages(chapter);
+        if (episode.episode >= 3) expect(pictures).toHaveLength(2);
+        for (const picture of pictures) {
+          expect(picture.afterParagraph!).toBeGreaterThan(1);
+          expect(picture.afterParagraph!).toBeLessThan(paragraphs - 1);
+        }
+        expect(new Set(pictures.map((picture) => picture.afterParagraph)).size).toBe(pictures.length);
       }
       for (const guest of episode.guests) expect(existsSync(join(PUBLIC, guest.referenceUrl!))).toBe(true);
       expect(episode.teaser.startsWith(series.teaserPrefix)).toBe(true);
@@ -60,6 +78,41 @@ describe("library seed", () => {
     expect(buildSeriesContext(brief(3))).not.toContain(bible.seasonArcs[0].resolution);
     expect(buildSeriesContext(brief(3))).not.toContain("E4:");
     expect(buildSeriesContext(brief(10))).toContain(bible.seasonArcs[0].resolution);
+    const monsters = SEED_SERIES[1];
+    const monsterBrief = (episode: number): EpisodeBrief => ({ ...brief(episode), series: monsters.series, bible: monsters.bible });
+    expect(buildSeriesContext(monsterBrief(3))).not.toContain("id: sockenkoenig");
+    expect(buildSeriesContext(monsterBrief(7))).not.toContain("Sein nächtlicher Ruf weckt");
+    expect(buildSeriesContext(monsterBrief(10))).toContain(monsters.bible.seasonArcs[0].resolution);
+  });
+});
+
+describe("multiple chapter illustrations", () => {
+  const old = { sceneEn: "legacy", characterIds: [], url: "/old.webp", afterParagraph: 3 };
+  const first = { sceneEn: "first", characterIds: [], url: "/first.webp", afterParagraph: 5 };
+  const second = { sceneEn: "second", characterIds: [], url: "/second.webp", afterParagraph: 15 };
+  const content = { ...SEED_EPISODES[0], chapters: [{ title: "Legacy", text: "Text", image: old }, { title: "New", text: "Text", image: old, images: [first, second] }] } as EpisodeContent;
+
+  test("arrays take precedence; old episodes still have one picture", () => {
+    expect(chapterImages(content.chapters[0])).toEqual([old]);
+    expect(chapterImages(content.chapters[1])).toEqual([first, second]);
+    expect(chapterImages({ title: "Empty", text: "" })).toEqual([]);
+  });
+
+  test("editor slot ids address both pictures and reject invalid positions", () => {
+    expect(parseImageSlot("cover", content)).toBe("cover");
+    expect(parseImageSlot("1", content)).toBe(0);
+    expect(parseImageSlot("2:2", content)).toEqual({ chapter: 1, image: 1 });
+    expect(slotOf(content, { chapter: 1, image: 1 })).toEqual(second);
+    for (const value of ["0", "1:2", "2:0", "2:3", "9", "NaN", "2.5", "-1"]) expect(parseImageSlot(value, content)).toBeNull();
+  });
+
+  test("redrawing either image preserves its sibling, placement and the original content", () => {
+    const updated = withSlotUrl(content, { chapter: 1, image: 1 }, "/redrawn.webp");
+    expect(updated.chapters[1].images).toEqual([first, { ...second, url: "/redrawn.webp" }]);
+    expect(content.chapters[1].images![1].url).toBe("/second.webp");
+    const primary = withSlotUrl(updated, 1, "/primary.webp");
+    expect(primary.chapters[1].image?.url).toBe("/primary.webp");
+    expect(primary.chapters[1].images![1].url).toBe("/redrawn.webp");
   });
 });
 

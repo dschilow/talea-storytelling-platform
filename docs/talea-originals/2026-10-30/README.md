@@ -1,0 +1,16 @@
+# Die neuen Talea Originals vom 30. Oktober 2026
+
+Zwei vollständige Folgen, von Codex geschrieben, von Claude Opus 5.5 über Claude Code mit dem bestehenden Anthropic-Abonnement bewertet und korrigiert. Ein zweiter Opus-Lauf hat die fertigen Texte ohne Serienbibel gelesen. Anschließend wurden dessen konkrete Anschluss- und Verständlichkeitshinweise eingearbeitet.
+
+- **Bruno, der Flunkerfisch: Frau Pfeffer piept** – [Lesefassung](bruno.md), [eigenständige HTML-Datei mit eingebetteten Bildern](bruno.html).
+- **Die Monster-Müllabfuhr: Die Krümelkrake** – [Lesefassung](monster.md), [eigenständige HTML-Datei mit eingebetteten Bildern](monster.html).
+
+Je drei Kapitel, ein Cover und sechs Kapitelillustrationen: zwei Bilder pro Kapitel an verschiedenen Handlungsmomenten. Alle verwendeten Bilder und die drei neuen Figurenreferenzen stammen aus **FLUX 3 Klein** (`bfl:flux@3-image-klein`) über die bestehende Runware-Pipeline. Die Briefings und Figurenreferenzen stehen in [bildnachweis.json](bildnachweis.json). Die Kontaktbögen dienen der Bildkontrolle, nicht als Ersatz für die Einzelbilder.
+
+Lia hat eine eigene Stimme und einen Rückkehrgrund. Die Krümelkrake bleibt als Küchenhilfe und vorsichtige Zeugin. Die [Serienredaktion](serienredaktion.md) beschreibt die überarbeiteten Staffelpläne, die Verbindung von Einzelfall und Figurenbogen und die noch nötige Detailarbeit beim späteren Bruno-Finale. Die Staffelbriefe im Backend enthalten diese Weiterentwicklung ebenfalls. Die alten Serienbibeln bleiben als Version 1 erhalten, die neuen Folgen verwenden Version 2.
+
+Das [Opus-Lektorat](opus-lektorat.json) trennt Erstbewertung, umgesetzte Korrekturen und verbleibende dramaturgische Hinweise. Der [frische Testleser](opus-testleser.json) dokumentiert Verständnis und abschließend behobene Details. Modellnoten sind redaktionelle Einschätzungen, keine gemessenen Kinderreaktionen. Die in Claude-Metadaten angezeigten Dollarwerte sind Listenpreis-Äquivalente (`costBasis: list`); die Authentifizierung erfolgte über das vorhandene Abonnement, ohne Anthropic-API-Schlüssel.
+
+Die Kapitelbilder werden auch von API, Reader, Studio-Neuzeichnung und Produktionspipeline als mehrere Bilder unterstützt. Ältere Folgen mit einem Bild bleiben kompatibel. Die beiden neuen Seed-Folgen sind für **Freitag, 30. Oktober, 15:00 Uhr Europe/Berlin** vorbereitet. Es wurde kein Commit, Push, Produktions-Update oder Deploy ausgeführt; die Folgen sind damit noch nicht live.
+
+Prüfung: 89 Bibliotheks-Tests bestanden, Frontend-Produktionsbuild bestanden. Beide HTML-Lesefassungen antworten lokal mit HTTP 200 und enthalten jeweils drei Kapitel sowie sieben eingebettete Bilder. Die vollständige Backend-Typprüfung meldet Fehler in anderen Bereichen sowie fehlende Bun-Testtypdefinitionen in Testdateien; in den geänderten Produktionsdateien der Bibliothek wurden keine Typfehler gemeldet. Die vorgeschriebene Encore-Client-Regenerierung wurde versucht, scheitert lokal am Windows-Daemon-Socket (`timed out waiting for daemon to start`). Der vorhandene Client importiert die Backend-API-Typen bereits direkt; er wurde nicht von Hand verändert. Die Rohprotokolle liegen im ignorierten Ordner `Logs/library/2026-10-30`.

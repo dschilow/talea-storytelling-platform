@@ -35,7 +35,9 @@
         "Monster": "Krümelkrake",
         "Ursprung": "Brotkrumen unterm Sofa",
         "Schwäche → Fangtrick": "Ist kitzlig → Kitzelangriff mit dem Handfeger",
-        "Job in der Pension": "Küchenhilfe"
+        "Job in der Pension": "Küchenhilfe",
+        "Erzählform und Folgenhandlung": "Begegnung kippt in ein gemeinsames Spiel; Oma wird selbst kitzlig und braucht Jonas Stopp. Die Krake entscheidet sich für die Reise.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Jona kann für Oma Verantwortung übernehmen. Die Küchenhilfe erkennt die Krone; ihr Schlafsatz und die offene Klappe machen aus der alten Socke eine Ermittlungsfrage."
       },
       "clue": "Die Krake murmelt im Schlaf: „Der König ruft.“"
     },
@@ -47,7 +49,9 @@
         "Monster": "Pupsmonster",
         "Ursprung": "Vergessene Turnbeutel",
         "Schwäche → Fangtrick": "Frische Luft → alle Fenster auf, Gertruds Rüssel bläst",
-        "Job in der Pension": "Lüftungswart"
+        "Job in der Pension": "Lüftungswart",
+        "Erzählform und Folgenhandlung": "Ein Einsatz im großen Raum verlangt Lüften und Absprachen statt Hinterherjagen; deutlich mehr Tempo als die Kitzelbegegnung in 3.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Der neue Lüftungswart prüft später Luftzüge an der Pensionsklappe. Nasse Sockenabdrücke zeigen: Jemand kam von außen; kein Pensionsgast fehlt. Beim Schnüffler wächst sichtbar eine Kiste mit noch ungepaarten Partnersocken für das Finale."
       },
       "clue": "Vor der Pension sind Abdrücke wie von nassen Socken."
     },
@@ -59,7 +63,10 @@
         "Monster": "Brokkoli-Monster",
         "Ursprung": "Liegengelassenes Gemüse",
         "Schwäche → Fangtrick": "Wird zahm, wenn jemand freiwillig probiert → Jona probiert einen Bissen",
-        "Job in der Pension": "Gärtner im Pensionsgarten"
+        "Job in der Pension": "Gärtner im Pensionsgarten",
+        "Erzählform und Folgenhandlung": "Verhandlung statt Jagd: freiwilliges Probieren beruhigt den vergessenen Gemüsewächter. Niemand wird zum Essen gezwungen.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Die Crew versteht, dass einige Monster nachts jemanden erwarten. Flusi erkennt im Wort König einen Klang vom staubigen alten Waschsalon, wo er früher lebte, und niest. Erinnerung, keine zweite Niesmagie und kein Verrat.",
+        "Flusis Erinnerung": "Das Wort König erinnert Flusi an einen nächtlichen Klang im staubigen Waschsalon, wo er früher als Staubfluse lebte. Der erinnerte Staub bringt ihn zum Niesen. Kein neuer magischer Wort-Alarm, kein Verrat."
       },
       "clue": "Flusi niest beim Wort „König“."
     },
@@ -71,7 +78,9 @@
         "Monster": "Klirrklaus",
         "Ursprung": "Vergessene Pfandflaschen",
         "Schwäche → Fangtrick": "Will Ordnung → wird ruhig, sobald man ihn in Kästen sortiert",
-        "Job in der Pension": "Lagerverwalter"
+        "Job in der Pension": "Lagerverwalter",
+        "Erzählform und Folgenhandlung": "Ordnungsrätsel: Die Crew muss herausfinden, welche Ordnung Klirrklaus eigentlich sucht.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Sein Sockenfaden wird mit der Krone verglichen; das erste Ding aus einer anderen Monsterunterkunft liegt vor. Klirrklaus kann später im Pensionslager fehlende Dinge erkennen."
       },
       "clue": "Um Klirrklaus' Hals hängt ein Sockenfaden wie ein Abzeichen."
     },
@@ -83,33 +92,41 @@
         "Monster": "Kabelsalat",
         "Ursprung": "Verknotete Ladekabel",
         "Schwäche → Fangtrick": "Braucht Geduld → nur langsames Entknoten wirkt, Hektik macht ihn stärker",
-        "Job in der Pension": "Elektriker"
+        "Job in der Pension": "Elektriker",
+        "Erzählform und Folgenhandlung": "Langsamer Einsatz als Gegenrhythmus: Hast verschlimmert die Lage. Mama ist vor Ort und unterstützt, statt die Lösung zu liefern.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Jona fragt Mama nach der Krone. Ihre eigene Azubi-Erinnerung liefert erstmals den Namen Sockenkönig und die Verbindung zum alten Waschsalon."
       },
       "clue": "Mama Sina erzählt: Den Sockenkönig gab es schon zu ihrer Azubi-Zeit, dann verschwand er."
     },
     {
       "episode": 8,
       "title": "Gertrud ist weg!",
-      "logline": "Die Knäuelbande aus vergessenen Strickresten hat Gertrud entführt. Weil sie jedem Faden nachrollen, führt eine Spur aus Wolle zurück zu ihrem Versteck.",
+      "logline": "Die Knäuelbande hat Gertrud mit einer falschen Pannenmeldung in einen Hof beim alten Waschsalon gelockt. Gertrud wollte helfen. Die Crew und frühere Pensionsgäste folgen einer Wollspur, um sie zurückzuholen.",
       "plan": {
         "Monster": "Die Knäuelbande (drei kleine Wollknäuel)",
         "Ursprung": "Vergessene Strickreste",
         "Schwäche → Fangtrick": "Rollen jedem Faden nach → Spur aus Wolle zurück zum Versteck",
-        "Job in der Pension": "Strickwerkstatt"
+        "Job in der Pension": "Strickwerkstatt",
+        "Erzählform und Folgenhandlung": "Die Crew muss ohne ihren Wagen auskommen; jetzt helfen frühere Neuzugänge. Die Knäuelbande lenkt Gertrud mit einer falschen Pannenspur in einen Hof, keine Gewalt.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Gertruds Hilfsbereitschaft und Empfindlichkeit werden handlungsrelevant. Die Wollspur bestätigt den Waschsalon als Ziel; die Pension ist inzwischen eine Gemeinschaft, die zurückhilft."
       },
-      "clue": "Die Knäuelbande hat Gertrud im Auftrag „Seiner Majestät“ entführt. Die Spur führt zum alten Waschsalon."
+      "clue": "Die Knäuelbande hat Gertrud mit einer falschen Pannenspur im Auftrag Seiner Majestät weggelockt. Die Spur führt zum alten Waschsalon."
     },
     {
       "episode": 9,
       "title": "Jonas erste Solo-Schicht",
-      "logline": "Oma hat sich den Fuß verknackst, und Jona fährt mit Flusi und Gertrud allein. Der Schattenschreck aus vergessenen Nachtlichtern fürchtet warmes Licht.",
+      "logline": "Oma hat sich den Fuß verknackst. Jona leitet erstmals den Einsatz, Mama Sina fährt Gertrud und Oma begleitet per Funk. Beim Schattenschreck aus vergessenen Schattenspielfiguren findet Jona den Waschsalonschlüssel.",
       "plan": {
         "Monster": "Schattenschreck",
-        "Ursprung": "Vergessene Nachtlichter",
-        "Schwäche → Fangtrick": "Fürchtet warmes Licht → Jona schaltet Gertruds Scheinwerfer ein",
-        "Job in der Pension": "Laternenanzünder"
+        "Ursprung": "Vergessene Schattenspielfiguren",
+        "Schwäche → Fangtrick": "Warmes Licht macht die vergessenen Figuren wieder erkennbar → Jona setzt mit Gertruds Scheinwerfern eine kleine Schattenspielbühne in Szene",
+        "Job in der Pension": "Laternenanzünder",
+        "Erzählform und Folgenhandlung": "Jona führt den Einsatz, Mama fährt, Oma begleitet per Funk. Er muss Entscheidungen treffen, ohne alle Antworten zu kennen.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Der Schattenschreck bewacht einen vergessenen Waschsalonschlüssel. Jona bittet gezielt um Hilfe und öffnet den Weg zum Finale. Eigenständigkeit bedeutet hier Einsatzleitung.",
+        "Erwachsene Begleitung": "Mama Sina fährt und bleibt beim Einsatz; Jona führt die Ermittlungen und die Absprachen, Oma hilft per Funk. Kein Kind fährt ein Kraftfahrzeug oder wird allein losgeschickt.",
+        "Schlüssel vorbereitet": "Die Schattenspielfiguren stammen aus dem früheren Waschsalon-Schaufenster und wurden mit dem alten Schlüssel in einer Kiste aufbewahrt. Mama hat in Folge 7 das Zeichen am Schlüsselanhänger beschrieben. Kein zufälliger neuer Gegenstand löst das Finale."
       },
-      "clue": "Oma hat sich den Fuß verknackst, Jona fährt mit Flusi und Gertrud allein. Er findet den Waschsalon-Schlüssel."
+      "clue": "Unter den Schattenspielfiguren liegt der Schlüssel zum alten Waschsalon. Jona erkennt das Zeichen, das Mama in Folge 7 beschrieben hat."
     },
     {
       "episode": 10,
@@ -119,7 +136,10 @@
         "Monster": "Sockenkönig",
         "Ursprung": "Alle verlorenen Einzelsocken der Stadt",
         "Schwäche → Fangtrick": "Einsamkeit → Jona schenkt ihm die passenden Partnersocken",
-        "Job in der Pension": "Nachtportier der Pension"
+        "Job in der Pension": "Nachtportier der Pension",
+        "Erzählform und Folgenhandlung": "Besuch und Verständigung statt größerer Fangapparat.",
+        "Bleibende Entwicklung und spätere Auszahlung": "Die Partnersocken des Schnüfflers, die Küchenhilfe, Decken des Gähnmonsters und weitere Pensionsjobs machen Gemeinschaft konkret. Der König wird Nachtportier; die Klappe wird ein betreuter Eingang statt wiederkehrender Ausbruchsgrund.",
+        "Vorbereitung und Auflösung": "Seit Folge 4 sammelt der Schnüffler noch ungepaarte Socken in einer eigenen Kiste. Die Kronensocke ist ein abgefallener Teil der Krone. Der passende Partner beruhigt den einsamen König. Er behält seine Sockengestalt und wird eingeladen; ganz heißt nicht aufgelöst."
       },
       "clue": "Auflösung des Staffelgeheimnisses."
     }

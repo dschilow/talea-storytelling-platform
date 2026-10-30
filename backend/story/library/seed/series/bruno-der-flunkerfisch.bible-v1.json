@@ -1,0 +1,277 @@
+{
+  "series": {
+    "id": "bruno-der-flunkerfisch",
+    "slug": "bruno-der-flunkerfisch",
+    "title": "Bruno, der Flunkerfisch",
+    "logline": "Ella und Mats kaufen auf dem Flohmarkt einen griesgrämigen Goldfisch, der sprechen kann. Jede Flunkerei vor seinem Aquarium wird wahr, wörtlich und nie so, wie gemeint.",
+    "genre": "Alltags-Fantasy, Chaos-Humor",
+    "status": "active",
+    "activeBibleVersion": 1,
+    "releaseCadence": {
+      "weekday": 5,
+      "hourLocal": 15,
+      "timezone": "Europe/Berlin"
+    },
+    "freeEpisodeCount": 2,
+    "collectibleType": "flunker_card",
+    "teaserPrefix": "Nächsten Freitag",
+    "ageBand": "6-8",
+    "sortOrder": 1,
+    "coverImageUrl": "/library/series/bruno-der-flunkerfisch/cover.webp"
+  },
+  "bible": {
+    "seriesId": "bruno-der-flunkerfisch",
+    "version": 1,
+    "world": {
+      "setting": "Mehrfamilienhaus Lindenweg 7 in einer deutschen Kleinstadt. Familie Brandt wohnt im 3. Stock, Frau Grimmbach mit Kater Kaiser im Erdgeschoss. Brunos rundes Aquarium steht im Wohnzimmer der Brandts auf dem Regal am Fenster.",
+      "tone": "Lustig zuerst, spannend als zweites, nie belehrend. Chaos-Humor aus dem Unterschied zwischen gemeint und gesagt, mit einem warmen Herz in der Mitte.",
+      "rules": [
+        "Eine Flunkerei wird wahr, wenn sie laut im selben Raum wie Brunos Aquarium ausgesprochen wird.",
+        "Sie wird wörtlich wahr. Der Witz entsteht aus dem Unterschied zwischen gemeint und gesagt.",
+        "Der Zauber endet nur, wenn der Flunkerer laut vor mindestens einer anderen Person die Wahrheit sagt.",
+        "Wenn der Zauber endet, vergessen Erwachsene alles Magische. Kinder erinnern sich. Was jemand während des Zaubers aufgeschrieben hat, bleibt auf dem Papier stehen.",
+        "Bruno kann den Zauber weder auslösen noch stoppen. Er ist nur der Fisch, bei dem es passiert.",
+        "Bruno spricht nur, wenn keine Erwachsenen im Raum sind. Erwachsene hören nur „Blubb“.",
+        "Ausgedachte Geschichten, die klar als Spiel gemeint sind („Stell dir vor …“), lösen nichts aus. Nur echte Flunkereien."
+      ]
+    },
+    "characters": [
+      {
+        "id": "ella",
+        "name": "Ella Brandt",
+        "role": "protagonist",
+        "ageYears": 8,
+        "personality": "Planerin, vernünftig, flunkert selten, aber wenn, dann groß. Denkt laut in Plänen und zählt sie durch.",
+        "speechStyle": "Ruhig, genau, ein bisschen erwachsen. Sagt: „Okay. Plan B.“",
+        "visualProfileEn": "8-year-old girl, shoulder-length dark brown hair in a low ponytail, freckles, round glasses with red frames, mustard-yellow jacket over a green-white striped sweater, jeans with a patched knee, white sneakers",
+        "referenceStripKey": "/library/series/bruno-der-flunkerfisch/characters/ella.webp",
+        "allowedInBranches": true
+      },
+      {
+        "id": "mats",
+        "name": "Mats Brandt",
+        "role": "protagonist",
+        "ageYears": 6,
+        "personality": "Fantasievoll, flunkert aus Begeisterung, ehrlich zerknirscht, wenn es schiefgeht. Wünscht sich seit Ewigkeiten einen Hund.",
+        "speechStyle": "Schnell, laut, voller Ausrufezeichen. Sagt: „Das war nicht geflunkert, das war ausgedacht!“",
+        "visualProfileEn": "6-year-old boy, messy blond hair sticking up at the back, gap in his front teeth, oversized orange dinosaur T-shirt, blue shorts over striped leggings, one sock always slipping down",
+        "referenceStripKey": "/library/series/bruno-der-flunkerfisch/characters/mats.webp",
+        "allowedInBranches": true
+      },
+      {
+        "id": "bruno",
+        "name": "Bruno",
+        "role": "sidekick",
+        "personality": "Knurrig, eitel, insgeheim liebevoll. Verlangt ständig Extra-Flocken. Weiß mehr über den Zauber, als er zugibt, und lenkt ab, wenn man nachfragt.",
+        "speechStyle": "Blubbrig-knurrig, kurze beleidigte Sätze, große Worte über sich selbst. Sagt: „Hab ich's nicht gesagt? Ich hab's gesagt.“",
+        "visualProfileEn": "chubby orange goldfish with a real fish body that swims with its fins and a long droopy tail fin, a white crescent-moon-shaped spot above the left eye, grumpy half-lidded eyes, swimming in the middle of a round glass tank full of water above a tiny stone castle",
+        "referenceStripKey": "/library/series/bruno-der-flunkerfisch/characters/bruno.webp",
+        "allowedInBranches": true
+      },
+      {
+        "id": "kater-kaiser",
+        "name": "Kater Kaiser",
+        "role": "antagonist",
+        "personality": "Dicker Nachbarskater mit absurden Plänen, Bruno zu fangen. Scheitert jedes Mal an einer Kleinigkeit, meist slapstickartig. Verliert nie seine Würde, nur seinen Plan.",
+        "speechStyle": "Spricht nicht. Schaut nur majestätisch. Sein goldenes Glöckchen verrät ihn oft.",
+        "visualProfileEn": "very large fluffy grey tomcat with a white chest, regal posture, half-closed eyes, small golden bell on a red collar",
+        "referenceStripKey": "/library/series/bruno-der-flunkerfisch/characters/kater-kaiser.webp",
+        "allowedInBranches": true
+      },
+      {
+        "id": "frau-grimmbach",
+        "name": "Frau Grimmbach",
+        "role": "recurring",
+        "ageYears": 70,
+        "personality": "Misstrauische Nachbarin im Erdgeschoss, besitzt Kater Kaiser, führt ein „Merkwürdigkeiten-Heft“. Vergisst nach jedem Zauber alles, findet aber ihre eigenen Einträge im Heft.",
+        "speechStyle": "Streng, knapp, klingelt lang. Spricht Leute mit Nachnamen an.",
+        "visualProfileEn": "tall thin woman around 70, grey hair in a tight bun, cat-eye glasses on a chain, lilac cardigan, always holding a small black notebook",
+        "referenceStripKey": "/library/series/bruno-der-flunkerfisch/characters/frau-grimmbach.webp",
+        "allowedInBranches": true
+      },
+      {
+        "id": "oma-rosi",
+        "name": "Oma Rosi",
+        "role": "recurring",
+        "ageYears": 70,
+        "personality": "Fröhliche Oma, kommt sonntags, kannte früher die Zaubershows des „Großen Brunello“.",
+        "speechStyle": "Herzlich, erzählt gern von früher, lacht laut.",
+        "visualProfileEn": "cheerful grandmother around 70, short curly white hair, colorful floral dress, big wooden bead necklace",
+        "referenceStripKey": "/library/series/bruno-der-flunkerfisch/characters/oma-rosi.webp",
+        "allowedInBranches": true
+      },
+      {
+        "id": "fischhut-mann",
+        "name": "Der Mann mit dem Fischhut",
+        "role": "recurring",
+        "personality": "Taucht selten auf, beobachtet das Haus, spricht in Rätseln. Freundlich, aber verrät nichts.",
+        "speechStyle": "Leise, kurze rätselhafte Sätze.",
+        "visualProfileEn": "thin old man with a long grey beard, a felt hat shaped like a fish, patched brown coat, kind but secretive eyes",
+        "referenceStripKey": "/library/series/bruno-der-flunkerfisch/characters/fischhut-mann.webp",
+        "allowedInBranches": false
+      },
+      {
+        "id": "mama-brandt",
+        "name": "Mama Brandt",
+        "role": "recurring",
+        "personality": "Liebevoll, gestresst, merkt das Chaos, vergisst es nach dem Zauber.",
+        "speechStyle": "Warm, ein bisschen außer Atem.",
+        "visualProfileEn": "grown-up woman in her late 30s with adult proportions and height, dark brown bob haircut, green cardigan over a white top, dark trousers",
+        "referenceStripKey": "/library/series/bruno-der-flunkerfisch/characters/mama-brandt.webp",
+        "allowedInBranches": true
+      },
+      {
+        "id": "papa-brandt",
+        "name": "Papa Brandt",
+        "role": "recurring",
+        "personality": "Liebevoll, gestresst, kocht gern, merkt das Chaos, vergisst es nach dem Zauber.",
+        "speechStyle": "Gemütlich, ruhig, wird nur sehr selten laut.",
+        "visualProfileEn": "father in his late 30s, short brown beard, rolled-up red flannel shirt",
+        "referenceStripKey": "/library/series/bruno-der-flunkerfisch/characters/papa-brandt.webp",
+        "allowedInBranches": true
+      }
+    ],
+    "runningGags": [
+      "Bruno kommentiert jede Auflösung mit „Hab ich's nicht gesagt? Ich hab's gesagt.“, obwohl er nichts gesagt hat.",
+      "Mats verteidigt jede Flunkerei mit „Das war nicht geflunkert, das war ausgedacht!“",
+      "Kater Kaisers Plan scheitert jedes Mal an einer Kleinigkeit, meist slapstickartig.",
+      "Jede Folge endet mit Frau Grimmbachs neuem Heft-Eintrag, den sie nach dem Zauber in ihrer eigenen Schrift findet, z. B. „Eintrag 47: Pony im Treppenhaus. Wieder.“"
+    ],
+    "catchphrases": [
+      "Hab ich's nicht gesagt? Ich hab's gesagt.",
+      "Das war nicht geflunkert, das war ausgedacht!",
+      "Okay. Plan B."
+    ],
+    "episodeFormula": [
+      "Druck: Ella oder Mats geraten in eine Angeber- oder Ausrede-Situation.",
+      "Flunkerei: Der Satz fällt vor dem Aquarium.",
+      "Erst toll: Die Flunkerei wird wahr und fühlt sich kurz großartig an.",
+      "Chaos: Die wörtliche Version eskaliert. Erwachsene oder Frau Grimmbach kommen der Sache nahe.",
+      "Ausweichen: Die Kinder versuchen, das Problem ohne Wahrheit zu lösen. Es wird schlimmer.",
+      "Mutmoment: Der Flunkerer sagt laut die Wahrheit, obwohl es peinlich ist.",
+      "Auflösung: Alles wird normal, Bruno kommentiert, Grimmbach-Eintrag, Sammelobjekt, Teaser."
+    ],
+    "canonInvariants": [
+      "Bruno bleibt ein Goldfisch und lebt dauerhaft im Aquarium der Brandts.",
+      "Bruno spricht nur mit Ella, Mats und im Reihen-Abenteuer mit dem Avatar.",
+      "Der Zauber endet nur durch Wahrheit, nie durch Zeit oder andere Magie.",
+      "Kater Kaiser fängt Bruno nie.",
+      "Wer die Wahrheit sagt, wird nie hart bestraft. Wahrheit lohnt sich.",
+      "Brunos Herkunft (der „Große Brunello“) wird vor Folge 9 nicht bestätigt."
+    ],
+    "forbiddenTopics": [
+      "Tod",
+      "Krankheit",
+      "Unfälle",
+      "Gewalt",
+      "Trennung der Eltern",
+      "Aussehen oder Gewicht anderer Kinder",
+      "echte Personen"
+    ],
+    "seasonArcs": [
+      {
+        "season": 1,
+        "title": "Das Geheimnis des Großen Brunello",
+        "mystery": "Wer war Bruno, bevor er ein Goldfisch wurde, und wer ist der Mann mit dem Fischhut, der das Haus beobachtet?",
+        "clues": [
+          {
+            "episode": 1,
+            "clue": "Der Mann mit dem Fischhut sagt beim Verkauf: „Passt gut auf, was ihr vor ihm sagt.“"
+          },
+          {
+            "episode": 2,
+            "clue": "Bruno murmelt im Schlaf „Simsalabrunello“."
+          },
+          {
+            "episode": 3,
+            "clue": "Im Schulflur hängt ein altes Plakat einer Zaubershow, halb abgerissen."
+          },
+          {
+            "episode": 4,
+            "clue": "Bruno macht vor Langeweile einen Kartentrick mit der Flosse."
+          },
+          {
+            "episode": 5,
+            "clue": "Oma erzählt, sie habe als junge Frau den „Großen Brunello“ auf der Bühne gesehen."
+          },
+          {
+            "episode": 6,
+            "clue": "Kaiser schleppt einen alten Zylinder mit einem Fisch-Emblem aus dem Keller."
+          },
+          {
+            "episode": 7,
+            "clue": "Beim Wort „Brunello“ versteckt sich Bruno hinter seiner Burg."
+          },
+          {
+            "episode": 8,
+            "clue": "Der Mann mit dem Fischhut steht vor dem Haus und beobachtet das Fenster."
+          },
+          {
+            "episode": 9,
+            "clue": "Bruno gibt zu: Er war der Große Brunello."
+          },
+          {
+            "episode": 10,
+            "clue": "Auflösung des Staffelgeheimnisses."
+          }
+        ],
+        "resolution": "Bruno war einmal der Bühnenzauberer „Der Große Brunello“. Er hat so viel geflunkert, dass sein eigener Trick ihn in einen Fisch verwandelt hat. Der Mann mit dem Fischhut ist Brunellos alter Assistent und bietet in Folge 10 die Rückverwandlung an: Bruno könnte wieder Mensch werden, wenn er seine größte Wahrheit sagt. Seine Wahrheit lautet: „Ich will bei euch bleiben.“ Deshalb bleibt er glücklich ein Fisch."
+      }
+    ],
+    "imageStyleEn": "Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked",
+    "branch": {
+      "avatarEntry": "Besucht Ella und Mats als Freund aus der Nachbarschaft.",
+      "trigger": "Der Avatar flunkert vor dem Aquarium; die Flunkerei passt zu seinen Persönlichkeitswerten.",
+      "canonException": "Bruno spricht auch mit dem Avatar.",
+      "avatarSolves": "Er selbst sagt im Mutmoment die Wahrheit.",
+      "canonCast": "Ella, Mats und Bruno sind dabei; Kaiser und Grimmbach optional.",
+      "branchState": "Brunos Spitzname für den Avatar, die Flunker-Karten des Avatars.",
+      "spoilerLimit": "Brunello-Herkunft nur, wenn Folge 9 gelesen ist."
+    },
+    "audio": {
+      "narrator": {
+        "voiceId": "8tJgFGd1nr7H5KLTvjjt",
+        "persona": "warm, playful storyteller"
+      },
+      "cast": {
+        "ella": {
+          "voiceId": "xLCJR8xcZX2YjImGFyGw",
+          "persona": "calm, precise, a bit grown-up"
+        },
+        "mats": {
+          "voiceId": "TmOgotzOZDmhlttFp4Lu",
+          "persona": "excited, fast, loud"
+        },
+        "bruno": {
+          "voiceId": "pfvZahoGcT3NdpxRuNkg",
+          "persona": "grumpy, gruff, vain"
+        },
+        "kater-kaiser": {
+          "silent": true,
+          "persona": "bell jingle, purring, offended meow"
+        },
+        "frau-grimmbach": {
+          "voiceId": "VNHNa6nN6yJdVF3YRyuF",
+          "persona": "strict, curt, suspicious"
+        },
+        "oma-rosi": {
+          "voiceId": "p2Wol3C7j3rHbfOrbL18",
+          "persona": "hearty, cheerful, laughing"
+        },
+        "fischhut-mann": {
+          "voiceId": "R3XXDwKMU2YHwBcuYUH3",
+          "persona": "quiet, mysterious"
+        },
+        "mama-brandt": {
+          "voiceId": "cqPdIo76zSHFDcSZpFov",
+          "persona": "warm, a bit out of breath"
+        },
+        "papa-brandt": {
+          "voiceId": "HNYELfQMgCeL9N0RGyxo",
+          "persona": "relaxed, cosy"
+        }
+      },
+      "scoreStyleEn": "playful chamber orchestra for a family comedy: pizzicato strings, clarinet, bassoon, glockenspiel, a hint of vintage magic-show swing with muted trumpet and brushed snare; warm, cheeky, bubbly like an aquarium"
+    }
+  }
+}

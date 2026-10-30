@@ -1,0 +1,288 @@
+# Frau Pfeffer piept
+Bruno, der Flunkerfisch · Staffel 1, Folge 3 · 30. Oktober 2026
+
+![Cover](C:/MyProjects/Talea/talea-storytelling-platform/frontend/public/library/series/bruno-der-flunkerfisch/s1e3/cover.webp)
+
+## Kapitel 1: Ein ziemlich guter Grund
+
+„Piep“, sagte Mats.
+
+Ella sah von ihrem Planer auf. „Was?“
+
+„So redet Frau Pfeffer. Guten Morgen, Kinder. Piep. Hefte raus. Piep. Mats, bitte zuhören. Doppelpiep.“
+
+Er stand im Wohnzimmer vor Brunos rundem Glas. Papa war mit dem Wäschekorb im Keller, Mama noch bei der Arbeit. Der Goldfisch schwamm um seine Steinburg und tat, als interessierte ihn das alles nicht. Seine linke Flosse blieb trotzdem mitten im Wasser stehen.
+
+„Heute sollten wir erzählen, was wir am Wochenende gemacht haben“, sagte Mats. „Bei mir kam nichts raus.“
+
+„Du hast doch mit Papa einen Drachen gebaut.“
+
+„Im Kopf war alles da. Im Mund nicht.“
+
+Mats zog an seiner rutschenden Socke. Heute war Lia neu in seine Klasse gekommen. Sie hatte einen roten Werkzeugkoffer als Federmäppchen und konnte mit der Zunge ein Geräusch machen wie ein abfahrender Zug. Mats hatte ihr unbedingt etwas Tolles erzählen wollen. Stattdessen hatte er vorne gestanden und „Äh“ gesagt. Dreimal.
+
+Frau Pfeffer hatte freundlich genickt. „Morgen kommen wir noch einmal zu dir, Mats. In Ruhe.“
+
+Seitdem lag dieses Morgen in seinem Bauch wie ein Stein.
+
+„Sie vergisst nie was“, murmelte er. „Wie eine Maschine.“
+
+Bruno spuckte eine Flocke aus. „Maschinen verlangen keine Extra-Flocken. Schlechte Erfindung.“
+
+Mats richtete sich auf. Eine echte Maschine vergaß so ein Morgen vielleicht. „Unsere Lehrerin ist ein Roboter“, sagte er laut. „Ein echter. Mit Akku.“
+
+Tief im Glas knackte es. Wie ein Kiesel, der gegen eine Scheibe tippt.
+
+![Kapitel 1, Bild 1](C:/MyProjects/Talea/talea-storytelling-platform/frontend/public/library/series/bruno-der-flunkerfisch/s1e3/ch1.webp)
+
+Ella wurde ganz still. Mats auch.
+
+Neben dem Regal hingen zwei Flunker-Karten. Ein ponygroßer Hund. Hausaufgaben, die sich selbst geschrieben hatten. Was man vor Bruno flunkerte, wurde wahr. Ganz wörtlich.
+
+„Plan A“, sagte Ella langsam. „Vor dem Glas erst denken, dann reden.“
+
+„Das war nicht geflunkert, das war ausgedacht!“
+
+„Du hast nicht gesagt: Stell dir vor.“
+
+Bruno schwamm hinter seine Burg. „Ich hab nichts gehört. Ich bin nur der Fisch, bei dem es passiert.“
+
+„Sag jemandem laut die Wahrheit über deine Flunkerei“, sagte Ella. „Du musst dafür nicht bei Bruno sein. Sag's mir jetzt. Dann ist es vorbei.“
+
+Mats sah auf seine Schuhe. „Und wenn sie als Roboter das Morgen vergisst? Dann muss ich nicht noch mal vorne stehen.“
+
+„Und wenn nicht?“
+
+„Dann sag ich's. Morgen früh. Gleich.“
+
+Ella schob ihre rote Brille hoch. Sie kannte dieses Gleich.
+
+Am nächsten Morgen stand Lia vor dem Klassenzimmer und machte das Geräusch einer quietschenden Bremse.
+
+„Mein Zug hat Verspätung“, erklärte sie. „Die Bremsen sind aus Zunge.“
+
+Mats lachte. Da ging die Tür auf.
+
+Frau Pfeffer trug ihre blaue Strickjacke, ihre roten Schuhe und ihren Haarclip mit den zwei Kirschen. Aus den Ärmeln ragten silberne Arme mit klappernden Gelenken. Sie lief schnurgerade vom Pult zur Tafel und bog in einem perfekten rechten Winkel ab. Surr-klick.
+
+Auf ihrer Strickjacke leuchtete ein kleines Fenster. Darin standen vier grüne Balken, wie auf Papas Handy.
+
+„Guten Morgen. Piep.“
+
+Frau Pfeffer spitzte achtundzwanzig Bleistifte in elf Sekunden. Die Kirschen an ihrem Haarclip blinkten dabei rot, abwechselnd, wie eine winzige Ampel. Dann zeichnete sie einen Kreis an die Tafel, so rund, dass Mats ein bisschen schwindelig wurde.
+
+Die Klasse klatschte.
+
+![Kapitel 1, Bild 2](C:/MyProjects/Talea/talea-storytelling-platform/frontend/public/library/series/bruno-der-flunkerfisch/s1e3/ch1-2.webp)
+
+„Beifall erkannt“, sagte Frau Pfeffer. „Zugabe.“
+
+Sie zeichnete noch einen Kreis. Und noch einen. Bald sah die Tafel aus wie eine Portion Seifenblasen.
+
+Lia beugte sich zu Mats. „Ist die immer so?“
+
+Sie sah ihn an, als wäre er der Einzige, der Bescheid wusste.
+
+Mats nickte.
+
+Im Fenster auf Frau Pfeffers Strickjacke ging ein Balken aus.
+
+## Kapitel 2: Bitte nicht wackeln
+
+„Wir basteln heute Figuren für unser Klassentheater“, sagte Frau Pfeffer. „Piep.“
+
+Mats atmete auf. Basteln ging ohne Reden. Er schnitt aus gelbem Papier einen Löwen. Vorläufig war es ein Pfannkuchen mit Beinen, aber die Mähne war wild und zackig und wunderbar.
+
+Lia klappte eine kleine Bühne aus Pappe auf. Die Vorhänge hatte sie mit Büroklammern aus ihrem Werkzeugkoffer festgemacht. „Du kannst den Löwen sprechen“, sagte sie.
+
+Mats' Schere blieb stehen.
+
+Vorne drehte Frau Pfeffer den Kopf. Surr-klick. „Unsaubere Schnittkante erkannt.“
+
+Sie nahm den Löwen, schnitt alle Zacken gerade und legte ihn zurück. Jetzt hatte er keine Mähne mehr.
+
+„Das war sein Fell“, sagte Mats.
+
+![Kapitel 2, Bild 1](C:/MyProjects/Talea/talea-storytelling-platform/frontend/public/library/series/bruno-der-flunkerfisch/s1e3/ch2.webp)
+
+„Überstehendes Papier entfernt. Piep.“
+
+Dann räumte Frau Pfeffer auf. Sie sortierte das Papier nach Farben. Die Scheren nach Größe. Die Kinder nach Schuhgröße.
+
+„Ich sitze aber neben Mats“, sagte Lia.
+
+„Schuhgröße unpassend.“
+
+„Dann ziehe ich die Schuhe aus.“
+
+„Neue Schuhgröße berechnen.“ Frau Pfeffer beugte sich über Lias Socken. Eine hatte Punkte, die andere Streifen. Die Kirschen an ihrem Haarclip blinkten immer schneller. Klick-klick-klick.
+
+Mats musste lachen. Bis er Lia sah. Sie saß barfuß auf ihrem neuen Platz ganz hinten und schnalzte leise mit der Zunge. Tk. Tk. Tk. Kein Zug. Nur ein kleines, unsicheres Geräusch.
+
+Im Fenster leuchteten noch zwei Balken.
+
+In der großen Pause zog Mats seine Schwester hinter den Kastanienbaum.
+
+„Sie hat den Löwen rasiert“, flüsterte er.
+
+Ella schob ihre Brille hoch. „Sag mir die Wahrheit. Hier. Keiner sieht zu.“
+
+„Aber sie hat das Morgen vergessen!“ Mats trat gegen ein Blatt. „Sie hat mich nicht mal angeguckt. Wenn sie wieder normal ist, muss ich vorne stehen. Mit den Ähs.“
+
+Ella sagte nichts. Das war schlimmer als jede Antwort.
+
+„Was passiert, wenn der Akku leer ist?“, fragte Mats leise.
+
+„Der Zauber hört nicht von allein auf. Das weißt du.“ Ella sah zum Fenster. „Vielleicht bleibt sie dann einfach stehen. Den ganzen Tag. Mit der Kreide in der Hand.“
+
+„Dann gibt's kein Theater“, sagte Mats. Er sah zu Lias Platz ganz hinten. „Und sie sitzt da den ganzen Tag allein.“
+
+Durch die Scheibe sahen sie Frau Pfeffer. Sie legte die Kreidestücke in eine Reihe. Drehte jedes eine Vierteldrehung weiter. Dann prüfte sie, ob die Reihe noch ordentlich war.
+
+Im Schulflur stand Frau Grimmbach aus dem Erdgeschoss, neben sich einen Beutel mit Theaterkostümen. Sie half heute beim Nähen. In der Hand hielt sie ihr schwarzes Heft.
+
+„Brandt“, sagte sie zu Mats. „Ihre Lehrerin hat gerade sämtliche Knöpfe an meiner Strickjacke vermessen. Mit einem Geodreieck.“
+
+Sie schrieb etwas auf. Mit drei Ausrufezeichen.
+
+Hinter ihr hing ein altes Plakat, halb abgerissen. Ein Mann im schwarzen Umhang stand auf einer Bühne und hielt einen Fächer aus Spielkarten. Vom Namen waren nur die letzten Buchstaben übrig: NELLO. Über seiner Hand schwebte eine weiße Mondsichel.
+
+![Kapitel 2, Bild 2](C:/MyProjects/Talea/talea-storytelling-platform/frontend/public/library/series/bruno-der-flunkerfisch/s1e3/ch2-2.webp)
+
+Ella blieb stehen.
+
+„Simsalabrunello“, flüsterte sie. Genau das hatte Bruno im Schlaf gemurmelt. Und die Mondsichel sah aus wie sein Fleck über dem linken Auge.
+
+Aus Mats' Klassenzimmer kam ein langes Piepen.
+
+Frau Pfeffer stand vor Lias Bühne. Im Fenster auf ihrer Strickjacke blinkte nur noch ein Balken, jetzt orange. Sie bewegte sich langsam, wie in Zeitlupe.
+
+„Sparmodus“, sagte sie. „Theater beginnt in zwei Minuten. Alle Figuren erhalten gleichen Text.“
+
+Vor jedes Kind legte sie einen Zettel. Lia las vor: „Guten Tag. Ich bin eine Figur. Guten Tag. Ich bin eine Figur.“
+
+„Ohne Fehler“, sagte Frau Pfeffer zufrieden.
+
+„Aber mein Löwe soll brüllen“, sagte Mats.
+
+„Zu laut.“
+
+Lia klappte die Pappbühne zu. „Dann spiele ich nicht mit.“
+
+Mats sah auf seinen Löwen. Ohne Mähne. Ohne Brüllen. Sehr ordentlich. Auf einmal wünschte er sich die echte Frau Pfeffer zurück. Die, die bei einem guten Löwengebrüll so tat, als müsste sie sich am Tisch festhalten. Auch wenn sie ihn danach nach seinem Wochenende fragte.
+
+## Kapitel 3: Drei Ähs und ein Löwe
+
+Frau Pfeffer hob die Hand, damit es ruhig wurde. Surr. Die Hand blieb oben. Der Mund blieb offen. Die Kirschen hörten auf zu blinken.
+
+Sie stand vor der Tafel wie ein Denkmal mit Kirschen.
+
+Lia drehte sich zu Mats um. „Du hast gesagt, die ist immer so. Wie hört das auf?“
+
+Mats öffnete den Mund.
+
+„Äh“, sagte er.
+
+Da war es wieder. Das erste Äh von gestern.
+
+Er konnte aufs Klo gehen und unterwegs Ella im Flur suchen. Ihr zuflüstern: Ich hab geflunkert. Dann wäre Frau Pfeffer wieder Frau Pfeffer. Und Lia würde nie erfahren, wie wenig er Bescheid wusste.
+
+Aber Lia saß barfuß ganz hinten. Ihre Bühne lag zugeklappt auf dem Tisch. Und sie hatte ihn gefragt. Nicht Ella.
+
+Mats blieb sitzen. Er nahm seinen kahlen Löwen fest in die Hand. Mit dem Löwen ging es ein bisschen leichter.
+
+„Ich hab gestern zu Hause gesagt, unsere Lehrerin ist ein Roboter“, sagte er. „Das war geflunkert. Frau Pfeffer ist kein Roboter.“ Er schluckte. „Und dir hab ich zugenickt, weil du gedacht hast, ich weiß Bescheid. Dabei wollte ich bloß nicht noch mal von meinem Wochenende erzählen. Da kam gestern nur Äh.“
+
+PLOPP.
+
+Das Fenster auf der Strickjacke war weg. Die Arme und Hände waren wieder ganz normal. Die Kirschen waren nur Kirschen. Frau Pfeffer ließ den Arm sinken und sah verwundert auf die vielen ordentlichen Zettel.
+
+„Wer hat denn überall denselben Satz hingeschrieben?“
+
+Die Kinder sahen einander an. Sie erinnerten sich. Frau Pfeffer nicht. Erwachsene vergessen das Magische, sobald ein Zauber endet.
+
+Lia schob ihr einen Zettel hin. „Ihre Schrift.“
+
+Frau Pfeffer setzte ihre Lesebrille auf. „Tatsächlich. Das ist ja ein fürchterlich langweiliges Theaterstück.“
+
+Mats lachte. Diesmal klang es richtig.
+
+Frau Pfeffer hielt seinen Löwen hoch. „Und was ist dem passiert?“
+
+„Friseur“, sagte Lia.
+
+Dann sah Frau Pfeffer Mats an. „Wir wollten ja noch zu dir kommen. Wegen deinem Wochenende.“
+
+In Mats' Bauch lag wieder der Stein.
+
+Lia holte ihre Schuhe und setzte sich neben ihn. Sie öffnete die Pappflügel ihrer Bühne. „Ich kann auch Äh“, flüsterte sie. „Ich mach bloß meistens ein Zuggeräusch draus.“
+
+„Wirklich?“
+
+Sie nickte und machte einen sehr kleinen, sehr schüchternen Zug.
+
+„Darf der Löwe erzählen?“, fragte Mats.
+
+„Der Löwe darf“, sagte Frau Pfeffer. „Und er darf sich Zeit lassen.“
+
+Mats steckte das Tier durch den Pappvorhang.
+
+„Äh“, sagte der Löwe.
+
+Alle warteten. Keiner kicherte.
+
+„Ich komme gerade vom Friseur. Und am Wochenende hab ich mit meinem Papa einen Drachen gebaut. Er ist in einem Baum gelandet. Der Drachen, nicht der Papa.“
+
+Jetzt lachte die Klasse, und Mats wusste genau, worüber. Lia machte schnipp-schnapp mit der Zunge. Mats brüllte. So laut, dass Frau Pfeffer sich am Tisch festhalten musste. Sie lachte dabei. Ganz ohne Piep.
+
+![Kapitel 3, Bild 1](C:/MyProjects/Talea/talea-storytelling-platform/frontend/public/library/series/bruno-der-flunkerfisch/s1e3/ch3.webp)
+
+Nach der Schule wartete Ella am Flurplakat. Sie hatte die Mondsichel, den Kartenfächer und die letzten Buchstaben in ihren Planer abgezeichnet. Daneben stand: Brunello?
+
+Frau Pfeffer kam mit einem Stapel Hefte vorbei. „Das hing früher im alten Saal. Da gab es mal Zaubershows.“ Sie tippte auf die abgerissene Ecke. „Ich schau im Keller nach. Vielleicht haben wir noch ein ganzes.“
+
+Als sie weg war, stupste Lia Mats an. „Als du die Wahrheit gesagt hast, hat es plopp gemacht.“
+
+„Das ist ein Geheimnis“, sagte Mats. „Ein ziemlich großes.“
+
+Lia klopfte auf ihren roten Werkzeugkoffer. „Da passt viel rein.“
+
+Zu Hause bimmelten die elf Glöckchen an Ellas Kater-Alarm ums Regal. Papa trug gerade Einkaufstüten in die Küche, und die Wohnungstür stand noch offen.
+
+Vor dem Regal saß Kater Kaiser. Vor ihm lag Papas Hausschuh, den er offenbar als Trittstufe benutzen wollte. Leider war es ein sehr weicher Hausschuh. Immer wenn Kaiser eine Pfote daraufsetzte, kippte er zur Seite. Der Hausschuh auch.
+
+Bruno sah aus sicherer Höhe zu. „Er übt seit zehn Minuten“, sagte er. „Ich geb ihm noch zwei.“
+
+Ella trug Kaiser zur Tür. Mats hob den Hausschuh mit der Grillzange auf und stellte ihn in den Flur. Seit der Sache mit dem ponygroßen Hund ließ Papa seine Hausschuhe nicht mehr aus den Augen. Fast nicht mehr.
+
+Dann hielt Ella ihren Planer vor das Glas. „Bruno. Kennst du einen Zauberer, der Brunello heißt?“
+
+Bruno fand seine Burg plötzlich sehr, sehr interessant. „Flocken“, sagte er. „Ich kenne Flocken.“
+
+Ella pinnte Flunker-Karte Nr. 3 neben das Regal. Unten schrieb Mats selbst dazu: Die Wahrheit gesagt. Vor Lia. Mutig.
+
+![Kapitel 3, Bild 2](C:/MyProjects/Talea/talea-storytelling-platform/frontend/public/library/series/bruno-der-flunkerfisch/s1e3/ch3-2.webp)
+
+„Sie kommt am Samstag spielen“, sagte er.
+
+Bruno spähte über seine Burg. „Soso. Hab ich's nicht gesagt? Ich hab's gesagt.“
+
+„Was denn?“
+
+Bruno überlegte. „Dass meine Flocken alle sind.“
+
+Unten im Erdgeschoss schlug Frau Grimmbach ihr Heft auf und stutzte. Da stand ein Eintrag in ihrer eigenen Schrift, und sie konnte sich nicht erinnern, ihn geschrieben zu haben.
+
+„Eintrag 48: Lehrerin Pfeffer vermisst Knöpfe mit Geodreieck. Sortiert Kinder nach Schuhgröße!!!“
+
+Sie betrachtete den Knopf an ihrem Ärmel. Dann holte sie ein Lineal.
+
+## Flunker-Karte Nr. 3
+
+- **Flunkerei:** Unsere Lehrerin ist ein Roboter. Ein echter. Mit Akku.
+- **Wer flunkert:** Mats
+- **Was wörtlich passiert:** Frau Pfeffer piept, sortiert alles und schneidet sogar die Löwenmähne ordentlich ab.
+- **Die Wahrheit:** Frau Pfeffer ist kein Roboter. Mats wollte Lia beeindrucken.
+- **Mutmoment:** Die Wahrheit vor Lia sagen, obwohl Mats auch heimlich zu Ella gehen könnte.
+
+*Nächsten Freitag: Mats kann fliegen! Leider kann er nicht landen. Und Lia steht unten und hat eine ziemlich praktische Frage.*

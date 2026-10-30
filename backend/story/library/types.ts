@@ -140,6 +140,8 @@ export interface ImageSlot {
 export interface EpisodeChapter {
   title: string;
   text: string;
+  /** Ordered illustrations; when present this is authoritative over the legacy single image. */
+  images?: ImageSlot[];
   image?: ImageSlot;
 }
 
@@ -175,6 +177,8 @@ export interface EpisodeSeed extends EpisodeContent {
   season: number;
   episode: number;
   publishAt: string;
+  /** Canon bible used for this episode; older seeds were written against version 1. */
+  bibleVersion?: number;
 }
 
 /* ── Audio drama (Hörspiel) ─────────────────────────────────────────────── */

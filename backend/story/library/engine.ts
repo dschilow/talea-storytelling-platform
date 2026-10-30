@@ -116,9 +116,12 @@ export function buildSeriesContext(brief: EpisodeBrief): string {
   const { series, bible } = brief;
   const arc = seasonArcFor(brief);
   const finale = isFinale(brief);
-  const cast = bible.characters.map((character) =>
-    `- ${character.name} (id: ${character.id}; ${character.role}${character.ageYears ? `, ${character.ageYears} Jahre` : ""}): ${character.personality} Sprechweise: ${character.speechStyle}`
-  );
+  const cast = bible.characters.filter(character => character.id !== "sockenkoenig" || brief.target.episode >= 7).map((character) => {
+    const personality = character.id === "sockenkoenig" && !finale
+      ? "Eine Gestalt aus Mamas alter Erzählung. Nur Gerüchte, Spuren und Schatten; Ursprung, Absicht und Auflösung bleiben unbekannt."
+      : character.personality;
+    return `- ${character.name} (id: ${character.id}; ${character.role}${character.ageYears ? `, ${character.ageYears} Jahre` : ""}): ${personality} Sprechweise: ${character.speechStyle}`;
+  });
   const clues = arc ? arc.clues.filter((clue) => clue.episode <= brief.target.episode) : [];
   const canon = brief.canon.length
     ? brief.canon.map((entry) => `S${entry.season}E${entry.episode} „${entry.title}“: ${entry.summary}\n  Fakten: ${entry.facts.join(" | ") || "–"}`).join("\n")
@@ -140,7 +143,7 @@ export function buildSeriesContext(brief: EpisodeBrief): string {
     ...bible.runningGags.map((gag) => `- ${gag}`),
     `CATCHPHRASES (keep them word for word): ${bible.catchphrases.map((phrase) => `„${phrase}“`).join(", ")}`,
     "",
-    "EPISODE FORMULA (every episode follows these beats in this order):",
+    "FLEXIBLE EPISODE TOOLS (vary their order and emphasis; never mechanically repeat the previous episode's sequence; preserve the core magic and a complete resolution):",
     ...bible.episodeFormula.map((beat, index) => `${index + 1}. ${beat}`),
     "",
     "CANON INVARIANTS (no story may change these):",
@@ -413,7 +416,7 @@ async function finalizeStage(
     "",
     "ART DIRECTION RULES:",
     "- Every picture is a moment of the plot, caught mid-action like a film still: characters look at each other or at what happens, bodies in side or three-quarter view. Nobody poses or looks at the viewer.",
-    "- One cover (the most inviting moment, never the ending) and exactly one picture per chapter, taken from the MIDDLE of the chapter (never its first two or last two paragraphs). afterParagraph = the paragraph number whose moment the picture shows; the picture follows that paragraph.",
+    "- One cover (the most inviting moment, never the ending) and exactly TWO pictures per chapter, showing two distinct action beats, roughly in the first and second half (never its first two or last two paragraphs). afterParagraph = the 0-based paragraph index whose moment the picture shows; the picture follows that paragraph. Space the two pictures apart and match each to the action at that paragraph.",
     "- sceneEn: English, at most 70 words: place and light first, then who does what and where they look. Name figures ONLY as [id] tokens, e.g. [ella]. Describe looks only through the tokens (the art team has reference pictures).",
     "- 1–4 figures per picture (characterIds = their ids, each must appear in sceneEn). Only figures that are physically present in that moment.",
     "- boxes: for every figure, where it stands as [top, left, bottom, right] on a 0–1000 scale of the landscape picture (3:2). A standing child is about 600–750 tall, adults about 750–900; keep figures apart, feet near the bottom, nobody cut in half.",
@@ -441,7 +444,7 @@ async function finalizeStage(
       : ` "collectibleFields": [{"label": "German", "value": "German"}] (3–5),`,
     ` "guests": [{"id": "kebab-case", "name": "German", "role": "German, one line", "visualProfileEn": "English look"}] (figures of this episode that are not in the series cast and appear in a picture),`,
     ` "cover": {"sceneEn": "...", "characterIds": ["..."], "boxes": {"id": [t,l,b,r]}},`,
-    ` "pictures": [{"chapter": 1, "afterParagraph": 7, "sceneEn": "...", "characterIds": ["..."], "boxes": {"id": [t,l,b,r]}, "outfits": {}}] (exactly 3, one per chapter)}`,
+    ` "pictures": [{"chapter": 1, "afterParagraph": 7, "sceneEn": "...", "characterIds": ["..."], "boxes": {"id": [t,l,b,r]}, "outfits": {}}] (exactly 6, two per chapter with distinct afterParagraph indexes)}`,
   ].filter(Boolean).join("\n");
   const result = await llm({ stage: "library-finalize", role: "support", model: LIBRARY_MODELS.support, system, user, json: true, maxTokens: 7000, effort: "low", timeoutMs: 180_000 });
   ledger.recordCall("library-finalize", result, "support");
@@ -456,12 +459,17 @@ async function finalizeStage(
 
   const contentChapters = chapters.map((chapter, index) => {
     const paragraphs = chapter.text.split(/\n\n/).length;
-    const picture = (parsed.pictures || []).find((entry) => Number(entry.chapter) === index + 1);
-    const slot = picture ? sanitizeSlot(picture, known) : null;
-    // Never the opening or the last two paragraphs: the picture would spoil the hook or sit after the end.
-    const wanted = Number.isFinite(Number(picture?.afterParagraph)) ? Number(picture!.afterParagraph) : Math.floor(paragraphs / 2);
-    const afterParagraph = Math.max(Math.min(2, paragraphs - 1), Math.min(paragraphs - 3, wanted));
-    return { title: chapter.title, text: chapter.text, ...(slot ? { image: { ...slot, afterParagraph: Math.max(0, afterParagraph) } } : {}) };
+    const images = (parsed.pictures || []).filter((entry) => Number(entry.chapter) === index + 1).slice(0, 2).flatMap((picture) => {
+      const slot = sanitizeSlot(picture, known);
+      if (!slot) return [];
+      const wanted = Number.isFinite(Number(picture.afterParagraph)) ? Number(picture.afterParagraph) : Math.floor(paragraphs / 2);
+      const afterParagraph = Math.max(0, Math.max(Math.min(2, paragraphs - 1), Math.min(paragraphs - 3, wanted)));
+      return [{ ...slot, afterParagraph }];
+    }).sort((a, b) => a.afterParagraph - b.afterParagraph);
+    if (images.length !== 2 || images[0].afterParagraph === images[1].afterParagraph) {
+      throw new Error(`Kapitel ${index + 1}: Zwei verschiedene, passend platzierte Bildbriefings erforderlich.`);
+    }
+    return { title: chapter.title, text: chapter.text, ...(images.length ? { image: images[0], images } : {}) };
   });
   const cover = (parsed.cover && sanitizeSlot(parsed.cover, known)) || contentChapters[0]?.image || { sceneEn: blueprint.summary, characterIds: [] };
 

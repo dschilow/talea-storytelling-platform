@@ -385,7 +385,10 @@ const PictureStrip: React.FC<{ episode: LibraryAdminEpisode; busy: string | null
       if (cancelled) return;
       setPictures([
         { slot: "cover", label: "Cover", url: full.coverImageUrl },
-        ...full.chapters.map((chapter, index) => ({ slot: String(index + 1), label: `Kapitel ${index + 1}`, url: chapter.imageUrl })),
+        ...full.chapters.flatMap((chapter, index) => (chapter.images?.length ? chapter.images : [{ url: chapter.imageUrl }]).map((picture, imageIndex) => ({
+          slot: imageIndex === 0 ? String(index + 1) : `${index + 1}:${imageIndex + 1}`,
+          label: `Kapitel ${index + 1} · Bild ${imageIndex + 1}`, url: picture.url,
+        }))),
       ]);
     }).catch(() => undefined);
     return () => {

@@ -1,0 +1,388 @@
+{
+  "seriesId": "die-monster-muellabfuhr",
+  "season": 1,
+  "episode": 3,
+  "bibleVersion": 2,
+  "publishAt": "2026-10-30T14:00:00.000Z",
+  "title": "Die Krümelkrake",
+  "summary": "Im Buchenweg läuft das Sofa seitwärts: Darunter wohnt eine Krake aus vergessenen Brotkrümeln. Jona findet ihre kitzlige Stelle – doch plötzlich brauchen Oma und Flusi selbst Hilfe. Und die Krake scheint die Socke mit der Krone zu kennen.",
+  "guests": [
+    {
+      "id": "kruemelkrake",
+      "name": "Krümelkrake",
+      "role": "Kitzlige Krake aus vergessenen Brotkrümeln, neue Küchenhilfe der Monster-Pension",
+      "visualProfileEn": "friendly little octopus monster made entirely of golden toasted bread crumbs, a rounded bread-crumb head the size of a sofa cushion, two expressive black button eyes, a tiny smiling mouth, exactly eight soft flexible bread-crumb arms with tiny sesame seeds and rough crust tips, the eighth arm slightly shorter with a thin dry bread crust attached, cozy funny expressive creature, neither squid nor real seafood",
+      "referenceUrl": "/library/series/die-monster-muellabfuhr/s1e3/kruemelkrake.webp"
+    },
+    {
+      "id": "socken-schnueffler",
+      "name": "Socken-Schnüffler",
+      "role": "Bekannter Sockenpaar-Sortierer aus Folge 1, Gast in der Pension",
+      "visualProfileEn": "friendly dog-sized creature made entirely of mismatched single socks, long striped sock-tip snout, two black button eyes, floppy soft sock body",
+      "referenceUrl": "/library/series/die-monster-muellabfuhr/s1e1/socken-schnueffler.webp"
+    }
+  ],
+  "cover": {
+    "url": "/library/series/die-monster-muellabfuhr/s1e3/cover.webp",
+    "sceneEn": "Cozy living room at night, side view of a long sofa on the LEFT and TWO people crouching on the RIGHT. UNDERNEATH the sofa, [kruemelkrake] peeks out with her round golden bread-crumb head near the carpet, surrounded by eight long soft golden arms. Two arms push an empty round metal monster bin under the sofa; another reaches out to offer a plain TV remote to [oma-hilde], an adult grandmother in black leather jacket and orange work gloves. [jona] crouches beside her, orange vest and yellow boots, pointing in amazement at the busy arms UNDER the furniture. Sofa cushions are EMPTY. Exactly three figures in the whole picture: one golden crumb octopus and two humans. Cozy funny scene, all safely on the carpet, plain walls",
+    "characterIds": [
+      "kruemelkrake",
+      "oma-hilde",
+      "jona"
+    ],
+    "boxes": {
+      "kruemelkrake": [
+        580,
+        20,
+        980,
+        430
+      ],
+      "oma-hilde": [
+        100,
+        470,
+        980,
+        710
+      ],
+      "jona": [
+        360,
+        730,
+        980,
+        980
+      ]
+    }
+  },
+  "chapters": [
+    {
+      "title": "Acht Arme, ein Sofa",
+      "text": "Auf Oma Hildes Küchentisch standen drei Kakaobecher. Jona zählte nach. Einer für ihn. Einer für Oma. Einer für Flusi.\n\nFlusi steckte bis zu den Punktaugen in seinem Becher. „Flusi taucht.“\n\n„Flusi tropft“, sagte Oma und schob ihm ein Handtuch hin.\n\nEs war Jonas drittes Wochenende auf dem Betriebshof. Hinter der grünen Tür zur Monster-Pension sortierte der Socken-Schnüffler Sockenpaare. Das Gähnmonster zog ihm dabei immer wieder eine Decke über den Kopf. Es nahm seinen Job als Nachtruhe-Wächter sehr ernst.\n\nJona holte die einzelne Socke mit der winzigen gestrickten Krone aus seiner Hoodie-Tasche. Bei seinem allerersten Einsatz hatte sie auf Gertruds Sitz gelegen. Seitdem nahm er sie überallhin mit.\n\n„Nachher frag ich den Schnüffler“, sagte er. „Der kennt jede Socke.“\n\nDa knackte der Monster-Funk auf dem Fensterbrett.\n\n„Krümelalarm. Buchenweg 4. Wohnzimmer. Das Sofa läuft.“\n\nOma stellte ihren Becher ab. „Dann los, bevor es den Flur findet. Sofas kennen keine Verkehrsregeln.“\n\nJona zog die riesige Warnweste über seinen Hoodie und schlüpfte in die gelben Gummistiefel. Flusi wickelte sich das Handtuch um wie einen Umhang. Auf dem Hof wartete Gertrud, der kleine lila Monster-Müllwagen.\n\n„Guten Abend, Gertrud.“\n\nSie blinkte zweimal. Oma schob eine Kassette ein. „Für Krümel nehmen wir ‚Krümel im Getriebe‘!“\n\nBeim ersten Gitarrenriff nieste Flusi. „HATSCHI!“\n\nOma griff nach dem Tonnendeckel. Jona sah unter den Sitz. Wenn Flusi nieste, war meistens ein Monster in der Nähe.\n\nFlusi schüttelte sich. „Kakao-Nase.“\n\nGertrud hupte einmal. Es klang verdächtig nach Lachen.\n\nIm Buchenweg 4 öffnete ein Mann im Schlafanzug. Er hielt ein Sofakissen vor den Bauch.\n\n„Die Sonderabfuhr? Es fing mit Krümeln an. Seit Wochen schieb ich die mit dem Fuß unters Sofa. Ich wollte am Samstag saugen.“ Er sah auf die Uhr. „Jetzt ist Samstag.“\n\nHinter ihm wanderte das Sofa an der Wohnzimmertür vorbei. Langsam. Seitwärts. Ganz gemütlich, wie ein Schiff auf einem stillen See. Obendrauf fuhr eine Fernbedienung mit. Darunter liefen acht Arme.\n\n„Gehen Sie ruhig in die Küche“, sagte Oma freundlich. „Und setzen Sie Teewasser auf. Das hier dauert.“\n\nDer Mann ging. Für ihn waren die Arme nur Schatten unter den Möbeln. Jona sah sie ganz genau: acht goldbraune Arme, knusprig wie Brotkanten. Auf einem klebte ein Sesamkorn.\n\nFlusi zitterte. „HATSCHI!“\n\nDiesmal war es kein Kakao.\n\nOma legte eine Monster-Tonne auf die Seite, die Öffnung zum Sofa. „Na komm. Ab in die Tonne, Süße!“\n\nUnter dem Sofa erschienen zwei schwarze Augen. Dann ein runder Krümelkopf. Die Krümelkrake sah in die Tonne. Sie sah auf Omas Handschuhe. Dann schob sie Oma die Fernbedienung hin.\n\nOma nahm sie. „Danke. Aber wir sind nicht zum Fernsehen hier.“\n\nEin zweiter Arm legte ihr eine Münze in die Hand. Ein dritter eine Murmel. Ein vierter einen halben Zwieback.\n\n„Bezahlen musst du auch nicht“, sagte Oma.\n\nDa packten zwei Arme die Tonne. Und zogen sie unters Sofa.\n\nEs schepperte leise.\n\n„Oma“, sagte Jona. „Ich glaube, wir sind gerade aufgeräumt worden.“",
+      "images": [
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e3/ch1.webp",
+          "sceneEn": "Oma Hilde's cozy kitchen at night. [flusi] is a perfectly round grey dust-bunny creature, comically dipping his round head into his own large plain cocoa mug on the table, only his two tiny black eyes and single curly tuft visible above the rim. [jona] sits beside him in his plain blue hoodie and grins; [oma-hilde], tall grey-haired grandmother with purple streak and black leather jacket, hands Flusi a soft towel. Three mugs and an old radio on the windowsill, three characters only",
+          "characterIds": [
+            "flusi",
+            "jona",
+            "oma-hilde"
+          ],
+          "afterParagraph": 2,
+          "outfits": {
+            "jona": "plain blue hoodie over dark trousers, before putting on his orange vest for the night shift"
+          },
+          "boxes": {
+            "flusi": [
+              460,
+              30,
+              900,
+              300
+            ],
+            "jona": [
+              240,
+              360,
+              980,
+              620
+            ],
+            "oma-hilde": [
+              50,
+              680,
+              980,
+              980
+            ]
+          }
+        },
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e3/ch1-2.webp",
+          "sceneEn": "Cozy night living room, very LOW floor-level viewpoint showing the space UNDER A SOFA. [kruemelkrake]'s little golden bread-crumb head and eight flexible arms emerge from the dark gap underneath the furniture, low over the carpet. One extended arm offers a plain grey remote, another a round marble, a third a small coin, a fourth a square piece of toast; two more pull an empty round metal bin halfway UNDER the sofa. [oma-hilde] kneels on the right receiving the remote with her orange glove, amused. [jona] kneels beside her and studies the arms. Sofa cushions above them remain EMPTY and nobody sits on the sofa. Exactly three characters once each",
+          "characterIds": [
+            "kruemelkrake",
+            "oma-hilde",
+            "jona"
+          ],
+          "afterParagraph": 24,
+          "boxes": {
+            "kruemelkrake": [
+              400,
+              20,
+              980,
+              430
+            ],
+            "oma-hilde": [
+              100,
+              470,
+              980,
+              700
+            ],
+            "jona": [
+              380,
+              740,
+              980,
+              980
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e3/ch1.webp",
+        "sceneEn": "Oma Hilde's cozy kitchen at night. [flusi] is a perfectly round grey dust-bunny creature, comically dipping his round head into his own large plain cocoa mug on the table, only his two tiny black eyes and single curly tuft visible above the rim. [jona] sits beside him in his plain blue hoodie and grins; [oma-hilde], tall grey-haired grandmother with purple streak and black leather jacket, hands Flusi a soft towel. Three mugs and an old radio on the windowsill, three characters only",
+        "characterIds": [
+          "flusi",
+          "jona",
+          "oma-hilde"
+        ],
+        "afterParagraph": 2,
+        "outfits": {
+          "jona": "plain blue hoodie over dark trousers, before putting on his orange vest for the night shift"
+        },
+        "boxes": {
+          "flusi": [
+            460,
+            30,
+            900,
+            300
+          ],
+          "jona": [
+            240,
+            360,
+            980,
+            620
+          ],
+          "oma-hilde": [
+            50,
+            680,
+            980,
+            980
+          ]
+        }
+      }
+    },
+    {
+      "title": "Kruste und Krume",
+      "text": "„Dann räumen wir zurück“, sagte Oma.\n\nSie kniete sich hin und zog an der Tonne. Von innen zogen zwei Krümelarme. Das Sofa rutschte einen halben Meter zur Seite und blieb stehen.\n\nFlusi hüpfte aufs Sitzkissen. „Flusi fährt!“\n\n„Flusi steigt ab“, sagte Oma.\n\nJona zählte. Acht Arme. Sie zogen alles unters Sofa: Münzen, Murmeln, Buntstifte, eine Haarspange. Und immer wieder Krümel.\n\n„Moment … ich weiß die Schwäche!“, rief Jona. „Sie hat Hunger! Wir locken sie mit Brot.“\n\nDer Mann brachte eine Scheibe Brot auf einem Teller.\n\nDie Krake schnupperte. Ein Arm kam hervor, kippte das Brot auf den Teppich und zog nur den leeren Teller unters Sofa.\n\nOma betrachtete die Brotscheibe. „Geschirr schmeckt ihr offenbar besser.“\n\nJonas Ohren wurden heiß. Zweimal hatte er schon falsch geraten. Heute hatte er ganz sicher sein wollen.\n\n„Woraus ist sie gemacht?“, fragte Oma leise. „Guck noch mal.“\n\nJona legte sich flach auf den Boden und knipste die Taschenlampe an. Ganz hinten lagen Krümel aus vielen Wochen. Harte Kanten. Und weiche, helle Stückchen vom Inneren. Er sah die Krake an. Ihre Arme waren aus Kruste. Ihr runder Bauch war aus dem Weichen. Krume, so hieß das.\n\nDa fegte ein Krustenarm aus Versehen über den Bauch. Die Krake zuckte. „Hih!“ Schnell hielt sie sich mit zwei Armen den Bauch fest.\n\n„Die Kruste kitzelt sie“, flüsterte Jona. „Am Bauch. Der ist ganz weich. Und gefegt hat hier nie einer.“\n\nOma hielt schon den weichen Handfeger aus ihrer Arbeitstasche in der Hand. Sie reichte ihn ihm. „Dein Einfall. Deine Hand.“\n\nJona streckte den Feger aus. Dann hielt er inne. Acht Arme waren sehr viele Arme.\n\n„Und wenn ich wieder falschliege?“\n\n„Dann gucken wir noch mal hin“, sagte Oma. Und wartete.\n\nJona strich mit den Borsten ganz vorsichtig über den Krümelbauch.\n\n„Hihihihi!“\n\nDie Krake purzelte unter dem Sofa hervor auf den Teppich. Zwei Arme hielten den Bauch. Zwei wedelten. Zwei ließen die Tonne los. Und die letzten beiden griffen nach Omas Handgelenken, genau zwischen Handschuh und Jackenärmel. Ein paar Krümel rieselten in den Handschuh.\n\nDas war jetzt offenbar ein Spiel. Und die Krake spielte mit.\n\n„Nicht da!“, japste Oma. „Das ist meine schlimmste Stelle!“\n\nDie Krake kitzelte weiter. Oma kicherte so sehr, dass sie sich auf den Teppich setzen musste. Dann legen. Flusi sprang vom Sofa. „Flusi hilft!“\n\nEr landete mitten zwischen den Krümelarmen. Eine Sekunde später kicherte auch Flusi.\n\nJona stand da, den Feger in der Hand. Oma lachte und lachte. Tränen liefen ihr über die Wangen. Sie wollte etwas sagen, aber es kam nur „Jo … Jo …“ heraus.\n\nSonst wusste immer Oma, was zu tun war. Jetzt nicht.\n\n„Stopp!“, rief Jona. Lauter, als er sich je getraut hatte.\n\nDie Krake sah ihn an. Ein Arm blieb noch in der Luft. Dann sah sie zu Oma, die nach Luft schnappte, und legte den Arm ganz langsam auf den Teppich. Die anderen sieben auch.\n\nEinen Moment lang hörte man nur Luftholen. Oma. Flusi. Und ein bisschen auch die Krake.\n\nDann klopfte ein einzelner Krümelarm auf den Teppich. Einmal. Zweimal.\n\nDie Krake schob Jona den Feger hin.",
+      "images": [
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e3/ch2.webp",
+          "sceneEn": "Cozy living room floor at night. [jona] kneels beside a slice of bread lying on the carpet and looks baffled as [kruemelkrake] ignores the bread and proudly slides the empty plate under the sofa. Golden crumb arms and sesame seeds, funny little black eyes. [oma-hilde] crouches behind Jona and inspects the rejected bread with an amused expression, one orange glove on her knee. Three figures, no other people",
+          "characterIds": [
+            "jona",
+            "kruemelkrake",
+            "oma-hilde"
+          ],
+          "afterParagraph": 7,
+          "boxes": {
+            "jona": [
+              350,
+              20,
+              980,
+              300
+            ],
+            "kruemelkrake": [
+              430,
+              360,
+              970,
+              680
+            ],
+            "oma-hilde": [
+              80,
+              730,
+              980,
+              980
+            ]
+          }
+        },
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e3/ch2-2.webp",
+          "sceneEn": "Warmly lit living room rug. [oma-hilde] sits on the floor laughing helplessly as a soft golden bread-crumb arm of [kruemelkrake] tickles her wrist just beneath her orange work glove. [flusi], a round grey dust-bunny, giggles with his short paws up. [jona] kneels firmly beside them holding a soft hand brush in one hand and raising his other palm in a clear gentle STOP gesture. The bread-crumb octopus immediately pauses, friendly and attentive, all safe on the floor away from the stable sofa, four figures only",
+          "characterIds": [
+            "oma-hilde",
+            "kruemelkrake",
+            "flusi",
+            "jona"
+          ],
+          "afterParagraph": 27,
+          "boxes": {
+            "oma-hilde": [
+              300,
+              20,
+              980,
+              280
+            ],
+            "kruemelkrake": [
+              400,
+              290,
+              980,
+              600
+            ],
+            "flusi": [
+              650,
+              610,
+              980,
+              760
+            ],
+            "jona": [
+              250,
+              760,
+              980,
+              1000
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e3/ch2.webp",
+        "sceneEn": "Cozy living room floor at night. [jona] kneels beside a slice of bread lying on the carpet and looks baffled as [kruemelkrake] ignores the bread and proudly slides the empty plate under the sofa. Golden crumb arms and sesame seeds, funny little black eyes. [oma-hilde] crouches behind Jona and inspects the rejected bread with an amused expression, one orange glove on her knee. Three figures, no other people",
+        "characterIds": [
+          "jona",
+          "kruemelkrake",
+          "oma-hilde"
+        ],
+        "afterParagraph": 7,
+        "boxes": {
+          "jona": [
+            350,
+            20,
+            980,
+            300
+          ],
+          "kruemelkrake": [
+            430,
+            360,
+            970,
+            680
+          ],
+          "oma-hilde": [
+            80,
+            730,
+            980,
+            980
+          ]
+        }
+      }
+    },
+    {
+      "title": "Noch eine Runde",
+      "text": "„Sie will noch mal“, flüsterte Jona.\n\nDie Krake wackelte so heftig, dass ihr das Sesamkorn vom Arm fiel.\n\nOma setzte sich auf und wischte sich die Augen. „Danke, Süßer.“ Sie zog ihren Handschuh zurecht. „Aber ab jetzt mit Regel. Wenn einer Stopp sagt, ist Stopp. Auch du, Süße.“\n\nDie Krake hob alle acht Armspitzen.\n\nJona stellte die Tonne aufrecht. Er holte das Sofakissen, das der Mann im Flur hatte liegen lassen, und legte es hinein.\n\n„Noch eine Runde“, sagte er zur Krake. „Aber da drin. Dann nehmen wir dich mit. Bei Oma gibt's eine Küche. Und Platz für acht Arme.“\n\nDie Krake sah zum Sofa. Darunter war es dunkel, eng und voller vergessener Sachen. Sie schob einen Arm in die Tonne und drückte auf das Kissen.\n\nWeich.\n\nEin zweiter Arm glitt hinein. Dann ein dritter. Jona zählte leise mit. Bei sieben wollte die Krake den leeren Teller mitnehmen.\n\n„Der bleibt hier“, sagte Oma.\n\nDie Krake legte ihn hin. Sehr vorsichtig. Dann kam der achte Arm hinterher.\n\nOma stellte sich auf die eine Seite, Jona auf die andere. Zusammen strichen sie einmal mit dem Feger über den Krümelbauch.\n\n„Hihihihi!“ Die Krake kringelte sich auf dem Kissen. Flusi hielt sich vorsichtshalber die Handgelenke zu. Soweit eine Staubfluse Handgelenke hat.\n\n„Stopp“, kicherte die Krake.\n\nSie hörten sofort auf.\n\nDie Krake schnaufte zufrieden, legte die Arme um den Bauch und ließ sich von Oma zu Gertrud tragen. Der Deckel blieb einen Spalt offen. Ein Arm winkte heraus.\n\nDem Mann gaben sie seine Münzen, Murmeln und Buntstifte zurück. Er holte den Staubsauger. „Diesmal wirklich“, sagte er.\n\nAuf der Rückfahrt drehte Oma die Musik leiser. „Das Stopp war gut, Süßer. Ich hab vor Lachen gar nicht mehr nachdenken können.“\n\nBisher hatte immer Oma gewusst, wann Jona Hilfe brauchte. Heute war es andersherum gewesen. Jona saß ein bisschen gerader.\n\n„Du hattest Krümel im Handschuh“, sagte er.\n\nOma grinste. „Die schlimmste Stelle.“\n\nIn der Pension wollte Oma schon warmes Wasser in die Wanne lassen, wie für jeden Neuzugang. Jona hielt sie am Ärmel fest.\n\n„Warte. Sie ist aus Brot.“\n\nOma drehte den Hahn wieder zu. Die Krake hatte schon alle Arme eng an sich gezogen. „Gut aufgepasst“, sagte Oma. „Brot und Badewanne, das gibt Matsch.“\n\nAlso setzten sie die Krake in die trockene Wanne und bürsteten ihr mit dem weichen Feger den Staub ab. Mit Pausen, wenn sie kicherte. Danach glänzte sie goldbraun wie frisch aus dem Ofen.\n\nDann entdeckte sie die Pensionsküche. Ein Arm stellte Teller hin. Einer sortierte Löffel. Zwei rührten in einer leeren Schüssel, weil Rühren offenbar auch ohne Inhalt schön war. Die übrigen sammelten jeden Krümel vom Tisch.\n\n„Küchenhilfe“, sagte Oma. „Wenn du magst.“\n\nDie Krake hielt einen Löffel hoch. Dann noch einen.\n\nDer Socken-Schnüffler kam herein, auf dem Kopf zwei frisch sortierte Ringelsocken. Jona hielt ihm die Socke mit der Krone hin. „Hast du die zweite?“\n\nDer Schnüffler schnüffelte lange. Dann wühlte er in seinem Sockenberg, hin und her, und kam mit leeren Händen zurück. Er schüttelte die Sockennase. Noch nicht.\n\nDa fiel der Krake ein Löffel herunter. Ihr Blick hing an der kleinen Krone. Dann wanderte er zu der niedrigen Klappe unten in der grünen Pensionstür. Sie presste alle acht Arme auf den Bauch. Kein Kichern.\n\n„Kennst du die?“, fragte Jona.\n\nDie Krake rutschte hinter die Spüle.\n\n„Lass sie erst mal ankommen“, sagte Oma leise.\n\nJona nickte und steckte die Socke wieder ein. Dann schrieb er Monster-Steckbrief Nr. 3: Name: Krümelkrake. Ursprung: vergessene Brotkrümel unterm Sofa. Schwäche: kitzliger Bauch aus Krume. Fangtrick: Kitzelrunde in der Tonne, bei Stopp ist Stopp. Job: Küchenhilfe.\n\nAls der Himmel über dem Betriebshof hell wurde, lag die Krake auf einem dicken Kissen neben dem Herd. Das Gähnmonster deckte sie zu. Es brauchte drei Decken und musste zweimal nachzählen.\n\nDraußen fing eine Amsel an zu singen. Flusi schlief auf Jonas Schulter ein. Der Socken-Schnüffler sank in seinen Sockenberg. Auch die Krake hatte die Augen schon zu. Aber sie murmelte noch etwas.\n\nJona beugte sich hinunter.\n\n„Der König ruft.“\n\nDann schnarchte sie.\n\nJona sah zu Oma. Oma sah zur Klappe. Sie stand einen Fingerbreit offen.\n\n„Die hab ich zugemacht“, sagte Oma. „Ganz sicher.“ Sie schob den Riegel vor und blieb noch einen Moment stehen, die Hand an der Tür.\n\nJona schlug den Ordner wieder auf. Unter den Steckbrief schrieb er vier Wörter.\n\nWer ist der König?",
+      "images": [
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e3/ch3.webp",
+          "sceneEn": "Cozy living room at night. A round monster transport bin stands upright on the carpet, a large soft sofa cushion visible inside. [kruemelkrake] has willingly climbed into it, curled up comfortably laughing with eight bread-crumb arms wrapped around her round belly. [jona] kneels at one side, lightly brushing her belly with a soft hand brush; [oma-hilde] crouches at the other side with a warm smile, no restraint, lid open, three figures only",
+          "characterIds": [
+            "kruemelkrake",
+            "jona",
+            "oma-hilde"
+          ],
+          "afterParagraph": 11,
+          "boxes": {
+            "kruemelkrake": [
+              350,
+              20,
+              920,
+              430
+            ],
+            "jona": [
+              300,
+              450,
+              980,
+              700
+            ],
+            "oma-hilde": [
+              100,
+              730,
+              980,
+              980
+            ]
+          }
+        },
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e3/ch3-2.webp",
+          "sceneEn": "Monster boarding-house kitchen at the depot just before dawn. [kruemelkrake] sits on a low kitchen stool with several arms holding spoons over an empty mixing bowl; all her movements have paused and her eyes fix on a small SINGLE sock held by [jona]. On the sock is a tiny knitted golden crown. [jona] in orange vest and blue hoodie watches her with a gentle questioning expression. In the background a closed green door has a tiny flap at its bottom. Only Jona and the bread-crumb octopus; no king or shadow figure or extra monster, subtle mystery without fear",
+          "characterIds": [
+            "kruemelkrake",
+            "jona"
+          ],
+          "afterParagraph": 31,
+          "boxes": {
+            "kruemelkrake": [
+              300,
+              60,
+              980,
+              480
+            ],
+            "jona": [
+              200,
+              650,
+              980,
+              940
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e3/ch3.webp",
+        "sceneEn": "Cozy living room at night. A round monster transport bin stands upright on the carpet, a large soft sofa cushion visible inside. [kruemelkrake] has willingly climbed into it, curled up comfortably laughing with eight bread-crumb arms wrapped around her round belly. [jona] kneels at one side, lightly brushing her belly with a soft hand brush; [oma-hilde] crouches at the other side with a warm smile, no restraint, lid open, three figures only",
+        "characterIds": [
+          "kruemelkrake",
+          "jona",
+          "oma-hilde"
+        ],
+        "afterParagraph": 11,
+        "boxes": {
+          "kruemelkrake": [
+            350,
+            20,
+            920,
+            430
+          ],
+          "jona": [
+            300,
+            450,
+            980,
+            700
+          ],
+          "oma-hilde": [
+            100,
+            730,
+            980,
+            980
+          ]
+        }
+      }
+    }
+  ],
+  "collectible": {
+    "type": "monster_profile",
+    "title": "Monster-Steckbrief Nr. 3",
+    "imageUrl": "/library/series/die-monster-muellabfuhr/s1e3/kruemelkrake.webp",
+    "fields": [
+      {
+        "label": "Name",
+        "value": "Krümelkrake"
+      },
+      {
+        "label": "Ursprung",
+        "value": "Vergessene Brotkrümel unter einem Sofa"
+      },
+      {
+        "label": "Schwäche",
+        "value": "Kitzlig am Krümelbauch"
+      },
+      {
+        "label": "Fangtrick",
+        "value": "Eine freiwillige Kitzelrunde auf dem Kissen in der Tonne. Bei Stopp aufhören."
+      },
+      {
+        "label": "Job in der Pension",
+        "value": "Küchenhilfe mit acht Armen"
+      }
+    ]
+  },
+  "teaser": "Nächste Woche: In der Turnhalle weht ein ziemlich ungewöhnlicher Wind. Oma hat alle Fenster im Blick. Jona schaut lieber auf die Spuren vor der Pension.",
+  "canonFactsAdded": [
+    "Die Krümelkrake ist im Buchenweg 4 aus vergessenen Brotkrümeln unter einem Sofa entstanden. Ihre einzige Schwäche ist der kitzlige Bauch; sie achtet freiwillig auf Stopp.",
+    "Oma Hilde ist an den Handgelenken kitzlig. Jona hat den Überblick behalten, als Oma und Flusi vor Lachen nicht weiterkonnten.",
+    "Die Krümelkrake fährt freiwillig auf einem Sofakissen in der Monster-Tonne mit und arbeitet als Küchenhilfe in der Pension. Sie sammelt Krümel und sortiert Geschirr.",
+    "Die fürsorgliche Reinigung neuer Monster passt zu ihrem Material: Die Krümelkrake wird in der trockenen Wanne vorsichtig abgebürstet, nicht gebadet.",
+    "Die Krümelkrake erkennt Jonas Socke mit der winzigen gestrickten Krone, wird still und blickt zur Klappe der Pensionstür.",
+    "Beim ersten Vogelgezwitscher schläft die Krümelkrake ein und murmelt: Der König ruft. Die kleine Klappe steht einen Fingerbreit offen. Oma schiebt den Riegel vor.",
+    "Jona notiert Wer ist König? unter Steckbrief Nr. 3. König und Ursache der offenen Klappe sind noch ungeklärt.",
+    "Omas Einsatzsong für Krümel heißt Krümel im Getriebe. Flusi hat nach dem Kakao einen nassen Handtuch-Umhang getragen."
+  ]
+}

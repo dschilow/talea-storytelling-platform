@@ -1,0 +1,230 @@
+{
+  "series": {
+    "id": "die-monster-muellabfuhr",
+    "slug": "die-monster-muellabfuhr",
+    "title": "Die Monster-Müllabfuhr",
+    "logline": "Jona übernachtet am Wochenende bei Oma Hilde und entdeckt, dass sie nachts keinen normalen Müllwagen fährt. Sie fängt Monster, die aus vergessenen Dingen entstanden sind, und Jona wird ihr Azubi.",
+    "genre": "Abenteuer, Grusel-Komik, Sammeln",
+    "status": "active",
+    "activeBibleVersion": 1,
+    "releaseCadence": {
+      "weekday": 5,
+      "hourLocal": 15,
+      "timezone": "Europe/Berlin"
+    },
+    "freeEpisodeCount": 2,
+    "collectibleType": "monster_profile",
+    "teaserPrefix": "Nächste Woche",
+    "ageBand": "6-8",
+    "sortOrder": 2,
+    "coverImageUrl": "/library/series/die-monster-muellabfuhr/cover.webp"
+  },
+  "bible": {
+    "seriesId": "die-monster-muellabfuhr",
+    "version": 1,
+    "world": {
+      "setting": "Betriebshof hinter dem Bahnhof einer deutschen Stadt. Oma Hilde wohnt im kleinen Haus direkt am Hof, hinter einer grünen Tür auf dem Hof liegt die Monster-Pension. Nachts führen die Einsätze in Kinderzimmer, Keller, Turnhallen und Waschsalons. Für Erwachsene außerhalb der Crew ist Oma Hilde die „nächtliche Sonderabfuhr“.",
+      "tone": "Abenteuer mit Grusel-Komik: ein bisschen gruselig, nie bedrohlich, viel Herz für die einsamen Monster. Lustig zuerst, spannend als zweites, nie belehrend.",
+      "rules": [
+        "Monster entstehen aus Dingen, die zu lange vergessen wurden: Einzelsocken, Krümel, Kabel, Turnbeutel, Gemüse.",
+        "Jedes Monster hat genau eine Schwäche, und sie hängt mit seinem Ursprung zusammen. Wer den Ursprung versteht, findet die Schwäche.",
+        "Monster sind nie böse, nur verwirrt oder einsam. Sie werden nie verletzt.",
+        "Gefangene Monster kommen in die Monster-Pension. Dort bekommen sie einen Job, der zu ihnen passt.",
+        "Menschen außerhalb der Crew sehen Monster nur als Unordnung oder Schatten.",
+        "Die Nachtschicht endet beim ersten Vogelgezwitscher. Dann schlafen alle Monster ein.",
+        "Jonas Mama weiß Bescheid: Sie war als Kind selbst Azubi. Es gibt keine Geheimnisse vor den Eltern."
+      ]
+    },
+    "characters": [
+      {
+        "id": "jona",
+        "name": "Jona",
+        "role": "protagonist",
+        "ageYears": 7,
+        "personality": "Vorsichtig, zählt gern (Stufen, Socken, Sterne), merkt sich jede Schwäche, wird von Folge zu Folge mutiger. Zählt, wenn er Angst hat.",
+        "speechStyle": "Leise, genau, stellt kluge Fragen. Sagt: „Moment … ich weiß die Schwäche!“",
+        "visualProfileEn": "7-year-old boy, short curly black hair, warm brown skin, big curious eyes, oversized orange high-visibility vest with reflective stripes over a blue hoodie, yellow rubber boots",
+        "referenceStripKey": "/library/series/die-monster-muellabfuhr/characters/jona.webp",
+        "allowedInBranches": true
+      },
+      {
+        "id": "oma-hilde",
+        "name": "Oma Hilde",
+        "role": "protagonist",
+        "ageYears": 68,
+        "personality": "Furchtlos, laut, herzlich, hört Rockmusik im Führerhaus. Nennt alle Monster und Jona „Süße“ oder „Süßer“. Gibt zu, dass auch sie Angst hat.",
+        "speechStyle": "Laut, herzlich, kurze Kommandos. Sagt: „Ab in die Tonne, Süße!“",
+        "visualProfileEn": "energetic grandmother around 68, a tall grown-up woman with adult height, short spiky grey hair with one purple streak, black leather jacket with patches, orange work gloves, big grin",
+        "referenceStripKey": "/library/series/die-monster-muellabfuhr/characters/oma-hilde.webp",
+        "allowedInBranches": true
+      },
+      {
+        "id": "flusi",
+        "name": "Flusi",
+        "role": "sidekick",
+        "personality": "Staubflusen-Monster, das die Seiten gewechselt hat. Treu, neugierig, kitzlig. Niest kurz bevor ein Monster auftaucht, manchmal auch an der falschen Stelle.",
+        "speechStyle": "Mini-Sätze in der dritten Person. Sagt: „Flusi hilft!“",
+        "visualProfileEn": "small perfectly round fluffy grey dust-bunny monster the size of a cat, a soft ball of dust with a smooth round top, two tiny black dot eyes, short stubby arms, one single curly tuft of dust sticking up from the top of the ball",
+        "referenceStripKey": "/library/series/die-monster-muellabfuhr/characters/flusi.webp",
+        "allowedInBranches": true
+      },
+      {
+        "id": "gertrud",
+        "name": "Gertrud",
+        "role": "recurring",
+        "personality": "Der Monster-Müllwagen mit Persönlichkeit. Stolz, empfindlich, hilfsbereit. Hupt beleidigt, wenn man sie „Laster“ nennt.",
+        "speechStyle": "Spricht nicht. Hupt, blinkt mit den Scheinwerfern und benutzt ihren Rüssel.",
+        "visualProfileEn": "small purple garbage truck with big round headlights like friendly eyes, a flexible vacuum trunk on one side, three rattling monster bins on the back",
+        "referenceStripKey": "/library/series/die-monster-muellabfuhr/characters/gertrud.webp",
+        "allowedInBranches": true
+      },
+      {
+        "id": "mama-sina",
+        "name": "Mama Sina",
+        "role": "recurring",
+        "personality": "Jonas Mama, ehemalige Azubi der Nachtschicht, gibt alte Tipps und erzählt Geschichten von früher.",
+        "speechStyle": "Warm, verschmitzt, verrät nie zu viel auf einmal.",
+        "visualProfileEn": "woman in her late 30s, curly black hair tied up, warm brown skin, warm smile, green cardigan",
+        "referenceStripKey": "/library/series/die-monster-muellabfuhr/characters/mama-sina.webp",
+        "allowedInBranches": true
+      },
+      {
+        "id": "sockenkoenig",
+        "name": "Der Sockenkönig",
+        "role": "antagonist",
+        "personality": "Ein riesiges Monster aus allen verlorenen Einzelsocken der Stadt. Einsam, nicht böse. Öffnet nachts heimlich die Klappe der Monster-Pension, weil er Gesellschaft sucht.",
+        "speechStyle": "Vor Folge 10 nur Spuren und Schatten; wenn er spricht, dann langsam, tief und traurig.",
+        "visualProfileEn": "tall figure made entirely of mismatched single socks, a crown knitted from socks, long dangling arms, sad droopy eyes",
+        "referenceStripKey": "/library/series/die-monster-muellabfuhr/characters/sockenkoenig.webp",
+        "allowedInBranches": false
+      }
+    ],
+    "runningGags": [
+      "Hatschi-Alarm: Flusi niest immer kurz, bevor ein Monster auftaucht. Auch an der falschen Stelle.",
+      "Oma Hilde wählt für jeden Einsatz einen (ausgedachten) Rocksong und dreht auf, Gertrud hupt im Takt.",
+      "Jonas Satz „Moment … ich weiß die Schwäche!“ fällt in jeder Folge, einmal davon falsch.",
+      "Jede Folge endet mit dem Monster-Steckbrief."
+    ],
+    "catchphrases": [
+      "Moment … ich weiß die Schwäche!",
+      "Ab in die Tonne, Süße!",
+      "Flusi hilft!"
+    ],
+    "episodeFormula": [
+      "Notruf: Der Monster-Funk meldet ein Monster in einem Haushalt, einer Schule oder einem Laden.",
+      "Abfahrt: Gertrud startet, Oma wählt den Song, Flusi sitzt auf dem Armaturenbrett.",
+      "Sichtung: Das Monster richtet Chaos an. Der erste Fangversuch scheitert.",
+      "Ermitteln: Jona findet den Ursprung des Monsters und damit seine Schwäche.",
+      "Fang: Teamwork mit dem Fangtrick der Folge.",
+      "Pension: Das Monster bekommt seinen Job, ein versöhnlicher Moment.",
+      "Abschluss: Steckbrief, Vogelgezwitscher, Teaser."
+    ],
+    "canonInvariants": [
+      "Monster werden nie verletzt, zerstört oder bestraft.",
+      "Jedes Monster hat genau eine Schwäche, die zu seinem Ursprung passt.",
+      "Flusi bleibt auf der Seite der Crew.",
+      "Oma Hilde ist die Fahrerin, Gertrud der einzige Wagen.",
+      "Die Eltern wissen von der Nachtschicht; es gibt keine Geheimnisse vor ihnen.",
+      "Der Sockenkönig wird vor Folge 10 nicht vollständig gezeigt, nur Spuren und Schatten."
+    ],
+    "forbiddenTopics": [
+      "Monster aus Albträumen",
+      "Tod oder Verlust geliebter Menschen",
+      "echte Angst vor Dunkelheit lächerlich machen",
+      "Ekel-Details über Körperflüssigkeiten (außer harmlosem Pups-Humor)"
+    ],
+    "seasonArcs": [
+      {
+        "season": 1,
+        "title": "Die Nacht des Sockenkönigs",
+        "mystery": "Jemand öffnet nachts heimlich die Klappe der Monster-Pension, deshalb gibt es immer mehr Notrufe. Wer steckt dahinter?",
+        "clues": [
+          {
+            "episode": 1,
+            "clue": "Im Wagen liegt eine Socke mit einer winzigen gestrickten Krone."
+          },
+          {
+            "episode": 2,
+            "clue": "Oma wundert sich: So viele Notrufe gab es noch nie."
+          },
+          {
+            "episode": 3,
+            "clue": "Die Krümelkrake murmelt im Schlaf: „Der König ruft.“"
+          },
+          {
+            "episode": 4,
+            "clue": "Vor der Pension sind Abdrücke wie von nassen Socken."
+          },
+          {
+            "episode": 5,
+            "clue": "Flusi niest beim Wort „König“."
+          },
+          {
+            "episode": 6,
+            "clue": "Um Klirrklaus' Hals hängt ein Sockenfaden wie ein Abzeichen."
+          },
+          {
+            "episode": 7,
+            "clue": "Mama Sina erzählt: Den Sockenkönig gab es schon zu ihrer Azubi-Zeit, dann verschwand er."
+          },
+          {
+            "episode": 8,
+            "clue": "Die Knäuelbande hat Gertrud im Auftrag „Seiner Majestät“ entführt. Die Spur führt zum alten Waschsalon."
+          },
+          {
+            "episode": 9,
+            "clue": "Oma hat sich den Fuß verknackst, Jona fährt mit Flusi und Gertrud allein. Er findet den Waschsalon-Schlüssel."
+          },
+          {
+            "episode": 10,
+            "clue": "Auflösung des Staffelgeheimnisses."
+          }
+        ],
+        "resolution": "Hinter den geöffneten Klappen steckt der Sockenkönig. Er ist aus allen verlorenen Einzelsocken der Stadt entstanden und befreit Monster, weil er Gesellschaft sucht. Jona findet in der Pension die Partnersocken, die der Socken-Schnüffler aus Folge 1 gesammelt hat. Der Sockenkönig wird ganz und bekommt den Job als Nachtportier der Pension."
+      }
+    ],
+    "imageStyleEn": "Warm hand-drawn children's book illustration, soft ink outlines, gouache textures, rounded friendly shapes, expressive faces, gentle saturated colors, cozy lighting, a wordless picture where every surface stays plain and unmarked",
+    "branch": {
+      "avatarEntry": "Wird Azubi der Nachtschicht und bekommt eine eigene Warnweste.",
+      "trigger": "Ein Notruf führt zu einem neuen Monster, das nur in dieser Geschichte entsteht.",
+      "canonException": "Keine.",
+      "avatarSolves": "Er findet Ursprung und Schwäche des neuen Monsters.",
+      "canonCast": "Oma Hilde, Flusi und Gertrud sind dabei; Kanon-Monster nur als Gast in der Pension.",
+      "branchState": "Die vom Avatar gefangenen Monster als persönliche Steckbrief-Sammlung.",
+      "spoilerLimit": "Identität des Sockenkönigs nur, wenn Folge 10 gelesen ist."
+    },
+    "audio": {
+      "narrator": {
+        "voiceId": "8tJgFGd1nr7H5KLTvjjt",
+        "persona": "warm, playful storyteller"
+      },
+      "cast": {
+        "jona": {
+          "voiceId": "aHb0rsWUX1Fsr1L8EX7f",
+          "persona": "quiet, careful, thoughtful"
+        },
+        "oma-hilde": {
+          "voiceId": "p2Wol3C7j3rHbfOrbL18",
+          "persona": "loud, hearty, raspy, bossy"
+        },
+        "flusi": {
+          "voiceId": "vTJTqNHBdjAKhdigDXCC",
+          "persona": "tiny, squeaky, giggly"
+        },
+        "gertrud": {
+          "silent": true,
+          "persona": "honks, blinking headlights, hydraulic trunk"
+        },
+        "mama-sina": {
+          "voiceId": "dCnu06FiOZma2KVNUoPZ",
+          "persona": "warm, sly, knowing"
+        },
+        "sockenkoenig": {
+          "voiceId": "re2r5d74PqDzicySNW0I",
+          "persona": "slow, deep, sad"
+        }
+      },
+      "scoreStyleEn": "spooky-fun orchestra for kids: tuba, bassoon, pizzicato strings, celesta, a theremin-like whistle, soft timpani and a friendly rock guitar riff for the garbage truck; creepy-cute, adventurous, never scary"
+    }
+  }
+}

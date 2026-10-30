@@ -8,7 +8,7 @@
  */
 
 import { storyDB } from "../db";
-import { SEED_EPISODES, SEED_SEASONS, SEED_SERIES, episodeId, seedHash } from "./seed";
+import { SEED_EPISODES, SEED_SEASONS, SEED_SERIES, SEED_LEGACY_BIBLES, episodeId, seedHash } from "./seed";
 import type { AudioScript, ContentStatus, EpisodeAudio, EpisodeContent, EpisodeScores, SeriesBible, SeriesCharacter, SeriesInfo } from "./types";
 import type { VoiceOverride } from "./audio/casting";
 import type { EngineVoiceOverride } from "./audio/gemini-voices";
@@ -174,13 +174,22 @@ async function syncSeed(): Promise<void> {
     await storyDB.exec`
       INSERT INTO library_series (id, slug, info, status, sort_order, active_bible_version)
       VALUES (${series.id}, ${series.slug}, (${json(series)}::jsonb #>> '{}')::jsonb, ${series.status}, ${series.sortOrder}, ${series.activeBibleVersion})
-      ON CONFLICT (id) DO UPDATE SET info = EXCLUDED.info, sort_order = EXCLUDED.sort_order, updated_at = CURRENT_TIMESTAMP
+      ON CONFLICT (id) DO UPDATE SET info = EXCLUDED.info, sort_order = EXCLUDED.sort_order,
+        active_bible_version = GREATEST(library_series.active_bible_version, EXCLUDED.active_bible_version), updated_at = CURRENT_TIMESTAMP
     `;
     await storyDB.exec`
       INSERT INTO library_series_bibles (series_id, version, bible)
       VALUES (${series.id}, ${bible.version}, (${json(bibleWithoutCast)}::jsonb #>> '{}')::jsonb)
       ON CONFLICT (series_id, version) DO UPDATE SET bible = EXCLUDED.bible
     `;
+    for (const legacy of SEED_LEGACY_BIBLES.filter((entry) => entry.series.id === series.id)) {
+      const { characters: legacyCast, ...legacyBible } = legacy.bible;
+      await storyDB.exec`
+        INSERT INTO library_series_bibles (series_id, version, bible)
+        VALUES (${series.id}, ${legacy.bible.version}, (${json(legacyBible)}::jsonb #>> '{}')::jsonb)
+        ON CONFLICT (series_id, version) DO NOTHING
+      `;
+    }
     for (const [index, character] of characters.entries()) {
       const data = { ...character, origin: "seed", seedHash: seedHash(character) };
       await storyDB.exec`
@@ -206,12 +215,12 @@ async function syncSeed(): Promise<void> {
   }
 
   for (const seed of SEED_EPISODES) {
-    const { seriesId, season, episode, publishAt, ...content } = seed;
+    const { seriesId, season, episode, publishAt, bibleVersion = 1, ...content } = seed;
     const hash = seedHash(seed);
     const generation: GenerationInfo = { source: "seed", seedHash: hash };
     await storyDB.exec`
       UPDATE library_episodes
-      SET content = (${json(content)}::jsonb #>> '{}')::jsonb, title = ${content.title}, status = 'approved', bible_version = 1,
+      SET content = (${json(content)}::jsonb #>> '{}')::jsonb, title = ${content.title}, status = 'approved', bible_version = ${bibleVersion},
           publish_at = ${new Date(publishAt)}, generation = (${json(generation)}::jsonb #>> '{}')::jsonb, updated_at = CURRENT_TIMESTAMP
       WHERE id = ${episodeId(seriesId, season, episode)}
         AND (content IS NULL OR generation->>'source' = 'seed')

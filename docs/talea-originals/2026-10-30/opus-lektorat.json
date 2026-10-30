@@ -1,0 +1,165 @@
+{
+  "model": "claude-opus-5-5",
+  "cliVersion": "2.1.314",
+  "authentication": "Claude Code subscription OAuth; no API key",
+  "seriesReview": {
+    "verdict": "Die Pläne sind deutlich besser als die Bibelfassung. Hinweise lösen jetzt Handlungen aus, Ella, Jona und Oma behalten ihre Erfahrungen, und die Spielformen wechseln wirklich: Schulkomödie, Kammerspiel, Verhandlung, Rätsel, langsamer Einsatz. Freigegeben ist das aber nur mit Korrekturen. Bei Bruno doppeln sich Folge 3 und 4 im Motiv: Mats will Lia beeindrucken und gesteht vor Lia. Mats flunkert außerdem in vier von neun Folgen. Zwei geplante Flunkereien erfüllen die Regel nicht wörtlich (Folge 6 und 8). Das Bruno-Finale enthält in der Bibelfassung einen echten Regelwiderspruch. Bei den Monstern ist der zentrale Rätselmechanismus noch nicht kausal: Eine geöffnete Pensionsklappe erklärt keine zusätzlichen Notrufe aus fremden Haushalten. Außerdem verletzt die neue Folge 9 eine Kanon-Invariante, solange die Bibel nicht angepasst wird.",
+    "mustFix": [
+      "Bruno 3/4: Beide Folgen erzählen dasselbe: Mats flunkert, um vor Lia gut dazustehen, und muss es vor ihr zugeben. Folge 4 braucht einen anderen Druck. Vorschlag: Mats flunkert ‚Ich kann fliegen!‘, um sich vor Ellas Aufräumplan zu drücken (‚Ich hol die Kiste vom Schrank, ich kann ja fliegen‘). Die eigentliche Wahrheit lautet dann nicht ‚Ich wollte angeben‘, sondern ‚Ich hab Angst hier oben und wollte es nicht sagen‘. Lia hilft praktisch mit Werkzeugkoffer und Kordel, ohne dass Mats sie beeindrucken muss.",
+      "Bruno 4: Lia ist im Wohnzimmer. Kein Erwachsener ist da, also könnte Bruno sprechen. Der Text muss zeigen, dass Bruno sich bewusst für ‚Blubb‘ entscheidet, denn die Invariante sagt, dass er nur mit Ella und Mats spricht. Den Kartentrick mit der Flosse darf Lia nur als zappelnden Fisch sehen. Ella erkennt darin die Handbewegung vom Plakat.",
+      "Bruno 5: Oma muss wörtlich ‚Ich bin zwanzig!‘ behaupten, und zwar gegen besseres Wissen, etwa um beim Rollschuhverleih mitzudürfen. Auflösen kann nur Oma selbst, die Kinder können sie nicht erlösen. Ihr Aufschub braucht ein Motiv (die Knie tun nicht weh). Ihr Geständnis muss ihre eigene Entscheidung sein. Weil die junge Rosi sich an Brunello erinnert ‚wie gestern‘, hat der Hinweis eine Folge: Sie beschreibt die Mondsichel auf seinem Umhang.",
+      "Bruno 6: ‚Mein Kaiser ist der klügste Kater der Welt‘ ist für Frau Grimmbach Überzeugung, keine bewusste Flunkerei. Laut Regel löst das nichts aus. Sie muss etwas wider besseres Wissen behaupten, etwa im Wohnzimmer der Brandts gegenüber Mama: ‚Kaiser kann Maschinen bauen. Das hab ich selbst gesehen.‘ Auflösen muss ebenfalls Frau Grimmbach, mit ihrem Heft als Gedächtnisstütze.",
+      "Bruno 7: Ellas Satz muss die Schwerelosigkeit wörtlich enthalten, etwa ‚Papa ist Astronaut und zeigt gleich sein Schwerelosigkeitstraining‘, und er muss im Wohnzimmer fallen, nicht in der Küche. Wichtig ist auch, vor wem Ella die Zylindersuche verbergen will (Papa). Sonst ist die Notlüge sinnlos.",
+      "Bruno 8: ‚Heute hab ich Geburtstag!‘ erzeugt wörtlich genau einen Geburtstag und keine Endlosschleife. Der Satz braucht die Wiederholung, etwa ‚Ich hab heute den ganzen Tag Geburtstag, immer wieder neu!‘.",
+      "Bruno 9: Brunos Gleichgültigkeit darf nicht wie Krankheit oder Depression wirken, denn ‚grau, stumm‘ liegt nah an verbotenen Themen. Sie sollte komisch und blass sein: Er ist beige, ignoriert Extra-Flocken und nennt seine Burg ‚Stein‘. Mats muss vor Ella korrigieren. Brunos freiwilliges ‚Ich war Brunello‘ beendet nichts, weil es nicht die Wahrheit über die alte Flunkerei ist. Das muss im Text unauffällig stimmen.",
+      "Bruno-Bibel: Die Regel muss präzisiert werden: ‚Der Zauber endet, wenn der Flunkerer vor einer anderen Person die Wahrheit über SEINE Flunkerei sagt.‘ Ohne diese Präzisierung würde im Finale jede wahre Aussage Brunos, auch ‚Ich will bei euch bleiben‘, den Fischzauber beenden. Das Finale wäre dann unlogisch.",
+      "Monster-Mechanik: Hinter der geöffneten Klappe steckt bisher keine Erklärung für zusätzliche Notrufe. Die Neuzugänge (Krake, Pupsmonster …) stammen aus fremden Haushalten und sind nicht aus der Pension ausgebrochen. Vor Folge 4 muss feststehen: ‚Der König ruft‘ ist ein echter Ruf, der vergessene Dinge früher wach werden lässt. Daher kommen die Notrufe. An die Klappe kommt der König, um nachzusehen, ob jemand seinem Ruf gefolgt ist. Hinaus geht niemand.",
+      "Monster 9: ‚Mama Sina fährt Gertrud‘ widerspricht der Invariante ‚Oma Hilde ist die Fahrerin‘ und dem Bibelhinweis ‚Jona fährt allein‘. Beides muss in einer neuen Bibelversion als ausdrückliche einmalige Ausnahme stehen, sonst schlagen die canonChecks an. Omas Fuß verknackst sie sich abseits des Einsatzes, als harmloses Missgeschick und ohne Unfallszene.",
+      "Monster 9: Der Schattenschreck braucht eine sichtbare Verbindung zum Waschsalonschlüssel. Vorschlag: Die vergessenen Schattenspielfiguren lagen im Schaufenster des alten Waschsalons, und der Schlüssel hing am selben Haken. Jonas echte Angst im Dunkeln darf nicht weggelacht werden.",
+      "Monster 5: Flusis Niesen bei ‚König‘ kollidiert mit dem Running Gag ‚Niesen kündigt ein Monster an‘. Es muss etwas bedeuten: Flusi war als Staubfluse im alten Waschsalon, und der Staub dort niest in ihm nach. So bleibt er Erinnerungszeuge statt Verräter.",
+      "Monster 8: Im Kindertext nicht ‚entführt‘ sagen, sondern ‚weggelockt‘. Gertrud folgt freiwillig einer falschen Pannenspur, weil sie hilfsbereit ist. Für Gertruds Würde und gegen Gewaltassoziationen.",
+      "Monster 10: Der Haufen Partnersocken muss ab Folge 4 sichtbar wachsen, etwa als Kiste ‚Noch kein Paar‘ beim Schnüffler. Sonst fällt die Lösung vom Himmel. ‚Der König wird ganz‘ darf nicht heißen, dass er sich auflöst, wenn Socken gepaart werden."
+    ],
+    "approvedDevelopments": [
+      "Lia als eigenständige Freundin mit Werkzeugkoffer, Zungengeräuschen und Bühnen. Ihr Wunsch ist gemeinsames Spielen. Sie hört Bruno nicht.",
+      "Frau Pfeffer als echte Person mit Sinn für Theater, die die Plakatspur weiterführt, ohne sich an Magie zu erinnern.",
+      "Folge 9 wird umgebaut: Mats flunkert ‚Bruno ist alles egal‘, statt Bruno selbst flunkern zu lassen. Das schützt die Regel, dass Bruno nichts auslöst, und macht Vertrauen zum Thema.",
+      "Grimmbachs Heft wird in Folge 6 zur nutzbaren Quelle. Die Running-Gag-Einträge erhalten so eine Funktion.",
+      "Ellas Abzeichnung des Plakats, Omas Erinnerung, Zylinder und Kartentrick bilden eine Indizienkette, die vor Folge 9 nichts bestätigt.",
+      "Materialgerechte Empfangsreinigung statt Bad für alle, von Jona selbst erkannt. Das ist Kompetenzentwicklung, keine Regeländerung.",
+      "Schattenschreck aus vergessenen Schattenspielfiguren, beruhigt in warmem Licht, das die Umrisse als Spielfiguren erkennbar macht. Eine Schwäche, ursprungsbezogen.",
+      "Die Solo-Schicht als Einsatzleitung statt Fahren. Unter Vorbehalt der Bibeländerung.",
+      "Die Krümelkrake bleibt Küchenhilfe und vorsichtige Zeugin. Sie wird kein Hinweisautomat.",
+      "Folge 8: Die Pension hilft zurück. Frühere Neuzugänge werden handlungsrelevant.",
+      "Finale als Besuch und Verständigung statt größerer Fangapparat. Die Klappe wird ein betreuter Eingang."
+    ],
+    "finaleLogic": "BRUNO (regelkonform, nicht im Kindertext vor Folge 10 verraten): Das runde Glas mit der Steinburg war die Requisite des Großen Brunello, ‚Simsalabrunello‘ war sein Spruch. Vor seiner letzten Show sagte der müde, einsame Brunello vor diesem Glas zu seinem Assistenten: ‚Mir geht's prima. Ich bin glücklich wie ein Fisch im Wasser.‘ Das war gelogen. Die Flunkerei wurde wörtlich wahr, und er wurde ein Fisch im Wasser. Der Assistent erinnert sich, weil dieser Zauber nie geendet hat (Erwachsene vergessen erst, wenn ein Zauber endet). Er bietet in Folge 10 keine neue Magie an. Er erklärt nur die alte Regel: Sagt Bruno vor einem Menschen die Wahrheit über diese Flunkerei (‚Ich war damals nicht glücklich. Ich war allein.‘), endet der Zauber, und er wird wieder Brunello. Bruno könnte das jederzeit sagen, und darin liegt die Wahl. Die Kinder drängen ihn nicht. Bruno sagt stattdessen seine heutige größte Wahrheit: ‚Ich will bei euch bleiben.‘ Diese Wahrheit betrifft nicht die alte Flunkerei und beendet nichts. Und der alte Satz ist inzwischen einfach wahr geworden: Bei Ella und Mats ist er glücklich wie ein Fisch im Wasser. Kein Zauberspruch, kein zusätzlicher Effekt. Voraussetzung ist die präzisierte Regelformulierung, siehe mustFix. Noch offen für das Finale: warum der Assistent Bruno für drei Euro verkauft hat. Vorschlag: Er hoffte, Bruno fände Menschen, bei denen er nicht mehr lügen muss, daher ‚Passt gut auf, was ihr vor ihm sagt‘. MONSTER: Der König entstand im alten Waschsalon aus allen verlorenen Einzelsocken. Seine Krone ist aus Socken gestrickt, und die Kronensocke aus Folge 1 ist eine abgefallene Zacke davon. Er ist einsam und summt jede Nacht seinen Ruf (‚Der König ruft‘). Dieser Ruf weckt vergessene Dinge früher, deshalb gibt es so viele Notrufe. Nachts kommt er nass vom Waschsalon an die Pensionsklappe und schaut hinein, ob jemand gefolgt ist; daher die nassen Abdrücke in Folge 4. Seine eine ursprungsbezogene Schwäche: Jede einzelne Socke sehnt sich nach ihrem Partner. Trifft eine seiner Socken ihren Partner, wird er ruhig und weich. Jona bringt den Partner der Kronensocke aus der wachsenden Kiste des Schnüfflers. Die Krake deckt den Tisch, das Gähnmonster bringt Decken. Gefangen wird er nicht, er wird eingeladen. ‚Ganz‘ heißt, er behält seine Socken, aber keine ist mehr allein. Er löst sich nicht auf. Beim ersten Vogelgezwitscher schläft er in der Pension ein. Danach ist er Nachtportier: Die Klappe wird ein betreuter Eingang, und sein Ruf wird zu einer Begrüßung für Neuzugänge, die Oma ohnehin abholt."
+  },
+  "episodes": [
+    {
+      "key": "bruno",
+      "review": {
+        "before": {
+          "spannung": 6,
+          "humor": 7,
+          "verstaendlichkeit": 6,
+          "figuren": 7,
+          "kanon": 6,
+          "emotion": 7,
+          "serienbogen": 7
+        },
+        "mustFix": [
+          "„Aber dann muss ich Lia sagen, dass ich Quatsch erzählt habe.“ Ein Geständnis vor Ella hinter dem Kastanienbaum würde Lia gar nicht betreffen. Das Motiv für den Aufschub bricht in sich zusammen.",
+          "„Und gleich wollte er erst einmal sehen, ob Frau Pfeffer wirklich piepte.“ Bloße Neugier ist zu schwach für ein Kind, das die Regel kennt. Es fehlt ein Grund, der mit seiner Sprechhemmung zu tun hat.",
+          "„Unsere Lehrerin ist ein Roboter. Ein echter.“ Die Akku-Anzeige folgt nicht wörtlich aus diesem Satz. Damit ist die Kernregel ‚wörtlich wahr‘ verletzt.",
+          "„Zwischen Ärmel und Hand glänzte ein silbernes Gelenk“ und „Auf Frau Pfeffers Strickjacke leuchtete plötzlich ein kleines grünes Kästchen“. Beides ist räumlich unklar und für Kinder schwer vorstellbar. Ein komisches Gesamtbild der Roboterlehrerin fehlt.",
+          "„Bitte warten. Akku schwach.“ Ein ablaufender Akku legt nahe, dass der Zauber mit der Zeit endet. Das widerspricht der Invariante ‚nie durch Zeit‘. Was bei leerem Akku passiert, bleibt offen.",
+          "„Das Nachher war den ganzen Vormittag neben ihm gesessen.“ Grammatisch schief, und das ‚Nachher‘ wird später nie eingelöst.",
+          "Mats überwindet seine Sprechhemmung, erzählt aber nie von seinem Wochenende. Der emotionale Bogen bleibt ohne Auflösung.",
+          "Lia erlebt das PLOPP ohne jede Reaktion. Das Planziel ‚Lia wird Freundin, bewahrt das Vertrauen‘ ist nur behauptet.",
+          "„Zu Hause bimmelten elf Glöckchen.“ Wie Kaiser in den dritten Stock gekommen ist, bleibt ungeklärt.",
+          "Ella will Bruno nach der Mondsichel ‚später fragen‘. Dadurch hat der Hinweis in der Folge selbst keine Wirkung."
+        ],
+        "changes": [
+          "Neues Aufschubmotiv: Frau Pfeffer hat angekündigt, morgen noch einmal zu Mats zu kommen. Mats hofft, dass eine Maschine dieses Morgen vergisst, und das tut sie auch. Damit sind Flunkerei, Aufschub und Mutmoment an seine Sprechhemmung gebunden.",
+          "Die Flunkerei lautet jetzt „Ein echter. Mit Akku.“ und begründet die Anzeige wörtlich.",
+          "Klares Roboterbild: Akkufenster genau an der Stelle der Armbanduhr, blinkende Kirschen am Haarclip wie eine winzige Ampel, schnurgerader Gang mit rechten Winkeln, surr-klick. Kein Strom- oder Steckerhumor.",
+          "Leerer Akku bedeutet nur Sparmodus und dann Stillstand („wie ein Denkmal mit Kirschen“). Ella stellt ausdrücklich klar, dass der Zauber nicht von allein aufhört.",
+          "Kap. 3: Mats könnte heimlich zu Ella gehen, bleibt aber, weil Lia ihn gefragt hat. Er gesteht vor Lia und der Klasse, den Löwen als Halt in der Hand.",
+          "Nach dem Zauber fragt Frau Pfeffer nach dem Wochenende. Mats erzählt mit dem Löwen, Lia hilft mit dem Zuggeräusch, niemand lacht über das Äh. Neue Pointe: „Der Drachen, nicht der Papa.“",
+          "Lia bemerkt das Plopp und bekommt ein Geheimnis anvertraut, ohne Bruno zu hören. Ihr Werkzeugkoffer wird zur Vertrauenspointe.",
+          "Plakat: Kartenfächer ergänzt, als Brücke zum Kartentrick in Folge 4. Frau Pfeffer erzählt vom alten Saal und sucht ein ganzes Plakat.",
+          "Ella fragt Bruno noch in dieser Folge nach Brunello. Er weicht wie üblich zur Burg und zu den Flocken aus. Das ist ein Indiz, keine Bestätigung.",
+          "Kaiser kommt durch die offene Wohnungstür, weil Papa Einkäufe hereinträgt. Grimmbachs Eintrag 48 nennt jetzt konkret, was sie beobachtet hat (Geodreieck, Schuhgröße).",
+          "Die Anwesenheit Erwachsener ist geprüft: Bruno spricht nur, wenn Papa im Keller oder in der Küche ist."
+        ],
+        "after": {
+          "spannung": 8,
+          "humor": 8,
+          "verstaendlichkeit": 8,
+          "figuren": 8,
+          "kanon": 9,
+          "emotion": 8,
+          "serienbogen": 8
+        },
+        "remainingConcerns": [
+          "Die ganze Klasse erinnert sich an die Roboterlehrerin. Dieser Zeugenkreis sollte in späteren Folgen nicht aufgegriffen werden.",
+          "Dass Frau Grimmbach zufällig in der Schule näht, bleibt ein bequemer Zufall. Es ist vertretbar, weil sie dadurch ihr Heft füllen kann.",
+          "Mondsichel, NELLO und Simsalabrunello sind schon eine starke Indizienkette. Vor Folge 5 sollte sie nicht weiter verdichtet werden.",
+          "Lia kennt jetzt ein ‚Plopp-Geheimnis‘. Für Folge 4 ist eine Kanonentscheidung nötig, wie viel sie wissen darf, ohne Bruno zu hören."
+        ]
+      }
+    },
+    {
+      "key": "monster",
+      "review": {
+        "before": {
+          "spannung": 6,
+          "humor": 7,
+          "verstaendlichkeit": 6,
+          "figuren": 7,
+          "kanon": 6,
+          "emotion": 7,
+          "serienbogen": 7
+        },
+        "mustFix": [
+          "„Aber Oma und Flusi lagen auf dem Teppich, und über ihnen wackelte ein Sofa.“ Das ist ein bedrohliches Bild (Möbel über liegenden Figuren) und widerspricht der Vorgabe ausdrücklich.",
+          "„„Stopp!“, rief er. Die Krake hielt inne.“ Das liest sich wie ein Zauberwort oder eine zweite magische Schwäche. Dass die Krake freiwillig Rücksicht nimmt, ist nicht zu sehen.",
+          "„An den Krümelarmen saßen feine Härchen, wie die weiche Innenseite einer Brotscheibe.“ Die Ursprungslogik der Kitzligkeit ist unklar: Härchen an Brot? Warum der Bauch? Kruste und Krume müssen getrennt sein.",
+          "„Heute fragen wir den Schnüffler.“ Die Ankündigung wird nie eingelöst, weil die Krake sie überspringt. Der Hinweis hat keine Folge.",
+          "„Oma legte den Schlüssel neben die Tür.“ Ein unerklärter Schlüssel, der mit dem Waschsalonschlüssel aus Folge 9 kollidiert.",
+          "„Stattdessen setzten sie sie in die leere Wanne.“ Die Abkehr vom Bad-Ritual geschieht ohne erkennbare Entscheidung. Die Weiterentwicklung verpufft.",
+          "Omas Kompetenz ist kaum sichtbar: Sie hält nur die Tonne, und die Lösung kommt ohne ihr fachkundiges Nachfragen.",
+          "„Flusi hilft!“ fehlt. Der Catchphrase wird nur variiert.",
+          "Die offene Klappe am Schluss bleibt stumm. Ohne Omas Gewissheit, sie verschlossen zu haben, ist sie kein prüfbarer Hinweis."
+        ],
+        "changes": [
+          "Das Sofa wandert jetzt gemütlich ‚wie ein Schiff auf einem stillen See‘ und bleibt nach dem Ziehen stehen. Die Krake purzelt beim Kitzeln unter dem Sofa hervor. Niemand liegt je unter oder neben einem wackelnden Möbel.",
+          "Freiwilliger Stopp: Die Krake sieht Jona an, behält einen Arm noch in der Luft, schaut zur japsenden Oma und legt die Arme von sich aus langsam ab. Danach führt Oma die gegenseitige Stopp-Regel ein, und die Krake nutzt sie selbst.",
+          "Klare Ursprungslogik: Die Arme sind aus Kruste, der Bauch aus Krume, dem weichen Inneren vom Brot. Ein Krustenarm fegt versehentlich über den Bauch und kitzelt. Ein Handfeger, der die vergessenen Krümel nie erreicht hat, wird zum Fangtrick. Genau eine Schwäche.",
+          "Oma steuert mit ‚Woraus ist sie gemacht? Guck noch mal‘, hat den Feger schon parat, schickt den Mann zum Teewasser und erklärt ‚Brot und Badewanne, das gibt Matsch‘. Sie ist kompetent und braucht trotzdem Jonas Hilfe.",
+          "Oma kann vor Lachen nur ‚Jo … Jo …‘ sagen. Jona übernimmt Verantwortung, und Oma bedankt sich ausdrücklich.",
+          "Trockene Reinigung als Jonas Einfall mit Omas Bestätigung. Als Pointe glänzt die Krake danach ‚goldbraun wie frisch aus dem Ofen‘.",
+          "Der Schnüffler wird befragt, sucht und findet die zweite Kronensocke ‚noch nicht‘. Das bereitet die Partnersocken des Finales vor.",
+          "Die Krake bleibt vorsichtige Zeugin: Sie lässt den Löffel fallen, schaut zur Klappe, verschließt den Bauch und rutscht hinter die Spüle. Sie erklärt nichts.",
+          "Schlüssel gestrichen. Neu: Oma sagt ‚Die hab ich zugemacht. Ganz sicher.‘ So hat die offene Klappe eine prüfbare Folge.",
+          "„Flusi hilft!“ ist in die Rettungsszene eingebaut. Der Sockenkönig wird weder gezeigt noch benannt, nur ‚Der König ruft‘ und Jonas Frage ‚Wer ist der König?‘.",
+          "Vogelgesang beendet die Schicht, alle Monster schlafen ein. Steckbrief Nr. 3 steht im Text."
+        ],
+        "after": {
+          "spannung": 7,
+          "humor": 8,
+          "verstaendlichkeit": 9,
+          "figuren": 8,
+          "kanon": 9,
+          "emotion": 8,
+          "serienbogen": 8
+        },
+        "remainingConcerns": [
+          "Die äußere Spannung bleibt bewusst niedrig, weil die Folge eine Begegnung zum Spiel kippen lässt. Folge 4 sollte im Tempo Kontrast setzen.",
+          "Die Kitzelrunde als Fangtrick sollte nicht zur Schablone werden. Freiwilliges Mitkommen braucht in späteren Folgen andere Formen.",
+          "Die Krake spricht hier zwei Wörter (‚Stopp‘, ‚Der König ruft‘). Ihre Sprechfähigkeit sollte knapp bleiben, damit sie Zeugin und kein Auskunftsdienst wird.",
+          "Ob durch die offene Klappe etwas hinausging, bleibt offen. Folge 4 muss das mit den nassen Abdrücken beantworten (nur jemand von außen schaute hinein)."
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "claude-opus-5-5": {
+      "inputTokens": 2,
+      "outputTokens": 57583,
+      "cacheReadInputTokens": 0,
+      "cacheCreationInputTokens": 73062,
+      "webSearchRequests": 0,
+      "costUSD": 1.736164,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 35719,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 73062,
+      "canonicalModel": "claude-opus-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  }
+}

@@ -20,8 +20,9 @@ import { CostLedger, withServiceTier } from "./storybook/llm";
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
 import { LIBRARY_MODELS, generateEpisodeText, type CanonEntry, type EpisodeBrief } from "./library/engine";
 import { createRunwareCaller, drawPortrait, LIBRARY_IMAGE_MODEL, type ReferenceLoader } from "./library/images";
-import { illustrateEpisode, redrawPicture, type IllustrationContext, type SlotRef } from "./library/production";
+import { illustrateEpisode, redrawPicture, type IllustrationContext } from "./library/production";
 import { nextReleaseSlot } from "./library/schedule";
+import { chapterImages, parseImageSlot } from "./library/image-slots";
 import { chooseContinuation, type ContinuationCandidate } from "./library/continuation";
 import {
   ensureLibrary,
@@ -158,7 +159,7 @@ export interface LibraryEpisodeResponse {
   summary: string;
   coverImageUrl?: string;
   readingMinutes: number;
-  chapters: Array<{ title: string; text: string; imageUrl?: string; afterParagraph?: number }>;
+  chapters: Array<{ title: string; text: string; imageUrl?: string; afterParagraph?: number; images?: Array<{ url: string; afterParagraph: number }> }>;
   collectible: LibraryCollectible;
   teaser: string;
   cast: LibraryCharacter[];
@@ -664,7 +665,7 @@ export const libraryEpisode = api<{ id: string; profileId?: Query<string> }, Lib
     const previous = [...episodes.slice(0, position)].reverse().find((entry) => isAdmin ? Boolean(entry.content) : isVisible(entry));
     const characters = await listCharacters(series.info.id, true);
     const content = episode.content;
-    const inPictures = new Set([content.cover, ...content.chapters.map((chapter) => chapter.image)].flatMap((slot) => slot?.characterIds || []));
+    const inPictures = new Set([content.cover, ...content.chapters.flatMap(chapterImages)].flatMap((slot) => slot?.characterIds || []));
     const audio = await audioView(episode.audio, isAdmin);
     const cast = characters.filter((character) => inPictures.has(character.id) && character.allowedInBranches);
 
@@ -683,8 +684,11 @@ export const libraryEpisode = api<{ id: string; profileId?: Query<string> }, Lib
       chapters: await Promise.all(content.chapters.map(async (chapter) => ({
         title: chapter.title,
         text: chapter.text,
-        imageUrl: await resolveImage(chapter.image?.url),
-        ...(chapter.image && typeof chapter.image.afterParagraph === "number" ? { afterParagraph: chapter.image.afterParagraph } : {}),
+        imageUrl: await resolveImage(chapterImages(chapter)[0]?.url),
+        afterParagraph: chapterImages(chapter)[0]?.afterParagraph,
+        images: (await Promise.all(chapterImages(chapter).map(async (picture) => ({
+          url: await resolveImage(picture.url), afterParagraph: picture.afterParagraph ?? 3,
+        })))).filter((picture): picture is { url: string; afterParagraph: number } => Boolean(picture.url)),
       }))),
       collectible: await collectibleView(content.collectible),
       teaser: content.teaser,
@@ -1152,7 +1156,8 @@ export const libraryAdminRedrawPicture = api<{ id: string; slot: string; assetOr
     await ensureLibrary();
     const episode = await getEpisode(req.id);
     if (!episode?.content) throw APIError.notFound("Folge hat noch keinen Inhalt");
-    const slot: SlotRef = req.slot === "cover" ? "cover" : Math.max(0, Math.min(episode.content.chapters.length - 1, Number(req.slot) - 1));
+    const slot = parseImageSlot(req.slot, episode.content);
+    if (slot === null) throw APIError.invalidArgument("Bildposition existiert nicht");
     const series = await requireSeries(episode.seriesId);
     const bible = await getBible(series.info.id, series.activeBibleVersion);
     if (!bible) throw APIError.internal("Serien-Bibel fehlt");

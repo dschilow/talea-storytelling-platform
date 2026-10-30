@@ -1,0 +1,35 @@
+{
+  "model": "claude-opus-5-5",
+  "mode": "Frischer Testleser ohne Serienbibel, über Claude Code und Anthropic-Abonnement",
+  "reading": {
+    "bruno": {
+      "kurzeInhaltsangabe": "Mats hat Angst, in der Schule noch einmal von seinem Wochenende zu erzählen, und flunkert vor dem Zauberfisch Bruno: Seine Lehrerin sei ein Roboter. Am nächsten Tag ist Frau Pfeffer tatsächlich einer. Sie vergisst das Erzählen, ordnet aber alles kaputt: Sie schneidet dem Löwen die Mähne ab, sortiert die Kinder nach Schuhgröße und gibt allen denselben Theatertext. Ihr Akku läuft leer, und sie bleibt stehen. Mats gibt vor der Klasse und vor der neuen Mitschülerin Lia die Flunkerei zu. PLOPP, der Zauber ist vorbei. Mit dem Löwen als Hilfe erzählt er doch von seinem Wochenende. Nebenspur: Ein Zauberplakat mit „…NELLO“ deutet auf Brunos Vergangenheit.",
+      "verstaendlich": true,
+      "harteLogikluecken": [
+        "Das Akku-Fenster sitzt meist auf der Strickjacke, einmal aber „an Frau Pfeffers Handgelenk“. Der Ort springt.",
+        "Als Regel wird nur gesagt: „Sag mir die Wahrheit“ (zu Ella), dann ist es vorbei. Der Zauber endet aber mit einem Geständnis im Klassenzimmer, weit weg von Bruno und Ella. Dass das reicht, ist erst im Nachhinein ableitbar. Ein Satz wie „egal vor wem“ fehlt vorher.",
+        "Der Akku wird als Zeitdruck aufgebaut. Was beim Stillstand droht, bleibt aber offen. Ella vermutet nur, dass Frau Pfeffer stehen bleibt, und genau das passiert ohne weitere Folge. Echte Gefahr entsteht so kaum.",
+        "Frisch gelesen unklar, aber keine Lücke im engeren Sinn: Hugo, die elf Glöckchen und Kater Kaiser tauchen ohne Erklärung auf. „Diesmal musste ihr das niemand beibringen“ ist kaum zu verstehen."
+      ],
+      "staerksterMoment": "Mats bleibt sitzen, statt heimlich zu Ella zu laufen. Er gesteht vor Lia, dass er das Nicken nur vorgetäuscht hat. Danach erzählt der kahle Löwe mit einem „Äh“, und keiner kichert."
+    },
+    "monster": {
+      "kurzeInhaltsangabe": "Jona fährt mit Oma Hilde und der Staubfluse Flusi im Monster-Müllwagen Gertrud zu einem Einsatz: Eine Krümelkrake trägt ein Sofa herum und zieht alles darunter, sogar die Fangtonne. Jonas erste Idee, sie mit Brot zu locken, ist falsch. Beim genauen Hinsehen merkt er, dass ihr weicher Bauch aus Krume kitzlig ist. Das Kitzeln wird zum Spiel und gerät außer Kontrolle, bis Oma vor Lachen hilflos ist. Jona ruft laut „Stopp“, und die Krake gehorcht. Mit der Regel „Stopp ist Stopp“ steigt sie freiwillig in die Tonne. In der Pension wird sie Küchenhilfe. Beim Anblick der Kronensocke erschrickt sie und murmelt im Schlaf „Der König ruft“, während die Klappe in der Tür wieder offen steht.",
+      "verstaendlich": true,
+      "harteLogikluecken": [
+        "Im Müllwagen greift Oma beim Niesen zum Tonnendeckel, und Jona sieht unter den Sitz. Erst später wird klar, dass Flusis Niesen Monster anzeigen kann. An der ersten Stelle wirkt die Reaktion unbegründet.",
+        "Das Sesamkorn klebt zuerst auf einem Arm und fällt später „vom Kopf“. Kleine Inkonsistenz.",
+        "„Du hattest Krümel im Handschuh“ wird nicht vorbereitet. Gemeint ist die Lücke zwischen Handschuh und Ärmel, das bleibt für Kinder unklar."
+      ],
+      "staerksterMoment": "Oma kann vor Lachen nur noch „Jo … Jo …“ sagen, und Jona ruft zum ersten Mal laut „Stopp!“. Die Krake legt die Arme einen nach dem anderen ab, dann klopft sie zweimal und schiebt ihm den Feger hin."
+    }
+  },
+  "resolved": [
+    "Akkufenster durchgängig auf der Strickjacke; silberne Roboterarme im Text sichtbar.",
+    "Wahrheit über die Flunkerei kann vor einer beliebigen Person an jedem Ort gesagt werden.",
+    "Zeitdruck benennt Theater und Lias Einsamkeit als konkrete soziale Folgen, ohne Gefahrenszene.",
+    "Kater-Alarm und früherer Hund werden beim Rückbezug kurz erklärt.",
+    "Flusis Niesalarm wird vor dem ersten Fehlalarm kurz erklärt.",
+    "Sesamkorn bleibt am Arm; Krümel im Handschuh werden vor der Rückfahrt gezeigt."
+  ]
+}

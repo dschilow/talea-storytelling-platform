@@ -20,6 +20,7 @@ import { acceptsTemperature, extractStorybookChoiceContent, isTruncatedFinishRea
 import { generateEpisodeText, LIBRARY_MODELS, SCORE_DIMENSIONS, type EpisodeBrief } from "../../backend/story/library/engine";
 import { createRunwareCaller } from "../../backend/story/library/images";
 import { illustrateEpisode } from "../../backend/story/library/production";
+import { chapterImages } from "../../backend/story/library/image-slots";
 import { SEED_EPISODES, SEED_SEASONS, SEED_SERIES } from "../../backend/story/library/seed";
 
 const ROOT = join(import.meta.dir, "..", "..");
@@ -151,8 +152,7 @@ const md = [
   content.cover.url ? `![Cover](${content.cover.url})` : "",
   ...content.chapters.flatMap((chapter, index) => {
     const paragraphs = chapter.text.split(/\n\n/);
-    const at = chapter.image?.afterParagraph ?? -1;
-    return [`\n## Kapitel ${index + 1}: ${chapter.title}\n`, ...paragraphs.flatMap((paragraph, p) => (p === at && chapter.image?.url ? [paragraph, `\n![Kapitel ${index + 1}](${chapter.image.url})\n`] : [paragraph])).map((line) => `${line}\n`)];
+    return [`\n## Kapitel ${index + 1}: ${chapter.title}\n`, ...paragraphs.flatMap((paragraph, p) => [paragraph, ...chapterImages(chapter).filter(picture => picture.afterParagraph === p && picture.url).map((picture) => `\n![Kapitel ${index + 1}](${picture.url})\n`)]).map((line) => `${line}\n`)];
   }),
   `\n---\n**${content.collectible.title}**\n${content.collectible.fields.map((field) => `- ${field.label}: ${field.value}`).join("\n")}`,
   `\n*${content.teaser}*`,

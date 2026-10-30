@@ -26,6 +26,7 @@ import {
   type RunwareCaller,
 } from "../../backend/story/library/images";
 import type { EpisodeSeed, ImageSlot, SeriesSeed } from "../../backend/story/library/types";
+import { chapterImages } from "../../backend/story/library/image-slots";
 
 const ROOT = join(import.meta.dir, "..", "..");
 const SEED = join(ROOT, "backend", "story", "library", "seed");
@@ -133,7 +134,7 @@ if (!only || only === "scenes") {
     const { bible } = series.find((entry) => entry.series.id === episode.seriesId)!;
     const episodeKey = `s${episode.season}e${episode.episode}`;
     const slots: Array<[string, ImageSlot]> = [[`${episodeKey}-cover`, episode.cover]];
-    episode.chapters.forEach((chapter, index) => chapter.image && slots.push([`${episodeKey}-ch${index + 1}`, chapter.image]));
+    episode.chapters.forEach((chapter, index) => chapterImages(chapter).forEach((picture, imageIndex) => slots.push([`${episodeKey}-ch${index + 1}${imageIndex ? `-${imageIndex + 1}` : ""}`, picture])));
     for (const [key, slot] of slots) {
       const fullKey = `${episode.seriesId}-${key}`;
       if (!slot.url || !(ids.size ? ids.has(key) || ids.has(fullKey) : true) || (!force && existsSync(fileFor(slot.url)))) continue;

@@ -5,7 +5,9 @@
  */
 
 import { drawPortrait, drawScene, type ReferenceLoader, type RunwareCaller } from "./images";
-import type { EpisodeContent, ImageSlot, SeriesCharacter } from "./types";
+import type { EpisodeContent, SeriesCharacter } from "./types";
+import { chapterImages, slotOf, withSlotUrl, type SlotRef } from "./image-slots";
+export { slotOf, type SlotRef } from "./image-slots";
 
 export interface IllustrationPorts {
   call: RunwareCaller;
@@ -28,26 +30,13 @@ export interface IllustrationResult {
   issues: string[];
 }
 
-export type SlotRef = "cover" | number;
-
-export function slotOf(content: EpisodeContent, slot: SlotRef): ImageSlot | undefined {
-  return slot === "cover" ? content.cover : content.chapters[slot]?.image;
-}
-
 async function drawSlot(content: EpisodeContent, slot: SlotRef, context: IllustrationContext): Promise<{ url: string; costUSD: number }> {
   const target = slotOf(content, slot);
-  if (!target) throw new Error(`No picture planned for ${slot === "cover" ? "the cover" : `chapter ${slot + 1}`}.`);
+  if (!target) throw new Error("No picture planned for this slot.");
   const drawn = await drawScene(target, { style: context.style, characters: context.characters, guests: content.guests, load: context.ports.load, call: context.ports.call });
-  const url = await context.ports.store(drawn.imageUrl, `${context.keyPrefix}/${slot === "cover" ? "cover" : `ch${slot + 1}`}-${Date.now()}`);
+  const key = slot === "cover" ? "cover" : typeof slot === "number" ? `ch${slot + 1}` : `ch${slot.chapter + 1}-${slot.image + 1}`;
+  const url = await context.ports.store(drawn.imageUrl, `${context.keyPrefix}/${key}-${Date.now()}`);
   return { url, costUSD: drawn.costUSD };
-}
-
-function withSlotUrl(content: EpisodeContent, slot: SlotRef, url: string): EpisodeContent {
-  if (slot === "cover") return { ...content, cover: { ...content.cover, url } };
-  return {
-    ...content,
-    chapters: content.chapters.map((chapter, index) => (index === slot && chapter.image ? { ...chapter, image: { ...chapter.image, url } } : chapter)),
-  };
 }
 
 /** The card shows the guest of the week (the monster, the pony-dog) or else the second chapter's picture. */
@@ -72,7 +61,7 @@ export async function illustrateEpisode(content: EpisodeContent, context: Illust
     }
   }
 
-  const slots: SlotRef[] = ["cover", ...next.chapters.map((_, index) => index).filter((index) => next.chapters[index].image)];
+  const slots: SlotRef[] = ["cover", ...next.chapters.flatMap((chapter, chapterIndex) => chapterImages(chapter).map((_, imageIndex) => imageIndex === 0 ? chapterIndex : { chapter: chapterIndex, image: imageIndex }))];
   const results = await Promise.allSettled(slots.map((slot) => drawSlot(next, slot, context)));
   results.forEach((result, index) => {
     const slot = slots[index];
@@ -80,7 +69,8 @@ export async function illustrateEpisode(content: EpisodeContent, context: Illust
       costUSD += result.value.costUSD;
       next = withSlotUrl(next, slot, result.value.url);
     } else {
-      issues.push(`${slot === "cover" ? "Cover" : `Kapitel ${slot + 1}`}: ${(result.reason as Error)?.message || result.reason}`);
+      const label = slot === "cover" ? "Cover" : typeof slot === "number" ? `Kapitel ${slot + 1}` : `Kapitel ${slot.chapter + 1}, Bild ${slot.image + 1}`;
+      issues.push(`${label}: ${(result.reason as Error)?.message || result.reason}`);
     }
   });
 
