@@ -38,6 +38,7 @@ import { NARRATOR_ID, resolveSeriesCast, type AccountVoice } from "./casting";
 import { geminiFigures } from "./cast-members";
 import { renderAudioDrama } from "./drama";
 import { defaultVoiceEngine, engineInfo } from "./engines";
+import { EPISODE_INTRO_VERSION } from "./intro";
 import { resolveGeminiCast, type GeminiCastEntry } from "./gemini-voices";
 import { openRouterSpeech } from "./openrouter-speech";
 import type { ScorePorts } from "./score";
@@ -131,6 +132,8 @@ function versionOf(audio: EpisodeAudio, sameScript: boolean): EpisodeAudioVersio
   if (!audio.url) return undefined;
   return {
     url: audio.url,
+    introVersion: audio.introVersion,
+    introSourceUrl: audio.introSourceUrl,
     engine: audio.engine ?? "elevenlabs",
     ...(audio.durationSeconds ? { durationSeconds: audio.durationSeconds } : {}),
     ...(audio.chapterStarts ? { chapterStarts: audio.chapterStarts } : {}),
@@ -152,7 +155,7 @@ export async function startEpisodeAudio(episode: EpisodeRecord, options: StartAu
   const previous = episode.audio;
   const state: EpisodeAudio = {
     ...(previous?.url
-      ? { url: previous.url, engine: previous.engine, durationSeconds: previous.durationSeconds, chapterStarts: previous.chapterStarts, textHash: previous.textHash, stats: previous.stats, finishedAt: previous.finishedAt }
+      ? { url: previous.url, introVersion: previous.introVersion, introSourceUrl: previous.introSourceUrl, engine: previous.engine, durationSeconds: previous.durationSeconds, chapterStarts: previous.chapterStarts, textHash: previous.textHash, stats: previous.stats, finishedAt: previous.finishedAt }
       : {}),
     ...(previous?.previous ? { previous: previous.previous } : {}),
     status: "generating",
@@ -248,6 +251,7 @@ async function produce(episodeId: string, state: EpisodeAudio, options: StartAud
       released: options.release,
       engine: result.engine,
       url: uploaded.url,
+      introVersion: EPISODE_INTRO_VERSION,
       durationSeconds: Math.round(result.seconds),
       chapterStarts: result.chapterStarts,
       textHash,
@@ -281,6 +285,8 @@ export async function restorePreviousAudio(episode: EpisodeRecord): Promise<Epis
     error: undefined,
     pendingEngine: undefined,
     url: previous.url,
+    introVersion: previous.introVersion,
+    introSourceUrl: previous.introSourceUrl,
     engine: previous.engine,
     durationSeconds: previous.durationSeconds,
     chapterStarts: previous.chapterStarts,

@@ -303,6 +303,10 @@ export interface EpisodeAudioStats {
 /** The recording before the current one, kept to compare engines and voices (one level deep). */
 export interface EpisodeAudioVersion {
   url: string;
+  /** The master already contains the Talea story intro. */
+  introVersion?: number;
+  /** Original master retained by the intro backfill for recovery. */
+  introSourceUrl?: string;
   engine: VoiceEngine;
   durationSeconds?: number;
   chapterStarts?: number[];
@@ -329,6 +333,10 @@ export interface EpisodeAudio {
   pendingEngine?: VoiceEngine;
   /** Stored bucket URL of the mastered MP3. */
   url?: string;
+  /** The master already contains the Talea story intro. */
+  introVersion?: number;
+  /** Original master retained by the intro backfill for recovery. */
+  introSourceUrl?: string;
   durationSeconds?: number;
   /** Start of each chapter in the master, in seconds. */
   chapterStarts?: number[];

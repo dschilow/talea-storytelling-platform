@@ -16,7 +16,7 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { mixStudioMaster, resolveTaleaBumper, type SoundCachePort } from "../../../doku/audio-render";
+import { mixStudioMaster, resolveOriginsIntro, resolveTaleaBumper, type SoundCachePort } from "../../../doku/audio-render";
 import { synthesizeDialogueWithTimestamps } from "../../../tts/elevenlabs-dialogue";
 import { transcribeTake } from "./transcribe";
 import type { CostLedger, StorybookLlm } from "../../storybook/llm";
@@ -30,6 +30,7 @@ import { renderWithGemini } from "./gemini-render";
 import type { SpeechPort } from "./openrouter-speech";
 import { applySoundPlan, planSoundCasting, trackSoundCache, type SoundLibraryPort, type SoundPlan } from "./sound-library";
 import { prepareScore, probeSeconds, scorePrompt, type ScorePorts } from "./score";
+import { EPISODE_INTRO_CROSSFADE_SECONDS } from "./intro";
 import {
   NARRATOR_KEY,
   adaptChapter,
@@ -254,12 +255,16 @@ export async function renderAudioDrama(input: DramaInput): Promise<DramaResult> 
     const cues = input.withoutSounds ? timeline.cues.filter((cue) => cue.type === "music") : timeline.cues;
     const sounds = cues.filter((cue) => cue.type === "sfx").length;
     const present = new Set<string>();
+    const introPath = await resolveOriginsIntro();
+    if (!introPath) throw new Error("Das Talea-Origins-Intro fehlt im Build.");
+    const introSeconds = await probeSeconds(introPath);
+    if (introSeconds <= 0) throw new Error("Die Dauer des Talea-Origins-Intros konnte nicht ermittelt werden.");
     const mix = await mixStudioMaster({
       tmpDir,
       voice: timeline.voice,
       timelineSec: timeline.seconds,
       cues,
-      introPath: null,
+      introPath,
       outroPath: await resolveTaleaBumper("outro"),
       maxGeneratedAssets: MAX_SOUND_ASSETS,
       bitrate: "192k",
@@ -283,7 +288,8 @@ export async function renderAudioDrama(input: DramaInput): Promise<DramaResult> 
       script,
       audio: mix.audio,
       seconds,
-      chapterStarts: timeline.chapterStarts.map((value) => Number(value.toFixed(2))),
+      // mixStudioMaster crossfades the intro into the programme for 0.8 seconds.
+      chapterStarts: timeline.chapterStarts.map((value) => Number((value + introSeconds - EPISODE_INTRO_CROSSFADE_SECONDS).toFixed(2))),
       engine,
       stats: {
         llmCostUSD: Number(input.ledger.totals().costUSD.toFixed(4)),

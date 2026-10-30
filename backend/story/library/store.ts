@@ -135,6 +135,7 @@ export function isVisible(episode: Pick<EpisodeRecord, "status" | "publishAt" | 
 }
 
 let ready: Promise<void> | null = null;
+let introCheckAt = 0;
 
 export function ensureLibrary(): Promise<void> {
   if (!ready) {
@@ -146,7 +147,14 @@ export function ensureLibrary(): Promise<void> {
       throw error;
     });
   }
-  return ready;
+  return ready.then(() => {
+    // Background audio migration: no delay for shelves/readers, at most one check every five minutes.
+    if (Date.now() - introCheckAt < 5 * 60 * 1000) return;
+    introCheckAt = Date.now();
+    void import("./audio/intro-backfill").then(({ backfillEpisodeIntros }) => backfillEpisodeIntros()).catch((error) => {
+      console.error("[library-intro] Nachrüstung fehlgeschlagen:", error);
+    });
+  });
 }
 
 /** Same tables as migration 45 — Railway has skipped migration files before, so the service guards itself. */
@@ -367,6 +375,18 @@ export async function saveEpisodeAudio(id: string, audio: EpisodeAudio | null, s
   await storyDB.exec`
     UPDATE library_episodes SET audio = (${json(audio)}::jsonb #>> '{}')::jsonb, audio_script = (${json(script)}::jsonb #>> '{}')::jsonb WHERE id = ${id}
   `;
+}
+
+/** Intro backfill must never overwrite a concurrent recording, release or restore action. */
+export async function replaceEpisodeAudioIfUnchanged(id: string, expected: EpisodeAudio, replacement: EpisodeAudio): Promise<boolean> {
+  const row = await storyDB.queryRow<{ id: string }>`
+    UPDATE library_episodes SET audio = (${json(replacement)}::jsonb #>> '{}')::jsonb
+    WHERE id = ${id}
+      AND (CASE WHEN jsonb_typeof(audio) = 'string' THEN (audio #>> '{}')::jsonb ELSE audio END)
+        = (${json(expected)}::jsonb #>> '{}')::jsonb
+    RETURNING id
+  `;
+  return Boolean(row);
 }
 
 export async function getEpisodeAudioScript(id: string): Promise<AudioScript | null> {

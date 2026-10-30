@@ -91,6 +91,13 @@ const OUTRO_CANDIDATES = [
 export const resolveTaleaBumper = (kind: "intro" | "outro"): Promise<string | null> =>
   resolveStaticAsset(kind === "intro" ? INTRO_CANDIDATES : OUTRO_CANDIDATES);
 
+/** The Origins bumper is separate from the Mission Wissen audio-doku intro. */
+export const resolveOriginsIntro = (): Promise<string | null> => resolveStaticAsset([
+  "frontend/dist/origins/talea-origins-intro.mp3",
+  "backend/frontend/dist/origins/talea-origins-intro.mp3",
+  "frontend/public/origins/talea-origins-intro.mp3",
+]);
+
 interface RenderScene {
   index: number;
   startLine: number;
