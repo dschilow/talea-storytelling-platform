@@ -61,6 +61,32 @@ export async function probeConnectivity(backendUrl: string, request: typeof fetc
   }
 }
 
+/**
+ * Clerk loads its script once per page and never retries, so the app needs to
+ * know when that script is loadable again. Clerk's host comes from the
+ * publishable key ("pk_live_" + base64 of "clerk.example.com$"). A filter or
+ * extension that blocks Clerk keeps failing here, and so does an outage that
+ * answers with errors, so a restart triggered by this check cannot loop.
+ */
+export async function probeClerk(publishableKey: string, request: typeof fetch = fetch): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+  try {
+    const host = atob(publishableKey.replace(/^pk_(live|test)_/, '')).replace(/\$$/, '');
+    if (!/^[a-z0-9.-]+$/i.test(host)) return false;
+    const response = await request(`https://${host}/npm/@clerk/clerk-js@5/dist/clerk.browser.js`, {
+      method: 'HEAD',
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function checkRealConnectivity(): Promise<boolean> {
   if (inFlightProbe) return inFlightProbe;
 

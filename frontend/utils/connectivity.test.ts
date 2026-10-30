@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { probeConnectivity } from './connectivity';
+import { probeClerk, probeConnectivity } from './connectivity';
 
 describe('connectivity probes', () => {
   test('stays online when the frontend probe fails but the backend responds', async () => {
@@ -26,6 +26,40 @@ describe('connectivity probes', () => {
   test('reports offline when neither server can be reached', async () => {
     const request: typeof fetch = async () => { throw new TypeError('Network error'); };
     expect(await probeConnectivity('https://backend.example', request)).toBe(false);
+  });
+});
+
+describe('clerk probe', () => {
+  const publishableKey = 'pk_live_Y2xlcmsudGFsZWEud2Vic2l0ZSQ';
+
+  test('asks the script host named in the publishable key', async () => {
+    const requests: Array<{ url: string; method: string }> = [];
+    const request: typeof fetch = async (input, init) => {
+      requests.push({ url: String(input), method: String(init?.method) });
+      return new Response(null, { status: 200 });
+    };
+
+    expect(await probeClerk(publishableKey, request)).toBe(true);
+    expect(requests).toEqual([
+      { url: 'https://clerk.talea.website/npm/@clerk/clerk-js@5/dist/clerk.browser.js', method: 'HEAD' },
+    ]);
+  });
+
+  test('an error answer does not count as reachable', async () => {
+    const request: typeof fetch = async () => new Response(null, { status: 503 });
+    expect(await probeClerk(publishableKey, request)).toBe(false);
+  });
+
+  test('a blocked or unresolvable host is not reachable', async () => {
+    const request: typeof fetch = async () => { throw new TypeError('Network error'); };
+    expect(await probeClerk(publishableKey, request)).toBe(false);
+  });
+
+  test('a malformed key never produces a request', async () => {
+    let called = false;
+    const request: typeof fetch = async () => { called = true; return new Response(null); };
+    expect(await probeClerk('pk_live_not-base64!', request)).toBe(false);
+    expect(called).toBe(false);
   });
 });
 

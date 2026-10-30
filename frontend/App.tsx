@@ -20,12 +20,12 @@ import { OfflineClerkProvider } from './contexts/OfflineClerkProvider';
 import { parseHapticIntent, triggerHaptic } from './utils/haptics';
 import { getLastOfflineScope } from './utils/offlineDb';
 import {
-  checkRealConnectivity,
   getOnlineStatus,
+  probeClerk,
   refreshConnectivity,
   subscribeToOnlineStatus,
 } from './utils/connectivity';
-import { recoverFromStaleBuild, reloadToLatestVersion } from './utils/appUpdate';
+import { recoverFromAuthOutage, recoverFromStaleBuild, reloadToLatestVersion } from './utils/appUpdate';
 import { AgentProvider } from './agents';
 
 import { useLanguageSync } from './hooks/useLanguageSync';
@@ -391,10 +391,10 @@ const AuthUnavailableScreen: React.FC<{ onRetry?: () => void }> = ({ onRetry }) 
         Authentifizierung ist gerade nicht erreichbar
       </h1>
       <p style={{ color: colors.text.secondary, marginBottom: '1rem', fontSize: '16px', lineHeight: 1.6 }}>
-        Die App ist nicht offline. Der Auth-Dienst konnte nur nicht sauber geladen werden.
+        Die Anmeldung konnte nicht geladen werden. Sobald sie wieder erreichbar ist, startet Talea von selbst neu.
       </p>
       <p style={{ color: colors.text.secondary, marginBottom: '1.75rem', fontSize: '15px', lineHeight: 1.6 }}>
-        Das passiert oft durch Netzwerkfilter, Privacy-Erweiterungen oder eine veraltete Browser-Session. Statt in einen irrefuehrenden Offline-Modus zu springen, zeigen wir jetzt diesen klaren Retry-Zustand.
+        Meist steckt eine kurz gestörte Verbindung dahinter, manchmal auch ein Netzwerkfilter oder eine Privacy-Erweiterung.
       </p>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <button
@@ -587,10 +587,10 @@ function isClerkFailure(error: unknown): boolean {
 // Error boundary that catches Clerk load failures and falls back to offline mode.
 // Non-auth render errors get their own, honestly-labelled crash screen.
 class ClerkErrorBoundary extends React.Component<
-  { children: React.ReactNode; fallback: React.ReactNode },
+  { children: React.ReactNode; fallback: React.ReactNode; onClerkFailure: () => void },
   { kind: 'none' | 'auth' | 'crash'; message?: string }
 > {
-  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode; onClerkFailure: () => void }) {
     super(props);
     this.state = { kind: 'none' };
   }
@@ -618,9 +618,9 @@ class ClerkErrorBoundary extends React.Component<
     if (isClerkFailure(error)) {
       // Log but don't crash - we'll show the offline fallback
       console.warn('[Talea] Clerk failed to load, switching to offline mode:', error.message);
-      // Confirm whether this is an auth outage or simply a missing network, so
-      // the app can show the offline library rather than an auth error.
-      refreshConnectivity();
+      // Same path as a rejected Clerk script: the app confirms whether the
+      // network is gone and restarts once Clerk is reachable again.
+      this.props.onClerkFailure();
       return;
     }
     console.error('[Talea] Render error (not an auth problem):', error);
@@ -669,6 +669,30 @@ function useClerkLoadFailureDetection(onFail: () => void) {
   }, [onFail]);
 }
 
+const CLERK_RECHECK_INTERVAL_MS = 15_000;
+
+// Clerk loads its script once per page and never retries. Revealing the app
+// after such a failure showed a signed-out landing page without content, so
+// Talea restarts itself as soon as Clerk's host answers again (network back,
+// DNS hiccup over). Until then the offline library or the auth notice stays.
+function useRestartWhenClerkIsBack(clerkFailed: boolean, isOnline: boolean) {
+  useEffect(() => {
+    if (!clerkFailed || !isOnline || !clerkPublishableKey) return;
+    const publishableKey = clerkPublishableKey;
+    let cancelled = false;
+    const check = async () => {
+      if (document.visibilityState === 'hidden') return;
+      if ((await probeClerk(publishableKey)) && !cancelled) recoverFromAuthOutage();
+    };
+    void check();
+    const timer = window.setInterval(() => void check(), CLERK_RECHECK_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [clerkFailed, isOnline]);
+}
+
 export default function App() {
   const isOnline = useSyncExternalStore(subscribeToOnlineStatus, getOnlineStatus);
   const [clerkFailed, setClerkFailed] = useState(false);
@@ -685,19 +709,7 @@ export default function App() {
     refreshConnectivity();
   }, []);
   useClerkLoadFailureDetection(handleClerkFailure);
-
-  // Reset clerkFailed when connectivity is restored
-  useEffect(() => {
-    if (isOnline && clerkFailed) {
-      // Re-check after a short delay when we come back online
-      const timer = setTimeout(() => {
-        checkRealConnectivity().then((ok) => {
-          if (ok) setClerkFailed(false);
-        });
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [isOnline, clerkFailed]);
+  useRestartWhenClerkIsBack(clerkFailed, isOnline);
 
   if (!hasStartedOnline.current) {
     return <Provider store={store}><OfflineApp /></Provider>;
@@ -734,7 +746,7 @@ export default function App() {
         </Provider>
       )}
       <div hidden={!isOnline || clerkFailed}>
-    <ClerkErrorBoundary fallback={clerkFallback}>
+    <ClerkErrorBoundary fallback={clerkFallback} onClerkFailure={handleClerkFailure}>
       <Provider store={store}>
         <ClerkProvider publishableKey={clerkPublishableKey} localization={clerkLocalization}>
           <ThemeProvider>
