@@ -22,12 +22,23 @@
     <script>
       // /auth is excluded from navigation fallback in existing service workers.
       // This document can therefore rescue clients still running an old bundle.
-      // Unregister only the worker; leave IndexedDB, cookies and caches intact.
+      // Keep the installed offline shell until its replacement is ready. Leave
+      // IndexedDB, cookies and caches intact, including if the update fails.
       async function restart() {
         try {
           if ('serviceWorker' in navigator) {
             const registrations = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(registrations.map(registration => registration.unregister()));
+            await Promise.race([
+              Promise.all(registrations.map(async registration => {
+                try {
+                  await registration.update();
+                  registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
+                } catch {
+                  // The fresh /auth navigation below still bypasses the old shell.
+                }
+              })),
+              new Promise(resolve => setTimeout(resolve, 5000)),
+            ]);
           }
           // /auth also bypasses the old worker during the final navigation.
           // A unique query avoids any HTTP-cached copy of the entry document.
