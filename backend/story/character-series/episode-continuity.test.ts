@@ -43,15 +43,15 @@ describe('continuity of all five planned series', () => {
     expect(count).toBe(100);
   });
 
-  test('role allocation fits one, two and three supplied children without inventing an A/B child', () => {
+  test('role allocation fits one, two and three supplied avatars without inventing an A/B child', () => {
     for (const id of Object.keys(SERIES_PLAN_FILES)) {
       const solo = seriesAuthoring(episodeBrief(id, 18, 1)).user();
-      expect(solo).toContain('ONE supplied child');
+      expect(solo).toContain('ONE supplied avatar');
       expect(solo).toContain('observe first and act next');
       const pair = seriesAuthoring(episodeBrief(id, 18, 2)).user();
-      expect(pair).toContain('TWO supplied children by name');
+      expect(pair).toContain('TWO supplied avatars by name');
       const trio = seriesAuthoring(episodeBrief(id, 18, 3)).user();
-      expect(trio).toContain('THREE supplied children by name');
+      expect(trio).toContain('THREE supplied avatars by name');
       expect(trio).toContain('Nuri');
     }
   });

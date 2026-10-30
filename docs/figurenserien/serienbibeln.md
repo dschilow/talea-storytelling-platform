@@ -280,15 +280,15 @@ Ein Küstenhafen, ein kleines Segelboot mit sichtbaren Arbeitsplätzen und Insel
 
 **Davor:** Blubbert bereitet seine erste Fahrt als Kapitän vor. Der Muschelkompass wird erst in dieser Folge gefunden und verstanden.
 
-**Der eigene Anlass und Weg der Avatare:** Die Avatare kommen mit einem eigenen konkreten Hafenauftrag oder als angemeldete Mitreisende zum Boot. Ihr Weg über den Kai und der Anlass der Reise werden erzählt.
+**Der eigene Anlass und Weg der Avatare:** Die Avatare kommen zum Hafen, um einen Geburtstagskuchen zur Feier auf der Papiermacherinsel zu bringen. Ihr Weg über den Kai und der Anlass der Reise werden erzählt.
 
 **Die erste Begegnung:** Ein übertriebenes Beladekommando von Blubbert führt zu einer komischen Begegnung. Namen, Rollen und die Teilnahme an der Fahrt ergeben sich im Gespräch am Boot.
 
-**Das Abenteuer und der Fehlversuch:** Eine kleine Transportaufgabe hat zwei vernünftige mögliche Ziele. Ein zunächst unbrauchbar erscheinender Muschelkompass und ein falsch gelesenes Ortsplättchen verursachen einen Fehlversuch; die erfahrene Pia ist bei der ersten Küstenfahrt dabei.
+**Das Abenteuer und der Fehlversuch:** Blubbert will den Weg allein finden und fährt im Kreis, während das Geburtstagskind auf den Kuchen wartet. Ein zunächst unbrauchbar erscheinender Muschelkompass wird entdeckt; die erfahrene Pia ist bei der Küstenfahrt dabei.
 
-**Die entscheidende Wahl:** Blubbert gibt seine eilige Entdeckerrichtung auf. Ein Avatar prüft die sichtbaren Unterschiede zwischen zwei Versuchen, der andere handelt eine echte gemeinsame Zielwahl aus; Blubbert steuert den sicheren Weg selbst.
+**Die entscheidende Wahl:** Blubbert hört auf die Kinder und teilt die Zielwahl. Die Crew nennt den bekannten Inselsteg und legt das Plättchen gemeinsam offen in die Schale; Blubbert steuert den sicheren Weg selbst.
 
-**Ergebnis und offene Serienfrage:** Die Lieferung kommt an. Die Crew versteht die begrenzte Kompassregel. Beim Säubern eines gewöhnlichen alten Ortsplättchens entdecken sie unter dem Schmutz ein bereits eingeritztes steinernes Tor, das zu keiner aktuellen Karte passt; daraus folgt die größere Suche.
+**Ergebnis und offene Serienfrage:** Das Geburtstagskind bekommt seinen Kuchen und die Crew feiert mit. Beim Säubern eines gewöhnlichen alten Ortsplättchens entdecken sie ein bereits eingeritztes steinernes Tor, das zu keiner aktuellen Karte passt; daraus folgt die größere Suche.
 
 ### Vier Entwicklungsbögen mit Stoff für rund 40 Folgen
 

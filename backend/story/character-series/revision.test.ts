@@ -56,6 +56,49 @@ describe('Figurenserien revision 2', () => {
     expect(recheckUser).toContain('do not open a new round');
     expect(result.pages[0].content).toContain('Der fliegt besser als du.');
   });
+  test('an evidenced child-comprehension problem reaches the writer and the repaired story is reviewed again', async () => {
+    const unclear = '„Schöpfbucht und Steinbucht“, las Nora. „Das Schöpfhaus hat den Steg. Das Steinlager die Steinhaufen.“';
+    const clearer = 'Nora sah das Haus mit der roten Fahne. „Dort wartet das Geburtstagskind!“';
+    const draft = text.replace('Funkelflug zeigte Nora den Bodengang.', unclear);
+    const stages: string[] = [];
+    const llm: StorybookLlm = async r => {
+      stages.push(r.stage);
+      if (r.stage === 'series-author') {
+        expect(r.system).toContain('who wants what, why it matters to someone, and what goes wrong');
+        return response(draft);
+      }
+      if (r.stage === 'series-editorial-review') {
+        expect(r.user).toContain('CHILD READER TEST');
+        expect(r.user).toContain('Without using the series contract');
+        return response(JSON.stringify({ issues: [{ severity: 'major', kind: 'craft', quote: unclear,
+          problem: 'Ähnliche Orte und Fachwörter verdecken das Ziel.', change: 'Das Ziel mit einem sichtbaren Merkmal und seinem Grund benennen.' }] }));
+      }
+      if (r.stage === 'series-local-repair') {
+        expect(r.user).toContain(unclear);
+        return response(JSON.stringify({ edits: [{ chapter: 2, before: unclear, after: clearer }] }));
+      }
+      expect(r.stage).toBe('series-editorial-recheck');
+      expect(r.user).toContain(clearer);
+      return response('{"issues":[]}');
+    };
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() });
+    expect(stages).toEqual(['series-author', 'series-editorial-review', 'series-local-repair', 'series-editorial-recheck']);
+    expect(result.pages[1].content).toContain(clearer);
+    expect(result.pages[1].content).not.toContain(unclear);
+    expect(result.chosen).toBe('revision');
+  });
+  test('a major child-comprehension issue that survives both repairs does not pass', async () => {
+    const unclear = 'Funkelflug zeigte Nora den Bodengang.';
+    const issue = { severity: 'major', kind: 'craft', quote: unclear,
+      problem: 'Das Ziel und der Weg dorthin bleiben unverständlich.', change: 'Den Weg kindgerecht erklären.' };
+    const llm: StorybookLlm = async r => {
+      if (r.stage === 'series-author') return response(text);
+      if (r.stage.startsWith('series-local-repair')) return response(JSON.stringify({ edits: [{ chapter: 2, before: unclear, after: unclear }] }));
+      return response(JSON.stringify({ issues: [issue] }));
+    };
+    await expect(runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() }))
+      .rejects.toThrow('noch einen belegten Fehler');
+  });
   test('Sol writes, Haiku reviews the text, Luna plans and reviews pictures with the bounded Gemini fallback', () => {
     expect(SERIES_MODELS).toEqual({ writer: 'openai/gpt-6.1-sol', support: 'anthropic/claude-haiku-5.5', critic: 'anthropic/claude-haiku-5.5' });
     expect(SERIES_PICTURE_DIRECTION_MODEL).toBe('openai/gpt-6-luna');
