@@ -10,7 +10,7 @@ import { assignEngineVoices, geminiFigures, recastScript, seriesCastMembers, ser
 import { audioCosts, defaultVoiceEngine, engineInfo, estimateVoices, geminiVoiceCost, normalizeEngine, proseVolume, scriptVolume } from "./engines";
 import { checkClip, expectedSeconds, gapBetween, LINE_GAPS, renderWithGemini } from "./gemini-render";
 import { GEMINI_NARRATOR, GEMINI_VOICES, describeFigure, figureHint, geminiLine, pickGeminiVoice, resolveGeminiCast, type SpeakerDirection } from "./gemini-voices";
-import { SpeechError, openRouterSpeech, type SpeechPort, type SpeechRequest } from "./openrouter-speech";
+import { createSpeechGate, SpeechError, openRouterSpeech, type SpeechPort, type SpeechRequest } from "./openrouter-speech";
 import { analyzeSpeech, applyGain, cut, safeGainDb, samplesFromPcm, wavBuffer } from "./pcm";
 import { NARRATOR_KEY } from "./screenplay";
 import { estimateWordTimes } from "./timeline";
@@ -468,6 +468,57 @@ describe("OpenRouter speech client", () => {
     expect(calls).toBe(2);
     expect(result.sampleRate).toBe(24_000);
     expect(result.generationId).toBe("gen-1");
+  });
+
+  test("temporary in-flight budget exhaustion is retried and recovers", async () => {
+    let calls = 0;
+    const speech = openRouterSpeech({ apiKey: "k", gate: createSpeechGate(), backoffMs: 1, fetchImpl: (async () => {
+      calls += 1;
+      return calls === 1
+        ? new Response(JSON.stringify({ error: { message: "x".repeat(500), metadata: { reason: "in_flight_budget_exhausted" } } }), { status: 402, headers: { "retry-after": "0" } })
+        : ok();
+    }) as unknown as typeof fetch });
+    expect((await speech({ model: "m", voice: "Puck", text: "Hallo" })).pcm.length).toBe(4800);
+    expect(calls).toBe(2);
+  });
+
+  test("persistent in-flight budget exhaustion stops after the configured attempts", async () => {
+    let calls = 0;
+    const speech = openRouterSpeech({ apiKey: "k", gate: createSpeechGate(), maxAttempts: 3, backoffMs: 1, fetchImpl: (async () => {
+      calls += 1;
+      return new Response(JSON.stringify({ error: { metadata: { reason: "in_flight_budget_exhausted" } } }), { status: 402, headers: { "retry-after": "0" } });
+    }) as unknown as typeof fetch });
+    await expect(speech({ model: "m", voice: "Puck", text: "Hallo" })).rejects.toThrow("Guthaben");
+    expect(calls).toBe(3);
+  });
+
+  test("the shared gate drains active requests and then starts only one at a time", async () => {
+    const gate = createSpeechGate();
+    const releases: Array<() => void> = [];
+    const started: number[] = [];
+    const work = (id: number) => gate.run(async () => {
+      started.push(id);
+      await new Promise<void>((resolve) => releases[id] = resolve);
+    });
+    const first = work(0);
+    const second = work(1);
+    await Promise.resolve();
+    gate.budgetExhausted(0);
+    const third = work(2);
+    const fourth = work(3);
+    releases[0]();
+    await first;
+    expect(started).toEqual([0, 1]);
+    releases[1]();
+    await second;
+    await Promise.resolve();
+    expect(started).toEqual([0, 1, 2]);
+    releases[2]();
+    await third;
+    await Promise.resolve();
+    expect(started).toEqual([0, 1, 2, 3]);
+    releases[3]();
+    await fourth;
   });
 
   test("a refused request is not retried", async () => {
