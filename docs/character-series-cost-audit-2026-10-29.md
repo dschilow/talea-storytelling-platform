@@ -292,3 +292,7 @@ oder exakt wiedergegeben behauptet. Echte Anbieter- oder Datenbankausfälle blei
 
 Verifikation: **239 Tests über zehn betroffene Testdateien bestanden**; die geänderten Dateien haben
 keine Typdiagnostik. Die bereits vorhandenen projektweiten TypeScript-Fehler bleiben davon unberührt.
+Zusätzlich wurde die tatsächliche Checkpoint-Abfrage mit PostgreSQL/PGlite gegen die originale
+`stories.metadata TEXT`-Definition ausgeführt: SQL-NULL, JSON-null, leere und bestehende Metadaten,
+Erhalt der Kostenmetriken sowie Benutzer-/Statusschutz. Die Speicherung castet für den atomaren Merge
+nach JSONB und anschließend zurück nach TEXT; dafür ist keine Datenbankmigration nötig.

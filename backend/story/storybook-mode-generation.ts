@@ -294,14 +294,15 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   if (seriesMode && input.storyId && input.userId) {
     const checkpoint = { textDraft: { savedAt: new Date().toISOString(), pipeline: pipelineId, stage: "text-ready",
       result: text, models, costs: ledger.totals() } };
+    // The legacy metadata column is TEXT; cast only for the atomic JSON merge.
     const saved = await storyDB.queryRow<{ id: string }>`
       UPDATE stories
       SET metadata = jsonb_set(
-        COALESCE(NULLIF(metadata, 'null'::jsonb), '{}'::jsonb),
+        COALESCE(NULLIF(metadata::jsonb, 'null'::jsonb), '{}'::jsonb),
         '{seriesAdmin}',
-        COALESCE(NULLIF(metadata->'seriesAdmin', 'null'::jsonb), '{}'::jsonb) || ${JSON.stringify(checkpoint)}::jsonb,
+        COALESCE(NULLIF(metadata::jsonb->'seriesAdmin', 'null'::jsonb), '{}'::jsonb) || ${JSON.stringify(checkpoint)}::jsonb,
         true
-      ), updated_at = ${new Date()}
+      )::text, updated_at = ${new Date()}
       WHERE id = ${input.storyId} AND user_id = ${input.userId} AND status = 'generating'
       RETURNING id
     `;
