@@ -20,7 +20,9 @@ import { episodeProductionLlm } from '../../backend/story/episode/craft';
 import { buildRunwareTask, createRunwareCaller, LIBRARY_IMAGE_MODEL } from '../../backend/story/library/images';
 import { runwareImageModelOptions, runwareReferenceSettings } from '../../backend/ai/runware-image-model-options';
 import { buildImageSlots, pagesFor } from '../../backend/story/storybook/book/illustrations';
-import { isPublishable } from '../../backend/story/storybook/images';
+import { isPublishable, type ImageProvider } from '../../backend/story/storybook/images';
+import { prepareSeriesVisualReferences } from '../../backend/story/character-series/visual-references';
+import { pictureHasPanels } from '../../backend/story/character-series/panels';
 
 const args = process.argv.slice(2);
 const opt = (name: string, fallback: string) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
@@ -141,6 +143,21 @@ try {
       ...avatars.map(a => ({ id: a.id, name: a.name, kind: 'character' as const, role: 'hero' as const, species: 'human', isHuman: true, appearance: a.appearance, forbidden: [], referenceUrl: a.imageUrl })),
       ...result.episode.guests.map(g => ({ id: g.id, name: g.name, kind: 'character' as const, role: 'cast' as const, species: g.species, isHuman: g.species === 'human', appearance: g.physicalDescription, forbidden: [] })),
     ];
+    const call = createRunwareCaller(runwareKey!);
+    const provider: ImageProvider = async request => {
+      const task = buildRunwareTask(request);
+      const model = opt('--image-model', SERIES_IMAGE_MODEL);
+      const outputFormat = opt('--format', model === LIBRARY_IMAGE_MODEL ? 'WEBP' : 'JPEG') as 'WEBP' | 'JPEG' | 'PNG';
+      if (!['WEBP', 'JPEG', 'PNG'].includes(outputFormat)) throw new Error('Unsupported image output format.');
+      Object.assign(task, { model, ...runwareImageModelOptions({ model, steps: model === 'runware:400@2' ? 4 : undefined, CFGScale: 4, outputFormat }) });
+      Object.assign(task, runwareReferenceSettings(model, request.referenceRegions, request.referenceImages.length));
+      const response = await call(task); return { url: response.imageURL, costUSD: response.cost };
+    };
+    // As in production (storybook-mode-generation.ts): recurring props and supporting figures get references before direction.
+    const visuals = await prepareSeriesVisualReferences({ pages: result.pages, entities, llm, model: models.director, provider, seed: `series-v2-${seriesId}-${episode}`,
+      readableReference: async url => url, recordCall: response => ledger.recordCall('series-visual-reference-plan', response, 'support') });
+    await writeFile(join(out, 'visual-references.json'), JSON.stringify({ references: visuals.portraits, calls: visuals.calls, costUSD: visuals.costUSD }, null, 2));
+    entities.splice(0, entities.length, ...visuals.entities);
     const reusedDirection = args.includes('--reuse-direction') ? JSON.parse(await readFile(opt('--reuse-direction', ''), 'utf8')) : undefined;
     const reusedSlots = reusedDirection?.pages?.length === result.pages.length * SERIES_POLICY.picturesPerChapter
       ? buildImageSlots(result.pages.map(p => ({ order: p.order, content: p.content })), { chapters: [] }, SERIES_POLICY.picturesPerChapter)
@@ -154,21 +171,12 @@ try {
       if (directed.director.repairCall) ledger.recordCall('series-picture-plan-repair', directed.director.repairCall, 'support');
     }
     await writeFile(join(out, 'direction.json'), JSON.stringify(directed.illustrations, null, 2));
-    const call = createRunwareCaller(runwareKey!);
     const picturePages = 'pages' in directed ? directed.pages : result.pages;
     const chapterByPage = 'slots' in directed && directed.slots ? Object.fromEntries(directed.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined;
     const images = await generateSeriesImages({ illustrations: directed.illustrations, entities, seed: `series-v2-${seriesId}-${episode}`, llm, visionModel, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL, pageTexts: Object.fromEntries(picturePages.map(p => [p.order, p.content])), chapterByPage,
-      provider: async request => {
-        const task = buildRunwareTask(request);
-        const model = opt('--image-model', SERIES_IMAGE_MODEL);
-        const outputFormat = opt('--format', model === LIBRARY_IMAGE_MODEL ? 'WEBP' : 'JPEG') as 'WEBP' | 'JPEG' | 'PNG';
-        if (!['WEBP', 'JPEG', 'PNG'].includes(outputFormat)) throw new Error('Unsupported image output format.');
-        Object.assign(task, { model, ...runwareImageModelOptions({ model, steps: model === 'runware:400@2' ? 4 : undefined, CFGScale: 4, outputFormat }) });
-        Object.assign(task, runwareReferenceSettings(model, request.referenceRegions, request.referenceImages.length));
-        const response = await call(task); return { url: response.imageURL, costUSD: response.cost };
-      } });
+      provider, reservedImageCalls: visuals.calls, panelCheck: pictureHasPanels });
     images.qaCalls.forEach((r, i) => ledger.recordCall(`image-qa-${i + 1}`, r, 'support'));
-    imageCostUSD = images.imageCostUSD;
+    imageCostUSD = images.imageCostUSD + visuals.costUSD;
     const all = [images.cover!, ...images.pages.values()];
     pictures = { ...images, pages: [...images.pages], accepted: all.every(isPublishable) };
     await mkdir(published, { recursive: true });

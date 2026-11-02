@@ -1,7 +1,7 @@
 // @ts-ignore Bun test helpers are runtime-only in Encore.
 import { describe, expect, test } from 'bun:test';
 import { buildBrief } from '../storybook/context';
-import { CostLedger } from '../storybook/llm';
+import { CostLedger, parseJsonObject } from '../storybook/llm';
 import { runCharacterSeriesTextEngine, seriesLlmBudget } from './engine';
 import { directSeriesPictures, generateSeriesImages, validateSeriesShots } from './pictures';
 import { SERIES_MODELS, seriesBudget } from './authoring';
@@ -166,5 +166,19 @@ describe('production failures 2026-11-02', () => {
     } });
     expect(stages).toContain('series-local-repair');
     expect(result.pages[1].content).toContain('damit die Glocke läutete');
+  });
+  test('malformed review JSON is repaired, read once more or let through, never a failed story', async () => {
+    // Pilot Graf 1: '…"after":"…"}}}]}' closed the issue twice and the whole story failed.
+    const quote = 'Nora nahm ihn vom Tisch.';
+    const broken = `{"issues":[{"severity":"minor","kind":"continuity","quote":"${quote}","problem":"Der Griff fehlt.","change":"Den Griff zeigen.","edit":{"before":"${quote}","after":"Nora griff zu und nahm ihn vom Tisch."}}}]}`;
+    expect(parseJsonObject<any>(broken)?.issues).toHaveLength(1);
+    const stages: string[] = [];
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), models: SERIES_MODELS, ledger: new CostLedger(), llm: async r => {
+      stages.push(r.stage);
+      if (r.stage === 'series-author') return reply(prose);
+      return reply('Die Prüfung ergab keine Befunde, aber ohne JSON.');
+    } });
+    expect(stages).toEqual(['series-author', 'series-editorial-review', 'series-editorial-review-retry']);
+    expect(result.pages[0].content).toContain(quote);
   });
 });

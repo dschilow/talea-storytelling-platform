@@ -29,6 +29,8 @@ export function readSeriesReferenceCandidates(raw: any, pages: StorybookPage[], 
     if (matches.length > 1) continue;
     const prior = matches[0];
     if (prior && (prior.role === 'hero' || prior.kind !== item.kind)) continue;
+    // Pilots 2026-11-02: Luna listed the already pictured lead (Tilda, the fairy, Blubbert) and used up the three places.
+    if (prior?.kind === 'character' && prior.referenceUrl && !options.inheritedIds?.has(prior.id)) continue;
     if (prior && !names(prior).some(n => aliases.some(a => norm(a) === norm(n)))) continue;
     if (!prior && (typeof item.appearance !== 'string' || item.appearance.length < 15 || item.appearance.length > 700 ||
       (item.kind === 'character' && (typeof item.species !== 'string' || item.species.length > 70 || !item.species.trim() || typeof item.isHuman !== 'boolean')))) continue;
@@ -43,6 +45,13 @@ export function readSeriesReferenceCandidates(raw: any, pages: StorybookPage[], 
       if (!Number.isInteger(citation?.page) || typeof citation.quote !== 'string' || citation.quote.length < 12 || citation.quote.length > 500) continue;
       const source = pages.find(p => p.order === citation.page)?.content;
       if (source?.includes(citation.quote) && referenceMention(citation.quote, entity) && !evidence.some(e => e.page === citation.page)) evidence.push({ page: citation.page, quote: citation.quote });
+    }
+    // Pilot Tilda 1 (2026-11-02): Luna paraphrased the second teddy quote and the teddy, present in every segment, got no
+    // reference. One verified citation shows the subject is real; the source itself proves whether it recurs.
+    if (evidence.length === 1) for (const page of pages) {
+      if (evidence.some(e => e.page === page.order)) continue;
+      const sentence = page.content.split(/(?<=[.!?…“])\s+/).find(s => s.length >= 12 && s.length <= 500 && referenceMention(s, entity));
+      if (sentence) evidence.push({ page: page.order, quote: sentence });
     }
     if (evidence.length < 2 || seen.has(id) || result.some(r => r.entity.referenceAliases.some(a => aliases.some(b => norm(a) === norm(b))))) continue;
     seen.add(id);

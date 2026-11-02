@@ -551,6 +551,10 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
       expect(r.effort).toBe('medium');
       expect(r.maxTokens).toBe(13000);
       expect(r.timeoutMs).toBe(120000);
+      // The dragon lead: one other figure per picture and one avatar on the cover (pilots 2026-11-02).
+      expect(r.system).toContain('at most ONE other figure');
+      expect(r.system).toContain('exactly ONE avatar');
+      expect(r.system).toContain('at most TWO page pictures show three figures');
       expect(r.system).toContain('SOURCE FIRST');
       expect(r.system).toContain('ONLY VISIBLE STAGING');
       expect(r.system).toContain('LAST local paragraph');
@@ -1191,6 +1195,18 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(page1[1].prompt).not.toContain('Image 1 is the existing scene to edit');
     expect(page1[1].prompt).toContain('ONE continuous full-bleed scene');
     expect(result.pages.get(1)?.history?.[0].notes).toContain('The picture is split into separate panels like the identity sheet.');
+    expect(result.pages.get(1)?.status).toBe('passed');
+  });
+  test('a doubled figure is recast in a new scene, because an edit returned the same picture (pilot Funkelflug 1)', async () => {
+    const requests: any[] = [];
+    const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'recast',
+      provider: async r => { requests.push(r); return { url: `bucket://story/${r.page}.webp`, viewUrl: `https://example.test/scene-${r.page}.webp` }; },
+      llm: async r => imageReview(r.stage, r.stage === 'series-image-qa-1-1' ? { visibleIds: ['lead', 'kid', 'kid'] } : {}),
+      visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
+    const page1 = requests.filter(r => r.page === 1);
+    expect(page1).toHaveLength(2);
+    expect(page1[1].prompt).not.toContain('Image 1 is the existing scene to edit');
+    expect(page1[1].referenceImages).toEqual(['data:image/jpeg;base64,AA==']);
     expect(result.pages.get(1)?.status).toBe('passed');
   });
   test('bounding boxes scale children shorter than adults, vary across chapters and support three figures', () => {

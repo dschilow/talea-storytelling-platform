@@ -38,6 +38,10 @@ export const SERIES_IMAGE_REVIEW_EFFORT = 'medium';
  */
 export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_KLEIN_9B_KV_MODEL;
 /**
+ * Version 22: a malformed review JSON is repaired, read once more or let through instead of failing the story; the
+ * reference plan skips already pictured figures and proves recurrence from the source; a doubled or missing figure is
+ * redrawn rather than edited; at most two three-figure pictures, a creature lead with one other figure per picture and
+ * on the cover, and accessories stay with their own figure (pilots 2026-11-02).
  * Version 21: 61 planned punchlines a six-year-old gets from the visible situation (was adult irony and wordplay), titles the
  * plan delivers, the punchline is only a suggestion, and a clue never demonstrates a magic object the episode does not use.
  * Version 20: picture direction gets room to think (two stories failed on a truncated plan, 2026-11-02), a truncated or
@@ -67,7 +71,7 @@ export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_
  * took 211 s. Up to five repairs, spent on pictures with a hard fault or provider failure. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 21, maxVisualReferences: 3, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
+export const SERIES_POLICY = { version: 22, maxVisualReferences: 3, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);

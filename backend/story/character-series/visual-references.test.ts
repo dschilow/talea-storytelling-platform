@@ -30,11 +30,24 @@ const prepare = (extra: Record<string, any> = {}) => prepareSeriesVisualReferenc
 describe('story-local references from final prose', () => {
   test('one-off, invented and duplicate claims cannot trigger portrait purchases or replace an avatar', () => {
     const valid = proposal();
-    const invalid = [proposal({evidence:[valid.evidence[0]]}), proposal({evidence:[valid.evidence[0],{page:2,quote:'Dieser Teddy kam in keinem Kapitel vor.'}]}),
-      proposal({existingId:'kid',name:'Nora',kind:'character'})];
-    expect(readSeriesReferenceCandidates({references:invalid},pages,[lead,hero])).toEqual([]);
+    // A teddy named in only one segment is a one-off, whatever the model claims.
+    const oneOff = [pages[0], { ...pages[1], content: 'Tilda schloss die Kiste.\n\nNora lachte.' }];
+    const invalid = [proposal({evidence:[valid.evidence[0]]}), proposal({evidence:[valid.evidence[0],{page:2,quote:'Dieser Teddy kam in keinem Kapitel vor.'}]})];
+    expect(readSeriesReferenceCandidates({references:invalid},oneOff,[lead,hero])).toEqual([]);
+    expect(readSeriesReferenceCandidates({references:[proposal({evidence:[{page:2,quote:'Dieser Teddy kam in keinem Kapitel vor.'}]})]},pages,[lead,hero])).toEqual([]);
+    expect(readSeriesReferenceCandidates({references:[proposal({existingId:'kid',name:'Nora',kind:'character'})]},pages,[lead,hero])).toEqual([]);
     expect(readSeriesReferenceCandidates({references:[valid,valid]},pages,[lead,hero])).toHaveLength(1);
     expect(seriesReferenceMention('Die Bootsbauerin wartet.',{...lead,name:'Boot'})).toBe(false);
+  });
+
+  test('a paraphrased second quote keeps a recurring teddy, and the pictured lead takes no place (pilots 2026-11-02)', () => {
+    const paraphrased = proposal({evidence:[{page:1,quote:'Nora hielt den roten Teddy fest.'},{page:2,quote:'Tilda hob den Teddy aus der roten Kiste.'}]});
+    const leadAgain = {kind:'character',name:'Tilda',existingId:'lead',species:'human',isHuman:true,appearance:'girl in blue overalls',
+      evidence:[{page:1,quote:'Tilda legte den Teddy auf den Tisch.'},{page:2,quote:'Tilda hob den roten Teddy aus der Kiste.'}]};
+    const found = readSeriesReferenceCandidates({references:[leadAgain,paraphrased]},pages,[lead,hero]);
+    expect(found.map(c => c.entity.name)).toEqual(['Teddy']);
+    expect(found[0].evidence.map(e => e.page)).toEqual([1, 2]);
+    expect(pages[1].content).toContain(found[0].evidence[1].quote);
   });
 
   test('one recurring object is generated once and receives one stable asset for all later pictures', async () => {

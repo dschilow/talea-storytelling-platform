@@ -234,6 +234,9 @@ export function parseJsonObject<T>(raw: string): T | null {
   const lastBrace = text.lastIndexOf("}");
   if (firstBrace >= 0 && lastBrace > firstBrace) attempts.push(text.slice(firstBrace, lastBrace + 1));
 
+  // Last shape: Haiku closed an object once too often ('…"}}}]}', pilot 2026-11-02) and the series review failed a story.
+  if (firstBrace >= 0) attempts.push(balanceJsonBrackets(text.slice(firstBrace, lastBrace > firstBrace ? lastBrace + 1 : undefined)));
+
   for (const attempt of attempts) {
     try {
       const parsed = JSON.parse(attempt);
@@ -243,4 +246,28 @@ export function parseJsonObject<T>(raw: string): T | null {
     }
   }
   return null;
+}
+
+/** Drops a closing bracket that closes nothing open and closes what is still open at the end; strings stay untouched. */
+export function balanceJsonBrackets(text: string): string {
+  const open: string[] = [];
+  let out = "", inString = false, escaped = false;
+  for (const char of text) {
+    if (inString) {
+      out += char;
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === "\"") inString = false;
+      continue;
+    }
+    if (char === "\"") inString = true;
+    else if (char === "{") open.push("}");
+    else if (char === "[") open.push("]");
+    else if (char === "}" || char === "]") {
+      if (open[open.length - 1] !== char) continue;
+      open.pop();
+    }
+    out += char;
+  }
+  return out + open.reverse().join("");
 }
