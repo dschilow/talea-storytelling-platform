@@ -14,6 +14,7 @@ import { effectiveSeriesEpisode, logsForEpisode } from './core';
 import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW_COMPACT, type SeriesQa } from './quality';
 import { FLUX3_KLEIN_MODEL, type RunwareReferenceRegion } from '../../ai/runware-image-model-options';
 import { StorybookSafetyBlock } from '../storybook/llm-guards';
+import { seriesReferenceMention } from './identity';
 export { seriesPicturePasses, seriesPictureUsable } from './quality';
 
 export type SeriesBox = [number, number, number, number];
@@ -137,7 +138,7 @@ class SeriesPicturePlanError extends Error {
 /** Every shot keeps its dramatic subject; a failed picture never turns into an avatar portrait. */
 export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: VisualEntity[], leadId: string, rules: SeriesShotRules = {}): IllustrationPlan {
   // Every pictured identity needs an existing reference; a style example must never supply a missing guest.
-  const ids = new Set(entities.filter(e => e.referenceUrl).map(e => e.id));
+  const ids = new Set(entities.filter(e => e.kind === 'character' && e.referenceUrl).map(e => e.id));
   const ordinal = (value: unknown): number | undefined => {
     const number = typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value) : value;
     return typeof number === 'number' && Number.isSafeInteger(number) && number >= 0 ? number : undefined;
@@ -203,16 +204,21 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
     if (errors.length && (!allowSceneFallback || page === 0)) throw new SeriesPicturePlanError(page, errors);
     const visualBeat: SeriesVisualBeat | undefined = !errors.length && (framing === 'wide' || framing === 'medium' || framing === 'close')
       ? { actorId, action, result, framing } : undefined;
+    const requestedProps = Array.isArray(candidate.elements) ? candidate.elements : [];
+    const propSource = page > 0 ? [evidence, ...pageParagraphs.slice(Math.max(0, (paragraph || 1) - 3), paragraph)].join('\n') : candidate.scene;
+    const props = entities.filter(e => e.kind === 'artifact' && e.referenceUrl &&
+      (requestedProps.includes(e.id) || requestedProps.includes(e.name) || candidate.artifactVisible === true || seriesReferenceMention(candidate.scene, e)) &&
+      seriesReferenceMention(propSource, e)).slice(0, SERIES_POLICY.maxVisualReferences);
     const boxes: Record<string, SeriesBox> = {};
     if (candidate?.boxes && typeof candidate.boxes === 'object') {
-      for (const id of onStage) {
+      for (const id of [...onStage, ...props.map(e => e.id)]) {
         if (validSeriesBox(candidate.boxes[id])) boxes[id] = candidate.boxes[id].map((n: number) => Math.round(n)) as SeriesBox;
       }
     }
     const actor = visualBeat ? entities.find(e => e.id === visualBeat.actorId) : undefined;
     return { page, onStage, scene: candidate.scene, actionKey: visualBeat && actor ? `${actor.name} ${visualBeat.action}; ${visualBeat.result}` : candidate.scene,
       ...(visualBeat ? { visualBeat } : {}), ...(errors.length ? { planningRecovery: errors } : {}),
-      ...(Object.keys(boxes).length ? { boxes } : {}), storyQuote: evidence || undefined, focus: 'scene', artifactVisible: candidate.artifactVisible === true, elements: [], ...(page ? { paragraph } : {}) };
+      ...(Object.keys(boxes).length ? { boxes } : {}), storyQuote: evidence || undefined, focus: 'scene', artifactVisible: props.length > 0, elements: props.map(e => e.id), ...(page ? { paragraph } : {}) };
   };
   // Haiku planned pages 1, 1, 2, 3, 3, 4, 5, 6 and its repair returned the same (pilot 2026-10-29): one picture per
   // page is kept, the first that validates, instead of failing the whole story.
@@ -310,8 +316,8 @@ export async function directSeriesPictures(input: {
       'DRAWABLE: prefer TWO figures and medium framing, with one clear action and readable faces. A third figure belongs only when actually participating. Cooperating figures may keep their real roles; never invent a different action to simplify the composition. Prefer a large object or visible consequence over tiny mechanical workings. Keep each recurring prop’s established material, size and shape. All prominent figures are listed in onStage; an explicitly mentioned distant crowd may be incidental silhouettes, not extra foreground children.',
       'SETTING: start scene with the actual location already established by this text, followed by the figures and the visible action. An outdoor courtyard is outdoors, not an indoor room. Reference images supply identity and rendering only, never their background or props. Do not add irrelevant settings, excluded places or appearance details.',
       'Every shot needs visualBeat {actorId, action, result, framing} and boxes {"id":[top,left,bottom,right]} on a 0–1000 scale of the 3:2 landscape canvas. Start action with an English physical VERB, not watching, speaking, agreeing or deciding. The result must be observable in ONE still. framing is wide, medium or close; use at least TWO scales across three or more page pictures. In `boxes`, keep realistic relative sizes (adult ~650–820 tall, child ~480–640 tall and visibly shorter than adults, small creature/dragon/mouse/bird ~260–440 tall) and vary left/center/right placement so consecutive pictures never repeat a side-by-side 50/50 split.',
-      "Compose a full-body or three-quarter scene with depth and expressive faces. The cover uses a real motif from the first half of the story, with the lead and avatars, never the resolved ending. The illustration is wordless. Only identities with supplied references may be onStage.",
-      `The picture prints right AFTER paragraph; never draw a result before its text. Prefer ${PICTURE_EDGE} paragraphs of spacing from segment edges only when the true moment allows it. Before returning, check each caption's actors, objects and result against its quote and ensure paragraph is not earlier than any part of the depicted event. JSON {"cover":{"onStage":["id","id"],"boxes":{"id":[160,220,920,760]},"visualBeat":{"actorId":"id","action":"physical verb and object","result":"source-grounded visible result","framing":"wide"},"scene":"..."},"pages":[{"page":1,"storyQuote":"exact passage stating the event AND result","paragraph":4,"onStage":["id","id"],"boxes":{"id":[160,60,920,460],"id2":[300,520,920,880]},"visualBeat":{"actorId":"id","action":"physical verb and object","result":"visible result already stated in the quote","framing":"medium"},"scene":"..."}]}.`,
+      "Compose a full-body or three-quarter scene with depth and expressive faces. The cover uses a real motif from the first half of the story, with the lead and avatars, never the resolved ending. The illustration is wordless. Only CHARACTER identities with supplied references may be onStage. A referenced OBJECT is never a character: put its exact id in elements when it is visible in the selected source moment. Keep the object's stable shape, colours, material and scale, allowing only the state changes explicitly in the prose. Include the source-language object name in the cover caption when elements names that object, so its presence can be verified.",
+      `The picture prints right AFTER paragraph; never draw a result before its text. Prefer ${PICTURE_EDGE} paragraphs of spacing from segment edges only when the true moment allows it. Before returning, check each caption's actors, objects and result against its quote and ensure paragraph is not earlier than any part of the depicted event. JSON {"cover":{"onStage":["id","id"],"elements":["visible-object-id"],"boxes":{"id":[160,220,920,760]},"visualBeat":{"actorId":"id","action":"physical verb and object","result":"source-grounded visible result","framing":"wide"},"scene":"..."},"pages":[{"page":1,"storyQuote":"exact passage stating the event AND result","paragraph":4,"onStage":["id","id"],"elements":["visible-object-id"],"boxes":{"id":[160,60,920,460],"id2":[300,520,920,880]},"visualBeat":{"actorId":"id","action":"physical verb and object","result":"visible result already stated in the quote","framing":"medium"},"scene":"..."}]}. Use elements:[] when no referenced object is visible.`,
     ].join('\n'),
     user: [
       firstEncounter ? 'FIRST CHAPTER PICTURE: choose a real encounter or exchange from this segment, after the relevant people arrive. Keep identifying faces visible.' : '',
@@ -319,7 +325,7 @@ export async function directSeriesPictures(input: {
       `${publicLead?.referenceUrl ? 'Image 1 is ONLY the public series lead; take face, species and clothes, NEVER its sea/room background or loose portrait props. ' : ''}The last image is ONLY the art style (notice the full-room depth, expressive faces and true child-to-creature scale). Reference poses are not scene poses.`,
       `REQUIRED CAST COVERAGE:\n${coverage}`,
       `TITLE ${input.title}`,
-      `PICTURABLE IDENTITIES (only these have references):\n${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name} (${isChildFigure(e) ? 'human child, shorter than adults' : e.isHuman ? 'adult human' : e.species}); ${e.role === 'hero' ? (e.referenceContext || 'identity from reference') : e.appearance}`).join('\n')}`,
+      `PICTURABLE IDENTITIES (only these have references; OBJECT ids belong in elements, CHARACTER ids in onStage):\n${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name} [${e.kind === 'artifact' ? 'OBJECT' : 'CHARACTER'}] (${isChildFigure(e) ? 'human child, shorter than adults' : e.isHuman ? 'adult human' : e.species}); ${e.role === 'hero' ? (e.referenceContext || 'identity from reference') : e.appearance}`).join('\n')}`,
       `PAGES (${pages.length}):\n${pageText}`,
     ].filter(Boolean).join('\n') });
   let illustrations!: IllustrationPlan;
@@ -394,6 +400,8 @@ export async function generateSeriesImages(input: {
   /** The model behind `provider`. Only FLUX 3 Klein binds sheet cells to scene regions; others get plain names. */
   imageModel?: string;
   buildReference?: ReturnType<typeof createIdentityReferenceCache>;
+  /** Reference portraits use the same total episode image-call allowance as chapter pictures. */
+  reservedImageCalls?: number;
 }): Promise<StorybookImagesResult> {
   const shots = [input.illustrations.cover, ...input.illustrations.pages];
   const maxShots = 1 + SERIES_POLICY.picturesPerChapter * 4;
@@ -422,7 +430,8 @@ export async function generateSeriesImages(input: {
     if (!canReview()) return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD, status: 'failed', severity: 999, errors: ['series_budget_exhausted'], history: [...history, { kind: 'series-budget', status: 'failed', severity: 999, notes: ['Kein weiteres Bild erzeugt: Prüfbudget erreicht.'] }] };
     const drawn = shot.onStage.map(id => byId.get(id)).filter((e): e is VisualEntity => Boolean(e));
     if (drawn.some(e => e.role === 'hero' && !e.referenceUrl)) return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD, severity: 999, status: 'failed', errors: ['series_avatar_reference_missing'], history: [...history, { kind: 'series-identity', status: 'failed', severity: 999, notes: ['Avatarreferenz fehlt; kein erfundenes Ersatzkind erzeugt.'] }] };
-    const identities = drawn.filter(e => e.referenceUrl);
+    const props = (shot.elements || []).map(id => byId.get(id)).filter((e): e is VisualEntity => Boolean(e?.kind === 'artifact' && e.referenceUrl));
+    const identities = [...drawn.filter(e => e.referenceUrl), ...props];
     let references: string[];
     try {
       const slots = identities.map(e => ({ imageUrl: e.referenceUrl!, displayName: e.name, kind: e.kind }));
@@ -455,10 +464,11 @@ export async function generateSeriesImages(input: {
       ].join('\n') : [bindNames(moment.scene),
         beat ? bindNames(`Depict this visible moment: ${byId.get(beat.actorId)?.name} ${moment.fact}. ${beat.framing.toUpperCase()} framing with foreground and depth. Posture and expression follow this actual moment: lively during a mishap, gentle during a quiet exchange. Hands perform only the described action or rest naturally; do not invent objects to occupy them. The scene determines setting, gesture and camera; the reference sheet determines character identity, not its pose or held props.`) : '',
         SERIES_ART_DIRECTION,
-        regionBound ? regions.map(r => `<${r.id}> is ${r.description}, taken only from its own sheet cell and placed in its assigned scene region. Draw this figure exactly once in the caption's new action; the cell's resting pose and portrait background have no part in this scene.`).join('\n') : '',
+        regionBound ? regions.map((r, i) => `<${r.id}> is ${r.description}, taken only from its own sheet cell and placed in its assigned scene region. Draw this ${identities[i].kind === 'artifact' ? 'object' : 'figure'} exactly once in the caption's new action; the cell's resting pose and portrait background have no part in this scene.`).join('\n') : '',
         references.length ? `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${slotPositionLabel(i, identities.length)} is ONLY ${e.name}${e.role === 'hero' ? (e.referenceContext ? ` (${e.referenceContext})` : '') : `: ${e.appearance}`}`).join('; ')}. Keep each face, hair, species and outfit with its OWN person. Ignore objects held in the portraits unless this scene explicitly needs them. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, natural human ears matching the reference, and exactly two arms and two hands, each with five separate fingers, plus two legs${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.` : '',
         ...drawn.filter(e => !e.referenceUrl).map(e => `${e.name}: ${e.appearance}.`),
         'Every described object keeps its source material, size and shape. Props come only from this scene, never from a portrait or a conversation topic.',
+        props.length ? `OBJECT REFERENCES (not people; no added human anatomy): ${props.map(e => `${e.name}: ${e.appearance}`).join('; ')}. Preserve a toy's own stitched face and limbs when present in its reference. Match the same design in every picture. The source determines its current state and position, never the white reference background.` : '',
         simplified
           ? `A solitary scene with exactly one character, ${drawn[0]?.name}, shown only once. The surrounding landscape is uninhabited: no other figures, creatures, spectators, faces or portraits anywhere in the background. Keep only the setting of this scene, not the reference portrait's background.`
           : `Exactly ${drawn.length} foreground characters, once each: ${drawn.map(e => e.name).join(', ')}. No additional foreground children or replacement faces. A crowd explicitly named in the caption stays distant incidental silhouettes. A story instant in one continuous full-bleed setting reaching every edge; ignore the reference portraits' backgrounds and paint only the scene's own environment.`,
@@ -466,7 +476,7 @@ export async function generateSeriesImages(input: {
         wordlessLine(moment.scene),
         'Use the shared Talea Originals medium described above; only the identity sheet supplies characters.',
       ].filter(Boolean).join('\n');
-      if (imageCalls >= SERIES_POLICY.maxImageCalls) {
+      if (imageCalls + (input.reservedImageCalls || 0) >= SERIES_POLICY.maxImageCalls) {
         history.push({ kind: 'series-budget', status: 'failed', severity: 999, notes: ['Kein weiteres Bild erzeugt: Bildbudget erreicht.'] });
         return { page: shot.page, prompt, attempts: number, costUSD, severity: 999, status: 'failed', errors: ['series_image_budget_exhausted'], history };
       }
@@ -485,7 +495,7 @@ export async function generateSeriesImages(input: {
       }
       const sourceQuote = (shot as SeriesShot).storyQuote;
       const source = shot.page === 0 ? '' : sourceQuote ? `SOURCE MOMENT: ${sourceQuote}` : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph).slice(0, 800);
-      const reviewUser = `${shot.page === 0 ? 'COVER: recognisable characters in their world; no exact chapter action is compulsory.' : 'CHAPTER PICTURE: recognisable intact characters in this setting and activity. Actor/prop/pose differences are minor.'}\nEXPECTED IDENTITIES (human or nonhuman anatomy as specified):\n${drawn.map(e => `${e.id}: ${e.name}; ${e.isHuman ? 'human' : e.species}; ${e.role === 'hero' && e.referenceUrl ? (e.referenceContext || 'identity from reference sheet') : e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\nSCENE CONTEXT, not an exact-action test:\n${moment.scene}\n${source}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name})`).join('; ')}.` : 'No identity sheet is attached.'}`;
+      const reviewUser = `${shot.page === 0 ? 'COVER: recognisable characters in their world; no exact chapter action is compulsory.' : 'CHAPTER PICTURE: recognisable intact characters in this setting and activity. Actor/prop/pose differences are minor.'}\nEXPECTED IDENTITIES (human or nonhuman anatomy as specified):\n${drawn.map(e => `${e.id}: ${e.name}; ${e.isHuman ? 'human' : e.species}; ${e.role === 'hero' && e.referenceUrl ? (e.referenceContext || 'identity from reference sheet') : e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\n${props.length ? `REFERENCED OBJECTS (not figures in observedFigures or identityById): ${props.map(e => `${e.id}: ${e.name}, ${e.appearance}`).join('; ')}. A materially different object design or an object drawn as a person is a contradiction; ordinary source-grounded pose/state changes remain fine.\n` : ''}SCENE CONTEXT, not an exact-action test:\n${moment.scene}\n${source}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name}; ${e.kind === 'artifact' ? 'OBJECT, not a figure' : 'character'})`).join('; ')}.` : 'No identity sheet is attached.'}`;
       let safetyBlock: StorybookSafetyBlock | undefined;
       const blockedOutcome = (block: StorybookSafetyBlock): ImageOutcome => {
         const reason = block.reason;

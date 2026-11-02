@@ -1,5 +1,16 @@
 import type { CastCandidate, StorybookHero } from '../storybook/types';
 import { heroAppearance } from '../storybook/illustration-stage';
+import type { VisualEntity } from '../storybook/illustration-stage';
+
+/** Match source-language names without treating "Boot" as a mention inside "Bootsbauerin". */
+export function seriesReferenceMention(text: string, entity: VisualEntity): boolean {
+  const norm = (value: string) => value.normalize('NFC').toLocaleLowerCase('de-DE').replace(/\s+/g, ' ').trim();
+  const source = norm(text);
+  return [entity.name, ...(entity.referenceAliases || [])].some(name => {
+    const escaped = norm(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return escaped.length >= 3 && new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'u').test(source);
+  });
+}
 
 /** The pool identity belongs to its portrait; a story outline must not repaint it. */
 export function seriesLeadCandidate(lead: CastCandidate): CastCandidate {

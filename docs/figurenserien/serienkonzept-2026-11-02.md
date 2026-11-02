@@ -67,10 +67,20 @@ Die exportierten Serienbibeln waren zuvor als vier Zehnerbögen beschriftet, wä
 
 ## Kosten und Überprüfung
 
-Sol bleibt der Autor mit der vorhandenen Low-Einstellung; Modelle, Bildanzahl, Reparaturgrenzen und Kostenobergrenzen werden durch diese Planänderung nicht erhöht. Es gibt keinen zusätzlichen Planungsaufruf pro Geschichte. Die einmal redaktionell geschriebene Planung liegt im Code. Die genaue Tokenzahl und damit der Preis einzelner späterer Geschichten können sich trotzdem ändern; gleiche Pipeline bedeutet keinen garantierten identischen Centpreis.
+Sol bleibt der Autor mit der vorhandenen Low-Einstellung. Die Folgenplanung liegt im Code und benötigt keinen eigenen Modellaufruf zur Laufzeit. Die genaue Tokenzahl und damit der Preis einzelner späterer Geschichten können sich trotzdem ändern; gleiche Pipeline bedeutet keinen garantierten identischen Centpreis. Die unten beschriebene Ergänzung der Bildreferenzen benötigt eine separate kurze Motivanalyse.
 
 Die automatisierten Tests prüfen unter anderem alle 100 Pläne im tatsächlichen Autor-/Lektoratskontext, die vorgesehenen Gastauftritte, den Vorrang bereits belegter Geschichten und das Ausblenden späterer Bogenauflösungen. Diese Tests messen keine literarische Qualität und ersetzen keine Reaktion echter Kinder.
 
 Vor einer Qualitätsbehauptung über die fertigen Geschichten sind neue Ausgaben nötig. Für die ersten Beispiele sollte ein Kind nach dem Vorlesen in eigenen Worten beantworten können: Wer wollte was? Was ging schief? Warum half die Lösung? Worauf bist du als Nächstes neugierig? Auch spontane Lacher, Nachfragen und Stellen mit verlorener Aufmerksamkeit sind aussagekräftiger als eine vermeintlich objektive Modellnote.
 
 Diese Überarbeitung erzeugt und veröffentlicht noch keine neuen Geschichten und löst keine bezahlten Story- oder Bildtests aus. Aktiv auf der Plattform wird sie erst mit dem Deployment des geänderten Codes.
+
+## Ergänzung: gemeinsame Bildreferenzen für wichtige Motive (Version 19)
+
+Nach dem geprüften Text und vor der Bildregie untersucht ein kurzer Luna-Aufruf die tatsächlichen Leseabschnitte. Bis zu drei wichtige Gegenstände oder zusätzliche Nebenfiguren erhalten eine gemeinsame Referenz, wenn mindestens zwei unterschiedliche Abschnitte ihr Vorkommen durch wörtliche, namensbezogene Textstellen belegen. Einmalige Dekoration wird nicht eigens erzeugt. Das betrifft etwa Teddys, Boote, Erfindungen oder eine mehrfach handelnde Papiermacherin. Die Bildregie entscheidet anschließend, in welchen konkreten Bildern sie tatsächlich zu sehen sind.
+
+Bereits vorhandene Pool- und Avatarreferenzen haben Vorrang. Neue Referenzen werden einmal erzeugt, danach als dieselbe Referenzzelle auf den passenden Bildbögen verwendet. Gegenstände stehen im Feld `elements`, Personen und Tiere in `onStage`; ein Teddy darf dadurch keinen Kinderplatz belegen und bekommt keine menschlichen Gliedmaßen zugewiesen. Die Bildprüfung erhält die Gegenstandsreferenzen ebenfalls. Größe, Farbe und Bauform sollen erhalten bleiben; Zustandsänderungen wie nass, geöffnet oder repariert folgen dem Text.
+
+Die dauerhaften Asset-URLs und die Ergebnisse der Vorbereitung werden in den Metadaten der Geschichte gespeichert. Spätere Folgen derselben persönlichen Serie können sie aus den tatsächlich erhaltenen Folgen wiederverwenden. Temporäre Zugriffs-URLs werden frisch aufgelöst; gleichnamige beliebige Nebenpersonen werden nicht automatisch miteinander gleichgesetzt. Ist eine etablierte Referenz vorübergehend nicht lesbar, wird die Figur nicht einfach neu gestaltet.
+
+Kosten: ein zusätzlicher begrenzter Motivanalyse-Aufruf und bei Bedarf höchstens drei Referenzbild-Aufrufe. Referenzbilder werden auf die bestehenden maximal 13 Bildaufrufe angerechnet; dadurch bleibt bei neuen Referenzen weniger Spielraum für Neuzeichnungen. Alle Aufrufe und gemeldeten Kosten werden erfasst. Die Kapitelbildanzahl bleibt gleich. Die Automatik verbessert die Voraussetzungen für Konsistenz; ihre tatsächliche Bildqualität muss mit neuen Ausgaben geprüft werden.

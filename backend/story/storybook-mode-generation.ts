@@ -47,6 +47,8 @@ import { runCharacterSeriesTextEngine, seriesLlmBudget } from "./character-serie
 import { StorybookSafetyBlock } from "./storybook/llm-guards";
 import { directSeriesPictures, generateSeriesImages } from "./character-series/pictures";
 import { seriesAvatarAppearance, seriesAvatarReferenceContext, seriesLeadCandidate, seriesLeadReference, seriesReferenceAppearance } from "./character-series/identity";
+import { prepareSeriesVisualReferences } from "./character-series/visual-references";
+import { loadSeriesVisualReferences } from "./character-series/repository";
 import { loadHeroMemories, loadStorybookHistory } from "./storybook/history";
 import { CostLedger, resolveStorybookModels } from "./storybook/llm";
 import { createOpenRouterStorybookLlm } from "./storybook/llm-openrouter";
@@ -351,6 +353,22 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   }, pipelineId);
   if (known.call) ledger.recordCall("reference-looks", known.call, "support");
 
+  // Source-grounded recurring objects and incidental supporting people need the same design in every chapter.
+  // Resolve their references BEFORE direction: only then can the director select those subjects for the pictures.
+  const previousVisuals = seriesMode && brief.characterSeries
+    ? await loadSeriesVisualReferences(input.userId, brief.characterSeries.logs
+        .filter(log => !brief.characterSeries!.episodeOverride || log.episode < brief.characterSeries!.episodeOverride).map(log => log.storyId))
+    : [];
+  const seriesVisuals = seriesMode ? await prepareSeriesVisualReferences({
+    pages, entities: known.entities, existing: previousVisuals, llm, model: SERIES_PICTURE_DIRECTION_MODEL,
+    provider: encoreImageProvider(input.storyId, imageModel), seed, readableReference,
+    recordCall: call => ledger.recordCall('series-visual-reference-plan', call, 'support'),
+  }) : undefined;
+  const directedEntities = seriesVisuals?.entities ?? known.entities;
+  if (seriesVisuals) await logStage(input.storyId, 'series-visual-references', {
+    references: seriesVisuals.portraits, calls: seriesVisuals.calls, costUSD: seriesVisuals.costUSD,
+  }, pipelineId);
+
   // A new, story-local figure has no pool image. Its portrait is drawn from the writer's look — the same look the art
   // director reads — next to the direction instead of before it (story 5e583e1e waited 40 s between text and pictures);
   // the pictures then carry it on every relevant identity sheet. The looks are read from the unchanged entities, so the
@@ -366,12 +384,12 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
           console.warn("[storybook] guest portraits failed, the guests are drawn from their text look:", (err as Error)?.message || err);
           return { entities: known.entities, portraits: [], calls: 0, costUSD: 0 };
         })
-    : Promise.resolve({ entities: known.entities, portraits: [], calls: 0, costUSD: 0 });
+    : Promise.resolve(seriesVisuals ?? { entities: known.entities, portraits: [], calls: 0, costUSD: 0 });
   // Talea-Folge and the character series draw two pictures per chapter, each after the paragraph it shows, and every
   // acting figure at least once (the chapter book's picture machinery, ./episode/pictures.ts). Every other lane: one
   // picture per page.
   const directing: Promise<EpisodeDirection | undefined> = seriesMode
-    ? directSeriesPictures({ llm, model: SERIES_PICTURE_DIRECTION_MODEL, brief, title: text.title, pages, plan, entities: known.entities,
+    ? directSeriesPictures({ llm, model: SERIES_PICTURE_DIRECTION_MODEL, brief, title: text.title, pages, plan, entities: directedEntities,
         observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId) })
     : episodeMode
     ? directEpisodePictures({ llm, model: models.support, brief, title: text.title, pages, plan, entities: known.entities }).catch((err) => {
@@ -403,6 +421,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       illustrations, entities: pictureEntities, provider: encoreImageProvider(input.storyId, imageModel), imageModel, seed, llm,
       visionModel: SERIES_IMAGE_REVIEW_MODEL, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL, pageTexts: Object.fromEntries(picturePages.map(page => [page.order, page.content])),
       chapterByPage: direction ? Object.fromEntries(direction.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined,
+      reservedImageCalls: seriesVisuals?.calls ?? 0,
     }) : generateStorybookImages({
       illustrations,
       entities: pictureEntities,
@@ -532,7 +551,9 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const metadata: Record<string, any> = {
     pipeline: pipelineId,
     generationMode: pipelineId,
-    ...(seriesMode ? { characterSeriesLogCandidate: episode?.seriesLogCandidate, characterSeriesPolicy: SERIES_POLICY, characterSeriesArt } : {}),
+    ...(seriesMode ? { characterSeriesLogCandidate: episode?.seriesLogCandidate, characterSeriesPolicy: SERIES_POLICY, characterSeriesArt,
+      characterSeriesReferences: seriesVisuals?.assets.map(({ referenceUrl: _transportUrl, ...asset }) => asset),
+      characterSeriesReferenceResults: seriesVisuals?.portraits } : {}),
     ...(wonder ? { wonder } : {}),
     ...(episode ? { episode: { mode: episode.mode, plan: episode.plan, checks: episode.checks, revised: episode.revised, renamed: episode.renamed } } : {}),
     model: models.writer,

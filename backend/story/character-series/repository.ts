@@ -2,6 +2,7 @@ import { APIError } from "encore.dev/api";
 import { storyDB } from "../db";
 import { chooseSeries, CHARACTER_SERIES_ENGINE, CHARACTER_SERIES_VERSION, nextSeriesEpisode, type CharacterSeriesBible, type SeriesEpisodeLog } from "./core";
 import bibles from "./series-bibles.json";
+import type { VisualEntity } from "../storybook/illustration-stage";
 
 export const SERIES = bibles as CharacterSeriesBible[];
 
@@ -21,6 +22,28 @@ export function ensureSeriesResetTable(): Promise<void> {
 function metadataObject(raw: unknown): any {
   if (typeof raw === "string") { try { return JSON.parse(raw); } catch { return {}; } }
   return raw && typeof raw === "object" ? raw : {};
+}
+
+/** Only retained episodes of this profile's series may contribute reusable fictional assets. */
+export async function loadSeriesVisualReferences(userId: string | undefined, storyIds: string[]): Promise<VisualEntity[]> {
+  if (!userId || !storyIds.length) return [];
+  const rows = await storyDB.queryAll<{ metadata: unknown }>`
+    SELECT metadata FROM stories WHERE user_id = ${userId} AND id = ANY(${storyIds}) ORDER BY created_at ASC, id ASC
+  `;
+  const assets = new Map<string, VisualEntity>();
+  for (const row of rows) {
+    const stored = metadataObject(row.metadata)?.characterSeriesReferences;
+    for (const asset of (Array.isArray(stored) ? stored : []).slice(0, 3)) {
+      if (!asset || typeof asset.id !== 'string' || typeof asset.name !== 'string' || typeof asset.appearance !== 'string' ||
+        typeof asset.referenceKey !== 'string' || !asset.referenceKey || !['character', 'artifact'].includes(asset.kind) ||
+        !['cast', 'artifact'].includes(asset.role) || typeof asset.species !== 'string' || typeof asset.isHuman !== 'boolean') continue;
+      // Never retain a transport URL from a previous request; it may have expired.
+      assets.set(asset.id, { id: asset.id, name: asset.name, appearance: asset.appearance, kind: asset.kind, role: asset.role,
+        species: asset.species, isHuman: asset.isHuman, forbidden: [], referenceKey: asset.referenceKey,
+        referenceAliases: Array.isArray(asset.referenceAliases) ? asset.referenceAliases.filter((a: unknown): a is string => typeof a === 'string').slice(0, 6) : [] });
+    }
+  }
+  return [...assets.values()].slice(-60);
 }
 
 /** The episodes that count: complete series stories of this profile, from after the series' last admin reset. */

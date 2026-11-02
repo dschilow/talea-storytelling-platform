@@ -49,6 +49,8 @@ export interface VisualEntity {
   referenceUrl?: string;
   /** Stable original asset URL/id, before generating expiring signed URLs. */
   referenceKey?: string;
+  /** Source-language names of the same recurring subject, for scene-specific reference selection. */
+  referenceAliases?: string[];
   /** Logos or writing on the portrait's clothes ([x0, y0, x1, y1] in 0–1000), painted out of the identity sheet. */
   marks?: MarkBox[];
 }

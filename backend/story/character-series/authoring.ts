@@ -38,6 +38,7 @@ export const SERIES_IMAGE_REVIEW_EFFORT = 'medium';
  */
 export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_KLEIN_9B_KV_MODEL;
 /**
+ * Version 19: recurring story props and supporting figures get source-grounded reusable references.
  * Version 18: 100 revised adventure plans have explicit local payoffs and bounded serial progress;
  * planned episodes no longer receive the later arc's ending as an invitation to resolve it early.
  * Version 17: the writer and editor explicitly trace a child-comprehensible goal, causation and payoff.
@@ -61,7 +62,7 @@ export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_
  * took 211 s. Up to five repairs, spent on pictures with a hard fault or provider failure. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 18, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
+export const SERIES_POLICY = { version: 19, maxVisualReferences: 3, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);
