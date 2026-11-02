@@ -48,6 +48,7 @@ import { StorybookSafetyBlock } from "./storybook/llm-guards";
 import { directSeriesPictures, generateSeriesImages } from "./character-series/pictures";
 import { seriesAvatarAppearance, seriesAvatarReferenceContext, seriesLeadCandidate, seriesLeadReference, seriesReferenceAppearance } from "./character-series/identity";
 import { prepareSeriesVisualReferences } from "./character-series/visual-references";
+import { seriesCraftMemory } from "./character-series/variety";
 import { pictureHasPanels } from "./character-series/panels";
 import { loadSeriesVisualReferences } from "./character-series/repository";
 import { loadHeroMemories, loadStorybookHistory } from "./storybook/history";
@@ -553,7 +554,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const metadata: Record<string, any> = {
     pipeline: pipelineId,
     generationMode: pipelineId,
-    ...(seriesMode ? { characterSeriesLogCandidate: episode?.seriesLogCandidate, characterSeriesPolicy: SERIES_POLICY, characterSeriesArt,
+    ...(seriesMode ? { characterSeriesLogCandidate: episode?.seriesLogCandidate, characterSeriesCraft: seriesCraftMemory(pages), characterSeriesPolicy: SERIES_POLICY, characterSeriesArt,
       characterSeriesReferences: seriesVisuals?.assets.map(({ referenceUrl: _transportUrl, ...asset }) => asset),
       characterSeriesReferenceResults: seriesVisuals?.portraits } : {}),
     ...(wonder ? { wonder } : {}),

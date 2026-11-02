@@ -8,6 +8,7 @@ import { SERIES_NARRATIVES } from './narrative';
 import { classifySeriesAvatars, effectiveSeriesEpisode, logsForEpisode, seriesPrompt, validateSeriesAvatarCount } from './core';
 import { getSeriesEpisodeBlueprint, getUnlockedSeriesEnsemble } from './episode-plans';
 import { FLUX2_KLEIN_9B_KV_MODEL } from '../../ai/runware-image-model-options';
+import { seriesVarietyContext } from './variety';
 
 const SERIES_GENRE_COLORING: Record<string, string> = {
   fairy_tales: 'Genre coloring — Fairy Tale (Märchen): Keep this series world and its physical rules intact, but give today\'s episode a warm fairy-tale atmosphere: poetic sensory details, the classic rule of three (three tries or three clues), and a timeless, magical-feeling mood.',
@@ -38,6 +39,8 @@ export const SERIES_IMAGE_REVIEW_EFFORT = 'medium';
  */
 export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_KLEIN_9B_KV_MODEL;
 /**
+ * Version 25 (stories 1bbb8af3, b3d96e64): compare source excerpts across the family's series, check the simplest causal
+ * alternative and choice setup, and carry source-grounded prop designs into direction, painting and publication QA.
  * Version 24 (stories 439d746c, e2d5890a): sheet cells are called portraits instead of scene halves and two figures share
  * one place from the first attempt (three of four two-figure pictures split down the middle, two of them unnoticed), the
  * check names that split, a caption never names an absent person ("the captain's seat" painted a captain twice), a
@@ -78,7 +81,7 @@ export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_
  * took 211 s. Up to five repairs, spent on pictures with a hard fault or provider failure. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 24, maxVisualReferences: 3, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
+export const SERIES_POLICY = { version: 25, maxVisualReferences: 3, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);
@@ -143,6 +146,7 @@ export function seriesContext(brief: StoryBrief): string {
     `SERIES PROMISE: ${narrative.promise}`, `LEAD: ${narrative.lead}\nVOICE: ${narrative.voice}`, `WORLD: ${narrative.world}`,
     `RULES:\n${narrative.rules.map(rule => `- ${rule}`).join('\n')}`,
     'CONTINUITY AUTHORITY: Episode plans describe intended possibilities, not events that have already happened. The recorded family history below takes precedence. Keep its established successes, friendships, knowledge, object ownership and locations. If an older episode differs from this revised plan or a prerequisite is undocumented, establish the necessary clue or ordinary replacement in a short action TODAY; never invent a previous discovery, transfer, meeting or memory. Explain any transition from a documented object location before using it elsewhere. Solve today\'s local problem before the final clue; a clue is not a second unexplained climax.',
+    seriesVarietyContext(brief.recentStories),
     castBlock,
     effectiveLogs.length === 0 && episode === 1
       ? `ORIGIN — facts before the meeting: ${narrative.origin.before}\nAVATAR ARRIVAL: ${narrative.origin.arrival}\nFIRST ENCOUNTER: ${narrative.origin.encounter}\nTROUBLE: ${narrative.origin.trouble}\nCHOICE: ${narrative.origin.choice}\nNEW STATE AND SERIES QUESTION: ${narrative.origin.after}`
@@ -168,9 +172,10 @@ export function seriesAuthoring(brief: StoryBrief) {
   const samples = styleSamples().map(s => `<<< ${s.label}\n${s.text.slice(0, 3200)}\n>>>`).join('\n\n');
   const system = [
     `Write an original read-aloud children's series episode in ${brief.languageLabel} for ages ${brief.band} with the comedic punch, escalating chaos, warm heart and page-turning rhythm of Talea Originals („Bruno, der Flunkerfisch“, „Die Monster-Müllabfuhr“). Lead with the series figure's desire and comic contradiction. A family enters a world that already has a life of its own.`,
-    'FIRST MEETING: first show the series figure in a specific revealing action. Then show the avatars on their own understandable errand, their route into this place, the event that brings them together, and an in-scene introduction. Establish who knows whom BEFORE the first cooperative task. No unexplained helpers already holding the lead\'s cup in paragraph two. One continuous world and causal route; do not invent a portal to avoid explaining arrival.',
+    'FIRST MEETING: first show the series figure in a specific revealing action, not a stock bow, empty-audience rehearsal or formal demonstration opening. Pick an action native to this figure and today\'s problem. Then show the avatars on their own understandable errand, their route into this place, the event that brings them together, and an in-scene introduction. Establish who knows whom BEFORE the first cooperative task. No unexplained helpers already holding the lead\'s cup in paragraph two. One continuous world and causal route; do not invent a portal to avoid explaining arrival.',
     'RETURN VISITS: only documented past participants recognise each other. Briefly show why they return today; newcomers get their own introduction. Never replay the founding event or reset an earned skill or friendship.',
     'EPISODE VARIETY: compare the last documented adventure with your new central problem. Do not immediately repeat the same mission with a renamed prop (opening a blocked passage, then opening another blocked passage). Pick a genuinely different conflict from the current arc. Familiar quirks can recur; the main attempted solution and consequence must develop. Never claim an earlier picnic, conversation or success did not happen when the excerpts do not establish that.',
+    'CAUSAL OBSTACLES AND EARNED CHOICES: Try the simplest available solution before escalating. If moving a dog away or opening an ordinary box would solve the trouble, do it promptly or show the real remaining obstacle. Never make a competent helper overlook an obvious action just to prolong the plot. If pride delays a repair, show the character noticing and resisting that repair BEFORE the failed alternatives. A credited idea must have actually been proposed by that person before the decision. The lead may joke or boast, but must understand ordinary facts such as a toy not moving by itself. Keep a discovery understandable without demonstrating powers reserved for a later episode.',
     `CHILD READER FIRST (especially the youngest listener in the ${brief.band} band): Make the central wish something the children can picture and care about. Early in chapter 1, make clear who wants what, why it matters to someone, and what goes wrong. Then keep one visible thread of cause and effect: what changed, what the characters try, and why it helps. Show the promised result for the people who wanted it. A child should be able to retell these things in everyday words without knowing the blueprint or a previous episode.`,
     'ORIENTATION AND LANGUAGE: Give a new place, object or unusual word a simple purpose in the action before it becomes important; prefer familiar words when a technical term adds nothing. Introduce only the places, names, objects and rules needed for the current scene. Translate logistical or technical details from the blueprint into a few clear actions, not a list of positions, tools or hand movements. Use expressive, varied language and allow unfamiliar words when the context makes them understandable; do not turn the story into short, repetitive sentences. A series mystery is a small, concrete secondary clue, never a string of delivery routes, codes and new locations that interrupts the present adventure. Tell today\'s clue in a few sentences; a magic object whose power today\'s problem does not use is found or mentioned, never demonstrated (a 250-word compass test in the middle of a rescue stopped the story). Name animals and things with words a listening child cannot mistake for a person: a young seal is „der kleine Seehund“, never „das Junge“, which sounds like „der Junge“. When a sound sets something off (a bark, a call), say who makes it the first time it is heard.',
     'TALEA ORIGINALS ESCALATION & COMEDY ENGINE (never write a tidy workshop manual or polite step-by-step chore sequence!):\n' +

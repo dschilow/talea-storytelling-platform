@@ -2,7 +2,7 @@ import type { VisualEntity } from '../storybook/illustration-stage';
 import type { ImageQaReport } from '../storybook/images';
 import { parseJsonObject } from '../storybook/llm';
 
-const KINDS = ['anatomy', 'identity', 'safety', 'story', 'unexpected', 'text', 'style', 'composition', 'detail'] as const;
+const KINDS = ['anatomy', 'identity', 'safety', 'continuity', 'story', 'unexpected', 'text', 'style', 'composition', 'detail'] as const;
 type Kind = typeof KINDS[number];
 
 /** Publication checks are separate from fidelity to an art director's proposed action. */
@@ -11,9 +11,10 @@ FIRST inventory the ACTUAL foreground and participating figures in image 1, left
 THEN compare EACH observed figure with their OWN reference and concise identity anchors: face, approximate age, hair and species. The same hair/eye colour or shirt alone is not the same identity. A substantially different face or hairstyle, a different child replacing the expected one, or a blend of two reference figures is unmatched. Gender information, when supplied, helps distinguish the intended character; do not infer a replacement from a minor stylistic or clothing difference alone. recognizableById=true when a child can recognise the same individual; a different pose, expression, outfit detail, lighting-dependent shade, invisible tooth gap or modest ear variation is not a replacement person. Preserve defining hair colour and hairstyle. Never lower identityById because someone performs another character's action. Identity scores describe appearance only; they are not a requirement for a 90% pixel match.
 THEN trace the anatomy of EACH figure, including supporting characters. A human normally has one head, two arms, two hands and two legs. For visibleHandsById, first list the location/action of EVERY hand you can see belonging to that figure, one entry per hand. Inspect both outer edges of each silhouette and the area around held objects; do not stop after finding two. Two hands holding a card PLUS a third pointing or waving hand is an extra limb even if the picture looks attractive. Trace each back to its own arm and torso. anatomyOkById=false for an extra, fused, detached, visibly malformed or genuinely missing body part; name the defect. Occlusion, a cropped lower body, a turned back, a hand behind an object or simple cartoon fingers are normal, not missing anatomy; list only actually visible hands, never invent a hidden one. Judge nonhumans by their referenced body plan.
 Publication blockers: unrecognisable/replaced/merged or missing named figures; extra/duplicated main figures; real anatomy defects; unsafe content; unrelated setting or central subject; copied reference panels, including a picture split down the middle into two side-by-side scenes with a straight seam where the backgrounds do not continue (kind=composition); large intrusive garbled text, such as words on a banner, flag, sign, board or paper (kind=text). Background silhouettes, faint marks and ordinary illustrated scenery are not extra main characters.
+STORY-CRITICAL CONTINUITY (kind=continuity, blocking=true): a second copy of a singular beloved toy or central object, a central device redesigned into another machine, a materially different plot-important prop (cardboard sign becomes solid timber), or an explicitly established essential garment visibly missing. Compare the supplied shared object designs and source; do not infer a contradiction from occlusion, a tighter crop or an unspecified colour. Inventory EACH visible toy/animal separately as matchedId:null when it is an object, including one on a background workbench; hands holding a toy are not a separate toy. A duplicate teddy is never harmless decoration. An overview must not erase passengers, but a close crop may omit off-frame people. These facts matter on covers too. Do not judge harmless pose or actor swaps as continuity faults.
 ACCEPT with a minor note: characters swapping actions or positions; a paint spot on the other person's nose; a second brush; small extra droplets, props or colour changes; a different frozen moment; passive posing; imperfect motion; a slightly different illustration texture. These are story/detail/composition observations, NEVER identity or anatomy defects. sceneCompatible=true when this is recognisably the same place and activity even if actors, handholds, props or exact timing differ. Set false only for an unrelated place or event. materialContradiction does not mean reversed actors or minor prop differences. The prose carries sign wording; do not require legible text.
 Use kind=identity/anatomy/safety only for a real blocking fault. Other kinds may be blocking only for the publication blockers above. Report at most THREE observations, always real blockers first, each with blocking:true|false and a short positive fix. Keep detail/fix under 180 characters. Numbers are diagnostic, not another hidden publication threshold.
-Return JSON {"reviewVersion":3,"observedFigures":[{"position":"left foreground","appearance":"what this figure actually looks like","matchedId":"exact supplied id or null"}],"visibleHandsById":{"id":["hand holding the handle","hand raised beside the head"]},"anatomyOkById":{"id":true},"recognizableById":{"id":true},"identityById":{"id":0.85},"sceneCompatible":true,"posing":false,"primaryActionClear":true,"storyConsistent":true,"materialContradiction":false,"sceneMatch":0.8,"styleMatch":0.8,"defects":[{"kind":"anatomy|identity|safety|story|unexpected|text|style|composition|detail","detail":"visible observation","fix":"correction","blocking":false,"blocksAction":false}]}. matchedId is JSON null for an unmatched figure, never an invented id. Include EVERY expected id in all four per-person maps, using recognizableById=false for an absent/replaced figure. All scores 0–1. Empty defects when sound.`;
+Return JSON {"reviewVersion":3,"observedFigures":[{"position":"left foreground","appearance":"what this figure actually looks like","matchedId":"exact supplied id or null"}],"visibleHandsById":{"id":["hand holding the handle","hand raised beside the head"]},"anatomyOkById":{"id":true},"recognizableById":{"id":true},"identityById":{"id":0.85},"sceneCompatible":true,"posing":false,"primaryActionClear":true,"storyConsistent":true,"materialContradiction":false,"sceneMatch":0.8,"styleMatch":0.8,"defects":[{"kind":"anatomy|identity|safety|continuity|story|unexpected|text|style|composition|detail","detail":"visible observation","fix":"correction","blocking":false,"blocksAction":false}]}. matchedId is JSON null for an unmatched figure, never an invented id. Include EVERY expected id in all four per-person maps, using recognizableById=false for an absent/replaced figure. All scores 0–1. Empty defects when sound.`;
 export interface SeriesImageDefect { kind: Kind; detail: string; fix: string; blocksAction?: boolean; blocking?: boolean }
 export interface SeriesObservedFigure { position: string; appearance: string; matchedId: string | null; /** An animal or toy the scene names, not a cast member. */ sceneProp?: true }
 export type SeriesQa = ImageQaReport & {
@@ -129,6 +130,18 @@ export function readSeriesQa(text: string, expected: VisualEntity[], context: { 
   // story 289c11a4 and failed two pictures with it); everything else about the identity keeps its kind.
   const TOOTH_GAP = /\b(?:tooth|teeth)\b/i;
   const defects = (rawDefects as SeriesImageDefect[]).map(d => !reviewVersion && d.kind === 'identity' && TOOTH_GAP.test(d.detail) && !/\b(?:different|another|wrong|swapped|replaced)\b.*\b(?:person|child|boy|girl|face)\b/i.test(d.detail) ? { ...d, kind: 'detail' as Kind } : d);
+  // 1bbb8af3: the reader named a second teddy on the workbench but excluded it from its figure inventory and called
+  // it a harmless detail. Its own explicit observation is enough to block, even with optimistic recognition flags.
+  for (const defect of defects) {
+    const noun = sceneNamedNoun(defect.detail, context.sceneText, expected);
+    const extraCopy = noun && new RegExp(`\\b(?:second|extra|additional|duplicate(?:d)?|two|2)\\s+(?:copies?\\s+of\\s+(?:the\\s+)?)?(?:(?:small|large|brown|matching|identical|distinct|stuffed|plush|toy)\\s+){0,3}(?:${noun}|${pluralForms(noun)})\\b|\\b${noun}\\s+(?:is\\s+)?(?:duplicated|drawn twice|shown twice)\\b`, 'i').test(defect.detail);
+    if (noun && extraCopy && !scenePlural(noun, context.sceneText || '')
+      && !/\b(?:no|not|without)\s+(?:an?\s+)?(?:second|extra|additional|duplicat\w*|two|2)\b/i.test(defect.detail)) {
+      defect.kind = 'continuity';
+      defect.blocking = true;
+      defect.fix = `Keep exactly one ${noun}; remove the extra copy.`;
+    }
+  }
   for (const entity of expected) {
     const observed = visibleHandsById?.[entity.id];
     if (entity.isHuman && observed && observed.length > 2) {
@@ -199,7 +212,7 @@ export function withPanelDefect(qa: SeriesQa): SeriesQa {
 }
 
 function publicationBlocker(defect: SeriesImageDefect): boolean {
-  return ['identity', 'anatomy', 'safety'].includes(defect.kind) || defect.blocking === true;
+  return ['identity', 'anatomy', 'safety', 'continuity'].includes(defect.kind) || defect.blocking === true;
 }
 
 function publicationChecksPass(qa: SeriesQa): boolean {

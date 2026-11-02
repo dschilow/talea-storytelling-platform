@@ -1,6 +1,6 @@
 // @ts-ignore Bun's test runner is runtime-only.
 import { describe, expect, test } from 'bun:test';
-import { chapterTailStart } from './pdfChapterTail';
+import { chapterEndingAfterImage, chapterTailStart } from './pdfChapterTail';
 
 describe('PDF chapter endings', () => {
   test('keeps short final beats together rather than isolating KLICK and one sentence', () => {
@@ -13,5 +13,11 @@ describe('PDF chapter endings', () => {
   test('does not try to group long paragraphs or short chapters', () => {
     expect(chapterTailStart([1, 12, 1], [])).toBe(-1);
     expect(chapterTailStart([1, 1], [])).toBe(-1);
+  });
+  test('reserves the short seal ending with its last illustration instead of an almost empty overflow page', () => {
+    expect(chapterEndingAfterImage([15, 4, 1, 1, 1, 1, 1], [1], 1)).toBeCloseTo(5 * 6.6 + 4 * 3.2);
+    expect(chapterEndingAfterImage([15, 4, 1, 1], [1, 2], 1)).toBe(0);
+    expect(chapterEndingAfterImage([15, 4, 11], [1], 1)).toBe(0);
+    expect(chapterEndingAfterImage([15, 4], [1], 1)).toBe(0);
   });
 });

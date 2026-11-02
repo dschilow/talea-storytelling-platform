@@ -11,7 +11,7 @@ import type { Story } from '../types/story';
 import type { Doku } from '../types/doku';
 import { getBackendUrl } from '../config';
 import { stripTtsEmotionMarkersForDisplay } from './chapterImagePlacement';
-import { chapterTailStart } from './pdfChapterTail';
+import { chapterEndingAfterImage, chapterTailStart } from './pdfChapterTail';
 import i18n from '../src/i18n';
 
 // Type definitions for image loading
@@ -687,7 +687,9 @@ export async function exportStoryAsPDF(
               return { w, h };
             };
             let size = fit(wantedHeight);
-            const remaining = bottomLimit - yPos;
+            const endingHeight = chapterEndingAfterImage(paragraphLines.map(lines => lines.length),
+              (bookImages || []).map(image => Math.min(image.afterParagraph, paragraphs.length - 1)), paragraphIndex);
+            const remaining = bottomLimit - yPos - endingHeight;
             // Pages 5, 18 and 22 of the audited book were nearly empty because a picture moved to a fresh
             // page and took two lines of text with it: a picture shrinks into the space left (down to 50 mm)
             // before it starts a new page.

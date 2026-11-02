@@ -209,7 +209,7 @@ export const SERIES_NARRATIVES: Record<string, SeriesNarrative> = {
       "before": "Blubbert bereitet seine erste verantwortliche Fahrt als Kapitän vor. Pia ist als erfahrene Bootsbauerin dabei. Die Avatare, der Kompass und die gemeinsame Suchfrage sind noch nicht eingeführt.",
       "arrival": "Die Kinder kommen über den Hafensteg, weil sie das kleine Segelboot ansehen wollen. Ein bellender Hund und Blubberts empörte Ansprache machen sie auf einen Seehund auf dem Kapitänssitz aufmerksam.",
       "encounter": "Blubbert erklärt dem Tier seine Sitzordnung, Pia erklärt den Kindern die Lage. Erst stellen sich alle vor und vereinbaren die Mitfahrt; die Kinder sind keine schon eingespielte Mannschaft.",
-      "trouble": "Der Seehund flüchtete vom niedrigen Steg vor einem Hund aufs Boot und wagt sich nicht zurück. Blubbert möchte seinen Vorführplan einhalten; aus der nahen Bucht ruft die Mutter.",
+      "trouble": "Der Seehund flüchtete vom niedrigen Steg vor einem Hund aufs Boot und wagt sich nicht zurück. Pia lässt den Hund früh außer Sicht bringen; das erschrockene Tier bleibt dennoch auf dem Boot. Die Kinder hören die Mutter aus der nahen Bucht und schlagen diese Fahrt vor, bevor Blubbert seinen Vorführplan aufgibt.",
       "choice": "Die Crew schafft Abstand zum Hund. Blubbert ändert sein Ziel zur bekannten ruhigen Bucht, Pia hilft beim Boot; die Kinder beobachten und halten Abstand zum Tier.",
       "after": "Am niedrigen Strandsteg geht der Seehund selbst ins Wasser zu seiner Mutter. Bei der Kartensuche wird ein Muschelkompass mit einem alten Steintor-Plättchen gefunden. Pia kennt das Tor aus einem Bild; warum fehlt es heute auf der Karte?"
     },
@@ -270,7 +270,7 @@ export const SERIES_NARRATIVES: Record<string, SeriesNarrative> = {
       "arrival": "Die Kinder gehen vom Dorfplatz zu Tildas Werkstatt, weil die Naht ihres geliebten Teddys locker ist. Sie wollen ihn reparieren lassen und treffen Tilda beim Ausprobieren der Maschine.",
       "encounter": "Tilda begrüßt die unbekannten Kinder, stellt sich und ihr Gerät vor. Die Kinder nennen ihre Namen und den Reparaturwunsch, bevor Tilda zu ihrer Vorführung ansetzt.",
       "trouble": "Ein pedalbewegter Besen schiebt aus Versehen den Teddy in die Sammelkiste. Tildas rückwärtiger Versuch wirbelt Tücher umher, statt den Teddy aus der Ecke hinter der Schauseite zu holen.",
-      "choice": "Tilda stoppt und nimmt ihre schön gestaltete Front ab. Die Kinder entdecken das Band und bergen den Teddy. Danach reparieren sie gemeinsam die ursprüngliche lockere Naht, mit der Klammer als Stoffhalter.",
+      "choice": "Tilda erkennt die abnehmbare Front schon beim ersten Rettungsversuch, wehrt sich zunächst aus Stolz gegen den sichtbaren Abbau und entscheidet sich schließlich dafür. Die Kinder entdecken das Band und bergen den Teddy. Danach reparieren sie gemeinsam die ursprüngliche lockere Naht, mit der Klammer als Stoffhalter.",
       "after": "Das Kind hat den Teddy heil zurück. Tilda öffnet das Ideenfenster für wirkliche Wünsche. Beim Wegräumen sehen sie Arturs staubigen Bühnenkasten und fragen, wofür er gedacht war."
     },
     "arcs": [

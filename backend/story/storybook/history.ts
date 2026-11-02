@@ -12,6 +12,7 @@ import { avatarDB } from "../../avatar/db";
 import { motifLines, planMotifs } from "./book/engine";
 import { bookEngineOf } from "./book/engine";
 import type { StoryEngine } from "./book/types";
+import { seriesCraftHistory } from "../character-series/variety";
 
 export interface StorybookHistory {
   recentStories: string[];
@@ -69,6 +70,8 @@ export async function loadStorybookHistory(input: { userId?: string; currentStor
       const logline = String(metadata?.storybook?.logline || metadata?.bookWorkshop?.premise || row.description || "").replace(/\s+/g, " ").trim();
       const title = String(row.title || "").trim();
       if (title || logline) recentStories.push([title && `„${title}“`, logline].filter(Boolean).join(": ").slice(0, 220));
+      const seriesPattern = seriesCraftHistory(metadata, title);
+      if (seriesPattern) recentStories.push(seriesPattern);
       // 2026-10-16: a chapter book leaves the heroes' inner lessons and its motifs behind (book-generation.ts writes
       // bookAdmin.motifs; engine.ts planMotifs) — the same hero learned "first listen" twice, three books ran on sounds.
       // The plan is the better source when it is kept: it gives every book its arc (flaw → final choice), also the books

@@ -15,3 +15,11 @@ export function chapterTailStart(lineCounts: number[], imageAfterParagraphs: num
   }
   return start < lineCounts.length - 1 ? start : -1;
 }
+
+/** Reserve the short ending with its last illustration instead of filling a page with the image alone. */
+export function chapterEndingAfterImage(lineCounts: number[], imageAfterParagraphs: number[], afterParagraph: number): number {
+  const tail = lineCounts.slice(afterParagraph + 1);
+  if (!tail.length || tail.length > 6 || tail.reduce((sum, lines) => sum + lines, 0) > 10
+    || imageAfterParagraphs.some(index => index > afterParagraph)) return 0;
+  return tail.reduce((sum, lines) => sum + lines * 6.6, 0) + Math.max(0, tail.length - 1) * 3.2;
+}
