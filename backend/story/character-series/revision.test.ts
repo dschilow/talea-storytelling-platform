@@ -634,7 +634,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     const figures = [entities[0], { ...entities[1], appearance: 'distinctive purple hair and pointed ears', referenceContext: '7 years old, 120 cm tall' }];
     await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, figures, 'lead'), entities: figures, seed: 'identity', imageModel: 'runware:400@6', provider: async r => { requests.push(r); return { url: 'https://example.test/result.webp' }; }, llm: async r => { reviews.push(r.user); return imageReview(r.stage); }, visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
     const chapter = requests.find(r => r.page === 1);
-    expect(chapter.prompt).toContain('slot 2 (right half) is ONLY Nora (7 years old, 120 cm tall)');
+    expect(chapter.prompt).toContain('slot 2 (right portrait) is ONLY Nora (7 years old, 120 cm tall)');
     expect(chapter.prompt).not.toContain('distinctive purple hair');
     expect(reviews.find(r => r.includes('CHAPTER PICTURE'))).not.toContain('distinctive purple hair');
     expect(chapter.prompt).toContain('small golden dragon');
@@ -1074,8 +1074,11 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
   test('speech-only plans and a uniform sequence of portrait framings are rejected before drawing', () => {
     const passive = rawPlan(); passive.pages[1].visualBeat.action = 'agrees to take the shorter route';
     expect(() => validateSeriesShots(passive, pages, entities, 'lead')).toThrow('körperliche Handlung');
+    // Story 439d746c: a uniform plan is varied in place instead of paying for a whole plan repair.
     const uniform = rawPlan(); uniform.pages.forEach(p => p.visualBeat.framing = 'medium');
-    expect(() => validateSeriesShots(uniform, pages, entities, 'lead')).toThrow('unterschiedliche Bildausschnitte');
+    const varied = validateSeriesShots(uniform, pages, entities, 'lead');
+    expect(varied.pages.map(p => (p as any).visualBeat.framing)).toEqual(['medium', 'medium', 'close']);
+    expect(varied.pages.map(p => p.scene)).toEqual(uniform.pages.map(p => p.scene));
     const wrongActor = rawPlan(); wrongActor.pages[0].visualBeat.actorId = 'off-panel-child';
     expect(() => validateSeriesShots(wrongActor, pages, entities, 'lead')).toThrow('körperliche Handlung');
   });
@@ -1108,7 +1111,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(coverReview.user).not.toContain('earlier footprint gag');
     expect(chapterReview.user).toContain('Die Glocke bewegte sich.');
     expect(chapterReview.user).toContain('slot 2 = kid');
-    expect(chapterDrawing.prompt).toContain('slot 2 (right half) is ONLY Nora');
+    expect(chapterDrawing.prompt).toContain('slot 2 (right portrait) is ONLY Nora');
     expect(chapterDrawing.referenceImages).toHaveLength(1); // Only the existing shared sheet; no competing style characters or individual private exports.
   });
   test('repairs go to a failed chapter before a failed cover', async () => {
@@ -1200,9 +1203,12 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(page1).toHaveLength(2);
     expect(page1[1].prompt).not.toContain('Image 1 is the existing scene to edit');
     expect(page1[1].prompt).toContain('ONE continuous full-bleed scene');
-    // Story 1a2fa8a4: the halves named in the prompt came back as two panels three times.
-    expect(page1[0].prompt).toContain('slot 1 (left half)');
-    expect(page1[1].prompt).not.toContain('left half');
+    // Stories 1a2fa8a4 and 439d746c: halves named in the prompt came back as two panels. The sheet's portraits are named
+    // instead, two figures share one place from the first attempt, and after a split no position is named at all.
+    expect(page1[0].prompt).toContain('slot 1 (left portrait)');
+    expect(page1[0].prompt).not.toMatch(/left half|right half/);
+    expect(page1[0].prompt).toContain('share ONE place close together');
+    expect(page1[1].prompt).not.toContain('left portrait');
     expect(page1[1].prompt).toContain('share ONE place close together');
     expect(result.pages.get(1)?.history?.[0].notes).toContain('The picture is split into separate panels like the identity sheet.');
     expect(result.pages.get(1)?.status).toBe('passed');

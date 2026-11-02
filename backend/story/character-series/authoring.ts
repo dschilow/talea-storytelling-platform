@@ -38,6 +38,10 @@ export const SERIES_IMAGE_REVIEW_EFFORT = 'medium';
  */
 export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_KLEIN_9B_KV_MODEL;
 /**
+ * Version 24 (stories 439d746c, e2d5890a): sheet cells are called portraits instead of scene halves and two figures share
+ * one place from the first attempt (three of four two-figure pictures split down the middle, two of them unnoticed), the
+ * check names that split, a caption never names an absent person ("the captain's seat" painted a captain twice), a
+ * uniform framing plan is varied in place instead of repaired (0.39 ¢), and a redraw goes to pictures tried least often.
  * Version 23 (stories 1a2fa8a4, 3ca4f3d5): the identity sheet keeps three cells (with four or five Alexander went missing
  * five times), captions and reference looks carry no lettering or notices, a redraw after split panels no longer names
  * left and right halves, a second copy of a scene prop is a defect, and boats and places get no reference portrait.
@@ -74,7 +78,7 @@ export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_
  * took 211 s. Up to five repairs, spent on pictures with a hard fault or provider failure. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 23, maxVisualReferences: 3, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
+export const SERIES_POLICY = { version: 24, maxVisualReferences: 3, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);
