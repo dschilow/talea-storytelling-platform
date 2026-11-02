@@ -1,0 +1,42 @@
+[
+  {
+    "Episode": 1,
+    "Label": "A",
+    "Effort": "low",
+    "Source": "1-B",
+    "Cost": 0.0340889,
+    "Thinking": 126,
+    "Output": 3341,
+    "DurationMs": 87920
+  },
+  {
+    "Episode": 1,
+    "Label": "B",
+    "Effort": "medium",
+    "Source": "1-E",
+    "Cost": 0.0666385,
+    "Thinking": 1552,
+    "Output": 4981,
+    "DurationMs": 139799
+  },
+  {
+    "Episode": 2,
+    "Label": "A",
+    "Effort": "medium",
+    "Source": "2-B",
+    "Cost": 0.0623976,
+    "Thinking": 2070,
+    "Output": 5414,
+    "DurationMs": 165303
+  },
+  {
+    "Episode": 2,
+    "Label": "B",
+    "Effort": "low",
+    "Source": "2-D",
+    "Cost": 0.051256,
+    "Thinking": 130,
+    "Output": 3258,
+    "DurationMs": 83785
+  }
+]
