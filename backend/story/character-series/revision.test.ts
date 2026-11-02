@@ -1087,6 +1087,12 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(rendered.fact).toContain('clean patch');
     expect(rendered.fact).not.toContain('letters');
   });
+  test('lettering and notices in a caption reach the painter as plain painted surfaces (1a2fa8a4, 3ca4f3d5)', () => {
+    const board = seriesPaintableMoment({ page: 5, onStage: ['kid'], scene: 'Tilda has set the painted wooden front against the wall, its yellow lettering turned toward the masonry.', visualBeat: { ...beat('medium'), actorId: 'kid', action: 'leans over the open box', result: 'the demonstration notice flutters behind him' } } as any);
+    expect(board.scene).toContain('its yellow painted stripes turned toward the masonry');
+    expect(board.scene).not.toMatch(/lettering/i);
+    expect(board.fact).toContain('the demonstration sheet of paper flutters');
+  });
   test('a literal quote survives straight quotation marks and dashes', () => {
     const spoken = pages.map(p => ({ ...p, content: 'Ein Absatz.\n\n„Hallo“, sagte Adrian – und grinste…\n\nDas Ende.' }));
     const raw = rawPlan(); raw.pages.forEach(p => { p.storyQuote = '"Hallo", sagte Adrian - und grinste...'; });
@@ -1194,6 +1200,10 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(page1).toHaveLength(2);
     expect(page1[1].prompt).not.toContain('Image 1 is the existing scene to edit');
     expect(page1[1].prompt).toContain('ONE continuous full-bleed scene');
+    // Story 1a2fa8a4: the halves named in the prompt came back as two panels three times.
+    expect(page1[0].prompt).toContain('slot 1 (left half)');
+    expect(page1[1].prompt).not.toContain('left half');
+    expect(page1[1].prompt).toContain('share ONE place close together');
     expect(result.pages.get(1)?.history?.[0].notes).toContain('The picture is split into separate panels like the identity sheet.');
     expect(result.pages.get(1)?.status).toBe('passed');
   });

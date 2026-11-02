@@ -124,6 +124,22 @@ describe('objects travel with the scene without becoming people', () => {
     expect(() => validateSeriesShots({cover:shot(0),pages:[{...shot(1),onStage:['lead','teddy']},shot(2)]},pages,[lead,hero,teddy],'lead')).toThrow();
   });
 
+  test('the identity sheet stays at three cells: three figures leave the teddy to the caption (3ca4f3d5)', () => {
+    const ben: VisualEntity = {...hero,id:'ben',name:'Ben',referenceUrl:'https://test/ben.webp'};
+    const ball: VisualEntity = {...teddy,id:'ball',name:'Ball',appearance:'small blue ball'};
+    const both = pages.map(p => ({...p,content:p.content.replace(/Teddy fest\.|Teddy aus der Kiste\./, m => `${m} Der Ball rollte mit.`)}));
+    const trio = validateSeriesShots({cover:shot(0),pages:[{...shot(1),onStage:['lead','kid','ben']},shot(2)]},pages,[lead,hero,ben,teddy],'lead');
+    expect(trio.pages[0].elements).toEqual([]);
+    expect(trio.pages[1].elements).toEqual(['teddy']);
+    const pair = validateSeriesShots({cover:shot(0),pages:[{...shot(1),storyQuote:both[0].content.split('\n\n')[0],elements:['teddy','ball']},shot(2)]},both,[lead,hero,teddy,ball],'lead');
+    expect(pair.pages[0].elements).toHaveLength(1);
+  });
+
+  test('a reference look never carries lettering into the sheet', () => {
+    const [candidate] = readSeriesReferenceCandidates({references:[proposal({name:'Maschine',aliases:['Teddy'],appearance:'green wooden box with yellow lettering „ORDNUNG MIT EINEM TRITT!“ on its painted front'})]},pages,[lead,hero]);
+    expect(candidate.entity.appearance).toBe('green wooden box with yellow painted stripes on its painted front');
+  });
+
   test('each relevant image receives the same prop sheet cell; references consume the episode image budget', async () => {
     const plan = validateSeriesShots({cover:shot(0),pages:[shot(1),shot(2)]},pages,[lead,hero,teddy],'lead');
     const sheets: any[] = [], requests: any[] = [];

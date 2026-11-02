@@ -356,6 +356,19 @@ describe('animals and toys the scene names, story fa24532b', () => {
     expect(readSeriesQa(withFigure('A grey cat on the bench.'), cast, scene)?.unexpectedCharacters).toEqual(['unmatched-figure-3']);
     expect(readSeriesQa(withFigure('A second small golden dragon.'), cast, scene)?.unexpectedCharacters).toEqual(['unmatched-figure-3']);
   });
+  test('a second copy of the one teddy blocks; a scene with teddies allows several (3ca4f3d5)', () => {
+    const twice = inventoryReview({ observedFigures: [
+      { position: 'left', appearance: 'small golden dragon', matchedId: 'dragon' },
+      { position: 'right', appearance: 'girl with red glasses', matchedId: 'child-a' },
+      { position: 'center-left in the box', appearance: 'Small brown plush teddy bear with round ears.', matchedId: null },
+      { position: 'center in the box', appearance: 'Second small brown plush teddy bear with round ears.', matchedId: null },
+    ] });
+    const one = readSeriesQa(twice, cast, { sceneText: 'Nora spots her teddy on the bottom of the open box.' })!;
+    expect(one.defects.some(d => d.kind === 'unexpected' && d.blocking && d.detail.includes('2 copies of the teddy'))).toBe(true);
+    expect(seriesPicturePasses(one)).toBe(false);
+    const many = readSeriesQa(twice, cast, { sceneText: 'Nora sorts the teddies on the bottom of the open box.' })!;
+    expect(seriesPicturePasses(many)).toBe(true);
+  });
   test('a sheet-like split picture never passes and is never kept as a best attempt', () => {
     const qa = withPanelDefect(readSeriesQa(inventoryReview(), cast)!);
     expect(qa.referenceSheetVisible).toBe(true);

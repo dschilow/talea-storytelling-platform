@@ -276,7 +276,7 @@ export function withoutTextNegations(scene: string): string {
  */
 const TEXT_CARRIERS: Array<[RegExp, string]> = [
   [/\b(game ?boards?|board ?games?|playing boards?|squares?|tiles?|game paths?)\b/i, "the board's squares show only colours and tiny painted pictures"],
-  [/\b(books?|pages?|notebooks?|diar(?:y|ies)|newspapers?|notes?|scrolls?|recipes?)\b/i, "pages show small painted pictures"],
+  [/\b(books?|pages?|notebooks?|diar(?:y|ies)|newspapers?|notes?|notices?|sheets? of paper|leaflets?|flyers?|scrolls?|recipes?)\b/i, "pages show small painted pictures"],
   [/\b(signs?|signposts?|posters?|labels?|maps?|banners?|tablets?|plaques?|menus?|tickets?|cards?|flags?|chalkboards?|blackboards?)\b/i, "signs, maps and labels carry one small painted symbol"],
   [/\b(dice|die)\b/i, "dice show dots"],
 ];
