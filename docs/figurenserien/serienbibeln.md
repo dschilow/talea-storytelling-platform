@@ -1,12 +1,12 @@
-# Figurenserien – überarbeitete Serienbibeln, Version 2
+# Figurenserien – Serienbibeln, Version 3
 
-Stand: 27. Oktober 2026. Verbindliche Quelle: `backend/story/character-series/narrative.ts`; Export: `bun scripts/character-series/export.ts`. Die früheren Entwürfe und ihr Sol-Lektorat dokumentieren Version 1. Version 2 eröffnet eine neue persönliche Zeitlinie.
+Stand: 2. November 2026. Verbindliche Quelle: `backend/story/character-series/narrative.ts`; Export: `bun scripts/character-series/export.ts`. Die 100 konkreten Folgen stehen in [folgenplanung.md](folgenplanung.md), das Konzept in [serienkonzept-2026-11-02.md](serienkonzept-2026-11-02.md). Bestehende Familiengeschichten werden nicht zurückgesetzt oder überschrieben; ihre belegten Ereignisse haben Vorrang vor der neuen Planung.
 
 ## 1. Die Nebelfee und das Haus der verlorenen Wege
 
 ### Serienversprechen
 
-Verlorene Wege, eigensinnige Fundstücke und ein Haus, dessen frühere Bewohner Spuren hinterlassen haben. Ein Suchabenteuer mit überraschenden Besitzern, falschen Fährten und sichtbaren Gegenständen in kaum sichtbaren Händen.
+Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, falschen Verdächtigungen und kleinen unheimlichen Rätseln. Während jedes Abenteuer endet, sucht sie nach der Geschichte eines verlassenen Hauses und einem eigenen Zuhause.
 
 ### Hauptfigur
 
@@ -18,7 +18,7 @@ Die Nebelfee will anderen den Weg zurückgeben und ihren eigenen Heimweg finden.
 
 ### Die Welt vor der ersten Begegnung
 
-Ein Waldsee mit zwei ähnlichen Stegen und alten Wanderwegen. Eine verlassene Wegwarte steht fest am Ufer; ein unbeschrifteter hölzerner Wegpfeil liegt darin. Die Fee kennt ihre frühere Heimat nicht mehr.
+Waldsee mit Uferweg, nahen Gärten und einem alten Fundhaus, der Wegwarte. Zwei verblasste Namen am Haus eröffnen die gemeinsame Suche. Oben am Hügel steht eine zweite Warte; der alte Nebelstieg verbindet beide. Neue Orte werden einzeln und erst bei Bedarf eingeführt.
 
 ### Verbindliche Regeln
 
@@ -29,65 +29,67 @@ Ein Waldsee mit zwei ähnlichen Stegen und alten Wanderwegen. Eine verlassene We
 ### Festes Ensemble
 
 - **Milo** (mouse): Postmaus mit zu vielen Dienstregeln; will pünktlich sein, seine sorgfältigen Belege sind manchmal wirklich nützlich.
-  Aussehen: small brown field mouse, blue post satchel, red cap, large rounded ears
+  Aussehen: small brown field mouse standing upright, oversized blue canvas post satchel with brass buckle, bright red postman cap, large rounded ears, holding a tiny ink stamp
 - **Riko** (raven): Sammelt glänzende Dinge, behauptet sie trocken zu bewachen; guter Beobachter mit eigenem Nestproblem.
-  Aussehen: black raven with blue sheen, crooked tail feather, small brass ring on a cord
+  Aussehen: glossy black raven with deep blue sheen, one comical crooked tail feather sticking out, wearing a small brass ring on a leather cord around his neck, sharp expressive eyes
+- **Borste** (badger): Alter Fähr- und Stegzimmermann; kurzsichtig auf die Ferne, erkennt aber jedes Holz, jede Spur und jedes Geräusch mit Nase und Pfoten. Brummig, aber butterweich, wenn jemand ordentlich mit anpackt.
+  Aussehen: stocky elderly European badger with black-and-white striped snout, wearing a brown leather carpenter apron with wooden pegs, small brass magnifying lens on a string, carrying a short wooden mallet
 
 ### Persönlicher Ursprung
 
-**Davor:** Die Fee hat ihren Heimweg verloren. Sie kennt ihre Suchgabe noch nicht und hat keine Rückgabestelle.
+**Davor:** Die Fee kennt ihre Suchgabe, aber nicht mehr ihren eigenen früheren Heimweg. Das Fundhaus ist verlassen; sie hat die Kinder noch nicht getroffen.
 
-**Der eigene Anlass und Weg der Avatare:** Die Avatare sind auf einem normalen Waldweg zu einem verabredeten Ziel am See unterwegs. Erzähle diesen eigenen Anlass und ihren Weg, bevor sie der Fee begegnen.
+**Der eigene Anlass und Weg der Avatare:** Die Kinder sind mit ihrem Hund zum Picknick am Waldsee gekommen. Als er ins Schilf läuft, folgen sie seinen Lauten auf dem Uferweg und treffen auf einen scheinbar allein hüpfenden Stiefel.
 
-**Die erste Begegnung:** Ein scheinbar allein wandernder Stiefel versperrt ihnen den Weg. Erst als sie ihn ansprechen oder festhalten, bemerken sie die scheue Trägerin. Namen und das Nichtkennen werden in dieser Handlung verständlich.
+**Die erste Begegnung:** Der Stiefel wird von der kaum sichtbaren Fee getragen. Die Kinder sprechen sie an, stellen sich vor und erklären die Hundesuche; erst danach versuchen sie gemeinsam eine Spur zu lesen.
 
-**Das Abenteuer und der Fehlversuch:** Ein verirrtes Kind sucht seinen Heimweg. Ein Schimmer wird vorschnell gedeutet, der erste Steg endet an einer Baustelle. Die Kinder prüfen Spuren, statt der Fee einfach die richtige Antwort zu sagen.
+**Das Abenteuer und der Fehlversuch:** Die Fee verspricht zu schnell einen Heimweg und folgt versehentlich einem Spielzeugstempel-Abdruck. Im Schilf winselt der echte Hund; sein letzter sicherer Ort muss geklärt werden.
 
-**Die entscheidende Wahl:** Ein Avatar gibt die schnelle eigene Abkürzung auf und hilft, einen verlässlichen Rückweg zu markieren. Die Fee muss sichtbar fragen; erst die konkrete Antwort des Kindes macht die Spur lesbar.
+**Die entscheidende Wahl:** Die Fee fragt statt weiter zu behaupten. Die Kinder nennen den umgefallenen Picknickkorb und zeigen einen echten Pfotenabdruck; ihre Suchgabe lässt den nächsten Abschnitt des Landwegs schimmern.
 
-**Ergebnis und offene Serienfrage:** Das Kind findet heim. Auf dem überprüften Rückweg entdecken alle die Wegwarte und richten ein erstes Fundregal ein. Der leere Wegpfeil und ein altes Betreiberzeichen eröffnen eine konkrete größere Frage; deren Antwort bleibt ungewiss.
+**Ergebnis und offene Serienfrage:** Der Hund kommt zum Picknickplatz zurück. Beim Unterstellen entdecken sie die Wegwarte mit zwei verblassten Namen. Warum erinnert sich die Fee an dieses Haus?
 
-### Vier Entwicklungsbögen mit Stoff für rund 40 Folgen
+### Zwei Staffeln, vier Entwicklungsbögen, 20 geplante Folgen
 
-Die Zehnerbereiche sind Möglichkeiten, keine behauptete Vorgeschichte. Was wirklich geschehen ist, entscheidet ausschließlich das persönliche Folgenlog. Konflikte werden ausgebaut, verbunden und verändert; die Liste ist kein fertiger Plan für 40 Episoden.
+Jeder Fünferbereich entwickelt eine Frage. Die Planung ist keine behauptete Vorgeschichte: Was wirklich geschehen ist, entscheidet ausschließlich das persönliche Folgenlog. Jede Folge löst ihr eigenes Problem; die Serienentwicklung bleibt daneben verständlich und kurz.
 
-**Folgen 1–10: Wer hat früher in der Wegwarte gearbeitet?**
+**Folgen 1–5: Wem gehörte das Haus, das der Fee vertraut vorkommt?**
 
-- Ein Fund gehört zwei Menschen, die verschiedene Gründe haben, ihn zurückzuverlangen.
-- Milos zugestellter Brief erreicht einen Ort, der seinen Namen gewechselt hat.
-- Rikos glänzender Schatz ist eine dringend benötigte gewöhnliche Türklinke.
+- Ein knurrender Postkorb hat eine natürliche Erklärung.
+- Ein Kuscheltier braucht einen erkennbaren Besitzer, nicht den lautesten Anspruch.
+- Eine unklare Einladung berührt die Angst der Fee, nicht gemeint zu sein.
 
-Mögliche verdiente Veränderung: Zwei unabhängig gefundene Belege bestätigen mehrere frühere Betreiber; noch kein fertiger Heimweg.
+Geplanter Fortschritt: Bis Folge 5 arbeitet wieder ein Fundregal. Maren ist als ein Name bekannt; die Fee bittet erstmals um Hilfe bei ihrer eigenen Suche.
 
-**Folgen 11–20: Welcher alte Weg ist wirklich noch offen?**
+**Folgen 6–10: Warum verließen Maren und Bela ihr gemeinsames Haus?**
 
-- Eine scheinbare Abkürzung bedroht einen Tierbau.
-- Eine absichtlich falsche Markierung hält Besucher von einem einsturzgefährdeten Ufer fern.
-- Die Fee erkennt eine falsche Heimspur und muss ihre liebste Vermutung aufgeben.
+- Ein Schattenmonster wird durch einen einfachen Lichttest verstanden.
+- Ein falsch gestellter Pfeil verlangt ein öffentliches Eingeständnis.
+- Ein privater Brief wird erst mit Erlaubnis zum Beleg.
 
-Mögliche verdiente Veränderung: Ein gemeinsam geprüfter neuer Weg ersetzt einen gesperrten.
+Geplanter Fortschritt: Folge 10 beantwortet die Betreiberfrage durch Belas vorbereitete Antwort: gemeinsamer Betrieb, späterer Umzug nach einem kaputten Höhenweg. Die Fee war Besucherin und erhält eine Einladung.
 
-**Folgen 21–30: Wem gehört ein Fund, den niemand zurückhaben will?**
+**Folgen 11–15: Wie kommen wir gemeinsam zur oberen Warte?**
 
-- Eine Dose weckt eine Erinnerung, die ihre Besitzerin selbst bestimmen will.
-- Ein versprochenes Fundstück kollidiert mit einer Abreise.
-- Die sonst lästigen Postregeln schützen eine fremde Entscheidung.
+- Ein falscher Glockenruf behindert eine echte Überfahrt.
+- Eine Dose verlangt Rückgabe statt neugieriges Öffnen.
+- Ein Rabe muss nicht bestohlen werden, um einen Wegweiser zurückzubekommen.
 
-Mögliche verdiente Veränderung: Die Rückgabestelle bekommt gemeinsam vereinbarte Aufgaben und Helfer.
+Geplanter Fortschritt: Bis Folge 15 sind kurze reale Wegabschnitte geprüft, Freunde gewonnen und das Glasdach der oberen Warte sichtbar. Keine Kette aus Rätselgegenständen.
 
-**Folgen 31–40: Ist Heimat ein alter Ort oder eine Verbindung?**
+**Folgen 16–20: Wo möchte die Fee heute zu Hause sein?**
 
-- Eine frühere Betreiberin erinnert sich an Menschen, nicht an die erwartete Landschaft.
-- Ein Besuch am alten Treffpunkt zeigt sichtbare Veränderungen.
-- Die Fee kann aufbrechen, weil ein verlässlicher Freund die Wegwarte betreut.
+- Ein erhoffter Heimweg entpuppt sich als Spiegellicht.
+- Eine gemeinsame Reise wartet auf ein ängstliches Kind.
+- Ein Abschiedsgerücht verlangt eine klare persönliche Entscheidung.
 
-Mögliche verdiente Veränderung: Die Heimatfrage erhält eine verdiente Antwort und eröffnet neue Reisen, ohne alle Beziehungen zurückzusetzen.
+Geplanter Fortschritt: Folge 19 klärt die frühere Verbindung zu beiden Häusern; Folge 20 endet mit einem selbst gewählten Zuhause am See und einer gelebten Besuchsfreundschaft.
 
 ## 2. Funkelflug und die Wege am Drachenberg
 
 ### Serienversprechen
 
-Drachenberg-Abenteuer: winzige Flügel, riesige Landeplätze, widerspenstiger Bergwind und eine aufgegebene Wegewarte, in der wieder eine Glocke läutet. Große Drachen können fliegen; gerade die kleinen Zugänge und Bodenwege brauchen Funkelflug.
+Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große Ansagen oft zuerst landen. Rettungen, Rivalität und komische Irrtümer machen seine kleinen Bodenwege wertvoll. Aus einem Außenseiter wird ein Gastgeber, bei dem Kleine und Große wirklich mitmachen können.
 
 ### Hauptfigur
 
@@ -99,76 +101,78 @@ Funkelflug will als richtiger Drache ernst genommen werden. Er kann nicht fliege
 
 ### Die Welt vor der ersten Begegnung
 
-Ein bewohnter Drachenberg mit Bodenwegen, großen Landeplattformen und einer verlassenen Wegewarte neben einer kleinen Höhle. Drei Glockenschläge waren früher das Zeichen für einen offenen Bodenweg. Seit Jahren schweigt die Glocke. Die Berge sind kein Freizeitpark für Gastgeberprüfungen.
+Ein bewohnter Drachenberg mit Bodenwegen, großen Landeplätzen und einer verlassenen Wegewarte. Neben der kleinen Höhle hängt eine seit Jahren stumme gewöhnliche Glocke mit einer einfachen Zugschnur. Wer die Warte noch benutzt und welche Wege sie verbindet, wird erst durch die jeweiligen Abenteuer bekannt.
 
 ### Verbindliche Regeln
 
 - Funkelflugs Flügel tragen ihn nicht. Sprünge bleiben Sprünge; eine Rettung verleiht ihm keine plötzliche Flugkraft. Sein kleiner Körper erreicht Dinge, die große Drachen nicht erreichen.
 - Beim Niesen können kleine Funken entstehen. Sie folgen seiner Nase, nicht seinem Wunsch. Es gibt kein absichtlich herbeigezaubertes Großfeuer.
-- Wind, Echo und Glocke sind räumlich erklärbar. Die alte Glocke bewegt sich nur, wenn etwas an Seil oder Mechanik zieht. Ein neues Rätsel muss aus einem zuvor gezeigten Detail entstehen.
+- Wind, Echo und Glocke haben sichtbare räumliche Ursachen. Drei Schläge entstehen durch drei Züge an derselben einfachen Schnur, nicht durch drei zu sammelnde Maschinenteile. Ein ungeprüfter Weg wird nicht durch ein Signal sicher.
 
 ### Festes Ensemble
 
 - **Oma Schuppe** (dragon): Große erfahrene Drachengärtnerin; kann fliegen, passt aber nicht durch kleine Gänge. Hat eigene Pflanzenlieferungen und lässt sich nicht als ständige Prüferin benutzen.
-  Aussehen: large moss-green elderly dragon, broad friendly snout, small round spectacles, orange gardening satchel
+  Aussehen: large friendly moss-green elderly dragon with warm cream belly scales, broad kindly snout, small round brass spectacles perched on her nose, wearing an orange canvas gardening satchel with herbs poking out
 - **Mucks** (marmot): Murmeltier, kennt Bodenwege, verteidigt seinen Bau und hat Angst vor Veränderungen. Sein Widerspruch kann richtig sein.
-  Aussehen: stocky brown marmot with pale muzzle, blue knitted cap, short paws
+  Aussehen: stocky brown alpine marmot with a pale cream muzzle, two prominent front teeth, wearing a knitted blue woollen cap tilted to one side, sturdy short digging paws
+- **Zirbel** (chamois): Waghalsige junge Berggams mit schiefem linken Hörnchen und Proviantkorb; klettert überall hoch, bevor sie weiß, wie sie wieder herunterkommt, und fordert Funkelflug ständig zu Sprungwetten heraus.
+  Aussehen: nimble young alpine chamois mountain goat with warm tan fur, dark facial mask stripes, one slightly crooked left horn, wearing a red leather collar with a small brass bell and a wicker backpack basket
 
 ### Persönlicher Ursprung
 
-**Davor:** Funkelflug lebt erst seit kurzem in der kleinen Höhle. Niemand betreibt die alte Wegewarte. Er übt einen angeblichen Flugauftritt, hat aber noch keine Freundschaft mit den Avataren.
+**Davor:** Funkelflug lebt neben der stillgelegten Wegewarte und übt seinen angeblichen Flugauftritt. Seine Flügel tragen ihn nicht; niemand muss ihm eine künstliche Mutprüfung stellen.
 
-**Der eigene Anlass und Weg der Avatare:** Die Avatare wandern mit einem eigenen konkreten Vorhaben am Fuß des Berges entlang. Ein ausgefallener Wegweiser oder eine angekündigte Übergabe erklärt ihre Route. Sie hören eine großartige Flugankündigung hinter einem Felsen und gehen nachsehen.
+**Der eigene Anlass und Weg der Avatare:** Die Kinder kommen über den Wanderweg zur Bergwiese, um dort ihren Papierdrachen steigen zu lassen. Eine vollmundige Flugankündigung hinter einem Felsen macht sie neugierig.
 
-**Die erste Begegnung:** Sie erleben erst Funkelflugs missglückten Sprung, dann seine stolze Ausrede. Eine kurze gegenseitige Vorstellung ergibt sich daraus. Die Kinder erkennen ihn nicht vor ihrem ersten Blick.
+**Die erste Begegnung:** Sie sehen Funkelflugs Bauchlandung und seinen Versuch, sie als Besichtigung auszugeben. Beim Einsammeln des Papierdrachens nennen alle ihre Namen, bevor sie ein Fiepen hören.
 
-**Das Abenteuer und der Fehlversuch:** Drei Glockenschläge locken eine Wandergruppe auf einen alten Weg; dort ist eine niedrige Passage blockiert. Gleichzeitig erwartet Funkelflug seinen großen Zuschauerauftritt. Ein erster Zugversuch verengt die Passage oder verklemmt das Glockenseil; die Ursache wird gezeigt.
+**Das Abenteuer und der Fehlversuch:** Ein Igel steckt hinter einer leichten Holzplatte am niedrigen Felszugang. Funkelflug möchte vor den neuen Zuschauern noch als großer Flieger wirken; große Hände erreichen die Innenseite nicht.
 
-**Die entscheidende Wahl:** Funkelflug gibt die Gelegenheit zum Angeben auf und übernimmt den kleinen Bodengang. Die Avatare prüfen den Ausgang und koordinieren sichtbare Signale; ohne beide Beiträge kommt die Gruppe nicht zusammen. Er entscheidet und handelt selbst, statt nur getröstet zu werden.
+**Die entscheidende Wahl:** Er kriecht durch die kleine offene Lücke, während die Kinder den freien Rand beleuchten. Er schiebt die leichte Platte von innen zur Seite und befreit das Tier.
 
-**Ergebnis und offene Serienfrage:** Die Gruppe erreicht die Höhlenwiese; ein schon vorbereitetes kleines Lagerfeuer kommt durch einen ungewollten Nieser in Gang und wird von einem benannten erfahrenen Erwachsenen betreut, knapp erzählt. An der Wegewarte finden sie ein gezeichnetes Zeichen und eine zweite, von innen verknotete Schnur: Wer hat die seit Jahren stille Glocke betätigt? Funkelflug übernimmt vorerst einen Bodenweg, nicht den ganzen Berg.
+**Ergebnis und offene Serienfrage:** Der Igel läuft frei. Die sichtbare an der Platte liegende Glockenschnur bewegt sich: genau EIN Schlag. Der erste Dank gilt Funkelflugs wirklicher Stärke; warum wurde die Glocke festgelegt?
 
-### Vier Entwicklungsbögen mit Stoff für rund 40 Folgen
+### Zwei Staffeln, vier Entwicklungsbögen, 20 geplante Folgen
 
-Die Zehnerbereiche sind Möglichkeiten, keine behauptete Vorgeschichte. Was wirklich geschehen ist, entscheidet ausschließlich das persönliche Folgenlog. Konflikte werden ausgebaut, verbunden und verändert; die Liste ist kein fertiger Plan für 40 Episoden.
+Jeder Fünferbereich entwickelt eine Frage. Die Planung ist keine behauptete Vorgeschichte: Was wirklich geschehen ist, entscheidet ausschließlich das persönliche Folgenlog. Jede Folge löst ihr eigenes Problem; die Serienentwicklung bleibt daneben verständlich und kurz.
 
-**Folgen 1–10: Wer benutzt die aufgegebene Wegewarte?**
+**Folgen 1–5: Kann ein Drache ohne Flugkraft dazugehören?**
 
-- Ein schwerer Postbeutel passt durch keinen Landezugang; sein Besitzer ist kein Dieb.
-- Mucks hält eine Glockenschnur für eine Bedrohung seines Baus und verschweigt einen Teil des Weges.
-- Eine gezeichnete Karte verwechselt Flugstrecken mit tatsächlich begehbaren Wegen.
+- Eine kleine Rettung gelingt gerade durch Funkelflugs Größe.
+- Mucks will seinen Schlafplatz behalten.
+- Der Treffpunkt braucht Platz für Omas großen Körper und ehrliche Angst vor seltsamen Geräuschen.
 
-Mögliche verdiente Veränderung: Die verborgene Verbindung zwischen Warte und altem Bodennetz wird durch mehrere Beobachtungen entdeckt.
+Geplanter Fortschritt: Bis Folge 5 ist die Glockenfunktion bekannt, Mucks Einwand verstanden und ein möglicher Bodenweg entdeckt. Funkelflug wird für konkrete Taten gebraucht.
 
-**Folgen 11–20: Wie verbindet man Flieger und Fußgänger?**
+**Folgen 6–10: Kann die alte Warte einen Weg für alle eröffnen?**
 
-- Eine riesige Drachenlieferung ist leicht zu fliegen, aber am Ziel zu groß.
-- Eine neue Landung wirbelt alle Wegmarkierungen um; Funkelflug muss einen eigenen schlechten Plan korrigieren.
-- Oma Schuppes praktische Flugkenntnis rettet einen Versuch, den die Kinder falsch eingeschätzt haben.
+- Eine verlorene Wette verlangt keinen gefährlichen Sprung.
+- Eine Flugkarte hilft Fußgängern nicht.
+- Ein angekündigter Durchgang braucht die Zustimmung seines Nachbarn.
 
-Mögliche verdiente Veränderung: Ein erster verlässlich nutzbarer gemeinsamer Weg entsteht; Fliegen bleibt begrenzt.
+Geplanter Fortschritt: Folge 10 erfüllt das Ziel: Die erste Gruppe geht den geprüften Bodenweg; drei Glockenschläge melden die tatsächliche Öffnung. Funkelflug wählt Verantwortung statt Auftritt.
 
-**Folgen 21–30: Wer darf über einen alten Bergweg bestimmen?**
+**Folgen 11–15: Wie kommen Kleine und Große zu einem gemeinsamen Winterfest?**
 
-- Ein Rückkehrer beansprucht einen lange von anderen benutzten Platz.
-- Funkelflug soll einen wichtigen Auftrag übernehmen und kann nicht zugleich beim großen Drachenvergleich auftreten.
-- Ein winziger Gang muss erhalten statt für große Gäste erweitert werden.
+- Platz, faire Wettkämpfe und Vorräte erzeugen unterschiedliche Konflikte.
+- Ein schöner Festplatz kann zu windig sein.
+- Ein wackliges Brückenbrett verlangt einen Umweg und fachkundige Reparatur statt Heldentum.
 
-Mögliche verdiente Veränderung: Funkelflug gewinnt Verantwortung durch konkrete Leistungen und gibt ein falsches Ruhmesziel auf.
+Geplanter Fortschritt: Bis Folge 15 stehen ein geschützter Festplatz und die geprüfte Brücke zur Verfügung. Die Gruppe hat sichtbare faire Absprachen getroffen.
 
-**Folgen 31–40: Welchen Platz wählt Funkelflug selbst?**
+**Folgen 16–20: Darf Funkelflugs eigene Idee genauso viel zählen wie Flugkunst?**
 
-- Ein jüngerer Drache erkennt in seinen Sprüngen echte Übung statt einen Betrug.
-- Ein stillgelegter Pfad führt zu einer früheren Drachenwarte mit anderer Aufgabe.
-- Eine Reise gelingt, weil die Freunde ihre unterschiedlichen Reichweiten verbinden.
+- Ein Nachmacher braucht ein ehrliches Vorbild.
+- Neue Spiele brauchen eigene Zustimmung, nicht alte Wegrechte.
+- Wetter und eine einseitige Jury verlangen Änderungen am Fest.
 
-Mögliche verdiente Veränderung: Eine neue Route öffnet die Welt über den Berg hinaus; Funkelflug bleibt ein eigensinniger kleiner Drache.
+Geplanter Fortschritt: Folge 20 lässt das vorbereitete Bodenfest wirklich stattfinden, auch für große Drachen. Funkelflug bleibt flugunfähig, aber seine Idee ist ein fester Teil des Berglebens.
 
 ## 3. Graf Griesgram und die unerwünschten Gäste
 
 ### Serienversprechen
 
-Eine Beziehungskomödie um ein Haus mit unmöglichen Regeln, verschwundenen Einladungen und Nachbarn, die alle etwas anderes wollen. Hinter jeder Hausordnung steckt eine konkrete alte Geschichte, nicht immer ein trauriges Geheimnis.
+Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, aber am liebsten nach lauter unmöglichen Regeln. Die Kinder widersprechen ihm mit eigenen Wünschen. Ein leerer Kinderplatz und ein alter Streit entwickeln sich zu einem gemeinsamen Mittwochstisch und einem fairen Dorfturnier.
 
 ### Hauptfigur
 
@@ -180,76 +184,78 @@ Der Graf wünscht sich Gesellschaft und fürchtet, dabei die Kontrolle zu verlie
 
 ### Die Welt vor der ersten Begegnung
 
-Ein großes altes Haus mit Garten am Dorf. Der Mittwochstisch war früher offen für Nachbarn; heute stehen die Stühle in der Abstellkammer. Das Haus und seine Gegenstände sind gewöhnlich, nicht heimlich lebendig.
+Ein gewöhnliches großes Haus mit Garten am Dorf. Früher traf sich dort eine Runde aus Nachbarn; zwölf alte Stühle und ein Kinderplatz erinnern daran. Warum die Runde endete, erschließt sich erst aus den einzelnen Abenteuern. Briefe, Bilder und Beteiligte liefern begrenzte Belege, keine Geheimfach-Schnitzeljagd.
 
 ### Verbindliche Regeln
 
 - Menschen verursachen die Verwicklungen. Keine magische Tür und keine Zufallserbschaft löst einen Konflikt.
-- Johann hat freie Tage und eigene Vorhaben. Der Graf muss selbst handeln. Alte Briefe geben Belege, keine allwissenden Antworten.
+- Auch Angestellte haben freie Tage und eigene Vorhaben. Der Graf muss selbst handeln. Alte Briefe geben Belege, keine allwissenden Antworten.
 - Einmal begründete Einladungen und Freundschaften bleiben wahr. Der Graf darf grummelig bleiben, ohne nach jeder Folge wieder ganz allein zu sein.
 
 ### Festes Ensemble
 
 - **Ada** (human): Nachbarin und leidenschaftliche Schachspielerin; begründet ihre eigenen Regeln so gut, dass der Graf zugleich beeindruckt und beleidigt ist.
-  Aussehen: middle-aged woman with short curly auburn hair, green coat, round spectacles, cloth chess bag
-- **Johann** (human): Kennt das Haus, besteht gerade deshalb auf seinem freien Tag; der Graf respektiert seine Genauigkeit und unterschätzt seine eigenen Ideen.
-  Aussehen: tall elderly man, neat white hair, navy waistcoat, pale blue shirt, small brass watch
+  Aussehen: friendly middle-aged woman with short curly auburn hair, round tortoiseshell spectacles, wearing a tailored olive-green coat over a cream blouse, carrying a checkered cloth chess bag
+- **Johann** (human): Kennt das Haus in- und auswendig, besteht gerade deshalb auf seinem freien Tag; der Graf respektiert seine Genauigkeit und unterschätzt seine eigenen Ideen.
+  Aussehen: tall neat elderly man with combed white hair, wearing a navy waistcoat over a pale blue shirt, dark trousers, holding a small brass pocket watch on a chain, calm dry expression
+- **Pepe** (dog): Pummeliger, extrem beharrlicher Dackel-Terrier-Mischling des Dorfpostboten mit gestreifter Postweste; trägt leidenschaftlich gern Briefe, Fußmatten und Hausschuhe an Orte, wo sie für maximale Verwicklung sorgen.
+  Aussehen: plump wire-haired dachshund-terrier mix with scruffy caramel fur, one floppy ear up and one down, wearing a small yellow-and-blue striped postal dog vest with a side pocket, holding an envelope corner in his mouth
 
 ### Persönlicher Ursprung
 
-**Davor:** Der Mittwochstisch ist geschlossen. Der Graf hat eine widersprüchliche Probeeinladung geschrieben und traut sich nicht, sie abzuschicken.
+**Davor:** Der Graf lebt zurückgezogen mit strenger Hausordnung. Der Mittwochstisch ist geschlossen, die alte Runde zerstritten. Seine Regeln schützen vor Unordnung und verhindern zugleich den Besuch, den er gern hätte.
 
-**Der eigene Anlass und Weg der Avatare:** Die Avatare haben im Dorf einen eigenen Anlass, etwa einen ausgeliehenen Gegenstand zurückzubringen. Auf dem Weg finden sie die vom Grafen absichtlich am Gartentor angeheftete widersprüchliche Einladung und folgen ihrer Wegbeschreibung.
+**Der eigene Anlass und Weg der Avatare:** Die Kinder lassen auf der Dorfwiese ihren selbst gebauten Papierdrachen steigen. Als er im benachbarten Garten landet, gehen sie zum Tor des Grafen und klingeln, um ihn zurückzuholen.
 
-**Die erste Begegnung:** Der Graf stellt sich hinter dem halb geöffneten Tor mit einer Hausregel vor. Die Kinder nennen ihren Anlass und ihre Namen. Sie kennen weder ihn noch sein Haus.
+**Die erste Begegnung:** Der Graf erscheint mit einer umständlichen Fluggeräte-Regel. Die Kinder nennen sich und erklären, dass der Drache ihnen gehört; er stellt sich als Besitzer des Gartens vor.
 
-**Das Abenteuer und der Fehlversuch:** Die Einladung verbietet den Besuch und verlangt zugleich Pünktlichkeit. Ein Avatar nimmt das Verbot ernst und will gehen; der Graf erschwert mit einer Ausrede selbst die letzte Chance auf Gesellschaft.
+**Das Abenteuer und der Fehlversuch:** Der Drache hängt am niedrigen Rosenbogen und beginnt zu reißen. Der Graf besteht auf seiner gerade erfundenen Erlaubnis, während der Wind seine eigenen Papiere verteilt.
 
-**Die entscheidende Wahl:** Die Kinder bieten eine konkrete Form des Besuchs an, die ihm Raum lässt, aber nicht seiner widersprüchlichen Regel folgt. Er muss sichtbar eine Ausnahme unterschreiben und einen Stuhl aus seiner geordneten Kammer holen.
+**Die entscheidende Wahl:** Er gibt den Kindern Zugang und hält den erreichbaren Ast zurück. Sie lösen die Schnur und retten den Drachen; der Graf ersetzt sein Verbot durch eine einfache Bitte.
 
-**Ergebnis und offene Serienfrage:** Der erste gemeinsame Mittwochstisch findet statt. Ein alter unverschickter Brief hat einen anderen Absender, als der Graf erwartet. Das neue persönliche Hausritual bleibt erhalten; sein Verhältnis zu Ada und Johann ist noch offen.
+**Ergebnis und offene Serienfrage:** Er lädt sie tatsächlich zum Kakao ein. Beim Holen eines Stuhls wird der leere dreizehnte Kinderplatz sichtbar. Das neue Treffen beginnt; der alte Streit ist noch nicht gelöst.
 
-### Vier Entwicklungsbögen mit Stoff für rund 40 Folgen
+### Zwei Staffeln, vier Entwicklungsbögen, 20 geplante Folgen
 
-Die Zehnerbereiche sind Möglichkeiten, keine behauptete Vorgeschichte. Was wirklich geschehen ist, entscheidet ausschließlich das persönliche Folgenlog. Konflikte werden ausgebaut, verbunden und verändert; die Liste ist kein fertiger Plan für 40 Episoden.
+Jeder Fünferbereich entwickelt eine Frage. Die Planung ist keine behauptete Vorgeschichte: Was wirklich geschehen ist, entscheidet ausschließlich das persönliche Folgenlog. Jede Folge löst ihr eigenes Problem; die Serienentwicklung bleibt daneben verständlich und kurz.
 
-**Folgen 1–10: Welche Hausregel hat welchen Ursprung?**
+**Folgen 1–5: Kann aus einer Ausnahme ein echter Besuch werden?**
 
-- Eine Sitzordnung setzt sogar den Grafen vor die Tür.
-- Zwei Menschen erinnern sich unterschiedlich an denselben alten Gegenstand.
-- Johanns freier Tag macht die übliche Reihenfolge unbrauchbar.
+- Johanns freier Tag bleibt frei.
+- Ein missglücktes Gespensterspiel muss die Angst der Kinder ernst nehmen.
+- Adas Eigentum und ein müdes Kind sind wichtiger als die neue Regel.
 
-Mögliche verdiente Veränderung: Einige Regeln bekommen begründete Ausnahmen; der erste alte Brief wird zugeordnet.
+Geplanter Fortschritt: Bis Folge 5 sitzt wieder ein Kind am Mittwochstisch. Ada kehrt für eine Runde zurück; der goldene Apfel wird als Holz-Spielpreis eingeordnet.
 
-**Folgen 11–20: Wie gehört das Haus zum Dorf?**
+**Folgen 6–10: Was beendete die frühere Freundschaft?**
 
-- Ada braucht den Garten für ein Spiel, während der Graf dort eine stille Aufgabe plant.
-- Ein gewünschter Besuch verträgt kein Gebäck; seine gute Gebäcknase hilft bei einem anderen Problem.
-- Als Gast muss er selbst eine fremde Ordnung aushalten.
+- Krümelangst und eine fehlgeleitete Einladung belasten heutige Besuche.
+- Ein vorschneller Keksverdacht macht die alte Beschuldigung überprüfbar.
+- Der vorbereitete Spielkorb widerlegt den vermeintlichen Diebstahl.
 
-Mögliche verdiente Veränderung: Ein konkreter gemeinsamer Termin entsteht, ohne dass der Garten grenzenlos geöffnet wird.
+Geplanter Fortschritt: Folge 9 beantwortet den Apfelstreit, Folge 10 zeigt die erneuerte große Runde. Der Graf entschuldigt sich; Ada entscheidet selbst über den neuen Anfang.
 
-**Folgen 21–30: Wer darf eine Geschichte richtigstellen?**
+**Folgen 11–15: Kann der Graf auch bei anderen und gegen andere mitspielen?**
 
-- Eine präzise Erinnerung des Grafen widerspricht einer beliebten Dorfanekdote.
-- Ein alter Freund möchte nicht als Ehrengast vorgeführt werden.
-- Ein Brief erreicht nach Jahren den falschen Menschen, der einen berechtigten eigenen Wunsch hat.
+- Als Gast muss er selbst eine Hausregel akzeptieren.
+- Eine echte Einladung braucht keine Verbotsliste.
+- Gleiche Zeit und unveränderte Regeln gelten auch, wenn Johann gewinnt.
 
-Mögliche verdiente Veränderung: Der Graf gibt eine geliebte eigene Version einer Begebenheit auf.
+Geplanter Fortschritt: Bis Folge 15 sind echte Teilnehmer und faire Grundregeln vereinbart. Johann wird als gleichwertiger Mitspieler anerkannt.
 
-**Folgen 31–40: Was bleibt, wenn andere Gastgeber werden?**
+**Folgen 16–20: Halten die gemeinsamen Regeln auch unter Druck?**
 
-- Johann schlägt ein anderes Mittwochritual vor.
-- Ada gewinnt mit einer Regel, die der Graf selbst verfasst hat.
-- Der Graf darf eine Einladung annehmen und einen Platz im eigenen Haus freigeben.
+- Eine peinliche Geschichte braucht Zustimmung.
+- Lärm und Ruhe werden räumlich verabredet.
+- Ein Gleichstand prüft die vorher vereinbarte Regel im öffentlichen Finale.
 
-Mögliche verdiente Veränderung: Neue Beziehungen verändern die Runde; seine genaue, eigensinnige Stimme bleibt.
+Geplanter Fortschritt: Das Turnier endet in Folge 19. Folge 20 zeigt eine eigenständig geleitete Kinderstunde und eine gemeinsam veränderbare Hausordnung; der Graf bleibt grummelig und verbunden.
 
 ## 4. Kapitän Blubbert und die Insel ohne Karte
 
 ### Serienversprechen
 
-Inselreisen mit falschen Karten, eigenwilliger Fracht und einem Kapitän, der fremde Einfälle zu gern zu seinen erklärt. Eine Insel mit einem steinernen Tor fehlt auf allen aktuellen Karten.
+Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches Seeungeheuer und eine Insel, die absichtlich auf keiner Karte steht. Blubbert möchte als großer Entdecker gelten und lernt, dass eine gute Mannschaft und ein geschützter Ort wichtiger sein können. Später sucht die Crew Pias frühere Lehrmeisterin auf der Sternschnuppe.
 
 ### Hauptfigur
 
@@ -261,7 +267,7 @@ Blubbert will als Entdecker gelten und niemanden zurücklassen. Er ist ein guter
 
 ### Die Welt vor der ersten Begegnung
 
-Ein Küstenhafen, ein kleines Segelboot mit sichtbaren Arbeitsplätzen und Inseln mit eigenen Bewohnern und Regeln. Die Ursprungsreise bleibt nah an der Küste und ist Blubberts erste verantwortliche Fahrt als Kapitän. Pia fährt als erfahrene Bootsbauerin mit; Blubbert trifft die Entscheidungen und steuert.
+Ein übersichtlicher Küstenhafen und das kleine Segelboot Seegras. Die erste Fahrt bleibt nah am Hafen; die erfahrene Bootsbauerin Pia begleitet sie. Ein Steintor auf einem alten Ortsplättchen passt zu keiner aktuellen Karte; die Erklärung folgt erst aus den vorgesehenen Entdeckungen. Neue Ziele werden nacheinander gezeigt, nicht als Navigationsinventar aufgezählt.
 
 ### Verbindliche Regeln
 
@@ -272,69 +278,71 @@ Ein Küstenhafen, ein kleines Segelboot mit sichtbaren Arbeitsplätzen und Insel
 ### Festes Ensemble
 
 - **Pia** (human): Bootsbauerin mit praktischer Genauigkeit; verlangt klare Angaben, hat eigene Liefertermine und nimmt eine gute Reparatur nicht für selbstverständlich.
-  Aussehen: adult woman with dark braid, teal work shirt, brown dungarees, orange headscarf
-- **Lotta** (seagull): Stumme Möwe, bewacht ihr Nest und interessiert sich für Glänzendes. Nicht jeder verschwundene Gegenstand ist ihr Werk.
-  Aussehen: white seagull with grey wings, yellow beak, one crooked tail feather
+  Aussehen: capable adult woman shipwright with a thick dark braid, bright orange headscarf, teal rolled-sleeve work shirt, brown canvas dungarees with a wooden folding ruler in the pocket, warm observant smile
+- **Lotta** (seagull): Stumme, aber höchst ausdrucksstarke Hafenmöwe mit einer krummen Schwanzfeder; bewacht ihr Nest auf dem Dalben, liebt Fischbrötchenkrümel und glänzende Messingteile – nicht jeder verschwundene Gegenstand ist ihr Werk.
+  Aussehen: plump white harbour seagull with slate-grey wings, bright yellow hooked beak, yellow webbed feet, and one distinctive crooked tail feather sticking out to the side, cheeky alert expression
+- **Kalli Krabbe** (human): Winzig-kleiner, quecksilbriger Leuchtfeuer- und Anlegerwart der Nachbarinseln im riesigen gelben Südwester; kennt jede Gezeitenströmung, verwechselt aber bei Aufregung zuverlässig Backbord und Steuerbord.
+  Aussehen: short energetic elderly harbour tender with rosy cheeks and bushy white sideburns, wearing an oversized bright yellow oilskin sou’wester hat and yellow raincoat over red knitted jumper, brass spyglass on a strap
 
 ### Persönlicher Ursprung
 
-**Davor:** Blubbert bereitet seine erste Fahrt als Kapitän vor. Der Muschelkompass wird erst in dieser Folge gefunden und verstanden.
+**Davor:** Blubbert bereitet seine erste verantwortliche Fahrt als Kapitän vor. Pia ist als erfahrene Bootsbauerin dabei. Die Avatare, der Kompass und die gemeinsame Suchfrage sind noch nicht eingeführt.
 
-**Der eigene Anlass und Weg der Avatare:** Die Avatare kommen zum Hafen, um einen Geburtstagskuchen zur Feier auf der Papiermacherinsel zu bringen. Ihr Weg über den Kai und der Anlass der Reise werden erzählt.
+**Der eigene Anlass und Weg der Avatare:** Die Kinder kommen über den Hafensteg, weil sie das kleine Segelboot ansehen wollen. Ein bellender Hund und Blubberts empörte Ansprache machen sie auf einen Seehund auf dem Kapitänssitz aufmerksam.
 
-**Die erste Begegnung:** Ein übertriebenes Beladekommando von Blubbert führt zu einer komischen Begegnung. Namen, Rollen und die Teilnahme an der Fahrt ergeben sich im Gespräch am Boot.
+**Die erste Begegnung:** Blubbert erklärt dem Tier seine Sitzordnung, Pia erklärt den Kindern die Lage. Erst stellen sich alle vor und vereinbaren die Mitfahrt; die Kinder sind keine schon eingespielte Mannschaft.
 
-**Das Abenteuer und der Fehlversuch:** Blubbert will den Weg allein finden und fährt im Kreis, während das Geburtstagskind auf den Kuchen wartet. Ein zunächst unbrauchbar erscheinender Muschelkompass wird entdeckt; die erfahrene Pia ist bei der Küstenfahrt dabei.
+**Das Abenteuer und der Fehlversuch:** Der Seehund flüchtete vom niedrigen Steg vor einem Hund aufs Boot und wagt sich nicht zurück. Blubbert möchte seinen Vorführplan einhalten; aus der nahen Bucht ruft die Mutter.
 
-**Die entscheidende Wahl:** Blubbert hört auf die Kinder und teilt die Zielwahl. Die Crew nennt den bekannten Inselsteg und legt das Plättchen gemeinsam offen in die Schale; Blubbert steuert den sicheren Weg selbst.
+**Die entscheidende Wahl:** Die Crew schafft Abstand zum Hund. Blubbert ändert sein Ziel zur bekannten ruhigen Bucht, Pia hilft beim Boot; die Kinder beobachten und halten Abstand zum Tier.
 
-**Ergebnis und offene Serienfrage:** Das Geburtstagskind bekommt seinen Kuchen und die Crew feiert mit. Beim Säubern eines gewöhnlichen alten Ortsplättchens entdecken sie ein bereits eingeritztes steinernes Tor, das zu keiner aktuellen Karte passt; daraus folgt die größere Suche.
+**Ergebnis und offene Serienfrage:** Am niedrigen Strandsteg geht der Seehund selbst ins Wasser zu seiner Mutter. Bei der Kartensuche wird ein Muschelkompass mit einem alten Steintor-Plättchen gefunden. Pia kennt das Tor aus einem Bild; warum fehlt es heute auf der Karte?
 
-### Vier Entwicklungsbögen mit Stoff für rund 40 Folgen
+### Zwei Staffeln, vier Entwicklungsbögen, 20 geplante Folgen
 
-Die Zehnerbereiche sind Möglichkeiten, keine behauptete Vorgeschichte. Was wirklich geschehen ist, entscheidet ausschließlich das persönliche Folgenlog. Konflikte werden ausgebaut, verbunden und verändert; die Liste ist kein fertiger Plan für 40 Episoden.
+Jeder Fünferbereich entwickelt eine Frage. Die Planung ist keine behauptete Vorgeschichte: Was wirklich geschehen ist, entscheidet ausschließlich das persönliche Folgenlog. Jede Folge löst ihr eigenes Problem; die Serienentwicklung bleibt daneben verständlich und kurz.
 
-**Folgen 1–10: Zu welchem Ort gehört das Tor?**
+**Folgen 1–5: Ist das Steintor ein wirklicher Ort?**
 
-- Eine Ortsbeschreibung stimmt bei Ebbe, nicht bei Flut.
-- Fracht mit zwei unvereinbaren Platzansprüchen erzwingt eine echte Wahl.
-- Lottas glänzender Fund ist kein Schatz, sondern Teil einer Hafenmarkierung.
+- Ein Tier braucht Abstand statt einen Kapitänsbefehl.
+- Ein vermeintliches Monster hat eine sichtbare Ursache.
+- Piratenverdacht und eine schrumpfende Sandbank prüfen Blubberts schnelle Deutungen.
 
-Mögliche verdiente Veränderung: Mehrere konkrete Ortsbelege grenzen das Revier ein; die unbekannte Insel bleibt nicht direkt ansteuerbar.
+Geplanter Fortschritt: Bis Folge 5 heißt die Insel Scherensand. Ein Foto verbindet das Tor mit Ruheplätzen für Seehunde; der Grund ihres Fehlens bleibt noch offen.
 
-**Folgen 11–20: Wer kennt die ausgelassenen Orte?**
+**Folgen 6–10: Warum soll niemand die Insel finden?**
 
-- Ein Kartograf hat einen Ort aus gutem Grund nicht öffentlich markiert.
-- Eine erlaubte Landung setzt fremde Regeln voraus.
-- Blubbert erkennt eine Strömung, die die Kinder falsch eingeschätzt haben.
+- Ein losgetriebenes leeres Boot verlangt Verantwortung statt Festrede.
+- Kallis Geisterschiff führt zu echtem Nachfragen.
+- Ein Kartograf verlangt Schutz und Blubbert verzichtet auf das Entdeckerrennen.
 
-Mögliche verdiente Veränderung: Die Crew gewinnt einen ortskundigen Kontakt durch Respekt statt durch einen Trick.
+Geplanter Fortschritt: Folge 8 erklärt den Schutzgrund. Folge 10 zeigt den erlaubten Besuch und eine echte kleine Befreiung hinter dem Tor; ein Bild eröffnet erst danach Pias Suche.
 
-**Folgen 21–30: Wem gehört eine Entdeckung?**
+**Folgen 11–15: Wo ist die Sternschnuppe und will Pia ihre Lehrmeisterin wiedersehen?**
 
-- Blubbert will einen Namen auf eine Karte schreiben, auf der bereits Menschen wohnen.
-- Ein Rückweg ist wichtiger als der schöne Fund.
-- Ein früherer Navigationsfehler erzeugt eine neue Verantwortung.
+- Ein Schiffsname ist kein eindeutiger Beleg.
+- Ein vermeintlicher Schatz gehört zu einem gewöhnlichen Fernglas.
+- Eine Nachricht gibt der gesuchten Person und Pia eine eigene Entscheidung.
 
-Mögliche verdiente Veränderung: Ein Tor wird erreicht; der Ort erhält seinen vorhandenen Namen.
+Geplanter Fortschritt: Folge 15 findet die Sternschnuppe als bewohnte Station. Die Lehrmeisterin hat auf die Nachricht geantwortet; das persönliche Wiedersehen ist verabredet.
 
-**Folgen 31–40: Welche Reise wählt die Crew danach?**
+**Folgen 16–20: Wie wird aus der Suche eine verlässliche Zusammenarbeit?**
 
-- Blubbert überlässt jemand anderem eine sichtbare Entscheidung.
-- Ein gemeinsamer guter Plan scheitert an einer neuen, vorher beobachtbaren Wetterlage.
-- Pia braucht selbst Hilfe bei einer ungewöhnlichen Lieferung.
+- Pia und ihre Lehrmeisterin sprechen den alten Streit selbst an.
+- Klare Zeichen und geteilte Beobachtungsaufgaben machen die Küstenrunde möglich.
+- Fremdes Gepäck wird zurückgegeben; Windstille verlangt einen kleineren Plan.
 
-Mögliche verdiente Veränderung: Die Entdeckerfrage endet befriedigend und neue selbst gewählte Missionen beginnen.
+Geplanter Fortschritt: Folge 20 zeigt die gelungene gemeinsame Küstenrunde und Blubberts ehrliche Anerkennung aller Beiträge. Eine reale Einladung öffnet den Ausblick zu den Bernstein-Schären.
 
 ## 5. Tilda Tüftel und die Werkstatt der fast perfekten Ideen
 
 ### Serienversprechen
 
-Werkstattabenteuer mit klugen Erfindungen, unerwarteten Nutzern und einer alten Maschine, die zu mehreren früheren Aufgaben passt. Erfinden ist Ausprobieren, Bewahren und manchmal bewusstes Nichtbauen.
+Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an ganz gewöhnlichen Wünschen vorbeigehen. Ein verschluckter Teddy, eine unmögliche Burg und eine vorlaute Gans verlangen Einfallsreichtum und echte Entscheidungen. Aus Arturs altem Bilder-Spielwerk wächst eine eigene gemeinsame Erfinderschau.
 
 ### Hauptfigur
 
-Tilda ist erfinderisch, ehrgeizig und liebt ihre unscheinbare Lieblingsklammer. Sie möchte beeindrucken und übersieht manchmal den tatsächlichen Gebrauch. Sie kann komplizierte Dinge gut bauen; die einfachste Idee gewinnt nicht grundsätzlich.
+Tilda ist erfinderisch, ehrgeizig und liebt ihre unscheinbare Lieblingsklammer. Sie möchte beeindrucken und muss manchmal ihre schönste Idee verändern, wenn sie an den wirklichen Wünschen anderer vorbeigeht. Sie kann zuhören lernen, ohne ihre Neugier und ihren eigenen Willen zu verlieren.
 
 **Stimme:** Schnelle genaue Wörter für Dinge, begeistert beim Vorführen, trocken beleidigt bei unvernünftiger Nutzung. Sie hört zu, darf widersprechen und braucht keine Lehrsatzrede.
 
@@ -342,7 +350,7 @@ Tilda ist erfinderisch, ehrgeizig und liebt ihre unscheinbare Lieblingsklammer. 
 
 ### Die Welt vor der ersten Begegnung
 
-Eine Dorfwerkstatt mit Ideenfenster, Hof und alten reparierbaren Geräten. Das Ideenfenster wird erst nach dem Ursprung geöffnet. Im Schuppen steht ein unvollständiger mechanischer Apparat mit mehreren passenden Anbaustellen.
+Eine Dorfwerkstatt mit Ideenfenster, flachem Hof und Schuppen. Erfindungen haben sichtbare einfache Funktionen statt verschachtelter Mechanik. Im Schuppen steht ein staubiger Kasten mit einer kleinen Öffnung und Arturs Handschrift; sein Zweck wird erst in den vorgesehenen Abenteuern erschlossen. Das Ideenfenster öffnet sich nach der ersten Begegnung.
 
 ### Verbindliche Regeln
 
@@ -352,57 +360,59 @@ Eine Dorfwerkstatt mit Ideenfenster, Hof und alten reparierbaren Geräten. Das I
 
 ### Festes Ensemble
 
-- **Mina** (human): Gestaltet sichtbare Zeichen und Oberflächen. Eine schöne Idee kann praktisch besser sein, aber auch eine Funktion überdecken.
-  Aussehen: girl with two short dark braids, coral jacket, blue skirt over leggings, bag of coloured wooden tiles
-- **Kuno** (human): Mag kleine übersichtliche Lösungen; manchmal sind sie zu klein oder gehen verloren. Hat einen eigenen Reparaturwunsch.
-  Aussehen: small boy with tousled red hair, green jumper with one large blue button, brown shorts
+- **Mina** (human): Gestaltet sichtbare Zeichen, Farben und Oberflächen. Eine schöne Idee kann praktisch besser sein, aber auch eine Funktion überdecken.
+  Aussehen: cheerful girl with two short dark braids, wearing a coral-red jacket over a striped top, blue skirt over dark leggings, carrying a shoulder bag brimming with colourful painted wooden tiles
+- **Kuno** (human): Mag kleine, übersichtliche Lösungen; manchmal sind sie zu klein oder gehen verloren. Hat einen eigenen Reparaturwunsch und ein untrügliches Auge für winzige Federn, Stifte und Knöpfe.
+  Aussehen: small boy with tousled reddish-copper hair and freckles, wearing a green knitted jumper with one oversized bright blue button on the chest, brown shorts with bulging pockets, holding a tiny tin box
+- **Rostig** (goose): Eigensinnige weiße Werkstattgans mit kleiner Leder-Schutzbrille auf dem Kopf und einem dunklen Schmierfleck am linken Flügel; bewacht den Ersatzteilhof, schnattert empört bei jedem schiefen Ton und zieht leidenschaftlich gern an losen Schnüren und glänzenden Muttern.
+  Aussehen: proud white domestic goose with bright orange beak and feet, a small brass-rimmed leather tinkerer goggle strap resting on top of her head, a smudge of dark grease on one wing feather, standing alert
 
 ### Persönlicher Ursprung
 
-**Davor:** Tilda arbeitet allein hinter geschlossenem Fenster und schämt sich für ihre einfache Lieblingsklammer. Eine versprochene Bücherlieferung soll ihre erste große Vorführung werden.
+**Davor:** Tilda tüftelt allein hinter dem geschlossenen Fenster. Sie möchte mit einer Aufräummaschine beeindrucken und hat noch keine gemeinsame Ideenwerkstatt. Ihre einfache Lieblingsklammer ist nur ein nützliches Werkzeug.
 
-**Der eigene Anlass und Weg der Avatare:** Die Avatare bringen im Rahmen dieser Lieferung eine Kiste oder einen Reparaturauftrag in den Werkstatthof. Erzähle ihren konkreten Grund und den Weg zur verschlossenen Werkstatttür.
+**Der eigene Anlass und Weg der Avatare:** Die Kinder gehen vom Dorfplatz zu Tildas Werkstatt, weil die Naht ihres geliebten Teddys locker ist. Sie wollen ihn reparieren lassen und treffen Tilda beim Ausprobieren der Maschine.
 
-**Die erste Begegnung:** Eine widerspenstige Klingel oder die falsche Probe einer Vorführmaschine führt zum ersten Gespräch. Tilda nennt sich und die Kinder erklären ihre Aufgabe; kein bereits eingespieltes Werkstattteam.
+**Die erste Begegnung:** Tilda begrüßt die unbekannten Kinder, stellt sich und ihr Gerät vor. Die Kinder nennen ihre Namen und den Reparaturwunsch, bevor Tilda zu ihrer Vorführung ansetzt.
 
-**Das Abenteuer und der Fehlversuch:** Tilda führt ihren Bücherwagen auf ebenem Hof vor. Auf dem vorgesehenen sicheren Teststück zeigt sich das übersehene Gefälle oder eine unpassende Griffhöhe. Ein Avatar hatte eine sinnvolle Anforderung genannt, die sie überging; die Lieferung verzögert sich.
+**Das Abenteuer und der Fehlversuch:** Ein pedalbewegter Besen schiebt aus Versehen den Teddy in die Sammelkiste. Tildas rückwärtiger Versuch wirbelt Tücher umher, statt den Teddy aus der Ecke hinter der Schauseite zu holen.
 
-**Die entscheidende Wahl:** Die Kinder vergleichen selbst zwei überprüfbare Lösungen. Tilda entscheidet, eine bewährte kleine Komponente zu erhalten, statt alles zu ersetzen. Ihre Konstruktion und die Beobachtung der Kinder werden beide gebraucht.
+**Die entscheidende Wahl:** Tilda stoppt und nimmt ihre schön gestaltete Front ab. Die Kinder entdecken das Band und bergen den Teddy. Danach reparieren sie gemeinsam die ursprüngliche lockere Naht, mit der Klammer als Stoffhalter.
 
-**Ergebnis und offene Serienfrage:** Die Lieferung gelingt mit sichtbarer Änderung. Auf konkrete Nachfrage der anderen öffnet Tilda ein Ideenfenster. Ein Teil des alten Apparats passt überraschend zur Lieblingsklammer: Welche frühere Aufgabe hatte diese Maschine?
+**Ergebnis und offene Serienfrage:** Das Kind hat den Teddy heil zurück. Tilda öffnet das Ideenfenster für wirkliche Wünsche. Beim Wegräumen sehen sie Arturs staubigen Bühnenkasten und fragen, wofür er gedacht war.
 
-### Vier Entwicklungsbögen mit Stoff für rund 40 Folgen
+### Zwei Staffeln, vier Entwicklungsbögen, 20 geplante Folgen
 
-Die Zehnerbereiche sind Möglichkeiten, keine behauptete Vorgeschichte. Was wirklich geschehen ist, entscheidet ausschließlich das persönliche Folgenlog. Konflikte werden ausgebaut, verbunden und verändert; die Liste ist kein fertiger Plan für 40 Episoden.
+Jeder Fünferbereich entwickelt eine Frage. Die Planung ist keine behauptete Vorgeschichte: Was wirklich geschehen ist, entscheidet ausschließlich das persönliche Folgenlog. Jede Folge löst ihr eigenes Problem; die Serienentwicklung bleibt daneben verständlich und kurz.
 
-**Folgen 1–10: Wofür wurde der alte Apparat gebaut?**
+**Folgen 1–5: Was wollte Artur mit dem alten Bühnenkasten zeigen?**
 
-- Eine funktionierende Erfindung wird für etwas Unerwartetes benutzt.
-- Zwei Nutzer brauchen bewusst zwei verschiedene Versionen.
-- Eine Reparatur enthüllt eine gute ältere Idee, die Tilda erhalten muss.
+- Ein geliebtes Spielzeug ist wichtiger als die Vorführfassade.
+- Ein gemalter Knopf erklärt ein Missverständnis am neuen Fenster.
+- Kleine und große Burgen sowie ein verdrängter Kinderauftritt zeigen verschiedene Wünsche.
 
-Mögliche verdiente Veränderung: Zwei reale Anbauteile belegen eine frühere Werkstattaufgabe.
+Geplanter Fortschritt: Bis Folge 5 belegt ein normales Foto eine gemeinsame Dorfaufführung. Tilda beginnt, den Kasten als Bühne statt als unbekannte Universalmaschine zu verstehen.
 
-**Folgen 11–20: Wann ist ein guter Entwurf wirklich fertig?**
+**Folgen 6–10: Wer darf das alte Spielwerk heute zu Ende erfinden?**
 
-- Kunos winzige Lösung geht verloren.
-- Minas auffällige Kennzeichnung erweist sich im Regen als die klarste.
-- Ein genauer Auftrag benötigt gerade eine kompliziertere Konstruktion.
+- Kunos Lieblingsknopf bleibt sein Eigentum.
+- Rostig verteidigt ihren gewöhnlichen Schlafplatz.
+- Drei rückwärts gezeigte Bilder und ein gemeinsam gelerntes Lied erschließen das Werk.
 
-Mögliche verdiente Veränderung: Ein getesteter Entwurf kann von jemand anderem zuverlässig nachgebaut werden.
+Geplanter Fortschritt: Folge 10 zeigt ein vollständiges Stück mit selbst gezeichnetem Ende. Arturs vorbereitete Bitte erklärt die leere Seite; daraus entsteht die eigene Erfinderschau.
 
-**Folgen 21–30: Wer entscheidet über Nutzung und Raum?**
+**Folgen 11–15: Wessen Ideen bekommen Platz auf unserer Schau?**
 
-- Eine notwendige laute Arbeit kollidiert mit einem berechtigten Ruhetermin.
-- Eine gute Reparatur nimmt wertvollen Platz für eine andere Arbeit ein.
-- Tilda muss eine zugesagte Vorführung verschieben und den Grund selbst vertreten.
+- Eine hängende Brotladung verlangt Rückgabe vor weiterer Vorführung.
+- Kuno braucht sichtbare Anerkennung statt Arbeit im Hintergrund.
+- Ein unlesbares Schild und ein umkämpfter Tisch verlangen Perspektivwechsel und Absprachen.
 
-Mögliche verdiente Veränderung: Konkrete Arbeitszeiten und Zuständigkeiten lösen den Nutzungskonflikt, keine alte Eigentumsurkunde.
+Geplanter Fortschritt: Bis Folge 15 hat die Schau ein machbares gemeinsames Programm und benannte Beiträge. Nicht jede Folge repariert wieder denselben Apparat.
 
-**Folgen 31–40: Was gibt Tilda weiter?**
+**Folgen 16–20: Kann Tilda eine gemeinsame Schau ermöglichen, ohne alles selbst zu bestimmen?**
 
-- Ein fremder Nachbau funktioniert besser in einer Sache und schlechter in einer anderen.
-- Der alte Apparat erhält eine begründete heutige Aufgabe.
-- Ein neuer Auftrag wird bewusst abgelehnt, weil er das Falsche optimiert.
+- Die Kinder dürfen eine kleine Probe selbst berichtigen.
+- Rostigs normaler Weg und Regen verändern den Aufbau.
+- Eine heimliche letzte Verbesserung wird zugunsten geübter Abläufe zurückgenommen.
 
-Mögliche verdiente Veränderung: Ein nachvollziehbares Werkstattarchiv bewahrt Wissen und ermöglicht neue Vorhaben.
+Geplanter Fortschritt: Folge 20 erfüllt das Versprechen der Schau mit einer gelebten gemeinsamen Aufführung. Tilda erhält Anerkennung fürs Ermöglichen und lässt anderen ihre eigene Leistung.

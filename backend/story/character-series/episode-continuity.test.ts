@@ -27,6 +27,9 @@ describe('continuity of all five planned series', () => {
         const ctx = seriesContext(episodeBrief(id, episode.episode));
         expect(ctx).toContain(episode.continuity);
         expect(ctx).toContain(episode.titleIdea);
+        expect(episode.resolution.length).toBeGreaterThan(80);
+        expect(ctx).toContain(episode.resolution);
+        expect(ctx).toContain('SERIAL BOUNDARY');
         expect(ctx).toContain('The recorded family history below takes precedence.');
         if (episode.guestId) {
           const guest = series.ensemble.find(g => g.id === episode.guestId)!;
@@ -91,10 +94,34 @@ describe('continuity of all five planned series', () => {
   test('Funkelflug has the same one-strike origin in the world contract and the first blueprint', () => {
     const origin = SERIES_NARRATIVES.funkelflug.origin;
     expect(origin.after).toContain('genau EIN Schlag');
-    expect(origin.trouble).toContain('Wanderkorb');
+    expect(origin.trouble).toContain('Igel');
     expect(origin.trouble).not.toContain('Drei Glockenschläge');
     const ep1 = getSeriesEpisodeBlueprint('funkelflug', 1)!;
-    expect(ep1.suspense).toContain('Wanderkorb');
+    expect(ep1.hook).toContain('fiepen');
+    expect(ep1.resolution).toContain('Igel');
     expect(ep1.clue).toContain('ein einziges Mal');
+  });
+
+  test('planned continuations do not leak the later arc payoff into the writing assignment', () => {
+    for (const id of Object.keys(SERIES_PLAN_FILES)) {
+      for (const episode of [2, 6, 11, 16]) {
+        const ctx = seriesContext(episodeBrief(id, episode));
+        const arc = SERIES_NARRATIVES[id].arcs[Math.floor((episode - 1) / 5)];
+        expect(ctx).toContain(arc.question);
+        expect(ctx).not.toContain(arc.earnedChange);
+        expect(ctx).not.toContain('An earned change, only if actually prepared:');
+      }
+    }
+  });
+
+  test('the world primer does not introduce locked ensemble members before their debut', () => {
+    for (const [id, series] of Object.entries(SERIES_PLAN_FILES)) {
+      for (let episode = 1; episode <= 7; episode++) {
+        const ctx = seriesContext(episodeBrief(id, episode));
+        for (const guest of series.ensemble.filter(g => g.debutEpisode > episode)) {
+          expect(ctx).not.toContain(guest.name);
+        }
+      }
+    }
   });
 });

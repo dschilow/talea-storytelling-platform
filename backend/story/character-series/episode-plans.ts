@@ -51,6 +51,8 @@ export interface SeriesEpisodeBlueprint {
   hook: string;
   slapstick: string;
   suspense: string;
+  /** Observable payoff of today's problem; the serial clue must not replace it. */
+  resolution: string;
   /** Explicit role for the 1–3 participating child avatars so they are essential co-adventurers without eclipsing the series lead. */
   avatarRole?: string;
   joke: string;

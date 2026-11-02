@@ -15,89 +15,304 @@ export interface SeriesNarrative {
 }
 
 export const SERIES_NARRATIVES: Record<string, SeriesNarrative> = {
-  nebelfee: {
-    promise: 'Verlorene Wege, eigensinnige Fundstücke und ein Haus, dessen frühere Bewohner Spuren hinterlassen haben. Ein Suchabenteuer mit überraschenden Besitzern, falschen Fährten und sichtbaren Gegenständen in kaum sichtbaren Händen.',
-    lead: 'Die Nebelfee will anderen den Weg zurückgeben und ihren eigenen Heimweg finden. Sie deutet Hinweise zu schnell, gerade wenn sie ihr Hoffnung machen; sie ist aufmerksam, stolz auf ihre Arbeit und heimlich naschhaft.',
-    voice: 'Leise, genau, mit trockenen Ausflüchten: Das war bestimmt der Wind. Sie kann sich ärgern und widersprechen; nicht in jedem Kapitel verschwinden oder entschuldigen.',
-    world: 'Ein Waldsee mit zwei ähnlichen Stegen und alten Wanderwegen. Eine verlassene Wegwarte steht fest am Ufer; ein unbeschrifteter hölzerner Wegpfeil liegt darin. Die Fee kennt ihre frühere Heimat nicht mehr.',
-    rules: ['Eine konkrete Angabe zum vermissten Ding oder Weg UND dessen letztem bekannten Ort lässt den nächsten Abschnitt einer Spur bis zu einer Kreuzung schimmern. Für den nächsten Abschnitt braucht es einen neuen Hinweis; keine Zielortung oder Gedankenleserei.', 'Die Fee kann Dinge tragen; beim Verblassen setzt sie sie ab. Getragene Dinge bleiben sichtbar. Laute Geräusche oder Verlegenheit können ihre Kontur schwächen, nicht jede Schwierigkeit lösen.', 'Von innen bleibt der gewöhnliche Ausgang der Wegwarte sichtbar, auch wenn der Nebel draußen aufzieht. Das Holzschild ist ein gewöhnlicher Gegenstand. Wünsche, Hüte und Lieder werden nicht plötzlich lebendig.'],
-    ensemble: SERIES_PLAN_FILES.nebelfee.ensemble,
-    episodes: SERIES_PLAN_FILES.nebelfee.episodes,
-    seasonTitles: SERIES_PLAN_FILES.nebelfee.seasonTitles,
-    origin: { before: 'Die Fee hat ihren Heimweg verloren. Sie kennt ihre Suchgabe noch nicht und hat keine Rückgabestelle.', arrival: 'Die Avatare sind auf einem normalen Waldweg zu einem verabredeten Ziel am See unterwegs. Erzähle diesen eigenen Anlass und ihren Weg, bevor sie der Fee begegnen.', encounter: 'Ein scheinbar allein wandernder Stiefel versperrt ihnen den Weg. Erst als sie ihn ansprechen oder festhalten, bemerken sie die scheue Trägerin. Namen und das Nichtkennen werden in dieser Handlung verständlich.', trouble: 'Ein verirrtes Kind sucht seinen Heimweg. Ein Schimmer wird vorschnell gedeutet, der erste Steg endet an einer Baustelle. Die Kinder prüfen Spuren, statt der Fee einfach die richtige Antwort zu sagen.', choice: 'Ein Avatar gibt die schnelle eigene Abkürzung auf und hilft, einen verlässlichen Rückweg zu markieren. Die Fee muss sichtbar fragen; erst die konkrete Antwort des Kindes macht die Spur lesbar.', after: 'Das Kind findet heim. Auf dem überprüften Rückweg entdecken alle die Wegwarte und richten ein erstes Fundregal ein. Der leere Wegpfeil und ein altes Betreiberzeichen eröffnen eine konkrete größere Frage; deren Antwort bleibt ungewiss.' },
-    arcs: [
-      {"question":"Wer hat früher in der Wegwarte gearbeitet?","possibilities":["Paket und Empfänger brauchen nachvollziehbare Besitzbelege.","Zwei Kupferkannen erklären widersprüchliche Sichtungen.","Eine alte Zustellung liefert eine Skizze, keinen magischen Zielpunkt."],"earnedChange":"Erste gewöhnliche Belege zeigen zwei Handschriften; ein Heimweg ist noch nicht bewiesen."},
-      {"question":"Welche Belege führen zu den beiden früheren Betreibern?","possibilities":["Eine falsche Rückgabe braucht eine ehrliche Korrektur.","Ein Schutzschild gefährdet versehentlich einen anderen Weg.","Dienstplan, Kerben und zweite Wegmarke ergeben gemeinsam den Fundort."],"earnedChange":"Folge 10 belegt Maren und Bela und benennt den Nebelstieg, ohne ihn schon zu öffnen."},
-      {"question":"Wo beginnt der gesperrte Nebelstieg wirklich?","possibilities":["Ein Fährklingelzug verdeckt einen festen Buchtstein.","Eine ungenaue Ortsangabe verhindert die Suchgabe.","Respektierte Privatsphäre ermöglicht einen freiwilligen Hinweis."],"earnedChange":"Bis Folge 15 sind Einstieg und erste Markierungen überprüft; die obere Station bleibt unentdeckt."},
-      {"question":"Wo möchte die Fee heute zu Hause sein?","possibilities":["Spiegellicht ähnelt einer ersehnten Suchspur.","Eine dringende Rückgabe braucht eine verantwortete Ausnahme.","Ein Schriftbeleg verbindet beide Warten, entscheidet aber nicht für die Fee."],"earnedChange":"Folge 20 verbindet geprüfte Wege. Die Fee wählt den See, ohne eine plötzlich vollständige Herkunftserinnerung zu brauchen."},
+  "nebelfee": {
+    "promise": "Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, falschen Verdächtigungen und kleinen unheimlichen Rätseln. Während jedes Abenteuer endet, sucht sie nach der Geschichte eines verlassenen Hauses und einem eigenen Zuhause.",
+    "lead": "Die Nebelfee will anderen den Weg zurückgeben und ihren eigenen Heimweg finden. Sie deutet Hinweise zu schnell, gerade wenn sie ihr Hoffnung machen; sie ist aufmerksam, stolz auf ihre Arbeit und heimlich naschhaft.",
+    "voice": "Leise, genau, mit trockenen Ausflüchten: Das war bestimmt der Wind. Sie kann sich ärgern und widersprechen; nicht in jedem Kapitel verschwinden oder entschuldigen.",
+    "world": "Waldsee mit Uferweg, nahen Gärten und einem alten Fundhaus, der Wegwarte. Zwei verblasste Namen am Haus eröffnen die gemeinsame Suche. Oben am Hügel steht eine zweite Warte; der alte Nebelstieg verbindet beide. Neue Orte werden einzeln und erst bei Bedarf eingeführt.",
+    "rules": [
+      "Eine konkrete Angabe zum vermissten Ding oder Weg UND dessen letztem bekannten Ort lässt den nächsten Abschnitt einer Spur bis zu einer Kreuzung schimmern. Für den nächsten Abschnitt braucht es einen neuen Hinweis; keine Zielortung oder Gedankenleserei.",
+      "Die Fee kann Dinge tragen; beim Verblassen setzt sie sie ab. Getragene Dinge bleiben sichtbar. Laute Geräusche oder Verlegenheit können ihre Kontur schwächen, nicht jede Schwierigkeit lösen.",
+      "Von innen bleibt der gewöhnliche Ausgang der Wegwarte sichtbar, auch wenn der Nebel draußen aufzieht. Das Holzschild ist ein gewöhnlicher Gegenstand. Wünsche, Hüte und Lieder werden nicht plötzlich lebendig."
     ],
-  },
-  funkelflug: {
-    promise: 'Drachenberg-Abenteuer: winzige Flügel, riesige Landeplätze, widerspenstiger Bergwind und eine aufgegebene Wegewarte, in der wieder eine Glocke läutet. Große Drachen können fliegen; gerade die kleinen Zugänge und Bodenwege brauchen Funkelflug.',
-    lead: 'Funkelflug will als richtiger Drache ernst genommen werden. Er kann nicht fliegen und überspielt das mit großen Ansagen. Er kennt kleine Felsgänge, bemerkt Luftzüge und kann hartnäckig an einer Aufgabe bleiben. Seine Hilfsbereitschaft und sein Ruhmverlangen geraten aneinander.',
-    voice: 'Begeistert, vollmundig und bei Gegenwind erfinderisch: Das war eine Zwischenlandung. Er kann trocken nachlegen und auch einmal recht haben. Kein zwanghafter Reim nach jeder Handlung.',
-    world: 'Ein bewohnter Drachenberg mit Bodenwegen, großen Landeplattformen und einer verlassenen Wegewarte neben einer kleinen Höhle. Drei Glockenschläge waren früher das Zeichen für einen offenen Bodenweg. Seit Jahren schweigt die Glocke. Die Berge sind kein Freizeitpark für Gastgeberprüfungen.',
-    rules: ['Funkelflugs Flügel tragen ihn nicht. Sprünge bleiben Sprünge; eine Rettung verleiht ihm keine plötzliche Flugkraft. Sein kleiner Körper erreicht Dinge, die große Drachen nicht erreichen.', 'Beim Niesen können kleine Funken entstehen. Sie folgen seiner Nase, nicht seinem Wunsch. Es gibt kein absichtlich herbeigezaubertes Großfeuer.', 'Wind, Echo und Glocke sind räumlich erklärbar. Die alte Glocke bewegt sich nur, wenn etwas an Seil oder Mechanik zieht. Ein neues Rätsel muss aus einem zuvor gezeigten Detail entstehen.'],
-    ensemble: SERIES_PLAN_FILES.funkelflug.ensemble,
-    episodes: SERIES_PLAN_FILES.funkelflug.episodes,
-    seasonTitles: SERIES_PLAN_FILES.funkelflug.seasonTitles,
-    origin: {"before":"Funkelflug lebt erst seit kurzem in der kleinen Höhle. Niemand betreibt die alte Wegewarte. Er übt einen angeblichen Flugauftritt und kennt die Avatare noch nicht.","arrival":"Die Avatare wandern mit einem eigenen konkreten Vorhaben am Berg entlang. Sie hören hinter einem Felsen eine große Flugankündigung und gehen nachsehen.","encounter":"Sie erleben Funkelflugs niedrigen missglückten Sprung und seine stolze Ausrede. Namen und Anlass ihres Weges werden im Gespräch erklärt.","trouble":"Ein Wanderkorb rutscht in die niedrige Felsspalte neben der Wegewarte. Funkelflug will vor den neuen Zuschauern erst seinen Flugauftritt retten, während der Korb weiter hineinrutscht.","choice":"Er gibt die Flugpose auf und gelangt auf dem Bauch zum Korb. Ein Kind beleuchtet den Verlauf, das andere führt die Rückholleine; bei nur einem Kind folgen die Beiträge nacheinander. Funkelflug zieht den Korb aus eigener Kraft frei.","after":"Die Korbschnur ruckt an einem darunter verknoteten Glockenzug: genau EIN Schlag ist hörbar. Der fremde Holzkeil und die von unten gespannte Schnur eröffnen die Frage nach einem Bewohner unter der Warte. Kein zusätzliches Lagerfeuer- oder Wandergruppenabenteuer."},
-    arcs: [
-      {"question":"Wer benutzt die aufgegebene Wegewarte?","possibilities":["Ein Keil schützt einen berechtigten Vorratsraum.","Verschlossene Postbündel brauchen kleinere Lastenschlitten.","Ein Hörrohr liefert räumlich erklärbare Geräusche."],"earnedChange":"Die Korbschnur erklärt einen Glockenschlag; Mucks und die alten Züge werden nach und nach entdeckt."},
-      {"question":"Wie meldet die Warte wieder einen offenen Bodenweg?","possibilities":["Flugkarte und Bodenroute widersprechen sich.","Zirbels Angeberei zieht einen Glockenzug fest.","Mucks braucht Schutz, bevor der dritte Zug gelöst wird."],"earnedChange":"In Folge 10 funktioniert das bekannte Drei-Schläge-Signal; Funkelflug verzichtet dafür auf den Gipfelauftritt."},
-      {"question":"Wie wird die Winterbrücke am Nordkamm vorbereitet?","possibilities":["Eine Materiallieferung rollt ungewollt los.","Ein Froststreifen erschwert die Erkundung.","Eine Wartungsnische braucht Abdeckung, kein magisches Brückenmoos."],"earnedChange":"Bis Folge 15 ist die Winde erreicht; Material folgt am Führungsseil, Personen bleiben bis zur Abnahme auf dem Hangweg."},
-      {"question":"Welche Verantwortung will Funkelflug übernehmen?","possibilities":["Ein Jungdrache braucht ehrliche kleine Übungsschritte.","Ein Sammler verlangt einen eigenen Arbeitsbereich.","Schneewetter und Ratsbesuch zeigen den bleibenden Wert der Bodenwege."],"earnedChange":"Die geprüfte Brücke und beide Warten arbeiten mit dem vertrauten Signal. Funkelflug bleibt flugunfähig und wird für echte Leistungen anerkannt."},
+    "origin": {
+      "before": "Die Fee kennt ihre Suchgabe, aber nicht mehr ihren eigenen früheren Heimweg. Das Fundhaus ist verlassen; sie hat die Kinder noch nicht getroffen.",
+      "arrival": "Die Kinder sind mit ihrem Hund zum Picknick am Waldsee gekommen. Als er ins Schilf läuft, folgen sie seinen Lauten auf dem Uferweg und treffen auf einen scheinbar allein hüpfenden Stiefel.",
+      "encounter": "Der Stiefel wird von der kaum sichtbaren Fee getragen. Die Kinder sprechen sie an, stellen sich vor und erklären die Hundesuche; erst danach versuchen sie gemeinsam eine Spur zu lesen.",
+      "trouble": "Die Fee verspricht zu schnell einen Heimweg und folgt versehentlich einem Spielzeugstempel-Abdruck. Im Schilf winselt der echte Hund; sein letzter sicherer Ort muss geklärt werden.",
+      "choice": "Die Fee fragt statt weiter zu behaupten. Die Kinder nennen den umgefallenen Picknickkorb und zeigen einen echten Pfotenabdruck; ihre Suchgabe lässt den nächsten Abschnitt des Landwegs schimmern.",
+      "after": "Der Hund kommt zum Picknickplatz zurück. Beim Unterstellen entdecken sie die Wegwarte mit zwei verblassten Namen. Warum erinnert sich die Fee an dieses Haus?"
+    },
+    "arcs": [
+      {
+        "question": "Wem gehörte das Haus, das der Fee vertraut vorkommt?",
+        "possibilities": [
+          "Ein knurrender Postkorb hat eine natürliche Erklärung.",
+          "Ein Kuscheltier braucht einen erkennbaren Besitzer, nicht den lautesten Anspruch.",
+          "Eine unklare Einladung berührt die Angst der Fee, nicht gemeint zu sein."
+        ],
+        "earnedChange": "Bis Folge 5 arbeitet wieder ein Fundregal. Maren ist als ein Name bekannt; die Fee bittet erstmals um Hilfe bei ihrer eigenen Suche."
+      },
+      {
+        "question": "Warum verließen Maren und Bela ihr gemeinsames Haus?",
+        "possibilities": [
+          "Ein Schattenmonster wird durch einen einfachen Lichttest verstanden.",
+          "Ein falsch gestellter Pfeil verlangt ein öffentliches Eingeständnis.",
+          "Ein privater Brief wird erst mit Erlaubnis zum Beleg."
+        ],
+        "earnedChange": "Folge 10 beantwortet die Betreiberfrage durch Belas vorbereitete Antwort: gemeinsamer Betrieb, späterer Umzug nach einem kaputten Höhenweg. Die Fee war Besucherin und erhält eine Einladung."
+      },
+      {
+        "question": "Wie kommen wir gemeinsam zur oberen Warte?",
+        "possibilities": [
+          "Ein falscher Glockenruf behindert eine echte Überfahrt.",
+          "Eine Dose verlangt Rückgabe statt neugieriges Öffnen.",
+          "Ein Rabe muss nicht bestohlen werden, um einen Wegweiser zurückzubekommen."
+        ],
+        "earnedChange": "Bis Folge 15 sind kurze reale Wegabschnitte geprüft, Freunde gewonnen und das Glasdach der oberen Warte sichtbar. Keine Kette aus Rätselgegenständen."
+      },
+      {
+        "question": "Wo möchte die Fee heute zu Hause sein?",
+        "possibilities": [
+          "Ein erhoffter Heimweg entpuppt sich als Spiegellicht.",
+          "Eine gemeinsame Reise wartet auf ein ängstliches Kind.",
+          "Ein Abschiedsgerücht verlangt eine klare persönliche Entscheidung."
+        ],
+        "earnedChange": "Folge 19 klärt die frühere Verbindung zu beiden Häusern; Folge 20 endet mit einem selbst gewählten Zuhause am See und einer gelebten Besuchsfreundschaft."
+      }
     ],
+    ensemble: SERIES_PLAN_FILES["nebelfee"].ensemble,
+    episodes: SERIES_PLAN_FILES["nebelfee"].episodes,
+    seasonTitles: SERIES_PLAN_FILES["nebelfee"].seasonTitles,
   },
-  'graf-griesgram': {
-    promise: 'Eine Beziehungskomödie um ein Haus mit unmöglichen Regeln, verschwundenen Einladungen und Nachbarn, die alle etwas anderes wollen. Hinter jeder Hausordnung steckt eine konkrete alte Geschichte, nicht immer ein trauriges Geheimnis.',
-    lead: 'Der Graf wünscht sich Gesellschaft und fürchtet, dabei die Kontrolle zu verlieren. Er kann hervorragend beobachten, backt heimlich und erinnert sich präzise. Seine selbst geschaffenen Ausnahmen machen seine Regeln immer unbrauchbarer.',
-    voice: 'Förmlich, knapp, mit übergenauen Ausnahmen und trockenem Stolz. Er sagt Besuch ab, während er Tassen hinstellt. Kein belehrender Erwachsener, der in jeder Folge dieselbe Einsamkeit überwindet.',
-    world: 'Ein großes altes Haus mit Garten am Dorf. Der Mittwochstisch war früher offen für Nachbarn; heute stehen die Stühle in der Abstellkammer. Das Haus und seine Gegenstände sind gewöhnlich, nicht heimlich lebendig.',
-    rules: ['Menschen verursachen die Verwicklungen. Keine magische Tür und keine Zufallserbschaft löst einen Konflikt.', 'Johann hat freie Tage und eigene Vorhaben. Der Graf muss selbst handeln. Alte Briefe geben Belege, keine allwissenden Antworten.', 'Einmal begründete Einladungen und Freundschaften bleiben wahr. Der Graf darf grummelig bleiben, ohne nach jeder Folge wieder ganz allein zu sein.'],
-    ensemble: SERIES_PLAN_FILES['graf-griesgram'].ensemble,
-    episodes: SERIES_PLAN_FILES['graf-griesgram'].episodes,
-    seasonTitles: SERIES_PLAN_FILES['graf-griesgram'].seasonTitles,
-    origin: { before: 'Der Mittwochstisch ist geschlossen. Der Graf hat eine widersprüchliche Probeeinladung geschrieben und traut sich nicht, sie abzuschicken.', arrival: 'Die Avatare haben im Dorf einen eigenen Anlass, etwa einen ausgeliehenen Gegenstand zurückzubringen. Auf dem Weg finden sie die vom Grafen absichtlich am Gartentor angeheftete widersprüchliche Einladung und folgen ihrer Wegbeschreibung.', encounter: 'Der Graf stellt sich hinter dem halb geöffneten Tor mit einer Hausregel vor. Die Kinder nennen ihren Anlass und ihre Namen. Sie kennen weder ihn noch sein Haus.', trouble: 'Die Einladung verbietet den Besuch und verlangt zugleich Pünktlichkeit. Ein Avatar nimmt das Verbot ernst und will gehen; der Graf erschwert mit einer Ausrede selbst die letzte Chance auf Gesellschaft.', choice: 'Die Kinder bieten eine konkrete Form des Besuchs an, die ihm Raum lässt, aber nicht seiner widersprüchlichen Regel folgt. Er muss sichtbar eine Ausnahme unterschreiben und einen Stuhl aus seiner geordneten Kammer holen.', after: 'Der erste gemeinsame Mittwochstisch findet statt. Ein alter unverschickter Brief hat einen anderen Absender, als der Graf erwartet. Das neue persönliche Hausritual bleibt erhalten; sein Verhältnis zu den Nachbarn ist noch offen.' },
-    arcs: [
-      {"question":"Wie entsteht trotz der Verbote ein echter Mittwochstisch?","possibilities":["Johann hat eigene freie Zeit.","Der Graf muss eine widersprüchliche Regel tatsächlich ändern.","Adas Holzspringer liefert ein überprüfbares Zeichen."],"earnedChange":"Der erste Tisch öffnet schon in Folge 1. Zwölf Stühle und der freie dreizehnte Kinderplatz werden nachvollziehbar gezählt."},
-      {"question":"Was beendete die alte Runde vor zehn Jahren?","possibilities":["Gästebuch und Kärtchen belegen dieselben zwölf alten Plätze.","Der geschnitzte Goldapfel lag im früheren Suchkörbchen, statt gestohlen worden zu sein.","Ein neuer Gartenplatz verlangt aktives Anpacken statt nur eine Öffnungsrede."],"earnedChange":"Folge 10 erweitert den Tisch um Garten und Kinderstuhl und kündigt das unvollendete Dorfturnier an."},
-      {"question":"Kann der Graf auch nach fremden Regeln mitspielen?","possibilities":["Bei Ada ist der Graf selbst Gast.","Musiker passen nicht zu seiner stillen Einladung.","Ein Probeschlag und eine faire Revanche liefern die letzten Tafeln."],"earnedChange":"In Folge 15 sind drei Spieltafeln vorhanden; Johann ist Vorrundensieger, das Dorf-Finale bleibt offen."},
-      {"question":"Wem gehören die Geschichte und die Hausordnung?","possibilities":["Die Brunnenanekdote braucht Belege statt einen neuen Schuldigen.","Ruhe und Gesellschaft dürfen beide Platz haben.","Eine vorab vereinbarte Gleichstandsregel macht das Teilen des Pokals fair."],"earnedChange":"Folge 20 macht aus der einseitigen Ordnung eine verhandelbare Tafel; der Graf bleibt genau und grummelig."},
+  "funkelflug": {
+    "promise": "Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große Ansagen oft zuerst landen. Rettungen, Rivalität und komische Irrtümer machen seine kleinen Bodenwege wertvoll. Aus einem Außenseiter wird ein Gastgeber, bei dem Kleine und Große wirklich mitmachen können.",
+    "lead": "Funkelflug will als richtiger Drache ernst genommen werden. Er kann nicht fliegen und überspielt das mit großen Ansagen. Er kennt kleine Felsgänge, bemerkt Luftzüge und kann hartnäckig an einer Aufgabe bleiben. Seine Hilfsbereitschaft und sein Ruhmverlangen geraten aneinander.",
+    "voice": "Begeistert, vollmundig und bei Gegenwind erfinderisch: Das war eine Zwischenlandung. Er kann trocken nachlegen und auch einmal recht haben. Kein zwanghafter Reim nach jeder Handlung.",
+    "world": "Ein bewohnter Drachenberg mit Bodenwegen, großen Landeplätzen und einer verlassenen Wegewarte. Neben der kleinen Höhle hängt eine seit Jahren stumme gewöhnliche Glocke mit einer einfachen Zugschnur. Wer die Warte noch benutzt und welche Wege sie verbindet, wird erst durch die jeweiligen Abenteuer bekannt.",
+    "rules": [
+      "Funkelflugs Flügel tragen ihn nicht. Sprünge bleiben Sprünge; eine Rettung verleiht ihm keine plötzliche Flugkraft. Sein kleiner Körper erreicht Dinge, die große Drachen nicht erreichen.",
+      "Beim Niesen können kleine Funken entstehen. Sie folgen seiner Nase, nicht seinem Wunsch. Es gibt kein absichtlich herbeigezaubertes Großfeuer.",
+      "Wind, Echo und Glocke haben sichtbare räumliche Ursachen. Drei Schläge entstehen durch drei Züge an derselben einfachen Schnur, nicht durch drei zu sammelnde Maschinenteile. Ein ungeprüfter Weg wird nicht durch ein Signal sicher."
     ],
-  },
-  'kapitaen-blubbert': {
-    promise: 'Inselreisen mit falschen Karten, eigenwilliger Fracht und einem Kapitän, der fremde Einfälle zu gern zu seinen erklärt. Eine Insel mit einem steinernen Tor fehlt auf allen aktuellen Karten.',
-    lead: 'Blubbert will als Entdecker gelten und niemanden zurücklassen. Er ist ein guter Seemann, aber hört Einwände zu spät. Ein Avatar kann sich irren, während Blubberts Erfahrung die Gruppe weiterbringt.',
-    voice: 'Seemännisch, bildhaft, kurze große Ansagen. Einen hervorragenden Einfall der anderen nennt er gern eine Idee des Kapitäns. Der Gag wird später gegen ihn gewendet.',
-    world: 'Ein Küstenhafen, ein kleines Segelboot mit sichtbaren Arbeitsplätzen und Inseln mit eigenen Bewohnern und Regeln. Die Ursprungsreise bleibt nah an der Küste und ist Blubberts erste verantwortliche Fahrt als Kapitän. Pia fährt als erfahrene Bootsbauerin mit; Blubbert trifft die Entscheidungen und steuert.',
-    rules: ['Der Muschelkompass zeigt nur zu einem hinreichend bekannten Ort, den die Reisenden mit einer echten Ortsangabe benennen können. Eine Insel aus einer vagen Geschichte reicht nicht.', 'Die Anwesenden legen gemeinsam ein Ortsplättchen in die Muschelschale und richten sie offen aus. Das ist eine sichtbare gemeinsame Handlung, kein Gedanken- oder Lügendetektor.', 'Der Kompass zeigt eine Richtung, keine sichere Route, kein Wetter und keine Gegenstände. Karten, Strömung und Erfahrung bleiben nötig. Die Crew kann ihr Ziel gemeinsam ändern.'],
-    ensemble: SERIES_PLAN_FILES['kapitaen-blubbert'].ensemble,
-    episodes: SERIES_PLAN_FILES['kapitaen-blubbert'].episodes,
-    seasonTitles: SERIES_PLAN_FILES['kapitaen-blubbert'].seasonTitles,
-    origin: { before: 'Blubbert bereitet seine erste Fahrt als Kapitän vor. Der Muschelkompass wird erst in dieser Folge gefunden und verstanden.', arrival: 'Die Avatare kommen zum Hafen, um einen Geburtstagskuchen zur Feier auf der Papiermacherinsel zu bringen. Ihr Weg über den Kai und der Anlass der Reise werden erzählt.', encounter: 'Ein übertriebenes Beladekommando von Blubbert führt zu einer komischen Begegnung. Namen, Rollen und die Teilnahme an der Fahrt ergeben sich im Gespräch am Boot.', trouble: 'Blubbert will den Weg allein finden und fährt im Kreis, während das Geburtstagskind auf den Kuchen wartet. Ein zunächst unbrauchbar erscheinender Muschelkompass wird entdeckt; die erfahrene Pia ist bei der Küstenfahrt dabei.', choice: 'Blubbert hört auf die Kinder und teilt die Zielwahl. Die Crew nennt den bekannten Inselsteg und legt das Plättchen gemeinsam offen in die Schale; Blubbert steuert den sicheren Weg selbst.', after: 'Das Geburtstagskind bekommt seinen Kuchen und die Crew feiert mit. Beim Säubern eines gewöhnlichen alten Ortsplättchens entdecken sie ein bereits eingeritztes steinernes Tor, das zu keiner aktuellen Karte passt; daraus folgt die größere Suche.' },
-    arcs: [
-      {"question":"Zu welchem Ort gehört das steinerne Tor?","possibilities":["Ein Kompasskurs ersetzt weder Karte noch Zielkenntnis.","Empfindliche Fracht konkurriert um Platz.","Eine Möwe zeigt eine Boje, keine sichere Route."],"earnedChange":"Bis Folge 5 grenzen gewöhnliche Ortsbelege das Revier ein; Schere-West ist die Sandbank, nicht schon die Torhausinsel."},
-      {"question":"Wer kennt die ausgelassene Insel und ihre Landeregeln?","possibilities":["Eine Peilung verbindet Ufermarke und Karte.","Ein altes Fahrtenbuch braucht heutige Gezeitendaten.","Der Kartograf verlangt konkrete Schutzabsprachen und Blubbert verzichtet auf sein Namensschild."],"earnedChange":"In Folge 10 wird Scherensand mit Erlaubnis erreicht, die Lieferung erfüllt und der vorhandene Inselname respektiert."},
-      {"question":"Was wurde aus dem Schwesterschiff Sternschnuppe?","possibilities":["Ein zu großes Zierrad enthält eine gewöhnliche Schiffsnummer.","Boje und Laterne grenzen das Revier ein.","Windtöne benennen einen Felsen, während das Lot die Tiefe prüft."],"earnedChange":"In Folge 15 wird es als bewohnte Reparaturstation gefunden, nicht als herrenloser Schatz."},
-      {"question":"Wie wird aus einer Wiederentdeckung eine gemeinsame Route?","possibilities":["Pias Lehrmeisterin braucht eine reale Reparatur.","Kalli muss Horn und Entenpfeife auseinanderhalten.","Blubbert teilt die Steueraufgaben und erkennt fremde Beiträge ausdrücklich an."],"earnedChange":"Folge 20 bestätigt die Mannschaftsleistung; aktuelle Ortskenntnis bereitet erst jetzt eine neue Reise vor."},
+    "origin": {
+      "before": "Funkelflug lebt neben der stillgelegten Wegewarte und übt seinen angeblichen Flugauftritt. Seine Flügel tragen ihn nicht; niemand muss ihm eine künstliche Mutprüfung stellen.",
+      "arrival": "Die Kinder kommen über den Wanderweg zur Bergwiese, um dort ihren Papierdrachen steigen zu lassen. Eine vollmundige Flugankündigung hinter einem Felsen macht sie neugierig.",
+      "encounter": "Sie sehen Funkelflugs Bauchlandung und seinen Versuch, sie als Besichtigung auszugeben. Beim Einsammeln des Papierdrachens nennen alle ihre Namen, bevor sie ein Fiepen hören.",
+      "trouble": "Ein Igel steckt hinter einer leichten Holzplatte am niedrigen Felszugang. Funkelflug möchte vor den neuen Zuschauern noch als großer Flieger wirken; große Hände erreichen die Innenseite nicht.",
+      "choice": "Er kriecht durch die kleine offene Lücke, während die Kinder den freien Rand beleuchten. Er schiebt die leichte Platte von innen zur Seite und befreit das Tier.",
+      "after": "Der Igel läuft frei. Die sichtbare an der Platte liegende Glockenschnur bewegt sich: genau EIN Schlag. Der erste Dank gilt Funkelflugs wirklicher Stärke; warum wurde die Glocke festgelegt?"
+    },
+    "arcs": [
+      {
+        "question": "Kann ein Drache ohne Flugkraft dazugehören?",
+        "possibilities": [
+          "Eine kleine Rettung gelingt gerade durch Funkelflugs Größe.",
+          "Mucks will seinen Schlafplatz behalten.",
+          "Der Treffpunkt braucht Platz für Omas großen Körper und ehrliche Angst vor seltsamen Geräuschen."
+        ],
+        "earnedChange": "Bis Folge 5 ist die Glockenfunktion bekannt, Mucks Einwand verstanden und ein möglicher Bodenweg entdeckt. Funkelflug wird für konkrete Taten gebraucht."
+      },
+      {
+        "question": "Kann die alte Warte einen Weg für alle eröffnen?",
+        "possibilities": [
+          "Eine verlorene Wette verlangt keinen gefährlichen Sprung.",
+          "Eine Flugkarte hilft Fußgängern nicht.",
+          "Ein angekündigter Durchgang braucht die Zustimmung seines Nachbarn."
+        ],
+        "earnedChange": "Folge 10 erfüllt das Ziel: Die erste Gruppe geht den geprüften Bodenweg; drei Glockenschläge melden die tatsächliche Öffnung. Funkelflug wählt Verantwortung statt Auftritt."
+      },
+      {
+        "question": "Wie kommen Kleine und Große zu einem gemeinsamen Winterfest?",
+        "possibilities": [
+          "Platz, faire Wettkämpfe und Vorräte erzeugen unterschiedliche Konflikte.",
+          "Ein schöner Festplatz kann zu windig sein.",
+          "Ein wackliges Brückenbrett verlangt einen Umweg und fachkundige Reparatur statt Heldentum."
+        ],
+        "earnedChange": "Bis Folge 15 stehen ein geschützter Festplatz und die geprüfte Brücke zur Verfügung. Die Gruppe hat sichtbare faire Absprachen getroffen."
+      },
+      {
+        "question": "Darf Funkelflugs eigene Idee genauso viel zählen wie Flugkunst?",
+        "possibilities": [
+          "Ein Nachmacher braucht ein ehrliches Vorbild.",
+          "Neue Spiele brauchen eigene Zustimmung, nicht alte Wegrechte.",
+          "Wetter und eine einseitige Jury verlangen Änderungen am Fest."
+        ],
+        "earnedChange": "Folge 20 lässt das vorbereitete Bodenfest wirklich stattfinden, auch für große Drachen. Funkelflug bleibt flugunfähig, aber seine Idee ist ein fester Teil des Berglebens."
+      }
     ],
+    ensemble: SERIES_PLAN_FILES["funkelflug"].ensemble,
+    episodes: SERIES_PLAN_FILES["funkelflug"].episodes,
+    seasonTitles: SERIES_PLAN_FILES["funkelflug"].seasonTitles,
   },
-  'tilda-tueftel': {
-    promise: 'Werkstattabenteuer mit klugen Erfindungen, unerwarteten Nutzern und einer alten Maschine, die zu mehreren früheren Aufgaben passt. Erfinden ist Ausprobieren, Bewahren und manchmal bewusstes Nichtbauen.',
-    lead: 'Tilda ist erfinderisch, ehrgeizig und liebt ihre unscheinbare Lieblingsklammer. Sie möchte beeindrucken und übersieht manchmal den tatsächlichen Gebrauch. Sie kann komplizierte Dinge gut bauen; die einfachste Idee gewinnt nicht grundsätzlich.',
-    voice: 'Schnelle genaue Wörter für Dinge, begeistert beim Vorführen, trocken beleidigt bei unvernünftiger Nutzung. Sie hört zu, darf widersprechen und braucht keine Lehrsatzrede.',
-    world: 'Eine Dorfwerkstatt mit Ideenfenster, Hof und alten reparierbaren Geräten. Das Ideenfenster wird erst nach dem Ursprung geöffnet. Im Schuppen steht ein unvollständiger mechanischer Apparat mit mehreren passenden Anbaustellen.',
-    rules: ['Erfindungen folgen sichtbarer Mechanik, Material und Nutzung. Keine Universalmaschine, keine heimlich magische Batterie.', 'Ein Test hat erkennbare Bedingungen; Fehler verändern die Lage. Ein Erwachsener übernimmt gefährliche Handgriffe, nicht die ganze Problemlösung.', 'Erfolgreiche Entwürfe und Erfahrungen bleiben erhalten. Neue Wünsche erzeugen neue Konflikte statt dieselbe Nachfragelektion zu wiederholen.'],
-    ensemble: SERIES_PLAN_FILES['tilda-tueftel'].ensemble,
-    episodes: SERIES_PLAN_FILES['tilda-tueftel'].episodes,
-    seasonTitles: SERIES_PLAN_FILES['tilda-tueftel'].seasonTitles,
-    origin: { before: 'Tilda arbeitet allein hinter geschlossenem Fenster und schämt sich für ihre einfache Lieblingsklammer. Eine versprochene Bücherlieferung soll ihre erste große Vorführung werden.', arrival: 'Die Avatare bringen im Rahmen dieser Lieferung eine Kiste oder einen Reparaturauftrag in den Werkstatthof. Erzähle ihren konkreten Grund und den Weg zur verschlossenen Werkstatttür.', encounter: 'Eine widerspenstige Klingel oder die falsche Probe einer Vorführmaschine führt zum ersten Gespräch. Tilda nennt sich und die Kinder erklären ihre Aufgabe; kein bereits eingespieltes Werkstattteam.', trouble: 'Tilda führt ihren Bücherwagen auf ebenem Hof vor. Auf dem vorgesehenen sicheren Teststück zeigt sich das übersehene Gefälle oder eine unpassende Griffhöhe. Ein Avatar hatte eine sinnvolle Anforderung genannt, die sie überging; die Lieferung verzögert sich.', choice: 'Die Kinder vergleichen selbst zwei überprüfbare Lösungen. Tilda entscheidet, eine bewährte kleine Komponente zu erhalten, statt alles zu ersetzen. Ihre Konstruktion und die Beobachtung der Kinder werden beide gebraucht.', after: 'Die Lieferung gelingt mit sichtbarer Änderung. Auf konkrete Nachfrage der anderen öffnet Tilda ein Ideenfenster. Ein Teil des alten Apparats passt überraschend zur Lieblingsklammer: Welche frühere Aufgabe hatte diese Maschine?' },
-    arcs: [
-      {"question":"Wofür wurde der alte Apparat gebaut?","possibilities":["Ein Bücherwagen muss wirklich ausgeliefert werden.","Farben kennzeichnen eine reparierte Mechanik, ersetzen sie aber nicht.","Kunos Kleinteil und Tildas große Konstruktion ergänzen sich."],"earnedChange":"Bis Folge 5 sind Halter, Zahnkranz und Rinne als echte alte Bauteile erkannt, nicht jede Funktion schon verstanden."},
-      {"question":"Was bringt das Marktspielwerk wieder zum Klingen?","possibilities":["Eine gefundene Feder bleibt Eigentum ihres Besitzers.","Walzenstifte, Klangstäbe und Notenkarte belegen die Melodie.","Typenschild und Halterskizze erklären Arturs Klammer."],"earnedChange":"Folge 10 zeigt das wiederhergestellte Marktspielwerk; die Klammer wird ausdrücklich vom gesicherten Wagen dorthin umgesetzt."},
-      {"question":"Wie ergeben drei Pläne eine heutige Bach-Drehbühne?","possibilities":["Die Brötchenbahn muss in einer echten Lieferung funktionieren.","Eine größere Kupplung hilft Kunos kleinem Aufwickler.","Ein Schwimmer löst nur eine leichte Klinke aus, ein Gewicht liefert die Kraft."],"earnedChange":"In Folge 15 liegen alle drei Pläne vor und die vorhandenen Lagerböcke sind gefunden; Wasserführung und Tragwerk brauchen noch Arbeit."},
-      {"question":"Wie kann die Werkstatt eine gemeinsame Vorführung tragen?","possibilities":["Die kleine Seitenrinne wird präzise eingestellt.","Bühnenlager und Not-Halt werden vor Publikumseinsatz geprüft.","Getrennte Startstationen bleiben erhalten, eine vergessene Transportlasche erzeugt einen neuen konkreten Fehler."],"earnedChange":"Folge 20 nutzt den vorbereiteten unabhängigen Not-Halt; Tilda gibt Bedienung ab und bleibt verantwortlich für ihren Entwurf."},
+  "graf-griesgram": {
+    "promise": "Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, aber am liebsten nach lauter unmöglichen Regeln. Die Kinder widersprechen ihm mit eigenen Wünschen. Ein leerer Kinderplatz und ein alter Streit entwickeln sich zu einem gemeinsamen Mittwochstisch und einem fairen Dorfturnier.",
+    "lead": "Der Graf wünscht sich Gesellschaft und fürchtet, dabei die Kontrolle zu verlieren. Er kann hervorragend beobachten, backt heimlich und erinnert sich präzise. Seine selbst geschaffenen Ausnahmen machen seine Regeln immer unbrauchbarer.",
+    "voice": "Förmlich, knapp, mit übergenauen Ausnahmen und trockenem Stolz. Er sagt Besuch ab, während er Tassen hinstellt. Kein belehrender Erwachsener, der in jeder Folge dieselbe Einsamkeit überwindet.",
+    "world": "Ein gewöhnliches großes Haus mit Garten am Dorf. Früher traf sich dort eine Runde aus Nachbarn; zwölf alte Stühle und ein Kinderplatz erinnern daran. Warum die Runde endete, erschließt sich erst aus den einzelnen Abenteuern. Briefe, Bilder und Beteiligte liefern begrenzte Belege, keine Geheimfach-Schnitzeljagd.",
+    "rules": [
+      "Menschen verursachen die Verwicklungen. Keine magische Tür und keine Zufallserbschaft löst einen Konflikt.",
+      "Auch Angestellte haben freie Tage und eigene Vorhaben. Der Graf muss selbst handeln. Alte Briefe geben Belege, keine allwissenden Antworten.",
+      "Einmal begründete Einladungen und Freundschaften bleiben wahr. Der Graf darf grummelig bleiben, ohne nach jeder Folge wieder ganz allein zu sein."
     ],
+    "origin": {
+      "before": "Der Graf lebt zurückgezogen mit strenger Hausordnung. Der Mittwochstisch ist geschlossen, die alte Runde zerstritten. Seine Regeln schützen vor Unordnung und verhindern zugleich den Besuch, den er gern hätte.",
+      "arrival": "Die Kinder lassen auf der Dorfwiese ihren selbst gebauten Papierdrachen steigen. Als er im benachbarten Garten landet, gehen sie zum Tor des Grafen und klingeln, um ihn zurückzuholen.",
+      "encounter": "Der Graf erscheint mit einer umständlichen Fluggeräte-Regel. Die Kinder nennen sich und erklären, dass der Drache ihnen gehört; er stellt sich als Besitzer des Gartens vor.",
+      "trouble": "Der Drache hängt am niedrigen Rosenbogen und beginnt zu reißen. Der Graf besteht auf seiner gerade erfundenen Erlaubnis, während der Wind seine eigenen Papiere verteilt.",
+      "choice": "Er gibt den Kindern Zugang und hält den erreichbaren Ast zurück. Sie lösen die Schnur und retten den Drachen; der Graf ersetzt sein Verbot durch eine einfache Bitte.",
+      "after": "Er lädt sie tatsächlich zum Kakao ein. Beim Holen eines Stuhls wird der leere dreizehnte Kinderplatz sichtbar. Das neue Treffen beginnt; der alte Streit ist noch nicht gelöst."
+    },
+    "arcs": [
+      {
+        "question": "Kann aus einer Ausnahme ein echter Besuch werden?",
+        "possibilities": [
+          "Johanns freier Tag bleibt frei.",
+          "Ein missglücktes Gespensterspiel muss die Angst der Kinder ernst nehmen.",
+          "Adas Eigentum und ein müdes Kind sind wichtiger als die neue Regel."
+        ],
+        "earnedChange": "Bis Folge 5 sitzt wieder ein Kind am Mittwochstisch. Ada kehrt für eine Runde zurück; der goldene Apfel wird als Holz-Spielpreis eingeordnet."
+      },
+      {
+        "question": "Was beendete die frühere Freundschaft?",
+        "possibilities": [
+          "Krümelangst und eine fehlgeleitete Einladung belasten heutige Besuche.",
+          "Ein vorschneller Keksverdacht macht die alte Beschuldigung überprüfbar.",
+          "Der vorbereitete Spielkorb widerlegt den vermeintlichen Diebstahl."
+        ],
+        "earnedChange": "Folge 9 beantwortet den Apfelstreit, Folge 10 zeigt die erneuerte große Runde. Der Graf entschuldigt sich; Ada entscheidet selbst über den neuen Anfang."
+      },
+      {
+        "question": "Kann der Graf auch bei anderen und gegen andere mitspielen?",
+        "possibilities": [
+          "Als Gast muss er selbst eine Hausregel akzeptieren.",
+          "Eine echte Einladung braucht keine Verbotsliste.",
+          "Gleiche Zeit und unveränderte Regeln gelten auch, wenn Johann gewinnt."
+        ],
+        "earnedChange": "Bis Folge 15 sind echte Teilnehmer und faire Grundregeln vereinbart. Johann wird als gleichwertiger Mitspieler anerkannt."
+      },
+      {
+        "question": "Halten die gemeinsamen Regeln auch unter Druck?",
+        "possibilities": [
+          "Eine peinliche Geschichte braucht Zustimmung.",
+          "Lärm und Ruhe werden räumlich verabredet.",
+          "Ein Gleichstand prüft die vorher vereinbarte Regel im öffentlichen Finale."
+        ],
+        "earnedChange": "Das Turnier endet in Folge 19. Folge 20 zeigt eine eigenständig geleitete Kinderstunde und eine gemeinsam veränderbare Hausordnung; der Graf bleibt grummelig und verbunden."
+      }
+    ],
+    ensemble: SERIES_PLAN_FILES["graf-griesgram"].ensemble,
+    episodes: SERIES_PLAN_FILES["graf-griesgram"].episodes,
+    seasonTitles: SERIES_PLAN_FILES["graf-griesgram"].seasonTitles,
   },
+  "kapitaen-blubbert": {
+    "promise": "Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches Seeungeheuer und eine Insel, die absichtlich auf keiner Karte steht. Blubbert möchte als großer Entdecker gelten und lernt, dass eine gute Mannschaft und ein geschützter Ort wichtiger sein können. Später sucht die Crew Pias frühere Lehrmeisterin auf der Sternschnuppe.",
+    "lead": "Blubbert will als Entdecker gelten und niemanden zurücklassen. Er ist ein guter Seemann, aber hört Einwände zu spät. Ein Avatar kann sich irren, während Blubberts Erfahrung die Gruppe weiterbringt.",
+    "voice": "Seemännisch, bildhaft, kurze große Ansagen. Einen hervorragenden Einfall der anderen nennt er gern eine Idee des Kapitäns. Der Gag wird später gegen ihn gewendet.",
+    "world": "Ein übersichtlicher Küstenhafen und das kleine Segelboot Seegras. Die erste Fahrt bleibt nah am Hafen; die erfahrene Bootsbauerin Pia begleitet sie. Ein Steintor auf einem alten Ortsplättchen passt zu keiner aktuellen Karte; die Erklärung folgt erst aus den vorgesehenen Entdeckungen. Neue Ziele werden nacheinander gezeigt, nicht als Navigationsinventar aufgezählt.",
+    "rules": [
+      "Der Muschelkompass zeigt nur zu einem hinreichend bekannten Ort, den die Reisenden mit einer echten Ortsangabe benennen können. Eine Insel aus einer vagen Geschichte reicht nicht.",
+      "Die Anwesenden legen gemeinsam ein Ortsplättchen in die Muschelschale und richten sie offen aus. Das ist eine sichtbare gemeinsame Handlung, kein Gedanken- oder Lügendetektor.",
+      "Der Kompass zeigt eine Richtung, keine sichere Route, kein Wetter und keine Gegenstände. Karten, Strömung und Erfahrung bleiben nötig. Die Crew kann ihr Ziel gemeinsam ändern."
+    ],
+    "origin": {
+      "before": "Blubbert bereitet seine erste verantwortliche Fahrt als Kapitän vor. Pia ist als erfahrene Bootsbauerin dabei. Die Avatare, der Kompass und die gemeinsame Suchfrage sind noch nicht eingeführt.",
+      "arrival": "Die Kinder kommen über den Hafensteg, weil sie das kleine Segelboot ansehen wollen. Ein bellender Hund und Blubberts empörte Ansprache machen sie auf einen Seehund auf dem Kapitänssitz aufmerksam.",
+      "encounter": "Blubbert erklärt dem Tier seine Sitzordnung, Pia erklärt den Kindern die Lage. Erst stellen sich alle vor und vereinbaren die Mitfahrt; die Kinder sind keine schon eingespielte Mannschaft.",
+      "trouble": "Der Seehund flüchtete vom niedrigen Steg vor einem Hund aufs Boot und wagt sich nicht zurück. Blubbert möchte seinen Vorführplan einhalten; aus der nahen Bucht ruft die Mutter.",
+      "choice": "Die Crew schafft Abstand zum Hund. Blubbert ändert sein Ziel zur bekannten ruhigen Bucht, Pia hilft beim Boot; die Kinder beobachten und halten Abstand zum Tier.",
+      "after": "Am niedrigen Strandsteg geht der Seehund selbst ins Wasser zu seiner Mutter. Bei der Kartensuche wird ein Muschelkompass mit einem alten Steintor-Plättchen gefunden. Pia kennt das Tor aus einem Bild; warum fehlt es heute auf der Karte?"
+    },
+    "arcs": [
+      {
+        "question": "Ist das Steintor ein wirklicher Ort?",
+        "possibilities": [
+          "Ein Tier braucht Abstand statt einen Kapitänsbefehl.",
+          "Ein vermeintliches Monster hat eine sichtbare Ursache.",
+          "Piratenverdacht und eine schrumpfende Sandbank prüfen Blubberts schnelle Deutungen."
+        ],
+        "earnedChange": "Bis Folge 5 heißt die Insel Scherensand. Ein Foto verbindet das Tor mit Ruheplätzen für Seehunde; der Grund ihres Fehlens bleibt noch offen."
+      },
+      {
+        "question": "Warum soll niemand die Insel finden?",
+        "possibilities": [
+          "Ein losgetriebenes leeres Boot verlangt Verantwortung statt Festrede.",
+          "Kallis Geisterschiff führt zu echtem Nachfragen.",
+          "Ein Kartograf verlangt Schutz und Blubbert verzichtet auf das Entdeckerrennen."
+        ],
+        "earnedChange": "Folge 8 erklärt den Schutzgrund. Folge 10 zeigt den erlaubten Besuch und eine echte kleine Befreiung hinter dem Tor; ein Bild eröffnet erst danach Pias Suche."
+      },
+      {
+        "question": "Wo ist die Sternschnuppe und will Pia ihre Lehrmeisterin wiedersehen?",
+        "possibilities": [
+          "Ein Schiffsname ist kein eindeutiger Beleg.",
+          "Ein vermeintlicher Schatz gehört zu einem gewöhnlichen Fernglas.",
+          "Eine Nachricht gibt der gesuchten Person und Pia eine eigene Entscheidung."
+        ],
+        "earnedChange": "Folge 15 findet die Sternschnuppe als bewohnte Station. Die Lehrmeisterin hat auf die Nachricht geantwortet; das persönliche Wiedersehen ist verabredet."
+      },
+      {
+        "question": "Wie wird aus der Suche eine verlässliche Zusammenarbeit?",
+        "possibilities": [
+          "Pia und ihre Lehrmeisterin sprechen den alten Streit selbst an.",
+          "Klare Zeichen und geteilte Beobachtungsaufgaben machen die Küstenrunde möglich.",
+          "Fremdes Gepäck wird zurückgegeben; Windstille verlangt einen kleineren Plan."
+        ],
+        "earnedChange": "Folge 20 zeigt die gelungene gemeinsame Küstenrunde und Blubberts ehrliche Anerkennung aller Beiträge. Eine reale Einladung öffnet den Ausblick zu den Bernstein-Schären."
+      }
+    ],
+    ensemble: SERIES_PLAN_FILES["kapitaen-blubbert"].ensemble,
+    episodes: SERIES_PLAN_FILES["kapitaen-blubbert"].episodes,
+    seasonTitles: SERIES_PLAN_FILES["kapitaen-blubbert"].seasonTitles,
+  },
+  "tilda-tueftel": {
+    "promise": "Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an ganz gewöhnlichen Wünschen vorbeigehen. Ein verschluckter Teddy, eine unmögliche Burg und eine vorlaute Gans verlangen Einfallsreichtum und echte Entscheidungen. Aus Arturs altem Bilder-Spielwerk wächst eine eigene gemeinsame Erfinderschau.",
+    "lead": "Tilda ist erfinderisch, ehrgeizig und liebt ihre unscheinbare Lieblingsklammer. Sie möchte beeindrucken und muss manchmal ihre schönste Idee verändern, wenn sie an den wirklichen Wünschen anderer vorbeigeht. Sie kann zuhören lernen, ohne ihre Neugier und ihren eigenen Willen zu verlieren.",
+    "voice": "Schnelle genaue Wörter für Dinge, begeistert beim Vorführen, trocken beleidigt bei unvernünftiger Nutzung. Sie hört zu, darf widersprechen und braucht keine Lehrsatzrede.",
+    "world": "Eine Dorfwerkstatt mit Ideenfenster, flachem Hof und Schuppen. Erfindungen haben sichtbare einfache Funktionen statt verschachtelter Mechanik. Im Schuppen steht ein staubiger Kasten mit einer kleinen Öffnung und Arturs Handschrift; sein Zweck wird erst in den vorgesehenen Abenteuern erschlossen. Das Ideenfenster öffnet sich nach der ersten Begegnung.",
+    "rules": [
+      "Erfindungen folgen sichtbarer Mechanik, Material und Nutzung. Keine Universalmaschine, keine heimlich magische Batterie.",
+      "Ein Test hat erkennbare Bedingungen; Fehler verändern die Lage. Ein Erwachsener übernimmt gefährliche Handgriffe, nicht die ganze Problemlösung.",
+      "Erfolgreiche Entwürfe und Erfahrungen bleiben erhalten. Neue Wünsche erzeugen neue Konflikte statt dieselbe Nachfragelektion zu wiederholen."
+    ],
+    "origin": {
+      "before": "Tilda tüftelt allein hinter dem geschlossenen Fenster. Sie möchte mit einer Aufräummaschine beeindrucken und hat noch keine gemeinsame Ideenwerkstatt. Ihre einfache Lieblingsklammer ist nur ein nützliches Werkzeug.",
+      "arrival": "Die Kinder gehen vom Dorfplatz zu Tildas Werkstatt, weil die Naht ihres geliebten Teddys locker ist. Sie wollen ihn reparieren lassen und treffen Tilda beim Ausprobieren der Maschine.",
+      "encounter": "Tilda begrüßt die unbekannten Kinder, stellt sich und ihr Gerät vor. Die Kinder nennen ihre Namen und den Reparaturwunsch, bevor Tilda zu ihrer Vorführung ansetzt.",
+      "trouble": "Ein pedalbewegter Besen schiebt aus Versehen den Teddy in die Sammelkiste. Tildas rückwärtiger Versuch wirbelt Tücher umher, statt den Teddy aus der Ecke hinter der Schauseite zu holen.",
+      "choice": "Tilda stoppt und nimmt ihre schön gestaltete Front ab. Die Kinder entdecken das Band und bergen den Teddy. Danach reparieren sie gemeinsam die ursprüngliche lockere Naht, mit der Klammer als Stoffhalter.",
+      "after": "Das Kind hat den Teddy heil zurück. Tilda öffnet das Ideenfenster für wirkliche Wünsche. Beim Wegräumen sehen sie Arturs staubigen Bühnenkasten und fragen, wofür er gedacht war."
+    },
+    "arcs": [
+      {
+        "question": "Was wollte Artur mit dem alten Bühnenkasten zeigen?",
+        "possibilities": [
+          "Ein geliebtes Spielzeug ist wichtiger als die Vorführfassade.",
+          "Ein gemalter Knopf erklärt ein Missverständnis am neuen Fenster.",
+          "Kleine und große Burgen sowie ein verdrängter Kinderauftritt zeigen verschiedene Wünsche."
+        ],
+        "earnedChange": "Bis Folge 5 belegt ein normales Foto eine gemeinsame Dorfaufführung. Tilda beginnt, den Kasten als Bühne statt als unbekannte Universalmaschine zu verstehen."
+      },
+      {
+        "question": "Wer darf das alte Spielwerk heute zu Ende erfinden?",
+        "possibilities": [
+          "Kunos Lieblingsknopf bleibt sein Eigentum.",
+          "Rostig verteidigt ihren gewöhnlichen Schlafplatz.",
+          "Drei rückwärts gezeigte Bilder und ein gemeinsam gelerntes Lied erschließen das Werk."
+        ],
+        "earnedChange": "Folge 10 zeigt ein vollständiges Stück mit selbst gezeichnetem Ende. Arturs vorbereitete Bitte erklärt die leere Seite; daraus entsteht die eigene Erfinderschau."
+      },
+      {
+        "question": "Wessen Ideen bekommen Platz auf unserer Schau?",
+        "possibilities": [
+          "Eine hängende Brotladung verlangt Rückgabe vor weiterer Vorführung.",
+          "Kuno braucht sichtbare Anerkennung statt Arbeit im Hintergrund.",
+          "Ein unlesbares Schild und ein umkämpfter Tisch verlangen Perspektivwechsel und Absprachen."
+        ],
+        "earnedChange": "Bis Folge 15 hat die Schau ein machbares gemeinsames Programm und benannte Beiträge. Nicht jede Folge repariert wieder denselben Apparat."
+      },
+      {
+        "question": "Kann Tilda eine gemeinsame Schau ermöglichen, ohne alles selbst zu bestimmen?",
+        "possibilities": [
+          "Die Kinder dürfen eine kleine Probe selbst berichtigen.",
+          "Rostigs normaler Weg und Regen verändern den Aufbau.",
+          "Eine heimliche letzte Verbesserung wird zugunsten geübter Abläufe zurückgenommen."
+        ],
+        "earnedChange": "Folge 20 erfüllt das Versprechen der Schau mit einer gelebten gemeinsamen Aufführung. Tilda erhält Anerkennung fürs Ermöglichen und lässt anderen ihre eigene Leistung."
+      }
+    ],
+    ensemble: SERIES_PLAN_FILES["tilda-tueftel"].ensemble,
+    episodes: SERIES_PLAN_FILES["tilda-tueftel"].episodes,
+    seasonTitles: SERIES_PLAN_FILES["tilda-tueftel"].seasonTitles,
+  }
 };

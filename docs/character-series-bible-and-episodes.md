@@ -1,5 +1,7 @@
 # Figurenserien (`character-series-v1`) — Masterplan, Charakter-Bibeln, 5×20 Folgenpläne & Erweiterungs-Leitfaden
 
+> Stand der Folgenplanung seit 2. November 2026: [100 überarbeitete Folgen](figurenserien/folgenplanung.md), [Serienbibeln Version 3](figurenserien/serienbibeln.md) und [redaktionelles Konzept](figurenserien/serienkonzept-2026-11-02.md). Die älteren Handlungsbeispiele und Modell-/Kostenstände in diesem Architekturtext sind historisch. Für den heutigen Inhalt gelten die exportierten Pläne und ihre Quelldateien. Jede Folge hat zusätzlich eine ausdrückliche `resolution` für den sichtbaren Ausgang ihres eigenen Konflikts.
+
 Dieses Dokument beschreibt die vollständige Architektur der **persönlichen Figurenserien (`character-series-v1`)** auf dem Qualitätsniveau der **Talea Originals** (*„Bruno, der Flunkerfisch“*, *„Die Monster-Müllabfuhr“*) und dient als verbindlicher Bauplan, damit andere KI-Modelle oder Entwickler nahtlos **neue Serienfiguren, Ensemble-Charaktere und 20-Folgen-Staffeln** ergänzen können.
 
 ---

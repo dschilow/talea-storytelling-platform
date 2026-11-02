@@ -38,6 +38,8 @@ export const SERIES_IMAGE_REVIEW_EFFORT = 'medium';
  */
 export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_KLEIN_9B_KV_MODEL;
 /**
+ * Version 18: 100 revised adventure plans have explicit local payoffs and bounded serial progress;
+ * planned episodes no longer receive the later arc's ending as an invitation to resolve it early.
  * Version 17: the writer and editor explicitly trace a child-comprehensible goal, causation and payoff.
  * Version 16: standard-tier Luna plans from finished source spans and inventories every visible foreground figure;
  * exact source anchors and quiet physical moments avoid premature pictures and unnecessary plan repairs.
@@ -59,7 +61,7 @@ export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_
  * took 211 s. Up to five repairs, spent on pictures with a hard fault or provider failure. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 17, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
+export const SERIES_POLICY = { version: 18, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);
@@ -109,11 +111,13 @@ export function seriesContext(brief: StoryBrief): string {
         `- Episode hook & starting situation: ${blueprint.hook}`,
         `- Escalating slapstick & comic chain reaction (Chapters 1–2): ${blueprint.slapstick}`,
         `- Suspense, turning point & costly choice (Chapter 3): ${blueprint.suspense}`,
+        `- Today's visible resolution (dramatise this payoff before the serial beat): ${blueprint.resolution}`,
         ...(previousTurns.length ? [`- Turning points of the two previous episodes' PLANS, not recorded events (resolve today's crisis with a clearly DIFFERENT device; actual history below decides what happened): ${previousTurns.join(' / ')}`] : []),
         ...(blueprint.avatarRole ? [`- Indispensable role of the 1–3 child avatars: ${blueprint.avatarRole}`] : []),
         `- Recommended punchline / schoolyard line: ${blueprint.joke}`,
         `- Key paintable slapstick visual: ${blueprint.keyVisual}`,
-        `- Series mystery clue to plant/resolve at the end: ${blueprint.clue}`,
+        `- Today's serial progress (a discovery, decision or changed relationship; not necessarily a new mystery object): ${blueprint.clue}`,
+        '- SERIAL BOUNDARY: Advance only the serial beat specified for today, adjusted to recorded history. Do not solve later episodes, invent another locked box or append a second rescue. After today\'s complete payoff, leave one short, concrete reason to return: curiosity, a promised meeting or a shared plan. No endangered child left hanging between episodes.',
         `- Carry-over, setup and causal constraints: ${blueprint.continuity}`,
       ].join('\n')
     : '';
@@ -125,7 +129,9 @@ export function seriesContext(brief: StoryBrief): string {
     castBlock,
     effectiveLogs.length === 0 && episode === 1
       ? `ORIGIN — facts before the meeting: ${narrative.origin.before}\nAVATAR ARRIVAL: ${narrative.origin.arrival}\nFIRST ENCOUNTER: ${narrative.origin.encounter}\nTROUBLE: ${narrative.origin.trouble}\nCHOICE: ${narrative.origin.choice}\nNEW STATE AND SERIES QUESTION: ${narrative.origin.after}`
-      : `CURRENT ARC QUESTION: ${arc.question}\nPossible different conflicts (invent a fresh consequence, do not tick these off): ${arc.possibilities.join(' / ')}\nAn earned change, only if actually prepared: ${arc.earnedChange}`,
+      : blueprint
+        ? `CURRENT ARC QUESTION: ${arc.question}\nUse only today's blueprint for the permitted progress; the end of the wider arc is not today's assignment.`
+        : `CURRENT ARC QUESTION: ${arc.question}\nPossible different conflicts (invent a fresh consequence, do not tick these off): ${arc.possibilities.join(' / ')}\nAn earned change, only if actually prepared: ${arc.earnedChange}`,
     blueprintBlock,
     episode > 20 ? 'AFTER THE TWO PLANNED SEASONS: invent a NEW local adventure from the latest recorded state and open threads. Keep the mature relationships and established capabilities. Do not replay episode 1, rediscover an already solved season mystery, announce a recurring guest\'s first meeting again or assume a new season reset. Offer at most one already unlocked recurring companion.' : '',
     introNotes.length ? `AVATAR-EINFÜHRUNG IN KAPITEL 1 (FOLGE ${episode}):\n${introNotes.join('\n')}` : '',
