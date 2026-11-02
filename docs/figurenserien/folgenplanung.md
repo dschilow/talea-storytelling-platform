@@ -33,7 +33,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Die Kinder nennen den umgefallenen Picknickkorb als letzten Ort und erkennen den Pfotenabdruck im weichen Uferboden. Die Suchgabe zeigt den Einstieg in den Schilfweg; gemeinsam locken sie den Hund auf dem Landweg zurück. Alle kommen am Picknickplatz an.
 
-**Mögliche Pointe:** „Er hat meinen Stiefel gerettet.“ — „Er trägt ihn gerade weg.“
+**Mögliche Pointe:** „Ich kenne jeden Weg nach Hause!“ PLUMPS. — „Der hier führt in unseren Picknickkorb.“
 
 **Die Kinder handeln mit:** Die Kinder beschreiben den letzten Ort, unterscheiden Stempel und echte Pfoten und rufen den Hund; die Fee macht den Zugang sichtbar und führt die Suche.
 
@@ -53,7 +53,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Mit Milos Hilfe öffnen sie vorsichtig den lockeren Deckel. Ein Igel ist während Milos Pause in den offenen Korb unter dem Karton gekrochen. Sie lassen ihm einen freien Weg ins Gebüsch und bringen das wirkliche Paket zur angeschriebenen Nachbarin.
 
-**Mögliche Pointe:** „Empfänger unbekannt.“ — „Empfänger stachelig.“
+**Mögliche Pointe:** Auf dem Karton steht „Nicht knurren!“. Der Karton knurrt. — „Pakete können wohl nicht lesen.“
 
 **Die Kinder handeln mit:** Die Kinder hören nach, entdecken den Korb unter der Hülle und schaffen Platz; die Fee verhindert den Sturz und Milo übernimmt seine Verantwortung.
 
@@ -73,7 +73,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Die Kinder bitten beide um ein verborgenes Merkmal. Ein angenähter gelber Stern belegt den Besitzer; der andere erinnert sich nun an den Bahnhof als letzten Ort seines ähnlichen Bären. Der erste bekommt seinen Bären, der zweite konkrete Hilfe statt einer Beschuldigung.
 
-**Mögliche Pointe:** „Der Bär sagt nichts.“ — „Endlich jemand, der nicht dazwischenredet.“
+**Mögliche Pointe:** „Er winkt mir zu!“ — „Nein, mir!“ — „Eigentlich winke ich“, sagt die fast unsichtbare Fee.
 
 **Die Kinder handeln mit:** Die Kinder schlagen die überprüfbare Frage vor und trösten den enttäuschten Besucher; die Fee entscheidet und entschuldigt ihre Doppelzusage.
 
@@ -93,7 +93,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Die Fee entschuldigt sich ohne Ausrede. Die Kinder folgen den Dellen bis unter das Regal: Die Glocke war von ihrem zu vollen Brett gerollt. Riko holt sie aus der engen Ecke, und die Fee hängt sie fest auf.
 
-**Mögliche Pointe:** „Ich bewache Glanz.“ — „Auch meinen Löffel?“ — „Besonders gründlich.“
+**Mögliche Pointe:** Riko hält den kleinen Spiegel hoch: „Da! Die Schuldige!“ Im Spiegel sieht die Fee sich selbst.
 
 **Die Kinder handeln mit:** Die Kinder vergleichen die Dellen mit dem Glockenrand und bitten Riko um Hilfe; die Fee nimmt ihre öffentliche Beschuldigung zurück.
 
@@ -113,7 +113,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Sie halten die Karte gegen das Fenster und lesen den ganzen Satz: Eingeladen sind alle, die noch niemanden kennen. Die Fee geht mit den Kindern tatsächlich hin, stellt sich selbst vor und lernt einen Nachbarn kennen.
 
-**Mögliche Pointe:** „Mein Hut ist jetzt amtlich.“ — „Nur seine Unterseite.“
+**Mögliche Pointe:** „Wie sehe ich aus?“ Milo drückt einen Stempel auf den Blumentopf: „Wie ein Paket.“
 
 **Die Kinder handeln mit:** Die Kinder entziffern die Einladung und begleiten die Fee; sie muss selbst den Schritt zur Runde machen.
 
@@ -133,7 +133,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Die Fee bleibt bei den Kindern, statt die Tür zu verriegeln. Sie stellen die Laterne um und zeigen allen den Ast hinter dem Fenster. Der nächste Besucher kommt herein, und Riko bekommt seinen Eimerhelm ab.
 
-**Mögliche Pointe:** „Der Helm schützt vor Monstern.“ — „Und vor Aussicht.“
+**Mögliche Pointe:** „Mit dem Eimer sieht mich kein Monster!“ — „Und du siehst auch nichts mehr.“
 
 **Die Kinder handeln mit:** Die Kinder verändern nacheinander Licht und Ast, die Fee hält das Fenster offen und erklärt den wartenden Besuchern das Ergebnis.
 
@@ -173,7 +173,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Die Kinder halten die Gruppe an und vergleichen den echten Weg mit dem Schild. Die Fee dreht den Pfeil richtig und begleitet das müde Kind zum sichtbaren Picknickplatz; Borste befestigt das Schild.
 
-**Mögliche Pointe:** „Alle Wege führen zu mir.“ — „Das ist gerade das Problem.“
+**Mögliche Pointe:** „Alle Pfeile zeigen zu mir!“ — „Dann bist du wohl das Picknick.“
 
 **Die Kinder handeln mit:** Die Kinder zeigen die tatsächliche Abzweigung und stoppen die Fehlleitung; die Fee übernimmt den Fehler und führt die Gruppe hin.
 
@@ -213,7 +213,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Die Kinder räumen die Sachen auf den großen Tisch, Borste legt eine trockene Barriere an die Tür und die Fee nimmt die wartenden Besucher herein. Nach dem Schauer ist alles erhalten und die Wegwarte wird gemeinsam weiterbetrieben.
 
-**Mögliche Pointe:** „Ich habe alles im Griff!“ — „Auch die Tür?“ — „Die hat mich im Griff.“
+**Mögliche Pointe:** „Ich schaffe das ganz allein!“ — „Du steckst aber ganz allein in der Tür fest.“
 
 **Die Kinder handeln mit:** Die Kinder organisieren die trockenen Plätze, die Fee lässt Hilfe zu; Borste übernimmt die undichte Tür. Das gemeinsame Handeln rettet die Fundsachen.
 
@@ -233,7 +233,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Sie zeigen dem Fährmann die Ursache und nehmen die Schlaufe vom erreichbaren Pfahl. Er hört ihren echten Ruf, setzt sie über und nennt den offenen Spazierweg zur ersten Hütte.
 
-**Mögliche Pointe:** „Ich bewache die Glocke!“ — „Im Moment bewacht sie dich.“
+**Mögliche Pointe:** „Ich bewache die Glocke!“ BIMMEL. Riko dreht sich mit der Schnur im Kreis. — „Und wer bewacht dich?“
 
 **Die Kinder handeln mit:** Die Kinder erkennen das wiederkehrende Muster und winken den Fährmann herbei; die Fee löst die Schnur vom Steg aus.
 
@@ -241,7 +241,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Verständlichkeit und Kontinuität:** Glocke und Fähre werden zu Beginn erklärt. Kein Kind steigt ins Wasser; Riko kennt keine unbesuchten Wegabschnitte.
 
-### Folge 12: Milos viel zu wichtige Abkürzung
+### Folge 12: Milo steckt in den Brombeeren
 
 *Staffel 2; mit Milo.*
 
@@ -253,7 +253,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Die Fee bleibt stehen und bittet laut um Hilfe. Die Kinder lösen vom freien Rand die eingehakten Riemen, danach gehen alle zurück zur letzten bekannten Abzweigung und erreichen die Hütte auf dem längeren Weg.
 
-**Mögliche Pointe:** „Eine Abkürzung spart Zeit.“ — „Du sparst gerade am Weiterkommen.“
+**Mögliche Pointe:** „Ich komme gleich nach!“ — „Mit Blätterschnurrbart?“
 
 **Die Kinder handeln mit:** Die Kinder unterscheiden die Wege und lösen den zugänglichen Riemen; die Fee macht das Umkehren zur gemeinsamen Entscheidung.
 
@@ -273,7 +273,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Die Kinder bringen die Dose mit ihr zurück. Darin liegen freiwillig gezeigte Erinnerungsbilder des verstorbenen Hundes, keine Schatzkarte. Die Frau bedankt sich, und die Fee lässt ihre Enttäuschung zu, ohne jemandem etwas wegzunehmen.
 
-**Mögliche Pointe:** „Ich gucke überhaupt nicht.“ — „Du guckst rückwärts.“
+**Mögliche Pointe:** „Ich gucke überhaupt nicht hin!“ — „Du läufst aber schon zum dritten Mal um die Dose.“
 
 **Die Kinder handeln mit:** Die Kinder lesen den Namen und helfen, gegen den Druck der Zuschauer für die Rückgabe einzustehen; die Fee trifft die Entscheidung.
 
@@ -293,7 +293,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Die Kinder zeigen vom Ufer den querliegenden Ast. Die Fee hebt mit einer bereitliegenden langen Harke das leichte Holz heraus. Das Wasser fließt wieder im Bett, das Beet bleibt heil, und alle hören das Rauschen.
 
-**Mögliche Pointe:** „Der Wasserfall knurrt.“ — „Dann gib ihm dein Butterbrot.“
+**Mögliche Pointe:** „Hört ihr? Der Wasserfall knurrt!“ — „Nein, Fee. Das ist dein Bauch.“
 
 **Die Kinder handeln mit:** Die Kinder vergleichen trockene und nasse Stellen und warnen die Wirtin; die Fee entfernt den kleinen Ast vom festen Ufer.
 
@@ -321,7 +321,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Verständlichkeit und Kontinuität:** Der Deckel gehört einem Kind und darf freiwillig getauscht werden. Der gesperrte Weg wird nicht betreten.
 
-### Folge 16: Die falsche Heimspur
+### Folge 16: Die andere Fee im Fenster
 
 *Staffel 2; mit Borste.*
 
@@ -333,7 +333,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Borste hält den vorhandenen Spiegel kurz zu. Der Streifen verschwindet. Die Fee lässt sich von den Kindern zum vereinbarten Weg begleiten und erzählt, wie sehr sie nach einer sicheren Erinnerung sucht.
 
-**Mögliche Pointe:** „Sie macht mir alles nach!“ — „Dann versuch es mit Winken.“
+**Mögliche Pointe:** „Sie macht mir alles nach!“ — „Streck ihr doch mal die Zunge raus.“
 
 **Die Kinder handeln mit:** Die Kinder schlagen den Lichttest vor und bleiben freundlich, als die Fee enttäuscht ist; sie entscheidet selbst, umzukehren.
 
@@ -373,7 +373,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Die Kinder führen die Gäste zur Fensterbank, wo noch Tageslicht einfällt. An den beschriebenen Merkmalen finden sie die richtigen Taschen; Borste stellt eine zuvor gezeigte Ersatzlaterne auf. Beide Gäste gehen versöhnt.
 
-**Mögliche Pointe:** „Der Hut leuchtet nicht.“ — „Aber er steht der Finsternis.“
+**Mögliche Pointe:** „Gleich wird es hell!“ Die Fee hält den gelben Hut hoch. Nichts passiert. — „Ein Hut ist keine Lampe, Fee.“
 
 **Die Kinder handeln mit:** Die Kinder schaffen eine feste Ausgabestelle und prüfen Merkmale; die Fee organisiert das Warten, Borste bringt die Laterne.
 
@@ -393,7 +393,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Die Fee sagt ehrlich, was sie nicht weiß. Bela erklärt anhand des Bildes: Sie kam früher oft zwischen den beiden Häusern zu Besuch und war an beiden willkommen. Sie trinken gemeinsam Tee, ohne eine vollständige Erinnerung erzwingen zu müssen.
 
-**Mögliche Pointe:** „Sehr geehrter Kleiderhaken …“ — „Der hängt an deinen Worten.“
+**Mögliche Pointe:** Milo verbeugt sich vor dem Garderobenhaken: „Herzlich willkommen!“ — „Milo, Bela steht hinter dir.“
 
 **Die Kinder handeln mit:** Die Kinder fragen nach dem Bild statt nach richtigen Antworten; die Fee spricht ihre Angst aus, Milo schafft eine kurze Entlastung.
 
@@ -413,7 +413,7 @@ Suchabenteuer am Waldsee: Eine kaum sichtbare Fee hilft bei verlorenen Dingen, f
 
 **Sichtbare Auflösung:** Sie erklärt, dass sie am See bleibt und Bela regelmäßig besuchen will. Die Kinder packen die Kisten wieder aus, markieren mit ihr den geprüften Besuchsweg und feiern die Rückkehr nach dem ersten gemeinsamen Ausflug.
 
-**Mögliche Pointe:** „Ein Haus mit Seeblick!“ — „Riko, es ist ein Nest.“ — „Offener Grundriss.“
+**Mögliche Pointe:** „Ich vermiete mein Haus mit Seeblick!“ — „Riko, das ist ein Nest.“ — „Ein Nest mit Seeblick!“
 
 **Die Kinder handeln mit:** Die Kinder sprechen ihre Sorge aus und planen den Besuch mit; die Fee entscheidet, Riko berichtigt sein Gerücht vor den Betroffenen.
 
@@ -488,7 +488,7 @@ Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große A
 
 **Sichtbare Auflösung:** Er sagt deutlich, wem der Einfall gehört, und bittet ohne Anspruch um Hilfe. Das Kind entscheidet sich mitzumachen. Sie lösen die Aufgabe zusammen und teilen sichtbar den Jubel.
 
-**Mögliche Pointe:** „Danke für den herzlichen Empfang.“ — „Der Baum hat nichts gesagt.“
+**Mögliche Pointe:** „Danke, danke, ihr seid so nett!“ — „Funkelflug, das ist ein Baumstumpf.“
 
 **Die Kinder handeln mit:** Ein Kind bringt die entscheidende Beobachtung, die anderen setzen sie mit Funkelflug um. Niemand muss nach einer halbherzigen Entschuldigung sofort vergeben.
 
@@ -508,7 +508,7 @@ Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große A
 
 **Sichtbare Auflösung:** Die Kinder schlagen den breiten, überdachten Vorplatz vor. Funkelflug trägt seinen mühsam gedeckten Tisch wieder hinaus und richtet mit ihnen dort den Tee ein. Oma und kleine Gäste sitzen erstmals zusammen.
 
-**Mögliche Pointe:** „Ihr habt ein schönes Haus.“ — „Du siehst erst die Hälfte.“ — „Das beruht auf Gegenseitigkeit.“
+**Mögliche Pointe:** „Bin ich schon ganz drin?“ — „Dein Kopf schon. Der Rest wartet noch draußen.“
 
 **Die Kinder handeln mit:** Die Kinder entdecken den gemeinsamen Platz und helfen beim Umräumen; Funkelflug gibt seine perfekte Innenfeier auf.
 
@@ -528,7 +528,7 @@ Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große A
 
 **Sichtbare Auflösung:** Die Kinder vergleichen Wind und Brüllen. Gemeinsam verfolgen sie den Ton zu einem offenen Lüftungsrohr; eine locker davorliegende Schale verstärkt ihn. Mucks stellt sie weg, und alle können beruhigt schlafen.
 
-**Mögliche Pointe:** „Dieser Helm ist sehr tapfer.“ — „Er hat auch keine Ohren.“
+**Mögliche Pointe:** „Mit diesem Helm habe ich keine Angst!“ — „Funkelflug, das ist dein Nachttopf.“
 
 **Die Kinder handeln mit:** Die Kinder beobachten den Rhythmus, Funkelflug geht mit ihnen nachsehen und Mucks erkennt das Rohr aus seinem Bau.
 
@@ -548,7 +548,7 @@ Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große A
 
 **Sichtbare Auflösung:** Er verzichtet auf den Sprung und erklärt die verlorene Wette. Auf dem längeren Weg helfen sie einem langsameren Wanderer; am See gibt es noch Platz und sie erzählen selbst von ihrer Ankunft statt einen Sieg zu erfinden.
 
-**Mögliche Pointe:** „Ich habe den Wald überholt.“ — „Ein Teil davon fährt mit.“
+**Mögliche Pointe:** „Ich bin schneller als der ganze Wald!“ — „Du hast ja auch den halben Wald dabei.“
 
 **Die Kinder handeln mit:** Die Kinder entdecken den freien Weg und begleiten den Wanderer; Funkelflug muss seine Wette aufgeben und führt die Gruppe sicher weiter.
 
@@ -576,7 +576,7 @@ Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große A
 
 **Verständlichkeit und Kontinuität:** Niedriges Dach ohne Abgrund; keine waghalsige Sprungrettung. Zirbels erster Auftritt zeigt Mut und Überschätzung zugleich.
 
-### Folge 8: Die Karte lässt uns aus
+### Folge 8: Eine Karte nur für Flieger
 
 *Staffel 1; mit Zirbel.*
 
@@ -588,7 +588,7 @@ Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große A
 
 **Sichtbare Auflösung:** Vom ausgeschilderten Rastplatz erkennen die Kinder den Weg um den Hang. Funkelflug folgt mit ihnen den vorhandenen Wegmarken und zeichnet ihren wirklich gegangenen Weg ein. Sie erreichen denselben Aussichtspunkt wie die Flieger.
 
-**Mögliche Pointe:** „Diese Karte ist falsch.“ — „Für Flügel richtig. Für Füße frech.“
+**Mögliche Pointe:** „Hier geht der Weg über die Schlucht!“ — „Für Flügel. Wir haben aber Füße.“
 
 **Die Kinder handeln mit:** Die Kinder vergleichen Gelände und Bild; Funkelflug führt die neue Karte, Zirbel prüft den sichtbaren Anschluss statt zu springen.
 
@@ -602,13 +602,13 @@ Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große A
 
 **Auslöser, Wunsch und Problem:** Der letzte Abschnitt der Route führt nah an Mucks Schlafkammer vorbei. Funkelflug kündigt die Eröffnung an, bevor er gefragt hat. Mucks fühlt sich vertrieben und zieht seine Zusage zurück.
 
-**Komische Zuspitzung:** Mucks baut aus Kissen eine winzige Zollstation und verlangt von jedem vorbeikommenden Blatt eine Genehmigung.
+**Komische Zuspitzung:** Mucks baut aus Kissen eine winzige Schranke und lässt nicht einmal ein vorbeiwehendes Blatt durch.
 
 **Entscheidender Konflikt:** Funkelflugs Einladung hängt schon aus. Er muss die Eröffnung absagen oder eine Lösung finden, die Mucks wirklich mitträgt.
 
 **Sichtbare Auflösung:** Die Kinder zeigen den vorhandenen Nebeneingang, der am Bau vorbeiführt. Alle probieren ihn gemeinsam aus; Mucks hört von innen zu und stimmt einem kleinen Besuch zu. Funkelflug ändert die Einladung und entschuldigt sich.
 
-**Mögliche Pointe:** „Dieses Blatt hat keinen Pass.“ — „Es ist vom Baum gegenüber.“ — „Ausland!“
+**Mögliche Pointe:** „Halt! Hier kommt keiner durch!“ Ein Blatt weht unter der Schranke hindurch. „… außer Blättern.“
 
 **Die Kinder handeln mit:** Die Kinder testen den Umweg und befragen Mucks nach dem Ergebnis; Funkelflug ändert seinen Plan statt einen Sieg über ihn zu feiern.
 
@@ -628,7 +628,7 @@ Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große A
 
 **Sichtbare Auflösung:** Er entscheidet sich für die Gruppe. Die Kinder erkennen die geprüften Markierungen, Funkelflug führt alle bis zum Aussichtspunkt. Erst danach läuten sie dreimal: Der Weg ist offen und tatsächlich benutzt worden.
 
-**Mögliche Pointe:** „Mein großer Auftritt fällt aus.“ — „Wir fanden deinen großen Aufweg ziemlich gut.“
+**Mögliche Pointe:** „Achtung, hier kommt der große Funkelflug!“ — „Warum kommst du dann rückwärts?“
 
 **Die Kinder handeln mit:** Die Kinder übernehmen Wegzeichen und das Ankommen der ganzen Gruppe; Funkelflug verzichtet aktiv auf den Bühnenruhm.
 
@@ -668,7 +668,7 @@ Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große A
 
 **Sichtbare Auflösung:** Er spricht Zirbel zunächst direkt an. Sie gibt die Abkürzung zu und schlägt selbst einen neuen Lauf auf dem klar markierten Weg vor. Das Kind läuft mit; der echte Sieger wird gefeiert und Zirbel bleibt Teil der Gruppe.
 
-**Mögliche Pointe:** „Ich war als Erste da!“ — „Dein Band läuft noch.“
+**Mögliche Pointe:** Funkelflug läuft mit Zirbels Siegerband am Fuß durchs Ziel: „Hab ich gewonnen?“ — „Nur das Band.“
 
 **Die Kinder handeln mit:** Die Kinder zeigen den unklaren Abzweig und markieren den neuen Lauf; Funkelflug spricht das schwierige Thema an.
 
@@ -716,7 +716,7 @@ Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große A
 
 **Verständlichkeit und Kontinuität:** Keine Verfolgung fliegender Karten an Klippen. Der kleine Vergleich braucht keine neue Windmaschine.
 
-### Folge 15: Die Brücke ist kein Versprechen
+### Folge 15: Die Brücke wackelt
 
 *Staffel 2; mit Oma Schuppe.*
 
@@ -728,7 +728,7 @@ Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große A
 
 **Sichtbare Auflösung:** Sie gehen den bekannten längeren Hangweg und erreichen die Mulde trotzdem. Oma vereinbart die Reparatur mit dem Handwerker. Am folgenden Tag sehen alle die geprüfte Brücke und überqueren sie gemeinsam.
 
-**Mögliche Pointe:** „Freie Bahn!“ — „Für dich oder auch für den Wimpel?“
+**Mögliche Pointe:** „Freie Bahn!“ Der Wimpelstab steckt zwischen zwei Büschen fest. — „Für dich schon. Für deinen Wimpel nicht.“
 
 **Die Kinder handeln mit:** Die Kinder bemerken das Brett und finden den bekannten Umweg; Funkelflug entscheidet gegen den schnellen Übergang.
 
@@ -748,7 +748,7 @@ Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große A
 
 **Sichtbare Auflösung:** Er stoppt den Anlauf am flachen Übungsplatz und erzählt von seinen Bauchlandungen. Die Kinder zeigen ihr Boden-Hindernisspiel; der kleine Drache macht mit und kann dort etwas aus eigener Kraft schaffen.
 
-**Mögliche Pointe:** „Ich fliege wie Funkelflug!“ — „Dann setzen wir uns erst mal hin.“
+**Mögliche Pointe:** „Ich fliege genau wie Funkelflug!“ — „Also mit dem Bauch zuerst ins Gras?“
 
 **Die Kinder handeln mit:** Die Kinder gestalten die Bodenaufgabe, Zirbel sichert die freie Spielfläche, Funkelflug spricht die unangenehme Wahrheit aus.
 
@@ -788,7 +788,7 @@ Bergabenteuer mit einem Drachen, dessen Flügel nicht tragen und dessen große A
 
 **Sichtbare Auflösung:** Die Kinder zählen die Gruppe und erkennen die hohe rote Markierung am bekannten Weg. Zusammen gehen sie die kurze Strecke zur sichtbaren Warte zurück. Dort verlegen sie die restliche Probe nach drinnen.
 
-**Mögliche Pointe:** „Hier ist jemand mit Stil gelaufen.“ — „Dreimal. Du.“
+**Mögliche Pointe:** „Wer läuft denn hier dauernd im Kreis?“ — „Du, Zirbel. Das sind deine Spuren.“
 
 **Die Kinder handeln mit:** Die Kinder sammeln die Gruppe und erkennen das hohe Zeichen; Funkelflug entscheidet zum Abbruch, Zirbel bleibt bei den langsameren Teilnehmern.
 
@@ -883,7 +883,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Er lässt Johann gehen, bittet die Kinder um eine einfache gemeinsame Vorbereitung und bietet Brot statt des komplizierten Menüs an. Johann kommt später freiwillig kurz vorbei; die Feier war schon ohne ihn gelungen.
 
-**Mögliche Pointe:** „Ich brauche niemanden!“ — „Dann sind wir ja einer Meinung“, sagt Johann und nimmt den Korb.
+**Mögliche Pointe:** „Ich brauche niemanden!“ — „Und wer nimmt dir die Servietten wieder von den Schultern?“
 
 **Die Kinder handeln mit:** Die Kinder wählen eine machbare Bewirtung und decken mit; der Graf übernimmt Arbeit und respektiert Johanns freien Tag.
 
@@ -903,7 +903,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Er tritt sichtbar aus dem Tuch, entschuldigt sich und zeigt Puppe und Wäscheleine. Die Kinder dürfen die überraschenden Geräusche selbst machen; gemeinsam führen sie ein lustiges kurzes Stück auf.
 
-**Mögliche Pointe:** „Ich bin der Schrecken dieses Hauses!“ QUIETSCH. „Und meiner Hausschuhe.“
+**Mögliche Pointe:** „Huuuh, ich bin ein schreckliches Gespenst!“ QUIETSCH. — „Gespenster tragen keine karierten Hausschuhe.“
 
 **Die Kinder handeln mit:** Die Kinder benennen ihre Angst und entdecken die Hausschuhe; der Graf zeigt sich und verändert das Spiel nach ihrer Rückmeldung.
 
@@ -923,7 +923,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Der Graf gibt den Ball zuerst zurück. Danach lädt er ausdrücklich ohne Bedingung zu einer kleinen Partie ein. Ada bleibt für genau eine Runde; beide können widersprechen, ohne dass jemand hinausgeworfen wird.
 
-**Mögliche Pointe:** „Meine Regeln gelten überall.“ — „Dann stell deinen Tisch doch überall hin.“
+**Mögliche Pointe:** „Wer den Ball will, muss erst gegen mich gewinnen!“ — „Ich will keinen Ball gewinnen. Ich will meinen Ball zurück.“
 
 **Die Kinder handeln mit:** Die Kinder unterscheiden Rückgabe und freiwilliges Spiel; der Graf trifft die Entscheidung, Ada entscheidet über ihre Teilnahme.
 
@@ -943,7 +943,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Die Kinder prüfen mit Johann, dass der Stuhl stabil ist, und stellen ihn an den Tisch. Der Graf nimmt das Verbot ab und bietet dem Kind selbst den Platz an. Es sitzt und spielt mit.
 
-**Mögliche Pointe:** „Auf diesem Stuhl wurde früher gesessen.“ — „Eine gewagte Nutzung.“
+**Mögliche Pointe:** Der Graf setzt sich auf das Schild „Nicht berühren“. — „Du berührst es gerade mit dem Po.“
 
 **Die Kinder handeln mit:** Die Kinder sprechen für den müden Gast und helfen beim Umstellen; Johann prüft den Stuhl, der Graf gibt ihn frei.
 
@@ -983,7 +983,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Die Kinder verfolgen Pepes kurze Strecke und finden den verrutschten Brief. Ada ist heute außer Haus. Der Graf holt die Schuhe von ihrer Tür zurück und wirft die richtige Einladung samt Entschuldigung selbst in ihren Briefkasten. Pepe bekommt einen geeigneten Tragekorb; der Graf hält an der Einladung fest.
 
-**Mögliche Pointe:** „Dieser Hund nimmt mich nicht ernst.“ — „Deine Schuhe schon.“
+**Mögliche Pointe:** „Pepe, bring sofort meinen Schuh zurück!“ Pepe holt auch den zweiten. — „Jetzt hast du gar keinen mehr.“
 
 **Die Kinder handeln mit:** Die Kinder erkennen Pepes Verwechslung und finden die Einladung; der Graf geht selbst zur Nachbarin.
 
@@ -1023,7 +1023,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Die Kinder heben das Tuch mit seiner Erlaubnis an: Der geschnitzte Holzapfel liegt darunter. Der Graf hatte ihn selbst dort versteckt und den letzten Suchhinweis nie gegeben. Er nimmt die Schuldzuweisung zurück; Ada nimmt die Entschuldigung an.
 
-**Mögliche Pointe:** „Ein Schatz von unschätzbarem Wert.“ — „Mit einem wurmstichigen Blatt.“
+**Mögliche Pointe:** „Er war sooo groß und aus purem Gold!“ Ada hält den kleinen Holzapfel hoch: „Der hier?“
 
 **Die Kinder handeln mit:** Die Kinder vergleichen Erinnerungen mit dem gezeigten Spielkorb; der Graf erlaubt die Prüfung und spricht die Entschuldigung aus.
 
@@ -1043,7 +1043,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Die Kinder schaffen am Tisch etwas Platz, Pepe bekommt eine Decke neben den Stühlen und der Graf holt selbst einen zusätzlichen Hocker. Alle essen zusammen; die Zahl bestimmt nicht mehr, wer willkommen ist.
 
-**Mögliche Pointe:** „Wir sind einer zu viel.“ — „Dann ist der Tisch einer zu klein.“
+**Mögliche Pointe:** „Zwölf … dreizehn … und ein halber Hund?“ — „Pepe ist ein ganzer Hund!“
 
 **Die Kinder handeln mit:** Die Kinder bemerken den Rückzug des Gastes und planen den Platz; der Graf holt den Hocker und lädt persönlich ein.
 
@@ -1071,7 +1071,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Verständlichkeit und Kontinuität:** Keine Erniedrigung wegen Kleidung. Ein konkreter Rollenwechsel entwickelt die gewonnene Freundschaft weiter.
 
-### Folge 12: Die Einladung ist zu gründlich
+### Folge 12: Die Einladung ist viel zu lang
 
 *Staffel 2; mit Pepe.*
 
@@ -1083,7 +1083,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Die Kinder sagen in ihren Worten, was sie verstanden haben. Der Graf kürzt die Einladung auf Ort, Zeit und ein echtes Willkommen, verteilt sie mit ihnen erneut und bekommt die ersten klaren Zusagen.
 
-**Mögliche Pointe:** „Es steht alles drin.“ — „Sogar, warum man lieber wegbleibt.“
+**Mögliche Pointe:** „In meiner Einladung steht alles Wichtige!“ — „Sie ist ja auch länger als dein Gartenzaun.“
 
 **Die Kinder handeln mit:** Die Kinder zeigen das Missverständnis und formulieren verständliche Angaben; der Graf ersetzt seine eigenen Bedingungen.
 
@@ -1103,7 +1103,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Er zeigt die Uhr, erklärt seinen Vorteil und gibt den Punkt zurück. Die Kinder starten für beide dieselbe sichtbare Uhr; Johann gewinnt die nächste ehrliche Runde, und der Graf gratuliert.
 
-**Mögliche Pointe:** „Die Zeit ist mir entglitten.“ — „In deinen Ärmel.“
+**Mögliche Pointe:** „Ich habe nicht geschummelt!“ — „Warum rieselt dann Sand aus deinem Ärmel?“
 
 **Die Kinder handeln mit:** Die Kinder vergleichen die Starts und übernehmen das gemeinsame Zeichen; der Graf gibt den erschummelten Vorteil zurück.
 
@@ -1143,7 +1143,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Er lässt die vorher vereinbarte Regel gelten, gratuliert Johann und bittet ihn um einen Übungstipp. Die Kinder spielen ihre Runde zu Ende. Der Graf verliert sichtbar, ohne die Freundschaft abzubrechen.
 
-**Mögliche Pointe:** „Diese Regel gilt ab sofort!“ — „Dann war mein Sieg zum Glück gerade eben.“
+**Mögliche Pointe:** „Diese Regel gilt ab sofort!“ Johann zeigt auf den Fuß des Grafen: „Du stehst auf ‚Nichts verändern‘.“
 
 **Die Kinder handeln mit:** Die Kinder erinnern an die Vereinbarung und schützen ihre geplante Runde; der Graf entscheidet sich gegen das Absagen.
 
@@ -1163,7 +1163,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Die Kinder holen Pepes bereits gezeigten Ball. Der Graf bietet ihn als Tausch an, Pepe lässt los und das Band wird vom Busch gelöst. Für die Preisablage wählen sie danach einen erreichbaren Tisch ohne Hundespielzeug.
 
-**Mögliche Pointe:** „Er hat den Preis entführt!“ — „Er erwartet Löseball.“
+**Mögliche Pointe:** „Pepe, gib sofort das Siegerband her!“ Pepe legt ihm einen Ast vor die Füße. — „Er will tauschen.“
 
 **Die Kinder handeln mit:** Die Kinder erkennen das Spiel und holen den Ball; der Graf nimmt am Tausch teil statt weiter zu kommandieren.
 
@@ -1183,7 +1183,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Sie fragen ihn, was erzählt werden darf. Der Graf wählt selbst die harmlose Vorgeschichte mit seinem verkehrt getragenen Hut; Ada lässt den peinlichen Teil weg. Er streicht im Gegenzug eine ungefragte Anekdote über Johann.
 
-**Mögliche Pointe:** „Dieser Fleck bedeutet nichts.“ — „Er ist sehr nachdrücklich nichts.“
+**Mögliche Pointe:** „Jetzt steht da nichts mehr vom Teich!“ — „Nur ein schwarzer Fleck, der aussieht wie ein Teich.“
 
 **Die Kinder handeln mit:** Die Kinder unterbrechen das Weitererzählen und fragen nach Zustimmung; der Graf nennt eine Grenze und erkennt seine eigene Verantwortung.
 
@@ -1203,7 +1203,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Er bittet um eine Pause und einen ruhigen Platz. Die Kinder verlegen die Rufrunde ans andere Gartenende und zeigen einen stillen Suchplatz. Nach der Pause macht der Graf bei diesem Spiel mit.
 
-**Mögliche Pointe:** „Das Schild verlangt Ruhe.“ SCHNARCH. „Nicht von sich selbst.“
+**Mögliche Pointe:** „Auf dem Schild steht RUHE!“ SCHNARCH. — „Pepe hält sich daran. Er schläft.“
 
 **Die Kinder handeln mit:** Die Kinder planen die Bereiche und hören auf die konkrete Bitte; der Graf benennt sein Bedürfnis ohne Ausschluss.
 
@@ -1223,7 +1223,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Sichtbare Auflösung:** Er erinnert selbst an die vorher vorgelesene Regel: Bei Gleichstand teilen beide den Sieg. Ada stimmt zu; die Kinder machen das gemeinsame Foto, und beide bekommen ihren Namen auf die Siegertafel.
 
-**Mögliche Pointe:** „Ich teile äußerst ungern.“ — „Heute sogar den ersten Platz.“
+**Mögliche Pointe:** „Ich teile nicht gern!“ — „Zu spät. Ihr steckt schon zusammen in einem Siegerband.“
 
 **Die Kinder handeln mit:** Die Kinder holen die gemeinsam beschlossene Regel hervor und gestalten die Ehrung; der Graf verzichtet auf einen Sonderentscheid.
 
@@ -1231,7 +1231,7 @@ Eine turbulente Haus- und Nachbarschaftskomödie: Der Graf will Gesellschaft, ab
 
 **Verständlichkeit und Kontinuität:** Gleichstandsregel wird früh in dieser Folge gezeigt, auch wenn alte Logs fehlen. Das Finale endet wirklich, keine nachgereichte neue Prüfung.
 
-### Folge 20: Die Hausordnung hat Besuch
+### Folge 20: Heute bestimmen die Kinder
 
 *Staffel 2; mit Johann.*
 
@@ -1282,7 +1282,7 @@ Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches
 
 **Die Kinder handeln mit:** Die Kinder erkennen die Angst des Tieres und hören den Ruf; Blubbert verzichtet auf seine geplante Vorführfahrt und steuert, Pia organisiert den freien Rückweg.
 
-**Fortlaufende Geschichte:** Beim Suchen einer alten Hafenkarte finden sie den Muschelkompass und ein Ortsplättchen mit einem Steintor. Pia kennt dieses Tor aus einem alten Bild, aber es fehlt auf ihrer heutigen Karte.
+**Fortlaufende Geschichte:** Beim Suchen einer alten Hafenkarte finden sie den Muschelkompass und ein Ortsplättchen mit einem Steintor; heute wird er nur gefunden, nicht ausprobiert. Pia kennt dieses Tor aus einem alten Bild, aber es fehlt auf ihrer heutigen Karte.
 
 **Verständlichkeit und Kontinuität:** Keine Tierjagd, kein Festhalten oder Füttern. Kurze Fahrt bei ruhigem Wasser; der Kompass rettet kein Tier und kann nur zu benannten bekannten Orten zeigen.
 
@@ -1298,7 +1298,7 @@ Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches
 
 **Sichtbare Auflösung:** Pia sperrt den kurzen Stegabschnitt. Blubbert und sie ziehen das leere Boot vom Wasser aus frei, während die Kinder vom Ufer die freie Richtung zeigen. Nach Pias Prüfung gehen alle zum Strand; das Monster war ein Boot.
 
-**Mögliche Pointe:** „Ein Fassmonster!“ — „Es klingt erstaunlich nach dir.“
+**Mögliche Pointe:** „Das Fassmonster brüllt zurück!“ — „Mit deiner Stimme, Kapitän.“
 
 **Die Kinder handeln mit:** Die Kinder erkennen den Bootsrand und melden, wo er festliegt; Blubbert organisiert mit Pia die Bergung statt weiter zu prahlen.
 
@@ -1318,7 +1318,7 @@ Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches
 
 **Sichtbare Auflösung:** Er legt den Haken weg und führt die Zuschauer zurück. Die Kinder beobachten aus Abstand, wie Lotta zum Küken zurückkehrt und die Mütze auf dem leeren Steg fallen lässt. Blubbert holt sie erst dann.
 
-**Mögliche Pointe:** „Die Mütze ist Eigentum des Kapitäns!“ KRÄÄH. „Vorübergehend offenbar nicht.“
+**Mögliche Pointe:** „Gib sofort meine Mütze her!“ KRÄÄH. — „Ich glaube, das war ein Nein, Kapitän.“
 
 **Die Kinder handeln mit:** Die Kinder entdecken das Küken und schaffen Abstand; Blubbert setzt den Verzicht auf seine sofortige Rückgabe durch.
 
@@ -1338,7 +1338,7 @@ Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches
 
 **Sichtbare Auflösung:** Blubbert hält auf freiem Wasser an und hört zu. Das Nachbarboot wollte nur den davongeschwommenen Eimer zurückbringen. Er bedankt sich, gibt den Irrtum zu und steuert zur verabredeten Bucht.
 
-**Mögliche Pointe:** „Unsere Flagge macht Eindruck.“ — „Vor allem bei der Wäsche.“
+**Mögliche Pointe:** „Vor unserer Flagge zittern alle Piraten!“ — „Kapitän, das ist deine Unterhose.“
 
 **Die Kinder handeln mit:** Die Kinder unterscheiden Tuch und Flagge und bemerken den Eimer; Pia hält Ausschau, Blubbert entscheidet, anzuhalten und zuzuhören.
 
@@ -1378,7 +1378,7 @@ Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches
 
 **Sichtbare Auflösung:** Er lässt das Papier liegen und steigt mit Pia in den Kahn. Die Kinder zeigen vom Kai, wo das Boot hindriftet. Pia hält den Kahn, Blubbert befestigt die Seegras wieder und erklärt öffentlich seinen Fehler.
 
-**Mögliche Pointe:** „Das Boot hört nicht!“ — „Deine Rede schwimmt ihm schon nach.“
+**Mögliche Pointe:** „Seegras, sofort zurück!“ — „Boote haben keine Ohren, Kapitän.“
 
 **Die Kinder handeln mit:** Die Kinder behalten das leere Boot im Blick und geben klare Richtungen; Pia und Blubbert übernehmen das Hafenmanöver.
 
@@ -1398,7 +1398,7 @@ Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches
 
 **Sichtbare Auflösung:** Blubbert bleibt nah am sicheren Steg, ruft hinüber und versteht: Die fremde Crew hat ihr Segel verheddert. Kalli hält den Anleger frei; nach dem Anlegen wird der Stoff gelöst. Alle sehen die ganz gewöhnliche Besatzung.
 
-**Mögliche Pointe:** „Es ist meilenweit weg!“ — „Dann ist dein Händedruck beeindruckend lang.“
+**Mögliche Pointe:** Kalli dreht das Fernrohr um: „Jetzt ist das Gespenst ganz nah! Mit weißem Bart!“ — „Das bin ich, Kalli.“
 
 **Die Kinder handeln mit:** Die Kinder erkennen Stoff und Hilfezeichen; Blubbert fragt statt weiter zu spekulieren, Kalli macht Platz.
 
@@ -1426,13 +1426,13 @@ Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches
 
 **Verständlichkeit und Kontinuität:** Kalli plus ein unbenannter Kartograf. Keine geheimen Codes, Unterschriftenketten oder Behauptung, ein altes Bild ersetze aktuelle Ortskenntnis.
 
-### Folge 9: Ein Rennen gegen die falsche Richtung
+### Folge 9: Kein Rennen für die Seegras
 
 *Staffel 1; mit Lotta.*
 
 **Auslöser, Wunsch und Problem:** Kurz vor Scherensand bietet ein vorbeifahrendes Motorboot Blubbert ein Rennen an. Er will zeigen, dass die Seegras mithalten kann; Lotta weicht bereits zum ruhigen Ufer aus.
 
-**Komische Zuspitzung:** Blubbert macht sich möglichst windschnittig, verliert dabei fast die Mütze und nennt sein Einziehen des Bauches eine „Zusatzbesegelung“.
+**Komische Zuspitzung:** Blubbert zieht den Bauch ein, damit das Boot schneller wird, und hält die Luft an, bis er so rot ist wie eine Boje.
 
 **Entscheidender Konflikt:** Die Rennrichtung führt vom erlaubten Anleger weg in den Ruhebereich. Die Kinder erinnern ihn daran, weshalb sie überhaupt kommen durften.
 
@@ -1478,7 +1478,7 @@ Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches
 
 **Sichtbare Auflösung:** Die Kinder vergleichen die sichtbare rote Bank ihres Boots und den vereinbarten Anleger. Blubbert klärt mit dem anderen Kapitän die Abfahrten und akzeptiert, dass Namen nicht einzigartig sein müssen. Beide Gruppen reisen richtig ab.
 
-**Mögliche Pointe:** „Es gibt nur eine Seegras!“ — „Dann hat sie gerade ein zweites Boot bekommen.“
+**Mögliche Pointe:** „Es gibt nur eine einzige Seegras!“ Die Kinder zeigen auf zwei Boote. — „Und welche von beiden ist es?“
 
 **Die Kinder handeln mit:** Die Kinder prüfen Boot und Ziel; Blubbert beendet den Streit, Pia unterscheidet Bildbeleg und Vermutung.
 
@@ -1518,7 +1518,7 @@ Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches
 
 **Sichtbare Auflösung:** Er legt auf die freie Mauer einen eigenen klappernden Deckel, Lotta lässt den Ring liegen. Die Kinder reichen ihn dem Besitzer, der das Glas wieder benutzen kann. Blubbert erzählt keine erfundene Schatzgeschichte.
 
-**Mögliche Pointe:** „Ein Ring von unschätzbarem Wert!“ — „Für mein Fernglas: drei Euro.“
+**Mögliche Pointe:** „Ein Goldring! Der ist bestimmt tausend Taler wert!“ — „Das ist der Deckel von meinem Fernglas.“
 
 **Die Kinder handeln mit:** Die Kinder vergleichen Ring und Fernglas und geben ihn zurück; Blubbert verzichtet auf den falschen Ruhm.
 
@@ -1592,7 +1592,7 @@ Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches
 
 **Auslöser, Wunsch und Problem:** Bei der Probe für die Küstenrunde antwortet Kalli auf jeden Ton mit seinem Horn. Bald klingt auch eine Ente am Steg dazwischen, und Blubbert weiß nicht mehr, welches verabredete Zeichen gilt.
 
-**Komische Zuspitzung:** Kalli salutiert vor einer Ente, die ihm mit einem sehr knappen Quaken antwortet. Blubbert fordert ihren Dienstausweis.
+**Komische Zuspitzung:** Kalli salutiert vor einer Ente, die ihm mit einem sehr knappen Quaken antwortet. Blubbert fragt sie streng, ob sie hier jetzt die Hafenmeisterin sei.
 
 **Entscheidender Konflikt:** Eine wartende Crew soll erst nach der klaren Freigabe ablegen. Kallis ständige Antworten machen das Zeichen unbrauchbar.
 
@@ -1618,7 +1618,7 @@ Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches
 
 **Sichtbare Auflösung:** Die Kinder übernehmen Uferzeichen und Vogelbeobachtung; Blubbert hört ihre Meldungen an und konzentriert sich aufs Steuern. Sie legen ruhig an, und er nennt beim Erzählen ausdrücklich ihre Beiträge.
 
-**Mögliche Pointe:** „Ein flauschiger Leuchtturm.“ KRÄÄH. „Mit deutlichem Nebelhorn.“
+**Mögliche Pointe:** „Laut Buch ist das ein flauschiger Leuchtturm.“ KRÄÄH. — „Kapitän, das ist Lotta. Sie sitzt auf deinem Buch.“
 
 **Die Kinder handeln mit:** Die Kinder erhalten unterscheidbare Beobachtungsaufgaben und melden nacheinander; Blubbert bleibt verantwortlicher Steuermann.
 
@@ -1713,7 +1713,7 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Sichtbare Auflösung:** Die Kinder zeigen, was sie zuerst für die Klingel hielten. Mina malt aus dem falschen Knopf eine Blume und setzt einen klaren Pfeil zur echten Klingel. Tilda öffnet beim nächsten Klingeln sofort und nimmt den Reparaturwunsch an.
 
-**Mögliche Pointe:** „Der Knopf funktioniert nicht.“ — „Als Bild hervorragend.“
+**Mögliche Pointe:** Tilda drückt selbst auf den gemalten Knopf und wartet: „Komisch, bei mir macht auch keiner auf.“ — „Tilda, du bist doch die, die aufmacht!“
 
 **Die Kinder handeln mit:** Die Kinder erklären ihr Missverständnis, Mina ändert das Bild und Tilda hört sich den tatsächlichen Wunsch an.
 
@@ -1753,7 +1753,7 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Sichtbare Auflösung:** Tilda fragt, was die Spieler brauchen. Die Kinder machen aus den großen Wänden einzelne niedrige Türme; Kunos Burg wird die Mitte. Kuno bleibt, und alle spielen eine vollständige Runde darin.
 
-**Mögliche Pointe:** „Meine Burg ist uneinnehmbar!“ — „Nicht einmal wir kommen hinein.“
+**Mögliche Pointe:** „In meine Burg kommt niemand hinein!“ — „Stimmt. Nicht einmal wir.“
 
 **Die Kinder handeln mit:** Die Kinder prüfen den Platz beim Spielen und verbinden beide Ideen; Tilda gibt den Anspruch auf die größte Burg auf.
 
@@ -1761,7 +1761,7 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Verständlichkeit und Kontinuität:** Kunos erster Auftritt zeigt seine Stärke mit kleinen Dingen. Niemand sitzt unter einsturzgefährlichen schweren Teilen; alles ist Karton.
 
-### Folge 5: Die Seifenblasen verschwinden nicht
+### Folge 5: Die Seifenblasen fliegen falsch
 
 *Staffel 1; Serienfigur und Familienavatare.*
 
@@ -1773,7 +1773,7 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Sichtbare Auflösung:** Sie zeigen die Windrichtung mit einem Band und verlegen die Blasenprobe auf die leere Wiesenseite. Tilda beendet ihre Vorführung rechtzeitig und kündigt ausdrücklich den Auftritt des Kindes an, der danach wirklich stattfindet.
 
-**Mögliche Pointe:** „Ich sehe einen Durchbruch!“ PLAPP. „Jetzt sehe ich wieder euch.“
+**Mögliche Pointe:** „Die ganze Welt ist rund und glitzert!“ PLAPP. „Ach so. Das war nur die Seifenblase auf meiner Brille.“
 
 **Die Kinder handeln mit:** Die Kinder prüfen die Richtung und bestehen auf ihrem vereinbarten Auftritt; Tilda macht Platz und unterstützt ihn.
 
@@ -1793,7 +1793,7 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Sichtbare Auflösung:** Sie gibt den Knopf sofort zurück und entschuldigt sich. Die Kinder helfen, einen gewöhnlichen anderen Knopf aus Tildas Kiste zu wählen. Kuno entscheidet freiwillig, bei der Gestaltung mitzuhelfen, und behält sein Lieblingsstück.
 
-**Mögliche Pointe:** „Ich habe hier gar nichts.“ — „Dann hältst du das Nichts ziemlich fest.“
+**Mögliche Pointe:** „Meine Faust ist ganz leer!“ — „Und warum glitzert es dann zwischen deinen Fingern?“
 
 **Die Kinder handeln mit:** Die Kinder nehmen Kunos Sorge ernst und finden eine gewöhnliche Alternative; Tilda gibt ihren Fehler zu.
 
@@ -1813,7 +1813,7 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Sichtbare Auflösung:** Sie räumen den Korb frei und verlegen die kleine Bühne ein Stück. Rostig zieht sich zum Ruhen zurück, die Kinder führen ihr Stück auf, und Tilda lernt die tatsächliche Werkstattbewohnerin kennen.
 
-**Mögliche Pointe:** „Hier leite ich die Werkstatt!“ HONK. „Wir besprechen die Zuständigkeit später.“
+**Mögliche Pointe:** „Hier bin ich die Chefin!“ HONK. „Na gut. Hier bin ich die Chefin, gleich nach der Gans.“
 
 **Die Kinder handeln mit:** Die Kinder bemerken den zugestellten Korb und wählen den neuen Platz; Tilda räumt um und beginnt die Aufführung erneut.
 
@@ -1833,7 +1833,7 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Sichtbare Auflösung:** Die Kinder legen die drei Bildkarten in verständliche Reihenfolge. Tilda dreht die einfache Handkurbel andersherum; Mina setzt den Anfang sichtbar daneben. Nun zeigen sie die vollständige kleine Geschichte mit dem wiedergefundenen Hund.
 
-**Mögliche Pointe:** „Ein ungewöhnliches Ende.“ — „Es ist der Anfang mit schlechter Laune.“
+**Mögliche Pointe:** „Der Hund frisst rückwärts!“ — „Dann wird er ja nie satt.“
 
 **Die Kinder handeln mit:** Die Kinder ordnen Ursache und Ergebnis der Bilder, Mina markiert den Anfang und Tilda bedient die Handkurbel richtig.
 
@@ -1853,7 +1853,7 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Sichtbare Auflösung:** Tilda sagt ehrlich, dass sie das Lied erst lernen muss. Die Kinder singen mit Kuno langsam die kurze Melodie, Tilda begleitet die Bilder mit der Kurbel. Am Ende können alle gemeinsam eine Strophe.
 
-**Mögliche Pointe:** „Schraube, Schraube, Schraubenschein!“ — „Ein sehr gut befestigtes Lied.“
+**Mögliche Pointe:** „Schraube, Schraube, Schraubenschein!“ — „In meinem Lied kommt keine einzige Schraube vor.“ — „Dann fehlen da aber ganz schön viele.“
 
 **Die Kinder handeln mit:** Die Kinder unterstützen Kunos Lied und helfen beim gemeinsamen Rhythmus; Tilda gibt ihr Nichtwissen zu und lernt.
 
@@ -1881,13 +1881,13 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Verständlichkeit und Kontinuität:** Die leere Karte und die lesbare Rückseite werden vor dem Finale gezeigt. Kein verborgenes Fach und keine neue Maschine eröffnet die nächste Staffel.
 
-### Folge 11: Die Brötchenbahn macht Urlaub
+### Folge 11: Ein Brötchen hängt in der Luft
 
 *Staffel 2; Serienfigur und Familienavatare.*
 
 **Auslöser, Wunsch und Problem:** Für die Erfinderschau erprobt Tilda eine kleine Korbbahn über den flachen Hof. Darin steckt das einzige Lieblingsbrötchen eines Kindes. Der Korb bleibt genau über dem nicht zugänglichen Blumenbeet hängen.
 
-**Komische Zuspitzung:** Tilda beschreibt das Stehenbleiben als „schwebende Frischhaltung“, während das Kind knurrenden Magen danebensteht.
+**Komische Zuspitzung:** Tilda behauptet, das Brötchen mache nur eine kleine Aussichtsfahrt, während der Magen des Kindes laut knurrt.
 
 **Entscheidender Konflikt:** Tilda will eine zweite Bahn bauen, um die erste zu retten. Die Kinder möchten erst ihr Essen zurück und keine größere Vorführung.
 
@@ -1913,7 +1913,7 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Sichtbare Auflösung:** Tilda stellt ihren Arm beiseite und kündigt Kunos Entwurf mit seinem Namen an. Die Kinder demonstrieren, wie leicht er funktioniert. Kuno erhält einen eigenen Platz auf der Schau und hilft freiwillig weiter.
 
-**Mögliche Pointe:** „Einladungen zum Anziehen.“ — „Nur du wurdest zwölfmal eingeladen.“
+**Mögliche Pointe:** „Auf deinem Ärmel steht zwölfmal ‚Bitte kommen!‘“ — „Dann sollte ich wohl hingehen.“
 
 **Die Kinder handeln mit:** Die Kinder zeigen Kunos wirklichen Beitrag, Kuno formuliert seinen Wunsch, Tilda räumt einen Platz für ihn frei.
 
@@ -2013,7 +2013,7 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Sichtbare Auflösung:** Die Kinder zeigen den freien Durchgang seitlich. Tilda rückt das leichte Podest mit ihnen weg, stellt Wasser am bekannten Platz bereit und führt dann die Probe ungestört zu Ende.
 
-**Mögliche Pointe:** „Sie gewinnt doch nicht den Erfinderpreis!“ HONK. „Sie wirkt anderer Meinung.“
+**Mögliche Pointe:** „Runter da, das ist der Platz für die Gewinnerin!“ HONK. — „Sie sagt, sie hat gewonnen.“
 
 **Die Kinder handeln mit:** Die Kinder beobachten Rostigs Ziel, Tilda verändert den Aufbau und der Durchgang wird gemeinsam geprüft.
 
@@ -2033,7 +2033,7 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Sichtbare Auflösung:** Mina holt das trockene Papierprogramm. Die Kinder vergleichen die vereinbarte Reihenfolge, Tilda hängt die lesbare Abschrift unter das Vordach und erklärt die Startzeiten den Wartenden. Die ersten beiden Stationen beginnen nacheinander.
 
-**Mögliche Pointe:** „Mein Hut schützt die Planung.“ — „Er gießt gerade den Nachmittag.“
+**Mögliche Pointe:** „Mein Hut hält alles trocken!“ TROPF. „Fast alles.“
 
 **Die Kinder handeln mit:** Die Kinder vergleichen die Reihenfolge, Mina bewahrt ihre Vorlage, Tilda hält die vereinbarten Zeiten ein.
 
@@ -2041,19 +2041,19 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Verständlichkeit und Kontinuität:** Die Papierkopie wird zu Beginn erwähnt. Kein neues Geheimzeichen und keine Farbcode-Prüfung für kleine Kinder.
 
-### Folge 19: Der Preis für die größte Panne
+### Folge 19: Suppenschüssel statt Königsschloss
 
 *Staffel 2; mit Kuno.*
 
 **Auslöser, Wunsch und Problem:** Am Vorabend will Tilda ihren Erfinderpreis unbedingt mit einer letzten Verbesserung sichern. Sie verbindet zwei bisher getrennte Vorführungen; nun zieht ein Start gleichzeitig den falschen Vorhang auf.
 
-**Komische Zuspitzung:** Statt des angekündigten Königsschlosses erscheint die gemalte Suppenschüssel genau um Tildas Kopf. Kuno nennt es ein erstaunlich nahrhaftes Porträt.
+**Komische Zuspitzung:** Statt des angekündigten Königsschlosses erscheint die gemalte Suppenschüssel genau um Tildas Kopf. Kuno wünscht ihr guten Appetit.
 
 **Entscheidender Konflikt:** Tilda könnte die Panne verstecken und morgen auf Glück hoffen. Die Kinder verlassen sich aber auf die geprobten Abläufe.
 
 **Sichtbare Auflösung:** Sie gibt die heimliche Änderung zu und trennt die beiden Starts wieder. Die Kinder führen beide vorbereiteten Szenen nacheinander vor. Tilda lässt die schöne Zusatzverbindung weg, obwohl sie damit weniger spektakulär wirkt.
 
-**Mögliche Pointe:** „Die Verbesserung ist fast fertig.“ — „Die Verschlechterung schon.“
+**Mögliche Pointe:** „Und jetzt: das Königsschloss!“ KLAPP. — „Tilda, du sitzt in einer Suppenschüssel.“
 
 **Die Kinder handeln mit:** Die Kinder zeigen, welchen Ablauf sie geübt haben; Kuno unterstützt das Trennen, Tilda nimmt die Änderung zurück.
 
@@ -2073,7 +2073,7 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 **Sichtbare Auflösung:** Sie kündigt jede Idee mit den richtigen Namen an und bedient verlässlich das bekannte Spielwerk. Das Schlussstück gelingt; die Kinder bedanken sich sichtbar bei ihr fürs Ermöglichen. Danach erhält jeder Beitrag seinen eigenen Applaus statt eines einzigen Siegerplatzes.
 
-**Mögliche Pointe:** „Die Leitung ist heute zu zweit.“ HONK. „Eine davon hat allerdings nur laut beraten.“
+**Mögliche Pointe:** „Danke für den Applaus!“ Rostig verbeugt sich gleich mit. HONK. „Na gut. Danke für unseren Applaus.“
 
 **Die Kinder handeln mit:** Die Kinder leiten das Schlussstück und nennen Tildas wirklichen Beitrag; Tilda hält ihre unterstützende Rolle auch unter Publikum durch.
 
