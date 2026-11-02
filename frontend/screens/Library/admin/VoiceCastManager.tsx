@@ -11,7 +11,7 @@ const SOURCE_LABELS: Record<string, string> = { admin: "Von dir gewählt", serie
 /** Gemini Lite and Flash share one cast. */
 const FAMILIES = [
   { id: "elevenlabs", engine: "elevenlabs", label: "ElevenLabs", note: "Stimmen aus dem ElevenLabs-Konto, Hörprobe von ElevenLabs." },
-  { id: "gemini", engine: "gemini-lite", label: "Gemini", note: "Wähle eine Stimme und höre sie zuerst an. Die deutschen Stimmen stammen aus Googles erweitertem Katalog; Altersangaben beschreiben die Stimme. Eine Hörprobe kostet ca. 0,06 ct." },
+  { id: "gemini", engine: "gemini-lite", label: "Gemini", note: "Wähle eine Stimme und höre sie zuerst an. Googles Angaben zum Klang können abweichen. Die markierten Stimmen klangen in kurzen Tests männlich oder weiblich. Eine Hörprobe kostet ca. 0,06 ct." },
 ] as const;
 
 /**
@@ -30,6 +30,7 @@ export const VoiceCastManager: React.FC<{ slug: string }> = ({ slug }) => {
   const [loadingPreview, setLoadingPreview] = useState<string | null>(null);
   const [selectedVoices, setSelectedVoices] = useState<Record<string, string>>({});
   const player = useRef<HTMLAudioElement | null>(null);
+  const previewRequest = useRef(0);
   const engine = FAMILIES.find((entry) => entry.id === family)!.engine;
 
   useEffect(() => {
@@ -43,7 +44,10 @@ export const VoiceCastManager: React.FC<{ slug: string }> = ({ slug }) => {
       .catch((loadError) => alive && setError(errorMessage(loadError, "Stimmen konnten nicht geladen werden.")));
     return () => {
       alive = false;
+      previewRequest.current += 1;
       player.current?.pause();
+      setPlaying(null);
+      setLoadingPreview(null);
     };
   }, [backend, slug, engine]);
 
@@ -92,18 +96,21 @@ export const VoiceCastManager: React.FC<{ slug: string }> = ({ slug }) => {
       setPlaying(null);
       return;
     }
+    player.current?.pause();
+    setPlaying(null);
     if (!data?.generatedPreviews) {
       if (voice.previewUrl) play(key, voice.previewUrl);
       return;
     }
+    const request = ++previewRequest.current;
     setLoadingPreview(key);
     try {
       const result = await backend.story.libraryAdminVoicePreview({ slug, speakerId: role.speakerId, engine, voiceId: voice.voiceId });
-      play(key, result.audio);
+      if (request === previewRequest.current) play(key, result.audio);
     } catch (previewError) {
-      toast.error(errorMessage(previewError, "Hörprobe hat nicht geklappt."));
+      if (request === previewRequest.current) toast.error(errorMessage(previewError, "Hörprobe hat nicht geklappt."));
     } finally {
-      setLoadingPreview(null);
+      if (request === previewRequest.current) setLoadingPreview(null);
     }
   };
 
@@ -160,7 +167,7 @@ export const VoiceCastManager: React.FC<{ slug: string }> = ({ slug }) => {
                 <div className="flex items-center gap-2">
                   <select
                     value={selectedVoiceId || ""}
-                    disabled={saving !== null}
+                    disabled={saving !== null || loadingPreview !== null}
                     onChange={(event) => {
                       const voiceId = event.target.value;
                       if (!voiceId) return;
@@ -171,9 +178,14 @@ export const VoiceCastManager: React.FC<{ slug: string }> = ({ slug }) => {
                     aria-label={`Stimme für ${role.name}`}
                   >
                     {!selectedVoiceId ? <option value="">— keine Stimme —</option> : null}
-                    {family === "gemini" ? [true, false].map((german) => (
-                      <optgroup key={String(german)} label={german ? "Deutsch · zusätzliche Stimmen" : "Gemini · Standardstimmen"}>
-                        {voices.filter((option) => option.traits.includes("Deutsch") === german).map((option) => (
+                    {family === "gemini" ? [
+                      { label: "Im Test männlich klingend", matches: (option: LibraryVoiceOption) => option.traits.includes("Test: männlich klingend") },
+                      { label: "Im Test weiblich klingend", matches: (option: LibraryVoiceOption) => option.traits.includes("Test: weiblich klingend") },
+                      { label: "Deutsch · weitere Stimmen", matches: (option: LibraryVoiceOption) => option.traits.includes("Deutsch") && !option.traits.includes("Test:") },
+                      { label: "Gemini · Standardstimmen", matches: (option: LibraryVoiceOption) => !option.traits.includes("Deutsch") },
+                    ].map((group) => (
+                      <optgroup key={group.label} label={group.label}>
+                        {voices.filter(group.matches).map((option) => (
                           <option key={option.voiceId} value={option.voiceId}>{option.name} ({option.traits})</option>
                         ))}
                       </optgroup>

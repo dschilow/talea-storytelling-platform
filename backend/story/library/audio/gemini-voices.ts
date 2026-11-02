@@ -33,6 +33,8 @@ export interface GeminiVoice {
   language?: "de-DE";
   ageYears?: number;
   pitch?: "low" | "medium" | "high";
+  /** Perceived presentation in a small sample, not a guarantee for every take. */
+  audition?: VoiceGender;
 }
 
 export const GEMINI_VOICES: readonly GeminiVoice[] = [
@@ -75,12 +77,20 @@ const GERMAN_VOICE_NAMES: Record<string, string> = {
   advisor: "Beratung", assistant: "Assistenz", concierge: "Concierge", csagent: "Kundenservice",
   podcaster: "Podcast", storyteller: "Erzählen", techagent: "Technik", training: "Moderation", tutor: "Lernhilfe",
 };
+// Short German test phrases on Gemini 3.8 Lite and Flash, 2026-10-30. In
+// particular, csagent-8 sounded feminine despite Google's male catalog label.
+const AUDITIONED_VOICES: Record<string, VoiceGender> = {
+  "de-de-advisor-6": "male",
+  "de-de-assistant-1": "male",
+  "de-de-assistant-11": "female",
+  "de-de-csagent-8": "female",
+};
 
 /** Additional German voices are selectable, but do not change automatic casting. */
 export const GEMINI_EXTRA_VOICES: readonly GeminiVoice[] = GEMINI_GERMAN_VOICES.map(([name, gender, pitch, ageYears]) => {
   const [, , category, number] = name.split("-");
   return {
-    name, gender, pitch, ageYears, language: "de-DE" as const,
+    name, gender, pitch, ageYears, language: "de-DE" as const, audition: AUDITIONED_VOICES[name],
     displayName: `${GERMAN_VOICE_NAMES[category] ?? category} ${number}`,
     trait: "German", traitDe: "Deutsch", ages: [ageYears >= 60 ? "old" : "adult"],
   };
@@ -94,11 +104,17 @@ export function geminiVoice(name?: string | null): GeminiVoice | undefined {
   return name ? BY_NAME.get(name.trim().toLowerCase()) : undefined;
 }
 
+/** An explicit but unknown choice must never become the figure's old voice. */
+export function geminiPreviewVoice(requested?: string | null, fallback?: string | null): GeminiVoice | undefined {
+  return requested ? geminiVoice(requested) : geminiVoice(fallback);
+}
+
 /** "Puck · männlich · gut gelaunt" for pickers. */
 export function geminiVoiceLabel(voice: GeminiVoice): string {
   const gender = voice.gender === "female" ? "weiblich" : voice.gender === "male" ? "männlich" : "neutral";
   const pitch = voice.pitch === "high" ? "hohe Stimme" : voice.pitch === "medium" ? "mittlere Stimme" : voice.pitch === "low" ? "tiefe Stimme" : undefined;
-  return [voice.language ? "Deutsch" : undefined, gender, voice.ageYears ? `${voice.ageYears} Jahre` : undefined, pitch ?? voice.traitDe].filter(Boolean).join(" · ");
+  const audition = voice.audition ? `Test: ${voice.audition === "female" ? "weiblich" : "männlich"} klingend` : undefined;
+  return [voice.language ? "Deutsch" : undefined, voice.language ? `laut Google ${gender}` : gender, voice.ageYears ? `${voice.ageYears} Jahre` : undefined, pitch ?? voice.traitDe, audition].filter(Boolean).join(" · ");
 }
 
 /* ── Hints: who a figure is ────────────────────────────────────────────── */

@@ -9,7 +9,7 @@ import { NARRATOR_ID, resolveSeriesCast, type AccountVoice } from "./casting";
 import { assignEngineVoices, geminiFigures, recastScript, seriesCastMembers, seriesHints } from "./cast-members";
 import { audioCosts, defaultVoiceEngine, engineInfo, estimateVoices, geminiVoiceCost, normalizeEngine, proseVolume, scriptVolume } from "./engines";
 import { checkClip, expectedSeconds, gapBetween, LINE_GAPS, renderWithGemini } from "./gemini-render";
-import { GEMINI_ALL_VOICES, GEMINI_EXTRA_VOICES, GEMINI_NARRATOR, GEMINI_VOICES, describeFigure, figureHint, geminiLine, geminiVoice, geminiVoiceLabel, pickGeminiVoice, resolveGeminiCast, type SpeakerDirection } from "./gemini-voices";
+import { GEMINI_ALL_VOICES, GEMINI_EXTRA_VOICES, GEMINI_NARRATOR, GEMINI_VOICES, describeFigure, figureHint, geminiLine, geminiPreviewVoice, geminiVoice, geminiVoiceLabel, pickGeminiVoice, resolveGeminiCast, type SpeakerDirection } from "./gemini-voices";
 import { createSpeechGate, SpeechError, openRouterSpeech, type SpeechPort, type SpeechRequest } from "./openrouter-speech";
 import { analyzeSpeech, applyGain, cut, safeGainDb, samplesFromPcm, wavBuffer } from "./pcm";
 import { NARRATOR_KEY } from "./screenplay";
@@ -81,7 +81,16 @@ describe("Gemini voices", () => {
     expect(new Set(GEMINI_ALL_VOICES.map((voice) => voice.name.toLowerCase())).size).toBe(GEMINI_ALL_VOICES.length);
     const voice = geminiVoice("DE-DE-ASSISTANT-11")!;
     expect(voice).toMatchObject({ name: "de-de-assistant-11", displayName: "Assistenz 11", ageYears: 23, language: "de-DE" });
-    expect(geminiVoiceLabel(voice)).toBe("Deutsch · weiblich · 23 Jahre · hohe Stimme");
+    expect(geminiVoiceLabel(voice)).toBe("Deutsch · laut Google weiblich · 23 Jahre · hohe Stimme · Test: weiblich klingend");
+    expect(geminiVoiceLabel(geminiVoice("de-de-csagent-8")!)).toContain("laut Google männlich");
+    expect(geminiVoiceLabel(geminiVoice("de-de-csagent-8")!)).toContain("Test: weiblich klingend");
+    expect(geminiVoiceLabel(geminiVoice("de-de-advisor-6")!)).toContain("Test: männlich klingend");
+  });
+
+  test("a preview uses the explicitly selected voice or reports it as unavailable", () => {
+    expect(geminiPreviewVoice("de-de-advisor-6", "Puck")?.name).toBe("de-de-advisor-6");
+    expect(geminiPreviewVoice(undefined, "Puck")?.name).toBe("Puck");
+    expect(geminiPreviewVoice("missing-voice", "Puck")).toBeUndefined();
   });
 
   test("a manually chosen German voice remains assigned and reaches the screenplay", () => {
