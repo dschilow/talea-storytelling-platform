@@ -6,12 +6,12 @@ import { existsSync } from "node:fs";
 import type { StorybookLlm } from "../../backend/story/storybook/llm";
 
 /** Test-only text transport. Auth stays inside Codex; no token is read or copied. */
-export function codexPort(out: string, model = "gpt-6.1-sol"): StorybookLlm {
+export function codexPort(out: string, model = "gpt-6.1-sol", options: { images?: boolean } = {}): StorybookLlm {
   const bundled = join(homedir(), ".codex", ".sandbox-bin", process.platform === "win32" ? "codex.exe" : "codex");
   const binary = process.env.TALEA_CODEX_BIN || (existsSync(bundled) ? bundled : "codex");
   let sequence = 0;
   return async request => {
-    if (request.imageInputs?.length) throw new Error("The Codex test port accepts text only.");
+    if (request.imageInputs?.length && !options.images) throw new Error("The Codex test port accepts text only.");
     const started = Date.now();
     const prefix = `${String(++sequence).padStart(2, "0")}-${request.stage}`;
     await mkdir(out, { recursive: true });
@@ -25,9 +25,17 @@ export function codexPort(out: string, model = "gpt-6.1-sol"): StorybookLlm {
     await mkdir(workRoot, { recursive: true });
     const cwd = await mkdtemp(join(workRoot, "talea-story-text-"));
     const prompt = `You are a text-only model in an automated story-quality test. Do not call tools, read files, browse, write files, or delegate. Return only the requested literary text or JSON in your final answer.\n\nAUTHORING INSTRUCTIONS\n${request.system}\n\nINPUT\n${request.user}`;
-    await writeFile(join(out, `${prefix}.request.json`), JSON.stringify({ ...request, actualModel: model, transport: "codex-chatgpt-plan" }, null, 2));
+    const { imageInputs, ...requestMetadata } = request;
+    await writeFile(join(out, `${prefix}.request.json`), JSON.stringify({ ...requestMetadata, imageInputCount: imageInputs?.length || 0, actualModel: model, transport: "codex-chatgpt-plan" }, null, 2));
     console.log(`  ${request.stage} · ${model} · Codex-Kontingent`);
     const args = ["exec", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "read-only", "--model", model, "--config", `model_reasoning_effort="${request.effort === "none" || request.effort === "minimal" ? "low" : request.effort || "medium"}"`, "--cd", cwd, "--json", "--output-last-message", last, "-"];
+    for (const [index, url] of (imageInputs || []).entries()) {
+      const imagePath = resolve(out, `${prefix}-input-${index + 1}.jpg`);
+      const bytes = url.startsWith('data:') ? Buffer.from(url.slice(url.indexOf(',') + 1), 'base64')
+        : Buffer.from(await (async () => { const response = await fetch(url, { signal: AbortSignal.timeout(60000) }); if (!response.ok) throw new Error('Could not load the quota test image.'); return response.arrayBuffer(); })());
+      await writeFile(imagePath, bytes);
+      args.push('--image', imagePath);
+    }
     const child = spawn(binary, args, { cwd, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "", stderr = "", timedOut = false;
     child.stdout.on("data", chunk => { stdout += chunk.toString(); });

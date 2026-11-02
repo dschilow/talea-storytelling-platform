@@ -30,6 +30,8 @@ interface Props {
   error: string | null;
   onRetry: () => void;
   isAdmin?: boolean;
+  qualityMode?: boolean;
+  onQualityModeChange?: (enabled: boolean) => void;
   episodeOverride?: number | null;
   onEpisodeOverrideChange?: (episode: number | null) => void;
   /** Admin test tool: resets this profile's counter of one series and resolves with the number of episodes reset. */
@@ -38,7 +40,7 @@ interface Props {
 
 const folgen = (count: number) => `${count} ${count === 1 ? 'Folge' : 'Folgen'}`;
 
-export default function StepCharacterSeries({ selection, onSelect, series, loading, error, onRetry, isAdmin, episodeOverride, onEpisodeOverrideChange, onResetProgress }: Props) {
+export default function StepCharacterSeries({ selection, onSelect, series, loading, error, onRetry, isAdmin, qualityMode, onQualityModeChange, episodeOverride, onEpisodeOverrideChange, onResetProgress }: Props) {
   const [reset, setReset] = React.useState<{ busy: boolean; message: string | null; error: string | null }>({ busy: false, message: null, error: null });
   const [surprised, setSurprised] = React.useState<string | null>(null);
   React.useEffect(() => { setReset({ busy: false, message: null, error: null }); }, [selection]);
@@ -76,6 +78,12 @@ export default function StepCharacterSeries({ selection, onSelect, series, loadi
         subtitle="Beim ersten Besuch lernt ihr die Figur und ihre Welt kennen. Danach geht eure Serie Folge für Folge weiter."
       />
 
+      {isAdmin && onQualityModeChange && (
+        <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-2xl border border-[var(--talea-border-light)] p-4">
+          <input type="checkbox" checked={qualityMode === true} onChange={event => onQualityModeChange(event.target.checked)} className="mt-1 h-4 w-4 accent-[var(--primary)]" />
+          <span className="text-sm text-[var(--talea-text-primary)]"><span className="font-semibold">Qualitätsvariante testen</span><span className="mt-1 block text-xs text-[var(--talea-text-secondary)]">Zusätzliches Lektorat und Auswahl zwischen Bildvarianten. Experimentell, mit höherem Kostenlimit.</span></span>
+        </label>
+      )}
       <section aria-labelledby="character-series-heading">
         <h3 id="character-series-heading" className="sr-only">Figuren</h3>
         {loading && <p role="status" className="py-3 text-sm text-[var(--talea-text-secondary)]">Figurenwelten werden geladen …</p>}

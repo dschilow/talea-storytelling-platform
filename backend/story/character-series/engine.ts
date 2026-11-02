@@ -29,10 +29,10 @@ export function applyChapterEdits<T extends { title: string; text: string }>(cha
  * attempt reserves its place in the call count before it starts, so a burst never exceeds the cap, and a call already
  * in flight may cross the spend threshold by its own cost.
  */
-export function seriesLlmBudget(llm: StorybookLlm, length: string = 'medium'): StorybookLlm & { canCall: () => boolean } {
+export function seriesLlmBudget(llm: StorybookLlm, length: string = 'medium', limits: { maxLlmCalls: number; llmStopAfterUSD: number; longLlmStopAfterUSD: number } = SERIES_POLICY): StorybookLlm & { canCall: () => boolean } {
   let calls = 0, spent = 0;
-  const stopAfter = length === 'long' ? SERIES_POLICY.longLlmStopAfterUSD : SERIES_POLICY.llmStopAfterUSD;
-  const canCall = () => calls < SERIES_POLICY.maxLlmCalls && spent < stopAfter;
+  const stopAfter = length === 'long' ? limits.longLlmStopAfterUSD : limits.llmStopAfterUSD;
+  const canCall = () => calls < limits.maxLlmCalls && spent < stopAfter;
   const bounded: StorybookLlm = async request => {
     let current = request;
     for (let attempt = 0; attempt < 2; attempt++) {

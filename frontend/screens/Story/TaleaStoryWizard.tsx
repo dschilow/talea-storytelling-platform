@@ -87,6 +87,7 @@ interface WizardState {
   characterSeries: CharacterSeriesSelection;
   /** Admin-only test override for the character series episode number (1..20). */
   characterSeriesEpisodeOverride: number | null;
+  characterSeriesQuality: boolean;
   /** Chapter book (chapter-book-v1): a volume read over several evenings. */
   chapterBookMode: boolean;
   experienceForm: ExperienceForm | null;
@@ -363,6 +364,7 @@ export default function TaleaStoryWizard() {
     wonderStoryMode: false,
     episodeMode: !deepLinkSeries,
     characterSeries: deepLinkSeries,
+    characterSeriesQuality: false,
     characterSeriesEpisodeOverride: null,
     chapterBookMode: false,
     experienceForm: null,
@@ -683,7 +685,7 @@ export default function TaleaStoryWizard() {
         onPhaseChange('text');
       }
 
-      const storyConfig = mapWizardStateToAPI(state, userLanguage);
+      const storyConfig = mapWizardStateToAPI(state, userLanguage, showEngineControls);
       const story = await generateStoryWithModelFallback(backend.story.generate, {
         storyId,
         userId,
@@ -823,6 +825,8 @@ export default function TaleaStoryWizard() {
             error={seriesError}
             onRetry={() => setSeriesRetry((n) => n + 1)}
             isAdmin={isAdmin === true}
+            qualityMode={state.characterSeriesQuality}
+            onQualityModeChange={(quality) => updateState({ characterSeriesQuality: quality })}
             episodeOverride={state.characterSeriesEpisodeOverride}
             onEpisodeOverrideChange={(ep) => updateState({ characterSeriesEpisodeOverride: ep })}
             onResetProgress={isAdmin === true ? handleSeriesReset : undefined}
@@ -983,7 +987,7 @@ export default function TaleaStoryWizard() {
   );
 }
 
-function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
+function mapWizardStateToAPI(state: WizardState, userLanguage: string, isAdmin = false) {
   const genreMap: Record<string, string> = {
     'fairy-tales': 'fairy_tales',
     adventure: 'adventure',
@@ -1057,7 +1061,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string) {
     },
     developerMode: state.developerMode || undefined,
     storybookMode: state.storyKind === 'series' || state.storybookMode || state.bookWorkshopMode || state.chapterBookMode || state.wonderStoryMode || state.episodeMode || undefined,
-    storybookEngine: state.storyKind === 'series' ? 'character-series-v1' : state.episodeMode ? 'talea-folge-v1' : state.wonderStoryMode ? 'wonder-story-v1' : state.chapterBookMode ? 'chapter-book-v1' : state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v2' : undefined,
+    storybookEngine: state.storyKind === 'series' ? (isAdmin && state.characterSeriesQuality ? 'character-series-quality-v1' : 'character-series-v1') : state.episodeMode ? 'talea-folge-v1' : state.wonderStoryMode ? 'wonder-story-v1' : state.chapterBookMode ? 'chapter-book-v1' : state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v2' : undefined,
     characterSeriesId: state.storyKind === 'series' && state.characterSeries && state.characterSeries !== 'auto' ? state.characterSeries : undefined,
     characterSeriesEpisodeOverride: state.storyKind === 'series' && state.characterSeriesEpisodeOverride ? state.characterSeriesEpisodeOverride : undefined,
     ...(state.chapterBookMode

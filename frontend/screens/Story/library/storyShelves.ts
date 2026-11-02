@@ -17,7 +17,7 @@ const byOldest = (a: Story, b: Story) => storyTime(a) - storyTime(b) || a.id.loc
 const byNewest = (a: Story, b: Story) => byOldest(b, a);
 
 export function seriesIdOf(story: Story): string | null {
-  if (story.config?.storybookEngine !== CHARACTER_SERIES_ENGINE) return null;
+  if (![CHARACTER_SERIES_ENGINE, "character-series-quality-v1"].includes(story.config?.storybookEngine || "")) return null;
   const id = (story.config.characterSeriesId || story.metadata?.characterSeries?.id || "").trim();
   return id || null;
 }

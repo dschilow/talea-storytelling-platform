@@ -436,7 +436,10 @@ export async function generateSeriesImages(input: {
   reservedImageCalls?: number;
   /** True when a drawn picture is split into sheet-like panels (production: pictureHasPanels). */
   panelCheck?: (url: string) => Promise<boolean>;
+  /** Independent quality-lane limits; omitted in the original lane. */
+  policy?: { maxImageCalls: number; imageRetries: number; imageConcurrency: number };
 }): Promise<StorybookImagesResult> {
+  const policy = input.policy || SERIES_POLICY;
   const shots = [input.illustrations.cover, ...input.illustrations.pages];
   const maxShots = 1 + SERIES_POLICY.picturesPerChapter * 4;
   if (shots.length > maxShots) throw new Error(`Die Figurenserie zeichnet höchstens ${maxShots} geplante Bilder.`);
@@ -528,7 +531,7 @@ export async function generateSeriesImages(input: {
         wordlessLine(moment.scene),
         'Use the shared Talea Originals medium described above; only the identity sheet supplies characters.',
       ].filter(Boolean).join('\n');
-      if (imageCalls + (input.reservedImageCalls || 0) >= SERIES_POLICY.maxImageCalls) {
+      if (imageCalls + (input.reservedImageCalls || 0) >= policy.maxImageCalls) {
         history.push({ kind: 'series-budget', status: 'failed', severity: 999, notes: ['Kein weiteres Bild erzeugt: Bildbudget erreicht.'] });
         return { page: shot.page, prompt, attempts: number, costUSD, severity: 999, status: 'failed', errors: ['series_image_budget_exhausted'], history };
       }
@@ -615,12 +618,12 @@ export async function generateSeriesImages(input: {
   };
   // Every planned picture is drawn and checked at once: one after another, each waited for its 20–45 s check (story
   // ff6eff04: 211 s for four pictures). Repairs start only when every planned picture has its verdict.
-  const outcomes = await mapLimited(shots, SERIES_POLICY.imageConcurrency, shot => render(shot));
+  const outcomes = await mapLimited(shots, policy.imageConcurrency, shot => render(shot));
   // Give transient preparation failures one recovery pass after all first attempts have settled.
   // These pictures have never reached the provider: keep attempt/seed 1 and the paid redraw allowance.
   const referenceRecoveries = outcomes.map((outcome, index) => ({ outcome, index }))
     .filter(({ outcome }) => outcome.attempts === 0 && outcome.errors?.includes('series_reference_error'));
-  await mapLimited(referenceRecoveries, SERIES_POLICY.imageConcurrency, async ({ outcome, index }) => {
+  await mapLimited(referenceRecoveries, policy.imageConcurrency, async ({ outcome, index }) => {
     outcomes[index] = await render(shots[index], 1, outcome);
   });
   // A temporary vision outage must not throw away a paid image or force a redraw.
@@ -629,7 +632,7 @@ export async function generateSeriesImages(input: {
   const recoverUnverified = async () => {
     const unverified = outcomes.map((outcome, index) => ({ outcome, index }))
       .filter(({ outcome }) => outcome.errors?.includes('series_vision_error') && visionRecoveries.has(outcome.page) && !reviewedAgain.has(`${outcome.page}:${outcome.attempts}`));
-    await mapLimited(unverified, SERIES_POLICY.imageConcurrency, async ({ outcome, index }) => {
+    await mapLimited(unverified, policy.imageConcurrency, async ({ outcome, index }) => {
       if (!canReview()) return;
       reviewedAgain.add(`${outcome.page}:${outcome.attempts}`);
       outcomes[index] = await visionRecoveries.get(outcome.page)!();
@@ -693,7 +696,7 @@ export async function generateSeriesImages(input: {
       return true;
     });
     const selected = new Set(priority.map(({ index }) => index));
-    const available = Math.max(0, Math.min(SERIES_POLICY.imageRetries - regenerated.length, SERIES_POLICY.maxImageCalls - imageCalls));
+    const available = Math.max(0, Math.min(policy.imageRetries - regenerated.length, policy.maxImageCalls - imageCalls));
     // Keep room for one more attempt per empty chapter instead of using every retry on first edits or the cover.
     const reserved = number === 2 ? Math.min(priority.length, Math.max(0, available - priority.length)) : 0;
     // Story 439d746c spent its last redraw on a third try of the same doubled boy while a split picture and the cover had

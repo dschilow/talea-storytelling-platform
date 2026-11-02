@@ -40,6 +40,10 @@ import { buildBrief } from "./storybook/context";
 import { loadArtifactOptions, loadCastCandidates, recordCastUsage } from "./storybook/casting";
 import { loadPoolRows } from "./storybook/casting";
 import { toCastCandidate } from "./storybook/cast-selection";
+import { QUALITY_SERIES_ENGINE, QUALITY_SERIES_MODELS, QUALITY_SERIES_POLICY, isCharacterSeriesEngine } from "./character-series-quality/profile";
+import { directQualitySeriesPictures } from "./character-series-quality/direction";
+import { runQualitySeriesTextEngine } from "./character-series-quality/text";
+import { generateQualitySeriesImages } from "./character-series-quality/images";
 import { CHARACTER_SERIES_ENGINE } from "./character-series/core";
 import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, SERIES_PICTURE_DIRECTION_MODEL, seriesBudget } from "./character-series/authoring";
 import { SERIES_NARRATIVES } from "./character-series/narrative";
@@ -143,14 +147,16 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const { config } = input;
   const wonderMode = config.storybookEngine === WONDER_PIPELINE_ID;
   // Talea-Folge: the Originals' method for the family's own heroes (chapters with titles, like wonder).
-  const seriesMode = config.storybookEngine === CHARACTER_SERIES_ENGINE;
+  const qualitySeriesMode = config.storybookEngine === QUALITY_SERIES_ENGINE;
+  const seriesMode = isCharacterSeriesEngine(config.storybookEngine);
+  const seriesPolicy = qualitySeriesMode ? QUALITY_SERIES_POLICY : SERIES_POLICY;
   const episodeMode = config.storybookEngine === EPISODE_PIPELINE_ID || seriesMode;
   const imageModel = seriesMode ? SERIES_IMAGE_MODEL : episodeMode ? LIBRARY_IMAGE_MODEL : IMAGE_MODEL;
   const chapterMode = wonderMode || episodeMode;
-  const pipelineId = seriesMode ? CHARACTER_SERIES_ENGINE : episodeMode ? EPISODE_PIPELINE_ID : wonderMode ? WONDER_PIPELINE_ID : STORYBOOK_PIPELINE_ID;
+  const pipelineId = qualitySeriesMode ? QUALITY_SERIES_ENGINE : seriesMode ? CHARACTER_SERIES_ENGINE : episodeMode ? EPISODE_PIPELINE_ID : wonderMode ? WONDER_PIPELINE_ID : STORYBOOK_PIPELINE_ID;
   const ledger = new CostLedger();
   const resolved = resolveStorybookModels(config, { critic: process.env.TALEA_STORYBOOK_CRITIC_MODEL || undefined });
-  const models = seriesMode ? SERIES_MODELS : episodeMode ? episodeProductionModels() : resolved;
+  const models = qualitySeriesMode ? QUALITY_SERIES_MODELS : seriesMode ? SERIES_MODELS : episodeMode ? episodeProductionModels() : resolved;
   const band = normalizeAgeBand(config.ageGroup);
   const budget = seriesMode ? seriesBudget(config.length, band) : episodeMode ? episodeBudget(config.length, band) : wonderMode ? wonderBudget(config.length, band) : resolveLengthBudget(config.length, band);
   const seed = stableSeed(input);
@@ -227,7 +233,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   });
   // Flex covers every episode LLM call (including character-series), and retries keep the same model.
   const productionLlm = episodeMode ? episodeProductionLlm(openRouterLlm, resolveEpisodeServiceTier()) : openRouterLlm;
-  const llm = seriesMode ? seriesLlmBudget(productionLlm, config.length) : productionLlm;
+  const llm = seriesMode ? seriesLlmBudget(productionLlm, config.length, seriesPolicy) : productionLlm;
 
   // -------------------------------------------------------------------------
   // While the text is written, the picture side gets ready.
@@ -282,7 +288,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // -------------------------------------------------------------------------
   // 1) Text: concept → plan → draft → review → revision → final A/B.
   // -------------------------------------------------------------------------
-  const text = await (seriesMode ? runCharacterSeriesTextEngine : episodeMode ? runEpisodeTextEngine : wonderMode ? runWonderTextEngine : runStorybookTextEngine)({
+  const text = await (qualitySeriesMode ? runQualitySeriesTextEngine : seriesMode ? runCharacterSeriesTextEngine : episodeMode ? runEpisodeTextEngine : wonderMode ? runWonderTextEngine : runStorybookTextEngine)({
     llm,
     brief,
     models,
@@ -391,7 +397,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // acting figure at least once (the chapter book's picture machinery, ./episode/pictures.ts). Every other lane: one
   // picture per page.
   const directing: Promise<EpisodeDirection | undefined> = seriesMode
-    ? directSeriesPictures({ llm, model: SERIES_PICTURE_DIRECTION_MODEL, brief, title: text.title, pages, plan, entities: directedEntities,
+    ? (qualitySeriesMode ? directQualitySeriesPictures : directSeriesPictures)({ llm, model: SERIES_PICTURE_DIRECTION_MODEL, brief, title: text.title, pages, plan, entities: directedEntities,
         observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId) })
     : episodeMode
     ? directEpisodePictures({ llm, model: models.support, brief, title: text.title, pages, plan, entities: known.entities }).catch((err) => {
@@ -419,7 +425,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
 
   const emptyImages: StorybookImagesResult = { pages: new Map(), imagesGenerated: 0, imageCalls: 0, imageCostUSD: 0, qaCalls: [], regenerated: [] };
   const [images, development] = await Promise.all([
-    (seriesMode ? generateSeriesImages({
+    (seriesMode ? (qualitySeriesMode ? generateQualitySeriesImages : generateSeriesImages)({
       illustrations, entities: pictureEntities, provider: encoreImageProvider(input.storyId, imageModel), imageModel, seed, llm,
       visionModel: SERIES_IMAGE_REVIEW_MODEL, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL, pageTexts: Object.fromEntries(picturePages.map(page => [page.order, page.content])),
       chapterByPage: direction ? Object.fromEntries(direction.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined,
@@ -460,7 +466,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   images.jevCalls?.forEach((call, index) => ledger.recordCall(`image-jev-${index + 1}`, call, "support"));
   if (development.call) ledger.recordCall("avatar-development", development.call, "support");
   if (seriesMode && (images.cover?.status !== "passed" || illustrations.pages.some(shot => images.pages.get(shot.page)?.status !== "passed"))) {
-    await logStage(input.storyId, "series-images-rejected", { imageCalls: images.imageCalls, imageCostUSD: images.imageCostUSD, policy: SERIES_POLICY, outcomes: [images.cover, ...images.pages.values()] }, pipelineId);
+    await logStage(input.storyId, "series-images-rejected", { imageCalls: images.imageCalls, imageCostUSD: images.imageCostUSD, policy: seriesPolicy, outcomes: [images.cover, ...images.pages.values()] }, pipelineId);
   }
 
   // -------------------------------------------------------------------------
@@ -513,7 +519,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const timingsMs = { text: textDoneAt - startedAt, pictureDirection: directedAt - textDoneAt, images: imagesDoneAt - directedAt, finish: Date.now() - imagesDoneAt };
   const measuredQuality = storybookQuality(text, images, picturePages.map((page) => page.order));
   // Keep the paid manuscript readable, but a partly illustrated book is not a release-ready edition.
-  const quality = measuredQuality;
+  const quality = qualitySeriesMode ? { ...measuredQuality, releaseReady: measuredQuality.releaseReady && (images as any).bookReview?.status === "passed" } : measuredQuality;
   const characterSeriesArt = seriesMode ? {
     state: measuredQuality.imagesReady ? 'complete' : 'partial',
     // A picture whose check found only a neighbouring instant of its scene ("flawed") is printed and counts as delivered.
@@ -554,7 +560,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const metadata: Record<string, any> = {
     pipeline: pipelineId,
     generationMode: pipelineId,
-    ...(seriesMode ? { characterSeriesLogCandidate: episode?.seriesLogCandidate, characterSeriesCraft: seriesCraftMemory(pages), characterSeriesPolicy: SERIES_POLICY, characterSeriesArt,
+    ...(seriesMode ? { characterSeriesLogCandidate: episode?.seriesLogCandidate, characterSeriesCraft: seriesCraftMemory(pages), characterSeriesPolicy: seriesPolicy, characterSeriesArt,
+      ...(qualitySeriesMode ? { characterSeriesImageSelections: (images as any).selections, characterSeriesBookReview: (images as any).bookReview } : {}),
       characterSeriesReferences: seriesVisuals?.assets.map(({ referenceUrl: _transportUrl, ...asset }) => asset),
       characterSeriesReferenceResults: seriesVisuals?.portraits } : {}),
     ...(wonder ? { wonder } : {}),

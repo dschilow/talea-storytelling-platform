@@ -12,6 +12,7 @@ import { avatar } from "~encore/clients";
 import { storyDB } from "./db";
 import { avatarSeriesFingerprint, CHARACTER_SERIES_ENGINE, CHARACTER_SERIES_VERSION, effectiveSeriesEpisode, extractSeriesLog, validateSeriesLog, withSeriesContext, nextSeriesEpisode, type CharacterSeriesBible, type SeriesEpisodeLog } from "./character-series/core";
 import { loadSeriesHistory, reserveSeries } from "./character-series/repository";
+import { isCharacterSeriesEngine } from "./character-series-quality/profile";
 import { customerStoryLane } from "./customer-story-lane";
 import { logTopic } from "../log/logger";
 import { publishWithTimeout } from "../helpers/pubsubTimeout";
@@ -230,7 +231,7 @@ export interface StoryConfig {
   // Does not touch developerMode or the standard path.
   storybookMode?: boolean;
   // Explicit wizard selection takes precedence over the legacy server default.
-  storybookEngine?: "storybook-v1" | "storybook-v2" | "book-workshop-v1" | "chapter-book-v1" | "wonder-story-v1" | "talea-folge-v1" | "character-series-v1";
+  storybookEngine?: "storybook-v1" | "storybook-v2" | "book-workshop-v1" | "chapter-book-v1" | "wonder-story-v1" | "talea-folge-v1" | "character-series-v1" | "character-series-quality-v1";
   /** Omit for a genre-matched character world. Validated against the server catalogue. */
   characterSeriesId?: string;
   /** Admin-only test override to jump directly to a specific episode number (1..40). */
@@ -599,7 +600,7 @@ export const generate = api<GenerateStoryRequest, Story>(
         ? req.config.customPrompt
         : mergePromptBlocks(req.config.customPrompt, profilePrompt),
     };
-    if (config.storybookEngine === CHARACTER_SERIES_ENGINE) {
+    if (isCharacterSeriesEngine(config.storybookEngine)) {
       config.storybookMode = true;
       config.avatarIsHero = false;
       config.characterSeriesVersion = CHARACTER_SERIES_VERSION;
@@ -644,7 +645,7 @@ export const generate = api<GenerateStoryRequest, Story>(
     await reserveStoryGenerationCapacity({
       userId: currentUserId,
       createReservation: async (tx) => {
-        if (config.storybookEngine === CHARACTER_SERIES_ENGINE) {
+        if (isCharacterSeriesEngine(config.storybookEngine)) {
           const bible = await reserveSeries(tx, { userId: currentUserId, profileId: primaryProfileId, requestedId: config.characterSeriesId, genre: config.genre });
           config.characterSeriesId = bible.id;
           const episodeOverride = auth?.role === "admin" && typeof config.characterSeriesEpisodeOverride === "number" && Number.isInteger(config.characterSeriesEpisodeOverride) && config.characterSeriesEpisodeOverride >= 1 && config.characterSeriesEpisodeOverride <= 40

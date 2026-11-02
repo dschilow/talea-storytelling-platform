@@ -1,0 +1,104 @@
+{
+  "date": "2026-11-02",
+  "pipeline": "character-series-quality-v1",
+  "baseline": "character-series-v1 v25",
+  "method": "Three real local generations, fictional children, public references, manual manuscript and contact-sheet review. No matched baseline or blinded evaluation.",
+  "costs": {
+    "finalApiUSD": 0.2539618799999999,
+    "developmentApiUSD": 0.07909774999999995,
+    "totalReportedApiUSD": 0.33305963000000033,
+    "finalByModelUSD": {
+      "google/gemini-3.8-flash": 0.0210495,
+      "openai/gpt-6-luna": 0.08236687999999999,
+      "runware:400@6": 0.09762999999999991,
+      "openai/gpt-6.1-terra": 0.052915500000000004
+    },
+    "subscriptionCostIncluded": false,
+    "note": "Provider-reported charges only. Codex subscription quota has no allocated cash price here. A connection failure before usage was returned can leave an unknown charge. This is not an incremental production-cost comparison."
+  },
+  "stories": [
+    {
+      "seriesId": "tilda-tueftel",
+      "title": "Die Aufräummaschine hat Hunger",
+      "textWords": 1419,
+      "approvedPictures": 1,
+      "plannedPictures": 7,
+      "imageCalls": 18,
+      "imageCostUSD": 0.03198000000000001,
+      "reportedApiCashUSD": 0.08537100999999997,
+      "bookReview": {
+        "status": "failed",
+        "issues": [
+          {
+            "page": 2,
+            "detail": "Tilda operates a separate scooter-like sweeper, while the machine’s broom lies loose beside the box. On page 0 and in the source, the broad broom is part of the pedal-operated machine.",
+            "blocking": true
+          },
+          {
+            "page": 4,
+            "detail": "The collection machine has become a plain lidded wooden box, with blue fabric protruding from the top. Page 0 and the source establish a painted grinning front; the band should peek from the narrow gap between that front and the side wall.",
+            "blocking": true
+          },
+          {
+            "page": 5,
+            "detail": "The detached front has a different painted face: open eyes and a large pink nose, with no red border. On page 0, the same panel has closed eyes, a small nose and a prominent red border.",
+            "blocking": true
+          }
+        ]
+      },
+      "releaseReady": false
+    },
+    {
+      "seriesId": "kapitaen-blubbert",
+      "title": "Ein Seehund auf dem Kapitänssitz",
+      "textWords": 1581,
+      "approvedPictures": 3,
+      "plannedPictures": 7,
+      "imageCalls": 20,
+      "imageCostUSD": 0.03198000000000001,
+      "reportedApiCashUSD": 0.08057199999999996,
+      "bookReview": {
+        "status": "failed",
+        "issues": [
+          {
+            "page": 5,
+            "detail": "Nora wears a low shoe rather than boots, as she also does on page 2. The source says the wave soaks both Nora’s and Blubbert’s boots, prompting them to lift their feet together.",
+            "blocking": true
+          }
+        ]
+      },
+      "releaseReady": false
+    },
+    {
+      "seriesId": "funkelflug",
+      "title": "Ein Drache passt da durch",
+      "textWords": 1618,
+      "approvedPictures": 2,
+      "plannedPictures": 7,
+      "imageCalls": 21,
+      "imageCostUSD": 0.033670000000000005,
+      "reportedApiCashUSD": 0.08801886999999996,
+      "bookReview": {
+        "status": "failed",
+        "issues": [
+          {
+            "page": 5,
+            "detail": "Ben is still wearing his backpack while using the flashlight, but the source says he removes it after Funkelflug’s wing catches in the strap, before taking out the flashlight.",
+            "blocking": true
+          },
+          {
+            "page": 5,
+            "detail": "The board is horizontal overhead, leaving a large open passage. On page 3 and in the source it remains slanted and wedged across the opening until Funkelflug shifts it on page 6.",
+            "blocking": true
+          },
+          {
+            "page": 6,
+            "detail": "The board has become a broad, rounded, tapered shape; it is a long rectangular panel on pages 3 and 5.",
+            "blocking": true
+          }
+        ]
+      },
+      "releaseReady": false
+    }
+  ]
+}

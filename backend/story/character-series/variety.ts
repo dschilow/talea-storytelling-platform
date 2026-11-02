@@ -19,7 +19,7 @@ export function seriesCraftMemory(pages: Array<{ content: string }>): SeriesCraf
 
 /** Old stories still supply their planned comic mechanisms, without inventing an opening. */
 export function seriesCraftHistory(metadata: Record<string, any>, title: string): string | undefined {
-  if (metadata.pipeline !== 'character-series-v1') return undefined;
+  if (!['character-series-v1', 'character-series-quality-v1'].includes(metadata.pipeline)) return undefined;
   const saved = metadata.characterSeriesCraft;
   const fields = saved && typeof saved === 'object'
     ? [['Einstieg', excerpt(saved.opening, 350)], ['Wendepunkt', excerpt(saved.turnaround, 500)], ['Schluss', excerpt(saved.ending, 250)]]
