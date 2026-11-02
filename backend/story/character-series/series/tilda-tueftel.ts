@@ -116,7 +116,7 @@ export const TILDA_TUEFTEL_SERIES: SeriesPlanFile = {
       season: 1,
       titleIdea: "Die Aufräummaschine hat Hunger",
       guestId: null,
-      hook: "Die Kinder bringen einen Teddy mit lockerer Naht zur ihnen noch unbekannten Tilda. Sie will stattdessen zuerst ihre neue Aufräummaschine zeigen: Beim Treten eines Pedals schiebt ein breiter Besen Dinge in eine Kiste. Der Teddy gerät versehentlich hinein.",
+      hook: "Die Kinder bringen einen Teddy mit lockerer Naht zur ihnen noch unbekannten Tilda. Sie will stattdessen zuerst ihre neue Aufräummaschine zeigen: Beim Treten eines Pedals schiebt ein breiter Besen Dinge in eine Kiste. Der Teddy gerät versehentlich hinein, und ein Kind stellt fest: „Die Maschine hat Hunger!“",
       slapstick: "Tilda tritt rückwärts, um ihn herauszuholen; der Besen verteilt stattdessen Tücher und Socken wie Konfetti, und eine Unterhose landet auf ihrem Kopf.",
       suspense: "Das Kind erkennt sein Teddyband hinter der festen Schauseite. Tilda müsste ihre stolz bemalte Front abnehmen, statt die missglückte Vorführung weiter schönzureden.",
       resolution: "Sie stoppt, nimmt die gewöhnlich befestigte Front ab und lässt das Kind den unbeschädigten Teddy herausheben. Gemeinsam nähen sie die ursprüngliche lockere Naht. Tilda öffnet danach ihr Ideenfenster für echte Wünsche der Kinder.",

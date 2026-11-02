@@ -25,7 +25,7 @@ mock.module("../openrouter-generation", () => ({
   getOpenRouterModelPricing: () => ({ inputCostPer1M: 1, outputCostPer1M: 1 }),
 }));
 
-const { createOpenRouterStorybookLlm, isFlexRefusal } = await import("./llm-openrouter");
+const { createOpenRouterStorybookLlm, isFlexRefusal, systemWithJsonWord } = await import("./llm-openrouter");
 const request = { stage: "book-chapters-2-4", role: "writer" as const, model: "openai/gpt-6.1-sol", system: "s", user: "u", json: false, maxTokens: 100, serviceTier: "flex" as const };
 
 describe("flex tier (2026-10-16)", () => {
@@ -151,5 +151,15 @@ describe("flex tier (2026-10-16)", () => {
     // Paid tokens that came back empty are not retried on flex.
     expect(isFlexRefusal(Object.assign(new Error(instant), { billed: { text: "", usage: { prompt: 7000, completion: 0, total: 7000, costUSD: 0.004 } } }))).toBe(false);
     expect(isFlexRefusal(Object.assign(new Error(instant.replace("completion_tokens=0", "completion_tokens=3500")), { billed: { text: "" } }))).toBe(false);
+  });
+});
+
+describe("json_object requests always name JSON", () => {
+  test("a prompt without the word gets one closing instruction, every other prompt stays unchanged", () => {
+    // 2026-11-02: OpenAI refused the character series' reference plan ("must contain the word 'json'") on every story.
+    expect(systemWithJsonWord({ system: "Return {references:[]}.", user: "Story", json: true })).toBe("Return {references:[]}.\nAnswer with one JSON object.");
+    expect(systemWithJsonWord({ system: "Return JSON {references:[]}.", user: "Story", json: true })).toBe("Return JSON {references:[]}.");
+    expect(systemWithJsonWord({ system: "Plan.", user: "Answer as json.", json: true })).toBe("Plan.");
+    expect(systemWithJsonWord({ system: "Write the story.", user: "Story", json: false })).toBe("Write the story.");
   });
 });

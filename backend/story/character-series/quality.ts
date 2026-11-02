@@ -15,7 +15,7 @@ ACCEPT with a minor note: characters swapping actions or positions; a paint spot
 Use kind=identity/anatomy/safety only for a real blocking fault. Other kinds may be blocking only for the publication blockers above. Report at most THREE observations, always real blockers first, each with blocking:true|false and a short positive fix. Keep detail/fix under 180 characters. Numbers are diagnostic, not another hidden publication threshold.
 Return JSON {"reviewVersion":3,"observedFigures":[{"position":"left foreground","appearance":"what this figure actually looks like","matchedId":"exact supplied id or null"}],"visibleHandsById":{"id":["hand holding the handle","hand raised beside the head"]},"anatomyOkById":{"id":true},"recognizableById":{"id":true},"identityById":{"id":0.85},"sceneCompatible":true,"posing":false,"primaryActionClear":true,"storyConsistent":true,"materialContradiction":false,"sceneMatch":0.8,"styleMatch":0.8,"defects":[{"kind":"anatomy|identity|safety|story|unexpected|text|style|composition|detail","detail":"visible observation","fix":"correction","blocking":false,"blocksAction":false}]}. matchedId is JSON null for an unmatched figure, never an invented id. Include EVERY expected id in all four per-person maps, using recognizableById=false for an absent/replaced figure. All scores 0–1. Empty defects when sound.`;
 export interface SeriesImageDefect { kind: Kind; detail: string; fix: string; blocksAction?: boolean; blocking?: boolean }
-export interface SeriesObservedFigure { position: string; appearance: string; matchedId: string | null }
+export interface SeriesObservedFigure { position: string; appearance: string; matchedId: string | null; /** An animal or toy the scene names, not a cast member. */ sceneProp?: true }
 export type SeriesQa = ImageQaReport & {
   styleMatch: number; styleDefects: string[]; primaryActionClear: boolean; criticalSceneDefects: string[];
   defects: SeriesImageDefect[]; identityById: Record<string, number>;
@@ -34,8 +34,26 @@ export type SeriesQa = ImageQaReport & {
 // Public probe scripts use exactly the same contract as production.
 export const SERIES_IMAGE_REVIEW = SERIES_IMAGE_REVIEW_COMPACT;
 
+const HUMAN_FIGURE = /\b(?:boy|girl|child|children|kid|toddler|man|woman|adult|person|people|human|lady|gentleman|teenager)s?\b/i;
+const CREATURE_OR_TOY = /\b(teddy|bear|plush|stuffed|toy|doll|puppet|seal|pup|dog|puppy|cat|kitten|bird|gull|seagull|duck|goose|hen|chicken|owl|crow|parrot|pigeon|sparrow|fish|crab|frog|toad|turtle|tortoise|snail|mouse|rat|hamster|rabbit|bunny|hare|hedgehog|squirrel|fox|deer|horse|pony|donkey|goat|sheep|lamb|cow|calf|pig|piglet|bee|butterfly|beetle|ladybird|ladybug|spider|dragon|unicorn|robot|snowman|scarecrow)s?\b/gi;
+
+/**
+ * An unreferenced animal or toy that the scene itself names belongs in the picture. Story fa24532b (2026-11-02) lost its
+ * teddy three times: the reader listed it as an "unmatched figure", the repair removed it and one edit painted a boot in
+ * its place. People never qualify, and neither does a second animal of an expected species (a duplicated lead).
+ */
+export function sceneNamedNonHuman(appearance: string, sceneText: string | undefined, expected: VisualEntity[]): boolean {
+  if (!sceneText || HUMAN_FIGURE.test(appearance)) return false;
+  const scene = sceneText.toLocaleLowerCase('en');
+  const species = expected.filter(e => !e.isHuman).map(e => e.species.toLocaleLowerCase('en'));
+  return [...appearance.matchAll(CREATURE_OR_TOY)].some(([, word]) => {
+    const noun = word.toLocaleLowerCase('en');
+    return !species.some(s => s.includes(noun)) && new RegExp(`\\b${noun}s?\\b`).test(scene);
+  });
+}
+
 /** Identity/anatomy/safety remain blocking; harmless staging is retained separately from the release decision. */
-export function readSeriesQa(text: string, expected: VisualEntity[]): SeriesQa | undefined {
+export function readSeriesQa(text: string, expected: VisualEntity[], context: { sceneText?: string } = {}): SeriesQa | undefined {
   let raw: any;
   try { raw = parseJsonObject(text); } catch { return undefined; }
   const resolveId = (key: string): string => {
@@ -62,8 +80,9 @@ export function readSeriesQa(text: string, expected: VisualEntity[]): SeriesQa |
         || typeof figure.appearance !== 'string' || figure.appearance.trim().length < 3 || figure.appearance.length > 300
         || (figure.matchedId !== null && typeof figure.matchedId !== 'string')) return undefined;
       const matchedId = typeof figure.matchedId === 'string' ? resolveId(figure.matchedId) : null;
-      observedFigures.push({ position: figure.position.trim(), appearance: figure.appearance.trim(),
-        matchedId: matchedId && expected.some(e => e.id === matchedId) ? matchedId : null });
+      const resolved = matchedId && expected.some(e => e.id === matchedId) ? matchedId : null;
+      observedFigures.push({ position: figure.position.trim(), appearance: figure.appearance.trim(), matchedId: resolved,
+        ...(!resolved && sceneNamedNonHuman(figure.appearance, context.sceneText, expected) ? { sceneProp: true as const } : {}) });
     }
   }
   const reportedVisibleIds = observedFigures
@@ -113,13 +132,14 @@ export function readSeriesQa(text: string, expected: VisualEntity[]): SeriesQa |
   if (observedFigures && recognizableById) {
     for (const entity of expected) if (!visibleIds.includes(entity.id)) recognizableById[entity.id] = false;
   }
-  for (const figure of observedFigures?.filter(figure => figure.matchedId === null) || []) {
+  const unmatched = (figure: SeriesObservedFigure) => figure.matchedId === null && !figure.sceneProp;
+  for (const figure of observedFigures?.filter(unmatched) || []) {
     defects.push({ kind: missing.length ? 'identity' : 'unexpected', blocking: true,
       detail: `Unmatched figure at ${figure.position}: ${figure.appearance}`,
       fix: missing.length ? `Replace the unmatched figure at ${figure.position} with ${missing.join(' and ')} from their own references.`
         : `Remove the unreferenced figure at ${figure.position}; keep the expected cast.` });
   }
-  if (observedFigures && !observedFigures.some(figure => figure.matchedId === null)) {
+  if (observedFigures && !observedFigures.some(unmatched)) {
     for (const name of missing) defects.push({ kind: 'identity', blocking: true, detail: `${name} is missing from the observed cast.`,
       fix: `Include ${name} as the same individual from their own reference.` });
   }
@@ -139,12 +159,21 @@ export function readSeriesQa(text: string, expected: VisualEntity[]): SeriesQa |
     anatomyDefects: ofKind('anatomy'), featureBleed: ofKind('identity'), sceneDefects: ofKind('story'), styleDefects: ofKind('style'),
     sceneFixes: defects.filter(d => !reviewVersion || publicationBlocker(d)).map(d => d.fix), missing, duplicates,
     unexpectedCharacters: observedFigures
-      ? observedFigures.flatMap((figure, index) => figure.matchedId === null ? [`unmatched-figure-${index + 1}`] : [])
+      ? observedFigures.flatMap((figure, index) => unmatched(figure) ? [`unmatched-figure-${index + 1}`] : [])
       : visibleIds.filter((id: string) => !known.has(id)),
     textVisible: defects.some(d => d.kind === 'text'), referenceSheetVisible: false,
     animalFeaturesOnHumans: [], roleSwaps: [], elementMisuse: [],
     namedCharactersVisible: new Set(visibleIds.filter((id: string) => known.has(id))).size,
   };
+}
+
+/** The pixel check found sheet-like panels (see ./panels.ts): never printable, never salvaged as a best attempt. */
+export function withPanelDefect(qa: SeriesQa): SeriesQa {
+  const defect: SeriesImageDefect = { kind: 'composition', blocking: true,
+    detail: 'The picture is split into separate panels like the identity sheet.',
+    fix: 'Paint ONE continuous full-bleed scene with all figures together in the same place; no panels, gutters, frames or rounded borders.' };
+  return { ...qa, defects: [defect, ...qa.defects], criticalSceneDefects: [defect.detail, ...qa.criticalSceneDefects],
+    sceneFixes: [defect.fix, ...(qa.sceneFixes || [])], referenceSheetVisible: true };
 }
 
 function publicationBlocker(defect: SeriesImageDefect): boolean {

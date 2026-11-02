@@ -11,7 +11,7 @@ import { wordlessLine } from '../storybook/illustration-stage';
 import { ORIGINALS_IMAGE_STYLE, SCENE_SIZE } from '../library/images';
 import { SERIES_IMAGE_REVIEW_EFFORT, SERIES_POLICY } from './authoring';
 import { effectiveSeriesEpisode, logsForEpisode } from './core';
-import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW_COMPACT, type SeriesQa } from './quality';
+import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW_COMPACT, withPanelDefect, type SeriesQa } from './quality';
 import { FLUX3_KLEIN_MODEL, type RunwareReferenceRegion } from '../../ai/runware-image-model-options';
 import { StorybookSafetyBlock } from '../storybook/llm-guards';
 import { seriesReferenceMention } from './identity';
@@ -300,7 +300,8 @@ export async function directSeriesPictures(input: {
   ].filter(Boolean).join('\n');
   const pageText = pages.map((p, i) => `PAGE ${p.order} — chapter ${slots[i].chapter}, part ${slots[i].part + 1} of ${slots.filter(s => s.chapter === slots[i].chapter).length}\n${p.content.split(/\n\n/).map((t, k) => `p${k + 1}: ${t}`).join('\n')}`).join('\n\n');
   // A ceiling, not a price: only used tokens are billed, and a thinking model needs the room before its JSON.
-  const directionTokens = 2000 + pages.length * 1000;
+  // Luna used 6.0k and 6.7k of 8k for six pages (3.3k/4.0k thinking) and twice ran out (2026-11-02): two stories failed.
+  const directionTokens = 4000 + pages.length * 1500;
   const call = await input.llm({ stage: 'series-picture-direction', role: 'support', model: input.model, json: true, effort: 'medium', maxTokens: directionTokens, serviceTier: 'standard', timeoutMs: 120000,
     imageInputs: [...(publicLead?.referenceUrl ? [publicLead.referenceUrl] : []), SERIES_STYLE_REFERENCE],
     system: [
@@ -314,7 +315,7 @@ export async function directSeriesPictures(input: {
       'Choose the most expressive TRUE moment in the segment. A physical joke is welcome when it actually occurs there. A quiet arrival, someone carrying an object or helping with a real task is better than an invented mishap. A funny result from an earlier page must not be repeated in a later picture. Give the two pictures of each chapter different moments.',
       // In 70 pilot first attempts, two figures were more reliable than three (48% vs. 31%).
       'DRAWABLE: prefer TWO figures and medium framing, with one clear action and readable faces. A third figure belongs only when actually participating. Cooperating figures may keep their real roles; never invent a different action to simplify the composition. Prefer a large object or visible consequence over tiny mechanical workings. Keep each recurring prop’s established material, size and shape. All prominent figures are listed in onStage; an explicitly mentioned distant crowd may be incidental silhouettes, not extra foreground children.',
-      'SETTING: start scene with the actual location already established by this text, followed by the figures and the visible action. An outdoor courtyard is outdoors, not an indoor room. Reference images supply identity and rendering only, never their background or props. Do not add irrelevant settings, excluded places or appearance details.',
+      'SETTING: start scene with the actual location already established by this text, followed by the figures and the visible action. An outdoor courtyard is outdoors, not an indoor room. Name a boat, house, shop or place by what it is in plain English (aboard the small wooden sailboat at the jetty), never by its German proper name: "on the Seegras" was painted as a grassy meadow with a park bench. Reference images supply identity and rendering only, never their background or props. Do not add irrelevant settings, excluded places or appearance details.',
       'Every shot needs visualBeat {actorId, action, result, framing} and boxes {"id":[top,left,bottom,right]} on a 0–1000 scale of the 3:2 landscape canvas. Start action with an English physical VERB, not watching, speaking, agreeing or deciding. The result must be observable in ONE still. framing is wide, medium or close; use at least TWO scales across three or more page pictures. In `boxes`, keep realistic relative sizes (adult ~650–820 tall, child ~480–640 tall and visibly shorter than adults, small creature/dragon/mouse/bird ~260–440 tall) and vary left/center/right placement so consecutive pictures never repeat a side-by-side 50/50 split.',
       "Compose a full-body or three-quarter scene with depth and expressive faces. The cover uses a real motif from the first half of the story, with the lead and avatars, never the resolved ending. The illustration is wordless. Only CHARACTER identities with supplied references may be onStage. A referenced OBJECT is never a character: put its exact id in elements when it is visible in the selected source moment. Keep the object's stable shape, colours, material and scale, allowing only the state changes explicitly in the prose. Include the source-language object name in the cover caption when elements names that object, so its presence can be verified.",
       `The picture prints right AFTER paragraph; never draw a result before its text. Prefer ${PICTURE_EDGE} paragraphs of spacing from segment edges only when the true moment allows it. Before returning, check each caption's actors, objects and result against its quote and ensure paragraph is not earlier than any part of the depicted event. JSON {"cover":{"onStage":["id","id"],"elements":["visible-object-id"],"boxes":{"id":[160,220,920,760]},"visualBeat":{"actorId":"id","action":"physical verb and object","result":"source-grounded visible result","framing":"wide"},"scene":"..."},"pages":[{"page":1,"storyQuote":"exact passage stating the event AND result","paragraph":4,"onStage":["id","id"],"elements":["visible-object-id"],"boxes":{"id":[160,60,920,460],"id2":[300,520,920,880]},"visualBeat":{"actorId":"id","action":"physical verb and object","result":"visible result already stated in the quote","framing":"medium"},"scene":"..."}]}. Use elements:[] when no referenced object is visible.`,
@@ -402,6 +403,8 @@ export async function generateSeriesImages(input: {
   buildReference?: ReturnType<typeof createIdentityReferenceCache>;
   /** Reference portraits use the same total episode image-call allowance as chapter pictures. */
   reservedImageCalls?: number;
+  /** True when a drawn picture is split into sheet-like panels (production: pictureHasPanels). */
+  panelCheck?: (url: string) => Promise<boolean>;
 }): Promise<StorybookImagesResult> {
   const shots = [input.illustrations.cover, ...input.illustrations.pages];
   const maxShots = 1 + SERIES_POLICY.picturesPerChapter * 4;
@@ -511,13 +514,15 @@ export async function generateSeriesImages(input: {
           const reply = await input.llm({ stage, role: 'support', model, effort: SERIES_IMAGE_REVIEW_EFFORT, json: true, maxTokens: 6000, timeoutMs: 60000, serviceTier: 'standard',
             system: SERIES_IMAGE_REVIEW_COMPACT, user: reviewUser, imageInputs: [response.viewUrl || response.url!, ...references] });
           qaCalls.push(reply);
-          return readSeriesQa(reply.text, drawn);
+          return readSeriesQa(reply.text, drawn, { sceneText: [moment.scene, sourceQuote || '', ...props.map(e => `${e.name} ${e.appearance}`)].join('\n') });
         } catch (error) {
           if (error instanceof StorybookSafetyBlock) safetyBlock = error;
           return undefined;
         }
       };
-      const verdict = (qa: NonNullable<ReturnType<typeof readSeriesQa>>): ImageOutcome => {
+      const panels = input.panelCheck && (response.viewUrl || response.url) ? input.panelCheck(response.viewUrl || response.url!).catch(() => false) : Promise.resolve(false);
+      const verdict = (read: NonNullable<ReturnType<typeof readSeriesQa>>): ImageOutcome => {
+        const qa = split ? withPanelDefect(read) : read;
         const pass = seriesPicturePasses(qa, shot.page === 0);
         const usable = !pass && seriesPictureUsable(qa);
         const status: ImageOutcome['status'] = pass ? 'passed' : usable ? 'flawed' : 'failed';
@@ -528,6 +533,9 @@ export async function generateSeriesImages(input: {
         reviewed.set(shot.page, [...(reviewed.get(shot.page) || []), outcome]);
         return outcome;
       };
+      // An edit keeps the panel layout; a split picture is redrawn from the scene instead.
+      const split = await panels;
+      if (split) editableImages.delete(shot.page);
       const fallback = input.visionFallbackModel && input.visionFallbackModel !== input.visionModel ? input.visionFallbackModel : undefined;
       const bypassPrimary = primaryReadFailures >= 2 && Boolean(fallback);
       let qa = bypassPrimary

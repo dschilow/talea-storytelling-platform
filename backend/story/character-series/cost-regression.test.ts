@@ -127,3 +127,44 @@ describe('production failures and avoidable series cost, abfc9b06', () => {
     expect(stages).toEqual(['series-author', 'series-author']);
   });
 });
+
+describe('production failures 2026-11-02', () => {
+  test('a truncated picture direction gets one more try with more room and less thinking', async () => {
+    // 12:16 and 12:18 UTC: "Truncated response from openai/gpt-6-luna (series-picture-direction, max_tokens=8000)" failed two stories.
+    const seen: Array<{ maxTokens: number; effort?: string }> = [];
+    const budgeted = seriesLlmBudget(async r => {
+      seen.push({ maxTokens: r.maxTokens, effort: r.effort });
+      if (seen.length === 1) throw Object.assign(new Error('[storybook/llm] Truncated response from openai/gpt-6-luna (series-picture-direction, max_tokens=13000).'), { billed: { usage: { total: 13000, costUSD: 0.006 } } });
+      return reply('{"cover":{}}');
+    });
+    expect((await budgeted({ stage: 'series-picture-direction', model: 'luna', effort: 'medium', maxTokens: 13000 } as any)).text).toBe('{"cover":{}}');
+    expect(seen).toEqual([{ maxTokens: 13000, effort: 'medium' }, { maxTokens: 20800, effort: 'low' }]);
+  });
+  test('a passing provider outage is tried once more; a second failure still stops', async () => {
+    let attempts = 0;
+    const flaky = seriesLlmBudget(async () => { if (++attempts === 1) throw new Error('OpenRouter API error 504: upstream timed out'); return reply('ok'); });
+    expect((await flaky({ stage: 'series-author', model: 'writer' } as any)).text).toBe('ok');
+    expect(attempts).toBe(2);
+    attempts = 0;
+    const down = seriesLlmBudget(async () => { attempts++; throw new Error('fetch failed'); });
+    await expect(down({ stage: 'series-author', model: 'writer' } as any)).rejects.toThrow('fetch failed');
+    expect(attempts).toBe(2);
+  });
+  test('a review with three findings keeps the two most severe instead of failing the story', async () => {
+    const minor = (quote: string) => ({ severity: 'minor', quote, problem: `Unklar: ${quote}`, change: 'Klarer sagen.' });
+    const stages: string[] = [];
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), models: SERIES_MODELS, ledger: new CostLedger(), llm: async r => {
+      stages.push(r.stage);
+      if (r.stage === 'series-author') return reply(prose);
+      if (r.stage === 'series-editorial-review') return reply(JSON.stringify({ issues: [minor('Nora nahm ihn vom Tisch.'), { severity: 'major', quote: 'Funkelflug zog am Seil.', problem: 'Warum zieht er?', change: 'Grund zeigen.' }, minor('Funkelflug stellte den Becher ab.')] }));
+      if (r.stage === 'series-local-repair') {
+        expect(r.user).toContain('Warum zieht er?');
+        expect(r.user).not.toContain('Unklar: Funkelflug stellte den Becher ab.');
+        return reply(JSON.stringify({ edits: [{ chapter: 2, before: 'Funkelflug zog am Seil.', after: 'Funkelflug zog am Seil, damit die Glocke läutete.' }] }));
+      }
+      return reply('{"issues":[]}');
+    } });
+    expect(stages).toContain('series-local-repair');
+    expect(result.pages[1].content).toContain('damit die Glocke läutete');
+  });
+});

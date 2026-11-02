@@ -1274,11 +1274,11 @@ Komische Küstenabenteuer: Ein Seehund auf dem Kapitänssitz, ein vermeintliches
 
 **Komische Zuspitzung:** Blubbert hält dem Seehund eine feierliche Ansprache über Sitzordnungen. Das Tier antwortet mit einem Nieser genau auf seine Kapitänsmütze.
 
-**Entscheidender Konflikt:** Der Hund bleibt am Steg. Blubbert möchte endlich losfahren, doch die Kinder hören aus der nahen ruhigen Bucht den Ruf eines zweiten Seehunds. Das Junge traut sich nicht zurück.
+**Entscheidender Konflikt:** Der Hund bleibt am Steg. Blubbert möchte endlich losfahren, doch die Kinder hören aus der nahen ruhigen Bucht den Ruf eines zweiten Seehunds. Der kleine Seehund traut sich nicht zurück.
 
 **Sichtbare Auflösung:** Pia bittet den Hundehalter, mit dem Hund Abstand zu halten. Blubbert führt die kleine Küstenfahrt zur bekannten ruhigen Bucht aus; die Kinder beobachten das Jungtier ohne es anzufassen. Am niedrigen Strandsteg geht es selbst ins Wasser zu seiner Mutter. Die Crew sieht beide fortschwimmen.
 
-**Mögliche Pointe:** „Hier sitzt der Kapitän!“ HATSCHI. „Sein Stellvertreter hat das Wort.“
+**Mögliche Pointe:** „Hier sitzt der Kapitän!“ HATSCHI. Ein Kind sagt zum Seehund: „Gesundheit, Herr Kapitän!“
 
 **Die Kinder handeln mit:** Die Kinder erkennen die Angst des Tieres und hören den Ruf; Blubbert verzichtet auf seine geplante Vorführfahrt und steuert, Pia organisiert den freien Rückweg.
 
@@ -1685,7 +1685,7 @@ Werkstattkomödien mit einer Erfinderin, deren großartige Vorführungen oft an 
 
 *Staffel 1; Serienfigur und Familienavatare.*
 
-**Auslöser, Wunsch und Problem:** Die Kinder bringen einen Teddy mit lockerer Naht zur ihnen noch unbekannten Tilda. Sie will stattdessen zuerst ihre neue Aufräummaschine zeigen: Beim Treten eines Pedals schiebt ein breiter Besen Dinge in eine Kiste. Der Teddy gerät versehentlich hinein.
+**Auslöser, Wunsch und Problem:** Die Kinder bringen einen Teddy mit lockerer Naht zur ihnen noch unbekannten Tilda. Sie will stattdessen zuerst ihre neue Aufräummaschine zeigen: Beim Treten eines Pedals schiebt ein breiter Besen Dinge in eine Kiste. Der Teddy gerät versehentlich hinein, und ein Kind stellt fest: „Die Maschine hat Hunger!“
 
 **Komische Zuspitzung:** Tilda tritt rückwärts, um ihn herauszuholen; der Besen verteilt stattdessen Tücher und Socken wie Konfetti, und eine Unterhose landet auf ihrem Kopf.
 

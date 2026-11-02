@@ -1,6 +1,6 @@
 // @ts-ignore Bun test helpers are runtime-only in Encore.
 import { describe, test, expect } from 'bun:test';
-import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable } from './quality';
+import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, withPanelDefect } from './quality';
 import { seriesAvatarAppearance } from './identity';
 import type { VisualEntity } from '../storybook/illustration-stage';
 
@@ -333,5 +333,35 @@ describe('series image review after the production PDF', () => {
     expect(seriesPictureLastResort(readSeriesQa(review({ ...loose, sceneMatch: 0.5 }), cast))).toBe(false);
     expect(seriesPictureLastResort(readSeriesQa(review({ ...loose, defects: [...loose.defects, { kind: 'anatomy', detail: 'The left arm ends in a stump without a hand.', fix: 'Draw the left hand.' }] }), cast))).toBe(false);
     expect(seriesPictureLastResort(readSeriesQa(review({ ...loose, defects: [{ kind: 'text', detail: 'The sign carries garbled letters.', fix: 'Leave the sign plain.' }] }), cast))).toBe(false);
+  });
+});
+
+describe('animals and toys the scene names, story fa24532b', () => {
+  const withFigure = (appearance: string) => inventoryReview({ observedFigures: [
+    { position: 'left', appearance: 'small golden dragon', matchedId: 'dragon' },
+    { position: 'right', appearance: 'girl with red glasses', matchedId: 'child-a' },
+    { position: 'center foreground', appearance, matchedId: null },
+  ] });
+  test('a teddy the scene asks for is part of the picture, not an unreferenced figure', () => {
+    const qa = readSeriesQa(withFigure('Brown plush teddy bear with round ears and a visible face, held upright.'), cast,
+      { sceneText: 'Inside the workshop, Tilda examines the loose seam on Teddy while Nora holds him up.' });
+    expect(qa?.unexpectedCharacters).toEqual([]);
+    expect(qa?.observedFigures?.[2].sceneProp).toBe(true);
+    expect(seriesPicturePasses(qa)).toBe(true);
+  });
+  test('the same teddy without a scene that names it, a child, an unnamed animal or a second dragon still block', () => {
+    expect(readSeriesQa(withFigure('Brown plush teddy bear.'), cast)?.unexpectedCharacters).toEqual(['unmatched-figure-3']);
+    const scene = { sceneText: 'Nora carries the teddy past a seal and a dragon kite.' };
+    expect(readSeriesQa(withFigure('A small blond boy holding a teddy.'), cast, scene)?.unexpectedCharacters).toEqual(['unmatched-figure-3']);
+    expect(readSeriesQa(withFigure('A grey cat on the bench.'), cast, scene)?.unexpectedCharacters).toEqual(['unmatched-figure-3']);
+    expect(readSeriesQa(withFigure('A second small golden dragon.'), cast, scene)?.unexpectedCharacters).toEqual(['unmatched-figure-3']);
+  });
+  test('a sheet-like split picture never passes and is never kept as a best attempt', () => {
+    const qa = withPanelDefect(readSeriesQa(inventoryReview(), cast)!);
+    expect(qa.referenceSheetVisible).toBe(true);
+    expect(seriesPicturePasses(qa)).toBe(false);
+    expect(seriesPictureUsable(qa)).toBe(false);
+    expect(seriesPictureLastResort(qa, true)).toBe(false);
+    expect(qa.sceneFixes?.[0]).toContain('ONE continuous full-bleed scene');
   });
 });

@@ -21,6 +21,14 @@ function estimateCost(model: string, promptTokens: number, completionTokens: num
   return Number(((promptTokens * pricing.inputCostPer1M + completionTokens * pricing.outputCostPer1M) / 1_000_000).toFixed(6));
 }
 
+/**
+ * OpenAI refuses `json_object` unless a message names JSON ("Response input messages must contain the word 'json'"):
+ * the character series' reference plan said only "Return {references:[…]}" and failed on every story (2026-11-02).
+ */
+export function systemWithJsonWord(request: Pick<LlmRequest, "system" | "user" | "json">): string {
+  return request.json && !/json/i.test(`${request.system}\n${request.user}`) ? `${request.system}\nAnswer with one JSON object.` : request.system;
+}
+
 async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResult> {
   const started = Date.now();
   const controller = new AbortController();
@@ -30,7 +38,7 @@ async function callOnce(request: LlmRequest, model: string): Promise<LlmCallResu
   try {
     response = await callOpenRouterChatCompletion({
       messages: [
-        { role: "system", content: request.system },
+        { role: "system", content: systemWithJsonWord(request) },
         { role: "user", content: request.user },
       ],
       model,

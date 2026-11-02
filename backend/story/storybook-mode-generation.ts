@@ -48,6 +48,7 @@ import { StorybookSafetyBlock } from "./storybook/llm-guards";
 import { directSeriesPictures, generateSeriesImages } from "./character-series/pictures";
 import { seriesAvatarAppearance, seriesAvatarReferenceContext, seriesLeadCandidate, seriesLeadReference, seriesReferenceAppearance } from "./character-series/identity";
 import { prepareSeriesVisualReferences } from "./character-series/visual-references";
+import { pictureHasPanels } from "./character-series/panels";
 import { loadSeriesVisualReferences } from "./character-series/repository";
 import { loadHeroMemories, loadStorybookHistory } from "./storybook/history";
 import { CostLedger, resolveStorybookModels } from "./storybook/llm";
@@ -422,6 +423,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       visionModel: SERIES_IMAGE_REVIEW_MODEL, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL, pageTexts: Object.fromEntries(picturePages.map(page => [page.order, page.content])),
       chapterByPage: direction ? Object.fromEntries(direction.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined,
       reservedImageCalls: seriesVisuals?.calls ?? 0,
+      panelCheck: pictureHasPanels,
     }) : generateStorybookImages({
       illustrations,
       entities: pictureEntities,
