@@ -51,14 +51,29 @@ export function seriesWordlessCaption(text: string): string {
     .replace(/\bnotice\b/gi, 'sheet of paper');
 }
 
+/**
+ * A painter draws what it reads, "no" included: "The repaired seam stays shut, with no pale thread hanging out" came
+ * back with the thread (probe 2026-11-03, story 9a84d5e0 page 6). Clauses about what is absent leave the caption; the
+ * check still has the story quote.
+ */
+export function withoutAbsentThings(text: string): string {
+  return text
+    .replace(/,\s*with\s+no\s+[^,.;!?]*/gi, '')
+    .replace(/\s+and\s+no\s+[^,.;!?]*/gi, '')
+    .replace(/,?\s+without\s+[^,.;!?]*/gi, '')
+    .replace(/\s+([,.;!?])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 /** The prose carries written clues. Do not turn a tiny written clue into a giant sign/table in the illustration. */
 export function seriesPaintableMoment(shot: IllustrationShot): { scene: string; fact: string } {
   const beat = (shot as SeriesShot).visualBeat;
   const label = /\b[A-ZÄÖÜ]{2,}\b/;
-  const sentences = shot.scene.split(/(?<=[.!?])\s+/).filter(s => !(label.test(s) && /\b(?:sign|letters?|word|label|inscription|reads?|marked|text)\b/i.test(s)));
+  const sentences = shot.scene.split(/(?<=[.!?])\s+/).filter(s => !(label.test(s) && /\b(?:sign|letters?|word|label|inscription|reads?|marked|text)\b/i.test(s))).map(withoutAbsentThings).filter(Boolean);
   const tile = Boolean(beat && /\b(?:location|place|destination) tile\b/i.test(beat.action));
   const scene = seriesWordlessCaption(sentences.join(' ') || shot.scene.replace(/\b[A-ZÄÖÜ]{2,}\b/g, '')) + (tile ? ' The location tile is a small palm-sized clay token, held within a child’s hand, with a visibly cleaned patch and faint pictorial scratches. Keep it small beside the cloth; its surface carries no lettering.' : '');
-  const fact = beat ? seriesWordlessCaption(`${beat.action}; ${tile ? 'a clean patch is exposed on the small clay token' : beat.result.replace(/\b[A-ZÄÖÜ]{2,}\b/g, '').trim()}`) : seriesWordlessCaption((shot as SeriesShot).actionKey || scene);
+  const fact = beat ? seriesWordlessCaption(`${beat.action}; ${tile ? 'a clean patch is exposed on the small clay token' : withoutAbsentThings(beat.result.replace(/\b[A-ZÄÖÜ]{2,}\b/g, '').trim())}`) : seriesWordlessCaption((shot as SeriesShot).actionKey || scene);
   return { scene, fact };
 }
 
@@ -131,6 +146,69 @@ export function seriesReferenceRegions(
 
 /** Figures plus referenced objects on one identity sheet; a fourth cell carries no position and lost a child (3ca4f3d5). */
 export const SERIES_SHEET_CELLS = 3;
+
+const HOLDING_VERB = String.raw`(?:holds?|holding|held|hugs?|hugging|hugged|cuddles?|cuddling|cuddled|press(?:es|ing|ed)?|squeez(?:es|ing|ed|e)|carr(?:y|ies|ying|ied)|rais(?:es|ing|ed|e)|lifts?|lifting|lifted|clutch(?:es|ing|ed)?|cradl(?:es|ing|ed|e)|grips?|gripping|gripped|clasps?|clasping|clasped)`;
+/** "squeezes past the cart", "presses into the box": the verb moves the figure, it holds nothing. */
+const NOT_A_HOLD = String.raw`(?!\s+(?:past|through|into|onto|against|behind|under|over|toward|towards|beside|between|at|on|in|to|off|from|out)\b)`;
+/** Only a sliver of the object shows: a whole portrait of it on the sheet comes back as the whole object (story 9a84d5e0 page 4). */
+const HIDDEN_OBJECT = /\b(?:hidden|hides?|hiding|inside|beneath|underneath|buried|tucked|glimpses?|glimmers?|peeks?|peeking|peeps?|peeping)\b/i;
+const SMALL_WORD = /\b(?:tiny|small|little|mini|miniature|palm-sized|pocket-sized|pocket)\b/i;
+const SMALL_THING = /\b(?:keys?|coins?|rings?|buttons?|pebbles?|marbles?|whistles?|clamps?|clips?|pegs?|clothes-?pegs?|clothespins?|needles?|thimbles?|shells?|seeds?|feathers?|beads?|badges?|medals?|lockets?|bells?|acorns?|dice|crayons?|pencils?|chalk|brush(?:es)?|spoons?|candles?|tokens?|stones?|tickets?|stamps?|cards?|notes?|letters?|envelopes?)\b/i;
+/** Too big for a portrait: carried, a machine or a cart would come back toy-sized. */
+const LARGE_THING = /\b(?:large|big|huge|giant|enormous|heavy|machines?|machinery|devices?|contraptions?|carts?|wagons?|wheelbarrows?|barrows?|trolleys?|boats?|ships?|rafts?|cars?|bikes?|bicycles?|sleds?|sledges?|benches?|tables?|desks?|chairs?|beds?|doors?|gates?|walls?|cupboards?|wardrobes?|shelf|shelves|crates?|barrels?|tents?|houses?|huts?|towers?|trees?|statues?|pianos?|robots?|fronts?|panels?)\b/i;
+
+/** How big an object is in a holder's hands: small (one hand), held (a toy, a lantern), or too large to carry. */
+export function seriesObjectSize(object: VisualEntity): 'small' | 'held' | 'large' {
+  // The name, its aliases and the appearance up to its first detail ("Soft teddy bear with … a small seam" is no small thing).
+  const head = [object.name, ...(object.referenceAliases || []), object.appearance.split(/\s+with\s+|[,;.]/i)[0]].join(' ');
+  if (SMALL_WORD.test(head) || (SMALL_THING.test(head) && !LARGE_THING.test(head))) return 'small';
+  return LARGE_THING.test(head) ? 'large' : 'held';
+}
+
+export interface SeriesPropPlacement {
+  /** Object id → the figure that holds it in this picture. */
+  carriedBy: Map<string, string>;
+  /** Objects of which only a sliver shows. */
+  hidden: Set<string>;
+}
+
+/**
+ * Where each referenced object is in the picture. FLUX.2 klein copies every sheet cell into the scene as a thing of its
+ * own: in story 9a84d5e0 (2026-11-03) the Teddy's cell came back as a second, seated teddy beside the one Alexander
+ * hugs on 6 of 6 attempts, and as a whole teddy on the page where only its ribbon peeks out of the box. A held object
+ * therefore travels in its holder's cell, and a hidden one gets no cell. The beat decides first ("Alexander presses
+ * Teddy against himself"); in the caption the holding verb must govern the object ("lifting a sock clear of the bear"
+ * is no hold of the bear), and the holder is the figure named last before the verb.
+ */
+export function seriesPropPlacement(shot: IllustrationShot, figures: VisualEntity[], objects: VisualEntity[]): SeriesPropPlacement {
+  const beat = (shot as SeriesShot).visualBeat;
+  const actor = beat ? figures.find(f => f.id === beat.actorId) : undefined;
+  const sentences = [actor && beat ? `${actor.name} ${beat.action}` : '', ...shot.scene.split(/(?<=[.!?;])\s+/)].filter(Boolean);
+  const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const lower = (value: string) => value.normalize('NFC').toLocaleLowerCase('en');
+  const lastMention = (text: string, figure: VisualEntity) => Math.max(...[figure.name, ...figure.name.split(/\s+/).filter(part => part.length >= 3)]
+    .map(name => lower(text).lastIndexOf(lower(name))));
+  const carriedBy = new Map<string, string>();
+  const hidden = new Set<string>();
+  for (const object of objects) {
+    const names = [object.name, ...(object.referenceAliases || [])].filter(name => name.trim().length >= 3).map(name => escape(name.trim()));
+    const held = new RegExp(`\\b${HOLDING_VERB}${NOT_A_HOLD}\\s+(?:[\\p{L}’'-]+\\s+){0,2}?(?:${names.join('|')})(?![\\p{L}\\p{N}’'])`, 'iu');
+    // A machine, a cart or a boat keeps its own cell: in a child's cell it would shrink to a toy.
+    if (seriesObjectSize(object) === 'large') {
+      if (sentences.some(sentence => seriesReferenceMention(sentence, object) && HIDDEN_OBJECT.test(sentence))) hidden.add(object.id);
+      continue;
+    }
+    for (const sentence of sentences) {
+      const match = held.exec(sentence);
+      if (!match) continue;
+      const before = sentence.slice(0, match.index);
+      const holder = figures.map(figure => ({ figure, at: lastMention(before, figure) })).filter(item => item.at >= 0).sort((a, b) => b.at - a.at)[0];
+      if (holder) { carriedBy.set(object.id, holder.figure.id); break; }
+    }
+    if (!carriedBy.has(object.id) && sentences.some(sentence => seriesReferenceMention(sentence, object) && HIDDEN_OBJECT.test(sentence))) hidden.add(object.id);
+  }
+  return { carriedBy, hidden };
+}
 export const SERIES_STYLE_REFERENCE = 'https://www.talea.website/library/series/bruno-der-flunkerfisch/s1e1/ch2.webp';
 export const SERIES_ART_DIRECTION = `${ORIGINALS_IMAGE_STYLE}. Bold readable curved silhouettes, slightly enlarged expressive heads, clear soft ink contours, broad gouache colour shapes and varied comic expressions. Keep texture subordinate to faces and action; the setting supports the joke. Render the referenced identities in this illustration language.`;
 
@@ -479,10 +557,28 @@ export async function generateSeriesImages(input: {
     const visibleObjects = input.entities.filter(e => e.kind === 'artifact' && seriesReferenceMention(shot.scene, e));
     const designText = [seriesVisualContractText(continuity), ...visibleObjects.map(e => `${e.name}: ${e.appearance}`)].filter(Boolean).join('\n');
     const designLock = designText ? `STORY-CRITICAL OBJECT DESIGNS, only for objects already in this scene:\n${designText}\nKeep the same material, shape, scale and distinctive parts. Exactly one copy of each singular story object; no matching toy on a background shelf. Current state and placement follow the scene, never a reference pose.` : '';
-    const identities = [...drawn.filter(e => e.referenceUrl), ...props];
+    // A held object rides in its holder's cell, also when three people fill the sheet; a hidden one gets no cell (see
+    // seriesPropPlacement). TALEA_SERIES_HELD_PROPS=off: every listed object gets its own cell again.
+    const sheetFigures = drawn.filter(e => e.referenceUrl);
+    const placement = process.env.TALEA_SERIES_HELD_PROPS === 'off' ? { carriedBy: new Map<string, string>(), hidden: new Set<string>() }
+      : seriesPropPlacement(shot, sheetFigures, [...new Map([...props, ...visibleObjects.filter(e => e.referenceUrl)].map(e => [e.id, e])).values()]);
+    const carried = new Map(sheetFigures.flatMap(figure => {
+      const object = input.entities.find(e => e.kind === 'artifact' && e.referenceUrl && placement.carriedBy.get(e.id) === figure.id);
+      return object ? [[figure.id, object] as const] : [];
+    }));
+    const carriedObjects = [...carried.values()];
+    const cellProps = props.filter(e => !carriedObjects.includes(e) && !placement.hidden.has(e.id));
+    // What the reviewer inventories as referenced objects: every object with a portrait in this picture.
+    const objects = [...new Set([...props, ...carriedObjects])];
+    // The holder goes first on the sheet. FLUX.2 klein hands the caption's action to the first, most described figure:
+    // with Tilda in front, she hugged a second teddy while Alexander brought his own from his cell (probe 2026-11-03).
+    const holders = sheetFigures.filter(e => carried.has(e.id));
+    const identities = [...holders, ...sheetFigures.filter(e => !carried.has(e.id)), ...cellProps];
+    const holding = (e: VisualEntity) => carried.get(e.id);
     let references: string[];
     try {
-      const slots = identities.map(e => ({ imageUrl: e.referenceUrl!, displayName: e.name, kind: e.kind }));
+      const slots = identities.map(e => ({ imageUrl: e.referenceUrl!, displayName: e.name, kind: e.kind,
+        ...(holding(e) ? { holds: { imageUrl: holding(e)!.referenceUrl!, displayName: holding(e)!.name, size: seriesObjectSize(holding(e)!) === 'small' ? 'small' as const : 'held' as const } } : {}) }));
       // One free preparation retry; no image or LLM is billed until the complete sheet is ready.
       const prepared = identities.length ? await buildReference(slots).catch(() => buildReference(slots)) : undefined;
       references = prepared?.urls.slice(0, 1) || [];
@@ -522,11 +618,11 @@ export async function generateSeriesImages(input: {
         beat ? bindNames(`Depict this visible moment: ${byId.get(beat.actorId)?.name} ${moment.fact}. ${beat.framing.toUpperCase()} framing with foreground and depth. Posture and expression follow this actual moment: lively during a mishap, gentle during a quiet exchange. Hands perform only the described action or rest naturally; do not invent objects to occupy them. The scene determines setting, gesture and camera; the reference sheet determines character identity, not its pose or held props.`) : '',
         SERIES_ART_DIRECTION,
         regionBound ? regions.map((r, i) => `<${r.id}> is ${r.description}, taken only from its own sheet cell and placed in its assigned scene region. Draw this ${identities[i].kind === 'artifact' ? 'object' : 'figure'} exactly once in the caption's new action; the cell's resting pose and portrait background have no part in this scene.`).join('\n') : '',
-        references.length ? `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${afterPanels ? '' : slotPositionLabel(i, identities.length)} is ONLY ${e.name}${e.role === 'hero' ? (e.referenceContext ? ` (${e.referenceContext})` : '') : `: ${e.appearance}`}`).join('; ')}. Keep each face, hair, species and outfit with its OWN person; glasses, hats, vests and jackets never move to another figure or onto a creature. Ignore objects held in the portraits unless this scene explicitly needs them. A story garment explicitly worn in the scene, such as a lifejacket, goes over the portrait outfit and must remain visible. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, natural human ears matching the reference, and exactly two arms and two hands, each with five separate fingers, plus two legs${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.` : '',
+        references.length ? `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${afterPanels ? '' : slotPositionLabel(i, identities.length)} is ONLY ${e.name}${e.role === 'hero' ? (e.referenceContext ? ` (${e.referenceContext})` : '') : `: ${e.appearance}`}${holding(e) ? `, together with ${holding(e)!.name} in front of ${e.name}: the one ${holding(e)!.name} of this scene, which ${e.name} holds` : ''}`).join('; ')}. Keep each face, hair, species and outfit with its OWN person; glasses, hats, vests and jackets never move to another figure or onto a creature. Ignore objects held in the portraits unless this scene explicitly needs them. A story garment explicitly worn in the scene, such as a lifejacket, goes over the portrait outfit and must remain visible. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, natural human ears matching the reference, and exactly two arms and two hands, each with five separate fingers, plus two legs${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.` : '',
         ...drawn.filter(e => !e.referenceUrl).map(e => `${e.name}: ${e.appearance}.`),
         'Every described object keeps its source material, size and shape. Props come only from this scene, never from a portrait or a conversation topic.',
         designLock,
-        props.length ? `OBJECT REFERENCES (not people; no added human anatomy): ${props.map(e => `${e.name}: ${e.appearance}`).join('; ')}. Preserve a toy's own stitched face and limbs when present in its reference. Match the same design in every picture. The source determines its current state and position, never the white reference background.` : '',
+        objects.length ? `OBJECT REFERENCES (not people; no added human anatomy): ${[...cellProps.map(e => `${e.name}: ${e.appearance}`), ...[...carried].map(([holderId, e]) => `${e.name}: ${e.appearance}, shown in ${byId.get(holderId)?.name}'s portrait, the only ${e.name} in the picture, in ${byId.get(holderId)?.name}'s hands`), ...props.filter(e => placement.hidden.has(e.id)).map(e => `${e.name}: ${e.appearance}`)].join('; ')}. Preserve a toy's own stitched face and limbs when present in its reference. Match the same design in every picture. The source determines its current state and position, never the white reference background.` : '',
         simplified
           ? `A solitary scene with exactly one character, ${drawn[0]?.name}, shown only once. The surrounding landscape is uninhabited: no other figures, creatures, spectators, faces or portraits anywhere in the background. Keep only the setting of this scene, not the reference portrait's background.`
           : `Exactly ${drawn.length} foreground characters, once each: ${drawn.map(e => e.name).join(', ')}. No additional foreground children or replacement faces. A crowd explicitly named in the caption stays distant incidental silhouettes. A story instant in one continuous full-bleed setting reaching every edge; ignore the reference portraits' backgrounds and paint only the scene's own environment.${drawn.length > 1 && (afterPanels || drawn.length === 2) ? ` ${drawn.map(e => e.name).join(' and ')} share ONE place close together, overlapping in depth with one nearer the viewer, never side by side in separate halves.` : ''}`,
@@ -553,7 +649,7 @@ export async function generateSeriesImages(input: {
       }
       const sourceQuote = (shot as SeriesShot).storyQuote;
       const source = shot.page === 0 ? '' : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph, sourceQuote).slice(0, 1800);
-      const reviewUser = `${shot.page === 0 ? 'COVER: recognisable characters in their world; no exact chapter action is compulsory.' : 'CHAPTER PICTURE: recognisable intact characters in this setting and activity. Harmless actor/pose differences are minor; plot-important object contradictions block.'}\nEXPECTED IDENTITIES (human or nonhuman anatomy as specified):\n${drawn.map(e => `${e.id}: ${e.name}; ${e.isHuman ? 'human' : e.species}; ${e.role === 'hero' && e.referenceUrl ? (e.referenceContext || 'identity from reference sheet') : e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\n${props.length ? `REFERENCED OBJECTS (not people in identityById; inventory each visible toy separately with matchedId:null): ${props.map(e => `${e.id}: ${e.name}, ${e.appearance}`).join('; ')}. A materially different object design or an object drawn as a person is a contradiction; ordinary source-grounded pose/state changes remain fine.\n` : ''}STORY-CRITICAL DESIGNS (source-grounded, including objects without a sheet cell):\n${designText || 'No additional shared design.'}\n${continuity.length ? `SHARED DESIGN EVIDENCE:\n${continuity.map(c => c.evidence[0].quote).join('\n')}\n` : ''}SCENE CONTEXT, not an exact-action test:\n${moment.scene}\n${source}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name}; ${e.kind === 'artifact' ? 'OBJECT, not a figure' : 'character'})`).join('; ')}.` : 'No identity sheet is attached.'}`;
+      const reviewUser = `${shot.page === 0 ? 'COVER: recognisable characters in their world; no exact chapter action is compulsory.' : 'CHAPTER PICTURE: recognisable intact characters in this setting and activity. Harmless actor/pose differences are minor; plot-important object contradictions block.'}\nEXPECTED IDENTITIES (human or nonhuman anatomy as specified):\n${drawn.map(e => `${e.id}: ${e.name}; ${e.isHuman ? 'human' : e.species}; ${e.role === 'hero' && e.referenceUrl ? (e.referenceContext || 'identity from reference sheet') : e.appearance}; forbidden features: ${e.forbidden.join(', ') || 'none specified'}`).join('\n')}\n${objects.length ? `REFERENCED OBJECTS (not people in identityById; inventory each visible toy separately with matchedId:null): ${objects.map(e => `${e.id}: ${e.name}, ${e.appearance}`).join('; ')}. A materially different object design or an object drawn as a person is a contradiction; ordinary source-grounded pose/state changes remain fine.\n` : ''}STORY-CRITICAL DESIGNS (source-grounded, including objects without a sheet cell):\n${designText || 'No additional shared design.'}\n${continuity.length ? `SHARED DESIGN EVIDENCE:\n${continuity.map(c => c.evidence[0].quote).join('\n')}\n` : ''}SCENE CONTEXT, not an exact-action test:\n${moment.scene}\n${source}\n${references.length ? `Attachment 2 is the identity sheet, left to right: ${identities.map((e, i) => `slot ${i + 1} = ${e.id} (${e.name}; ${e.kind === 'artifact' ? 'OBJECT, not a figure' : 'character'}${holding(e) ? `, shown with ${holding(e)!.id} (${holding(e)!.name}, OBJECT) that this character holds` : ''})`).join('; ')}.` : 'No identity sheet is attached.'}`;
       let safetyBlock: StorybookSafetyBlock | undefined;
       const blockedOutcome = (block: StorybookSafetyBlock): ImageOutcome => {
         const reason = block.reason;
@@ -569,7 +665,7 @@ export async function generateSeriesImages(input: {
           const reply = await input.llm({ stage, role: 'support', model, effort: SERIES_IMAGE_REVIEW_EFFORT, json: true, maxTokens: 6000, timeoutMs: 60000, serviceTier: 'standard',
             system: SERIES_IMAGE_REVIEW_COMPACT, user: reviewUser, imageInputs: [response.viewUrl || response.url!, ...references] });
           qaCalls.push(reply);
-          return readSeriesQa(reply.text, drawn, { sceneText: [moment.scene, sourceQuote || '', ...props.map(e => `${e.name} ${e.appearance}`)].join('\n') });
+          return readSeriesQa(reply.text, drawn, { sceneText: [moment.scene, sourceQuote || '', ...objects.map(e => `${e.name} ${e.appearance}`)].join('\n') });
         } catch (error) {
           if (error instanceof StorybookSafetyBlock) safetyBlock = error;
           return undefined;
@@ -673,7 +769,9 @@ export async function generateSeriesImages(input: {
     }).filter(item => Boolean(item.paragraph));
     if (!eligible.length || !canReview()) return new Map();
     try {
-      const reply = await input.llm({ stage: 'series-picture-rescue-plan', role: 'support', model: input.visionModel, effort: 'low', json: true, maxTokens: 5000, timeoutMs: 60000,
+      // Standard tier like every other Luna call of this lane: on flex it answered empty twice (story 9a84d5e0), 23 s
+      // went by and the third chapter stayed without a picture.
+      const reply = await input.llm({ stage: 'series-picture-rescue-plan', role: 'support', model: input.visionModel, effort: 'low', json: true, maxTokens: 5000, timeoutMs: 60000, serviceTier: 'standard',
         system: 'Choose a simpler, drawable moment from each exact source paragraph for a children’s book. It replaces a failed complex illustration at the same paragraph. Show exactly ONE of the allowed characters doing one visible physical action already stated in the paragraph. Choose one simpler part of the event, not the full interaction that already failed. Do not include other people or infer new events, props, clothes or words in the image. Use an exact literal source quote from that paragraph. The original scene is context for the location, not a mandate to repeat the failed action. Describe the simpler action and established setting in English. If no honest single-character moment exists, omit that page. Return JSON {"pages":[{"page":number,"onStage":["id"],"storyQuote":"exact quote","scene":"English visual scene","visualBeat":{"actorId":"id","action":"physical verb and action","result":"visible consequence","framing":"wide|medium|close"}}]}.',
         user: JSON.stringify(eligible.map(({ shot, paragraph }) => ({ page: shot.page, paragraph, originalScene: shot.scene, allowed: shot.onStage.map(id => ({ id, name: byId.get(id)?.name })) }))),
       });

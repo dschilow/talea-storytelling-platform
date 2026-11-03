@@ -1,7 +1,7 @@
 // @ts-ignore Bun's test runner is available without a production dependency.
 import { describe, expect, test } from "bun:test";
 import sharp from "sharp";
-import { buildSceneIllustrationPrompt, createIdentityReferenceCache, paintOutMarks, renderIdentitySprite, usableMarks } from "./image-reference-sprite";
+import { buildSceneIllustrationPrompt, createIdentityReferenceCache, paintOutMarks, renderHeldObject, renderIdentitySprite, usableMarks } from "./image-reference-sprite";
 
 const source = (colour: string, width = 512, height = 512) => sharp({ create: { width, height, channels: 3, background: colour } }).png().toBuffer();
 const pixels = async (buffer: Buffer) => sharp(buffer).removeAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -126,6 +126,45 @@ describe("single reference sprite without injected picture frames", () => {
     expect(prompt).toContain("1: Alexander"); expect(prompt).toContain("2: Adrian");
     expect(prompt).toContain("exactly these characters in the scene: Alexander, Adrian.");
     expect(prompt).not.toMatch(/framed portraits|purple frame|green frame|#[0-9A-F]{6}/i);
+  });
+});
+
+describe("story 9a84d5e0: a held object rides in its holder's cell", () => {
+  // A brown "teddy" with an almost white belly patch, on white (300 px → 225 px in the cell, placed at x 144, y 195),
+  // and a dark figure filling its canvas.
+  const teddy = async () => sharp(await source("#ffffff", 300, 300)).composite([
+    { input: await source("#8b5a2b", 160, 200), left: 70, top: 50 },
+    { input: await source("#fafafa", 40, 40), left: 130, top: 140 },
+  ]).png().toBuffer();
+  test("the object sits in front of the figure's belly, its white background cleared but its light patch kept", async () => {
+    const cell = await pixels(await renderHeldObject(await source("#1f3a5f"), await teddy()));
+    expect(cell.info.width).toBe(512);
+    expect(pixel(cell, 210, 250)).toEqual([139, 90, 43]);
+    // The object's white surround does not paint over the figure…
+    expect(pixel(cell, 160, 300)).toEqual([31, 58, 95]);
+    // …but its own near-white patch, enclosed by the object, stays.
+    expect(pixel(cell, 256, 315)).toEqual([250, 250, 250]);
+    expect(pixel(cell, 30, 30)).toEqual([31, 58, 95]);
+  });
+  test("a small object (a key, a clamp) is set at a hand's size, not at teddy size", async () => {
+    const cell = await pixels(await renderHeldObject(await source("#1f3a5f"), await teddy(), "small"));
+    // 102 px instead of 225 px: the brown spot at x 210 (teddy size) is the figure again, the centre is the object.
+    expect(pixel(cell, 210, 250)).toEqual([31, 58, 95]);
+    const [r] = pixel(cell, 256, 300);
+    expect(r).toBeGreaterThan(110);
+  });
+  test("the sheet keeps one cell per figure; the held object costs no cell of its own", async () => {
+    const images: Record<string, Buffer> = { a: await source("#1f3a5f"), b: await source("#5f1f1f"), t: await teddy() };
+    const build = createIdentityReferenceCache((async url => new Response(new Uint8Array(images[String(url).slice(-1)]))) as typeof fetch);
+    const sheet = await build([{ displayName: "Tilda", imageUrl: "https://example.test/a" }, { displayName: "Alexander", imageUrl: "https://example.test/b", holds: { imageUrl: "https://example.test/t", displayName: "Teddy" } }]);
+    expect(sheet.subjects.map(s => s.displayName)).toEqual(["Tilda", "Alexander"]);
+    const strip = await pixels(fromReference(sheet.urls[0]));
+    expect(strip.info.width).toBe(1024);
+    // Alexander's cell carries the teddy, Tilda's does not.
+    const [r1] = pixel(strip, 512 + 210, 250);
+    const [r0, g0, b0] = pixel(strip, 210, 250);
+    expect(r1).toBeGreaterThan(110);
+    expect([r0, g0, b0].every((value, i) => Math.abs(value - [31, 58, 95][i]) <= 10)).toBe(true);
   });
 });
 

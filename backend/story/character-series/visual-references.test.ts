@@ -140,7 +140,7 @@ describe('objects travel with the scene without becoming people', () => {
     expect(candidate.entity.appearance).toBe('green wooden box with yellow painted stripes on its painted front');
   });
 
-  test('each relevant image receives the same prop sheet cell; references consume the episode image budget', async () => {
+  test('each relevant image carries the same prop reference, in its holder’s cell (9a84d5e0); references consume the episode image budget', async () => {
     const plan = validateSeriesShots({cover:shot(0),pages:[shot(1),shot(2)]},pages,[lead,hero,teddy],'lead');
     const sheets: any[] = [], requests: any[] = [];
     const images = await generateSeriesImages({illustrations:plan,entities:[lead,hero,teddy],seed:'props',visionModel:'test',pageTexts:{1:pages[0].content,2:pages[1].content},
@@ -149,7 +149,7 @@ describe('objects travel with the scene without becoming people', () => {
       provider:async request => {requests.push(request);return {url:`https://test/${request.page}.webp`,costUSD:0.0025};},
       llm:async request => response(JSON.stringify({visibleIds:['lead','kid'],identityById:{lead:1,kid:1},sceneMatch:1,styleMatch:1,primaryActionClear:true,posing:false,defects:[]}))});
     expect(images.imageCalls).toBe(3);
-    expect(sheets.every(s => s.map((cell: any) => cell.displayName).join(',') === 'Tilda,Nora,Teddy')).toBe(true);
+    expect(sheets.every(s => s.map((cell: any) => cell.displayName + (cell.holds ? '+' + cell.holds.displayName : '')).join(',') === 'Tilda+Teddy,Nora')).toBe(true);
     expect(requests.every(r => r.prompt.includes('OBJECT REFERENCES (not people'))).toBe(true);
     expect(requests.every(r => r.prompt.includes('Exactly 2 foreground characters'))).toBe(true);
     expect(images.pages.get(1)?.status).toBe('passed');

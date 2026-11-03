@@ -6,7 +6,14 @@ export interface IdentitySpriteSlot {
   kind?: "character" | "artifact";
   /** Logos or writing on the figure's clothes, as [x0, y0, x1, y1] in 0–1000 of the portrait; painted out first. */
   marks?: MarkBox[];
+  /**
+   * An object this figure holds in the scene: its reference is set in front of the figure inside the same cell, so the
+   * picture draws it once, in that figure's hands, instead of as a thing of its own (see renderHeldObject).
+   */
+  holds?: { imageUrl: string; displayName?: string; size?: HeldObjectSize };
 }
+/** small: one hand (a key, a clamp); held: in both arms (a teddy, a lantern). */
+export type HeldObjectSize = "small" | "held";
 export type MarkBox = [number, number, number, number];
 export interface IdentityReference {
   urls: string[];
@@ -113,6 +120,42 @@ export async function renderIdentitySprite(images: Buffer[]): Promise<Buffer> {
     .composite(tiles.map((input, index) => ({ input, left: index * cell, top: 0 }))).png().toBuffer();
 }
 
+/**
+ * A figure's portrait with the object it holds set in front of its body, on the 512 canvas a cell uses. FLUX.2 klein
+ * draws every sheet cell as a thing of its own: a teddy in its own cell came back as a second, seated teddy next to
+ * the one the child hugs (story 9a84d5e0, 6 of 6 attempts). In the holder's cell it stays with that figure. The object's
+ * plain background is cleared from its edges inwards, so light parts inside it (paws, a white sock) stay.
+ */
+export async function renderHeldObject(figure: Buffer, object: Buffer, held: HeldObjectSize = "held"): Promise<Buffer> {
+  const size = 512;
+  const base = await renderSingleReference(figure);
+  // A key or a clamp at teddy size would come back as a giant key.
+  const span = Math.round(size * (held === "small" ? 0.2 : 0.44));
+  const { data, info } = await sharp(object, { limitInputPixels: 40_000_000 }).rotate()
+    .resize(span, span, { fit: "inside" }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { width, height } = info;
+  const light = (pixel: number) => Math.min(data[pixel * 4], data[pixel * 4 + 1], data[pixel * 4 + 2]) >= 232;
+  const cleared = new Uint8Array(width * height);
+  const queue: number[] = [];
+  for (let x = 0; x < width; x += 1) queue.push(x, (height - 1) * width + x);
+  for (let y = 0; y < height; y += 1) queue.push(y * width, y * width + width - 1);
+  while (queue.length) {
+    const pixel = queue.pop()!;
+    if (cleared[pixel] || !light(pixel)) continue;
+    cleared[pixel] = 1;
+    data[pixel * 4 + 3] = 0;
+    const x = pixel % width;
+    if (x > 0) queue.push(pixel - 1);
+    if (x < width - 1) queue.push(pixel + 1);
+    if (pixel >= width) queue.push(pixel - width);
+    if (pixel < (height - 1) * width) queue.push(pixel + width);
+  }
+  const cutout = await sharp(data, { raw: { width, height, channels: 4 } }).png().toBuffer();
+  // In front of the belly, where arms hold a toy; never past the bottom edge.
+  const top = Math.min(size - height, Math.round(size * 0.6 - height / 2));
+  return sharp(base).composite([{ input: cutout, left: Math.round((size - width) / 2), top }]).png().toBuffer();
+}
+
 /** One portrait on the same neutral 512 canvas a sprite cell uses. */
 export async function renderSingleReference(image: Buffer): Promise<Buffer> {
   return sharp(image, { limitInputPixels: 40_000_000 }).rotate()
@@ -165,11 +208,17 @@ export function createIdentityReferenceCache(fetcher: typeof fetch = fetch): Ide
     return downloads.get(url)!;
   };
   // The portrait as it goes on the sheet: logos and writing on the clothes painted out (see paintOutMarks).
+  const source = async (url: string): Promise<Buffer> => {
+    const inline = url.match(/^data:image\/[a-z]+;base64,(.+)$/i);
+    return inline ? Buffer.from(inline[1], "base64") : download(url);
+  };
   const portrait = async (slot: IdentitySpriteSlot): Promise<Buffer> => {
-    const inline = slot.imageUrl.match(/^data:image\/[a-z]+;base64,(.+)$/i);
-    const buffer = inline ? Buffer.from(inline[1], "base64") : await download(slot.imageUrl);
+    const buffer = await source(slot.imageUrl);
     const marks = usableMarks(slot.marks);
-    return marks.length ? paintOutMarks(buffer, marks) : buffer;
+    const figure = marks.length ? await paintOutMarks(buffer, marks) : buffer;
+    if (!slot.holds) return figure;
+    if (!isProviderReadableReference(slot.holds.imageUrl)) throw new Error("Reference image is not provider-readable");
+    return renderHeldObject(figure, await source(slot.holds.imageUrl), slot.holds.size);
   };
   return slots => {
     const key = JSON.stringify(slots);
@@ -182,12 +231,14 @@ export function createIdentityReferenceCache(fetcher: typeof fetch = fetch): Ide
         // Inline like the sprite: with a URL Runware fetches our image proxy, and FLUX.2 klein is
         // billed by end-to-end request time (probe 2026-10-15: $0.0026 per picture by URL vs $0.0012
         // inline; book 6950cb7e paid $0.062 for one picture). A failed download keeps the URL.
-        const editable = /^https?:\/\//i.test(slots[0].imageUrl) || (/^data:image\//i.test(slots[0].imageUrl) && usableMarks(slots[0].marks).length > 0);
+        const editable = /^https?:\/\//i.test(slots[0].imageUrl) || Boolean(slots[0].holds) || (/^data:image\//i.test(slots[0].imageUrl) && usableMarks(slots[0].marks).length > 0);
         if (!editable) return { urls: [slots[0].imageUrl], mode: "single", subjects };
         try {
           const buffer = await encodeReferenceSprite(await renderSingleReference(await portrait(slots[0])));
           return { urls: [`data:image/jpeg;base64,${buffer.toString("base64")}`], mode: "single", subjects };
-        } catch {
+        } catch (error) {
+          // Without its held object the lone portrait would paint the object from words only: let the caller retry.
+          if (slots[0].holds) throw error;
           return { urls: [slots[0].imageUrl], mode: "single", subjects };
         }
       }

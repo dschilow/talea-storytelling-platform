@@ -39,6 +39,12 @@ export const SERIES_IMAGE_REVIEW_EFFORT = 'medium';
  */
 export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_KLEIN_9B_KV_MODEL;
 /**
+ * Version 26 (story 9a84d5e0, 2 of 7 pictures): a held story object rides in its holder's sheet cell and the holder comes
+ * first (its own cell came back as a second teddy on 6 of 6 attempts; probe: 6/10 first attempts pass instead of 2/10,
+ * no double), a hidden object gets no cell, captions lose what is absent ("with no pale thread" painted the thread), a teddy
+ * "held between the children" is no stranger, and the rescue plan runs on the standard tier. Other objects too (a red clamp
+ * 3/3 with the right holder instead of 0/3, a lantern 2/3 instead of 0/3); a machine, a cart or a wall is never carried, a
+ * small thing is set at a hand's size, and only a toy's portrait speaks of a face (a lantern came back walking).
  * Version 25 (stories 1bbb8af3, b3d96e64): compare source excerpts across the family's series, check the simplest causal
  * alternative and choice setup, and carry source-grounded prop designs into direction, painting and publication QA.
  * Version 24 (stories 439d746c, e2d5890a): sheet cells are called portraits instead of scene halves and two figures share
@@ -81,7 +87,7 @@ export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_
  * took 211 s. Up to five repairs, spent on pictures with a hard fault or provider failure. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 25, maxVisualReferences: 3, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
+export const SERIES_POLICY = { version: 26, maxVisualReferences: 3, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);

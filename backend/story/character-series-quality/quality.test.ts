@@ -95,16 +95,17 @@ describe('two image variants with bounded independent selection', () => {
     expect(result.selections.find(s => s.page === 1)?.selected).toBe('none');
   });
   test('a grounded central prop gets a real reference even when the cheap reference planner missed it', async () => {
-    let portraits = 0, threeCellSheets = 0;
+    let portraits = 0, heldTeddySheets = 0;
     const result = await generateQualitySeriesImages({ entities, illustrations: { cover: shot(0), pages: [shot(1)], storyElements: [], continuity: [
       { name: 'Teddy', aliases: ['Teddy'], appearance: 'One brown cloth teddy with a blue ribbon.', evidence: [{ page: 1, quote: 'Nora hielt ihren Teddy fest.' }] },
     ] } as any, seed: 'prop-reference', visionModel: 'test', pageTexts: { 1: 'Nora hielt ihren Teddy fest.' },
-      buildReference: async slots => { if (slots.length === 3) threeCellSheets++; return { urls: ['https://test/sheet.jpg'], mode: 'sprite', subjects: [] }; },
+      buildReference: async slots => { if (slots.length === 2 && slots[0].holds) heldTeddySheets++; return { urls: ['https://test/sheet.jpg'], mode: 'sprite', subjects: [] }; },
       provider: async request => { if (request.logStage === 'quality-object-reference') portraits++; return { url: `https://test/${request.seed}.jpg` }; },
       llm: async request => reply(request.stage === 'quality-book-image-review' ? '{"issues":[]}'
         : request.stage.startsWith('quality-image-selection') ? '{"winner":"A","reason":"Clearer physical action.","rejectA":false,"rejectB":false}' : qa) });
     expect(portraits).toBe(1);
-    expect(threeCellSheets).toBe(4);
+    // Tilda holds the Teddy, so it rides in her cell (story 9a84d5e0) instead of a third one.
+    expect(heldTeddySheets).toBe(4);
     expect(result.imageCalls).toBe(5);
   });
 });

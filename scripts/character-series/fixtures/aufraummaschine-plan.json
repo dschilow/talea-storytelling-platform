@@ -1,0 +1,27 @@
+{
+  "_source": "Picture direction of story 9a84d5e0 (Die Aufräummaschine hat Hunger, 2026-11-03), ids mapped to tilda/alex/adrian/teddy; pages 2 and 3 left out.",
+  "continuity": [
+    { "name": "Teddy", "aliases": ["Teddy", "teddy bear"], "appearance": "A soft teddy bear with a green ribbon around its neck and a small loose seam.", "evidence": [{ "page": 4, "quote": "Tief hinter der Schauseite schimmerte das grüne Band, das der Teddy um den Hals trug." }] }
+  ],
+  "cover": { "page": 0, "onStage": ["tilda", "alex", "adrian"], "elements": [], "artifactVisible": false, "focus": "scene",
+    "scene": "Inside the workshop, Tilda presses the pedal as a slipper glides neatly into the collection box. Alexander claps and Adrian grins beside her; Teddy rests safely on the low bench. Their delighted reactions frame the machine’s first tidy success, with the workshop visible around them.",
+    "visualBeat": { "actorId": "tilda", "action": "steps on the pedal", "result": "The slipper glides into the collection box as Alexander claps and Adrian grins.", "framing": "wide" } },
+  "pages": [
+    { "page": 1, "paragraph": 20, "onStage": ["tilda", "alex", "adrian"], "elements": [], "artifactVisible": false, "focus": "scene",
+      "storyQuote": "„Ich heiße Alexander. Das ist Adrian, mein Bruder.“ Er hielt den Teddy hoch. „Kannst du seine Naht reparieren?“",
+      "scene": "At the open workshop doorway, Alexander holds Teddy up while Adrian points to its loose thread. Tilda stands facing the brothers and nods, her attention on the small bear. The three form a clear exchange in the foreground, with the workshop interior visible behind Tilda.",
+      "visualBeat": { "actorId": "alex", "action": "raises Teddy", "result": "Adrian points to the loose thread while Tilda nods toward the bear.", "framing": "medium" } },
+    { "page": 4, "paragraph": 19, "onStage": ["tilda", "alex"], "elements": ["teddy"], "artifactVisible": true, "focus": "scene",
+      "storyQuote": "Tilda beugte sich zu ihm. Tief hinter der Schauseite schimmerte das grüne Band, das der Teddy um den Hals trug.",
+      "scene": "At the collection box inside the workshop, Tilda bends toward the narrow space behind its painted front wall. Teddy’s green ribbon glimmers beneath a corner of cloth, and Alexander stands very still beside her. The two focus on the small glimpse inside the box.",
+      "visualBeat": { "actorId": "tilda", "action": "bends toward the collection box", "result": "The Teddy’s green ribbon shows behind the front wall, with cloth over its loose seam.", "framing": "close" } },
+    { "page": 5, "paragraph": 24, "onStage": ["tilda", "alex"], "elements": ["teddy"], "artifactVisible": true, "focus": "scene",
+      "storyQuote": "Der Teddy kam frei. Seine lockere Naht war noch da, aber nicht größer geworden. Alexander drückte sein Gesicht an das weiche Fell, ganz vorsichtig auf der heilen Seite.",
+      "scene": "Beside the open collection box, Alexander gently presses the freed Teddy against himself, careful to keep away from its loose seam. Tilda stands close by after lifting a sock clear of the bear. Their relief fills the foreground, with the box and rumpled laundry behind them.",
+      "visualBeat": { "actorId": "alex", "action": "presses Teddy gently against himself", "result": "The bear is free and the loose seam has not grown larger.", "framing": "medium" } },
+    { "page": 6, "paragraph": 12, "onStage": ["tilda", "alex"], "elements": ["teddy"], "artifactVisible": true, "focus": "scene",
+      "storyQuote": "Schließlich durfte Alexander den Teddy probeweise fest drücken. Die Naht blieb zu. Kein heller Faden baumelte mehr heraus.",
+      "scene": "At the worktable, Alexander carefully gives Teddy a firm test squeeze while Tilda sits beside him. The repaired seam stays shut, with no pale thread hanging out. Their attention rests on the bear, and the quiet workshop surrounds this small, reassuring check.",
+      "visualBeat": { "actorId": "alex", "action": "squeezes Teddy for a test", "result": "The seam stays closed and no pale thread hangs out.", "framing": "close" } }
+  ]
+}

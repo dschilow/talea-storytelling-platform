@@ -8,6 +8,23 @@ import { StorybookSafetyBlock } from '../storybook/llm-guards';
 import { SERIES_ART_DIRECTION, seriesWordlessCaption } from './pictures';
 import { SERIES_POLICY } from './authoring';
 import { seriesReferenceMention as referenceMention } from './identity';
+import { ORIGINALS_IMAGE_STYLE } from '../library/images';
+
+const TOY = /\b(?:teddy|teddies|bears?|plush|stuffed|soft toy|cuddly|dolls?|puppets?|toys?|figurines?|robots?|rag doll)\b/i;
+
+/**
+ * The portrait of a story object. A lantern asked to "preserve a toy's own stitched face and limbs if specified", in the
+ * figures' style ("expressive faces", "expressive heads"), came back as a walking lantern with a face, arms and legs
+ * (probe 2026-11-03) and then acted as a creature in the scene. Only a toy keeps its face; any other thing is painted
+ * in the same medium without the figure words.
+ */
+export function seriesObjectReferencePrompt(entity: VisualEntity): string {
+  if (TOY.test(`${entity.name} ${entity.appearance}`)) {
+    return `One single object reference: ${entity.appearance}. Show the complete object clearly, three-quarter view on plain white, no people, no added human anatomy, no scenery, no labels, no panels. Preserve the toy's own stitched face and limbs. ${SERIES_ART_DIRECTION}`;
+  }
+  const style = ORIGINALS_IMAGE_STYLE.replace(/,?\s*expressive faces/gi, '');
+  return `One single object reference: ${entity.appearance}. Show the complete object clearly, three-quarter view on plain white: a still, inanimate thing exactly as it is made, resting on its own. No people, no scenery, no labels, no panels. ${style}. Clear soft ink contours and broad gouache colour shapes.`;
+}
 
 /** Stored URLs are durable bucket assets; signed transport URLs are resolved anew on reuse. */
 export type SeriesVisualAsset = VisualEntity & { referenceAliases: string[]; referenceKey: string };
@@ -102,7 +119,7 @@ export async function prepareSeriesVisualReferences(input: {
       try {
         const request = entity.kind === 'character' ? figurePortraitRequest(entity, input.seed, SERIES_ART_DIRECTION) : {
           page: 0, width: 768, height: 768, seed: parseInt(createHash('sha256').update(`${input.seed}:${entity.id}`).digest('hex').slice(0, 7), 16),
-          prompt: `One single object reference: ${entity.appearance}. Show the complete object clearly, three-quarter view on plain white, no people, no added human anatomy, no scenery, no labels, no panels. Preserve a toy's own stitched face and limbs if specified. ${SERIES_ART_DIRECTION}`,
+          prompt: seriesObjectReferencePrompt(entity),
           negativePrompt: 'person, human hands, human face, crowd, text, labels, panels, multiple views', referenceImages: [],
         };
         const response = await input.provider({ ...request, logStage: 'series-image-reference' });

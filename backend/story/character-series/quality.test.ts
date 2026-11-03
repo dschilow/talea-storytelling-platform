@@ -349,6 +349,15 @@ describe('animals and toys the scene names, story fa24532b', () => {
     expect(qa?.observedFigures?.[2].sceneProp).toBe(true);
     expect(seriesPicturePasses(qa)).toBe(true);
   });
+  test('a teddy held "between the children" is still the teddy; the first noun decides (story 9a84d5e0)', () => {
+    const scene = { sceneText: 'Beside the open box, Alexander gently presses the freed Teddy against himself.' };
+    for (const appearance of ['Brown plush teddy being held between the children; its body and limbs are visible.', 'Soft brown teddy bear with a green neck ribbon, held up between the children.']) {
+      const qa = readSeriesQa(withFigure(appearance), cast, scene);
+      expect(qa?.observedFigures?.[2].sceneProp).toBe(true);
+      expect(qa?.unexpectedCharacters).toEqual([]);
+    }
+    expect(readSeriesQa(withFigure('A small blond boy holding a teddy between the children.'), cast, scene)?.unexpectedCharacters).toEqual(['unmatched-figure-3']);
+  });
   test('the same teddy without a scene that names it, a child, an unnamed animal or a second dragon still block', () => {
     expect(readSeriesQa(withFigure('Brown plush teddy bear.'), cast)?.unexpectedCharacters).toEqual(['unmatched-figure-3']);
     const scene = { sceneText: 'Nora carries the teddy past a seal and a dragon kite.' };

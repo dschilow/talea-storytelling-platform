@@ -52,8 +52,20 @@ export function sceneNamedNonHuman(appearance: string, sceneText: string | undef
   return sceneNamedNoun(appearance, sceneText, expected) !== undefined;
 }
 
+/**
+ * The noun that comes first says what the figure is. Story 9a84d5e0 (2026-11-03): "Brown plush teddy being held between
+ * the children" counted as a person because of "children" and blocked four pictures as an unmatched stranger; "a boy
+ * holding a teddy" stays a boy.
+ */
+function describesPerson(appearance: string): boolean {
+  const person = appearance.search(HUMAN_FIGURE);
+  if (person < 0) return false;
+  const thing = appearance.search(new RegExp(CREATURE_OR_TOY.source, 'i'));
+  return thing < 0 || person < thing;
+}
+
 function sceneNamedNoun(appearance: string, sceneText: string | undefined, expected: VisualEntity[]): string | undefined {
-  if (!sceneText || HUMAN_FIGURE.test(appearance)) return undefined;
+  if (!sceneText || describesPerson(appearance)) return undefined;
   const scene = sceneText.toLocaleLowerCase('en');
   const species = expected.filter(e => !e.isHuman).map(e => e.species.toLocaleLowerCase('en'));
   for (const [, word] of appearance.matchAll(CREATURE_OR_TOY)) {
