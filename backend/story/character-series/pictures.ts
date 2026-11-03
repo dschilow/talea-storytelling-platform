@@ -11,7 +11,8 @@ import { wordlessLine } from '../storybook/illustration-stage';
 import { ORIGINALS_IMAGE_STYLE, SCENE_SIZE } from '../library/images';
 import { SERIES_IMAGE_REVIEW_EFFORT, SERIES_POLICY } from './authoring';
 import { effectiveSeriesEpisode, logsForEpisode } from './core';
-import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, SERIES_IMAGE_REVIEW_COMPACT, withPanelDefect, type SeriesQa } from './quality';
+import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, seriesSecondReaderRedraw, SERIES_IMAGE_REVIEW_COMPACT, withJevDefects, withPanelDefect, type SeriesQa } from './quality';
+import { jevCallResult, readWithJev, type JevPort, type JevReading } from '../storybook/jev';
 import { FLUX3_KLEIN_MODEL, type RunwareReferenceRegion } from '../../ai/runware-image-model-options';
 import { StorybookSafetyBlock } from '../storybook/llm-guards';
 import { seriesReferenceMention } from './identity';
@@ -438,6 +439,8 @@ export async function generateSeriesImages(input: {
   panelCheck?: (url: string) => Promise<boolean>;
   /** Independent quality-lane limits; omitted in the original lane. */
   policy?: { maxImageCalls: number; imageRetries: number; imageConcurrency: number };
+  /** Jev, the cheap second reader (../storybook/jev.ts), run next to the review; its failure never changes a verdict. */
+  jev?: JevPort;
 }): Promise<StorybookImagesResult> {
   const policy = input.policy || SERIES_POLICY;
   const shots = [input.illustrations.cover, ...input.illustrations.pages];
@@ -455,7 +458,7 @@ export async function generateSeriesImages(input: {
   const reviewed = new Map<number, ImageOutcome[]>();
   // Keep the generated image and its exact evidence when only the vision call failed.
   const visionRecoveries = new Map<number, () => Promise<ImageOutcome>>();
-  const qaCalls: StorybookImagesResult['qaCalls'] = [], regenerated: number[] = [];
+  const qaCalls: StorybookImagesResult['qaCalls'] = [], jevCalls: NonNullable<StorybookImagesResult['jevCalls']> = [], regenerated: number[] = [];
   const canReview = () => (input.llm as StorybookLlm & { canCall?: () => boolean }).canCall?.() !== false;
   // Story 439d746c: with "slot 1 (left half) … slot 2 (right half)" three of four two-figure pictures came back as two
   // panels split down the middle. The labels name the sheet's portraits, not halves of the scene.
@@ -497,7 +500,7 @@ export async function generateSeriesImages(input: {
       // Pilot Funkelflug 1 (2026-11-02): edits of a doubled Ben, a doubled dragon and a missing dragon returned the same
       // picture three times; only a new scene recasts its figures. Hands and stray extras are still edited.
       const previousQa = previous?.qa as SeriesQa | undefined;
-      const recast = Boolean(previousQa?.missing?.length || previousQa?.duplicates?.length);
+      const recast = Boolean(previousQa?.missing?.length || previousQa?.duplicates?.length || previousQa?.jevFindings?.some(finding => /drawn twice/.test(finding)));
       const editing = number === 2 && !recast ? editableImages.get(shot.page) : undefined;
       // Story 1a2fa8a4: "slot 1 (left half) is ONLY Adrian; slot 2 (right half) is ONLY the seal" came back as the sheet's
       // two panels from three seeds; the "fix" line alone changed nothing. After a split the halves are not named and the
@@ -573,14 +576,26 @@ export async function generateSeriesImages(input: {
         }
       };
       const panels = input.panelCheck && (response.viewUrl || response.url) ? input.panelCheck(response.viewUrl || response.url!).catch(() => false) : Promise.resolve(false);
-      const verdict = (read: NonNullable<ReturnType<typeof readSeriesQa>>): ImageOutcome => {
-        const qa = split ? withPanelDefect(read) : read;
+      // The second reader runs next to the review (≈ 0.6 s against 20–45 s) and is awaited only for the verdict.
+      const second: Promise<JevReading | undefined> = input.jev && drawn.length
+        ? readWithJev(input.jev, response.viewUrl || response.url!, drawn, moment.scene).then(reading => {
+          jevCalls.push(...reading.replies.map(jevCallResult));
+          return reading.scores ? reading : undefined;
+        }).catch(error => {
+          console.warn(`[character-series] second reader failed (page ${shot.page} attempt ${number}):`, (error as Error)?.message || error);
+          return undefined;
+        })
+        : Promise.resolve(undefined);
+      const verdict = async (read: NonNullable<ReturnType<typeof readSeriesQa>>): Promise<ImageOutcome> => {
+        const reading = await second;
+        const qa = withJevDefects(split ? withPanelDefect(read) : read, reading?.scores ?? undefined);
         const pass = seriesPicturePasses(qa, shot.page === 0);
         const usable = !pass && seriesPictureUsable(qa);
         const status: ImageOutcome['status'] = pass ? 'passed' : usable ? 'flawed' : 'failed';
         const severity = pass ? 0 : usable ? 5 : 10;
         const notes = [...qa.defects.map(d => d.detail), ...(qa.missing || []), ...qa.duplicates];
-        history.push({ kind: number === 1 ? 'series-scene' : editing ? 'targeted-scene-edit' : simplified ? 'simplified-scene-repair' : 'same-scene-repair', status, severity, notes, url: response.url });
+        history.push({ kind: number === 1 ? 'series-scene' : editing ? 'targeted-scene-edit' : simplified ? 'simplified-scene-repair' : 'same-scene-repair', status, severity, notes, url: response.url,
+          ...(reading?.boxes && qa.jevFindings?.length ? { boxes: reading.boxes } : {}) });
         const outcome: ImageOutcome = { page: shot.page, url: response.url, prompt, attempts: number, costUSD, qa, severity, status, history: [...history] };
         reviewed.set(shot.page, [...(reviewed.get(shot.page) || []), outcome]);
         return outcome;
@@ -644,7 +659,8 @@ export async function generateSeriesImages(input: {
   // A picture whose only fault is a loose action (right people, right setting, nothing broken) is not redrawn: it is printed
   // as the best attempt below. Story 289c11a4 spent 7 redraws, 2.3 ct of pictures and 1.6 ct of checks on such pictures and
   // none of them got better; the redraws are for what a new seed can fix (a hand, a face, a double, lettering, a lost figure).
-  const canRetryOutcome = (o: ImageOutcome) => (o.status === 'failed' && ((Boolean(o.qa) && !seriesPictureLastResort(o.qa as SeriesQa)) || o.errors?.includes('series_provider_error'))) ||
+  // A second-reader finding (a double, merged bodies) is redrawn, though the picture would do as a last resort.
+  const canRetryOutcome = (o: ImageOutcome) => (o.status === 'failed' && ((Boolean(o.qa) && (!seriesPictureLastResort(o.qa as SeriesQa) || seriesSecondReaderRedraw(o.qa as SeriesQa))) || o.errors?.includes('series_provider_error'))) ||
     (o.status === 'missing' && !o.errors?.includes('series_provider_http_402'));
   // A complicated multi-person action may fail even after an edit. For a still-pictureless chapter, ask for a
   // simpler moment from the very same paragraph, so it can remain at its original position in the book.
@@ -730,5 +746,5 @@ export async function generateSeriesImages(input: {
       if (chapter !== undefined) covered.add(chapter);
     }
   }
-  return { cover: outcomes[0], pages: new Map(outcomes.slice(1).map(o => [o.page, o])), imagesGenerated: outcomes.filter(o => isPublishable(o)).length, imageCalls, imageCostUSD, qaCalls, regenerated };
+  return { cover: outcomes[0], pages: new Map(outcomes.slice(1).map(o => [o.page, o])), imagesGenerated: outcomes.filter(o => isPublishable(o)).length, imageCalls, imageCostUSD, qaCalls, jevCalls, regenerated };
 }

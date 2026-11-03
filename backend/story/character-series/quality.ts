@@ -1,5 +1,6 @@
 import type { VisualEntity } from '../storybook/illustration-stage';
 import type { ImageQaReport } from '../storybook/images';
+import { firedJevChecks, JEV_NOTES, type JevCheck, type JevScores } from '../storybook/jev';
 import { parseJsonObject } from '../storybook/llm';
 
 const KINDS = ['anatomy', 'identity', 'safety', 'continuity', 'story', 'unexpected', 'text', 'style', 'composition', 'detail'] as const;
@@ -15,7 +16,11 @@ STORY-CRITICAL CONTINUITY (kind=continuity, blocking=true): a second copy of a s
 ACCEPT with a minor note: characters swapping actions or positions; a paint spot on the other person's nose; a second brush; small extra droplets, props or colour changes; a different frozen moment; passive posing; imperfect motion; a slightly different illustration texture. These are story/detail/composition observations, NEVER identity or anatomy defects. sceneCompatible=true when this is recognisably the same place and activity even if actors, handholds, props or exact timing differ. Set false only for an unrelated place or event. materialContradiction does not mean reversed actors or minor prop differences. The prose carries sign wording; do not require legible text.
 Use kind=identity/anatomy/safety only for a real blocking fault. Other kinds may be blocking only for the publication blockers above. Report at most THREE observations, always real blockers first, each with blocking:true|false and a short positive fix. Keep detail/fix under 180 characters. Numbers are diagnostic, not another hidden publication threshold.
 Return JSON {"reviewVersion":3,"observedFigures":[{"position":"left foreground","appearance":"what this figure actually looks like","matchedId":"exact supplied id or null"}],"visibleHandsById":{"id":["hand holding the handle","hand raised beside the head"]},"anatomyOkById":{"id":true},"recognizableById":{"id":true},"identityById":{"id":0.85},"sceneCompatible":true,"posing":false,"primaryActionClear":true,"storyConsistent":true,"materialContradiction":false,"sceneMatch":0.8,"styleMatch":0.8,"defects":[{"kind":"anatomy|identity|safety|continuity|story|unexpected|text|style|composition|detail","detail":"visible observation","fix":"correction","blocking":false,"blocksAction":false}]}. matchedId is JSON null for an unmatched figure, never an invented id. Include EVERY expected id in all four per-person maps, using recognizableById=false for an absent/replaced figure. All scores 0–1. Empty defects when sound.`;
-export interface SeriesImageDefect { kind: Kind; detail: string; fix: string; blocksAction?: boolean; blocking?: boolean }
+export interface SeriesImageDefect {
+  kind: Kind; detail: string; fix: string; blocksAction?: boolean; blocking?: boolean;
+  /** A second-reader finding (Jev) worth a redraw that never keeps a page's best attempt out: a false alarm costs a redraw, not a picture. */
+  redrawOnly?: true;
+}
 export interface SeriesObservedFigure { position: string; appearance: string; matchedId: string | null; /** An animal or toy the scene names, not a cast member. */ sceneProp?: true }
 export type SeriesQa = ImageQaReport & {
   styleMatch: number; styleDefects: string[]; primaryActionClear: boolean; criticalSceneDefects: string[];
@@ -211,14 +216,52 @@ export function withPanelDefect(qa: SeriesQa): SeriesQa {
     sceneFixes: [defect.fix, ...(qa.sceneFixes || [])], referenceSheetVisible: true };
 }
 
+/**
+ * Jev as defects, fix sentences in positive words (a diffusion model draws what it reads). A child with animal parts
+ * and writing are as hard as the reviewer's own anatomy and lettering faults; a double, merged bodies, mixed features
+ * and a shared garment are redrawn but cannot cost the page its best attempt.
+ */
+const JEV_DEFECTS: Record<JevCheck, { kind: Kind; fix: string; hard?: true }> = {
+  hybrid: { kind: 'anatomy', hard: true, fix: 'Each figure looks exactly like its own sheet cell; the children are ordinary human kids in their own clothes.' },
+  twins: { kind: 'identity', fix: 'Every named figure appears exactly once, matching their own reference.' },
+  fused: { kind: 'anatomy', fix: 'Every figure is one separate, complete body; the figures stand apart so no two bodies merge.' },
+  blend: { kind: 'identity', fix: 'Every figure keeps only its own hair, face, ears and clothes from its own sheet cell.' },
+  garment: { kind: 'identity', fix: 'Every garment belongs to exactly one figure; each figure wears its own outfit from its own sheet cell.' },
+  text: { kind: 'text', hard: true, fix: 'A wordless picture: every sign, page, map and surface is plain and unmarked or shows a small painted symbol.' },
+};
+
+/**
+ * The second reader's findings (../storybook/jev.ts) added to the review. Measured 2026-11-03 on 164 pictures: Jev's
+ * hits in this lane were doubles, Tilda's overalls on the boys and a captain's cap on a child; the Luna review had
+ * rejected those pictures already, so here Jev is mostly a safety net. It is one for Luna in particular: in Talea-Folge
+ * ee4971ca Luna printed a leg melting into grey runners that Jev read as fused 0.90. A double the reviewer already
+ * counted is not added twice.
+ */
+export function withJevDefects(qa: SeriesQa, scores: JevScores | undefined): SeriesQa {
+  if (!scores) return qa;
+  const fired = firedJevChecks(scores).filter(check => !(check === 'twins' && qa.duplicates.length));
+  if (!fired.length) return { ...qa, jev: scores };
+  const added: SeriesImageDefect[] = fired.map(check => ({ kind: JEV_DEFECTS[check].kind, blocking: true,
+    detail: `${JEV_NOTES[check]} [jev ${Math.round(scores[check] * 100)}%]`, fix: JEV_DEFECTS[check].fix,
+    ...(JEV_DEFECTS[check].hard ? {} : { redrawOnly: true as const }) }));
+  return { ...qa, defects: [...qa.defects, ...added], criticalSceneDefects: [...qa.criticalSceneDefects, ...added.map(d => d.detail)],
+    sceneFixes: [...(qa.sceneFixes || []), ...added.map(d => d.fix)], jevFindings: added.map(d => d.detail),
+    textVisible: qa.textVisible || fired.includes('text'), jev: scores };
+}
+
+/** A failed picture whose fault came from the second reader is redrawn even when it would do as a last resort. */
+export function seriesSecondReaderRedraw(qa: SeriesQa | undefined): boolean {
+  return Boolean(qa?.defects.some(d => d.redrawOnly));
+}
+
 function publicationBlocker(defect: SeriesImageDefect): boolean {
   return ['identity', 'anatomy', 'safety', 'continuity'].includes(defect.kind) || defect.blocking === true;
 }
 
-function publicationChecksPass(qa: SeriesQa): boolean {
+function publicationChecksPass(qa: SeriesQa, lastResort = false): boolean {
   const ids = Object.keys(qa.identityById);
   return ids.length > 0 && ids.every(id => qa.recognizableById?.[id] === true && qa.anatomyOkById?.[id] === true)
-    && qa.sceneCompatible === true && !qa.defects.some(publicationBlocker)
+    && qa.sceneCompatible === true && !qa.defects.some(d => publicationBlocker(d) && !(lastResort && d.redrawOnly))
     && !qa.missing?.length && !qa.duplicates.length && !qa.unexpectedCharacters.length;
 }
 
@@ -262,8 +305,8 @@ export function seriesPictureUsable(qa: SeriesQa | undefined): boolean {
  * a picture out.
  */
 export function seriesPictureLastResort(qa: SeriesQa | undefined, emptyChapter = false): boolean {
-  if (qa?.reviewVersion === 2 || qa?.reviewVersion === 3) return publicationChecksPass(qa);
-  return Boolean(qa && qa.materialContradiction !== true && (!qa.posing || emptyChapter) && !qa.defects.some(d => d.kind !== 'story' && d.kind !== 'detail' && d.kind !== 'style') && !qa.missing?.length && !qa.duplicates.length && !qa.unexpectedCharacters.length && identityHolds(qa) && qa.sceneMatch >= (qa.materialContradiction === false ? 0.45 : 0.65) && styleHolds(qa));
+  if (qa?.reviewVersion === 2 || qa?.reviewVersion === 3) return publicationChecksPass(qa, true);
+  return Boolean(qa && qa.materialContradiction !== true && (!qa.posing || emptyChapter) && !qa.defects.some(d => d.kind !== 'story' && d.kind !== 'detail' && d.kind !== 'style' && !d.redrawOnly) && !qa.missing?.length && !qa.duplicates.length && !qa.unexpectedCharacters.length && identityHolds(qa) && qa.sceneMatch >= (qa.materialContradiction === false ? 0.45 : 0.65) && styleHolds(qa));
 }
 
 /** Bounded literal evidence near the selected paragraph; no second model or whole chapter per picture read. */

@@ -31,7 +31,7 @@ import { createIdentityReferenceCache, type IdentityReferenceBuilder } from "../
 import { mentions } from "./checks";
 import { parseJsonObject, type LlmCallResult, type StorybookLlm } from "./llm";
 import { assembleFlux3ImagePrompt, assembleImagePrompt, mentionsElement, negativePromptFor, type VisualEntity } from "./illustration-stage";
-import { interpretJev, JEV_MODEL, JEV_THRESHOLDS, jevQuestionsFor, parseJevScores, type JevPort, type JevScores } from "./jev";
+import { interpretJev, jevCallResult, JEV_THRESHOLDS, readWithJev, type JevBox, type JevPort, type JevReading, type JevScores } from "./jev";
 import type { IllustrationPlan, IllustrationShot, StoryElement } from "./types";
 import type { RunwareReferenceRegion } from "../../ai/runware-image-model-options";
 
@@ -87,6 +87,8 @@ export interface ImageQaReport {
   jevFindings?: string[];
   /** The second reader's raw probabilities, for the log. */
   jev?: JevScores;
+  /** Where the second reader saw each finding that fired (Jev box questions), for the log and a person checking it. */
+  jevBoxes?: Record<string, JevBox>;
   textVisible: boolean;
   /** Where the checker saw writing ("letters on Adrian's T-shirt"): story 26fdd23f lost three pictures to "text visible" and nobody could tell where it was. */
   textSeen?: string;
@@ -110,8 +112,11 @@ export interface ImageOutcome {
   vignette?: boolean;
   /** The least bad picture, printed because every clean attempt failed. */
   salvaged?: boolean;
-  /** Every attempt of this page in short form, for the log (story b10f2dad hid why page 7 failed), with the rejected picture. */
-  history?: Array<{ kind: string; status: string; severity: number; notes: string[]; url?: string }>;
+  /**
+   * Every attempt of this page in short form, for the log (story b10f2dad hid why page 7 failed), with the rejected
+   * picture and, when the second reader found something, where in the picture it saw it.
+   */
+  history?: Array<{ kind: string; status: string; severity: number; notes: string[]; url?: string; boxes?: Record<string, JevBox> }>;
   /** 0 = full identity sheet, 1 = reduced sheet, 2 = no reference, -1 = no picture. */
   referenceLevel?: number;
   /** Why a delivery step failed — goes into the story metadata and logs. */
@@ -566,17 +571,12 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
    * The second reader, run next to the first. A failure (alpha API, download, timeout)
    * is logged and costs nothing but the second opinion.
    */
-  const secondOpinion = async (imageUrl: string, drawn: VisualEntity[], label: string): Promise<JevScores | undefined> => {
+  const secondOpinion = async (imageUrl: string, drawn: VisualEntity[], scene: string, label: string): Promise<JevReading | undefined> => {
     if (!input.jev || drawn.length === 0) return undefined;
     try {
-      const reply = await input.jev({ imageUrl, questions: jevQuestionsFor(drawn) });
-      jevCalls.push({
-        text: JSON.stringify(reply.answers),
-        modelUsed: JEV_MODEL,
-        usage: { prompt: reply.inputTokens, completion: 0, total: reply.inputTokens, costUSD: reply.costUSD },
-        durationMs: reply.durationMs,
-      });
-      return parseJevScores(reply.answers) ?? undefined;
+      const reading = await readWithJev(input.jev, imageUrl, drawn, scene);
+      jevCalls.push(...reading.replies.map(jevCallResult));
+      return reading.scores ? reading : undefined;
     } catch (err) {
       console.warn(`[storybook/images] second reader failed (${label}):`, (err as Error)?.message || err);
       return undefined;
@@ -584,15 +584,16 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
   };
 
   /** The second reader's findings added to the checker's report; a hybrid it shares with the checker is not counted twice. */
-  const withSecondOpinion = (qa: ImageQaReport, scores: JevScores | undefined): ImageQaReport => {
-    if (!scores) return qa;
-    const found = interpretJev(scores);
+  const withSecondOpinion = (qa: ImageQaReport, reading: JevReading | undefined): ImageQaReport => {
+    if (!reading?.scores) return qa;
+    const found = interpretJev(reading.scores);
     return {
       ...qa,
       animalFeaturesOnHumans: qa.animalFeaturesOnHumans.length ? qa.animalFeaturesOnHumans : found.hybrid,
       jevFindings: found.soft,
       textVisible: qa.textVisible || found.text,
-      jev: scores,
+      jev: reading.scores,
+      ...(reading.boxes ? { jevBoxes: reading.boxes } : {}),
     };
   };
 
@@ -764,6 +765,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
         ...(parts.hard >= 999 ? {} : {}),
         // The rejected picture stays in the bucket; with its address an audit can look at it.
         ...(outcome.url ? { url: outcome.url } : {}),
+        ...(outcome.qa?.jevBoxes ? { boxes: outcome.qa.jevBoxes } : {}),
       });
     };
 
@@ -773,7 +775,7 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
       if (!url) return { page: shot.page, prompt: got.prompt, attempts: attemptNo, costUSD, severity: 999, status: "missing", level: -1, plan: plan.kind, refused: got.refused };
       // Exactly the names the prompt asks to count (see qaCountNames): a demanded count the prompt never asked for made every reply "incomplete".
       const expectedNames = qaCountNames(plan.onStage, plan.elements, plan.qaScene);
-      const [raw, scores] = await Promise.all([
+      const [raw, reading] = await Promise.all([
         inspect(
           `image-qa-${cover ? "cover" : `p${shot.page}`}-${attemptNo}`,
           buildQaPrompt(plan.drawn, plan.qaScene, got.references.length > 0, plan.elements, input.pageTexts?.[shot.page]),
@@ -782,10 +784,10 @@ export async function generateStorybookImages(input: GenerateImagesInput): Promi
           errors,
           `attempt ${attemptNo}`
         ),
-        secondOpinion(got.response.viewUrl || url, plan.drawn, `${cover ? "cover" : `page ${shot.page}`} attempt ${attemptNo}`),
+        secondOpinion(got.response.viewUrl || url, plan.drawn, plan.qaScene, `${cover ? "cover" : `page ${shot.page}`} attempt ${attemptNo}`),
       ]);
       const checked = raw ? scopeQaReport(raw, plan.onStage.map((entity) => entity.name), plan.elements, plan.qaScene) : undefined;
-      const qa = checked ? withSecondOpinion(checked, scores) : undefined;
+      const qa = checked ? withSecondOpinion(checked, reading) : undefined;
       const heroNames = plan.onStage.filter((entity) => entity.role === "hero").map((entity) => entity.name);
       const parts = qaSeverityParts(qa, expectedNames.length, { heroNames, cover });
       const sceneless = qa && qa.sceneMatch < 0.5 ? qaSeverityParts({ ...qa, sceneMatch: 1 }, expectedNames.length, { heroNames, cover }) : undefined;

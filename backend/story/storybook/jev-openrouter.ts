@@ -3,13 +3,16 @@
  *
  * Not the chat endpoint: POST /api/alpha/decisions takes the picture as a base64
  * JPEG in `state` and one typed question per check, and answers with a probability
- * per question. Jev accepts only data URLs (no remote URLs), 256–1568 px per side.
+ * per yes/no question ({type:"noul", noul}) and a box per box question
+ * ({type:"box", box:{top,bottom,left,right}, confidence}; through OpenRouter without
+ * TypeSafe's extra header, measured 2026-11-03). Jev accepts only data URLs (no
+ * remote URLs), 256–1568 px per side.
  * The image input is flagged an early feature by TypeSafe, so the caller treats
  * every failure as "no second opinion", never as a verdict.
  */
 
 import sharp from "sharp";
-import { JEV_MODEL, type JevPort } from "./jev";
+import { JEV_MODEL, parseJevBox, type JevBox, type JevPort } from "./jev";
 
 const DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions";
 const FETCH_TIMEOUT_MS = 20_000;
@@ -55,9 +58,16 @@ export function createOpenRouterJevPort(getApiKey: () => string | null | undefin
     if (!response.ok) throw new Error(`OpenRouter decisions API error ${response.status}: ${(await response.text()).slice(0, 300)}`);
     const data: any = await response.json();
     const answers: Record<string, number> = {};
-    for (const [key, answer] of Object.entries<any>(data?.answers || {})) if (Number.isFinite(Number(answer?.noul))) answers[key] = Number(answer.noul);
+    const boxes: Record<string, JevBox> = {};
+    for (const [key, answer] of Object.entries<any>(data?.answers || {})) {
+      if (answer?.type === "box") {
+        const box = parseJevBox(answer);
+        if (box) boxes[key] = box;
+      } else if (Number.isFinite(Number(answer?.noul))) answers[key] = Number(answer.noul);
+    }
     return {
       answers,
+      ...(Object.keys(boxes).length ? { boxes } : {}),
       costUSD: Number(data?.usage?.cost) || 0,
       inputTokens: Number(data?.usage?.input_tokens) || 0,
       durationMs: Date.now() - started,

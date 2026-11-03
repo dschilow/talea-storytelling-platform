@@ -431,6 +431,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       chapterByPage: direction ? Object.fromEntries(direction.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined,
       reservedImageCalls: seriesVisuals?.calls ?? 0,
       panelCheck: pictureHasPanels,
+      jev: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : createOpenRouterJevPort(resolveOpenRouterApiKey),
     }) : generateStorybookImages({
       illustrations,
       entities: pictureEntities,
@@ -452,7 +453,9 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       redrawLooseScene: !episodeMode,
       visionModel: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : episodeMode ? episodeVisionModel() : models.support,
       fallbackVisionModel: models.critic,
-      jev: episodeMode || process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : createOpenRouterJevPort(resolveOpenRouterApiKey),
+      // Talea-Folge too again (off since 987896c): in story ee4971ca the Luna check printed page 3, Gustav's leg melting
+      // into grey runners; Jev read fused 0.90 (Terra rejects it too). No false alarm on 55 FLUX 3 pictures (2026-11-03).
+      jev: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : createOpenRouterJevPort(resolveOpenRouterApiKey),
       pageTexts: Object.fromEntries(picturePages.map((page) => [page.order, page.content])),
       historical: !["modern", "scifi"].includes(config.genre || "") && ["fantasy", "medieval", "castle"].includes(config.setting || ""),
     })).catch((err): StorybookImagesResult => {

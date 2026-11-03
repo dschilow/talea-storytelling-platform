@@ -2,7 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import { generateStorybookImages, publishableImageUrl } from "./images";
 import type { VisualEntity } from "./illustration-stage";
-import { interpretJev, jevQuestionsFor, parseJevScores, type JevPort, type JevReply } from "./jev";
+import { interpretJev, jevBoxQuestionsFor, jevQuestionsFor, parseJevBox, parseJevScores, readWithJev, type JevPort, type JevReply } from "./jev";
 import type { LlmRequest } from "./llm";
 
 const people: VisualEntity[] = ["Alexander", "Adrian"].map((name, i) => ({ id: i ? "b" : "a", name, role: "hero", kind: "character", species: "human", isHuman: true, appearance: `young child ${i ? "blond blue shirt" : "brown hair cream sweater"}`, forbidden: [], referenceUrl: `https://example.test/${name}.png` }));
@@ -82,6 +82,50 @@ describe("Jev: a mixed figure and a borrowed garment (book \"Die hÃ¼pfenden GerÃ
   });
 });
 
+describe("Jev boxes: where a finding is (Jev 1.14, measured 2026-11-03)", () => {
+  test("box questions are asked only for findings that fired", () => {
+    expect(jevBoxQuestionsFor(none)).toEqual({});
+    const asked = jevBoxQuestionsFor({ ...none, twins: 0.9, text: 0.8 });
+    expect(Object.keys(asked).sort()).toEqual(["text", "twins"]);
+    expect(Object.values(asked).every((question) => question.type === "box")).toBe(true);
+    // In a mirror the double is no finding, so there is nothing to locate.
+    expect(jevBoxQuestionsFor({ ...none, twins: 0.9, mirror: 0.9 })).toEqual({});
+  });
+  test("a box is read only when its edges are fractions in order", () => {
+    expect(parseJevBox({ type: "box", box: { top: 0.27, bottom: 0.43, left: 0.79, right: 0.87 }, confidence: 0.56 })).toEqual({ top: 0.27, bottom: 0.43, left: 0.79, right: 0.87, confidence: 0.56 });
+    expect(parseJevBox({ box: { top: 0.5, bottom: 0.4, left: 0, right: 1 } })).toBeUndefined();
+    expect(parseJevBox({ box: { top: 0, bottom: 1.2, left: 0, right: 1 } })).toBeUndefined();
+    expect(parseJevBox({ box: { top: 0, bottom: 1, left: 0, right: 1 } })?.confidence).toBe(0);
+    expect(parseJevBox(undefined)).toBeUndefined();
+  });
+  test("a garment the scene puts on everybody is not asked (lifejackets on a printed Figurenwelt picture scored 0.92)", () => {
+    expect(Object.keys(jevQuestionsFor(people, "Pia helps Nora and Ben with their lifejackets."))).not.toContain("garment");
+    expect(Object.keys(jevQuestionsFor(people, "Nora and Ben climb aboard the boat."))).toContain("garment");
+  });
+  test("one call when nothing fired, a box call when something did, and a failing box call keeps the answers", async () => {
+    const types: string[][] = [];
+    const box = { top: 0.2, bottom: 0.5, left: 0.1, right: 0.3, confidence: 0.6 };
+    const port = (fired: Partial<typeof none>, boxes: "ok" | "fail" = "ok"): JevPort => async ({ questions }) => {
+      const asked = Object.values(questions).map((question) => question.type);
+      types.push(asked);
+      if (asked[0] !== "box") return read(fired);
+      if (boxes === "fail") throw new Error("400 box questions unsupported");
+      return { answers: {}, boxes: { twins: box }, costUSD: 0.00004, inputTokens: 1000, durationMs: 400 };
+    };
+    const clean = await readWithJev(port({}), "data:image/jpeg;base64,AA==", people);
+    expect(clean.replies).toHaveLength(1);
+    expect(clean.boxes).toBeUndefined();
+    const found = await readWithJev(port({ twins: 0.9 }), "data:image/jpeg;base64,AA==", people);
+    expect(found.replies).toHaveLength(2);
+    expect(found.boxes).toEqual({ twins: box });
+    expect(types.at(-1)).toEqual(["box"]);
+    const lost = await readWithJev(port({ twins: 0.9 }, "fail"), "data:image/jpeg;base64,AA==", people);
+    expect(lost.scores?.twins).toBe(0.9);
+    expect(lost.boxes).toBeUndefined();
+    expect(lost.replies).toHaveLength(1);
+  });
+});
+
 describe("Jev in the picture loop", () => {
   const run = async (jev: JevPort | undefined, illustrations: any = cover, calls: Array<{ prompt: string }> = []) => {
     const result = await generateStorybookImages({
@@ -100,7 +144,8 @@ describe("Jev in the picture loop", () => {
     expect(result.cover?.status).toBe("passed");
     expect(result.cover?.attempts).toBe(2);
     expect(result.cover?.history?.[0].notes.join(" ")).toContain("animal body parts");
-    expect(result.jevCalls).toHaveLength(2);
+    // Two readings plus one box question for the finding of the first.
+    expect(result.jevCalls).toHaveLength(3);
     expect(result.jevCalls![0].modelUsed).toContain("jev");
     expect(result.jevCalls![0].usage.costUSD).toBe(0.00008);
   });
@@ -149,6 +194,17 @@ describe("Jev in the picture loop", () => {
     expect(calls).toHaveLength(1);
     expect(result.cover?.status).toBe("passed");
     expect(result.cover?.qa?.jev).toBeUndefined();
+  });
+
+  test("where Jev saw the finding goes into the attempt's history", async () => {
+    const box = { top: 0.1, bottom: 0.6, left: 0.05, right: 0.4, confidence: 0.47 };
+    let readings = 0;
+    const { result } = await run(async ({ questions }) => Object.values(questions)[0].type === "box"
+      ? { answers: {}, boxes: { twins: box }, costUSD: 0.00004, inputTokens: 1000, durationMs: 400 }
+      : read(++readings === 1 ? { twins: 0.9 } : {}));
+    expect(result.cover?.history?.[0].boxes).toEqual({ twins: box });
+    expect(result.cover?.history?.[1].boxes).toBeUndefined();
+    expect(result.cover?.status).toBe("passed");
   });
 
   test("it never starts a picture the checker could not read", async () => {

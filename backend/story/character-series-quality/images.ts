@@ -56,6 +56,7 @@ export async function generateQualitySeriesImages(input: Parameters<typeof gener
   const a = await wave('A');
   const b = await wave('B');
   const qaCalls = [...a.qaCalls, ...b.qaCalls];
+  const jevCalls = [...(a.jevCalls || []), ...(b.jevCalls || [])];
   const selections: QualityImageSelection[] = [];
   const selected = new Map<number, ImageOutcome>();
   const usable = (candidate: ImageOutcome | undefined): candidate is ImageOutcome => Boolean(candidate?.url && candidate.qa && isPublishable(candidate) && seriesPictureUsable(candidate.qa as any));
@@ -104,6 +105,7 @@ export async function generateQualitySeriesImages(input: Parameters<typeof gener
         pages: illustrations.pages.filter(shot => !selected.has(shot.page)) },
       policy: { maxImageCalls: POLICY.maxImageCalls, imageRetries: 0, imageConcurrency: POLICY.imageConcurrency } });
     qaCalls.push(...rescue.qaCalls);
+    jevCalls.push(...(rescue.jevCalls || []));
     for (const shot of missing) {
       const outcome = shot.page === 0 ? rescue.cover : rescue.pages.get(shot.page);
       if (usable(outcome)) {
@@ -126,6 +128,6 @@ export async function generateQualitySeriesImages(input: Parameters<typeof gener
   }
   const cover = selected.get(0) || failed(0);
   const pages = new Map(input.illustrations.pages.map(shot => [shot.page, selected.get(shot.page) || failed(shot.page)]));
-  return { cover, pages, imagesGenerated: selected.size, imageCalls: calls, imageCostUSD: cost, qaCalls, regenerated,
+  return { cover, pages, imagesGenerated: selected.size, imageCalls: calls, imageCostUSD: cost, qaCalls, jevCalls, regenerated,
     selections, candidateCalls: a.imageCalls + b.imageCalls, bookReview };
 }
