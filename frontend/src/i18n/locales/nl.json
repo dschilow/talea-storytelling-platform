@@ -484,6 +484,14 @@
     "descriptionRequired": "Beschrijving is verplicht"
   },
   "wizard": {
+    "imageStyles": {
+      "title": "Hoe moeten de plaatjes eruitzien?",
+      "hint": "Deze stijl geldt voor de omslag en alle plaatjes in deze aflevering.",
+      "summary": "Tekenstijl",
+      "talea-originals": { "title": "Talea Original", "description": "Warme kleuren en vertrouwde prentenboekfiguren." },
+      "colored-pencil": { "title": "Kleurpotlood & arcering", "description": "Zichtbare potloodstreken, losse arcering en papierstructuur." },
+      "painterly-adventure": { "title": "Wilde prentenboekavonturen", "description": "Stevige penseelstreken, levendige vormen en rijke kleuren." }
+    },
     "titles": {
       "avatars": "Wie zit er in het verhaal?",
       "category": "Wat voor verhaal?",

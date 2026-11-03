@@ -1147,6 +1147,14 @@
     }
   },
   "wizard": {
+    "imageStyles": {
+      "title": "How should the pictures look?",
+      "hint": "Your illustration style applies to the cover and every picture in this episode.",
+      "summary": "Illustration style",
+      "talea-originals": { "title": "Talea Original", "description": "Warm colours and familiar picture-book characters." },
+      "colored-pencil": { "title": "Coloured Pencil & Hatching", "description": "Visible pencil strokes, loose hatching and textured paper." },
+      "painterly-adventure": { "title": "Wild Picture-Book Adventures", "description": "Bold brushstrokes, lively shapes and rich colours." }
+    },
     "titles": {
       "avatars": "Who's coming along?",
       "category": "Where does the journey go?",

@@ -14,6 +14,7 @@ import { CostLedger, withServiceTier, type StorybookLlm } from '../storybook/llm
 import { buildBrief } from '../storybook/context';
 import type { VisualEntity } from '../storybook/illustration-stage';
 import bibles from './series-bibles.json';
+import { storyImageStyleProfile, TALEA_IMAGE_STYLE } from '../../ai/image-style';
 
 const bible = bibles.find(b => b.id === 'funkelflug')!;
 const brief = () => {
@@ -312,6 +313,48 @@ const pages = [1, 2, 3].map(order => ({ order, title: 'Glocke', content: 'Ein Ab
 const beat = (framing = 'wide') => ({ actorId: 'lead', action: 'pulls the bell rope down', result: 'the wooden handle swings toward Nora', framing });
 const rawPlan = () => ({ cover: { onStage: ['lead'], visualBeat: beat(), scene }, pages: pages.map(p => ({ page: p.order, paragraph: 2, storyQuote: 'Die Glocke bewegte sich.', onStage: ['lead', 'kid'], visualBeat: beat(p.order === 2 ? 'close' : 'wide'), scene })) });
 const imageReview = (stage: string, fields: Record<string, unknown> = {}) => response(JSON.stringify({ visibleIds: stage.includes('qa-0-') ? ['lead'] : ['lead', 'kid'], identityById: { lead: 1, kid: 1 }, posing: false, primaryActionClear: true, sceneMatch: 1, styleMatch: 1, defects: [], ...fields }));
+
+describe('wizard image style across the complete series picture loop', () => {
+  test('both selectable styles reach every cover and chapter with a separate style reference', async () => {
+    for (const id of ['colored-pencil', 'painterly-adventure'] as const) {
+      const drawings: any[] = [];
+      const profile = storyImageStyleProfile(id)!;
+      const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities,
+        imageStyle: id, imageModel: 'runware:400@6', seed: 'style', visionModel: 'test', pageTexts: {},
+        buildReference: async () => ({ urls: ['https://example.test/identities.jpg'], mode: 'sprite', subjects: [] }),
+        provider: async r => { drawings.push(r); return { url: 'https://example.test/result.webp' }; },
+        llm: async r => imageReview(r.stage),
+      });
+      expect(result.imagesGenerated).toBe(4);
+      expect(drawings.some(r => r.page === 0)).toBe(true);
+      expect(drawings.filter(r => r.page > 0)).toHaveLength(3);
+      for (const drawing of drawings) {
+        expect(drawing.imageStyle).toBe(id);
+        expect(drawing.referenceImages).toEqual(['https://example.test/identities.jpg', profile.referenceUrl]);
+        expect(drawing.prompt).toContain(profile.artDirection);
+        expect(drawing.prompt).toContain('STYLE REFERENCE, image 2');
+        expect(drawing.prompt).not.toContain(TALEA_IMAGE_STYLE);
+        expect(drawing.prompt).not.toContain('Use the shared Talea Originals medium');
+      }
+    }
+  });
+
+  test('a targeted edit retains identity and style in their correct attachment positions', async () => {
+    const drawings: any[] = [];
+    await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities,
+      imageStyle: 'painterly-adventure', imageModel: 'runware:400@6', seed: 'style-edit', visionModel: 'test', pageTexts: {},
+      buildReference: async () => ({ urls: ['https://example.test/identities.jpg'], mode: 'sprite', subjects: [] }),
+      provider: async r => { drawings.push(r); return { url: `https://example.test/page-${r.page}.webp` }; },
+      llm: async r => imageReview(r.stage, r.stage === 'series-image-qa-1-1' ? { defects: [{ kind: 'anatomy', detail: 'The child has three arms.', fix: 'Give the child two ordinary human arms.' }] } : {}),
+      policy: { maxImageCalls: 8, imageRetries: 1, imageConcurrency: 1 },
+    });
+    const edit = drawings.find(r => r.logStage === 'series-image-edit');
+    expect(edit).toBeDefined();
+    expect(edit.referenceImages).toEqual(['https://example.test/page-1.webp', 'https://example.test/identities.jpg', storyImageStyleProfile('painterly-adventure')!.referenceUrl]);
+    expect(edit.imageStyle).toBe('painterly-adventure');
+    expect(edit.prompt).toContain('STYLE REFERENCE, image 3');
+  });
+});
 // Two pictures per chapter: 16 paragraphs per chapter give two reading segments of eight; Pia acts in paragraph 13.
 const segmentChapters = [1, 2, 3].map(order => ({ order, title: `Kapitel ${order}`, content: Array.from({ length: 16 }, (_, i) => `Absatz ${order}.${i + 1}: Funkelflug zog am Glockenseil${i === 12 ? ', und Pia hielt die Leine fest' : ''}, und Nora fing den Griff.`).join('\n\n'), paragraphs: [] }));
 const segmentPlan = (lead: string, options: { coverKid?: boolean; guest?: string } = {}) => ({

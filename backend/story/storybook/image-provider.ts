@@ -19,6 +19,7 @@ export function createStorybookImageProvider(input: {
       ...(input.model === LIBRARY_IMAGE_MODEL ? {} : { CFGScale: 4 }),
       seed: request.seed, outputFormat: input.model === LIBRARY_IMAGE_MODEL ? 'WEBP' : 'JPEG',
       referenceImages: request.referenceImages.length ? request.referenceImages : undefined,
+      ...(request.imageStyle ? { imageStyle: request.imageStyle } : {}),
       ...(input.model === LIBRARY_IMAGE_MODEL && request.referenceRegions?.length ? { referenceRegions: request.referenceRegions } : {}),
       logContext: { storyId: input.storyId, stage: request.logStage || (request.page === 0 ? 'storybook-image-cover' : 'storybook-image-page'), chapter: request.logStage ? undefined : request.page || undefined },
     });

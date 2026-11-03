@@ -52,6 +52,7 @@ export const DEFAULT_OPENROUTER_STORY_MODEL: OpenRouterStoryModel = 'moonshotai/
 export const STORYBOOK_OPENROUTER_STORY_MODEL: OpenRouterStoryModel = 'openai/gpt-6.1-sol';
 
 export interface StoryConfig {
+  imageStyle?: import('../../backend/ai/image-style').StoryImageStyleId;
   genre: string;
   style: string;
   ageGroup: string;

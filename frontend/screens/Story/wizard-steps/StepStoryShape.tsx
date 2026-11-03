@@ -1,4 +1,6 @@
 import React from 'react';
+import StoryImageStylePicker from './StoryImageStylePicker';
+import { DEFAULT_STORY_IMAGE_STYLE, type StoryImageStyleId } from '@/lib/story-image-styles';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -15,10 +17,11 @@ import {
 const MAX_FEELINGS = 3;
 
 interface Props {
-  state: { length: WizardLength | null; feelings: WizardFeeling[] };
+  state: { length: WizardLength | null; feelings: WizardFeeling[]; imageStyle?: StoryImageStyleId };
   updateState: (updates: any) => void;
   /** Chapter books choose their size in their own step. */
   hideLength?: boolean;
+  showImageStyle?: boolean;
 }
 
 /**
@@ -26,7 +29,7 @@ interface Props {
  * the story itself. The age is not asked here; it comes from the child profile
  * and can be changed on the last page.
  */
-export default function StepStoryShape({ state, updateState, hideLength = false }: Props) {
+export default function StepStoryShape({ state, updateState, hideLength = false, showImageStyle = false }: Props) {
   const { t } = useTranslation();
 
   const toggleFeeling = (id: WizardFeeling) => {
@@ -90,6 +93,9 @@ export default function StepStoryShape({ state, updateState, hideLength = false 
           })}
         </div>
       </section>
+      {showImageStyle && (
+        <StoryImageStylePicker value={state.imageStyle || DEFAULT_STORY_IMAGE_STYLE} onChange={imageStyle => updateState({ imageStyle })} />
+      )}
     </div>
   );
 }

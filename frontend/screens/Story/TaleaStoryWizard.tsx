@@ -23,6 +23,7 @@ import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 import { ageToAgeGroup, getPreferredAvatarIds } from '@/lib/child-profile-defaults';
 import { useStoryAgentFlow, ActiveAgentStack } from '../../agents';
 import { cn } from '@/lib/utils';
+import { DEFAULT_STORY_IMAGE_STYLE, type StoryImageStyleId } from '@/lib/story-image-styles';
 import {
   TaleaActionButton,
   TaleaPageBackground,
@@ -58,6 +59,7 @@ import {
 } from '@/types/story';
 
 interface WizardState {
+  imageStyle: StoryImageStyleId;
   selectedAvatars: string[];
   mainCategory: 'fairy-tales' | 'adventure' | 'magic' | 'animals' | 'scifi' | 'modern' | null;
   subCategory: string | null;
@@ -337,6 +339,7 @@ export default function TaleaStoryWizard() {
   );
 
   const [state, setState] = useState<WizardState>({
+    imageStyle: DEFAULT_STORY_IMAGE_STYLE,
     selectedAvatars: mapAvatarId ? [mapAvatarId] : bringAvatarId ? [bringAvatarId] : deepLinkAvatarIds,
     mainCategory: initialCategory || (isMapAutoFill ? 'adventure' : null),
     subCategory: null,
@@ -837,13 +840,14 @@ export default function TaleaStoryWizard() {
       case 'book':
         return <StepBookFormat state={state} updateState={updateState} />;
       case 'shape':
-        return <StepStoryShape state={state} updateState={updateState} hideLength={!isSeries && state.chapterBookMode} />;
+        return <StepStoryShape state={state} updateState={updateState} hideLength={!isSeries && state.chapterBookMode} showImageStyle={isSeries} />;
       case 'extras':
         return <StepExtras state={state} updateState={updateState} hiddenWishes={isSeries ? ['avatarIsHero', 'famousCharacters'] : []} />;
       case 'ready': {
         const nextEpisode = chosenSeries ? (state.characterSeriesEpisodeOverride ?? chosenSeries.episodeCount + 1) : null;
         return (
           <StepReady
+            imageStyle={isSeries ? state.imageStyle : undefined}
             state={{ ...state, chapterBookMode: !isSeries && state.chapterBookMode }}
             series={chosenSeries ? { label: `${chosenSeries.characterName || chosenSeries.title} · Folge ${nextEpisode}`, imageUrl: chosenSeries.imageUrl } : undefined}
             updateState={updateState}
@@ -1063,6 +1067,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string, isAdmin =
     storybookMode: state.storyKind === 'series' || state.storybookMode || state.bookWorkshopMode || state.chapterBookMode || state.wonderStoryMode || state.episodeMode || undefined,
     storybookEngine: state.storyKind === 'series' ? (isAdmin && state.characterSeriesQuality ? 'character-series-quality-v1' : 'character-series-v1') : state.episodeMode ? 'talea-folge-v1' : state.wonderStoryMode ? 'wonder-story-v1' : state.chapterBookMode ? 'chapter-book-v1' : state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v2' : undefined,
     characterSeriesId: state.storyKind === 'series' && state.characterSeries && state.characterSeries !== 'auto' ? state.characterSeries : undefined,
+    imageStyle: state.storyKind === 'series' ? state.imageStyle : undefined,
     characterSeriesEpisodeOverride: state.storyKind === 'series' && state.characterSeriesEpisodeOverride ? state.characterSeriesEpisodeOverride : undefined,
     ...(state.chapterBookMode
       ? { bookChapters: state.bookChapters, bookImagesPerChapter: state.bookImagesPerChapter, experienceForm: state.experienceForm || undefined, heroRelation: state.selectedAvatars.length > 1 ? state.heroRelation || undefined : undefined, length: 'long' }

@@ -26,6 +26,7 @@
  */
 
 import { createHash } from "node:crypto";
+import type { StoryImageStyleId } from "../../ai/image-style";
 import { isTerrainFigure, terrainIdentityLine } from "./visual-form";
 import { createIdentityReferenceCache, type IdentityReferenceBuilder } from "../image-reference-sprite";
 import { mentions } from "./checks";
@@ -36,6 +37,7 @@ import type { IllustrationPlan, IllustrationShot, StoryElement } from "./types";
 import type { RunwareReferenceRegion } from "../../ai/runware-image-model-options";
 
 export interface ImageRequest {
+  imageStyle?: StoryImageStyleId;
   page: number;
   /** Log stage of the provider call when it is no page or cover (a figure portrait). */
   logStage?: string;

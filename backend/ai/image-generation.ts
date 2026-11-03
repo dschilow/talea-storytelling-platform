@@ -5,12 +5,14 @@ import { publishWithTimeout } from "../helpers/pubsubTimeout";
 import { maybeUploadImageUrlToBucket } from "../helpers/bucket-storage";
 import { summarizeRunwareResponse } from "./image-cost-summary";
 import { runwareImageModelOptions, runwareReferenceSettings, type RunwareReferenceRegion } from "./runware-image-model-options";
-import { withTaleaImageStyle } from "./image-style";
+import { withTaleaImageStyle, type StoryImageStyleId } from "./image-style";
 
 const runwareApiKey = secret("RunwareApiKey");
 
 export interface ImageGenerationRequest {
   prompt: string;
+  /** Trusted story-wide illustration medium; omitted keeps the existing Talea look. */
+  imageStyle?: StoryImageStyleId;
   negativePrompt?: string; // Explicit negative prompts to avoid unwanted features
   model?: string;
   width?: number;
@@ -58,6 +60,7 @@ export interface ImageGenerationResponse {
 export interface BatchImageInput {
   // All fields required for Encore schemas; callers should pass defaults where needed.
   prompt: string;
+  imageStyle?: StoryImageStyleId;
   negativePrompt?: string; // NEW: Explicit negative prompts to avoid unwanted features
   model: string;
   width: number;
@@ -140,7 +143,7 @@ export async function runwareGenerateImage(req: ImageGenerationRequest, retryCou
     height: normalizeToMultiple64(req.height ?? 832),
     includeCost: true,
     seed: req.seed ?? Math.floor(Math.random() * 2147483647),
-    positivePrompt: enhancePromptForRunware(withTaleaImageStyle(req.prompt)),
+    positivePrompt: enhancePromptForRunware(withTaleaImageStyle(req.prompt, req.imageStyle)),
   };
 
   // OPTIMIZATION v4.0: Add reference images for character consistency
@@ -344,7 +347,7 @@ export async function runwareGenerateImagesBatch(req: BatchGenerationRequest): P
       numberResults: 1,
       outputType: ["URL"],  // Use URL output for faster response
       outputFormat: img.outputFormat || "WEBP",
-      positivePrompt: enhancePromptForRunware(withTaleaImageStyle(img.prompt)),
+      positivePrompt: enhancePromptForRunware(withTaleaImageStyle(img.prompt, img.imageStyle)),
       ...(img.negativePrompt && img.negativePrompt.trim() !== "" ? { negativePrompt: enhancePromptForRunware(img.negativePrompt) } : {}),
       width: normalizeToMultiple64(img.width || 1280),
       height: normalizeToMultiple64(img.height || 832),

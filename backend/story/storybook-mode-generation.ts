@@ -427,6 +427,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const [images, development] = await Promise.all([
     (seriesMode ? (qualitySeriesMode ? generateQualitySeriesImages : generateSeriesImages)({
       illustrations, entities: pictureEntities, provider: encoreImageProvider(input.storyId, imageModel), imageModel, seed, llm,
+      imageStyle: config.imageStyle,
       visionModel: SERIES_IMAGE_REVIEW_MODEL, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL, pageTexts: Object.fromEntries(picturePages.map(page => [page.order, page.content])),
       chapterByPage: direction ? Object.fromEntries(direction.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined,
       reservedImageCalls: seriesVisuals?.calls ?? 0,

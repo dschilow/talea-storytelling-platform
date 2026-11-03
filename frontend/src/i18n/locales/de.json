@@ -1147,6 +1147,14 @@
     }
   },
   "wizard": {
+    "imageStyles": {
+      "title": "Wie sollen die Bilder aussehen?",
+      "hint": "Dein Bildstil gilt für das Titelbild und alle Bilder dieser Folge.",
+      "summary": "Bildstil",
+      "talea-originals": { "title": "Talea Original", "description": "Warme Farben und vertraute Bilderbuchfiguren." },
+      "colored-pencil": { "title": "Buntstift & Schraffur", "description": "Sichtbare Buntstiftstriche, lockere Schraffuren und körniges Papier." },
+      "painterly-adventure": { "title": "Wilde Bilderbuch-Abenteuer", "description": "Kräftige Pinselstriche, lebendige Formen und satte Farben." }
+    },
     "titles": {
       "avatars": "Wer spielt mit?",
       "category": "Wohin geht die Reise?",

@@ -484,6 +484,14 @@
     "descriptionRequired": "La description est requise"
   },
   "wizard": {
+    "imageStyles": {
+      "title": "À quoi ressembleront les images ?",
+      "hint": "Ce style s’applique à la couverture et à toutes les images de cet épisode.",
+      "summary": "Style des images",
+      "talea-originals": { "title": "Talea Original", "description": "Des couleurs chaudes et des personnages familiers." },
+      "colored-pencil": { "title": "Crayons de couleur", "description": "Des traits visibles, des hachures libres et le grain du papier." },
+      "painterly-adventure": { "title": "Aventures en couleurs", "description": "Des coups de pinceau affirmés, des formes vivantes et des couleurs riches." }
+    },
     "titles": {
       "avatars": "Qui est dans l'histoire?",
       "category": "Quel type d'histoire?",

@@ -1,4 +1,5 @@
 import { api, APIError } from "encore.dev/api";
+import type { StoryImageStyleId } from "../ai/image-style";
 import { secret } from "encore.dev/config";
 import { generateStoryContent } from "./ai-generation";
 import { generateStoryDevMode, pickDevModePoolCharacters, recordDevModePoolCharacterUsage } from "./dev-mode-generation";
@@ -136,6 +137,8 @@ export type AIModel =
 export type AIProvider = "native" | "openrouter";
 
 export interface StoryConfig {
+  /** Selected illustration medium for Figurenwelt covers and chapter pictures. */
+  imageStyle?: StoryImageStyleId;
   avatarIds: string[];
   genre: string;
   setting: string;

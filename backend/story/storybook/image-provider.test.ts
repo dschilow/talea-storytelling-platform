@@ -6,6 +6,15 @@ import { LIBRARY_IMAGE_MODEL } from '../library/images';
 const request = { page: 2, prompt: 'scene', negativePrompt: '', referenceImages: ['data:image/jpeg;base64,AA=='], seed: 7, width: 1216, height: 832 };
 
 describe('storybook image provider boundary', () => {
+  test('the selected story medium reaches the actual image API alongside both reference roles', async () => {
+    const calls: any[] = [];
+    const provider = createStorybookImageProvider({ model: 'runware:400@6',
+      generateImage: async payload => { calls.push(payload); return { imageUrl: 'https://example.test/result.webp', seed: 7, debugInfo: { success: true } } as any; },
+      resolveForVision: async url => url,
+    });
+    await provider({ ...request, imageStyle: 'colored-pencil', referenceImages: ['https://example.test/identities.jpg', 'https://example.test/style.webp'] });
+    expect(calls[0]).toMatchObject({ imageStyle: 'colored-pencil', referenceImages: ['https://example.test/identities.jpg', 'https://example.test/style.webp'] });
+  });
   test('the durable image stays in storage while vision receives the directly resolved URL', async () => {
     const calls: any[] = [];
     const resolved: string[] = [];

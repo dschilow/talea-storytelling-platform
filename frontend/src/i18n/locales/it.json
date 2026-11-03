@@ -483,6 +483,14 @@
     "descriptionRequired": "La descrizione Ã¨ obbligatoria"
   },
   "wizard": {
+    "imageStyles": {
+      "title": "Come saranno le immagini?",
+      "hint": "Lo stile scelto vale per la copertina e per tutte le immagini di questo episodio.",
+      "summary": "Stile delle immagini",
+      "talea-originals": { "title": "Talea Original", "description": "Colori caldi e personaggi familiari da libro illustrato." },
+      "colored-pencil": { "title": "Matite colorate", "description": "Tratti visibili, tratteggi liberi e carta ruvida." },
+      "painterly-adventure": { "title": "Avventure a pennello", "description": "Pennellate decise, forme vivaci e colori intensi." }
+    },
     "titles": {
       "avatars": "Chi c'Ã¨ nella storia?",
       "category": "Che tipo di storia?",

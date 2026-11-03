@@ -484,6 +484,14 @@
     "descriptionRequired": "La descripciÃ³n es requerida"
   },
   "wizard": {
+    "imageStyles": {
+      "title": "¿Cómo quieres que sean las imágenes?",
+      "hint": "Este estilo se aplica a la portada y a todas las imágenes de este episodio.",
+      "summary": "Estilo de las imágenes",
+      "talea-originals": { "title": "Talea Original", "description": "Colores cálidos y personajes de cuento familiares." },
+      "colored-pencil": { "title": "Lápices de colores", "description": "Trazos visibles, sombreado a rayas y papel con textura." },
+      "painterly-adventure": { "title": "Aventuras a pincel", "description": "Pinceladas marcadas, formas vivas y colores intensos." }
+    },
     "titles": {
       "avatars": "Â¿QuiÃ©n estÃ¡ en la historia?",
       "category": "Â¿QuÃ© tipo de historia?",

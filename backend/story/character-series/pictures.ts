@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { storyImageStyleProfile, type StoryImageStyleId } from '../../ai/image-style';
 import { createIdentityReferenceCache, IdentityReferenceError } from '../image-reference-sprite';
 import type { VisualEntity } from '../storybook/illustration-stage';
 import { isPublishable, type ImageOutcome, type ImageProvider, type StorybookImagesResult } from '../storybook/images';
@@ -546,6 +547,7 @@ export async function generateSeriesImages(input: {
   /** Reads a picture once when the vision model answers empty or unreadably (Gemini refused one picture on every try). */
   visionFallbackModel?: string;
   pageTexts: Record<number, string>; chapterByPage?: Record<number, number>; styleReferenceUrl?: string;
+  imageStyle?: StoryImageStyleId;
   /** The model behind `provider`. Only FLUX 3 Klein binds sheet cells to scene regions; others get plain names. */
   imageModel?: string;
   buildReference?: ReturnType<typeof createIdentityReferenceCache>;
@@ -563,6 +565,9 @@ export async function generateSeriesImages(input: {
   const maxShots = 1 + SERIES_POLICY.picturesPerChapter * 4;
   if (shots.length > maxShots) throw new Error(`Die Figurenserie zeichnet höchstens ${maxShots} geplante Bilder.`);
   const buildReference = input.buildReference || createIdentityReferenceCache();
+  const styleProfile = storyImageStyleProfile(input.imageStyle);
+  const artDirection = styleProfile?.artDirection || SERIES_ART_DIRECTION;
+  const styleReference = input.styleReferenceUrl || styleProfile?.referenceUrl;
   const byId = new Map(input.entities.map(e => [e.id, e]));
   const contracts = (input.illustrations as SeriesIllustrationPlan).continuity || [];
   let imageCalls = 0, imageCostUSD = 0;
@@ -668,7 +673,7 @@ export async function generateSeriesImages(input: {
         'Keep the original framing and successful details. Do not reconstruct the entire scene from the identity portraits.',
       ].join('\n') : [bindNames(moment.scene),
         beat ? bindNames(`Depict this visible moment: ${byId.get(beat.actorId)?.name} ${moment.fact}. ${beat.framing.toUpperCase()} framing with foreground and depth. Posture and expression follow this actual moment: lively during a mishap, gentle during a quiet exchange. Hands perform only the described action or rest naturally; do not invent objects to occupy them. The scene determines setting, gesture and camera; the reference sheet determines character identity, not its pose or held props.`) : '',
-        SERIES_ART_DIRECTION,
+        artDirection,
         regionBound ? regions.map((r, i) => `<${r.id}> is ${r.description}, taken only from its own sheet cell and placed in its assigned scene region. Draw this ${identities[i].kind === 'artifact' ? 'object' : 'figure'} exactly once in the caption's new action; the cell's resting pose and portrait background have no part in this scene.`).join('\n') : '',
         references.length ? `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${afterPanels ? '' : slotPositionLabel(i, identities.length)} is ONLY ${e.name}${e.role === 'hero' ? (e.referenceContext ? ` (${e.referenceContext})` : '') : `: ${e.appearance}`}${holding(e) ? `, together with ${holding(e)!.name} in front of ${e.name}: the one ${holding(e)!.name} of this scene, which ${e.name} holds` : ''}`).join('; ')}. Keep each face, hair, species and outfit with its OWN person; glasses, hats, vests and jackets never move to another figure or onto a creature. Ignore objects held in the portraits unless this scene explicitly needs them. A story garment explicitly worn in the scene, such as a lifejacket, goes over the portrait outfit and must remain visible. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, natural human ears matching the reference, and exactly two arms and two hands, each with five separate fingers, plus two legs${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.` : '',
         ...drawn.filter(e => !e.referenceUrl).map(e => `${e.name}: ${e.appearance}.`),
@@ -680,8 +685,10 @@ export async function generateSeriesImages(input: {
           : `Exactly ${drawn.length} foreground characters, once each: ${drawn.map(e => e.name).join(', ')}. No additional foreground children or replacement faces. A crowd explicitly named in the caption stays distant incidental silhouettes. A story instant in one continuous full-bleed setting reaching every edge; ignore the reference portraits' backgrounds and paint only the scene's own environment.${drawn.length > 1 && (afterPanels || drawn.length === 2) ? ` ${drawn.map(e => e.name).join(' and ')} share ONE place close together, overlapping in depth with one nearer the viewer, never side by side in separate halves.` : ''}`,
         fixes.length ? `Correct these observed problems in the same scene: ${fixes.join(' ')}` : '',
         wordlessLine(moment.scene),
-        'Use the shared Talea Originals medium described above; only the identity sheet supplies characters.',
+        styleProfile ? 'Use the selected illustration medium described above consistently for figures and environment; only the identity sheet supplies characters.' : 'Use the shared Talea Originals medium described above; only the identity sheet supplies characters.',
       ].filter(Boolean).join('\n');
+      const styleGuide = styleReference ? `STYLE REFERENCE, image ${references.length + (editing ? 1 : 0) + 1}: transfer its mark-making, pigment texture, facial design language, shapes and palette throughout this picture. Re-draw the identity-sheet figures in this selected medium, retaining their identifying face, hair, species, clothing and colors but replacing the portraits' original rendering and shading. The story scene supplies this picture's place and objects; only the identity sheet supplies its cast. Characters, creatures, poses and scenery from the style example are not part of the new scene. Make one continuous scene in this medium. ${artDirection}` : '';
+      const styledPrompt = styleGuide ? `${prompt}\n${styleGuide}` : prompt;
       if (imageCalls + (input.reservedImageCalls || 0) >= policy.maxImageCalls) {
         history.push({ kind: 'series-budget', status: 'failed', severity: 999, notes: ['Kein weiteres Bild erzeugt: Bildbudget erreicht.'] });
         return { page: shot.page, prompt, attempts: number, costUSD, severity: 999, status: 'failed', errors: ['series_image_budget_exhausted'], history };
@@ -689,7 +696,7 @@ export async function generateSeriesImages(input: {
       imageCalls++;
       const seed = parseInt(createHash('sha256').update(`${input.seed}:${shot.page}:${number}`).digest('hex').slice(0, 8), 16) % 2147483647;
       try {
-      const response = await input.provider({ prompt: editing && regionBound ? prompt + '\n' + regions.map(r => `<${r.id}> is ${r.description}.`).join(' ') : prompt, negativePrompt: '', referenceImages: [...(editing ? [editing] : []), ...references], referenceRegions: regions, width: SCENE_SIZE.width, height: SCENE_SIZE.height, seed, page: shot.page, logStage: editing ? 'series-image-edit' : shot.page === 0 ? 'series-image-cover' : 'series-image-chapter' });
+      const response = await input.provider({ prompt: editing && regionBound ? styledPrompt + '\n' + regions.map(r => `<${r.id}> is ${r.description}.`).join(' ') : styledPrompt, negativePrompt: '', referenceImages: [...(editing ? [editing] : []), ...references, ...(styleReference ? [styleReference] : [])], ...(styleProfile ? { imageStyle: styleProfile.id } : {}), referenceRegions: regions, width: SCENE_SIZE.width, height: SCENE_SIZE.height, seed, page: shot.page, logStage: editing ? 'series-image-edit' : shot.page === 0 ? 'series-image-cover' : 'series-image-chapter' });
       imageUrl = response.url;
       const editable = response.viewUrl || response.url;
       if (editable && /^(https?:\/\/|data:image\/)/i.test(editable)) editableImages.set(shot.page, editable);

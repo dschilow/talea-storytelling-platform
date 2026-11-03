@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@/lib/utils';
+import { storyImageStyleOption, type StoryImageStyleId } from '@/lib/story-image-styles';
 import { useBackend } from '../../../hooks/useBackend';
 import { useOptionalChildProfiles } from '../../../contexts/ChildProfilesContext';
 import { StoryWizardIcon, type StoryWizardIconName } from './StoryWizardIcon';
@@ -30,6 +31,7 @@ type AgeGroup = '3-5' | '6-8' | '9-12' | '13+';
 const AGE_GROUPS: AgeGroup[] = ['3-5', '6-8', '9-12', '13+'];
 
 interface Props {
+  imageStyle?: StoryImageStyleId;
   state: {
     selectedAvatars: string[];
     mainCategory: WizardCategory | null;
@@ -82,6 +84,7 @@ function IconSquare({ icon, tone }: { icon: StoryWizardIconName; tone: string })
  * the child profile) and one big button.
  */
 export default function StepReady({
+  imageStyle,
   state,
   updateState,
   onEdit,
@@ -219,6 +222,19 @@ export default function StepReady({
             <span className="min-w-0 flex-1">
               <span className={captionClass}>Figurenabenteuer</span>
               <span className={valueClass}>{series.label}</span>
+            </span>
+            {chevron}
+          </button>
+        )}
+
+        {imageStyle && (
+          <button type="button" className={rowClass} onClick={() => onEdit('shape')}>
+            <span className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-[var(--talea-surface-inset)]">
+              <img src={storyImageStyleOption(imageStyle).image} alt="" className="h-full w-full object-cover" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className={captionClass}>{t('wizard.imageStyles.summary')}</span>
+              <span className={valueClass}>{t(`wizard.imageStyles.${imageStyle}.title`)}</span>
             </span>
             {chevron}
           </button>

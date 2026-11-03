@@ -1,13 +1,27 @@
 // @ts-ignore Bun's test helpers are runtime-only in the Encore project.
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
-import { TALEA_IMAGE_STYLE, withTaleaImageStyle } from "./image-style";
+import { TALEA_IMAGE_STYLE, storyImageStyleProfile, withTaleaImageStyle } from "./image-style";
 import { buildPortraitPrompt, buildScenePrompt } from "../story/library/images";
 import { assembleFlux3ImagePrompt, assembleImagePrompt } from "../story/storybook/illustration-stage";
 import { buildDokuImagePrompt } from "../doku/doku-images";
 import { buildWizardAssetPrompt, WIZARD_ASSET_SPECS } from "./wizard-asset-specs";
 
 describe("one Talea Originals illustration medium", () => {
+  test("a selected story medium replaces the old default and survives a second provider pass", () => {
+    for (const id of ['colored-pencil', 'painterly-adventure'] as const) {
+      const profile = storyImageStyleProfile(id)!;
+      const caption = 'Nora reaches for a red apple while the dragon holds the ladder.';
+      const prompt = withTaleaImageStyle(`${TALEA_IMAGE_STYLE}. ${caption}`, id);
+      expect(prompt).toContain(profile.artDirection);
+      expect(prompt).toContain(caption);
+      expect(prompt).not.toContain(TALEA_IMAGE_STYLE);
+      expect(withTaleaImageStyle(prompt, id)).toBe(prompt);
+      const asset = new URL(`../../frontend/public${new URL(profile.referenceUrl).pathname}`, import.meta.url);
+      expect(readFileSync(asset).byteLength).toBeGreaterThan(1000);
+    }
+    expect(storyImageStyleProfile('talea-originals')).toBeUndefined();
+  });
   test("the shared medium matches both published series and reaches scene, portrait, fallback and tile prompts", () => {
     for (const name of ["bruno-der-flunkerfisch", "die-monster-muellabfuhr"]) {
       const bible = JSON.parse(readFileSync(new URL(`../story/library/seed/series/${name}.bible.json`, import.meta.url), "utf8"));
