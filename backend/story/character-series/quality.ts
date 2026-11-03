@@ -72,8 +72,17 @@ function sceneNamedNoun(appearance: string, sceneText: string | undefined, expec
     const noun = word.toLocaleLowerCase('en');
     if (!species.some(s => s.includes(noun)) && new RegExp(`\\b(?:${noun}|${pluralForms(noun)})\\b`).test(scene)) return noun;
   }
+  // Any other thing the scene names, by its head noun: story 0aa83e90 lost a picture to "Unmatched figure at upper center:
+  // A colorful kite with a trailing string" while the caption had the boys rescue that kite. A face, a figure or a
+  // creature never qualifies, so a stray face behind a window still blocks.
+  const head = appearance.toLocaleLowerCase('en').split(/\s+(?:with|holding|being|on|in|at|beside|near|behind|under|above|over|from|that|which|of)\s+|[,;:(—–-]/)[0]
+    .match(/([a-zäöüß]{3,})s?\s*$/)?.[1];
+  if (head && !NOT_A_THING.test(head) && !species.some(s => s.includes(head)) && new RegExp(`\\b(?:${head}|${pluralForms(head)})\\b`).test(scene)) return head;
   return undefined;
 }
+
+/** Head nouns that are a being or a part of one, never a prop. */
+const NOT_A_THING = /^(?:faces?|heads?|eyes?|hands?|arms?|legs?|feet|foot|figures?|silhouettes?|shadows?|creatures?|monsters?|ghosts?|characters?|strangers?|persons?|people|beings?|spirits?|animals?|reflections?|copy|copies|duplicates?|twins?)$/;
 
 const pluralForms = (noun: string) => `${noun}s|${noun}es|${noun.replace(/y$/, 'ie')}s`;
 

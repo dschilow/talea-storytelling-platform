@@ -1,0 +1,225 @@
+{
+  "_source": "Story 3169e3d5 (Die Aufräummaschine hat Hunger, 2026-11-03): cover and pages 1, 2, 4, 5, 6 (1 and 6 hold the teddy), which failed with a doubled teddy or a face in the machine. Alexander and Adrian are played by Originals portraits.",
+  "entities": [
+    {
+      "id": "tilda",
+      "name": "Tilda Tüftel",
+      "kind": "character",
+      "role": "cast",
+      "species": "human",
+      "isHuman": true,
+      "appearance": "Tilda Tueftel, nine-year-old girl inventor with curly dark hair, round safety goggles, yellow overalls",
+      "portrait": "frontend/public/library/character-series/leads/tilda-tueftel.webp"
+    },
+    {
+      "id": "alex",
+      "name": "Alexander",
+      "kind": "character",
+      "role": "hero",
+      "species": "human",
+      "isHuman": true,
+      "appearance": "boy",
+      "referenceContext": "8 years old, 132 cm tall, male, short light-blond hair, orange T-shirt",
+      "portrait": "frontend/public/library/series/bruno-der-flunkerfisch/characters/mats.webp"
+    },
+    {
+      "id": "adrian",
+      "name": "Adrian",
+      "kind": "character",
+      "role": "hero",
+      "species": "human",
+      "isHuman": true,
+      "appearance": "boy",
+      "referenceContext": "5 years old, 120 cm tall, male, dark curly hair, orange safety vest",
+      "portrait": "frontend/public/library/series/die-monster-muellabfuhr/characters/jona.webp"
+    },
+    {
+      "id": "teddy",
+      "name": "Teddybär",
+      "kind": "artifact",
+      "role": "cast",
+      "species": "teddy bear",
+      "isHuman": false,
+      "referenceAliases": [
+        "Teddybär",
+        "teddy bear",
+        "teddy",
+        "bear"
+      ],
+      "appearance": "A soft brown teddy bear with a brown ear, a blue band, and a small stitched nose; its soft fabric fur matches the brown of its ear.",
+      "portrait": "bucket:images/runware/runware-255409360-2beda5eb-656d-4ab3-aed0-864a0f8c9bfa.jpg"
+    }
+  ],
+  "plan": {
+    "continuity": [
+      {
+        "name": "Teddybär",
+        "aliases": [
+          "Teddybär",
+          "teddy bear",
+          "teddy",
+          "bear"
+        ],
+        "appearance": "A soft brown teddy bear with a brown ear, a blue band, a small stitched nose, and an open seam with loose thread.",
+        "evidence": [
+          {
+            "page": 1,
+            "quote": "Alexander trug seinen Teddy vorsichtig auf beiden Armen."
+          }
+        ]
+      }
+    ],
+    "cover": {
+      "page": 0,
+      "onStage": [
+        "tilda",
+        "alex",
+        "adrian"
+      ],
+      "elements": [],
+      "artifactVisible": false,
+      "focus": "scene",
+      "scene": "Inside the workshop, Tilda extends a hand toward the empty bench beside the stopped collection machine. Alexander and Adrian stand close by, reacting to the surprising result of the demonstration. The trio forms a lively cover tableau, with the machine and bench grounding the scene and the swallowed teddy kept out of view.",
+      "visualBeat": {
+        "actorId": "tilda",
+        "action": "extends a hand toward the empty bench",
+        "result": "the stopped machine stands beside the empty bench as Alexander and Adrian react",
+        "framing": "wide"
+      }
+    },
+    "pages": [
+      {
+        "page": 1,
+        "paragraph": 22,
+        "onStage": [
+          "tilda",
+          "alex"
+        ],
+        "elements": [],
+        "artifactVisible": true,
+        "focus": "scene",
+        "storyQuote": "Er zeigte ihr die offene Teddynaht. Tilda betrachtete sie.",
+        "scene": "Inside the workshop, Alexander holds out the teddy while Tilda examines its open seam. Their attention meets at the loose stitching, the first practical exchange between the children after their arrival. The teddy is clearly visible between them, and the workshop remains a simple, uncluttered background.",
+        "visualBeat": {
+          "actorId": "tilda",
+          "action": "examines the teddy's open seam",
+          "result": "Alexander presents the open seam and Tilda confirms it can be sewn",
+          "framing": "medium"
+        }
+      },
+      {
+        "page": 2,
+        "paragraph": 6,
+        "onStage": [
+          "tilda",
+          "alex"
+        ],
+        "elements": [
+          "teddy"
+        ],
+        "artifactVisible": true,
+        "focus": "scene",
+        "storyQuote": "Alexander legte den Teddy auf eine niedrige Bank neben ein paar Tücher.",
+        "scene": "Inside the workshop, Alexander places the teddy on a low bench while Tilda clears a folded white cloth from her seat. The bear rests beside a few other cloths, plainly visible as Tilda makes room. Their separate tasks share the quiet preparation before her machine demonstration.",
+        "visualBeat": {
+          "actorId": "tilda",
+          "action": "clears the folded cloth from her seat",
+          "result": "the teddy rests on the low bench beside the cloths",
+          "framing": "medium"
+        }
+      },
+      {
+        "page": 4,
+        "paragraph": 16,
+        "onStage": [
+          "tilda",
+          "adrian"
+        ],
+        "elements": [
+          "teddy"
+        ],
+        "artifactVisible": true,
+        "focus": "scene",
+        "storyQuote": "Für einen Augenblick tanzten beide umeinander, während das Tuch um Tildas Hüfte flatterte.",
+        "scene": "Inside the workshop, Tilda twists away from the taut cloth while Adrian turns with her, both caught in the brief accidental dance. The long fabric flutters around Tilda's waist; the machine and its box remain nearby. They have stopped, and the teddy has not come any closer.",
+        "visualBeat": {
+          "actorId": "tilda",
+          "action": "twists away while pulling the long cloth",
+          "result": "the cloth flutters around Tilda as Adrian turns with her, and the teddy remains unretrieved",
+          "framing": "wide"
+        }
+      },
+      {
+        "page": 5,
+        "paragraph": 20,
+        "onStage": [
+          "tilda",
+          "alex"
+        ],
+        "elements": [
+          "teddy"
+        ],
+        "artifactVisible": true,
+        "focus": "scene",
+        "storyQuote": "Gemeinsam legten sie das Brett flach auf den Boden. Dahinter lag der Teddy.",
+        "scene": "Inside the workshop, Tilda and Alexander crouch together to lower the loosened painted front board flat onto the floor. The teddy lies revealed behind it, beside the open collection box. The children remain visible above the broad board as their careful removal finally exposes the trapped bear.",
+        "visualBeat": {
+          "actorId": "tilda",
+          "action": "lowers the loosened front board with Alexander",
+          "result": "the board lies flat on the floor and the teddy is revealed behind it",
+          "framing": "medium"
+        }
+      },
+      {
+        "page": 6,
+        "paragraph": 6,
+        "onStage": [
+          "alex",
+          "adrian"
+        ],
+        "elements": [
+          "teddy"
+        ],
+        "artifactVisible": true,
+        "focus": "scene",
+        "storyQuote": "Alexander drückte den Teddy an seine Wange. Sein Bauch war ganz.",
+        "scene": "Inside the workshop, Alexander hugs the teddy against his cheek while Adrian exhales with relief beside him. The bear's belly is intact, with only the old seam still open. The close framing holds on the two boys and the rescued teddy, capturing their relief before the sewing begins.",
+        "visualBeat": {
+          "actorId": "alex",
+          "action": "hugs the teddy against his cheek",
+          "result": "the teddy's belly is intact and only its old seam remains open as Adrian exhales in relief",
+          "framing": "close"
+        }
+      }
+    ]
+  },
+  "draw": [
+    0,
+    1,
+    2,
+    4,
+    5,
+    6
+  ],
+  "checks": {
+    "0": {
+      "face": "A face or an extra figure peeks out of a machine, a window or a box.",
+      "teddy": "The picture shows a teddy bear."
+    },
+    "1": {
+      "two": "The picture shows two or more teddy bears."
+    },
+    "2": {
+      "two": "The picture shows two or more teddy bears."
+    },
+    "4": {
+      "two": "The picture shows two or more teddy bears."
+    },
+    "5": {
+      "two": "The picture shows two or more teddy bears."
+    },
+    "6": {
+      "two": "The picture shows two or more teddy bears."
+    }
+  }
+}

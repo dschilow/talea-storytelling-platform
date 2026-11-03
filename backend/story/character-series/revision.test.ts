@@ -862,7 +862,9 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
         return imageReview(r.stage, [1, 2, 5, 6].includes(page) && attempt < 3 ? { primaryActionClear: false, sceneMatch: 0.4 } : {});
       },
     });
-    expect(result.regenerated).toEqual([1, 5, 1, 5]);
+    // Seven redraws (v27): every failed picture gets a second try, the cover too; the third round still goes to the
+    // pictureless chapters first.
+    expect(result.regenerated).toEqual([1, 5, 2, 6, 0, 1, 5]);
     expect(planning).toHaveLength(1);
     expect(JSON.parse(planning[0]).map((item: any) => item.page)).toEqual([1, 5]);
     expect(result.pages.get(1)?.status).toBe('passed');
@@ -1116,8 +1118,8 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
   });
   test('repairs go to a failed chapter before a failed cover', async () => {
     const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'chapter-first', provider: async () => ({ url: 'https://example.test/image.webp' }), llm: async r => imageReview(r.stage, r.stage.includes('qa-0-') ? { defects: [{ kind: 'safety', detail: 'A child is beneath an unsupported load.', fix: 'Move the child clear.' }] } : r.stage.includes('qa-1-1') ? { primaryActionClear: false, sceneMatch: 0.4, defects: [{ kind: 'story', detail: 'The selected exchange is absent.', fix: 'Show the selected exchange.' }] } : {}), visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: [] } as any) });
-    expect(result.imageCalls).toBe(7);
-    expect(result.regenerated).toEqual([1, 0, 0]);
+    expect(result.imageCalls).toBe(8);
+    expect(result.regenerated).toEqual([1, 0, 0, 0]);
     expect(result.pages.get(1)?.status).toBe('passed');
     expect(result.cover?.status).toBe('failed');
   });

@@ -1,0 +1,23 @@
+{
+  "_source": "Story 0aa83e90 (Der Graf verbietet den Wind, 2026-11-03): pages 1 and 2, which failed on writing („GRAF GRIESGRAM“, „Hausordnung“). Alexander is played by an Originals portrait.",
+  "entities": [
+    { "id": "graf", "name": "Graf Griesgram", "kind": "character", "role": "cast", "species": "human", "isHuman": true, "appearance": "Graf Griesgram, elderly nobleman with stern expression, trimmed grey beard, dark formal old-fashioned clothes, lonely eyes hiding a soft heart, not truly evil", "portrait": "frontend/public/library/character-series/leads/graf-griesgram.webp" },
+    { "id": "alex", "name": "Alexander", "kind": "character", "role": "hero", "species": "human", "isHuman": true, "appearance": "boy", "referenceContext": "8 years old, 132 cm tall, male, short light-blond hair, orange T-shirt", "portrait": "frontend/public/library/series/bruno-der-flunkerfisch/characters/mats.webp" }
+  ],
+  "plan": {
+    "continuity": [
+      { "name": "Verbotsschild", "aliases": ["Verbotsschild", "broad sign", "sign"], "appearance": "A broad, flat sign; its material and other design details are not specified.", "evidence": [{ "page": 4, "quote": "Nachdem der Graf seinen Schuh befreit hatte, holte er das breite Verbotsschild vom Tisch." }] },
+      { "name": "Hausordnung", "aliases": ["Hausordnung", "garden rules", "rule sheets", "sheets"], "appearance": "A set of loose paper rule sheets that can scatter and flutter.", "evidence": [{ "page": 2, "quote": "Der Wind fuhr unter die Blätter. Flapp! Die Hausordnung verteilte sich über den Rasen." }] }
+    ],
+    "cover": { "page": 0, "onStage": ["graf", "alex"], "elements": [], "artifactVisible": false, "focus": "scene", "scene": "At the garden gate, Alexander offers the teaspoon to Graf Griesgram, who receives it, with the large house set back behind the roses.", "visualBeat": { "actorId": "alex", "action": "offers the teaspoon to the Graf", "result": "The Graf receives the teaspoon", "framing": "wide" } },
+    "pages": [
+      { "page": 1, "paragraph": 20, "onStage": ["graf", "alex"], "elements": [], "artifactVisible": false, "focus": "scene", "storyQuote": "Der Löffel flog durch die Torstäbe und landete klirrend vor Alexanders Schuhen. Alexander hob ihn auf.", "scene": "Outside the garden gate, Alexander bends to pick up the teaspoon while Graf Griesgram reaches toward his broad sign. Loose rule sheets rise beside the Graf. The gate bars separate the two, and both keep their faces turned toward the unexpected spoon between them.", "visualBeat": { "actorId": "alex", "action": "Picks up the teaspoon beside his shoe", "result": "The Graf reaches for the sign as the loose rule sheets lift beside him", "framing": "medium" } },
+      { "page": 2, "paragraph": 18, "onStage": ["graf", "alex"], "elements": [], "artifactVisible": false, "focus": "scene", "storyQuote": "Ein Blatt drückte sich dem Grafen unter die Nase und blieb dort hängen wie ein langer weißer Bart.", "scene": "On the garden lawn, a loose rule sheet sticks across Graf Griesgram’s face as he stands amid scattered pages. Alexander bends toward him to read one of the sheets. The Graf’s posture is stiff, while Alexander’s forward lean and raised brows make the quiet exchange lively.", "visualBeat": { "actorId": "graf", "action": "Holds still as a loose rule sheet sticks across his face", "result": "Alexander leans toward the paper-covered Graf to read a fallen sheet", "framing": "medium" } }
+    ]
+  },
+  "draw": [1, 2],
+  "checks": {
+    "1": { "text": "The picture contains readable written words or letters.", "twins": "Two of the figures look like the same person: same face, same hair and same clothes." },
+    "2": { "text": "The picture contains readable written words or letters.", "twins": "Two of the figures look like the same person: same face, same hair and same clothes." }
+  }
+}

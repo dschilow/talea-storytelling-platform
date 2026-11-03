@@ -358,6 +358,13 @@ describe('animals and toys the scene names, story fa24532b', () => {
     }
     expect(readSeriesQa(withFigure('A small blond boy holding a teddy between the children.'), cast, scene)?.unexpectedCharacters).toEqual(['unmatched-figure-3']);
   });
+  test('a kite the scene names is the kite, not a stranger; a stray face still blocks (story 0aa83e90)', () => {
+    const scene = { sceneText: 'At the rose arch, Alexander slides the kite string back while Adrian reaches beneath the fluttering kite.' };
+    const kite = readSeriesQa(withFigure('A colorful kite with a trailing string.'), cast, scene);
+    expect(kite?.observedFigures?.[2].sceneProp).toBe(true);
+    expect(kite?.unexpectedCharacters).toEqual([]);
+    expect(readSeriesQa(withFigure('A small humanlike face with blue eyes behind the glass.'), cast, { sceneText: 'Their faces glow beside the machine.' })?.unexpectedCharacters).toEqual(['unmatched-figure-3']);
+  });
   test('the same teddy without a scene that names it, a child, an unnamed animal or a second dragon still block', () => {
     expect(readSeriesQa(withFigure('Brown plush teddy bear.'), cast)?.unexpectedCharacters).toEqual(['unmatched-figure-3']);
     const scene = { sceneText: 'Nora carries the teddy past a seal and a dragon kite.' };

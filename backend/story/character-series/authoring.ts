@@ -39,6 +39,15 @@ export const SERIES_IMAGE_REVIEW_EFFORT = 'medium';
  */
 export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_KLEIN_9B_KV_MODEL;
 /**
+ * Version 27 (stories 3169e3d5, 0aa83e90: 3 and 5 of 7 pictures; every rejection was a real fault). Measured with the
+ * production prompt (scripts/character-series/sheet-probe.ts; earlier probes sent FLUX 3 region tokens production never
+ * sends): a resting object's portrait came back as a second teddy on 9 of 12 pictures beside a figure and 5 of 8 in its
+ * own cell, its design text alone on 1 of 8 (now 4 of 4), so a resting object is painted from its text; a held one
+ * rides in its holder's cell (4 of 4 single at arm's length) and, once a reader saw a second copy (close hugs: 4 of 4),
+ * the page's later attempts paint it from its text (0 of 4 doubles). One design line per object; signs and rule sheets
+ * reach the painter as blank boards and pages („GRAF GRIESGRAM“, „Hausordnung“ on 3 of 3, now 0 of 6); what is "kept
+ * out of view" leaves the caption; "Inside the workshop" no longer hides a teddy; a kite the scene names is no stranger;
+ * 7 redraws instead of 4 (16 calls, ≈ 0.3 ct each) and a fourth attempt per picture.
  * Version 26 (story 9a84d5e0, 2 of 7 pictures): a held story object rides in its holder's sheet cell and the holder comes
  * first (its own cell came back as a second teddy on 6 of 6 attempts; probe: 6/10 first attempts pass instead of 2/10,
  * no double), a hidden object gets no cell, captions lose what is absent ("with no pale thread" painted the thread), a teddy
@@ -87,7 +96,7 @@ export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_
  * took 211 s. Up to five repairs, spent on pictures with a hard fault or provider failure. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 26, maxVisualReferences: 3, picturesPerChapter: 2, imageRetries: 4, imageConcurrency: 7, maxImageCalls: 13, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
+export const SERIES_POLICY = { version: 27, maxVisualReferences: 3, picturesPerChapter: 2, imageRetries: 7, imageConcurrency: 7, maxImageCalls: 16, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);

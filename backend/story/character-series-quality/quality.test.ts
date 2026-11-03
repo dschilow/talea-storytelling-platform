@@ -25,7 +25,7 @@ describe('opt-in Figurenwelt quality lane', () => {
     expect(QUALITY_SERIES_MODELS.critic).toBe('google/gemini-3.8-flash');
     expect(QUALITY_SERIES_MODELS.writer).toBe(SERIES_MODELS.writer);
     expect(SERIES_MODELS.critic).toBe('anthropic/claude-haiku-5.5');
-    expect(SERIES_POLICY.maxImageCalls).toBe(13);
+    expect(SERIES_POLICY.maxImageCalls).toBe(16);
     expect(QUALITY_SERIES_POLICY.maxImageCalls).toBe(22);
     expect(isCharacterSeriesEngine(QUALITY_SERIES_ENGINE)).toBe(true);
     expect(customerStoryLane({ storybookEngine: QUALITY_SERIES_ENGINE }, undefined)).toEqual({});

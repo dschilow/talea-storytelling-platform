@@ -48,7 +48,15 @@ export function seriesWordlessCaption(text: string): string {
   return text
     .replace(/\b(?:lettering|inscriptions?|slogans?|letters)\b/gi, 'painted stripes')
     .replace(/\bnotices\b/gi, 'sheets of paper')
-    .replace(/\bnotice\b/gi, 'sheet of paper');
+    .replace(/\bnotice\b/gi, 'sheet of paper')
+    // Story 0aa83e90: "his broad sign" came back as „GRAF GRIESGRAM“, "loose rule sheets" as „Hausordnung“ in three of
+    // four attempts (Jev 77–88 %, Luna saw none). A board or a page reaches the painter as a blank one.
+    .replace(/\b(?:sign ?boards?|signs|placards?|posters?)\b/gi, 'plain wooden boards')
+    .replace(/\bsign\b/gi, 'plain wooden board')
+    .replace(/\b(?:house |garden )?rules? (sheets?|pages?|papers?|lists?)\b/gi, (_, kind: string) => `blank paper ${kind.replace(/lists?/i, 'sheets')}`)
+    .replace(/\b(?:house|garden) rules\b/gi, 'blank paper sheets')
+    .replace(/\b(?:notes|lists|pages)\b/gi, 'blank pages')
+    .replace(/\b(?:note|list)\b/gi, 'blank page');
 }
 
 /**
@@ -57,13 +65,18 @@ export function seriesWordlessCaption(text: string): string {
  * check still has the story quote.
  */
 export function withoutAbsentThings(text: string): string {
-  return text
+  // "… and the swallowed teddy kept out of view" put a face into the machine's window (story 3169e3d5, cover).
+  const unseen = String.raw`(?:kept\s+)?(?:out\s+of\s+(?:view|sight)|hidden\s+from\s+view|not\s+(?:yet\s+)?(?:visible|shown|in\s+view)|unseen|off-?screen)`;
+  const cleaned = text
     .replace(/,\s*with\s+no\s+[^,.;!?]*/gi, '')
     .replace(/\s+and\s+no\s+[^,.;!?]*/gi, '')
     .replace(/,?\s+without\s+[^,.;!?]*/gi, '')
+    .replace(new RegExp(String.raw`(?:,|\s+and|\s+with|\s+while)\s+[^,.;!?]*?\b${unseen}\b[^,.;!?]*`, 'gi'), '')
     .replace(/\s+([,.;!?])/g, '$1')
     .replace(/\s{2,}/g, ' ')
     .trim();
+  // A whole sentence about something unseen leaves the caption.
+  return new RegExp(String.raw`\b${unseen}\b`, 'i').test(cleaned) ? '' : cleaned;
 }
 
 /** The prose carries written clues. Do not turn a tiny written clue into a giant sign/table in the illustration. */
@@ -147,11 +160,20 @@ export function seriesReferenceRegions(
 /** Figures plus referenced objects on one identity sheet; a fourth cell carries no position and lost a child (3ca4f3d5). */
 export const SERIES_SHEET_CELLS = 3;
 
-const HOLDING_VERB = String.raw`(?:holds?|holding|held|hugs?|hugging|hugged|cuddles?|cuddling|cuddled|press(?:es|ing|ed)?|squeez(?:es|ing|ed|e)|carr(?:y|ies|ying|ied)|rais(?:es|ing|ed|e)|lifts?|lifting|lifted|clutch(?:es|ing|ed)?|cradl(?:es|ing|ed|e)|grips?|gripping|gripped|clasps?|clasping|clasped)`;
-/** "squeezes past the cart", "presses into the box": the verb moves the figure, it holds nothing. */
-const NOT_A_HOLD = String.raw`(?!\s+(?:past|through|into|onto|against|behind|under|over|toward|towards|beside|between|at|on|in|to|off|from|out)\b)`;
-/** Only a sliver of the object shows: a whole portrait of it on the sheet comes back as the whole object (story 9a84d5e0 page 4). */
-const HIDDEN_OBJECT = /\b(?:hidden|hides?|hiding|inside|beneath|underneath|buried|tucked|glimpses?|glimmers?|peeks?|peeking|peeps?|peeping)\b/i;
+// Holding, and the moments an object is in a figure's hands: placing it, handing it over, showing it (story 3169e3d5:
+// "Alexander places the teddy on a low bench" got the Teddy's own cell and two teddies, twice).
+const HOLDING_VERB = String.raw`(?:holds?|holding|held|hugs?|hugging|hugged|cuddles?|cuddling|cuddled|press(?:es|ing|ed)?|squeez(?:es|ing|ed|e)|carr(?:y|ies|ying|ied)|rais(?:es|ing|ed|e)|lifts?|lifting|lifted|clutch(?:es|ing|ed)?|cradl(?:es|ing|ed|e)|grips?|gripping|gripped|clasps?|clasping|clasped|plac(?:es|ing|ed|e)|puts?|putting|sets?|setting|lays?|laying|laid|lowers?|lowering|lowered|hands?|handing|handed|gives?|giving|gave|offers?|offering|offered|shows?|showing|showed|presents?|presenting|presented|pass(?:es|ing|ed)?|takes?|taking|took|grabs?|grabbing|grabbed|catch(?:es|ing)?|caught|brings?|bringing|brought|picks?\s+up|picking\s+up|picked\s+up)`;
+/** "squeezes past the cart", "presses into the box": the verb moves the figure, it holds nothing. ("holds out the teddy" is a hold.) */
+const NOT_A_HOLD = String.raw`(?!\s+(?:past|through|into|onto|against|behind|under|over|toward|towards|beside|between|at|on|in|to|from)\b)`;
+/**
+ * Only a sliver of the object shows, or none: a whole portrait of it on the sheet comes back as the whole object (story
+ * 9a84d5e0 page 4), and "the swallowed teddy kept out of view" must not bring it into the cover.
+ */
+const HIDDEN_OBJECT = /\b(?:hidden|hides?|hiding|inside|beneath|underneath|buried|tucked|swallowed|glimpses?|glimmers?|peeks?|peeking|peeps?|peeping|out of (?:view|sight)|not (?:yet )?visible|unseen)\b/i;
+/** The beat's end state: "the teddy rests on the low bench" is a resting teddy, also when the caption has it placed there. */
+const RESTING_OBJECT = /\b(?:rests?|resting|lies|lying|sits?|sitting|stands?|standing|remains?|remaining|stays?|staying|waits?|waiting)\b/i;
+/** A reader's words for a second copy ("a second teddy on the shelf", "Keep exactly one teddy; remove the extra copy"). */
+const OBJECT_COPY = /\b(?:second|extra|additional|duplicat\w*|two|twice|copies|copy|another)\b/i;
 const SMALL_WORD = /\b(?:tiny|small|little|mini|miniature|palm-sized|pocket-sized|pocket)\b/i;
 const SMALL_THING = /\b(?:keys?|coins?|rings?|buttons?|pebbles?|marbles?|whistles?|clamps?|clips?|pegs?|clothes-?pegs?|clothespins?|needles?|thimbles?|shells?|seeds?|feathers?|beads?|badges?|medals?|lockets?|bells?|acorns?|dice|crayons?|pencils?|chalk|brush(?:es)?|spoons?|candles?|tokens?|stones?|tickets?|stamps?|cards?|notes?|letters?|envelopes?)\b/i;
 /** Too big for a portrait: carried, a machine or a cart would come back toy-sized. */
@@ -168,7 +190,9 @@ export function seriesObjectSize(object: VisualEntity): 'small' | 'held' | 'larg
 export interface SeriesPropPlacement {
   /** Object id → the figure that holds it in this picture. */
   carriedBy: Map<string, string>;
-  /** Objects of which only a sliver shows. */
+  /** Objects that rest somewhere in the scene (on the bench, on the floor): painted from their design text alone. */
+  resting: Set<string>;
+  /** Objects of which only a sliver shows, or none. */
   hidden: Set<string>;
 }
 
@@ -179,6 +203,9 @@ export interface SeriesPropPlacement {
  * therefore travels in its holder's cell, and a hidden one gets no cell. The beat decides first ("Alexander presses
  * Teddy against himself"); in the caption the holding verb must govern the object ("lifting a sock clear of the bear"
  * is no hold of the bear), and the holder is the figure named last before the verb.
+ * A resting object gets no portrait at all. Probe with the production prompt (2026-11-03, story 3169e3d5): its portrait
+ * came back as a second teddy beside a figure on 9 of 12 pictures and in its own cell on 5 of 8 (one of them giant),
+ * while its design text alone drew exactly one teddy on 7 of 8.
  */
 export function seriesPropPlacement(shot: IllustrationShot, figures: VisualEntity[], objects: VisualEntity[]): SeriesPropPlacement {
   const beat = (shot as SeriesShot).visualBeat;
@@ -189,25 +216,36 @@ export function seriesPropPlacement(shot: IllustrationShot, figures: VisualEntit
   const lastMention = (text: string, figure: VisualEntity) => Math.max(...[figure.name, ...figure.name.split(/\s+/).filter(part => part.length >= 3)]
     .map(name => lower(text).lastIndexOf(lower(name))));
   const carriedBy = new Map<string, string>();
+  const resting = new Set<string>();
   const hidden = new Set<string>();
   for (const object of objects) {
     const names = [object.name, ...(object.referenceAliases || [])].filter(name => name.trim().length >= 3).map(name => escape(name.trim()));
     const held = new RegExp(`\\b${HOLDING_VERB}${NOT_A_HOLD}\\s+(?:[\\p{L}’'-]+\\s+){0,2}?(?:${names.join('|')})(?![\\p{L}\\p{N}’'])`, 'iu');
+    const mentioning = sentences.filter(sentence => seriesReferenceMention(sentence, object));
+    // Hidden in the object's own clause: "Inside the workshop, Alexander places the teddy" hid a visible teddy (probe 2026-11-03).
+    const hiddenIn = (sentence: string) => sentence.split(/[,;:]|\s+(?:while|and|as|but|whereas)\s+/i).some(clause => seriesReferenceMention(clause, object) && HIDDEN_OBJECT.test(clause));
     // A machine, a cart or a boat keeps its own cell: in a child's cell it would shrink to a toy.
     if (seriesObjectSize(object) === 'large') {
-      if (sentences.some(sentence => seriesReferenceMention(sentence, object) && HIDDEN_OBJECT.test(sentence))) hidden.add(object.id);
+      if (mentioning.some(sentence => hiddenIn(sentence))) hidden.add(object.id);
       continue;
     }
-    for (const sentence of sentences) {
+    // Probe 2026-11-03, page 2: "Alexander places the teddy on a low bench" read as a hold, and Alexander held one teddy
+    // while a second rested on the bench (2 of 3 seeds); the beat's result had it resting.
+    const result = beat?.result || '';
+    // "holds the red teddy; the teddy rests on the table" stays a hold: the action decides over the result.
+    const restsInBeat = seriesReferenceMention(result, object) && RESTING_OBJECT.test(result) && !held.test(result) && !held.test(beat?.action || '');
+    for (const sentence of restsInBeat ? [] : sentences) {
       const match = held.exec(sentence);
       if (!match) continue;
       const before = sentence.slice(0, match.index);
       const holder = figures.map(figure => ({ figure, at: lastMention(before, figure) })).filter(item => item.at >= 0).sort((a, b) => b.at - a.at)[0];
       if (holder) { carriedBy.set(object.id, holder.figure.id); break; }
     }
-    if (!carriedBy.has(object.id) && sentences.some(sentence => seriesReferenceMention(sentence, object) && HIDDEN_OBJECT.test(sentence))) hidden.add(object.id);
+    if (carriedBy.has(object.id)) continue;
+    if (mentioning.some(sentence => hiddenIn(sentence))) hidden.add(object.id);
+    else resting.add(object.id);
   }
-  return { carriedBy, hidden };
+  return { carriedBy, resting, hidden };
 }
 export const SERIES_STYLE_REFERENCE = 'https://www.talea.website/library/series/bruno-der-flunkerfisch/s1e1/ch2.webp';
 export const SERIES_ART_DIRECTION = `${ORIGINALS_IMAGE_STYLE}. Bold readable curved silhouettes, slightly enlarged expressive heads, clear soft ink contours, broad gouache colour shapes and varied comic expressions. Keep texture subordinate to faces and action; the setting supports the joke. Render the referenced identities in this illustration language.`;
@@ -534,6 +572,8 @@ export async function generateSeriesImages(input: {
   const editableImages = new Map<number, string>();
   // Every reviewed attempt per page: after the last redraw a page keeps its best one rather than staying empty.
   const reviewed = new Map<number, ImageOutcome[]>();
+  // Page → objects a reader saw twice there; their next attempts leave the portrait out (see the sheet below).
+  const doubledObjects = new Map<number, Set<string>>();
   // Keep the generated image and its exact evidence when only the vision call failed.
   const visionRecoveries = new Map<number, () => Promise<ImageOutcome>>();
   const qaCalls: StorybookImagesResult['qaCalls'] = [], jevCalls: NonNullable<StorybookImagesResult['jevCalls']> = [], regenerated: number[] = [];
@@ -553,27 +593,39 @@ export async function generateSeriesImages(input: {
     if (drawn.some(e => e.role === 'hero' && !e.referenceUrl)) return { page: shot.page, prompt: shot.scene, attempts: 0, costUSD, severity: 999, status: 'failed', errors: ['series_avatar_reference_missing'], history: [...history, { kind: 'series-identity', status: 'failed', severity: 999, notes: ['Avatarreferenz fehlt; kein erfundenes Ersatzkind erzeugt.'] }] };
     const props = (shot.elements || []).map(id => byId.get(id)).filter((e): e is VisualEntity => Boolean(e?.kind === 'artifact' && e.referenceUrl));
     // Textual designs survive the three-cell sheet limit (the Teddy was omitted when three people filled the sheet).
-    const continuity = seriesShotContinuity(contracts, shot);
-    const visibleObjects = input.entities.filter(e => e.kind === 'artifact' && seriesReferenceMention(shot.scene, e));
-    const designText = [seriesVisualContractText(continuity), ...visibleObjects.map(e => `${e.name}: ${e.appearance}`)].filter(Boolean).join('\n');
+    // Only what the caption paints: an object "kept out of view" brings no design line that would paint it.
+    const paintable = seriesPaintableMoment(shot).scene;
+    const visibleObjects = input.entities.filter(e => e.kind === 'artifact' && seriesReferenceMention(paintable, e));
+    // One design line per object: the Teddy came twice (contract and portrait text) on pages that drew two teddies. An
+    // object with a portrait keeps the text that matches its portrait.
+    const continuity = seriesShotContinuity(contracts, { ...shot, scene: paintable })
+      .filter(contract => !visibleObjects.some(e => [contract.name, ...contract.aliases].some(alias => seriesReferenceMention(alias, e))));
+    const designText = seriesWordlessCaption([seriesVisualContractText(continuity), ...visibleObjects.map(e => `${e.name}: ${e.appearance}`)].filter(Boolean).join('\n'));
     const designLock = designText ? `STORY-CRITICAL OBJECT DESIGNS, only for objects already in this scene:\n${designText}\nKeep the same material, shape, scale and distinctive parts. Exactly one copy of each singular story object; no matching toy on a background shelf. Current state and placement follow the scene, never a reference pose.` : '';
-    // A held object rides in its holder's cell, also when three people fill the sheet; a hidden one gets no cell (see
-    // seriesPropPlacement). TALEA_SERIES_HELD_PROPS=off: every listed object gets its own cell again.
+    // A held object rides in its holder's cell, also when three people fill the sheet; a resting or hidden one is painted
+    // from its design text; only a large thing keeps a cell of its own (see seriesPropPlacement). Once a reader saw a
+    // second copy of an object on this page, later attempts paint it from its text too: the held Teddy's portrait came
+    // back as a second teddy on 4 of 4 close hugs (probe 2026-11-03), its text alone on 0 of 4.
+    // TALEA_SERIES_HELD_PROPS=off: every listed object gets its own cell again.
     const sheetFigures = drawn.filter(e => e.referenceUrl);
-    const placement = process.env.TALEA_SERIES_HELD_PROPS === 'off' ? { carriedBy: new Map<string, string>(), hidden: new Set<string>() }
-      : seriesPropPlacement(shot, sheetFigures, [...new Map([...props, ...visibleObjects.filter(e => e.referenceUrl)].map(e => [e.id, e])).values()]);
-    const carried = new Map(sheetFigures.flatMap(figure => {
-      const object = input.entities.find(e => e.kind === 'artifact' && e.referenceUrl && placement.carriedBy.get(e.id) === figure.id);
-      return object ? [[figure.id, object] as const] : [];
-    }));
+    const copied = doubledObjects.get(shot.page);
+    const candidates = [...new Map([...props, ...visibleObjects.filter(e => e.referenceUrl)].map(e => [e.id, e])).values()].filter(e => !copied?.has(e.id));
+    const placement = process.env.TALEA_SERIES_HELD_PROPS === 'off' ? { carriedBy: new Map<string, string>(), resting: new Set<string>(), hidden: new Set<string>() }
+      : seriesPropPlacement(shot, sheetFigures, candidates);
+    // One object per figure.
+    const carried = new Map<string, VisualEntity>();
+    for (const object of candidates) {
+      const holder = placement.carriedBy.get(object.id);
+      if (holder && !carried.has(holder)) carried.set(holder, object);
+    }
     const carriedObjects = [...carried.values()];
-    const cellProps = props.filter(e => !carriedObjects.includes(e) && !placement.hidden.has(e.id));
-    // What the reviewer inventories as referenced objects: every object with a portrait in this picture.
+    const cellProps = props.filter(e => !carriedObjects.includes(e) && !placement.hidden.has(e.id) && !placement.resting.has(e.id) && !copied?.has(e.id));
+    // What the reviewer inventories as referenced objects: every story object of this picture with a portrait.
     const objects = [...new Set([...props, ...carriedObjects])];
     // The holder goes first on the sheet. FLUX.2 klein hands the caption's action to the first, most described figure:
     // with Tilda in front, she hugged a second teddy while Alexander brought his own from his cell (probe 2026-11-03).
     const holders = sheetFigures.filter(e => carried.has(e.id));
-    const identities = [...holders, ...sheetFigures.filter(e => !carried.has(e.id)), ...cellProps];
+    const identities = [...holders, ...sheetFigures.filter(e => !holders.includes(e)), ...cellProps];
     const holding = (e: VisualEntity) => carried.get(e.id);
     let references: string[];
     try {
@@ -596,7 +648,7 @@ export async function generateSeriesImages(input: {
       // Pilot Funkelflug 1 (2026-11-02): edits of a doubled Ben, a doubled dragon and a missing dragon returned the same
       // picture three times; only a new scene recasts its figures. Hands and stray extras are still edited.
       const previousQa = previous?.qa as SeriesQa | undefined;
-      const recast = Boolean(previousQa?.missing?.length || previousQa?.duplicates?.length || previousQa?.jevFindings?.some(finding => /drawn twice/.test(finding)));
+      const recast = Boolean(previousQa?.missing?.length || previousQa?.duplicates?.length || previousQa?.jevFindings?.some(finding => /drawn twice/.test(finding)) || copied?.size);
       const editing = number === 2 && !recast ? editableImages.get(shot.page) : undefined;
       // Story 1a2fa8a4: "slot 1 (left half) is ONLY Adrian; slot 2 (right half) is ONLY the seal" came back as the sheet's
       // two panels from three seeds; the "fix" line alone changed nothing. After a split the halves are not named and the
@@ -622,7 +674,7 @@ export async function generateSeriesImages(input: {
         ...drawn.filter(e => !e.referenceUrl).map(e => `${e.name}: ${e.appearance}.`),
         'Every described object keeps its source material, size and shape. Props come only from this scene, never from a portrait or a conversation topic.',
         designLock,
-        objects.length ? `OBJECT REFERENCES (not people; no added human anatomy): ${[...cellProps.map(e => `${e.name}: ${e.appearance}`), ...[...carried].map(([holderId, e]) => `${e.name}: ${e.appearance}, shown in ${byId.get(holderId)?.name}'s portrait, the only ${e.name} in the picture, in ${byId.get(holderId)?.name}'s hands`), ...props.filter(e => placement.hidden.has(e.id)).map(e => `${e.name}: ${e.appearance}`)].join('; ')}. Preserve a toy's own stitched face and limbs when present in its reference. Match the same design in every picture. The source determines its current state and position, never the white reference background.` : '',
+        cellProps.length || carried.size ? `OBJECT REFERENCES (not people; no added human anatomy): ${[...cellProps.map(e => `${e.name}: ${e.appearance}`), ...[...carried].map(([holderId, e]) => `${e.name}: ${e.appearance}, shown in ${byId.get(holderId)?.name}'s portrait, the only ${e.name} in the picture, in ${byId.get(holderId)?.name}'s hands`)].join('; ')}. Preserve a toy's own stitched face and limbs when present in its reference. Match the same design in every picture. The source determines its current state and position, never the white reference background.` : '',
         simplified
           ? `A solitary scene with exactly one character, ${drawn[0]?.name}, shown only once. The surrounding landscape is uninhabited: no other figures, creatures, spectators, faces or portraits anywhere in the background. Keep only the setting of this scene, not the reference portrait's background.`
           : `Exactly ${drawn.length} foreground characters, once each: ${drawn.map(e => e.name).join(', ')}. No additional foreground children or replacement faces. A crowd explicitly named in the caption stays distant incidental silhouettes. A story instant in one continuous full-bleed setting reaching every edge; ignore the reference portraits' backgrounds and paint only the scene's own environment.${drawn.length > 1 && (afterPanels || drawn.length === 2) ? ` ${drawn.map(e => e.name).join(' and ')} share ONE place close together, overlapping in depth with one nearer the viewer, never side by side in separate halves.` : ''}`,
@@ -692,6 +744,12 @@ export async function generateSeriesImages(input: {
         const notes = [...qa.defects.map(d => d.detail), ...(qa.missing || []), ...qa.duplicates];
         history.push({ kind: number === 1 ? 'series-scene' : editing ? 'targeted-scene-edit' : simplified ? 'simplified-scene-repair' : 'same-scene-repair', status, severity, notes, url: response.url,
           ...(reading?.boxes && qa.jevFindings?.length ? { boxes: reading.boxes } : {}) });
+        // A second copy of an object with a portrait: from now on this page paints it from its design text alone.
+        for (const object of [...cellProps, ...carriedObjects]) {
+          if (qa.defects.some(d => d.kind === 'continuity' && OBJECT_COPY.test(`${d.detail} ${d.fix}`) && seriesReferenceMention(`${d.detail} ${d.fix}`, object))) {
+            doubledObjects.set(shot.page, new Set([...(doubledObjects.get(shot.page) || []), object.id]));
+          }
+        }
         const outcome: ImageOutcome = { page: shot.page, url: response.url, prompt, attempts: number, costUSD, qa, severity, status, history: [...history] };
         reviewed.set(shot.page, [...(reviewed.get(shot.page) || []), outcome]);
         return outcome;
@@ -797,9 +855,11 @@ export async function generateSeriesImages(input: {
   };
   // First edit the failed scene; only if it still fails, spend any remaining budget on a fresh variant.
   // Recompute coverage between waves so chapters with no usable picture receive priority each time.
-  for (const number of [2, 3]) {
+  // A fourth wave (v27): a doubled object comes back on about half of the fresh seeds (probe 2026-11-03, 6 of 12), so
+  // three attempts left one picture in eight empty; the fourth only runs for pictures that still fail.
+  for (const number of [2, 3, 4]) {
     const candidates = outcomes.map((outcome, index) => ({ outcome, index }))
-      .filter(({ outcome }) => canRetryOutcome(outcome) && outcome.attempts <= 2)
+      .filter(({ outcome }) => canRetryOutcome(outcome) && outcome.attempts < number)
       .sort((a, b) => Number(a.outcome.page === 0) - Number(b.outcome.page === 0) || a.index - b.index);
     const covered = new Set(outcomes.filter(o => o.page !== 0 && isPublishable(o)).map(o => input.chapterByPage?.[o.page]).filter((chapter): chapter is number => chapter !== undefined));
     const firstInEmptyChapter = new Set<number>();
