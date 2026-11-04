@@ -1,0 +1,62 @@
+[
+  {
+    "n": 1,
+    "id": "aquarell-licht",
+    "name": "Aquarell & Abendlicht",
+    "style": "Transparent hand-painted watercolor on cold-pressed cotton paper, luminous flowing washes, subtle pigment blooms, delicate graphite drawing visible under paint, lost-and-found edges, finely observed botanical detail, warm white paper highlights. Airy literary picture-book artistry with subtle expressive faces. The medium must be unmistakably fluid and translucent; violet, moss green, honey gold and dusty rose."
+  },
+  {
+    "n": 2,
+    "id": "samtige-gouache",
+    "name": "Samtige Gouache",
+    "style": "Opaque matte gouache on textured warm paper, confident broad brush shapes, velvety layered color, gently simplified rounded geometry, sophisticated mid-century European picture-book design, restrained dry-brush texture, very clear expressive gestures. Muted petrol blue, terracotta, mustard, moss and cream; warm luminous stars. Clearly painted rather than vector or 3D."
+  },
+  {
+    "n": 3,
+    "id": "buntstift-poesie",
+    "name": "Buntstift-Poesie",
+    "style": "Entirely hand-drawn layered artist-grade colored pencil on ivory toothy paper, visible fine directional hatching, delicate pressure variations, softly burnished glowing stars, intricate tactile foliage, intimate tender expressions and plausible child proportions. Rich teal, warm ochre, plum and forest green. No watercolor wash, no digital airbrush: unmistakable colored-pencil marks across the entire image."
+  },
+  {
+    "n": 4,
+    "id": "papier-theater",
+    "name": "Papier-Theater",
+    "style": "Handcrafted layered cut-paper illustration photographed as a shallow theatrical diorama. Real colored cardstock with visible fibrous edges, delicately cut expressive faces, bent paper foliage, stacked sculptural silhouettes, convincing tiny cast shadows between layers, foreground elements projecting toward the viewer. Elegant sophisticated paper engineering, warm internal star light, restrained jewel-tone papers. Characters and setting all made from paper, no drawn paint imitation."
+  },
+  {
+    "n": 5,
+    "id": "filz-maerchen",
+    "name": "Filz-Märchen",
+    "style": "Photograph of a lovingly handmade needle-felted wool miniature story set, all three figures handcrafted from wool with visible fine fibers and carefully sculpted expressive faces, stitched tiny garments, real miniature wooden cart and brass chest, felt foliage and wool forest, matte tactile materials. Gentle cinematic practical lighting and moderate depth of field keeping all three figures readable. Artisanal stop-motion set warmth, never shiny plastic CGI."
+  },
+  {
+    "n": 6,
+    "id": "linoldruck",
+    "name": "Leuchtender Linoldruck",
+    "style": "A luxurious five-color reduction linocut story print, bold hand-carved flowing marks, beautiful graphic silhouette design, fine carved plant details, tactile ink pressed onto handmade paper, slight organic registration variation, expressive carefully designed faces. Deep indigo, forest green, warm cream, terracotta and luminous golden yellow, strong readable contrast with intricate negative-space textures. Entire scene visibly carved and printed, not a pen drawing."
+  },
+  {
+    "n": 7,
+    "id": "jugendstil",
+    "name": "Jugendstil-Zauber",
+    "style": "A luminous storybook painting combining Art Nouveau design with hand-painted gouache and delicate gold-leaf accents, flowing elegant organic contours, sinuous oak branches and ferns, jewel-toned translucent evening colors, graceful active figures with warm childlike faces, restrained intricate botanical patterning integrated into the real environment. Muted turquoise, lapis, aubergine, antique gold and ivory. A narrative scene with depth, not a poster, no ornamental border or typography."
+  },
+  {
+    "n": 8,
+    "id": "ligne-claire",
+    "name": "Europäisches Bilderabenteuer",
+    "style": "Refined European adventure picture-book illustration in ligne claire: precise graceful uniform ink contours, clean distinct shapes, natural expressive child faces, lively comic timing in body language, carefully observed believable woodland architecture, flat harmonious warm colors with sparing soft watercolor shadows. Crisp readable storytelling, elegant visual wit, highly legible props and action. Rich cream, teal, golden yellow and muted violet. Single continuous scene, not comic panels."
+  },
+  {
+    "n": 9,
+    "id": "oelmalerei",
+    "name": "Leuchtende Ölmalerei",
+    "style": "Museum-quality small-scale narrative oil painting on fine linen, luminous layered glazes, soft atmospheric depth, confident visible impasto on foliage and golden star highlights, richly observed fabric and wood, gentle realistic yet magical storybook character design. Romantic forest light, warm chiaroscuro, nuanced expressive human faces, painterly edges and authentic brushwork. Deep emerald, smoky violet, copper and radiant honey-gold. Fine-art painting, never photoreal faces or CGI."
+  },
+  {
+    "n": 10,
+    "id": "nachtblau-gold",
+    "name": "Nachtblau & Gold",
+    "style": "An exquisite cyanotype-inspired illustrated story print on textured handmade paper, a predominantly Prussian-blue and indigo nocturnal world with pale ivory negative-space linework and selective luminous metallic gold pigment only for the stars and workshop light. Delicate botanical silhouettes, handcrafted ink textures, restrained silver-blue tonal layers that clearly distinguish the three characters and their clothing. Poetic warm faces described with elegant minimal lines, rich spatial depth and beautiful gold reflections in water. This deliberately restricted blue/ivory/gold medium reinterprets clothing colors tonally. No border, no text."
+  }
+]

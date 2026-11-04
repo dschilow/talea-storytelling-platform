@@ -1,0 +1,48 @@
+[
+  {
+    "n": 1,
+    "id": "fantasie-malerei",
+    "name": "Fantastische Waldmalerei",
+    "source": "1-1000100967.jpg",
+    "crop": { "left": 595, "top": 412, "width": 521, "height": 758 },
+    "style": "Whimsical hand-painted fantasy picture-book art. Match the reference's tactile scraped and stippled paint, broad irregular shapes, mysterious deep ultramarine and teal spaces, luminous turquoise openings and small amber-orange highlights. Expressive asymmetric faces, lively hand-shaped proportions and soft painted edges with occasional scratchy pencil details. Tall twisting organic shapes surround a little pool of light. Pigment and colour masses build the figures and space; avoid the tidy uniform black contours and smooth rounded stock-cartoon rendering of the old portraits.",
+    "lighting": "Blue woodland dusk. The golden stars cast a small warm pool of light onto the three friends; tall dark trees frame a luminous turquoise gap beyond the bridge.",
+    "layout": "An immersive full-page painting with sweeping dark tree shapes, a strongly staged lit focal group and atmospheric layered depth."
+  },
+  {
+    "n": 2,
+    "id": "lichter-aquarellwald",
+    "name": "Lichter Aquarellwald",
+    "source": "2-1000100970.jpg",
+    "style": "Airy contemporary hand-painted watercolor and delicate warm-brown pencil on ivory paper, following the supplied woodland example. Pale translucent sap-green and honey-yellow washes, irregular feathered wet edges, generous light between layered tree trunks and soft paper grain. Loose individual hair curls, rosy cheeks, small gentle noses, warm simple expressive eyes and supple relaxed anatomy. Clothing has hand-drawn creases and lightly pooled watercolor pigment. The whole image feels sunny, light and handmade; avoid heavy black outlines, dense purple dusk, glossy shading and uniform digital gouache fills.",
+    "lighting": "Fresh sunlit woodland in late morning, pale green foliage and warm cream sunlight. The stars remain small luminous golden accents, not the main light source.",
+    "layout": "An open light-filled woodland picture, with soft distant tree trunks, a loosely painted natural ground and generous breathing room around the action."
+  },
+  {
+    "n": 3,
+    "id": "wilde-bilderbuch-abenteuer",
+    "name": "Wilde Bilderbuch-Abenteuer",
+    "source": "3-1000100973.jpg",
+    "style": "Vivid painterly children's adventure illustration, matching the example's energetic rough brushwork, playful irregular silhouettes, bold facial expressions and lush mossy natural forms. Chunky dry-brushed gouache layered with visibly sketchy coloured-pencil strokes, cool misty blue depth against fresh emerald and yellow-green foregrounds, lively warm highlights. Heads and hands have expressive angular rhythms, not symmetrical doll faces. Paint strokes and hatch marks remain evident across faces, clothes, plants and wood; avoid smooth vector contours and polished animation shading.",
+    "lighting": "Bright dappled woodland light with pale blue mist between the trees, rich green foreground foliage and warm golden star reflections.",
+    "layout": "An energetic low-viewpoint woodland adventure with large framing foreground leaves, a diagonal cart and lively readable interaction among the three friends."
+  },
+  {
+    "n": 4,
+    "id": "freie-feder-aquarell",
+    "name": "Freie Feder & Aquarell",
+    "source": "4-1000100972.jpg",
+    "style": "Spontaneous old-fashioned pen-and-watercolor children's book vignette, closely following the loose drawing in the supplied example. Very thin uneven broken brown-black pen lines, tiny dot-like eyes, small simple faces, wiry lively limbs and modest head sizes. Sparse transparent lemon, leaf-green, pale blue and warm ochre washes on a large expanse of clean white paper. A few charmingly observed tufts of grass and loose botanical pen marks. The drawing must look brisk, fragile, funny and freely sketched by hand, rather than meticulously coloured cartoon line art. Substantial untouched white paper is an essential part of this medium.",
+    "lighting": "Soft daylight suggested by one light lemon-yellow wash behind the figures and a little pale-blue water beneath the bridge.",
+    "layout": "A compact off-centre narrative vignette surrounded by at least one third untouched white paper. The ground and a suggestion of bridge, stream and workshop dissolve into white toward the outer edges; no rectangular painted background."
+  },
+  {
+    "n": 5,
+    "id": "farbiges-tinten-bilderbuch",
+    "name": "Farbiges Tinten-Bilderbuch",
+    "source": "5-1000100971.jpg",
+    "style": "Bold modern ink-and-watercolor picture-book artwork with the supplied example's broad confident colour shapes, scratchy lively hand-ink contours and rich visible paper pigment. Simplified appealing character masses, buoyant expressive gestures, dark expressive eyebrows and small warm eyes. Rich teal-blue foliage, clear warm yellow light, lively orange accents, grassy greens and irregular watery painted edges. Colours separate into beautiful translucent patches; finer pen hatching describes wood, hair and fabric. An original narrative illustration, with neither cover title nor lettering. Avoid uniform digital airbrush rendering and the old portrait medium.",
+    "lighting": "Golden late-afternoon light, pale blue sky glimpsed through teal foliage, fresh green woodland ground and a warm inviting tree-workshop doorway.",
+    "layout": "A spacious graphic picture-book spread, strong simple interlocking shapes and a few bright foreground plants, with an irregular soft watercolor edge against ivory paper."
+  }
+]

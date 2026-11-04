@@ -76,3 +76,9 @@ scripts/game-qa/out/
 
 # Railway env exports (contain secrets) - never commit
 .env.railway
+
+# Local experiment output, scratch files, and user-provided attachments.
+# Previously committed artifacts remain tracked.
+/output/
+/tmp/
+/.codex-remote-attachments/
