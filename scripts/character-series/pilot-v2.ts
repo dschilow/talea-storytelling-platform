@@ -173,7 +173,7 @@ try {
     await writeFile(join(out, 'direction.json'), JSON.stringify(directed.illustrations, null, 2));
     const picturePages = 'pages' in directed ? directed.pages : result.pages;
     const chapterByPage = 'slots' in directed && directed.slots ? Object.fromEntries(directed.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined;
-    const images = await generateSeriesImages({ illustrations: directed.illustrations, entities, seed: `series-v2-${seriesId}-${episode}`, llm, visionModel, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL, pageTexts: Object.fromEntries(picturePages.map(p => [p.order, p.content])), chapterByPage,
+    const images = await generateSeriesImages({ illustrations: directed.illustrations, entities, seed: `series-v2-${seriesId}-${episode}`, llm, visionModel, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL, imageModel: opt('--image-model', SERIES_IMAGE_MODEL), pageTexts: Object.fromEntries(picturePages.map(p => [p.order, p.content])), chapterByPage,
       provider, reservedImageCalls: visuals.calls, panelCheck: pictureHasPanels });
     images.qaCalls.forEach((r, i) => ledger.recordCall(`image-qa-${i + 1}`, r, 'support'));
     imageCostUSD = images.imageCostUSD + visuals.costUSD;

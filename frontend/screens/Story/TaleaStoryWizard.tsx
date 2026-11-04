@@ -377,6 +377,8 @@ export default function TaleaStoryWizard() {
     broughtArtifact: null,
   });
   const isSeries = state.storyKind === 'series';
+  // Figurenabenteuer and Eigene Geschichte (Talea-Folge) draw with the same picture machinery and offer the same styles.
+  const hasImageStyle = isSeries || state.episodeMode;
   const stepKeys = useMemo(
     () =>
       [
@@ -840,14 +842,14 @@ export default function TaleaStoryWizard() {
       case 'book':
         return <StepBookFormat state={state} updateState={updateState} />;
       case 'shape':
-        return <StepStoryShape state={state} updateState={updateState} hideLength={!isSeries && state.chapterBookMode} showImageStyle={isSeries} />;
+        return <StepStoryShape state={state} updateState={updateState} hideLength={!isSeries && state.chapterBookMode} showImageStyle={hasImageStyle} />;
       case 'extras':
         return <StepExtras state={state} updateState={updateState} hiddenWishes={isSeries ? ['avatarIsHero', 'famousCharacters'] : []} />;
       case 'ready': {
         const nextEpisode = chosenSeries ? (state.characterSeriesEpisodeOverride ?? chosenSeries.episodeCount + 1) : null;
         return (
           <StepReady
-            imageStyle={isSeries ? state.imageStyle : undefined}
+            imageStyle={hasImageStyle ? state.imageStyle : undefined}
             state={{ ...state, chapterBookMode: !isSeries && state.chapterBookMode }}
             series={chosenSeries ? { label: `${chosenSeries.characterName || chosenSeries.title} · Folge ${nextEpisode}`, imageUrl: chosenSeries.imageUrl } : undefined}
             updateState={updateState}
@@ -1067,7 +1069,7 @@ function mapWizardStateToAPI(state: WizardState, userLanguage: string, isAdmin =
     storybookMode: state.storyKind === 'series' || state.storybookMode || state.bookWorkshopMode || state.chapterBookMode || state.wonderStoryMode || state.episodeMode || undefined,
     storybookEngine: state.storyKind === 'series' ? (isAdmin && state.characterSeriesQuality ? 'character-series-quality-v1' : 'character-series-v1') : state.episodeMode ? 'talea-folge-v1' : state.wonderStoryMode ? 'wonder-story-v1' : state.chapterBookMode ? 'chapter-book-v1' : state.bookWorkshopMode ? 'book-workshop-v1' : state.storybookMode ? 'storybook-v2' : undefined,
     characterSeriesId: state.storyKind === 'series' && state.characterSeries && state.characterSeries !== 'auto' ? state.characterSeries : undefined,
-    imageStyle: state.storyKind === 'series' ? state.imageStyle : undefined,
+    imageStyle: state.storyKind === 'series' || state.episodeMode ? state.imageStyle : undefined,
     characterSeriesEpisodeOverride: state.storyKind === 'series' && state.characterSeriesEpisodeOverride ? state.characterSeriesEpisodeOverride : undefined,
     ...(state.chapterBookMode
       ? { bookChapters: state.bookChapters, bookImagesPerChapter: state.bookImagesPerChapter, experienceForm: state.experienceForm || undefined, heroRelation: state.selectedAvatars.length > 1 ? state.heroRelation || undefined : undefined, length: 'long' }

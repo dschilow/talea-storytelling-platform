@@ -2,6 +2,39 @@
 
 Die Talea Originals („Bruno, der Flunkerfisch“, „Die Monster-Müllabfuhr“) lesen sich voll und lustig, weil eine Reihenbibel sie trägt: ein Wunder mit einer Regel, das eine echte Kindersituation wörtlich nimmt, Figuren mit unverwechselbarer Stimme, Running Gags, eine Folgenformel und drei Kapitel mit je 500–800 Wörtern. Eine normale Geschichte hat keine Bibel. Die Talea-Folge erfindet deshalb pro Geschichte eine und schreibt sie mit dem Handwerk der Originals.
 
+## Umbau am 04.11.2026: wie Figurenabenteuer
+
+Anlass: zwei Prod-Geschichten des Users, „Die Brücke spielt weiter“ (2.057 Wörter, 12,3 ¢) und „Der Kram läuft hinterher“ (1.853 Wörter, 13,6 ¢, ein Bild fehlte, Zauberer Merlin als Junge gemalt). Zu lang, zu teuer, und die Figurenabenteuer machten inzwischen bessere Geschichten und Bilder. Talea-Folge übernimmt deshalb deren Maschinerie; nur die Geschichte bleibt frei erfunden.
+
+| | vorher | jetzt |
+| --- | --- | --- |
+| Länge (6–8, mittel) | 3 × 600–800 Wörter | 3 × 450–650 Wörter (`seriesBudget`) |
+| Neue Figuren bis 8 Jahre | 2 | 1 (das Wunder) |
+| Lektorat | Terra, bei schweren Fehlern ganze Geschichte neu | Haiku 5.5 mit dem Lektoratshandwerk der Serie, Sol repariert nur die zitierten Stellen (auch Kapiteltitel), höchstens zwei Runden, nur übernommen, wenn die Nachlese weniger Fehler findet |
+| Bildregie | Terra, Kapitelbuch-Regie | Luna, Regie der Serie aus wörtlichen Zitaten (`directFolgePictures`), jedes Kind darf Cover und Seite 1 tragen |
+| Bildmodell | FLUX 3 Klein | FLUX.2 klein 9B KV (`SERIES_IMAGE_MODEL`) |
+| Bildprüfung | Terra (≈ 0,3 ¢ je Bild) | Luna + Jev, Reparaturleiter und 16-Aufruf-Deckel der Serie |
+| Gastporträt | ungeprüft | Luna liest es, einmal neu gezeichnet bei Fehlern (0,01 ¢) |
+| Wiederkehrende Gegenstände | – | Referenzplan der Serie |
+| Bildstil-Wahl | nur Figurenabenteuer (und für Kunden verworfen) | beide Lanes, `imageStyle` bleibt bei Kunden erhalten |
+
+**Neuzeichnen mit korrigiertem Prompt** (gilt auch für Figurenabenteuer, Vorschlag des Users): Scheitert ein Bild, bekommt Luna das fehlerhafte Bild, das Identitätsblatt, den vollständigen Prompt, die Textstelle und alle Befunde (Prüfung, Jev, Panel-Prüfung). Sie benennt die Ursache im Prompt und schreibt den vollständigen Prompt neu – derselbe Moment, dieselbe handelnde Figur, höchstens eine Figur weniger in einem Dreierbild, nur positive Wörter (FLUX malt, was eine Verneinung nennt; in den ersten Versuchen nannte Luna die feste Code-Zeile „No additional foreground children“ als Ursache der zusätzlichen Kinder). Der Code fügt die Identitätszeile samt Bindung wieder an (Gesicht, Brille und Kleidung bleiben bei ihrer Figur, Anatomie der Menschen, eine durchgehende Szene – ohne sie verlor Nora ihre Brille und die Porträts des Blatts schwebten über der Szene), dazu die Objekt-Referenzen, den Bildstil und die Wortlos-Zeile. Der vereinfachte Ein-Figuren-Rettungsplan erbt nie einen umgeschriebenen Prompt. Vergisst ihr Prompt eine Figur oder passt die Länge nicht, gilt ihre neu geschriebene Szene im Code-Prompt. Das Bild wird frisch gemalt, ohne angehängte Fehlersätze; jede weitere Runde schreibt den neuesten Prompt um. ≈ 0,1–0,2 ¢ je Neuzeichnung; eine unbrauchbare Umschreibung fällt auf die alte Reparatur zurück, `TALEA_SERIES_PROMPT_REWRITE=off` schaltet sie ab.
+
+**Messung 04.11.2026** (sechs produktionsgleiche Piloten, 4 × Talea-Folge, 2 × Figurenabenteuer mit demselben Text): 16 von 36 umgeschriebenen Neuzeichnungen bestanden (alte Reparatur ≈ 3 von 14, nur Szene umgeschrieben 2 von 14), 16 von 20 durchgefallenen Bildern gerettet, 39 von 42 Bildern gedruckt; 7,6–7,7 ¢ pro Geschichte (11,7 ¢, wenn Flex den Text abbricht und Sol im Standardtarif schreibt). Weiter scheitern: ein Wunder, das Größe oder Material ändert (wachsende Korkkrone wird Goldkrone, schrumpfender Kuchen bleibt groß), und ein zusätzliches Kind auf einem vollen Dreier-Cover (die Produktion setzt dann ein Kapitelbild als Cover). Zwei Nebenfunde: Der Prüfer verlangte den Bootsnamen „Seegras“ am Bug (vier vergeudete Neuzeichnungen) – jetzt ist ein Gegenstand ohne Schrift ausdrücklich richtig; ein neuer grüner Troll mit roter Weste wurde als bekannter Film-Oger gemalt – neue Figuren bekommen jetzt ein eigenes Aussehen, das keine bekannte Film-, Spiel- oder Buchfigur hat. `scripts/character-series/pilot-v2.ts` gibt seit dem 04.11. das Bildmodell weiter; vorher baute es den FLUX-3-Regionsprompt, Serienpiloten waren also nicht produktionsgleich.
+
+Neue Schreibregeln: Das Wunder ist die einzige Magie und gibt keiner Figur Körperteile dazu oder weg (FLUX kann wechselnde Arme nicht zählen: „Das Fernrohr mit den Greifarmen“ verlor 5 von 7 Bildern); ein Running Gag statt zwei; eine Eigenheit wird gezeigt, bevor ein Witz sie braucht; nach der Auflösung höchstens ≈ 150 Wörter; „Child reader first“ aus der Serie.
+
+Piloten mit fiktiven Avataren (`scripts/episode/pilot.ts`, Produktionsweg ohne DB), eigene Lesung:
+
+| Geschichte | Wörter | Kosten | Bilder | Text |
+| --- | --- | --- | --- | --- |
+| Märchen „Der Drache passt nicht“ | 1.520 | 6,7 ¢ | 6/7 | ≈ 8 |
+| Abenteuer „Das Fernrohr mit den Greifarmen“ (vor Porträtprüfung und Körperteil-Regel) | 1.492 | 8,6 ¢ | 2/7 | ≈ 7,5 |
+| Abenteuer „Die Beere im Höhlenbogen“ | 1.529 | 8,7 ¢ | 5/7 | ≈ 7 |
+| Magie „Der aufgeblasene Flüsterhelfer“ | 1.549 | 7,3 ¢ | 4/7 (jedes Kapitel bebildert) | ≈ 7,5 |
+
+Offene Bildfehler: FLUX malt eine Tier-Poolfigur doppelt (zweiter Bär), Kleidung wandert (Bens Warnweste an einer Nebenfigur), ein wachsendes Wunder bleibt im Bild so groß wie sein Porträt, Orte voller Schilder (Fundbüro) scheitern an Jevs Schrift-Erkennung. Pool-Porträts bleiben eine Fehlerquelle (Hexe Kräuterweis wird jung gemalt, weil ihr Porträt jung ist).
+
 ## Ablauf
 
 Standard ist der **One-Shot** (ein Aufruf, Sol 6.1, Denkstufe niedrig). Sol bekommt die Methode der Originals (Kindersituation → ein Wunder mit einer Regel → der bequeme Ausweg macht es schlimmer → Beinahe-Entdeckung → stiller Moment → Mut vor anderen → Auflösung, die alles Angelegte einlöst → Schlussgag), die Schreibregeln und zwei echte Originals-Kapitel als Stilvorlage. Aus der Stilvorlage darf er nichts übernehmen. Dazu kommen vier per Seed gezogene Kindersituationen, drei genrepassende Orte, die Helden, Pool-Figuren, Artefakte, Wünsche, Lernziel und die Geschichten, die die Familie schon kennt. Sol plant still und schreibt vor die Kapitel nur einen kurzen Kopf: `IDEE`, `REGEL`, je Figur eine `FIGUR`-Zeile (Pool-ID oder Aussehen auf Englisch für die Bilder), `FUNDSTÜCK`, beim Lernmodus `WISSEN`, dann `TITEL` und `BESCHREIBUNG`.

@@ -27,9 +27,15 @@ export function episodeWriterModel(_config?: unknown): string {
   return process.env.TALEA_EPISODE_WRITER_MODEL || STORYBOOK_DEFAULT_WRITER_MODEL;
 }
 
-/** Production role assignment for Talea-Folge. Other story engines keep their own settings. */
+/**
+ * Production role assignment for Talea-Folge, the Figurenabenteuer's since 2026-11-04: Sol writes, Haiku 5.5 (with
+ * thinking) reads the manuscript and supports. Terra read "Die Brücke spielt weiter" without one finding although a
+ * badger's unexplained "Das ist eine Gießkanne" gag and a second magic (baskets hopping by themselves) were in it; in the
+ * series comparison Haiku found the subtle real errors without false alarms (scripts/character-series/editorial-ab.ts).
+ * Picture direction and the picture check run on Luna, as in the series (../character-series/authoring.ts).
+ */
 export function episodeProductionModels(): StorybookModels {
-  return { writer: STORYBOOK_DEFAULT_WRITER_MODEL, support: "openai/gpt-6.1-terra", critic: "openai/gpt-6.1-terra" };
+  return { writer: STORYBOOK_DEFAULT_WRITER_MODEL, support: "anthropic/claude-haiku-5.5", critic: "anthropic/claude-haiku-5.5" };
 }
 
 /**
@@ -49,20 +55,15 @@ export function episodeProductionLlm(llm: StorybookLlm, tier: LlmRequest["servic
   return (request) => llm({ ...request, fallbackModel: request.model, ...(tier && !request.serviceTier ? { serviceTier: tier } : {}) });
 }
 /**
- * Chapters × words. The Originals: 3 chapters, 1,600–2,100 words, about 7 words per sentence. Ages 6–8 were 500–700
- * per chapter until 2026-10-26: "Der Riese hinterm Teig" came out at 505 / 503 / 579 words — the writer lands on the
- * floor of the range, and the staccato one-line paragraphs of this voice make that read short (about 10 minutes aloud).
- * 600–800 aims at 1,800–2,400 words, a good 12 minutes.
+ * Chapters × words, the Figurenabenteuer's lengths since 2026-11-04 (../character-series/authoring.ts seriesBudget):
+ * a medium story for ages 6–8 has three chapters of 450–650 words. 600–800 (since 2026-10-26) made "Die Brücke spielt
+ * weiter" 2,057 words long, with room the writer filled with side gags (a sniffing badger, baskets hopping by themselves,
+ * a nameless baker) instead of fuller scenes; the user found the stories too long and too expensive for what they are.
  */
 export function episodeBudget(length: string | undefined, band: AgeBand): LengthBudget {
   const index = length === "short" ? 0 : length === "long" ? 2 : 1;
   const chapters = [2, 3, 4][index];
-  const perChapter: Record<AgeBand, [number, number]> = {
-    "3-5": [170, 260],
-    "6-8": [600, 800],
-    "9-12": [650, 900],
-  };
-  const [min, max] = perChapter[band];
+  const [min, max] = band === "3-5" ? [160, 240] : ([[280, 400], [450, 650], [600, 800]] as const)[index];
   return {
     pages: chapters,
     wordsPerPageMin: min,
@@ -74,6 +75,15 @@ export function episodeBudget(length: string | undefined, band: AgeBand): Length
     // extra props cost story 13c3a7d3 ten pictures for four slots, two still flawed.
     maxCharactersPerImage: 3,
   };
+}
+
+/**
+ * New named figures a story may invent besides the heroes and the pool. One for ages up to eight: the wonder itself
+ * when it is a someone (Tupp, Poldi). Every further figure costs a portrait, a place in the pictures and the scenes of
+ * a short story.
+ */
+export function episodeMaxNewFigures(band: AgeBand): number {
+  return band === "9-12" ? 2 : 1;
 }
 
 /** Average words per sentence the read-aloud prose aims for. */
@@ -116,14 +126,15 @@ export const SAMPLE_ADDRESSES = ["Süßer", "Süße"];
 export const METHOD_EN = [
   "THE METHOD — how every Talea Original is built:",
   "1. A REAL CHILD SITUATION starts it: something every child knows, that matters to one hero personally and fits their nature (the task lists today's choices). This feeling is the heart of the story.",
-  "2. ONE WONDER WITH ONE RULE a six-year-old can repeat in a single sentence. The wonder takes the child situation literally and makes it visible. It is SHOWN in chapter 1 by a small first effect, never explained in a lecture. Right after it, a figure says the rule in one short line — naming the exact trigger (the word, the deed) — or the heroes work it out aloud: the fun is that the listener knows what sets it off while the figures keep setting it off. No convenient signs, notes or books that explain the magic. Its consequences are visible and physical and get crazier step by step. The wonder is a someone with a will of its own, or it comes with one (a creature, a talking thing, an animal with an attitude) — not a mere mechanism.",
+  "2. ONE WONDER WITH ONE RULE a six-year-old can repeat in a single sentence. The wonder takes the child situation literally and makes it visible. It is SHOWN in chapter 1 by a small first effect, never explained in a lecture. Right after it, a figure says the rule in one short line — naming the exact trigger (the word, the deed) — or the heroes work it out aloud: the fun is that the listener knows what sets it off while the figures keep setting it off. No convenient signs, notes or books that explain the magic. Its consequences are visible and physical and get crazier step by step. The wonder is a someone with a will of its own, or it comes with one (a creature, a talking thing, an animal with an attitude) — not a mere mechanism. It is the story's ONLY magic: nothing else moves, grows, hops or talks by itself unless this rule causes it. Its magic shows in what happens around it, or in its size, colour, sound or mood — it never gives a figure extra or fewer body parts (arms, legs, heads, eyes): every picture draws a figure from one portrait and cannot count changing limbs.",
   "3. THE EASY WAY OUT FAILS: the heroes try to fix it without facing the real thing. Two or three attempts; each follows from the rule and makes it worse in a new, visible, funny way. Why the obvious shortcut does not work is shown, not claimed.",
-  "4. GROWN-UPS are warm and busy and almost discover it — the near-discovery is a gag and raises the pressure. They are never stupid, never conveniently sent away, and they never solve it.",
-  "5. THE ENSEMBLE: every figure has ONE unmistakable voice (how they talk, one typical line) and wants something. The heroes complement each other. A comic companion comments on everything — give it a fresh attitude of its own (grumpy, gloomy, greedy, a know-it-all, a scaredy-cat, overly literal, sleepy, a show-off …), not the pompous announcer every time. A troublemaker, never evil, pursues a plan of its own that fails at a small slapstick detail — best because of something the heroes set up earlier.",
-  "6. RUNNING GAGS: two of them, each appears three times; the third time it turns around or pays off. Catchphrases are short and land at the right moment.",
+  "4. GROWN-UPS are warm and busy. When one is naturally around, they almost discover it — the near-discovery is a gag and raises the pressure. They are never stupid, never conveniently sent away, and they never solve it.",
+  "5. THE ENSEMBLE — small and sharp: besides the heroes at most three named figures, and every one of them is part of the main problem; no figure who only delivers a side gag. Every figure has ONE unmistakable voice (how they talk, one typical line) and wants something. The heroes complement each other. A comic companion comments on everything — give it a fresh attitude of its own (grumpy, gloomy, greedy, a know-it-all, a scaredy-cat, overly literal, sleepy, a show-off …), not the pompous announcer every time. A troublemaker (only if the story needs one, never evil) pursues a plan that collides with the main problem and fails at a small slapstick detail — best because of something the heroes set up earlier.",
+  "6. ONE RUNNING GAG that appears three times; the third time it turns around or pays off. A figure's quirk is shown or said before a joke relies on it (a badger who mistakes a shoe for a swan needs his weak eyes first). Catchphrases are short and land at the right moment.",
   "7. HEART: before the finale a quiet moment — someone admits a small weakness (often the companion or a grown-up), so the hero is not alone with it. Then the hero does the one hard thing the child situation was about, in front of others: tries the scary thing anyway, lets someone else go first, shares the precious thing, keeps the promise, stands up for someone, lets go, says what they really feel, admits they were wrong, gives something back — whatever this situation needs. „Asking for help“ and „together it works“ are the most worn hearts of generated stories: use them only when the situation truly is about that. That courage, together with the rule, ends the chaos in ONE moment. No coincidence, no grown-up takes over, no sermon afterwards — a warm, short reaction.",
-  "8. PAYOFFS: everything that solves something was planted earlier in passing. The ending calls back the opening and the running gags; the very last lines are a laugh.",
+  "8. PAYOFFS: everything that solves something was planted earlier in passing. The ending calls back the opening and the running gag; the very last lines are a laugh. After the moment the chaos ends, at most about 150 words: one warm reaction, the callback, the final laugh — then stop. No weaker jokes, new little scenes or explanations after the strongest one.",
   "9. THE OPENING shows at once where we are, who is there, what they are doing and why today is different (something is about to happen, a deadline the child can feel), in concrete things — every figure's place in it is clear (who is this grown-up, why is she here).",
+  "10. CHILD READER FIRST: early in chapter 1 the youngest listener knows who wants what, why it matters and what goes wrong. Afterwards a child can retell the story in everyday words: what the wonder does, why each attempt makes it worse, what the hero dares and how it ends. Every joke lands for a six-year-old from the visible situation alone.",
   "TAKEN PREMISES: the published Talea series own these — never build a story on them: a fib or a brag that comes true or grows, a spell that only the truth or a confession ends; monsters made of forgotten things.",
 ].join("\n");
 

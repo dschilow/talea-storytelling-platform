@@ -33,6 +33,7 @@ import {
   type Placement,
 } from "../storybook/book/illustrations";
 import type { IllustrationPlan, StoryPlan, StorybookPage } from "../storybook/types";
+import { directSourcePictures } from "../character-series/pictures";
 
 /** Pictures per chapter: two at 0.12 ¢ each are nearly free next to 3 ¢ of text, and they tell the chapter's two halves. */
 export function episodePicturesPerChapter(value = process.env.TALEA_EPISODE_PICTURES): number {
@@ -155,6 +156,53 @@ export async function directEpisodePictures(input: {
     .filter((entity) => entity.kind === "character" && entity.role === "cast" && !drawn.has(entity.id) && chapters.some((chapter) => actsIn(chapter.content, entity.name)))
     .map((entity) => entity.name);
   return { slots, pages, illustrations, placed, notes, changes: enforced.changes, unplaced, director };
+}
+
+/**
+ * Talea-Folge pictures since 2026-11-04 come from the character series' direction (Luna, an exact quote per picture, a
+ * physical beat, a framing, shared object designs; ../character-series/pictures.ts). The user's verdict: the
+ * Figurenabenteuer draw very good pictures, Talea-Folge did not ("Die Brücke spielt weiter" 13 ¢, Merlin drawn as a
+ * boy in "Der Kram läuft hinterher"). Here the family's heroes lead — any of them on the cover and on page 1 — and the
+ * story's own acting figures (pool figures and the new wonder) are the guests who each need a picture.
+ */
+export async function directFolgePictures(input: {
+  llm: StorybookLlm;
+  model: string;
+  brief: StoryBrief;
+  title: string;
+  /** The chapters of the finished story. */
+  pages: StorybookPage[];
+  plan: StoryPlan;
+  entities: VisualEntity[];
+  observe?: (stage: string, payload: Record<string, unknown>) => void | Promise<void>;
+}): Promise<EpisodeDirection> {
+  const wonderId = input.plan.cast.find((member) => /wonder/i.test(member.role))?.id;
+  return directSourcePictures(input, (pageCount, chapters) => {
+    const heroes = input.entities.filter((entity) => entity.role === "hero" && entity.referenceUrl);
+    const guests = input.entities.filter((entity) => entity.kind === "character" && entity.role === "cast" && entity.referenceUrl && chapters.some((chapter) => actsIn(chapter.content, entity.name)));
+    const wonder = guests.find((entity) => entity.id === wonderId);
+    // An avatar without a portrait cannot be drawn; then any picturable figure may lead rather than losing every picture.
+    const leads = heroes.length ? heroes : guests;
+    const leadShare = Math.max(Math.min(2, pageCount), Math.floor(pageCount / 2));
+    const listed = (list: VisualEntity[]) => list.map((entity) => `${entity.id} (${entity.name})`).join(", ");
+    // Character series pilots (2026-11-02): a non-human figure with two children passed 2 of 7 first attempts, with one 3 of 5.
+    const creatureWonder = Boolean(wonder && !wonder.isHuman);
+    return {
+      leadIds: leads.map((entity) => entity.id),
+      guests,
+      coverage: [
+        `HEROES, the family's children and the main characters: ${listed(leads)}. At least one of them on the cover and on page 1, and in at least ${leadShare} of the ${pageCount} page pictures; each of them in at least one page picture, best where their own decisive deed happens.`,
+        guests.length ? `STORY FIGURES (each in at least one page picture, where the figure does the most): ${listed(guests)}.` : "",
+        wonder ? `THE WONDER ${wonder.id} (${wonder.name}) is this story's magic: show it at work in at least two page pictures and on the cover.` : "",
+      ].filter(Boolean).join("\n"),
+      coverageRule: `CAST COVERAGE (see the task): the heroes are the main characters: at least one of them on the cover, on page 1 and in at least half of the page pictures; every hero in at least one page picture, in the part of their own deed; every story figure in at least one page picture, where it does the most. The cover shows ${wonder ? `the wonder at work with ${creatureWonder ? "exactly ONE hero, the one with the biggest part (a non-human figure beside two children came back with doubled children)" : "the heroes reacting to it"}` : "the heroes in an inviting moment of the story's magic"}: the family wants to find its children on the cover.`,
+      drawable: creatureWonder ? " The wonder is not human: a page picture shows it with at most ONE other figure." : "",
+      coverMotif: wonder ? "with the heroes and the wonder at work" : "with the heroes",
+      repairRule: "Cast: at least one hero on the cover, on page 1 and in at least half of the page pictures; every hero in at least one page picture; every listed story figure in at least one page picture.",
+      repairCast: `HEROES ${leads.map((entity) => entity.id).join(", ")}\n${guests.length ? `STORY FIGURES ${guests.map((entity) => entity.id).join(", ")}\n` : ""}`,
+      highlights: storyHighlights(input.plan),
+    };
+  });
 }
 
 export interface ChapterPicture {

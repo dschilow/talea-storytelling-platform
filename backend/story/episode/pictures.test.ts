@@ -5,7 +5,7 @@ import type { VisualEntity } from "../storybook/illustration-stage";
 import type { ImageOutcome } from "../storybook/images";
 import type { LlmCallResult, StorybookLlm } from "../storybook/llm";
 import type { StoryPlan, StorybookPage } from "../storybook/types";
-import { chapterPictures, coverStandIn, directEpisodePictures, directorNote, episodePicturesPerChapter, segmentPlan, storyHighlights, type ChapterPicture } from "./pictures";
+import { chapterPictures, coverStandIn, directEpisodePictures, directFolgePictures, directorNote, episodePicturesPerChapter, segmentPlan, storyHighlights, type ChapterPicture } from "./pictures";
 
 // "Der Riese hinterm Teig" (2026-10-26): the director named paragraph 22 and 58, the story kept one URL per chapter, and
 // Magd Elsa acted in all three chapters while two heroes and the title creature filled every picture.
@@ -142,5 +142,57 @@ describe("story 26fdd23f: the moments a child points at", () => {
     expect(note).toContain("page 1 is half a chapter");
     expect(note).toContain("the title figure Karo visibly doing its magic");
     expect(directorNote(3, 2, "Karo")).not.toContain("PLANNED AROUND");
+  });
+});
+
+describe("Talea-Folge pictures with the Figurenabenteuer's direction (2026-11-04)", () => {
+  const referenced = entities.map((e) => ({ ...e, referenceUrl: `https://ref/${e.id}.webp` }));
+  const beat = (actorId: string, action: string, framing: string) => ({ actorId, action, result: "the moment is visible in the room", framing });
+  const shot = (page: number, paragraph: number, storyQuote: string, onStage: string[], actor: string, action: string, framing = "medium") => ({
+    page, paragraph, storyQuote, onStage, elements: [], visualBeat: beat(actor, action, framing),
+    scene: `In the bakery kitchen, ${onStage.join(" and ")} act out this moment with lively faces and clear gestures.`,
+  });
+  const folgePlan = { ...plan, ruleIntro: "Knisterich wächst bei jedem Schwindel.", pages: [] } as unknown as StoryPlan;
+  const directorPlan = {
+    continuity: [],
+    // Only Adrian of the two heroes: any hero may carry the cover and the first picture.
+    cover: { onStage: ["adrian", "knisterich"], elements: [], visualBeat: beat("knisterich", "unfolds a wing beside the table", "wide"), scene: "In the bakery kitchen Knisterich unfolds a wing while Adrian leaps back laughing." },
+    pages: [
+      shot(1, 5, "Magd Elsa summte vor einem Korb voller Handschuhe.", ["adrian", "elsa"], "elsa", "hums over a basket of gloves"),
+      shot(2, 4, "Knisterich wuchs bis zur Tischkante.", ["alexander", "knisterich"], "knisterich", "grows up to the table edge", "close"),
+      shot(3, 6, "Knisterich zog den Mehlsack über den Kopf.", ["alexander", "knisterich"], "knisterich", "pulls the flour sack over its head", "wide"),
+      shot(4, 6, "Adrian setzte einen Fuß vor.", ["adrian"], "adrian", "steps one foot forward"),
+      shot(5, 8, "Knisterich duckte sich hinter den Teigtrog.", ["alexander", "knisterich"], "knisterich", "ducks behind the dough trough"),
+      shot(6, 8, "Magd Elsa blieb in der Tür stehen.", ["adrian", "elsa"], "elsa", "stops in the doorway"),
+    ],
+  };
+
+  test("the heroes lead, every acting figure is required, the wonder is named and no avatar portrait reaches the director", async () => {
+    const requests: Parameters<StorybookLlm>[0][] = [];
+    const llm: StorybookLlm = async (request) => { requests.push(request); return answer(directorPlan); };
+    const direction = await directFolgePictures({ llm, model: "openai/gpt-6-luna", brief, title: "Der Riese hinterm Teig", pages, plan: folgePlan, entities: referenced });
+    expect(requests.map((request) => request.stage)).toEqual(["series-picture-direction"]);
+    expect(requests[0].model).toBe("openai/gpt-6-luna");
+    // Only the style example: the family's avatar portraits are private.
+    expect(requests[0].imageInputs).toHaveLength(1);
+    expect(requests[0].imageInputs?.some((url) => url.includes("alexander") || url.includes("adrian"))).toBe(false);
+    expect(requests[0].user).toContain("HEROES, the family's children and the main characters: alexander (Alexander), adrian (Adrian)");
+    expect(requests[0].user).toContain("STORY FIGURES");
+    expect(requests[0].user).toContain("THE WONDER knisterich (Knisterich)");
+    expect(requests[0].system).toContain("MOMENTS THE WRITER BUILT THE STORY AROUND");
+    expect(requests[0].system).toContain("The wonder is not human");
+    expect(requests[0].system).not.toContain("SERIES LEAD");
+    expect(direction.illustrations.cover.onStage).toEqual(["adrian", "knisterich"]);
+    expect(direction.unplaced).toEqual([]);
+    expect(direction.placed[0].afterParagraph).toBe(4);
+  });
+
+  test("a figure who acts but stands in no picture sends the plan to its repair", async () => {
+    const withoutElsa = { ...directorPlan, pages: directorPlan.pages.map((page) => page.onStage.includes("elsa") ? shot(page.page, page.paragraph, page.storyQuote, ["adrian"], "adrian", "waves both arms") : page) };
+    const stages: string[] = [];
+    const llm: StorybookLlm = async (request) => { stages.push(request.stage); return answer(request.stage === "series-picture-direction" ? withoutElsa : directorPlan); };
+    const direction = await directFolgePictures({ llm, model: "m", brief, title: "t", pages, plan: folgePlan, entities: referenced });
+    expect(stages).toEqual(["series-picture-direction", "series-picture-plan-repair"]);
+    expect(direction.illustrations.pages.some((page) => page.onStage.includes("elsa"))).toBe(true);
   });
 });

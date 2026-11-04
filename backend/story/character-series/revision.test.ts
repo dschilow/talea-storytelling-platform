@@ -4,7 +4,7 @@ import { applyChapterEdits, runCharacterSeriesTextEngine, seriesLlmBudget } from
 import { seriesAuthoring, seriesBudget, SERIES_MODELS, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, SERIES_IMAGE_REVIEW_EFFORT, SERIES_PICTURE_DIRECTION_MODEL, SERIES_POLICY } from './authoring';
 import { SERIES_NARRATIVES } from './narrative';
 import { withSeriesContext, seriesPrompt } from './core';
-import { directSeriesPictures, generateSeriesImages, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment, seriesReferenceRegions } from './pictures';
+import { directSeriesPictures, generateSeriesImages, readSeriesShotRewrite, seriesRewrittenPrompt, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment, seriesReferenceRegions } from './pictures';
 import { readSeriesQa } from './quality';
 import { SERIES_EDITORIAL_CRAFT } from './editorial';
 import { StorybookSafetyBlock } from '../storybook/llm-guards';
@@ -1029,7 +1029,8 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     ]);
     expect(result.imagesGenerated).toBe(7);
     expect(result.imageCalls).toBe(8);
-    expect(calls).toHaveLength(15); // Seven free failures, seven reads, one checked anatomy repair.
+    expect(calls).toHaveLength(16); // Seven free failures, seven reads, one prompt rewrite (fallback reader), one checked anatomy repair.
+    expect(calls).toContain('series-image-rewrite-3-2');
     expect(calls).toContain('series-image-qa-3-2-fallback');
     expect(calls.some(stage => stage.endsWith('-retry') || stage.endsWith('-recovery'))).toBe(false);
     expect(other.imagesGenerated).toBe(7);
@@ -1285,5 +1286,141 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     // Three characters (lead + both sibling avatars) are supported on one sheet.
     const trio = seriesReferenceRegions(captainAndKids, { actorId: 'captain', action: 'holds the wheel', result: 'the boat turns', framing: 'wide' }, 0, undefined, 1);
     expect(trio).toHaveLength(3);
+  });
+});
+
+// User proposal 2026-11-04: picture + complete prompt → Luna writes the corrected scene → a fresh picture → a new check.
+describe('a redraw from a corrected prompt', () => {
+  const rewrite = { cause: 'The caption gave Nora the rope and the handle at once.', scene: 'In the mountain hut Funkelflug pulls the bell rope with both claws while Nora stands by the doorway and catches the swinging wooden handle in her open hands.', action: 'pulls the bell rope with both claws', result: "the wooden handle swings into Nora's open hands", framing: 'medium', onStage: ['lead', 'kid'] };
+
+  test('Luna reads the failed picture with its complete prompt; the redraw paints her scene fresh, without fix sentences', async () => {
+    const drawings: any[] = [], requests: any[] = [];
+    const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities,
+      imageModel: 'runware:400@6', seed: 'rewrite', visionModel: 'luna', pageTexts: { 1: pages[0].content },
+      buildReference: async () => ({ urls: ['https://example.test/identities.jpg'], mode: 'sprite', subjects: [] }),
+      provider: async r => { drawings.push(r); return { url: `https://example.test/drawing-${drawings.length}.webp` }; },
+      llm: async r => {
+        requests.push(r);
+        if (r.stage.startsWith('series-image-rewrite')) return response(JSON.stringify(rewrite));
+        return imageReview(r.stage, r.stage === 'series-image-qa-1-1' ? { defects: [{ kind: 'anatomy', detail: 'Nora has a third hand.', fix: 'Give Nora two hands.' }] } : {});
+      },
+      policy: { maxImageCalls: 8, imageRetries: 1, imageConcurrency: 1 },
+    });
+    const [first, redraw] = drawings.filter(r => r.page === 1);
+    const ask = requests.find(r => r.stage === 'series-image-rewrite-1-2');
+    expect(ask.model).toBe('luna');
+    expect(ask.imageInputs).toEqual([`https://example.test/drawing-${drawings.indexOf(first) + 1}.webp`, 'https://example.test/identities.jpg']);
+    expect(ask.user).toContain('Nora has a third hand.');
+    expect(ask.user).toContain(first.prompt);
+    expect(ask.user).toContain('Die Glocke bewegte sich.');
+    expect(ask.system).toContain('ignores negations');
+    // A fresh picture, not an edit of the faulty one, and the faults are not named again.
+    expect(redraw.logStage).toBe('series-image-chapter');
+    expect(redraw.referenceImages).toEqual(['https://example.test/identities.jpg']);
+    expect(redraw.prompt.startsWith('In the mountain hut Funkelflug pulls the bell rope')).toBe(true);
+    expect(redraw.prompt).toContain('Funkelflug pulls the bell rope with both claws');
+    expect(redraw.prompt).not.toContain('Correct these observed problems');
+    expect(redraw.prompt).not.toContain('third hand');
+    const page = result.pages.get(1)!;
+    expect(page.status).toBe('passed');
+    expect(page.history?.map(h => h.kind)).toEqual(['series-scene', 'prompt-rewrite', 'rewritten-scene']);
+    expect(page.history?.[1].notes).toEqual([rewrite.cause]);
+  });
+
+  test('a rewrite keeps the moment, the actor and at most one figure less; anything unusable keeps the old repair', () => {
+    const shot = validateSeriesShots(rawPlan(), pages, entities, 'lead').pages[0];
+    expect(readSeriesShotRewrite(rewrite, shot)?.scene).toBe(rewrite.scene);
+    expect(readSeriesShotRewrite(rewrite, shot)?.paragraph).toBe(shot.paragraph);
+    expect(readSeriesShotRewrite({ ...rewrite, onStage: ['kid'] }, shot)?.onStage).toEqual(['lead', 'kid']);
+    expect(readSeriesShotRewrite({ ...rewrite, onStage: ['lead', 'kid', 'stranger'] }, shot)?.onStage).toEqual(['lead', 'kid']);
+    // Two figures less is too much: the scene is used with its whole cast.
+    expect(readSeriesShotRewrite({ ...rewrite, onStage: ['lead'] }, { ...shot, onStage: ['lead', 'kid', 'pia'] })?.onStage).toEqual(['lead', 'kid', 'pia']);
+    expect(readSeriesShotRewrite({ ...rewrite, onStage: ['lead', 'kid'] }, { ...shot, onStage: ['lead', 'kid', 'pia'] })?.onStage).toEqual(['lead', 'kid']);
+    expect(readSeriesShotRewrite({ ...rewrite, action: 'looks at the rope' }, shot)).toBeUndefined();
+    expect(readSeriesShotRewrite({ ...rewrite, scene: 'Too short.' }, shot)).toBeUndefined();
+    expect(readSeriesShotRewrite({ ...rewrite, framing: 'panorama' }, shot)).toBeUndefined();
+    expect(readSeriesShotRewrite(null, shot)).toBeUndefined();
+  });
+
+  test('the complete corrected prompt replaces the code-built one; the slot list, the style and the wordless line come back from the code', async () => {
+    const complete = 'Inside the mountain hut, Funkelflug stands at the left and pulls the bell rope down with both claws. Nora stands at the right by the open doorway and catches the swinging wooden handle in her two open hands. The only figures in the picture are Funkelflug and Nora. Nora has two arms and two hands with five fingers each. The wooden handle is a short round beech grip on a thick hemp rope.';
+    const drawings: any[] = [];
+    await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities,
+      imageModel: 'runware:400@6', seed: 'rewrite-complete', visionModel: 'luna', pageTexts: { 1: pages[0].content },
+      buildReference: async () => ({ urls: ['https://example.test/identities.jpg'], mode: 'sprite', subjects: [] }),
+      provider: async r => { drawings.push(r); return { url: `https://example.test/complete-${drawings.length}.webp` }; },
+      llm: async r => {
+        if (r.stage.startsWith('series-image-rewrite')) return response(JSON.stringify({ ...rewrite, prompt: `${complete}
+IDENTITY SHEET, image 1: copied by mistake.` }));
+        return imageReview(r.stage, r.stage === 'series-image-qa-1-1' ? { defects: [{ kind: 'anatomy', detail: 'Nora has a third hand.', fix: 'Give Nora two hands.' }] } : {});
+      },
+      policy: { maxImageCalls: 8, imageRetries: 1, imageConcurrency: 1 },
+    });
+    const [first, redraw] = drawings.filter(r => r.page === 1);
+    expect(first.prompt).toContain('No additional foreground children');
+    expect(redraw.prompt.startsWith(complete)).toBe(true);
+    expect(redraw.prompt).not.toContain('No additional foreground children');
+    expect(redraw.prompt).not.toContain('copied by mistake');
+    expect(redraw.prompt.match(/IDENTITY SHEET, image 1: slot 1/g)).toHaveLength(1);
+    // Pilot 2026-11-04: without the identity binding Nora lost her glasses and the sheet's portraits floated over the scene.
+    const binding = /Keep each face, hair, species and outfit with its OWN person[^\n]*one continuous full-bleed setting/;
+    expect(first.prompt).toContain('Keep each face, hair, species and outfit with its OWN person');
+    expect(redraw.prompt).toMatch(binding);
+    expect(redraw.prompt).toContain('Nora has an ordinary human silhouette');
+    expect(redraw.prompt).toContain('A wordless illustration.');
+    expect(redraw.prompt).toContain('Use the shared Talea Originals medium');
+  });
+
+  test('a complete prompt that forgets a figure of the cast is not used', () => {
+    const prompt = 'Inside the mountain hut Funkelflug pulls the bell rope down with both claws while the handle swings across the room toward the open doorway. '.repeat(3);
+    expect(seriesRewrittenPrompt(prompt, ['Funkelflug', 'Nora'])).toBeUndefined();
+    expect(seriesRewrittenPrompt(prompt + ' Nora catches it.', ['Funkelflug', 'Nora'])).toContain('Nora catches it.');
+    expect(seriesRewrittenPrompt('Too short with Nora and Funkelflug.', ['Funkelflug', 'Nora'])).toBeUndefined();
+    const shot = validateSeriesShots(rawPlan(), pages, entities, 'lead').pages[0];
+    expect((readSeriesShotRewrite({ ...rewrite, prompt }, shot, { lead: 'Funkelflug', kid: 'Nora' }) as any).promptOverride).toBeUndefined();
+    expect(readSeriesShotRewrite({ ...rewrite, prompt }, shot, { lead: 'Funkelflug', kid: 'Nora' })?.scene).toBe(rewrite.scene);
+  });
+
+  // Pilot 2026-11-04 (Blubbert, chapter 5): the one-figure rescue inherited Luna's two-figure prompt from the wave before.
+  test('the one-figure rescue paints its own solitary scene, never an earlier rewritten prompt', async () => {
+    const complete = 'Inside the mountain hut, Funkelflug stands at the left and pulls the bell rope down with both claws. Nora stands at the right by the open doorway and catches the swinging wooden handle in her two open hands. The only figures in the picture are Funkelflug and Nora. The wooden handle is a short round beech grip on a thick hemp rope.';
+    const drawings: any[] = [];
+    const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities,
+      imageModel: 'runware:400@6', seed: 'rewrite-then-rescue', visionModel: 'luna', chapterByPage: { 1: 1, 2: 2, 3: 3 },
+      pageTexts: { 1: 'Ein Absatz.\n\nFunkelflug zieht das Glockenseil. Die Glocke bewegt sich.\n\nDas Ende.' },
+      buildReference: async () => ({ urls: ['https://example.test/identities.jpg'], mode: 'sprite', subjects: [] }),
+      provider: async r => { drawings.push(r); return { url: `https://example.test/rescue-${drawings.length}.webp` }; },
+      llm: async r => {
+        if (r.stage.startsWith('series-image-rewrite')) return response(JSON.stringify({ ...rewrite, prompt: complete }));
+        if (r.stage === 'series-picture-rescue-plan') return response(JSON.stringify({ pages: [{ page: 1, onStage: ['lead'], storyQuote: 'Funkelflug zieht das Glockenseil.', scene: 'Funkelflug pulls the bell rope.', visualBeat: { actorId: 'lead', action: 'pulls the bell rope down', result: 'the bell starts to swing overhead', framing: 'medium' } }] }));
+        if (r.stage === 'series-image-qa-1-1' || r.stage === 'series-image-qa-1-2') return imageReview(r.stage, { defects: [{ kind: 'identity', detail: 'The dragon is duplicated.', fix: 'Show only one dragon.' }] });
+        return imageReview(r.stage, r.stage === 'series-image-qa-1-3' ? { visibleIds: ['lead'] } : {});
+      },
+    });
+    const [, rewritten, rescue] = drawings.filter(r => r.page === 1);
+    expect(rewritten.prompt.startsWith(complete)).toBe(true);
+    expect(rescue.prompt).toContain('A solitary scene with exactly one character');
+    expect(rescue.prompt).not.toContain('The only figures in the picture are Funkelflug and Nora');
+    const kinds = result.pages.get(1)?.history?.map(h => h.kind);
+    expect(kinds?.at(-1)).toBe('simplified-scene-repair');
+    expect(kinds?.filter(kind => kind === 'prompt-rewrite')).toHaveLength(1);
+  });
+
+  test('TALEA_SERIES_PROMPT_REWRITE=off keeps the old ladder: an edit of the faulty picture', async () => {
+    process.env.TALEA_SERIES_PROMPT_REWRITE = 'off';
+    try {
+      const drawings: any[] = [], stages: string[] = [];
+      await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities,
+        imageModel: 'runware:400@6', seed: 'rewrite-off', visionModel: 'luna', pageTexts: {},
+        buildReference: async () => ({ urls: ['https://example.test/identities.jpg'], mode: 'sprite', subjects: [] }),
+        provider: async r => { drawings.push(r); return { url: `https://example.test/off-${drawings.length}.webp` }; },
+        llm: async r => { stages.push(r.stage); return imageReview(r.stage, r.stage === 'series-image-qa-1-1' ? { defects: [{ kind: 'anatomy', detail: 'Nora has a third hand.', fix: 'Give Nora two hands.' }] } : {}); },
+        policy: { maxImageCalls: 8, imageRetries: 1, imageConcurrency: 1 },
+      });
+      expect(stages.some(stage => stage.startsWith('series-image-rewrite'))).toBe(false);
+      expect(drawings.some(r => r.logStage === 'series-image-edit')).toBe(true);
+    } finally {
+      delete process.env.TALEA_SERIES_PROMPT_REWRITE;
+    }
   });
 });

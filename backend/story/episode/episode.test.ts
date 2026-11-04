@@ -3,8 +3,9 @@ import { describe, expect, test } from "bun:test";
 import { buildBrief } from "../storybook/context";
 import { CostLedger, type LlmRequest } from "../storybook/llm";
 import type { CastCandidate } from "../storybook/types";
-import { childSituationChoices, episodeBudget, episodeProductionLlm, episodeProductionModels, placeChoices, SAMPLE_NAMES, styleSamples, takenNames } from "./craft";
-import { ambiguousPronouns, COUNTING_TITLE, normalizePlan, planFromHeader, tidyParagraphs, readOneShot, readStory, renameTakenNames, resolveEpisodeServiceTier, runEpisodeTextEngine, storyChecks, toStoryPlan } from "./engine";
+import { childSituationChoices, episodeBudget, episodeMaxNewFigures, episodeProductionLlm, episodeProductionModels, placeChoices, SAMPLE_NAMES, styleSamples, takenNames } from "./craft";
+import { seriesBudget } from "../character-series/authoring";
+import { ambiguousPronouns, applyStoryEdits, COUNTING_TITLE, normalizePlan, planFromHeader, tidyParagraphs, readOneShot, readStory, renameTakenNames, resolveEpisodeServiceTier, runEpisodeTextEngine, storyChecks, toStoryPlan } from "./engine";
 import { storyHighlights } from "./pictures";
 import { oneShotSystemPrompt, oneShotUserPrompt, planSystemPrompt, planUserPrompt, writerSystemPrompt, writerUserPrompt } from "./prompts";
 import { episodePoolLead } from "./cast-focus";
@@ -67,11 +68,29 @@ function story(words = 560, extra = ""): string {
 }
 
 describe("Talea-Folge craft", () => {
-  test("three chapters of 500–700 words for a medium story at 6–8", () => {
+  test("the Figurenabenteuer's lengths: three chapters of 450–650 words for a medium story at 6–8", () => {
     const budget = episodeBudget("medium", "6-8");
     expect(budget.pages).toBe(3);
-    expect(budget.totalWordsMin).toBe(1800);
+    expect([budget.wordsPerPageMin, budget.wordsPerPageMax, budget.totalWordsMin, budget.totalWordsMax]).toEqual([450, 650, 1350, 1950]);
     expect(episodeBudget("short", "3-5").totalWordsMax).toBeLessThan(budget.totalWordsMin);
+    for (const band of ["3-5", "6-8", "9-12"] as const) {
+      for (const length of ["short", "medium", "long"] as const) {
+        const own = episodeBudget(length, band), series = seriesBudget(length, band);
+        expect([own.pages, own.wordsPerPageMin, own.wordsPerPageMax]).toEqual([series.pages, series.wordsPerPageMin, series.wordsPerPageMax]);
+      }
+    }
+    expect([episodeMaxNewFigures("3-5"), episodeMaxNewFigures("6-8"), episodeMaxNewFigures("9-12")]).toEqual([1, 1, 2]);
+  });
+
+  test("a small cast, one magic, one running gag, nothing after the final laugh, a look without props", () => {
+    const system = oneShotSystemPrompt(brief());
+    expect(system).toContain("It is the story's ONLY magic");
+    expect(system).toContain("ONE RUNNING GAG");
+    expect(system).toContain("A figure's quirk is shown or said before a joke relies on it");
+    expect(system).toContain("at most about 150 words");
+    expect(system).toContain("CHILD READER FIRST");
+    expect(system).toContain("never an object it carries or uses");
+    expect(oneShotUserPrompt(brief())).toContain("at most 1 new named figure (");
   });
 
   test("child situations and places are drawn per seed, distinct and stable", () => {
@@ -258,41 +277,47 @@ describe("Talea-Folge engine, two-step", () => {
     await standard({ stage: "review", model: "openai/gpt-6.1-terra", role: "critic", system: "", user: "", json: true, maxTokens: 20 });
     expect(calls[3].serviceTier).toBeUndefined();
   });
-  test("production roles: Terra plans and reviews, Sol writes and revises; a checked rewrite replaces the draft", async () => {
+  test("production roles: Haiku reads, Sol repairs only the quoted passage, the recheck keeps the better story", async () => {
     const calls: LlmRequest[] = [];
     const ledger = new CostLedger();
     const llm = async (request: LlmRequest) => {
       calls.push(request);
-      if (request.stage === "episode-plan") return answer(request, JSON.stringify(rawPlan()));
-      if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({ issues: [{ severity: "major", quote: "Bo Bücherfuchs lacht.", problem: "Ein Fehler", change: "Verbessern" }], verdict: "prüfen" }));
+      if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({ issues: [{ severity: "major", quote: "Kuno gähnte.", problem: "Warum Kuno müde ist, bleibt offen.", change: "Die Ursache zeigen." }], verdict: "prüfen" }));
+      if (request.stage === "episode-local-repair") return answer(request, JSON.stringify({ edits: [{ chapter: 1, before: "Kuno gähnte.", after: "Kuno gähnte, denn er hatte die ganze Nacht Treppen gezählt." }] }));
       if (request.stage === "episode-editorial-recheck") return answer(request, JSON.stringify({ issues: [], verdict: "gut" }));
-      return answer(request, request.stage === "episode-editorial-revision" ? story(560, "Verbesserter Schluss.") : story(560));
+      return answer(request, oneShotText());
     };
-    const result = await runEpisodeTextEngine({ llm, brief: brief(), models: episodeProductionModels(), ledger, options: { mode: "two-step", editorialReview: true } });
+    const result = await runEpisodeTextEngine({ llm, brief: brief(), models: episodeProductionModels(), ledger, options: { mode: "one-shot", editorialReview: true } });
     expect(calls.map((call) => [call.stage, call.model])).toEqual([
-      ["episode-plan", "openai/gpt-6.1-terra"], ["episode-write", "openai/gpt-6.1-sol"],
-      ["episode-editorial-review", "openai/gpt-6.1-terra"], ["episode-editorial-revision", "openai/gpt-6.1-sol"],
-      ["episode-editorial-recheck", "openai/gpt-6.1-terra"],
+      ["episode-oneshot", "openai/gpt-6.1-sol"], ["episode-editorial-review", "anthropic/claude-haiku-5.5"],
+      ["episode-local-repair", "openai/gpt-6.1-sol"], ["episode-editorial-recheck", "anthropic/claude-haiku-5.5"],
     ]);
-    expect(ledger.all().map((entry) => entry.modelRole)).toEqual(["support", "selected-story", "support", "selected-story", "support"]);
+    // The writer gets the defect and the manuscript, never a request for a whole new story.
+    expect(calls[2].json).toBe(true);
+    expect(calls[2].user).toContain("Warum Kuno müde ist");
+    // The recheck verifies the addressed finding.
+    expect(calls[3].user).toContain("RECHECK FOCUS");
     expect(result.episode.revised).toBe(true);
-    expect(result.pages[0].content).toContain("Verbesserter Schluss.");
+    expect(result.pages[0].content).toContain("die ganze Nacht Treppen gezählt");
+    expect(result.textQuality?.status).toBe("passed");
   });
 
-  test("unsupported evidence and a failed recheck cannot replace the manuscript", async () => {
+  test("two-step stories are read by the same editor; invented evidence or an unreadable recheck never replaces the manuscript", async () => {
     for (const invalid of ["invented quote", "Bo Bücherfuchs lacht."]) {
       const calls: string[] = [];
       const llm = async (request: LlmRequest) => {
         calls.push(request.stage);
         if (request.stage === "episode-plan") return answer(request, JSON.stringify(rawPlan()));
         if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({ issues: [{ severity: "major", quote: invalid, problem: "Problem", change: "Fix" }] }));
-        if (request.stage === "episode-editorial-recheck") return answer(request, "not JSON");
-        return answer(request, request.stage === "episode-editorial-revision" ? story(560, "Neue Fassung.") : story(560));
+        if (request.stage.startsWith("episode-editorial-recheck")) return answer(request, "not JSON");
+        if (request.stage === "episode-local-repair") return answer(request, JSON.stringify({ edits: [{ chapter: 1, before: "Bo Bücherfuchs lacht.", after: "Neue Fassung." }] }));
+        return answer(request, story(560));
       };
       const result = await runEpisodeTextEngine({ llm, brief: brief(), models: episodeProductionModels(), ledger: new CostLedger(), options: { mode: "two-step", editorialReview: true } });
       expect(result.episode.revised).toBe(false);
       expect(result.pages[0].content).not.toContain("Neue Fassung.");
-      expect(calls.includes("episode-editorial-revision")).toBe(invalid !== "invented quote");
+      expect(calls.includes("episode-local-repair")).toBe(invalid !== "invented quote");
+      expect(result.textQuality?.status).toBe(invalid === "invented quote" ? "unverified" : "failed");
     }
   });
 
@@ -339,57 +364,83 @@ describe("Talea-Folge engine, two-step", () => {
 });
 
 describe("Talea-Folge engine, one-shot", () => {
-  test("the production editorial option actually reads a one-shot, with Terra on flex, and records verification", async () => {
+  test("the production editorial option actually reads a one-shot, with Haiku on flex, and records verification", async () => {
     const calls: LlmRequest[] = [];
     const llm = episodeProductionLlm(async request => {
       calls.push(request);
       return answer(request, request.stage === "episode-editorial-review" ? JSON.stringify({ issues: [], verdict: "ready" }) : oneShotText());
     }, "flex");
     const result = await runEpisodeTextEngine({ llm, brief: brief(), models: episodeProductionModels(), ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true, serviceTier: "flex" } });
-    expect(calls.map(call => [call.stage, call.model, call.serviceTier])).toEqual([["episode-oneshot", "openai/gpt-6.1-sol", "flex"], ["episode-editorial-review", "openai/gpt-6.1-terra", "flex"]]);
+    expect(calls.map(call => [call.stage, call.model, call.serviceTier])).toEqual([["episode-oneshot", "openai/gpt-6.1-sol", "flex"], ["episode-editorial-review", "anthropic/claude-haiku-5.5", "flex"]]);
+    // Haiku thinks before its short JSON answer: the read gets room for it.
+    expect(calls[1].maxTokens).toBe(16000);
     expect(result.textQuality?.status).toBe("passed");
     expect(result.episode.revised).toBe(false);
   });
 
-  test("a one-shot revision keeps its header and must pass the second editorial read", async () => {
+  test("a minor slip the editor fixed in one sentence is patched without a writer call and read again", async () => {
     const calls: string[] = [];
     const llm = async (request: LlmRequest) => {
       calls.push(request.stage);
-      if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({ issues: [{ severity: "major", quote: "Kuno gähnte.", problem: "A missing causal link", change: "Show the cause in the same moment." }] }));
+      if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({ issues: [{ severity: "minor", kind: "continuity", quote: "Kuno gähnte.", problem: "Kuno schläft eben noch.", change: "Er wacht auf.", edit: { before: "Kuno gähnte.", after: "Kuno wachte auf und gähnte." } }] }));
       if (request.stage === "episode-editorial-recheck") return answer(request, JSON.stringify({ issues: [], verdict: "ready" }));
-      return answer(request, oneShotText(560, request.stage === "episode-editorial-revision" ? "Die Kiste blieb im Takt." : ""));
+      return answer(request, oneShotText());
     };
-    const result = await runEpisodeTextEngine({ llm, brief: brief(), models: episodeProductionModels(), ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true } });
-    expect(calls).toEqual(["episode-oneshot", "episode-editorial-review", "episode-editorial-revision", "episode-editorial-recheck"]);
+    const result = await runEpisodeTextEngine({ llm, brief: brief(), models: MODELS, ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true } });
+    expect(calls).toEqual(["episode-oneshot", "episode-editorial-review", "episode-editorial-recheck"]);
     expect(result.episode.guests[0].name).toBe("Kuno");
-    expect(result.pages[0].content).toContain("Die Kiste blieb im Takt.");
+    expect(result.pages[0].content).toContain("Kuno wachte auf und gähnte.");
     expect(result.textQuality?.status).toBe("passed");
     expect(result.episode.revised).toBe(true);
+  });
+
+  test("a typo is corrected for free; two findings at most, the major first", async () => {
+    const llm = async (request: LlmRequest) => {
+      if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({
+        issues: [
+          { severity: "minor", quote: "„Halt!“, rief Adrian.", problem: "eins", change: "x" },
+          { severity: "minor", quote: "Alexander nickte.", problem: "zwei", change: "x" },
+          { severity: "major", quote: "Bo Bücherfuchs lacht.", problem: "drei", change: "x" },
+        ],
+        spelling: [{ severity: "minor", kind: "spelling", quote: "Kuno gähnte. Kuno gähnte.", problem: "typo", change: "x", edit: { before: "gähnte", after: "gähnte" } }],
+      }));
+      if (request.stage === "episode-local-repair") throw new Error("provider unavailable");
+      return answer(request, oneShotText());
+    };
+    const result = await runEpisodeTextEngine({ llm, brief: brief(), models: MODELS, ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true } });
+    expect(result.textQuality?.issues).toContain("drei");
+    expect(result.textQuality?.issues).toContain("eins");
+    expect(result.textQuality?.issues).not.toContain("zwei");
+    expect(result.textQuality?.status).toBe("failed");
   });
 
   test("an unreadable or invented editorial finding cannot make a one-shot verified or replace it", async () => {
     for (const review of ["not JSON", JSON.stringify({ issues: [{ severity: "major", quote: "This sentence is invented.", problem: "bad", change: "rewrite" }] })]) {
       const calls: string[] = [];
-      const llm = async (request: LlmRequest) => { calls.push(request.stage); return answer(request, request.stage === "episode-editorial-review" ? review : oneShotText()); };
+      const llm = async (request: LlmRequest) => { calls.push(request.stage); return answer(request, request.stage.startsWith("episode-editorial-review") ? review : oneShotText()); };
       const result = await runEpisodeTextEngine({ llm, brief: brief(), models: MODELS, ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true } });
-      expect(calls).toEqual(["episode-oneshot", "episode-editorial-review"]);
+      // An unreadable answer gets one fresh read (Haiku once answered broken JSON); invented evidence does not.
+      expect(calls).toEqual(review === "not JSON" ? ["episode-oneshot", "episode-editorial-review", "episode-editorial-review-retry"] : ["episode-oneshot", "episode-editorial-review"]);
       expect(result.textQuality?.status).toBe("unverified");
       expect(result.episode.revised).toBe(false);
     }
   });
 
-  test("an unresolved major issue keeps the original one-shot and remains failed after the bounded revision", async () => {
+  test("an unresolved major issue keeps the original one-shot and remains failed after two bounded repairs", async () => {
     for (const invalidRecheck of [false, true]) {
       const calls: string[] = [];
       const issue = { severity: "major", quote: "Kuno gähnte.", problem: "The essential cause is still missing.", change: "Show the cause." };
       const llm = async (request: LlmRequest) => {
         calls.push(request.stage);
-        if (request.stage === "episode-editorial-recheck" && invalidRecheck) return answer(request, "not JSON");
+        if (request.stage.startsWith("episode-editorial-recheck") && invalidRecheck) return answer(request, "not JSON");
         if (request.role === "critic") return answer(request, JSON.stringify({ issues: [issue] }));
-        return answer(request, oneShotText(560, request.stage === "episode-editorial-revision" ? "Unaccepted revision." : ""));
+        if (request.stage.startsWith("episode-local-repair")) return answer(request, JSON.stringify({ edits: [{ chapter: 1, before: "Kuno gähnte.", after: "Kuno gähnte. Unaccepted revision." }] }));
+        return answer(request, oneShotText());
       };
       const result = await runEpisodeTextEngine({ llm, brief: brief(), models: MODELS, ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true } });
-      expect(calls).toEqual(["episode-oneshot", "episode-editorial-review", "episode-editorial-revision", "episode-editorial-recheck"]);
+      expect(calls).toEqual(invalidRecheck
+        ? ["episode-oneshot", "episode-editorial-review", "episode-local-repair", "episode-editorial-recheck", "episode-editorial-recheck-retry"]
+        : ["episode-oneshot", "episode-editorial-review", "episode-local-repair", "episode-editorial-recheck", "episode-local-repair-2", "episode-editorial-recheck-2"]);
       expect(result.pages[0].content).not.toContain("Unaccepted revision.");
       expect(result.episode.guests[0].name).toBe("Kuno");
       expect(result.episode.revised).toBe(false);
@@ -398,59 +449,20 @@ describe("Talea-Folge engine, one-shot", () => {
     }
   });
 
-  test("personal series repair a newly evidenced recheck issue using the checked candidate and verify again", async () => {
+  test("a repair that breaks a deterministic check is thrown away", async () => {
     const b = brief();
-    b.characterSeries = { bible: { id: "test", characterId: "pool-fox", characterName: "Bo", title: "Test", description: "Test", genres: ["magic"], bible: "A world" }, logs: [] };
-    const calls: LlmRequest[] = [];
-    const firstIssue = { severity: "major", quote: "Kuno gähnte.", problem: "Die Ursache fehlt.", change: "Zeige die Ursache." };
-    const secondIssue = { severity: "major", quote: "Der Schlüssel blieb im Wasser.", problem: "Der Schlüssel wechselt den Ort ohne Ursache.", change: "Zeige, wie er zurückkommt." };
+    b.blockedTerms = ["geheimsperrwort"];
+    const calls: string[] = [];
     const llm = async (request: LlmRequest) => {
-      calls.push(request);
-      if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({ issues: [firstIssue] }));
-      if (request.stage === "episode-editorial-recheck") return answer(request, JSON.stringify({ issues: [secondIssue] }));
-      if (request.stage === "episode-editorial-final-check") return answer(request, JSON.stringify({ issues: [] }));
-      if (request.stage === "episode-editorial-revision") return answer(request, oneShotText(560, "Der Schlüssel blieb im Wasser."));
-      if (request.stage === "episode-editorial-revision-2") return answer(request, oneShotText(560, "Adrian holte den Schlüssel mit einem Stock heraus."));
+      calls.push(request.stage);
+      if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({ issues: [{ severity: "major", quote: "Kuno gähnte.", problem: "Die Ursache fehlt.", change: "Zeige sie." }] }));
+      if (request.stage === "episode-local-repair") return answer(request, JSON.stringify({ edits: [{ chapter: 1, before: "Kuno gähnte.", after: "Das geheimsperrwort ertönte." }] }));
       return answer(request, oneShotText());
     };
     const result = await runEpisodeTextEngine({ llm, brief: b, models: MODELS, ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true } });
-    expect(calls.map(call => call.stage)).toEqual(["episode-oneshot", "episode-editorial-review", "episode-editorial-revision", "episode-editorial-recheck", "episode-editorial-revision-2", "episode-editorial-final-check"]);
-    const second = calls.find(call => call.stage === "episode-editorial-revision-2")!;
-    expect(second.user).toContain("Der Schlüssel blieb im Wasser.");
-    expect(second.user).toContain("Der Schlüssel wechselt den Ort ohne Ursache.");
-    expect(result.pages[0].content).toContain("Adrian holte den Schlüssel");
-    expect(result.textQuality?.status).toBe("passed");
-    expect(result.episode.revised).toBe(true);
-  });
-
-  test("personal series reject a failed, unverified or newly hard-defective second repair", async () => {
-    for (const failure of ["final-major", "final-invalid", "writer-error", "hard", "unsupported", "missing-quote"]) {
-      const b = brief();
-      b.characterSeries = { bible: { id: "test", characterId: "pool-fox", characterName: "Bo", title: "Test", description: "Test", genres: ["magic"], bible: "A world" }, logs: [] };
-      if (failure === "hard") b.blockedTerms = ["geheimsperrwort"];
-      const calls: string[] = [];
-      const firstIssue = { severity: "major", quote: "Kuno gähnte.", problem: "Die Ursache fehlt.", change: "Erkläre sie." };
-      const secondIssue = { severity: "major", quote: failure === "unsupported" ? "Diese Stelle ist erfunden." : failure === "missing-quote" ? "" : "Der Schlüssel blieb im Wasser.", problem: "Der Schlüssel ist plötzlich woanders.", change: "Zeige den Weg." };
-      const llm = async (request: LlmRequest) => {
-        calls.push(request.stage);
-        if (request.stage === "episode-editorial-review") return answer(request, JSON.stringify({ issues: [firstIssue] }));
-        if (request.stage === "episode-editorial-recheck") return answer(request, JSON.stringify({ issues: [secondIssue] }));
-        if (request.stage === "episode-editorial-revision") return answer(request, oneShotText(560, "Der Schlüssel blieb im Wasser."));
-        if (request.stage === "episode-editorial-revision-2") {
-          if (failure === "writer-error") throw new Error("provider unavailable");
-          return answer(request, oneShotText(560, failure === "hard" ? "Das geheimsperrwort ertönte." : "Die zweite Fassung."));
-        }
-        if (request.stage === "episode-editorial-final-check") return answer(request, failure === "final-invalid" ? "not JSON" : JSON.stringify({ issues: [firstIssue] }));
-        return answer(request, oneShotText());
-      };
-      const result = await runEpisodeTextEngine({ llm, brief: b, models: MODELS, ledger: new CostLedger(), options: { mode: "one-shot", editorialReview: true } });
-      expect(result.textQuality?.status).toBe("failed");
-      expect(result.episode.revised).toBe(false);
-      expect(result.pages[0].content).not.toContain("Die zweite Fassung.");
-      expect(result.pages[0].content).not.toContain("Der Schlüssel blieb im Wasser.");
-      if (["unsupported", "missing-quote"].includes(failure)) expect(calls).not.toContain("episode-editorial-revision-2");
-      if (failure === "hard") expect(calls).not.toContain("episode-editorial-final-check");
-    }
+    expect(calls).not.toContain("episode-editorial-recheck");
+    expect(result.pages[0].content).not.toContain("geheimsperrwort");
+    expect(result.textQuality?.status).toBe("failed");
   });
 
   test("one call: header gives cast and artifact, chapters come from the text", async () => {
@@ -551,11 +563,11 @@ describe("clear pronouns, honest titles, a fuller story", () => {
     expect(storyChecks(readStory(story(600)).chapters, plan, b).soft.some((issue) => issue.includes("counts things"))).toBe(false);
   });
 
-  test("ages 6-8 get 600–800 words per chapter, and the writer is told about pronouns, titles and new attempts", () => {
+  test("ages 6-8 get 450–650 words per chapter, and the writer is told about pronouns, titles and new attempts", () => {
     const budget = episodeBudget("medium", "6-8");
-    expect([budget.wordsPerPageMin, budget.wordsPerPageMax, budget.totalWordsMin, budget.totalWordsMax]).toEqual([600, 800, 1800, 2400]);
+    expect([budget.wordsPerPageMin, budget.wordsPerPageMax, budget.totalWordsMin, budget.totalWordsMax]).toEqual([450, 650, 1350, 1950]);
     expect(episodeBudget("long", "6-8").totalWordsMin).toBe(2400);
-    expect(episodeBudget("short", "6-8").totalWordsMax).toBe(1600);
+    expect(episodeBudget("short", "6-8").totalWordsMax).toBe(800);
     const prompt = oneShotSystemPrompt(brief());
     expect(prompt).toContain("natural pronouns carry the same actor");
     expect(prompt).toContain("A chapter title never counts anything");
@@ -565,5 +577,21 @@ describe("clear pronouns, honest titles, a fuller story", () => {
   test("every line break is a paragraph break, so reader, PDF and picture placement count the same paragraphs", () => {
     expect(tidyParagraphs("Eins.\nZwei.\n\n\nDrei.  \n")).toBe("Eins.\n\nZwei.\n\nDrei.");
     expect(tidyParagraphs("")).toBe("");
+  });
+});
+
+// Pilot 2026-11-04 „Das Zelt mit Blasenbauch“: the editor found a chapter title that promised what the chapter did not keep.
+describe("local repairs", () => {
+  const chapters = readStory(story(20)).chapters;
+  test("a heading line changes the chapter title; text edits work as before; anything else is refused", () => {
+    const edited = applyStoryEdits(chapters, [
+      { chapter: 2, before: "KAPITEL 2: Noch mehr Beine", after: "KAPITEL 2: Beine im Flur" },
+      { chapter: 3, before: "Alexander nickte.", after: "Alexander nickte langsam." },
+    ]);
+    expect(edited.map((chapter) => chapter.title)).toEqual(["Fracht mit Füßen", "Beine im Flur", "Zu zweit"]);
+    expect(edited[2].text).toContain("Alexander nickte langsam.");
+    expect(chapters[1].title).toBe("Noch mehr Beine");
+    expect(() => applyStoryEdits(chapters, [{ chapter: 2, before: "KAPITEL 2: Ein anderer Titel", after: "KAPITEL 2: Neu" }])).toThrow("exact passage");
+    expect(() => applyStoryEdits(chapters, [])).toThrow();
   });
 });

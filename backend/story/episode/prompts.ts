@@ -9,7 +9,7 @@ import { isGerman } from "../storybook/craft";
 import { broughtArtifact, heroIdOf, type StoryBrief } from "../storybook/context";
 import { artifactSheetEn, castSheetEn, heroSheetEn, wishLinesEn } from "../storybook/oneshot-prompt-en";
 import { learningGoal, learningWriterLinesEn } from "../storybook/learning";
-import { childSituationChoices, FAMILY_RULE_EN, GENRE_METHOD_EN, METHOD_EN, placeChoices, styleSamples, takenNamesLine, writingRulesEn } from "./craft";
+import { childSituationChoices, episodeMaxNewFigures, FAMILY_RULE_EN, GENRE_METHOD_EN, METHOD_EN, placeChoices, styleSamples, takenNamesLine, writingRulesEn } from "./craft";
 import type { EpisodePlan } from "./types";
 import { episodeCastFocus, episodePoolLead } from "./cast-focus";
 import { seriesPrompt } from "../character-series/core";
@@ -24,16 +24,16 @@ function chapterRhythm(chapters: number): string[] {
   if (chapters <= 2) {
     return [
       "Chapter 1: arrive in the heroes' world with the figures in action, the child situation, the trigger, the wonder's first effect, briefly great — then the first escalation and a hook.",
-      "Chapter 2: the easy way makes it worse, the near-discovery, a short quiet moment, the courage in front of others, the rule resolves it, warm ending with the callbacks and the final laugh.",
+      "Chapter 2: the easy way makes it worse, a near-discovery when a grown-up is around, a short quiet moment, the courage in front of others, the rule resolves it, a short warm ending with the callback and the final laugh.",
     ];
   }
   const middle = chapters - 2;
   return [
     "Chapter 1: arrive in the heroes' world with the figures in action, the child situation and its pressure, the trigger, the wonder's first small effect — briefly great. End on a funny hook that shows the catch.",
     middle === 1
-      ? "Chapter 2: the catch escalates; the easy-way attempts make it worse; a grown-up almost discovers it; a quiet moment where someone admits a weakness. Every attempt brings something new (a new problem, a clue, a figure who changes) — never the same failure twice; the chapter ends in a stranger or worse place than it began, on a hook."
-      : `Chapters 2–${chapters - 1}: the catch escalates step by step; the easy-way attempts each make it worse and each brings something new (a new problem, a clue, a figure who changes), never the same failure twice; a grown-up almost discovers it; the troublemaker's plan runs in parallel; in chapter ${chapters - 1} the quiet moment. Each chapter ends on a hook.`,
-    `Chapter ${chapters}: everything collides at the worst moment (the troublemaker's slapstick often triggers it); the courage in front of others; the rule resolves it; the warm reaction; the thing done right for real; the callbacks of the running gags; the final laugh.`,
+      ? "Chapter 2: the catch escalates; the easy-way attempts make it worse; a grown-up who is around almost discovers it; a quiet moment where someone admits a weakness. Every attempt brings something new (a new problem, a clue, a figure who changes) — never the same failure twice; the chapter ends in a stranger or worse place than it began, on a hook."
+      : `Chapters 2–${chapters - 1}: the catch escalates step by step; the easy-way attempts each make it worse and each brings something new (a new problem, a clue, a figure who changes), never the same failure twice; a grown-up who is around almost discovers it; a troublemaker's plan collides with the problem; in chapter ${chapters - 1} the quiet moment. Each chapter ends on a hook.`,
+    `Chapter ${chapters}: everything collides at the worst moment; the courage in front of others, told live as a real scene; the rule resolves it in one moment; then at most about 150 words: the warm reaction, the thing done right for real, the callback of the running gag and the final laugh — the story stops there.`,
   ];
 }
 
@@ -148,7 +148,7 @@ function storyBriefLines(brief: StoryBrief, sizeHint: string): string[] {
     for (const candidate of brief.candidates) lines.push(castSheetEn(candidate));
     lines.push("");
   }
-  lines.push(`NEW FIGURES: besides the heroes and the pool, at most ${brief.band === "3-5" ? 1 : 2} new figures (the wonder itself counts if it is a someone) — each with a name, a voice and a concrete English look. One extra grown-up without a name may appear briefly.`);
+  lines.push(`NEW FIGURES: besides the heroes and the pool, at most ${episodeMaxNewFigures(brief.band)} new named figure${episodeMaxNewFigures(brief.band) > 1 ? "s" : ""} (the wonder itself counts if it is a someone) — with a name, a voice and a concrete English look. One extra grown-up without a name may appear briefly, only where the plot needs them.`);
   lines.push("");
   const brought = broughtArtifact(brief);
   if (brought) {
@@ -187,7 +187,7 @@ export function oneShotSystemPrompt(brief: StoryBrief): string {
     "IDEE: <the chosen idea in one line>",
     "REGEL: <the wonder's one rule, one sentence a child can repeat>",
     "FIGUR: <name> | pool | <pool id> | <companion|troublemaker|grownup|wonder>   (one line per pool figure in the story)",
-    "FIGUR: <name> | neu | <companion|troublemaker|grownup|wonder> | <human|animal|creature|thing> | <concrete English look for the illustrator>   (one line per new named figure; never the heroes — the app knows them)",
+    "FIGUR: <name> | neu | <companion|troublemaker|grownup|wonder> | <human|animal|creature|thing> | <concrete English look for the illustrator: body, face, clothes and colours only, never an object it carries or uses (a troll's „rolled purple carpet“ was painted as purple trousers); a look of its own that no famous film, TV, game or book character has (a green troll in a red vest and brown trousers was painted as a well-known film ogre)>   (one line per new named figure; never the heroes — the app knows them)",
     "FUNDSTÜCK: <artifact id, or keins>",
     "WIRKUNG: <the wonder's first visible effect in chapter 1, in one line>",
     "LACHER: <chapter number> | <the funniest moment of that chapter a child could see in a picture>   (one line per chapter)",

@@ -1,5 +1,5 @@
 import { api, APIError } from "encore.dev/api";
-import type { StoryImageStyleId } from "../ai/image-style";
+import { storyImageStyleProfile, type StoryImageStyleId } from "../ai/image-style";
 import { secret } from "encore.dev/config";
 import { generateStoryContent } from "./ai-generation";
 import { generateStoryDevMode, pickDevModePoolCharacters, recordDevModePoolCharacterUsage } from "./dev-mode-generation";
@@ -489,6 +489,9 @@ function stripAdminOnlyStoryOptions(config: StoryConfig): StoryConfig {
       ? { useFairyTaleTemplate: config.preferences.useFairyTaleTemplate }
       : undefined,
     broughtArtifact: config.broughtArtifact,
+    // The wizard's picture style (Figurenabenteuer, Talea-Folge): only a catalogue id, never a prompt. It was dropped here
+    // until 2026-11-04, so every family got the default style whatever it chose.
+    imageStyle: storyImageStyleProfile(config.imageStyle) ? config.imageStyle : undefined,
     ...customerStoryLane(config, process.env.TALEA_CUSTOMER_STORY_ENGINE),
   };
 }

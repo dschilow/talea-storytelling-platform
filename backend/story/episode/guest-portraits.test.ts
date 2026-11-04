@@ -2,7 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import { MODERN_CHILDRENS_BOOK_STYLE, type VisualEntity } from "../storybook/illustration-stage";
 import { generateStorybookImages, type ImageRequest } from "../storybook/images";
-import { prepareGuestPortraits } from "./guest-portraits";
+import { prepareGuestPortraits, type PortraitCheck } from "./guest-portraits";
 
 const kork: VisualEntity = { id: "kork", name: "Kork", kind: "character", role: "cast", species: "thing", isHuman: false,
   appearance: "Palm-sized brass snail with a round copper shell, broad flat foot, hinged mouth and tiny blue captain's hat", forbidden: [] };
@@ -19,7 +19,7 @@ describe("story-local guest portraits", () => {
     expect(requests).toHaveLength(1);
     expect(requests[0].prompt).toContain("brass snail");
     expect(requests[0].prompt).not.toContain("standing upright");
-    expect(prepared.portraits).toEqual([{ id: "kork", name: "Kork", url: "stored:kork", status: "ready" }]);
+    expect(prepared.portraits).toEqual([{ id: "kork", name: "Kork", url: "stored:kork", status: "ready", attempts: 1 }]);
     expect(prepared.costUSD).toBe(.002);
     const sheets: string[][] = [];
     const shot = (page: number, onStage: string[]) => ({ page, scene: "A scene in a garden.", onStage, artifactVisible: false });
@@ -88,5 +88,36 @@ describe("story-local guest portraits", () => {
     expect(requests.every((request) => request.referenceImages.length === 1)).toBe(true);
     expect(result.regenerated).toEqual([0]);
     expect(result.cover?.status).toBe("passed");
+  });
+
+  // Pilot 2026-11-04: the telescope's portrait had a third hand, and five of seven pictures failed on it.
+  test("a portrait the check rejects is drawn once more with another seed; a failing reader never blocks it", async () => {
+    const seeds: number[] = [];
+    const provider = async (request: ImageRequest) => { seeds.push(request.seed); return { url: `stored:${seeds.length}`, viewUrl: `https://example.test/${seeds.length}.jpg`, costUSD: .001 }; };
+    const verdicts: Array<boolean | "error"> = [false, true];
+    const check: PortraitCheck = async () => {
+      const next = verdicts.shift();
+      if (next === "error") throw new Error("reader down");
+      return { ok: Boolean(next), problems: next ? [] : ["a third hand on the tube"] };
+    };
+    const redrawn = await prepareGuestPortraits({ entities: [hero, kork], guestIds: ["kork"], seed: "story", provider, readableReference: async () => undefined, check });
+    expect(seeds).toHaveLength(2);
+    expect(seeds[0]).not.toBe(seeds[1]);
+    expect(redrawn.calls).toBe(2);
+    expect(redrawn.portraits[0]).toMatchObject({ url: "stored:2", status: "ready", attempts: 2 });
+    expect(redrawn.entities.find((entity) => entity.id === "kork")?.referenceUrl).toBe("https://example.test/2.jpg");
+
+    seeds.length = 0;
+    verdicts.push("error");
+    const unread = await prepareGuestPortraits({ entities: [hero, kork], guestIds: ["kork"], seed: "story", provider, readableReference: async () => undefined, check });
+    expect(seeds).toHaveLength(1);
+    expect(unread.portraits[0]).toMatchObject({ status: "ready", attempts: 1 });
+
+    // Two rejected portraits: the second is kept, with what the reader saw.
+    seeds.length = 0;
+    verdicts.push(false, false);
+    const twice = await prepareGuestPortraits({ entities: [hero, kork], guestIds: ["kork"], seed: "story", provider, readableReference: async () => undefined, check });
+    expect(seeds).toHaveLength(2);
+    expect(twice.portraits[0]).toMatchObject({ status: "ready", attempts: 2, problems: ["a third hand on the tube"] });
   });
 });

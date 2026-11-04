@@ -36,6 +36,65 @@ interface SeriesShot extends IllustrationShot {
   planningRecovery?: string[];
   /** A malformed cover plan reused this valid, source-grounded chapter motif instead of losing the paid manuscript. */
   coverSourcePage?: number;
+  /** Luna rewrote this scene after reading the failed picture next to its full prompt (`readSeriesShotRewrite`). */
+  rewritten?: boolean;
+  rewriteCause?: string;
+  /** Luna's complete corrected prompt, without the four parts the code adds back (identity line with its binding, object references, style, wordless line). */
+  promptOverride?: string;
+}
+
+/**
+ * A redraw with a corrected prompt (user proposal, 2026-11-04): Luna sees the failed picture, the identity sheet, the
+ * COMPLETE prompt it was drawn from, the story passage and every finding (her review, Jev, the panel check), finds what in
+ * the prompt caused each fault and rewrites the scene part. Until then a redraw kept the scene and appended "Correct these
+ * observed problems: …" or edited the old picture; in the pilots of 2026-11-04 those repairs fixed 3 of 14 pictures, and
+ * a painter that draws every noun it reads paints "a second bear" when a fix names it. The fixed blocks of the prompt
+ * (identity sheet, anatomy, object designs, style) stay with the code: they carry the measured fixes of v20–v27.
+ */
+export const SERIES_PROMPT_REWRITE = [
+  'You correct an illustration prompt for FLUX.2 klein, an image model that paints a children\'s book scene from one identity sheet. It paints every noun it reads and ignores negations: "no additional children", "without letters" or "not a second bear" bring exactly those children, letters and that bear into the picture.',
+  'You get: image 1 = the picture drawn from the prompt; image 2 (when present) = the identity sheet, not part of the scene; the COMPLETE prompt; the story passage the picture must show; the reviewers\' findings.',
+  'First find, for each finding, what in the prompt caused it: a sentence that names what must not appear, a crowded or repeated caption, two figures given the same place, a held object nobody holds, a word that brings writing (sign, label, poster, notice, title), an object named twice, an action the model could not stage.',
+  'Then write the corrected COMPLETE prompt. Four parts are added back by the code unchanged, so leave them out: the IDENTITY SHEET line (which slot is which figure, faces and outfits stay with their owner, the anatomy of each human, one continuous setting), the OBJECT REFERENCES line, the art style paragraphs and the wordless line. Everything else is yours: the scene, the visible moment, who is in the picture, the anatomy of non-human figures, the object designs, the props. Keep what serves the picture, drop what caused a fault, say each thing once:',
+  '- The same story moment from the passage, the same place and the same acting figure. Never invent another event or prop.',
+  '- Only positive, visible statements. Never name a fault, a missing thing or something to avoid. Instead of "No additional children" write "The only people in the picture are Nora and Ben".',
+  '- Name every figure of the cast exactly once, each with its own position in depth and its own action or gaze; name who holds each held object. Do not describe the referenced figures\' faces, hair or clothes: the identity sheet supplies them. State the anatomy of a non-human figure once as a positive sentence (two arms, four paws, one tail); the code states it for humans.',
+  '- Keep each story object\'s design (material, colour, shape, size) as one sentence. Plain objects without words: shelves with plain boxes, a blank board, closed books. Fewer props rather than more.',
+  '- If a figure was doubled, merged or an extra figure appeared in a picture of THREE figures, you may drop ONE figure that is not the actor; otherwise keep the cast.',
+  'Return JSON {"cause":"one short sentence: what in the prompt caused the faults","prompt":"the corrected complete prompt without the four code parts, 500–2500 characters","scene":"the scene as a 35–90 word English caption for the reviewer, starting with the place","action":"English physical verb phrase of the acting figure","result":"what is visibly the case in this one still","framing":"wide|medium|close","onStage":["ids of the figures that remain"]}.',
+].join('\n');
+
+/** A rewrite keeps the moment, the actor and (minus at most one) the cast; anything else falls back to the old repair. */
+export function readSeriesShotRewrite(raw: any, shot: IllustrationShot, names?: Record<string, string>): IllustrationShot | undefined {
+  const original = shot as SeriesShot;
+  const scene = typeof raw?.scene === 'string' ? raw.scene.replace(/\s+/g, ' ').trim() : '';
+  const action = typeof raw?.action === 'string' ? raw.action.trim() : '';
+  const result = typeof raw?.result === 'string' ? raw.result.trim() : '';
+  const framing = typeof raw?.framing === 'string' ? raw.framing.trim().toLowerCase() : '';
+  if (scene.length < 45 || scene.length > 1200 || action.length < 3 || action.length > 220 || NON_VISUAL_ACTION.test(action)
+    || result.length < 3 || result.length > 260 || HIDDEN_IDENTITY.test(result) || !['wide', 'medium', 'close'].includes(framing)) return undefined;
+  const actorId = original.visualBeat?.actorId || shot.onStage[0];
+  const ids: string[] = Array.isArray(raw?.onStage) ? [...new Set<string>(raw.onStage.filter((id: unknown): id is string => typeof id === 'string'))] : shot.onStage;
+  const onStage = ids.length >= Math.max(1, shot.onStage.length - 1) && ids.every(id => shot.onStage.includes(id)) && ids.includes(actorId) ? ids : shot.onStage;
+  const boxes = original.boxes ? Object.fromEntries(Object.entries(original.boxes).filter(([id]) => onStage.includes(id))) : undefined;
+  const promptOverride = seriesRewrittenPrompt(raw?.prompt, onStage.map(id => names?.[id] || id));
+  return { ...original, scene, onStage, visualBeat: { actorId, action, result, framing: framing as SeriesVisualBeat['framing'] },
+    ...(boxes ? { boxes } : {}), ...(promptOverride ? { promptOverride } : {}),
+    rewritten: true, rewriteCause: typeof raw?.cause === 'string' ? raw.cause.slice(0, 300) : undefined } as SeriesShot;
+}
+
+/**
+ * Luna's complete prompt is used when it names every remaining figure and stays in size; the code-owned parts she was
+ * told to leave out are cut if she copied them anyway, and words that bring writing reach the painter as plain surfaces.
+ * Otherwise the redraw uses her rewritten scene inside the code-built prompt.
+ */
+export function seriesRewrittenPrompt(value: unknown, castNames: string[]): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const kept = value.split(/\n+/).map(line => line.trim()).filter(line => line && !/^(?:IDENTITY SHEET|STYLE REFERENCE|OBJECT REFERENCES)\b/i.test(line) && !/^A wordless illustration\.?$/i.test(line));
+  const prompt = seriesWordlessCaption(kept.join('\n')).trim();
+  if (prompt.length < 300 || prompt.length > 3500) return undefined;
+  const named = (name: string) => [name, ...name.split(/\s+/).filter(part => part.length >= 3)].some(part => new RegExp(`(?<![\\p{L}])${part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu').test(prompt));
+  return castNames.every(named) ? prompt : undefined;
 }
 
 export type SeriesIllustrationPlan = IllustrationPlan & { continuity?: SeriesVisualContract[] };
@@ -270,10 +329,15 @@ class SeriesPicturePlanError extends Error {
   }
 }
 
-/** Every shot keeps its dramatic subject; a failed picture never turns into an avatar portrait. */
-export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: VisualEntity[], leadId: string, rules: SeriesShotRules = {}): SeriesIllustrationPlan {
+/**
+ * Every shot keeps its dramatic subject; a failed picture never turns into an avatar portrait. `leadId` is the series
+ * lead, or several figures of whom any one leads (Talea-Folge: the family's heroes).
+ */
+export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: VisualEntity[], leadId: string | readonly string[], rules: SeriesShotRules = {}): SeriesIllustrationPlan {
   // Every pictured identity needs an existing reference; a style example must never supply a missing guest.
   const ids = new Set(entities.filter(e => e.kind === 'character' && e.referenceUrl).map(e => e.id));
+  const leadIds: readonly string[] = typeof leadId === 'string' ? [leadId] : leadId;
+  const hasLead = (onStage: string[]) => onStage.some(id => leadIds.includes(id));
   const ordinal = (value: unknown): number | undefined => {
     const number = typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value) : value;
     return typeof number === 'number' && Number.isSafeInteger(number) && number >= 0 ? number : undefined;
@@ -290,7 +354,7 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
   const shot = (candidate: any, page: number, allowSceneFallback = rules.allowSceneFallback): SeriesShot => {
     const onStage = Array.isArray(candidate?.onStage) ? [...new Set<string>(candidate.onStage.map(resolveId))] : [];
     if (!onStage.length || onStage.length > 3 || onStage.some(id => !ids.has(id)) || typeof candidate?.scene !== 'string' || candidate.scene.length < 45 || candidate.scene.length > 1900) throw new Error('Die Serienbildplanung hat keine klare, gültige Besetzung.');
-    if ((page === 0 || page === 1) && !onStage.includes(leadId)) throw new Error('Die Serienhauptfigur fehlt in ihrem Titel- oder Einstiegsbild.');
+    if ((page === 0 || page === 1) && !hasLead(onStage)) throw new Error('Die Serienhauptfigur fehlt in ihrem Titel- oder Einstiegsbild.');
     const pageParagraphs = page > 0 ? pages[page - 1]?.content.split(/\n\n/) || [] : [];
     const quote: string = typeof candidate.storyQuote === 'string' ? candidate.storyQuote.trim() : '';
     // Models quote German „…“ as straight quotes; only the words have to be the chapter's own.
@@ -380,8 +444,8 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
     // 9019823b and 23302f05 lost their completed text on the cover's visualBeat schema. Reuse a chapter motif that
     // passed every cast, evidence and physical-action check; never manufacture a new action or accept an invalid cast.
     const heroes = entities.filter(e => e.role === 'hero' && e.referenceUrl);
-    const source = pageShots.find(p => p.onStage.includes(leadId) && p.onStage.some(id => heroes.some(e => e.id === id)))
-      || pageShots.find(p => p.onStage.includes(leadId));
+    const source = pageShots.find(p => hasLead(p.onStage) && p.onStage.some(id => heroes.some(e => e.id === id)))
+      || pageShots.find(p => hasLead(p.onStage));
     if (!source) throw error;
     const { paragraph: _paragraph, storyQuote: _quote, ...motif } = source;
     cover = { ...motif, page: 0, coverSourcePage: source.page, onStage: [...source.onStage],
@@ -389,7 +453,7 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
       scene: `${source.scene} Distinct wide cover composition of this same story moment, with the lead's face clearly visible.` } as SeriesShot;
   }
   const plan = { cover, pages: pageShots, storyElements: [], continuity: readSeriesVisualContracts(raw?.continuity, pages) };
-  const leadPictures = plan.pages.filter((p: IllustrationShot) => p.onStage.includes(leadId)).length;
+  const leadPictures = plan.pages.filter((p: IllustrationShot) => hasLead(p.onStage)).length;
   if (leadPictures < Math.min(2, pages.length)) throw new Error('Die Serienhauptfigur verschwindet aus ihren Kapitelbildern.');
   const heroes = entities.filter(e => e.role === 'hero' && e.referenceUrl);
   const capacity = pages.length * 2 - Math.min(2, pages.length);
@@ -413,6 +477,33 @@ export function validateSeriesShots(raw: any, pages: StorybookPage[], entities: 
   return plan;
 }
 
+/**
+ * Who the picture director has to place where. The character series names its lead and its recurring guests; Talea-Folge
+ * names the family's heroes as leads (any one of them) and the story's own acting figures as guests (../episode/pictures.ts).
+ */
+export interface SourcePictureCast {
+  /** At least one of them is on the cover, on page 1 and in about half of the page pictures. */
+  leadIds: string[];
+  /** Acting supporting figures with a portrait: each in at least one page picture. */
+  guests: VisualEntity[];
+  /** REQUIRED CAST COVERAGE of the task. */
+  coverage: string;
+  /** The CAST COVERAGE rule of the system prompt. */
+  coverageRule: string;
+  /** Appended to the DRAWABLE rule (a creature lead). */
+  drawable: string;
+  /** Who the cover shows, in the composition rule ("with the lead and avatars"). */
+  coverMotif: string;
+  /** The repair's cast rule and the cast lines of its task. */
+  repairRule: string;
+  repairCast: string;
+  /** Image 1 of the direction: a PUBLIC portrait. Private avatar portraits never go to the director. */
+  publicReference?: VisualEntity;
+  firstEncounter?: boolean;
+  /** Moments the writer built the story around (Talea-Folge: the planned laughs and the wonder's first effect). */
+  highlights?: string[];
+}
+
 export async function directSeriesPictures(input: {
   llm: StorybookLlm; model: string; brief: StoryBrief; title: string; pages: StorybookPage[];
   plan?: StoryPlan; entities: VisualEntity[];
@@ -420,6 +511,43 @@ export async function directSeriesPictures(input: {
 }): Promise<EpisodeDirection> {
   const series = input.brief.characterSeries!;
   const leadId = series.bible.characterId;
+  const episode = effectiveSeriesEpisode(series.logs, series.episodeOverride);
+  const firstEncounter = episode === 1 && logsForEpisode(series.logs, series.episodeOverride).length === 0;
+  return directSourcePictures(input, (pageCount, chapters) => {
+    const heroes = input.entities.filter(e => e.role === 'hero' && e.referenceUrl);
+    const guests = input.entities.filter(e => e.kind === 'character' && e.role === 'cast' && e.id !== leadId && e.referenceUrl && chapters.some(c => actsIn(c.content, e.name)));
+    // Pilots 2026-11-02, first attempts: three figures passed 8 of 16 with a human lead and 2 of 7 with the dragon
+    // (doubled children, a second dragon, the dragon missing); two figures passed 10 of 12 and 3 of 5.
+    const creatureLead = input.entities.some(e => e.id === leadId && !e.isHuman);
+    const leadShare = Math.max(Math.min(2, pageCount), Math.floor(pageCount / 2));
+    return {
+      leadIds: [leadId], guests, firstEncounter,
+      // Only the shared fictional pool lead is newly shown to the director. Private avatar portraits stay out.
+      publicReference: input.entities.find(e => e.id === leadId && e.role === 'cast'),
+      coverage: [
+        `SERIES LEAD ${leadId}: on the cover, on page 1 and in at least ${leadShare} of the ${pageCount} page pictures.`,
+        heroes.length ? `AVATARS (each in at least one page picture, better two, in the part of their own contribution; at least one of them beside the lead on the cover): ${heroes.map(e => `${e.id} (${e.name})`).join(', ')}.` : '',
+        guests.length ? `RECURRING GUEST${guests.length > 1 ? 'S' : ''} OF THIS EPISODE (in at least one page picture, where the guest does the most): ${guests.map(e => `${e.id} (${e.name})`).join(', ')}.` : '',
+      ].filter(Boolean).join('\n'),
+      coverageRule: `CAST COVERAGE (see the task): the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture, in the part of its own contribution; every recurring guest of the episode in at least one page picture, where the guest does the most. The cover shows the lead WITH ${creatureLead ? 'exactly ONE avatar, the one with the biggest part (this lead is not human, and its three-figure pictures came back with doubled children or a missing creature)' : 'the avatars (all of them when lead and avatars are at most three, otherwise those with the biggest part)'}: the family wants to find its children on the cover.`,
+      drawable: creatureLead ? ' This lead is not human: every picture shows it with at most ONE other figure.' : '',
+      coverMotif: 'with the lead and avatars',
+      repairRule: 'Cast: the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture; at least one avatar beside the lead on the cover; every listed recurring guest in at least one page picture.',
+      repairCast: `LEAD ${leadId}\nAVATARS ${heroes.map(e => e.id).join(', ')}\n${guests.length ? `RECURRING GUESTS ${guests.map(e => e.id).join(', ')}\n` : ''}`,
+    };
+  });
+}
+
+/**
+ * Luna directs the finished story: one picture per reading segment (two per chapter), each from an exact quote of its
+ * segment, with a physical action, a framing and the shared designs of the story's objects. The cast rules come from
+ * `castFor`; everything else is the character series' proven direction.
+ */
+export async function directSourcePictures(input: {
+  llm: StorybookLlm; model: string; brief: StoryBrief; title: string; pages: StorybookPage[];
+  plan?: StoryPlan; entities: VisualEntity[];
+  observe?: (stage: string, payload: Record<string, unknown>) => void | Promise<void>;
+}, castFor: (pageCount: number, chapters: Array<{ order: number; content: string }>) => SourcePictureCast): Promise<EpisodeDirection> {
   const perChapter = SERIES_POLICY.picturesPerChapter;
   const chapters = input.pages.map(p => ({ order: p.order, content: p.content }));
   // Two pictures per chapter (story ff6eff04 had four pictures for 1,400 words): every chapter is cut into reading
@@ -427,22 +555,10 @@ export async function directSeriesPictures(input: {
   // Talea-Folge machinery (../episode/pictures.ts).
   const slots = buildImageSlots(chapters, { chapters: [] }, perChapter);
   const pages = pagesFor(slots);
-  const episode = effectiveSeriesEpisode(series.logs, series.episodeOverride);
-  const firstEncounter = episode === 1 && logsForEpisode(series.logs, series.episodeOverride).length === 0;
-  const heroes = input.entities.filter(e => e.role === 'hero' && e.referenceUrl);
-  const guests = input.entities.filter(e => e.kind === 'character' && e.role === 'cast' && e.id !== leadId && e.referenceUrl && chapters.some(c => actsIn(c.content, e.name)));
+  const cast = castFor(pages.length, chapters);
+  const { guests, firstEncounter, coverage } = cast;
   const rules: SeriesShotRules = { strict: true, guestIds: guests.map(e => e.id) };
-  // Only the shared fictional pool lead is newly shown to the director. Private avatar portraits stay out.
-  const publicLead = input.entities.find(e => e.id === leadId && e.role === 'cast');
-  // Pilots 2026-11-02, first attempts: three figures passed 8 of 16 with a human lead and 2 of 7 with the dragon
-  // (doubled children, a second dragon, the dragon missing); two figures passed 10 of 12 and 3 of 5.
-  const creatureLead = input.entities.some(e => e.id === leadId && !e.isHuman);
-  const leadShare = Math.max(Math.min(2, pages.length), Math.floor(pages.length / 2));
-  const coverage = [
-    `SERIES LEAD ${leadId}: on the cover, on page 1 and in at least ${leadShare} of the ${pages.length} page pictures.`,
-    heroes.length ? `AVATARS (each in at least one page picture, better two, in the part of their own contribution; at least one of them beside the lead on the cover): ${heroes.map(e => `${e.id} (${e.name})`).join(', ')}.` : '',
-    guests.length ? `RECURRING GUEST${guests.length > 1 ? 'S' : ''} OF THIS EPISODE (in at least one page picture, where the guest does the most): ${guests.map(e => `${e.id} (${e.name})`).join(', ')}.` : '',
-  ].filter(Boolean).join('\n');
+  const publicLead = cast.publicReference;
   const pageText = pages.map((p, i) => `PAGE ${p.order} — chapter ${slots[i].chapter}, part ${slots[i].part + 1} of ${slots.filter(s => s.chapter === slots[i].chapter).length}\n${p.content.split(/\n\n/).map((t, k) => `p${k + 1}: ${t}`).join('\n')}`).join('\n\n');
   // A ceiling, not a price: only used tokens are billed, and a thinking model needs the room before its JSON.
   // Luna used 6.0k and 6.7k of 8k for six pages (3.3k/4.0k thinking) and twice ran out (2026-11-02): two stories failed.
@@ -452,18 +568,19 @@ export async function directSeriesPictures(input: {
     system: [
       // Haiku planned two pictures per chapter instead of one per page in all three runs on 2026-10-29 ([1,1,2,2,3,3,4,5]).
       `Illustrate the FINISHED children's story faithfully, with lively expressions and clear landscape compositions. Exactly ONE picture per PAGE plus a distinct cover. A PAGE is already a reading segment of a chapter (up to ${perChapter} PAGES per chapter): return exactly ${pages.length} page entries, numbered ${pages.map(p => p.order).join(', ')} in order. Paragraph numbers p1, p2, ... restart on each PAGE. Each picture has 1 to 3 referenced figures and a concise English scene caption of 35–65 words.`,
-      `CAST COVERAGE (see the task): the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture, in the part of its own contribution; every recurring guest of the episode in at least one page picture, where the guest does the most. The cover shows the lead WITH ${creatureLead ? 'exactly ONE avatar, the one with the biggest part (this lead is not human, and its three-figure pictures came back with doubled children or a missing creature)' : 'the avatars (all of them when lead and avatars are at most three, otherwise those with the biggest part)'}: the family wants to find its children on the cover.`,
+      cast.coverageRule,
       'For a referenced avatar identify them by name and action only; do not describe their hair, ears, teeth, face, clothing or other visible appearance in captions. The identity sheet supplies those details. Exception: explicitly donned story garments such as lifejackets MUST be described and stay worn until removed in the source. Nonvisual age or height may be used for scale.',
       'SOURCE FIRST: for each PAGE, first copy storyQuote, a consecutive 12–500 character passage that actually states the selected action AND its visible result. Then set paragraph to the LAST local paragraph needed for that result, even if it is the last paragraph of the page. Only then derive onStage, visualBeat and scene from that passage. Do not cite a vague lead-in, an earlier dialogue line or the start of an action while drawing its later result. Never borrow an event from another PAGE. The finished prose, not a planned gag or an imagined improvement, is the authority.',
       VISIBLE_STAGING,
       'SHARED PROP DESIGNS: return top-level continuity for at most FOUR plot-important objects, including a title device or beloved toy even when it has no portrait or sheet cell. Each entry is {name:"source name",aliases:["source names","English caption nouns"],appearance:"concise English material, shape, scale and distinctive parts",evidence:[{page:number,quote:"exact 12–500 character source passage naming and describing this object"}]}. Use only source-grounded design facts, no invented machinery, powers or people. Resolve every caption against these same designs. A floor-level broom/pedal/box stays that device, not a different factory machine; a cardboard sign stays cardboard. Include worn lifejackets or other consequential garments in each caption AFTER the prose establishes them. A wide overview of an occupied vehicle must not imply that its other passengers vanished: choose a tighter crop if the cast limit prevents an honest overview.',
       'CAST AT THIS MOMENT: include only figures physically present at this source moment. A caption never names a person who is not onStage, not even as an owner or job ("the big padded seat", never "the captain\'s seat": a named captain is painted). If a child arrives later in the PAGE, choose a moment after that arrival or leave the child out. Prefer the actual participants, not an extra spectator to meet coverage. Keep the source actor and helper; do not replace them with a guest to satisfy a quota. Cover and coverage wishes never override chronology.',
       'Choose the most expressive TRUE moment in the segment. A physical joke is welcome when it actually occurs there. A quiet arrival, someone carrying an object or helping with a real task is better than an invented mishap. A funny result from an earlier page must not be repeated in a later picture. Give the two pictures of each chapter different moments.',
+      ...(cast.highlights?.length ? [`MOMENTS THE WRITER BUILT THE STORY AROUND (candidates only: when one actually happens in a PAGE's paragraphs, it is that page's best picture; the prose decides how it looks): ${cast.highlights.join(' — ')}.`] : []),
       // In 70 pilot first attempts, two figures were more reliable than three (48% vs. 31%).
-      `DRAWABLE: prefer TWO figures and medium framing, with one clear action and readable faces. A third figure belongs only when actually participating, and at most TWO page pictures show three figures.${creatureLead ? ' This lead is not human: every picture shows it with at most ONE other figure.' : ''} Cooperating figures may keep their real roles; never invent a different action to simplify the composition. Prefer a large object or visible consequence over tiny mechanical workings. Keep each recurring prop’s established material, size and shape. All prominent figures are listed in onStage; an explicitly mentioned distant crowd may be incidental silhouettes, not extra foreground children.`,
+      `DRAWABLE: prefer TWO figures and medium framing, with one clear action and readable faces. A third figure belongs only when actually participating, and at most TWO page pictures show three figures.${cast.drawable} Cooperating figures may keep their real roles; never invent a different action to simplify the composition. Prefer a large object or visible consequence over tiny mechanical workings. Keep each recurring prop’s established material, size and shape. All prominent figures are listed in onStage; an explicitly mentioned distant crowd may be incidental silhouettes, not extra foreground children.`,
       'SETTING: start scene with the actual location already established by this text, followed by the figures and the visible action. An outdoor courtyard is outdoors, not an indoor room. Name a boat, house, shop or place by what it is in plain English (aboard the small wooden sailboat at the jetty), never by its German proper name: "on the Seegras" was painted as a grassy meadow with a park bench. Reference images supply identity and rendering only, never their background or props. Do not add irrelevant settings, excluded places or appearance details.',
       'Every shot needs visualBeat {actorId, action, result, framing} and boxes {"id":[top,left,bottom,right]} on a 0–1000 scale of the 3:2 landscape canvas. Start action with an English physical VERB, not watching, speaking, agreeing or deciding. The result must be observable in ONE still. framing is wide, medium or close; use at least TWO scales across three or more page pictures. In `boxes`, keep realistic relative sizes (adult ~650–820 tall, child ~480–640 tall and visibly shorter than adults, small creature/dragon/mouse/bird ~260–440 tall) and vary left/center/right placement so consecutive pictures never repeat a side-by-side 50/50 split.',
-      `Compose a full-body or three-quarter scene with depth and expressive faces. The cover uses a real motif from the first half of the story, with the lead and avatars, never the resolved ending and never the moment of the PAGE 1 picture (Blubbert's cover repeated it). The illustration is wordless: never write lettering, letters, slogans or what a sign, note or paper says into a caption; a lettered board is a painted board, a notice a sheet of paper. Only CHARACTER identities with supplied references may be onStage. A referenced OBJECT is never a character: put its exact id in elements when it is visible in the selected source moment. The identity sheet holds ${SERIES_SHEET_CELLS} cells: a picture with three figures has elements:[], one with two figures at most one element. Keep the object's stable shape, colours, material and scale, allowing only the state changes explicitly in the prose. Include the source-language object name in the cover caption when elements names that object, so its presence can be verified.`,
+      `Compose a full-body or three-quarter scene with depth and expressive faces. The cover uses a real motif from the first half of the story, ${cast.coverMotif}, never the resolved ending and never the moment of the PAGE 1 picture (Blubbert's cover repeated it). The illustration is wordless: never write lettering, letters, slogans or what a sign, note or paper says into a caption; a lettered board is a painted board, a notice a sheet of paper. Only CHARACTER identities with supplied references may be onStage. A referenced OBJECT is never a character: put its exact id in elements when it is visible in the selected source moment. The identity sheet holds ${SERIES_SHEET_CELLS} cells: a picture with three figures has elements:[], one with two figures at most one element. Keep the object's stable shape, colours, material and scale, allowing only the state changes explicitly in the prose. Include the source-language object name in the cover caption when elements names that object, so its presence can be verified.`,
       `The picture prints right AFTER paragraph; never draw a result before its text. Prefer ${PICTURE_EDGE} paragraphs of spacing from segment edges only when the true moment allows it. Before returning, check each caption's actors, objects and result against its quote and ensure paragraph is not earlier than any part of the depicted event. Then count the page entries with three onStage ids: more than two means reducing the others to the two figures who act (story e2d5890a planned four; every one of them failed or came back flawed). JSON {"continuity":[{"name":"source object name","aliases":["English caption noun"],"appearance":"source-grounded stable design","evidence":[{"page":1,"quote":"exact source passage"}]}],"cover":{"onStage":["id","id"],"elements":["visible-object-id"],"boxes":{"id":[160,220,920,760]},"visualBeat":{"actorId":"id","action":"physical verb and object","result":"source-grounded visible result","framing":"wide"},"scene":"..."},"pages":[{"page":1,"storyQuote":"exact passage stating the event AND result","paragraph":4,"onStage":["id","id"],"elements":["visible-object-id"],"boxes":{"id":[160,60,920,460],"id2":[300,520,920,880]},"visualBeat":{"actorId":"id","action":"physical verb and object","result":"visible result already stated in the quote","framing":"medium"},"scene":"..."}]}. Use elements:[] when no referenced object is visible.`,
     ].join('\n'),
     user: [
@@ -483,14 +600,15 @@ export async function directSeriesPictures(input: {
   let repaired: Record<string, unknown> | null = null;
   const issue = (error: unknown) => ({ page: error instanceof SeriesPicturePlanError ? error.page : 0,
     errors: [error instanceof Error ? error.message : String(error)] });
+  const leadId = cast.leadIds;
   try { illustrations = validateSeriesShots(first, pages, input.entities, leadId, rules); }
   catch (error) {
     repairReasons = [issue(error)];
     await input.observe?.('series-picture-plan-invalid', { issues: [...repairReasons], plan: first, usage: call.usage });
     try {
       repairCall = await input.llm({ stage: 'series-picture-plan-repair', role: 'support', model: input.model, json: true, effort: 'medium', maxTokens: directionTokens, serviceTier: 'standard', timeoutMs: 120000,
-        system: 'Repair only the supplied illustration plan JSON: one picture per PAGE (a reading segment of a chapter), exactly the given pages in order, plus the cover. The DEFECT is real: never return the plan unchanged; for a missing page choose a real physical event from that page\'s own paragraphs. Each image has 1 to 3 visible referenced characters. Preserve the selected event unless its evidence or activity is invalid; then choose a true moment from that page. Every cover/page needs visualBeat {actorId, action, result, framing}; actorId is onStage, action starts with an English physical verb or concrete posture, result is visible, framing is wide|medium|close. Across three or more page pictures use at least TWO framing scales. An introduction, objection or agreement alone is not a visible event; a concrete seated or standing arrangement can be. Cast: the lead on the cover, on page 1 and in at least half of the page pictures; every avatar in at least one page picture; at least one avatar beside the lead on the cover; every listed recurring guest in at least one page picture. "paragraph" is the local paragraph number within its page. Keep captions, page order and paragraph numbers where valid, with no invented objects or events. Return only the corrected plan.',
-        user: `DEFECT ${repairReasons[0].errors.join('; ')}\nLEAD ${leadId}\nAVATARS ${heroes.map(e => e.id).join(', ')}\n${guests.length ? `RECURRING GUESTS ${guests.map(e => e.id).join(', ')}\n` : ''}ALLOWED REFERENCED IDENTITIES ${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name}`).join('; ')}\nEXACTLY ${pages.length} PAGES\nEvery page needs storyQuote: an exact 12–500 character passage from THAT page proving the physical event AND its result. paragraph is the LAST paragraph needed for the complete event. Include only people already physically present there; never borrow a later gag or add a spectator to meet coverage. A quiet true action is better than an invented mishap. Its result must read in one still without a temporal comparison. Keep identifying faces visible. Use only source-present props.\n${VISIBLE_STAGING}\nSOURCE PAGES:\n${pageText}\nPLAN\n${call.text}` });
+        system: 'Repair only the supplied illustration plan JSON: one picture per PAGE (a reading segment of a chapter), exactly the given pages in order, plus the cover. The DEFECT is real: never return the plan unchanged; for a missing page choose a real physical event from that page\'s own paragraphs. Each image has 1 to 3 visible referenced characters. Preserve the selected event unless its evidence or activity is invalid; then choose a true moment from that page. Every cover/page needs visualBeat {actorId, action, result, framing}; actorId is onStage, action starts with an English physical verb or concrete posture, result is visible, framing is wide|medium|close. Across three or more page pictures use at least TWO framing scales. An introduction, objection or agreement alone is not a visible event; a concrete seated or standing arrangement can be. ' + cast.repairRule + ' "paragraph" is the local paragraph number within its page. Keep captions, page order and paragraph numbers where valid, with no invented objects or events. Return only the corrected plan.',
+        user: `DEFECT ${repairReasons[0].errors.join('; ')}\n${cast.repairCast}ALLOWED REFERENCED IDENTITIES ${input.entities.filter(e => e.referenceUrl).map(e => `${e.id}: ${e.name}`).join('; ')}\nEXACTLY ${pages.length} PAGES\nEvery page needs storyQuote: an exact 12–500 character passage from THAT page proving the physical event AND its result. paragraph is the LAST paragraph needed for the complete event. Include only people already physically present there; never borrow a later gag or add a spectator to meet coverage. A quiet true action is better than an invented mishap. Its result must read in one still without a temporal comparison. Keep identifying faces visible. Use only source-present props.\n${VISIBLE_STAGING}\nSOURCE PAGES:\n${pageText}\nPLAN\n${call.text}` });
       repaired = parseJsonObject<Record<string, unknown>>(repairCall.text);
       if (repaired && !Array.isArray(repaired.continuity)) repaired.continuity = first?.continuity;
       illustrations = validateSeriesShots(repaired, pages, input.entities, leadId);
@@ -575,6 +693,9 @@ export async function generateSeriesImages(input: {
   let primaryReadFailures = 0;
   const regionBound = !input.imageModel || input.imageModel === FLUX3_KLEIN_MODEL;
   const editableImages = new Map<number, string>();
+  // The last drawn picture and identity sheet of each page, for the prompt rewrite before its redraw.
+  const lastPicture = new Map<number, string>();
+  const lastSheet = new Map<number, string>();
   // Every reviewed attempt per page: after the last redraw a page keeps its best one rather than staying empty.
   const reviewed = new Map<number, ImageOutcome[]>();
   // Page → objects a reader saw twice there; their next attempts leave the portrait out (see the sheet below).
@@ -654,7 +775,8 @@ export async function generateSeriesImages(input: {
       // picture three times; only a new scene recasts its figures. Hands and stray extras are still edited.
       const previousQa = previous?.qa as SeriesQa | undefined;
       const recast = Boolean(previousQa?.missing?.length || previousQa?.duplicates?.length || previousQa?.jevFindings?.some(finding => /drawn twice/.test(finding)) || copied?.size);
-      const editing = number === 2 && !recast ? editableImages.get(shot.page) : undefined;
+      // A rewritten scene is drawn fresh: the old picture would carry the faults the rewrite removes.
+      const editing = number === 2 && !recast && !(shot as SeriesShot).rewritten ? editableImages.get(shot.page) : undefined;
       // Story 1a2fa8a4: "slot 1 (left half) is ONLY Adrian; slot 2 (right half) is ONLY the seal" came back as the sheet's
       // two panels from three seeds; the "fix" line alone changed nothing. After a split the halves are not named and the
       // figures share one space in depth.
@@ -665,7 +787,21 @@ export async function generateSeriesImages(input: {
         const aliases = [...new Set([entity.name, ...entity.name.split(/\s+/).filter(n => n.length >= 3 && !/^(der|die|das|graf|captain|kapitän)$/i.test(n))])].sort((a, b) => b.length - a.length).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
         return caption.replace(new RegExp(`\\b(?:${aliases.join('|')})\\b`, 'gi'), `<${regions[i].id}>`);
       }, text);
-      const prompt = editing ? [
+      const sheetSlots = `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${afterPanels ? '' : slotPositionLabel(i, identities.length)} is ONLY ${e.name}${e.role === 'hero' ? (e.referenceContext ? ` (${e.referenceContext})` : '') : `: ${e.appearance}`}${holding(e) ? `, together with ${holding(e)!.name} in front of ${e.name}: the one ${holding(e)!.name} of this scene, which ${e.name} holds` : ''}`).join('; ')}.`;
+      const sheetBinding = `Keep each face, hair, species and outfit with its OWN person; glasses, hats, vests and jackets never move to another figure or onto a creature. Ignore objects held in the portraits unless this scene explicitly needs them. A story garment explicitly worn in the scene, such as a lifejacket, goes over the portrait outfit and must remain visible. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, natural human ears matching the reference, and exactly two arms and two hands, each with five separate fingers, plus two legs${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.`;
+      const objectReferences = cellProps.length || carried.size ? `OBJECT REFERENCES (not people; no added human anatomy): ${[...cellProps.map(e => `${e.name}: ${e.appearance}`), ...[...carried].map(([holderId, e]) => `${e.name}: ${e.appearance}, shown in ${byId.get(holderId)?.name}'s portrait, the only ${e.name} in the picture, in ${byId.get(holderId)?.name}'s hands`)].join('; ')}. Preserve a toy's own stitched face and limbs when present in its reference. Match the same design in every picture. The source determines its current state and position, never the white reference background.` : '';
+      const override = !editing && !regionBound ? (shot as SeriesShot).promptOverride : undefined;
+      // Luna's complete corrected prompt; the code adds back the identity line with its binding (pilot 2026-11-04: without
+      // it Nora lost her glasses and the sheet's portraits floated over the scene), the object references, the style and
+      // the wordless line.
+      const prompt = override ? [
+        override,
+        artDirection,
+        references.length ? `${sheetSlots} ${sheetBinding} A story instant in one continuous full-bleed setting reaching every edge; ignore the reference portraits' backgrounds and paint only the scene's own environment.` : '',
+        objectReferences,
+        wordlessLine(override),
+        styleProfile ? 'Use the selected illustration medium described above consistently for figures and environment; only the identity sheet supplies characters.' : 'Use the shared Talea Originals medium described above; only the identity sheet supplies characters.',
+      ].filter(Boolean).join('\n') : editing ? [
         'Image 1 is the existing scene to edit. Make a local correction, preserving its rendering and every already correct person, object and action. Image 2 is only the identity sheet; do not add its figures or poses to the scene.',
         `Corrections: ${fixes.join(' ')}`,
         designLock,
@@ -675,11 +811,11 @@ export async function generateSeriesImages(input: {
         beat ? bindNames(`Depict this visible moment: ${byId.get(beat.actorId)?.name} ${moment.fact}. ${beat.framing.toUpperCase()} framing with foreground and depth. Posture and expression follow this actual moment: lively during a mishap, gentle during a quiet exchange. Hands perform only the described action or rest naturally; do not invent objects to occupy them. The scene determines setting, gesture and camera; the reference sheet determines character identity, not its pose or held props.`) : '',
         artDirection,
         regionBound ? regions.map((r, i) => `<${r.id}> is ${r.description}, taken only from its own sheet cell and placed in its assigned scene region. Draw this ${identities[i].kind === 'artifact' ? 'object' : 'figure'} exactly once in the caption's new action; the cell's resting pose and portrait background have no part in this scene.`).join('\n') : '',
-        references.length ? `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${afterPanels ? '' : slotPositionLabel(i, identities.length)} is ONLY ${e.name}${e.role === 'hero' ? (e.referenceContext ? ` (${e.referenceContext})` : '') : `: ${e.appearance}`}${holding(e) ? `, together with ${holding(e)!.name} in front of ${e.name}: the one ${holding(e)!.name} of this scene, which ${e.name} holds` : ''}`).join('; ')}. Keep each face, hair, species and outfit with its OWN person; glasses, hats, vests and jackets never move to another figure or onto a creature. Ignore objects held in the portraits unless this scene explicitly needs them. A story garment explicitly worn in the scene, such as a lifejacket, goes over the portrait outfit and must remain visible. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, natural human ears matching the reference, and exactly two arms and two hands, each with five separate fingers, plus two legs${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.` : '',
+        references.length ? `${sheetSlots} ${sheetBinding}` : '',
         ...drawn.filter(e => !e.referenceUrl).map(e => `${e.name}: ${e.appearance}.`),
         'Every described object keeps its source material, size and shape. Props come only from this scene, never from a portrait or a conversation topic.',
         designLock,
-        cellProps.length || carried.size ? `OBJECT REFERENCES (not people; no added human anatomy): ${[...cellProps.map(e => `${e.name}: ${e.appearance}`), ...[...carried].map(([holderId, e]) => `${e.name}: ${e.appearance}, shown in ${byId.get(holderId)?.name}'s portrait, the only ${e.name} in the picture, in ${byId.get(holderId)?.name}'s hands`)].join('; ')}. Preserve a toy's own stitched face and limbs when present in its reference. Match the same design in every picture. The source determines its current state and position, never the white reference background.` : '',
+        objectReferences,
         simplified
           ? `A solitary scene with exactly one character, ${drawn[0]?.name}, shown only once. The surrounding landscape is uninhabited: no other figures, creatures, spectators, faces or portraits anywhere in the background. Keep only the setting of this scene, not the reference portrait's background.`
           : `Exactly ${drawn.length} foreground characters, once each: ${drawn.map(e => e.name).join(', ')}. No additional foreground children or replacement faces. A crowd explicitly named in the caption stays distant incidental silhouettes. A story instant in one continuous full-bleed setting reaching every edge; ignore the reference portraits' backgrounds and paint only the scene's own environment.${drawn.length > 1 && (afterPanels || drawn.length === 2) ? ` ${drawn.map(e => e.name).join(' and ')} share ONE place close together, overlapping in depth with one nearer the viewer, never side by side in separate halves.` : ''}`,
@@ -699,7 +835,11 @@ export async function generateSeriesImages(input: {
       const response = await input.provider({ prompt: editing && regionBound ? styledPrompt + '\n' + regions.map(r => `<${r.id}> is ${r.description}.`).join(' ') : styledPrompt, negativePrompt: '', referenceImages: [...(editing ? [editing] : []), ...references, ...(styleReference ? [styleReference] : [])], ...(styleProfile ? { imageStyle: styleProfile.id } : {}), referenceRegions: regions, width: SCENE_SIZE.width, height: SCENE_SIZE.height, seed, page: shot.page, logStage: editing ? 'series-image-edit' : shot.page === 0 ? 'series-image-cover' : 'series-image-chapter' });
       imageUrl = response.url;
       const editable = response.viewUrl || response.url;
-      if (editable && /^(https?:\/\/|data:image\/)/i.test(editable)) editableImages.set(shot.page, editable);
+      if (editable && /^(https?:\/\/|data:image\/)/i.test(editable)) {
+        editableImages.set(shot.page, editable);
+        lastPicture.set(shot.page, editable);
+        if (references[0]) lastSheet.set(shot.page, references[0]); else lastSheet.delete(shot.page);
+      }
       costUSD += response.costUSD || 0; imageCostUSD += response.costUSD || 0;
       if (!response.url) {
         const reason = response.refused && response.httpStatus ? `series_provider_http_${response.httpStatus}` : 'series_provider_missing';
@@ -749,7 +889,7 @@ export async function generateSeriesImages(input: {
         const status: ImageOutcome['status'] = pass ? 'passed' : usable ? 'flawed' : 'failed';
         const severity = pass ? 0 : usable ? 5 : 10;
         const notes = [...qa.defects.map(d => d.detail), ...(qa.missing || []), ...qa.duplicates];
-        history.push({ kind: number === 1 ? 'series-scene' : editing ? 'targeted-scene-edit' : simplified ? 'simplified-scene-repair' : 'same-scene-repair', status, severity, notes, url: response.url,
+        history.push({ kind: number === 1 ? 'series-scene' : editing ? 'targeted-scene-edit' : simplified ? 'simplified-scene-repair' : (shot as SeriesShot).rewritten ? 'rewritten-scene' : 'same-scene-repair', status, severity, notes, url: response.url,
           ...(reading?.boxes && qa.jevFindings?.length ? { boxes: reading.boxes } : {}) });
         // A second copy of an object with a portrait: from now on this page paints it from its design text alone.
         for (const object of [...cellProps, ...carriedObjects]) {
@@ -790,7 +930,9 @@ export async function generateSeriesImages(input: {
         return { page: shot.page, url: imageUrl, prompt, attempts: number, costUSD, severity: 999, status: 'failed', errors: [(error as any)?.code === 'series_budget_exhausted' ? 'series_budget_exhausted' : imageUrl ? 'series_vision_error' : 'series_provider_error'], history };
       }
     };
-    return attempt(simplified ? [] : previous?.qa?.posing && !previous.qa.sceneFixes?.length ? ['Show the selected hand-object interaction and its visible result, with purposeful balance rather than portrait poses.'] : previous?.qa?.sceneFixes || []);
+    if ((shot as SeriesShot).rewritten && number > 1) history.push({ kind: 'prompt-rewrite', status: 'info', severity: 0, notes: [(shot as SeriesShot).rewriteCause || 'Szene neu formuliert'] });
+    // The rewrite already turned the findings into the scene; appended fix sentences would name the faults again.
+    return attempt(simplified || (shot as SeriesShot).rewritten ? [] : previous?.qa?.posing && !previous.qa.sceneFixes?.length ? ['Show the selected hand-object interaction and its visible result, with purposeful balance rather than portrait poses.'] : previous?.qa?.sceneFixes || []);
   };
   // Every planned picture is drawn and checked at once: one after another, each waited for its 20–45 s check (story
   // ff6eff04: 211 s for four pictures). Repairs start only when every planned picture has its verdict.
@@ -853,11 +995,40 @@ export async function generateSeriesImages(input: {
         if (!Array.isArray(ids) || ids.length !== 1 || ids.some((id: unknown) => typeof id !== 'string' || !shot.onStage.includes(id))) continue;
         if (typeof candidate.scene !== 'string' || candidate.scene.trim().length < 20 || candidate.scene.length > 1200 || quote.length < 12 || quote.length > 500 || !normalise(paragraph).includes(normalise(quote))) continue;
         if (!beat || !ids.includes(beat.actorId) || typeof beat.action !== 'string' || beat.action.length < 12 || beat.action.length > 220 || NON_VISUAL_ACTION.test(beat.action.trim()) || typeof beat.result !== 'string' || beat.result.length < 12 || beat.result.length > 260 || HIDDEN_IDENTITY.test(beat.result) || !['wide', 'medium', 'close'].includes(beat.framing)) continue;
-        result.set(index, { ...shot, onStage: ids, scene: candidate.scene, storyQuote: quote, visualBeat: beat } as SeriesShot);
+        // The rescue is its own one-figure scene: an earlier rewrite's complete prompt (with the full cast) stays behind.
+        const { promptOverride: _prompt, rewritten: _rewritten, rewriteCause: _cause, ...base } = shot as SeriesShot;
+        result.set(index, { ...base, onStage: ids, scene: candidate.scene, storyQuote: quote, visualBeat: beat } as SeriesShot);
       }
       return result;
     } catch {
       return new Map(); // The original selected scene remains available if redirection fails.
+    }
+  };
+  // TALEA_SERIES_PROMPT_REWRITE=off: the redraw keeps its scene (an edit, then the same scene with fix sentences) as before.
+  const rewriteShot = async (index: number): Promise<IllustrationShot | undefined> => {
+    const shot = shots[index], outcome = outcomes[index];
+    const picture = lastPicture.get(shot.page);
+    const findings = [...new Set([...(outcome.history?.filter(h => h.kind !== 'prompt-rewrite').at(-1)?.notes || []), ...((outcome.qa?.sceneFixes as string[] | undefined) || [])])].filter(Boolean).slice(0, 10);
+    if (process.env.TALEA_SERIES_PROMPT_REWRITE === 'off' || !picture || !outcome.prompt || !findings.length || !canReview()) return undefined;
+    const sheet = lastSheet.get(shot.page);
+    const source = shot.page === 0 ? '' : seriesPictureSource(input.pageTexts[shot.page] || '', shot.paragraph, (shot as SeriesShot).storyQuote).slice(0, 1800);
+    try {
+      // The same reader as the checks: after two failed primary reads the fallback reader rewrites too.
+      const model = primaryReadFailures >= 2 && input.visionFallbackModel ? input.visionFallbackModel : input.visionModel;
+      const reply = await input.llm({ stage: `series-image-rewrite-${shot.page}-${outcome.attempts + 1}`, role: 'support', model, effort: 'medium', json: true, maxTokens: 5000, timeoutMs: 90000, serviceTier: 'standard',
+        system: SERIES_PROMPT_REWRITE,
+        user: [
+          `FINDINGS OF THE REVIEW:\n${findings.map(finding => `- ${finding}`).join('\n')}`,
+          `CAST OF THIS PICTURE (ids): ${shot.onStage.map(id => `${id} (${byId.get(id)?.name || id}${(shot as SeriesShot).visualBeat?.actorId === id ? ', the acting figure' : ''})`).join(', ')}`,
+          source ? `STORY PASSAGE (the picture prints after it):\n${source}` : 'COVER: an inviting moment from the first half of the story with these figures.',
+          `COMPLETE PROMPT OF THE FAILED PICTURE:\n${outcome.prompt}`,
+        ].join('\n\n'),
+        imageInputs: [picture, ...(sheet ? [sheet] : [])] });
+      qaCalls.push(reply);
+      return readSeriesShotRewrite(parseJsonObject(reply.text), shot, Object.fromEntries(shot.onStage.map(id => [id, byId.get(id)?.name || id])));
+    } catch (error) {
+      if (error instanceof StorybookSafetyBlock) throw error;
+      return undefined; // The old repair remains.
     }
   };
   // First edit the failed scene; only if it still fails, spend any remaining budget on a fresh variant.
@@ -888,7 +1059,14 @@ export async function generateSeriesImages(input: {
       const rescueIndexes = number === 3 ? priority.filter(({ outcome }) => outcome.attempts === 2 && Boolean(outcome.qa)).map(({ index }) => index).filter(index => retries.some(item => item.index === index)) : [];
       const simplified = await simplerShots(rescueIndexes);
       for (const { index } of retries) regenerated.push(shots[index].page);
-      await Promise.all(retries.map(async ({ index }) => { outcomes[index] = await render(simplified.get(index) || shots[index], outcomes[index].attempts + 1, outcomes[index], simplified.has(index)); }));
+      // Each further wave rewrites the latest prompt, after the latest picture.
+      await Promise.all(retries.map(async ({ index }) => {
+        if (!simplified.has(index)) {
+          const rewritten = await rewriteShot(index);
+          if (rewritten) shots[index] = rewritten;
+        }
+        outcomes[index] = await render(simplified.get(index) || shots[index], outcomes[index].attempts + 1, outcomes[index], simplified.has(index));
+      }));
       await recoverUnverified();
     }
   }

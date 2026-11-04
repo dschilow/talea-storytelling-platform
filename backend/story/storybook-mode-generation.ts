@@ -49,7 +49,7 @@ import { SERIES_MODELS, SERIES_POLICY, SERIES_IMAGE_MODEL, SERIES_IMAGE_REVIEW_M
 import { SERIES_NARRATIVES } from "./character-series/narrative";
 import { runCharacterSeriesTextEngine, seriesLlmBudget } from "./character-series/engine";
 import { StorybookSafetyBlock } from "./storybook/llm-guards";
-import { directSeriesPictures, generateSeriesImages } from "./character-series/pictures";
+import { directSeriesPictures, generateSeriesImages, SERIES_ART_DIRECTION } from "./character-series/pictures";
 import { seriesAvatarAppearance, seriesAvatarReferenceContext, seriesLeadCandidate, seriesLeadReference, seriesReferenceAppearance } from "./character-series/identity";
 import { prepareSeriesVisualReferences } from "./character-series/visual-references";
 import { seriesCraftMemory } from "./character-series/variety";
@@ -62,11 +62,11 @@ import { runStorybookTextEngine, STORYBOOK_PIPELINE_ID } from "./storybook/engin
 import { runWonderTextEngine, WONDER_PIPELINE_ID } from "./wonder/engine";
 import { wonderBudget } from "./wonder/library";
 import { EPISODE_PIPELINE_ID, resolveEpisodeMode, resolveEpisodeServiceTier, runEpisodeTextEngine } from "./episode/engine";
-import { episodeBudget, episodeProductionLlm, episodeProductionModels, episodeVisionModel } from "./episode/craft";
-import { chapterPictures, coverStandIn, directEpisodePictures, type EpisodeDirection } from "./episode/pictures";
-import { prepareGuestPortraits } from "./episode/guest-portraits";
+import { episodeBudget, episodeProductionLlm, episodeProductionModels } from "./episode/craft";
+import { chapterPictures, coverStandIn, directFolgePictures, type EpisodeDirection } from "./episode/pictures";
+import { guestPortraitCheck, prepareGuestPortraits } from "./episode/guest-portraits";
 import type { EpisodeResult } from "./episode/types";
-import { castAppearance, describeReferenceLooks, heroAppearance, MODERN_CHILDRENS_BOOK_STYLE, runDirectorStage, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
+import { castAppearance, describeReferenceLooks, heroAppearance, runDirectorStage, speciesFromProfile, type VisualEntity } from "./storybook/illustration-stage";
 import { generateStorybookImages, isPublishable, publishableImageUrl, type ImageProvider, type StorybookImagesResult } from "./storybook/images";
 import { createOpenRouterJevPort } from "./storybook/jev-openrouter";
 import { resolveOpenRouterApiKey } from "./openrouter-generation";
@@ -74,7 +74,6 @@ import { storybookQuality } from "./storybook/quality";
 import { runDevelopmentStage } from "./storybook/developments";
 import { learningGoal } from "./storybook/learning";
 import { artifactHeadToken, countWords } from "./storybook/checks";
-import { LIBRARY_IMAGE_MODEL } from "./library/images";
 import { createStorybookImageProvider } from "./storybook/image-provider";
 import type { CastCandidate, StorybookGeneratedStory, StorybookGenerationInput } from "./storybook/types";
 
@@ -151,7 +150,11 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const seriesMode = isCharacterSeriesEngine(config.storybookEngine);
   const seriesPolicy = qualitySeriesMode ? QUALITY_SERIES_POLICY : SERIES_POLICY;
   const episodeMode = config.storybookEngine === EPISODE_PIPELINE_ID || seriesMode;
-  const imageModel = seriesMode ? SERIES_IMAGE_MODEL : episodeMode ? LIBRARY_IMAGE_MODEL : IMAGE_MODEL;
+  // Talea-Folge proper (not a series episode): since 2026-11-04 its pictures are made like the Figurenabenteuer's —
+  // FLUX.2 klein 9B KV, Luna direction from exact quotes, Luna check with Jev (was FLUX 3 Klein with Terra: "Die Brücke
+  // spielt weiter" 2.5 ¢ pictures + 3.9 ¢ checks + 1.3 ¢ direction, Merlin drawn as a boy in "Der Kram läuft hinterher").
+  const folgeMode = episodeMode && !seriesMode;
+  const imageModel = episodeMode ? SERIES_IMAGE_MODEL : IMAGE_MODEL;
   const chapterMode = wonderMode || episodeMode;
   const pipelineId = qualitySeriesMode ? QUALITY_SERIES_ENGINE : seriesMode ? CHARACTER_SERIES_ENGINE : episodeMode ? EPISODE_PIPELINE_ID : wonderMode ? WONDER_PIPELINE_ID : STORYBOOK_PIPELINE_ID;
   const ledger = new CostLedger();
@@ -251,8 +254,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       role: "hero",
       species,
       isHuman,
-      appearance: seriesMode ? seriesAvatarAppearance(hero) : heroAppearance(hero.visualProfile, ""),
-      ...(seriesMode ? { referenceContext: seriesAvatarReferenceContext(hero) } : {}),
+      appearance: episodeMode ? seriesAvatarAppearance(hero) : heroAppearance(hero.visualProfile, ""),
+      ...(episodeMode ? { referenceContext: seriesAvatarReferenceContext(hero) } : {}),
       forbidden: Array.isArray(hero.visualProfile?.forbiddenFeatures) ? hero.visualProfile.forbiddenFeatures.map(String) : [],
       referenceUrl: await readableReference(hero.imageUrl),
       referenceKey: hero.imageUrl,
@@ -272,7 +275,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       role: "cast",
       species,
       isHuman,
-      appearance: seriesMode ? seriesReferenceAppearance(castAppearance(member.visualProfile, member.physicalDescription)) : castAppearance(member.visualProfile, member.physicalDescription),
+      appearance: episodeMode ? seriesReferenceAppearance(castAppearance(member.visualProfile, member.physicalDescription)) : castAppearance(member.visualProfile, member.physicalDescription),
       forbidden: [],
       referenceUrl: (seriesLead?.id === member.id && await seriesLead.reference) || await readableReference(member.imageUrl),
       referenceKey: member.imageUrl,
@@ -280,7 +283,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   };
   const heroEntities = Promise.all(brief.heroes.map(heroEntity));
   const poolEntities = Promise.all(candidates.map(castEntity));
-  const looksWarmUp = seriesMode ? Promise.resolve() : Promise.all([heroEntities, poolEntities])
+  // The looks reader (FLUX 3's logo paint-out) is not needed by FLUX.2 klein: the series never ran it (Terra, 0.7 ¢).
+  const looksWarmUp = episodeMode ? Promise.resolve() : Promise.all([heroEntities, poolEntities])
     .then(([heroes, pool]) => describeReferenceLooks(llm, [...heroes, ...pool], models.support))
     .then((looks) => { if (looks.call) ledger.recordCall("reference-looks", looks.call, "support"); })
     .catch(() => undefined);
@@ -355,7 +359,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // Everyone with a portrait was read while the text was written: this finds the looks cached (a call only when the
   // warm-up failed or the writer brought a figure it did not know).
   await looksWarmUp;
-  const known = seriesMode ? { entities, call: undefined } : await describeReferenceLooks(llm, entities, models.support);
+  const known = episodeMode ? { entities, call: undefined } : await describeReferenceLooks(llm, entities, models.support);
   if (seriesMode) await logStage(input.storyId, 'series-avatar-references', {
     avatars: entities.filter(e => e.role === 'hero').map(e => ({ id: e.id, hasReference: Boolean(e.referenceUrl), sourceFingerprint: e.referenceKey ? createHash('sha256').update(e.referenceKey).digest('hex').slice(0, 12) : undefined })),
   }, pipelineId);
@@ -377,35 +381,44 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
     references: seriesVisuals.portraits, calls: seriesVisuals.calls, costUSD: seriesVisuals.costUSD,
   }, pipelineId);
 
-  // A new, story-local figure has no pool image. Its portrait is drawn from the writer's look — the same look the art
-  // director reads — next to the direction instead of before it (story 5e583e1e waited 40 s between text and pictures);
-  // the pictures then carry it on every relevant identity sheet. The looks are read from the unchanged entities, so the
-  // cached ones are found again.
-  const identities = episodeMode && !seriesMode
-    ? prepareGuestPortraits({ entities, guestIds: guests.map((guest) => guest.id), provider: encoreImageProvider(input.storyId, imageModel), seed, readableReference, portraitStyle: MODERN_CHILDRENS_BOOK_STYLE })
-        .then(async (portraits) => {
-          const looks = await describeReferenceLooks(llm, portraits.entities, models.support);
-          if (looks.call) ledger.recordCall("reference-looks", looks.call, "support");
-          return { ...portraits, entities: looks.entities };
-        })
-        .catch((err) => {
-          console.warn("[storybook] guest portraits failed, the guests are drawn from their text look:", (err as Error)?.message || err);
-          return { entities: known.entities, portraits: [], calls: 0, costUSD: 0 };
-        })
-    : Promise.resolve(seriesVisuals ?? { entities: known.entities, portraits: [], calls: 0, costUSD: 0 });
+  // A new, story-local figure (the wonder) has no pool image. Its portrait is drawn from the writer's look first, then
+  // the series' reference plan gives the story's recurring objects and side figures a design of their own: the
+  // direction may only cast what has a portrait, so both come before it (≈ 3 s + ≈ 10 s).
+  const folgeVisuals = folgeMode ? await (async () => {
+    const provider = encoreImageProvider(input.storyId, imageModel);
+    const check = guestPortraitCheck(llm, SERIES_IMAGE_REVIEW_MODEL, (call) => ledger.recordCall("guest-portrait-check", call, "support"));
+    const portraits = await prepareGuestPortraits({ entities: known.entities, guestIds: guests.map((guest) => guest.id), provider, seed, readableReference, portraitStyle: SERIES_ART_DIRECTION, check })
+      .catch((err) => {
+        console.warn("[storybook] guest portraits failed, the guests are drawn from their text look:", (err as Error)?.message || err);
+        return { entities: known.entities, portraits: [], calls: 0, costUSD: 0 };
+      });
+    const references = await prepareSeriesVisualReferences({
+      pages, entities: portraits.entities, llm, model: SERIES_PICTURE_DIRECTION_MODEL, provider, seed, readableReference,
+      recordCall: (call) => ledger.recordCall("series-visual-reference-plan", call, "support"),
+    });
+    return {
+      entities: references.entities,
+      portraits: [...portraits.portraits, ...references.portraits] as Array<{ id: string; name: string; url?: string; status: string }>,
+      calls: portraits.calls + references.calls,
+      costUSD: Number((portraits.costUSD + references.costUSD).toFixed(6)),
+    };
+  })() : undefined;
+  const guestPortraits = folgeVisuals ?? seriesVisuals ?? { entities: known.entities, portraits: [], calls: 0, costUSD: 0 };
   // Talea-Folge and the character series draw two pictures per chapter, each after the paragraph it shows, and every
   // acting figure at least once (the chapter book's picture machinery, ./episode/pictures.ts). Every other lane: one
   // picture per page.
   const directing: Promise<EpisodeDirection | undefined> = seriesMode
     ? (qualitySeriesMode ? directQualitySeriesPictures : directSeriesPictures)({ llm, model: SERIES_PICTURE_DIRECTION_MODEL, brief, title: text.title, pages, plan, entities: directedEntities,
         observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId) })
-    : episodeMode
-    ? directEpisodePictures({ llm, model: models.support, brief, title: text.title, pages, plan, entities: known.entities }).catch((err) => {
+    : folgeMode
+    ? directFolgePictures({ llm, model: SERIES_PICTURE_DIRECTION_MODEL, brief, title: text.title, pages, plan, entities: guestPortraits.entities,
+        observe: (stage, payload) => logStage(input.storyId, stage, payload, pipelineId) }).catch((err) => {
+        if (err instanceof StorybookSafetyBlock) throw err;
         console.warn("[storybook] chapter pictures could not be directed, one picture per chapter instead:", (err as Error)?.message || err);
         return undefined;
       })
     : Promise.resolve(undefined);
-  const [guestPortraits, direction] = await Promise.all([identities, directing]);
+  const direction = await directing;
   if (episodeMode) await logStage(input.storyId, "guest-portraits", {
     portraits: guestPortraits.portraits, calls: guestPortraits.calls, costUSD: guestPortraits.costUSD,
   }, pipelineId);
@@ -425,12 +438,12 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
 
   const emptyImages: StorybookImagesResult = { pages: new Map(), imagesGenerated: 0, imageCalls: 0, imageCostUSD: 0, qaCalls: [], regenerated: [] };
   const [images, development] = await Promise.all([
-    (seriesMode ? (qualitySeriesMode ? generateQualitySeriesImages : generateSeriesImages)({
+    (episodeMode ? (qualitySeriesMode ? generateQualitySeriesImages : generateSeriesImages)({
       illustrations, entities: pictureEntities, provider: encoreImageProvider(input.storyId, imageModel), imageModel, seed, llm,
       imageStyle: config.imageStyle,
       visionModel: SERIES_IMAGE_REVIEW_MODEL, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL, pageTexts: Object.fromEntries(picturePages.map(page => [page.order, page.content])),
       chapterByPage: direction ? Object.fromEntries(direction.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined,
-      reservedImageCalls: seriesVisuals?.calls ?? 0,
+      reservedImageCalls: guestPortraits.calls,
       panelCheck: pictureHasPanels,
       jev: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : createOpenRouterJevPort(resolveOpenRouterApiKey),
     }) : generateStorybookImages({
@@ -439,23 +452,14 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
       provider: encoreImageProvider(input.storyId, imageModel),
       seed,
       llm,
-      ...(episodeMode ? { imageStyle: MODERN_CHILDRENS_BOOK_STYLE, imagePromptProfile: "flux3-modern" as const } : {}),
-      // Talea-Folge has seven pictures (cover + two per chapter): with four at a time the last three waited a full
-      // round (story 5e583e1e, ≈ 15 s). Runware answers parallel requests; a 429 is retried by the image client.
       concurrency: 8,
       // TALEA_STORYBOOK_PARALLEL_REDRAW=off: redraw and heroes-only attempt one after another again. The spare costs a
-      // picture (0.12 ¢, 0.25 ¢ on FLUX 3) and a vision read whenever the redraw passes, so it is drawn only when the
-      // crowd is the trouble (crowdTrouble in storybook/images.ts); it saves ≈ 15 s whenever the redraw fails.
-      // Talea-Folge: never. On FLUX 3 the picture check costs as much as the picture; story 0ee9af53 paid two spares
-      // and their checks (1 ¢) while both redraws passed. Here the heroes-only attempt is drawn only after a failed redraw.
-      parallelRedraw: !episodeMode && process.env.TALEA_STORYBOOK_PARALLEL_REDRAW !== "off",
-      // Talea-Folge: a picture whose only fault is a loosely matched scene is kept. 0ee9af53 redrew two (0.45 and 0.3)
-      // with the same scene and got 0.3 and 0.35 plus a doubled magpie.
-      redrawLooseScene: !episodeMode,
-      visionModel: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : episodeMode ? episodeVisionModel() : models.support,
+      // picture (0.12 ¢) and a vision read whenever the redraw passes, so it is drawn only when the crowd is the trouble
+      // (crowdTrouble in storybook/images.ts); it saves ≈ 15 s whenever the redraw fails.
+      parallelRedraw: process.env.TALEA_STORYBOOK_PARALLEL_REDRAW !== "off",
+      redrawLooseScene: true,
+      visionModel: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : models.support,
       fallbackVisionModel: models.critic,
-      // Talea-Folge too again (off since 987896c): in story ee4971ca the Luna check printed page 3, Gustav's leg melting
-      // into grey runners; Jev read fused 0.90 (Terra rejects it too). No false alarm on 55 FLUX 3 pictures (2026-11-03).
       jev: process.env.TALEA_STORYBOOK_IMAGE_QA === "off" ? undefined : createOpenRouterJevPort(resolveOpenRouterApiKey),
       pageTexts: Object.fromEntries(picturePages.map((page) => [page.order, page.content])),
       historical: !["modern", "scifi"].includes(config.genre || "") && ["fantasy", "medieval", "castle"].includes(config.setting || ""),
