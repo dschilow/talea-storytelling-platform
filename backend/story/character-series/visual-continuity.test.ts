@@ -16,6 +16,34 @@ const rawQa = (defects: unknown[] = []) => ({ reviewVersion: 3,
   primaryActionClear: true, posing: false, sceneMatch: 0.95, styleMatch: 0.95, defects });
 
 describe('story-critical visual continuity, 1bbb8af3 and b3d96e64', () => {
+  test('one machine gets one design and one action, including after a complete prompt rewrite (6fa2cd2e)', async () => {
+    const appearance = 'A floor-level wooden collection box with one broad broom, a pedal and a golden sun front.';
+    const machine: VisualEntity = { id: 'machine', name: 'Aufräummaschine', kind: 'artifact', role: 'cast', species: 'machine',
+      isHuman: false, appearance, referenceAliases: ['cleaning machine', 'collection box'], forbidden: [], referenceUrl: 'https://test/machine.jpg' };
+    const scene = 'Inside the workshop, Tilda bends over the collection box while Alexander stands beside her.';
+    const shot = { page: 1, onStage: ['tilda', 'alex'], elements: ['machine'], artifactVisible: true, focus: 'scene' as const,
+      scene, paragraph: 1, storyQuote: 'Tilda beugte sich über die Kiste.',
+      visualBeat: { actorId: 'tilda', action: 'bends over the collection box', result: 'blue cloth peeks over its rim', framing: 'medium' } };
+    const prompts: string[] = [];
+    const result = await generateSeriesImages({ illustrations: { cover: { ...shot, page: 0 }, pages: [shot] } as any,
+      entities: [...entities, machine], seed: 'single-machine', imageModel: 'runware:400@6', visionModel: 'test',
+      pageTexts: { 1: shot.storyQuote }, policy: { maxImageCalls: 3, imageRetries: 1, imageConcurrency: 1 },
+      buildReference: async () => ({ urls: ['https://test/sheet.jpg'], mode: 'sprite', subjects: [] }),
+      provider: async request => { prompts.push(request.prompt); return { url: 'https://test/result.jpg' }; },
+      llm: async request => {
+        if (request.stage.startsWith('series-image-rewrite-')) return { text: JSON.stringify({ scene, action: 'bends over the collection box', result: 'blue cloth peeks over its rim', framing: 'medium', onStage: ['tilda', 'alex'],
+          prompt: scene + ' The golden front faces the viewer. The soft cloth rests along the low rim. Tilda leans forward to inspect it while Alexander keeps both hands resting at his sides. A diagonal view includes the wooden workshop floor and the open door in the background.' }), modelUsed: 'test', durationMs: 0, usage: { prompt: 0, completion: 0, total: 0, costUSD: 0 } };
+        return { text: JSON.stringify(rawQa(request.stage === 'series-image-qa-1-1' ? [{ kind: 'continuity', blocking: true, detail: 'The machine appears twice.', fix: 'Show one complete device.' }] : [])),
+          modelUsed: 'test', durationMs: 0, usage: { prompt: 0, completion: 0, total: 0, costUSD: 0 } };
+      } });
+    expect(result.imageCalls).toBe(3);
+    expect(result.pages.get(1)?.status).toBe('passed');
+    for (const prompt of prompts) {
+      expect(prompt.split(appearance)).toHaveLength(2);
+      expect(prompt.match(/bends over the collection box/g)).toHaveLength(1);
+      expect(prompt).not.toContain('No additional foreground children');
+    }
+  });
   test('the explicitly observed second teddy blocks even when omitted from the inventory and marked harmless', () => {
     const defect = { kind: 'detail', blocking: false, blocksAction: false,
       detail: 'A second teddy matching the hugged bear sits prominently on the right workbench.',

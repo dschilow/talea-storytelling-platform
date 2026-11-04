@@ -1,0 +1,68 @@
+{
+  "promptComparison": [
+    {
+      "fixture": "v27-graf",
+      "pictures": 3,
+      "beforeCharacters": 10763,
+      "afterCharacters": 7875,
+      "reductionPercent": 26.8
+    },
+    {
+      "fixture": "v27-aufraummaschine",
+      "pictures": 6,
+      "beforeCharacters": 23429,
+      "afterCharacters": 17928,
+      "reductionPercent": 23.5
+    }
+  ],
+  "savedReviewReplay": [
+    {
+      "slug": "graf",
+      "page": 5,
+      "before": "failed",
+      "nowUsable": true,
+      "remainingDefects": []
+    }
+  ],
+  "metrics": [
+    {
+      "slug": "mehlsaecke",
+      "totalCostUSD": 0.082088,
+      "textAndOtherLlmCostUSD": 0.061028,
+      "imageChecksUSD": 0.015687,
+      "imageCostUSD": 0.02106,
+      "imageCalls": 13,
+      "llmCalls": 38,
+      "words": 1547,
+      "deliveredIncludingCover": 6,
+      "plannedIncludingCover": 7,
+      "durationSeconds": 352.184
+    },
+    {
+      "slug": "maschine",
+      "totalCostUSD": 0.076773,
+      "textAndOtherLlmCostUSD": 0.058313,
+      "imageChecksUSD": 0.014974,
+      "imageCostUSD": 0.01846,
+      "imageCalls": 12,
+      "llmCalls": 31,
+      "words": 1499,
+      "deliveredIncludingCover": 5,
+      "plannedIncludingCover": 7,
+      "durationSeconds": 389.357
+    },
+    {
+      "slug": "graf",
+      "totalCostUSD": 0.097139,
+      "textAndOtherLlmCostUSD": 0.072699,
+      "imageChecksUSD": 0.023521,
+      "imageCostUSD": 0.02444,
+      "imageCalls": 15,
+      "llmCalls": 44,
+      "words": 1495,
+      "deliveredIncludingCover": 5,
+      "plannedIncludingCover": 7,
+      "durationSeconds": 319.742
+    }
+  ]
+}

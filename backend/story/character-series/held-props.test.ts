@@ -86,17 +86,18 @@ describe('where a referenced object is in the picture (story 9a84d5e0)', () => {
       ['Alexander+Teddy', 'Tilda Tüftel', 'Adrian'],
     ]);
     expect(sheets[1][0].holds?.imageUrl).toBe(teddy.referenceUrl);
-    expect(prompts.get(1)).toContain('slot 1 (left portrait) is ONLY Alexander, together with Teddy in front of Alexander');
+    expect(prompts.get(1)).toContain('slot 1 (left portrait) is ONLY Alexander, holding Teddy');
+    expect(prompts.get(1)?.match(/Soft teddy bear with a green ribbon/g)).toHaveLength(1);
     expect(prompts.get(1)).not.toContain('is ONLY Teddy');
     expect(prompts.get(1)).toContain("the only Teddy in the picture, in Alexander's hands");
-    expect(prompts.get(1)!.split('OBJECT DESIGNS')[1].split('Keep the same')[0].match(/Teddy:/g)).toHaveLength(1);
+    expect(prompts.get(1)?.match(/Teddy: Soft teddy/g)).toHaveLength(1);
     expect(prompts.get(1)).not.toContain('loose thread');
     // Hidden: no cell, the design stays in words.
     expect(prompts.get(2)).not.toContain('is ONLY Teddy');
     expect(prompts.get(2)).not.toContain('together with Teddy');
     expect(prompts.get(2)).toContain('green ribbon');
     // Three people fill the sheet; the held teddy still comes along in its holder's cell.
-    expect(prompts.get(3)).toContain('is ONLY Alexander, together with Teddy');
+    expect(prompts.get(3)).toContain('is ONLY Alexander, holding Teddy');
     // The cover's resting teddy is painted from its design text: its portrait came back as a second teddy (3169e3d5).
     expect(prompts.get(0)).not.toContain('together with Teddy');
     expect(prompts.get(0)).not.toContain('OBJECT REFERENCES');

@@ -24,6 +24,24 @@ const inventoryReview = (fields: Record<string, unknown> = {}) => publicationRev
 });
 
 describe('visible cast inventory before name assignment', () => {
+  test('a diamond-shaped kite behind the man is a prop, not an unmatched man (429dd9c9)', () => {
+    const sceneText = 'The handmade paper kite rests behind the man as Nora helps the dragon. A teddy lies beside them.';
+    const extra = { position: 'upper center', appearance: 'Handmade diamond-shaped paper kite with large round painted eyes and a long yellow tail.', matchedId: null };
+    const figures = JSON.parse(inventoryReview()).observedFigures;
+    for (const appearance of [extra.appearance, 'A paper kite behind the man', 'A long-tailed paper kite held by the child']) {
+      const qa = readSeriesQa(inventoryReview({ observedFigures: [...figures, { ...extra, appearance }] }), cast, { sceneText });
+      expect(qa?.observedFigures?.at(-1)?.sceneProp).toBe(true);
+      expect(seriesPicturePasses(qa)).toBe(true);
+    }
+    const duplicate = readSeriesQa(inventoryReview({ observedFigures: [...figures, extra, { ...extra, position: 'lower left' }] }), cast, { sceneText });
+    expect(seriesPictureUsable(duplicate)).toBe(false);
+    // A person holding a kite, a toy costume and a stray face are still people/anatomy, never props.
+    for (const appearance of ['An unknown man holding the paper kite', 'A boy in a teddy costume', 'A human face behind the paper kite',
+      'At the gate, an unknown child holding the paper kite', 'In the foreground, a boy in a teddy costume', 'A dark shadow with a teddy']) {
+      const qa = readSeriesQa(inventoryReview({ observedFigures: [...figures, { ...extra, appearance }] }), cast, { sceneText });
+      expect(seriesPictureUsable(qa)).toBe(false);
+    }
+  });
   test('a valid inventory is the authority for presence, not a prefilled list of expected ids', () => {
     const qa = readSeriesQa(inventoryReview({ visibleIds: ['invented-id'] }), cast);
     expect(qa?.reviewVersion).toBe(3);

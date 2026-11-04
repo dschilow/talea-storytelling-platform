@@ -528,7 +528,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const measuredQuality = storybookQuality(text, images, picturePages.map((page) => page.order));
   // Keep the paid manuscript readable, but a partly illustrated book is not a release-ready edition.
   const quality = qualitySeriesMode ? { ...measuredQuality, releaseReady: measuredQuality.releaseReady && (images as any).bookReview?.status === "passed" } : measuredQuality;
-  const characterSeriesArt = seriesMode ? {
+  // Both episode lanes use the same picture delivery contract and the reader/PDF's partial-art notice.
+  const characterSeriesArt = episodeMode ? {
     state: measuredQuality.imagesReady ? 'complete' : 'partial',
     // A picture whose check found only a neighbouring instant of its scene ("flawed") is printed and counts as delivered.
     missingChapters: [...new Set(illustrations.pages.filter(shot => !isPublishable(images.pages.get(shot.page))).map(shot => direction?.slots[shot.page - 1]?.chapter ?? shot.page))],
@@ -568,7 +569,8 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   const metadata: Record<string, any> = {
     pipeline: pipelineId,
     generationMode: pipelineId,
-    ...(seriesMode ? { characterSeriesLogCandidate: episode?.seriesLogCandidate, characterSeriesCraft: seriesCraftMemory(pages), characterSeriesPolicy: seriesPolicy, characterSeriesArt,
+    ...(episodeMode ? { characterSeriesArt } : {}),
+    ...(seriesMode ? { characterSeriesLogCandidate: episode?.seriesLogCandidate, characterSeriesCraft: seriesCraftMemory(pages), characterSeriesPolicy: seriesPolicy,
       ...(qualitySeriesMode ? { characterSeriesImageSelections: (images as any).selections, characterSeriesBookReview: (images as any).bookReview } : {}),
       characterSeriesReferences: seriesVisuals?.assets.map(({ referenceUrl: _transportUrl, ...asset }) => asset),
       characterSeriesReferenceResults: seriesVisuals?.portraits } : {}),

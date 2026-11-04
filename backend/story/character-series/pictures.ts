@@ -39,7 +39,7 @@ interface SeriesShot extends IllustrationShot {
   /** Luna rewrote this scene after reading the failed picture next to its full prompt (`readSeriesShotRewrite`). */
   rewritten?: boolean;
   rewriteCause?: string;
-  /** Luna's complete corrected prompt, without the four parts the code adds back (identity line with its binding, object references, style, wordless line). */
+  /** Luna's complete corrected prompt, without the blocks the code adds back (identity line with its binding, object references, style, wordless line). */
   promptOverride?: string;
 }
 
@@ -55,13 +55,13 @@ export const SERIES_PROMPT_REWRITE = [
   'You correct an illustration prompt for FLUX.2 klein, an image model that paints a children\'s book scene from one identity sheet. It paints every noun it reads and ignores negations: "no additional children", "without letters" or "not a second bear" bring exactly those children, letters and that bear into the picture.',
   'You get: image 1 = the picture drawn from the prompt; image 2 (when present) = the identity sheet, not part of the scene; the COMPLETE prompt; the story passage the picture must show; the reviewers\' findings.',
   'First find, for each finding, what in the prompt caused it: a sentence that names what must not appear, a crowded or repeated caption, two figures given the same place, a held object nobody holds, a word that brings writing (sign, label, poster, notice, title), an object named twice, an action the model could not stage.',
-  'Then write the corrected COMPLETE prompt. Four parts are added back by the code unchanged, so leave them out: the IDENTITY SHEET line (which slot is which figure, faces and outfits stay with their owner, the anatomy of each human, one continuous setting), the OBJECT REFERENCES line, the art style paragraphs and the wordless line. Everything else is yours: the scene, the visible moment, who is in the picture, the anatomy of non-human figures, the object designs, the props. Keep what serves the picture, drop what caused a fault, say each thing once:',
+  'Then write the corrected COMPLETE prompt. The code-owned blocks are added back unchanged, so leave them out: the IDENTITY SHEET line (which slot is which figure, faces and outfits stay with their owner, the anatomy of each human, one continuous setting), the OBJECT REFERENCES and STORY-CRITICAL OBJECT DESIGNS lines, the art style paragraphs and the wordless line. Everything else is yours: the scene, the visible moment, who is in the picture, the anatomy of non-human figures, the object designs, the props. Keep what serves the picture, drop what caused a fault, say each thing once:',
   '- The same story moment from the passage, the same place and the same acting figure. Never invent another event or prop.',
   '- Only positive, visible statements. Never name a fault, a missing thing or something to avoid. Instead of "No additional children" write "The only people in the picture are Nora and Ben".',
   '- Name every figure of the cast exactly once, each with its own position in depth and its own action or gaze; name who holds each held object. Do not describe the referenced figures\' faces, hair or clothes: the identity sheet supplies them. State the anatomy of a non-human figure once as a positive sentence (two arms, four paws, one tail); the code states it for humans.',
   '- Keep each story object\'s design (material, colour, shape, size) as one sentence. Plain objects without words: shelves with plain boxes, a blank board, closed books. Fewer props rather than more.',
   '- If a figure was doubled, merged or an extra figure appeared in a picture of THREE figures, you may drop ONE figure that is not the actor; otherwise keep the cast.',
-  'Return JSON {"cause":"one short sentence: what in the prompt caused the faults","prompt":"the corrected complete prompt without the four code parts, 500–2500 characters","scene":"the scene as a 35–90 word English caption for the reviewer, starting with the place","action":"English physical verb phrase of the acting figure","result":"what is visibly the case in this one still","framing":"wide|medium|close","onStage":["ids of the figures that remain"]}.',
+  'Return JSON {"cause":"one short sentence: what in the prompt caused the faults","prompt":"the corrected complete prompt without the code-owned blocks, 500–2500 characters","scene":"the scene as a 35–90 word English caption for the reviewer, starting with the place","action":"English physical verb phrase of the acting figure","result":"what is visibly the case in this one still","framing":"wide|medium|close","onStage":["ids of the figures that remain"]}.',
 ].join('\n');
 
 /** A rewrite keeps the moment, the actor and (minus at most one) the cast; anything else falls back to the old repair. */
@@ -90,7 +90,7 @@ export function readSeriesShotRewrite(raw: any, shot: IllustrationShot, names?: 
  */
 export function seriesRewrittenPrompt(value: unknown, castNames: string[]): string | undefined {
   if (typeof value !== 'string') return undefined;
-  const kept = value.split(/\n+/).map(line => line.trim()).filter(line => line && !/^(?:IDENTITY SHEET|STYLE REFERENCE|OBJECT REFERENCES)\b/i.test(line) && !/^A wordless illustration\.?$/i.test(line));
+  const kept = value.split(/\n+/).map(line => line.trim()).filter(line => line && !/^(?:IDENTITY SHEET|STYLE REFERENCE|OBJECT REFERENCES|STORY-CRITICAL OBJECT DESIGNS)\b/i.test(line) && !/^A wordless illustration\.?$/i.test(line));
   const prompt = seriesWordlessCaption(kept.join('\n')).trim();
   if (prompt.length < 300 || prompt.length > 3500) return undefined;
   const named = (name: string) => [name, ...name.split(/\s+/).filter(part => part.length >= 3)].some(part => new RegExp(`(?<![\\p{L}])${part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu').test(prompt));
@@ -572,7 +572,7 @@ export async function directSourcePictures(input: {
       'For a referenced avatar identify them by name and action only; do not describe their hair, ears, teeth, face, clothing or other visible appearance in captions. The identity sheet supplies those details. Exception: explicitly donned story garments such as lifejackets MUST be described and stay worn until removed in the source. Nonvisual age or height may be used for scale.',
       'SOURCE FIRST: for each PAGE, first copy storyQuote, a consecutive 12–500 character passage that actually states the selected action AND its visible result. Then set paragraph to the LAST local paragraph needed for that result, even if it is the last paragraph of the page. Only then derive onStage, visualBeat and scene from that passage. Do not cite a vague lead-in, an earlier dialogue line or the start of an action while drawing its later result. Never borrow an event from another PAGE. The finished prose, not a planned gag or an imagined improvement, is the authority.',
       VISIBLE_STAGING,
-      'SHARED PROP DESIGNS: return top-level continuity for at most FOUR plot-important objects, including a title device or beloved toy even when it has no portrait or sheet cell. Each entry is {name:"source name",aliases:["source names","English caption nouns"],appearance:"concise English material, shape, scale and distinctive parts",evidence:[{page:number,quote:"exact 12–500 character source passage naming and describing this object"}]}. Use only source-grounded design facts, no invented machinery, powers or people. Resolve every caption against these same designs. A floor-level broom/pedal/box stays that device, not a different factory machine; a cardboard sign stays cardboard. Include worn lifejackets or other consequential garments in each caption AFTER the prose establishes them. A wide overview of an occupied vehicle must not imply that its other passengers vanished: choose a tighter crop if the cast limit prevents an honest overview.',
+      'SHARED PROP DESIGNS: return top-level continuity for at most FOUR plot-important objects, including a title device or beloved toy even when it has no portrait or sheet cell. Each entry is {name:"source name",aliases:["source names","English caption nouns"],appearance:"concise English material, shape, scale and distinctive parts",evidence:[{page:number,quote:"exact 12–500 character source passage naming and describing this object"}]}. Use only source-grounded stable design facts, no invented machinery, powers or people. Keep temporary states such as an open seam, removed boots or a detached panel in the individual scene, not in the shared appearance. A collection box attached to a machine is part of that same device, never a second freestanding object. Resolve every caption against these same designs. A floor-level broom/pedal/box stays that device, not a different factory machine; a cardboard sign stays cardboard. Include worn lifejackets or other consequential garments in each caption AFTER the prose establishes them. A wide overview of an occupied vehicle must not imply that its other passengers vanished: choose a tighter crop if the cast limit prevents an honest overview.',
       'CAST AT THIS MOMENT: include only figures physically present at this source moment. A caption never names a person who is not onStage, not even as an owner or job ("the big padded seat", never "the captain\'s seat": a named captain is painted). If a child arrives later in the PAGE, choose a moment after that arrival or leave the child out. Prefer the actual participants, not an extra spectator to meet coverage. Keep the source actor and helper; do not replace them with a guest to satisfy a quota. Cover and coverage wishes never override chronology.',
       'Choose the most expressive TRUE moment in the segment. A physical joke is welcome when it actually occurs there. A quiet arrival, someone carrying an object or helping with a real task is better than an invented mishap. A funny result from an earlier page must not be repeated in a later picture. Give the two pictures of each chapter different moments.',
       ...(cast.highlights?.length ? [`MOMENTS THE WRITER BUILT THE STORY AROUND (candidates only: when one actually happens in a PAGE's paragraphs, it is that page's best picture; the prose decides how it looks): ${cast.highlights.join(' — ')}.`] : []),
@@ -724,10 +724,10 @@ export async function generateSeriesImages(input: {
     const visibleObjects = input.entities.filter(e => e.kind === 'artifact' && seriesReferenceMention(paintable, e));
     // One design line per object: the Teddy came twice (contract and portrait text) on pages that drew two teddies. An
     // object with a portrait keeps the text that matches its portrait.
+    const sceneObjects = [...new Map([...props, ...visibleObjects].map(e => [e.id, e])).values()];
     const continuity = seriesShotContinuity(contracts, { ...shot, scene: paintable })
-      .filter(contract => !visibleObjects.some(e => [contract.name, ...contract.aliases].some(alias => seriesReferenceMention(alias, e))));
-    const designText = seriesWordlessCaption([seriesVisualContractText(continuity), ...visibleObjects.map(e => `${e.name}: ${e.appearance}`)].filter(Boolean).join('\n'));
-    const designLock = designText ? `STORY-CRITICAL OBJECT DESIGNS, only for objects already in this scene:\n${designText}\nKeep the same material, shape, scale and distinctive parts. Exactly one copy of each singular story object; no matching toy on a background shelf. Current state and placement follow the scene, never a reference pose.` : '';
+      .filter(contract => !sceneObjects.some(e => [contract.name, ...contract.aliases].some(alias => seriesReferenceMention(alias, e))));
+    const designText = seriesWordlessCaption([seriesVisualContractText(continuity), ...sceneObjects.map(e => `${e.name}: ${e.appearance}`)].filter(Boolean).join('\n'));
     // A held object rides in its holder's cell, also when three people fill the sheet; a resting or hidden one is painted
     // from its design text; only a large thing keeps a cell of its own (see seriesPropPlacement). Once a reader saw a
     // second copy of an object on this page, later attempts paint it from its text too: the held Teddy's portrait came
@@ -746,6 +746,13 @@ export async function generateSeriesImages(input: {
     }
     const carriedObjects = [...carried.values()];
     const cellProps = props.filter(e => !carriedObjects.includes(e) && !placement.hidden.has(e.id) && !placement.resting.has(e.id) && !copied?.has(e.id));
+    // A referenced object's design is stated in OBJECT REFERENCES, never a second time in this block.
+    // The 2026-11-04 Tilda run drew a separate collection box beside the same machine through four attempts.
+    const referencedObjects = new Set([...cellProps, ...carriedObjects].map(e => e.id));
+    const designOnly = seriesWordlessCaption([seriesVisualContractText(continuity), ...sceneObjects
+      .filter(e => !referencedObjects.has(e.id) && (!placement.hidden.has(e.id) || visibleObjects.some(visible => visible.id === e.id)))
+      .map(e => `${e.name}: ${e.appearance}`)].filter(Boolean).join('; '));
+    const designLock = designOnly ? `STORY-CRITICAL OBJECT DESIGNS: ${designOnly}. Preserve material, shape, scale and distinctive parts; current state and placement follow the scene.` : '';
     // What the reviewer inventories as referenced objects: every story object of this picture with a portrait.
     const objects = [...new Set([...props, ...carriedObjects])];
     // The holder goes first on the sheet. FLUX.2 klein hands the caption's action to the first, most described figure:
@@ -770,6 +777,8 @@ export async function generateSeriesImages(input: {
       let imageUrl: string | undefined;
       const beat = (shot as SeriesShot).visualBeat;
       const moment = seriesPaintableMoment(shot);
+      const interior = /^\s*(?:inside|indoors|within)\b/i.test(moment.scene)
+        ? 'An enclosed interior with a continuous floor and enclosing walls; outdoor scenery is visible only through openings.' : '';
       // An edit can preserve a stubborn defect. The final attempt starts a fresh scene with a different seed.
       // Pilot Funkelflug 1 (2026-11-02): edits of a doubled Ben, a doubled dragon and a missing dragon returned the same
       // picture three times; only a new scene recasts its figures. Hands and stray extras are still edited.
@@ -787,8 +796,8 @@ export async function generateSeriesImages(input: {
         const aliases = [...new Set([entity.name, ...entity.name.split(/\s+/).filter(n => n.length >= 3 && !/^(der|die|das|graf|captain|kapitän)$/i.test(n))])].sort((a, b) => b.length - a.length).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
         return caption.replace(new RegExp(`\\b(?:${aliases.join('|')})\\b`, 'gi'), `<${regions[i].id}>`);
       }, text);
-      const sheetSlots = `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${afterPanels ? '' : slotPositionLabel(i, identities.length)} is ONLY ${e.name}${e.role === 'hero' ? (e.referenceContext ? ` (${e.referenceContext})` : '') : `: ${e.appearance}`}${holding(e) ? `, together with ${holding(e)!.name} in front of ${e.name}: the one ${holding(e)!.name} of this scene, which ${e.name} holds` : ''}`).join('; ')}.`;
-      const sheetBinding = `Keep each face, hair, species and outfit with its OWN person; glasses, hats, vests and jackets never move to another figure or onto a creature. Ignore objects held in the portraits unless this scene explicitly needs them. A story garment explicitly worn in the scene, such as a lifejacket, goes over the portrait outfit and must remain visible. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, with human back and shoulders, natural human ears matching the reference, and exactly two arms and two hands, each with five separate fingers, plus two legs${e.role === 'hero' ? ', drawn at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. The sheet's resting poses change to the action in the scene.`;
+      const sheetSlots = `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${afterPanels ? '' : slotPositionLabel(i, identities.length)} is ONLY ${e.name}${e.role === 'hero' && e.referenceContext ? ` (${e.referenceContext})` : ''}${holding(e) ? `, holding ${holding(e)!.name}` : ''}`).join('; ')}.`;
+      const sheetBinding = `Keep each face, hair, species and outfit with its OWN person. The scene determines expressly changed clothing and accessories; the portrait supplies the remaining identity. Each creature keeps its referenced body plan. Garments expressly worn at this moment remain visible. Only scene-required props belong in the picture. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, natural human ears matching the reference, exactly two arms and two hands, each with five separate fingers, plus two legs${e.role === 'hero' ? ', at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. Change the portrait poses to the scene's action.`;
       const objectReferences = cellProps.length || carried.size ? `OBJECT REFERENCES (not people; no added human anatomy): ${[...cellProps.map(e => `${e.name}: ${e.appearance}`), ...[...carried].map(([holderId, e]) => `${e.name}: ${e.appearance}, shown in ${byId.get(holderId)?.name}'s portrait, the only ${e.name} in the picture, in ${byId.get(holderId)?.name}'s hands`)].join('; ')}. Preserve a toy's own stitched face and limbs when present in its reference. Match the same design in every picture. The source determines its current state and position, never the white reference background.` : '';
       const override = !editing && !regionBound ? (shot as SeriesShot).promptOverride : undefined;
       // Luna's complete corrected prompt; the code adds back the identity line with its binding (pilot 2026-11-04: without
@@ -796,8 +805,10 @@ export async function generateSeriesImages(input: {
       // the wordless line.
       const prompt = override ? [
         override,
+        interior,
         artDirection,
         references.length ? `${sheetSlots} ${sheetBinding} A story instant in one continuous full-bleed setting reaching every edge; ignore the reference portraits' backgrounds and paint only the scene's own environment.` : '',
+        designLock,
         objectReferences,
         wordlessLine(override),
         styleProfile ? 'Use the selected illustration medium described above consistently for figures and environment; only the identity sheet supplies characters.' : 'Use the shared Talea Originals medium described above; only the identity sheet supplies characters.',
@@ -808,7 +819,8 @@ export async function generateSeriesImages(input: {
         `The finished scene has exactly one ${drawn.map(e => e.name).join(' and one ')}. Each human has exactly two arms and two hands with five fingers. If a person or hand is duplicated, keep the one integrated with the main interaction and remove the extra copy completely, restoring the setting behind it.`,
         'Keep the original framing and successful details. Do not reconstruct the entire scene from the identity portraits.',
       ].join('\n') : [bindNames(moment.scene),
-        beat ? bindNames(`Depict this visible moment: ${byId.get(beat.actorId)?.name} ${moment.fact}. ${beat.framing.toUpperCase()} framing with foreground and depth. Posture and expression follow this actual moment: lively during a mishap, gentle during a quiet exchange. Hands perform only the described action or rest naturally; do not invent objects to occupy them. The scene determines setting, gesture and camera; the reference sheet determines character identity, not its pose or held props.`) : '',
+        interior,
+        beat ? `${beat.framing.toUpperCase()} framing with foreground and depth. Posture and expression follow the caption's instant. Hands perform that action or rest naturally. The scene supplies setting, gesture and camera; the reference supplies identity.` : '',
         artDirection,
         regionBound ? regions.map((r, i) => `<${r.id}> is ${r.description}, taken only from its own sheet cell and placed in its assigned scene region. Draw this ${identities[i].kind === 'artifact' ? 'object' : 'figure'} exactly once in the caption's new action; the cell's resting pose and portrait background have no part in this scene.`).join('\n') : '',
         references.length ? `${sheetSlots} ${sheetBinding}` : '',
@@ -817,8 +829,8 @@ export async function generateSeriesImages(input: {
         designLock,
         objectReferences,
         simplified
-          ? `A solitary scene with exactly one character, ${drawn[0]?.name}, shown only once. The surrounding landscape is uninhabited: no other figures, creatures, spectators, faces or portraits anywhere in the background. Keep only the setting of this scene, not the reference portrait's background.`
-          : `Exactly ${drawn.length} foreground characters, once each: ${drawn.map(e => e.name).join(', ')}. No additional foreground children or replacement faces. A crowd explicitly named in the caption stays distant incidental silhouettes. A story instant in one continuous full-bleed setting reaching every edge; ignore the reference portraits' backgrounds and paint only the scene's own environment.${drawn.length > 1 && (afterPanels || drawn.length === 2) ? ` ${drawn.map(e => e.name).join(' and ')} share ONE place close together, overlapping in depth with one nearer the viewer, never side by side in separate halves.` : ''}`,
+          ? `A solitary scene with exactly one character, shown once in the caption's location and moment. The surrounding space is the same continuous environment.`
+          : `Exactly ${drawn.length} foreground characters, each shown once. One continuous full-bleed scene reaching every edge, in the caption's own environment.${drawn.length > 1 && (afterPanels || drawn.length === 2) ? ' The figures share ONE place close together, overlapping in depth with one nearer the viewer.' : ''}`,
         fixes.length ? `Correct these observed problems in the same scene: ${fixes.join(' ')}` : '',
         wordlessLine(moment.scene),
         styleProfile ? 'Use the selected illustration medium described above consistently for figures and environment; only the identity sheet supplies characters.' : 'Use the shared Talea Originals medium described above; only the identity sheet supplies characters.',

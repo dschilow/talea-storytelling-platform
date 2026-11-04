@@ -10,7 +10,7 @@ import type { VisualEntity } from '../storybook/illustration-stage';
 
 const bible = bibles.find(b => b.id === 'funkelflug')!;
 const brief = () => {
-  const b = buildBrief({ config: { avatarIds: ['kid'], genre: 'adventure', setting: 'mountain', ageGroup: '6-8', length: 'short', avatarIsHero: false },
+  const b = buildBrief({ config: { avatarIds: ['kid'], genre: 'adventure', setting: 'mountain', ageGroup: '6-8', length: 'short', complexity: 'medium', avatarIsHero: false },
     band: '6-8', budget: { ...seriesBudget('short', '6-8'), pages: 2, totalWordsMin: 10, totalWordsMax: 5000 },
     heroes: [{ id: 'kid', name: 'Nora' }], candidates: [{ id: bible.characterId, name: 'Funkelflug', species: 'dragon', whoTheyAre: 'Drache', personality: [], speechStyle: [], canLead: true }], artifacts: [], seed: 'cost-regression' });
   b.characterSeries = { bible, logs: [] };
@@ -20,6 +20,21 @@ const reply = (text: string) => ({ text, modelUsed: 'test', usage: { prompt: 1, 
 const prose = `FIGUR: Funkelflug | pool | ${bible.characterId} | companion\nTITEL: Der Glockenhof\nBESCHREIBUNG: Ein Abenteuer am Berg.\nIDEE: Gemeinsam die Glocke erreichen.\nREGEL: Funkelflug fliegt nicht.\nFUNDSTÜCK: kein\nKAPITEL 1: Der Hof\nFunkelflug stellte den Becher ab. Nora nahm ihn vom Tisch.\n\nAlexander zeigte auf das geschlossene Hofenster.\nKAPITEL 2: Der Weg\nNora trug den Becher zur Glocke. Funkelflug zog am Seil.\n\nDer Weg war wieder offen, und beide gingen zusammen weiter.`;
 
 describe('production failures and avoidable series cost, abfc9b06', () => {
+  test('a bounded craft edit saves a writer call and is independently checked in the full manuscript', async () => {
+    const stages: string[] = [], quote = 'Nora nahm ihn vom Tisch.';
+    const after = 'Nora nahm den Becher und grinste.';
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), models: SERIES_MODELS, ledger: new CostLedger(), llm: async r => {
+      stages.push(r.stage);
+      if (r.stage === 'series-author') return reply(prose);
+      if (r.stage === 'series-editorial-review') return reply(JSON.stringify({ issues: [{ severity: 'minor', kind: 'craft', quote, problem: 'Die Reaktion fehlt.', change: 'Eine kurze Reaktion.', edit: { before: quote, after } }] }));
+      expect(r.stage).toBe('series-editorial-recheck');
+      expect(r.user).toContain(after);
+      expect(r.user).toContain('Nora trug den Becher zur Glocke.');
+      return reply('{"issues":[]}');
+    } });
+    expect(stages).toEqual(['series-author', 'series-editorial-review', 'series-editorial-recheck']);
+    expect(result.pages[0].content).toContain(after);
+  });
   test('minor source-grounded editorial proposals skip Sol but always recheck the complete manuscript', async () => {
     const stages: string[] = [], quote = 'Nora nahm ihn vom Tisch.';
     const after = 'Nora griff nach dem Becher und nahm ihn vom Tisch.';

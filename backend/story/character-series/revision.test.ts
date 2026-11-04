@@ -533,7 +533,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     });
     expect(prompts).toHaveLength(4);
     for (const prompt of prompts) {
-      expect(prompt).toContain('Ignore objects held in the portraits');
+      expect(prompt).toContain('Only scene-required props belong in the picture');
       expect(prompt).toContain('or rest naturally');
       expect(prompt).toContain('Props come only from this scene');
       expect(prompt).not.toContain('each hand visibly works on its own object');
@@ -680,7 +680,9 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(chapter.prompt).toContain('slot 2 (right portrait) is ONLY Nora (7 years old, 120 cm tall)');
     expect(chapter.prompt).not.toContain('distinctive purple hair');
     expect(reviews.find(r => r.includes('CHAPTER PICTURE'))).not.toContain('distinctive purple hair');
-    expect(chapter.prompt).toContain('small golden dragon');
+    expect(chapter.prompt).toContain('slot 1 (left portrait) is ONLY Funkelflug');
+    expect(chapter.prompt).not.toContain(entities[0].appearance);
+    expect(reviews.find(r => r.includes('CHAPTER PICTURE'))).toContain('small golden dragon');
   });
   test('FLUX.2 klein gets plain names and no scene-region binding; FLUX 3 keeps both', async () => {
     const run = async (imageModel?: string) => {
@@ -1357,7 +1359,8 @@ IDENTITY SHEET, image 1: copied by mistake.` }));
       policy: { maxImageCalls: 8, imageRetries: 1, imageConcurrency: 1 },
     });
     const [first, redraw] = drawings.filter(r => r.page === 1);
-    expect(first.prompt).toContain('No additional foreground children');
+    expect(first.prompt).toContain('Exactly 2 foreground characters, each shown once');
+    expect(first.prompt).not.toContain('No additional foreground children');
     expect(redraw.prompt.startsWith(complete)).toBe(true);
     expect(redraw.prompt).not.toContain('No additional foreground children');
     expect(redraw.prompt).not.toContain('copied by mistake');

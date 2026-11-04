@@ -13,6 +13,7 @@ THEN compare EACH observed figure with their OWN reference and concise identity 
 THEN trace the anatomy of EACH figure, including supporting characters. A human normally has one head, two arms, two hands and two legs. For visibleHandsById, first list the location/action of EVERY hand you can see belonging to that figure, one entry per hand. Inspect both outer edges of each silhouette and the area around held objects; do not stop after finding two. Two hands holding a card PLUS a third pointing or waving hand is an extra limb even if the picture looks attractive. Trace each back to its own arm and torso. anatomyOkById=false for an extra, fused, detached, visibly malformed or genuinely missing body part; name the defect. Occlusion, a cropped lower body, a turned back, a hand behind an object or simple cartoon fingers are normal, not missing anatomy; list only actually visible hands, never invent a hidden one. Judge nonhumans by their referenced body plan.
 Publication blockers: unrecognisable/replaced/merged or missing named figures; extra/duplicated main figures; real anatomy defects; unsafe content; unrelated setting or central subject; copied reference panels, including a picture split down the middle into two side-by-side scenes with a straight seam where the backgrounds do not continue (kind=composition); large intrusive garbled text, such as words on a banner, flag, sign, board or paper (kind=text). Background silhouettes, faint marks and ordinary illustrated scenery are not extra main characters.
 STORY-CRITICAL CONTINUITY (kind=continuity, blocking=true): a second copy of a singular beloved toy or central object, a central device redesigned into another machine, a materially different plot-important prop (cardboard sign becomes solid timber), or an explicitly established essential garment visibly missing. Compare the supplied shared object designs and source; do not infer a contradiction from occlusion, a tighter crop or an unspecified colour. Inventory EACH visible toy/animal separately as matchedId:null when it is an object, including one on a background workbench; hands holding a toy are not a separate toy. A duplicate teddy is never harmless decoration. An overview must not erase passengers, but a close crop may omit off-frame people. These facts matter on covers too. Do not judge harmless pose or actor swaps as continuity faults.
+COUNT EVIDENCE: A caption selecting one sheet from several rule sheets does not make every other sheet a duplicate. Additional ordinary paper or laundry is minor unless it changes the plot. An explicitly fixed count of participating magical objects remains important; incidental stored objects do not join that count. A duplicated singular central toy, kite or complete machine remains blocking. A machine and its attached collection box are ONE device; assess whether two complete devices really exist. An outdoor forest or courtyard replacing an explicitly enclosed room is a different setting, even with a mill or workshop behind the figures. A view through the room's window or door is fine. Worn clothes follow the current source state, which can explicitly remove the reference outfit.
 ACCEPT with a minor note: characters swapping actions or positions; a paint spot on the other person's nose; a second brush; small extra droplets, props or colour changes; a different frozen moment; passive posing; imperfect motion; a slightly different illustration texture. These are story/detail/composition observations, NEVER identity or anatomy defects. sceneCompatible=true when this is recognisably the same place and activity even if actors, handholds, props or exact timing differ. Set false only for an unrelated place or event. materialContradiction does not mean reversed actors or minor prop differences. Every picture is wordless by rule and the prose carries all wording: a boat, flag, sign, book or label without its written name or words is correct, never a continuity or story defect.
 Use kind=identity/anatomy/safety only for a real blocking fault. Other kinds may be blocking only for the publication blockers above. Report at most THREE observations, always real blockers first, each with blocking:true|false and a short positive fix. Keep detail/fix under 180 characters. Numbers are diagnostic, not another hidden publication threshold.
 Return JSON {"reviewVersion":3,"observedFigures":[{"position":"left foreground","appearance":"what this figure actually looks like","matchedId":"exact supplied id or null"}],"visibleHandsById":{"id":["hand holding the handle","hand raised beside the head"]},"anatomyOkById":{"id":true},"recognizableById":{"id":true},"identityById":{"id":0.85},"sceneCompatible":true,"posing":false,"primaryActionClear":true,"storyConsistent":true,"materialContradiction":false,"sceneMatch":0.8,"styleMatch":0.8,"defects":[{"kind":"anatomy|identity|safety|continuity|story|unexpected|text|style|composition|detail","detail":"visible observation","fix":"correction","blocking":false,"blocksAction":false}]}. matchedId is JSON null for an unmatched figure, never an invented id. Include EVERY expected id in all four per-person maps, using recognizableById=false for an absent/replaced figure. All scores 0–1. Empty defects when sound.`;
@@ -58,24 +59,32 @@ export function sceneNamedNonHuman(appearance: string, sceneText: string | undef
  * holding a teddy" stays a boy.
  */
 function describesPerson(appearance: string): boolean {
-  const person = appearance.search(HUMAN_FIGURE);
+  // The subject is the thing BEFORE its location/holder: a kite "behind the man" is no man.
+  const subject = figureSubject(appearance);
+  const person = subject.search(HUMAN_FIGURE);
   if (person < 0) return false;
-  const thing = appearance.search(new RegExp(CREATURE_OR_TOY.source, 'i'));
+  const thing = subject.search(new RegExp(CREATURE_OR_TOY.source, 'i'));
   return thing < 0 || person < thing;
+}
+
+function figureSubject(appearance: string): string {
+  // Hyphens belong to adjectives ("diamond-shaped paper kite"), not to subject boundaries.
+  const described = appearance.replace(/^(?:(?:at|in|on|behind|beside|near|under|above|over|between)\b[^,;:]*[,;:]|(?:leftmost|rightmost|foreground|background)\s+(?:figure|object)\s*:)\s*/i, '');
+  return described.split(/\s+(?:with|holding|held|being|on|in|at|beside|near|behind|under|above|over|from|that|which|of)\s+|[,;:(—–]/i)[0];
 }
 
 function sceneNamedNoun(appearance: string, sceneText: string | undefined, expected: VisualEntity[]): string | undefined {
   if (!sceneText || describesPerson(appearance)) return undefined;
   const scene = sceneText.toLocaleLowerCase('en');
   const species = expected.filter(e => !e.isHuman).map(e => e.species.toLocaleLowerCase('en'));
-  for (const [, word] of appearance.matchAll(CREATURE_OR_TOY)) {
+  for (const [, word] of figureSubject(appearance).matchAll(CREATURE_OR_TOY)) {
     const noun = word.toLocaleLowerCase('en');
     if (!species.some(s => s.includes(noun)) && new RegExp(`\\b(?:${noun}|${pluralForms(noun)})\\b`).test(scene)) return noun;
   }
   // Any other thing the scene names, by its head noun: story 0aa83e90 lost a picture to "Unmatched figure at upper center:
   // A colorful kite with a trailing string" while the caption had the boys rescue that kite. A face, a figure or a
   // creature never qualifies, so a stray face behind a window still blocks.
-  const head = appearance.toLocaleLowerCase('en').split(/\s+(?:with|holding|being|on|in|at|beside|near|behind|under|above|over|from|that|which|of)\s+|[,;:(—–-]/)[0]
+  const head = figureSubject(appearance).toLocaleLowerCase('en')
     .match(/([a-zäöüß]{3,})s?\s*$/)?.[1];
   if (head && !NOT_A_THING.test(head) && !species.some(s => s.includes(head)) && new RegExp(`\\b(?:${head}|${pluralForms(head)})\\b`).test(scene)) return head;
   return undefined;
