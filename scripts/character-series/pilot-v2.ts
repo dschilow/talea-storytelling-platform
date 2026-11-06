@@ -23,6 +23,8 @@ import { buildImageSlots, pagesFor } from '../../backend/story/storybook/book/il
 import { isPublishable, type ImageProvider } from '../../backend/story/storybook/images';
 import { prepareSeriesVisualReferences } from '../../backend/story/character-series/visual-references';
 import { pictureHasPanels } from '../../backend/story/character-series/panels';
+import { createOpenRouterJevPort } from '../../backend/story/storybook/jev-openrouter';
+import { storyImageStyleProfile, type StoryImageStyleId } from '../../backend/ai/image-style';
 
 const args = process.argv.slice(2);
 const opt = (name: string, fallback: string) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback;
@@ -173,8 +175,15 @@ try {
     await writeFile(join(out, 'direction.json'), JSON.stringify(directed.illustrations, null, 2));
     const picturePages = 'pages' in directed ? directed.pages : result.pages;
     const chapterByPage = 'slots' in directed && directed.slots ? Object.fromEntries(directed.slots.map((slot, index) => [index + 1, slot.chapter])) : undefined;
+    // --style <id>: the wizard's picture style; its swatch goes inline (the deployed URL may not exist yet). --jev: the
+    // second reader production runs next to every check.
+    const imageStyle = args.includes('--style') ? opt('--style', '') as StoryImageStyleId : undefined;
+    const swatch = imageStyle && storyImageStyleProfile(imageStyle) ? 'frontend/public' + new URL(storyImageStyleProfile(imageStyle)!.referenceUrl).pathname : '';
     const images = await generateSeriesImages({ illustrations: directed.illustrations, entities, seed: `series-v2-${seriesId}-${episode}`, llm, visionModel, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL, imageModel: opt('--image-model', SERIES_IMAGE_MODEL), pageTexts: Object.fromEntries(picturePages.map(p => [p.order, p.content])), chapterByPage,
-      provider, reservedImageCalls: visuals.calls, panelCheck: pictureHasPanels });
+      provider, reservedImageCalls: visuals.calls, panelCheck: pictureHasPanels,
+      ...(imageStyle ? { imageStyle, ...(swatch && existsSync(swatch) ? { styleReferenceUrl: await inline(swatch) } : {}) } : {}),
+      ...(args.includes('--jev') ? { jev: createOpenRouterJevPort(() => key) } : {}) });
+    images.jevCalls?.forEach((r, i) => ledger.recordCall(`image-jev-${i + 1}`, r, 'support'));
     images.qaCalls.forEach((r, i) => ledger.recordCall(`image-qa-${i + 1}`, r, 'support'));
     imageCostUSD = images.imageCostUSD + visuals.costUSD;
     const all = [images.cover!, ...images.pages.values()];

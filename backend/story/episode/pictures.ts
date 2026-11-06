@@ -212,24 +212,32 @@ export interface ChapterPicture {
   url: string;
   prompt?: string;
   status: ImageOutcome["status"];
+  /** The figures the picture was planned with. */
+  onStage?: string[];
 }
 
 /** The delivered pictures of every chapter, in reading order. */
-export function chapterPictures(direction: Pick<EpisodeDirection, "slots" | "placed">, outcomes: Map<number, ImageOutcome>): ChapterPicture[] {
+export function chapterPictures(direction: Pick<EpisodeDirection, "slots" | "placed"> & Partial<Pick<EpisodeDirection, "illustrations">>, outcomes: Map<number, ImageOutcome>): ChapterPicture[] {
   return direction.slots.flatMap((slot, index) => {
     const outcome = outcomes.get(index + 1);
     const url = publishableImageUrl(outcome);
     if (!url || !outcome) return [];
-    return [{ chapter: slot.chapter, afterParagraph: direction.placed[index]?.afterParagraph ?? slot.afterParagraph, url, prompt: outcome.prompt, status: outcome.status }];
+    const onStage = direction.illustrations?.pages.find((shot) => shot.page === index + 1)?.onStage;
+    return [{ chapter: slot.chapter, afterParagraph: direction.placed[index]?.afterParagraph ?? slot.afterParagraph, url, prompt: outcome.prompt, status: outcome.status, ...(onStage ? { onStage: [...onStage] } : {}) }];
   }).sort((a, b) => a.chapter - b.chapter || a.afterParagraph - b.afterParagraph);
 }
 
 /**
  * The picture that stands in for a failed cover. The story's last picture shows its resolution ("Der Riese hinterm
  * Teig": the cover was chapter 3's picture and gave the ending away), so it is the last choice; of the others a clean picture beats a
- * flawed one (soft flaws only: a picture with writing in it is never delivered).
+ * flawed one (soft flaws only: a picture with writing in it is never delivered). The family wants to find its children on
+ * the cover: story db0d92d8 (2026-11-04) fell back to the Graf alone at his cutting board while a clean picture of him
+ * with both boys was there, so a picture with the most heroes (then the most figures) comes first.
  */
-export function coverStandIn(pictures: ChapterPicture[]): ChapterPicture | undefined {
+export function coverStandIn(pictures: ChapterPicture[], heroIds: string[] = []): ChapterPicture | undefined {
   const early = pictures.slice(0, -1);
-  return early.find((picture) => picture.status === "passed") || early[0] || pictures[0];
+  const heroes = (picture: ChapterPicture) => (picture.onStage || []).filter((id) => heroIds.includes(id)).length;
+  const withHeroes = (status: ChapterPicture["status"]) => early.filter((picture) => picture.status === status && heroes(picture) > 0)
+    .sort((a, b) => heroes(b) - heroes(a) || (b.onStage?.length || 0) - (a.onStage?.length || 0))[0];
+  return withHeroes("passed") || withHeroes("flawed") || early.find((picture) => picture.status === "passed") || early[0] || pictures[0];
 }

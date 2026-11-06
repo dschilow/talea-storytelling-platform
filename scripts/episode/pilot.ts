@@ -28,7 +28,8 @@ import { prepareSeriesVisualReferences } from "../../backend/story/character-ser
 import { pictureHasPanels } from "../../backend/story/character-series/panels";
 import { createRunwareCaller } from "../../backend/story/library/images";
 import { runwareImageModelOptions } from "../../backend/ai/runware-image-model-options";
-import { withTaleaImageStyle, type StoryImageStyleId } from "../../backend/ai/image-style";
+import { storyImageStyleProfile, withTaleaImageStyle, type StoryImageStyleId } from "../../backend/ai/image-style";
+import { existsSync } from "node:fs";
 
 const args = process.argv.slice(2);
 const opt = (name: string, fallback: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
@@ -161,8 +162,11 @@ if (args.includes("--images")) {
   ledger.recordCall("illustration-direction", direction.director.call!, "support");
   if (direction.director.repairCall) ledger.recordCall("illustration-plan-repair", direction.director.repairCall, "support");
   await writeFile(join(out, "direction.json"), JSON.stringify({ illustrations: direction.illustrations, placed: direction.placed, unplaced: direction.unplaced, portraits: [...portraits.portraits, ...references.portraits] }, null, 2));
+  // The style's swatch goes inline: the deployed URL may not exist yet (production checks it and falls back to the text).
+  const swatch = imageStyle && storyImageStyleProfile(imageStyle) ? "frontend/public" + new URL(storyImageStyleProfile(imageStyle)!.referenceUrl).pathname : "";
   const images = await generateSeriesImages({
     illustrations: direction.illustrations, entities: references.entities, provider, imageModel: SERIES_IMAGE_MODEL, seed, llm, imageStyle,
+    ...(swatch && existsSync(swatch) ? { styleReferenceUrl: await inline(swatch) } : {}),
     visionModel: SERIES_IMAGE_REVIEW_MODEL, visionFallbackModel: SERIES_IMAGE_REVIEW_FALLBACK_MODEL,
     pageTexts: Object.fromEntries(direction.pages.map((page) => [page.order, page.content])),
     chapterByPage: Object.fromEntries(direction.slots.map((slot, index) => [index + 1, slot.chapter])),

@@ -1,6 +1,6 @@
 // @ts-ignore Bun test helpers are runtime-only in Encore.
 import { describe, test, expect } from 'bun:test';
-import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, withPanelDefect } from './quality';
+import { describesEyewear, readSeriesQa, seriesEyewearBleed, seriesPictureLastResort, seriesPicturePasses, seriesPictureSource, seriesPictureUsable, seriesSecondReaderRedraw, withJevDefects, withPanelDefect } from './quality';
 import { seriesAvatarAppearance } from './identity';
 import type { VisualEntity } from '../storybook/illustration-stage';
 
@@ -21,6 +21,58 @@ const inventoryReview = (fields: Record<string, unknown> = {}) => publicationRev
     { position: 'right', appearance: 'girl with red glasses', matchedId: 'child-a' },
   ],
   ...fields,
+});
+
+describe('2026-11-06: what the four stories of 2026-11-04 printed or wasted', () => {
+  const boy: VisualEntity = { id: 'alex', name: 'Alexander', kind: 'character', role: 'hero', species: 'human', isHuman: true, appearance: 'boy, short brown hair, light blue T-shirt', referenceContext: '8 years old, male, short brown hair, green eyes', forbidden: [] };
+  const graf: VisualEntity = { id: 'graf', name: 'Graf Griesgram', kind: 'character', role: 'cast', species: 'human', isHuman: true, appearance: 'Graf Griesgram, elderly nobleman with stern expression, trimmed grey beard', forbidden: [] };
+  const tilda: VisualEntity = { id: 'tilda', name: 'Tilda', kind: 'character', role: 'cast', species: 'human', isHuman: true, appearance: 'nine-year-old girl inventor with curly dark hair, round safety goggles', forbidden: [] };
+  const seen = (id: string, appearance: string) => ({ position: 'left foreground', appearance, matchedId: id });
+  test('glasses the reference does not have are a redraw, never a lost picture (429dd9c9 cover)', () => {
+    const found = seriesEyewearBleed([seen('alex', 'Young boy with tousled brown hair, round glasses, green eyes and a turquoise shirt')], [boy]);
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ kind: 'identity', blocking: true, redrawOnly: true });
+    // The fix names no glasses: the painter draws what a fix names.
+    expect(found[0].fix).not.toMatch(/glasses|goggles/i);
+    expect(seriesEyewearBleed([seen('graf', 'Elderly man with a full trimmed beard, glasses, and dark formal clothes.')], [graf])).toHaveLength(1);
+    // Her own goggles, glasses of lemonade, "no glasses" and glasses the scene puts on are fine.
+    expect(seriesEyewearBleed([seen('tilda', 'Girl with curly dark hair and goggles on her head')], [tilda])).toEqual([]);
+    expect(seriesEyewearBleed([seen('alex', 'Boy holding two glasses of lemonade')], [boy])).toEqual([]);
+    expect(seriesEyewearBleed([seen('alex', 'Boy with no glasses and a blue shirt')], [boy])).toEqual([]);
+    expect(seriesEyewearBleed([seen('alex', 'Boy wearing the round glasses')], [boy], 'Alexander puts on the Graf\'s reading glasses.')).toEqual([]);
+    expect(describesEyewear('a pair of spectacles on his nose')).toBe(true);
+    // A forbidden feature is flagged even when the look mentions it.
+    expect(seriesEyewearBleed([seen('alex', 'Boy with glasses')], [{ ...boy, appearance: 'boy, glasses forbidden', forbidden: ['glasses'] }])).toHaveLength(1);
+  });
+  test('the eyewear finding keeps the best attempt printable while asking for a redraw', () => {
+    const qa = readSeriesQa(JSON.stringify({ reviewVersion: 3, observedFigures: [seen('alex', 'Young boy with round glasses and brown hair')],
+      identityById: { alex: 0.78 }, recognizableById: { alex: true }, anatomyOkById: { alex: true }, visibleHandsById: { alex: ['hand reaching for the paper'] },
+      sceneCompatible: true, posing: false, primaryActionClear: true, storyConsistent: true, materialContradiction: false, sceneMatch: 0.9, styleMatch: 0.9, defects: [] }), [boy])!;
+    expect(seriesPicturePasses(qa)).toBe(false);
+    expect(seriesSecondReaderRedraw(qa)).toBe(true);
+    expect(seriesPictureLastResort(qa)).toBe(true);
+  });
+  test('a description longer than its field is clipped, not a reason to throw the paid check away', () => {
+    const long = 'Young boy with short brown hair, '.repeat(14);
+    const qa = readSeriesQa(JSON.stringify({ reviewVersion: 3, observedFigures: [{ position: 'left foreground '.repeat(10), appearance: long, matchedId: 'alex' }],
+      identityById: { alex: 0.95 }, recognizableById: { alex: true }, anatomyOkById: { alex: true }, visibleHandsById: { alex: ['hand '.repeat(60)] },
+      sceneCompatible: true, posing: false, primaryActionClear: true, storyConsistent: true, sceneMatch: 0.9, styleMatch: 0.9,
+      defects: [{ kind: 'detail', detail: 'x'.repeat(500), fix: 'y'.repeat(500), blocking: false }] }), [boy]);
+    expect(qa).toBeDefined();
+    expect(qa!.observedFigures![0].appearance.length).toBeLessThanOrEqual(300);
+    expect(qa!.defects[0].detail.length).toBe(400);
+  });
+  test('Jev reads a double from 0.5 on as a redraw (7fac1369: a second boy behind the snail at 0.51)', () => {
+    const qa = readSeriesQa(inventoryReview(), cast)!;
+    const scores = { hybrid: 0.08, twins: 0.51, fused: 0.71, mirror: 0.19, text: 0.08, blend: 0.75, garment: 0.2 };
+    const read = withJevDefects(qa, scores);
+    expect(read.jevFindings?.some(finding => /drawn twice/.test(finding))).toBe(true);
+    expect(seriesSecondReaderRedraw(read)).toBe(true);
+    expect(seriesPictureLastResort(read)).toBe(true);
+    // Below 0.5 and in a mirror it stays quiet.
+    expect(withJevDefects(qa, { ...scores, twins: 0.45, fused: 0.1, blend: 0.1 }).jevFindings).toBeUndefined();
+    expect(withJevDefects(qa, { ...scores, twins: 0.6, mirror: 0.6, fused: 0.1, blend: 0.1 }).jevFindings).toBeUndefined();
+  });
 });
 
 describe('visible cast inventory before name assignment', () => {
@@ -402,6 +454,29 @@ describe('animals and toys the scene names, story fa24532b', () => {
     expect(seriesPicturePasses(one)).toBe(false);
     const many = readSeriesQa(twice, cast, { sceneText: 'Nora sorts the teddies on the bottom of the open box.' })!;
     expect(seriesPicturePasses(many)).toBe(true);
+  });
+  test('irregular plurals and differently coloured copies are several (pilot 2026-11-06, three goose game pieces)', () => {
+    const geese = inventoryReview({ observedFigures: [
+      { position: 'left', appearance: 'small golden dragon', matchedId: 'dragon' },
+      { position: 'right', appearance: 'girl with red glasses', matchedId: 'child-a' },
+      { position: 'on the board left', appearance: 'Green wooden goose game piece with a handle.', matchedId: null },
+      { position: 'on the board center', appearance: 'Yellow wooden goose game piece.', matchedId: null },
+      { position: 'on the board right', appearance: 'Blue wooden geese piece.', matchedId: null },
+    ] });
+    const copies = (sceneText: string) => readSeriesQa(geese, cast, { sceneText })!.defects.filter(d => /copies of the goose/.test(d.detail));
+    expect(copies('Nora holds the green wooden goose while the other wooden geese rest on the twelve-field board.')).toEqual([]);
+    expect(copies('Nora pushes the blue wooden goose along its groove; it stops beside the yellow goose.')).toEqual([]);
+    expect(copies('Nora pushes the blue wooden goose along the groove. The blue goose shoves the yellow one sideways.')).toEqual([]);
+    expect(copies('Nora holds the green wooden goose high above the board.')).toHaveLength(1);
+    expect(copies('Nora holds the green wooden goose high above the board.')[0].detail).toBe('3 copies of the goose appear; the scene has one.');
+    const colours = inventoryReview({ observedFigures: [
+      { position: 'left', appearance: 'small golden dragon', matchedId: 'dragon' },
+      { position: 'right', appearance: 'girl with red glasses', matchedId: 'child-a' },
+      { position: 'center', appearance: 'Small yellow, feather-textured goose with an orange beak.', matchedId: null },
+      { position: 'right', appearance: 'Small yellow, feather-textured goose with orange feet.', matchedId: null },
+    ] });
+    const qa = readSeriesQa(colours, cast, { sceneText: 'Ben catches the bread as the yellow wooden goose nudges it down.' })!;
+    expect(qa.defects.some(d => /copies of the yellow/.test(d.detail))).toBe(false);
   });
   test('a sheet-like split picture never passes and is never kept as a best attempt', () => {
     const qa = withPanelDefect(readSeriesQa(inventoryReview(), cast)!);

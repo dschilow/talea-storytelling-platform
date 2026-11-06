@@ -9,19 +9,26 @@ export type StoryImageStyleId = "talea-originals" | "colored-pencil" | "painterl
 export interface StoryImageStyleProfile {
   id: Exclude<StoryImageStyleId, "talea-originals">;
   artDirection: string;
+  /**
+   * The painter's style reference: an abstract swatch of the medium, no figure, object or place. Until 2026-11-06 this
+   * was the wizard preview (a curly red-haired girl, round glasses in the painted one, a purple monster, mushrooms), and
+   * FLUX.2 klein painted that girl, her glasses and the forest into the stories' scenes. The wizard keeps its preview
+   * (frontend/lib/story-image-styles.ts); scripts/image-bench/style-reference-probe.ts measures the swatches.
+   */
   referenceUrl: string;
 }
 
 const STORY_IMAGE_STYLE_PROFILES: Record<Exclude<StoryImageStyleId, "talea-originals">, StoryImageStyleProfile> = {
   "colored-pencil": {
     id: "colored-pencil",
-    artDirection: "Hand-drawn COLORED PENCIL on rough ivory paper. Build every colored area from clearly visible individual pencil strokes: loose parallel hatching, curved scribbles following form and crosshatching in shadows. Broken waxy pigment catches on the paper grain; ivory paper remains visible between strokes, including on faces, hair and clothes. Light warm-brown sketch contours, tangled curls, rosy cheeks, gentle flat shapes and supple informal gestures. Fresh leaf-green, warm ochre, terracotta and sky-blue pencils. Every figure and surface must look drawn with colored pencils, without watercolor washes, smooth paint fills or airbrushed gradients. The story scene determines place, light and emotion.",
-    referenceUrl: "https://www.talea.website/library/image-styles/colored-pencil.webp",
+    // "tangled curls" described the preview girl's hair (wizard prompt of 2026-11-03), not the medium: every child came out curly.
+    artDirection: "Hand-drawn COLORED PENCIL on rough ivory paper. Build every colored area from clearly visible individual pencil strokes: loose parallel hatching, curved scribbles following form and crosshatching in shadows. Broken waxy pigment catches on the paper grain; ivory paper remains visible between strokes, including on faces, hair and clothes. Light warm-brown sketch contours, rosy cheeks, gentle flat shapes and supple informal gestures. Fresh leaf-green, warm ochre, terracotta and sky-blue pencils. Every figure and surface must look drawn with colored pencils, without watercolor washes, smooth paint fills or airbrushed gradients. The story scene determines place, light and emotion.",
+    referenceUrl: "https://www.talea.website/library/image-styles/colored-pencil-swatch.webp",
   },
   "painterly-adventure": {
     id: "painterly-adventure",
     artDirection: "Lush expressive BRUSH-PAINTED GOUACHE adventure illustration. Playfully exaggerated character proportions, large lively eyes, bouncy organic silhouettes and funny physical gestures. Opaque layered paint masses sculpt faces, hair, fabric and fur into rounded volumes with broad light and shadow, visible bristle marks and chipped dry-brush edges. Saturated emerald, cool ultramarine depth and luminous warm highlights. Dense overlapping painterly forms reaching every edge. Keep the rough painted surface and bold shapes throughout; fine brown ink contours and pencil hatching do not define this medium. The story scene determines place, light and emotion.",
-    referenceUrl: "https://www.talea.website/library/image-styles/painterly-adventure-v2.webp",
+    referenceUrl: "https://www.talea.website/library/image-styles/painterly-adventure-swatch.webp",
   },
 };
 

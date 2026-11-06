@@ -121,6 +121,25 @@ describe("Talea-Folge pictures", () => {
     expect(coverStandIn([picture(3, "passed")])?.url).toBe("u3");
     expect(coverStandIn([])).toBeUndefined();
   });
+
+  test("cover stand-in shows the family's children: db0d92d8 fell back to the Graf alone at his cutting board", () => {
+    const picture = (url: string, status: ChapterPicture["status"], onStage: string[]): ChapterPicture => ({ chapter: 1, afterParagraph: 3, url, status, onStage });
+    const story = [
+      picture("graf-alone", "passed", ["graf"]), picture("johann-graf", "passed", ["johann", "graf"]), picture("cart", "flawed", ["graf", "alexander", "adrian"]),
+      picture("apron", "passed", ["graf", "alexander", "adrian"]), picture("loaf", "passed", ["graf", "alexander"]), picture("meal", "passed", ["graf", "alexander", "adrian"]),
+    ];
+    expect(coverStandIn(story, ["alexander", "adrian"])?.url).toBe("apron");
+    // Never the last picture (the resolution); a flawed picture with a child beats a clean one without.
+    expect(coverStandIn([story[0], story[2], story[5]], ["alexander", "adrian"])?.url).toBe("cart");
+    expect(coverStandIn(story)?.url).toBe("graf-alone");
+  });
+
+  test("delivered chapter pictures carry the figures they were planned with", () => {
+    const outcomes = new Map([[1, { page: 1, url: "https://img/1.jpg", status: "passed", attempts: 1, prompt: "p", severity: 0, costUSD: 0 }]]) as any;
+    const pictures = chapterPictures({ slots: [{ chapter: 1, part: 0, afterParagraph: 4 }] as any, placed: [{ afterParagraph: 5 }] as any,
+      illustrations: { cover: { page: 0, onStage: [], scene: "" }, pages: [{ page: 1, onStage: ["alexander", "elsa"], scene: "" }] } as any }, outcomes);
+    expect(pictures[0].onStage).toEqual(["alexander", "elsa"]);
+  });
 });
 
 describe("story 26fdd23f: the moments a child points at", () => {

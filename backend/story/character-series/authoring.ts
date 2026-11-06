@@ -27,7 +27,8 @@ export const SERIES_PICTURE_DIRECTION_MODEL = 'openai/gpt-6-luna';
  * Luna is the primary visual check by product choice (2026-10-30); Gemini is the technical-outage reader.
  * Luna caught the third arm and wrong hair colour in the small publication-policy comparison at lower cost,
  * but was stricter on a borderline hair shade. Keep the same recognisability and anatomy criteria for both.
- * Explicit provider safety blocks are final, never retried or routed to another reader.
+ * An unreadable Luna answer is read once more by Luna before Gemini is asked (Gemini costs about seven times as much).
+ * A picture a reader's safety filter refuses is never printed, edited or shown to another reader; its page is drawn once more.
  */
 export const SERIES_IMAGE_REVIEW_MODEL = 'openai/gpt-6-luna';
 export const SERIES_IMAGE_REVIEW_FALLBACK_MODEL = 'google/gemini-3.8-flash';
@@ -39,6 +40,19 @@ export const SERIES_IMAGE_REVIEW_EFFORT = 'medium';
  */
 export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_KLEIN_9B_KV_MODEL;
 /**
+ * Version 29 (2026-11-06, stories 429dd9c9, 6fa2cd2e, db0d92d8, 7fac1369): a selectable style hands the painter an
+ * abstract swatch instead of the wizard preview (its curly girl, her glasses, the monster and the toadstools came back in
+ * the scenes: in the probe 7 of 20 preview pictures, 0 of 20 swatch pictures, Logs/image-bench/style-reference-probe;
+ * "tangled curls" left the pencil style); a figure
+ * that is no avatar is named with the first words of its look ("capable adult woman shipwright"); glasses a reference
+ * lacks and a Jev double from 0.5 are redraws; an unreadable Luna check is read by Luna again before Gemini; a page whose
+ * picture a safety filter refused is drawn once more; the stand-in cover shows the family's children; a repair of minor
+ * findings whose recheck flags the repaired line is rolled back without a second paid round. A shared object design is
+ * the object as first shown and names no other object: "they can grow to enormous geese" and a board "with grooves for
+ * the sliding geese" painted flocks of living geese into six of seven first attempts of a pilot; on the same seeds none
+ * came back (two probes). "geese", "mice" and differently coloured copies ("the blue goose … the yellow one") count as
+ * several. Still open: FLUX paints a big wooden goose feathered and alive, also with an object portrait (probes 3 and 5);
+ * object portraits then took the cover's sheet cells from the children, so the reference plan stays as it was.
  * Version 28 (2026-11-04 PDFs 25193ec3, 6fa2cd2e, 429dd9c9): one caption and one object-design line per picture,
  * reference outfits may follow source changes, hyphenated props and props located behind people stay props, ordinary
  * paper multiplicity is judged from source, and bounded craft proposals use the existing full-manuscript recheck.
@@ -99,7 +113,7 @@ export const SERIES_IMAGE_MODEL = process.env.TALEA_SERIES_IMAGE_MODEL || FLUX2_
  * took 211 s. Up to five repairs, spent on pictures with a hard fault or provider failure. The caps stop runaways; a normal episode
  * spends ≈ 3.5 ¢ on LLM calls and ≈ 2 ¢ on pictures.
  */
-export const SERIES_POLICY = { version: 28, maxVisualReferences: 3, picturesPerChapter: 2, imageRetries: 7, imageConcurrency: 7, maxImageCalls: 16, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
+export const SERIES_POLICY = { version: 29, maxVisualReferences: 3, picturesPerChapter: 2, imageRetries: 7, imageConcurrency: 7, maxImageCalls: 16, maxLlmCalls: 30, llmStopAfterUSD: 0.08, longLlmStopAfterUSD: 0.11, maxTextRepairs: 2 } as const;
 
 export function seriesBudget(length: 'short' | 'medium' | 'long', band: AgeBand) {
   const base = episodeBudget(length, band);

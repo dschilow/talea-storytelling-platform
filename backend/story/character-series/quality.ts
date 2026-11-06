@@ -1,6 +1,6 @@
 import type { VisualEntity } from '../storybook/illustration-stage';
 import type { ImageQaReport } from '../storybook/images';
-import { firedJevChecks, JEV_NOTES, type JevCheck, type JevScores } from '../storybook/jev';
+import { firedJevChecks, JEV_NOTES, JEV_THRESHOLDS, type JevCheck, type JevScores } from '../storybook/jev';
 import { parseJsonObject } from '../storybook/llm';
 
 const KINDS = ['anatomy', 'identity', 'safety', 'continuity', 'story', 'unexpected', 'text', 'style', 'composition', 'detail'] as const;
@@ -42,7 +42,7 @@ export type SeriesQa = ImageQaReport & {
 export const SERIES_IMAGE_REVIEW = SERIES_IMAGE_REVIEW_COMPACT;
 
 const HUMAN_FIGURE = /\b(?:boy|girl|child|children|kid|toddler|man|woman|adult|person|people|human|lady|gentleman|teenager)s?\b/i;
-const CREATURE_OR_TOY = /\b(teddy|bear|plush|stuffed|toy|doll|puppet|seal|pup|dog|puppy|cat|kitten|bird|gull|seagull|duck|goose|hen|chicken|owl|crow|parrot|pigeon|sparrow|fish|crab|frog|toad|turtle|tortoise|snail|mouse|rat|hamster|rabbit|bunny|hare|hedgehog|squirrel|fox|deer|horse|pony|donkey|goat|sheep|lamb|cow|calf|pig|piglet|bee|butterfly|beetle|ladybird|ladybug|spider|dragon|unicorn|robot|snowman|scarecrow)s?\b/gi;
+const CREATURE_OR_TOY = /\b(teddy|bear|plush|stuffed|toy|doll|puppet|seal|pup|dog|puppy|cat|kitten|bird|gull|seagull|duck|goose|geese|hen|chicken|owl|crow|parrot|pigeon|sparrow|fish|crab|frog|toad|turtle|tortoise|snail|mouse|mice|rat|hamster|rabbit|bunny|hare|hedgehog|squirrel|fox|deer|horse|pony|donkey|goat|sheep|lamb|cow|calf|pig|piglet|bee|butterfly|beetle|ladybird|ladybug|spider|dragon|unicorn|robot|snowman|scarecrow)s?\b/gi;
 
 /**
  * An unreferenced animal or toy that the scene itself names belongs in the picture. Story fa24532b (2026-11-02) lost its
@@ -78,14 +78,18 @@ function sceneNamedNoun(appearance: string, sceneText: string | undefined, expec
   const scene = sceneText.toLocaleLowerCase('en');
   const species = expected.filter(e => !e.isHuman).map(e => e.species.toLocaleLowerCase('en'));
   for (const [, word] of figureSubject(appearance).matchAll(CREATURE_OR_TOY)) {
-    const noun = word.toLocaleLowerCase('en');
+    const noun = singularNoun(word.toLocaleLowerCase('en'));
     if (!species.some(s => s.includes(noun)) && new RegExp(`\\b(?:${noun}|${pluralForms(noun)})\\b`).test(scene)) return noun;
   }
   // Any other thing the scene names, by its head noun: story 0aa83e90 lost a picture to "Unmatched figure at upper center:
   // A colorful kite with a trailing string" while the caption had the boys rescue that kite. A face, a figure or a
   // creature never qualifies, so a stray face behind a window still blocks.
-  const head = figureSubject(appearance).toLocaleLowerCase('en')
+  const rawHead = figureSubject(appearance).toLocaleLowerCase('en')
     .match(/([a-zäöüß]{3,})s?\s*$/)?.[1];
+  const head = rawHead && singularNoun(rawHead);
+  // "Small yellow, feather-textured goose" ends its subject at the comma: a colour or size is no thing (probe 2026-11-06
+  // reported "2 copies of the yellow").
+  if (head && new RegExp(`^(?:${COLOUR_WORD}|small|large|big|tiny|huge|giant|little|tall|round|wooden|shiny|old|new)$`).test(head)) return undefined;
   if (head && !NOT_A_THING.test(head) && !species.some(s => s.includes(head)) && new RegExp(`\\b(?:${head}|${pluralForms(head)})\\b`).test(scene)) return head;
   return undefined;
 }
@@ -93,11 +97,50 @@ function sceneNamedNoun(appearance: string, sceneText: string | undefined, expec
 /** Head nouns that are a being or a part of one, never a prop. */
 const NOT_A_THING = /^(?:faces?|heads?|eyes?|hands?|arms?|legs?|feet|foot|figures?|silhouettes?|shadows?|creatures?|monsters?|ghosts?|characters?|strangers?|persons?|people|beings?|spirits?|animals?|reflections?|copy|copies|duplicates?|twins?)$/;
 
-const pluralForms = (noun: string) => `${noun}s|${noun}es|${noun.replace(/y$/, 'ie')}s`;
+// Pilot 2026-11-06: "The other wooden geese rest on the board" did not count as plural, so the check reported "9 copies
+// of the goose appear; the scene has one" on every page of a story about three goose game pieces.
+const IRREGULAR_PLURAL: Record<string, string> = { goose: 'geese', mouse: 'mice', wolf: 'wolves', calf: 'calves', leaf: 'leaves', loaf: 'loaves', knife: 'knives', shelf: 'shelves', elf: 'elves', dwarf: 'dwarves', scarf: 'scarves', hoof: 'hooves', die: 'dice', ox: 'oxen' };
+const IRREGULAR_SINGULAR: Record<string, string> = Object.fromEntries(Object.entries(IRREGULAR_PLURAL).map(([one, many]) => [many, one]));
+const singularNoun = (noun: string) => IRREGULAR_SINGULAR[noun] || noun;
+const pluralForms = (noun: string) => [`${noun}s`, `${noun}es`, `${noun.replace(/y$/, 'ie')}s`, ...(IRREGULAR_PLURAL[noun] ? [IRREGULAR_PLURAL[noun]] : [])].join('|');
+const COLOUR_WORD = 'red|orange|yellow|green|blue|purple|violet|pink|brown|black|white|grey|gray|golden|silver|turquoise';
 
-/** "teddies", "two seals": the scene asks for more than one. */
+/** "teddies", "two seals", "the blue goose … beside the yellow goose / the yellow one": the scene asks for more than one. */
 function scenePlural(noun: string, sceneText: string): boolean {
-  return new RegExp(`\\b(?:${pluralForms(noun)}|(?:two|three|four|several|many|both)\\s+(?:\\w+\\s+){0,2}${noun})\\b`, 'i').test(sceneText);
+  if (new RegExp(`\\b(?:${pluralForms(noun)}|(?:two|three|four|five|six|several|many|both)\\s+(?:[\\w-]+\\s+){0,2}${noun})\\b`, 'i').test(sceneText)) return true;
+  if (!new RegExp(`\\b${noun}\\b`, 'i').test(sceneText)) return false;
+  const colours = [...sceneText.matchAll(new RegExp(`\\b(${COLOUR_WORD})\\s+(?:(?:[\\w-]+\\s+){0,2}${noun}|ones?)\\b`, 'gi'))].map(match => match[1].toLowerCase().replace('gray', 'grey'));
+  return new Set(colours).size >= 2;
+}
+
+const EYEWEAR = /\b(?:eye-?glasses|sunglasses|glasses|spectacles|goggles|monocles?|brille)\b/i;
+const NO_EYEWEAR = /\b(?:no|without|not wearing|never wears)\s+(?:[\p{L}-]+\s+){0,2}(?:eye-?glasses|sunglasses|glasses|spectacles|goggles|monocles?)\b/iu;
+
+/** The reader's description of a figure puts glasses or goggles on it ("two glasses of lemonade" is no eyewear). */
+export function describesEyewear(text: string): boolean {
+  return EYEWEAR.test(text.replace(/\bglasses\s+of\b/gi, '')) && !NO_EYEWEAR.test(text);
+}
+
+/**
+ * Glasses or goggles that a figure's own reference does not have. Story 429dd9c9 (2026-11-04) printed Alexander with the
+ * round glasses of the painted style example on its cover and the Graf with a pair on page 4: the reader described both
+ * ("round glasses") and filed neither. Redraw-only: when a profile forgot an avatar's own glasses, a false alarm costs a
+ * redraw, never the page's best picture. Glasses the scene names (someone puts them on) are fine.
+ */
+export function seriesEyewearBleed(observed: SeriesObservedFigure[] | undefined, expected: VisualEntity[], sceneText?: string): SeriesImageDefect[] {
+  if (!observed?.length || (sceneText && EYEWEAR.test(sceneText))) return [];
+  const flagged = new Set<string>();
+  return observed.flatMap(figure => {
+    const entity = figure.matchedId ? expected.find(e => e.id === figure.matchedId) : undefined;
+    if (!entity || flagged.has(entity.id) || !describesEyewear(figure.appearance)) return [];
+    const forbidden = EYEWEAR.test(entity.forbidden.join(' '));
+    if (!forbidden && EYEWEAR.test(`${entity.appearance} ${entity.referenceContext || ''}`)) return [];
+    flagged.add(entity.id);
+    return [{ kind: 'identity' as const, blocking: true, redrawOnly: true as const,
+      detail: `${entity.name} wears glasses or goggles that ${entity.name}'s own reference does not have.`,
+      // Positive words only: the painter draws what a fix names.
+      fix: `${entity.name}'s face and eyes look exactly like ${entity.name}'s own sheet cell.` }];
+  });
 }
 
 /** Identity/anatomy/safety remain blocking; harmless staging is retained separately from the release decision. */
@@ -123,14 +166,17 @@ export function readSeriesQa(text: string, expected: VisualEntity[], context: { 
   if (reviewVersion === 3) {
     if (!Array.isArray(raw.observedFigures) || raw.observedFigures.length > 12) return undefined;
     observedFigures = [];
+    // A description longer than its field is clipped, not a reason to throw away a paid check: an unreadable answer went
+    // to Gemini (0.79 ¢ in story db0d92d8; in 6fa2cd2e Gemini then refused the picture and the page stayed empty).
     for (const figure of raw.observedFigures) {
-      if (!figure || typeof figure.position !== 'string' || figure.position.trim().length < 3 || figure.position.length > 120
-        || typeof figure.appearance !== 'string' || figure.appearance.trim().length < 3 || figure.appearance.length > 300
-        || (figure.matchedId !== null && typeof figure.matchedId !== 'string')) return undefined;
+      if (!figure || typeof figure.position !== 'string' || figure.position.trim().length < 3
+        || typeof figure.appearance !== 'string' || figure.appearance.trim().length < 3
+        || (figure.matchedId != null && typeof figure.matchedId !== 'string')) return undefined;
       const matchedId = typeof figure.matchedId === 'string' ? resolveId(figure.matchedId) : null;
       const resolved = matchedId && expected.some(e => e.id === matchedId) ? matchedId : null;
-      observedFigures.push({ position: figure.position.trim(), appearance: figure.appearance.trim(), matchedId: resolved,
-        ...(!resolved && sceneNamedNonHuman(figure.appearance, context.sceneText, expected) ? { sceneProp: true as const } : {}) });
+      const appearance = figure.appearance.trim().slice(0, 300);
+      observedFigures.push({ position: figure.position.trim().slice(0, 120), appearance, matchedId: resolved,
+        ...(!resolved && sceneNamedNonHuman(appearance, context.sceneText, expected) ? { sceneProp: true as const } : {}) });
     }
   }
   const reportedVisibleIds = observedFigures
@@ -144,8 +190,9 @@ export function readSeriesQa(text: string, expected: VisualEntity[], context: { 
   if (scores.some(n => typeof n !== 'number' || !Number.isFinite(n) || n < 0 || n > 1) || typeof raw.primaryActionClear !== 'boolean' || typeof raw.posing !== 'boolean' || !Array.isArray(reportedVisibleIds) || reportedVisibleIds.some((id: unknown) => typeof id !== 'string') || !Array.isArray(raw.defects)) return undefined;
   if (raw.materialContradiction !== undefined && typeof raw.materialContradiction !== 'boolean') return undefined;
   if (raw.defects.length > 12) return undefined;
-  const rawDefects = raw.defects;
-  if (rawDefects.some((d: any) => !KINDS.includes(d?.kind) || typeof d.detail !== 'string' || d.detail.trim().length < 3 || d.detail.length > 400 || typeof d.fix !== 'string' || d.fix.trim().length < 3 || d.fix.length > 400 || (d.blocksAction !== undefined && typeof d.blocksAction !== 'boolean') || (d.blocking !== undefined && typeof d.blocking !== 'boolean'))) return undefined;
+  const clipText = (value: unknown, max: number) => typeof value === 'string' ? value.slice(0, max) : value;
+  const rawDefects = raw.defects.map((d: any) => d && typeof d === 'object' ? { ...d, detail: clipText(d.detail, 400), fix: clipText(d.fix, 400) } : d);
+  if (rawDefects.some((d: any) => !KINDS.includes(d?.kind) || typeof d.detail !== 'string' || d.detail.trim().length < 3 || typeof d.fix !== 'string' || d.fix.trim().length < 3 || (d.blocksAction !== undefined && typeof d.blocksAction !== 'boolean') || (d.blocking !== undefined && typeof d.blocking !== 'boolean'))) return undefined;
   const booleanMap = (value: unknown): Record<string, boolean> | undefined => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
     const mapped = Object.fromEntries(Object.entries(value).map(([key, entry]) => [resolveId(key), entry]));
@@ -155,9 +202,10 @@ export function readSeriesQa(text: string, expected: VisualEntity[], context: { 
   const recognizableById = booleanMap(raw.recognizableById);
   const anatomyOkById = booleanMap(raw.anatomyOkById);
   const hands = raw.visibleHandsById && typeof raw.visibleHandsById === 'object' && !Array.isArray(raw.visibleHandsById)
-    ? Object.fromEntries(Object.entries(raw.visibleHandsById).map(([id, locations]) => [resolveId(id), locations])) : undefined;
+    ? Object.fromEntries(Object.entries(raw.visibleHandsById).map(([id, locations]) => [resolveId(id),
+      Array.isArray(locations) ? locations.map(location => clipText(location, 180)) : locations])) : undefined;
   const validHands = (value: unknown): value is string[] => Array.isArray(value) && value.length <= 8
-    && value.every(location => typeof location === 'string' && location.trim().length > 2 && location.length <= 180);
+    && value.every(location => typeof location === 'string' && location.trim().length > 2);
   if (reviewVersion && (!expected.length || !recognizableById || !anatomyOkById || typeof raw.sceneCompatible !== 'boolean' || !hands || expected.some(e => !validHands(hands[e.id])) || rawDefects.some((d: SeriesImageDefect) => typeof d.blocking !== 'boolean'))) return undefined;
   const visibleHandsById = reviewVersion
     ? Object.fromEntries(expected.map(e => [e.id, hands![e.id] as string[]])) : undefined;
@@ -185,6 +233,7 @@ export function readSeriesQa(text: string, expected: VisualEntity[], context: { 
         fix: `Draw ${entity.name} with exactly two hands attached to their own arms.`, blocking: true });
     }
   }
+  defects.push(...seriesEyewearBleed(observedFigures, expected, context.sceneText));
   const visibleIds = (reportedVisibleIds as string[]).map(resolveId);
   const known = new Map(expected.map(e => [e.id, e.name]));
   const missing = expected.filter(e => !visibleIds.includes(e.id)).map(e => e.name);
@@ -267,9 +316,17 @@ const JEV_DEFECTS: Record<JevCheck, { kind: Kind; fix: string; hard?: true }> = 
  * ee4971ca Luna printed a leg melting into grey runners that Jev read as fused 0.90. A double the reviewer already
  * counted is not added twice.
  */
+/**
+ * A double from 0.5 on in the two customer lanes, as a redraw (never a lost picture). Of the 164 audited pictures
+ * (Logs/image-bench/jev-alarm-audit) and the 28 last attempts in the logs of four stories of 2026-11-04, two scored
+ * 0.5–0.65, and both had a real fault the reviewer passed: a second boy behind the snail in story 7fac1369 (0.51), two
+ * children sharing red glasses and a yellow jacket in the Blubbert pilot (0.54).
+ */
+export const SERIES_JEV_THRESHOLDS = { ...JEV_THRESHOLDS, twins: 0.5 } as const;
+
 export function withJevDefects(qa: SeriesQa, scores: JevScores | undefined): SeriesQa {
   if (!scores) return qa;
-  const fired = firedJevChecks(scores).filter(check => !(check === 'twins' && qa.duplicates.length));
+  const fired = firedJevChecks(scores, SERIES_JEV_THRESHOLDS).filter(check => !(check === 'twins' && qa.duplicates.length));
   if (!fired.length) return { ...qa, jev: scores };
   const added: SeriesImageDefect[] = fired.map(check => ({ kind: JEV_DEFECTS[check].kind, blocking: true,
     detail: `${JEV_NOTES[check]} [jev ${Math.round(scores[check] * 100)}%]`, fix: JEV_DEFECTS[check].fix,

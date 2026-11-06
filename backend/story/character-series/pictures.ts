@@ -163,6 +163,22 @@ function isChildFigure(entity: VisualEntity): boolean {
   return entity.isHuman && (entity.role === 'hero' || /\b(?:child|boy|girl)\b/i.test(entity.appearance));
 }
 
+/**
+ * What a figure that is not one of the family's avatars is, in the first words of its own look: "elderly nobleman",
+ * "capable adult woman shipwright", "Round ochre snail". Since v28 the sheet line named these figures only by name;
+ * Pia, an adult shipwright, then came back as a girl of the children's size and Trödel the snail with paws and arms
+ * (story 7fac1369, 2026-11-04). No clothes: the portrait carries those, and a scene may change them.
+ */
+export function seriesFigureKind(entity: VisualEntity): string {
+  if (entity.role === 'hero' || entity.kind !== 'character') return '';
+  // "Graf Griesgram, elderly nobleman with …", "Tilda Tueftel, nine-year-old girl inventor with …": the name goes.
+  const look = entity.appearance.trim().replace(/^(?:[A-ZÄÖÜ][\p{L}'’-]*\s+){0,3}[A-ZÄÖÜ][\p{L}'’-]*\s*,\s*/u, '');
+  const head = look.split(/\s+(?:with|wearing|in|holding|who|whose)\s+|[,;.:(—–]/iu)[0].replace(/^(?:a|an|the)\s+/i, '').trim();
+  if (head.length < 4 || head.length > 60 || /^(?:portrait|picture|illustration|image)\b/i.test(head)
+    || head.toLocaleLowerCase('de-DE').includes(entity.name.toLocaleLowerCase('de-DE'))) return '';
+  return head;
+}
+
 function validSeriesBox(value: unknown): value is SeriesBox {
   if (!Array.isArray(value) || value.length !== 4 || !value.every(n => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1000)) return false;
   const [top, left, bottom, right] = value;
@@ -308,6 +324,39 @@ export function seriesPropPlacement(shot: IllustrationShot, figures: VisualEntit
   return { carriedBy, resting, hidden };
 }
 export const SERIES_STYLE_REFERENCE = 'https://www.talea.website/library/series/bruno-der-flunkerfisch/s1e1/ch2.webp';
+
+const styleReferenceChecks = new Map<string, { ok: boolean; at: number }>();
+
+/**
+ * A style swatch the painter cannot load would cost every picture of a story (the backend may run before the frontend
+ * that serves the swatch is deployed); then the style text alone paints. Checked like the series portraits
+ * (identity.ts seriesLeadReference); an answer is kept ten minutes, a failure one.
+ */
+export async function reachableStyleReference(url: string | undefined, fetcher: typeof fetch = fetch): Promise<string | undefined> {
+  if (!url || !/^https?:\/\//i.test(url)) return url;
+  const cached = styleReferenceChecks.get(url);
+  if (cached && Date.now() - cached.at < (cached.ok ? 600_000 : 60_000)) return cached.ok ? url : undefined;
+  let ok = false;
+  try {
+    const response = await fetcher(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+    ok = response.ok && /^image\//i.test(response.headers.get('content-type') || '');
+  } catch { ok = false; }
+  styleReferenceChecks.set(url, { ok, at: Date.now() });
+  if (!ok) console.warn(`[character-series] style reference unavailable, the style text alone paints: ${url}`);
+  return ok ? url : undefined;
+}
+
+/**
+ * The line that hands the painter a selectable style's swatch. Until 2026-11-06 the reference was the wizard's preview
+ * picture, a curly red-haired girl (round glasses in the painted one) and a purple monster among mushrooms: curly
+ * strangers like her came back in 6 of 14 attempts of story db0d92d8, her glasses on Alexander on the cover of 429dd9c9,
+ * the forest and a toadstool in the workshop of 6fa2cd2e. Probe (scripts/image-bench/style-reference-probe.ts, five real
+ * scenes, two seeds): 7 of 20 preview pictures carried her, the monster or the toadstools, 0 of 20 swatch pictures. The
+ * swatch shows only the medium, so the line names only that.
+ */
+export function seriesStyleGuide(imageNumber: number, artDirection: string): string {
+  return `STYLE REFERENCE, image ${imageNumber}: an abstract swatch of the selected medium, its strokes, pigment texture, paper and palette. Paint every figure and every surface of this picture in that medium. Re-draw the identity-sheet figures in it, retaining their identifying face, hair, species, clothing and colors and replacing only the portraits' original rendering and shading. The story scene supplies the place and the objects; the identity sheet supplies the cast. One continuous scene in this medium. ${artDirection}`;
+}
 export const SERIES_ART_DIRECTION = `${ORIGINALS_IMAGE_STYLE}. Bold readable curved silhouettes, slightly enlarged expressive heads, clear soft ink contours, broad gouache colour shapes and varied comic expressions. Keep texture subordinate to faces and action; the setting supports the joke. Render the referenced identities in this illustration language.`;
 
 export interface SeriesShotRules {
@@ -572,7 +621,7 @@ export async function directSourcePictures(input: {
       'For a referenced avatar identify them by name and action only; do not describe their hair, ears, teeth, face, clothing or other visible appearance in captions. The identity sheet supplies those details. Exception: explicitly donned story garments such as lifejackets MUST be described and stay worn until removed in the source. Nonvisual age or height may be used for scale.',
       'SOURCE FIRST: for each PAGE, first copy storyQuote, a consecutive 12–500 character passage that actually states the selected action AND its visible result. Then set paragraph to the LAST local paragraph needed for that result, even if it is the last paragraph of the page. Only then derive onStage, visualBeat and scene from that passage. Do not cite a vague lead-in, an earlier dialogue line or the start of an action while drawing its later result. Never borrow an event from another PAGE. The finished prose, not a planned gag or an imagined improvement, is the authority.',
       VISIBLE_STAGING,
-      'SHARED PROP DESIGNS: return top-level continuity for at most FOUR plot-important objects, including a title device or beloved toy even when it has no portrait or sheet cell. Each entry is {name:"source name",aliases:["source names","English caption nouns"],appearance:"concise English material, shape, scale and distinctive parts",evidence:[{page:number,quote:"exact 12–500 character source passage naming and describing this object"}]}. Use only source-grounded stable design facts, no invented machinery, powers or people. Keep temporary states such as an open seam, removed boots or a detached panel in the individual scene, not in the shared appearance. A collection box attached to a machine is part of that same device, never a second freestanding object. Resolve every caption against these same designs. A floor-level broom/pedal/box stays that device, not a different factory machine; a cardboard sign stays cardboard. Include worn lifejackets or other consequential garments in each caption AFTER the prose establishes them. A wide overview of an occupied vehicle must not imply that its other passengers vanished: choose a tighter crop if the cast limit prevents an honest overview.',
+      'SHARED PROP DESIGNS: return top-level continuity for at most FOUR plot-important objects, including a title device or beloved toy even when it has no portrait or sheet cell. Each entry is {name:"source name",aliases:["source names","English caption nouns"],appearance:"concise English material, shape, scale and distinctive parts",evidence:[{page:number,quote:"exact 12–500 character source passage naming and describing this object"}]}. Use only source-grounded stable design facts, no invented machinery, powers or people. Keep temporary states such as an open seam, removed boots or a detached panel in the individual scene, not in the shared appearance. So is a size, number or material the story\'s magic gives an object: the appearance describes it as first shown ("they can grow to enormous geese" painted flocks of living geese), and it names no other object (a board\'s "grooves for the sliding geese" painted eight geese where none belonged). When the magic has changed an object, its caption keeps the material and kind with the new size ("the green wooden goose game piece, now as tall as Ben"). A collection box attached to a machine is part of that same device, never a second freestanding object. Resolve every caption against these same designs. A floor-level broom/pedal/box stays that device, not a different factory machine; a cardboard sign stays cardboard. Include worn lifejackets or other consequential garments in each caption AFTER the prose establishes them. A wide overview of an occupied vehicle must not imply that its other passengers vanished: choose a tighter crop if the cast limit prevents an honest overview.',
       'CAST AT THIS MOMENT: include only figures physically present at this source moment. A caption never names a person who is not onStage, not even as an owner or job ("the big padded seat", never "the captain\'s seat": a named captain is painted). If a child arrives later in the PAGE, choose a moment after that arrival or leave the child out. Prefer the actual participants, not an extra spectator to meet coverage. Keep the source actor and helper; do not replace them with a guest to satisfy a quota. Cover and coverage wishes never override chronology.',
       'Choose the most expressive TRUE moment in the segment. A physical joke is welcome when it actually occurs there. A quiet arrival, someone carrying an object or helping with a real task is better than an invented mishap. A funny result from an earlier page must not be repeated in a later picture. Give the two pictures of each chapter different moments.',
       ...(cast.highlights?.length ? [`MOMENTS THE WRITER BUILT THE STORY AROUND (candidates only: when one actually happens in a PAGE's paragraphs, it is that page's best picture; the prose decides how it looks): ${cast.highlights.join(' — ')}.`] : []),
@@ -677,6 +726,8 @@ export async function generateSeriesImages(input: {
   policy?: { maxImageCalls: number; imageRetries: number; imageConcurrency: number };
   /** Jev, the cheap second reader (../storybook/jev.ts), run next to the review; its failure never changes a verdict. */
   jev?: JevPort;
+  /** Whether a style profile's swatch can be loaded (production: a cached HEAD request). */
+  styleReferenceCheck?: (url: string) => Promise<string | undefined>;
 }): Promise<StorybookImagesResult> {
   const policy = input.policy || SERIES_POLICY;
   const shots = [input.illustrations.cover, ...input.illustrations.pages];
@@ -685,7 +736,8 @@ export async function generateSeriesImages(input: {
   const buildReference = input.buildReference || createIdentityReferenceCache();
   const styleProfile = storyImageStyleProfile(input.imageStyle);
   const artDirection = styleProfile?.artDirection || SERIES_ART_DIRECTION;
-  const styleReference = input.styleReferenceUrl || styleProfile?.referenceUrl;
+  const styleReference = input.styleReferenceUrl
+    || (styleProfile ? await (input.styleReferenceCheck || reachableStyleReference)(styleProfile.referenceUrl) : undefined);
   const byId = new Map(input.entities.map(e => [e.id, e]));
   const contracts = (input.illustrations as SeriesIllustrationPlan).continuity || [];
   let imageCalls = 0, imageCostUSD = 0;
@@ -796,7 +848,10 @@ export async function generateSeriesImages(input: {
         const aliases = [...new Set([entity.name, ...entity.name.split(/\s+/).filter(n => n.length >= 3 && !/^(der|die|das|graf|captain|kapitän)$/i.test(n))])].sort((a, b) => b.length - a.length).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
         return caption.replace(new RegExp(`\\b(?:${aliases.join('|')})\\b`, 'gi'), `<${regions[i].id}>`);
       }, text);
-      const sheetSlots = `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => `slot ${i + 1}${afterPanels ? '' : slotPositionLabel(i, identities.length)} is ONLY ${e.name}${e.role === 'hero' && e.referenceContext ? ` (${e.referenceContext})` : ''}${holding(e) ? `, holding ${holding(e)!.name}` : ''}`).join('; ')}.`;
+      const sheetSlots = `IDENTITY SHEET, image ${identityAttachment}: ${identities.map((e, i) => {
+        const kind = seriesFigureKind(e);
+        return `slot ${i + 1}${afterPanels ? '' : slotPositionLabel(i, identities.length)} is ONLY ${e.name}${e.role === 'hero' && e.referenceContext ? ` (${e.referenceContext})` : kind ? ` (${kind})` : ''}${holding(e) ? `, holding ${holding(e)!.name}` : ''}`;
+      }).join('; ')}.`;
       const sheetBinding = `Keep each face, hair, species and outfit with its OWN person. The scene determines expressly changed clothing and accessories; the portrait supplies the remaining identity. Each creature keeps its referenced body plan. Garments expressly worn at this moment remain visible. Only scene-required props belong in the picture. ${drawn.filter(e => e.isHuman).map(e => `${e.name} has an ordinary human silhouette, natural human ears matching the reference, exactly two arms and two hands, each with five separate fingers, plus two legs${e.role === 'hero' ? ', at natural child height (shorter than adults)' : ''}.`).join(' ')} Their faces are large enough to recognise. Change the portrait poses to the scene's action.`;
       const objectReferences = cellProps.length || carried.size ? `OBJECT REFERENCES (not people; no added human anatomy): ${[...cellProps.map(e => `${e.name}: ${e.appearance}`), ...[...carried].map(([holderId, e]) => `${e.name}: ${e.appearance}, shown in ${byId.get(holderId)?.name}'s portrait, the only ${e.name} in the picture, in ${byId.get(holderId)?.name}'s hands`)].join('; ')}. Preserve a toy's own stitched face and limbs when present in its reference. Match the same design in every picture. The source determines its current state and position, never the white reference background.` : '';
       const override = !editing && !regionBound ? (shot as SeriesShot).promptOverride : undefined;
@@ -835,7 +890,7 @@ export async function generateSeriesImages(input: {
         wordlessLine(moment.scene),
         styleProfile ? 'Use the selected illustration medium described above consistently for figures and environment; only the identity sheet supplies characters.' : 'Use the shared Talea Originals medium described above; only the identity sheet supplies characters.',
       ].filter(Boolean).join('\n');
-      const styleGuide = styleReference ? `STYLE REFERENCE, image ${references.length + (editing ? 1 : 0) + 1}: transfer its mark-making, pigment texture, facial design language, shapes and palette throughout this picture. Re-draw the identity-sheet figures in this selected medium, retaining their identifying face, hair, species, clothing and colors but replacing the portraits' original rendering and shading. The story scene supplies this picture's place and objects; only the identity sheet supplies its cast. Characters, creatures, poses and scenery from the style example are not part of the new scene. Make one continuous scene in this medium. ${artDirection}` : '';
+      const styleGuide = styleReference ? seriesStyleGuide(references.length + (editing ? 1 : 0) + 1, artDirection) : '';
       const styledPrompt = styleGuide ? `${prompt}\n${styleGuide}` : prompt;
       if (imageCalls + (input.reservedImageCalls || 0) >= policy.maxImageCalls) {
         history.push({ kind: 'series-budget', status: 'failed', severity: 999, notes: ['Kein weiteres Bild erzeugt: Bildbudget erreicht.'] });
@@ -864,18 +919,27 @@ export async function generateSeriesImages(input: {
       let safetyBlock: StorybookSafetyBlock | undefined;
       const blockedOutcome = (block: StorybookSafetyBlock): ImageOutcome => {
         const reason = block.reason;
+        // The blocked picture is never printed, edited or shown to another reader; the page may be drawn once more from
+        // its scene (story 6fa2cd2e lost the repaired-teddy picture, its emotional payoff, to one blocked read).
+        editableImages.delete(shot.page);
+        lastPicture.delete(shot.page);
+        lastSheet.delete(shot.page);
         history.push({ kind: 'series-vision-blocked', status: 'failed', severity: 999,
-          notes: [`Prüfanbieter hat die Anfrage gesperrt (${reason}); kein Bildurteil, keine automatische Wiederholung oder Ersatzprüfung.`], url: response.url });
+          notes: [`Prüfanbieter hat die Anfrage gesperrt (${reason}); kein Bildurteil, dieses Bild wird nie gedruckt. Die Seite darf einmal neu gezeichnet werden.`], url: response.url });
         return { page: shot.page, url: response.url, prompt, attempts: number, costUSD, severity: 999, status: 'failed',
           errors: ['series_vision_safety_blocked', reason], history };
       };
+      // Whether the last read reached its reader (and was unreadable) or failed on the way there.
+      let answered = false;
       // ef08de38: three Flex timeouts sent the remaining checks to Gemini ($0.0413).
       // The inexpensive primary stays on its normal tier; only a genuine reader outage uses the fallback.
       const review = async (stage: string, model = input.visionModel) => {
+        answered = false;
         try {
           const reply = await input.llm({ stage, role: 'support', model, effort: SERIES_IMAGE_REVIEW_EFFORT, json: true, maxTokens: 6000, timeoutMs: 60000, serviceTier: 'standard',
             system: SERIES_IMAGE_REVIEW_COMPACT, user: reviewUser, imageInputs: [response.viewUrl || response.url!, ...references] });
           qaCalls.push(reply);
+          answered = true;
           return readSeriesQa(reply.text, drawn, { sceneText: [moment.scene, sourceQuote || '', ...objects.map(e => `${e.name} ${e.appearance}`)].join('\n') });
         } catch (error) {
           if (error instanceof StorybookSafetyBlock) safetyBlock = error;
@@ -922,11 +986,17 @@ export async function generateSeriesImages(input: {
         ? await review(`series-image-qa-${shot.page}-${number}-fallback`, fallback!)
         : await review(`series-image-qa-${shot.page}-${number}`);
       if (safetyBlock) return blockedOutcome(safetyBlock);
-      if (!qa && !bypassPrimary) primaryReadFailures++;
+      // An answer the parser could not read is the primary's own slip (a field too long, a cut-off JSON): it reads once
+      // more at about a tenth of the fallback's price (Gemini 0.79 ¢ for one check in story db0d92d8; in 6fa2cd2e Gemini
+      // then refused the picture outright and the page stayed empty). A primary that did not answer counts as an outage.
+      const primarySlipped = !bypassPrimary && answered;
+      if (!qa && !bypassPrimary && !primarySlipped) primaryReadFailures++;
       // 10d99c0f paid eight Terra readers after 17 empty Gemini calls, then lost two drawn pictures to the call cap.
       // At most two immediate reads; no repeated empty primary before the independent reader.
-      if (!qa && canReview()) qa = await review(`series-image-qa-${shot.page}-${number}-${bypassPrimary || !fallback ? 'retry' : 'fallback'}`,
-        bypassPrimary || !fallback ? input.visionModel : fallback);
+      const secondOnPrimary = bypassPrimary || !fallback || primarySlipped;
+      if (!qa && canReview()) qa = await review(`series-image-qa-${shot.page}-${number}-${secondOnPrimary ? 'retry' : 'fallback'}`,
+        secondOnPrimary ? input.visionModel : fallback);
+      if (!qa && primarySlipped) primaryReadFailures++;
       if (safetyBlock) return blockedOutcome(safetyBlock);
       if (qa) return verdict(qa);
       history.push({ kind: 'series-vision', status: 'failed', severity: 999, notes: ['Bildprüfung nicht verfügbar oder unlesbar; das erzeugte Bild bleibt für eine erneute Prüfung erhalten.'], url: response.url });
@@ -975,7 +1045,11 @@ export async function generateSeriesImages(input: {
   // as the best attempt below. Story 289c11a4 spent 7 redraws, 2.3 ct of pictures and 1.6 ct of checks on such pictures and
   // none of them got better; the redraws are for what a new seed can fix (a hand, a face, a double, lettering, a lost figure).
   // A second-reader finding (a double, merged bodies) is redrawn, though the picture would do as a last resort.
-  const canRetryOutcome = (o: ImageOutcome) => (o.status === 'failed' && ((Boolean(o.qa) && (!seriesPictureLastResort(o.qa as SeriesQa) || seriesSecondReaderRedraw(o.qa as SeriesQa))) || o.errors?.includes('series_provider_error'))) ||
+  // A picture a reader's safety filter refused is drawn once more (a new picture, never the refused one edited); a
+  // scene that is refused twice stays without a picture.
+  const blockedOnce = (o: ImageOutcome) => Boolean(o.errors?.includes('series_vision_safety_blocked'))
+    && (o.history || []).filter(h => h.kind === 'series-vision-blocked').length < 2;
+  const canRetryOutcome = (o: ImageOutcome) => (o.status === 'failed' && ((Boolean(o.qa) && (!seriesPictureLastResort(o.qa as SeriesQa) || seriesSecondReaderRedraw(o.qa as SeriesQa))) || o.errors?.includes('series_provider_error') || blockedOnce(o))) ||
     (o.status === 'missing' && !o.errors?.includes('series_provider_http_402'));
   // A complicated multi-person action may fail even after an edit. For a still-pictureless chapter, ask for a
   // simpler moment from the very same paragraph, so it can remain at its original position in the book.

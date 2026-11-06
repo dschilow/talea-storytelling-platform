@@ -36,6 +36,31 @@ export function seriesLocalEdits(chapters: Array<{ text: string }>, issues: Seri
   return edits;
 }
 
+const quoteNorm = (value: string) => value.normalize('NFC').replace(/[„“”"«»]/g, '"').replace(/\s+/g, ' ').trim();
+
+/** A finding quotes (part of) a passage the repair has just written. */
+export function touchesRepair(quote: string, edits: Array<{ after: string }>): boolean {
+  const pieces = quoteNorm(quote || '').split(/\s*(?:\.\.\.|…)\s*/).filter(piece => piece.length >= 12);
+  return edits.some(edit => {
+    const after = quoteNorm(String(edit.after || ''));
+    return pieces.some(piece => after.includes(piece) || (after.length >= 12 && piece.includes(after)));
+  });
+}
+
+/**
+ * Whether a repair of MINOR findings made the manuscript better. "Der Graf verbietet den Wind" (2026-11-04): Sol turned
+ * an unclear final joke into an explained one, the recheck flagged the new line, the series kept it anyway and paid a
+ * second round (1.2 ¢ in all) that ended on the explained line. Fewer findings is better. Otherwise the repair stays when
+ * no finding quotes a repaired passage: only those passages changed, so a finding elsewhere was in the old text as well
+ * (pilot 2026-11-06: Sol removed a talking flower pot, the story's unexplained second magic, and the recheck listed two
+ * older minor points elsewhere; counting findings threw the good repair away).
+ */
+export function seriesMinorRepairImproved(before: SeriesEditorialIssue[], after: SeriesEditorialIssue[], edits: Array<{ after: string }>): boolean {
+  if (after.some(issue => issue.severity === 'major')) return false;
+  if (after.length < before.length) return true;
+  return !after.some(issue => touchesRepair(issue.quote, edits));
+}
+
 /** Only a single inserted/deleted letter, an adjacent transposition or case correction; no word substitutions. */
 function smallSpellingChange(before: string, after: string): boolean {
   const a = before.toLocaleLowerCase('de-DE'), b = after.toLocaleLowerCase('de-DE');

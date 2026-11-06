@@ -645,7 +645,7 @@ export async function generateStoryStorybookMode(input: StorybookGenerationInput
   // cover itself failed, the first clean page picture with figures stands in.
   // Talea-Folge: a picture of the first half of the story, never the resolution of the last chapter
   // ("Der Riese hinterm Teig": the cover was chapter 3's picture).
-  const standInPicture = direction ? coverStandIn(pictures) : undefined;
+  const standInPicture = direction ? coverStandIn(pictures, brief.heroes.map((hero) => String(hero.id))) : undefined;
   const pageStandIn = pages
     .map((page) => images.pages.get(page.order))
     .find((outcome) => outcome?.status === "passed" && !outcome.vignette && outcome.url);

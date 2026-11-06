@@ -4,7 +4,7 @@ import { applyChapterEdits, runCharacterSeriesTextEngine, seriesLlmBudget } from
 import { seriesAuthoring, seriesBudget, SERIES_MODELS, SERIES_IMAGE_REVIEW_MODEL, SERIES_IMAGE_REVIEW_FALLBACK_MODEL, SERIES_IMAGE_REVIEW_EFFORT, SERIES_PICTURE_DIRECTION_MODEL, SERIES_POLICY } from './authoring';
 import { SERIES_NARRATIVES } from './narrative';
 import { withSeriesContext, seriesPrompt } from './core';
-import { directSeriesPictures, generateSeriesImages, readSeriesShotRewrite, seriesRewrittenPrompt, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment, seriesReferenceRegions } from './pictures';
+import { directSeriesPictures, generateSeriesImages, readSeriesShotRewrite, seriesRewrittenPrompt, validateSeriesShots, seriesPicturePasses, seriesPaintableMoment, seriesReferenceRegions, seriesFigureKind, seriesStyleGuide, reachableStyleReference } from './pictures';
 import { readSeriesQa } from './quality';
 import { SERIES_EDITORIAL_CRAFT } from './editorial';
 import { StorybookSafetyBlock } from '../storybook/llm-guards';
@@ -223,6 +223,25 @@ describe('Figurenserien revision 2', () => {
     expect(result.pages[1].content).toContain(secondAfter);
     expect(result.textQuality?.issues).toEqual([]);
   });
+  test('a repair whose recheck flags the repaired line is rolled back and no second round is paid (429dd9c9)', async () => {
+    const before = 'Funkelflug stellte seinen Becher ab. Nora hielt ihn schon fest.';
+    const after = 'Funkelflug stellte seinen Becher ab. Nora nahm ihn vom Tisch, weil der Becher sonst umgefallen wäre, und hielt ihn fest.';
+    const stages: string[] = [];
+    const llm: StorybookLlm = async r => {
+      stages.push(r.stage);
+      if (r.stage === 'series-author') return response(text);
+      if (r.stage === 'series-editorial-review') return response(JSON.stringify({ issues: [{ severity: 'minor', quote: before, problem: 'Der Becher wechselt die Hand.', change: 'Nora nimmt ihn vom Tisch.' }] }));
+      if (r.stage === 'series-local-repair') return response(JSON.stringify({ edits: [{ chapter: 1, before, after }] }));
+      if (r.stage === 'series-editorial-recheck') return response(JSON.stringify({ issues: [{ severity: 'minor', quote: after, problem: 'Die Reparatur erklärt zu viel.', change: 'Kürzer.' }] }));
+      return response('{"issues":[]}');
+    };
+    const result = await runCharacterSeriesTextEngine({ brief: brief(), llm, models: SERIES_MODELS, ledger: new CostLedger() });
+    expect(stages).toEqual(['series-author', 'series-editorial-review', 'series-local-repair', 'series-editorial-recheck']);
+    expect(result.pages[0].content).toContain(before);
+    expect(result.pages[0].content).not.toContain(after);
+    expect(result.chosen).toBe('draft');
+    expect(result.textQuality?.issues).toEqual(['Der Becher wechselt die Hand.']);
+  });
   test('an optional second correction rolls back if its recheck finds a major defect', async () => {
     const before = 'Funkelflug stellte seinen Becher ab. Nora hielt ihn schon fest.';
     const after = 'Funkelflug stellte seinen Becher ab. Nora nahm ihn vom Tisch und hielt ihn fest.';
@@ -320,7 +339,7 @@ describe('wizard image style across the complete series picture loop', () => {
       const drawings: any[] = [];
       const profile = storyImageStyleProfile(id)!;
       const result = await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities,
-        imageStyle: id, imageModel: 'runware:400@6', seed: 'style', visionModel: 'test', pageTexts: {},
+        imageStyle: id, imageModel: 'runware:400@6', seed: 'style', visionModel: 'test', pageTexts: {}, styleReferenceCheck: async url => url,
         buildReference: async () => ({ urls: ['https://example.test/identities.jpg'], mode: 'sprite', subjects: [] }),
         provider: async r => { drawings.push(r); return { url: 'https://example.test/result.webp' }; },
         llm: async r => imageReview(r.stage),
@@ -342,7 +361,7 @@ describe('wizard image style across the complete series picture loop', () => {
   test('a targeted edit retains identity and style in their correct attachment positions', async () => {
     const drawings: any[] = [];
     await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities,
-      imageStyle: 'painterly-adventure', imageModel: 'runware:400@6', seed: 'style-edit', visionModel: 'test', pageTexts: {},
+      imageStyle: 'painterly-adventure', imageModel: 'runware:400@6', seed: 'style-edit', visionModel: 'test', pageTexts: {}, styleReferenceCheck: async url => url,
       buildReference: async () => ({ urls: ['https://example.test/identities.jpg'], mode: 'sprite', subjects: [] }),
       provider: async r => { drawings.push(r); return { url: `https://example.test/page-${r.page}.webp` }; },
       llm: async r => imageReview(r.stage, r.stage === 'series-image-qa-1-1' ? { defects: [{ kind: 'anatomy', detail: 'The child has three arms.', fix: 'Give the child two ordinary human arms.' }] } : {}),
@@ -674,15 +693,53 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
   test('referenced avatars use the sheet and measurements, not profile appearance in generated prompts or QA', async () => {
     const requests: any[] = [];
     const reviews: string[] = [];
-    const figures = [entities[0], { ...entities[1], appearance: 'distinctive purple hair and pointed ears', referenceContext: '7 years old, 120 cm tall' }];
+    const lead = { ...entities[0], appearance: 'small golden dragon with pink wings, wearing a blue scarf' };
+    const figures = [lead, { ...entities[1], appearance: 'distinctive purple hair and pointed ears', referenceContext: '7 years old, 120 cm tall' }];
     await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, figures, 'lead'), entities: figures, seed: 'identity', imageModel: 'runware:400@6', provider: async r => { requests.push(r); return { url: 'https://example.test/result.webp' }; }, llm: async r => { reviews.push(r.user); return imageReview(r.stage); }, visionModel: 'test', pageTexts: {}, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
     const chapter = requests.find(r => r.page === 1);
     expect(chapter.prompt).toContain('slot 2 (right portrait) is ONLY Nora (7 years old, 120 cm tall)');
     expect(chapter.prompt).not.toContain('distinctive purple hair');
     expect(reviews.find(r => r.includes('CHAPTER PICTURE'))).not.toContain('distinctive purple hair');
-    expect(chapter.prompt).toContain('slot 1 (left portrait) is ONLY Funkelflug');
-    expect(chapter.prompt).not.toContain(entities[0].appearance);
-    expect(reviews.find(r => r.includes('CHAPTER PICTURE'))).toContain('small golden dragon');
+    // A figure that is no avatar keeps only what it is (story 7fac1369: Pia, an adult, came back as a girl), no clothes.
+    expect(chapter.prompt).toContain('slot 1 (left portrait) is ONLY Funkelflug (small golden dragon)');
+    expect(chapter.prompt).not.toContain('blue scarf');
+    expect(reviews.find(r => r.includes('CHAPTER PICTURE'))).toContain('small golden dragon with pink wings');
+  });
+  test("a selected style's swatch reaches the painter as the last reference, named only as a medium", async () => {
+    const requests: any[] = [];
+    await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'style', imageModel: 'runware:400@6', imageStyle: 'colored-pencil',
+      provider: async r => { requests.push(r); return { url: 'https://example.test/result.webp' }; }, llm: async r => imageReview(r.stage), visionModel: 'test', pageTexts: {},
+      styleReferenceCheck: async url => url, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
+    expect(requests.every(r => r.referenceImages.at(-1).endsWith('colored-pencil-swatch.webp') && r.imageStyle === 'colored-pencil')).toBe(true);
+    // The old line named "Characters, creatures, poses and scenery" of the example, and the painter paints what it reads.
+    expect(requests.every(r => r.prompt.includes('STYLE REFERENCE, image 2: an abstract swatch') && !/Characters, creatures/.test(r.prompt))).toBe(true);
+    expect(seriesStyleGuide(3, 'MEDIUM')).toMatch(/^STYLE REFERENCE, image 3: .* MEDIUM$/);
+    // A swatch the painter cannot load leaves the style to the text instead of failing every picture.
+    const unloaded: any[] = [];
+    await generateSeriesImages({ illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'style-missing', imageModel: 'runware:400@6', imageStyle: 'colored-pencil',
+      provider: async r => { unloaded.push(r); return { url: 'https://example.test/result.webp' }; }, llm: async r => imageReview(r.stage), visionModel: 'test', pageTexts: {},
+      styleReferenceCheck: async () => undefined, buildReference: async () => ({ urls: ['data:image/jpeg;base64,AA=='] } as any) });
+    expect(unloaded.every(r => r.referenceImages.length === 1 && !r.prompt.includes('STYLE REFERENCE') && r.prompt.includes('COLORED PENCIL'))).toBe(true);
+  });
+  test('the style swatch check asks once per URL and treats an error page as missing', async () => {
+    let asked = 0;
+    const fetcher = (async () => { asked++; return new Response('<html>', { status: 200, headers: { 'content-type': 'text/html' } }); }) as unknown as typeof fetch;
+    expect(await reachableStyleReference('https://example.test/missing-swatch.webp', fetcher)).toBeUndefined();
+    expect(await reachableStyleReference('https://example.test/missing-swatch.webp', fetcher)).toBeUndefined();
+    expect(asked).toBe(1);
+    const image = (async () => new Response('', { status: 200, headers: { 'content-type': 'image/webp' } })) as unknown as typeof fetch;
+    expect(await reachableStyleReference('https://example.test/swatch.webp', image)).toBe('https://example.test/swatch.webp');
+    expect(await reachableStyleReference('data:image/webp;base64,AA==')).toBe('data:image/webp;base64,AA==');
+  });
+  test('a figure that is no avatar is named with the first words of its look', () => {
+    const figure = (appearance: string, extra: Partial<VisualEntity> = {}) => ({ ...entities[0], name: 'Graf Griesgram', appearance, ...extra }) as VisualEntity;
+    expect(seriesFigureKind(figure('Graf Griesgram, elderly nobleman with stern expression, trimmed grey beard'))).toBe('elderly nobleman');
+    expect(seriesFigureKind(figure('capable adult woman shipwright with a thick dark braid, bright orange headscarf'))).toBe('capable adult woman shipwright');
+    expect(seriesFigureKind(figure('Round ochre snail with a wide expressive face, dark brown eyes'))).toBe('Round ochre snail');
+    expect(seriesFigureKind(figure('Tilda Tueftel, nine-year-old girl inventor with curly dark hair'))).toBe('nine-year-old girl inventor');
+    expect(seriesFigureKind(figure('Portrait of a fox'))).toBe('');
+    expect(seriesFigureKind(figure('elderly nobleman', { role: 'hero' }))).toBe('');
+    expect(seriesFigureKind(figure('wooden teddy box', { kind: 'artifact' }))).toBe('');
   });
   test('FLUX.2 klein gets plain names and no scene-region binding; FLUX 3 keeps both', async () => {
     const run = async (imageModel?: string) => {
@@ -723,31 +780,37 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
     expect(result.pages.size).toBe(3);
     expect(result.imagesGenerated).toBe(0);
   });
-  test('an explicit provider block retains the image but never retries, changes judge or redraws it', async () => {
+  test('a refused picture is never printed, edited or read again; its page is drawn once more, and a second refusal ends it', async () => {
     const checked: string[] = [];
+    const requests: any[] = [];
+    let drawn = 0;
     const result = await generateSeriesImages({
       illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'safety-block',
       visionModel: 'primary', visionFallbackModel: 'fallback', pageTexts: {},
-      provider: async r => ({ url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }),
+      provider: async r => { requests.push(r); return { url: `https://example.test/${r.page}-${++drawn}.webp`, costUSD: 0.0025 }; },
       llm: async r => { checked.push(r.stage); throw new StorybookSafetyBlock(r.model, r.stage, 'SAFETY'); },
       buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
     });
-    expect(checked).toHaveLength(4);
-    expect(checked.every(stage => /^series-image-qa-\d-1$/.test(stage))).toBe(true);
-    expect(result.imageCalls).toBe(4);
-    expect(result.imageCostUSD).toBeCloseTo(0.01);
-    expect(result.regenerated).toEqual([]);
+    // Every block is final for its picture: no second reader, no rewrite that would show the refused picture to Luna.
+    expect(checked).toHaveLength(8);
+    expect(checked.every(stage => /^series-image-qa-\d-[12]$/.test(stage))).toBe(true);
+    expect(result.imageCalls).toBe(8);
+    expect(result.regenerated).toHaveLength(4);
+    // The redraw starts fresh from the scene, never as an edit of the refused picture.
+    const redraws = requests.slice(4);
+    expect(redraws.every(r => !r.prompt.startsWith('Image 1 is the existing scene to edit') && !r.referenceImages.some((url: string) => /example\.test\/\d-\d\.webp/.test(url)))).toBe(true);
     expect(result.imagesGenerated).toBe(0);
-    expect(result.pages.get(1)).toMatchObject({ url: 'https://example.test/1.webp', status: 'failed', errors: ['series_vision_safety_blocked', 'SAFETY'] });
-    expect(result.pages.get(1)?.history?.[0].kind).toBe('series-vision-blocked');
+    expect(result.pages.get(1)).toMatchObject({ status: 'failed', errors: ['series_vision_safety_blocked', 'SAFETY'] });
+    expect(result.pages.get(1)?.history?.filter(h => h.kind === 'series-vision-blocked')).toHaveLength(2);
     expect(isPublishable(result.pages.get(1)!)).toBe(false);
   });
-  test('a fallback reader safety block is final, while other pictures still pass', async () => {
+  test('a fallback reader safety block is final for its picture; the fresh drawing of that page can pass', async () => {
     const checked: string[] = [];
+    let drawn = 0;
     const result = await generateSeriesImages({
       illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'fallback-block',
       visionModel: 'primary', visionFallbackModel: 'fallback', pageTexts: {},
-      provider: async r => ({ url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }),
+      provider: async r => ({ url: `https://example.test/${r.page}-${++drawn}.webp`, costUSD: 0.0025 }),
       llm: async r => {
         checked.push(r.stage);
         if (r.stage === 'series-image-qa-2-1') throw new Error('Temporary outage');
@@ -756,10 +819,31 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
       },
       buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
     });
-    expect(checked.filter(stage => stage.startsWith('series-image-qa-2-'))).toEqual(['series-image-qa-2-1', 'series-image-qa-2-1-fallback']);
-    expect(result.pages.get(2)?.errors).toContain('series_vision_safety_blocked');
-    expect(result.imageCalls).toBe(4);
-    expect(result.imagesGenerated).toBe(3);
+    expect(checked.filter(stage => stage.startsWith('series-image-qa-2-'))).toEqual(['series-image-qa-2-1', 'series-image-qa-2-1-fallback', 'series-image-qa-2-2']);
+    expect(result.imageCalls).toBe(5);
+    expect(result.imagesGenerated).toBe(4);
+    expect(result.pages.get(2)?.status).toBe('passed');
+    // The refused first picture of page 2 is not the one delivered.
+    expect(result.pages.get(2)?.url).not.toBe(`https://example.test/2-3.webp`);
+    expect(result.pages.get(2)?.url).toBe('https://example.test/2-5.webp');
+  });
+  test('an unreadable primary answer is read again by the primary, an outage goes to the fallback', async () => {
+    const checked: string[] = [];
+    const result = await generateSeriesImages({
+      illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'unreadable',
+      visionModel: 'primary', visionFallbackModel: 'fallback', pageTexts: {},
+      provider: async r => ({ url: `https://example.test/${r.page}.webp`, costUSD: 0.0025 }),
+      llm: async r => {
+        checked.push(`${r.stage}@${r.model}`);
+        if (r.stage === 'series-image-qa-1-1') return response('{"reviewVersion":3,"observedFigures":"cut off');
+        if (r.stage === 'series-image-qa-2-1') throw new Error('Temporary outage');
+        return imageReview(r.stage);
+      },
+      buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
+    });
+    expect(checked.filter(stage => stage.startsWith('series-image-qa-1-'))).toEqual(['series-image-qa-1-1@primary', 'series-image-qa-1-1-retry@primary']);
+    expect(checked.filter(stage => stage.startsWith('series-image-qa-2-'))).toEqual(['series-image-qa-2-1@primary', 'series-image-qa-2-1-fallback@fallback']);
+    expect(result.imagesGenerated).toBe(4);
   });
   test('a zero-token safety block also stops the outer text budget wrapper', async () => {
     let calls = 0;
@@ -771,7 +855,7 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
       .rejects.toThrow('provider_reason=SAFETY');
     expect(calls).toBe(1);
   });
-  test('a safety block discovered during delayed recovery stays out of the redraw queue', async () => {
+  test('a safety block discovered during delayed recovery gets one fresh drawing', async () => {
     const checked: string[] = [];
     const result = await generateSeriesImages({
       illustrations: validateSeriesShots(rawPlan(), pages, entities, 'lead'), entities, seed: 'recovery-block',
@@ -785,10 +869,10 @@ describe('series artwork preserves action and lead within a fixed budget', () =>
       },
       buildReference: async () => ({ urls: [], mode: 'none', subjects: [] }),
     });
-    expect(result.imageCalls).toBe(4);
-    expect(result.pages.get(2)?.errors).toContain('series_vision_safety_blocked');
+    expect(result.imageCalls).toBe(5);
+    expect(result.pages.get(2)?.status).toBe('passed');
     expect(checked.filter(stage => stage.startsWith('series-image-qa-2-'))).toEqual([
-      'series-image-qa-2-1', 'series-image-qa-2-1-retry', 'series-image-qa-2-1-recovery',
+      'series-image-qa-2-1', 'series-image-qa-2-1-retry', 'series-image-qa-2-1-recovery', 'series-image-qa-2-2',
     ]);
   });
   test('temporary vision errors recheck the same generated picture without a paid redraw', async () => {

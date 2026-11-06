@@ -22,6 +22,14 @@ describe("one Talea Originals illustration medium", () => {
     }
     expect(storyImageStyleProfile('talea-originals')).toBeUndefined();
   });
+  test("the painter's style reference is a swatch of the medium, not the wizard preview with its girl and monster (2026-11-06)", () => {
+    for (const id of ['colored-pencil', 'painterly-adventure'] as const) {
+      const profile = storyImageStyleProfile(id)!;
+      expect(profile.referenceUrl).toMatch(/-swatch\.webp$/);
+      // A description of the preview girl's hair painted curly children into db0d92d8.
+      expect(profile.artDirection).not.toMatch(/\bcurls?\b/i);
+    }
+  });
   test("the shared medium matches both published series and reaches scene, portrait, fallback and tile prompts", () => {
     for (const name of ["bruno-der-flunkerfisch", "die-monster-muellabfuhr"]) {
       const bible = JSON.parse(readFileSync(new URL(`../story/library/seed/series/${name}.bible.json`, import.meta.url), "utf8"));

@@ -140,10 +140,10 @@ export type JevCheck = Exclude<keyof JevScores, "mirror">;
  * The checks whose probability clears its cut-off. In a mirror, a pond or a window the same person IS there twice, legs
  * end in the water and the reflection wears the same vest; a mixed figure stays one, so blend counts there too.
  */
-export function firedJevChecks(scores: JevScores): JevCheck[] {
-  const reflection = scores.mirror >= JEV_THRESHOLDS.mirror;
+export function firedJevChecks(scores: JevScores, thresholds: Record<keyof JevScores, number> = JEV_THRESHOLDS): JevCheck[] {
+  const reflection = scores.mirror >= thresholds.mirror;
   const checks: JevCheck[] = ["hybrid", "twins", "fused", "blend", "garment", "text"];
-  return checks.filter((check) => scores[check] >= JEV_THRESHOLDS[check] && !(reflection && (check === "twins" || check === "fused" || check === "garment")));
+  return checks.filter((check) => scores[check] >= thresholds[check] && !(reflection && (check === "twins" || check === "fused" || check === "garment")));
 }
 
 /** The finding as it goes into the report and the log. */

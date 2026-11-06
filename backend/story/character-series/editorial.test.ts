@@ -1,6 +1,28 @@
 // @ts-ignore Bun test helpers are runtime-only in Encore.
 import { describe, expect, test } from 'bun:test';
-import { applySeriesSpellingCorrections, seriesLocalEdits, type SeriesEditorialIssue } from './editorial';
+import { applySeriesSpellingCorrections, seriesLocalEdits, seriesMinorRepairImproved, touchesRepair, type SeriesEditorialIssue } from './editorial';
+
+describe('a repair of minor findings must make the story better (429dd9c9)', () => {
+  const minor = (quote: string): SeriesEditorialIssue => ({ severity: 'minor', quote, problem: 'p', change: 'c' });
+  const explained = '„Dann schreiben Sie es hierhin. Vielleicht hält der Wind ja still, wenn er sein Hausverbot liest.“';
+  const edits = [{ after: `Alexander drehte das Blatt um.\n\n${explained}` }];
+  test('a recheck that flags the repaired line rejects the repair', () => {
+    expect(touchesRepair(explained, edits)).toBe(true);
+    expect(seriesMinorRepairImproved([minor('„Diese hat er schon gelesen.“')], [minor(explained)], edits)).toBe(false);
+  });
+  test('fewer findings, or findings only elsewhere, keep it; a new major or a finding on the repaired line rejects it', () => {
+    const elsewhere = minor('Der Graf nahm sich das Blatt vom Gesicht.');
+    expect(seriesMinorRepairImproved([minor('a'), minor('b')], [minor(explained)], edits)).toBe(true);
+    expect(seriesMinorRepairImproved([minor('a')], [elsewhere], edits)).toBe(true);
+    expect(seriesMinorRepairImproved([minor('a')], [], edits)).toBe(true);
+    expect(seriesMinorRepairImproved([minor('a')], [{ ...elsewhere, severity: 'major' }], edits)).toBe(false);
+    // Pilot 2026-11-06: the repair removed a second magic; two older points elsewhere do not make it worse.
+    expect(seriesMinorRepairImproved([minor('a')], [elsewhere, minor('Vor ihren Füßen lag das kleine Brett.')], edits)).toBe(true);
+    expect(seriesMinorRepairImproved([minor('a')], [elsewhere, minor(explained)], edits)).toBe(false);
+    // A missing element (empty quote) never touches a passage.
+    expect(touchesRepair('', edits)).toBe(false);
+  });
+});
 
 const typo = (before = 'Hofenster', after = 'Hoffenster'): SeriesEditorialIssue => ({ severity: 'minor', kind: 'spelling',
   quote: `Alexander zeigte auf das geschlossene ${before}.`, problem: 'Tippfehler', change: 'Schreibweise korrigieren.', edit: { before, after } });

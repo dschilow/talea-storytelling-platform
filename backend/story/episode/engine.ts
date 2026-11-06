@@ -18,7 +18,7 @@ import type { CastCandidate, StoryPlan, StorybookPage } from "../storybook/types
 import { parseChapters, type ParsedChapter } from "../library/engine";
 import { EPISODE_PIPELINE_ID, episodeMaxNewFigures, FRESH_NAMES, SAMPLE_ADDRESSES, SAMPLE_SIGNATURES, takenNames } from "./craft";
 import { applyChapterEdits, type ChapterEdit } from "../storybook/chapter-edits";
-import { applySeriesSpellingCorrections, seriesLocalEdits, SERIES_CAUSAL_REVIEW, SERIES_EDITORIAL_CRAFT, SERIES_LOCAL_EDIT_CONTRACT, SERIES_SPELLING_CONTRACT, type SeriesEditorialIssue } from "../character-series/editorial";
+import { applySeriesSpellingCorrections, seriesLocalEdits, seriesMinorRepairImproved, SERIES_CAUSAL_REVIEW, SERIES_EDITORIAL_CRAFT, SERIES_LOCAL_EDIT_CONTRACT, SERIES_SPELLING_CONTRACT, type SeriesEditorialIssue } from "../character-series/editorial";
 import { oneShotSystemPrompt, oneShotUserPrompt, planSystemPrompt, planUserPrompt, writerSystemPrompt, writerUserPrompt } from "./prompts";
 import type { EpisodeCastMember, EpisodePlan, EpisodeResult } from "./types";
 import { episodePoolLead } from "./cast-focus";
@@ -640,7 +640,8 @@ async function reviewWritten(input: EngineInput, observe: Observe, written: Writ
       const candidate = settle({ ...story, chapters: applyStoryEdits(story.chapters, edits) }, written.plan, brief, []);
       if (candidate.checks.hard.some((issue) => !checks.hard.includes(issue))) throw new Error(`the repair broke a check: ${candidate.checks.hard.join(" ")}`);
       const recheck = await inspect(round ? "episode-editorial-recheck-2" : "episode-editorial-recheck", candidate.story, issues);
-      const better = majorCount(recheck.issues) < majorCount(issues) || (optional && majorCount(recheck.issues) === 0 && recheck.issues.length < issues.length);
+      // As many minor findings as before counts only when none of them quotes the repaired passage (../character-series/editorial.ts).
+      const better = majorCount(recheck.issues) < majorCount(issues) || (optional && seriesMinorRepairImproved(issues, recheck.issues, edits));
       await observe("episode-editorial-repair", { round: round + 1, accepted: better, edits: edits.length, before: issues.map((issue) => issue.problem), after: recheck.issues.map((issue) => issue.problem) });
       if (!better) {
         if (optional) break;

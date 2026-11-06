@@ -1,6 +1,6 @@
 // @ts-ignore Bun test helpers are runtime-only in Encore.
 import { describe, expect, test } from 'bun:test';
-import { readSeriesVisualContracts, seriesShotContinuity } from './visual-continuity';
+import { readSeriesVisualContracts, seriesShotContinuity, stableDesign } from './visual-continuity';
 import { generateSeriesImages, validateSeriesShots } from './pictures';
 import { readSeriesQa, seriesPictureLastResort, seriesPicturePasses, seriesPictureUsable } from './quality';
 import type { VisualEntity } from '../storybook/illustration-stage';
@@ -82,6 +82,33 @@ describe('story-critical visual continuity, 1bbb8af3 and b3d96e64', () => {
     expect(seriesShotContinuity(contracts, shot)).toHaveLength(1);
     expect(seriesShotContinuity(contracts, { ...shot, scene: 'Alexander draws a design.' })).toEqual([]);
     expect(seriesShotContinuity(contracts, { ...shot, scene: 'Alexander holds a cup.' })).toEqual([]);
+  });
+  test('a design is the object as first shown, never what the magic makes of it (pilot 2026-11-06, the growing geese)', () => {
+    expect(stableDesign('Three wooden goose pieces, green, yellow and blue, each with a small handle at the back; they can grow from small game pieces to enormous geese.'))
+      .toBe('Three wooden goose pieces, green, yellow and blue, each with a small handle at the back.');
+    expect(stableDesign('A flat game board marked with twelve fields in a broad spiral, with grooves for the sliding geese; it can grow from a small game into a courtyard-spanning board.'))
+      .toBe('A flat game board marked with twelve fields in a broad spiral, with grooves for the sliding geese.');
+    expect(stableDesign('A small cork crown with seven points that grows into a crown as big as a cartwheel.')).toBe('A small cork crown with seven points.');
+    for (const unchanged of ['A thick folder large enough to hold the Graf\'s papers; its weight can hold down the garden tablecloth.',
+      'A floor-level wooden collection box with a broad broom and one pedal.', 'Kicher’s crooked hat.', 'A turning windmill of red paper.']) {
+      expect(stableDesign(unchanged)).toBe(unchanged);
+    }
+    // What the object is never disappears.
+    expect(stableDesign('Grows whenever someone says Noch mal')).toBe('Grows whenever someone says Noch mal');
+  });
+  test('a design names no object the scene leaves out (the board summoned eight geese)', () => {
+    const pages = [{ order: 1, title: 'Das Spiel', content: 'Vor ihm lag ein Spielbrett mit zwölf Feldern. Auf dem Brett standen drei hölzerne Gänse.', paragraphs: [] }];
+    const contracts = readSeriesVisualContracts([
+      { name: 'Spielbrett', aliases: ['game board', 'board'], appearance: 'A flat game board marked with twelve fields in a broad spiral, with grooves for the sliding geese; it can grow into a courtyard-spanning board.', evidence: [{ page: 1, quote: 'Vor ihm lag ein Spielbrett mit zwölf Feldern.' }] },
+      { name: 'hölzerne Gänse', aliases: ['wooden geese', 'goose pieces', 'green goose'], appearance: 'Three wooden goose pieces, green, yellow and blue, each with a small handle, standing on the board.', evidence: [{ page: 1, quote: 'Auf dem Brett standen drei hölzerne Gänse.' }] },
+    ], pages);
+    const shot = { page: 1, onStage: ['ben'], focus: 'scene' as const, artifactVisible: false, scene: 'Kicher slides into a flowerpot beside the small game board.' };
+    expect(seriesShotContinuity(contracts, shot).map(c => c.appearance)).toEqual(['A flat game board marked with twelve fields in a broad spiral.']);
+    const both = seriesShotContinuity(contracts, { ...shot, scene: 'Kicher pushes the green goose across the game board while the other wooden geese wait.' });
+    expect(both.map(c => c.appearance)).toEqual(['A flat game board marked with twelve fields in a broad spiral, with grooves for the sliding geese.',
+      'Three wooden goose pieces, green, yellow and blue, each with a small handle, standing on the board.']);
+    const geeseOnly = seriesShotContinuity(contracts, { ...shot, scene: 'Kicher hugs the green goose in the grass.' });
+    expect(geeseOnly.map(c => c.appearance)).toEqual(['Three wooden goose pieces, green, yellow and blue, each with a small handle.']);
   });
   test('the same sourced design reaches painting, checking and a local repair without another reference cell', async () => {
     const quote = 'Die Aufräummaschine hatte einen breiten Besen, ein Pedal und eine Holzkiste.';
