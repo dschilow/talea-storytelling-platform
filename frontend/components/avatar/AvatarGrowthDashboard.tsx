@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 
 import { useTheme } from '../../contexts/ThemeContext';
-import type { AvatarProgression } from '../../types/avatar';
+import { formatTraitLabel } from '../../constants/traits';
+import type { AvatarMemory, AvatarProgression } from '../../types/avatar';
 import ConceptHelp from "./ConceptHelp";
 
 export interface GrowthTrait {
@@ -34,7 +35,21 @@ interface AvatarGrowthDashboardProps {
   avatarName: string;
   traits: GrowthTrait[];
   progression?: AvatarProgression | null;
+  /** The diary entries; each one says which trait grew and why. */
+  memories?: AvatarMemory[];
 }
+
+/** One "why did this trait grow" line, taken from a diary entry. */
+type GrowthReason = {
+  key: string;
+  label: string;
+  change: number;
+  text: string;
+  source: string;
+  createdAt: number;
+};
+
+const REASONS_PER_TRAIT = 3;
 
 type TraitCard = {
   id: string;
@@ -148,6 +163,9 @@ const TEXT_REPLACEMENTS: Array<[string, string]> = [
   ['anstossen', 'ansto\u00dfen'],
   ['Fuehrt', 'F\u00fchrt'],
   ['Kapitaen', 'Kapit\u00e4n'],
+  ['Kreativitaet', 'Kreativit\u00e4t'],
+  ['Schluesselmomente', 'Schl\u00fcsselmomente'],
+  ['Lektuere', 'Lekt\u00fcre'],
 ];
 
 const germanize = (value: string) => {
@@ -161,6 +179,43 @@ const germanize = (value: string) => {
 };
 
 const clamp = (value: number) => Math.min(100, Math.max(0, Math.round(value)));
+
+/**
+ * The reason without the "+3 Mut" the badge already shows: stored fallback
+ * reasons read "+3 Mut durch die Geschichte \u201e\u2026\u201c".
+ */
+const reasonText = (description: string | undefined, source: string): string => {
+  const text = germanize((description || '').trim());
+  if (!text) return `aus \u201e${source}\u201c`;
+  // "+3 Mut durch \u2026" \u2192 "durch \u2026", read after the badge: "+3 Mut durch \u2026".
+  const afterAmount = text.match(/^[+\u2212-]\s*\d+\s+.*?\s(durch\s[\s\S]*)$/);
+  if (afterAmount) return afterAmount[1];
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
+/** Newest first, grouped by base trait ("knowledge.history" counts for Wissen). */
+const reasonsByTrait = (memories: AvatarMemory[]): Map<string, GrowthReason[]> => {
+  const grouped = new Map<string, GrowthReason[]>();
+  for (const memory of memories) {
+    const createdAt = Date.parse(memory.createdAt || memory.timestamp || '') || 0;
+    (memory.personalityChanges || []).forEach((change, index) => {
+      if (!change?.trait || !Number.isFinite(change.change) || change.change === 0) return;
+      const baseId = change.trait.split('.')[0];
+      const list = grouped.get(baseId) || [];
+      list.push({
+        key: `${memory.id}-${change.trait}-${index}`,
+        label: formatTraitLabel(change.trait),
+        change: change.change,
+        text: reasonText(change.description, memory.storyTitle),
+        source: memory.storyTitle,
+        createdAt,
+      });
+      grouped.set(baseId, list);
+    });
+  }
+  for (const list of grouped.values()) list.sort((a, b) => b.createdAt - a.createdAt);
+  return grouped;
+};
 
 const fallbackRank = (value: number) => {
   if (value >= 81) return 'Legende';
@@ -205,11 +260,17 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
   avatarName,
   traits,
   progression,
+  memories = [],
 }) => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const reduceMotion = useReducedMotion();
   const cards = useMemo(() => toCards(traits, progression), [traits, progression]);
+  const reasons = useMemo(() => reasonsByTrait(memories), [memories]);
+  const subcategoriesById = useMemo(
+    () => new Map(traits.map((trait) => [trait.id, trait.subcategories.filter((entry) => entry.value > 0)])),
+    [traits]
+  );
   const strongest = useMemo(
     () => [...cards].filter((card) => card.value > 0).sort((a, b) => b.value - a.value).slice(0, 3),
     [cards]
@@ -379,7 +440,7 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
         {strongest.length > 0 ? (
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             {strongest.map((card, index) => (
-              <StrengthCard key={card.id} card={card} place={index + 1} isDark={isDark} />
+              <StrengthCard key={card.id} card={card} place={index + 1} isDark={isDark} latest={reasons.get(card.id)?.[0]} />
             ))}
           </div>
         ) : (
@@ -397,14 +458,20 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
           <div>
             <h3 className="font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>Alle neun St&auml;rken</h3>
             <p className="mt-0.5 text-sm" style={{ color: isDark ? '#9fb2c8' : '#687d93' }}>
-              Punkte, Stufe und der Weg bis zum n&auml;chsten Schritt
+              Punkte, Unterbereiche und wof&uuml;r es zuletzt Punkte gab
             </p>
           </div>
           <ChevronDown className="h-5 w-5 shrink-0 transition-transform duration-200 group-open:rotate-180" style={{ color: isDark ? '#a9bbcf' : '#60758c' }} />
         </summary>
         <div className="grid gap-2 border-t p-3 sm:grid-cols-2 lg:grid-cols-3" style={{ borderColor: isDark ? '#344b61' : '#e3d8ca' }}>
           {cards.map((card) => (
-            <TraitRow key={card.id} card={card} isDark={isDark} />
+            <TraitRow
+              key={card.id}
+              card={card}
+              isDark={isDark}
+              subcategories={subcategoriesById.get(card.id) || []}
+              reasons={(reasons.get(card.id) || []).slice(0, REASONS_PER_TRAIT)}
+            />
           ))}
         </div>
       </details>
@@ -534,7 +601,7 @@ const ProgressBar: React.FC<{ value: number; color: string; isDark: boolean; lab
   </div>
 );
 
-const StrengthCard: React.FC<{ card: TraitCard; place: number; isDark: boolean }> = ({ card, place, isDark }) => {
+const StrengthCard: React.FC<{ card: TraitCard; place: number; isDark: boolean; latest?: GrowthReason }> = ({ card, place, isDark, latest }) => {
   const meta = TRAIT_META[card.id] || TRAIT_META.knowledge;
   const Icon = meta.icon;
   return (
@@ -550,11 +617,23 @@ const StrengthCard: React.FC<{ card: TraitCard; place: number; isDark: boolean }
       </div>
       <h4 className="mt-3 font-semibold" style={{ color: isDark ? '#e9f0f8' : '#263a4f' }}>{card.label}</h4>
       <p className="mt-0.5 text-sm" style={{ color: isDark ? '#9fb2c8' : '#687d93' }}>{card.rankName} &middot; {card.value} Punkte</p>
+      {latest ? (
+        <p className="mt-2 line-clamp-2 text-xs leading-relaxed" style={{ color: isDark ? '#8fa3ba' : '#728399' }}>
+          Zuletzt {latest.change > 0 ? '+' : ''}{latest.change} {latest.label}
+          {/^(durch|aus)\s/.test(latest.text) ? ' ' : ': '}
+          {latest.text}
+        </p>
+      ) : null}
     </article>
   );
 };
 
-const TraitRow: React.FC<{ card: TraitCard; isDark: boolean }> = ({ card, isDark }) => {
+const TraitRow: React.FC<{
+  card: TraitCard;
+  isDark: boolean;
+  subcategories: Array<{ name: string; value: number }>;
+  reasons: GrowthReason[];
+}> = ({ card, isDark, subcategories, reasons }) => {
   const meta = TRAIT_META[card.id] || TRAIT_META.knowledge;
   const Icon = meta.icon;
   return (
@@ -577,9 +656,39 @@ const TraitRow: React.FC<{ card: TraitCard; isDark: boolean }> = ({ card, isDark
         </div>
       </div>
       <ProgressBar value={card.progress} color={meta.color} isDark={isDark} label={`${card.label}: ${card.progress} Prozent bis zur n\u00e4chsten Stufe`} />
-      <p className="mt-2 text-xs leading-relaxed" style={{ color: isDark ? '#8fa3ba' : '#728399' }}>
-        {card.value === 0 ? 'Startet mit der ersten passenden Geschichte oder Doku.' : meta.hint}
-      </p>
+      {subcategories.length > 0 ? (
+        <ul className="mt-3 space-y-1 border-l-2 pl-3" style={{ borderColor: isDark ? '#3f566d' : '#e3d8ca' }} aria-label={`Unterbereiche von ${card.label}`}>
+          {subcategories.map((entry) => (
+            <li key={entry.name} className="flex items-baseline justify-between gap-2 text-xs">
+              <span className="min-w-0 truncate" style={{ color: isDark ? '#c3d1e0' : '#405970' }}>
+                {formatTraitLabel(`${card.id}.${entry.name}`)}
+              </span>
+              <span className="shrink-0 font-semibold" style={{ color: isDark ? '#b2c2d3' : '#536980' }}>{Math.round(entry.value)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {reasons.length > 0 ? (
+        <div className="mt-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: isDark ? '#8fa5bc' : '#72859a' }}>
+            Wof&uuml;r es Punkte gab
+          </p>
+          <ul className="mt-1.5 space-y-1.5">
+            {reasons.map((reason) => (
+              <li key={reason.key} className="text-xs leading-relaxed" style={{ color: isDark ? '#aabdd1' : '#61768d' }}>
+                <span className="font-semibold" style={{ color: reason.change > 0 ? (isDark ? '#b8d2c8' : '#42675a') : (isDark ? '#d5aeb7' : '#8b5360') }}>
+                  {reason.change > 0 ? '+' : ''}{reason.change} {reason.label}
+                </span>{' '}
+                {reason.text}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="mt-2 text-xs leading-relaxed" style={{ color: isDark ? '#8fa3ba' : '#728399' }}>
+          {card.value === 0 ? 'Startet mit der ersten passenden Geschichte oder Doku.' : meta.hint}
+        </p>
+      )}
     </article>
   );
 };

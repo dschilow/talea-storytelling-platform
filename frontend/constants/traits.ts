@@ -223,7 +223,10 @@ export const getSubcategoryLabel = (subcategory: string, language: 'de' | 'en' |
     'space': { de: 'Weltall', en: 'Space', ru: 'Космос' },
     'weather': { de: 'Wetter', en: 'Weather', ru: 'Погода' },
     'oceanography': { de: 'Meereskunde', en: 'Oceanography', ru: 'Океанология' },
-    'paleontology': { de: 'Dinosaurier & Urzeit', en: 'Paleontology', ru: 'Палеонтология' }
+    'paleontology': { de: 'Dinosaurier & Urzeit', en: 'Paleontology', ru: 'Палеонтология' },
+    'science': { de: 'Naturwissenschaft', en: 'Science', ru: 'Естествознание' },
+    'fairytales': { de: 'Märchen', en: 'Fairy tales', ru: 'Сказки' },
+    'mythology': { de: 'Sagen & Mythen', en: 'Mythology', ru: 'Мифология' }
   };
 
   const key = subcategory.trim().toLowerCase().replace(/[\s-]+/g, '_');

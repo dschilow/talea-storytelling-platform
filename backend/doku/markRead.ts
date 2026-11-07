@@ -605,12 +605,12 @@ function buildDokuReadChanges(
     {
       trait: knowledgeTrait,
       change: knowledgePoints,
-      description: `+${knowledgePoints} ${getKnowledgeDisplayName(knowledgeTrait)} durch Doku "${req.dokuTitle}"`,
+      description: `+${knowledgePoints} ${getKnowledgeDisplayName(knowledgeTrait)} durch die Doku „${req.dokuTitle}“`,
     },
     {
       trait: "curiosity",
       change: curiosityPoints,
-      description: `+${curiosityPoints} Neugier durch vertiefte Doku-Lektuere`,
+      description: `+${curiosityPoints} Neugier durch die Doku „${req.dokuTitle}“`,
     },
   ];
 
@@ -618,7 +618,7 @@ function buildDokuReadChanges(
     changes.push({
       trait: supportTrait,
       change: supportPoints,
-      description: `+${supportPoints} ${getSupportDisplayName(supportTrait)} durch Transfer des Gelernten`,
+      description: `+${supportPoints} ${getSupportDisplayName(supportTrait)} durch das Anwenden des Gelernten aus „${req.dokuTitle}“`,
     });
   }
 

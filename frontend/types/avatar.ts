@@ -44,6 +44,8 @@ export interface AvatarMemory {
   personalityChanges: Array<{
     trait: string;
     change: number;
+    /** Why the trait changed, e.g. "Tröstete den kleinen Drachen." */
+    description?: string;
   }>;
   createdAt: string;
   timestamp?: string; // deprecated, use createdAt

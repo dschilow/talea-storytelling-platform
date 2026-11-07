@@ -1,7 +1,7 @@
 import { api, APIError } from "encore.dev/api";
 import { getAuthData } from "~encore/auth";
 import { avatarDB } from "./db";
-import { rollUpBaseTraitValue } from "../constants/personalityTraits";
+import { shiftBaseTraitBySubcategory } from "../constants/personalityTraits";
 
 export interface ReducePersonalityTraitRequest {
   avatarId: string;
@@ -78,10 +78,18 @@ export const reducePersonalityTrait = api(
         console.log(`  🗑️ Removed empty subcategory: ${baseKey}.${subcategory}`);
       }
 
-      // Update main category value (sum of subcategories), under the same
-      // ceiling the increase path uses.
-      const subcategorySum = Object.values(updatedTraits[baseKey].subcategories).reduce((sum: number, val: any) => sum + val, 0);
-      updatedTraits[baseKey].value = rollUpBaseTraitValue(baseKey, 0, subcategorySum);
+      // The base loses what the subcategory lost; its own direct points stay.
+      // (Resetting it to the subcategory sum erased every direct point.)
+      const subcategorySum = Object.values(updatedTraits[baseKey].subcategories).reduce(
+        (sum: number, val: any) => sum + (Number(val) || 0),
+        0,
+      );
+      updatedTraits[baseKey].value = shiftBaseTraitBySubcategory(
+        baseKey,
+        Number(updatedTraits[baseKey].value) || 0,
+        -actualReduction,
+        subcategorySum,
+      );
 
       console.log(`  📉 ${baseKey}.${subcategory}: ${oldValue} → ${newValue} (reduced by ${actualReduction})`);
       console.log(`  📊 ${baseKey} total: ${updatedTraits[baseKey].value}`);

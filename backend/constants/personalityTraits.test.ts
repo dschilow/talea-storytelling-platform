@@ -6,8 +6,25 @@ import {
   SUBCATEGORY_MAX_VALUE,
   baseTraitMaxValue,
   rollUpBaseTraitValue,
+  shiftBaseTraitBySubcategory,
   BASE_PERSONALITY_TRAITS,
 } from "./personalityTraits";
+
+describe("shiftBaseTraitBySubcategory", () => {
+  test("the parent grows by what the subcategory gained, on top of its own points", () => {
+    expect(shiftBaseTraitBySubcategory("knowledge", 5, 2, 2)).toBe(7);
+  });
+
+  test("a reduction takes only the subcategory's loss, direct points stay", () => {
+    expect(shiftBaseTraitBySubcategory("knowledge", 7, -2, 0)).toBe(5);
+  });
+
+  test("never below the subcategory sum, never above the ceiling, never negative", () => {
+    expect(shiftBaseTraitBySubcategory("knowledge", 0, 1, 9)).toBe(9);
+    expect(shiftBaseTraitBySubcategory("courage", 249, 5, 5)).toBe(BASE_TRAIT_MAX_VALUE);
+    expect(shiftBaseTraitBySubcategory("logic", 1, -5, 0)).toBe(0);
+  });
+});
 
 describe("base trait ceilings", () => {
   test("knowledge accumulates far higher than the other base traits", () => {

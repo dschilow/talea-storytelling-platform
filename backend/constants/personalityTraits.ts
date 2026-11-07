@@ -141,7 +141,7 @@ export const getDefaultPersonalityTraits = (): PersonalityTraits => {
       trait.id,
       { value: trait.defaultValue, subcategories: {} },
     ])
-  ) as PersonalityTraits;
+  ) as unknown as PersonalityTraits;
 };
 
 // WISSENS-HAUPTKATEGORIE
@@ -271,6 +271,27 @@ export function rollUpBaseTraitValue(
   subcategoryTotal: number,
 ): number {
   const raw = Math.max(currentValue || 0, subcategoryTotal || 0);
+  return Math.max(0, Math.min(baseTraitMaxValue(traitId), raw));
+}
+
+/**
+ * New value of a base trait after one of its subcategories moved by
+ * `subcategoryDelta` points (positive when awarded, negative when reduced).
+ *
+ * A base trait holds its own points plus everything its subcategories earned:
+ * `knowledge.history +2` raises "Wissen" by 2 as well. The older rollup
+ * `max(value, sum(subcategories))` swallowed subcategory points whenever the
+ * base had direct points of its own (Wissen 5 from a plain "knowledge" doku,
+ * then Geschichte +2 → Wissen stayed 5). The base never drops below the sum
+ * of its subcategories and never passes its ceiling.
+ */
+export function shiftBaseTraitBySubcategory(
+  traitId: string,
+  currentValue: number,
+  subcategoryDelta: number,
+  subcategoryTotal: number,
+): number {
+  const raw = Math.max((currentValue || 0) + (subcategoryDelta || 0), subcategoryTotal || 0);
   return Math.max(0, Math.min(baseTraitMaxValue(traitId), raw));
 }
 

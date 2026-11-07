@@ -11,10 +11,8 @@ export interface AvatarMemory {
   storyTitle: string;
   experience: string;
   emotionalImpact: "positive" | "negative" | "neutral";
-  personalityChanges: Array<{
-    trait: string;
-    change: number;
-  }>;
+  /** What grew, by how much, and why (the reason the AI or the reader gave). */
+  personalityChanges: MemoryPersonalityChange[];
   contentType: MemoryContentType;
   memoryTier: MemoryTier;
   importance: number;
@@ -22,6 +20,12 @@ export interface AvatarMemory {
   tags: string[];
   isPinned: boolean;
   createdAt: string;
+}
+
+export interface MemoryPersonalityChange {
+  trait: string;
+  change: number;
+  description?: string;
 }
 
 export interface GetMemoriesRequest {
@@ -46,7 +50,7 @@ function normalizeMemoryTier(value?: string): MemoryTier {
   return "episodic";
 }
 
-function parsePersonalityChanges(source: string | null): Array<{ trait: string; change: number }> {
+function parsePersonalityChanges(source: string | null): MemoryPersonalityChange[] {
   if (!source) return [];
 
   try {
@@ -58,14 +62,18 @@ function parsePersonalityChanges(source: string | null): Array<{ trait: string; 
         if (!entry || typeof entry !== "object") return null;
         const rawTrait = (entry as { trait?: unknown }).trait;
         const rawChange = (entry as { change?: unknown }).change;
+        const rawDescription = (entry as { description?: unknown }).description;
         if (typeof rawTrait !== "string") return null;
 
-        return {
+        const description = typeof rawDescription === "string" ? rawDescription.trim() : "";
+        const change: MemoryPersonalityChange = {
           trait: rawTrait,
           change: typeof rawChange === "number" && Number.isFinite(rawChange) ? rawChange : 0,
         };
+        if (description) change.description = description;
+        return change;
       })
-      .filter((entry): entry is { trait: string; change: number } => entry !== null);
+      .filter((entry): entry is MemoryPersonalityChange => entry !== null);
   } catch {
     return [];
   }

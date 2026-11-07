@@ -800,7 +800,7 @@ export const markRead = api<MarkStoryReadRequest, MarkStoryReadResponse>(
 
 function getPersonalityDisplayName(traitId: string): string {
   const displayNames: Record<string, string> = {
-    creativity: "Kreativitaet",
+    creativity: "Kreativität",
     courage: "Mut",
     empathy: "Empathie",
     curiosity: "Neugier",
@@ -856,12 +856,12 @@ function buildStoryReadChanges(
     {
       trait: primaryTrait,
       change: primaryPoints,
-      description: `+${primaryPoints} ${getPersonalityDisplayName(primaryTrait)} durch Geschichte "${req.storyTitle}"`,
+      description: `+${primaryPoints} ${getPersonalityDisplayName(primaryTrait)} durch die Geschichte „${req.storyTitle}“`,
     },
     {
       trait: secondaryTrait,
       change: secondaryPoints,
-      description: `+${secondaryPoints} ${getPersonalityDisplayName(secondaryTrait)} durch Reflexion der Handlung`,
+      description: `+${secondaryPoints} ${getPersonalityDisplayName(secondaryTrait)} durch ${secondaryTrait === "teamwork" ? "das gemeinsame Handeln" : "das Mitfühlen mit den Figuren"} in „${req.storyTitle}“`,
     },
   ];
 
@@ -869,7 +869,7 @@ function buildStoryReadChanges(
     changes.push({
       trait: reflectionTrait,
       change: reflectionPoints,
-      description: `+${reflectionPoints} ${getPersonalityDisplayName(reflectionTrait)} durch Schluesselmomente der Geschichte`,
+      description: `+${reflectionPoints} ${getPersonalityDisplayName(reflectionTrait)} durch die Schlüsselmomente in „${req.storyTitle}“`,
     });
   }
 

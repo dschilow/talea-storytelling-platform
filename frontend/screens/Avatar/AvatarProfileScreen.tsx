@@ -501,7 +501,7 @@ const AvatarProfileScreen: React.FC = () => {
         <main>
           {activeTab === 'growth' ? (
             <div id="avatar-growth-panel" role="tabpanel" aria-label="Entwicklung">
-              <AvatarGrowthDashboard avatarName={avatar.name} traits={traits} progression={progression} />
+              <AvatarGrowthDashboard avatarName={avatar.name} traits={traits} progression={progression} memories={memories} />
             </div>
           ) : null}
 
