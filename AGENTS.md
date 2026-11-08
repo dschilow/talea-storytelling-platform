@@ -357,6 +357,15 @@ The game "Mitternachts-Alibi" (`frontend/screens/Game/alibi/`) plays pre-generat
 
 Facts: model `eleven_v4` (fallback `eleven_v3`); Tavi always uses the audio-doku voice `8tJgFGd1nr7H5KLTvjjt`; ffmpeg normalizes to −19 LUFS speech / −23 effects / −34 ambience, mono 64 kbit/s. Audio tags count as billed characters. The key cannot read the account balance (`user_read` missing); `generate.mjs` stops cleanly when credits run out.
 
+### Listening to sound: earshot + Openverse (use them for all audio work)
+
+Agents cannot hear. Whenever a task picks, trims, checks or compares sound (Originals audio dramas and the sound library, audio dokus, Mitternachts-Alibi voices and effects), listen with **earshot** before saying a sound fits, and quote its numbers (match z, p_real, LUFS). Decided by the user 2026-11-04.
+- **earshot** ([Leonxlnx/earshot](https://github.com/Leonxlnx/earshot) 0.4.0, MIT) is installed at `C:\MyProjects\earshot`: local, CPU only, audio never leaves the machine (except the optional `llm` command). CLI: `C:\MyProjects\earshot\.venv\Scripts\python.exe -m earshot <command> [--json]`. Each CLI call loads the models first (20–40 s), so for more than a few calls use the MCP server `earshot` (registered for Claude Code, Codex and VS Code) or one Python script (`from earshot import api`). Skills `earshot` (which command answers which question) and `real-sound` (licensed real recordings) live in `~/.agents/skills`.
+- **In Talea:** `match FILE "<sound prompt>"` before a generated ElevenLabs sound joins `library_sounds` or the game manifest; `rank "<description>" DIR` to choose among candidates; `find` for a clean one-shot trim (no head or tail cut); `measure` for LUFS and true peak against −19 speech / −23 effects / −34 ambience; `timeline` and `ab` to review a mixed episode or compare two mixes; `sfx list` / `sfx render ID` = 252 free code-made effects (whooshes, clicks, bells, kalimba …) for UI and game sounds, not for natural ambience.
+- **Free real recordings:** the Openverse audio search `https://api.openverse.org/v1/audio/?q=<query>&license_type=commercial,modification` needs no key (anonymous: 20 requests/min, 200/day) and returns mostly Freesound items with licence and a direct `-hq.mp3` preview URL. earshot itself does not call Openverse: search there, download the candidates, then `earshot rank` / `find` / `realness`.
+- **Licences (Talea is a paid product):** only CC0 / Public Domain or CC BY (keep title, author, source link, licence and "edited" with the sound and show the credit in the app); never NC, ND or SA. Read the licence on the item's own page, not only in the search result (`real-sound/references/licences.md`).
+- earshot is a tool for agents on this machine, not a dependency of the Railway backend (torch and 1.1 GB of models do not belong in the image).
+
 ## Deployment
 
 The project is deployed on Railway with GitHub Actions building Docker images for backend and direct deployment for frontend. See [README.md](README.md:5) for detailed deployment instructions.

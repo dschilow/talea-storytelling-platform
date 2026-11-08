@@ -1,0 +1,385 @@
+{
+  "model": "gpt-6.1-sol",
+  "via": "Codex CLI 0.167 (codex exec, ChatGPT-Abo, kein API-Schlüssel), reasoning effort high, Werkzeug scripts/library/episode-review.ts --provider codex [--revise]",
+  "author": "Claude Opus 5.5 (Claude Code, eigenes Kontingent)",
+  "calibration": "Sol bewertet hart: 7 = gut, 8 = sehr gut; Noten sind redaktionelle Modellurteile, keine gemessenen Kinderreaktionen.",
+  "episodes": {
+    "bruno": {
+      "rounds": [
+        {
+          "round": "r1",
+          "text": "entwurf",
+          "solRevision": true,
+          "gesamtnote": 6,
+          "dimensions": {
+            "figurenkonsistenz": 7,
+            "plotKohaerenz": 5,
+            "sprachqualitaet": 7,
+            "emotionaleTiefe": 8,
+            "altersangemessenheit": 6,
+            "ende": 7,
+            "kanonTreue": 5,
+            "weitererzaehlFaktor": 9
+          },
+          "kinder": {
+            "verstaendlichkeit": 7,
+            "humor": 8,
+            "unterhaltung": 7
+          },
+          "schulhofSatz": "„He! Ich bin doch keine Braut!“",
+          "staerksteMomente": [
+            "Mats erledigt plötzlich begeistert den gefürchteten Aufräumschritt, solange er die Höhe noch nicht wahrnimmt.",
+            "Lia erkennt an Mats' Händen, dass sein Widerstand Angst ist.",
+            "„Was brauchst du?“ verändert Ellas Rolle von der Antreiberin zur hilfreichen Schwester.",
+            "Mats gesteht seine Angst freiwillig nach dem Plopp. Das gibt dem Mutmoment einen eigenen Wert.",
+            "Lias Bahnhofsspiel macht ihre Eigenart zur wirksamen Hilfe.",
+            "Brunos beleidigte Stille schützt den Kanon und erzeugt gleichzeitig Komik."
+          ],
+          "mustFix": [
+            "„Das Mäusehündchen?“ und „Danach hatten sie zwei Hunde gehabt“ → erfundenen Rückkanon vollständig entfernen.",
+            "„Stimmt nicht konnte er nicht sagen, nicht vor dem Glas“ → klarstellen, dass Scham ihn hindert; eine andere wahre Aussage ist magisch ungefährlich.",
+            "„Und landest irgendwo“ → die erfundene Gewissheit über einen zweiten Zauber durch die bekannte Auflösungsregel ersetzen.",
+            "„Kordel von Mats' Kapuze“ → eine Kordel unten an der Jacke verwenden; das Ziehen am Halsbereich beseitigen.",
+            "„Papa lachte“ und „Du nicht“ → Papa nach dem kurzen Missverständnis tatsächlich Hilfe anbieten und die Leiter sichern lassen.",
+            "„Mats ließ die Stange los und sank“ → den Abstieg durch Ellas ausdrücklich erlaubtes, langsames Ziehen verursachen.",
+            "„Mats schwebte eine Handbreit über dem Sitzsack“ → vor dem Geständnis Bodenkontakt auf der weichen Unterlage herstellen.",
+            "„Dann stieg er hinauf. Eine Stufe. Zwei“ → keine sofortige Rettungsleistung auf der Leiter verlangen; Mats soll seine neue Fähigkeit zum Hilfeannehmen anwenden.",
+            "„Ella hakte Schritt vier ab“ → alle Schrankgegenstände tatsächlich herunterholen und das Aufräumziel abschließen.",
+            "Die beiden unterbrochenen Catchphrases → „Das war nicht geflunkert, das war ausgedacht!“ und „Okay. Plan B.“ jeweils unverändert einsetzen.",
+            "„Vermutungen gehörten noch nicht in einen Plan“ → widersprüchlichen Merksatz entfernen und den Staffelhinweis beiläufig halten.",
+            "„Mats pinnte Flunker-Karte Nr. 4“ → den Sammelkartenabsatz entsprechend der ausdrücklichen Revisionsvorgabe aus dem Erzähltext entfernen.",
+            "„Ellas Kopf sah aus wie ein Punkt mit Zopf“ → die Raumhöhe plausibel darstellen."
+          ],
+          "seconds": 587,
+          "tokens": 42822
+        },
+        {
+          "round": "r2",
+          "text": "v2",
+          "solRevision": true,
+          "gesamtnote": 7,
+          "dimensions": {
+            "figurenkonsistenz": 7,
+            "plotKohaerenz": 6,
+            "sprachqualitaet": 8,
+            "emotionaleTiefe": 9,
+            "altersangemessenheit": 8,
+            "ende": 8,
+            "kanonTreue": 7,
+            "weitererzaehlFaktor": 9
+          },
+          "kinder": {
+            "verstaendlichkeit": 8,
+            "humor": 8,
+            "unterhaltung": 8
+          },
+          "schulhofSatz": "„Ich übernehme Schritt sechs. Zugucken. Sehr anstrengend.“",
+          "staerksteMomente": [
+            "Mats sieht zum ersten Mal Ellas Scheitel: Die ungewohnte Perspektive macht die Höhe unmittelbar erfahrbar.",
+            "Mats sagt genau, welche Hilfe er braucht, statt nur allgemein Angst zu gestehen.",
+            "Ella wartet auf sein Nicken. Die Veränderung der Beziehung geschieht als Handlung.",
+            "Lias Zuggeräusch verwandelt eine bekannte Eigenart in praktische Unterstützung.",
+            "Nach dem Plopp gesteht Mats seine Angst freiwillig. Das unterscheidet diese Folge klar von der Lia-Angeberhandlung aus Folge 3.",
+            "„Das macht Mats“ wird zu „Zusammen“: ein kleiner, sichtbarer und dauerhafter Fortschritt."
+          ],
+          "mustFix": [
+            "„Ich mach jetzt fünf“ → Schritt fünf vorher konkret nennen, damit der Aufräumplan vollständig verständlich ist.",
+            "„Ich brauch keine Leiter“ → streichen, damit vor der vorgesehenen Flugflunkerei keine zusätzliche mögliche Tatsachenflunkerei steht.",
+            "„Er schlug einen Purzelbaum in der Luft“ → durch eine weniger unbekümmerte Flugbewegung ersetzen und Mats' zunächst vermiedenen Blick nach unten vorbereiten.",
+            "„Papa, das ist kein Witz“ / „Ich bring Lia gleich mit“ → Papa sofort reagieren lassen; Lias Einlass darf nur auf seinem unmittelbaren Weg liegen.",
+            "„Unter der Gardine“ / „Euer Fisch guckt“ → die Gardine vor Lias Blick auf Bruno sichtbar entfernen; auch den späteren Anschluss korrigieren.",
+            "„Stück für Stück holte Ella ihn herunter“ → Ellas Abstieg mit der Kordel und Papas Sicherung der Leiter ausdrücklich zeigen.",
+            "„Da bimmelte es. Elf Glöckchen auf einmal“ → Kaisers Kontakt mit dem Alarmfaden zeigen und sein Scheitern durch eine kleine konkrete Panne verursachen.",
+            "„Dann weiß ich ja jetzt, wofür ich die Leiter halte“ → durch eine verständliche, fürsorgliche Antwort auf Mats' Angst ersetzen.",
+            "„Daneben malte sie jetzt eine kleine Spielkarte“ → die ausdrückliche Brunello-Zuordnung entfernen; den Flossentrick als alleinigen beiläufigen Staffelhinweis stehen lassen."
+          ],
+          "seconds": 485,
+          "tokens": 48581
+        },
+        {
+          "round": "r3",
+          "text": "v3",
+          "solRevision": true,
+          "gesamtnote": 7.8,
+          "dimensions": {
+            "figurenkonsistenz": 7,
+            "plotKohaerenz": 7,
+            "sprachqualitaet": 8,
+            "emotionaleTiefe": 9,
+            "altersangemessenheit": 7,
+            "ende": 7,
+            "kanonTreue": 7,
+            "weitererzaehlFaktor": 9
+          },
+          "kinder": {
+            "verstaendlichkeit": 8,
+            "humor": 8,
+            "unterhaltung": 8
+          },
+          "schulhofSatz": "„Ich übernehme Schritt sechs.“ „Zugucken. Sehr anstrengend.“",
+          "staerksteMomente": [
+            "Mats erledigt plötzlich fast alle anderen Aufgaben, um die Leiter zu vermeiden. Seine Angst wird gezeigt, bevor sie benannt wird.",
+            "Ella verhindert die zweite Flunkerei mit einer konkreten Erinnerung an Hugo und das Mäusehündchen.",
+            "Lia nutzt ihr bereits bekanntes Plopp-Wissen, ihre Bühnenbaukunst und ihre Zuggeräusche. Sie ist hilfreich, ohne Bruno als Ursache zu entdecken.",
+            "Mats sagt die magisch notwendige Wahrheit und entscheidet sich anschließend für die zusätzliche, persönlich schwierigere Wahrheit.",
+            "Mats hilft Kaiser mit genau den Worten, die ihm selbst geholfen haben. Er steigt dabei nur auf die unterste Stufe.",
+            "Die nassen Spielkarten verbinden das Flugchaos mit dem Staffelhinweis, ohne einen neuen Gegenstand herbeizuzaubern."
+          ],
+          "mustFix": [
+            "„Ich halte die Leiter“ → Papa muss Mats körperlich stützen. Seine bloße Beruhigung reicht in dieser räumlichen Lage nicht aus.",
+            "„Du hast den ganzen Nachmittag kein einziges Wort gesagt!“ → Durch eine wahre Beschwerde über Brunos Schweigen während Lias Besuch ersetzen; keine ungeklärte neue Flunkerei im Schlussritual.",
+            "„Mats öffnete die Augen“ / „Die zugekniffenen Augen“ → Den Wechsel sichtbar machen.",
+            "„Nicht runtergucken“ bei gleichzeitig unten stehender Lia → Den Boden als das vermeiden lassen, worauf Mats nicht schauen soll; dieselbe Formulierung bei seiner Hilfe für Kaiser spiegeln."
+          ],
+          "seconds": 582,
+          "tokens": 49680
+        },
+        {
+          "round": "final",
+          "text": "lektoriert (vor dem letzten Feinschliff)",
+          "solRevision": false,
+          "gesamtnote": 7.8,
+          "dimensions": {
+            "figurenkonsistenz": 7,
+            "plotKohaerenz": 7,
+            "sprachqualitaet": 8,
+            "emotionaleTiefe": 9,
+            "altersangemessenheit": 8,
+            "ende": 8,
+            "kanonTreue": 9,
+            "weitererzaehlFaktor": 8
+          },
+          "kinder": {
+            "verstaendlichkeit": 8,
+            "humor": 8,
+            "unterhaltung": 8
+          },
+          "schulhofSatz": "„Ich hab Angst vor Tauben. Die gucken immer so von der Seite.“",
+          "staerksteMomente": [
+            "Mats sieht anfangs nur auf die Gegenstände vor seiner Nase. Erst der Blick nach unten lässt seine versteckte Angst zuschnappen. Das ist sauber vorbereitet.",
+            "„Dass keiner plötzlich zieht“ übersetzt Angst in eine konkrete Bitte, auf die die anderen tatsächlich eingehen.",
+            "Die Wahrheit über die Flugbehauptung kommt vor dem freiwilligen Angstgeständnis. Dadurch bleibt der Mutmoment größer als die bloße Zauberreparatur.",
+            "Mats hilft Kaiser mit denselben Worten, die ihm gerade geholfen haben. Er steigt dafür nur auf die unterste Stufe; seine Angst wird nicht weggezaubert.",
+            "Die heruntergefallenen Karten liefern später den Saisonhinweis. Der Hinweis wächst aus der Handlung statt aus einem angeklebten Fundstück."
+          ],
+          "mustFix": [
+            "„Du willst bloß nicht aufräumen“ → Die Unterstellung widerspricht Mats' bereits erledigter Arbeit und seiner ausgesprochenen Sorge vorm Fallen. Durch eine ungeduldige Aufforderung zum Loslassen ersetzen; Ellas spätere Erkenntnis darauf beziehen.",
+            "„Papas Hand blieb die ganze Zeit unter seinen Füßen“ → Eindeutig zeigen, ob und wann Papa Mats stützt. Sein Warten an Mats' Zustimmung binden, damit die Rettung körperlich nachvollziehbar bleibt.",
+            "„Dann drehte er eine um. Herz-König.“ → Vor dem Mischen ausdrücklich alle drei Karten verdecken. Sonst funktioniert die sichtbare Abfolge des zentralen Saisonhinweises nicht.",
+            "„Diesmal klang es nach großer Schwester“ und „Seine Würde hatte er noch. Nur seinen Plan nicht“ → Streichen. Beide Sätze erklären bereits gelungene Handlungen und schwächen deren Wirkung."
+          ],
+          "seconds": 797,
+          "tokens": 51644
+        }
+      ],
+      "entscheidungen": {
+        "übernommen": [
+          "Kordel unten am Jackensaum statt an der Kapuze (Zug am Hals)",
+          "Ella zieht erst, wenn Mats nickt; Füße stehen vor dem Geständnis auf dem Sitzsack",
+          "Schweigen aus Scham statt aus einer falschen Magieregel",
+          "Papa kommt auf Ellas Hilferuf, hält die Leiter, stützt Mats von unten und vergisst danach („Wieso halte ich eigentlich die Leiter?“)",
+          "Gardine kommt vom Glas, bevor Lia Brunos Gesicht kommentiert",
+          "Kaisers Glöckchen verhakt sich im Kater-Alarm (Ursache für das Klingeln)",
+          "„Ich brauch keine Leiter“ gestrichen, damit nur eine Flunkerei fällt",
+          "„Solange Lia da war, hast du kein einziges Wort gesagt!“ statt einer neuen Flunkerei im Schlussritual",
+          "„Zusammen“ statt „Das macht Mats“ im Aufräumplan; Kissen werden zurückgeräumt",
+          "Kartentrick: erst verdecken, dann mischen"
+        ],
+        "verworfen": [
+          "„Mäusehündchen ist erfundener Kanon“ – falsch: E1-Text und Flunker-Karte Nr. 1 (Sol kannte in Runde 1 nur die Faktenliste; ab Runde 2 bekommt das Skript alle früheren Folgen im Volltext)",
+          "Flunker-Karte aus dem Text streichen – das Ritual steht in E1–E3 im Text (Missverständnis der ersten Auftragsfassung)",
+          "Papa holt Kaiser herunter – Mats redet ihn herunter und schafft selbst nur die unterste Stufe; so bleibt seine Angst ernst genommen",
+          "„Das hätte er nicht sagen müssen. Der Zauber war längst vorbei.“ streichen – bleibt: Sechsjährige brauchen den Hinweis, dass das Angstgeständnis freiwillig ist (Sol selbst nannte den Satz in Runde 1 den Kern)",
+          "Ellas stilles Aufschlagen der Mondsichel-Seite streichen – bleibt ohne ausgeschriebenes „Brunello?“, wie der Staffelplan es verlangt (private Vermutung bis Folge 5)"
+        ]
+      }
+    },
+    "monster": {
+      "rounds": [
+        {
+          "round": "r1",
+          "text": "entwurf",
+          "solRevision": true,
+          "gesamtnote": 7,
+          "dimensions": {
+            "figurenkonsistenz": 7,
+            "plotKohaerenz": 6,
+            "sprachqualitaet": 8,
+            "emotionaleTiefe": 7,
+            "altersangemessenheit": 8,
+            "ende": 8,
+            "kanonTreue": 7,
+            "weitererzaehlFaktor": 9
+          },
+          "kinder": {
+            "verstaendlichkeit": 7,
+            "humor": 9,
+            "unterhaltung": 7
+          },
+          "schulhofSatz": "Das roch nach einer Blumenwiese, auf der jemand ein Käsebrot gegessen und dann sehr lange gepupst hatte!",
+          "staerksteMomente": [
+            "Omas Haare stehen nach dem Windstoß einzeln wieder auf.",
+            "Der Blumenduft verschlimmert den Pupsgeruch.",
+            "Jona führt mit Pfeife und Zahlen; seine Eigenart wird zur nützlichen Fähigkeit.",
+            "Das Monster kommt freiwillig mit und bekommt einen passenden Beruf.",
+            "Flusi bleibt nach dem Mehltest bis zum Einschlafen weiß."
+          ],
+          "mustFix": [
+            "„Keiner fehlt. Also war es keiner von drinnen“ → den unbelegten Ausschluss streichen; Anwesenheit und Spurenvergleich sauber trennen.",
+            "„Jona ging in die Umkleide“ → Oma ausdrücklich mitgehen lassen und die Rufverbindung zum Keller zeigen.",
+            "„Dann holte sie Flusi … aus dem Netz“ → die Rettung unmittelbar nach seinem Hängenbleiben erzählen.",
+            "„Macht man nur ein Fenster auf, bleibt die Luft einfach stehen“ und „Fast gleichzeitig“ → die falsche Lüftungsregel sowie die unerfüllte Gleichzeitigkeit ersetzen.",
+            "„Das hat sie noch nie gemacht“ → Gertruds Blasfunktion vor dem entscheidenden Einsatz absichern.",
+            "„Gertrud rollte rückwärts“ → Oma als Fahrerin und Jona als Mitfahrer nennen.",
+            "„auf die dicke Weichbodenmatte“ → die Matte vorher gezielt unter den Korb ziehen lassen.",
+            "„eine lange Deckenspur“ und „hielt jeden Mehlabdruck“ → echte Fußabdrücke auf einem tragbaren Untergrund erzeugen.",
+            "„Es war keiner von uns“ → die Schlussfolgerung auf die tatsächlich verglichenen Pensionsgäste begrenzen.",
+            "„Ab in die Tonne, Süßer!“ → den festgelegten Spruch „Ab in die Tonne, Süße!“ verwenden; „Flusi hilft!“ ergänzen.",
+            "„Als die erste Amsel sang, schliefen alle“ → das Einschlafen aller Monster beim ersten Vogelgesang eindeutig formulieren."
+          ],
+          "seconds": 783,
+          "tokens": 49179
+        },
+        {
+          "round": "r2",
+          "text": "v2",
+          "solRevision": true,
+          "gesamtnote": 7.5,
+          "dimensions": {
+            "figurenkonsistenz": 7,
+            "plotKohaerenz": 7,
+            "sprachqualitaet": 8,
+            "emotionaleTiefe": 8,
+            "altersangemessenheit": 8,
+            "ende": 8,
+            "kanonTreue": 7,
+            "weitererzaehlFaktor": 9
+          },
+          "kinder": {
+            "verstaendlichkeit": 8,
+            "humor": 9,
+            "unterhaltung": 8
+          },
+          "schulhofSatz": "Da hat Oma Blumenduft gesprüht, und dann roch es nach einer Blumenwiese, auf der einer ganz lange gepupst hat!",
+          "staerksteMomente": [
+            "Vierzehn Rührschüsseln schützen vierzehn Spuren: Jonas Zählen und die acht Arme der Krake lösen gemeinsam ein kleines Problem.",
+            "Flusi im Basketballnetz mit seiner vollkommen sachlichen Meldung „Flusi hängt“.",
+            "Die misslungene Frühlingsbrise steigert den Geruch, statt nur wirkungslos zu bleiben.",
+            "Jonas Pfiffe verbinden seine Planung mit Omas Arbeit und Gertruds Kraft.",
+            "Die warmen Ohren wechseln von Scham zu Stolz.",
+            "Der zufriedene Wiesenpups macht aus dem Störenfried einen willkommenen Gast."
+          ],
+          "mustFix": [
+            "„Kann ihr Rüssel auch andersrum?“ → Durch eine ausdrückliche Erinnerung an Gertruds Pusten über die Handtücher in Folge 1 ersetzen.",
+            "„Sieben Abdrücke führten vom Hoftor bis zur Klappe“ und „Keine war auch nur halb so groß“ → Richtung, Größenenthüllung und abschließende Spurenauswertung streichen. Nur die sockenähnlichen Abdrücke beiläufig stehen lassen.",
+            "„Es kam von draußen“ → Die ausdrückliche Aufklärung des Staffelhinweises entfernen. Dass alle Gäste da sind, bleibt als eigener Befund erhalten.",
+            "„Dann saßen sie in Gertrud“ → Vorher Jonas Warnweste und Gummistiefel zeigen.",
+            "„Da knackte der Monster-Funk auf Omas Küchenfensterbrett“ → Die Hörverbindung zum Hof mit einem offenen Küchenfenster herstellen.",
+            "„Oma hakte die lange Stange am ersten Fenster ein“ → Kurbelstange und sichtbare Fensteröffnung eindeutig machen.",
+            "„Und frische kam hinein“ → Die widersprüchliche Luftfüllung vor dem Erschlaffen bereinigen.",
+            "„Der Socken-Schnüffler beschnüffelte jede und legte sie in seine neue Kiste“ → Vor dem Einordnen zeigen, dass er keine Partner findet."
+          ],
+          "seconds": 449,
+          "tokens": 46590
+        },
+        {
+          "round": "r3",
+          "text": "v3",
+          "solRevision": true,
+          "gesamtnote": 8,
+          "dimensions": {
+            "figurenkonsistenz": 8,
+            "plotKohaerenz": 7,
+            "sprachqualitaet": 8,
+            "emotionaleTiefe": 7,
+            "altersangemessenheit": 8,
+            "ende": 8,
+            "kanonTreue": 9,
+            "weitererzaehlFaktor": 9
+          },
+          "kinder": {
+            "verstaendlichkeit": 8,
+            "humor": 9,
+            "unterhaltung": 8
+          },
+          "schulhofSatz": "Die haben Blumenduft auf ein Pupsmonster gesprüht. Dann roch die ganze Turnhalle nach Blumenwiese mit Käsebrot und Pups!",
+          "staerksteMomente": [
+            "Flusis Flug in den Basketballkorb und sein trockenes „Flusi hängt“.",
+            "Die nacheinander wieder aufstehenden Stachelhaare.",
+            "Der gescheiterte Blumenduft-Trick.",
+            "Jona verfolgt das Monster nicht, sondern hält seinen Plan durch.",
+            "Der letzte kleine Wiesenpups als freundliche Umkehr des anfänglichen Gestanks."
+          ],
+          "mustFix": [
+            "„Diesmal wartete Jona, bis er ganz sicher war“ → Gewissheit durch eine begründete Vermutung ersetzen und die Schwäche beim vorhandenen Probepusten sichtbar bestätigen.",
+            "„Ich hab nur zwei Arme, Süßer“ → Die tatsächliche Abstimmungsfrage stellen: Woher weiß Gertrud, wann alle Fenster offen sind? Jonas Pfeifplan muss genau dieses Problem lösen.",
+            "„Alle zweiundzwanzig“ sowie „Alle zwölf Fenster auf“ → Vor der Rückfahrt Bälle einsammeln, Fenster und Tor schließen und die geliehenen Geräte zurücklegen.",
+            "Die beiden ausführlichen Spurenermittlungen → Kürzen, damit der Staffelhinweis beiläufiger bleibt. Gästezählung, Besuch von außen, Sockenkiste und Schüsselgag müssen erhalten bleiben.",
+            "„Dein Plan, Süßer. Ich wär bis zum Morgen hinterhergerannt“ → Jonas Anerkennung behalten, Omas Erfahrung nicht entwerten und eine konkrete neue Abmachung für ihre künftige Zusammenarbeit setzen."
+          ],
+          "seconds": 608,
+          "tokens": 48578
+        },
+        {
+          "round": "final",
+          "text": "lektoriert (vor dem letzten Feinschliff)",
+          "solRevision": false,
+          "gesamtnote": 8,
+          "dimensions": {
+            "figurenkonsistenz": 8,
+            "plotKohaerenz": 7,
+            "sprachqualitaet": 8,
+            "emotionaleTiefe": 7,
+            "altersangemessenheit": 8,
+            "ende": 8,
+            "kanonTreue": 9,
+            "weitererzaehlFaktor": 9
+          },
+          "kinder": {
+            "verstaendlichkeit": 8,
+            "humor": 9,
+            "unterhaltung": 7
+          },
+          "schulhofSatz": "Nach einer Blumenwiese, auf der jemand ein Käsebrot gegessen und dann sehr lange gepupst hatte.",
+          "staerksteMomente": [
+            "Der Pups befördert Flusi in den Basketballkorb; „Flusi hängt“ setzt den trockenen Gegenpunkt zur großen Bewegung.",
+            "Omas Stachelhaare stehen nach dem Windstoß einzeln wieder auf.",
+            "Jona verwendet seine Zählstärke erstmals als konkrete Einsatzleitung und greift Gertruds Handtuch-Trick aus E1 auf.",
+            "Der kleine Probeluftstoß bestätigt die Schwäche, bevor der große Plan ausgeführt wird.",
+            "Das Pupsmonster wird als erfreuter, erschreckbarer Gast gezeigt und steigt freiwillig ein.",
+            "Der Schnüffler schläft mit der wachsenden Sockenkiste im Arm: Die spätere Sammlung bekommt schon jetzt einen persönlichen Wert.",
+            "„Es roch nach Wiese“ schließt die Geruchsentwicklung knapp und freundlich ab."
+          ],
+          "mustFix": [
+            "„Keine passte“ → „Keiner von unseren Gästen“ ist ein unzulässiger Beweissprung. Den Mehlvergleich samt sicherem Ausschluss entfernen oder die Schlussfolgerung ausdrücklich auf die tatsächlich beobachteten Spuren begrenzen.",
+            "„Sieben … bis zur Klappe. Sieben … wieder zurück“ behauptet bei runden Abdrücken ohne erkennbare Zehen oder Sohlen eine unbelegte Richtung. Zwei Spurenreihen beschreiben und die Laufrichtung offenlassen.",
+            "Der beiläufig verlangte Staffelhinweis wird durch Auftaktuntersuchung, Schüsselsicherung, Riegelkontrollen und abschließenden Mehltest zur zweiten Haupthandlung. Vor allem den Mehltest streichen und die Rahmenszenen kürzen, damit der Halleneinsatz das Tempo bestimmt.",
+            "„Aus jedem Beutel kam die alte, muffige Luft heraus, Woche für Woche“ bezeichnet sprachlich eine wochenlange Entlüftung. Ändern zu: „Die muffige Luft, die seit Wochen in den Beuteln steckte, strömte heraus.“"
+          ],
+          "seconds": 550,
+          "tokens": 46777
+        }
+      ],
+      "entscheidungen": {
+        "übernommen": [
+          "Oma geht mit in die Umkleide (Erwachsene bleibt bei Jona)",
+          "Flusi wird sofort aus dem Netz geholt",
+          "Lüften physikalisch richtig: ein Fenster bringt wenig, Durchzug braucht beide Seiten",
+          "Jona erinnert sich an Gertruds Pusten über die Handtücher aus Folge 1, statt danach zu fragen",
+          "Omas Frage, woher Gertrud draußen weiß, wann sie pusten soll – darauf antwortet der Pfeifplan",
+          "Probepuster mit erster Wirkung am Monster",
+          "Bälle einsammeln, Fenster schließen, Pfeife zurückhängen",
+          "Schnüffler sucht erst Partner, bevor Socken in die Kiste kommen",
+          "„Dein Plan, Süßer“ mit neuer Abmachung: „Nächstes Mal, wenn ich einfach losrennen will, pfeifst du.“",
+          "Zwei Spurenreihen statt behaupteter Laufrichtung; Beutel sichtbar fest zugeschnürt",
+          "„Ab in die Tonne, Süße!“ und „Flusi hilft!“ wortgetreu"
+        ],
+        "verworfen": [
+          "Mehlvergleich streichen – bleibt: der Staffelplan verlangt „Jemand kam von außen; kein Pensionsgast fehlt“, und der E3-Teaser kündigt Jonas Spurensuche an; die Schlussfolgerung ist jetzt auf die Fußform begrenzt",
+          "Weichbodenmatte unter dem Korb – nicht nötig (Turnbeutel sind federleicht) und hätte die Landebühne der Bruno-Folge am selben Tag gedoppelt",
+          "Größenvergleich ganz streichen – der Stiefelvergleich am Anfang bleibt als Spur, die Größenbehauptung am Ende ist raus"
+        ]
+      }
+    }
+  }
+}

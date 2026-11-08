@@ -1,0 +1,403 @@
+{
+  "seriesId": "die-monster-muellabfuhr",
+  "season": 1,
+  "episode": 4,
+  "bibleVersion": 2,
+  "publishAt": "2026-11-06T14:00:00.000Z",
+  "title": "Alarm in der Turnhalle",
+  "summary": "Vor der Pension sind riesige Abdrücke wie von nassen Socken. Doch erst ruft die Turnhalle: Dort pupst ein Monster aus vergessenen Turnbeuteln die Bälle durch die Halle. Hinterherrennen hilft nicht. Jona braucht einen Plan, eine Trillerpfeife und zwölf Fenster.",
+  "guests": [
+    {
+      "id": "pupsmonster",
+      "name": "Pupsmonster",
+      "role": "Monster aus vergessenen Turnbeuteln, neuer Lüftungswart der Monster-Pension",
+      "visualProfileEn": "friendly clumsy monster made entirely of cloth: a lumpy bundle of drawstring gym bags knotted together, a big red gym bag as its round head and middle with smaller blue, green and yellow gym bags around it, loose white drawstring cords looping up from the top like messy hair, two round shiny metal eyelets as eyes, a wide happy mouth, blue mitten-like cloth hands, short green cloth legs in two old worn white sneakers, about as tall as a seven-year-old child",
+      "referenceUrl": "/library/series/die-monster-muellabfuhr/s1e4/pupsmonster.webp"
+    },
+    {
+      "id": "kruemelkrake",
+      "name": "Krümelkrake",
+      "role": "Küchenhilfe der Pension aus Folge 3",
+      "visualProfileEn": "friendly little octopus monster made entirely of golden toasted bread crumbs, a rounded bread-crumb head the size of a sofa cushion, two expressive black button eyes, a tiny smiling mouth, exactly eight soft flexible bread-crumb arms with tiny sesame seeds and rough crust tips, cozy funny expressive creature, neither squid nor real seafood",
+      "referenceUrl": "/library/series/die-monster-muellabfuhr/s1e3/kruemelkrake.webp"
+    },
+    {
+      "id": "socken-schnueffler",
+      "name": "Socken-Schnüffler",
+      "role": "Sockenpaar-Sortierer der Pension aus Folge 1, sammelt Socken ohne Partner",
+      "visualProfileEn": "friendly dog-sized creature made entirely of mismatched single socks, long striped sock-tip snout, two black button eyes, floppy soft sock body",
+      "referenceUrl": "/library/series/die-monster-muellabfuhr/s1e1/socken-schnueffler.webp"
+    }
+  ],
+  "cover": {
+    "url": "/library/series/die-monster-muellabfuhr/s1e4/cover.webp",
+    "sceneEn": "Big school gym at night, moonlight falling through a row of high narrow windows, the first ones already open, climbing ropes swaying. [jona] in his orange vest stands in the middle of the hall with a whistle between his teeth, counting on his fingers. [oma-hilde] reaches up with a long window pole to crank open the next high window. [pupsmonster] perches on top of a basketball hoop, its gym bags puffed up, watching them curiously. Exactly these three figures, each once, a playful night adventure",
+    "characterIds": [
+      "jona",
+      "oma-hilde",
+      "pupsmonster"
+    ],
+    "boxes": {
+      "oma-hilde": [
+        120,
+        40,
+        1000,
+        330
+      ],
+      "jona": [
+        380,
+        400,
+        1000,
+        580
+      ],
+      "pupsmonster": [
+        0,
+        660,
+        440,
+        900
+      ]
+    }
+  },
+  "chapters": [
+    {
+      "title": "Vierzehn Schüsseln",
+      "text": "Noch bevor Jona Oma Hilde richtig Hallo gesagt hatte, stand er schon vor der grünen Tür.\n\nEs war sein viertes Wochenende auf dem Betriebshof. Seit letzter Woche wollte er nur eins wissen: Wer hatte die kleine Klappe unten in der Pensionstür aufgemacht?\n\nDie Klappe war zu. Der Riegel war vorgeschoben, genau wie Oma ihn zurückgelassen hatte. Jona atmete aus.\n\nDann leuchtete er mit der Taschenlampe auf den Boden.\n\nAm Abend hatte es geregnet. Im weichen Sand vor der Tür waren Abdrücke. Rund, ohne Sohle, ohne Zehen. Als wäre jemand in nassen Socken gelaufen.\n\nJona stellte seinen Fuß im gelben Gummistiefel daneben. Der Abdruck war viel länger.\n\nZwei Reihen Abdrücke lagen zwischen dem Hoftor und der Klappe. Jona zählte. Sieben in jeder Reihe.\n\n„Oma!“\n\nOma kam mit zwei Kakaobechern über den Hof, Flusi auf der Schulter. Als sie die Abdrücke sah, stellte sie die Becher auf die Mülltonne.\n\n„Die waren gestern noch nicht da“, sagte sie langsam.\n\nJona öffnete die grüne Tür einen Spalt und zählte die Gäste. Der Socken-Schnüffler saß auf seinem Sockenberg. Neben ihm stand eine neue Kiste. Darin lagen einzelne Socken, für die er keinen Partner gefunden hatte, jede ordentlich für sich. Das Gähnmonster hockte auf dem Schrank und strickte an seiner Mütze. Die Krümelkrake wischte den Küchentisch, mit allen acht Armen gleichzeitig.\n\n„Alle da“, sagte Jona. „Keiner fehlt.“\n\nDa knackte es durchs offene Küchenfenster. Der Monster-Funk.\n\n„Notruf. Turnhalle der Sonnenhügel-Schule. Es pfeift. Es weht. Drinnen.“\n\nOma zog ihre Handschuhe an. „Na dann. Weste an, Süßer. Abfahrt.“\n\n„Und die Spuren?“ Jona sah zu den dicken Wolken hinauf. „Wenn es wieder regnet, sind sie weg!“\n\n„Spuren laufen nicht weg.“\n\n„Doch. Wenn es regnet.“\n\nDa kam ein Krümelarm aus der Pensionstür. Dann noch einer. Und noch einer. In jedem hielt die Krake eine Rührschüssel. Jona verstand sofort. Zusammen stülpten sie über jeden Abdruck eine Schüssel. Vierzehn Abdrücke, vierzehn Schüsseln. Die Krake musste zweimal laufen.\n\nDann saßen sie in Gertrud, Jona in seiner riesigen Warnweste. Der kleine lila Monster-Müllwagen blinkte zweimal. Oma schob eine Kassette ein.\n\n„Für Turnhallen nehmen wir ‚Sturm im Turnbeutel‘!“\n\nGitarren. Gertrud hupte im Takt. Flusi schnupperte am Duftbäumchen am Spiegel und nieste. „HATSCHI!“\n\nJona sah sich um. Kein Monster. Nur Tannenduft.\n\n„Falsche Stelle“, sagte Flusi.\n\nVor der Turnhalle wartete der Hausmeister. Er hatte eine Wäscheklammer auf der Nase.\n\n„Die Sonderabfuhr?“, näselte er. „Seit Montag geht das so. Erst hat es gemuffelt. Dann gepfiffen. Und heute Nacht sind alle Bälle aus dem Ballwagen gehüpft. Alle zweiundzwanzig. Ach ja, und die Fundkiste ist leer. Da lagen seit den Sommerferien lauter alte Turnbeutel drin.“\n\n„Haben Sie was gesehen?“, fragte Jona.\n\n„Nur Unordnung.“ Er schloss auf. „Ich bin im Heizungskeller. Da riecht es wenigstens nach Heizung.“\n\nDie Turnhalle war riesig und dunkel. Jeder Schritt hallte. Die Kletterseile hingen still von der Decke. Oben unter dem Dach waren zwölf lange, schmale Fenster. Jona zählte sie zweimal.\n\nEs roch nach alten Turnschuhen. Und nach etwas anderem. Nach einem Käsebrot, das man im Sommer im Rucksack vergessen hat.\n\nFlusi zitterte. „HATSCHI!“\n\nDiesmal war es nicht die Tanne.\n\nAus der Ecke bei der Sprossenwand kam ein Geräusch. Ein langes, tiefes PRÖÖÖÖT.\n\nEin Windstoß fegte durch die Halle. Die Kletterseile schwangen. Ein Hütchen kullerte vorbei. Omas Stachelhaare legten sich flach nach hinten und standen dann wieder auf, eins nach dem anderen.\n\nOma hielt sich die Nase zu. „Süßer“, sagte sie. „Ich glaube, das war unser Monster.“",
+      "images": [
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e4/ch1.webp",
+          "sceneEn": "Night in a depot yard in front of a green wooden door with a small flap at its bottom. In the wet dark sand lies a trail of large smooth oval imprints, each one a single soft rounded dent with blurry edges, like a foot in a wet sock pressed into the sand, leading from the yard gate to the flap. [jona] crouches with a flashlight and has put his foot in its small yellow rubber boot right next to one imprint; the imprint is clearly longer than the boot. [oma-hilde] stands behind him holding two cocoa mugs and stares at the imprints with raised eyebrows. Exactly these two figures; the smooth imprints are the only trace of anyone else",
+          "characterIds": [
+            "jona",
+            "oma-hilde"
+          ],
+          "afterParagraph": 5,
+          "boxes": {
+            "jona": [
+              380,
+              120,
+              1000,
+              470
+            ],
+            "oma-hilde": [
+              100,
+              560,
+              1000,
+              830
+            ]
+          }
+        },
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e4/ch1-2.webp",
+          "sceneEn": "Night in the depot yard. [kruemelkrake], a golden bread-crumb octopus, leans out of the open green door and holds a mixing bowl in each of several arms. Together with [jona] she places the bowls upside down over the big round footprints in the sand; a row of bowls already covers the first prints. Exactly these two figures, each once, busy and cheerful",
+          "characterIds": [
+            "kruemelkrake",
+            "jona"
+          ],
+          "afterParagraph": 18,
+          "boxes": {
+            "kruemelkrake": [
+              200,
+              40,
+              950,
+              470
+            ],
+            "jona": [
+              320,
+              560,
+              1000,
+              800
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e4/ch1.webp",
+        "sceneEn": "Night in a depot yard in front of a green wooden door with a small flap at its bottom. In the wet dark sand lies a trail of large smooth oval imprints, each one a single soft rounded dent with blurry edges, like a foot in a wet sock pressed into the sand, leading from the yard gate to the flap. [jona] crouches with a flashlight and has put his foot in its small yellow rubber boot right next to one imprint; the imprint is clearly longer than the boot. [oma-hilde] stands behind him holding two cocoa mugs and stares at the imprints with raised eyebrows. Exactly these two figures; the smooth imprints are the only trace of anyone else",
+        "characterIds": [
+          "jona",
+          "oma-hilde"
+        ],
+        "afterParagraph": 5,
+        "boxes": {
+          "jona": [
+            380,
+            120,
+            1000,
+            470
+          ],
+          "oma-hilde": [
+            100,
+            560,
+            1000,
+            830
+          ]
+        }
+      }
+    },
+    {
+      "title": "Frühlingsbrise aus der Dose",
+      "text": "Oben auf der Sprossenwand saß es.\n\nEs war ein Haufen Turnbeutel in allen Farben, ineinandergestopft und miteinander verknotet. Jeder einzelne war fest zugeschnürt, und die Kordeln hingen herunter wie Haare. Als Füße hatte es zwei alte Turnschuhe, einer mit offenen Schnürsenkeln. Und als Augen glänzten zwei kleine Metallringe, genau die, durch die bei einem Turnbeutel die Schnur läuft.\n\n„Ein Pupsmonster“, flüsterte Jona.\n\nDas Pupsmonster sah zu ihnen herunter. Es sah sehr froh aus, dass endlich jemand da war. Es hüpfte vor Freude. Dabei pupste es. Aus allen Turnbeuteln gleichzeitig.\n\nPRÖÖT.\n\nDiesmal erwischte es Flusi. Er kugelte quer durch die Halle, flog hoch und blieb im Netz des Basketballkorbs hängen.\n\n„Flusi hängt“, piepste es von oben.\n\nOma nahm die lange Kurbelstange für die Fenster von der Wand und hielt sie hoch. Flusi klammerte sich daran fest und rutschte herunter, direkt auf ihre Schulter.\n\n„Flusi hilft!“\n\n„Du hilfst, indem du da sitzen bleibst, Süßer.“ Dann packte Oma die Monster-Tonne. „Ab in die Tonne, Süße!“\n\nSie rannte los. Das Pupsmonster bekam einen Schreck. Prööt! Schon saß es auf den Turnringen. Prööt! Schon steckte es im Mattenwagen. Prööt! Schon hockte es oben auf dem Basketballkorb.\n\nOma blieb schnaufend stehen. Ihre Haare zeigten in alle Richtungen. „Jedes Mal, wenn ich renne, pupst es“, keuchte sie. „Und jedes Mal, wenn es pupst, ist es woanders.“\n\nHinterherrennen ging also nicht.\n\nJona hielt sich die Nase zu und dachte nach. Es stinkt, dachte er. Was macht man gegen Gestank?\n\nIm Geräteraum stand ein Schränkchen vom Hausmeister offen. Darin stand eine Sprühdose. Auf dem Etikett war eine Blumenwiese. Frühlingsbrise.\n\n„Moment … ich weiß die Schwäche!“, rief Jona. „Es braucht guten Duft!“\n\nEr gab Oma die Dose. Oma sprühte eine große Wolke Frühlingsbrise hinauf zum Korb.\n\nDas Pupsmonster schnupperte. Es schnupperte noch mal. Seine Turnbeutel blähten sich auf, einer nach dem anderen. Dann kam der größte Pups der ganzen Nacht.\n\nPRRRÖÖÖÖÖÖÖT.\n\nJetzt roch die Halle nach Blumenwiese. Nach einer Blumenwiese, auf der jemand ein Käsebrot gegessen und dann sehr lange gepupst hatte.\n\n„Süßer“, sagte Oma mit zugehaltener Nase. Es klang wie eine Ente. „Das war schlimmer.“\n\nJonas Ohren wurden heiß. Schon wieder falsch.\n\nEr sah auf die Dose. Frühlingsbrise. Aus der Dose. Das war gar keine richtige Frühlingsbrise. Das war Gestank mit Blumen obendrauf.\n\n„Komm“, sagte Oma. „Wir gucken, wo es herkommt.“\n\nZusammen gingen sie in die Umkleide. An der Wand hingen lange Reihen Haken, alle leer. Darunter stand eine große Holzkiste. Die Fundkiste. Leer.\n\nJona dachte an seinen eigenen Turnbeutel. Jeden Freitag hängte Mama ihn auf den Balkon. Damit er nicht muffelt, sagte sie. Diese Turnbeutel hier hatten seit den Sommerferien keinen einzigen Atemzug frische Luft bekommen.\n\nDiesmal dachte Jona den Gedanken bis zum Ende. Was zu lange zu war, braucht Luft. Und das Spray hatte nur Duft obendrauf gemacht.\n\n„Moment … ich weiß die Schwäche. Frische Luft. Echte. Nicht aus der Dose.“\n\nOma sah durch die Tür zu den zwölf Fenstern unter dem Hallendach. „Eins aufmachen reicht nicht, oder?“\n\n„Die Halle ist riesig“, sagte Jona. „Durch ein Fenster kommt nur ein bisschen Luft. Wir brauchen richtig Durchzug. Alle zwölf Fenster auf. Und vorne das große Tor. Du kurbelst, ich zähle, und Gertrud pustet. Wie damals über die warmen Handtücher.“\n\nOma grinste langsam. „Nur diesmal ein bisschen mehr. Aber Gertrud steht draußen vorm Tor. Woher weiß sie, wann alle Fenster offen sind?“\n\nAn einem Haken neben der Tür hing die Trillerpfeife der Sportlehrerin. Jona nahm sie. „Ein Pfiff: ein Fenster auf. Zwei Pfiffe: Gertrud pustet.“\n\nOma tippte sich mit dem Handschuh an die Stirn. „Jawohl, Chef.“",
+      "images": [
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e4/ch2.webp",
+          "sceneEn": "Dark indoor school gym at night with plain painted walls. [pupsmonster] sits on top of the tall wooden wall bars, bouncing happily while a puff of air blows out of its gym bags and sends a ball rolling. Across the hall the small grey dust bunny [flusi] hangs tangled in the net of a basketball hoop. [oma-hilde] runs with an empty round monster bin; [jona] pinches his nose shut with his fingers and pulls a funny face. Exactly these four figures, each once, funny chaos with swinging climbing ropes",
+          "characterIds": [
+            "pupsmonster",
+            "flusi",
+            "oma-hilde",
+            "jona"
+          ],
+          "afterParagraph": 6,
+          "boxes": {
+            "pupsmonster": [
+              0,
+              20,
+              460,
+              290
+            ],
+            "flusi": [
+              40,
+              760,
+              280,
+              900
+            ],
+            "oma-hilde": [
+              280,
+              330,
+              1000,
+              590
+            ],
+            "jona": [
+              430,
+              620,
+              1000,
+              780
+            ]
+          }
+        },
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e4/ch2-2.webp",
+          "sceneEn": "Inside a big indoor school gym at night with a high ceiling and plain painted walls, moonlight falling through high windows. [oma-hilde] sprays a big pale pink cloud from a plain spray can decorated with one painted flower up toward a basketball hoop, holding her nose with her other hand. On top of the hoop [pupsmonster] puffs up all its gym bags like balloons, about to let out an enormous gust. [jona] watches with both hands over his nose and red ears. Exactly these three figures, each once",
+          "characterIds": [
+            "oma-hilde",
+            "pupsmonster",
+            "jona"
+          ],
+          "afterParagraph": 18,
+          "boxes": {
+            "oma-hilde": [
+              180,
+              80,
+              1000,
+              380
+            ],
+            "jona": [
+              400,
+              430,
+              1000,
+              610
+            ],
+            "pupsmonster": [
+              0,
+              620,
+              450,
+              900
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e4/ch2.webp",
+        "sceneEn": "Dark indoor school gym at night with plain painted walls. [pupsmonster] sits on top of the tall wooden wall bars, bouncing happily while a puff of air blows out of its gym bags and sends a ball rolling. Across the hall the small grey dust bunny [flusi] hangs tangled in the net of a basketball hoop. [oma-hilde] runs with an empty round monster bin; [jona] pinches his nose shut with his fingers and pulls a funny face. Exactly these four figures, each once, funny chaos with swinging climbing ropes",
+        "characterIds": [
+          "pupsmonster",
+          "flusi",
+          "oma-hilde",
+          "jona"
+        ],
+        "afterParagraph": 6,
+        "boxes": {
+          "pupsmonster": [
+            0,
+            20,
+            460,
+            290
+          ],
+          "flusi": [
+            40,
+            760,
+            280,
+            900
+          ],
+          "oma-hilde": [
+            280,
+            330,
+            1000,
+            590
+          ],
+          "jona": [
+            430,
+            620,
+            1000,
+            780
+          ]
+        }
+      }
+    },
+    {
+      "title": "Sturm im Turnbeutel",
+      "text": "Oma setzte Gertrud rückwärts vor das große Hallentor, Jona neben sich auf dem Beifahrersitz. Dann stiegen sie aus, und Oma schob das Tor auf. Gertrud steckte ihren Rüssel hinein.\n\n„Einmal kurz zur Probe, Süße.“\n\nPff! Jona flogen die Locken nach hinten. Oben auf dem Korb hob das Pupsmonster seine Metallaugen in den Hauch und machte ein ganz kleines, zufriedenes pff. Es roch schon ein bisschen weniger nach Käsebrot.\n\nOma hakte die Kurbelstange oben am ersten Fenster ein. Jona stellte sich in die Mitte der Halle, die Pfeife zwischen den Zähnen.\n\nPfiff. Oma kurbelte, und oben kippte das Fenster auf. „Eins!“, rief Jona.\n\nPfiff. „Zwei!“\n\nOben auf dem Korb wurde das Pupsmonster unruhig. Prööt.\n\nJona rannte nicht hinterher. Er pfiff und zählte. Oma kurbelte. Links, rechts, links, rechts. „Fünf! Sechs!“ Das Pupsmonster sprang auf die Ringe und zurück auf den Korb. Jona pfiff einfach weiter. Er hatte nur eine Aufgabe: zählen. Und das konnte er.\n\n„Elf! Zwölf!“\n\nDann pfiff er zweimal.\n\nGertrud brummte und pustete.\n\nKalte Nachtluft strömte durchs Tor. Sie roch nach nassem Gras und Regen. Sie zog quer durch die Halle und oben zu den zwölf Fenstern wieder hinaus. Die Kletterseile wehten. Flusi hielt sich an Omas Jacke fest und flatterte wie eine kleine graue Fahne.\n\nDas Pupsmonster hielt seine Metallaugen in den Wind.\n\nDann lockerten sich seine Kordeln, eine nach der anderen. Pfffffffff. Lang und leise strömte die muffige Luft heraus, die seit Wochen in den Beuteln steckte. Und um das Monster herum war nur noch frische.\n\nDas Pupsmonster wurde ganz weich. Es segelte vom Korb herunter, leicht wie ein leerer Kissenbezug, und landete sanft auf dem Hallenboden. Dort lag es, die Kordeln ausgebreitet, und atmete. Ein. Aus. Ein.\n\nJona ging langsam hin. Er stellte die Tonne daneben und machte den Deckel auf.\n\n„Bei uns gibt's ganz viel Luft“, sagte er. „Und einen Hof. Und eine Wäscheleine.“\n\nDas Pupsmonster kletterte hinein. Freiwillig. Es machte noch einen winzigen Pups. Er roch nach Wiese. Nach einer echten.\n\n„Ab in die Tonne, Süße“, sagte Oma leise. Sie ließ den Deckel einen Spalt offen, damit Luft hineinkam.\n\nDann hielt sie Jona die Hand hin. „Dein Plan, Süßer. Nächstes Mal, wenn ich einfach losrennen will, pfeifst du.“\n\nJona schlug ein. Seine Ohren wurden wieder warm. Aber diesmal ganz anders.\n\nZusammen sammelten sie alle zweiundzwanzig Bälle ein. Jona zählte mit. Oma kurbelte die Fenster wieder zu, und die Pfeife kam zurück an ihren Haken.\n\nDer Hausmeister kam aus dem Keller und nahm die Wäscheklammer von der Nase. Er schnupperte. „Es riecht nach … nichts.“ Er strahlte. „Herrlich!“\n\nIn der Pension durfte das Pupsmonster in die warme Wanne mit Seifenschaum. Turnbeutel darf man waschen. Danach klammerte Oma es an seinen Kordeln zum Trocknen an die Wäscheleine im Hof. Es flatterte im Nachtwind und sah sehr glücklich aus.\n\nBeim Waschen waren sechs einzelne Socken aus seinen Beuteln geschwommen. Der Socken-Schnüffler beschnüffelte jede und suchte auf seinem Sockenberg nach dem Partner. Für keine fand er einen. Also kamen alle sechs in seine neue Kiste. Die war jetzt halb voll.\n\nAls das Pupsmonster trocken war, hüpfte es zur grünen Tür und blieb vor der Klappe stehen. Seine Kordeln bewegten sich, ganz leicht.\n\n„Es merkt, wenn es zieht“, sagte Jona.\n\n„Dann bist du ab jetzt unser Lüftungswart“, sagte Oma. „Zieht es an der Klappe, sagst du Bescheid.“\n\nDas Pupsmonster machte einen kleinen, höflichen Pups.\n\nInzwischen hatte die Krake die vierzehn Schüsseln hochgehoben. Die Abdrücke waren noch da.\n\nJetzt hatte Jona einen Plan. Die Krake brachte ein Backblech voll Mehl. Jeder Gast trat einmal hinein und dann in den Sand, direkt neben die alten Abdrücke. Der Schnüffler machte kleine runde Tupfen. Die Krake acht Kringel. Das Gähnmonster hob seine Decke an wie einen Rock und tapste zweimal. Das Pupsmonster machte zwei Turnschuhabdrücke. Flusi rollte nur durch und war danach weiß.\n\nJona leuchtete mit der Taschenlampe darüber. Lauter kleine weiße Spuren. Daneben die dunklen, runden. Keine passte.\n\n„Solche Füße hat keiner von unseren Gästen“, sagte er leise. „Das war jemand von draußen.“\n\nOma prüfte den Riegel. Er war zu. Sie prüfte ihn noch einmal.\n\nJona schrieb Monster-Steckbrief Nr. 4: Pupsmonster. Ursprung: vergessene Turnbeutel in der Fundkiste. Schwäche: frische Luft, echte. Fangtrick: Durchzug. Job: Lüftungswart. Darunter malte er einen runden, weichen Abdruck. Daneben ein Fragezeichen.\n\nAls die erste Amsel sang, schliefen alle Monster ein. Der Schnüffler auf seinem Sockenberg, die Kiste im Arm. Die Krake neben dem Herd. Flusi auf Jonas Schulter, noch ein bisschen weiß vom Mehl.\n\nUnd das Pupsmonster lag quer vor der grünen Tür, ein Metallauge halb offen. Ab und zu machte es im Schlaf ganz leise pff.\n\nEs roch nach Wiese.",
+      "images": [
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e4/ch3.webp",
+          "sceneEn": "Inside a big school gym at night with plain painted walls. On the left the wide open double doors of the hall; in the doorway stands [gertrud], the small purple garbage truck with friendly headlight eyes, all alone with nobody inside or beside her, reaching her own long flexible vacuum trunk into the hall by herself and blowing a strong stream of fresh night air with a few leaves in it. In the middle of the hall [pupsmonster] floats down gently from the basketball hoop, limp and soft like an empty pillowcase, its drawstring cords fluttering, eyes half closed blissfully. [jona] stands on the floor with a whistle in his mouth and both arms raised. [oma-hilde] holds a long window pole up at the high open windows on the right. Exactly these four figures, each once",
+          "characterIds": [
+            "gertrud",
+            "pupsmonster",
+            "jona",
+            "oma-hilde"
+          ],
+          "afterParagraph": 14,
+          "boxes": {
+            "gertrud": [
+              300,
+              0,
+              1000,
+              300
+            ],
+            "pupsmonster": [
+              0,
+              380,
+              450,
+              640
+            ],
+            "jona": [
+              480,
+              420,
+              1000,
+              600
+            ],
+            "oma-hilde": [
+              120,
+              720,
+              1000,
+              960
+            ]
+          }
+        },
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e4/ch3-2.webp",
+          "sceneEn": "Pre-dawn in the depot yard in front of the green door, a few upturned mixing bowls stacked aside. [kruemelkrake] holds a baking tray full of flour with two arms. [socken-schnueffler], a dog-sized creature made of socks, has just stepped from the flour into the sand and left small white round dabs right next to a much bigger dark round footprint. [jona] crouches with a flashlight and compares the small white prints with the big dark one. [pupsmonster], clean and fluffy, watches curiously. Exactly these four figures, each once, cozy detective mood",
+          "characterIds": [
+            "kruemelkrake",
+            "socken-schnueffler",
+            "jona",
+            "pupsmonster"
+          ],
+          "afterParagraph": 31,
+          "boxes": {
+            "kruemelkrake": [
+              180,
+              0,
+              950,
+              290
+            ],
+            "socken-schnueffler": [
+              480,
+              300,
+              1000,
+              520
+            ],
+            "jona": [
+              330,
+              540,
+              1000,
+              760
+            ],
+            "pupsmonster": [
+              200,
+              790,
+              1000,
+              990
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e4/ch3.webp",
+        "sceneEn": "Inside a big school gym at night with plain painted walls. On the left the wide open double doors of the hall; in the doorway stands [gertrud], the small purple garbage truck with friendly headlight eyes, all alone with nobody inside or beside her, reaching her own long flexible vacuum trunk into the hall by herself and blowing a strong stream of fresh night air with a few leaves in it. In the middle of the hall [pupsmonster] floats down gently from the basketball hoop, limp and soft like an empty pillowcase, its drawstring cords fluttering, eyes half closed blissfully. [jona] stands on the floor with a whistle in his mouth and both arms raised. [oma-hilde] holds a long window pole up at the high open windows on the right. Exactly these four figures, each once",
+        "characterIds": [
+          "gertrud",
+          "pupsmonster",
+          "jona",
+          "oma-hilde"
+        ],
+        "afterParagraph": 14,
+        "boxes": {
+          "gertrud": [
+            300,
+            0,
+            1000,
+            300
+          ],
+          "pupsmonster": [
+            0,
+            380,
+            450,
+            640
+          ],
+          "jona": [
+            480,
+            420,
+            1000,
+            600
+          ],
+          "oma-hilde": [
+            120,
+            720,
+            1000,
+            960
+          ]
+        }
+      }
+    }
+  ],
+  "collectible": {
+    "type": "monster_profile",
+    "title": "Monster-Steckbrief Nr. 4",
+    "imageUrl": "/library/series/die-monster-muellabfuhr/s1e4/pupsmonster.webp",
+    "fields": [
+      {
+        "label": "Name",
+        "value": "Pupsmonster"
+      },
+      {
+        "label": "Ursprung",
+        "value": "Vergessene Turnbeutel aus der Fundkiste einer Turnhalle"
+      },
+      {
+        "label": "Schwäche",
+        "value": "Echte frische Luft"
+      },
+      {
+        "label": "Fangtrick",
+        "value": "Durchzug: zwölf Fenster auf, dann pustet Gertrud durchs Hallentor. Nicht hinterherrennen."
+      },
+      {
+        "label": "Job in der Pension",
+        "value": "Lüftungswart: merkt, wenn es an der Klappe zieht"
+      }
+    ]
+  },
+  "teaser": "Nächste Woche: Im Gemüseladen wartet etwas Grünes. Es will, dass alle probieren. Und Flusi niest bei einem ganz bestimmten Wort.",
+  "canonFactsAdded": [
+    "Nach Regen lagen vor der Pensionstür vierzehn runde Abdrücke wie von nassen Socken, ohne Sohle und Zehen, in zwei Reihen zu je sieben zwischen Hoftor und Klappe, jeder länger als Jonas Gummistiefel. Der Riegel der Klappe blieb zu.",
+    "Kein Pensionsgast fehlte. Beim Mehlvergleich der Krümelkrake passte keine Spur der Gäste zu den Abdrücken: „Solche Füße hat keiner von unseren Gästen“: Jemand kam von draußen. Jona hat einen runden Abdruck mit Fragezeichen unter Steckbrief Nr. 4 gemalt.",
+    "Der Socken-Schnüffler hat eine neue Kiste für Socken ohne Partner. Nach dem Turnhalleneinsatz kamen sechs einzelne Socken aus den Turnbeuteln dazu; für keine fand er einen Partner. Die Kiste ist halb voll.",
+    "Das Pupsmonster entstand in der Turnhalle der Sonnenhügel-Schule aus den vergessenen Turnbeuteln der Fundkiste, die seit den Sommerferien niemand abgeholt hatte. Seine einzige Schwäche ist echte frische Luft; Raumspray „Frühlingsbrise“ hat es nur schlimmer gemacht.",
+    "Fangtrick Durchzug: Jona leitete den Einsatz mit der Trillerpfeife der Sportlehrerin (ein Pfiff: ein Fenster auf, zwei Pfiffe: Gertrud pustet). Oma kurbelte zwölf Fenster auf, Gertrud pustete durchs Hallentor wie in Folge 1 über die Handtücher. Oma sagte „Jawohl, Chef“ und danach: „Dein Plan, Süßer. Nächstes Mal, wenn ich einfach losrennen will, pfeifst du.“",
+    "Das Pupsmonster kam freiwillig in die Tonne, wurde in der warmen Wanne gewaschen (Turnbeutel darf man waschen) und an der Wäscheleine getrocknet. Es ist Lüftungswart der Pension: Es merkt, wenn es an der Klappe zieht, und schläft quer vor der grünen Tür. Seine Pupse riechen jetzt nach Wiese.",
+    "Flusi blieb im Basketballnetz hängen; Oma holte ihn mit der Kurbelstange herunter. Er niest auch vom Duftbäumchen an Gertruds Spiegel. Omas Einsatzsong für Turnhallen heißt „Sturm im Turnbeutel“.",
+    "Die Krümelkrake hat die Abdrücke mit vierzehn Rührschüsseln vor Regen geschützt."
+  ]
+}
