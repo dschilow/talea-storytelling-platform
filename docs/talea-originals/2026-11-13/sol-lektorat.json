@@ -1,0 +1,311 @@
+{
+  "reviewer": "gpt-6.2-sol über die OpenAI-API (Denkstufe high); das Codex-Abo war bis 20.11.2026 15:25 aufgebraucht",
+  "author": "Claude Opus 5.5 (Claude Code, eigenes Kontingent)",
+  "series": {
+    "bruno": [
+      {
+        "round": "r1",
+        "file": "bruno.entwurf.txt",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 7,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 7,
+          "ende": 7,
+          "kanonTreue": 6,
+          "weitererzaehlFaktor": 9
+        },
+        "kinder": {
+          "verstaendlich": 7,
+          "humor": 8,
+          "unterhaltung": 8
+        },
+        "schulhofSatz": "„Nicht auf der Treppe!“ – „Ja, Oma.“",
+        "mustFix": [
+          "„Das ist erst zwölf Jahre her“ und „gar kein Früher mehr“ → Mats’ Wortwitz behalten, die Rechnerei streichen, Oma mit einer konkreten Erinnerung zeigen. Der Zauber ändert das Alter, nicht die Vergangenheit.",
+          "„Dann sag ich's eben für sie“ → Mats ruft die Zahl Grimmbach zu, um ihr zu widersprechen, nicht um einen Zauber zu beenden, dessen Regel er kennt.",
+          "„Sie will nicht“ → Vor Ellas Gang zu Bruno eine klare Frage und ein klares Nein im Hof zeigen.",
+          "„Sie hatte diese Bank selbst ausgesucht“ → Hofbank und Teichbank auseinanderhalten; Jacken sichtbar ablegen und die geholte Strickjacke Oma tatsächlich geben.",
+          "„Ella und Mats: Rollschuh“ → im Plan kenntlich machen, dass Ella ohne passende Rollschuhe mitläuft; Mats nimmt seine eigenen beim Aufbruch mit.",
+          "„Rollschuhfahren im Hof ist verboten“ → den Einwand auf die Wäschestange begrenzen, damit Omas echte Fahrt danach nicht am ungelösten Verbot hängt.",
+          "„Die Wahrheit sagt man, wenn man was Besseres hat“ und Ellas sofortiger neuer Planeintrag → Brunos Rat in eine konkrete Frage verwandeln; Ella muss Oma wirklich fragen und ihre Antwort abwarten.",
+          "„Ich bin nicht zwanzig“ → die Wahrheit ausdrücklich über die Lüge am Aquarium sagen lassen, bevor der Zauber sichtbar endet.",
+          "„Ohne hinzugucken“, „Keiner wusste, wohin“ und die zitternde Flosse → nur Omas Bühnenerinnerung und die dazugehörige Plakatzuordnung behalten. Ellas spätere Frage an Bruno aus Omas Erfahrung herleiten, nicht aus neuen Herkunftsindizien.",
+          "„Der Rollschuh rollte […] bis in den Wäschekorb“ → Kaisers Eintritt, geplante Zwischenstufe und auslösende Kleinigkeit in der richtigen Reihenfolge zeigen."
+        ],
+        "tokens": {
+          "prompt": 22197,
+          "completion": 15588
+        },
+        "seconds": 282
+      },
+      {
+        "round": "r2",
+        "file": "bruno.v2.txt",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 7,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 8,
+          "ende": 8,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "kinder": {
+          "verstaendlich": 8,
+          "humor": 9,
+          "unterhaltung": 8
+        },
+        "schulhofSatz": "„Ja, Oma!“",
+        "mustFix": [
+          "„Pah! Ich bin zwanzig!“ → Aus dem Trotzspruch eine ernst gesagte falsche Antwort für Mats machen; „Sie hat nicht gesagt: Stell dir vor“ streichen.",
+          "„Bleibt im Hof!“ → Papa lässt eine vermeintlich fremde Frau nicht allein mit den Kindern losziehen. Er begleitet sie, geht zum Kuchenholen hoch und erkennt Rosi nach dem Plopp wieder.",
+          "„OMA IST SIEBZIG!“ → Den erfolglosen Auflösungsversuch sichtbar machen. Ella benennt, dass nur Oma ihre eigene Flunkerei auflösen kann.",
+          "„Wir schon. Am Lachen.“ → Das Lachen muss vor Mats' Wiedererkennen kommen, nicht danach.",
+          "„Und er hat sie gefunden“ samt nassen Spielkarten → Den zusätzlichen Herkunftshinweis und den betont rätselhaften Blick auf die junge Oma streichen. Bühnenbesuch, Plakaterkennung und Ellas Beziehungsfrage bleiben.",
+          "„Erst auf den Wäschekorb“ → Kaisers Ziel als Korbrand präzisieren, sein Scheitern als Landung im Korb. Vor Brunos Kommentar die Wohnungstür hinter den Erwachsenen schließen."
+        ],
+        "tokens": {
+          "prompt": 22134,
+          "completion": 12976
+        },
+        "seconds": 224
+      },
+      {
+        "round": "r3",
+        "file": "bruno.v3.txt",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 8,
+          "ende": 8,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "kinder": {
+          "verstaendlich": 8,
+          "humor": 9,
+          "unterhaltung": 8
+        },
+        "schulhofSatz": "„Ja, Oma!“",
+        "mustFix": [
+          "„OMA IST SIEBZIG!“ / „Nichts machte plopp“ → Mats widerspricht Grimmbach, statt seinen eigenen Plan W zu vergessen. Er bietet sich erst danach ausdrücklich als Zuhörer für Omas Wahrheit an.",
+          "„Wir haben Besuch?“ / „Wartet. Ich komme mit!“ → Papa muss auf das vertraute Lachen reagieren, die Kinder bewusst begleiten und den Hof einschließlich Rückverwandlung von der Haustür aus im Blick haben.",
+          "„Sag Mats, wie alt du wirklich bist“ / „Was denn, Schatz?“ → Ella fragt nach dem Spiegelmoment noch einmal; Oma entscheidet hörbar, dass sie erst fahren will.",
+          "„Nach allen Jacken“ / „Ella brauchte Omas Strickjacke“ → Jackenbesitz und Fundort klären; Ella fragt Bruno nach Omas Weigerung, nicht nach einer bereits bekannten Zauberregel.",
+          "„So viele Lachfalten“ / „So viele Geschichten“ / „Und uns“ → Den Gesprächsmoment aus der Abfrage lösen. Oma und Mats reden miteinander, statt Ellas Stichworte zu liefern.",
+          "„Sie wickelte sich um eine Rolle“ → Den Weg vom Abstoß bis zur Socke zeigen, damit Kinder den Stopp und Kaisers Weiterflug im ersten Hören mitbekommen.",
+          "„Dass er sonst nicht bleiben durfte“ → Ellas neue Frage an einem sichtbaren Moment an der Karte aufhängen und das unklare „sonst“ auflösen, ohne Bruno ein Geständnis zu entlocken."
+        ],
+        "tokens": {
+          "prompt": 22020,
+          "completion": 12923
+        },
+        "seconds": 226
+      },
+      {
+        "round": "final",
+        "file": "bruno.lektoriert.txt",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 8,
+          "ende": 8,
+          "kanonTreue": 9,
+          "weitererzaehlFaktor": 9
+        },
+        "kinder": {
+          "verstaendlich": 8,
+          "humor": 8,
+          "unterhaltung": 8
+        },
+        "schulhofSatz": "„Ja, Oma!“",
+        "mustFix": [
+          "„Kinder, wo ist denn Oma?“ → Papas offene Frage nicht beim Kuchenparken versanden lassen. Einen Satz einbauen, in dem er die Unstimmigkeit bemerkt und sich für Aufsicht an der Haustür entscheidet. Er bleibt dort während der ganzen Hofszene.",
+          "„Die Rolle fuhr über die Socke und zog sie mit“ → Rolle sichtbar blockieren und Kaiser vorher zum Sprung ansetzen lassen. Erst dann ist die Landung im Korb eine Pointe und keine ausgelassene Bewegung.",
+          "„Im Park fuhr Oma ganz vorne“ → Den wichtigsten Beweis nicht wie eine Zusammenfassung behandeln. Oma einmal aus eigener Entscheidung vornewegrollen und auf Papa mit den Jacken reagieren lassen. Dafür die nachträgliche Erklärung vor Ellas Bruno-Frage streichen oder auf einen Satz kürzen."
+        ],
+        "tokens": {
+          "prompt": 21828,
+          "completion": 11406
+        },
+        "seconds": 165
+      }
+    ],
+    "monster": [
+      {
+        "round": "r1",
+        "file": "monster.entwurf.txt",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 7,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 7,
+          "ende": 7,
+          "kanonTreue": 6,
+          "weitererzaehlFaktor": 9
+        },
+        "kinder": {
+          "verstaendlich": 7,
+          "humor": 8,
+          "unterhaltung": 8
+        },
+        "schulhofSatz": "„Gertrud niest auch!“",
+        "mustFix": [
+          "„Zweimal. Beide Male bei König“ und „Alter Waschsalon?“ → nur das beiläufige Niesen beim Vorlesen in der Küche behalten. Wortprobe, Herkunftserklärung, nachgemachten Summton und Waschsalon-Eintrag streichen.",
+          "„Die Krake hat auch gewartet“ → den belegten Blick zur Klappe als Beobachtung stehen lassen. Dass manche Monster auf Besuch warten, als neue Frage für künftige Einsätze formulieren, nicht als bewiesene Verbindung zum König.",
+          "„Ab in die Tonne!“ steht ohne Anrede, und „Flusi hilft!“ fehlt → beide Sätze exakt und an Stellen einsetzen, an denen die Figuren auch etwas tun.",
+          "„Es roch nach Wiese. Das hieß: nein“ und „Oma griff nach dem Tonnendeckel“ → den Luftzug sichtbar prüfen; in der Küche nicht mit einem unplatzierten Deckel hantieren.",
+          "„Oma schloss auf“ → die Ladenbesitzerin aufschließen und Oma die Tür für den späteren Gang zu Gertrud offen lassen. Frau Grünwald vor dem Fang wieder nach oben gehen lassen.",
+          "„Er biss ab“ → zuerst den frischen Probierteller zeigen, alte Stücke getrennt einsammeln, Zahnstocher bei Jona belassen und Oma ein eigenes Stück geben.",
+          "„Da sahen alle Jona an“ → den Gruppenblick entfernen. Oma bietet den Ausweg an, das Monster bleibt auf Abstand, Jona eröffnet die Verhandlung selbst. Die ehrliche Geschmacksantwort darf nicht als zweite Fangbedingung im Steckbrief landen.",
+          "„Das Monster stieg in die Tonne. […] Nur an der Ladentür blieb es noch einmal stehen“ → Blick vor dem Einsteigen; die Tonne räumlich klar führen.",
+          "„Sogar Gertrud draußen hörte auf zu tropfen“ und „Möhrengrün-Stummel aus seiner Kiste“ → keinen unerklärten Flüssigkeitsaustritt und keine plötzlich mitgereiste Kiste; Gertrud hält still, der Gärtner sät bereitgestellte Samen."
+        ],
+        "tokens": {
+          "prompt": 20905,
+          "completion": 13489
+        },
+        "seconds": 234
+      },
+      {
+        "round": "r2",
+        "file": "monster.v2.txt",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 8,
+          "ende": 7,
+          "kanonTreue": 6,
+          "weitererzaehlFaktor": 9
+        },
+        "kinder": {
+          "verstaendlich": 8,
+          "humor": 8,
+          "unterhaltung": 7
+        },
+        "schulhofSatz": "Der Müllwagen hat Erbsen geniest!",
+        "mustFix": [
+          "„Schon wieder bei König“, „K-Wort“ und „Waschsalon?“ → Nur den ersten Nieser stehen lassen. Wiederholungen, Verbot, Erklärung und Ordnereintrag streichen. Die Waschsalon-Erinnerung bleibt für später im Figurenhintergrund.",
+          "„Woraus ist es gemacht? … Guck noch mal“ → Jona findet die Restekiste aus Frau Grünwalds Auskunft selbst und verbindet sie mit der beobachteten Zurückhaltung des Monsters. Den wortgetreuen Spruch auch bei der richtigen Erkenntnis setzen.",
+          "„Sie hielt dem Monster den Teller hin“ → Zeigen, dass Oma selbst probieren will und sich nach der Abwendung entscheidet, nicht hinter seinem Rücken weiterzumachen. Misstrauen darf keine zweite Fangbedingung sein.",
+          "„Den frischen Teller von heute“ und das Röschen vom Boden → Proben sichtbar trennen. Jona nimmt ein frisches Röschen vom Kühlschrankteller und zieht es vor dem Bissen vom Zahnstocher.",
+          "„Tonne voller Kohl“ → Die Tonne beim Aufräumen ausdrücklich leeren. Den Gemüseberg beim falschen Ja sichtbar auf der Theke aufbauen.",
+          "„Da wächst bisher nur Unkraut“ → Zur Erde auch die Pensionsgäste anbieten, damit das Mitkommen aus dem Wunsch des Monsters folgt.",
+          "„Darauf passen wir ab jetzt auf“ → Aus der Erkenntnis eine konkrete nächste Handlung machen, ohne den König erneut zu erwähnen."
+        ],
+        "tokens": {
+          "prompt": 20833,
+          "completion": 14853
+        },
+        "seconds": 256
+      },
+      {
+        "round": "r3",
+        "file": "monster.v3.txt",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 7,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 8,
+          "ende": 7,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "kinder": {
+          "verstaendlich": 7,
+          "humor": 8,
+          "unterhaltung": 8
+        },
+        "schulhofSatz": "„Gertrud niest auch!“",
+        "mustFix": [
+          "„‚König‘, murmelte er … Er nieste, ganz leise“ → Waschsalonerinnerung in den Küchenmoment ziehen, leisen Nieser klar als Erinnerung erzählen, das Wort und den Nieser in der Pension streichen.",
+          "„Zur Klappe. Ob sie auch auf jemanden gewartet hat?“ → den zusätzlichen Staffelverdacht streichen; die neue Frage der Crew aus den leeren Plätzen ableiten.",
+          "„Im Kühlschrank steht schon ein frischer Teller für morgen“ → Reste und frische Proben bei der Einführung, beim falschen Bissen und beim Aufräumen klar trennen. Frau Grünwald erlaubt das Probieren.",
+          "„Wir sagen einfach Ja!“ → Jonas Fehlversuch am beobachteten Zusammenhang zwischen Nein und Auftischen festmachen.",
+          "„Ich probier“ / „Nicht noch mal hinter seinem Rücken“ → Oma erst erkennbar versuchen und dann kneifen lassen; anschließend entschuldigt sie sich und lässt dem Monster Zeit.",
+          "„Es lief zur offenen Tür hinaus“ → das Monster nach dem Erbsennieser sichtbar in den Laden zurückholen; vor Gertruds Versöhnungsblinken eine kleine Geste setzen.",
+          "„Morgen Nacht kommen wir wieder“ / „Na endlich“ → Jonas Ausweg aus der Essenssituation konkret machen und den nachträglichen Essensdruck aus Frau Grünwalds Antwort nehmen.",
+          "„Jona wollte gerade ‚kalt‘ sagen“ und „Oma rief der Krake zu, wo …“ → Materialpflege zeigen, nicht über einen unvorbereiteten Gedanken ankündigen; Samenübergabe in direkter Rede klären."
+        ],
+        "tokens": {
+          "prompt": 20844,
+          "completion": 13224
+        },
+        "seconds": 233
+      },
+      {
+        "round": "final",
+        "file": "monster.lektoriert.txt",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 8,
+          "ende": 8,
+          "kanonTreue": 8,
+          "weitererzaehlFaktor": 9
+        },
+        "kinder": {
+          "verstaendlich": 7,
+          "humor": 9,
+          "unterhaltung": 8
+        },
+        "schulhofSatz": "Gertrud niest auch! PFF-TSCHI!",
+        "mustFix": [
+          "„König klingt wie früher“ / „Und der alte Staub kitzelt“ → Klangerinnerung und Stauberinnerung in Flusis kurzen Sätzen konkret machen: tiefes Brummen damals, Kitzeln beim Drandenken jetzt. Den einen Nieser, seine Position in der Küche und die Unterbrechung durch den Funk behalten. Keine Quelle für das Brummen festlegen.",
+          "„Aber nur, wenn er selber will“ → Nicht als bereits bewiesene Mechanik behaupten. Jonas Schluss aus der Restekiste führt zum echten Bissen; das freiwillige Angebot folgt daraus, dass das Monster ein Nein respektiert. Erst die Reaktion nach dem Bissen bestätigt die Schwäche.",
+          "„Das ganze Gemüse holte es aus der Tonne“ → Altes Probiergemüse, frische Ladenware und den ausdrücklich freigegebenen Kühlschrankteller räumlich und sprachlich trennen. Beim Aufräumen muss klar sein, was wegkommt und was noch verwendet werden darf.",
+          "„Flusi landete ein Salatblatt auf dem Kopf“ → Den Gegenstand zum Subjekt machen: „Ein Salatblatt segelte auf Flusis Kopf.“ Dann landet auch der Gag.",
+          "„Da könntest du selber Gemüse ziehen. Und Gäste gibt's bei uns auch.“ → Garten und Gästewunsch zu einem Angebot verbinden: Das Monster kann etwas anbauen und die Pensionsgäste später zum Probieren einladen. Der Gärtnerjob bleibt, bekommt aber einen Grund, den das Monster versteht."
+        ],
+        "tokens": {
+          "prompt": 20591,
+          "completion": 11921
+        },
+        "seconds": 168
+      }
+    ]
+  },
+  "decisions": {
+    "accepted": [
+      "Bruno: Ellas Rechnung „erst zwölf Jahre her“ gestrichen (der Zauber ändert das Alter, nicht die Vergangenheit); Omas Schmerz ist jetzt, dass ihr keiner glaubt.",
+      "Bruno: sichtbares Nein der jungen Oma („Dann sitz ich wieder auf der Bank“).",
+      "Bruno: Rollschuhverbot auf „Die Wäschestange ist kein Karussell“ begrenzt.",
+      "Bruno: Ella fragt Oma, bevor sie „Ganz vorne“ in den Plan schreibt.",
+      "Bruno: Papa lässt die Kinder nicht mit einer Fremden allein, er bleibt an der Haustür.",
+      "Bruno: „Ich bin zwanzig! Ehrlich.“ als ernst gemeinte Flunkerei vor Mats statt Trotz-„Pah!“.",
+      "Bruno: Kartentrick auf der Bühne, Brunellos Verschwinden und Brunos auffällige Reaktionen gestrichen (zu viele zusätzliche Herkunftshinweise).",
+      "Bruno: Kaisers Plan (Wäschekorbrand) und die blockierte Rolle sichtbar.",
+      "Monster: frischer Probierteller aus dem Kühlschrank, von Frau Grünwald freigegeben; Jona isst nie vom Boden oder vom Monster.",
+      "Monster: Jonas Spruch auch beim richtigen Schluss; er findet die Restekiste selbst.",
+      "Monster: Wort-Alarm an der Ladentür (zweiter und dritter Nieser) gestrichen.",
+      "Monster: Tonne geleert, Proben getrennt, Radieschensamen statt einer aus dem Nichts auftauchenden Kiste.",
+      "Monster: Beet als Weg zu den Gästen („laden wir alle zum Probieren ein“)."
+    ],
+    "rejected": [
+      "Monster: Streichung von Flusis Waschsalon-Erinnerung. Der Staffelplan verlangt sie ausdrücklich (Felder „Flusis Erinnerung“ und „Bleibende Entwicklung“). Seit Runde 3 bekommt Sol diese Entscheidung per --note; die Erinnerung steht jetzt beiläufig in der Küche, in Flusis eigenen Worten.",
+      "Bruno: Sols kürzere Bühnenerinnerung ohne Bühnenbesuch; Oma darf „mit auf die Bühne“, ohne neuen Trick.",
+      "Bruno: Sols Satz „Papa ging nach oben“ in Runde 2, der Mats mit der vermeintlich Fremden allein gelassen hätte."
+    ]
+  }
+}

@@ -1,0 +1,522 @@
+{
+  "canonChecks": [
+    {
+      "quote": "Es war Sonntag, und sonntags kam Oma Rosi.",
+      "fact": "Oma Rosi besucht die Brandts sonntags.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie brachte immer zwei Sachen mit: Zwetschgenkuchen und Geschichten von früher.",
+      "fact": "Oma erzählt gern von früher; der Kuchen ist ein neues, widerspruchsfreies Besuchsritual.",
+      "agrees": true
+    },
+    {
+      "quote": "Papa schnitt in der Küche den Kuchen.",
+      "fact": "Papa übernimmt auch in früheren Folgen gern Arbeiten in der Küche.",
+      "agrees": true
+    },
+    {
+      "quote": "Mama war schwimmen.",
+      "fact": "Mama war schon in Folge 4 beim Schwimmen; hier bleibt sie während des Zaubers außer Haus.",
+      "agrees": true
+    },
+    {
+      "quote": "Natürlich hatte Ella einen Plan gemacht.",
+      "fact": "Ella plant und schreibt ihre Pläne auf. Hier fällt sie wieder ins Einteilen zurück, aber nicht dauerhaft: Sie korrigiert sich, wie schon in Folge 4.",
+      "agrees": true
+    },
+    {
+      "quote": "Dort schwamm Bruno in seinem runden Glas um seine Steinburg.",
+      "fact": "Bruno bleibt ein Goldfisch in seinem runden Glas mit Steinburg auf dem Wohnzimmerregal am Fenster.",
+      "agrees": true
+    },
+    {
+      "quote": "Vor Erwachsenen sagte er kein Wort.",
+      "fact": "Bruno spricht nicht, solange ein Erwachsener im Raum ist.",
+      "agrees": true
+    },
+    {
+      "quote": "„Pah! Ich bin zwanzig!“",
+      "fact": "Oma flunkert laut im selben Raum wie das Glas. Der Ort stimmt; das vorangestellte „Pah!“ lässt die Behauptung aber eher wie einen offensichtlichen Trotzspruch als wie eine echte Flunkerei klingen.",
+      "agrees": false
+    },
+    {
+      "quote": "Im Glas knackte es.",
+      "fact": "Das Knacken am Glas ist wie in Folge 3 und 4 das Signal dafür, dass eine Flunkerei wahr wird.",
+      "agrees": true
+    },
+    {
+      "quote": "Neben dem Regal hingen vier Flunker-Karten.",
+      "fact": "Die Karten Nr. 1 bis 4 hängen nach den ersten vier Folgen neben dem Regal.",
+      "agrees": true
+    },
+    {
+      "quote": "„Das war nicht geflunkert, das war ausgedacht!“, rief Mats.",
+      "fact": "Mats' Abwehrspruch steht wortgetreu im Text; er benutzt ihn diesmal für Oma, nicht als weitere Tatsachenbehauptung.",
+      "agrees": true
+    },
+    {
+      "quote": "„Sie hat nicht gesagt: Stell dir vor“, flüsterte Ella.",
+      "fact": "Als Spiel erkennbare Sätze lösen nichts aus. Das Fehlen von „Stell dir vor“ entscheidet aber nicht, ob etwas eine echte Flunkerei ist.",
+      "agrees": false
+    },
+    {
+      "quote": "„Oma, sag schnell, dass das nicht stimmt.“",
+      "fact": "Ella weiß, dass die Flunkerin die Wahrheit sagen muss. „Das stimmt nicht“ könnte mit eindeutigem Bezug genügen; für Oma ist hier aber noch nicht einmal klar, welchen Satz Ella meint.",
+      "agrees": true
+    },
+    {
+      "quote": "Ihre weißen Locken wurden braun wie Kakaopulver.",
+      "fact": "Der Zauber macht die Altersangabe wörtlich wahr; die körperliche Veränderung widerspricht keiner Regel.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich bin wirklich zwanzig!“",
+      "fact": "Im Flur ist die Aussage außerhalb der Reichweite des Glases und zu diesem Zeitpunkt sogar wahr. Sie löst den ersten Zauber nicht auf.",
+      "agrees": true
+    },
+    {
+      "quote": "„Natürlich. Und ich bin der Weihnachtsmann.“",
+      "fact": "Papa steht bei dem Spruch im Flur, nicht im Wohnzimmer. Es entsteht kein Weihnachtsmann-Zauber.",
+      "agrees": true
+    },
+    {
+      "quote": "„Blubb“, sagte Bruno.",
+      "fact": "Vor Oma bleibt Bruno beim Blubbern und verrät ihr nicht, dass er sprechen kann.",
+      "agrees": true
+    },
+    {
+      "quote": "„Okay. Plan B. Wir passen auf Oma auf.“",
+      "fact": "Ellas fester Spruch steht wortgetreu im Text; sie formuliert unmittelbar einen Ersatzplan.",
+      "agrees": true
+    },
+    {
+      "quote": "Neben ihr auf der Fensterbank saß Kater Kaiser und klingelte mit seinem goldenen Glöckchen.",
+      "fact": "Kaiser gehört zu Frau Grimmbach im Erdgeschoss und trägt sein goldenes Glöckchen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Die Großmutter der Brandts ist siebzig Jahre alt.“",
+      "fact": "Siebzig ist Rosis unverzaubertes Alter. Grimmbach erkennt in der jungen Frau nicht ihre Nachbarin.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie zog ihr schwarzes Heft aus der Strickjacke und schrieb.",
+      "fact": "Frau Grimmbach hält Merkwürdigkeiten im eigenen Heft fest, während sie sie beobachtet.",
+      "agrees": true
+    },
+    {
+      "quote": "„OMA IST SIEBZIG!“",
+      "fact": "Mats kann Omas Zauber auch mit einer lauten Richtigstellung vor Zeugen nicht beenden: Er hat nicht selbst geflunkert.",
+      "agrees": true
+    },
+    {
+      "quote": "„Weiß ich, Brandt. Diese Dame ist es nicht.“",
+      "fact": "Frau Grimmbach spricht die Kinder mit Nachnamen an und bleibt misstrauisch.",
+      "agrees": true
+    },
+    {
+      "quote": "„Wenn du sagst, dass das mit zwanzig geflunkert war, bist du wieder wie vorhin“, flüsterte sie.",
+      "fact": "Ella erklärt die richtige Zuständigkeit; das Flüstern ist ihre Anweisung, nicht Omas spätere Auflösung.",
+      "agrees": true
+    },
+    {
+      "quote": "Im Wohnzimmer war nur Bruno.",
+      "fact": "Papa ist ausdrücklich in der Küche. Bruno kann mit Ella allein sprechen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Gar nicht.“",
+      "fact": "Bruno kann Oma die Entscheidung nicht abnehmen und stoppt den Zauber nicht selbst.",
+      "agrees": true
+    },
+    {
+      "quote": "„Extra-Flocken. Endlich fragt mal jemand.“",
+      "fact": "Bruno verlangt wie gewohnt Extra-Flocken und macht aus der Gelegenheit sofort eine Beschwerde.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich guck immer so“, sagte Bruno. „Fisch.“",
+      "fact": "Bruno weicht einer Frage mit seinem Fischsein aus, ähnlich wie nach dem Kartentrick in Folge 4.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich hab am Fischglas gesagt, ich bin zwanzig“, sagte sie.",
+      "fact": "Oma benennt die konkrete Flunkerei selbst vor Ella und Mats; sie muss dazu nicht wieder im Wohnzimmer sein.",
+      "agrees": true
+    },
+    {
+      "quote": "„Das war geflunkert. Ich bin siebzig.“",
+      "fact": "Die Flunkerin spricht die konkrete Wahrheit vor anderen aus. Erst dann endet der Zauber.",
+      "agrees": true
+    },
+    {
+      "quote": "„Nanu. Wieso hab ich denn meine alten Rollschuhe an?“",
+      "fact": "Oma vergisst als erwachsene Zeugin die magischen Vorgänge, nicht ihre alten Rollschuhe.",
+      "agrees": true
+    },
+    {
+      "quote": "Ella und Mats erinnerten sich an alles.",
+      "fact": "Kinder behalten ihre Erinnerung an den Zauber.",
+      "agrees": true
+    },
+    {
+      "quote": "Erwachsene vergessen das Magische, sobald ein Zauber endet.",
+      "fact": "Der Satz trifft auf die erwachsenen Zeugen dieses einzigen Zaubers zu; bei mehreren Zaubern würde nur der jeweils beendete vergessen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ganz vorne. Wenn du willst.“",
+      "fact": "Die Wahrheit wird nicht hart bestraft. Oma darf nicht nur mit, sondern selbst entscheiden, wie sie mitmacht.",
+      "agrees": true
+    },
+    {
+      "quote": "„Und einmal hab ich den Großen Brunello auf der Bühne gesehen.“",
+      "fact": "Das ist der vorgesehene Staffelhinweis für Folge 5.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie schlug ihren Planer bei der Zeichnung vom alten Plakat auf: die Mondsichel, der Kartenfächer, die Buchstaben NELLO.",
+      "fact": "Ella hat diese drei Einzelheiten in Folge 3 abgezeichnet.",
+      "agrees": true
+    },
+    {
+      "quote": "„Das ist sein Plakat!“",
+      "fact": "Oma ordnet das bereits bekannte Plakat ihrem Bühnenbesuch zu. Das erfüllt die geplante Wiedererkennung, ohne Bruno zu identifizieren.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich durfte sogar auf die Bühne und mir eine Karte merken. Und er hat sie gefunden.“",
+      "fact": "Damit kommt zum erlaubten Bühnenbesuch eine neue, auffallend genaue Übereinstimmung mit Brunos Vorführung aus Folge 4 hinzu. Das ist ein zusätzlicher Herkunftshinweis.",
+      "agrees": false
+    },
+    {
+      "quote": "Ella dachte an drei nasse Spielkarten in Brunos Glas.",
+      "fact": "Die drei nassen Karten stammen aus Folge 4. Hier macht Ellas Gedanke aus der Parallele ausdrücklich einen zweiten Staffelhinweis.",
+      "agrees": false
+    },
+    {
+      "quote": "Sein Glöckchen bimmelte.",
+      "fact": "Kaisers goldenes Glöckchen verrät erneut sein Kommen.",
+      "agrees": true
+    },
+    {
+      "quote": "Nur hing eine Socke über den Korbrand bis auf den Boden.",
+      "fact": "Kaisers Plan scheitert an einer kleinen, alltäglichen Sache. Er fängt Bruno nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "Genau so hatte er es geplant.",
+      "fact": "Kaiser spricht nicht. Der folgende Satz schreibt ihm diesen Kommentar ausdrücklich nur über seinen Blick zu; die Würde bleibt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Nicht schlecht“, sagte Bruno.",
+      "fact": "Bruno kommentiert nur vor den Kindern. Papas Aufbruch ist erzählt, der Moment, in dem die Wohnungstür hinter den Erwachsenen zugeht, sollte aber sichtbar werden.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann pinnte sie Flunker-Karte Nr. 5 neben das Regal.",
+      "fact": "Die nächste nummerierte Karte wird nach der Auflösung am etablierten Ort angepinnt.",
+      "agrees": true
+    },
+    {
+      "quote": "Mats schrieb unten dazu: Oma ist siebzig. Und fährt ganz vorne.",
+      "fact": "Mats hat schon in früheren Folgen eigene Sätze auf den Karten ergänzt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Versteckst du was vor uns? Damit du bei uns bleiben darfst?“",
+      "fact": "Ella stellt die für Folge 5 geplante neue Frage, ohne Brunos Herkunft als Tatsache zu behaupten.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich bin ein Goldfisch“, sagte er schließlich.",
+      "fact": "Bruno bleibt ein Goldfisch und weicht aus, statt seine Herkunft zu bestätigen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Auch mit fast immer schlechter Laune?“",
+      "fact": "Das greift Ellas Aufsatz aus Folge 2 und Brunos gekränkte Reaktion darauf auf.",
+      "agrees": true
+    },
+    {
+      "quote": "„Hab ich's nicht gesagt? Ich hab's gesagt.“",
+      "fact": "Brunos Auflösungsspruch steht wortgetreu im Text. Behauptet hat er das Lob für Omas Fahrkünste erst jetzt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Vor Oma hast du nur Blubb gesagt!“",
+      "fact": "Der Rückverweis bestätigt, dass Oma Bruno nicht sprechen gehört hat.",
+      "agrees": true
+    },
+    {
+      "quote": "Da stand ein Eintrag in ihrer eigenen Schrift, und sie konnte sich nicht erinnern, ihn geschrieben zu haben.",
+      "fact": "Frau Grimmbach hat die magischen Vorgänge vergessen; ihre eigene Schrift bleibt stehen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Eintrag 50: Junge Dame im Hof behauptet, die Großmutter der Brandts zu sein. Fährt RÜCKWÄRTS!!!“",
+      "fact": "Der Eintrag schließt mit Nr. 50 an Folge 4 an und dokumentiert, was Grimmbach selbst gesehen und gehört hat.",
+      "agrees": true
+    }
+  ],
+  "dimensions": {
+    "figurenkonsistenz": {
+      "score": 7,
+      "why": "„Ja, Oma!“ sitzt, weil Rosi frech und Ella sofort wieder im Planermodus ist. Aber „Bleibt im Hof!“ schickt die Kinder mit einer Frau los, die Papa für eine Fremde hält. Das glaubt man diesem Papa nicht."
+    },
+    "plotKohaerenz": {
+      "score": 6,
+      "why": "Aus „Bank mit Sonne“ wird folgerichtig „Ganz vorne“: Das löst den eigentlichen Konflikt, nicht bloß den Zauber. Dessen Auslöser ist mit „Pah! Ich bin zwanzig!“ aber nicht sauber als Flunkerei gebaut. Auch Papas Weg vom Flur bis zum Ende der Verwandlung bleibt lückenhaft."
+    },
+    "sprachqualitaet": {
+      "score": 8,
+      "why": "„Das Leder war weich und voller Falten, wie ein Apfel im Winter“ macht die Rollschuhe sofort sichtbar. Daneben stehen unfertige Planersätze wie „Mats: Rollschuh“ und Bilder wie „Es lag an der Bank“, die ein Erstleser erst übersetzen muss."
+    },
+    "emotionaleTiefe": {
+      "score": 9,
+      "why": "„Wie vorhin“, dann der Blick auf die Jacken und „Nein danke“: Drei kleine Schritte machen klar, warum die Rückkehr Mut braucht. Rosi fürchtet nicht einfach das Alter. Sie hat Angst, wieder nur zugucken zu dürfen."
+    },
+    "altersangemessenheit": {
+      "score": 8,
+      "why": "„Dann ist früher ja heute“ macht den Zeitknoten zum Kinderwitz. Die Idee vom Mitmachen statt Zugucken ist für Sechsjährige klar; das anschließende Aufzählen von Lachfalten, Geschichten, Kuchen und Enkeln erklärt dafür etwas mehr als nötig."
+    },
+    "ende": {
+      "score": 8,
+      "why": "„Papa saß auf der Bank mit Sonne und hielt die Jacken“ ist das richtige Schlussbild für den Rollentausch. Danach folgen allerdings noch Kartentrick-Rückverweis, Kaiser, Karte, Brunos Gespräch und Heft. Vor allem der zusätzliche Kartentrick macht den Schluss länger, ohne Rosis Geschichte besser zu beenden."
+    },
+    "kanonTreue": {
+      "score": 7,
+      "why": "„Ich bin siebzig“ beendet den Zauber regelgerecht, und Grimmbachs Nr. 50 stimmt. „Und er hat sie gefunden“ plus Ellas Gedanke an Brunos nasse Karten legt aber eine zweite Spur, obwohl nur Rosis Bühnenbesuch neu hinzukommen darf."
+    },
+    "weitererzaehlFaktor": {
+      "score": 9,
+      "why": "„Ja, Oma!“ ist ein Zwei-Wort-Witz, den ein Kind direkt nachspielen kann: Eine Achtjährige ermahnt eine Siebzigjährige auf Rollschuhen, und die Siebzigjährige nennt die Achtjährige Oma."
+    }
+  },
+  "kinderCheck": {
+    "verstaendlichkeit": {
+      "score": 8,
+      "stolpersteine": [
+        {
+          "quote": "„Für Ella, zum Reinwachsen.“",
+          "warum": "Ein seltenes Wort als Satzrest; zudem ist kurz nicht klar, ob Mats danach dieselben Rollschuhe anziehen soll.",
+          "vorschlag": "„Für dich, Ella. Da wächst du noch rein.“ Im Plan ausdrücklich Mats' eigene Rollschuhe nennen."
+        },
+        {
+          "quote": "„Mats: Rollschuh. Ella: läuft mit. Papa: hinterher.“",
+          "warum": "Die abgehackten Stichwörter lassen offen, wer fährt und wer hinterherläuft.",
+          "vorschlag": "„Mats übt mit seinen Rollschuhen. Ella läuft mit. Papa kommt hinterher.“"
+        },
+        {
+          "quote": "„Bruno schwamm ganz nah an die Scheibe und sah sie an. Lange. Seine Flossen standen still im Wasser.“",
+          "warum": "Die drei Sätze signalisieren ein Geheimnis. Kinder warten darauf, dass Bruno die junge Oma wiedererkennt oder etwas tut. Beides soll hier gerade nicht passieren.",
+          "vorschlag": "„Bruno drückte das Maul an die Scheibe. ‚Blubb.‘“"
+        },
+        {
+          "quote": "„Es lag an der Bank.“",
+          "warum": "Ein Kind kann die Bank für das eigentliche Problem halten, weil es gerade zwei verschiedene Bänke gegeben hat.",
+          "vorschlag": "„Alle durften mitmachen. Nur Oma sollte zugucken.“"
+        },
+        {
+          "quote": "„Nicht mal der Spiegel hat mich erkannt.“",
+          "warum": "Der Spiegel hat Oma richtig gezeigt. Dass sie selbst das junge Gesicht nicht erkennt, ist der Witz. Die zweite Formulierung verdreht das unnötig.",
+          "vorschlag": "„Im Spiegel hab ich mich ja selber nicht erkannt.“"
+        },
+        {
+          "quote": "„Erst auf den Wäschekorb, vom Wäschekorb aufs Regal.“",
+          "warum": "„Auf den Korb“ lässt keinen Unterschied zwischen Kaisers Plan und seinem tatsächlichen Plumps in den Korb erkennen.",
+          "vorschlag": "„Vom Rollschuh wollte er auf den Rand des Wäschekorbs springen. Und von da rauf zum Fischglas.“"
+        }
+      ]
+    },
+    "humor": {
+      "score": 9,
+      "witze": [
+        {
+          "quote": "„Mit was?“ – „So. Bloß auf Rollen.“",
+          "zuendet": "ja",
+          "warum": "Die Drehung erklärt das schwierige Wort, ohne den Schwung aus dem Einstieg zu nehmen."
+        },
+        {
+          "quote": "„Das war nicht geflunkert, das war ausgedacht!“",
+          "zuendet": "ja",
+          "warum": "Mats hat diesmal nichts angestellt und ruft trotzdem sofort seinen üblichen Verteidigungssatz."
+        },
+        {
+          "quote": "„Wer ist denn die? Die hat ja mein Kleid an!“",
+          "zuendet": "ja",
+          "warum": "Das Winken bereitet den Satz körperlich vor. Die Empörung über das geklaute Kleid ist die Pointe."
+        },
+        {
+          "quote": "„Natürlich. Und ich bin der Weihnachtsmann.“",
+          "zuendet": "ja",
+          "warum": "Kinder hören die Gegenflunkerei und können vor Ella schon merken, warum sie diesmal ungefährlich ist."
+        },
+        {
+          "quote": "„Ja, Oma!“",
+          "zuendet": "ja",
+          "warum": "Auf der Treppe kippt das Altersverhältnis um; im Hof hat die Wiederholung mit Ellas Jacken eine neue Pointe."
+        },
+        {
+          "quote": "„Die Wäschestange ist kein Karussell. Hausordnung, Punkt sieben.“",
+          "zuendet": "halb",
+          "warum": "Die Wäschestange als Karussell ist ein klares Bild. Die bloße Vorschriftennummer ist vor allem ein Erwachsenenwitz.",
+          "besser": "„Die Wäschestange ist kein Karussell. Auch nicht rückwärts.“"
+        },
+        {
+          "quote": "„Dann ist früher ja heute.“",
+          "zuendet": "ja",
+          "warum": "Mats nimmt Omas Erzähleinstieg genauso wörtlich wie der Zauber ihre Altersangabe."
+        },
+        {
+          "quote": "„Extra-Flocken. Endlich fragt mal jemand.“",
+          "zuendet": "ja",
+          "warum": "Bruno gibt einen vernünftigen Rat und kassiert sofort dafür ab, ohne selbst nett wirken zu müssen."
+        },
+        {
+          "quote": "„Papa saß auf der Bank mit Sonne und hielt die Jacken.“",
+          "zuendet": "ja",
+          "warum": "Das ist die verdiente Umkehrung des ersten Plans, ganz ohne Kommentar."
+        },
+        {
+          "quote": "„Der Rollschuh blieb stehen. Kaiser nicht.“",
+          "zuendet": "ja",
+          "warum": "Kurzer Anlauf, kurze Pointe, klares Bild. Nur das Ziel des Sprungs muss vorher genauer sein."
+        },
+        {
+          "quote": "„Wir haben nicht mal Taschen.“",
+          "zuendet": "ja",
+          "warum": "Bruno weicht aus, indem er aus einer Frage nach einem Geheimnis eine Frage nach Hosentaschen macht."
+        },
+        {
+          "quote": "„Fährt RÜCKWÄRTS!!!“",
+          "zuendet": "ja",
+          "warum": "Grimmbachs Ausrufezeichen sind schon lustig; dass sie danach ihre eigenen Rollschuhe holt, ist die bessere zweite Hälfte."
+        }
+      ]
+    },
+    "unterhaltung": {
+      "score": 8,
+      "durchhaenger": [
+        {
+          "stelle": "Kapitel 2: Bruno wird erst nach Wahrheit und dann nach seinem langen Blick gefragt.",
+          "warum": "Die erste Frage gibt Ella den richtigen Anstoß. Die zweite eröffnet eine Herkunftsspur, die in dieser Szene nichts bewirkt.",
+          "vorschlag": "Rat und Flocken stehen lassen. Die Frage nach dem Blick streichen."
+        },
+        {
+          "stelle": "„So viele Lachfalten“ bis „Und uns“.",
+          "warum": "Der Kinderwitz mit den Lachfalten und der Treffer „Und uns“ genügen. Dazwischen wird der Gefühlsmoment zur Liste.",
+          "vorschlag": "Lachfalten, Sonntag und Enkel in zwei kurzen Antworten bündeln."
+        },
+        {
+          "stelle": "Kapitel 3: Bühnenbesuch, genauer Kartentrick, nasse Karten.",
+          "warum": "Der Ausflug ist entschieden. Die Folge hält trotzdem noch einmal an, um eine zweite Spur zu erklären.",
+          "vorschlag": "Oma erkennt das Plakat in einem Satz. Dann direkt in den Park."
+        }
+      ]
+    },
+    "logikLuecken": [
+      {
+        "quote": "„Pah! Ich bin zwanzig!“ / „Sie hat nicht gesagt: Stell dir vor“.",
+        "problem": "Die Szene zeigt Trotz, aber kaum einen Versuch, jemanden etwas Falsches glauben zu lassen. Ellas Begründung macht aus „Stell dir vor“ versehentlich ein vorgeschriebenes Kennwort.",
+        "fix": "Oma antwortet Mats ernst auf eine Altersfrage und beteuert die Zahl. Ella bittet sofort um die konkrete Wahrheit, statt eine fehlende Formel zu erklären."
+      },
+      {
+        "quote": "„Bleibt im Hof!“",
+        "problem": "Papa erkennt die junge Frau nicht und lässt die Kinder trotzdem mit ihr gehen. Nachher fehlt sein erkennbarer Übergang von der fremden Frau zurück zu Rosi.",
+        "fix": "Papa begleitet sie, geht erst zum Kuchenholen wieder hoch und erkennt die unverzauberte Oma bei seiner Rückkehr."
+      },
+      {
+        "quote": "„OMA IST SIEBZIG!“",
+        "problem": "Es bleibt unklar, ob Mats nur Grimmbach überzeugen oder den Zauber für Oma beenden will. Gerade diese Folge soll zeigen, warum kein Kind das für sie tun kann.",
+        "fix": "Nach dem Ruf bleibt das Plopp ausdrücklich aus. Ella sagt knapp, wessen Wahrheit gebraucht wird."
+      },
+      {
+        "quote": "„Wir schon“, sagte Mats. „Am Lachen.“",
+        "problem": "Mats benennt die junge Frau bereits als Oma, bevor sie vor dem Spiegel lacht. Das Lachen trägt die spätere Behauptung deshalb nicht ganz.",
+        "fix": "Omas unverwechselbares Lachen unmittelbar vor Mats' Wiedererkennen zeigen."
+      },
+      {
+        "quote": "„Und er hat sie gefunden.“",
+        "problem": "Der Trick ist derselbe wie in Folge 4. Mit Ellas ausdrücklichem Rückverweis ist das kein beiläufiges Detail, sondern ein zusätzlicher Hinweis auf Brunos Identität.",
+        "fix": "Nur den Bühnenbesuch und die Wiedererkennung des bereits bekannten Plakats behalten. Ellas spätere Frage aus Omas Wunsch nach Zugehörigkeit und Brunos bekannten Ausweichmanövern entwickeln."
+      },
+      {
+        "quote": "„Als er ihr die Tür aufhielt, huschte Kater Kaiser an ihm vorbei.“",
+        "problem": "Bevor Bruno spricht, fehlt die klare Trennung: Wo sind die Erwachsenen, und über welchen Weg will Kaiser ans Glas?",
+        "fix": "Papa und Oma gehen durch die Wohnungstür, die sich hinter ihnen schließt. Kaiser nimmt gezielt den Korbrand als Sprungbrett, landet aber stattdessen unten in den Socken."
+      }
+    ],
+    "schulhofSatz": "„Ja, Oma!“",
+    "staerksteMomente": [
+      "Ella merkt mit den Jacken im Arm, dass sie selbst längst auf dem Abstellplatz gelandet ist, den sie Oma zugedacht hatte.",
+      "Rosi fährt nach dem Plopp langsamer und ohne Pirouette. Sie hat nicht ihre Jugend behalten, sondern ihren Platz ganz vorne bekommen.",
+      "Dasselbe laute Lachen verbindet die beiden Rosies besser als jede Erklärung.",
+      "Mats erlaubt Bruno ausdrücklich, auch mit fast immer schlechter Laune zu bleiben. Der Rückgriff auf Folge 2 macht die Zuneigung konkret."
+    ]
+  },
+  "mustFix": [
+    "„Pah! Ich bin zwanzig!“ → Aus dem Trotzspruch eine ernst gesagte falsche Antwort für Mats machen; „Sie hat nicht gesagt: Stell dir vor“ streichen.",
+    "„Bleibt im Hof!“ → Papa lässt eine vermeintlich fremde Frau nicht allein mit den Kindern losziehen. Er begleitet sie, geht zum Kuchenholen hoch und erkennt Rosi nach dem Plopp wieder.",
+    "„OMA IST SIEBZIG!“ → Den erfolglosen Auflösungsversuch sichtbar machen. Ella benennt, dass nur Oma ihre eigene Flunkerei auflösen kann.",
+    "„Wir schon. Am Lachen.“ → Das Lachen muss vor Mats' Wiedererkennen kommen, nicht danach.",
+    "„Und er hat sie gefunden“ samt nassen Spielkarten → Den zusätzlichen Herkunftshinweis und den betont rätselhaften Blick auf die junge Oma streichen. Bühnenbesuch, Plakaterkennung und Ellas Beziehungsfrage bleiben.",
+    "„Erst auf den Wäschekorb“ → Kaisers Ziel als Korbrand präzisieren, sein Scheitern als Landung im Korb. Vor Brunos Kommentar die Wohnungstür hinter den Erwachsenen schließen."
+  ],
+  "notes": [
+    "Die Bank ist die tragende Konstruktion der Folge: erst Zuteilung, dann Ellas eigener Platz am Rand, schließlich Papas Jackendienst. Alle drei Stationen behalten.",
+    "Nicht aus Oma eine andere Figur machen. Die schnelle junge Rosi und die langsamere alte Rosi müssen denselben Spaß und dasselbe Lachen haben.",
+    "Die Weihnachtsmann-Gegenprobe, beide „Ja, Oma“-Einsätze und Grimmbachs eigene Rollschuhe sind die Witze, an denen nicht gekürzt werden sollte.",
+    "Brunos Taschen-Ausrede und „fast immer schlechte Laune“ am Schluss behalten. Hier braucht es kein zusätzliches Indiz, damit Ellas Frage etwas bedeutet."
+  ],
+  "revision": {
+    "changes": [
+      "Die Rollschuhe werden mit „zwei weiße Rollschuhe mit roten Rollen“ direkt eingeführt; „Für Ella, zum Reinwachsen“ wird zu „Für dich, Ella. Da wächst du noch rein.“",
+      "„Mats: Rollschuh. Ella: läuft mit. Papa: hinterher“ wird zu drei vollständigen Planersätzen. Mats übt ausdrücklich mit seinen eigenen Rollschuhen.",
+      "Mats fragt nach Omas Alter. Statt „Pah!“ antwortet Rosi ihm ins Gesicht: „Ich bin zwanzig! Ehrlich.“ Ein kurzer Satz macht klar, dass sie geglaubt werden will.",
+      "„Sie hat nicht gesagt: Stell dir vor“ und „sag schnell, dass das nicht stimmt“ entfallen. Ella fordert Oma auf, Mats ihr wirkliches Alter zu sagen.",
+      "Die Verwandlung bleibt körperlich, wird aber kürzer erzählt: „Die Falten um ihre Augen glätteten sich wie ein Bettlaken“; „war schon wieder oben“ wird „stand gleich wieder gerade“.",
+      "In der Spiegelszene lacht Rosi vor Mats' „Das bist du“; die umständliche Doppelung mit der jungen Frau, die genauso laut lacht, entfällt.",
+      "Beim Weihnachtsmann genügt „Papa stand im Flur. Brunos Glas stand im Wohnzimmer. Gut.“ Rosis vergeblicher Antwortversuch behält das Jackenbild.",
+      "Brunos langes, rätselhaftes Starren und Omas Nachfrage entfallen zugunsten eines kurzen Blubbs am Glas.",
+      "Aus „Bleibt im Hof!“ wird „Wartet. Ich komme mit!“ Papa steht im Hof an der Haustür und geht später zum Kuchen- und Tellerholen nach oben.",
+      "Im Hof wird die Rollschuhfahrt um die Wäschestange gestrafft; „ihre Beine wollten in zwei Richtungen gleichzeitig“ und beide „Ja, Oma“-Pointen bleiben.",
+      "„Hausordnung, Punkt sieben“ wird zu „Auch nicht rückwärts.“ Grimmbachs Einwand bleibt streng und nimmt den sichtbaren Witz auf.",
+      "Kaiser hüpft vom Fensterbrett direkt auf die Bank, statt erst unbestimmt irgendwo hinunterzuspringen.",
+      "Nach „OMA IST SIEBZIG!“ folgt „Nichts machte plopp.“ Ella erklärt, warum Omas eigene Wahrheit nötig ist, und behält ihren Hinweis auf die Verwandlung bei.",
+      "Im Wohnzimmer bleiben Brunos Rat und seine drei Extra-Flocken; Ellas Nachfrage zu seinem Blick und die zweite Fisch-Ausrede entfallen.",
+      "„Es lag an der Bank“ und der doppelte Rückblick auf die Bank werden zu „Alle durften mitmachen. Nur Oma sollte zugucken.“",
+      "„Nicht mal der Spiegel hat mich erkannt“ wird zu „Im Spiegel hab ich mich ja selber nicht erkannt“. Die Liste der Dinge, die Rosi mit zwanzig noch nicht hatte, schrumpft auf Lachfalten, Sonntagskuchen und Enkel.",
+      "„Wo willst du denn hin?“ wird zu „Was willst du im Park machen?“ Im Plan steht anschließend als vollständige Handlung „Oma fährt Rollschuh. Ganz vorne.“",
+      "Die Erzählererklärung zum Vergessen entfällt. Omas Frage nach den Rollschuhen und Papas „Ach, da bist du ja, Rosi!“ zeigen die Wirkung bei beiden.",
+      "Omas Bühnenbesuch und ihr „Das ist sein Plakat!“ bleiben; ihre Teilnahme am Kartentrick und Ellas Rückverweis auf die nassen Karten entfallen.",
+      "Beim Aufbruch schließen Papa und Oma die Wohnungstür hinter sich. Bei Kaisers Rollschuhangriff wird der Korbrand zum geplanten Absprung und das Innere des Korbs zum tatsächlichen Landeplatz.",
+      "Ellas letzte Frage folgt jetzt ausdrücklich aus Omas Sorge und Brunos wiederholtem Ausweichen. Karte, Auflösungsspruch und Heftschluss bleiben."
+    ],
+    "text": "KAPITEL 1: Die Bank mit Sonne\n\n„Rückwärts“, sagte Oma Rosi. „Und mit Pirouette.“\n\n„Mit was?“, fragte Mats.\n\nOma drehte sich einmal im Kreis. „So. Bloß auf Rollen.“\n\nSie hob den Deckel von einem Schuhkarton. Darin lagen zwei weiße Rollschuhe mit roten Rollen. Das Leder war weich und voller Falten, wie ein Apfel im Winter.\n\n„Meine alten“, sagte Oma. „Vom Dachboden. Für dich, Ella. Da wächst du noch rein.“\n\nEs war Sonntag, und sonntags kam Oma Rosi. Sie brachte immer zwei Sachen mit: Zwetschgenkuchen und Geschichten von früher. Papa schnitt in der Küche den Kuchen. Mama war schwimmen. Nach dem Kaffee wollten alle in den Park.\n\nNatürlich hatte Ella einen Plan gemacht.\n\n„Vier Uhr: Park“, las sie vor. „Mats übt mit seinen Rollschuhen. Ella läuft mit. Papa kommt hinterher. Oma …“ Sie strahlte. „Bank mit Sonne. Die beste am Teich. Da kannst du die Jacken halten.“\n\n„Da hast du deine Ruhe“, rief Papa aus der Küche.\n\nMats sah die Rollschuhe an. „Kannst du denn noch Rollschuh fahren? Wie alt bist du eigentlich, Oma?“\n\nOma lachte. Aber nur ganz kurz. Sie nahm einen Rollschuh und ging zum Regal am Fenster. Dort schwamm Bruno in seinem runden Glas um seine Steinburg. Vor Erwachsenen sagte er kein Wort.\n\n„Jacken halten“, murmelte Oma. Sie drehte an der roten Rolle. Surr. Dann sah sie Mats geradewegs an. „Ich bin zwanzig! Ehrlich.“ Für einen Moment wollte sie, dass er ihr das glaubte.\n\nIm Glas knackte es. Wie ein Kiesel, der gegen die Scheibe tippt.\n\nElla ließ den Planer sinken. Neben dem Regal hingen vier Flunker-Karten.\n\n„Das war nicht geflunkert, das war ausgedacht!“, rief Mats. Diesmal für Oma.\n\n„Oma“, sagte Ella schnell, „sag Mats, wie alt du wirklich bist.“\n\n„Was denn, Schatz?“ Oma lachte. Und diesmal klang ihr Lachen anders. Heller. Wie eine Fahrradklingel.\n\nIhre weißen Locken wurden braun wie Kakaopulver. Die Falten um ihre Augen glätteten sich wie ein Bettlaken. Das Blumenkleid blieb dasselbe. Die Holzperlenkette auch.\n\nOma bückte sich nach dem Karton und stand gleich wieder gerade. „Huch. Das ging aber leicht.“\n\nIm Flur hing der große Spiegel. Darin stand eine junge Frau mit braunen Locken in Omas Blumenkleid. Oma drehte sich um. Hinter ihr standen nur Ella und Mats. Sie winkte dem Spiegel. Die junge Frau winkte zurück.\n\n„Wer ist denn die?“, fragte Oma empört. „Die hat ja mein Kleid an!“\n\nOma zupfte an einer Locke. Die Frau im Spiegel zupfte auch. Da lachte Oma ihr lautes Lachen.\n\n„Das bist du!“, sagte Mats. „Mit zwanzig!“\n\n„ZWANZIG!“, rief Oma. „Ich bin wirklich zwanzig!“\n\nUnd sie schlug ein Rad. Mitten im Flur. Die Garderobe wackelte.\n\nDa kam Papa mit dem Kuchenteller aus der Küche. „Oh. Hallo. Wir haben Besuch?“\n\n„Ich bin’s doch!“, rief die junge Frau. „Die Oma!“\n\nPapa lachte höflich. „Natürlich. Und ich bin der Weihnachtsmann.“\n\nElla sah schnell zur Wohnzimmertür. Papa stand im Flur. Brunos Glas stand im Wohnzimmer. Gut.\n\n„Kinder, wo ist denn Oma?“, fragte Papa.\n\nDie junge Oma machte den Mund auf und wieder zu. Sie sah aus wie jemand, dem man alle Jacken in die Arme gedrückt hat.\n\nDann holte sie den Karton aus dem Wohnzimmer. Bruno drückte das Maul an die Scheibe. „Blubb.“\n\n„Wer kommt mit in den Hof?“, fragte die junge Oma.\n\n„ICH!“ Mats holte seine Rollschuhe.\n\n„Wartet. Ich komme mit!“, sagte Papa und stellte den Kuchen zurück in die Küche.\n\nElla griff nach ihrem Planer und nach allen Jacken. „Okay. Plan B. Wir passen auf Oma auf.“\n\nKAPITEL 2: Ja, Oma\n\nAuf der Treppe wollte die junge Oma die Rollschuhe schon anziehen.\n\n„Nicht auf der Treppe!“, rief Ella. „Erst unten!“\n\n„Ja, Oma“, sagte die junge Oma.\n\nMats prustete so laut, dass es im ganzen Treppenhaus hallte.\n\nIm Hof schien die Sonne. Papa blieb an der Haustür stehen. Die junge Oma schnürte die Rollschuhe in drei Sekunden zu. Sie fuhr vorwärts, rückwärts und mit fliegendem Blumenkleid um die Wäschestange.\n\nMats zog seine Rollschuhe an. Seine Beine wollten in zwei Richtungen gleichzeitig. Die junge Oma nahm seine Hände und zog ihn über den Hof. „Knie weich, Bauch fest!“\n\n„Oma!“, rief Mats. „Du bist die Coolste!“\n\nElla stand am Rand, die Arme voller Jacken. Sie merkte es erst nach einer Weile.\n\n„Ich halte die Jacken“, sagte sie. Keiner hörte zu.\n\nDie junge Oma sauste rückwärts an ihr vorbei.\n\n„Nicht so schnell!“, rief Ella. „Pass auf die Stange auf! Und zieh was an, es ist kalt!“\n\n„Ja, Oma!“\n\nMats musste sich vor Lachen am Fahrradständer festhalten. Ella wurde rot. Sie hatte genau so geklungen wie … Oma. Sie legte die Jacken auf die Bank an der Hauswand.\n\nIm Erdgeschoss ging ein Fenster auf. Frau Grimmbach lehnte sich heraus. Neben ihr saß Kater Kaiser auf der Fensterbank. Sein goldenes Glöckchen bimmelte.\n\n„Junge Frau“, sagte Frau Grimmbach. „Die Wäschestange ist kein Karussell. Auch nicht rückwärts.“\n\nDie junge Oma rollte strahlend heran. „Ich bin’s doch! Rosi! Die Oma von Ella und Mats! Ich bring Ihnen jeden Sonntag ein Stück Kuchen runter!“\n\nFrau Grimmbach kniff die Augen zusammen. „Die Großmutter der Brandts ist siebzig Jahre alt. Ich kenne sie. Sie fährt nicht Rollschuh.“\n\nSie zog ihr schwarzes Heft aus der Strickjacke und schrieb. Kaiser gähnte, sehr majestätisch.\n\nDie junge Oma fuhr langsamer. Mats rollte zu ihr und hielt sich an ihrem Arm fest.\n\n„Oma, erzähl mal, wie du früher Rollschuh gefahren bist!“\n\n„Also“, fing die junge Oma an. „Früher, als ich zwanzig war …“\n\nMats kicherte. „Aber du bist doch jetzt zwanzig. Dann ist früher ja heute.“\n\n„Damals bin ich mit diesen Rollschuhen durch die ganze Stadt gefahren.“ Oma sah auf ihre glatten Hände. „Das weiß ich noch ganz genau. Bloß glaubt mir heute keiner, dass ich eure Oma bin.“\n\nOma setzte sich auf die Bank neben die Jacken. Kaiser hüpfte vom Fensterbrett zu ihr.\n\nMats holte tief Luft und brüllte zum Fenster hinauf: „OMA IST SIEBZIG!“\n\nNichts machte plopp.\n\n„Weiß ich, Brandt. Diese Dame ist es nicht.“ Frau Grimmbach schrieb noch etwas in ihr Heft.\n\n„Oma hat geflunkert“, flüsterte Ella. „Sie muss es selber sagen. Dann ist sie wieder wie vorhin.“\n\n„Wie vorhin“, wiederholte die junge Oma. Sie sah auf die Jacken. „Nein danke.“\n\nPapa ging nach oben, um Kuchen und Teller zu holen. Ella lief hinterher. Sie brauchte Omas Strickjacke. Und jemanden, der mehr über Flunkereien wusste als sie.\n\nPapa war in der Küche. Im Wohnzimmer war nur Bruno.\n\n„Sie will nicht“, sagte Ella. „Wie kriegt man jemanden dazu, die Wahrheit zu sagen?“\n\n„Gar nicht.“ Bruno drehte eine Runde um seine Burg. „Frag sie doch, was sie will. Mich fragt auch nie einer.“\n\n„Was willst du denn?“\n\n„Extra-Flocken. Endlich fragt mal jemand.“\n\nElla streute ihm drei Flocken hinein. Dann nahm sie Omas Strickjacke und ging wieder hinunter.\n\nOma saß noch immer in der Sonne neben den Jacken. Genau so hatte Ella es für den Park geplant. Jetzt sah sie, was sie da aufgeschrieben hatte: Alle durften mitmachen. Nur Oma sollte zugucken.\n\nKAPITEL 3: Ganz vorne\n\nElla gab Oma die Strickjacke und setzte sich neben sie. Mats wackelte heran und plumpste auf die andere Seite. Kaiser rückte ein Stück und sah beleidigt aus.\n\nElla zeigte auf die Zeile in ihrem Planer. Oma: Bank mit Sonne.\n\n„Das hab ich geschrieben. Ich hab dich gar nicht gefragt.“\n\n„Und ich hab gefragt, ob du’s noch kannst“, sagte Mats. „Dabei wollte ich, dass du mitfährst. Ich hab’s bloß falsch gefragt.“\n\n„Ich wollte nicht die Jacken halten“, sagte die junge Oma. „Ich wollte dabei sein. Als eure Oma. Nicht als irgendeine junge Frau, der keiner glaubt.“ Sie lächelte schief. „Im Spiegel hab ich mich ja selber nicht erkannt.“\n\n„Wir schon“, sagte Mats. „Am Lachen.“\n\n„Weißt du, was du damals mit zwanzig noch nicht hattest?“, fragte Ella.\n\n„So viele Lachfalten“, sagte Mats sofort. Dann rückte er näher. „Und uns, die jeden Sonntag deinen Kuchen wegessen.“\n\nDie junge Oma war ganz still.\n\nElla hielt den Stift über die Zeile. „Was willst du im Park machen?“\n\n„Rollschuh fahren. Ganz vorne.“ Oma sah Ella an. „Auch mit siebzig?“\n\n„Klar!“, rief Mats. „Dann kann ich hinter dir herfahren.“\n\nElla strich „Bank mit Sonne“ durch. Daneben schrieb sie: Oma fährt Rollschuh. Ganz vorne.\n\nDie junge Oma sah lange auf die neue Zeile. Dann stand sie auf, in ihren weißen Rollschuhen, und holte Luft.\n\n„Ich hab am Fischglas gesagt, ich bin zwanzig“, sagte sie. „Das war geflunkert. Ich bin siebzig.“\n\nPLOPP.\n\nDie braunen Locken wurden wieder weiß. Um die Augen kamen die Falten zurück. Genau die Falten, die beim Lachen mitmachen.\n\nOma Rosi blinzelte. „Nanu. Wieso hab ich denn meine alten Rollschuhe an?“\n\n„Weil du mit uns fährst!“, rief Mats.\n\nElla hielt ihr den Planer hin. „Ganz vorne. Wenn du willst.“\n\nOma las die Zeile zweimal. Dann breitete sie die Arme aus, wackelte ein bisschen und rollte los. Langsam. Geradeaus. Keine Pirouette. Aber das Blumenkleid flog trotzdem ein bisschen, und sie lachte ihr lautes Lachen. Dasselbe wie vorhin.\n\n„Rückwärts“, rief sie, „üben wir nächsten Sonntag!“\n\nPapa kam mit dem Kuchen in den Hof. „Ach, da bist du ja, Rosi!“\n\nBeim Kuchen erzählte Oma von früher. Richtig von früher.\n\n„Als ich zwanzig war“, sagte sie, und Ella und Mats grinsten sich an, „bin ich mit diesen Rollschuhen zum alten Saal gefahren. Da hab ich einmal den Großen Brunello auf der Bühne gesehen.“\n\nElla schlug ihren Planer bei der Zeichnung vom alten Plakat auf. Oma tippte auf die Mondsichel. „Ja, das ist sein Plakat!“\n\nIm Park fuhr Oma ganz vorne. Papa saß auf der Bank mit Sonne und hielt die Jacken.\n\nAm Abend brachte Papa Oma zum Bus. Als er die Wohnungstür aufhielt, huschte Kaiser herein. Sein Glöckchen bimmelte. Hinter Papa und Oma fiel die Tür zu.\n\nKaiser stellte die Vorderpfoten auf einen von Mats’ Rollschuhen und stieß sich ab. Vom Rollschuh wollte er auf den Rand des Wäschekorbs springen. Und von da rauf zum Fischglas.\n\nNur hing eine Socke über den Korbrand bis auf den Boden. Sie wickelte sich um eine Rolle. Der Rollschuh blieb stehen. Kaiser nicht.\n\nPlumps! Da saß er zwischen Papas Socken und leckte sich die Pfote. Genau so hatte er es geplant. Sagte sein Blick.\n\n„Nicht schlecht“, sagte Bruno. „Bremsen muss er noch üben.“\n\nElla trug Kaiser hinaus. Dann pinnte sie Flunker-Karte Nr. 5 neben das Regal. Mats schrieb unten dazu: Oma ist siebzig. Und fährt ganz vorne.\n\nElla blieb vor dem Glas stehen. Oma hatte gedacht, sie müsste zwanzig sein, damit sie mitfahren durfte. Und Bruno wich ihren Fragen oft aus. Hatte er etwa Angst, dass er sonst nicht bleiben durfte?\n\n„Bruno“, sagte sie leise. „Versteckst du was vor uns? Damit du bei uns bleiben darfst?“\n\nBruno schwamm einmal um seine Burg herum. Dann noch einmal.\n\n„Ich bin ein Goldfisch“, sagte er schließlich. „Wir haben nicht mal Taschen.“\n\n„Du darfst sowieso bleiben“, sagte Mats. „Auch mit schlechter Laune.“\n\nBruno sah ihn an. „Auch mit fast immer schlechter Laune?“\n\n„Auch dann“, sagte Ella.\n\nBruno machte eine Blase. Eine sehr kleine, sehr zufriedene. Dann drehte er ihnen den Rücken zu. „Hab ich's nicht gesagt? Ich hab's gesagt.“\n\n„Vor Oma hast du nur Blubb gesagt!“, rief Mats.\n\n„Eben“, sagte Bruno. „Blubb hieß: Die fährt besser als ihr alle zusammen.“\n\nUnten im Erdgeschoss schlug Frau Grimmbach ihr Heft auf und stutzte. Da stand ein Eintrag in ihrer eigenen Schrift, und sie konnte sich nicht erinnern, ihn geschrieben zu haben.\n\n„Eintrag 50: Junge Dame im Hof behauptet, die Großmutter der Brandts zu sein. Fährt RÜCKWÄRTS!!!“\n\nFrau Grimmbach las ihn zweimal. Dann ging sie in den Keller und kam mit einem Paar sehr alter Rollschuhe zurück."
+  },
+  "gesamtnote": 8,
+  "_meta": {
+    "provider": "openai",
+    "model": "gpt-6.2-sol",
+    "effort": "high",
+    "costUSD": null,
+    "tokens": {
+      "prompt": 22134,
+      "completion": 12976
+    },
+    "seconds": 224,
+    "words": [
+      628,
+      615,
+      803
+    ],
+    "revisedWords": [
+      562,
+      564,
+      756
+    ]
+  }
+}

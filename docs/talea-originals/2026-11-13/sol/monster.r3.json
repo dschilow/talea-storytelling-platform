@@ -1,0 +1,514 @@
+{
+  "canonChecks": [
+    {
+      "quote": "Quer vor der grünen Tür lag das Pupsmonster. Ein Metallauge war halb offen.",
+      "fact": "Das Pupsmonster liegt seit Folge 4 quer vor der grünen Pensionstür und hat Metallaugen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Zieht's?“, fragte Jona leise. Das Pupsmonster hielt eine Kordel vor die kleine Klappe. Die Kordel rührte sich nicht.",
+      "fact": "Der Lüftungswart prüft mit seinen Kordeln, ob es an der Klappe zieht.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann machte es pff. Es roch nach Wiese.",
+      "fact": "Die Pupse des Pupsmonsters riechen seit dem Fang nach Wiese.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona leuchtete trotzdem auf den Riegel. Zu. Es war sein fünftes Wochenende auf dem Betriebshof, und seit den Abdrücken im Sand guckte er hier immer zuerst nach.",
+      "fact": "Der Riegel war am Ende von Folge 4 zu; die Abdrücke sind bekannt. Jonas neuer Kontrollgriff zeigt, dass er sich daran erinnert, ohne eine neue Spur zu liefern.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona schlug den dicken Ordner auf. Unter Steckbrief Nr. 3 stand noch immer seine Frage. „Wer ist der König?“, las er vor.",
+      "fact": "Die Frage steht seit Folge 3 unter dem Steckbrief der Krümelkrake. Sie bleibt unbeantwortet.",
+      "agrees": true
+    },
+    {
+      "quote": "„HATSCHI!“",
+      "fact": "Direkt auf „König“ folgt in der Küche der vorgesehene Staffelhinweis.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona leuchtete unter den Tisch, hinter den Herd, in den Brotkasten. Nichts. Flusi rieb sich die Nase. „Falsche Stelle.“",
+      "fact": "Jona kennt den Hatschi-Alarm; Flusi kann auch ohne bevorstehenden Monsterauftritt niesen und spricht in kurzen Sätzen.",
+      "agrees": true
+    },
+    {
+      "quote": "Da knackte der Monster-Funk auf dem Fensterbrett.",
+      "fact": "Der Monster-Funk steht auf Omas Küchenfensterbrett.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma zog die Handschuhe an. „Weste an, Süßer.“",
+      "fact": "Oma setzt die Einsatzweste voraus und spricht Jona mit „Süßer“ an.",
+      "agrees": true
+    },
+    {
+      "quote": "Auf dem Hof blinkte Gertrud zweimal. Flusi hüpfte aufs Armaturenbrett, und Oma schob eine Kassette ein.",
+      "fact": "Gertruds Begrüßung, Flusis üblicher Platz und Omas Musikkassette sind etabliert. Oma begleitet Jona; er fährt nicht selbst.",
+      "agrees": true
+    },
+    {
+      "quote": "„Für Gemüse nehmen wir ‚Kohlrabi-Krawall‘!“ Gitarren. Gertrud hupte im Takt.",
+      "fact": "Oma wählt einen erfundenen Rocksong zum Einsatz; Gertrud hupt mit, statt zu sprechen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Die Sonderabfuhr?“",
+      "fact": "Für Erwachsene außerhalb der Crew ist Oma die Sonderabfuhr.",
+      "agrees": true
+    },
+    {
+      "quote": "„Nur Unordnung.“",
+      "fact": "Frau Grünwald sieht das Monster nicht als Monster.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ist das Ihr Laster?“ TRÖÖT! „Das ist Gertrud“, sagte Oma. „Das Wort mag sie nicht.“",
+      "fact": "Gertrud hupt beleidigt bei „Laster“; Oma kennt und benennt ihren Einwand.",
+      "agrees": true
+    },
+    {
+      "quote": "„Einunddreißig Plätze“, zählte Jona. „Und kein einziger Gast.“",
+      "fact": "Jona zählt und bemerkt dabei ein Muster, das für den Einsatz wichtig ist.",
+      "agrees": true
+    },
+    {
+      "quote": "Flusi zitterte. „HATSCHI!“ Diesmal war es die richtige Stelle.",
+      "fact": "Flusi niest unmittelbar vor der Sichtung des neuen Monsters.",
+      "agrees": true
+    },
+    {
+      "quote": "Das Brokkoli-Monster sah sie an. Gäste! Seine Röschen zitterten vor Freude.",
+      "fact": "Das Monster sucht Gesellschaft; es ist nicht böse.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma hob die Tonne. „Ab in die Tonne, Süße!“",
+      "fact": "Oma hat die Monster-Tonne dabei und benutzt ihren Spruch wortgetreu.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona trat einen Schritt zurück. Das Monster blieb stehen.",
+      "fact": "Das Monster respektiert Jonas Abstand. Seine Rücksicht ist keine zweite magische Schwäche.",
+      "agrees": true
+    },
+    {
+      "quote": "„Moment … ich weiß die Schwäche!“, rief Jona. „Es will, dass alle Ja sagen. Wir sagen einfach Ja!“",
+      "fact": "Jonas Spruch fällt wortgetreu, hier mit der falschen Vermutung.",
+      "agrees": true
+    },
+    {
+      "quote": "„Flusi sagt ja!“",
+      "fact": "Flusi spricht von sich in der dritten Person und macht bei der Crew mit.",
+      "agrees": true
+    },
+    {
+      "quote": "Keiner aß. Die Röschen auf seinem Kopf sanken.",
+      "fact": "Ein bloßes Ja löst die Schwäche nicht aus.",
+      "agrees": true
+    },
+    {
+      "quote": "Das Monster guckte auch. Es raschelte laut wie ein Baum im Sturm und drehte Oma den Rücken zu.",
+      "fact": "Auch vorgetäuschtes Probieren löst die Schwäche nicht aus. Das Monster reagiert gekränkt, nicht bösartig.",
+      "agrees": true
+    },
+    {
+      "quote": "Gertrud hupte beleidigt. Dann nieste sie: PFF-TSCHI!",
+      "fact": "Gertrud reagiert ohne Worte und pustet mit ihrem Rüssel. Die Erbsen verursachen den mechanischen Nieser; er ist kein zweiter Hatschi-Alarm.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich hab geschummelt, Süßer. Kurz vorm Mund hab ich mich nicht mehr getraut.“",
+      "fact": "Oma hat trotz ihres Muts eigene Ängste und kann sie vor Jona eingestehen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Aus den Resten vom Probierteller“, flüsterte Jona. „Aus allem, was nie einer probiert hat.“",
+      "fact": "Das Monster ist aus liegengelassenem Gemüse entstanden. Der genauere Ursprung erklärt sein Verhalten.",
+      "agrees": true
+    },
+    {
+      "quote": "„Moment … ich weiß die Schwäche!“, rief Jona. „Es reicht, wenn einer probiert. Aber echt. Und nur, wenn er selber will.“",
+      "fact": "Der Spruch fällt erneut wortgetreu; Jona leitet die einzige wirksame Schwäche vom Ursprung ab.",
+      "agrees": true
+    },
+    {
+      "quote": "„Du musst nicht, Süßer. Keiner muss. Wir können bei ihm bleiben, bis die Vögel singen. Dann schläft es ein. Morgen Nacht kommen wir wieder.“",
+      "fact": "Oma bleibt bei Jona, drängt ihn nicht und kennt die Schlafregel beim ersten Vogelgezwitscher.",
+      "agrees": true
+    },
+    {
+      "quote": "Er zählte, wie immer, wenn er Angst hatte.",
+      "fact": "Zählen ist Jonas etabliertes Mittel gegen Angst.",
+      "agrees": true
+    },
+    {
+      "quote": "Er biss ab.",
+      "fact": "Jona probiert selbst und freiwillig; er isst frisches Gemüse, keinen Teil des Monsters.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann richteten sich seine Röschen auf, eins nach dem anderen. Es raschelte ganz leise, wie Blätter an einem Sommerabend. Dann setzte es sich auf die leere Kiste und atmete aus.",
+      "fact": "Das freiwillige Probieren beruhigt das Monster; es wird weder verletzt noch gezwungen.",
+      "agrees": true
+    },
+    {
+      "quote": "Das Monster drehte sich zu ihr um und schob ihr den Teller ein Stück näher.",
+      "fact": "Omas späterer Bissen versöhnt die beiden. Die Schwäche hat bereits bei Jona gewirkt; es braucht keinen zweiten Bissen zum Fang.",
+      "agrees": true
+    },
+    {
+      "quote": "„Flusi hilft!“ Flusi rollte die letzte Erbse vom Bordstein auf die Kehrschaufel.",
+      "fact": "Flusi bleibt auf der Seite der Crew, hilft tatsächlich und sagt seinen Spruch wortgetreu.",
+      "agrees": true
+    },
+    {
+      "quote": "Den Blumenkohl reichte sie mit dem Rüssel selbst vom Dach. Dann blinkte sie einmal. Sie hatte verziehen.",
+      "fact": "Gertrud nutzt ihren beweglichen Rüssel; einmaliges Blinken kann Verzeihen ausdrücken. Ein Anlass zum Verzeihen fehlt in der Szene, nicht im Kanon.",
+      "agrees": true
+    },
+    {
+      "quote": "Frau Grünwald kam mit frischem Tee herunter. „Alles ordentlich! Was war denn los?“",
+      "fact": "Die Ladenbesitzerin nimmt das Ergebnis wahr, nicht das Monster.",
+      "agrees": true
+    },
+    {
+      "quote": "„Bei uns gibt's hinter der Pension ein Stück Erde“, sagte Jona zum Monster. „Da könntest du selber Gemüse ziehen. Und Gäste gibt's bei uns auch.“",
+      "fact": "Die Pension bietet dem Monster einen Platz und eine zu ihm passende Aufgabe an.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann stieg es von allein in die Tonne.",
+      "fact": "Der Fang geschieht freiwillig und ohne Verletzung oder Strafe.",
+      "agrees": true
+    },
+    {
+      "quote": "„Die Krake hat auch so geguckt“, sagte Jona leise. „Zur Klappe. Ob sie auch auf jemanden gewartet hat?“",
+      "fact": "Der Blick der Krake zur Klappe ist kanonisch. Ihn ausgerechnet in dieser Folge als Warten auf jemanden umzudeuten, liefert neben Flusis Nieser einen zusätzlichen Verdacht zur Staffelhandlung.",
+      "agrees": false
+    },
+    {
+      "quote": "„Wenn wieder eins so guckt, fragen wir erst mal: Wartest du auf jemanden?“",
+      "fact": "Der Einsatz verändert das Vorgehen der Crew dauerhaft: Sie fragt künftig nach dem erwarteten Besuch.",
+      "agrees": true
+    },
+    {
+      "quote": "„Eine kühle Dusche, Süße?“ Das Monster hielt ihr den Brokkolikopf hin. Danach glänzten seine Röschen dunkelgrün.",
+      "fact": "Die Crew reinigt einen Neuzugang seinem Material entsprechend und mit seiner Zustimmung.",
+      "agrees": true
+    },
+    {
+      "quote": "Hinter der Pension, neben der Wäscheleine, grub es mit seinen Stielarmen die Erde um.",
+      "fact": "Die Wäscheleine ist seit Folge 4 etabliert; das Beet ergänzt den Hof, ohne den bisherigen Schauplatz zu ändern.",
+      "agrees": true
+    },
+    {
+      "quote": "Gleich darauf kam ein Krümelarm mit dem Tütchen aus der Tür.",
+      "fact": "Die Krümelkrake lebt weiterhin in der Pension und hilft mit ihren Armen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Gärtner“, sagte Oma. „Wenn du magst.“ Das Monster raschelte. Es mochte.",
+      "fact": "Der Neuzugang bekommt den geplanten, passenden Job freiwillig.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona schrieb Monster-Steckbrief Nr. 5: Brokkoli-Monster.",
+      "fact": "Jona führt den Ordner fort; auf das Pupsmonster mit Nr. 4 folgt Nr. 5.",
+      "agrees": true
+    },
+    {
+      "quote": "Ursprung: Reste vom Probierteller. Schwäche: Einer probiert freiwillig. Fangtrick: Jona nimmt einen Bissen. Job: Gärtner.",
+      "fact": "Alle vier Angaben entsprechen dem Einsatz; es wird keine zweite Schwäche eingetragen.",
+      "agrees": true
+    },
+    {
+      "quote": "„König“, murmelte er. „Klingt wie früher. Im alten Waschsalon. Da hat's nachts gesummt. Ganz tief.“ Er nieste, ganz leise. „Alter Staub.“",
+      "fact": "Waschsalon, tiefer Nachtklang und Staub gehören zur geplanten Erinnerung. Hier fällt aber das Wort in der Gegenwart erneut, und auch der leise Nieser erfolgt in der Gegenwart statt in der Erinnerung. Das wiederholt den Staffelhinweis als scheinbaren Wort-Alarm.",
+      "agrees": false
+    },
+    {
+      "quote": "Jona strich ihm über das Büschel. Flusi hatte früher also woanders gewohnt. Jetzt wohnte er hier.",
+      "fact": "Flusi hat eine Vorgeschichte, gehört aber fest zur Crew. Seine Erinnerung ist kein Verrat.",
+      "agrees": true
+    },
+    {
+      "quote": "Als die erste Amsel sang, schliefen alle Monster ein. Das Pupsmonster quer vor der Tür. Die Krake neben dem Herd. Flusi in Jonas Kapuze.",
+      "fact": "Das erste Vogelgezwitscher beendet die Schicht; auch die vertrauten Gäste schlafen ein.",
+      "agrees": true
+    },
+    {
+      "quote": "Und hinter der Pension stand das Brokkoli-Monster in seinem Beet und schlief im Stehen, wie ein kleiner Baum.",
+      "fact": "Auch der Neuzugang unterliegt der Schlafregel. Der Fall ist abgeschlossen.",
+      "agrees": true
+    }
+  ],
+  "dimensions": {
+    "figurenkonsistenz": {
+      "score": 7,
+      "why": "Jonas „Eins. Zwei. Drei.“ und Flusis Begeisterung über Gertruds Nieser sitzen. Oma darf Angst vor Brokkoli haben; das passt sogar zu ihrer Angst vorm leisen Singen. Aber zwischen „Nein danke“ und „Ich probier“ fehlt der kleine Schritt, der zeigt, dass sie wirklich anfangen wollte, statt von vornherein auf den Handschuhtrick zu setzen."
+    },
+    "plotKohaerenz": {
+      "score": 7,
+      "why": "„Aus allem, was nie einer probiert hat“ trägt die Lösung. Die Verhandlung funktioniert, aber Gemüse und Wege sind nicht sauber geführt: Aus welcher Kiste kommen die Reste, welchen Bissen hebt Oma an, wann kommt das Monster von Gertrud zurück? „Nicht noch mal hinter seinem Rücken“ erklärt Omas Rückzug nicht."
+    },
+    "sprachqualitaet": {
+      "score": 8,
+      "why": "„Erbsen prasselten wie Hagel aufs Pflaster“ ist anschaulich und beim Vorlesen sofort da. Dagegen steckt in „Oma rief der Krake zu, wo die Radieschensamen lagen“ eine kleine Syntaxfalle, und „Jona wollte gerade ‚kalt‘ sagen“ verlangt einen Gedanken, den der Text nicht vorbereitet."
+    },
+    "emotionaleTiefe": {
+      "score": 9,
+      "why": "„Die Bäumchen oben sind komisch. Aber der Stiel ist gut.“ Genau diese halbe Zustimmung macht den Mutmoment glaubwürdig. Jona muss weder begeistert sein noch Oma etwas beweisen, und das Monster ist mit einer ehrlichen Antwort zufrieden."
+    },
+    "altersangemessenheit": {
+      "score": 8,
+      "why": "„Du musst nicht, Süßer“ bekommt durch die angebotene Alternative Gewicht. Gut, dass das Monster beim Zurückweichen stehen bleibt. „Na endlich“ klingt am Schluss allerdings wie ein Lob fürs Aufessen und schiebt die Geschichte zurück in die Gemüse-Erziehungsstunde."
+    },
+    "ende": {
+      "score": 7,
+      "why": "„Schlief im Stehen, wie ein kleiner Baum“ zahlt Jonas ersten Brokkoliwitz warm aus. Zwischen Steckbrief und Amsel macht die zweite König-Nies-Szene jedoch noch einmal ein Rätsel auf, obwohl das Ende längst sein eigenes starkes Bild hat."
+    },
+    "kanonTreue": {
+      "score": 7,
+      "why": "Fang, schonende Reinigung und das Einschlafen sind stimmig. „‚König‘, murmelte er“ setzt den geplanten Hinweis unnötig ein zweites Mal in der Gegenwart. Und „Zur Klappe. Ob sie auch auf jemanden gewartet hat?“ macht aus dem alten Krakenblick eine neue Staffelthese."
+    },
+    "weitererzaehlFaktor": {
+      "score": 9,
+      "why": "„Gertrud niest auch!“ hat ein Bild, ein Geräusch und eine Pointe: Ein Müllwagen schießt Erbsen aus der Nase. Das können Kinder nacherzählen, ohne erst die Geschichte erklären zu müssen."
+    }
+  },
+  "kinderCheck": {
+    "verstaendlichkeit": {
+      "score": 7,
+      "stolpersteine": [
+        {
+          "quote": "„Gedeckt?“",
+          "warum": "Der Funkspruch lebt von der Wendung „den Tisch decken“. Jonas Echo hilft einem Kind nicht, das sie noch nicht kennt.",
+          "vorschlag": "„Er legt Essen hin? Ohne Tisch?“"
+        },
+        {
+          "quote": "„Die Reste kommen abends in die Kiste unter der Theke. Für Suppe. Die koche ich dann nie.“",
+          "warum": "Das erklärt eine Portion Reste, aber nicht anschaulich, dass sich das Gemüse seit Tagen sammelt.",
+          "vorschlag": "„Was übrig bleibt, kommt in die Kiste unter der Theke. Da liegt schon Gemüse von vorgestern. Ich wollte Suppe draus kochen.“"
+        },
+        {
+          "quote": "„Nicht noch mal hinter seinem Rücken“",
+          "warum": "Kinder sehen, dass das Monster sich buchstäblich weggedreht hat. Warum Oma jetzt nicht ehrlich kosten kann, bleibt trotz des Wortspiels unklar.",
+          "vorschlag": "„Ich lass dir Zeit, Süße.“"
+        },
+        {
+          "quote": "In der Pension wollte Jona gerade „kalt“ sagen.",
+          "warum": "Jona hat bis dahin weder über die Reinigung noch über die Wassertemperatur gesprochen. „Kalt“ kommt wie die Antwort auf eine fehlende Frage.",
+          "vorschlag": "„In der Pension ließ Oma das Badewasser gar nicht erst ein. Sie füllte die Gießkanne mit kühlem Wasser.“"
+        },
+        {
+          "quote": "Oma rief der Krake zu, wo die Radieschensamen lagen.",
+          "warum": "Beim Hören ist nicht sofort klar, ob Oma die Krake nach dem Ort fragt oder ihr den Ort sagt.",
+          "vorschlag": "„Krake, reichst du uns die Radieschensamen? Die liegen neben der Spüle.“"
+        },
+        {
+          "quote": "„Klingt wie früher. Im alten Waschsalon. Da hat's nachts gesummt. Ganz tief.“",
+          "warum": "Ein Kind hört zweimal das Wort und zweimal einen Nieser. Einen erinnerten Klang und erinnerten Staub kann es aus dieser Abfolge kaum von einem Zauberwort unterscheiden.",
+          "vorschlag": "Beim Vorlesen von Jonas Frage kurz unter Flusis alte Waschsalonbank wechseln: tiefes Summen, Staub in der Nase, ein leises Hatschi von damals. Dann zurück zum lauten Küchen-Hatschi."
+        }
+      ]
+    },
+    "humor": {
+      "score": 8,
+      "witze": [
+        {
+          "quote": "„Für Gemüse nehmen wir ‚Kohlrabi-Krawall‘!“",
+          "zuendet": "ja",
+          "warum": "Schon der Titel rollt laut aus dem Mund; mit Gitarren und Hupen ist der Gag komplett."
+        },
+        {
+          "quote": "„Ist das Ihr Laster?“ TRÖÖT!",
+          "zuendet": "ja",
+          "warum": "Die Höflichkeit der Ladenbesitzerin prallt sofort auf Gertruds Empörung. Wiedererkennung ohne lange Erklärung."
+        },
+        {
+          "quote": "„Einunddreißig Plätze“, zählte Jona. „Und kein einziger Gast.“",
+          "zuendet": "ja",
+          "warum": "Die übertriebene Zahl macht das Fest komisch und das leere Fest zugleich traurig."
+        },
+        {
+          "quote": "Obendrauf saß ein Kürbis wie ein Deckel. Flusi hielt sich ein Salatblatt wie einen Schirm über den Kopf.",
+          "zuendet": "halb",
+          "warum": "Der Kürbis ist die Pointe. Der Schirm steht daneben, aber von oben kommt nichts.",
+          "besser": "Ein Salatblatt landet auf Flusis Kopf. Er lässt es dort: „Flusi hat Hut.“"
+        },
+        {
+          "quote": "„Bäume isst man nicht.“",
+          "zuendet": "ja",
+          "warum": "Einfache Kinderlogik. Beim ersten Bissen und beim schlafenden Monster trägt sie noch zweimal."
+        },
+        {
+          "quote": "Husch, da steckte das Röschen in ihrem Handschuh. Sie kaute Luft. „Mmmh. Köstlich.“",
+          "zuendet": "ja",
+          "warum": "Das Kauen von Luft und das Röschen, das Oma verrät, lassen sich beim Vorlesen spielen."
+        },
+        {
+          "quote": "„Nicht noch mal hinter seinem Rücken“",
+          "zuendet": "nein",
+          "warum": "Das Wortspiel zieht Aufmerksamkeit von der Entschuldigung ab und verschleiert, was Oma jetzt tut.",
+          "besser": "Hier keinen Ersatzwitz setzen. Oma stellt den Teller hin und gibt dem Monster Zeit."
+        },
+        {
+          "quote": "PFF-TSCHI! Erbsen prasselten wie Hagel aufs Pflaster.",
+          "zuendet": "ja",
+          "warum": "Eine saubere Steigerung des Hatschi-Gags: erst das Geräusch, dann der Erbsenhagel, dann Flusi als begeisterter Zeuge."
+        },
+        {
+          "quote": "„Wie ein Baum. Ein kleiner.“",
+          "zuendet": "ja",
+          "warum": "Jona nimmt seine eigene Bemerkung ernst. Gerade die trockene Korrektur „Ein kleiner“ macht sie lustig."
+        }
+      ]
+    },
+    "unterhaltung": {
+      "score": 8,
+      "durchhaenger": [
+        {
+          "stelle": "Von Frau Grünwalds „Seit drei Nächten“ bis „Oma ließ die Ladentür offen.“",
+          "warum": "Der Eintritt ins Gemüsechaos wartet hinter einer Auskunft über drei Sorten, Suppe, Kühlschrank, Tee und Wohnung. Nicht alles davon ist gleich wichtig.",
+          "vorschlag": "Die vergessenen Reste und den frischen Teller als zwei klare Informationen setzen. Laster-Hupe und Teetasse behalten."
+        },
+        {
+          "stelle": "Vom Aufräumen bis zu Frau Grünwalds „Na endlich.“",
+          "warum": "Die Erbse auf der Schaufel und der Blumenkohl auf dem Dach zahlen Gags aus. Die Wiederholung „Alles ordentlich! Was war denn los?“ bremst danach die Einladung in die Pension.",
+          "vorschlag": "Aufräumgags behalten. Die Ladenbesitzerin sieht den frischen Teller, bekommt eine knappe Antwort und lässt die Crew weiterziehen."
+        },
+        {
+          "stelle": "Nach Steckbrief Nr. 5: „König“, murmelte er.",
+          "warum": "Die Geschichte ist schon im Ausklang. Die zweite König-Szene verlangt plötzlich wieder Rätselaufmerksamkeit.",
+          "vorschlag": "Die Erinnerung an den einzigen König-Moment in der Küche binden und vom Steckbrief direkt zum Schichtende gehen."
+        }
+      ]
+    },
+    "logikLuecken": [
+      {
+        "quote": "„Im Kühlschrank steht schon ein frischer Teller für morgen.“",
+        "problem": "Der frische Teller ist erst für morgen bestimmt; Oma nimmt ihn ohne Absprache. Beim falschen Bissen führt sie ein Röschen aus der Bodenrunde zum Mund. Bei den zwei Gemüsebeständen muss man mitdenken, statt es zu sehen.",
+        "fix": "Frau Grünwald darf den frischen Teller ausdrücklich anbieten. Oma nimmt fürs Kosten ein frisches Röschen. Die Bodenproben kommen beim Aufräumen weg."
+      },
+      {
+        "quote": "„Es will, dass alle Ja sagen. Wir sagen einfach Ja!“",
+        "problem": "Die falsche Vermutung klingt nach Raten. Jona hat aber gerade beobachtet, wie jedes Nein eine neue Portion auslöst; er nutzt dieses Indiz nicht hörbar.",
+        "fix": "Jona bemerkt die Reihe der Neins und versucht es deshalb mit einem Ja. Das Monster wartet auf den Bissen und widerlegt ihn sichtbar."
+      },
+      {
+        "quote": "„Ich probier“, sagte Oma.",
+        "problem": "Der Text lässt Oma erst wie eine bewusste Betrügerin handeln und erklärt nachher, sie habe sich kurz vor dem Bissen nicht getraut. Die beabsichtigte Kehrtwende braucht einen sichtbaren Moment.",
+        "fix": "Oma nimmt ein frisches Röschen, will es wirklich versuchen, hält kurz vor dem Mund inne und schummelt erst dann."
+      },
+      {
+        "quote": "Es lief zur offenen Tür hinaus",
+        "problem": "Der Angriff auf Gertruds Rüssel ist räumlich verständlich. Der Text holt das Monster aber nicht zurück, bevor es wieder am Teller bei Oma steht.",
+        "fix": "Nach dem Erbsennieser ausdrücklich zurück in den Laden gehen lassen."
+      },
+      {
+        "quote": "„Jetzt probier ich richtig.“",
+        "problem": "Das Monster verweigert die Einladung. „Nicht noch mal hinter seinem Rücken“ unterstellt, Oma könne nur heimlich kosten, obwohl sie schlicht einen Moment warten kann.",
+        "fix": "Oma entschuldigt sich direkt, respektiert das Wegdrehen und lässt den frischen Teller stehen. Die Versöhnung folgt erst nach Jonas Bissen."
+      },
+      {
+        "quote": "„Wir können bei ihm bleiben, bis die Vögel singen. Dann schläft es ein. Morgen Nacht kommen wir wieder.“",
+        "problem": "Keine Regelverletzung, aber eine schwache Ausweichmöglichkeit: Das unveränderte Problem wird auf morgen verschoben. Ein Kind kann daraus hören, dass Jona doch kosten muss, damit alle fertig werden.",
+        "fix": "Jetzt schon Gesellschaft und einen Platz in der Pension anbieten; wenn es nicht mitwill, hat es morgen noch dieselbe Wahl."
+      },
+      {
+        "quote": "Dann blinkte sie einmal. Sie hatte verziehen.",
+        "problem": "Das Blinksignal ist richtig. Es fehlt die kleine Handlung des Monsters, auf die Gertrud antworten kann.",
+        "fix": "Das Monster streicht ihr nach dem Aufräumen mit einem Röschen über die Stoßstange."
+      },
+      {
+        "quote": "„Zur Klappe. Ob sie auch auf jemanden gewartet hat?“",
+        "problem": "Der Text baut ohne neuen Beleg eine Verbindung zum ungeklärten Besucher der Pension. Dafür ist der Einsatz nicht da.",
+        "fix": "Jona zieht die Erkenntnis aus den gedeckten Plätzen: Manche Monster warten auf Besuch. Oma nimmt daraus die neue Einsatzfrage mit."
+      },
+      {
+        "quote": "Er nieste, ganz leise. „Alter Staub.“",
+        "problem": "Unmittelbar zuvor sagt Flusi in der Pension erneut „König“. Grammatisch niest er jetzt, nicht im Waschsalon von damals. Das unterläuft die festgelegte Unterscheidung.",
+        "fix": "Das leise Niesen ausdrücklich in die Waschsalonerinnerung legen. In der Küche bleibt der eine laute Nieser; in der Pension gibt es keine Wiederholung."
+      }
+    ],
+    "schulhofSatz": "„Gertrud niest auch!“",
+    "staerksteMomente": [
+      "Der Wagen mit Möhren auf den Scheinwerfern und Erbsen im Rüssel: Die Ausstattung des Serienwagens wird zur Pointe.",
+      "Jona weicht zurück, und das Monster bleibt stehen. Das zeigt Rücksicht, noch bevor jemand über Freiwilligkeit spricht.",
+      "Jona findet den Stiel gut, nicht den ganzen Brokkoli. Das ist eine Kinderantwort, keine pädagogische Belohnung.",
+      "Der Brokkoli schläft wie ein kleiner Baum. Das Schlussbild erinnert an den Witz und zeigt zugleich, dass das Monster angekommen ist."
+    ]
+  },
+  "mustFix": [
+    "„‚König‘, murmelte er … Er nieste, ganz leise“ → Waschsalonerinnerung in den Küchenmoment ziehen, leisen Nieser klar als Erinnerung erzählen, das Wort und den Nieser in der Pension streichen.",
+    "„Zur Klappe. Ob sie auch auf jemanden gewartet hat?“ → den zusätzlichen Staffelverdacht streichen; die neue Frage der Crew aus den leeren Plätzen ableiten.",
+    "„Im Kühlschrank steht schon ein frischer Teller für morgen“ → Reste und frische Proben bei der Einführung, beim falschen Bissen und beim Aufräumen klar trennen. Frau Grünwald erlaubt das Probieren.",
+    "„Wir sagen einfach Ja!“ → Jonas Fehlversuch am beobachteten Zusammenhang zwischen Nein und Auftischen festmachen.",
+    "„Ich probier“ / „Nicht noch mal hinter seinem Rücken“ → Oma erst erkennbar versuchen und dann kneifen lassen; anschließend entschuldigt sie sich und lässt dem Monster Zeit.",
+    "„Es lief zur offenen Tür hinaus“ → das Monster nach dem Erbsennieser sichtbar in den Laden zurückholen; vor Gertruds Versöhnungsblinken eine kleine Geste setzen.",
+    "„Morgen Nacht kommen wir wieder“ / „Na endlich“ → Jonas Ausweg aus der Essenssituation konkret machen und den nachträglichen Essensdruck aus Frau Grünwalds Antwort nehmen.",
+    "„Jona wollte gerade ‚kalt‘ sagen“ und „Oma rief der Krake zu, wo …“ → Materialpflege zeigen, nicht über einen unvorbereiteten Gedanken ankündigen; Samenübergabe in direkter Rede klären."
+  ],
+  "notes": [
+    "Die Verhandlung ist die richtige Abweichung von der Turnhallenjagd. Das Monster deckt mehr Plätze, statt schneller davonzulaufen. Behalten.",
+    "Omas matschiger Brokkoli ist als Vorgeschichte nicht zu streichen. Ihre Angst funktioniert, wenn sie dasselbe Risiko eingeht wie Jona und nicht plötzlich zur Kost-Erzieherin wird.",
+    "Kohlrabi-Krawall, Laster-Hupe, Luftkauen und Erbsenhagel brauchen keine zusätzlichen Erklärsätze.",
+    "Flusis alter Waschsalon bleibt. Die Erinnerung soll kurz zu spüren sein, ohne dass Oma oder Jona daraus eine Ermittlung machen.",
+    "Die kleine Dusche und der Gärtnerjob sind eine konkrete Antwort auf den Ursprung des Monsters: Aus Resten, die keiner wollte, wird Gemüse, um das sich jemand kümmert."
+  ],
+  "revision": {
+    "changes": [
+      "Den Küchenhinweis um Flusis kurze Erinnerung an Bank, nächtliches Summen und Staub ergänzt; das leise Hatschi gehört ausdrücklich zu damals, das laute zur Küche.",
+      "Die zweite König-Nies-Szene und Jonas anschließende Erklärung in der Pension gestrichen; Flusi kuschelt sich weiter in die Kapuze.",
+      "Jonas „Gedeckt?“ durch „Er legt Essen hin? Ohne Tisch?“ ersetzt; die Warnweste wird vor dem Einsteigen sichtbar angezogen.",
+      "Frau Grünwalds Auskunft gekürzt und präzisiert: Die Suppenkiste enthält Reste von mehreren Tagen; zum frischen Teller sagt sie „Davon dürft ihr nehmen.“",
+      "„In jedem Stück steckt ein Zahnstocher“ auf die kleinen Stücke begrenzt; so passen auch die ganzen Gemüse zum beschriebenen Durcheinander.",
+      "„Oma hob die Tonne“ durch das Öffnen der mitgebrachten Tonne ersetzt.",
+      "Flusis unbegründeten Salatschirm zum Salatblatthut mit „Flusi hat Hut“ gemacht; Kürbisdeckel beibehalten.",
+      "Jonas falsche Schwäche aus den aufeinanderfolgenden Neins hergeleitet; nur das Vorsagen hilft nicht.",
+      "Den frischen Teller vor Omas erstem Versuch auf die Theke geholt; Oma macht sich Mut und stockt erst kurz vor dem Bissen.",
+      "Gertrud vor der Tür verortet und das Monster nach dem Erbsenhagel ausdrücklich in den Laden zurückgeschickt.",
+      "Omas Erklärung „Seitdem hab ich Angst vor dem Zeug“ in „Seitdem trau ich mich da nicht mehr ran“ gefasst; das matschige Kindheitserlebnis bleibt.",
+      "Jonas Fund von Kiste und Schild als Indiz für den Ursprung beibehalten; in der richtigen Vermutung ausdrücklich Gemüse und Freiwilligkeit benannt.",
+      "„Jetzt probier ich richtig“ und „Nicht noch mal hinter seinem Rücken“ durch eine Entschuldigung, das abgewandte Monster und „Ich lass dir Zeit, Süße“ ersetzt.",
+      "Omas Plan, auf den Vogelschlaf zu warten, durch ein Angebot ohne Bissen ersetzt: Gesellschaft jetzt, ein Platz in der Pension, ein Wiederkommen nur bei Bedarf.",
+      "Jonas „Aber ich will“ mit seiner Neugier auf das Bäumchen konkretisiert; „auch wenn es nicht schmeckt“ zu „auch wenn es mir nicht schmeckt“ präzisiert.",
+      "Omas späteren Bissen als eigenes Stück vom frischen Teller und ihre Versöhnung mit dem Monster beibehalten.",
+      "Beim Aufräumen Bodenproben und ganzes Gemüse getrennt: Abfallkiste für die Proben, Kiste zum Abwaschen für das ganze Gemüse.",
+      "Vor Gertruds Verzeihblinken lässt das Monster ein Röschen über ihre Stoßstange streichen.",
+      "Frau Grünwalds „Na endlich“ durch einen eigenen Küchenentschluss ersetzt: „Den Rest knabbere ich nachher zum Tee.“",
+      "Den Krakenblick zur Klappe aus Jonas Deutung entfernt; „Die ganzen Plätze waren für Besuch“ führt zur künftigen Frage „Wartest du auf jemanden?“",
+      "Die Fahrt mit Gertrud zwischen freiwilligem Einsteigen und Pension ausdrücklich gemacht.",
+      "Den unvorbereiteten Gedanken „kalt“ gestrichen; Oma wählt ohne warmes Bad die kühle Dusche aus der Gießkanne.",
+      "Den unklaren Ruf nach den Radieschensamen in „Krake, reichst du uns die Radieschensamen? Die liegen neben der Spüle“ aufgelöst.",
+      "Den ausgeschriebenen Karteninhalt im Schluss durch den geschriebenen Steckbrief Nr. 5 und Jonas kleine Bäumchenzeichnung ersetzt; Amsel und schlafenden Brokkolibaum beibehalten."
+    ],
+    "text": "KAPITEL 1: Kein Gast in Sicht\n\nQuer vor der grünen Tür lag das Pupsmonster. Ein Metallauge war halb offen.\n\n„Zieht's?“, fragte Jona leise.\n\nDas Pupsmonster hielt eine Kordel vor die kleine Klappe. Die Kordel rührte sich nicht. Dann machte es pff. Es roch nach Wiese.\n\nJona leuchtete trotzdem auf den Riegel. Zu. Es war sein fünftes Wochenende auf dem Betriebshof, und seit den Abdrücken im Sand guckte er hier immer zuerst nach.\n\nIn der Küche hatte Oma Hilde schon Kakao gekocht. Flusi wärmte sich am Becher die Ärmchen. Jona schlug den dicken Ordner auf. Unter Steckbrief Nr. 3 stand noch immer seine Frage.\n\n„Wer ist der König?“, las er vor.\n\nBei dem Wort war Flusi für einen Augenblick wieder unter der Bank im alten Waschsalon, wo er früher gewohnt hatte. Nachts hatte es dort tief gesummt. Und der Staub unter der Bank hatte ihn in der Nase gekitzelt. Damals hatte er ganz leise geniest.\n\n„HATSCHI!“\n\nOma stellte ihren Becher ab. Jona leuchtete unter den Tisch, hinter den Herd, in den Brotkasten. Nichts.\n\nFlusi rieb sich die Nase. „Falsche Stelle.“\n\nDa knackte der Monster-Funk auf dem Fensterbrett.\n\n„Notruf. Gemüseladen Grünwald, Marktstraße. Nachts wird da der Tisch gedeckt. Bloß gibt's da keinen Tisch.“\n\n„Er legt Essen hin? Ohne Tisch?“\n\n„Finden wir raus.“ Oma zog die Handschuhe an. „Weste an, Süßer.“\n\nJona zog die Warnweste über. Auf dem Hof blinkte Gertrud zweimal. Flusi hüpfte aufs Armaturenbrett, und Oma schob eine Kassette ein.\n\n„Für Gemüse nehmen wir ‚Kohlrabi-Krawall‘!“\n\nGitarren. Gertrud hupte im Takt.\n\nVor dem Laden wartete Frau Grünwald im Bademantel, eine Teetasse in der Hand.\n\n„Die Sonderabfuhr? Seit drei Nächten geht das so. Abends ist mein Gemüse in den Kisten. Morgens liegt es auf dem Boden. In Reihen. In den kleinen Stücken stecken Zahnstocher.“\n\n„Haben Sie was gesehen?“, fragte Jona.\n\n„Nur Unordnung. Ich stelle jeden Tag einen Probierteller raus. Nimmt keiner. Was übrig bleibt, kommt in die Kiste unter der Theke. Da liegt schon Gemüse von vorgestern. Ich wollte Suppe draus kochen.“ Sie seufzte. „Im Kühlschrank steht der frische Teller für morgen. Davon dürft ihr nehmen.“ Sie zeigte auf Gertrud. „Ist das Ihr Laster?“\n\nTRÖÖT!\n\n„Das ist Gertrud“, sagte Oma. „Das Wort mag sie nicht.“\n\nFrau Grünwald schloss ihnen auf. Dann ging sie in ihre Wohnung über dem Laden, um sich Tee nachzugießen. Oma ließ die Ladentür offen.\n\nDrinnen roch es nach Erde und Blättern. Jona knipste die Taschenlampe an.\n\nDer ganze Boden war voller Kistendeckel, in langen Reihen. Auf jedem lag ein Stück Möhre, ein Radieschen und ein Brokkoliröschen. Überall ragten Zahnstocher heraus.\n\n„Einunddreißig Plätze“, zählte Jona. „Und kein einziger Gast.“\n\nFlusi zitterte. „HATSCHI!“\n\nDiesmal war es die richtige Stelle.\n\nHinter der Theke richtete sich etwas auf. Es war so groß wie Oma. Sein Kopf war ein riesiger Brokkoli, buschig wie ein kleiner Baum. Die Arme waren lange Stiele, und statt Fingern hatte es grüne Röschen. Dazu zwei große, runde Augen. Es raschelte wie Laub im Wind.\n\nDas Brokkoli-Monster sah sie an. Gäste! Seine Röschen zitterten vor Freude.\n\nEs nahm ein Röschen von einem Deckel und hielt es Oma am Zahnstocher hin. „Pro-bie-ren!“\n\n„Nein danke.“ Oma klappte die mitgebrachte Tonne auf. „Ab in die Tonne, Süße!“\n\nDas Monster legte ein Radieschen in die Tonne. „Pro-bie-ren!“\n\n„Nein danke.“\n\nBeim nächsten Nein kam eine Möhre dazu. Dann ein Kohlrabi. Dann ein Blumenkohl. Zuletzt stand Oma mit einer Tonne voller Gemüse da. Obendrauf saß ein Kürbis wie ein Deckel. Flusi landete ein Salatblatt auf dem Kopf. „Flusi hat Hut.“\n\nDann beugte sich das Monster zu Jona hinunter. Es hielt ihm das kleinste Röschen hin. Seine runden Augen warteten.\n\n„Pro-bie-ren?“\n\nJona trat einen Schritt zurück. Das Monster blieb stehen. Jona hatte noch nie Brokkoli gegessen.\n\n„Das sieht aus wie kleine Bäume“, flüsterte er. „Bäume isst man nicht.“\n\nKAPITEL 2: Nur so tun\n\nBei jedem Nein hatte das Monster noch mehr aufgetischt. Jona sah auf die volle Tonne. Was wäre, wenn mal einer Ja sagte?\n\n„Moment … ich weiß die Schwäche!“, rief er. „Wir sagen einfach Ja!“\n\n„Ja!“, rief Oma.\n\n„Flusi sagt ja!“\n\n„Ja!“, sagte Jona.\n\nFür jedes Ja legte das Monster einen Deckel auf die Theke. Auf jeden Deckel kam ein Haufen Gemüse. Dann hob das Monster den Zahnstocher und wartete.\n\nKeiner aß.\n\nDie Röschen auf seinem Kopf sanken. Das Monster sah von einem zum anderen.\n\n„Ich versuch's“, sagte Oma. Sie holte den frischen Teller aus dem Kühlschrank und stellte ihn auf die Theke. Dann nahm sie ein Röschen. „Na los, Hilde. Ein Stück Brokkoli.“\n\nSie führte es zum Mund. Kurz davor hielt sie inne. Ihre Nase krauste sich. Husch, da steckte das Röschen in ihrem Handschuh. Sie kaute Luft. „Mmmh. Köstlich.“\n\nDas Röschen kitzelte am Handgelenk. Oma zuckte. Jetzt guckte es aus dem Ärmel.\n\nDas Monster guckte auch. Es raschelte laut wie ein Baum im Sturm und drehte Oma den Rücken zu.\n\nJetzt deckte es noch schneller. Auf der Kasse. Auf der Waage. Es flitzte zur Tür hinaus. Gleich davor parkte Gertrud. Das Monster legte ihr eine Möhre auf jeden Scheinwerfer und einen Blumenkohl aufs Dach. Dann stopfte es ihr eine Handvoll Erbsen in den Rüssel.\n\nGertrud hupte beleidigt. Dann nieste sie: PFF-TSCHI! Erbsen prasselten wie Hagel aufs Pflaster.\n\n„Gertrud niest auch!“, rief Flusi begeistert.\n\nDas Monster kam zurück in den Laden. Oma zog das Röschen aus dem Handschuh. Es war ganz platt.\n\n„Ich hab geschummelt, Süßer. Kurz vorm Mund hab ich mich nicht mehr getraut.“ Sie räusperte sich. „Als ich so klein war wie du, hab ich mal Brokkoli gegessen. Der war ganz matschig. Seitdem trau ich mich da nicht mehr ran.“\n\nJona starrte sie an. Oma Hilde. Die auf jedes Monster zuging. Angst vor Brokkoli.\n\n„Das mit dem Ja war auch Quatsch“, murmelte er. Seine Ohren wurden heiß.\n\nDann fiel ihm Frau Grünwalds Suppenkiste ein. Er kroch hinter die Theke. Da stand die Kiste, leer bis auf ein paar welke Blätter. Sie roch nach altem Kohl. Daneben lehnte ein kleines Schild: Probierteller.\n\n„Aus den Resten vom Probierteller“, flüsterte Jona. „Aus allem, was nie einer probiert hat.“\n\nEr kam hinter der Theke hervor. Das Monster hatte ihm ein Röschen hingehalten. Als er zurückwich, war es stehen geblieben.\n\n„Moment … ich weiß die Schwäche!“, rief Jona. „Einer muss wirklich was vom Gemüse probieren. Aber nur, wenn er selber will.“\n\nOma schob den frischen Teller ein Stück zum Monster. „Tut mir leid, Süße. Ich hab nur so getan.“\n\nDas Monster verschränkte die Stielarme und drehte sich weg.\n\n„Ich lass dir Zeit, Süße.“ Oma nahm die Hand vom Teller.\n\nGanz vorne lag das kleinste Röschen. Jona sah es an.\n\nKAPITEL 3: Das kleinste Bäumchen\n\nOma kniete sich neben Jona. „Du musst nicht, Süßer. Wir können auch einfach noch ein bisschen bei ihm bleiben. Einen Platz bei uns hat es sowieso. Wenn es heute nicht mitwill, kommen wir morgen wieder.“\n\nDas Monster nahm die Arme herunter. Es stand nur da und wartete. Vor einunddreißig leeren Plätzen.\n\n„Ich weiß“, sagte Jona. „Aber ich will wissen, wie so ein Bäumchen schmeckt.“\n\nEr schob dem Monster den Teller hin. „Nur einen Bissen. Und ich darf sagen, wie es schmeckt. Auch wenn es mir nicht schmeckt.“\n\nDas Monster dachte nach. Dann nickte es mit dem ganzen Brokkolikopf. Die Röschen wippten. Es spießte das kleinste frische Röschen auf und hielt es Jona hin.\n\nJona zog es vom Zahnstocher. Er zählte, wie immer, wenn er Angst hatte.\n\nEins. Zwei.\n\nDrei.\n\nEr biss ab.\n\nEs knirschte. Jona kaute. Alle warteten. Sogar Gertruds Rüssel hielt still.\n\n„Es knirscht“, sagte Jona. „Wie ein Baum. Ein kleiner.“ Er kaute weiter. „Die Bäumchen oben sind komisch. Aber der Stiel ist gut.“\n\nDas Monster stand ganz still.\n\nDann richteten sich seine Röschen auf, eins nach dem anderen. Es raschelte ganz leise, wie Blätter an einem Sommerabend. Es setzte sich auf die leere Kiste und atmete aus.\n\n„Dan-ke“, raschelte es.\n\nJona schluckte.\n\nOma zog die Handschuhe aus und brach sich ein Stück Stiel vom frischen Teller ab. „Der Stiel, sagst du?“\n\n„Der Stiel.“\n\nOma biss ab. Sie kaute mit zusammengekniffenen Augen. Dann öffnete sie ein Auge. „Hm. Gar nicht wie damals.“\n\nDas Monster drehte sich zu ihr um und schob ihr den Teller ein Stück näher.\n\nDann räumten sie auf. Das Monster stapelte die Deckel. Die kleinen Stücke vom Boden kamen in die Abfallkiste. Das ganze Gemüse holte es aus der Tonne und legte es in eine Kiste zum Abwaschen. Oma fegte draußen die Erbsen zusammen.\n\n„Flusi hilft!“ Flusi rollte die letzte Erbse vom Bordstein auf die Kehrschaufel. Jona nahm Gertrud die Möhren von den Scheinwerfern. Den Blumenkohl reichte sie mit dem Rüssel selbst vom Dach. Das Monster strich ihr mit einem Röschen über die Stoßstange. Gertrud blinkte einmal. Sie hatte verziehen.\n\nFrau Grünwald kam mit frischem Tee herunter. „Alles ordentlich!“\n\n„Ich hab vom frischen Teller probiert“, sagte Jona.\n\nFrau Grünwald sah auf den Teller. „Den Rest knabbere ich nachher zum Tee.“\n\n„Bei uns gibt's hinter der Pension ein Stück Erde“, sagte Jona leise zum Monster. „Da könntest du selber Gemüse ziehen. Und Gäste gibt's bei uns auch.“\n\nAn der Ladentür blieb das Monster noch einmal stehen. Es sah zurück, dorthin, wo die einunddreißig Plätze gewesen waren. Dann stieg es von allein in die Tonne.\n\n„Die ganzen Plätze waren für Besuch“, sagte Jona. „Vielleicht warten andere Monster auch auf jemanden.“\n\nOma nickte. „Beim nächsten Mal fragen wir, Süßer: Wartest du auf jemanden?“\n\nGertrud brachte sie zurück zum Hof. In der Pension ließ Oma kein warmes Bad ein. Sie füllte die Gießkanne mit kühlem Wasser. „Eine kleine Dusche, Süße?“\n\nDas Monster hielt ihr den Brokkolikopf hin. Danach glänzten seine Röschen dunkelgrün.\n\nHinter der Pension, neben der Wäscheleine, grub es mit seinen Stielarmen die Erde um.\n\n„Krake, reichst du uns die Radieschensamen? Die liegen neben der Spüle.“ Gleich darauf kam ein Krümelarm mit dem Tütchen aus der Tür.\n\nDas Monster drückte mit einem Röschen kleine Löcher in die Erde. In jedes kam ein Samenkorn und ein kleiner Guss aus der Gießkanne.\n\n„Gärtner“, sagte Oma. „Wenn du magst.“\n\nDas Monster raschelte. Es mochte.\n\nJona schrieb Monster-Steckbrief Nr. 5. Unter den Steckbrief malte er ein Bäumchen mit zwei großen Augen. Flusi kuschelte sich in Jonas Kapuze.\n\nAls die erste Amsel sang, schliefen alle Monster ein. Das Pupsmonster quer vor der Tür. Die Krake neben dem Herd. Flusi in Jonas Kapuze.\n\nUnd hinter der Pension stand das Brokkoli-Monster in seinem Beet und schlief im Stehen, wie ein kleiner Baum."
+  },
+  "gesamtnote": 7,
+  "_meta": {
+    "provider": "openai",
+    "model": "gpt-6.2-sol",
+    "effort": "high",
+    "costUSD": null,
+    "tokens": {
+      "prompt": 20844,
+      "completion": 13224
+    },
+    "seconds": 233,
+    "words": [
+      561,
+      413,
+      656
+    ],
+    "revisedWords": [
+      615,
+      456,
+      626
+    ]
+  }
+}

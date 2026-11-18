@@ -17,6 +17,7 @@
  *                         (written to <out>.txt); the author still decides what to keep
  *   --max-words <n>       word ceiling for the revision (default 1950; the seed test rejects 2100 and more)
  *   --out <path>          JSON result (default: next to the draft, <draft>.review.json)
+ *   --note <text>         author's decisions already taken (e.g. a plan field Sol keeps cutting); Sol judges how they are carried out, not whether
  *
  * Canon = the seeded episodes before the target (summaries + facts, plus every earlier
  * episode in full with its collectible). Sol grades hard: 7 = good, 8 = very good; the
@@ -43,6 +44,7 @@ const model = (option("--model") || "gpt-6.1-sol").replace(/^openai\//, "");
 const effort = option("--effort") || "medium";
 const revise = args.includes("--revise");
 const maxWords = Number(option("--max-words") || 1950);
+const authorNote = option("--note");
 if (!file || !episode) throw new Error("--file and --episode are required.");
 const out = option("--out") || file.replace(/\.[^.]+$/, "") + ".review.json";
 
@@ -109,6 +111,7 @@ const user = [
   `Planned logline: ${plan.logline}`,
   `Planned details:\n${Object.entries(plan.plan).map(([field, value]) => `- ${field}: ${value}`).join("\n")}`,
   `Season clue of this episode (plant it casually, never explain it): ${plan.clue}`,
+  ...(authorNote ? ["", `AUTHOR'S NOTE (decisions already taken with the series editor; judge how well they are carried out, do not argue them away or cut them in the revision): ${authorNote}`] : []),
   "",
   "EPISODE TEXT:",
   chapters.map((chapter, index) => `KAPITEL ${index + 1}: ${chapter.title}\n${chapter.text}`).join("\n\n"),

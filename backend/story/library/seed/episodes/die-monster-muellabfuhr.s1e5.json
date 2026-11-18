@@ -1,0 +1,389 @@
+{
+  "seriesId": "die-monster-muellabfuhr",
+  "season": 1,
+  "episode": 5,
+  "bibleVersion": 2,
+  "publishAt": "2026-11-13T14:00:00.000Z",
+  "title": "Das Brokkoli-Monster",
+  "summary": "Im Gemüseladen deckt jemand jede Nacht für einunddreißig Gäste, und keiner kommt. Das Brokkoli-Monster will nur eins: Probieren! Doch Jona hat noch nie Brokkoli gegessen. Und Flusi niest bei einem ganz bestimmten Wort.",
+  "guests": [
+    {
+      "id": "brokkoli-monster",
+      "name": "Brokkoli-Monster",
+      "role": "Monster aus den vergessenen Resten eines Probiertellers im Gemüseladen, neuer Gärtner der Monster-Pension",
+      "visualProfileEn": "friendly monster made entirely of fresh broccoli, as tall as a grown-up woman: a huge bushy dark-green head of broccoli florets like the round top of a little tree, two big round white eyes with black pupils and a wide smiling mouth on the pale-green stalk just below the florets, a thick pale-green broccoli-stalk body, two long pale-green stem arms ending in small hands of green broccoli florets, two short thick stalk legs",
+      "referenceUrl": "/library/series/die-monster-muellabfuhr/s1e5/brokkoli-monster.webp"
+    },
+    {
+      "id": "kruemelkrake",
+      "name": "Krümelkrake",
+      "role": "Küchenhilfe der Pension aus Folge 3",
+      "visualProfileEn": "friendly little octopus monster made entirely of golden toasted bread crumbs, a rounded bread-crumb head the size of a sofa cushion, two expressive black button eyes, a tiny smiling mouth, exactly eight soft flexible bread-crumb arms with tiny sesame seeds and rough crust tips, cozy funny expressive creature, neither squid nor real seafood",
+      "referenceUrl": "/library/series/die-monster-muellabfuhr/s1e3/kruemelkrake.webp"
+    },
+    {
+      "id": "pupsmonster",
+      "name": "Pupsmonster",
+      "role": "Lüftungswart der Pension aus Folge 4",
+      "visualProfileEn": "friendly clumsy monster made entirely of cloth: a lumpy bundle of drawstring gym bags knotted together, a big red gym bag as its round head and middle with smaller blue, green and yellow gym bags around it, loose white drawstring cords looping up from the top like messy hair, two round shiny metal eyelets as eyes, a wide happy mouth, blue mitten-like cloth hands, short green cloth legs in two old worn white sneakers, about as tall as a seven-year-old child",
+      "referenceUrl": "/library/series/die-monster-muellabfuhr/s1e4/pupsmonster.webp"
+    }
+  ],
+  "cover": {
+    "url": "/library/series/die-monster-muellabfuhr/s1e5/cover.webp",
+    "sceneEn": "Inside a small dark greengrocer's shop at night, wooden crates of vegetables along the walls, a wooden counter, a flashlight beam. [brokkoli-monster] bends down and holds out one tiny broccoli floret on a toothpick toward [jona], its big round eyes hopeful. [jona] in his orange vest leans back a little, holding his flashlight, unsure. Behind them [oma-hilde] holds a round monster bin piled high with cabbages and a pumpkin on top. Exactly these three figures, each once, a funny and warm moment",
+    "characterIds": [
+      "oma-hilde",
+      "jona",
+      "brokkoli-monster"
+    ],
+    "boxes": {
+      "oma-hilde": [
+        100,
+        30,
+        1000,
+        300
+      ],
+      "jona": [
+        400,
+        330,
+        1000,
+        540
+      ],
+      "brokkoli-monster": [
+        20,
+        560,
+        1000,
+        900
+      ]
+    }
+  },
+  "chapters": [
+    {
+      "title": "Kein Gast in Sicht",
+      "text": "Quer vor der grünen Tür lag das Pupsmonster. Ein Metallauge war halb offen.\n\n„Zieht's?“, fragte Jona leise.\n\nDas Pupsmonster hielt eine Kordel vor die kleine Klappe. Die Kordel rührte sich nicht. Dann machte es pff. Es roch nach Wiese.\n\nJona leuchtete trotzdem auf den Riegel. Zu. Es war sein fünftes Wochenende auf dem Betriebshof, und seit den Abdrücken im Sand guckte er hier immer zuerst nach.\n\nIn der Küche hatte Oma Hilde schon Kakao gekocht. Flusi wärmte sich am Becher die Ärmchen. Jona schlug den dicken Ordner auf. Unter Steckbrief Nr. 3 stand noch immer seine Frage.\n\n„Wer ist der König?“, las er vor.\n\nFlusi wurde ganz still.\n\n„HATSCHI!“\n\nOma stellte ihren Becher ab. Jona leuchtete unter den Tisch, hinter den Herd, in den Brotkasten. Nichts.\n\nFlusi rieb sich die Nase. „Falsche Stelle.“ Dann, leiser: „König klingt wie früher. Alter Waschsalon. Da wohnte Flusi unter der großen Maschine. Nachts hat's da gebrummt. Ganz tief. Wenn Flusi dran denkt, kitzelt der alte Staub.“\n\nDa knackte der Monster-Funk auf dem Fensterbrett.\n\n„Notruf. Gemüseladen Grünwald, Marktstraße. Nachts wird da der Tisch gedeckt. Bloß gibt's da keinen Tisch.“\n\n„Er legt Essen hin? Ohne Tisch?“\n\n„Finden wir raus.“ Oma zog die Handschuhe an. „Weste an, Süßer.“\n\nJona zog die Warnweste über. Auf dem Hof blinkte Gertrud zweimal. Flusi hüpfte aufs Armaturenbrett, und Oma schob eine Kassette ein.\n\n„Für Gemüse nehmen wir ‚Kohlrabi-Krawall‘!“\n\nGitarren. Gertrud hupte im Takt.\n\nVor dem Laden wartete Frau Grünwald im Bademantel, eine Teetasse in der Hand.\n\n„Die Sonderabfuhr? Seit drei Nächten geht das so. Abends ist mein Gemüse in den Kisten. Morgens liegt es auf dem Boden. In Reihen. In den kleinen Stücken stecken Zahnstocher.“\n\n„Haben Sie was gesehen?“, fragte Jona.\n\n„Nur Unordnung. Ich stelle jeden Tag einen Probierteller raus. Nimmt keiner. Was übrig bleibt, kommt in die Kiste unter der Theke. Da liegt schon Gemüse von vorgestern. Ich wollte Suppe draus kochen.“ Sie seufzte. „Im Kühlschrank steht der frische Teller für morgen. Davon dürft ihr nehmen.“ Sie zeigte auf Gertrud. „Ist das Ihr Laster?“\n\nTRÖÖT!\n\n„Das ist Gertrud“, sagte Oma. „Das Wort mag sie nicht.“\n\nFrau Grünwald schloss ihnen auf. Dann ging sie in ihre Wohnung über dem Laden, um sich Tee nachzugießen. Oma ließ die Ladentür offen.\n\nDrinnen roch es nach Erde und Blättern. Jona knipste die Taschenlampe an.\n\nDer ganze Boden war voller Kistendeckel, in langen Reihen. Auf jedem lag ein Stück Möhre, ein Radieschen und ein Brokkoliröschen. Überall ragten Zahnstocher heraus.\n\n„Einunddreißig Plätze“, zählte Jona. „Und kein einziger Gast.“\n\nFlusi zitterte. „HATSCHI!“\n\nDiesmal war es die richtige Stelle.\n\nHinter der Theke richtete sich etwas auf. Es war so groß wie Oma. Sein Kopf war ein riesiger Brokkoli, buschig wie ein kleiner Baum. Die Arme waren lange Stiele, und statt Fingern hatte es grüne Röschen. Dazu zwei große, runde Augen. Es raschelte wie Laub im Wind.\n\nDas Brokkoli-Monster sah sie an. Gäste! Seine Röschen zitterten vor Freude.\n\nEs nahm ein Röschen von einem Deckel und hielt es Oma am Zahnstocher hin. „Pro-bie-ren!“\n\n„Nein danke.“ Oma klappte die mitgebrachte Tonne auf. „Ab in die Tonne, Süße!“\n\nDas Monster legte ein Radieschen in die Tonne. „Pro-bie-ren!“\n\n„Nein danke.“\n\nBeim nächsten Nein holte es eine Möhre aus der Auslage. Dann ein Kohlrabi. Dann ein Blumenkohl. Zuletzt stand Oma mit einer Tonne voller Gemüse da. Obendrauf saß ein Kürbis wie ein Deckel. Ein Salatblatt segelte auf Flusis Kopf. „Flusi hat Hut.“\n\nDann beugte sich das Monster zu Jona hinunter. Es hielt ihm das kleinste Röschen hin. Seine runden Augen warteten.\n\n„Pro-bie-ren?“\n\nJona trat einen Schritt zurück. Das Monster blieb stehen. Jona hatte noch nie Brokkoli gegessen.\n\n„Das sieht aus wie kleine Bäume“, flüsterte er. „Bäume isst man nicht.“",
+      "images": [
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e5/ch1.webp",
+          "sceneEn": "Inside a small dark greengrocer's shop at night, wooden crates of vegetables along the walls, a wooden counter, a flashlight beam. The whole floor is covered with long neat rows of flat wooden crate lids; on every lid lie one carrot, one radish and one small broccoli floret, each pierced by a toothpick, like a long banquet laid out for guests. [jona] in his orange vest crouches at the end of a row and points his flashlight along it, counting with his other hand. [oma-hilde] stands behind him with an empty round monster bin, eyebrows raised. [flusi] sits on an upturned crate and sneezes. Exactly these three figures, each once",
+          "characterIds": [
+            "oma-hilde",
+            "jona",
+            "flusi"
+          ],
+          "afterParagraph": 26,
+          "boxes": {
+            "oma-hilde": [
+              90,
+              40,
+              1000,
+              300
+            ],
+            "jona": [
+              420,
+              330,
+              1000,
+              560
+            ],
+            "flusi": [
+              560,
+              740,
+              820,
+              900
+            ]
+          }
+        },
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e5/ch1-2.webp",
+          "sceneEn": "Inside a small dark greengrocer's shop at night, wooden crates of vegetables along the walls, a wooden counter, a flashlight beam. [oma-hilde], in side view, staggers under a round monster bin piled high with vegetables: cabbages, a kohlrabi, a cauliflower and on the very top of that pile one orange pumpkin; her arms strain and she looks up at the monster in comic dismay. [brokkoli-monster], its bushy broccoli head bare, leans toward her and lays one more green cabbage on the pile, beaming at her. On the floor [flusi] holds a big lettuce leaf over his head like an umbrella. Exactly these three figures, each once",
+          "characterIds": [
+            "oma-hilde",
+            "brokkoli-monster",
+            "flusi"
+          ],
+          "afterParagraph": 35,
+          "boxes": {
+            "oma-hilde": [
+              80,
+              60,
+              1000,
+              380
+            ],
+            "brokkoli-monster": [
+              20,
+              430,
+              1000,
+              780
+            ],
+            "flusi": [
+              650,
+              800,
+              920,
+              970
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e5/ch1.webp",
+        "sceneEn": "Inside a small dark greengrocer's shop at night, wooden crates of vegetables along the walls, a wooden counter, a flashlight beam. The whole floor is covered with long neat rows of flat wooden crate lids; on every lid lie one carrot, one radish and one small broccoli floret, each pierced by a toothpick, like a long banquet laid out for guests. [jona] in his orange vest crouches at the end of a row and points his flashlight along it, counting with his other hand. [oma-hilde] stands behind him with an empty round monster bin, eyebrows raised. [flusi] sits on an upturned crate and sneezes. Exactly these three figures, each once",
+        "characterIds": [
+          "oma-hilde",
+          "jona",
+          "flusi"
+        ],
+        "afterParagraph": 26,
+        "boxes": {
+          "oma-hilde": [
+            90,
+            40,
+            1000,
+            300
+          ],
+          "jona": [
+            420,
+            330,
+            1000,
+            560
+          ],
+          "flusi": [
+            560,
+            740,
+            820,
+            900
+          ]
+        }
+      }
+    },
+    {
+      "title": "Nur so tun",
+      "text": "Bei jedem Nein hatte das Monster noch mehr aufgetischt. Jona sah auf die volle Tonne. Was wäre, wenn mal einer Ja sagte?\n\n„Moment … ich weiß die Schwäche!“, rief er. „Wir sagen einfach Ja!“\n\n„Ja!“, rief Oma.\n\n„Flusi sagt ja!“\n\n„Ja!“, sagte Jona.\n\nFür jedes Ja legte das Monster einen Deckel auf die Theke. Auf jeden Deckel kam ein Haufen Gemüse. Dann hob das Monster den Zahnstocher und wartete.\n\nKeiner aß.\n\nDie Röschen auf seinem Kopf sanken. Das Monster sah von einem zum anderen.\n\n„Ich versuch's“, sagte Oma. Sie holte den frischen Teller aus dem Kühlschrank und stellte ihn auf die Theke. Dann nahm sie ein Röschen. „Na los, Hilde. Ein Stück Brokkoli.“\n\nSie führte es zum Mund. Kurz davor hielt sie inne. Ihre Nase krauste sich. Husch, da steckte das Röschen in ihrem Handschuh. Sie kaute Luft. „Mmmh. Köstlich.“\n\nDas Röschen kitzelte am Handgelenk. Oma zuckte. Jetzt guckte es aus dem Ärmel.\n\nDas Monster guckte auch. Es raschelte laut wie ein Baum im Sturm und drehte Oma den Rücken zu.\n\nJetzt deckte es noch schneller. Auf der Kasse. Auf der Waage. Es flitzte zur Tür hinaus. Gleich davor parkte Gertrud. Das Monster legte ihr eine Möhre auf jeden Scheinwerfer und einen Blumenkohl aufs Dach. Dann stopfte es ihr eine Handvoll Erbsen in den Rüssel.\n\nGertrud hupte beleidigt. Dann nieste sie: PFF-TSCHI! Erbsen prasselten wie Hagel aufs Pflaster.\n\n„Gertrud niest auch!“, rief Flusi begeistert.\n\nDas Monster kam zurück in den Laden. Oma zog das Röschen aus dem Handschuh. Es war ganz platt.\n\n„Ich hab geschummelt, Süßer. Kurz vorm Mund hab ich mich nicht mehr getraut.“ Sie räusperte sich. „Als ich so klein war wie du, hab ich mal Brokkoli gegessen. Der war ganz matschig. Seitdem trau ich mich da nicht mehr ran.“\n\nJona starrte sie an. Oma Hilde. Die auf jedes Monster zuging. Angst vor Brokkoli.\n\n„Das mit dem Ja war auch Quatsch“, murmelte er. Seine Ohren wurden heiß.\n\nDann fiel ihm Frau Grünwalds Suppenkiste ein. Er kroch hinter die Theke. Da stand die Kiste, leer bis auf ein paar welke Blätter. Sie roch nach altem Kohl. Daneben lehnte ein kleines Schild: Probierteller.\n\n„Aus den Resten vom Probierteller“, flüsterte Jona. „Aus allem, was nie einer probiert hat.“\n\nEr kam hinter der Theke hervor. Das Monster hatte ihm ein Röschen hingehalten. Als er zurückwich, war es stehen geblieben.\n\n„Moment … ich weiß die Schwäche!“, rief Jona. „Es wartet darauf, dass einer wirklich probiert. Aber nur, wenn er selber will.“\n\nOma schob den frischen Teller ein Stück zum Monster. „Tut mir leid, Süße. Ich hab nur so getan.“\n\nDas Monster verschränkte die Stielarme und drehte sich weg.\n\n„Ich lass dir Zeit, Süße.“ Oma nahm die Hand vom Teller.\n\nGanz vorne lag das kleinste Röschen. Jona sah es an.",
+      "images": [
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e5/ch2.webp",
+          "sceneEn": "Inside a small dark greengrocer's shop at night, wooden crates of vegetables along the walls, a wooden counter, a flashlight beam. [oma-hilde], in three-quarter view, pretends to chew with puffed cheeks and eyes closed in fake delight, both her hands empty; a small green broccoli floret is stuffed into the wide cuff of her left orange work glove and sticks out at her wrist. [brokkoli-monster] bends down close and stares at the floret sticking out of her glove cuff with narrowed, offended eyes. [jona] watches with one hand over his mouth. Exactly these three figures, each once",
+          "characterIds": [
+            "oma-hilde",
+            "brokkoli-monster",
+            "jona"
+          ],
+          "afterParagraph": 10,
+          "boxes": {
+            "oma-hilde": [
+              80,
+              80,
+              1000,
+              380
+            ],
+            "brokkoli-monster": [
+              20,
+              420,
+              1000,
+              740
+            ],
+            "jona": [
+              400,
+              770,
+              1000,
+              960
+            ]
+          }
+        },
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e5/ch2-2.webp",
+          "sceneEn": "Night street at the curb in front of a small greengrocer's shop with a plain unmarked green awning and a plain painted wooden front, warm light falling out of its empty open doorway onto the pavement. [gertrud], the small purple garbage truck with friendly headlight eyes, stands at the curb all alone with nobody inside or beside her; a carrot lies across each of her headlights and a cauliflower sits on her roof, and she sneezes a big burst of green peas out of the open end of her own long flexible vacuum trunk, the peas shooting out of the trunk and bouncing over the street like hail. [brokkoli-monster] stands on the pavement right next to the end of her trunk, one floret hand still raised from stuffing the peas in, and jumps back in surprise as the peas bounce off its bushy head. [flusi] bounces on the pavement, delighted. Exactly these three figures, each once; the broccoli monster stands outside beside the truck",
+          "characterIds": [
+            "flusi",
+            "brokkoli-monster",
+            "gertrud"
+          ],
+          "afterParagraph": 13,
+          "boxes": {
+            "flusi": [
+              700,
+              40,
+              960,
+              200
+            ],
+            "brokkoli-monster": [
+              60,
+              230,
+              980,
+              500
+            ],
+            "gertrud": [
+              180,
+              520,
+              960,
+              990
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e5/ch2.webp",
+        "sceneEn": "Inside a small dark greengrocer's shop at night, wooden crates of vegetables along the walls, a wooden counter, a flashlight beam. [oma-hilde], in three-quarter view, pretends to chew with puffed cheeks and eyes closed in fake delight, both her hands empty; a small green broccoli floret is stuffed into the wide cuff of her left orange work glove and sticks out at her wrist. [brokkoli-monster] bends down close and stares at the floret sticking out of her glove cuff with narrowed, offended eyes. [jona] watches with one hand over his mouth. Exactly these three figures, each once",
+        "characterIds": [
+          "oma-hilde",
+          "brokkoli-monster",
+          "jona"
+        ],
+        "afterParagraph": 10,
+        "boxes": {
+          "oma-hilde": [
+            80,
+            80,
+            1000,
+            380
+          ],
+          "brokkoli-monster": [
+            20,
+            420,
+            1000,
+            740
+          ],
+          "jona": [
+            400,
+            770,
+            1000,
+            960
+          ]
+        }
+      }
+    },
+    {
+      "title": "Das kleinste Bäumchen",
+      "text": "Oma kniete sich neben Jona. „Du musst nicht, Süßer. Wir können auch einfach noch ein bisschen bei ihm bleiben. Einen Platz bei uns hat es sowieso. Wenn es heute nicht mitwill, kommen wir morgen wieder.“\n\nDas Monster nahm die Arme herunter. Es stand nur da und wartete. Vor einunddreißig leeren Plätzen.\n\n„Ich weiß“, sagte Jona. „Aber ich will wissen, wie so ein Bäumchen schmeckt.“\n\nEr schob dem Monster den Teller hin. „Nur einen Bissen. Und ich darf sagen, wie es schmeckt. Auch wenn es mir nicht schmeckt.“\n\nDas Monster dachte nach. Dann nickte es mit dem ganzen Brokkolikopf. Die Röschen wippten. Es spießte das kleinste frische Röschen auf und hielt es Jona hin.\n\nJona zog es vom Zahnstocher. Er zählte, wie immer, wenn er Angst hatte.\n\nEins. Zwei.\n\nDrei.\n\nEr biss ab.\n\nEs knirschte. Jona kaute. Alle warteten. Sogar Gertruds Rüssel hielt still.\n\n„Es knirscht“, sagte Jona. „Wie ein Baum. Ein kleiner.“ Er kaute weiter. „Die Bäumchen oben sind komisch. Aber der Stiel ist gut.“\n\nDas Monster stand ganz still.\n\nDann richteten sich seine Röschen auf, eins nach dem anderen. Es raschelte ganz leise, wie Blätter an einem Sommerabend. Es setzte sich auf die leere Kiste und atmete aus.\n\n„Dan-ke“, raschelte es.\n\nJona schluckte.\n\nOma zog die Handschuhe aus und brach sich ein Stück Stiel vom frischen Teller ab. „Der Stiel, sagst du?“\n\n„Der Stiel.“\n\nOma biss ab. Sie kaute mit zusammengekniffenen Augen. Dann öffnete sie ein Auge. „Hm. Gar nicht wie damals.“\n\nDas Monster drehte sich zu ihr um und schob ihr den Teller ein Stück näher.\n\nDann räumten sie auf. Das Monster stapelte die Deckel. Die alten Häppchen vom Boden kamen in die Abfallkiste. Das frische Gemüse aus der Tonne legte es in eine Kiste zum Abwaschen. Oma fegte draußen die Erbsen zusammen.\n\n„Flusi hilft!“ Flusi rollte die letzte Erbse vom Bordstein auf die Kehrschaufel. Jona nahm Gertrud die Möhren von den Scheinwerfern. Den Blumenkohl reichte sie mit dem Rüssel selbst vom Dach. Das Monster strich ihr mit einem Röschen über die Stoßstange. Gertrud blinkte einmal. Sie hatte verziehen.\n\nFrau Grünwald kam mit frischem Tee herunter. „Alles ordentlich!“\n\n„Einer hat probiert“, sagte Jona.\n\nFrau Grünwald sah auf den Teller. „Den Rest knabbere ich nachher zum Tee.“\n\n„Bei uns gibt's hinter der Pension ein Stück Erde“, sagte Jona leise zum Monster. „Da kannst du Radieschen ziehen. Und wenn sie groß sind, laden wir alle zum Probieren ein.“\n\nOma stellte die leere Tonne neben die Ladentür und wartete. An der Tür blieb das Monster noch einmal stehen. Es sah zurück, dorthin, wo die einunddreißig Plätze gewesen waren. Dann stieg es von allein in die Tonne.\n\n„Die ganzen Plätze waren für Besuch“, sagte Jona. „Vielleicht warten andere Monster auch auf jemanden.“\n\nOma nickte. „Beim nächsten Mal fragen wir, Süßer: Wartest du auf jemanden?“\n\nGertrud brachte sie zurück zum Hof. In der Pension ließ Oma kein warmes Bad ein. Sie füllte die Gießkanne mit kühlem Wasser. „Eine kleine Dusche, Süße?“\n\nDas Monster hielt ihr den Brokkolikopf hin. Danach glänzten seine Röschen dunkelgrün.\n\nHinter der Pension, neben der Wäscheleine, grub es mit seinen Stielarmen die Erde um.\n\n„Krake, reichst du uns die Radieschensamen? Die liegen neben der Spüle.“ Gleich darauf kam ein Krümelarm mit dem Tütchen aus der Tür.\n\nDas Monster drückte mit einem Röschen kleine Löcher in die Erde. In jedes kam ein Samenkorn und ein kleiner Guss aus der Gießkanne.\n\n„Gärtner“, sagte Oma. „Wenn du magst.“\n\nDas Monster raschelte. Es mochte.\n\nJona schrieb Monster-Steckbrief Nr. 5: Brokkoli-Monster. Ursprung: Reste vom Probierteller. Schwäche: Einer probiert freiwillig. Fangtrick: Jona nimmt einen Bissen. Job: Gärtner. Darunter malte er ein Bäumchen mit zwei großen Augen.\n\nAls die erste Amsel sang, schliefen alle Monster ein. Das Pupsmonster quer vor der Tür. Die Krake neben dem Herd. Flusi in Jonas Kapuze.\n\nUnd hinter der Pension stand das Brokkoli-Monster in seinem Beet und schlief im Stehen, wie ein kleiner Baum.",
+      "images": [
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e5/ch3.webp",
+          "sceneEn": "Inside a small dark greengrocer's shop at night, wooden crates of vegetables along the walls, a wooden counter, a flashlight beam, a plate of small fresh vegetable pieces on the counter. [jona] bites carefully into a tiny broccoli floret on a toothpick, eyes squeezed shut, holding up three fingers of his other hand. [brokkoli-monster] sits on an empty wooden crate, leaning forward, watching him hopefully with its floret hands clasped. [oma-hilde] kneels beside Jona and watches him, ready to help. Exactly these three figures, each once",
+          "characterIds": [
+            "oma-hilde",
+            "jona",
+            "brokkoli-monster"
+          ],
+          "afterParagraph": 8,
+          "boxes": {
+            "oma-hilde": [
+              300,
+              40,
+              1000,
+              300
+            ],
+            "jona": [
+              340,
+              320,
+              1000,
+              540
+            ],
+            "brokkoli-monster": [
+              60,
+              570,
+              1000,
+              900
+            ]
+          }
+        },
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e5/ch3-2.webp",
+          "sceneEn": "Early dawn behind the monster pension on a depot yard, a strip of dark fresh garden earth next to a washing line, the sky turning pale. [brokkoli-monster] kneels at the garden bed and presses small holes into the soil with one broccoli-floret finger, dropping in seeds. [kruemelkrake], a golden bread-crumb octopus, holds out a watering can to it with one arm. [jona] in his orange vest crouches at the edge of the bed and watches. Exactly these three figures, each once, cozy and peaceful",
+          "characterIds": [
+            "jona",
+            "brokkoli-monster",
+            "kruemelkrake"
+          ],
+          "afterParagraph": 31,
+          "boxes": {
+            "jona": [
+              340,
+              40,
+              1000,
+              280
+            ],
+            "brokkoli-monster": [
+              100,
+              330,
+              1000,
+              680
+            ],
+            "kruemelkrake": [
+              420,
+              700,
+              1000,
+              980
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e5/ch3.webp",
+        "sceneEn": "Inside a small dark greengrocer's shop at night, wooden crates of vegetables along the walls, a wooden counter, a flashlight beam, a plate of small fresh vegetable pieces on the counter. [jona] bites carefully into a tiny broccoli floret on a toothpick, eyes squeezed shut, holding up three fingers of his other hand. [brokkoli-monster] sits on an empty wooden crate, leaning forward, watching him hopefully with its floret hands clasped. [oma-hilde] kneels beside Jona and watches him, ready to help. Exactly these three figures, each once",
+        "characterIds": [
+          "oma-hilde",
+          "jona",
+          "brokkoli-monster"
+        ],
+        "afterParagraph": 8,
+        "boxes": {
+          "oma-hilde": [
+            300,
+            40,
+            1000,
+            300
+          ],
+          "jona": [
+            340,
+            320,
+            1000,
+            540
+          ],
+          "brokkoli-monster": [
+            60,
+            570,
+            1000,
+            900
+          ]
+        }
+      }
+    }
+  ],
+  "collectible": {
+    "type": "monster_profile",
+    "title": "Monster-Steckbrief Nr. 5",
+    "imageUrl": "/library/series/die-monster-muellabfuhr/s1e5/brokkoli-monster.webp",
+    "fields": [
+      {
+        "label": "Name",
+        "value": "Brokkoli-Monster"
+      },
+      {
+        "label": "Ursprung",
+        "value": "Vergessene Reste vom Probierteller eines Gemüseladens, in der Kiste unter der Theke"
+      },
+      {
+        "label": "Schwäche",
+        "value": "Wird zahm, wenn einer freiwillig probiert"
+      },
+      {
+        "label": "Fangtrick",
+        "value": "Jona nimmt einen Bissen vom frischen Probierteller. Freiwillig. Keiner muss."
+      },
+      {
+        "label": "Job in der Pension",
+        "value": "Gärtner im Pensionsgarten"
+      }
+    ]
+  },
+  "teaser": "Nächste Woche: Im Keller klirrt es, und zwar ordentlich. Jemand aus alten Pfandflaschen will Ordnung. Nur welche?",
+  "canonFactsAdded": [
+    "Das Pupsmonster prüft als Lüftungswart mit einer Kordel vor der Klappe, ob es zieht. Seit den Abdrücken kontrolliert Jona an jedem Wochenende zuerst den Riegel; an seinem fünften Wochenende war er zu.",
+    "Flusi niest beim Wort „König“. Er hat früher im alten Waschsalon unter der großen Maschine gewohnt; dort hat es nachts tief gebrummt, und das Wort klingt für ihn wie damals. Wenn er daran denkt, kitzelt ihn der alte Staub. Wer gebrummt hat, ist unbekannt. Keine Niesmagie, kein Verrat.",
+    "Das Brokkoli-Monster entstand im Gemüseladen Grünwald in der Marktstraße aus den vergessenen Resten des Probiertellers in der Suppenkiste unter der Theke. Drei Nächte lang deckte es 31 Plätze auf Kistendeckeln, jede Probe mit Zahnstocher, für Gäste, die nie kamen. Seine einzige Schwäche: Es wird zahm, wenn einer freiwillig probiert.",
+    "Jonas falsche Schwäche war „Wir sagen einfach Ja“. Oma schummelte ein Röschen in ihren Handschuh; das Monster drehte ihr den Rücken zu und stopfte Gertrud Erbsen in den Rüssel. Gertrud nieste die Erbsen auf die Straße (PFF-TSCHI).",
+    "Oma Hilde hat seit ihrer Kindheit (matschiger Brokkoli) keinen Brokkoli mehr angerührt und hat Jona das gestanden. Nach Jona probierte sie ein Stück Stiel: „Gar nicht wie damals.“",
+    "Jona hatte noch nie Brokkoli gegessen („Bäume isst man nicht“). Freiwillig nahm er einen Bissen vom frischen Probierteller aus dem Kühlschrank, den Frau Grünwald freigegeben hatte: Die Bäumchen oben findet er komisch, der Stiel ist gut. Niemand hat ihn gedrängt.",
+    "Das Brokkoli-Monster stieg freiwillig in die Tonne und bekam eine kühle Dusche aus der Gießkanne statt eines warmen Bads. Es ist Gärtner der Pension: Hinter der Pension neben der Wäscheleine hat es mit Radieschensamen von der Krake ein Beet angelegt. Wenn die Radieschen groß sind, will die Crew alle zum Probieren einladen. Es schläft im Stehen im Beet.",
+    "Neue Einsatzfrage der Crew: Manche Monster warten nachts auf jemanden. Beim nächsten Monster, das so guckt, fragen sie: „Wartest du auf jemanden?“ Omas Song für Gemüse heißt „Kohlrabi-Krawall“. Monster-Steckbrief Nr. 5 mit einer kleinen Bäumchenzeichnung steht im Ordner."
+  ]
+}
