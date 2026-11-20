@@ -1,0 +1,712 @@
+{
+  "canonChecks": [
+    {
+      "quote": "Elf Glöckchen bimmelten auf einmal.",
+      "fact": "Ellas Kater-Alarm lässt bei Berührung alle elf Glöckchen bimmeln.",
+      "agrees": true
+    },
+    {
+      "quote": "Rund um Brunos Regal hingen elf Glöckchen an Wollfäden.",
+      "fact": "Ella hat den Alarm in Folge 2 aus Wollfäden, Wäscheklammern und elf Glöckchen gebaut.",
+      "agrees": true
+    },
+    {
+      "quote": "Die Hinterpfoten strampelten in der Luft.",
+      "fact": "Kaisers Angriff auf Brunos Glas scheitert an einer Kleinigkeit des Aufbaus.",
+      "agrees": true
+    },
+    {
+      "quote": "Bruno drückte sich an die hintere Scheibe und machte ein sehr beleidigtes Gesicht.",
+      "fact": "Bruno bleibt im Aquarium und reagiert auf Kaiser mit gespielter Entrüstung.",
+      "agrees": true
+    },
+    {
+      "quote": "Plumps, mitten in Papas Wäschekorb.",
+      "fact": "Der Korb steht beim Fischregal und hat Kaiser bereits in Folge 1 und 5 aufgefangen.",
+      "agrees": true
+    },
+    {
+      "quote": "Eine Socke hing über dem Korbrand.",
+      "fact": "In Folge 5 lag eine Socke an derselben Stelle und blockierte Kaisers Rollschuh.",
+      "agrees": true
+    },
+    {
+      "quote": "„Zum dritten Mal im Wäschekorb!“",
+      "fact": "Kaiser landete in Folge 1 und 5 im Wäschekorb. In Folge 2 landete er im Papierkorb.",
+      "agrees": true
+    },
+    {
+      "quote": "Es klingelte. Lange.",
+      "fact": "Frau Grimmbach klingelt lang und ist am Klingeln zu erkennen.",
+      "agrees": true
+    },
+    {
+      "quote": "Frau Grimmbach stand da, das schwarze Heft schon aufgeschlagen.",
+      "fact": "Frau Grimmbach führt ein schwarzes Heft für ihre Beobachtungen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Herr Brandt. Mein Kater ist verschwunden.“",
+      "fact": "Frau Grimmbach spricht die Brandts mit Nachnamen an. Kaiser gehört ihr.",
+      "agrees": true
+    },
+    {
+      "quote": "Kaiser saß zwischen den Handtüchern, den Waschlappen auf dem Kopf, und sah sehr würdevoll aus.",
+      "fact": "Kaiser behält selbst nach einem missglückten Angriff seine Würde.",
+      "agrees": true
+    },
+    {
+      "quote": "„Kaiser will Bruno fangen!“, rief Mats.",
+      "fact": "Kaiser will Bruno fangen. Mats kennt seinen wiederkehrenden Plan.",
+      "agrees": true
+    },
+    {
+      "quote": "„Der kann ja nicht mal landen!“",
+      "fact": "Mats hat Kaisers missglückte Sprünge erlebt. Die Wortwahl erinnert zusätzlich an Mats' eigenes Landeproblem aus Folge 4.",
+      "agrees": true
+    },
+    {
+      "quote": "„Kater Kaiser ist der klügste Kater der Welt.“",
+      "fact": "Frau Grimmbachs Überzeugung löst als ehrlich gemeinte Übertreibung keinen Zauber aus.",
+      "agrees": true
+    },
+    {
+      "quote": "Nichts knackte.",
+      "fact": "Was die Sprecherin selbst für wahr hält, ist keine bewusste Flunkerei.",
+      "agrees": true
+    },
+    {
+      "quote": "Frau Grimmbach glaubte das wirklich.",
+      "fact": "Die Szene unterscheidet echte Überzeugung von der bewusst falschen Behauptung im nächsten Absatz.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie richtete sich auf, direkt vor Brunos Regal.",
+      "fact": "Die Zauberaussage fällt im Wohnzimmer, im selben Raum wie das Aquarium.",
+      "agrees": true
+    },
+    {
+      "quote": "„Kaiser kann Maschinen bauen.“",
+      "fact": "Eine bewusst falsche Behauptung am Aquarium wird wörtlich wahr. Kaiser erlangt die behauptete Fähigkeit.",
+      "agrees": true
+    },
+    {
+      "quote": "„Das habe ich selbst gesehen.“",
+      "fact": "Auch diese bewusst falsche Aussage müsste zur wörtlichen Wirkung passen. Sie behauptet eine bereits gemachte Beobachtung. Gezeigt wird Frau Grimmbachs erste Beobachtung erst nach dem Knacken.",
+      "agrees": false
+    },
+    {
+      "quote": "Im Glas knackte es.",
+      "fact": "Das Knacken beim Auslösen ist seit den vorigen Folgen etabliert.",
+      "agrees": true
+    },
+    {
+      "quote": "„Du kriegst ja nicht mal die Dose auf.“",
+      "fact": "Grimmbachs Bemerkung belegt ihr besseres Wissen unmittelbar nach dem bewussten Flunkern.",
+      "agrees": true
+    },
+    {
+      "quote": "„Das war nicht geflunkert, das war ausgedacht!“",
+      "fact": "Mats' Spruch ist wortgetreu. Schon in Folge 5 verwendet er ihn für jemand anderen.",
+      "agrees": true
+    },
+    {
+      "quote": "Er nahm Papa den Schraubenzieher aus der Hand.",
+      "fact": "Die Fähigkeit entsteht erst nach Grimmbachs Aussage. Kaiser bleibt ein Kater und spricht dabei nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie schrieb in ihr Heft: Kater repariert Stuhl.",
+      "fact": "Grimmbach hält Merkwürdigkeiten eigenhändig fest. Solche Einträge überstehen das Zauberende.",
+      "agrees": true
+    },
+    {
+      "quote": "Zrrrt! Er maß vom Boden bis zum Fischglas.",
+      "fact": "Kaiser nutzt die neue Fähigkeit für sein unverändertes Ziel, an Bruno heranzukommen.",
+      "agrees": true
+    },
+    {
+      "quote": "Papa ging zurück in die Küche und zog die Tür hinter sich zu.",
+      "fact": "Vor Brunos erstem gesprochenen Satz verlässt der letzte anwesende Erwachsene das Wohnzimmer.",
+      "agrees": true
+    },
+    {
+      "quote": "„Seit wann hat der Kater Grips?“",
+      "fact": "Bruno spricht in diesem Moment nur mit Ella und Mats.",
+      "agrees": true
+    },
+    {
+      "quote": "„Seit Frau Grimmbach geflunkert hat“, sagte Ella.",
+      "fact": "Ella erkennt die Ursache anhand der erlernten Regel. Bruno ist der Fisch, bei dem der Zauber passiert.",
+      "agrees": true
+    },
+    {
+      "quote": "„Der hat mein Glas ausgemessen.“",
+      "fact": "Bruno kann vom Aquarium aus beobachten, was Kaiser am Regal tut.",
+      "agrees": true
+    },
+    {
+      "quote": "Wenig später zerrte er etwas Schwarzes die Stufen herauf.",
+      "fact": "Kaiser holt den Zylinder in dieser Folge aus dem Keller. Ella hat ihn unmittelbar zuvor durch die Kellertür schlüpfen sehen.",
+      "agrees": true
+    },
+    {
+      "quote": "Auf dem Hutband war ein kleiner silberner Fisch.",
+      "fact": "Der Staffelhinweis für Folge 6 ist der alte Zylinder mit Fisch-Emblem.",
+      "agrees": true
+    },
+    {
+      "quote": "Darüber eine weiße Mondsichel.",
+      "fact": "Die weiße Mondsichel verbindet den Zylinder mit dem in Folge 3 gesehenen Plakat. Sie bestätigt Brunos Herkunft nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "Ella schlug ihren Planer auf.",
+      "fact": "Ella hat die Plakatzeichnung seit Folge 3 in ihrem Planer.",
+      "agrees": true
+    },
+    {
+      "quote": "Dieselbe Mondsichel wie auf dem alten Plakat.",
+      "fact": "Das Plakat trägt eine weiße Mondsichel. Die Verbindung stimmt, wird für den gewünschten beiläufigen Hinweis aber zu ausdrücklich benannt.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann zog er ein Paar sehr alte Rollschuhe unterm Sofa hervor und schraubte den Staubsauger darauf fest.",
+      "fact": "Frau Grimmbach besitzt seit dem Schluss von Folge 5 ein Paar sehr alte Rollschuhe. Kaiser hat bereits in Folge 5 einen Rollschuh für einen Angriff genutzt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Die Rollschuhe hab ich letzten Sonntag aus dem Keller geholt!“, sagte Frau Grimmbach.",
+      "fact": "Genau das tut sie am Ende von Folge 5. Sie erinnert sich an das eigene Holen nach der Auflösung.",
+      "agrees": true
+    },
+    {
+      "quote": "„Hat Kaiser jemals eine Maschine gebaut, bevor Sie das bei uns gesagt haben?“, fragte Ella.",
+      "fact": "Ella fragt gezielt nach der Wirklichkeit vor der Flunkerei.",
+      "agrees": true
+    },
+    {
+      "quote": "„Sagen Sie uns laut, was stimmt.“",
+      "fact": "Die Flunkerin muss die Wahrheit laut vor mindestens einer anderen Person sagen. Ella bittet sie darum in Gegenwart beider Kinder.",
+      "agrees": true
+    },
+    {
+      "quote": "„Dann hört der Zauber auf.“",
+      "fact": "Das Geständnis ist auch im Erdgeschoss möglich. Nur die Auslösung erfordert die Nähe zum Aquarium.",
+      "agrees": true
+    },
+    {
+      "quote": "„Jetzt sehe ich es selbst.“",
+      "fact": "Eine wahre Aussage über den aktuellen Maschinenbau hebt die ursprüngliche Flunkerei nicht auf.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann schrieb sie in ihr Heft: Kater baut Maschine. Ich habe es SELBST GESEHEN!!!",
+      "fact": "Grimmbach schreibt die Beobachtung während des Zaubers selbst auf. Der Text bleibt nach dem Vergessen erhalten.",
+      "agrees": true
+    },
+    {
+      "quote": "„Der hat einen Akku“, sagte Ella.",
+      "fact": "Ein technischer Eingriff kann das Gerät bremsen. Er beendet Kaisers Zauberfähigkeit nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "„Okay. Plan B. Frau Grimmbach, darf ich Seite zwölf sehen?“",
+      "fact": "Ellas Spruch bleibt wortgetreu. Sie versucht nach Grimmbachs Ausweichen, den erwarteten Einbruch zu verhindern.",
+      "agrees": true
+    },
+    {
+      "quote": "„Mit sauberen Händen.“",
+      "fact": "Grimmbach bleibt im Umgang mit ihrem Heft streng und macht die erste Einsicht ausdrücklich zur Ausnahme.",
+      "agrees": true
+    },
+    {
+      "quote": "Um vier klingelte es. Lange.",
+      "fact": "Grimmbachs vertrautes Klingeln wird im Einbruchsplan gegen die Brandts verwendet.",
+      "agrees": true
+    },
+    {
+      "quote": "Schlürf. Weg waren Faden, Klammer und Glöckchen.",
+      "fact": "Der Angriff baut den etablierten Kater-Alarm aus seinen sichtbaren Einzelteilen ab.",
+      "agrees": true
+    },
+    {
+      "quote": "Nach dem elften Glöckchen war der Weg zum Glas frei.",
+      "fact": "Der Alarm hat genau elf Glöckchen. Das folgende zwölfte gehört Kaiser.",
+      "agrees": true
+    },
+    {
+      "quote": "„Blubb!“, machte Bruno.",
+      "fact": "Papa und Frau Grimmbach sind im Raum. Bruno äußert nur Blubbern.",
+      "agrees": true
+    },
+    {
+      "quote": "Er sah nur nach oben, auf den Hut.",
+      "fact": "Bruno schaut den Zylinder an und gibt keinerlei Auskunft über dessen Bedeutung oder seine Herkunft.",
+      "agrees": true
+    },
+    {
+      "quote": "Sein goldenes Glöckchen baumelte genau vor dem Schlauch.",
+      "fact": "Kaisers goldenes Halsglöckchen ist etabliert und bringt seinen Plan erneut ins Wanken.",
+      "agrees": true
+    },
+    {
+      "quote": "Es steckte fest wie ein Korken.",
+      "fact": "Kaiser scheitert an einem kleinen Gegenstand. Das Glöckchen ist als Verschluss beschrieben.",
+      "agrees": true
+    },
+    {
+      "quote": "„Mrrau“, machte Kaiser ganz leise.",
+      "fact": "Kaiser spricht auch als genialer Kater keine menschliche Sprache.",
+      "agrees": true
+    },
+    {
+      "quote": "Er sah Ella an und zeigte noch einmal hin.",
+      "fact": "Kaiser hilft Ella durch eine Geste aus der eigenen Klemme. Seine Rolle als Rivale bleibt bestehen.",
+      "agrees": true
+    },
+    {
+      "quote": "Ella drückte. Stille.",
+      "fact": "Ella stellt den Sauger ab. Dass Kaiser danach wieder Werkzeug benutzt, hält Gerätestopp und Zauberende auseinander.",
+      "agrees": true
+    },
+    {
+      "quote": "Das lange Rohr klappte ein und schleuderte den Zylinder durch den Flur, zur offenen Wohnungstür hinaus.",
+      "fact": "Der Hinweis verschwindet wie vorgesehen auf der Treppe. Die Bewegung ist kein eigener Zauber und enthüllt nichts über den Hut.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann griff er wieder nach der Kurbel.",
+      "fact": "Nach der kurzen Zusammenarbeit kehrt Kaiser zu seinem Fangversuch zurück. Der Zauber wirkt weiterhin.",
+      "agrees": true
+    },
+    {
+      "quote": "„Herr Brandt. Ich habe vorhin gesagt, Kaiser kann Maschinen bauen.“",
+      "fact": "Die Flunkerin spricht selbst und vor mindestens einer anderen Person. Sie benennt ihre konkrete Behauptung.",
+      "agrees": true
+    },
+    {
+      "quote": "„Das war geflunkert. Mit Absicht.“",
+      "fact": "Grimmbach nimmt beide Teile ihrer Aussage ausdrücklich zurück und bestätigt die Täuschungsabsicht.",
+      "agrees": true
+    },
+    {
+      "quote": "„Vorher hatte ich Kaiser noch nie eine Maschine bauen sehen.“",
+      "fact": "Grimmbach berichtigt die behauptete Beobachtung. Für die behauptete Fähigkeit bleibt die Rücknahme im vorigen Satz zuständig.",
+      "agrees": true
+    },
+    {
+      "quote": "PLOPP.",
+      "fact": "Der Zauber endet unmittelbar nach Grimmbachs lautem Geständnis.",
+      "agrees": true
+    },
+    {
+      "quote": "Papa und Frau Grimmbach blinzelten.",
+      "fact": "Die anwesenden Erwachsenen verlieren beim Zauberende ihre Erinnerung an die magischen Vorgänge. Ihre anschließenden Fragen zeigen das.",
+      "agrees": true
+    },
+    {
+      "quote": "Die Schrauben hielten die Rollschuhe noch immer am Sauger fest.",
+      "fact": "Handfeste Folgen dürfen bleiben. Schon in Folge 3 blieb die abgeschnittene Löwenmähne nach dem Zauber weg.",
+      "agrees": true
+    },
+    {
+      "quote": "Kaiser sah den Schraubenzieher in seiner Pfote an, als wäre er ein sehr seltsamer Fisch.",
+      "fact": "Die durch den Zauber erworbene Fähigkeit endet. Der Vergleich legt keine neue Gedächtnisregel für Tiere fest.",
+      "agrees": true
+    },
+    {
+      "quote": "Plumps. Mitten in den Wäschekorb.",
+      "fact": "Kaiser scheitert wieder mit einem gewöhnlichen Sprung und fängt Bruno nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "Keiner lachte.",
+      "fact": "Grimmbach wird nach dem Eingeständnis nicht bloßgestellt oder hart bestraft.",
+      "agrees": true
+    },
+    {
+      "quote": "Er schob den Kopf unter ihr Kinn und schnurrte.",
+      "fact": "Grimmbach gewinnt den vertrauten Umgang mit Kaiser zurück. Die Wahrheit lohnt sich für sie.",
+      "agrees": true
+    },
+    {
+      "quote": "„Frau Grimmbach?“, fragte Papa. „Wieso steht Ihr Staubsauger auf Rollschuhen in unserem Wohnzimmer?“",
+      "fact": "Papa sieht den weiter vorhandenen Gegenstand und erinnert sich nicht an dessen magischen Einsatz.",
+      "agrees": true
+    },
+    {
+      "quote": "Ella suchte auf dem Treppenabsatz nach dem Zylinder und ein Stockwerk tiefer.",
+      "fact": "Ella erinnert sich an das Magische und an die Flugrichtung des Huts.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Hut war weg.",
+      "fact": "Der Zylinder bleibt wie vorgesehen auf der Treppe verschwunden. Das Geheimnis seiner Herkunft bleibt offen.",
+      "agrees": true
+    },
+    {
+      "quote": "Elf Glöckchen, ein Knäuel Wollfäden mit Klammern und eine Socke.",
+      "fact": "Im Beutel landen die elf Alarmglöckchen. Kaisers zwölftes ist am Schlaucheingang stecken geblieben.",
+      "agrees": true
+    },
+    {
+      "quote": "Während Papa den Sauger nach unten trug, hängte Ella den Kater-Alarm wieder auf.",
+      "fact": "Die Alltagsarbeit stellt den etablierten Schutz am Aquarium wieder her.",
+      "agrees": true
+    },
+    {
+      "quote": "Als beide Erwachsenen unten waren, schwamm Bruno an die Scheibe.",
+      "fact": "Bruno wartet mit dem Sprechen, bis Ella und Mats wieder ohne Erwachsene im Raum sind.",
+      "agrees": true
+    },
+    {
+      "quote": "„Hab ich's nicht gesagt? Ich hab's gesagt.“",
+      "fact": "Brunos Auflösungsspruch ist wortgetreu.",
+      "agrees": true
+    },
+    {
+      "quote": "„Als die Maschine da war, hast du nur Blubb gesagt“, sagte Mats.",
+      "fact": "Mats erinnert sich an den Angriff. Bruno hielt sich in Gegenwart der Erwachsenen an seine Sprechregel.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich brauch Extra-Flocken. Viele.“",
+      "fact": "Bruno lenkt in seiner typischen Weise auf Extra-Flocken um.",
+      "agrees": true
+    },
+    {
+      "quote": "Ella pinnte Flunker-Karte Nr. 6 neben das Regal.",
+      "fact": "Die Flunker-Karten hängen seit Folge 1 am Regal. Die Nummer setzt die Reihe fort.",
+      "agrees": true
+    },
+    {
+      "quote": "„Heute steht der Karton noch oben“, sagte Ella.",
+      "fact": "Ella beruft sich beim neuen Heftzugang auf eine alltägliche Beobachtung, die Frau Grimmbach selbst überprüfen kann.",
+      "agrees": true
+    },
+    {
+      "quote": "„Mit sauberen Händen. Und Sie sagen mir, was Sie suchen.“",
+      "fact": "Frau Grimmbach gewährt den Zugang nach dem Vergessen neu und unter ihren eigenen Bedingungen.",
+      "agrees": true
+    },
+    {
+      "quote": "Da stand ein Eintrag in ihrer eigenen Schrift, und sie konnte sich nicht erinnern, ihn geschrieben zu haben.",
+      "fact": "Die eigene Schrift bleibt erhalten. Frau Grimmbach erinnert sich nach der Auflösung nicht an den magischen Anlass.",
+      "agrees": true
+    },
+    {
+      "quote": "„Eintrag 51: Kater baut Maschine. Ich habe es SELBST GESEHEN!!!“",
+      "fact": "Der Schluss bringt den neuen Eintrag in Frau Grimmbachs Heft. Auf Folge 5 mit Eintrag 50 folgt korrekt Eintrag 51.",
+      "agrees": true
+    },
+    {
+      "quote": "„Du doch nicht“, sagte sie und kraulte ihn hinter dem Ohr.",
+      "fact": "Grimmbach zweifelt nach dem Vergessen am eigenen Eintrag und bleibt ihrem Kater zugewandt.",
+      "agrees": true
+    }
+  ],
+  "dimensions": {
+    "figurenkonsistenz": {
+      "score": 8,
+      "why": "„Meiner schon.“ Grimmbach verteidigt Kaiser sogar, als er ihr gerade wegläuft. Ihre Eitelkeit, ihr Heft und die Zuneigung passen zusammen. Ella beobachtet, Mats greift zum Nudelsieb, Papa bleibt bis zum Angriff gelassen. Nur beim Klingeln lässt die sonst vorausschauende Ella eine Warnung liegen, die sie sofort an Papa hätte weitergeben können."
+    },
+    "plotKohaerenz": {
+      "score": 6,
+      "why": "„Lassen Sie die Tür zu.“ Genau diese Warnung gibt Ella Papa nicht weiter. Dadurch braucht der Einbruch einen vermeidbaren Aussetzer. Beim Abschalten klappt außerdem das von Hand ausgekurbelte Rohr ohne erklärten Zusammenhang ein, und Kaiser dreht anschließend an einer Fangvorrichtung weiter, deren Hut bereits draußen liegt. Die Umkehr mit dem zwölften Glöckchen trägt, der Weg zur Beichte braucht klarere Ursachen."
+    },
+    "sprachqualitaet": {
+      "score": 8,
+      "why": "„Er schob den Kopf unter ihr Kinn und schnurrte. Laut, wie ein kleiner Staubsauger.“ Das Bild klingt beim Vorlesen und holt die Maschine in den warmen Schluss zurück. In der Fangszene häufen sich Rohr, Schlauch, Kurbel, Sitz und Klemme, bevor ihre Anordnung klar ist."
+    },
+    "emotionaleTiefe": {
+      "score": 9,
+      "why": "„Seit elf Jahren.“ Grimmbach zählt die Jahre, dann schaut sie auf den leeren Schoß. Ein Kind versteht, wen sie vermisst: ihren Kater, wie er sonst bei ihr ist. Sein Blick aus der Klemme und das Schnurren unter ihrem Kinn zahlen genau darauf ein."
+    },
+    "altersangemessenheit": {
+      "score": 7,
+      "why": "„Er hat mich geangelt!“ Der Kabelgag lässt sich sofort sehen und nachspielen. Kurz darauf verlangt die Szene, dass Sechsjährige gleichzeitig den Heftplan, die veränderte Klingelstrategie und zwei verschiedene Fangteile im Kopf behalten. Grimmbachs Scham kommt ohne Moralrede aus."
+    },
+    "ende": {
+      "score": 8,
+      "why": "„Du doch nicht“, sagt Grimmbach und krault Kaiser. Damit landet der Heftgag bei ihrer Beziehung zum Kater. Der Fisch ist sicher und der Hut bleibt wie vorgesehen verschwunden. Das neue Vertrauen zu Ella wirkt noch etwas schnell verdient: Ella nennt eine Ausnahme von der Samstagsroutine, dann öffnet Grimmbach ihr gleich die Hefte."
+    },
+    "kanonTreue": {
+      "score": 7,
+      "why": "„Jetzt sehe ich es selbst“ verschiebt das behauptete frühere Sehen in die Gegenwart. Das ist für eine Reihe mit wörtlicher Magie eine echte Lücke. Alarm, Rollschuhe, Vergessen, Brunos Schweigen und Eintrag 51 schließen sauber an. Der Zylinder setzt den vorgesehenen Staffelhinweis, und Bruno schaut ihn nur an."
+    },
+    "weitererzaehlFaktor": {
+      "score": 9,
+      "why": "„SCHLÜRF. Nummer zwölf.“ Kaiser saugt elf Alarmglöckchen weg und fängt als Zwölftes sein eigenes. Das Bild, die Reihenfolge und das Geräusch lassen sich auf dem Schulhof in einem Atemzug nachmachen."
+    }
+  },
+  "kinderCheck": {
+    "verstaendlichkeit": {
+      "score": 7,
+      "stolpersteine": [
+        {
+          "quote": "Frau Grimmbach hob Kaiser aus dem Korb, als wäre er aus Porzellan.",
+          "warum": "Ein Kind, das Porzellan nicht kennt, verpasst, wie vorsichtig sie ihren schweren Kater anfasst.",
+          "vorschlag": "Frau Grimmbach hob Kaiser aus dem Korb, so vorsichtig wie eine volle Tasse."
+        },
+        {
+          "quote": "„Katzen kommen nicht bei Fuß“, sagte Papa.",
+          "warum": "Wer das Hundekommando nicht kennt, hört in »bei Fuß« nur ein einzelnes Körperteil und verpasst die Antwort.",
+          "vorschlag": "„Bei Fuß!“, rief Frau Grimmbach. „Kaiser, komm her!“"
+        },
+        {
+          "quote": "„Seit wann hat der Kater Grips?“",
+          "warum": "»Grips« ist unbekanntes Wort und Pointe zugleich. Ohne die Bedeutung bleibt nur der Ton.",
+          "vorschlag": "„Seit wann ist der Kater so schlau?“"
+        },
+        {
+          "quote": "„Die schlimmste Sorte“, murmelte Bruno. „Die es besser weiß.“",
+          "warum": "»Sorte« kann sich auf Frau Grimmbach oder auf die Flunkerei beziehen. Der abgetrennte Nachsatz klärt das beim Hören kaum.",
+          "vorschlag": "„Und ausgerechnet vor meinem Glas“, knurrte Bruno."
+        },
+        {
+          "quote": "Frau Grimmbach saß auf der Sesselkante und schrieb: Kater baut. Ich soll nicht stören.",
+          "warum": "Beim Vorlesen bleibt kurz offen, wer »ich« ist und woher Grimmbach weiß, was Kaiser will.",
+          "vorschlag": "Frau Grimmbach wollte eine Schraube aufheben. Kaiser zog das Deckchen weg. Sie schrieb: Kater baut. Ich soll nicht stören."
+        },
+        {
+          "quote": "Kaiser klemmte den Hut ans Ende eines langen Rohrs. Neben dem Rohr hing der dicke Saugschlauch.",
+          "warum": "Zwei lange Teile kommen direkt nacheinander. Wer sie verwechselt, versteht später weder den Hut über dem Glas noch das Glöckchen im Schlauch.",
+          "vorschlag": "Aus dem Sauger hing der dicke Schlauch. Daneben baute Kaiser einen langen Arm aus Rohren. Ganz vorne klemmte der Hut, mit der Öffnung nach oben."
+        },
+        {
+          "quote": "Kaiser ließ das Kabel einrollen.",
+          "warum": "Nach der Hosentaschenangel bleibt offen, wer zieht und wo das Kabel hinverschwindet.",
+          "vorschlag": "Klick. Das Kabel sauste zurück in den Staubsauger."
+        },
+        {
+          "quote": "Über dem letzten Satz stand: Kaiser liest. Seite zwölf. Nickt.",
+          "warum": "Der Wechsel von Grimmbachs Schrift zu ihrer Beobachtung muss beim Vorlesen sofort hörbar sein. Sonst klingt es, als solle Ella beim Lesen nicken.",
+          "vorschlag": "Über dem letzten Satz hatte Frau Grimmbach notiert: Kaiser hat Seite zwölf gelesen. Dann hat er genickt."
+        },
+        {
+          "quote": "Samstags um vier: Herr Brandt bringt das Altpapier runter. Lässt die Wohnungstür offen. JEDES MAL.",
+          "warum": "Der Zettel verrät eine Gewohnheit. Was Kaiser damit anfangen will, müssen Kinder bis zur nächsten Szene selbst ableiten.",
+          "vorschlag": "Nach dem Eintrag sagt Ella: „Deshalb hat er genickt. Um vier kann er einfach bei uns reinrollen.“"
+        },
+        {
+          "quote": "Dann klappten die Beine ein, die Rollschuhe setzten auf, und Kaiser sauste an Frau Grimmbach vorbei.",
+          "warum": "»Setzten auf« klingt nach einem Flugzeug. Das schnelle Bild aus Treppe, Beinen und Rollen ist schon anspruchsvoll genug.",
+          "vorschlag": "Die Beine klappten ein. Die Rollen berührten den Boden. Kaiser sauste an Frau Grimmbach vorbei."
+        },
+        {
+          "quote": "Kaiser zog ihn zurück und klemmte ihn neben seinem Sitz fest.",
+          "warum": "»Ihn« ist der Schlauch. Von einem Sitz war bisher nicht die Rede. Beides wird unmittelbar vor der Pointe neu zugeordnet.",
+          "vorschlag": "Kaiser klemmte den Schlauch neben seiner Vorderpfote fest. Die Öffnung zeigte direkt zu seinem Glöckchen."
+        },
+        {
+          "quote": "Er löste die Klemme und schob den Schlauch von seinem Glöckchen weg.",
+          "warum": "Das Glöckchen hat sich gerade gelöst. Im schnellen Vorlesen klingt es, als würde Kaiser sich ein zweites Mal befreien.",
+          "vorschlag": "Das Glöckchen bimmelte wieder frei. Kaiser schob den Schlauch weiter weg, damit er ihm beim Kurbeln nicht mehr im Weg war."
+        },
+        {
+          "quote": "„Vorher hatte ich Kaiser noch nie eine Maschine bauen sehen.“",
+          "warum": "»Vorher« verlangt einen gedanklichen Rücksprung. Aus dem Satz allein erfährt ein Kind nur, dass Grimmbach selbst nie zugesehen hatte.",
+          "vorschlag": "„Bevor ich geflunkert habe, konnte Kaiser keine Maschinen bauen. Und ich hatte ihm auch nie dabei zugesehen.“"
+        }
+      ]
+    },
+    "humor": {
+      "score": 8,
+      "witze": [
+        {
+          "quote": "„Zum dritten Mal im Wäschekorb!“",
+          "zuendet": "ja",
+          "warum": "Mats zählt Kaisers Niederlagen wie Rekorde. Der Waschlappen auf dem Kopf macht den Rückruf auch für neue Leser sichtbar."
+        },
+        {
+          "quote": "„Zum Fischefangen ist er ein bisschen zu gemütlich.“",
+          "zuendet": "halb",
+          "warum": "Erwachsene hören die Untertreibung. Kinder sehen vor allem den Waschlappen. Als Auslöser für Grimmbachs Ärger funktioniert die Stelle.",
+          "besser": "Papa kann auf den Waschlappen zeigen: „Der Kater hat gerade Badetag.“"
+        },
+        {
+          "quote": "„Der kann ja nicht mal landen!“",
+          "zuendet": "ja",
+          "warum": "Der Fall ist gerade passiert. Wer Folge 4 kennt, hört zusätzlich, dass ausgerechnet Mats diesen Spruch macht."
+        },
+        {
+          "quote": "„Du kriegst ja nicht mal die Dose auf.“",
+          "zuendet": "ja",
+          "warum": "Grimmbach verkleinert ihre große Behauptung in einem Atemzug. Das Flüstern zum Kater macht beide zu Komplizen."
+        },
+        {
+          "quote": "„Das war nicht geflunkert, das war ausgedacht!“",
+          "zuendet": "halb",
+          "warum": "Der Spruch sitzt, doch Mats verwendet ihn unmittelbar nach Folge 5 wieder stellvertretend. Erst sein »Moment« gibt der Wiederholung hier einen eigenen Dreh.",
+          "besser": "Den Spruch wortgetreu lassen und direkt mit Mats' Erkenntnis verbinden. »Seinen Spruch« braucht der Erzähler dafür nicht anzukündigen."
+        },
+        {
+          "quote": "Mit der Pfote. Sehr höflich.",
+          "zuendet": "ja",
+          "warum": "Ein Kater nimmt einem Erwachsenen ganz manierlich das Werkzeug ab und kann es auch noch besser benutzen."
+        },
+        {
+          "quote": "„Kaiser, kannst du auch ein Raumschiff bauen?“",
+          "zuendet": "halb",
+          "warum": "Der Sprung vom Stuhl zum Raumschiff passt zu Mats. Wenn er kurz danach noch einmal auf das Raumschiff tippt, kommt dieselbe Pointe ein zweites Mal.",
+          "besser": "Die erste Frage stehen lassen. Beim ausgemessenen Glas kann Mats schon selbst merken, für wen die Maschine gedacht ist."
+        },
+        {
+          "quote": "„Meiner schon.“ Aber Kaiser kam nicht.",
+          "zuendet": "ja",
+          "warum": "Der Kater widerlegt seine Besitzerin im selben Takt, in dem sie ihn verteidigt."
+        },
+        {
+          "quote": "Mittendrin saß Kaiser und trug Frau Grimmbachs Lesebrille.",
+          "zuendet": "ja",
+          "warum": "Das Bild eines Katers als genauer Handwerker funktioniert, bevor jemand erklärt, wie schlau er geworden ist."
+        },
+        {
+          "quote": "„Er hat mich geangelt!“",
+          "zuendet": "ja",
+          "warum": "Das geplante Opfer ist der Fisch. Erst mal hängt Mats am Kabel. Der Rollenwechsel ist sofort verständlich."
+        },
+        {
+          "quote": "Mats holte das Nudelsieb aus der Küche, setzte es auf und stellte sich vor das Regal. „Wache.“",
+          "zuendet": "ja",
+          "warum": "Ein Küchenhelm und ein einziges ernst gemeintes Wort reichen. Das Sieb bekommt danach sogar einen zweiten Einsatz."
+        },
+        {
+          "quote": "„Das steht nicht in meinem Heft.“",
+          "zuendet": "halb",
+          "warum": "Das passt zu Grimmbach, klingt beim vorbeisausenden Staubsauger aber wie eine Zeile, die auf ihren Auftritt gewartet hat. Seite zwölf hat gerade schon denselben Kontrast gezeigt.",
+          "besser": "Ein knappes „Kaiser!“ und ihr Blick ins aufgeschlagene Heft halten den Witz bei der Handlung."
+        },
+        {
+          "quote": "SCHLÜRF. Nummer zwölf.",
+          "zuendet": "ja",
+          "warum": "Das vorherige Zählen gibt dem Geräusch eine Pointe. Kaiser räumt sein Hindernis ab und liefert das letzte Glöckchen selbst."
+        },
+        {
+          "quote": "„Der fällt echt gut“, sagte Mats.",
+          "zuendet": "halb",
+          "warum": "Nach der Entschuldigung greift Mats genau den Spott vom Anfang wieder auf. Ob es liebevoll klingt, hängt beim Vorlesen stark von der Stimme ab.",
+          "besser": "„Saubere Landung“, sagte Mats leise. Dann kann Grimmbach Kaiser herausheben, bevor jemand den Sprung weiter kommentiert."
+        },
+        {
+          "quote": "Er schob den Kopf unter ihr Kinn und schnurrte. Laut, wie ein kleiner Staubsauger.",
+          "zuendet": "ja",
+          "warum": "Das große Brummen wird zum gemütlichen Schnurren. Der Vergleich schließt die Beziehungsgeschichte und den Maschinengag zugleich ab."
+        },
+        {
+          "quote": "„Blubb hieß: Mit Grips ist der Kater gefährlich. Ohne ist er mir lieber.“",
+          "zuendet": "halb",
+          "warum": "Brunos Übersetzung wiederholt, was Kinder längst bei der Maschine und beim Korbsprung gesehen haben.",
+          "besser": "„Blubb hieß: Mein Glas ist kein Planschbecken für Hüte.“"
+        },
+        {
+          "quote": "„Du doch nicht“, sagte sie und kraulte ihn hinter dem Ohr.",
+          "zuendet": "ja",
+          "warum": "Die energischen Ausrufezeichen im Heft treffen auf einen schlafenden Kater mit der Pfote in der Dose. Die leise Antwort sitzt."
+        }
+      ]
+    },
+    "unterhaltung": {
+      "score": 8,
+      "durchhaenger": [
+        {
+          "stelle": "„Gleich danach schraubte Kaiser den losen Griff an der Besteckschublade fest.“",
+          "warum": "Der reparierte Stuhl und Papas Reaktion haben die neue Fähigkeit bereits verkauft. Die Schublade liefert einen zweiten Beweis, bevor Kaiser endlich das Glas ausmisst.",
+          "vorschlag": "Vom stillstehenden Stuhl direkt zu Papas Ausruf und dem schnarrenden Maßband springen."
+        },
+        {
+          "stelle": "Kapitel 2, vom Zylinder auf dem Rohr bis zur Frage nach Seite zwölf.",
+          "warum": "Hutbau, zwei Anschlüsse, Rollschuhe, Metallstäbe, Grimmbachs Ausweichen, Kabel und Akku konkurrieren um dieselbe Aufmerksamkeit. Der Einbruchsplan kommt erst nach dieser ganzen Folge von Informationen ins Spiel.",
+          "vorschlag": "Hutarm und Saugschlauch beim Bau mit je einem sichtbaren Zweck einführen. Den langen Arm erst beim Fangversuch ausfahren lassen und die Kabelnummer als einzigen missglückten Stopp stehen lassen."
+        },
+        {
+          "stelle": "„Der Hut war weg.“ bis zum Gespräch an Grimmbachs Bücherregal.",
+          "warum": "Hutsuche, Abschrauben, Beutel leeren, Alarm aufhängen, Bruno, Karte und Rückgabe bilden viele kleine Enden hintereinander. Nach dem Schnurren will ein Kind noch wissen, was aus Hut und Heft wird.",
+          "vorschlag": "Aufräumen und Rollschuh-Rückgabe zu einer Bewegung bündeln. Brunos Spruch und die Karte können auf dem Weg dazwischen kurz sitzen. Dem Heftgespräch und Eintrag 51 Raum lassen."
+        }
+      ]
+    },
+    "logikLuecken": [
+      {
+        "quote": "Mittendrin hing Kater Kaiser.",
+        "problem": "Der Alarm erklärt das Bimmeln. Er erklärt noch nicht, wie Kaiser in die Wohnung und bis an die Regalhöhe gekommen ist, obwohl das beim bisherigen Einbruch stets der eigentliche Trick war.",
+        "fix": "Im ersten Absatz eine offene Tür oder eine konkrete Einstiegsspur und einen einzigen sichtbaren Tritt zum Regal ergänzen."
+      },
+      {
+        "quote": "„Das habe ich selbst gesehen.“",
+        "problem": "Beim Auslösen hat Grimmbach angeblich schon zugesehen. Die Szene erfüllt nur die Fähigkeit und lässt sie den Bau danach beobachten. »Jetzt sehe ich es selbst« macht den Unterschied sogar ausdrücklich.",
+        "fix": "Die festgelegte Flunkerei behalten. Vor dem Satz zeigen, dass Grimmbach Kaiser bei einem scheinbar gewöhnlichen Handgriff zusieht. Nach dem Knacken wird an einem sichtbaren Detail klar, dass er dabei bereits einen einfachen Mechanismus gebaut hat. Grimmbachs Dosenbemerkung muss weiter zeigen, was sie im Moment des Flunkerns wusste."
+      },
+      {
+        "quote": "„Wenn er mir entwischt, klingele ich oben. Lassen Sie die Tür zu.“",
+        "problem": "Die Kinder kennen das Zeichen. Ella erreicht Papa, nimmt ihm den Karton ab und hat bis zum Klingeln Zeit. Sie sagt ihm den entscheidenden Satz nicht. Papa kann daher nur aus Unwissen in die Falle laufen.",
+        "fix": "Ella die Warnung sofort weitergeben lassen. Kaiser soll den bekannten Plan durch sein eigenes Manöver überwinden, etwa indem Grimmbach an der Tür glaubhaft allein wirkt und er erst durch den Türspalt ins Blickfeld rollt."
+      },
+      {
+        "quote": "„Herr Brandt, Kaiser ist mir entwischt! Mitsamt Maschine.“",
+        "problem": "Grimmbach soll Kaiser im Blick behalten. Als sie oben warnt, folgt ihr eine Maschine mit Metallbeinen auf der Treppe. Die Szene zeigt Kaisers Lauschen vorab, lässt aber seinen entscheidenden Ablenkungsschritt aus.",
+        "fix": "Einen beobachtbaren Trick nennen oder zeigen. Kaiser lässt Grimmbach beispielsweise glauben, er sei wieder in den Keller gelaufen, und wartet auf einem tieferen Absatz, bis sie vor der Wohnungstür steht."
+      },
+      {
+        "quote": "Der Hut sank. Gleich würde Kaiser Bruno damit aus dem Wasser schöpfen.",
+        "problem": "Ein Hut über dem Glas erklärt die Absicht. Damit er wie ein Becher schöpfen kann, muss seine Öffnung am Glasrand vorbei bis unter Bruno gelangen. Die bisherige Bewegung lautet vor allem »über«, »kippte« und »sank«.",
+        "fix": "Beim ersten Ausfahren die Öffnung und den Rand sichtbar machen. Den schräg gestellten Hut mit der Öffnung voraus in das Glas gleiten und erst dort nach oben drehen lassen."
+      },
+      {
+        "quote": "Das lange Rohr klappte ein und schleuderte den Zylinder durch den Flur, zur offenen Wohnungstür hinaus.",
+        "problem": "Kaiser hat das Rohr mit einer Kurbel ausgefahren. Bisher hat der Motor den Saugschlauch betrieben. Das Abstellen zieht plötzlich das Rohr ein und befördert den Hut passgenau zur Wohnungstür.",
+        "fix": "Vor dem Abschalten zeigen, dass ein gespannter Gummi oder Riegel das ausgefahrene Rohr hält und beim Drücken freigegeben wird. Den losen Hut einmal sichtbar über den Boden oder gegen den Türrahmen springen lassen, bevor er auf der Treppe verschwindet."
+      },
+      {
+        "quote": "Dann griff er wieder nach der Kurbel.",
+        "problem": "Der Hut ist fort, der Sauger aus. Kaiser kann an der Kurbel drehen, doch für Leser ist offen, wie er Bruno jetzt noch erwischen will. Dadurch verliert die Beichte genau im entscheidenden Moment ihren äußeren Anlass.",
+        "fix": "Zeigen, welchen neuen Zugriff Kaiser versucht. Er kann etwa nach dem Ansaugschlauch greifen, ihn zum Glas drehen und mit der anderen Pfote wieder den Einschaltknopf suchen."
+      },
+      {
+        "quote": "„Vorher hatte ich Kaiser noch nie eine Maschine bauen sehen.“",
+        "problem": "Die Beichte nennt beide Teile und widerruft sie. Die konkrete Wahrheit formuliert sie anschließend nur für das Zuschauen. Ob Kaiser es vorher konnte, bleibt in der Geständnisszene unausgesprochen.",
+        "fix": "Beide Berichtigungen mit demselben klaren Zeitbezug aussprechen: Vor ihrer Flunkerei konnte Kaiser keine Maschinen bauen, und sie hatte ihn nie dabei gesehen."
+      }
+    ],
+    "schulhofSatz": "SCHLÜRF. Nummer zwölf.",
+    "staerksteMomente": [
+      "Kaiser sitzt mit Grimmbachs Lesebrille zwischen den fein sortierten Schrauben. Ein Bild genügt für die ganze Verwandlung.",
+      "Grimmbach sieht auf ihren leeren Schoß. Ihre Freude über den angeblich genialen Kater kippt, ohne dass die Erzählstimme das Gefühl erklären muss.",
+      "Kaiser liest Seite zwölf. Damit wird das Heft erstmals zu einem Werkzeug, das eine Figur benutzt, um einen konkreten Plan zu machen.",
+      "Das eigene Glöckchen verrät Kaiser nach elf erfolgreichen Schlürfern. Danach zeigt ausgerechnet er Ella den Knopf.",
+      "Kaiser schnurrt unter Grimmbachs Kinn wie ein kleiner Staubsauger. Der Lärm des Angriffs kehrt als etwas Vertrautes zurück."
+    ]
+  },
+  "mustFix": [
+    "„Das habe ich selbst gesehen“ → Die behauptete frühere Beobachtung sichtbar in die wörtliche Wirkung einlösen. Im Geständnis beide Ausgangstatsachen klar benennen.",
+    "„Lassen Sie die Tür zu“ → Ella muss die Warnung an Papa weitergeben. Zeigen, wie Kaiser Grimmbach täuscht und ihren Weg nach oben für seinen Einbruch nutzt. Der Erfolg soll an seinem Einfallsreichtum hängen.",
+    "„Der Hut sank“ bis „Dann griff er wieder nach der Kurbel“ → Fangarm und Saugschlauch räumlich trennen, das Einklappen vorbereiten und nach dem Verlust des Huts zeigen, womit Kaiser Bruno jetzt noch fangen will. Der Stoppknopf beendet die Maschine im laufenden Angriff, die Beichte beendet Kaisers neue Fähigkeit.",
+    "„Dieselbe Mondsichel wie auf dem alten Plakat“ → Fisch-Emblem und sichtbare Verbindung zum Plakat behalten, die Übereinstimmung über Ellas Blick auf Hut und Zeichnung zeigen. Brunos Blick und das Verschwinden auf der Treppe genügen für den Rest.",
+    "„Heute steht der Karton noch oben“ → Grimmbach Ellas Angabe als überprüfbare Ausnahme von ihrer Routine aufnehmen lassen oder Ella eine konkrete Alltagsbeobachtung beisteuern lassen, die im Heft fehlt. So verdient Ella den Zugang nach dem Vergessen durch eine Handlung."
+  ],
+  "notes": [
+    "Grimmbachs ernst gemeinter Stolz und ihre bewusste Flunkerei liegen dicht beieinander. Die Bemerkung über die Dose macht den Unterschied ohne Regelvortrag hörbar.",
+    "Die alten Rollschuhe aus Folge 5, das Maßband und der Kater-Alarm bekommen jeweils eine Aufgabe im Einbruch. Diese Rückgriffe gehören zur Handlung.",
+    "Die Spanne vom leeren Schoß zu Kaisers Schnurren ist der emotionale Kern. Mats' Entschuldigung gibt Grimmbach den Raum, ihre Scham selbst auszusprechen.",
+    "Die zwölfte Glocke als Korken und Kaisers Pfotenzeig zum Knopf behalten. Der Kater bleibt Rivale und kann trotzdem für einen Moment mit Ella zusammenarbeiten.",
+    "Der Zylinder darf auf der Treppe weg sein. Die Geschichte um Kaisers Maschine ist mit der Beichte und der Rückkehr zum vertrauten Kater abgeschlossen.",
+    "Eintrag 51 und „Du doch nicht“ gehören ans Ende. Sie bringen die Erinnerungslücke, Kaisers Würde und Grimmbachs Zuneigung in denselben kurzen Moment."
+  ],
+  "gesamtnote": 7,
+  "_meta": {
+    "provider": "codex",
+    "model": "gpt-6.2-sol (codex)",
+    "effort": "high",
+    "costUSD": null,
+    "tokens": {
+      "completion": 50279
+    },
+    "seconds": 338,
+    "words": [
+      532,
+      614,
+      859
+    ]
+  }
+}

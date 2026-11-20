@@ -1,0 +1,204 @@
+{
+  "reviewer": "gpt-6.2-sol über das Codex-Abo (codex exec), Denkstufe high",
+  "rounds": {
+    "bruno": [
+      {
+        "round": "r1",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 7,
+          "ende": 7,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 8
+        },
+        "mustFix": [
+          "„Das war nicht geflunkert, das war …“ → Mats’ Pflichtspruch vollständig bringen und die Selbstkorrektur danach setzen.",
+          "„Kaiser tippte gegen den tropfenden Wasserhahn“ und „den Schwanz … vom Boden bis zum Glas“ → Kaisers Können mit einer sichtbaren Handlung und einem echten Maßband zeigen.",
+          "„Sie müssen sagen, dass es nicht stimmt“ → Ellas Aufforderung und Grimmbachs Geständnis auf die erfundene Fähigkeit vor dem Auslösen und die erfundene frühere Beobachtung beziehen.",
+          "„15:20 Kater baut“ bis „15:48“ → Den Ablauf vor vier zeitlich straffen und die verbleibende Zeit in Ellas Ruf nennen.",
+          "„Ging zur Kellertür“ und „ein Paar sehr alte Rollschuhe“ → Den Weg über das Treppenhaus markieren und Grimmbach das Paar aus Folge 5 wiedererkennen lassen.",
+          "„Zog den Stecker wieder heraus“ → Die Stromversorgung der fahrbaren Maschine mit einem sichtbaren Akkutest klären.",
+          "„Sie rannten nach oben“ und „Er machte auf“ → Grimmbach bei Kaiser lassen, das spätere Klingeln vorbereiten und Ella beim Öffnen der Tür reagieren lassen.",
+          "„Das Rohr wuchs“ und „Da wollte der Staubsauger noch ein Glöckchen“ → Hutrohr und Saugschlauch trennen und zeigen, wie Kaiser sein Glöckchen selbst vor den laufenden Schlauch bringt.",
+          "„Gar nicht majestätisch“ und „Das goldene Glöckchen fiel ab“ → Kaiser auch in der Klemme Haltung geben und das Glöckchen vom Schlauch lösen, mit sichtbarem Verbleib am Halsband.",
+          "„Papa trug den Staubsauger hinunter“ → Zeigen, wer Beutel und Rollschuhe oben abnimmt, und beide Erwachsenen vor Brunos Sprechszene unten verorten.",
+          "„Nur der Zylinder war weg“ → Einen plausiblen unbeobachteten Verlustmoment am Rohr schaffen und die Suche erfolglos lassen.",
+          "„Wie auf dem Plakat“ und „Wie albern“ → Die gemeinsame Sichel beim ersten Fund beiläufig zeigen, den Fisch dem Hut zuordnen und Bruno nur blicken lassen.",
+          "„Du hast nur Blubb gesagt“ → Mats’ Einwand auf die Szene vor der Maschine beziehen."
+        ]
+      },
+      {
+        "round": "r2",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 7,
+          "ende": 7,
+          "kanonTreue": 9,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Der lag ganz hinten im Keller“ → Den Fund direkt zeigen. Frau Grimmbach braucht kein unbegründetes Wissen über die Fundstelle.",
+          "„15:47“ und „15:48“ → Die Spur auf Seite zwölf lassen und den Zeitdruck mit „Gleich ist vier!“ ausdrücken.",
+          "„Da war die Tür schon offen“ und „Hinter Frau Grimmbachs Beinen surrte etwas“ → Papas Griff zur Klinke, Grimmbachs Warnversuch und Kaisers Weg die Treppe hinauf zeigen.",
+          "„Leere Wäscheklammern an den Fäden“ und „SCHLÜRF. Nummer zwölf“ → Den Alarm tatsächlich aus dem Weg räumen lassen und zeigen, wie Kaiser den laufenden Schlauch selbst neben sein Glöckchen bringt. Die Socke auf demselben Weg einsaugen.",
+          "„Der Zylinder schob sich über das Sieb“ → Schlauch, ausfahrendes Rohr und kippenden Hut räumlich unterscheiden. Beim Einklappen das Glas sichtbar ins Wackeln bringen.",
+          "„Dann griff er wieder nach dem Schraubenzieher“ → Grimmbach selbst am Griff zur nächsten Schraube merken lassen, was ihr an Kaiser fehlt. Die warme Liste im Geständnis bleibt.",
+          "„Papa blinzelte“ → Beide Erwachsenen direkt nach dem Plopp vergessen lassen und zeigen, dass Kaisers Können fort ist, während die zusammengeschraubte Maschine stehen bleibt.",
+          "„Keiner hatte gesehen, wohin er gerollt war“ → Beim Abschalten einen möglichen Weg für den Hut hörbar machen. Die Suche bleibt erfolglos. Bruno schaut den Hut nur an.",
+          "„Sie schrieb etwas auf“ → Den späteren Heft-Eintrag im laufenden Zauber hörbar vorbereiten. Die neue Erlaubnis am Ende aus dem gewöhnlichen Hausalltag entstehen lassen."
+        ]
+      },
+      {
+        "round": "r3",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 8,
+          "ende": 7,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Er fällt immer in den Wäschekorb“ → Den dritten Wäschekorbtreffer eindeutig zählen und Mats' Spott an der sichtbaren Landung festmachen.",
+          "„Du kriegst ja nicht mal die Dose auf“ → Mats hörbar in Grimmbachs Nähe halten, damit er ihre Absicht aus dem Satz erkennen kann.",
+          "„Hatten Sie ihn schon mal eine Maschine bauen sehen, bevor Sie das bei uns gesagt haben?“ → Aus der langen Frage eine klare Unterscheidung zwischen damals und jetzt machen und diese im Geständnis wieder aufnehmen.",
+          "„Kaiser ließ das Kabel einrollen“ → Beim Start den Stecker frei hängen lassen. Die vier Metallstäbe beim Bau zeigen, bevor sie als Treppenbeine dienen.",
+          "„Wenn er mir entwischt, klingele ich oben“ → Kaisers Reaktion auf das Signal und sein gezieltes Warten auf Papas Türöffnung lesbar machen.",
+          "„Das Glöckchen klebte an der Öffnung“ → Größe, Halsband und unerreichbaren Schalter so zeigen, dass Kaiser einen sichtbaren Grund hat, Ella um Hilfe zu bitten.",
+          "„Im offenen Flur polterte etwas“ → Den Zylinder beim Einklappen durch die offene Tür fliegen lassen, die Spur auf die Treppe lenken und den Hut am Ende verschwunden lassen.",
+          "„Kaiser griff nach dem Schraubenzieher“ → Einen konkreten zweiten Fangansatz zeigen, damit Abschalten und Wahrheitsgeständnis zwei verschiedene Probleme lösen.",
+          "„Die Maschine stand immer noch da“ → Mit den fest sitzenden Schrauben zeigen, warum der gebaute Gegenstand bleibt, während Kaiser sein Können verliert.",
+          "„Darf ich da manchmal reingucken?“ → Ella nach dem Vergessen einen neuen Anlass geben, sich Grimmbachs Vertrauen für den späteren Heftzugang zu verdienen."
+        ]
+      },
+      {
+        "round": "final",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 7,
+          "ende": 8,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Das habe ich selbst gesehen“ → Die behauptete frühere Beobachtung sichtbar in die wörtliche Wirkung einlösen. Im Geständnis beide Ausgangstatsachen klar benennen.",
+          "„Lassen Sie die Tür zu“ → Ella muss die Warnung an Papa weitergeben. Zeigen, wie Kaiser Grimmbach täuscht und ihren Weg nach oben für seinen Einbruch nutzt. Der Erfolg soll an seinem Einfallsreichtum hängen.",
+          "„Der Hut sank“ bis „Dann griff er wieder nach der Kurbel“ → Fangarm und Saugschlauch räumlich trennen, das Einklappen vorbereiten und nach dem Verlust des Huts zeigen, womit Kaiser Bruno jetzt noch fangen will. Der Stoppknopf beendet die Maschine im laufenden Angriff, die Beichte beendet Kaisers neue Fähigkeit.",
+          "„Dieselbe Mondsichel wie auf dem alten Plakat“ → Fisch-Emblem und sichtbare Verbindung zum Plakat behalten, die Übereinstimmung über Ellas Blick auf Hut und Zeichnung zeigen. Brunos Blick und das Verschwinden auf der Treppe genügen für den Rest.",
+          "„Heute steht der Karton noch oben“ → Grimmbach Ellas Angabe als überprüfbare Ausnahme von ihrer Routine aufnehmen lassen oder Ella eine konkrete Alltagsbeobachtung beisteuern lassen, die im Heft fehlt. So verdient Ella den Zugang nach dem Vergessen durch eine Handlung."
+        ]
+      }
+    ],
+    "monster": [
+      {
+        "round": "r1",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 7,
+          "ende": 7,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Ab in die Tonne!“ → Omas Fangruf vollständig und wortgetreu als „Ab in die Tonne, Süße!“ setzen.",
+          "„Nach Farben!“ unmittelbar nach den wechselnd sortierten Stiefeln → Jona eine nachvollziehbare Flaschen-Hypothese geben und die zwei Fehlversuche knapp halten.",
+          "„Klirrklaus hörte auf zu klirren“ und „Kein bisschen“ vor dem Füllen → kurzes Innehalten hörbar von der einzigen wirksamen Beruhigung trennen.",
+          "„Dann hat jemand sie rausgenommen“ → Jonas Vermutung über die vergessenen Pfandflaschen von Klirrklaus bestätigen lassen. Die Fächer so beschreiben, dass die Lösung räumlich klar ist.",
+          "„Den hat er nicht aus diesem Keller“ → die unbelegte Ortsaussage streichen. Den Sockenfaden zeigen und den beschlossenen Vergleich mit der Krone bewahren.",
+          "„Durchs Kellerfenster kam Gertruds Rüssel“ → das Fenster zuerst öffnen lassen.",
+          "„Dann griff sie in ihre Lederjacke“ → Jona über das Geräusch aus der Tasche auf das Mikro kommen lassen und die Suche kurz halten.",
+          "„Ein Kasten trägt sich besser“ → beide Kästen sichtbar mitnehmen, Jona bei Oma lassen und Frau Kessel ausdrücklich zustimmen lassen.",
+          "„Sie putzte jede einzeln“ → Rückkehr der Flaschen in die Fächer und den festen Platz der Kästen in der Kammer zeigen.",
+          "„Dreizehn … Eine fehlt“ → Jona die vierzehn bekannten Schüsseln vorgeben lassen und Klirrklaus' Zählleistung sichtbar machen. Den Fensterblick mit einem Geräusch auslösen.",
+          "„Dann nahm er Jonas Warnweste“ → Jona Weste und Stiefel vor dem Hakenmoment ablegen lassen.",
+          "„Schwäche: will Ordnung“ → im geschriebenen Steckbrief die vollständige Ordnung in den eigenen Pfandkästen festhalten."
+        ]
+      },
+      {
+        "round": "r2",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 7,
+          "ende": 8,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 8
+        },
+        "mustFix": [
+          "„Ein goldener Wollfaden“ → den Faden schon am Hals als sockentypisch erkennbar machen. Der Vergleich mit der Krone bleibt eine Beobachtung und klärt seine Herkunft nicht.",
+          "„Ganz hinten fiel ein Stück Mondlicht durchs Kellerfenster“ → Gang, letztes Abteil und Gertruds Zugang räumlich zusammenführen.",
+          "„Dann löste er eine Flasche nach der anderen von seinen Armen“ → zeigen, wie auch die übrigen Körperflaschen in die Reihen gelangen.",
+          "„Sie steckte das Mikro in ihre Jackentasche“ → die Größenreihe schon vorher scheitern lassen, damit nur ihre Sortierung geprüft wird.",
+          "„Unter der Decke“ und „Flaschen raus. Lange gewartet“ → Jona hebt eine Stoffdecke an. Klirrklaus bestätigt, dass die Töpfe die früheren Flaschenplätze belegt haben.",
+          "„Oma setzte den zweiten obendrauf“ → die Kästen nebeneinanderstellen, die beiden Zwanzigergruppen klar zählen und die vollen Kästen geschützt transportieren.",
+          "„Aus ihrer Jackentasche kam ein leises Pling“ → Jonas Erinnerung an das Solo führt zur Tasche. Der Klang folgt als Bestätigung.",
+          "„Sie spähte in den Keller“ → Frau Kessel bekommt freie Sicht auf die Fahrräder und sieht zwei Kästen mit alten Flaschen.",
+          "„Er wusste ja jetzt, wo er hingehörte“ → die Abhängigkeit von seiner einzigen Schwäche klar halten. Er arbeitet außerhalb der Kästen und kehrt zum Ruhen zurück."
+        ]
+      },
+      {
+        "round": "r3",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 9,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 8,
+          "ende": 9,
+          "kanonTreue": 9,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Jona leuchtete am Regal vorbei“ → Klirrklaus muss Jona zu seinem alten Platz unter der Decke führen. Beim Topf zeigt er, weshalb er die Kästen allein nicht freiräumt.",
+          "„Klirrklaus sprang wieder heraus“ und „Dann stieg er hinein. Flasche für Flasche“ → Bei Fehlversuch und Fang die einzelnen Flaschen handeln lassen und nach dem Glassturz zeigen, dass sie heil bleiben.",
+          "„Wir tragen dich in deinen Kästen raus“ → Klirrklaus stimmt dem Umzug zu, und die Crew nimmt die leere Tonne beim zweiten Gang wieder mit.",
+          "„Dann stieg er aus und räumte leise klirrend ein“ → Klirrklaus behält die Kästen als festen Platz. Sein freiwilliger Ausstieg, sein leises Klirren und die Rückkehr vor dem Einschlafen machen die Regel sichtbar.",
+          "„Flusi hat Bart“ zwischen der fehlenden Flasche und Jonas Einfall → Den Gag zum Staubstoß verlegen und die Suche ab neununddreißig ohne Unterbrechung erzählen."
+        ]
+      },
+      {
+        "round": "final",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 7,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 8,
+          "ende": 9,
+          "kanonTreue": 9,
+          "weitererzaehlFaktor": 8
+        },
+        "mustFix": [
+          "»Klirrklaus guckte in alle Ecken« → Zeigen, dass er einen Platz für die Töpfe sucht. Er kennt den Standort der Kästen bereits.",
+          "»Beide voll. Jede Flasche ein Fach« → Klirrklaus die Vorgeschichte erzählen lassen und die Regel im Bild beweisen. Jona macht probeweise ein Fach frei und entdeckt an einer einzelnen ruhig werdenden Flasche, welche Ordnung wirkt.",
+          "»Ach du Schreck. Mein Mikro« → Oma soll Klirrklaus beim Zurückgeben ansprechen und ihren Fehler in einem kurzen Satz anerkennen. Die Jackentasche und der Rückruf bleiben erhalten.",
+          "»Zwei gezackte Flaschendeckel glänzten als Augen. Zwei Kronkorken« → In einem einzigen Bild sagen, dass Klirrklaus zwei Kronkorken als Augen hat."
+        ]
+      }
+    ]
+  }
+}

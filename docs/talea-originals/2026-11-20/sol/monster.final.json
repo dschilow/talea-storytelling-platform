@@ -1,0 +1,941 @@
+{
+  "canonChecks": [
+    {
+      "quote": "Zuerst leuchtete Jona mit der Taschenlampe auf den Riegel der kleinen Klappe.",
+      "fact": "Seit den Abdrücken in Folge 4 kontrolliert Jona zu Beginn jedes Wochenendes den Riegel.",
+      "agrees": true
+    },
+    {
+      "quote": "Er war zu.",
+      "fact": "Der Riegel war in Folge 5 geschlossen. Folge 6 setzt keine neue Öffnung voraus.",
+      "agrees": true
+    },
+    {
+      "quote": "Vor der grünen Tür lag das Pupsmonster und hielt seine Kordel hoch.",
+      "fact": "Die Pension liegt hinter der grünen Tür. Der Lüftungswart liegt davor und prüft mit seiner Kordel, ob es zieht.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie hing still.",
+      "fact": "Eine ruhige Kordel zeigt an, dass es an der Klappe nicht zieht.",
+      "agrees": true
+    },
+    {
+      "quote": "Pff.",
+      "fact": "Das Pupsmonster gibt auch im ruhigen Zustand kleine Pupse von sich.",
+      "agrees": true
+    },
+    {
+      "quote": "Es roch nach Wiese.",
+      "fact": "Seit dem Lüften in Folge 4 riechen die Pupse nach Wiese.",
+      "agrees": true
+    },
+    {
+      "quote": "Hinter der Pension, im Beet neben der Wäscheleine, guckten die ersten Radieschenblätter aus der Erde.",
+      "fact": "Das Brokkoli-Monster hat in Folge 5 genau dort Radieschen gesät.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona zählte nach.",
+      "fact": "Jona zählt auch ohne Angst gern Dinge in seiner Umgebung.",
+      "agrees": true
+    },
+    {
+      "quote": "Elf.",
+      "fact": "Jona hält beim Zählen genaue Zahlen fest. Elf bezieht sich hier auf die sichtbaren Radieschenblätter.",
+      "agrees": true
+    },
+    {
+      "quote": "Das Brokkoli-Monster stand mitten im Beet und bewachte sie mit beiden Stielarmen.",
+      "fact": "Das Brokkoli-Monster ist Pensionsgärtner und hat zwei Stielarme.",
+      "agrees": true
+    },
+    {
+      "quote": "Da knackte in der Küche der Monster-Funk.",
+      "fact": "Der Monster-Funk steht in Omas Küche.",
+      "agrees": true
+    },
+    {
+      "quote": "Notruf. Kastanienallee 12, Keller. Da klirrt’s. Jede Nacht ab Mitternacht.",
+      "fact": "Der Monster-Funk meldet nächtliche Störungen mit Einsatzadresse und Ort im Gebäude.",
+      "agrees": true
+    },
+    {
+      "quote": "„Klirren?“, fragte Jona. „Wie Glas?“",
+      "fact": "Jona stellt kurze, genaue Fragen und sucht nach dem Material hinter dem Geräusch.",
+      "agrees": true
+    },
+    {
+      "quote": "„Finden wir raus.“",
+      "fact": "Die bestätigte Serienphrase von Oma steht wörtlich im Text.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma Hilde zog die Handschuhe an.",
+      "fact": "Oma zieht für Einsätze ihre Arbeitshandschuhe an.",
+      "agrees": true
+    },
+    {
+      "quote": "„Weste an, Süßer.“",
+      "fact": "Jona trägt im Einsatz seine Warnweste. Oma spricht ihn als Süßer an.",
+      "agrees": true
+    },
+    {
+      "quote": "Auf dem Hof blinkte Gertrud zweimal.",
+      "fact": "Gertrud wartet am Betriebshof und blinkt zweimal zur Begrüßung.",
+      "agrees": true
+    },
+    {
+      "quote": "Flusi hüpfte aufs Armaturenbrett, und Oma schob eine Kassette ein.",
+      "fact": "Flusis Stammplatz ist vorne im Wagen. Oma spielt Einsatzmusik von Kassette.",
+      "agrees": true
+    },
+    {
+      "quote": "„Für Klirren nehmen wir ‚Klirr, bis der Keller bebt‘!“",
+      "fact": "Oma wählt für den Einsatz einen ausgedachten Rocksong.",
+      "agrees": true
+    },
+    {
+      "quote": "Gertrud hupte im Takt.",
+      "fact": "Gertrud reagiert auf Omas Rockmusik mit Hupen im Takt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Die Sonderabfuhr? Endlich.",
+      "fact": "Erwachsene außerhalb der Crew kennen Oma als Sonderabfuhr. Frau Kessel ist der einzige menschliche Gast dieser Folge.",
+      "agrees": true
+    },
+    {
+      "quote": "„Nachts geh ich da nicht runter. Morgens seh ich bloß, was alles umgestellt wurde.",
+      "fact": "Frau Kessel nimmt die Folgen der Monsteraktivität wahr und sieht Klirrklaus dabei nicht als Monster.",
+      "agrees": true
+    },
+    {
+      "quote": "Unordnung. Also, Ordnung. Komische Ordnung.",
+      "fact": "Die Hausmeisterin beschreibt verschobene Dinge aus ihrer Sicht als Außenstehende.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma parkte Gertrud im Hinterhof, gleich neben dem Kellerfenster.",
+      "fact": "Oma ist die Fahrerin. Gertrud ist der einzige Einsatzwagen. Ihr Standort ermöglicht später Hupen und Rüsseleinsatz.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann gingen sie zur Kellertreppe.",
+      "fact": "Oma begleitet Jona in den Einsatzort.",
+      "agrees": true
+    },
+    {
+      "quote": "„HATSCHI!“",
+      "fact": "Der erste Nieser an der Kellertreppe ist der erlaubte Fehlalarm.",
+      "agrees": true
+    },
+    {
+      "quote": "Flusi zog die Nase aus der Fußmatte.",
+      "fact": "Flusi reagiert auch auf gewöhnlichen Staub.",
+      "agrees": true
+    },
+    {
+      "quote": "An seiner Nase hing ein Staubkrümel.",
+      "fact": "Der Fehlalarm hat einen sichtbaren Auslöser.",
+      "agrees": true
+    },
+    {
+      "quote": "„Falsche Stelle“, sagte Flusi.",
+      "fact": "Flusi benutzt dieselbe kurze Wendung bereits in Folge 4 und 5.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona zählte leise die Stufen.",
+      "fact": "Jona zählt, wenn er sich fürchtet.",
+      "agrees": true
+    },
+    {
+      "quote": "Auf der achten nahm Oma seine Hand.",
+      "fact": "Oma bleibt bei Jona und begleitet ihn fürsorglich durch seine Angst.",
+      "agrees": true
+    },
+    {
+      "quote": "„Keller mag ich nachts auch nicht, Süßer“, flüsterte sie.",
+      "fact": "Oma steht zu ihrer eigenen Angst und nimmt Jonas Unbehagen ernst.",
+      "agrees": true
+    },
+    {
+      "quote": "Nach zwölf Stufen waren sie unten.",
+      "fact": "Jonas Zählgewohnheit legt die genaue Zahl fest, die er beim Hinaufgehen wieder überprüft.",
+      "agrees": true
+    },
+    {
+      "quote": "Flusi zitterte.",
+      "fact": "Flusi zittert auch in früheren Folgen unmittelbar vor dem richtigen Hatschi-Alarm.",
+      "agrees": true
+    },
+    {
+      "quote": "„HATSCHI!“",
+      "fact": "Der zweite Nieser kommt unmittelbar vor Klirrklaus’ Erscheinen.",
+      "agrees": true
+    },
+    {
+      "quote": "Es war größer als Oma und ganz aus alten Flaschen.",
+      "fact": "Die Gestalt eines Monsters zeigt, aus welchem Material es entstanden ist.",
+      "agrees": true
+    },
+    {
+      "quote": "Grüne, braune und durchsichtige, voller Staub.",
+      "fact": "Die alten, verstaubten Flaschen passen zum Ursprung aus vergessenen Dingen.",
+      "agrees": true
+    },
+    {
+      "quote": "Um seinen Flaschenhals hing ein goldener Faden, kraus wie aus einer gestrickten Socke.",
+      "fact": "Der Sockenfaden an Klirrklaus’ Hals ist der eigene Staffelhinweis von Folge 6.",
+      "agrees": true
+    },
+    {
+      "quote": "Er war zur Schleife gebunden und hing da wie ein Abzeichen.",
+      "fact": "Der Hinweis erscheint in der vorgesehenen Form als Abzeichen. Seine Bedeutung bleibt offen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Na“, flüsterte Oma. „Du bist mir ja ein Klirrklaus.“",
+      "fact": "Oma begegnet einem großen, fremden Monster mit Zuneigung und Humor.",
+      "agrees": true
+    },
+    {
+      "quote": "Er nahm zwei Gummistiefel und stellte sie nach Farbe auf.",
+      "fact": "Klirrklaus’ Sortieren ist Ausdruck seiner Verwirrung und ein Hinweis auf sein Bedürfnis nach Ordnung.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann nach Größe. Dann wieder nach Farbe.",
+      "fact": "Farbe und Größe werden als wechselnde Sortierversuche eingeführt. Die eine echte Schwäche bleibt das eigene Fach im Kasten.",
+      "agrees": true
+    },
+    {
+      "quote": "Er klirrte unglücklich.",
+      "fact": "Das Monster handelt aus Unruhe und Verwirrung.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann hob er Flusi hoch und setzte ihn ins Regal zwischen die Gläser mit Erdbeer- und Himbeermarmelade.",
+      "fact": "Klirrklaus sortiert versehentlich ein Crewmitglied ein. Die Szene fügt Flusi keinen Schaden zu.",
+      "agrees": true
+    },
+    {
+      "quote": "„Flusi ist keine Marmelade!“",
+      "fact": "Flusi spricht in einem kurzen Satz über sich in der dritten Person.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann holte er ihn wieder herunter.",
+      "fact": "Klirrklaus nimmt die Korrektur an. Das ist Rücksicht im Umgang mit Flusi.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma klappte die mitgebrachte Tonne auf.",
+      "fact": "Oma bringt wie bei früheren Einsätzen eine Monster-Tonne mit.",
+      "agrees": true
+    },
+    {
+      "quote": "Unten lag ein gefaltetes Handtuch.",
+      "fact": "Oma polstert die Tonne passend zum Gast, wie bereits mit Jacke oder Kissen in früheren Folgen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ab in die Tonne, Süße!“",
+      "fact": "Omas Fangspruch steht wortgetreu im Text.",
+      "agrees": true
+    },
+    {
+      "quote": "Er stieg tatsächlich hinein.",
+      "fact": "Klirrklaus entscheidet selbst, den ersten Fangversuch mitzumachen.",
+      "agrees": true
+    },
+    {
+      "quote": "Drinnen purzelten alle Flaschen durcheinander.",
+      "fact": "Der Fangversuch scheitert, weil die Tonne den Flaschen keine einzelnen Plätze bietet.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie blieben alle heil.",
+      "fact": "Klirrklaus wird beim misslungenen Fang nicht verletzt oder beschädigt.",
+      "agrees": true
+    },
+    {
+      "quote": "Flusi wollte eine braune aufhalten.",
+      "fact": "Flusi versucht, der Crew beim Fang zu helfen.",
+      "agrees": true
+    },
+    {
+      "quote": "Schon hüpften die Flaschen wieder zusammen, eine auf die andere, bis Klirrklaus vor ihnen stand.",
+      "fact": "Die Flaschen bleiben Teile eines Monsters und setzen sich nach dem Fehlversuch wieder zusammen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Durcheinander“, klirrte er. „Ordnung!“",
+      "fact": "Klirrklaus benennt das Bedürfnis, das zur Schwäche aus seinem Ursprung führt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Moment … ich weiß die Schwäche!“, rief Jona.",
+      "fact": "Die erste wortgetreue Verwendung des Ausrufs leitet wie vorgesehen einen Irrtum ein.",
+      "agrees": true
+    },
+    {
+      "quote": "„Wir sortieren seine Flaschen nach Farben!“",
+      "fact": "Farbe ist Jonas falsche Vermutung und wird als eigene magische Schwäche ausgeschlossen.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann löste er seine Flaschen und reichte sie ihnen.",
+      "fact": "Klirrklaus beteiligt sich freiwillig am Versuch. Die Crew reißt ihm keine Teile ab.",
+      "agrees": true
+    },
+    {
+      "quote": "Ganz vorsichtig.",
+      "fact": "Klirrklaus’ Teile werden beim Sortieren behutsam behandelt.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona stellte die grünen auf. Oma die braunen. Flusi rollte die durchsichtigen in eine Reihe.",
+      "fact": "Oma bleibt beim Versuch bei Jona. Flusi hilft der Crew praktisch mit.",
+      "agrees": true
+    },
+    {
+      "quote": "„Flusi hilft!“",
+      "fact": "Flusis Spruch steht wortgetreu im Text.",
+      "agrees": true
+    },
+    {
+      "quote": "Alle hüpften aus ihren Reihen und sprangen wieder zusammen.",
+      "fact": "Das Sortieren nach Farben beruhigt Klirrklaus nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "„Dann nach Größe!“, rief Oma.",
+      "fact": "Oma probiert eine weitere plausible Ordnung aus, die sich ebenfalls als wirkungslos erweist.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma klopfte mit dem Finger gegen die Flaschen.",
+      "fact": "Oma tippt die Flaschen zum Spielen an. Dabei geht kein Teil des Monsters kaputt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Hör mal, Süßer! Eine Flaschenorgel!“",
+      "fact": "Oma spricht Jona als Süßer an und macht aus dem Sortierversuch spontan Musik.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma spielte „Volle Tonne, volle Kraft“.",
+      "fact": "Das Lied ist seit Folge 1 etabliert. Hier spielt Oma es spontan auf den Flaschen. Der eigene Einsatzsong wurde bereits gewählt.",
+      "agrees": true
+    },
+    {
+      "quote": "Durch den Fensterspalt kam Gertruds Hupen.",
+      "fact": "Gertrud äußert sich über die Hupe. Sie steht an diesem Kellerfenster.",
+      "agrees": true
+    },
+    {
+      "quote": "Genau im Takt.",
+      "fact": "Gertrud hupt zu Omas Musik im Takt.",
+      "agrees": true
+    },
+    {
+      "quote": "Flusi dirigierte mit beiden Ärmchen.",
+      "fact": "Flusi hat als runder Staubflusenball zwei kleine Arme.",
+      "agrees": true
+    },
+    {
+      "quote": "Sogar Klirrklaus’ Kopf wippte mit.",
+      "fact": "Klirrklaus kann die Musik mögen, während seine einzige Schwäche weiterhin das passende Flaschenfach ist.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma schnappte sich noch schnell die kleinste und sang hinein wie in ein Mikrofon.",
+      "fact": "Omas Rockauftritt passt zu ihrer Spielfreude. Die Flasche bleibt heil. Ihr gedankenloser Umgang mit einem Teil des Gastes ist ein Figurenproblem.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie steckte ihr Mikro in die Jackentasche und verbeugte sich vor den Marmeladengläsern.",
+      "fact": "Die Flasche wird später unbeschädigt zurückgegeben. Die ungeschickte Handlung wird nicht als Strafe eingesetzt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Klirr“, machte er. Ganz leise. „Falsch.“",
+      "fact": "Auch die Größenreihe löst Klirrklaus’ Unruhe nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona wurde heiß im Gesicht.",
+      "fact": "Jona schämt sich wie in früheren Folgen, wenn sich seine Vermutung als falsch erweist.",
+      "agrees": true
+    },
+    {
+      "quote": "„Das mit der Orgel auch“, sagte Oma. „Aber schön war’s.“",
+      "fact": "Oma räumt ihren eigenen Irrtum ein und hält den Ton spielerisch.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona fiel die Frage vom letzten Einsatz ein.",
+      "fact": "Jona behält die in Folge 5 gewonnene Erkenntnis und wendet sie im nächsten Einsatz an.",
+      "agrees": true
+    },
+    {
+      "quote": "„Klirrklaus, wartest du auf jemanden?“",
+      "fact": "Das ist die in Folge 5 verabredete Frage.",
+      "agrees": true
+    },
+    {
+      "quote": "„Nein“, klirrte er. „Such Platz.“",
+      "fact": "Monster dürfen aus Verwirrung handeln. Klirrklaus braucht hier einen Platz und wartet auf keine Person.",
+      "agrees": true
+    },
+    {
+      "quote": "„Haben deine Flaschen früher hier dringestanden?“, fragte Jona.",
+      "fact": "Jona untersucht den Ursprung des Monsters, um seine Schwäche zu verstehen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ja. Beide voll. Jede Flasche ein Fach.“",
+      "fact": "Die alte Ordnung begründet die einzige wirksame Schwäche und bereitet zwei vollständige Kästen vor.",
+      "agrees": true
+    },
+    {
+      "quote": "„Dann Töpfe drin. Flaschen lange draußen.“",
+      "fact": "Klirrklaus entstand aus den Flaschen, die nach der Umnutzung der Kästen lange vergessen wurden.",
+      "agrees": true
+    },
+    {
+      "quote": "„Topf. Wohin?“",
+      "fact": "Klirrklaus’ Sorge um den Platz der Töpfe passt zu einem verwirrten, fürsorglichen Monster.",
+      "agrees": true
+    },
+    {
+      "quote": "Als er sich vorbeugte, baumelte der goldene Faden an seinem Hals.",
+      "fact": "Die Szene greift denselben Staffelhinweis auf und fügt kein neues Indiz hinzu.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona holte die Socke mit der winzigen gestrickten Krone aus seiner Hoodie-Tasche und hielt sie daneben.",
+      "fact": "Jona trägt die Socke seit Folge 1 in seiner Hoodie-Tasche. In Folge 6 vergleicht er den Faden mit der gestrickten Krone.",
+      "agrees": true
+    },
+    {
+      "quote": "Gleich golden. Genauso dick. Genauso kraus.",
+      "fact": "Der Vergleich beschreibt sichtbare Ähnlichkeiten. Herkunft und Verbindung bleiben offen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Woher hast du den?“, fragte Jona.",
+      "fact": "Jona stellt eine Frage zum eigenen Staffelhinweis. Die Antwort löst das Rätsel nicht auf.",
+      "agrees": true
+    },
+    {
+      "quote": "Klirrklaus legte eine Flaschenhand über den Faden.",
+      "fact": "Klirrklaus behält sein Abzeichen bei sich. Der Sockenkönig erscheint nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "„Meins.“",
+      "fact": "Klirrklaus beansprucht den Faden für sich, ohne seine Herkunft oder die Staffellösung zu verraten.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona steckte die Socke wieder ein.",
+      "fact": "Die Kronensocke bleibt in Jonas Besitz.",
+      "agrees": true
+    },
+    {
+      "quote": "„Moment … ich weiß die Schwäche!“, sagte er.",
+      "fact": "Der wortgetreue Ausruf leitet beim zweiten Mal die richtige Erklärung ein.",
+      "agrees": true
+    },
+    {
+      "quote": "„Er braucht seine Kästen. Für jede Flasche ein Fach.“",
+      "fact": "Die eine Schwäche hängt mit der früheren Aufbewahrung der vergessenen Pfandflaschen zusammen.",
+      "agrees": true
+    },
+    {
+      "quote": "Gertrud steckte den Rüssel herein und pustete den Staub aus den leeren Kästen.",
+      "fact": "Gertrud hilft von draußen mit ihrem beweglichen Rüssel, wie bereits in Folge 1 und 4.",
+      "agrees": true
+    },
+    {
+      "quote": "„Flusi hat Bart!“",
+      "fact": "Flusi bleibt mit Staubbart, kurzen Sätzen und dritter Person in seiner etablierten Stimme.",
+      "agrees": true
+    },
+    {
+      "quote": "Seine Flaschen lösten sich und hüpften in die Kästen.",
+      "fact": "Klirrklaus sortiert sich freiwillig ein. Der Fangtrick wirkt über seine eigene Schwäche.",
+      "agrees": true
+    },
+    {
+      "quote": "Eine in jedes Fach.",
+      "fact": "Die Fächer erfüllen die aus seiner Herkunft abgeleitete Bedingung.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona zählte mit.",
+      "fact": "Jona setzt seine Stärke praktisch ein, wie bei den Fenstern in Folge 4.",
+      "agrees": true
+    },
+    {
+      "quote": "Bei zwanzig war der erste Kasten voll. Der zweite hatte auch zwanzig Fächer.",
+      "fact": "Zwei gleich große Kästen machen die Bedingung der vollständigen Ordnung überprüfbar.",
+      "agrees": true
+    },
+    {
+      "quote": "„Neununddreißig“, sagte Jona.",
+      "fact": "Jona zählt die Flaschen genau und stellt fest, dass die Ordnung noch unvollständig ist.",
+      "agrees": true
+    },
+    {
+      "quote": "Ein Fach war leer. Klirrklaus klirrte lauter.",
+      "fact": "Solange eine Flasche fehlt, ist die Schwäche noch nicht vollständig wirksam.",
+      "agrees": true
+    },
+    {
+      "quote": "Er dachte an die Flaschenorgel. Mit der kleinsten Flasche hatte Oma noch gesungen, als die anderen schon wieder losgehüpft waren.",
+      "fact": "Ein früher gezeigter Vorgang verursacht Jonas spätere Handlung. Er findet die Flasche durch Erinnerung.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie steckte die kleinste Flasche in das letzte Fach.",
+      "fact": "Oma vervollständigt denselben Fangtrick und gibt Klirrklaus den fehlenden Teil heil zurück.",
+      "agrees": true
+    },
+    {
+      "quote": "Es war ganz still.",
+      "fact": "Die vollständigen Kästen machen Klirrklaus ruhig.",
+      "agrees": true
+    },
+    {
+      "quote": "Alle Flaschen blieben an ihrem Platz.",
+      "fact": "Die richtige Ordnung hält, während die beiden falschen Reihen sofort auseinanderhüpften.",
+      "agrees": true
+    },
+    {
+      "quote": "„Eine Tonne brauchst du heute nicht, Süße“, sagte Oma.",
+      "fact": "Die Folgenformel lässt einen passenden, schonenden Transport in den Kästen zu.",
+      "agrees": true
+    },
+    {
+      "quote": "„Kommst du in deinen Kästen mit?“",
+      "fact": "Oma fragt Klirrklaus, ob er freiwillig mit in die Pension kommt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Mit“, sagte Klirrklaus.",
+      "fact": "Klirrklaus stimmt dem Mitkommen zu.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma trug die Kästen einen nach dem anderen hinaus. Jona ging beide Male neben ihr die Treppe hinauf.",
+      "fact": "Die erwachsene Begleitung bleibt auch bei beiden Transportgängen bei Jona.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona zählte beim ersten Kasten zwölf Klings. Beim zweiten auch.",
+      "fact": "Jona zählt wieder die zwölf Stufen, diesmal hörbar an den Klings. Das leise Klingeln verträgt sich mit Klirrklaus’ Ruhe.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ach, die alten Pfandkästen! Samt Flaschen. Nehmen Sie die ruhig mit.“",
+      "fact": "Frau Kessel nimmt als Außenstehende nur Kästen mit Flaschen wahr und erlaubt ausdrücklich die Mitnahme.",
+      "agrees": true
+    },
+    {
+      "quote": "„Die stehen ja so ordentlich. Lassen Sie die mal so.“",
+      "fact": "Frau Kessel beurteilt die sichtbare Wirkung des Monsters auf die Fahrräder.",
+      "agrees": true
+    },
+    {
+      "quote": "Bei Gertrud stellte sie die Kästen auf gefaltete Handtücher und schob einen Bügel davor. Jetzt rutschte nichts.",
+      "fact": "Oma schützt Klirrklaus auf der Fahrt passend zu seinem Glasmaterial.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann fuhren sie zurück zur Pension.",
+      "fact": "Gertrud bringt den neuen Gast zur Monster-Pension. Oma bleibt die etablierte Fahrerin.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma stellte die Kästen neben die Wanne und ließ warmes Wasser ein. „Flaschen darf man spülen.“",
+      "fact": "Wie seit Folge 3 etabliert, richtet sich die Reinigung nach dem Material. Warmes Wasser passt hier zu den Glasflaschen.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie bürstete eine nach der anderen und stellte jede gleich zurück in ihr Fach.",
+      "fact": "Die Reinigung ist behutsam und erhält Klirrklaus’ passende Ordnung.",
+      "agrees": true
+    },
+    {
+      "quote": "„Was machen wir mit dir, Süße?“, fragte Oma.",
+      "fact": "Oma spricht den Gast fürsorglich an. Für neue Gäste gibt es eine passende Aufgabe.",
+      "agrees": true
+    },
+    {
+      "quote": "„Hier bleiben deine Kästen“, sagte Jona. „Da kannst du jederzeit wieder rein.“",
+      "fact": "Die Pension gibt dem Gast einen sicheren Platz, der zu seiner Schwäche und seinem Bedürfnis passt.",
+      "agrees": true
+    },
+    {
+      "quote": "Klirrklaus stieg aus und räumte die Kammer auf.",
+      "fact": "Die Schwäche beruhigt ihn in den Kästen. Er kann sie freiwillig verlassen und bleibt handlungsfähig.",
+      "agrees": true
+    },
+    {
+      "quote": "„Wir haben vierzehn Rührschüsseln“, sagte Jona. „Eine für jeden Abdruck damals.“",
+      "fact": "In Folge 4 wurden vierzehn Abdrücke mit je einer Rührschüssel geschützt. Die Erinnerung liefert eine bekannte Sollzahl.",
+      "agrees": true
+    },
+    {
+      "quote": "„Dreizehn“, klirrte er. „Eine fehlt.“",
+      "fact": "Klirrklaus kann fehlende Gegenstände anhand eines bekannten Bestands erkennen. Das setzt seine spätere Lageraufgabe auf.",
+      "agrees": true
+    },
+    {
+      "quote": "Im Beet goss das Brokkoli-Monster seine Radieschen. Mit einer Rührschüssel.",
+      "fact": "Das Brokkoli-Monster pflegt weiter sein Beet. Die fehlende Schüssel wird im Hausgebrauch gefunden. Es entsteht kein zusätzliches Staffelindiz.",
+      "agrees": true
+    },
+    {
+      "quote": "„Magst du auf unser Lager aufpassen? Dann bist du ab jetzt Lagerverwalter.“",
+      "fact": "Klirrklaus bekommt eine passende, angebotene Aufgabe in der Pension.",
+      "agrees": true
+    },
+    {
+      "quote": "„Kling“, machte Klirrklaus. Er mochte.",
+      "fact": "Klirrklaus nimmt den Pensionsjob freiwillig an.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona zog seine Gummistiefel aus und legte die Warnweste ab.",
+      "fact": "Jona trägt seine Ausrüstung im Einsatz und legt sie erst in der Pension ab.",
+      "agrees": true
+    },
+    {
+      "quote": "Darunter stellte er die gelben Stiefel, schön nebeneinander.",
+      "fact": "Jonas Stiefel sind seit den früheren Folgen gelb.",
+      "agrees": true
+    },
+    {
+      "quote": "„Jona“, klirrte er. „Platz.“",
+      "fact": "Die Folge verändert Jonas Zugehörigkeit zur Pension sichtbar. Er bekommt einen eigenen Platz für seine Ausrüstung.",
+      "agrees": true
+    },
+    {
+      "quote": "Er holte Omas dicken Ordner und schrieb Monster-Steckbrief Nr. 6:",
+      "fact": "Jona führt den Ordner weiter. Auf Nummer 5 folgt Nummer 6.",
+      "agrees": true
+    },
+    {
+      "quote": "Ursprung: vergessene Pfandflaschen im Keller. Schwäche: Wird ruhig, wenn alle seine Flaschen in ihren Pfandkästen stehen, jede in einem Fach.",
+      "fact": "Der Steckbrief hält Ursprung und genau eine damit verbundene Schwäche fest.",
+      "agrees": true
+    },
+    {
+      "quote": "Fangtrick: Beide Kästen freiräumen und alle vierzig Flaschen einsortieren. Job in der Pension: Lagerverwalter.",
+      "fact": "Der Steckbrief gibt den ausgeführten Fangtrick und die passende Pensionsaufgabe korrekt wieder.",
+      "agrees": true
+    },
+    {
+      "quote": "Darunter malte er einen kleinen goldenen Faden. Und daneben, ganz klein, eine Krone.",
+      "fact": "Jona zeichnet den beobachteten Vergleich auf, wie er in früheren Folgen Hinweise im Ordner festgehalten hat.",
+      "agrees": true
+    },
+    {
+      "quote": "Klirrklaus kletterte Flasche für Flasche zurück in seine Kästen.",
+      "fact": "Er benutzt seinen neuen Ruheplatz freiwillig.",
+      "agrees": true
+    },
+    {
+      "quote": "Als die erste Amsel sang, schliefen alle Monster ein.",
+      "fact": "Beim ersten Vogelgezwitscher schlafen die Monster ein und die Nachtschicht endet.",
+      "agrees": true
+    },
+    {
+      "quote": "Das Pupsmonster quer vor der Tür. Das Brokkoli-Monster im Beet. Flusi in Jonas Kapuze.",
+      "fact": "Alle drei schlafen an den in früheren Folgen gezeigten Plätzen. Die übrigen Monster sind durch »alle« eingeschlossen.",
+      "agrees": true
+    },
+    {
+      "quote": "Klirrklaus schlief in der Kammer. Er klirrte kein einziges Mal.",
+      "fact": "Der neue Gast schläft am ersten Vogelgesang an seinem passenden Pensionsplatz. Der örtliche Konflikt ist gelöst.",
+      "agrees": true
+    }
+  ],
+  "dimensions": {
+    "figurenkonsistenz": {
+      "score": 8,
+      "why": "Jona erstarrt im Keller nicht zum Stichwortgeber. Er zählt, fragt nach und erinnert sich an das Mikro. Oma sagt ehrlich »Keller mag ich nachts auch nicht, Süßer«, Flusi bleibt im Register von »Flusi hat Bart!«, und Gertrud bekommt ihren Einsatz durchs Fenster. Oma steckt allerdings gedankenlos einen Teil des Gastes ein. Auf »Ach du Schreck. Mein Mikro« fehlt ihre Antwort an Klirrklaus."
+    },
+    "plotKohaerenz": {
+      "score": 7,
+      "why": "Die letzte Flasche ist sauber vorbereitet. »Oma, wo ist dein Mikro?« ist eine Erinnerung, die das Kind selbst haben kann. Beim Haupt­rätsel liefert »Ja. Beide voll. Jede Flasche ein Fach« Jona die Lösung schon ausformuliert. Unklar bleibt vorher, was Klirrklaus in den Ecken sucht, obwohl er seine Kästen und ihren Inhalt kennt."
+    },
+    "sprachqualitaet": {
+      "score": 7,
+      "why": "»Pling. Plong. Plang.« hat einen guten Vorlesetakt. Die Beschreibung »Zwei gezackte Flaschendeckel glänzten als Augen. Zwei Kronkorken.« stellt dasselbe Bild zweimal hin. Auch »Seine Kronkorken suchten den Keller ab« macht eine einfache Kopfbewegung unnötig abstrakt."
+    },
+    "emotionaleTiefe": {
+      "score": 8,
+      "why": "Die Hand auf der achten Stufe trägt mehr als eine Erklärung über Mut. »Jona«, klirrte er. »Platz.« gibt Klirrklaus’ eigenem Wunsch am Ende eine zweite Bedeutung. Jonas Bedürfnis nach einem eigenen Platz bekommt allerdings erst am Haken eine Szene. Eine beiläufig abgelegte Weste zu Beginn würde den Moment vertiefen."
+    },
+    "altersangemessenheit": {
+      "score": 8,
+      "why": "»Ein Fach war leer« macht die Aufgabe sichtbar, auch wenn ein Kind bei neununddreißig noch mit der Zahl kämpft. Das Sortieren, Klappern und Mitmachen tragen die Folge ohne Moralrede. Pfand, Kronkorken und der unbestimmte Bügel verlangen für Erstleser stellenweise mehr Entziffern, als die Handlung braucht."
+    },
+    "ende": {
+      "score": 9,
+      "why": "»Jona«, klirrte er. »Platz.« löst Klirrklaus’ Suche und gibt Jona seinen eigenen Ort in der Pension. »Er klirrte kein einziges Mal« schließt die Kellerstörung mit einem Satz, den ein Kind hören kann. Die Schüssel hat eine harmlose Auflösung, der Faden darf offenbleiben."
+    },
+    "kanonTreue": {
+      "score": 9,
+      "why": "»Gleich golden. Genauso dick. Genauso kraus« hält den Staffelhinweis beim sichtbaren Vergleich. »Meins« lässt seine Herkunft offen. Allein das vollständige Einsortieren wirkt als Schwäche. Oma fährt und bleibt bei Jona, das Glas bleibt heil, und die Amsel beendet die Schicht."
+    },
+    "weitererzaehlFaktor": {
+      "score": 8,
+      "why": "»Flusi ist keine Marmelade!« funktioniert mit einem Satz Vorgeschichte und lässt sich sofort nachspielen. »Danke, Keller!« gewinnt seinen Witz aus Omas Verbeugung und wird durch das verschwundene Mikro später noch einmal bezahlt. Der Staubbart ist ein kleiner Zugabegag."
+    }
+  },
+  "kinderCheck": {
+    "verstaendlichkeit": {
+      "score": 8,
+      "stolpersteine": [
+        {
+          "quote": "Riegel der kleinen Klappe",
+          "warum": "Wer mit Folge 6 einsteigt, kennt einen Riegel vielleicht nur als Schokoriegel. »Er war zu« zeigt die Funktion, das Aussehen fehlt.",
+          "vorschlag": "Jona leuchtete auf den Riegel an der kleinen Klappe. Der Metallstift war zugeschoben."
+        },
+        {
+          "quote": "hielt seine Kordel hoch. Sie hing still.",
+          "warum": "Ein Neueinstieg versteht womöglich nicht, weshalb sich Jona für eine schlaffe Schnur interessiert.",
+          "vorschlag": "Das Pupsmonster hielt seine Kordel vor die Klappe. Die Schnur hing still. Hier zog es nicht."
+        },
+        {
+          "quote": "Die Marmeladengläser nach dem Abc.",
+          "warum": "Das nächste Beispiel erklärt die Buchstaben. Ein Kind, das das Alphabet noch lernt, muss zusätzlich verstehen, dass die Sortennamen gemeint sind.",
+          "vorschlag": "Die Marmeladengläser stehen nach ihren Namen. Erst Aprikose mit A, dann Brombeere mit B, dann Erdbeere mit E."
+        },
+        {
+          "quote": "Flusi hüpfte aufs Armaturenbrett",
+          "warum": "Das lange Wort bremst Erstleser und das Ziel des Sprungs ist ohne Wagenbild schwer zu sehen. Der wiederkehrende Begriff kann bleiben.",
+          "vorschlag": "Flusi hüpfte aufs Armaturenbrett, direkt hinter die große Scheibe."
+        },
+        {
+          "quote": "Klirren? Wie Glas?",
+          "warum": "Als Vorleser hört man das Geräusch im Wort. Einem jungen Erstleser hilft ein Beispiel, falls er »klirren« nur von zerbrochenem Glas kennt.",
+          "vorschlag": "Klirren? Wie wenn Flaschen aneinanderstoßen?"
+        },
+        {
+          "quote": "Grüne, braune und durchsichtige, voller Staub.",
+          "warum": "Das ausgelassene Wort Flaschen und der nachgeschobene Staub verlangen zwei gedankliche Ergänzungen beim ersten Bild des Monsters.",
+          "vorschlag": "Es hatte grüne, braune und durchsichtige Flaschen. Auf allen lag Staub."
+        },
+        {
+          "quote": "Zwei gezackte Flaschendeckel glänzten als Augen. Zwei Kronkorken.",
+          "warum": "Zwei Bezeichnungen direkt hintereinander können als vier Dinge ankommen. Ein Kind muss das neue Wort beim Zählen zuordnen.",
+          "vorschlag": "Seine Augen waren zwei Kronkorken, die kleinen gezackten Deckel von Sprudelflaschen."
+        },
+        {
+          "quote": "kraus wie aus einer gestrickten Socke",
+          "warum": "»Kraus« kennen manche Kinder von Haaren. Warum ein einzelner Faden nach Stricksocke aussieht, bleibt ohne sichtbare Form schwer vorstellbar.",
+          "vorschlag": "Der goldene Faden war ganz kringelig, wie aus einer gestrickten Socke."
+        },
+        {
+          "quote": "Dann löste er seine Flaschen und reichte sie ihnen. Erst die Arme, dann den Bauch und die Beine.",
+          "warum": "Sobald die Arme weg sind, stellt sich die Frage, womit er den Bauch reicht. Dass die Teile alleine hüpfen können, wird in diesem Moment schlecht genutzt.",
+          "vorschlag": "Er reichte ihnen die Flaschen aus seinen Armen. Dann hüpften die Flaschen von Bauch und Beinen von selbst hinterher."
+        },
+        {
+          "quote": "Eine Flaschenorgel!",
+          "warum": "Wer keine Orgel kennt, kann den Witz dennoch hören. Der Name wird klarer, wenn der Klang zuerst ein kleines Lied ergibt.",
+          "vorschlag": "Oma klopfte auf drei Flaschen. Pling, plong, plang! »Hör mal, Süßer! Eine Flaschenorgel!«"
+        },
+        {
+          "quote": "Wer die leeren Flaschen in den Laden zurückbringt, bekommt Geld dafür.",
+          "warum": "Die Erklärung versteht man, sie klingt aber wie ein Merksatz. Ein Kind braucht hier vor allem das Bild von Flasche und Fach.",
+          "vorschlag": "»Pfandkästen«, sagte Oma. »Eine Flasche in jedes Fach. So bringen wir sie in den Laden zurück und kriegen Geld wieder.«"
+        },
+        {
+          "quote": "„Such Platz.“",
+          "warum": "Beim ersten Lesen kann damit der Platz für Klirrklaus, die Kästen oder die Töpfe gemeint sein. Die nächste Bewegung sollte eine der Möglichkeiten zeigen.",
+          "vorschlag": "»Such Platz.« Klirrklaus hob den Blumentopf und sah zum vollen Regal."
+        },
+        {
+          "quote": "Seine Kronkorken suchten den Keller ab.",
+          "warum": "Die Kronkorken sind bereits ungewöhnliche Augen. Jetzt sollen sie auch noch selbst suchen. Das Bild wird klarer, wenn sich der Kopf bewegt.",
+          "vorschlag": "Klirrklaus drehte seinen Flaschenkopf nach links und nach rechts."
+        },
+        {
+          "quote": "schob einen Bügel davor",
+          "warum": "Bei »Bügel« kann ein Kind einen Kleiderbügel sehen und sich fragen, wie er zwei Kästen hält.",
+          "vorschlag": "Sie schob die Haltestange vor die Kästen. Jetzt rutschte nichts."
+        },
+        {
+          "quote": "»Dann bist du ab jetzt Lagerverwalter.«",
+          "warum": "Das Berufswort ist für Erstleser lang, wird aber durch die Frage davor erklärt. Es taugt als neues Wort für den Steckbrief.",
+          "vorschlag": "»Du passt auf unsere Vorräte auf und merkst, wenn etwas fehlt. Das ist die Arbeit von einem Lagerverwalter.«"
+        }
+      ]
+    },
+    "humor": {
+      "score": 8,
+      "witze": [
+        {
+          "quote": "Pff. Es roch nach Wiese.",
+          "zuendet": "halb",
+          "warum": "Für Serienkinder ist der freundliche Pups sofort wiedererkennbar. Als Auftakt wiederholt er Folge 5 fast genau und bekommt keine neue Pointe.",
+          "besser": "Den Wiesenpups knapp beim Kordeltest lassen. Den ersten neuen Lacher für Frau Kessel aufsparen."
+        },
+        {
+          "quote": "„Für Klirren nehmen wir ‚Klirr, bis der Keller bebt‘!“",
+          "zuendet": "ja",
+          "warum": "Der Reim ist laut, leicht mitzurufen und dreht die Beschwerde der Hausmeisterin in Omas Lieblingsmusik um."
+        },
+        {
+          "quote": "Unordnung. Also, Ordnung. Komische Ordnung.",
+          "zuendet": "ja",
+          "warum": "Frau Kessel bleibt ernst und stolpert über ihren eigenen Satz. Nach den sortierten Gummistiefeln ist der Widerspruch sofort verständlich."
+        },
+        {
+          "quote": "An seiner Nase hing ein Staubkrümel.",
+          "zuendet": "halb",
+          "warum": "Der Fehlalarm funktioniert als Rhythmus. Ein einzelner Staubkrümel ist eine kleine Pointe und verrät bereits, woher der spätere Staubbart seine Idee nimmt.",
+          "besser": "Nach dem Niesen Flusi nur aus der Matte auftauchen lassen. Den sichtbaren Staubschmuck für den Bart aufheben."
+        },
+        {
+          "quote": "„Flusi ist keine Marmelade!“",
+          "zuendet": "ja",
+          "warum": "Ein grauer Staubball sitzt zwischen zwei Marmeladensorten und protestiert beleidigt. Bild und Satz erklären einander sofort."
+        },
+        {
+          "quote": "Die Flasche machte einen Hüpfer. Flusi machte einen Purzelbaum.",
+          "zuendet": "ja",
+          "warum": "Der gleiche Satzbau setzt erst den Hüpfer und dann den größeren Sturz. Beim Vorlesen funktioniert das ohne Zusatz."
+        },
+        {
+          "quote": "„Danke, Keller!“",
+          "zuendet": "ja",
+          "warum": "Oma benimmt sich im dunklen Keller wie auf einer großen Bühne. Die Marmeladengläser als Publikum machen die Verbeugung sichtbar."
+        },
+        {
+          "quote": "„Das mit der Orgel auch“, sagte Oma. „Aber schön war’s.“",
+          "zuendet": "halb",
+          "warum": "Die Selbstironie passt zu Oma. Nach Verbeugung und Mikro setzt der Satz die gleiche Pointe noch einmal kleiner.",
+          "besser": "»Schön war’s trotzdem, Süßer.« Dann direkt zu Klirrklaus, der in die Ecken schaut."
+        },
+        {
+          "quote": "„Flusi hat Bart!“",
+          "zuendet": "ja",
+          "warum": "Das Schielen auf den eigenen Staubbart ist ein sichtbarer kurzer Gag. Er sitzt mitten in einer Handlung, die ohnehin passieren muss."
+        },
+        {
+          "quote": "„Ach du Schreck. Mein Mikro.“",
+          "zuendet": "ja",
+          "warum": "Ein Kind kann den Rückruf eine Sekunde vor Oma begreifen. Die alte Pointe löst jetzt ein echtes Problem."
+        },
+        {
+          "quote": "„Eine Tonne brauchst du heute nicht, Süße“",
+          "zuendet": "halb",
+          "warum": "Der Satz funktioniert vor allem als leise Abwandlung des Fangrituals. Er braucht keinen zusätzlichen Scherz.",
+          "besser": "Die Zeile knapp an Klirrklaus richten und seine Antwort »Mit« als zweiten Takt stehen lassen."
+        },
+        {
+          "quote": "„Die stehen ja so ordentlich. Lassen Sie die mal so.“",
+          "zuendet": "halb",
+          "warum": "Die Hausmeisterin nimmt das beste Stück der Störung gern an. Der Satz ist ein kleiner Nachklapp, den ein Kind schon nach »komische Ordnung« erwartet.",
+          "besser": "Den Blick auf die Fahrräder und diese eine Zeile behalten. Omas bestätigendes »Machen wir« kann entfallen."
+        },
+        {
+          "quote": "Mit einer Rührschüssel.",
+          "zuendet": "ja",
+          "warum": "Auf »Eine fehlt« folgt sofort ein Platsch und eine Antwort im Bild. Kurz und auch ohne Erinnerung an Folge 4 verständlich."
+        }
+      ]
+    },
+    "unterhaltung": {
+      "score": 8,
+      "durchhaenger": [
+        {
+          "stelle": "Kapitel 1, von »Zuerst leuchtete Jona« bis zum Notruf.",
+          "warum": "Riegel, Kordel und Wiesenpups folgen genau dem vertrauten Einstieg aus Folge 5. Die Radieschen zeigen eine neue Entwicklung, der Keller hat bis dahin noch keinen Ton von sich gegeben.",
+          "vorschlag": "Riegel und Kordel zu einem kurzen Blick verbinden. Die elf Radieschenblätter als neues Bild stehen lassen und zügig in den klirrenden Notruf gehen."
+        },
+        {
+          "stelle": "Kapitel 2, vom Aufbau der Größenreihe bis »Aber schön war’s.«",
+          "warum": "Der zweite Sortierversuch ist nach den Stiefeln vorhersehbar. Das Konzert lohnt sich wegen des Mikros. Größenreihe, Instrumentenname, Titel, Dirigent, Wippen, Verbeugung und Nachbesprechung bremsen zusammen das Rätsel.",
+          "vorschlag": "Größenreihe, drei Töne, Gertruds Hupen und Omas Mikro behalten. Nach der Verbeugung direkt zu Klirrklaus’ leisem »Falsch« und Jonas Frage."
+        },
+        {
+          "stelle": "Kapitel 2, zwischen »Dann stellte er ihn wieder ins Fach« und »Er braucht seine Kästen.«",
+          "warum": "Die Handlung hält genau vor der Lösung für einen zweiten Blick auf den Faden an. Der Vergleich ist wichtig. Die drei ähnlichen Feststellungen nehmen ihm die Beiläufigkeit.",
+          "vorschlag": "Beim Anheben des Topfes den Faden baumeln lassen. Jona hält die Krone einmal daneben, Klirrklaus sagt »Meins«, dann führt der Topf Jonas Blick zurück zum Flaschenfach."
+        },
+        {
+          "stelle": "Kapitel 3, von »Oma trug die Kästen« bis »Dann fuhren sie zurück zur Pension.«",
+          "warum": "Nach der Lösung folgen zwei Treppengänge, eine Übergabe und die Verladung. Die zwölf leisen Klings verwandeln die frühere Angst schön. Der genaue Ablauf um die leere Tonne und der Bügel verdienen weniger Lesezeit.",
+          "vorschlag": "Beide Wege mit Oma und die zwölf Klings in einem kurzen Absatz zeigen. Frau Kessels Erlaubnis und das Feststellen der Kästen knapp anschließen."
+        }
+      ]
+    },
+    "logikLuecken": [
+      {
+        "quote": "Klirrklaus guckte in alle Ecken, immer wieder. […] Klirrklaus zeigte auf eine alte Wolldecke in der Ecke.",
+        "problem": "Er weiß, wo seine Kästen stehen, und kennt ihren Inhalt. Das Herumsuchen kann die Töpfe betreffen, wird in diesem Moment aber wie eine Suche nach den Kästen inszeniert.",
+        "fix": "Klirrklaus erst zum vollen Regal und dann zu den Kästen blicken lassen. Er hält einen Topf hoch und findet keine freie Stelle. So erkennt Jona, warum Klirrklaus seine Fächer bisher nicht zurückgenommen hat."
+      },
+      {
+        "quote": "„Ja. Beide voll. Jede Flasche ein Fach.“ […] „Er braucht seine Kästen. Für jede Flasche ein Fach.“",
+        "problem": "Die richtige Vermutung wiederholt die Antwort fast wörtlich. Das Kind kann bei der letzten Flasche miträtseln, aber beim Rätsel um die gesuchte Ordnung bekommt es gemeinsam mit Jona die fertige Erklärung.",
+        "fix": "Klirrklaus verrät, dass die Flaschen lange draußen standen. Jona hebt einen Topf aus einem Fach und beobachtet, wie eine Flasche sofort hineinhüpft und stillsteht. Dann darf er den richtigen Fangtrick benennen."
+      },
+      {
+        "quote": "„Nachts geh ich da nicht runter.“ […] „Jetzt rutschte nichts.“",
+        "problem": "Kein Widerspruch im Ablauf. Die Sicherung für die Fahrt bleibt lediglich bildlich unklar, weil der Bügel vorher keine erkennbare Funktion hat.",
+        "fix": "Die Haltestange am Wagen konkret benennen oder direkt zeigen, dass Oma die Kästen festklemmt."
+      }
+    ],
+    "schulhofSatz": "Flusi ist keine Marmelade!",
+    "staerksteMomente": [
+      "Auf der achten Stufe nimmt Oma Jonas Hand und gibt ihre eigene Kellerangst zu. Beim Rückweg zählt Jona dieselben Stufen an Klirrklaus’ leisen Klings.",
+      "Flusi wird mit vollem Ernst zwischen Erdbeere und Himbeere einsortiert. Klirrklaus hört auf seinen Protest und holt ihn herunter.",
+      "Omas Kleinflaschen-Mikro ist auf Anhieb lustig und liefert später die Lösung für das vierzigste Fach. Der Leser durfte die Flasche vorher verschwinden sehen.",
+      "Jona erinnert sich an »Wartest du auf jemanden?« und bekommt ein Nein. Die Erfahrung aus Folge 5 bringt ihn trotzdem weiter, weil er zuhört.",
+      "»Jona. Platz.« Klirrklaus räumt Jona einen Haken ein, nachdem Jona ihm Platz für seine Kästen gegeben hat. Das zeigt Zugehörigkeit durch eine Handlung."
+    ]
+  },
+  "mustFix": [
+    "»Klirrklaus guckte in alle Ecken« → Zeigen, dass er einen Platz für die Töpfe sucht. Er kennt den Standort der Kästen bereits.",
+    "»Beide voll. Jede Flasche ein Fach« → Klirrklaus die Vorgeschichte erzählen lassen und die Regel im Bild beweisen. Jona macht probeweise ein Fach frei und entdeckt an einer einzelnen ruhig werdenden Flasche, welche Ordnung wirkt.",
+    "»Ach du Schreck. Mein Mikro« → Oma soll Klirrklaus beim Zurückgeben ansprechen und ihren Fehler in einem kurzen Satz anerkennen. Die Jackentasche und der Rückruf bleiben erhalten.",
+    "»Zwei gezackte Flaschendeckel glänzten als Augen. Zwei Kronkorken« → In einem einzigen Bild sagen, dass Klirrklaus zwei Kronkorken als Augen hat."
+  ],
+  "notes": [
+    "Die geparkte Gertrud am Kellerfenster zahlt sich zweimal aus. Das Hupen und das Pusten ergeben sich aus ihrem sichtbaren Standort.",
+    "Das Mikro früh und sichtbar in Omas Tasche verschwinden lassen. Die leere Stelle im Kasten und Jonas Erinnerung verdienen ihre jetzige Reihenfolge.",
+    "Den goldenen Sockenfaden als Abzeichen und den direkten Vergleich mit der gestrickten Krone behalten. »Meins« lässt die Herkunft genau richtig offen. Beim Einsteigen kann der Faden noch einmal kurz am Hals der Sprudelflasche sichtbar sein, damit das Kind mitbekommt, dass das Fundstück mit in die Pension fährt.",
+    "Die vierzehn Schüsseln aus Folge 4 geben Klirrklaus eine konkrete Probe für den Lagerjob. Er kennt die Sollzahl durch Jona und erkennt, dass etwas fehlt. Das genügt als Vorbereitung für die spätere Aufgabe.",
+    "Die Kästen als freiwilligen Transport und Ruheplatz behalten. Die Einzelreinigung respektiert das Material und Klirrklaus’ Ordnung.",
+    "»Finden wir raus.«, die drei wortgetreuen Sprüche und Flusis Dirigieren mit den beiden Ärmchen bewahren die Stimmen der Serie.",
+    "Den Haken und das letzte stille Bild behalten. Der eigene Haken gibt Jonas Zugehörigkeit einen sichtbaren Platz, und das verstummte Klirren beantwortet den Notruf."
+  ],
+  "gesamtnote": 8,
+  "_meta": {
+    "provider": "codex",
+    "model": "gpt-6.2-sol (codex)",
+    "effort": "high",
+    "costUSD": null,
+    "tokens": {
+      "completion": 49263
+    },
+    "seconds": 305,
+    "words": [
+      563,
+      448,
+      670
+    ]
+  }
+}

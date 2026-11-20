@@ -1,0 +1,23 @@
+Gesamtnote 8/10 — Verständlich 8, Humor 8, Unterhaltung 8
+  Figurenkonsistenz: 8
+  Plot-Kohärenz: 7
+  Sprachqualität: 7
+  Emotionale Tiefe: 8
+  Altersangemessenheit: 8
+  Ende: 9
+  Kanon-Treue: 9
+  Weitererzähl-Faktor: 8
+
+Kanon-Widersprüche:
+Logiklücken:
+  - „Klirrklaus guckte in alle Ecken, immer wieder. […] Klirrklaus zeigte auf eine alte Wolldecke in der Ecke.“ → Er weiß, wo seine Kästen stehen, und kennt ihren Inhalt. Das Herumsuchen kann die Töpfe betreffen, wird in diesem Moment aber wie eine Suche nach den Kästen inszeniert. | Fix: Klirrklaus erst zum vollen Regal und dann zu den Kästen blicken lassen. Er hält einen Topf hoch und findet keine freie Stelle. So erkennt Jona, warum Klirrklaus seine Fächer bisher nicht zurückgenommen hat.
+  - „„Ja. Beide voll. Jede Flasche ein Fach.“ […] „Er braucht seine Kästen. Für jede Flasche ein Fach.““ → Die richtige Vermutung wiederholt die Antwort fast wörtlich. Das Kind kann bei der letzten Flasche miträtseln, aber beim Rätsel um die gesuchte Ordnung bekommt es gemeinsam mit Jona die fertige Erklärung. | Fix: Klirrklaus verrät, dass die Flaschen lange draußen standen. Jona hebt einen Topf aus einem Fach und beobachtet, wie eine Flasche sofort hineinhüpft und stillsteht. Dann darf er den richtigen Fangtrick benennen.
+  - „„Nachts geh ich da nicht runter.“ […] „Jetzt rutschte nichts.““ → Kein Widerspruch im Ablauf. Die Sicherung für die Fahrt bleibt lediglich bildlich unklar, weil der Bügel vorher keine erkennbare Funktion hat. | Fix: Die Haltestange am Wagen konkret benennen oder direkt zeigen, dass Oma die Kästen festklemmt.
+Muss geändert werden:
+  - »Klirrklaus guckte in alle Ecken« → Zeigen, dass er einen Platz für die Töpfe sucht. Er kennt den Standort der Kästen bereits.
+  - »Beide voll. Jede Flasche ein Fach« → Klirrklaus die Vorgeschichte erzählen lassen und die Regel im Bild beweisen. Jona macht probeweise ein Fach frei und entdeckt an einer einzelnen ruhig werdenden Flasche, welche Ordnung wirkt.
+  - »Ach du Schreck. Mein Mikro« → Oma soll Klirrklaus beim Zurückgeben ansprechen und ihren Fehler in einem kurzen Satz anerkennen. Die Jackentasche und der Rückruf bleiben erhalten.
+  - »Zwei gezackte Flaschendeckel glänzten als Augen. Zwei Kronkorken« → In einem einzigen Bild sagen, dass Klirrklaus zwei Kronkorken als Augen hat.
+Schulhof-Satz: Flusi ist keine Marmelade!
+
+gpt-6.2-sol (codex), high: 49263 Tokens, 305 s → docs/talea-originals/2026-11-20/sol/monster.final.json
