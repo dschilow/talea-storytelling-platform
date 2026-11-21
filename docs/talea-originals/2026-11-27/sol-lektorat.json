@@ -1,0 +1,272 @@
+{
+  "reviewer": "gpt-6.2-sol über das Codex-Abo (codex exec), Denkstufe high",
+  "vorgabe": "Abschlussnote mindestens 8",
+  "rounds": {
+    "bruno": [
+      {
+        "round": "r1",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 7,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 7,
+          "altersangemessenheit": 7,
+          "ende": 7,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Mats sucht den besten Platz zum Zugucken!“ → Eine Aufforderung daraus machen, damit vor dem Glas keine zweite unaufgelöste Flunkerei fällt.",
+          "„Papa trainiert. Wir suchen weiter.“ → Zeigen, dass Ella Plan W kennt und ihn aus Angst vor Papas Fragen bewusst aufschiebt.",
+          "„Und dann müssen wir alles erklären“ → Ellas Angst vor der Entdeckung von Brunos Sprechen konkret machen und am Ende in ihren eigenen Worten wieder aufnehmen.",
+          "„Der war auf der Hutablage!“ → Ella muss durch Nachfragen erfahren, wo der Hut ist. Kaisers Sprung bleibt als Gag erhalten.",
+          "„Hinter ihm schwebten sechs Kaffeetassen und ein halber Pfannkuchen“ → Bewegung aus der Küche, Freigabe des Pfannkuchens und seinen Weg auf den Helm zeigen.",
+          "„Mit drei Knoten“ → Vor dem Ziehen zum Sofa die Leine von der Heizung lösen und zeigen, wer Papa unten hält.",
+          "„Der Kaffeeball blieb über dem Glas hängen“ → Einen sichtbaren Stoß als Ursache setzen und Ella den noch gleitenden Ball unmittelbar vor dem PLOPP abfangen lassen.",
+          "„Du bist kein Astronaut. Das hab ich geflunkert“ → Beide Teile der geplanten Flunkerei ausdrücklich richtigstellen.",
+          "„Frau Grimmbach zog ihr Heft aus der Strickjacke“ → Den späteren Eintrag während des Zaubers tatsächlich schreiben lassen und ihren Abgang markieren.",
+          "„Es sah auf den Hut“ → Brunos Reaktion auf das Verstecken beim Namen beschränken.",
+          "„Ich hab heute auch was versteckt“ und „schrieb sie darunter“ → Klar sagen, was Ella Papa verschwiegen hat und wo Plan F steht."
+        ]
+      },
+      {
+        "round": "r2",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 7,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 7,
+          "altersangemessenheit": 8,
+          "ende": 7,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Mein Papa ist Astronaut“ → Den Mondwitz beim Pfannkuchenbacken vorbereiten und zeigen, dass Ella die Ankündigung als echt ausgibt. Plan A kommt ihr einen Augenblick zu spät in den Sinn.",
+          "„Dann will er wissen, warum wir dauernd mit Bruno reden“ → Ellas Angst als ihre eigene Befürchtung zeigen. Papa hat beim Fischkauf gesagt, ein Fisch sei schön leise. Ella fürchtet, selbst zu viel zu erzählen.",
+          "„Außeneinsatz! Raus aus der Küche!“ → Das zweite Training bleibt als Landung am Herd angesetzt. Das Manöver befördert Papa und die angeschubsten Küchensachen hinaus.",
+          "„Auf die Hutablage“ → Den hohen Ablageort und die Mütze davor zeigen. Ella entdeckt den Hut dank Papas Antwort, bevor Kaiser springt.",
+          "„Draußen klackten Frau Grimmbachs Schuhe die Treppe hinunter“ → Grimmbach sagt, wie Kaiser zu ihr zurückkommen soll. Die Kinder führen das am Ende aus.",
+          "„Beim Abrutschen packte er den Hutrand“ → Papas Drehung vorbereiten und zeigen, wie Kaiser den Zylinder über den Kopf bekommt.",
+          "„Eine Stiefelspitze stieß an eine Tasse“ → Alle sechs Tassen bleiben über dem Korb. Den Kaffee stößt Papa mit dem Stiefel an. Die leere Tasse und die Position am Aquarium klar benennen.",
+          "„an meinem Gürtel“ → Die echte Leine um Papas Bauch binden, damit nach der Rückverwandlung kein Raumanzuggürtel vorausgesetzt wird.",
+          "„Ich hab Papa nichts vom Hut erzählt“ → Die widersprüchliche Aussage am Glas durch die konkrete Wahrheit ersetzen. Papa kennt die Suche und Brunos Stimme bleibt geheim.",
+          "„Diesmal hast du's wirklich gesagt!“ → Erst Brunos angeblichen Anteil an der Auflösung zurückweisen, dann die Pfannkuchenpointe ausspielen."
+        ]
+      },
+      {
+        "round": "r3",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 7,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 8,
+          "ende": 8,
+          "kanonTreue": 9,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Dann verplapper ich mich womöglich“ lässt Ellas Schutzmotiv zu lange im Ungefähren. Sie muss früh benennen, welches Geheimnis ihr beim Nachfragen herausrutschen könnte.",
+          "Zwischen „Was sucht ihr eigentlich“ und „Mein Papa ist Astronaut“ fehlt der gedankliche Trittstein. Ella braucht erst die Deckgeschichte vom Zuschauerplatz und dann den Mondspruch als Auslöser für den großen Satz.",
+          "„Papa und sein Frühstück“ und die später noch auf dem Tisch stehende Frühstückstasse machen die Flugbahn unlesbar. Zeigen, was in der Küche bleibt und was in den Flur fliegt.",
+          "„Dabei zog er die Tür auf“ und Grimmbachs Abgang lassen so viel räumliche und soziale Handlung aus, dass der Treppenwitz wackelt. Türbewegung, Rückholen und Grimmbachs Reaktion nacheinander zeigen.",
+          "„Im Fallen erwischte er den Zylinder“ überlässt Kaiser einen Teil der Bergung. Ella nimmt den gefundenen Hut selbst herunter, Kaiser bekommt danach seinen eigenen Fehlversuch.",
+          "„Dicht über die Handtücher“ und „Dann löste sie die drei Knoten“ machen die Landung unnötig zufällig. Tassen im Korb halten, die Leine vor dem Lösen festhalten und den Weg zum Sofa und den Fang des Kaffees eindeutig erzählen.",
+          "„Weiß Frau Grimmbach, wo er ist“ setzt eine Nachricht voraus, die sie noch nicht bekommen hat. Papa kündigt ausdrücklich an, sie über den Verbleib zu informieren."
+        ]
+      },
+      {
+        "round": "r4",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 7,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 7,
+          "altersangemessenheit": 7,
+          "ende": 8,
+          "kanonTreue": 8,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Das war geflunkert, Mats“ klingt zu früh wie ein wirksames Geständnis. Ellas Reaktion ändern und die klare Korrektur beider falschen Behauptungen für Kapitel 3 aufheben.",
+          "„brachte er ihn vielleicht zurück zum Flohmarkt“ braucht Papas früheren Satz vom leisen Fisch als Auslöser. Die Angst muss als Ellas Befürchtung erkennbar sein.",
+          "„an der Garderobe entlang“ und „in Ellas Armen“ überspringen die entscheidenden Wege. Papa aus der Küche in den Flur ziehen lassen und Ella mit dem Hut an der Küchentür platzieren.",
+          "„die vierte“ und „die letzte Tasse“ machen Kaisers Sprung unlesbar. Die Tassen als Treppe staffeln und die dritte Tasse eindeutig als Stoß gegen den Kaffeeball benennen.",
+          "„wenn er jetzt aufhörte“ behauptet einen zu frühen Treffer im Aquarium. Erst die Flugrichtung zeigen, dann die Tasse genau unter dem Kaffee über Brunos Wasser positionieren.",
+          "„Der Pfannkuchen schwebte über seinem Helm“ braucht einen Weg von Mats zurück zu Papa und einen sichtbaren Moment des Loslassens.",
+          "„Er legte sie in Papas Wäschekorb“ reicht bis zum Ende der Schwerelosigkeit nicht aus. Mats muss die Tassen mit einem Handtuch unten halten.",
+          "„Nur weil ich Papa nicht fragen wollte“ erklärt die Erkenntnis ein zweites Mal. Ellas direkte Frage, der Kaffeefleck und die Eintragung von Plan F sollen sie tragen."
+        ]
+      },
+      {
+        "round": "r5",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 7,
+          "altersangemessenheit": 8,
+          "ende": 8,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Wenn er Bruno reden hörte“ → Ellas Angst auf das eigene Ausplaudern stützen. Papa hört von Bruno nur Blubb.",
+          "„Kaffee gibt’s auch“ → Papa soll Pfannkuchenwerfen und Kaffeetrinken ausdrücklich als Übungen ansagen und die schwebenden Tassen vorbereiten.",
+          "„Eine Woche Suchen“ → Treppensuche und Wohnungssuche zeitlich auseinanderhalten.",
+          "„Wie ein Hündchen an der Leine“ und „Ella hielt die Tasse ganz still“ → Kaffeedrift früh ansetzen, an Papas Bremsen den Unterschied zeigen und Ella beim Auffangen mitgehen lassen.",
+          "„Hielt ein zweites Tuch darüber“ → Mats muss die weiter schwebenden Tassen mit dem Tuch festhalten.",
+          "„Landete mitten im Zylinder“ → Kaisers Ziel durch die Alarmfäden, den zu kurzen Sprung von der weichen Lehne und die Vorderpfoten im Hut sichtbar machen.",
+          "„Puh, Bruno. Das war knapp“ → Ella soll am Kaffeefleck begreifen, wie ihre Schutz-Ausrede Bruno erst in Bedrängnis gebracht hat."
+        ]
+      },
+      {
+        "round": "final",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 7,
+          "altersangemessenheit": 8,
+          "ende": 8,
+          "kanonTreue": 9,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Nur der kalte Kaffee kroch heraus“ und „segelte langsam aus der Küche hinter ihm her“ → In der Vorführung sichtbar machen, warum der Kaffee aus seiner Tasse steigt. Danach seinem Weg in den Flur und seiner Richtungsänderung zum Aquarium je einen konkreten Auslöser geben.",
+          "„Der Kaffeeball glitt gerade über den Glasrand. Ella hielt die Tasse darunter“ → Tasse und Stuhl früher bereitstellen. Beim Geständnis muss beim ersten Hören klar sein, dass die Tasse zwischen Kaffeekugel und Fischwasser steht.",
+          "„Und er hatte keine Ahnung“ → Präzisieren, wovon Papa keine Ahnung hat. Er kann seine Rolle und einen Astronautengriff beherrschen und trotzdem völlig ratlos sein, sobald sich seine Küchengeräte am Training beteiligen.",
+          "„Training Nummer drei! Die Landung! Aufs Sofa!“ → Die Küchenvorführung deutlich abschließen. Die Sofa-Landung als Ellas praktische Rettungsanweisung spielen und Papas Spaß am Landen erhalten.",
+          "„Wenn Papa erfuhr, dass Bruno sprechen konnte, wollte er ihn vielleicht zurückbringen“ → Den kanonischen Flohmarktsatz behalten und Ellas Sorge mit einer kurzen Reaktion am Glas verankern. Beim Ausbruch der exakten Flunkerei deutlicher zeigen, dass Ella Mats ansieht und das Aquarium in diesem Augenblick aus dem Blick verliert.",
+          "„Ich komme wieder. Mit meinem Fernglas“ → Grimmbach einen konkreten Grund geben, warum sie von unten gucken möchte und danach noch einmal klingelt.",
+          "„Klar. Wenn jemand danach fragt, geben wir ihn zurück“ → Papas Erlaubnis mit einem nachvollziehbaren Schritt zur Rückgabe verbinden, damit die zuvor gesetzte Fundbürofrist ihren Sinn behält."
+        ]
+      },
+      {
+        "round": "final2",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 7,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 8,
+          "ende": 8,
+          "kanonTreue": 9,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Dann erzähl ich ihm aus Versehen, dass Bruno sprechen kann!“ → Ellas Angst mit einem kurzen Zwischenschritt an Papas mögliche Frage binden. Den Flohmarktsatz und die genaue Flunkerei vor dem Aquarium stehen lassen.",
+          "„Den Helm setzte er auf wie ein echter Astronaut.“ → Das zweite Aufsetzen streichen und durch Papas sichtbare Reaktion hinter der goldenen Scheibe ersetzen.",
+          "„Für alle Fälle.“ → Ella beim Bereitstellen von Tasse und Stuhl den bereits schwebenden Kaffee unmittelbar bei Papas Füßen sehen lassen. Die Vorbereitung bleibt vor dem Landemanöver.",
+          "„Ella ging mit der Tasse mit.“ → Ellas Füße auf dem Stuhl lassen und zeigen, wie sie die Tasse mit den Armen unter der Kaffeekugel hält. Die sechs schwebenden Tassen vorher in Mats' Greifhöhe zeigen.",
+          "„Er sauste am Stuhl vorbei.“ → Den offenen Zylinder vor dem Sprung zwischen Sofa und Stuhl positionieren, damit Kaisers zu kurzer Sprung sichtbar im Hut endet."
+        ]
+      }
+    ],
+    "monster": [
+      {
+        "round": "r1",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 8,
+          "ende": 7,
+          "kanonTreue": 6,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Riesengroß. Ganz aus einzelnen Socken“ durch eine reine Schattenerinnerung ersetzen. Sina nennt ausdrücklich ihre Azubi-Zeit und behält Namen, alten Waschsalon, Sternschild und Verschwinden. Die Quelle des tiefen Brummens bleibt offen.",
+          "„Der Kabelsalat zuckte und wurde noch ein Stück größer“ an Jonas hastigen Ruck binden. Mamas Lied begleitet seine Hände. Jona löst auch in der Singpause weiter Schlaufen. Der Steckbrief nennt langsames Entknoten als einzige Schwäche.",
+          "Vor „Mama setzte sich ans Fenster, Jona in die Mitte“ Jonas Warnweste und Stiefel anziehen lassen. Die nachgetragene Behauptung „Omas allererste Regel“ streichen und die freien Stecker sichtbar lassen.",
+          "Jonas Schnellversuch aus der Sorge um Omas Hand entstehen lassen. Die Taschenlampe sichtbar übergeben und den falschen Ortsvergleich durch ein Kabelende ersetzen, das unter Zug im Knoten verschwindet.",
+          "„Dann ist Schicht“ eindeutig als Schichtende beim ersten Vogelgezwitscher formulieren.",
+          "Herrn Bergers verknotete Sachen vor der Abfahrt sichtbar entwirren und die Freigabe für die alten Ladekabel bei seiner Begrüßung unterbringen.",
+          "„Siebenundvierzig. Alle da“ streichen. Die siebenundvierzig zählen Schlaufen, keine Kabel.",
+          "Omas erfundenen Einsatzsong vor dem Bandsalat ansagen, die Kassette aus Gertrud in die Pension mitnehmen und Gertruds Hupen im Takt bei der reparierten Kassette nachholen.",
+          "Das Zurückwickeln der Kassette anhand des runden Lochs zeigen und „Elektriker“ durch die Betreuung von Kabeln und Kassettenspieler mit einer erkennbaren Tätigkeit verbinden."
+        ]
+      },
+      {
+        "round": "r2",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 7,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 7,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 8,
+          "ende": 8,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 7
+        },
+        "mustFix": [
+          "„Schnell, Süßer, schnell!“ → Jonas Pfiff und Omas Reaktion holen den Pakt aus Folge 4 in die Handlung zurück.",
+          "„Wir ziehen alle zusammen. Ganz schnell!“ → Jona braucht eine kindlich plausible Hoffnung, warum ein einzelner gemeinsamer Ruck anders wirken könnte. Der Ruck zieht den Knoten sichtbar fester.",
+          "„Sie leuchtete auf ein loses Kabelende“ und „Er wartete, bis das Kabel nachgab“ → Sina hält das Licht auf den Knäuel. Jona entdeckt selbst den Zusammenhang und zeigt den Fangtrick mit Schlaufe und Stecker. Die Wirkung bleibt vor und während der Singpause sichtbar.",
+          "„hab ich im alten Waschsalon … einen Schatten gesehen“ und „Am nächsten Abend war er verschwunden“ → Sinas Blick von draußen sofort verorten und das längere Verschwinden durch wiederholtes Nachsehen belegen. Name, Schatten und Blechschild bleiben erhalten.",
+          "„Mama lächelte. Dann sang sie weiter“ → Oma muss hörbar zeigen, dass sie Sina heute glaubt. Sina bekommt eine kleine eigene Reaktion darauf.",
+          "„Jedes Kabel war schön rund gewickelt“ → Zeigen, wie der Kabelsalat sich nach dem Fang selbst aufwickelt. Jona steckt die Kronsocke wieder ein.",
+          "„Das braune Band wickelte sich zurück“ → Der Kabelsalat glättet zuerst die verdrehten Schlaufen. Der Bleistift dreht anschließend sichtbar das Rädchen.",
+          "„Neben den goldenen Faden und die kleine Krone malte er ein Schild“ → Das Schild zu Steckbrief Nr. 7 zeichnen, damit die noch offene Verbindung zum Faden offen bleibt."
+        ]
+      },
+      {
+        "round": "r3",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 8,
+          "ende": 8,
+          "kanonTreue": 9,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Ein Ruck von uns allen!“ und „Alle zogen.“ → Jonas falsche Idee braucht zwei erkennbare Zugrichtungen. Zeigen, wer zieht, wer leuchtet und warum der Ruck den Knoten verschlimmert.",
+          "„Oma zog noch einmal.“ → Aus dem weiteren Zug ein Zucken machen und zeigen, wie ein loses Kabelende dadurch in die Schlaufe rutscht.",
+          "„Jona pfiff“ → Den Pfiff hörbar ohne die zurückgehängte Trillerpfeife ausführen.",
+          "„Jona beugte sich aus der offenen Haustür“ → Herr Berger lässt die Tür vorher offen. Jona spricht von dort kurz zu Gertrud.",
+          "„Mitten im Knoten. Und Omas Hand steckt immer noch drin.“ → Omas Wunsch formulieren, vor Schichtende frei zu sein. Die Schlafregel bleibt so verständlich.",
+          "„Damals war ich mit Oma beim alten Waschsalon“ → Sinas Azubi-Zeit beiläufig in der Erinnerung nennen. Das Verschwinden, der reine Schatten und das Sternschild gehören in dieselbe Erzählung.",
+          "„Ich glaub dir jetzt“ → Oma vor der Entschuldigung tatsächlich nachfragen und Sina ausreden lassen. Jonas Bewegungen müssen während der Erinnerung sichtbar bleiben.",
+          "„Darauf war die Musik“, „der erste Schuh baumelte mit“, „den ganzen Knäuel“, „Mama“, sagte Mama und „das Rädchen im Loch“ → Bild, Bezug oder Grammatik direkt im jeweiligen Satz klären.",
+          "„Klack. Ratter.“ → Oma stoppt das Gerät. Beim späteren Aufwickeln genügt der sichtbare Weg des Bands zurück in die Kassette.",
+          "„Elektriker“ → Den vereinbarten Job aus der Bandrettung ableiten und klar sagen, was der Kabelsalat an Kabeln und Geräten mit Oma zusammen übernimmt."
+        ]
+      },
+      {
+        "round": "final",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 7,
+          "ende": 8,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "Den ersten gelösten Knoten präzisieren. Aus „ein loses Kabelstück“ muss das konkrete Stück werden, das Jona eben neben Omas Handschuh beobachtet hat. Seine Bewegung macht die Schlaufe sichtbar weiter, dann folgt der Stecker.",
+          "Den Vogelpieps als Zeitmarke und Omas eingeklemmte Hand als unmittelbaren Grund für die Eile formulieren. Die jetzige Abfolge von „Dann schläft der Kabelsalat ein“ und „Meine Hand hätte ich bis dahin gern wieder“ legt eine unklare Zusatzfolge nahe.",
+          "Omas „Ich glaub dir jetzt“ einen sichtbaren Auslöser geben. Sie kann innehalten, als sie erfährt, dass Sina bei jedem Vorbeigehen wieder ins Fenster sah, und ihr dann ausdrücklich glauben, dass sie den Schatten gesehen hat.",
+          "Die ausdrücklich vorgegebene Zwei-Gäste-Grenze auflösen. Nach ihrem Wortlaut kommen zu Kabelsalat und Herrn Berger zwei weitere aktive Figuren hinzu. Für eine wortgetreue Besetzung kann Jona den Riegel selbst prüfen, Sinas Weste aus der Kammer holen und Oma das Tuch reichen. Wenn etablierte Pensionsgäste wie in den genehmigten Folgen außerhalb der Gastgrenze laufen, sollte die Serienvorgabe diese Ausnahme ausdrücklich festhalten."
+        ]
+      }
+    ]
+  }
+}

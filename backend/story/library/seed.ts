@@ -14,6 +14,7 @@ import brunoS1E3 from "./seed/episodes/bruno-der-flunkerfisch.s1e3.json";
 import brunoS1E4 from "./seed/episodes/bruno-der-flunkerfisch.s1e4.json";
 import brunoS1E5 from "./seed/episodes/bruno-der-flunkerfisch.s1e5.json";
 import brunoS1E6 from "./seed/episodes/bruno-der-flunkerfisch.s1e6.json";
+import brunoS1E7 from "./seed/episodes/bruno-der-flunkerfisch.s1e7.json";
 import monsterBible from "./seed/series/die-monster-muellabfuhr.bible.json";
 import monsterBibleV1 from "./seed/series/die-monster-muellabfuhr.bible-v1.json";
 import monsterSeason1 from "./seed/series/die-monster-muellabfuhr.season-1.json";
@@ -23,6 +24,7 @@ import monsterS1E3 from "./seed/episodes/die-monster-muellabfuhr.s1e3.json";
 import monsterS1E4 from "./seed/episodes/die-monster-muellabfuhr.s1e4.json";
 import monsterS1E5 from "./seed/episodes/die-monster-muellabfuhr.s1e5.json";
 import monsterS1E6 from "./seed/episodes/die-monster-muellabfuhr.s1e6.json";
+import monsterS1E7 from "./seed/episodes/die-monster-muellabfuhr.s1e7.json";
 import type { EpisodeSeed, SeasonSeed, SeriesSeed } from "./types";
 
 export const SEED_SERIES: SeriesSeed[] = [brunoBible as unknown as SeriesSeed, monsterBible as unknown as SeriesSeed];
@@ -35,12 +37,14 @@ export const SEED_EPISODES: EpisodeSeed[] = [
   brunoS1E4 as unknown as EpisodeSeed,
   brunoS1E5 as unknown as EpisodeSeed,
   brunoS1E6 as unknown as EpisodeSeed,
+  brunoS1E7 as unknown as EpisodeSeed,
   monsterS1E1 as unknown as EpisodeSeed,
   monsterS1E2 as unknown as EpisodeSeed,
   monsterS1E3 as unknown as EpisodeSeed,
   monsterS1E4 as unknown as EpisodeSeed,
   monsterS1E5 as unknown as EpisodeSeed,
   monsterS1E6 as unknown as EpisodeSeed,
+  monsterS1E7 as unknown as EpisodeSeed,
 ];
 
 export function episodeId(seriesId: string, season: number, episode: number): string {

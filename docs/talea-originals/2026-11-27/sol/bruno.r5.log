@@ -1,0 +1,54 @@
+Gesamtnote 7/10 — Verständlich 8, Humor 8, Unterhaltung 8
+  Figurenkonsistenz: 8
+  Plot-Kohärenz: 7
+  Sprachqualität: 8
+  Emotionale Tiefe: 7
+  Altersangemessenheit: 8
+  Ende: 8
+  Kanon-Treue: 7
+  Weitererzähl-Faktor: 9
+
+Kanon-Widersprüche:
+  - „Wenn er Bruno reden hörte, wollte er ihn vielleicht zurückbringen.“ → Die Sorge setzt voraus, dass Papa Bruno selbst sprechen hören könnte. Erwachsene hören nur Blubb. Plausibel ist Ellas Angst, Papa könnte es von ihr erfahren.
+  - „Er flog am Stuhl vorbei. Am Regal vorbei. Und landete mitten im Zylinder auf dem Boden.“ → Kaiser fängt Bruno nicht. Die vorgeschriebene kleine Ursache für das Scheitern bleibt im Original unlesbar. Der in E6 wieder aufgehängte Kater-Alarm spielt beim Sprung ebenfalls keine erkennbare Rolle.
+Logiklücken:
+  - „Wenn er Bruno reden hörte, wollte er ihn vielleicht zurückbringen.“ → Ella kennt die Regel, dass Papa nur Blubb hören kann. Die unmittelbare Gefahr, mit der sie ihre Ausrede begründet, kann so nicht eintreten. | Fix: Ella fürchtet, Papa könnte durch ihr eigenes Ausplaudern erfahren, dass Bruno spricht.
+  - „„Pfannkuchen in der Schwerelosigkeit! Kaffee gibt’s auch.““ → Papa, Pfannkuchen, Tassen und Kaffee schweben, die Kinder und die Frühstückstasse bleiben stehen. „Kaffee gibt’s auch“ erklärt die Tassen als Teil der Übung nur schwach. | Fix: Papa kündigt Pfannkuchenwerfen und Kaffeetrinken als Übungen an und zeigt auf die Tassen im Regal. So ist erkennbar, was zur Vorführung gehört.
+  - „Eine Woche Suchen. Und dann eine einzige Frage.“ → Vor einer Woche sucht Ella im Treppenhaus. Erst gestern erfährt sie vom Heft, dass der Hut bei Papa liegt. Der Satz verschleift die beiden Suchphasen. | Fix: Die Wohnungssuche auf „seit gestern“ beziehen. Die erste Suche auf der Treppe bleibt eine Woche her.
+  - „Der Kaffeeball segelte aus der Küche hinter ihm her, wie ein Hündchen an der Leine.“ → Der Ball bleibt erst in der Küche und wirkt dann an Papa gebunden. Am Sofa trennt er sich gerade im richtigen Moment von ihm. | Fix: Schon bei Papas erstem Weg in den Flur zur Küchentür treiben lassen. Papa bremst sich an der Lehne, während der Ball weitersegelt.
+  - „Er pflückte die sechs Tassen aus der Luft wie Luftballons, legte sie in die Spüle auf ein Geschirrtuch und hielt ein zweites Tuch darüber.“ → Vor der Wahrheit sind die Tassen weiterhin schwerelos. Ein Tuch darüber erklärt noch nicht, was sie bis zur Landung in der Spüle hält. | Fix: Mats hält die Tassen mit dem zweiten Tuch in der Spüle fest.
+  - „Er flog am Stuhl vorbei. Am Regal vorbei. Und landete mitten im Zylinder auf dem Boden.“ → Es fehlt der Grund, warum der Kater gerade den Hut trifft. Die Fäden des in E6 wieder aufgehängten Alarms fehlen in der Anfluggeometrie, und der ganze dicke Kater passt auffällig leicht in den Hut. | Fix: Kaiser zielt durch eine Lücke in den Fäden. Die weiche Sofalehne gibt beim Absprung nach. Sein Sprung gerät zu kurz, und die Vorderpfoten landen im Hut.
+  - „Ella hielt die Tasse ganz still.“ → Ein bewegter Kaffeeball bleibt während Kaisers Einlage und Ellas Geständnis unerklärt über der richtigen Stelle stehen. | Fix: Ella führt die Tasse unter dem langsam gleitenden Ball mit und schiebt sie direkt vor dem Geständnis noch ein Stück nach.
+Muss geändert werden:
+  - „Wenn er Bruno reden hörte“ → Ellas Angst auf das eigene Ausplaudern stützen. Papa hört von Bruno nur Blubb.
+  - „Kaffee gibt’s auch“ → Papa soll Pfannkuchenwerfen und Kaffeetrinken ausdrücklich als Übungen ansagen und die schwebenden Tassen vorbereiten.
+  - „Eine Woche Suchen“ → Treppensuche und Wohnungssuche zeitlich auseinanderhalten.
+  - „Wie ein Hündchen an der Leine“ und „Ella hielt die Tasse ganz still“ → Kaffeedrift früh ansetzen, an Papas Bremsen den Unterschied zeigen und Ella beim Auffangen mitgehen lassen.
+  - „Hielt ein zweites Tuch darüber“ → Mats muss die weiter schwebenden Tassen mit dem Tuch festhalten.
+  - „Landete mitten im Zylinder“ → Kaisers Ziel durch die Alarmfäden, den zu kurzen Sprung von der weichen Lehne und die Vorderpfoten im Hut sichtbar machen.
+  - „Puh, Bruno. Das war knapp“ → Ella soll am Kaffeefleck begreifen, wie ihre Schutz-Ausrede Bruno erst in Bedrängnis gebracht hat.
+Schulhof-Satz: Der Pfannkuchen landete auf seinem Kopf.
+
+Überarbeitung: 3 Kapitel, 1925 Wörter (vorher 1862) → docs/talea-originals/2026-11-27/sol/bruno.r5.txt
+  · „Der alte schwarze Hut“ wurde zu „Der hohe schwarze Hut“. Damit hat „Zylinder“ beim ersten Auftauchen eine erkennbare Form.
+  · „Sie war beim Schwimmwettkampf“ wurde zu „Sie war beim Wettschwimmen“.
+  · „Dann rutscht mir am Ende noch raus“ wurde zu „Dann erzähl ich ihm aus Versehen“. „Wenn er Bruno reden hörte“ wurde zu „Wenn Papa erfuhr, dass Bruno sprechen konnte“. Ella fürchtet ihr eigenes Ausplaudern.
+  · „Sie wollte Papa weismachen“ wurde zu „Ella wollte so tun“. „Aber wobei?“ und „Bis zum Mond!“ führen von Papas Pfannkuchenwitz zur Flunkerei.
+  · Aus dem „Helm mit goldener Scheibe“ wurde ein Helm mit einer „goldenen Scheibe zum Durchgucken“.
+  · „Okay. Plan B.“ steht als eigener Spruch. Das Aufklappen des Planers trennt ihn von „Papa trainiert. Wir suchen weiter.“
+  · „Pfannkuchen in der Schwerelosigkeit! Kaffee gibt’s auch“ wurde zu „Wir üben Pfannkuchenwerfen. Und Kaffeetrinken. Wie im Weltall!“ Papa zeigt dabei auf die Tassen.
+  · „Da, wo der Kopf ist“ wurde zur sichtbaren Pointe „Huch. Jetzt ist es woanders“ nach Papas Drehung.
+  · „Sie hatte das Training selbst angekündigt. Jetzt kam sie nicht mehr weg“ wurde zur Rückkehr des besten Platzes zum Zugucken als Pointe auf Ellas eigene Ausrede.
+  · „Als wäre da unten die Erde“ wurde zu Papas Ruf „Hallo, Erde!“ direkt vor dem Schnitt zu Frau Grimmbachs Wäsche.
+  · Zwischen Küchenrahmen und Wohnungstür treibt der Kaffee bereits zur Küchentür. Papa hangelt sich „an den Kleiderhaken“ statt „an der Garderobe“ entlang.
+  · „Die Ablage war so hoch über der Garderobe“ wurde zu „Das Brett über den Jacken hing so hoch“.
+  · „Eine Woche Suchen“ wurde zu „Seit gestern suchte Ella in der Wohnung“. Die Treppensuche bleibt eine Woche her.
+  · Mats ergänzt bei „Aber erst landen“ den Rückbezug „Wie bei mir“.
+  · Das „Hündchen an der Leine“ entfällt. Papa hält sich an der Lehne fest, der langsam nachfolgende Kaffeeball hat „nichts zum Festhalten“ und segelt weiter.
+  · Mats hält die Tassen „mit einem zweiten Tuch fest“, bis der Zauber endet.
+  · Ella führt die Tasse unter dem gleitenden Ball mit. Vor dem Geständnis schiebt sie die Tasse „ein Stück weiter“, statt sie „ganz still“ zu halten.
+  · Kaiser zielt „zwischen zwei Wollfäden“ und springt zu kurz, weil die weiche Lehne nachgibt. Statt nur seiner Ohren sieht man ihn mit beiden Vorderpfoten im Hut und erhobenem Kinn.
+  · Ella stellt die Kaffeetasse aufs Fensterbrett und hält den Hut fest, bis Kaiser die Pfoten herausgezogen hat. Das ersetzt das Auskippen des ganzen Katers.
+  · „Puh, Bruno. Das war knapp“ wurde zu „Ich wollte doch bloß auf dich aufpassen. Und fast hättest du Kaffee im Glas gehabt.“
+
+gpt-6.2-sol (codex), high: 61962 Tokens, 389 s → docs/talea-originals/2026-11-27/sol/bruno.r5.json

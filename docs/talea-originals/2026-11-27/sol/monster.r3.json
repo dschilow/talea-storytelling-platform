@@ -1,0 +1,950 @@
+{
+  "canonChecks": [
+    {
+      "quote": "„Ich will meinen Azubi mal bei der Arbeit sehen“, hatte sie gesagt.",
+      "fact": "Sina weiß von der Nachtschicht und kennt Jonas Rolle als Azubi.",
+      "agrees": true
+    },
+    {
+      "quote": "Jetzt stand sie neben Jona auf dem Betriebshof, die Hände in den Jackentaschen, und guckte zu.",
+      "fact": "Der Betriebshof ist der Ausgangspunkt der Nachtschicht. Sina darf als ehemalige Azubine dabei sein.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona leuchtete zuerst auf den Riegel an der kleinen Klappe.",
+      "fact": "Seit den Abdrücken prüft Jona bei jedem Wochenendbesuch zuerst den Riegel.",
+      "agrees": true
+    },
+    {
+      "quote": "Zu.",
+      "fact": "Die Klappe war zuletzt verriegelt. Der neue Einsatz setzt diese Sicherung voraus.",
+      "agrees": true
+    },
+    {
+      "quote": "Das Pupsmonster lag quer davor und hielt seine Kordel hoch.",
+      "fact": "Das Pupsmonster liegt als Lüftungswart vor der grünen Tür und prüft mit seiner Kordel, ob es zieht.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie hing still.",
+      "fact": "Die Kordel bewegt sich bei Zugluft. Hier bleibt die Klappe ruhig und liefert keine zusätzliche Staffelspur.",
+      "agrees": true
+    },
+    {
+      "quote": "„Jedes Mal“, sagte Jona.",
+      "fact": "Jona hat die Riegelkontrolle seit Folge 4 beibehalten.",
+      "agrees": true
+    },
+    {
+      "quote": "Da kam Klirrklaus aus der Kammer.",
+      "fact": "Klirrklaus hat seinen festen Platz in der Kammer und kommt zum Arbeiten aus den Kästen.",
+      "agrees": true
+    },
+    {
+      "quote": "Kling, kling.",
+      "fact": "Beim Gehen klirrt oder klingt Klirrklaus leise.",
+      "agrees": true
+    },
+    {
+      "quote": "Da knackte in der Küche der Monster-Funk.",
+      "fact": "Der Monster-Funk steht in Omas Küche.",
+      "agrees": true
+    },
+    {
+      "quote": "„Schnell, Süßer, schnell!“",
+      "fact": "Oma ruft kurze Kommandos und nennt Jona „Süßer“. Ihr Hang zum Losstürmen ist seit Folge 4 etabliert.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona pfiff.",
+      "fact": "Jona erinnert Oma an ihr Versprechen aus Folge 4. Wie er hier pfeift, bleibt im Original offen.",
+      "agrees": true
+    },
+    {
+      "quote": "So hatten sie es in der Turnhalle abgemacht.",
+      "fact": "Oma hat Jona ausdrücklich aufgefordert zu pfeifen, wenn sie wieder einfach losrennen will.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma bremste mitten im Schritt und grinste.",
+      "fact": "Oma hält sich an die Abmachung und lässt Jona das Tempo ansagen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Jawohl, Chef.“",
+      "fact": "Oma hat Jona schon in der Turnhalle so angesprochen, als er den Einsatz leitete.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona holte die Warnweste von seinem Haken, zog sie an und schlüpfte in die gelben Gummistiefel.",
+      "fact": "Jonas Warnweste hängt seit Folge 6 an seinem Haken. Die gelben Stiefel stehen darunter. Die Weste gehört zum Einsatz.",
+      "agrees": true
+    },
+    {
+      "quote": "Gertrud blinkte zweimal.",
+      "fact": "Zweimal blinken ist Gertruds Begrüßung.",
+      "agrees": true
+    },
+    {
+      "quote": "Flusi hüpfte aufs Armaturenbrett.",
+      "fact": "Das Armaturenbrett ist Flusis Platz bei der Abfahrt.",
+      "agrees": true
+    },
+    {
+      "quote": "Mama setzte sich ans Fenster, Jona in die Mitte.",
+      "fact": "Jona ist Mitfahrer. Sina begleitet ihn, während Oma fährt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Für Knoten nehmen wir ‚Krach im Kabel‘!“",
+      "fact": "Oma wählt für den Einsatz einen erfundenen Rocksong.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma stopfte eine Kassette in den Kassettenspieler, drückte drei Knöpfe auf einmal und gab Gas.",
+      "fact": "Oma fährt Gertrud und spielt ihre Einsatzmusik auf Kassette ab.",
+      "agrees": true
+    },
+    {
+      "quote": "Die Gitarren blieben still.",
+      "fact": "Der Bandsalat unterbricht den Musikgag bei der Abfahrt. Gertrud hupt später zum selben Lied im Takt.",
+      "agrees": true
+    },
+    {
+      "quote": "Gertrud brummte leise, und Mama summte dazu.",
+      "fact": "Gertrud äußert sich durch Fahrzeuggeräusche. Sie spricht nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "„Die Sonderabfuhr?“",
+      "fact": "Erwachsene außerhalb der Crew kennen Oma als Sonderabfuhr.",
+      "agrees": true
+    },
+    {
+      "quote": "„Heute hat's auch die Kopfhörer meiner Tochter und die Lichterkette erwischt.“",
+      "fact": "Herr Berger schildert die sichtbaren Folgen und sieht kein Monster. Die Tochter wird lediglich erwähnt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Die alten Ladekabel kommen da alle rein.“",
+      "fact": "Der Einsatz führt zum Material und zum Ort, aus denen dieses Monster entsteht.",
+      "agrees": true
+    },
+    {
+      "quote": "„Schnell rein, Schublade zu.“",
+      "fact": "Die achtlos weggesteckten Kabel bereiten den Ursprung und die passende Schwäche vor.",
+      "agrees": true
+    },
+    {
+      "quote": "„Die können Sie gleich mitnehmen.“",
+      "fact": "Herr Berger erlaubt die Mitnahme der alten Kabel.",
+      "agrees": true
+    },
+    {
+      "quote": "„HATSCHI! Falsche Stelle.“",
+      "fact": "Flusi kann auch an der falschen Stelle niesen. Hier kitzelt ihn der Schnürsenkel.",
+      "agrees": true
+    },
+    {
+      "quote": "Auf der Fensterbank lag der lose Stecker der verknoteten Lichterkette.",
+      "fact": "Die Lichterkette ist ausdrücklich ausgesteckt.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann ging ganz langsam eine Schublade in der Kommode auf.",
+      "fact": "Das Monster kommt aus der Schublade mit seinem Ursprung. Sichtbar wird es erst nach Flusis Alarm.",
+      "agrees": true
+    },
+    {
+      "quote": "„HATSCHI!“",
+      "fact": "Flusi niest unmittelbar vor dem Erscheinen des Kabelsalats.",
+      "agrees": true
+    },
+    {
+      "quote": "Etwas kroch heraus.",
+      "fact": "Auf den Hatschi-Alarm folgt das Auftauchen des Monsters.",
+      "agrees": true
+    },
+    {
+      "quote": "Ein Knäuel aus Kabeln, schwarz, weiß und grau, so groß wie ein Sofakissen.",
+      "fact": "Die Gestalt des Monsters entspricht seinem Ursprung aus Ladekabeln.",
+      "agrees": true
+    },
+    {
+      "quote": "Kein einziger steckte in einer Steckdose.",
+      "fact": "Kein Kabel des Monsters ist eingesteckt.",
+      "agrees": true
+    },
+    {
+      "quote": "Neugierig.",
+      "fact": "Das Monster sucht Kontakt und handelt aus Neugier.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ab in die Tonne, Süße!“",
+      "fact": "Omas Fangruf steht wortgetreu im Text.",
+      "agrees": true
+    },
+    {
+      "quote": "Zack!",
+      "fact": "Die heftige Bewegung löst die vorgesehene Reaktion des Kabelsalats aus.",
+      "agrees": true
+    },
+    {
+      "quote": "Die Kabel zogen sich zusammen.",
+      "fact": "Die Knoten ziehen sich bei hastigem Zugriff fest.",
+      "agrees": true
+    },
+    {
+      "quote": "Omas Hand steckte bis zum Handgelenk im Knoten.",
+      "fact": "Der Knoten hält Oma fest. Es wird niemand verletzt.",
+      "agrees": true
+    },
+    {
+      "quote": "Und der Kabelsalat wurde größer.",
+      "fact": "Hast und Zerren stärken dieses Monster.",
+      "agrees": true
+    },
+    {
+      "quote": "„Je fester ich zieh“, keuchte Oma, „desto fester hält's!“",
+      "fact": "Oma benennt die beobachtbare Reaktion des Knotens. Die falsche Idee im nächsten Kapitel muss sich daran messen lassen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Moment … ich weiß die Schwäche!“, rief er.",
+      "fact": "Jonas Merksatz fällt wortgetreu bei einem falschen Versuch.",
+      "agrees": true
+    },
+    {
+      "quote": "„Flusi hilft!“",
+      "fact": "Flusi bleibt der Crew treu und sagt seinen Merksatz wortgetreu.",
+      "agrees": true
+    },
+    {
+      "quote": "„Eins, zwei, drei!“",
+      "fact": "Jona zählt, wenn es ernst wird. Hier benutzt er das Zählen auch als Startsignal.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Kabelsalat zog zurück.",
+      "fact": "Der hektische Fangversuch verstärkt den Knoten.",
+      "agrees": true
+    },
+    {
+      "quote": "Er wuchs.",
+      "fact": "Der Kabelsalat wird durch das Zerren stärker und größer.",
+      "agrees": true
+    },
+    {
+      "quote": "Er schlang ein Kabel um Flusi, dann noch eins und noch eins, bis Flusi aussah wie ein verschnürtes Päckchen.",
+      "fact": "Flusi bleibt eine kleine Staubfluse und wird festgewickelt, ohne verletzt zu werden.",
+      "agrees": true
+    },
+    {
+      "quote": "„Flusi ist Paket“, sagte Flusi.",
+      "fact": "Flusi spricht in einem Minisatz in der dritten Person.",
+      "agrees": true
+    },
+    {
+      "quote": "Draußen hupte Gertrud.",
+      "fact": "Gertrud kann auf den Einsatz reagieren, ohne zu sprechen.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Kabelsalat zog sich noch fester zusammen.",
+      "fact": "Der Ruck an Jonas Kabel strafft den Knoten. Das Hupen wirkt über Jonas Schreck.",
+      "agrees": true
+    },
+    {
+      "quote": "„Heute bist du der Chef, Jona“, sagte Mama leise.",
+      "fact": "Sina lässt Jona den Einsatz leiten und bleibt als Erwachsene bei ihm.",
+      "agrees": true
+    },
+    {
+      "quote": "„Was siehst du?“",
+      "fact": "Sina hilft mit einer Frage und überlässt Jona die Lösung.",
+      "agrees": true
+    },
+    {
+      "quote": "Bei seinen Schuhen war das genauso.",
+      "fact": "Jona zieht aus seiner eigenen Beobachtung einen Schluss, der zur Herkunft des Monsters passt.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann hatte sie jeder vergessen.",
+      "fact": "Der Kabelsalat ist aus weggelegten und vergessenen Dingen entstanden.",
+      "agrees": true
+    },
+    {
+      "quote": "„Moment … ich weiß die Schwäche!“, sagte Jona.",
+      "fact": "Der Merksatz fällt bei der richtigen Erkenntnis ein zweites Mal wortgetreu.",
+      "agrees": true
+    },
+    {
+      "quote": "„Wir müssen ihn langsam entknoten.“",
+      "fact": "Langsames Entknoten ist die einzige magische Schwäche des Kabelsalats.",
+      "agrees": true
+    },
+    {
+      "quote": "„Beim ersten Vogelpieps ist Schichtende, Süßer“, sagte Oma.",
+      "fact": "Das erste Vogelgezwitscher beendet die Nachtschicht.",
+      "agrees": true
+    },
+    {
+      "quote": "„Dann schläft der Kabelsalat ein.“",
+      "fact": "Beim ersten Vogelgezwitscher schlafen alle Monster ein.",
+      "agrees": true
+    },
+    {
+      "quote": "„Mitten im Knoten.“",
+      "fact": "Die Schlafregel gilt unabhängig vom Stand der Arbeit. Ob man ein schlafendes Monster weiter entknoten könnte, bleibt offen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Langsam kann ich nicht, Süßer.“",
+      "fact": "Oma gibt vor Jona zu, was ihr schwerfällt, und behält ihre vertraute Anrede.",
+      "agrees": true
+    },
+    {
+      "quote": "„Du hältst jetzt bloß still.“",
+      "fact": "Stillhalten hilft Jona bei seiner Arbeit. Es löst den Knoten nicht von selbst.",
+      "agrees": true
+    },
+    {
+      "quote": "Gertrud blieb still.",
+      "fact": "Gertrud versteht Jonas Bitte und unterstützt ihn, indem sie ruhig bleibt.",
+      "agrees": true
+    },
+    {
+      "quote": "Mama kniete sich neben ihn und hielt das Licht.",
+      "fact": "Eine erwachsene Person bleibt bei Jona. Sina unterstützt praktisch und lässt ihn entknoten.",
+      "agrees": true
+    },
+    {
+      "quote": "„Wir fangen bei Omas Handschuh an“, sagte Jona.",
+      "fact": "Jona setzt die Reihenfolge für die Rettung fest.",
+      "agrees": true
+    },
+    {
+      "quote": "Jetzt konnte er den Stecker langsam hindurchschieben.",
+      "fact": "Die kleine, langsame Bewegung lockert tatsächlich eine Schlaufe und setzt die Schwäche um.",
+      "agrees": true
+    },
+    {
+      "quote": "„Eins“, zählte er leise.",
+      "fact": "Jona zählt, um sich in einer angespannten Lage zu sammeln.",
+      "agrees": true
+    },
+    {
+      "quote": "„Zwei.“",
+      "fact": "Jona hält mit seinem Zählen den Arbeitsrhythmus.",
+      "agrees": true
+    },
+    {
+      "quote": "Er wurde ein kleines bisschen kleiner.",
+      "fact": "Das Entknoten wirkt bereits vor Sinas Gesang.",
+      "agrees": true
+    },
+    {
+      "quote": "Bei Schlaufe neun war Omas Hand frei.",
+      "fact": "Jona befreit Oma durch Entknoten. Die Szene enthält keine Verletzung.",
+      "agrees": true
+    },
+    {
+      "quote": "„Weißt du, wie viel Sternlein stehen …“",
+      "fact": "Sina singt das Lied, das sie Jona früher abends vorgesungen hat und das er in Folge 2 eingesetzt hat.",
+      "agrees": true
+    },
+    {
+      "quote": "Seit der Nacht mit dem Gähnmonster hatte er sie um das Lied bitten wollen.",
+      "fact": "Jonas Wunsch stammt aus dem Schluss von Folge 2.",
+      "agrees": true
+    },
+    {
+      "quote": "„Du hast doch gesagt, du bist zu groß dafür.“",
+      "fact": "Jona hatte das früher gesagt. Sina hatte daraufhin aufgehört, ihm das Lied vorzusingen.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie sang so langsam, dass Jonas nächste Zahl in jede Pause passte.",
+      "fact": "Das Lied gibt Jona den Takt. Der Kabelsalat reagiert auf die gelösten Schlaufen.",
+      "agrees": true
+    },
+    {
+      "quote": "Bei Schlaufe zweiundzwanzig war Flusi frei und rollte sich auf Jonas Knie.",
+      "fact": "Flusi wird durch die gleiche Methode wie Oma befreit und bleibt unverletzt.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona holte die Socke mit der winzigen gestrickten Krone aus seiner Hoodie-Tasche.",
+      "fact": "Jona trägt die in Folge 1 gefundene Krone auf der Socke weiterhin in seiner Hoodie-Tasche.",
+      "agrees": true
+    },
+    {
+      "quote": "„Mama, weißt du, wem die gehört?“",
+      "fact": "Jona fragt Sina offen. Der Besitz der Socke ist weiterhin ungeklärt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Wem die gehört, weiß ich nicht“, sagte Mama.",
+      "fact": "Die Erinnerung beantwortet die Eigentumsfrage nicht und löst das Staffelrätsel nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "Mama hörte auf zu singen.",
+      "fact": "Das Lied darf aussetzen, während die einzige Schwäche weiter wirkt.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona legte die Socke neben sein Knie und löste die nächste Schlaufe.",
+      "fact": "Jona setzt das Entknoten während der Gesprächspause fort.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Kabelsalat wurde wieder ein Stück kleiner.",
+      "fact": "Die Verkleinerung folgt dem Entknoten auch ohne Gesang.",
+      "agrees": true
+    },
+    {
+      "quote": "„Damals war ich mit Oma beim alten Waschsalon hinterm Bahnhof.“",
+      "fact": "Sinas Erinnerung stammt aus ihrer gemeinsamen Zeit mit Oma. Den alten Waschsalon kannte die Crew bereits aus Flusis Erzählung in Folge 5. Neu ist die Verbindung zum Schatten.",
+      "agrees": true
+    },
+    {
+      "quote": "„Wir standen draußen vor der Scheibe.“",
+      "fact": "Sina beschreibt eine Sichtung von draußen. Der Sockenkönig wird vor Folge 10 nicht vollständig gezeigt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Drinnen war ein Schatten.“",
+      "fact": "Der Sockenkönig erscheint ausschließlich als Schatten.",
+      "agrees": true
+    },
+    {
+      "quote": "„Oben sah es aus, als hätte er eine Krone.“",
+      "fact": "Die Krone bleibt ein Eindruck aus dem Schattenriss. Ursprung und Absicht der Gestalt bleiben offen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich hab ihn Sockenkönig genannt.“",
+      "fact": "Sina nennt erstmals den Namen, den sie der Gestalt als Kind gegeben hat.",
+      "agrees": true
+    },
+    {
+      "quote": "„HATSCHI!“ Flusi rieb sich die Nase. „Falsche Stelle.“",
+      "fact": "Flusi niest wie in Folge 5 beim Wort „König“, hier als Teil von „Sockenkönig“. Es erscheint kein weiteres Monster.",
+      "agrees": true
+    },
+    {
+      "quote": "„Als Oma hinguckte, war der Schatten schon weg“, sagte Mama.",
+      "fact": "Der Schatten ist verschwunden, bevor Oma ihn selbst sehen kann.",
+      "agrees": true
+    },
+    {
+      "quote": "„Danach hab ich jedes Mal ins Fenster geguckt, wenn wir vorbeikamen.“",
+      "fact": "Sinas Nachschauen gehört zur vorgesehenen Erinnerung aus ihrer Azubi-Zeit.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich hab ihn nie wieder gesehen.“",
+      "fact": "Die Staffelspur beschränkt sich darauf, dass der Sockenkönig schon damals da war und danach aus Sinas Sicht verschwand.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich dachte immer, du hättest das geträumt, Sina.“",
+      "fact": "Oma hat Sina damals nicht geglaubt. Ein Monster aus einem Traum entsteht hier nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich glaub dir jetzt, Süße.“",
+      "fact": "Oma hört ihrer Tochter jetzt zu. Das ändert ihre Beziehung, ohne die Identität des Schattens zu bestätigen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Über der Tür hing so ein Blechschild“, sagte sie.",
+      "fact": "Das Schild ist als Bestandteil derselben Erinnerung für die spätere Wiedererkennung vorgesehen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Eine Waschmaschine.“",
+      "fact": "Das vorgesehene Zeichen zeigt eine Waschmaschine.",
+      "agrees": true
+    },
+    {
+      "quote": "„Mit einem Stern im runden Fenster.“",
+      "fact": "Der Stern sitzt genau an der für Folge 9 festgelegten Stelle. Seine spätere Funktion bleibt unerwähnt.",
+      "agrees": true
+    },
+    {
+      "quote": "Bei Schlaufe siebenundvierzig war der letzte Knoten auf.",
+      "fact": "Jona beendet den Fangtrick, indem er sämtliche Knoten löst.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Kabelsalat wickelte seine langen Kabel selbst zu runden Ringen auf.",
+      "fact": "Der Kabelsalat bleibt nach dem Fang heil und kann sich freiwillig ordnen.",
+      "agrees": true
+    },
+    {
+      "quote": "Draußen hatte noch kein Vogel gesungen.",
+      "fact": "Die Arbeit am Fundort ist vor dem ersten Vogelgezwitscher fertig.",
+      "agrees": true
+    },
+    {
+      "quote": "Gemeinsam lösten sie die Ärmel, die Kopfhörer und die Lichterkette.",
+      "fact": "Der Kabelsalat hilft, die Folgen seines Auftauchens rückgängig zu machen, und wird dafür nicht bestraft.",
+      "agrees": true
+    },
+    {
+      "quote": "„In der Pension hat jeder einen Platz.“",
+      "fact": "Gefangene Monster bekommen in der Monster-Pension einen Platz und eine passende Aufgabe.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Kabelsalat rollte langsam in die Tonne.",
+      "fact": "Die Monster-Tonne dient zur Mitfahrt des unverletzten Monsters.",
+      "agrees": true
+    },
+    {
+      "quote": "Ganz von allein.",
+      "fact": "Das Monster entscheidet sich freiwillig für die Mitfahrt.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma fuhr langsamer als sonst.",
+      "fact": "Oma bleibt die Fahrerin. Jona übernimmt die Einsatzleitung, ohne selbst zu fahren.",
+      "agrees": true
+    },
+    {
+      "quote": "Auf dem Hof nahm Oma die Kassette aus Gertruds Kassettenspieler.",
+      "fact": "Gertrud ist der einzige Einsatzwagen und hat ihren etablierten Kassettenspieler.",
+      "agrees": true
+    },
+    {
+      "quote": "In der Pension ließ Oma kein Wasser ein.",
+      "fact": "Neue Monster werden ihrem Material entsprechend gereinigt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Kabel kommen nicht ins Wasser“, sagte sie.",
+      "fact": "Der Kabelsalat erhält eine trockene Reinigung.",
+      "agrees": true
+    },
+    {
+      "quote": "Klirrklaus reichte ihr ein trockenes Tuch.",
+      "fact": "Klirrklaus hilft in seiner Rolle als Lagerverwalter mit dem passenden Material.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma wischte jedes Kabel vorsichtig ab.",
+      "fact": "Die Reinigung des Neuzugangs ist fürsorglich und materialgerecht.",
+      "agrees": true
+    },
+    {
+      "quote": "Draußen hupte Gertrud mit.",
+      "fact": "Gertrud beteiligt sich mit ihrer Hupe am Musikritual.",
+      "agrees": true
+    },
+    {
+      "quote": "Genau im Takt.",
+      "fact": "Gertrud hupt wie gewohnt im Takt. Der Gag fällt diesmal ans Ende des Einsatzes.",
+      "agrees": true
+    },
+    {
+      "quote": "„Elektriker“, sagte Oma.",
+      "fact": "Der Kabelsalat erhält die für ihn vorgesehene Aufgabe in der Pension.",
+      "agrees": true
+    },
+    {
+      "quote": "„Wenn du magst.“",
+      "fact": "Oma bietet die Aufgabe an. Das Monster darf freiwillig zustimmen.",
+      "agrees": true
+    },
+    {
+      "quote": "Er mochte.",
+      "fact": "Der Kabelsalat nimmt die passende Aufgabe freiwillig an.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona holte Omas dicken Ordner und schrieb Monster-Steckbrief Nr. 7: Kabelsalat.",
+      "fact": "Jona führt den Ordner fort. Auf Klirrklaus als Nr. 6 folgt der Kabelsalat als Nr. 7.",
+      "agrees": true
+    },
+    {
+      "quote": "Ursprung: verknotete Ladekabel, vergessen in einer Schublade.",
+      "fact": "Der Steckbrief hält den im Einsatz ermittelten Ursprung fest.",
+      "agrees": true
+    },
+    {
+      "quote": "Schwäche: Wird ruhig, wenn seine Knoten langsam gelöst werden.",
+      "fact": "Der Steckbrief nennt genau eine Schwäche.",
+      "agrees": true
+    },
+    {
+      "quote": "Fangtrick: Schlaufe für Schlaufe entknoten.",
+      "fact": "Der Fangtrick ist die praktische Anwendung derselben Schwäche.",
+      "agrees": true
+    },
+    {
+      "quote": "Job: Elektriker.",
+      "fact": "Die Aufgabe stimmt mit Omas Angebot überein.",
+      "agrees": true
+    },
+    {
+      "quote": "Unter den Steckbrief malte er ein Blechschild: eine Waschmaschine mit einem Stern im runden Fenster.",
+      "fact": "Jona hält die erlaubte Staffelspur wie frühere Hinweise im Ordner fest.",
+      "agrees": true
+    },
+    {
+      "quote": "Als die erste Amsel sang, schliefen alle Monster ein.",
+      "fact": "Das erste Vogelgezwitscher beendet die Nachtschicht für sämtliche Monster.",
+      "agrees": true
+    },
+    {
+      "quote": "Das Pupsmonster quer vor der Tür.",
+      "fact": "Das Pupsmonster behält seinen Schlafplatz an der grünen Tür.",
+      "agrees": true
+    },
+    {
+      "quote": "Klirrklaus in seinen Kästen.",
+      "fact": "Klirrklaus schläft in seinen Pfandkästen.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Kabelsalat, ordentlich aufgewickelt, neben dem Kassettenspieler.",
+      "fact": "Der Neuzugang schläft unverletzt in der Pension und bleibt bei dem Gerät, an dem sich seine Aufgabe gezeigt hat.",
+      "agrees": true
+    },
+    {
+      "quote": "Flusi in Jonas Kapuze.",
+      "fact": "Flusi schläft wie in den vorigen Folgen in Jonas Kapuze ein.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona lag auf dem Klappsofa.",
+      "fact": "Das Klappsofa ist Jonas Schlafplatz bei Oma.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie sang das Sternlein-Lied noch einmal.",
+      "fact": "Jonas Wunsch aus Folge 2 wird eingelöst. Sinas Lied bleibt hier Teil ihrer Beziehung zu Jona.",
+      "agrees": true
+    }
+  ],
+  "dimensions": {
+    "figurenkonsistenz": {
+      "score": 8,
+      "why": "„Jawohl, Chef“ zahlt das Versprechen aus der Turnhalle aus. Sina bleibt mit „Was siehst du?“ warm und hilfreich, ohne Jona die Lösung zu geben. Jona reagiert unter Druck glaubwürdig hastig, doch sein „Ein Ruck von uns allen!“ wiederholt Omas gerade beobachteten Fehler, bis sein neuer Ansatz räumlich erkennbar wird."
+    },
+    "plotKohaerenz": {
+      "score": 7,
+      "why": "„Schnell rein, Schublade zu“ und Jonas eigene Schnürsenkel liefern die richtige Ursache. Bei „Alle zogen“ fehlen die Zugrichtungen, und Omas Hand ist zuvor buchstäblich im Knoten. Dadurch kann man sich weder den Fehlversuch noch die Rettung zuverlässig vorstellen."
+    },
+    "sprachqualitaet": {
+      "score": 8,
+      "why": "„Die Jacken hielten sich an den Händen wie eine Kindergartengruppe“ ist sofort im Kopf. „Auf den ganzen Knäuel“ ist ein Grammatikfehler, „Mama“, sagte Mama verlangt unnötiges Zurücklesen, und die Kassette wird am Ende mechanischer beschrieben, als ein Kind sie sich vorstellen kann."
+    },
+    "emotionaleTiefe": {
+      "score": 9,
+      "why": "„Bin ich nicht“, sagte Jona. „Glaub ich.“ Das Zögern macht seinen Wunsch nach dem Lied glaubwürdig. Auch „Ich hab dir damals gar nicht richtig zugehört“ trifft etwas, das Kinder und Eltern kennen. Ein kurzer Moment, in dem Oma nachfragt und Sina ausreden lässt, würde ihren Wandel noch sichtbarer machen."
+    },
+    "altersangemessenheit": {
+      "score": 8,
+      "why": "„Flusi ist Paket“ und die verbundenen Schuhe treffen das Alter. Die Angst bleibt bei einem festen Knoten und wird mit Spiel aufgefangen. Kassette, Bandsalat und das „Rädchen im Loch“ verlangen Kindern ohne Kassettenerfahrung zu viel Vorstellung auf einmal ab."
+    },
+    "ende": {
+      "score": 8,
+      "why": "„Ganz bis zum Ende“ ist ein warmer, verdienter Schluss. Die reparierte Kassette bringt den Song zurück, und der Kabelsalat macht beim Aufräumen mit. Beim Angebot „Elektriker“ sollte der Übergang von der gelungenen Bandrettung zu Arbeiten an Geräten kleiner und konkreter werden."
+    },
+    "kanonTreue": {
+      "score": 9,
+      "why": "„Drinnen war ein Schatten“ hält den Sockenkönig im erlaubten Bereich. Der Kabelsalat wird schon vor dem Lied kleiner und schrumpft auch nach „Mama hörte auf zu singen“ weiter. Der alte Waschsalon, das einmalige Verschwinden und das vereinbarte Sternschild gehören zu derselben Erinnerung. Sinas Azubi-Zeit muss darin noch ausdrücklich genannt werden."
+    },
+    "weitererzaehlFaktor": {
+      "score": 9,
+      "why": "„Flusi ist Paket“ braucht für den Schulhof fast keine Erklärung. Ein Staubball mit winzigen Armen wird verschnürt und kommentiert das in drei Wörtern. Omas zuckende Nase liefert einen zweiten Gag, den Kinder nachspielen können."
+    }
+  },
+  "kinderCheck": {
+    "verstaendlichkeit": {
+      "score": 7,
+      "stolpersteine": [
+        {
+          "quote": "„Jona pfiff.“",
+          "warum": "Wer die Turnhallenfolge kennt, kann nach der Trillerpfeife suchen. Die hing am Ende wieder in der Halle.",
+          "vorschlag": "„Jona pfiff durch die Zähne.“"
+        },
+        {
+          "quote": "„Ein dünnes braunes Band quoll aus der Kassette. Darauf war die Musik.“",
+          "warum": "Viele Kinder kennen eine Kassette nicht. „Quoll“ und „darauf“ machen das Ding schwerer vorstellbar.",
+          "vorschlag": "„Ein dünnes braunes Band kam aus der Klappe. Es hing herunter wie Spaghetti. Auf dem Band war die Musik.“"
+        },
+        {
+          "quote": "„Vor dem Mühlenweg 3 wartete Herr Berger im Schlafanzug.“",
+          "warum": "Die Formulierung klingt, als warte er vor der ganzen Straße.",
+          "vorschlag": "„Vor dem Haus im Mühlenweg 3 wartete Herr Berger im Schlafanzug.“"
+        },
+        {
+          "quote": "„Er schlüpfte aus einem Schuh und hob den anderen Fuß. Der erste Schuh baumelte mit.“",
+          "warum": "Man muss zuerst ausrechnen, welcher Fuß jetzt nackt ist. Der Blick soll beim baumelnden Schuh bleiben.",
+          "vorschlag": "„Er zog einen Fuß aus dem Schuh. Als er den anderen hob, baumelte der leere Schuh mit.“"
+        },
+        {
+          "quote": "„Flusi steckte die Nase zwischen Bergers Schnürsenkel. Eine Spitze kitzelte ihn.“",
+          "warum": "„Spitze“ kann beim Hören auch eine Schuhspitze sein. Die Nase lässt sich zwischen den abgestellten Schuhen leichter verorten.",
+          "vorschlag": "„Flusi steckte die Nase zwischen die Schuhe. Ein Schnürsenkel kitzelte ihn.“"
+        },
+        {
+          "quote": "„Sie hielt das Licht auf den ganzen Knäuel.“",
+          "warum": "Es heißt „das Knäuel“. Außerdem kann Sina direkt mit der Taschenlampe leuchten.",
+          "vorschlag": "„Sie leuchtete auf das ganze Knäuel.“"
+        },
+        {
+          "quote": "„Mama“, sagte Mama. „Dein Fuß.“",
+          "warum": "Das erste „Mama“ meint Hilde, das zweite Sina. Beim Vorlesen ist der Wechsel schlecht hörbar.",
+          "vorschlag": "„Sina zeigte auf Omas Fuß. ‚Mama. Dein Fuß.‘“"
+        },
+        {
+          "quote": "„Jetzt konnte er den Stecker langsam hindurchschieben.“",
+          "warum": "Vorher ziehen alle irgendwo am Knäuel. Ein konkret gezeigter Weg durch die Schlaufe macht die Lösung nachspielbar.",
+          "vorschlag": "„Er schob ein loses Kabelstück zurück, bis die Schlaufe locker war. Dann schob er den Stecker langsam durch die Schlaufe.“"
+        },
+        {
+          "quote": "„Wir standen draußen vor der Scheibe.“",
+          "warum": "„Scheibe“ braucht hier einen Ort. Ein Fenster ist sofort verständlich und passt zum späteren Nachschauen.",
+          "vorschlag": "„Oma und ich standen draußen vor dem Fenster vom alten Waschsalon hinterm Bahnhof.“"
+        },
+        {
+          "quote": "„Jeder hatte wieder seine eigenen Schnürsenkel.“",
+          "warum": "Die Schnürsenkel haben den Schuh gewechselt, wenn man den Satz wörtlich nimmt. Die Schuhe waren die ganze Zeit an ihren eigenen Senkeln zusammengebunden.",
+          "vorschlag": "„Zum Schluss lösten sie den Knoten zwischen Herrn Bergers Schuhen und stellten sie nebeneinander.“"
+        },
+        {
+          "quote": "„Er klemmte den Bleistift zwischen die Fühler und drehte damit das Rädchen im Loch der Kassette.“",
+          "warum": "Fühler, Stift, Rädchen und Loch ergeben vier Einzelteile, die Kinder zugleich zusammensetzen müssen.",
+          "vorschlag": "„Er nahm den Bleistift zwischen seine Fühler, steckte ihn in eins der runden Löcher der Kassette und drehte. Das Band wickelte sich wieder auf.“"
+        }
+      ]
+    },
+    "humor": {
+      "score": 8,
+      "witze": [
+        {
+          "quote": "„Jawohl, Chef.“",
+          "zuendet": "ja",
+          "warum": "Die große Oma bremst auf den Pfiff des Kindes mitten im Schritt. Die Bewegung verkauft den Gag auch ohne Vorwissen."
+        },
+        {
+          "quote": "„Jetzt hängt die Musik in Schlaufen. Bandsalat.“",
+          "zuendet": "halb",
+          "warum": "Das Wortspiel braucht ein Bild von dem Band, bevor ein Kind darüber lachen kann.",
+          "besser": "Das Band hängt wie Spaghetti heraus. Danach reicht Omas „Na toll. Bandsalat.“"
+        },
+        {
+          "quote": "„Er wollte einen Schritt zur Seite machen. Es wurde ein Hüpfer.“",
+          "zuendet": "ja",
+          "warum": "Der Wechsel vom höflichen Schritt zum unfreiwilligen Hüpfer ist sofort vorstellbar."
+        },
+        {
+          "quote": "„Ach, ihr zwei.“",
+          "zuendet": "ja",
+          "warum": "Herr Berger behandelt seine zusammengebundenen Schuhe kurz wie zwei Störenfriede."
+        },
+        {
+          "quote": "„Die Jacken hielten sich an den Händen wie eine Kindergartengruppe.“",
+          "zuendet": "ja",
+          "warum": "Die Ärmel werden vor dem inneren Auge zu Händen. Das Bild erklärt den Knoten und ist selbst der Witz."
+        },
+        {
+          "quote": "„HATSCHI! Falsche Stelle.“",
+          "zuendet": "ja",
+          "warum": "Die erwartete Monsterwarnung endet bei einem Schnürsenkel."
+        },
+        {
+          "quote": "„Du bist mir ja ein Kabelsalat.“",
+          "zuendet": "ja",
+          "warum": "Der Monstername klingt nach dem, was Kinder zu Hause in einer Kabelschublade sehen. Nach dem Bandsalat bekommt das Wort einen Körper."
+        },
+        {
+          "quote": "„Flusi ist Paket.“",
+          "zuendet": "ja",
+          "warum": "Verschnürte Rundform und trockener Dreisatz fallen genau zusammen."
+        },
+        {
+          "quote": "„Und Omas Hand steckt immer noch drin.“",
+          "zuendet": "halb",
+          "warum": "Die Wiederholung klingt nach Erzählertext aus Omas Mund. Der beklemmende Knoten hätte Platz für eine kurze Oma-Zeile.",
+          "besser": "„Meine Hand hätte ich bis dahin gern wieder, Süßer.“"
+        },
+        {
+          "quote": "„Mama“, sagte Mama. „Dein Fuß.“",
+          "zuendet": "halb",
+          "warum": "Omas Fuß verrät ihr angebliches Stillhalten. Der doppelte Gebrauch von „Mama“ lenkt kurz vom Fuß weg.",
+          "besser": "Sina zeigt auf Omas Fuß. Dann sagt sie „Mama. Dein Fuß.“"
+        },
+        {
+          "quote": "„Dafür fing Omas Nase an zu zucken.“",
+          "zuendet": "ja",
+          "warum": "Der Gag wird kleiner und dadurch besser. Erst der Fuß, dann ein Körperteil, das Oma kaum zum Stillhalten zwingen kann."
+        },
+        {
+          "quote": "„Sie zog den Handschuh aus und hielt ihn hoch, als hätte sie einen Pokal gewonnen. Ohne einen Mucks.“",
+          "zuendet": "ja",
+          "warum": "Oma feiert groß mit einer winzigen Trophäe und bleibt dabei demonstrativ stumm."
+        },
+        {
+          "quote": "„HATSCHI!“ Flusi rieb sich die Nase. „Falsche Stelle.“",
+          "zuendet": "ja",
+          "warum": "Beim Namen Sockenkönig kennen Kinder den falschen Alarm inzwischen. Der kurze Nieser lässt der Erinnerung ihre Spannung."
+        },
+        {
+          "quote": "„Draußen hupte Gertrud mit. Genau im Takt.“",
+          "zuendet": "ja",
+          "warum": "Die erzwungene Ruhe zahlt sich aus. Gertrud darf endlich zu dem Lied hupen, das ihr am Anfang entgangen ist."
+        }
+      ]
+    },
+    "unterhaltung": {
+      "score": 8,
+      "durchhaenger": [
+        {
+          "stelle": "„Sie war winzig. Das Orange war fast weg.“ bis „Danke, Klirrklaus.“",
+          "warum": "Die alte Weste ist ein gutes Bild, ihr Auftauchen zahlt sich aber erst spät aus. Jüngere Zuhörer können den Auftakt als hübschen Umweg abhaken.",
+          "vorschlag": "Als Jona die Kinderweste sieht, fasst er nach der Socke und nimmt sich die Frage an Mama vor."
+        },
+        {
+          "stelle": "Kapitel 3 von „Mama hörte auf zu singen“ bis „Mit einem Stern im runden Fenster.“",
+          "warum": "Sobald Oma und Flusi frei sind, hält die Erinnerungsfolge den Kabelsalat mehrere Redebeiträge lang am Rand. Das Kind muss die laufende Arbeit im Kopf behalten.",
+          "vorschlag": "Jona zwischendurch sichtbar eine Schlaufe lösen lassen und Oma mit „Und danach, Sina?“ selbst in die Erinnerung holen."
+        },
+        {
+          "stelle": "„Er klemmte den Bleistift zwischen die Fühler“ bis „Langsam wanderte das braune Band zurück.“",
+          "warum": "Der Rückgriff auf die Kassette lohnt sich. Die Beschreibung der Mechanik bremst kurz vor der Pointe.",
+          "vorschlag": "Stift ins runde Loch, drehen, Band verschwindet. Das Lied bestätigt die Reparatur."
+        }
+      ]
+    },
+    "logikLuecken": [
+      {
+        "quote": "„Jona pfiff. So hatten sie es in der Turnhalle abgemacht.“",
+        "problem": "Die Formulierung kann dieselbe Trillerpfeife nahelegen. Die hat Jona am Ende von Folge 4 zurückgehängt.",
+        "fix": "Jona pfeift ausdrücklich durch die Zähne."
+      },
+      {
+        "quote": "„Je fester ich zieh“, keuchte Oma, „desto fester hält's!“ / „Ein Ruck von uns allen!“",
+        "problem": "Man erfährt, warum Ziehen scheitert, unmittelbar bevor Jona wieder Ziehen vorschlägt. Ihm fehlt eine erkennbare Idee, was sein Versuch anders macht.",
+        "fix": "Jona will aus Sorge die Schlaufe gleichzeitig von zwei Seiten aufziehen. Der hastige Ruck zieht sie trotzdem zu."
+      },
+      {
+        "quote": "„Alle zogen.“",
+        "problem": "Sina hält gerade die Taschenlampe. Außerdem lässt der Satz offen, ob Oma am Kabel oder an ihrer eigenen Hand zieht und wo Flusi sitzt.",
+        "fix": "Jona und Flusi ziehen an entgegengesetzten Seiten. Oma zieht ihre Hand zurück. Sina bleibt beim Licht."
+      },
+      {
+        "quote": "„Oma zog noch einmal.“",
+        "problem": "Dieser weitere Zug wiederholt denselben schon zweimal gescheiterten Versuch, obwohl Oma den Zusammenhang ausgesprochen hat.",
+        "fix": "Omas Hand zuckt im Knoten. Jona sieht am losen Ende, wie schon diese Bewegung die Schlaufe enger macht."
+      },
+      {
+        "quote": "„Jona beugte sich aus der offenen Haustür.“",
+        "problem": "Die Tür wird erst hier als offen bezeichnet. Zuvor ist der einzige Bewohner ins Bett gegangen. Der kurze Weg von der Kommode zur Tür und Gertruds Platz davor sind unnötig undeutlich.",
+        "fix": "Herr Berger lässt die Haustür für die Crew offen. Jona steckt später vom Flur aus kurz den Kopf hinaus."
+      },
+      {
+        "quote": "„Dann schläft der Kabelsalat ein. Mitten im Knoten. Und Omas Hand steckt immer noch drin.“",
+        "problem": "Die Reihenfolge lässt den Schlaf wie eine neue Sperre wirken. Die Regeln erklären nur, wann Monster einschlafen.",
+        "fix": "Oma nennt Schichtende und formuliert die Frist als eigenen Wunsch, bis dahin wieder frei zu sein."
+      },
+      {
+        "quote": "„Damals war ich mit Oma beim alten Waschsalon hinterm Bahnhof.“",
+        "problem": "„Damals“ trägt die genaue Staffelinfo nicht allein. Sinas Kinderweste liegt schon einige Szenen zurück, und man kann sich auch an einen gewöhnlichen Besuch erinnert fühlen.",
+        "fix": "Sina beginnt beiläufig mit „Da war ich noch Azubine“. Danach kommen Schatten, Name und Verschwinden in derselben Erinnerung."
+      },
+      {
+        "quote": "„Oma stopfte eine Kassette in den Kassettenspieler, drückte drei Knöpfe auf einmal und gab Gas.“ / „Auf dem Hof nahm Oma die Kassette aus Gertruds Kassettenspieler.“",
+        "problem": "Der Spieler rattert und zieht Band heraus. Bis zur Rückkehr ist keine Handlung gesetzt, die das Rattern stoppt und das Band für die spätere Rettung übrig lässt.",
+        "fix": "Oma drückt unmittelbar nach dem Bandsalat auf Stopp. Die Kassette bleibt bis zur Rückkehr im Gerät."
+      }
+    ],
+    "schulhofSatz": "Flusi ist Paket.",
+    "staerksteMomente": [
+      "Jona pfeift, und Oma bremst mitten im Schritt. Seine Leitung zeigt sich in einer Handlung, die aus Folge 4 kommt.",
+      "Die Jacken halten sich an den Händen, Herr Berger hüpft, und Flusi wird zum Paket. Ein einzelner Monstertrick erzeugt drei verschiedene Bilder.",
+      "„Bin ich nicht. Glaub ich.“ Jona darf wieder klein genug für sein Lieblingslied sein und behält gleichzeitig die Einsatzleitung.",
+      "Oma gibt vor ihrer Tochter zu, dass sie ihr früher nicht richtig zugehört hat. Sinas Hand auf Omas Arm trägt die Antwort.",
+      "Der Kabelsalat verwendet an der Kassette genau die Geduld, mit der Jona ihm geholfen hat. Der Bandsalat bekommt seine zweite Pointe."
+    ]
+  },
+  "mustFix": [
+    "„Ein Ruck von uns allen!“ und „Alle zogen.“ → Jonas falsche Idee braucht zwei erkennbare Zugrichtungen. Zeigen, wer zieht, wer leuchtet und warum der Ruck den Knoten verschlimmert.",
+    "„Oma zog noch einmal.“ → Aus dem weiteren Zug ein Zucken machen und zeigen, wie ein loses Kabelende dadurch in die Schlaufe rutscht.",
+    "„Jona pfiff“ → Den Pfiff hörbar ohne die zurückgehängte Trillerpfeife ausführen.",
+    "„Jona beugte sich aus der offenen Haustür“ → Herr Berger lässt die Tür vorher offen. Jona spricht von dort kurz zu Gertrud.",
+    "„Mitten im Knoten. Und Omas Hand steckt immer noch drin.“ → Omas Wunsch formulieren, vor Schichtende frei zu sein. Die Schlafregel bleibt so verständlich.",
+    "„Damals war ich mit Oma beim alten Waschsalon“ → Sinas Azubi-Zeit beiläufig in der Erinnerung nennen. Das Verschwinden, der reine Schatten und das Sternschild gehören in dieselbe Erzählung.",
+    "„Ich glaub dir jetzt“ → Oma vor der Entschuldigung tatsächlich nachfragen und Sina ausreden lassen. Jonas Bewegungen müssen während der Erinnerung sichtbar bleiben.",
+    "„Darauf war die Musik“, „der erste Schuh baumelte mit“, „den ganzen Knäuel“, „Mama“, sagte Mama und „das Rädchen im Loch“ → Bild, Bezug oder Grammatik direkt im jeweiligen Satz klären.",
+    "„Klack. Ratter.“ → Oma stoppt das Gerät. Beim späteren Aufwickeln genügt der sichtbare Weg des Bands zurück in die Kassette.",
+    "„Elektriker“ → Den vereinbarten Job aus der Bandrettung ableiten und klar sagen, was der Kabelsalat an Kabeln und Geräten mit Oma zusammen übernimmt."
+  ],
+  "notes": [
+    "Die Folge hat einen eigenen Rhythmus. Der entscheidende Mut besteht darin, trotz des Zeitdrucks langsam zu bleiben.",
+    "Das Lied muss vor Schlaufe neun fehlen, während der Erinnerung aussetzen und zum Einschlafen wiederkehren. So wirken Fangtrick und Familiengeschichte jeweils für sich.",
+    "Sina bleibt beim Licht, bei der Ruhe und beim Takt. Jona leitet, beobachtet und löst. Oma fährt Gertrud.",
+    "Bergers Hüpfer, „Flusi ist Paket“, Omas Nase und der Takt der verspätet gespielten Kassette sind die tragenden Gags.",
+    "Die Erinnerung beantwortet Jonas Frage nach der Socke nur teilweise. Sie setzt den Namen Sockenkönig, verbindet den Schatten mit dem alten Waschsalon und zeigt das vereinbarte Sternschild, ohne dessen spätere Bedeutung anzukündigen.",
+    "Als Abschlussritual gilt für diese Reihe der Monster-Steckbrief in Omas Ordner. Flunker-Karte und Grimmbach sind in den vorliegenden Folgen nicht etabliert."
+  ],
+  "revision": {
+    "changes": [
+      "Nach Sinas „Meine erste“ tastet Jona nach der Socke und nimmt sich die Frage nach der Krone vor.",
+      "„Jona pfiff“ wird zu „Jona pfiff durch die Zähne“.",
+      "„Mama setzte sich ans Fenster, Jona in die Mitte“ wird zu einer Sitzordnung mit Oma am Steuer und Jona zwischen den Erwachsenen.",
+      "Oma dreht bei der Abfahrt auf. Das Band hängt sichtbar „wie Spaghetti“ aus der Klappe, „Darauf war die Musik“ wird zu „Auf dem Band war die Musik“, und Oma drückt auf Stopp.",
+      "„Vor dem Mühlenweg 3“ wird zu „Vor dem Haus im Mühlenweg 3“.",
+      "Bergers Hüpfer bleibt. Das Ausziehen wird so beschrieben, dass der leere Schuh am Schnürsenkel des anderen baumelt.",
+      "Herr Berger lässt die Haustür für die Crew offen, bevor er wieder ins Bett geht.",
+      "„Zwischen Bergers Schnürsenkel“ und „Eine Spitze kitzelte ihn“ werden zu „zwischen die Schuhe“ und „Ein Schnürsenkel kitzelte ihn“.",
+      "„Kein einziger steckte in einer Steckdose“ wird zu „Alle hingen frei. Keiner war eingesteckt“, damit die Kinder die freien Stecker sehen können.",
+      "Vor dem Fehlversuch zeigt Jona die beiden Seiten der Schlaufe. „Ein Ruck von uns allen!“ bekommt den konkreten Plan, die Schlaufe von beiden Seiten auseinanderzuziehen.",
+      "„Alle zogen“ wird zu Jonas Zug nach links, Flusis Zug am Stecker nach rechts und Omas Versuch, ihre Hand zurückzuziehen.",
+      "„Sie hielt das Licht auf den ganzen Knäuel“ wird zu „Sie leuchtete auf das ganze Knäuel“.",
+      "„Oma zog noch einmal“ wird zu „Oma zuckte mit der Hand“. Jona sieht das Kabelende dabei direkt in die Schlaufe rutschen.",
+      "Jonas Schnürsenkel-Erinnerung nennt das Lockermachen der Schlaufe. Sein Schluss zur Schublade verbindet das schnelle Reinstopfen und das Vergessen der Kabel.",
+      "„Mitten im Knoten. Und Omas Hand steckt immer noch drin“ wird zu „Meine Hand hätte ich bis dahin gern wieder.“",
+      "„Mama“, sagte Mama wird durch „Sina zeigte auf Omas Fuß“ vorbereitet. Omas Fuß und die zuckende Nase bleiben.",
+      "„Jona beugte sich aus der offenen Haustür“ wird zu „Jona steckte den Kopf zur Haustür hinaus“.",
+      "Beim ersten gelungenen Entknoten schiebt Jona das lose Ende zurück und führt den Stecker ausdrücklich durch die lockere Schlaufe.",
+      "Sinas Erinnerung beginnt mit „Da war ich noch Azubine“. Das Fenster des alten Waschsalons ersetzt „die Scheibe“. Name, Schatten und Sternschild bleiben erhalten.",
+      "Nach Flusis Nieser löst Jona eine weitere Schlaufe. Oma fragt „Und danach, Sina?“, bevor sie sich entschuldigt und ihrer Tochter glaubt.",
+      "„Bei Schlaufe siebenundvierzig war der letzte Knoten auf“ wird zu „Bei Schlaufe siebenundvierzig ging der letzte Knoten auf“.",
+      "Beim Aufräumen lösen Jona und der Kabelsalat ausdrücklich den Knoten zwischen Herrn Bergers Schuhen und stellen die Schuhe nebeneinander.",
+      "Oma legt die Kassette neben Jonas Bleistift. Die Reparatur zeigt den Stift im runden Loch und das Band, das sich wieder aufwickelt.",
+      "Das offene Küchenfenster verbindet das leise Lied drinnen mit Gertruds Hupen draußen.",
+      "Die Aufgabe „Elektriker“ wird mit dem Sortieren der Kabel und dem gemeinsamen Nachsehen bei Geräten beschrieben.",
+      "Jona schreibt im Text Steckbrief Nr. 7 und zeichnet das Schild darunter. Die einzelnen Kartenfelder erscheinen in der separaten Karte."
+    ],
+    "text": "KAPITEL 1: Bandsalat\n\nDiesmal kam Mama mit.\n\n„Ich will meinen Azubi mal bei der Arbeit sehen“, hatte sie gesagt. Jetzt stand sie neben Jona auf dem Betriebshof, die Hände in den Jackentaschen, und guckte zu.\n\nJona leuchtete zuerst auf den Riegel an der kleinen Klappe. Zu. Das Pupsmonster lag quer davor und hielt seine Kordel hoch. Sie hing still.\n\n„Das machst du jedes Mal?“, fragte Mama.\n\n„Jedes Mal“, sagte Jona.\n\nMama lächelte. Sie sagte nichts. Aber sie stand ein bisschen gerader.\n\nDa kam Klirrklaus aus der Kammer. Kling, kling. Er hielt Mama eine Warnweste hin. Sie war winzig. Das Orange war fast weg.\n\n„Lag ganz hinten“, klirrte er.\n\nMama drehte die Weste um. Innen am Kragen stand mit Filzstift: SINA.\n\n„Meine“, flüsterte sie. „Meine erste.“ Sie band sie sich wie einen Schal um den Hals. „Danke, Klirrklaus.“\n\nJona tastete nach der Socke in seiner Tasche. Gleich wollte er Mama nach der Krone fragen.\n\nDa knackte in der Küche der Monster-Funk.\n\n„Notruf. Mühlenweg 3, Familie Berger. Da verknotet sich nachts alles.“\n\n„Ab, ab, ab!“ Oma zog im Laufen die Handschuhe an. „Schnell, Süßer, schnell!“\n\nJona pfiff durch die Zähne. So hatten sie es in der Turnhalle abgemacht. Oma bremste mitten im Schritt und grinste. „Jawohl, Chef.“\n\nJona holte die Warnweste von seinem Haken, zog sie an und schlüpfte in die gelben Gummistiefel. Gertrud blinkte zweimal. Flusi hüpfte aufs Armaturenbrett. Vorn saß Oma am Steuer, Mama am anderen Fenster und Jona dazwischen.\n\n„Für Knoten nehmen wir ‚Krach im Kabel‘!“ Oma drehte auf, schob die Kassette mit Schwung hinein und drückte gleich drei Knöpfe.\n\nKlack. Ratter. Ein dünnes braunes Band kam aus der Klappe. Es hing herunter wie Spaghetti. Auf dem Band war die Musik.\n\n„Na toll“, sagte Oma und drückte auf Stopp. „Bandsalat.“\n\nDie Gitarren blieben still. Gertrud rollte vom Hof und brummte leise. Mama summte dazu.\n\nVor dem Haus im Mühlenweg 3 wartete Herr Berger im Schlafanzug. „Die Sonderabfuhr? Gut.“ Er wollte einen Schritt zur Seite machen. Es wurde ein Hüpfer. Seine Schnürsenkel waren zusammengeknotet.\n\n„Jeden Morgen geht das so“, sagte er. „Heute hat's auch die Kopfhörer meiner Tochter und die Lichterkette erwischt.“ Er zeigte in den Flur. „Unten in der Kommode ist unsere Kabelschublade. Die alten Ladekabel kommen da alle rein. Schnell rein, Schublade zu. Die können Sie gleich mitnehmen.“\n\nEr zog einen Fuß aus dem Schuh. Als er den anderen hob, baumelte der leere Schuh mit. „Ach, ihr zwei.“ Er schüttelte den zweiten Schuh ab, ließ die Haustür für sie offen und ging wieder ins Bett.\n\nIm Flur roch es nach Staub und Schuhen. Jona knipste die Taschenlampe an. Flusi steckte die Nase zwischen die Schuhe. Ein Schnürsenkel kitzelte ihn.\n\n„HATSCHI! Falsche Stelle.“\n\nAn der Garderobe waren alle Jackenärmel zusammengebunden. Die Jacken hielten sich an den Händen wie eine Kindergartengruppe. Auf der Fensterbank lag der lose Stecker der verknoteten Lichterkette.\n\nDann ging ganz langsam eine Schublade in der Kommode auf.\n\n„HATSCHI!“\n\nDiesmal war es die richtige Stelle.\n\nEtwas kroch heraus. Ein Knäuel aus Kabeln, schwarz, weiß und grau, so groß wie ein Sofakissen. Überall standen kleine Stecker heraus. Vorne wackelten zwei davon wie Fühler, und darunter blinzelten zwei runde Augen.\n\n„Na“, sagte Oma. „Du bist mir ja ein Kabelsalat.“\n\nJona leuchtete auf die Stecker. Alle hingen frei. Keiner war eingesteckt.\n\nDer Kabelsalat rollte auf Oma zu. Neugierig.\n\nOma stellte die Tonne ab und wartete, bis er vor ihr lag. „Ab in die Tonne, Süße!“ Dann packte sie zu. Schnell und fest.\n\nZack! Die Kabel zogen sich zusammen. Omas Hand steckte bis zum Handgelenk im Knoten. Oma zog. Der Knoten zog auch. Und der Kabelsalat wurde größer. So groß wie ein Sessel.\n\n„Je fester ich zieh“, keuchte Oma, „desto fester hält's!“\n\nKAPITEL 2: Schneller ist schlimmer\n\nJona sah, wie der orangefarbene Handschuh tiefer im Knäuel verschwand. Omas Hand musste da raus. Sofort. Links und rechts vom Handschuh guckte ein Stück von derselben Schlaufe heraus.\n\n„Moment … ich weiß die Schwäche!“, rief er. „Wir ziehen die Schlaufe von beiden Seiten auf. Mit einem Ruck!“\n\nEr drückte Mama die Taschenlampe in die Hand und packte das Kabel auf der linken Seite. Flusi griff mit seinen winzigen Ärmchen nach dem Stecker auf der rechten. „Flusi hilft!“\n\n„Eins, zwei, drei!“\n\nJona zog nach links, Flusi zerrte nach rechts. Oma zog die Hand zurück. Der Kabelsalat zog sich zusammen und wuchs. Er schlang ein Kabel um Flusi, dann noch eins und noch eins, bis Flusi aussah wie ein verschnürtes Päckchen.\n\n„Flusi ist Paket“, sagte Flusi.\n\nDraußen hupte Gertrud. Jona zuckte zusammen und riss am Kabel. Der Kabelsalat zog sich noch fester zusammen.\n\nJona ließ sein Kabel los. Sein Herz klopfte. „Mama, was machen wir?“\n\n„Heute bist du der Chef, Jona“, sagte Mama leise. „Was siehst du?“ Sie leuchtete auf das ganze Knäuel.\n\nOma zuckte mit der Hand. Direkt neben ihrem Handschuh rutschte ein loses Kabelende tiefer in die Schlaufe.\n\nBei Jonas Schnürsenkeln war das genauso. Wenn er schnell am falschen Ende zog, wurde aus der Schleife ein fester Knoten. Dann musste er erst die Schlaufe wieder locker machen.\n\nEr sah zur leeren Schublade. „Schnell rein, Schublade zu. Hat Herr Berger gesagt.“ Beim Reinstopfen hatten sich die Kabel verknotet. In der Schublade hatte sie jeder vergessen.\n\n„Moment … ich weiß die Schwäche!“, sagte Jona. „Wir müssen ihn langsam entknoten. Ganz langsam.“\n\n„Beim ersten Vogelpieps ist Schichtende, Süßer“, sagte Oma. „Dann schläft der Kabelsalat ein. Meine Hand hätte ich bis dahin gern wieder.“\n\n„Dann eben langsam“, sagte Jona. „Auch wenn's dauert.“\n\nOma schnaufte. „Langsam kann ich nicht, Süßer.“ Sie sah auf ihren festgeknoteten Handschuh. „Ehrlich. Kann ich nicht.“\n\nMama sah Oma an. „Du hältst jetzt bloß still. Das ist für dich sowieso das Schwerste.“\n\nOma guckte ihre Tochter an. Dann lachte sie. Ganz leise.\n\n„Ich halte still“, flüsterte sie. „Ich halte total still.“ Ihr Fuß klopfte auf den Teppich. Tapp, tapp, tapp.\n\nSina zeigte auf Omas Fuß. „Mama. Dein Fuß.“\n\nDer Fuß hörte auf. Dafür fing Omas Nase an zu zucken. Oma machte ganz große Augen und hielt die Luft an, bis die Nase aufgab.\n\nJona steckte den Kopf zur Haustür hinaus. „Gertrud. Bitte jetzt nicht hupen.“\n\nGertrud blieb still.\n\nKAPITEL 3: Eine Schlaufe nach der anderen\n\nJona kniete sich vor den Kabelsalat. Mama kniete sich neben ihn und hielt das Licht.\n\n„Wir fangen bei Omas Handschuh an“, sagte Jona.\n\nEr schob ein loses Kabelstück zurück, bis die erste Schlaufe locker war. Dann schob er den Stecker langsam durch die Schlaufe.\n\n„Eins“, zählte er leise.\n\nDie nächste Schlaufe.\n\n„Zwei.“\n\nDer Kabelsalat blinzelte. Er wurde ein kleines bisschen kleiner.\n\nBei Schlaufe neun war Omas Hand frei. Sie zog den Handschuh aus und hielt ihn hoch, als hätte sie einen Pokal gewonnen. Ohne einen Mucks.\n\nMama fing an zu singen. Ganz leise. „Weißt du, wie viel Sternlein stehen …“\n\nJona sah auf. Seit der Nacht mit dem Gähnmonster hatte er sie um das Lied bitten wollen. „Das hast du lange nicht gesungen.“\n\n„Du hast doch gesagt, du bist zu groß dafür.“\n\n„Bin ich nicht“, sagte Jona. „Glaub ich.“\n\nMama sang weiter. Sie sang so langsam, dass Jonas nächste Zahl in jede Pause passte. Bei Schlaufe zweiundzwanzig war Flusi frei und rollte sich auf Jonas Knie.\n\nJona holte die Socke mit der winzigen gestrickten Krone aus seiner Hoodie-Tasche. „Mama, weißt du, wem die gehört?“\n\nMama hörte auf zu singen. Sie sah die Krone lange an. Jona legte die Socke neben sein Knie und löste die nächste Schlaufe. Der Kabelsalat wurde wieder ein Stück kleiner.\n\n„Wem die gehört, weiß ich nicht“, sagte Mama. „Da war ich noch Azubine. Oma und ich standen draußen vor dem Fenster vom alten Waschsalon hinterm Bahnhof. Drinnen war ein Schatten. Oben sah es aus, als hätte er eine Krone. Ich hab ihn Sockenkönig genannt.“\n\n„HATSCHI!“ Flusi rieb sich die Nase. „Falsche Stelle.“\n\nJona schob einen Stecker durch die nächste Schlaufe.\n\n„Als Oma hinguckte, war der Schatten schon weg“, sagte Mama.\n\nOma rückte ein bisschen näher. „Und danach, Sina?“\n\n„Danach hab ich jedes Mal ins Fenster geguckt, wenn wir vorbeikamen. Ich hab ihn nie wieder gesehen.“\n\n„Ich dachte immer, du hättest das geträumt“, sagte Oma. „Ich hab dir damals gar nicht richtig zugehört. Tut mir leid. Ich glaub dir jetzt, Süße.“\n\nMama legte ihr kurz die Hand auf den Arm. Dann leuchtete sie wieder auf den Knoten. „Über der Tür hing so ein Blechschild. Eine Waschmaschine mit einem Stern im runden Fenster.“\n\nJona stellte sich den Stern vor. Mama sang weiter. Bei Schlaufe siebenundvierzig ging der letzte Knoten auf.\n\nDer Kabelsalat wickelte seine langen Kabel selbst zu runden Ringen auf. Vorne blinzelten die Augen, und die zwei Steckerfühler wippten. Es klickte leise, wie ein Stecker, der genau passt.\n\nJona steckte die Socke wieder ein. Draußen hatte noch kein Vogel gesungen.\n\nEr hob einen verknoteten Jackenärmel an. Der Kabelsalat rollte hin und schob einen Fühler unter die Schlaufe. Gemeinsam lösten sie die Ärmel, die Kopfhörer und die Lichterkette. Zum Schluss lösten sie den Knoten zwischen Herrn Bergers Schuhen und stellten sie nebeneinander.\n\n„Kommst du mit?“, fragte Jona. „In der Pension hat jeder einen Platz.“\n\nDer Kabelsalat rollte langsam in die Tonne. Ganz von allein.\n\nSie fuhren ohne Musik zurück. Oma fuhr langsamer als sonst. Jona merkte es. Auf dem Hof nahm Oma die Kassette aus Gertruds Kassettenspieler. Die losen Schlaufen hielt sie in der anderen Hand.\n\nIn der Pension ließ Oma kein Wasser ein. „Kabel kommen nicht ins Wasser“, sagte sie. Klirrklaus reichte ihr ein trockenes Tuch. Oma wischte jedes Kabel vorsichtig ab.\n\nJona legte einen Bleistift für den Steckbrief auf den Küchentisch. Oma legte die Kassette daneben. Der Kabelsalat rollte hin. Mit seinen beiden Fühlern zog er eine verdrehte Bandschlaufe glatt. Dann noch eine. Er nahm den Bleistift zwischen seine Fühler, steckte ihn in eins der runden Löcher der Kassette und drehte. Das Band wickelte sich wieder auf.\n\nOma schob die Kassette in den alten Kassettenspieler in der Küche. „Krach im Kabel“ spielte. Ganz leise. Das Küchenfenster stand offen. Draußen hupte Gertrud mit. Genau im Takt.\n\n„Elektriker“, sagte Oma. „Wenn du magst. Du sortierst unsere Kabel. Und wenn der Kassettenspieler wieder spinnt, gucken wir zusammen nach.“\n\nDer Kabelsalat klickte. Er mochte.\n\nJona holte Omas dicken Ordner und schrieb Monster-Steckbrief Nr. 7. Unter den Steckbrief malte er das Blechschild mit der Waschmaschine und dem Stern im runden Fenster.\n\nAls die erste Amsel sang, schliefen alle Monster ein. Das Pupsmonster quer vor der Tür. Klirrklaus in seinen Kästen. Der Kabelsalat, ordentlich aufgewickelt, neben dem Kassettenspieler. Flusi in Jonas Kapuze.\n\nJona lag auf dem Klappsofa. Mama saß neben ihm, die kleine Weste um den Hals. Sie sang das Sternlein-Lied noch einmal. Ganz bis zum Ende."
+  },
+  "gesamtnote": 8,
+  "_meta": {
+    "provider": "codex",
+    "model": "gpt-6.2-sol (codex)",
+    "effort": "high",
+    "costUSD": null,
+    "tokens": {
+      "completion": 56777
+    },
+    "seconds": 371,
+    "words": [
+      569,
+      363,
+      759
+    ],
+    "revisedWords": [
+      608,
+      397,
+      735
+    ]
+  }
+}

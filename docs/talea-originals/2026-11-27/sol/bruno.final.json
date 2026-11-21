@@ -1,0 +1,888 @@
+{
+  "canonChecks": [
+    {
+      "quote": "„Zwei Gummibärchen. Und Papas Hausschuh.“",
+      "fact": "Papas verlegte Hausschuhe sind ein etablierter Gag. Welcher Schuh diesmal unter dem Sofa liegt, bleibt offen.",
+      "agrees": true
+    },
+    {
+      "quote": "Ella strich in ihrem Planer eine Zeile durch: Unter dem Sofa.",
+      "fact": "Ella plant und dokumentiert ihre Schritte im Planer.",
+      "agrees": true
+    },
+    {
+      "quote": "Vor einer Woche war der Zylinder ins Treppenhaus geflogen, als Ella Kaisers Maschine ausgeschaltet hatte.",
+      "fact": "Am Ende von S1E6 schaltete Ella die Maschine aus. Das einklappende Rohr schleuderte den Hut durch die offene Wohnungstür.",
+      "agrees": true
+    },
+    {
+      "quote": "Der hohe schwarze Hut mit dem silbernen Fisch und der Mondsichel.",
+      "fact": "Der Zylinder aus S1E6 ist hoch und schwarz. Auf dem Hutband sind ein silberner Fisch und eine weiße Mondsichel.",
+      "agrees": true
+    },
+    {
+      "quote": "Auf der Treppe hatte sie ihn nirgends gefunden.",
+      "fact": "Ella suchte in S1E6 auf dem Treppenabsatz und ein Stockwerk tiefer. Der Hut blieb verschwunden.",
+      "agrees": true
+    },
+    {
+      "quote": "Gestern hatte Ella Frau Grimmbach nach dem Hut gefragt.",
+      "fact": "Frau Grimmbach erlaubte Ella in S1E6, in den Heften nachzusehen, wenn sie sagt, was sie sucht.",
+      "agrees": true
+    },
+    {
+      "quote": "Mit sauberen Händen hatte sie in Grimmbachs Heft nachsehen dürfen.",
+      "fact": "Die sauberen Hände sind Frau Grimmbachs ausdrückliche Bedingung aus S1E6.",
+      "agrees": true
+    },
+    {
+      "quote": "Sonntag. Schwarzer Hut auf der Treppe. Herrn Brandt gegeben. Gehört nicht ins Treppenhaus.",
+      "fact": "Frau Grimmbach hält auch gewöhnliche Hausereignisse schriftlich fest. Der Fund am Sonntag setzt die offene Hutspur nach dem samstäglichen Zauber fort.",
+      "agrees": true
+    },
+    {
+      "quote": "„Wir könnten Papa einfach fragen“, sagte Mats.",
+      "fact": "Mats findet auch in früheren Folgen einen einfachen Ausweg, den Ella beim Planen übersieht. In S1E2 erfindet er Plan W.",
+      "agrees": true
+    },
+    {
+      "quote": "„Dann erzähl ich ihm aus Versehen, dass Bruno sprechen kann!“",
+      "fact": "Papa gehört nicht zu Brunos Vertrauten. Dass Ella ihm davon erzählen könnte, widerspricht der Blubb-Regel nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "Papa war in der Küche.",
+      "fact": "Die Küche und das Wohnzimmer sind getrennte Räume. Papa ist bei Brunos folgenden Sätzen außerhalb des Wohnzimmers.",
+      "agrees": true
+    },
+    {
+      "quote": "Bruno schwamm an die Scheibe.",
+      "fact": "Bruno bleibt ein Goldfisch im Aquarium und nähert sich beim Sprechen oft der Scheibe.",
+      "agrees": true
+    },
+    {
+      "quote": "„Von mir?“",
+      "fact": "Bruno spricht zu Ella und Mats, während Papa in der Küche ist.",
+      "agrees": true
+    },
+    {
+      "quote": "„Auf dem Hut ist dieselbe Mondsichel wie auf dem Plakat“, sagte Ella.",
+      "fact": "Ella hat die Übereinstimmung zwischen Hut und Plakat in S1E6 bereits bemerkt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Und du hast ihn angeguckt. Ganz lange.“",
+      "fact": "Bruno sah beim Angriff in S1E6 nach oben auf den Hut. Ella darf daraus eine Frage ableiten. Die Beobachtung beweist keine Herkunft.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich gucke viele Sachen lange an“, sagte Bruno.",
+      "fact": "Bruno weicht Fragen zur Hutspur aus. Seine Herkunft bleibt unbestätigt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Die Wand zum Beispiel. Die ist auch lang.“",
+      "fact": "Bruno antwortet nur den Kindern und lenkt mit einem knappen, trockenen Spruch ab.",
+      "agrees": true
+    },
+    {
+      "quote": "Ein Fisch ist schön leise.",
+      "fact": "Papa sagt diesen Satz beim Kauf in S1E1 wortgetreu.",
+      "agrees": true
+    },
+    {
+      "quote": "Das hatte Papa auf dem Flohmarkt gesagt.",
+      "fact": "Papa war beim Kauf am Flohmarktstand dabei.",
+      "agrees": true
+    },
+    {
+      "quote": "Wenn Papa erfuhr, dass Bruno sprechen konnte, wollte er ihn vielleicht zurückbringen.",
+      "fact": "Das ist Ellas Befürchtung. Papa hat die Rückgabe nie angedroht, und Bruno bleibt bei den Brandts.",
+      "agrees": true
+    },
+    {
+      "quote": "Bruno sollte bei ihnen bleiben. Mit fast immer schlechter Laune.",
+      "fact": "In S1E5 versprechen Ella und Mats Bruno, dass er auch mit fast immer schlechter Laune bleiben darf. Die Formulierung greift außerdem Ellas Aufsatz aus S1E2 auf.",
+      "agrees": true
+    },
+    {
+      "quote": "Da stand Papa in der Wohnzimmertür.",
+      "fact": "Papa tritt an den Raum heran, in dem Bruno sich befindet. Ab hier antwortet Bruno in seiner Gegenwart mit Blubb.",
+      "agrees": true
+    },
+    {
+      "quote": "„Blubb“, machte Bruno.",
+      "fact": "Erwachsene hören Bruno nur blubbern.",
+      "agrees": true
+    },
+    {
+      "quote": "Ella trat schnell vor ihn, direkt vor Brunos Regal.",
+      "fact": "Brunos Aquarium steht auf dem Regal im Wohnzimmer. Ella befindet sich beim Auslösen im richtigen Raum.",
+      "agrees": true
+    },
+    {
+      "quote": "Ella wollte so tun, als suchten sie einen Platz zum Zugucken.",
+      "fact": "Ella will Papa über den Zweck der Suche täuschen. Die Raumfahrtbehauptung ist kein gemeinsam verabredetes Spiel.",
+      "agrees": true
+    },
+    {
+      "quote": "„Mein Papa ist Astronaut. Er zeigt uns heute ein schwereloses Training in unserer Küche!“",
+      "fact": "Ella spricht die vorgesehene Flunkerei laut im Raum mit dem Aquarium aus. Erst danach beginnt die Vorführung in der Küche.",
+      "agrees": true
+    },
+    {
+      "quote": "Im Glas knackte es.",
+      "fact": "Das Knacken ist seit S1E3 ein vertrautes Zeichen für eine ausgelöste Flunkerei. Bruno unternimmt dabei nichts.",
+      "agrees": true
+    },
+    {
+      "quote": "Plan A! Vor dem Glas erst denken, dann reden.",
+      "fact": "Name und Inhalt von Plan A stammen aus S1E2. Ella kennt die Regel und merkt, dass sie zu spät daran gedacht hat.",
+      "agrees": true
+    },
+    {
+      "quote": "„Stimmt ja“, sagte er. „Hätte ich fast vergessen.“",
+      "fact": "Der aktive Zauber kann Papas Verhalten verändern. Das Vergessen der magischen Vorgänge setzt erst bei der Auflösung ein.",
+      "agrees": true
+    },
+    {
+      "quote": "Statt des roten Karohemds trug er plötzlich einen weißen Raumanzug mit vielen Taschen.",
+      "fact": "Der erste Teil der Flunkerei wird sichtbar wahr. In der Küche kommt anschließend das angekündigte Training hinzu.",
+      "agrees": true
+    },
+    {
+      "quote": "Er marschierte in die Küche.",
+      "fact": "Papa verlässt das Wohnzimmer vor Brunos nächstem gesprochenen Kommentar. Die Vorführung folgt im angekündigten Raum.",
+      "agrees": true
+    },
+    {
+      "quote": "„Das war nicht geflunkert, das war ausgedacht!“, rief er für Ella.",
+      "fact": "Mats sagt seinen Spruch wortgetreu. Schon in S1E5 hat er ihn für jemand anderen gesagt. Er ändert dadurch keinen Zauber.",
+      "agrees": true
+    },
+    {
+      "quote": "„Astronaut“, knurrte Bruno.",
+      "fact": "Papa ist zu diesem Zeitpunkt in der Küche. Bruno spricht im Wohnzimmer nur mit den Kindern.",
+      "agrees": true
+    },
+    {
+      "quote": "„Der lässt doch schon auf der Erde die Pfannkuchen anbrennen.“",
+      "fact": "Papa kocht gern. Brunos Spott passt zu seiner Stimme und erfolgt in Abwesenheit eines Erwachsenen.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie musste Mats nur sagen, dass Papa kein Astronaut war und gar kein Training geplant hatte.",
+      "fact": "Ella hat geflunkert und muss selbst die konkrete Wahrheit sagen. Mats genügt als Zuhörer.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann war der Zauber weg.",
+      "fact": "Das bezieht sich auf die eben gedachte Wahrheit über die Flunkerei. Die Wahrheit ist der einzige Ausweg.",
+      "agrees": true
+    },
+    {
+      "quote": "„Okay. Plan B.“",
+      "fact": "Ellas Spruch steht wortgetreu im Text.",
+      "agrees": true
+    },
+    {
+      "quote": "„Papa trainiert. Wir suchen weiter.“",
+      "fact": "Ellas Ausweichplan lässt den bestehenden Zauber laufen. Die Suche selbst ändert nichts an ihm.",
+      "agrees": true
+    },
+    {
+      "quote": "Um elf stand Papa am Herd, den Helm auf dem Kopf.",
+      "fact": "Papas angekündigtes Training beginnt nach der Flunkerei in der Küche.",
+      "agrees": true
+    },
+    {
+      "quote": "„Wir üben Pfannkuchenwerfen. Und Kaffeetrinken. Wie im Weltall!“",
+      "fact": "Die Vorführung erfüllt die Flunkerei mit einem wörtlich schwerelosen Training und Papas vertrauten Küchenbeschäftigungen.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Pfannkuchen kam nicht wieder runter.",
+      "fact": "Der geworfene Pfannkuchen zeigt den ersten sichtbaren Effekt der Schwerelosigkeit beim angekündigten Vorführen.",
+      "agrees": true
+    },
+    {
+      "quote": "Papa stieg nach oben wie eine Seifenblase.",
+      "fact": "Papa schwebt beim Training wie angekündigt im Raumanzug.",
+      "agrees": true
+    },
+    {
+      "quote": "Sechs leere Kaffeetassen stiegen mit, eine nach der anderen aus dem Regal.",
+      "fact": "Die Tassen gehören zu Papas angekündigter Kaffeeübung und schweben wie vorgesehen. Welche Dinge das Training erfasst, muss die Szene deutlicher zeigen.",
+      "agrees": true
+    },
+    {
+      "quote": "Auf dem Küchentisch blieb Papas Frühstückstasse stehen.",
+      "fact": "Der Wortlaut verlangt keine Schwerelosigkeit für den ganzen Raum. Die Auswahl einzelner Gegenstände widerspricht keiner bestehenden Regel, wird aber noch nicht nachvollziehbar inszeniert.",
+      "agrees": true
+    },
+    {
+      "quote": "Nur der kalte Kaffee kroch heraus und schwebte als brauner, wabbeliger Ball durch die Küche.",
+      "fact": "Brunos Magie kann auch Gegenstände und Stoffe erfassen. Der Kaffee wird später durch das Ende von Ellas Zauber wieder schwer.",
+      "agrees": true
+    },
+    {
+      "quote": "Ellas und Mats’ Füße blieben auf dem Boden.",
+      "fact": "Papa hat eine Vorführung für die Kinder angekündigt. Dass die Zuschauer am Boden bleiben, ist mit dem Wortlaut vereinbar.",
+      "agrees": true
+    },
+    {
+      "quote": "„Papa, du bist der beste Astronaut der Welt!“, rief Mats.",
+      "fact": "Mats feuert Papa begeistert an. Er steht in der Küche, außerhalb des Raums mit dem Aquarium.",
+      "agrees": true
+    },
+    {
+      "quote": "Unten im Hof hängte Frau Grimmbach Wäsche auf.",
+      "fact": "Der Hof und die Wäschestange sind etabliert. Frau Grimmbach hat in S1E4 von dort bereits einen Zauber im dritten Stock beobachtet. Der Blick aufs Küchenfenster ist eine neue, plausible Ergänzung.",
+      "agrees": true
+    },
+    {
+      "quote": "Eine Minute später klingelte es. Lange.",
+      "fact": "Das lange Klingeln ist Frau Grimmbachs Erkennungszeichen.",
+      "agrees": true
+    },
+    {
+      "quote": "Papa zog sich am Küchentürrahmen in den Flur.",
+      "fact": "Ein aktiver Zaubereffekt darf sich mit der betroffenen Figur bewegen. Schon Hugo blieb im Flur und im Bad magisch. Papa hat die Küchenvorführung begonnen und schwebt bis zur Wahrheit weiter.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Kaffeeball trieb langsam zur Küchentür.",
+      "fact": "Der einmal verzauberte Kaffee bleibt bis zur Auflösung schwerelos. Der Text muss seine Bewegungsrichtung räumlich verständlich machen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Herr Brandt“, sagte Frau Grimmbach. „Sie schweben.“",
+      "fact": "Frau Grimmbach redet Erwachsene mit Nachnamen an und kann magische Vorgänge sehen, solange der Zauber läuft.",
+      "agrees": true
+    },
+    {
+      "quote": "Frau Grimmbach zog ihr Heft aus der Strickjacke und schrieb.",
+      "fact": "Sie hält beobachtete Merkwürdigkeiten sofort selbst fest. Dadurch kann der Eintrag nach dem Zauber erhalten bleiben.",
+      "agrees": true
+    },
+    {
+      "quote": "Mit drei Ausrufezeichen.",
+      "fact": "Drei Ausrufezeichen sind Frau Grimmbachs etabliertes Schreibmuster bei magischen Beobachtungen.",
+      "agrees": true
+    },
+    {
+      "quote": "Jetzt huschte er an ihren Beinen vorbei in die Wohnung.",
+      "fact": "Kaiser nutzt wie in S1E1, S1E4 und S1E5 eine offene Wohnungstür.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich komme wieder“, sagte sie. „Mit meinem Fernglas.“",
+      "fact": "Frau Grimmbach besitzt seit S1E4 ein Fernglas. Warum sie es bei dieser Beobachtung an der Wohnungstür braucht, bleibt eine Inszenierungsfrage.",
+      "agrees": true
+    },
+    {
+      "quote": "„Papa? Wo hast du den schwarzen Hut von der Treppe hingelegt?“",
+      "fact": "Ella setzt Mats’ frühen Vorschlag um. Ihre Frage über den Hut ist keine Wahrheitserklärung über die Astronautenflunkerei und beendet den Zauber folglich nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "„Auf die Hutablage“, sagte Papa.",
+      "fact": "Der Heftvermerk hat Papa als Empfänger des Huts ausgewiesen. Der Fundort ergänzt die offene Hutspur aus S1E6.",
+      "agrees": true
+    },
+    {
+      "quote": "Papa schwebte hinauf, tastete hinter seiner Wollmütze herum und zog einen schwarzen Zylinder hervor.",
+      "fact": "Papa schwebt weiterhin, weil Ella bisher nur nach dem Hut gefragt hat. Das folgt der Regel zur konkreten Wahrheit.",
+      "agrees": true
+    },
+    {
+      "quote": "Der silberne Fisch. Die Mondsichel.",
+      "fact": "Beide Erkennungszeichen des Zylinders stammen aus S1E6. Der Besitzer wird hier nicht festgestellt.",
+      "agrees": true
+    },
+    {
+      "quote": "Jetzt musste der Zauber weg. Sie musste nur die Wahrheit sagen.",
+      "fact": "Ella ist die Flunkererin. Das Holen des Huts hat den Zauber nicht beendet.",
+      "agrees": true
+    },
+    {
+      "quote": "Aber dann war die Schwerelosigkeit vorbei.",
+      "fact": "Wie das Fliegen in S1E4 endet das Schweben beim Geständnis sofort.",
+      "agrees": true
+    },
+    {
+      "quote": "„Mats“, sagte sie. „Plan W.“",
+      "fact": "Plan W ist der etablierte Name für die Auflösung durch Wahrheit.",
+      "agrees": true
+    },
+    {
+      "quote": "W wie Wahrheit. Den hatte Mats erfunden.",
+      "fact": "Mats führte Plan W in S1E2 ein.",
+      "agrees": true
+    },
+    {
+      "quote": "„Aber erst landen“, flüsterte Mats. „Wie bei mir.“",
+      "fact": "In S1E4 sagte Mats die Wahrheit erst auf dem Sitzsack. Er wendet die Erfahrung selbstständig auf Papa an.",
+      "agrees": true
+    },
+    {
+      "quote": "„Papa!“, rief Ella. „Training Nummer drei! Die Landung! Aufs Sofa!“",
+      "fact": "Ella fordert zu einer Handlung auf. Sie behauptet keine weitere falsche Tatsache über ein vorbereitetes Training und löst keinen zweiten Zauber aus.",
+      "agrees": true
+    },
+    {
+      "quote": "Er stieß sich von der Garderobe ab und schwebte ins Wohnzimmer.",
+      "fact": "Der Zauber bleibt über Raumgrenzen hinweg bestehen. Die Entfernung vom Aquarium beendet ihn ebenso wenig wie das Verlassen der Küche.",
+      "agrees": true
+    },
+    {
+      "quote": "Jetzt schwebte er nur noch eine Handbreit über dem Polster.",
+      "fact": "Ella und Mats treffen wie in S1E4 Vorbereitungen für den Augenblick, in dem das Schweben endet.",
+      "agrees": true
+    },
+    {
+      "quote": "„Blubb!“, machte Bruno. „BLUBB!“",
+      "fact": "Papa ist im Wohnzimmer. Auch in Gefahr spricht Bruno kein für Erwachsene verständliches Wort.",
+      "agrees": true
+    },
+    {
+      "quote": "Wenn der Zauber jetzt endete, fiel der Kaffee mitten in Brunos Wasser.",
+      "fact": "Mit dem Zauber endet die magische Schwerelosigkeit. Bruno bleibt im Aquarium und beendet die Gefahr nicht selbst.",
+      "agrees": true
+    },
+    {
+      "quote": "Mats rannte in die Küche. Er pflückte die sechs Tassen aus der Luft wie Luftballons, legte sie in die Spüle auf ein Geschirrtuch und hielt sie mit einem zweiten Tuch fest.",
+      "fact": "Die sechs Tassen schweben bis zur Wahrheit weiter. Mats kann sie wie andere verzauberte Gegenstände anfassen und sichern.",
+      "agrees": true
+    },
+    {
+      "quote": "Kater Kaiser saß auf der Sofalehne, direkt neben Papas Hand.",
+      "fact": "Kaiser ist durch die offene Tür hereingekommen und sucht einen erhöhten Absprung zum Aquarium, wie in früheren Folgen.",
+      "agrees": true
+    },
+    {
+      "quote": "Zwischen zwei Wollfäden von Ellas Kater-Alarm konnte er Brunos Glas sehen.",
+      "fact": "Ella hat den Kater-Alarm am Ende von S1E6 wieder aufgehängt. Kaiser kann das Glas zwischen den Fäden sehen.",
+      "agrees": true
+    },
+    {
+      "quote": "Da bimmelte ein Glöckchen.",
+      "fact": "Kaisers Glöckchen verrät ihn wie in früheren Folgen.",
+      "agrees": true
+    },
+    {
+      "quote": "Unter seinen Hinterpfoten gab die weiche Lehne nach. Sein Sprung war zu kurz.",
+      "fact": "Kaisers Versuch scheitert an einer kleinen physischen Panne. Er erreicht Bruno nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "Beide Vorderpfoten steckten im Zylinder.",
+      "fact": "Der Sprung endet im bereitstehenden Hut. Kaiser fängt Bruno nicht. Die Szene bleibt Slapstick ohne Verletzung.",
+      "agrees": true
+    },
+    {
+      "quote": "Kaiser hob das Kinn. Genau so hatte er es geplant. Sagte sein Blick.",
+      "fact": "Kaiser bleibt stumm und würdevoll, obwohl sein Plan gescheitert ist. Die Haltung greift S1E5 auf.",
+      "agrees": true
+    },
+    {
+      "quote": "„Papa. Du bist kein Astronaut. Und du wolltest uns heute gar kein schwereloses Training zeigen. Das hab ich geflunkert.“",
+      "fact": "Ella benennt laut vor Papa ihre eigene konkrete Flunkerei und berichtigt beide Teile. Damit erfüllt sie die Auflösungsregel.",
+      "agrees": true
+    },
+    {
+      "quote": "„Wir haben den Hut gesucht. Ich wollte nicht, dass du fragst, warum.“",
+      "fact": "Ella nennt zusätzlich den Anlass. Die Wahrheit über die Flunkerei hat sie direkt davor bereits ausgesprochen, wie es die Regel verlangt.",
+      "agrees": true
+    },
+    {
+      "quote": "PLOPP.",
+      "fact": "Das Plopp folgt auf Ellas Geständnis. Weder Kaisers Landung noch eine bloße Wahrheit über den Hut lösen es aus.",
+      "agrees": true
+    },
+    {
+      "quote": "Papa plumpste aufs Sofa. Der Pfannkuchen landete auf seinem Kopf.",
+      "fact": "Die Schwerelosigkeit endet unmittelbar. Papa war schon dicht über dem Polster. Der gewöhnliche Pfannkuchen verliert seine magische Eigenschaft und bleibt als Gegenstand erhalten.",
+      "agrees": true
+    },
+    {
+      "quote": "In der Küche klapperte es leise unter dem Geschirrtuch.",
+      "fact": "Auch die sechs gesicherten Tassen werden im selben Augenblick wieder schwer, obwohl sie in einem anderen Raum sind.",
+      "agrees": true
+    },
+    {
+      "quote": "Und der Kaffee klatschte in Ellas Tasse.",
+      "fact": "Die Wahrheit beendet die Schwerelosigkeit. Ella fängt den fallenden Kaffee mit einer gewöhnlichen Tasse auf.",
+      "agrees": true
+    },
+    {
+      "quote": "Bruno blinzelte. Sein Wasser war klar.",
+      "fact": "Bruno bleibt im Aquarium. Die Kinder haben das Problem ohne eigenes Eingreifen des Fisches gelöst.",
+      "agrees": true
+    },
+    {
+      "quote": "Papa saß im roten Karohemd auf dem Sofa, den Pfannkuchen wie eine Mütze auf dem Kopf.",
+      "fact": "Der magische Raumanzug ist verschwunden. Der vorher vorhandene Pfannkuchen bleibt erhalten.",
+      "agrees": true
+    },
+    {
+      "quote": "„Nanu. Wieso sitz ich hier? Mit Pfannkuchen?“",
+      "fact": "Papa hat die magischen Vorgänge vergessen und bemerkt ihre gewöhnlichen Folgen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ach, der Hut von der Treppe!“",
+      "fact": "Papa erinnert sich an den gewöhnlichen Fund vor dem Zauber. Das Vergessen betrifft die magischen Vorgänge.",
+      "agrees": true
+    },
+    {
+      "quote": "„Klar. Wenn jemand danach fragt, geben wir ihn zurück. Ihr hättet nur fragen müssen.“",
+      "fact": "Papa reagiert freundlich. Ella wird für ihr Geständnis nicht hart bestraft, und die Kinder erleben, dass sie direkt fragen dürfen.",
+      "agrees": true
+    },
+    {
+      "quote": "Es klingelte. Lange.",
+      "fact": "Frau Grimmbach klingelt erneut auf ihre vertraute Art.",
+      "agrees": true
+    },
+    {
+      "quote": "„Brandt“, sagte sie. „Warum stehe ich mit meinem Fernglas vor Ihrer Tür?“",
+      "fact": "Frau Grimmbach spricht Ella mit Nachnamen an und hat den magischen Anlass für ihren Gang vergessen.",
+      "agrees": true
+    },
+    {
+      "quote": "Kaiser spazierte an Ella vorbei und an Frau Grimmbach vorbei, die Treppe hinunter. Sehr gerade. Sehr würdevoll.",
+      "fact": "Kaiser verlässt die Szene als würdevoller Rivale. Er hat Bruno nicht gefangen.",
+      "agrees": true
+    },
+    {
+      "quote": "Papa ging in die Küche und zog die Tür hinter sich zu.",
+      "fact": "Bruno wartet mit dem Sprechen, bis der Erwachsene den Raum verlassen hat.",
+      "agrees": true
+    },
+    {
+      "quote": "„Hab ich's nicht gesagt? Ich hab's gesagt.“",
+      "fact": "Brunos Auflösungsspruch steht wortgetreu nach dem Plopp und erfolgt nur vor Ella und Mats.",
+      "agrees": true
+    },
+    {
+      "quote": "„Was denn?“, fragte Mats. „Wie man Papa runterkriegt? Du hast nur geblubbt.“",
+      "fact": "Mats erinnert sich an die Auflösung. Während Papa im Raum war, hat Bruno tatsächlich nur geblubbert.",
+      "agrees": true
+    },
+    {
+      "quote": "„Sehr deutlich“, sagte Bruno.",
+      "fact": "Bruno beansprucht wie gewohnt im Nachhinein Verdienst für sein Blubbern. Papa befindet sich hinter der geschlossenen Küchentür.",
+      "agrees": true
+    },
+    {
+      "quote": "„Aber das mit den Pfannkuchen hast du wirklich gesagt!“",
+      "fact": "Mats erinnert sich an Brunos früheren gesprochenen Kommentar. Dieser fiel, als Papa in der Küche war.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich sag oft was Wichtiges“, sagte Bruno. „Mir hört nur keiner zu.“",
+      "fact": "Brunos kurze, eitle Beschwerde richtet sich an Ella und Mats. Der erwachsene Zuhörerkreis wird nicht erweitert.",
+      "agrees": true
+    },
+    {
+      "quote": "„Bruno“, sagte Mats. „Ist das der Hut vom Großen Brunello?“",
+      "fact": "Brunellos Name und der Zylinder sind aus früheren Folgen bekannt. Die Frage stellt die Zuordnung zur Debatte, ohne sie zu bestätigen.",
+      "agrees": true
+    },
+    {
+      "quote": "Bei dem Wort Brunello schwamm Bruno hinter seine Burg. Schnell.",
+      "fact": "Das ist genau der vorgesehene Staffelhinweis für S1E7. Bruno gibt keine gesprochene Antwort und bleibt im Aquarium.",
+      "agrees": true
+    },
+    {
+      "quote": "„Du musst nichts sagen“, sagte Ella. „Dass du sprechen kannst, bleibt bei uns.“",
+      "fact": "Ella und Mats bewahren das Geheimnis. Bruno muss weder seine Herkunft erklären noch mit jemand Neuem sprechen.",
+      "agrees": true
+    },
+    {
+      "quote": "Die Schwanzflosse zuckte. Bruno blieb hinter der Burg.",
+      "fact": "Brunos Verhalten bleibt seine einzige Antwort auf die Brunello-Frage. Der Staffelhinweis wird nicht aufgelöst.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann pinnte sie Flunker-Karte Nr. 7 neben Brunos Glas.",
+      "fact": "Die Karten zählen nach S1E6 lückenlos weiter und bleiben neben dem Aquarium. Ella führt ihre Gewohnheit fort.",
+      "agrees": true
+    },
+    {
+      "quote": "Unter ihre Liste im Planer schrieb sie: Plan F. F wie Fragen.",
+      "fact": "Die Folge hinterlässt eine neue Erkenntnis in Ellas vertrautem Planungssystem. Plan A und Plan W bleiben erhalten.",
+      "agrees": true
+    },
+    {
+      "quote": "„Doch. Heute früh. ‚Wir könnten Papa einfach fragen.‘“",
+      "fact": "Mats erinnert Ella nach dem Zauber an seinen Vorschlag vom Anfang. Kinder behalten ihre Erinnerungen und die Erkenntnis baut auf einer früheren Handlung auf.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann schrieb sie dazu: von Mats.",
+      "fact": "Ella hält Mats’ Anteil im Planer fest. Seine Einfälle werden wie bei Plan W Teil ihrer gemeinsamen Praxis.",
+      "agrees": true
+    },
+    {
+      "quote": "Unten im Erdgeschoss schlug Frau Grimmbach ihr Heft auf und stutzte.",
+      "fact": "Frau Grimmbach wohnt im Erdgeschoss und die Folge endet bei ihrem Heft.",
+      "agrees": true
+    },
+    {
+      "quote": "Da stand ein Eintrag in ihrer eigenen Schrift, und sie konnte sich nicht erinnern, ihn geschrieben zu haben.",
+      "fact": "Der eigene handschriftliche Eintrag bleibt erhalten. Frau Grimmbach hat die darin festgehaltenen magischen Ereignisse vergessen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Eintrag 52: Herr Brandt schwebt in seinem Flur. Im Raumanzug. Kopfüber!!!“",
+      "fact": "Auf Eintrag 51 folgt Eintrag 52. Die Zeile hält genau fest, was Frau Grimmbach an der geöffneten Tür gesehen hat.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann legte sie das Fernglas in die Schublade. Ganz nach hinten.",
+      "fact": "Das Fernglas aus S1E4 bleibt vorhanden. Die Schlusshandlung folgt auf das Wiederfinden ihres Eintrags.",
+      "agrees": true
+    }
+  ],
+  "dimensions": {
+    "figurenkonsistenz": {
+      "score": 8,
+      "why": "„Aber erst landen. Wie bei mir.“ Mats erinnert sich an seine eigene Angst und hilft Ella mit etwas, das er gelernt hat. Ellas reflexhafte Flunkerei ist nach Plan A erklärungsbedürftig. Der Text zeigt ihren Druck, aber noch zu wenig davon, wie sie Mats unterbrechen will und dabei das Glas aus dem Blick verliert."
+    },
+    "plotKohaerenz": {
+      "score": 7,
+      "why": "„Auf die Hutablage. Wo sonst?“ Der Fund folgt aus Mats’ Vorschlag und Grimmbachs Eintrag. Die Wahrheitsauflösung sitzt. Schwächer ist die Kette davor. Warum bleibt ausgerechnet die volle Tasse stehen, wodurch gelangt der Kaffee in den Flur und warum trifft seine Bahn genau Brunos Glas?"
+    },
+    "sprachqualitaet": {
+      "score": 8,
+      "why": "„Der Pfannkuchen landete auf seinem Kopf“ liefert ein Bild, das beim Vorlesen sofort da ist. In der Auffangszene wird die Prosa zur Wegbeschreibung. „Ella hielt die Tasse darunter. Der Ball glitt weiter. Ella zog mit der Tasse nach“ braucht einen klaren Bezug zum Rand des Fischglases."
+    },
+    "emotionaleTiefe": {
+      "score": 7,
+      "why": "„Ich wollte doch bloß auf dich aufpassen. Und fast hättest du Kaffee im Glas gehabt“ macht Ellas Einsicht an etwas fest, das ein Kind sehen kann. Die vorausgehende Angst, Papa könne Bruno zurückbringen, hängt fast ganz an dem alten Spruch „Ein Fisch ist schön leise“. Ein kurzer Moment an der Scheibe würde mehr tragen als eine weitere Erklärung."
+    },
+    "altersangemessenheit": {
+      "score": 8,
+      "why": "„Schwerelos! Dann schwebt er gleich!“ übersetzt die wichtigste Vokabel in eine sichtbare Handlung. Die Folge lässt Ella fragen und handeln, statt ihr eine Moralrede zu geben. Die sechs Tassen, zwei Tücher, zwei Gefäße und drei Räume in der Rettung verlangen beim ersten Hören viel Orientierung."
+    },
+    "ende": {
+      "score": 8,
+      "why": "„Dann schrieb sie dazu: von Mats.“ Das ist die stärkste Schlussgeste, weil Ella ihm die gute Idee wirklich zuschreibt. Der Hut ist gefunden und Bruno sicher. Papas abrupter Wechsel vom Fundbüro zum Behalten und die Häufung der kleinen Schlussbeats kosten Tempo."
+    },
+    "kanonTreue": {
+      "score": 9,
+      "why": "„Bei dem Wort Brunello schwamm Bruno hinter seine Burg“ setzt genau den Staffelhinweis, ohne ihm eine Erklärung anzuhängen. Selbst am Glas in Gefahr bleibt Bruno bei „Blubb! BLUBB!“, solange Papa da ist. Grimmbachs erhaltene Notiz und Mats’ Erinnerung an seine Landung führen die Regeln sichtbar fort."
+    },
+    "weitererzaehlFaktor": {
+      "score": 9,
+      "why": "„Wieso sitz ich hier? Mit Pfannkuchen?“ Ein Kind kann den Gag in einem Atemzug nacherzählen und sich dabei selbst einen unsichtbaren Pfannkuchen vom Kopf nehmen. Papa beißt danach auch noch hinein."
+    }
+  },
+  "kinderCheck": {
+    "verstaendlichkeit": {
+      "score": 7,
+      "stolpersteine": [
+        {
+          "quote": "Darüber war schon alles durchgestrichen. Kleiderschrank. Verkleidungskiste. Badewanne. Wäschekorb.",
+          "warum": "Beim Hören bezieht sich „darüber“ erst einmal auf etwas über dem Sofa. Gemeint sind die Zeilen im Planer.",
+          "vorschlag": "Im Planer standen schon vier andere Orte. Alle waren durchgestrichen."
+        },
+        {
+          "quote": "Mit sauberen Händen hatte sie in Grimmbachs Heft nachsehen dürfen.",
+          "warum": "Für Kinder, die die letzte Folge nicht gerade gehört haben, wirkt die Bedingung wie ein seltsamer Kommentar über Ellas Hände.",
+          "vorschlag": "Frau Grimmbach hatte gesagt: „Sie dürfen nachsehen, Brandt. Erst Hände waschen.“"
+        },
+        {
+          "quote": "„Den alten Hut bring ich Montag zum Fundbüro“, hatte er gesagt.",
+          "warum": "„Fundbüro“ wird erklärt, der Satz danach hat aber ein unbestimmtes „man“. Nach Heftnotiz und Telefonat muss ein Kind außerdem erst verbinden, wer den Hut jetzt hat.",
+          "vorschlag": "Papa hatte den Hut noch. Am Telefon hatte er gesagt: „Montag bringe ich ihn zum Fundbüro. Da kann ihn abholen, wem er gehört.“"
+        },
+        {
+          "quote": "Wenn Papa erfuhr, dass Bruno sprechen konnte, wollte er ihn vielleicht zurückbringen.",
+          "warum": "Ein Kind könnte erst denken, Papa könne Bruno beim Sprechen erwischen. Ella fürchtet aber, dass sie selbst sein Geheimnis verrät.",
+          "vorschlag": "Wenn sie Papa von Brunos Stimme erzählte, brachte er Bruno vielleicht zum Flohmarkt zurück. Schon bei dem Gedanken drückte Ella ihren Planer fest an sich."
+        },
+        {
+          "quote": "„Training um elf! Pünktlich, Kadetten!“",
+          "warum": "„Kadetten“ ist für viele Sechsjährige neu. Die Erklärung folgt, aber erst nach einer Zeigegeste, die im Hörtext mitgedacht werden muss.",
+          "vorschlag": "„Training um elf, Kadetten! Damit meine ich euch, meine Weltraumschüler.“"
+        },
+        {
+          "quote": "„Papa trainiert. Wir suchen weiter.“",
+          "warum": "Die Kinder gehen im nächsten Kapitel zunächst mit in die Küche. Der Satz verschweigt Ellas konkreten Plan, sich erst während des Trainings wegzuschleichen.",
+          "vorschlag": "„Wir gucken erst zu. Sobald Papa mit seinen Pfannkuchen beschäftigt ist, suche ich im Flur.“"
+        },
+        {
+          "quote": "Nur der kalte Kaffee kroch heraus und schwebte als brauner, wabbeliger Ball durch die Küche.",
+          "warum": "Das Bild ist gut. Zwischen sechs leeren Tassen und der einen vollen Tasse kann im Hören aber unklar werden, aus welcher der Kaffee kommt.",
+          "vorschlag": "Papas volle Tasse blieb auf dem Tisch. Der kalte Kaffee kroch über ihren Rand und schwebte als braune Wabbelkugel davon."
+        },
+        {
+          "quote": "Papa hangelte sich an den Kleiderhaken zur Wohnungstür.",
+          "warum": "„Hangeln“ wird verständlich, sobald die Hände etwas Sichtbares tun.",
+          "vorschlag": "Papa zog sich von einem Kleiderhaken zum nächsten, bis er an der Wohnungstür war."
+        },
+        {
+          "quote": "„Auf die Hutablage“, sagte Papa. „Wo sonst?“",
+          "warum": "Das Wort wird erst im nächsten Absatz durch das Brett erklärt. Am schnellsten landet der Witz, wenn Papa den Ort gleich zeigt.",
+          "vorschlag": "„Da oben, auf dem Brett über den Jacken“, sagte Papa. „Wo sonst?“"
+        },
+        {
+          "quote": "Jetzt schwebte er nur noch eine Handbreit über dem Polster.",
+          "warum": "„Handbreit“ und „Polster“ bremsen ausgerechnet den Satz, der zeigen soll, wie sicher Papa landen kann.",
+          "vorschlag": "Jetzt schwebte er ganz knapp über dem Sofakissen."
+        },
+        {
+          "quote": "Er pflückte die sechs Tassen aus der Luft wie Luftballons, legte sie in die Spüle auf ein Geschirrtuch und hielt sie mit einem zweiten Tuch fest.",
+          "warum": "Drei Handgriffe und zwei ähnliche Tücher stecken in einem Satz. „Hielt sie mit einem zweiten Tuch fest“ lässt offen, ob Mats selbst festhält.",
+          "vorschlag": "Mats pflückte die sechs Tassen aus der Luft wie Luftballons. Er legte sie auf ein Tuch in der Spüle. Mit einem zweiten Tuch drückte er sie sanft nach unten."
+        },
+        {
+          "quote": "Ella hielt die Tasse darunter. Der Ball glitt weiter. Ella zog mit der Tasse nach.",
+          "warum": "„Darunter“ kann sich auf das Glas oder den Kaffeeball beziehen. Sobald die Tasse direkt unter dem Ball ist, ist außerdem schwer zu hören, wo noch Platz für das Fischglas bleibt.",
+          "vorschlag": "Die Kaffeekugel trieb auf Brunos Glas zu. Ella schob die Tasse zwischen die Kugel und das Wasser und hielt sie direkt unter den Kaffee."
+        }
+      ]
+    },
+    "humor": {
+      "score": 8,
+      "witze": [
+        {
+          "quote": "„Zwei Gummibärchen. Und Papas Hausschuh.“",
+          "zuendet": "ja",
+          "warum": "Ein vertrauter Papagegenstand am falschen Ort. Die Gummibärchen machen den Fund auch ohne Reihenkenntnis komisch."
+        },
+        {
+          "quote": "„Die Wand zum Beispiel. Die ist auch lang.“",
+          "zuendet": "halb",
+          "warum": "Brunos Ausrede ist schön schlecht. Das doppelte „lang“ verlangt beim ersten Hören ein Wortspiel aus Dauer und Ausdehnung, während Ella gerade eine wichtige Frage stellt.",
+          "besser": "„Die Wand guck ich seit Dienstag an. Die weiß auch nichts.“"
+        },
+        {
+          "quote": "„Der nächste Pfannkuchen fliegt bis zum Mond!“",
+          "zuendet": "halb",
+          "warum": "Die Mondidee passt zu Papa. Als nachträglich eingeschobener Frühstückssatz wirkt sie zuerst wie eine Erklärung für den nächsten Einfall.",
+          "besser": "Papa kann beim Auftauchen mit Mehl an den Händen kurz Richtung Mond zeigen. Dann erlebt das Kind die Übertreibung, bevor Ella sie aufgreift."
+        },
+        {
+          "quote": "„Stimmt ja“, sagte er. „Hätte ich fast vergessen.“",
+          "zuendet": "ja",
+          "warum": "Papas beiläufiger Ton macht die Verwandlung komisch. Für ihn ist der Raumanzug offenbar eine gewöhnliche Samstagssache."
+        },
+        {
+          "quote": "„Das war nicht geflunkert, das war ausgedacht!“, rief er für Ella. Dann fragte er leiser: „Oder?“",
+          "zuendet": "halb",
+          "warum": "Mats verteidigt Ella automatisch. Die Erklärung „für Ella“ und das nachgeschobene „Oder?“ bremsen den Wechsel vom Ruf zur Verlegenheit.",
+          "besser": "Den Spruch wortgetreu lassen. Danach guckt Mats erst auf Papas Raumstiefel und flüstert: „Oder?“"
+        },
+        {
+          "quote": "„Der lässt doch schon auf der Erde die Pfannkuchen anbrennen.“",
+          "zuendet": "ja",
+          "warum": "Bruno misst einen Astronauten an Frühstücksfähigkeiten. Der spätere Geruch holt den Spruch zurück."
+        },
+        {
+          "quote": "Der Pfannkuchen kam nicht wieder runter.",
+          "zuendet": "ja",
+          "warum": "Jedes Kind kennt die Bewegung beim Hochwerfen. Die ausbleibende Landung ist ohne Erklärung komisch."
+        },
+        {
+          "quote": "„Im All ist oben …“ Er drehte sich ein Stück. „Huch. Jetzt ist es woanders.“",
+          "zuendet": "ja",
+          "warum": "Der stolze Erklärer wird mitten im Satz von seinem eigenen Körper widerlegt. „Huch“ sitzt genau auf der Drehung."
+        },
+        {
+          "quote": "„Für später!“ Papa stopfte ihn in eine Tasche am Raumanzug.",
+          "zuendet": "ja",
+          "warum": "Ein angebissener Pfannkuchen gehört so wenig in eine Raumanzugtasche, dass der Satz allein für ein Bild reicht. Die Tasche zahlt sich später aus."
+        },
+        {
+          "quote": "Na toll. Den besten Platz zum Zugucken hatte jetzt ausgerechnet sie.",
+          "zuendet": "halb",
+          "warum": "Die Wiederholung vom Anfang liegt weit zurück und der Text hat eben mehrere Schwebeeffekte vorgestellt. Erwachsene hören den Rückbezug eher als Kinder.",
+          "besser": "Papa kann Ella direkt an seinen Ausruf erinnern. „Hier, Ella! Bester Platz!“ Dann macht er vor ihrer Nase seine Rolle."
+        },
+        {
+          "quote": "„Hallo, Erde!“",
+          "zuendet": "ja",
+          "warum": "Papa winkt aus einem ganz gewöhnlichen Küchenfenster, als schwebe sein Haus im All. Der Hof liefert eine sichtbare Antwort."
+        },
+        {
+          "quote": "„Herr Brandt“, sagte Frau Grimmbach. „Sie schweben.“",
+          "zuendet": "ja",
+          "warum": "Frau Grimmbach klingt, als habe Papa die Fußmatte falsch hingelegt. Je trockener gelesen, desto besser."
+        },
+        {
+          "quote": "„Ich komme wieder“, sagte sie. „Mit meinem Fernglas.“",
+          "zuendet": "halb",
+          "warum": "Das Fernglas passt zu ihr, aber vor ihrem Gesicht schwebt schon der ganze Astronaut. Wozu sie es jetzt braucht, verdrängt die Pointe.",
+          "besser": "Frau Grimmbach will das nächste Manöver vom Hof aus beobachten und kommt mit dem Fernglas zurück, um nach der Uhrzeit zu fragen."
+        },
+        {
+          "quote": "„Auf die Hutablage“, sagte Papa. „Wo sonst?“",
+          "zuendet": "ja",
+          "warum": "Nach Badewanne und Wäschekorb steckt der Hut am offensichtlichsten Platz. Für Papa war das nie ein Rätsel."
+        },
+        {
+          "quote": "„Und wir haben in der Badewanne gesucht!“, rief Mats.",
+          "zuendet": "ja",
+          "warum": "Ein einziges absurdes Beispiel reicht, um Ellas ganze Liste komisch zu machen."
+        },
+        {
+          "quote": "„Der darf mitlanden!“",
+          "zuendet": "ja",
+          "warum": "Papa befördert den angebissenen Pfannkuchen zum Mitreisenden und setzt dabei selbst die Kopf-Pointe auf."
+        },
+        {
+          "quote": "Plumps. Beide Vorderpfoten steckten im Zylinder.",
+          "zuendet": "ja",
+          "warum": "Der Hut, um den alle so ein Theater machen, wird zu Kaisers unbeabsichtigtem Landeplatz."
+        },
+        {
+          "quote": "Genau so hatte er es geplant. Sagte sein Blick.",
+          "zuendet": "halb",
+          "warum": "Kaisers Würde bleibt komisch. Die fast identische Pointe stand schon in S1E5 und sein gehobenes Kinn zeigt sie hier bereits.",
+          "besser": "Kaiser hob das Kinn. Nur der Hut wackelte."
+        },
+        {
+          "quote": "„Nanu. Wieso sitz ich hier? Mit Pfannkuchen?“",
+          "zuendet": "ja",
+          "warum": "Papa ist so höflich verwirrt, als sei der Pfannkuchen ein unerwarteter Besucher. Der magische Gedächtnisverlust liefert den Gag."
+        },
+        {
+          "quote": "„Kalt. Ich mach neue.“",
+          "zuendet": "ja",
+          "warum": "Papa probiert seine Pfannkuchenmütze und macht aus dem verrücktesten Bild der Folge wieder Frühstück."
+        },
+        {
+          "quote": "„Hab ich's nicht gesagt? Ich hab's gesagt.“",
+          "zuendet": "ja",
+          "warum": "Der feste Spruch bekommt eine zusätzliche Pointe. Bruno hat beim Retten nur geblubbt, aber die angebrannten Pfannkuchen hat er tatsächlich vorhergesagt."
+        },
+        {
+          "quote": "Frau Grimmbach drehte das Heft auf den Kopf.",
+          "zuendet": "ja",
+          "warum": "Sie nimmt „kopfüber“ so ernst, dass sie sogar die Seite dreht. Das funktioniert als stummer Schlussgag."
+        },
+        {
+          "quote": "Dann legte sie das Fernglas in die Schublade. Ganz nach hinten.",
+          "zuendet": "halb",
+          "warum": "Eine leise Grimmbach-Geste, aber die unmittelbare Pointe ist schon das umgedrehte Heft. Die Schublade hat wenig Bezug zu dem, was sie gerade liest.",
+          "besser": "Beim Eintrag und beim kopfüber gedrehten Heft enden. Das Fernglas hat seinen komischen Auftritt schon an der Tür."
+        }
+      ]
+    },
+    "unterhaltung": {
+      "score": 8,
+      "durchhaenger": [
+        {
+          "stelle": "Kapitel 1, zwischen „Vor einer Woche“ und „Bis Montag wollte Ella den Hut finden“",
+          "warum": "Drei Rückblicke hintereinander stoppen Mats’ laufende Sofasuche. Ein Kind muss Sprung, Finderin, Übergabe und Abgabefrist speichern, bevor Papa hereinkommt.",
+          "vorschlag": "Ella hält die eine wichtige Heftzeile beim Suchen vor sich. Daraus und aus Papas angekündigtem Gang zum Fundbüro lassen sich Übergabe und Frist in zwei kurzen Sätzen erfassen."
+        },
+        {
+          "stelle": "Kapitel 1, zwischen „Die Wand zum Beispiel“ und „Was sucht ihr eigentlich die ganze Zeit?“",
+          "warum": "Papas Flohmarktsatz, Ellas Sorge und der Frühstücksspruch werden unmittelbar vor der Flunkerei rückblickend eingeschoben. Der Konflikt an der Tür hat dadurch weniger Schwung.",
+          "vorschlag": "Den Flohmarktsatz beim Blick auf Bruno lassen. Papas Mondwitz in die Gegenwart holen, ehe er Mats beim Suchen sieht."
+        },
+        {
+          "stelle": "Kapitel 2, zwischen „Training Nummer zwei“ und „Auf die Hutablage“",
+          "warum": "Fenstergruß, Blick aus dem Hof, Aufstieg, Gespräch, Mitschrift und Fernglasansage verzögern die naheliegende Frage. Grimmbachs Besuch bleibt dabei weitgehend ohne Einfluss auf Ellas Entscheidung.",
+          "vorschlag": "Papas Antwort „Training, Frau Grimmbach!“ knapp halten. Gleich beim Schließen der Tür merkt Ella, dass auch sie eine kurze Frage stellen kann. Kaiser und das Fernglas bleiben in derselben Szene."
+        },
+        {
+          "stelle": "Kapitel 3, zwischen „Genau auf Brunos Glas zu“ und „Kadetten, was wird das?“",
+          "warum": "Die Warnung erzeugt Zeitdruck. Danach holt Ella noch die Tasse, rückt den Stuhl, steigt hoch und verfolgt den Kaffee, während Mats sechs Tassen abräumt und Kaiser ansetzt. Beim Hören wird daraus eine Inventarliste.",
+          "vorschlag": "Kaffeetasse und Stuhl bereitstellen, solange Papa seinen Sofaanflug beginnt. Mats’ Tassenrettung in einem kurzen Gegenschnitt zeigen. Dann driften Kaffee und Kaiser gleichzeitig in Ellas Blick."
+        },
+        {
+          "stelle": "Kapitel 3, von Papas Hut-Erlaubnis bis zur Schublade",
+          "warum": "Nach der großen Landung folgen viele einzelne Ausgänge. Grimmbach klingelt, Kaiser geht, Papa geht, Bruno kommentiert, es riecht angebrannt, Bruno versteckt sich, Ella räumt den Hut weg, die Karte hängt, Mats bekommt Plan F und Grimmbach liest.",
+          "vorschlag": "Den Pfannkuchen-Rückruf an Brunos Spruch hängen, den Hut erst mit dem Schlussbild im Kinderzimmer wegräumen oder den Weg dorthin sparen. Die Brunello-Reaktion, Mats’ Namenszug und der Heft-Gag brauchen jeweils ihren kurzen eigenen Moment."
+        }
+      ]
+    },
+    "logikLuecken": [
+      {
+        "quote": "Auf dem Küchentisch blieb Papas Frühstückstasse stehen. Nur der kalte Kaffee kroch heraus.",
+        "problem": "Der Text zeigt sechs leere Tassen, die schweben, und eine volle, die stehen bleibt, während ihr Inhalt schwebt. Eine Sechsjährige kann die Auswahl aus dem Gesagten kaum vorhersagen. Es gibt keinen klaren sichtbaren Startpunkt für Kaffee und Tassen.",
+        "fix": "Papa nimmt die Frühstückstasse ausdrücklich für seine Kaffeeübung, setzt sie nach einer Demonstrationsgeste zurück auf den Tisch und greift nach den leeren Tassen fürs Training. Der Kaffee löst sich dabei sichtbar aus der Tasse. Die Vorführung startet weiterhin erst in der Küche."
+      },
+      {
+        "quote": "Der Kaffeeball segelte langsam aus der Küche hinter ihm her.",
+        "problem": "Der Ball wirkt, als folge er Papa von selbst. Danach verlässt er dessen Bahn und steuert genau das Aquarium an. Schweben erklärt das Ausbleiben des Falls, aber noch keinen Richtungswechsel.",
+        "fix": "Beim Öffnen der Wohnungstür treibt der Kaffee mit einem Luftzug aus der Küche. Vor dem Sofa fächelt Papa die Kugel von seinem Visier weg. Erst damit gerät sie auf Kurs zum Glas."
+      },
+      {
+        "quote": "„Training Nummer drei! Die Landung! Aufs Sofa!“",
+        "problem": "Die Vorführung beginnt korrekt in der Küche, reicht im Wortlaut der Szene aber bis zum Sofa. Für Kinder ist dadurch schwerer zu erkennen, wann die Küchenshow vorbei ist und was noch ihre magische Folge ist.",
+        "fix": "Papa beendet seinen Weltraumspaziergang ausdrücklich an der Küchentür. Ella ruft später „Landung! Aufs Sofa!“, damit er sicher herunterkommt. Seine begeisterte Antwort und der mitlandende Pfannkuchen bleiben."
+      },
+      {
+        "quote": "„Ich komme wieder“, sagte sie. „Mit meinem Fernglas.“",
+        "problem": "Frau Grimmbach hat Papa bereits aus nächster Nähe gesehen. Der zweite Gang in den dritten Stock ergibt sich aus ihrem angekündigten Plan noch nicht.",
+        "fix": "Sie kündigt an, das nächste Manöver vom Hof aus zu beobachten, und will oben noch fragen, wann Papa wieder am Fenster vorbeischwebt. Nach dem Plopp steht sie folgerichtig mit dem Fernglas vor der Tür und weiß nicht mehr, wozu."
+      },
+      {
+        "quote": "Der Kaffeeball glitt gerade über den Glasrand. Ella hielt die Tasse darunter.",
+        "problem": "Wenn der Ball schon über der Öffnung des Fischglases schwebt, ist schwer vorstellbar, wie die Tasse noch dazwischenpasst. Der Text braucht eine eindeutige Position, bevor Ella die Wahrheit sagt.",
+        "fix": "Den Ball noch vor oder knapp oberhalb des äußeren Glasrands zeigen. Ella hält die Tasse sichtbar zwischen Kaffee und Fischwasser. Erst dann spricht sie."
+      },
+      {
+        "quote": "„Den alten Hut bring ich Montag zum Fundbüro“ und „Klar. Wenn jemand danach fragt, geben wir ihn zurück.“",
+        "problem": "Der Montagstermin treibt die Suche an. Nach dem Fund gibt Papa seinen ursprünglichen Plan mit einem Satz auf. Der Rückgabevorbehalt erklärt, was später geschehen soll, aber nicht, warum Papa jetzt anders entscheidet.",
+        "fix": "Papa sagt, dass Ella vorerst auf den Hut aufpassen darf und dass er bei den Nachbarn nach dem Besitzer fragt. So bekommt Ella den Hut, und Papas Absicht, ihn zurückzugeben, hat eine erkennbare Fortsetzung."
+      },
+      {
+        "quote": "Er sah sehr stolz aus. Und er hatte keine Ahnung.",
+        "problem": "Der Satz lässt offen, ob Papa seine eigene Übung nicht versteht oder ob die Behauptung „Papa ist Astronaut“ nur einen Anzug erzeugt hat. Seine Fehlgriffe sollen den zweiten Eindruck vermeiden.",
+        "fix": "Papas Weltraumwissen kurz an einem Handgriff zeigen, etwa wie er sich an einem festen Griff abstößt. Seine Ahnungslosigkeit auf die verhexte Küche beziehen. Stolz erklärt er die Übung und staunt trotzdem darüber, warum der Kaffee selbstständig mitmacht."
+      }
+    ],
+    "schulhofSatz": "„Wieso sitz ich hier? Mit Pfannkuchen?“",
+    "staerksteMomente": [
+      "Papa fängt an, „oben“ zu erklären, und dreht sich mitten im Satz selbst auf den Kopf.",
+      "Mats erinnert Ella an seine eigene Landung und verhindert, dass sie Papa zu früh herunterholt.",
+      "Eine einzige Frage führt zur Hutablage. Mats’ Badewannenruf macht die ganze erfolglose Suche im Rückblick komisch.",
+      "Ella sagt die Wahrheit erst mit der Tasse unter dem Kaffee. Das Plopp löst Papas Landung, das Tassenklappern und das Auffangen gleichzeitig aus.",
+      "Bruno verschwindet beim Namen Brunello hinter seiner Burg. Die herausguckende Schwanzflosse trägt die ganze Antwort.",
+      "Ella schreibt „von Mats“ hinter Plan F. Grimmbach dreht für „Kopfüber!!!“ das Heft um."
+    ]
+  },
+  "mustFix": [
+    "„Nur der kalte Kaffee kroch heraus“ und „segelte langsam aus der Küche hinter ihm her“ → In der Vorführung sichtbar machen, warum der Kaffee aus seiner Tasse steigt. Danach seinem Weg in den Flur und seiner Richtungsänderung zum Aquarium je einen konkreten Auslöser geben.",
+    "„Der Kaffeeball glitt gerade über den Glasrand. Ella hielt die Tasse darunter“ → Tasse und Stuhl früher bereitstellen. Beim Geständnis muss beim ersten Hören klar sein, dass die Tasse zwischen Kaffeekugel und Fischwasser steht.",
+    "„Und er hatte keine Ahnung“ → Präzisieren, wovon Papa keine Ahnung hat. Er kann seine Rolle und einen Astronautengriff beherrschen und trotzdem völlig ratlos sein, sobald sich seine Küchengeräte am Training beteiligen.",
+    "„Training Nummer drei! Die Landung! Aufs Sofa!“ → Die Küchenvorführung deutlich abschließen. Die Sofa-Landung als Ellas praktische Rettungsanweisung spielen und Papas Spaß am Landen erhalten.",
+    "„Wenn Papa erfuhr, dass Bruno sprechen konnte, wollte er ihn vielleicht zurückbringen“ → Den kanonischen Flohmarktsatz behalten und Ellas Sorge mit einer kurzen Reaktion am Glas verankern. Beim Ausbruch der exakten Flunkerei deutlicher zeigen, dass Ella Mats ansieht und das Aquarium in diesem Augenblick aus dem Blick verliert.",
+    "„Ich komme wieder. Mit meinem Fernglas“ → Grimmbach einen konkreten Grund geben, warum sie von unten gucken möchte und danach noch einmal klingelt.",
+    "„Klar. Wenn jemand danach fragt, geben wir ihn zurück“ → Papas Erlaubnis mit einem nachvollziehbaren Schritt zur Rückgabe verbinden, damit die zuvor gesetzte Fundbürofrist ihren Sinn behält."
+  ],
+  "notes": [
+    "Die vorgegebene Flunkerei wortgetreu im Wohnzimmer lassen. Papas Pfannkuchen liefern ihr eine passende Vorlage, und der erste Schwerelosigkeitseffekt gehört in die Küche.",
+    "Die Hutablage, die eine Frage und Mats’ Badewanne zusammenhalten. Hier zahlt die Folge ihren Auftakt mit dem kleinsten möglichen Handgriff aus.",
+    "„Aber erst landen. Wie bei mir“ bewahren. Der Rückgriff auf S1E4 löst ein gegenwärtiges Problem und gibt Mats einen eigenen Beitrag zur Rettung.",
+    "Papas Pfannkuchen vom ersten Wurf bis zum Biss als durchgehenden Gag behalten. Der angebissene Pfannkuchen in der Tasche ist die Vorbereitung für die Mütze.",
+    "Kaiser im Zylinder landen lassen. Der Gegenstand aus der Rätselsuche übernimmt kurz eine komische Aufgabe und Kaiser bleibt würdevoll.",
+    "Die Auflösung durch Ellas konkrete Wahrheit und Brunos Blubb-Regel unverändert im Ablauf verankern. Hutfrage und Landemanöver haben jeweils ihre eigene Funktion.",
+    "Brunos Antwort auf „Brunello“ beim Verstecken und der sichtbaren Schwanzflosse belassen. Ellas leises Versprechen danach gibt dem Schweigen Platz.",
+    "Plan F mit „von Mats“ und Grimmbachs auf den Kopf gedrehtes Heft behalten. Die beiden Gesten schließen den Beziehungskonflikt und die Farce jeweils mit einer Handlung."
+  ],
+  "gesamtnote": 7,
+  "_meta": {
+    "provider": "codex",
+    "model": "gpt-6.2-sol (codex)",
+    "effort": "high",
+    "costUSD": null,
+    "tokens": {
+      "completion": 59999
+    },
+    "seconds": 424,
+    "words": [
+      589,
+      499,
+      837
+    ]
+  }
+}

@@ -1,0 +1,54 @@
+Gesamtnote 7/10 — Verständlich 7, Humor 8, Unterhaltung 8
+  Figurenkonsistenz: 7
+  Plot-Kohärenz: 6
+  Sprachqualität: 8
+  Emotionale Tiefe: 7
+  Altersangemessenheit: 7
+  Ende: 8
+  Kanon-Treue: 8
+  Weitererzähl-Faktor: 9
+
+Kanon-Widersprüche:
+Logiklücken:
+  - „„Das war geflunkert, Mats“, sagte Ella. „Von mir.““ → Das Bekenntnis folgt so unmittelbar auf die konkrete Flunkerei, dass es sich wie die spätere Auflösungsformel anhört. Es korrigiert weder Beruf noch Vorführung. | Fix: Ella erkennt ihren Fehler an, ohne vor Mats bereits die Wendung aus dem späteren Geständnis zu sagen.
+  - „Papa zog sich an der Garderobe entlang zur Wohnungstür“ → Der Wechsel vom Küchenfenster in den Flur fehlt. Die Küche ist als Ort der Vorführung so stark betont, dass Kinder einen Raumwechsel hier besonders deutlich brauchen. | Fix: Papa am Küchentürrahmen in den Flur ziehen lassen. So zeigt die Handlung zugleich, dass der Zauber an ihm weiterwirkt.
+  - „„Auf die Hutablage“, sagte Papa. „Wo sonst?““ → Die Antwort funktioniert. Der Entschluss, endlich zu fragen, braucht davor den entscheidenden kleinen Gedanken: Ella kann nach dem Gegenstand fragen, ohne Bruno zu erwähnen. | Fix: Ella erinnert sich an Mats’ Vorschlag und fragt ausschließlich nach dem schwarzen Hut von der Treppe.
+  - „Er landete mitten im Zylinder in Ellas Armen.“ → Ella stand zuletzt mit Papa im Flur. Der Text stellt sie plötzlich unter Kaisers Sturzbahn. Durch den fehlenden Übergang wirkt die Landung wie ein Zufall, den man nur für die Pointe arrangiert hat. | Fix: Ella auf dem Weg ins Wohnzimmer in die Küchentür treten und den Hut im Reflex hochreißen lassen.
+  - „Aber beim Absprung hatte er die letzte Tasse angestoßen.“ → Kaiser erreicht die vierte Tasse nicht. Die tatsächlich berührte Tasse und damit der Auslöser für den Kaffeeball bleiben unbestimmt. | Fix: Kaiser drückt sich von der dritten ab. Genau die dritte Tasse stößt den Kaffee in Richtung Wohnzimmertür.
+  - „Und der Kaffee mitten in Brunos Wasser.“ → Wenn Ella den Zauber in diesem Moment beendet, müsste der Kaffeeball dort fallen, wo er gerade auf seinem Weg ist. Im nächsten Absatz treibt er erst über den Glasrand. | Fix: Papas Fallhöhe und den Kurs des Kaffees als zwei gleichzeitige Probleme benennen. Ella stellt die Tasse unter den Ball, sobald er über dem Aquarium ist.
+  - „Der Pfannkuchen schwebte über seinem Helm.“ → Mats hatte den Pfannkuchen geschnappt und hineingebissen. Seitdem hat ihn niemand losgelassen oder in die Nähe von Papas Helm gebracht. | Fix: Mats reicht Papa den angebissenen Rest. Papa steckt ihn ein und lässt ihn bei der Sofalandung über seinem Helm los.
+  - „Er legte sie in Papas Wäschekorb, weich auf die Handtücher. Sechs Stück.“ → Ein Korb mit weichen Handtüchern polstert den Aufprall, hält aber magisch aufsteigende Tassen bis zum Plopp nicht unten. | Fix: Mats deckt die Tassen ab und hält das obere Handtuch fest, bis der Zauber endet.
+  - „„Den alten Hut bring ich Montag zum Fundbüro“ / „Klar. Ihr hättet nur fragen müssen.““ → Papa wollte einen gefundenen Hut abgeben. Das bedingungslose „Klar“ lässt ihn den eigenen vernünftigen Grund dafür ohne Übergang fallen. | Fix: Papa erlaubt den Kindern, den Hut vorerst zu behalten. Falls jemand danach fragt, geben sie ihn zurück.
+Muss geändert werden:
+  - „Das war geflunkert, Mats“ klingt zu früh wie ein wirksames Geständnis. Ellas Reaktion ändern und die klare Korrektur beider falschen Behauptungen für Kapitel 3 aufheben.
+  - „brachte er ihn vielleicht zurück zum Flohmarkt“ braucht Papas früheren Satz vom leisen Fisch als Auslöser. Die Angst muss als Ellas Befürchtung erkennbar sein.
+  - „an der Garderobe entlang“ und „in Ellas Armen“ überspringen die entscheidenden Wege. Papa aus der Küche in den Flur ziehen lassen und Ella mit dem Hut an der Küchentür platzieren.
+  - „die vierte“ und „die letzte Tasse“ machen Kaisers Sprung unlesbar. Die Tassen als Treppe staffeln und die dritte Tasse eindeutig als Stoß gegen den Kaffeeball benennen.
+  - „wenn er jetzt aufhörte“ behauptet einen zu frühen Treffer im Aquarium. Erst die Flugrichtung zeigen, dann die Tasse genau unter dem Kaffee über Brunos Wasser positionieren.
+  - „Der Pfannkuchen schwebte über seinem Helm“ braucht einen Weg von Mats zurück zu Papa und einen sichtbaren Moment des Loslassens.
+  - „Er legte sie in Papas Wäschekorb“ reicht bis zum Ende der Schwerelosigkeit nicht aus. Mats muss die Tassen mit einem Handtuch unten halten.
+  - „Nur weil ich Papa nicht fragen wollte“ erklärt die Erkenntnis ein zweites Mal. Ellas direkte Frage, der Kaffeefleck und die Eintragung von Plan F sollen sie tragen.
+Schulhof-Satz: „Papa hatte einen Pfannkuchen als Mütze. Dann hat er die Mütze aufgegessen!“
+
+Überarbeitung: 3 Kapitel, 1878 Wörter (vorher 1830) → docs/talea-originals/2026-11-27/sol/bruno.r4.txt
+  · Den Zylinderrückblick geordnet. Aus „Seit einer Woche war der Zylinder weg“ wird „Vor einer Woche war der Zylinder ins Treppenhaus geflogen“, gefolgt von Ellas erfolgloser Suche und dem Fund im Heft.
+  · „In ihrem Heft“ durch „in Grimmbachs Heft“ ersetzt. Damit bleiben Ellas Planer und Grimmbachs Aufzeichnungen unterscheidbar.
+  · Das Telefonat und die Erklärung des Fundbüros verkürzt. „Am Montag wäre der Hut also weg“ wird zu Ellas konkretem Ziel, ihn bis Montag zu finden.
+  · Ellas Sorge vor der Rückgabe mit Papas Satz „Ein Fisch ist schön leise“ aus Folge 1 begründet und vor Papas Eintreten stehen lassen.
+  · Papas Auftritt räumlich als Eintritt in die Wohnzimmertür markiert. Die Assoziation zwischen der Ausrede und seinem Mondpfannkuchen knapper formuliert.
+  · Ellas frühes „Das war geflunkert, Mats. Von mir“ durch „Ich hab nicht nachgedacht“ ersetzt. Mats’ Spruch und sein leises „Oder?“ bleiben.
+  · Die Frühstückstasse auf dem Küchentisch verortet. Von ihr steigt nur der Kaffee auf, während die sechs leeren Tassen aus dem Regal schweben.
+  · Mats beißt ein Stück vom Pfannkuchen ab und reicht den Rest Papa. Papas „Für später!“ und die Anzugtasche bereiten die spätere Landung vor.
+  · Den zweiten Versuch, aus der Küche zu schleichen, gestrichen. Papas Rolle folgt auf die erste Aufforderung zum Zuschauen.
+  · Papas Weg vom Küchenfenster über den Küchentürrahmen und die Garderobe bis zur Wohnungstür sichtbar gemacht. Kaiser folgt Grimmbach aus dem Hof nach oben und huscht an ihr vorbei.
+  · Vor der Hutfrage die wiederholte Suchliste gestrichen. Ella erkennt, dass sie nach dem Hut fragen kann, ohne Bruno zu erwähnen. Auf der hohen Ablage sieht sie von unten nur die Kante.
+  · Ella mit dem Hut auf dem Weg zum Wohnzimmer an der Küchentür platziert. Die Tassen steigen vom Küchentisch aus in Richtung Tür an.
+  · „Nur seine Ohren guckten heraus“ durch Kaisers Hintern im Zylinder und seinen Thronblick ersetzt. Ella reißt den Hut hoch und fängt ihn sichtbar auf.
+  · „Die letzte Tasse“ als dritte Tasse bestimmt. Kaisers Absprung schiebt sie gegen den Kaffeeball, der sichtbar durch die Küchentür in Richtung Wohnzimmer treibt.
+  · Beim drohenden Plopp Papas Fallhöhe vom Flugweg des Kaffees unterschieden und die Fangtasse ausdrücklich zwischen Kaffeeball und Fischwasser gehalten.
+  · Papa zieht am Sofa den angebissenen Pfannkuchen aus der Tasche und lässt ihn über dem Helm los. Mats hält die sechs Tassen mit einem Handtuch unten. Ihr Klirren macht das Ende des Schwebens hörbar.
+  · Papas „Klar“ nach der Rückfrage um die Bedingung ergänzt, dass der Hut zurückgegeben wird, falls jemand danach fragt.
+  · Ellas Reaktion auf Brunos Verstecken gekürzt. Sie sichert ihm sein Geheimnis zu und sieht den Kaffeefleck. Die ausdrückliche Erklärung ihres Fehlers entfällt.
+  · Grimmbach dreht den Eintrag mit „Kopfüber!!!“ vor dem Weglegen des Fernglases einmal selbst auf den Kopf.
+
+gpt-6.2-sol (codex), high: 61743 Tokens, 429 s → docs/talea-originals/2026-11-27/sol/bruno.r4.json
