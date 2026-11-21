@@ -1,0 +1,774 @@
+{
+  "canonChecks": [
+    {
+      "quote": "Jona setzte sich auf dem Klappsofa auf.",
+      "fact": "Jona schläft bei Oma auf dem Klappsofa.",
+      "agrees": true
+    },
+    {
+      "quote": "Draußen sprang ein Motor an.",
+      "fact": "Gertrud ist lebendig und kann nach der für diese Folge festgelegten Regel ohne Fahrer anrollen.",
+      "agrees": true
+    },
+    {
+      "quote": "Zwei runde Lichtflecken huschten über die Zimmerdecke.",
+      "fact": "Gertrud hat zwei große runde Scheinwerfer.",
+      "agrees": true
+    },
+    {
+      "quote": "Da, wo Gertrud immer parkte, war nichts.",
+      "fact": "Gertrud hat ihren Platz auf dem Betriebshof und ist der einzige Wagen der Nachtschicht.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma kam im Schlafanzug heraus und warf sich die Lederjacke über.",
+      "fact": "Omas Lederjacke gehört zu ihrer etablierten Ausstattung.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie zogen die Gummistiefel an und liefen hinaus.",
+      "fact": "Jona trägt Gummistiefel und geht mit Oma hinaus. Beim Nachteinsatz ist eine Erwachsene bei ihm.",
+      "agrees": true
+    },
+    {
+      "quote": "Auf dem Weg zum Hoftor leuchtete Jona auf die kleine Klappe an der Pensionstür.",
+      "fact": "Seit Folge 4 kontrolliert Jona bei seinen Wochenendbesuchen den Riegel der kleinen Klappe.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Riegel war zu.",
+      "fact": "Zuletzt war die Pensionsklappe verriegelt. Der Eingriff am Hoftor betrifft einen anderen Riegel.",
+      "agrees": true
+    },
+    {
+      "quote": "Das Pupsmonster lag quer davor und hielt seine Kordel hoch.",
+      "fact": "Der Lüftungswart liegt vor der Pensionstür und prüft mit seiner Kordel, ob es an der Klappe zieht.",
+      "agrees": true
+    },
+    {
+      "quote": "Sie hing still.",
+      "fact": "Die reglose Kordel zeigt wie in den vorigen Folgen, dass es an der Klappe nicht zieht.",
+      "agrees": true
+    },
+    {
+      "quote": "„Gertrud hält bei jeder Panne“, flüsterte Oma.",
+      "fact": "Gertruds Hilfsbereitschaft bringt sie in dieser Folge dazu, der vermeintlichen Panne zu folgen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Die hilft jedem. Auch wenn keiner fragt.“",
+      "fact": "Gertrud handelt aus eigener Hilfsbereitschaft und folgt der falschen Pannenspur freiwillig.",
+      "agrees": true
+    },
+    {
+      "quote": "„Langsam rollen kann sie allein, Süßer. Aber vom Hof ist sie noch nie ohne mich gefahren.“",
+      "fact": "Gertrud kann sich selbst bewegen. Oma bleibt die Stammfahrerin.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich hab Angst.“",
+      "fact": "Oma gibt Angst vor Jona offen zu, wie schon in den Folgen 1 und 6.",
+      "agrees": true
+    },
+    {
+      "quote": "Er zählte die Stangen am Hoftor. Elf. Da wurde seine Hand ein bisschen ruhiger.",
+      "fact": "Jona zählt bei Angst, um sich zu beruhigen.",
+      "agrees": true
+    },
+    {
+      "quote": "Klirrklaus stand in der grünen Tür und sah auf den leeren Platz.",
+      "fact": "Die Pension liegt hinter der grünen Tür. Klirrklaus kann zum Arbeiten und Herumlaufen aus seinen Kästen steigen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Fehlt“, klirrte er. „Gertrud. Fehlt.“",
+      "fact": "Klirrklaus merkt als Lagerverwalter sofort, wenn etwas fehlt, und spricht in knappen Sätzen.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Socken-Schnüffler steckte den Kopf hinaus.",
+      "fact": "Der Socken-Schnüffler wohnt seit Folge 1 in der Pension.",
+      "agrees": true
+    },
+    {
+      "quote": "Die Krümelkrake hielt mit einem Arm die Tür auf.",
+      "fact": "Die achtarmige Krümelkrake wohnt seit Folge 3 in der Pension und hilft bei praktischen Aufgaben.",
+      "agrees": true
+    },
+    {
+      "quote": "Das Gähnmonster kam mit einem Stapel Decken, und der Kabelsalat rollte über die Schwelle.",
+      "fact": "Der Nachtruhe-Wächter verteilt Decken. Der Kabelsalat rollt und wohnt seit Folge 7 in der Pension.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ohne Gertrud haben wir keine Tonnen“, sagte Oma. „Keinen Rüssel. Keine Musik.“",
+      "fact": "Die Monster-Tonnen, der Rüssel und der Kassettenspieler für die Fahrt gehören zu Gertrud.",
+      "agrees": true
+    },
+    {
+      "quote": "„Dann gehen wir zu Fuß. Immer dem Faden nach.“",
+      "fact": "Die Crew weicht auf einen Fußweg aus. Gertrud bleibt ihr einziger Wagen.",
+      "agrees": true
+    },
+    {
+      "quote": "Klirrklaus holte einen seiner leeren Pfandkästen aus der Kammer.",
+      "fact": "Klirrklaus hat zwei Pfandkästen in der Kammer. Wenn er als Flaschenfigur unterwegs ist, kann er einen leeren Kasten mitnehmen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Mit“, klirrte er. „Kasten. Statt Tonne.“",
+      "fact": "Klirrklaus spricht wie in Folge 6 in Einwortsätzen und kennt seine Pfandkästen als sicheren Transportplatz.",
+      "agrees": true
+    },
+    {
+      "quote": "Das Gähnmonster legte Oma eine Decke um die Schultern und Jona eine zweite.",
+      "fact": "Decken verteilen ist die Aufgabe des Gähnmonsters.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona zog seine Warnweste darüber.",
+      "fact": "Jona trägt die Weste beim Einsatz. Die Weste ist angezogen, bevor er den Hof verlässt.",
+      "agrees": true
+    },
+    {
+      "quote": "Flusi hüpfte auf seine Schulter. „Flusi hilft!“",
+      "fact": "Flusi bleibt bei der Crew und sagt seinen Spruch wortgetreu.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma ging mit der Taschenlampe voraus.",
+      "fact": "Oma begleitet Jona beim Nachteinsatz.",
+      "agrees": true
+    },
+    {
+      "quote": "Klirrklaus trug den Kasten, der Kabelsalat rollte neben Jona her.",
+      "fact": "Frühere Pensionsgäste helfen bei diesem Einsatz. Beide begleiten die Crew in ihrer etablierten Gestalt und Bewegungsweise.",
+      "agrees": true
+    },
+    {
+      "quote": "Das Pupsmonster blieb bei der Klappe.",
+      "fact": "Der Lüftungswart bleibt an seinem etablierten Posten.",
+      "agrees": true
+    },
+    {
+      "quote": "Bis zum Bahnhof kannte Jona jeden Schritt. Er zählte trotzdem.",
+      "fact": "Jona kennt den Weg zwischen Omas Haus und dem Bahnhof und zählt ihn seit Folge 1.",
+      "agrees": true
+    },
+    {
+      "quote": "„Für Wolle nehmen wir ‚Hart wie Wolle‘!“, sagte Oma.",
+      "fact": "Oma wählt für den Einsatz einen erfundenen Rocksong.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann machte sie eine Pause fürs Hupen.",
+      "fact": "Gertrud hupt normalerweise im Takt zu Omas Musik.",
+      "agrees": true
+    },
+    {
+      "quote": "„Das wär jetzt dein Einsatz, Süße“, murmelte Oma.",
+      "fact": "Oma nennt Gertrud wie die Monster „Süße“. Sie vermisst Gertruds Antwort im Takt.",
+      "agrees": true
+    },
+    {
+      "quote": "Er sah eine alte Frau mit Taschenlampe, einen Jungen in Warnweste, einen Haufen Flaschen und einen Haufen Kabel.",
+      "fact": "Ein Außenstehender sieht die Monster als gewöhnliche Gegenstände oder Unordnung.",
+      "agrees": true
+    },
+    {
+      "quote": "„Sonderabfuhr!“, rief Oma.",
+      "fact": "Oma benutzt gegenüber Außenstehenden den etablierten Namen „Sonderabfuhr“.",
+      "agrees": true
+    },
+    {
+      "quote": "„GERTRUD, SÜSSE!“, rief Oma.",
+      "fact": "Oma ruft laut und benutzt ihre übliche Anrede.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona wusste ein Wort, bei dem Gertrud immer hupte.",
+      "fact": "Seit Folge 1 weiß Jona, dass Gertrud auf „Laster“ mit beleidigtem Hupen reagiert.",
+      "agrees": true
+    },
+    {
+      "quote": "Genauso laut wie eben rief er: „LASTER!“",
+      "fact": "Die für diese Folge festgelegte Weckreaktion greift Gertruds bekannte Empfindlichkeit auf. Die Lautstärke des Rufs bleibt gleich.",
+      "agrees": true
+    },
+    {
+      "quote": "Aus dem mittleren Hof kam ein langes HUUUUP. Sehr beleidigt.",
+      "fact": "Gertrud antwortet auf „Laster“ mit ihrer Hupe.",
+      "agrees": true
+    },
+    {
+      "quote": "Ihre Scheinwerfer gingen gerade erst an, ganz verschlafen.",
+      "fact": "Gertrud drückt Zustände mit ihren Scheinwerfern aus. Sie ist im Hof eingeschlafen.",
+      "agrees": true
+    },
+    {
+      "quote": "Gertrud hatte auf den Wagen mit der Panne gewartet. So lange, bis sie eingeschlafen war.",
+      "fact": "Gertrud hat freiwillig gewartet und wurde weder festgebunden noch verletzt.",
+      "agrees": true
+    },
+    {
+      "quote": "Gertrud dimmte ihre Lichter, bis sie fast aus waren.",
+      "fact": "Gertrud spricht nicht. Ihre Scheinwerfer vermitteln ihre Reaktion auf die Täuschung.",
+      "agrees": true
+    },
+    {
+      "quote": "Da blinkte Gertrud sie an. Zweimal.",
+      "fact": "Zweimaliges Blinken ist seit Folge 2 Gertruds Begrüßung und passt zum Wiedersehen.",
+      "agrees": true
+    },
+    {
+      "quote": "„HATSCHI!“, machte Flusi.",
+      "fact": "Flusi niest unmittelbar vor dem Auftauchen der Knäuelbande.",
+      "agrees": true
+    },
+    {
+      "quote": "Drei Wollknäuel rollten ins Licht.",
+      "fact": "Das neue Monster dieser Folge ist die Knäuelbande aus drei kleinen Wollknäueln.",
+      "agrees": true
+    },
+    {
+      "quote": "Sein Schwänzchen lag als Schlaufe um den Gummiball. Es zog die Schlaufe zu.",
+      "fact": "Die Bande erzeugt die falsche Pannenmeldung mit einer Hupe und ihren eigenen Fäden. Die Täuschung kommt ohne Gewalt aus.",
+      "agrees": true
+    },
+    {
+      "quote": "Gertruds Scheinwerfer gingen sofort hell an. Sie rollte ein Stück auf die Hupe zu. Dann hielt sie an und dimmte die Lichter wieder.",
+      "fact": "Gertrud kann langsam selbst rollen und reagiert mit Licht. Sie erkennt das falsche Signal beim zweiten Mal.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ab in die Tonne, Süße!“",
+      "fact": "Omas Fangruf steht wortgetreu im Text. Sie kann ihn anschließend an Klirrklaus’ Kasten anpassen.",
+      "agrees": true
+    },
+    {
+      "quote": "Rot rollte ihr aus der Hand. Gelb rollte dem roten Schwänzchen nach, Blau dem gelben.",
+      "fact": "Der erste Fangversuch scheitert. Die Knäuel zeigen erstmals deutlich ihr Nachrollen hinter losen Fadenenden.",
+      "agrees": true
+    },
+    {
+      "quote": "„Moment … ich weiß die Schwäche!“, rief Jona. „Die sind weich wie der Bauch der Krake. Die sind bestimmt auch kitzlig!“",
+      "fact": "Jona sagt den Spruch wortgetreu und liegt dabei einmal falsch. Der weiche Bauch der Krümelkrake war in Folge 3 kitzlig.",
+      "agrees": true
+    },
+    {
+      "quote": "Gelb kicherte. Dann sah es Blaus Schwänzchen und rollte hinterher.",
+      "fact": "Gelbs Kichern ändert weder sein Verhalten noch den Fang. Es hat weiterhin nur die Schwäche für baumelnde Fadenenden.",
+      "agrees": true
+    },
+    {
+      "quote": "„Flusi kitzelt. Knäuel flitzt.“",
+      "fact": "Flusi hilft der Crew und spricht in kurzen Sätzen in der dritten Person.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Kabelsalat rollte zu Omas Stiefeln und löste die Fäden, ganz langsam.",
+      "fact": "Der Kabelsalat kann seit Folge 7 mit Geduld Knoten und Schlaufen lösen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich weiß, ich weiß“, sagte Oma. „Stillhalten.“",
+      "fact": "Oma erinnert sich an Folge 7, in der sie beim langsamen Entknoten stillhalten musste.",
+      "agrees": true
+    },
+    {
+      "quote": "Jedes rollte dem wackelnden Schwänzchen direkt vor seinen Knopfaugen nach. Genau wie an den drei Toren. Fäden, die flach auf dem Boden lagen, ließen sie liegen.",
+      "fact": "Die Folge definiert eine einzige Schwäche mit einem beobachtbaren Auslöser. Das lose Ende muss vor den Augen wackeln. Die flache Spur reicht nicht aus.",
+      "agrees": true
+    },
+    {
+      "quote": "Unter der Bank sah Jona halb fertiges Strickzeug. Rot, gelb und blau. Auf den Maschen lag dicker Staub.",
+      "fact": "Die drei Knäuel gehen auf vergessene Strickreste zurück. Die passenden Farben und der Staub liefern dafür sichtbare Indizien.",
+      "agrees": true
+    },
+    {
+      "quote": "„Hier saßen früher Leute und haben beim Warten gestrickt“, sagte Oma langsam.",
+      "fact": "Oma kennt den alten Waschsalon aus ihrer Zeit mit Sina. Dass beim Warten gestrickt wurde, ergänzt die Vorgeschichte des Orts.",
+      "agrees": true
+    },
+    {
+      "quote": "Ein loses Ende baumelte heraus. Jona hielt es Rot direkt vor die Knopfaugen. Rot sauste darauf zu und wickelte es auf.",
+      "fact": "Jona testet den einen Auslöser unmittelbar an den vergessenen Strickresten.",
+      "agrees": true
+    },
+    {
+      "quote": "„Moment … ich weiß die Schwäche!“, sagte Jona. „Ein loses Fadenende, das direkt vor ihren Knopfaugen baumelt, und sie müssen hinterher!“",
+      "fact": "Jona spricht seine Formel wortgetreu und benennt die einzige Schwäche der Bande.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona hielt das Fadenende in die Luft, immer eine Handbreit vor Rots Knopfaugen, und ging langsam rückwärts zur Bank.",
+      "fact": "Der Fangtrick nutzt die entdeckte Schwäche und führt die Bande zurück zur Bank, ihrem alten Versteck.",
+      "agrees": true
+    },
+    {
+      "quote": "Rot rollte hinterher. Gelb folgte Rots Schwänzchen, Blau folgte Gelbs.",
+      "fact": "Alle drei reagieren nach derselben Regel. Jona muss nur Rot ein baumelndes Ende zeigen, solange die beiden anderen den wackelnden Schwänzchen folgen können.",
+      "agrees": true
+    },
+    {
+      "quote": "Am Kasten ließ Jona das Ende ins unterste Fach fallen. Rot rollte hinterher.",
+      "fact": "Die definierte Schwäche verlangt ein baumelndes Ende direkt vor den Augen. Beim entscheidenden Übergang ins Fach zeigt die Szene diesen Auslöser nur bis zum Loslassen.",
+      "agrees": false
+    },
+    {
+      "quote": "Sein Schwänzchen hing noch heraus, und Gelb rollte ihm nach.",
+      "fact": "Für Gelb müsste Rots Schwänzchen direkt vor seinen Augen baumeln. Dass es aus dem Fach hängt, klärt seine Position und Bewegung beim Einrollen nicht ausreichend.",
+      "agrees": false
+    },
+    {
+      "quote": "Dann hob er Gelb vorsichtig ins Fach daneben und Blau ins nächste.",
+      "fact": "Klirrklaus behandelt die Bande behutsam. Keines der Knäuel wird verletzt oder bestraft.",
+      "agrees": true
+    },
+    {
+      "quote": "„Platz“, klirrte er. „Platz. Platz.“",
+      "fact": "Für Klirrklaus ist ein eigener Platz seit Folge 6 wichtig. Er überträgt das auf jedes Knäuel und bleibt in seiner Sprechweise.",
+      "agrees": true
+    },
+    {
+      "quote": "„Tröt vorm Tor“, piepste Gelb. „Dann Dreieck, Dreieck, Dreieck.“",
+      "fact": "Die falsche Pannenspur aus Ruf und Dreiecken ist Teil des vorgesehenen Staffelhinweises.",
+      "agrees": true
+    },
+    {
+      "quote": "„Gertrud sollte hier warten“, piepste Rot. „Für Seine Majestät.“",
+      "fact": "Die Bande handelt im Auftrag Seiner Majestät. Warum Gertrud dort warten sollte, bleibt offen.",
+      "agrees": true
+    },
+    {
+      "quote": "Er lief an Gertruds Rädern vorbei, quer über den Hof, und verschwand unter einer Tür.",
+      "fact": "Der rote Faden führt als zweiter Teil desselben Staffelhinweises bis zum alten Waschsalon.",
+      "agrees": true
+    },
+    {
+      "quote": "Über der Tür hing ein Blechschild. Eine Waschmaschine mit einem Stern im runden Fenster.",
+      "fact": "Das Schild entspricht genau Sinas Beschreibung des alten Waschsalons aus Folge 7.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona hatte sie unter Steckbrief Nr. 7 gemalt, genau nach Mamas Geschichte.",
+      "fact": "Jona hat das Waschmaschinenschild mit dem Stern unter den siebten Steckbrief gezeichnet. Mama ist in das Geheimnis eingeweiht.",
+      "agrees": true
+    },
+    {
+      "quote": "„Flusi wohnte hier. Unter der großen Maschine.“",
+      "fact": "Flusi hat in Folge 5 erzählt, dass er unter der großen Maschine im alten Waschsalon gewohnt hat.",
+      "agrees": true
+    },
+    {
+      "quote": "Hinter der Tür brummte etwas. Tief und leise.",
+      "fact": "Flusi erinnert sich seit Folge 5 an tiefes Brummen im alten Waschsalon. Der Sockenkönig bleibt hier hinter der Tür, unsichtbar und ohne verständliche Rede.",
+      "agrees": true
+    },
+    {
+      "quote": "„Abgeschlossen, Süßer. Ohne Schlüssel kommen wir da nicht rein.“",
+      "fact": "Die Tür bleibt in Folge 8 verschlossen. Jona findet den Schlüssel erst in Folge 9.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona sah ins dunkle Fenster. Sein eigenes Gesicht sah zurück.",
+      "fact": "Das Fenster liefert keinen weiteren Blick auf den Sockenkönig und keinen zusätzlichen Staffelhinweis.",
+      "agrees": true
+    },
+    {
+      "quote": "Auf dem Weg zum Tor zählte er dreiundzwanzig Schritte.",
+      "fact": "Jona zählt erneut in einem Moment der Anspannung.",
+      "agrees": true
+    },
+    {
+      "quote": "„Kommt ihr mit?“, fragte er die Knäuel.",
+      "fact": "Die gefangenen Monster werden fürsorglich in die Pension eingeladen. Jona lässt der Bande eine Wahl.",
+      "agrees": true
+    },
+    {
+      "quote": "Gelb guckte zu Rot und Blau. „Alle drei?“, piepste es.",
+      "fact": "Die Bande bekommt ein menschlich nachvollziehbares Bedürfnis. Sie will zusammenbleiben.",
+      "agrees": true
+    },
+    {
+      "quote": "Da kuschelten sich die drei in ihre Fächer.",
+      "fact": "Die Bande bleibt freiwillig im Kasten, nachdem Jona allen drei einen Platz zugesagt hat.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma sicherte den Kasten hinten mit dem Bügel.",
+      "fact": "Schon in Folge 6 hat Oma die Pfandkästen auf Gertrud mit einem Bügel gesichert.",
+      "agrees": true
+    },
+    {
+      "quote": "Klirrklaus setzte sich daneben auf eine gefaltete Decke und hielt sich am Bügel fest.",
+      "fact": "Klirrklaus kann außerhalb seiner Kästen sitzen. Die Decke greift den gepolsterten Flaschentransport aus Folge 6 auf.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Kabelsalat rollte in eine Tonne.",
+      "fact": "Gertrud hat die Monster-Tonnen weiterhin dabei. Der Kabelsalat ist schon in Folge 7 freiwillig in einer Tonne mitgefahren.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma setzte sich ans Steuer, Jona kletterte neben sie und Flusi aufs Armaturenbrett.",
+      "fact": "Oma fährt, Jona sitzt bei ihr und Flusi nimmt seinen gewohnten Platz ein.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma schob die Kassette ein.",
+      "fact": "Gertruds Kassettenspieler ist nach dem Bandsalat aus Folge 7 wieder benutzbar.",
+      "agrees": true
+    },
+    {
+      "quote": "„Hart wie Wolle“ dröhnte aus dem Kassettenspieler. Und Gertrud hupte mit. Genau im Takt.",
+      "fact": "Omas Einsatzsong und Gertruds Hupen im Takt kommen nach dem Wiedersehen vollständig zur Geltung.",
+      "agrees": true
+    },
+    {
+      "quote": "„Entschuldigung wegen ‚Laster‘“, sagte Jona. Gertrud blinkte einmal.",
+      "fact": "Wie in den Folgen 1 und 5 zeigt ein einmaliges Blinken, dass Gertrud verzeiht.",
+      "agrees": true
+    },
+    {
+      "quote": "In der Pension tupfte Oma jedes Knäuel mit einem feuchten Tuch ab.",
+      "fact": "Neue Gäste werden materialgerecht gereinigt. Die Wolle wird leicht abgetupft und bleibt ganz.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ganz sacht, Süße. Beim Rubbeln klebt die Wolle zusammen.“",
+      "fact": "Oma passt die Reinigung an das Material an und spricht die Knäuel mit ihrer üblichen Anrede an.",
+      "agrees": true
+    },
+    {
+      "quote": "Das Gähnmonster saß auf dem Schrank und strickte an seiner Mütze.",
+      "fact": "Schon in Folge 4 sitzt das Gähnmonster auf einem Schrank und strickt an seiner Mütze.",
+      "agrees": true
+    },
+    {
+      "quote": "Aus seinem Strickkorb baumelten drei lose Fadenenden, genau vor ihren Knopfaugen. Die Knäuel rollten sofort hin.",
+      "fact": "In der Pension wirkt derselbe Auslöser wie beim Test an der Bank.",
+      "agrees": true
+    },
+    {
+      "quote": "„Strickwerkstatt“, sagte Oma. „Wenn ihr mögt.“",
+      "fact": "Die Knäuelbande bekommt den vorgesehenen Job in der Pension. Oma bietet ihn freiwillig an.",
+      "agrees": true
+    },
+    {
+      "quote": "Jedes Knäuel rollte einem baumelnden Ende aus dem Korb nach und wickelte die Wolle bis zu den Nadeln des Gähnmonsters.",
+      "fact": "Die Werkstatt nutzt dieselbe Schwäche der Bande für eine zu ihrer Herkunft passende Aufgabe. Wie die Wolle an die Nadeln gelangt, bleibt in der Bewegung unklar.",
+      "agrees": true
+    },
+    {
+      "quote": "Gertrud senkte den Rüssel ganz tief, und das Gähnmonster band ihr den Schal um. Gleich reckte Gertrud den Rüssel so hoch, dass alle ihn sehen konnten.",
+      "fact": "Gertrud benutzt ihren beweglichen Rüssel und zeigt ihren etablierten Stolz ohne Worte.",
+      "agrees": true
+    },
+    {
+      "quote": "„Wenn wieder jemand um Hilfe trötet, hup bei uns am Fenster. Dann helfen wir mit.“",
+      "fact": "Jona und Gertrud vereinbaren für künftige Pannen ein Signal. Damit hat der Einsatz eine bleibende Folge für ihre Zusammenarbeit.",
+      "agrees": true
+    },
+    {
+      "quote": "Gertrud stupste ihn mit dem weichen Schal an.",
+      "fact": "Gertrud antwortet körperlich mit ihrem Rüssel und braucht keine gesprochene Stimme.",
+      "agrees": true
+    },
+    {
+      "quote": "Jona holte Omas dicken Ordner und schrieb Monster-Steckbrief Nr. 8: Knäuelbande.",
+      "fact": "Steckbrief Nr. 8 steht wie seine Vorgänger in Omas dickem Ordner und wird von Jona geschrieben.",
+      "agrees": true
+    },
+    {
+      "quote": "Ursprung: vergessene Strickreste vom alten Waschsalon.",
+      "fact": "Das Ursprungsfeld entspricht dem vorgesehenen Material und Fundort.",
+      "agrees": true
+    },
+    {
+      "quote": "Schwäche: Rollen jedem losen Fadenende nach, das direkt vor ihren Knopfaugen baumelt.",
+      "fact": "Der Steckbrief hält genau eine Schwäche mit der im Text ermittelten Bedingung fest.",
+      "agrees": true
+    },
+    {
+      "quote": "Fangtrick: ein Fadenende knapp vor Rot herziehen, zurück zu ihrem Versteck, bis in Klirrklaus' Kasten.",
+      "fact": "Das Fangtrick-Feld nennt den Wollköder, den Rückweg zur Bank und Klirrklaus’ Kasten. Die letzten Zentimeter müssen in der Szene noch genauso nachvollziehbar werden wie im Eintrag.",
+      "agrees": true
+    },
+    {
+      "quote": "Job: Strickwerkstatt, rollen dem Gähnmonster die Wolle zu.",
+      "fact": "Das Job-Feld hält die Strickwerkstatt und die Zusammenarbeit mit einem früheren Pensionsgast fest.",
+      "agrees": true
+    },
+    {
+      "quote": "Darunter malte er eine Tür mit einem Schloss. Er schrieb dazu: Wollspur zum Waschsalon.",
+      "fact": "Jona hält den vorgesehenen Staffelhinweis im Ordner fest. Wo der Schlüssel liegt und wer hinter der Tür ist, bleibt offen.",
+      "agrees": true
+    },
+    {
+      "quote": "Als die erste Amsel sang, schliefen alle Monster ein.",
+      "fact": "Beim ersten Vogelgezwitscher endet die Nachtschicht und die Monster schlafen ein.",
+      "agrees": true
+    },
+    {
+      "quote": "Die Knäuelbande im Strickkorb vom Gähnmonster. Klirrklaus in seinen Kästen. Flusi in Jonas Kapuze.",
+      "fact": "Die neuen Gäste schlafen zusammen. Klirrklaus und Flusi schlafen an ihren etablierten Plätzen.",
+      "agrees": true
+    },
+    {
+      "quote": "Draußen stand Gertrud wieder auf ihrem Platz. Mit Schal.",
+      "fact": "Gertrud kehrt auf den Betriebshof zurück. Der Einsatz endet mit dem einzigen Wagen der Crew sicher zu Hause.",
+      "agrees": true
+    }
+  ],
+  "dimensions": {
+    "figurenkonsistenz": {
+      "score": 9,
+      "why": "„Ich hab Angst“ und „Fehlt. Gertrud. Fehlt.“ gehören hörbar zwei verschiedenen Figuren. Jona beruhigt sich durchs Zählen, Oma lässt sich wie in Folge 7 entknoten, und Gertrud spielt Scham, Erleichterung und Stolz mit Licht, Hupe und Rüssel. Die Gäste am Hof bekommen einen klaren Verbleib."
+    },
+    "plotKohaerenz": {
+      "score": 6,
+      "why": "„Genauso laut wie eben“ macht die Ortung zur Auszahlung eines bekannten Gags. Zwei entscheidende Schritte bleiben unklar. Gertruds Grund, im leeren Hof weiter auf einen Wagen zu warten, wird erst nachträglich behauptet. Bei „ließ Jona das Ende ins unterste Fach fallen“ verschwindet der eben definierte Auslöser genau im Fangmoment."
+    },
+    "sprachqualitaet": {
+      "score": 8,
+      "why": "„Tröt. Pause. Tröt.“ klingt beim Vorlesen sofort nach einer Nothupe. „Die liefen in alle drei Höfe und wieder heraus. Kreuz und quer, wie Kritzelei auf dem Boden“ macht das Fadenchaos sichtbar. Ausgerechnet beim Kasten und in der Werkstatt ersetzen ungenaue Bewegungsverben das Bild, das man dort braucht."
+    },
+    "emotionaleTiefe": {
+      "score": 9,
+      "why": "Auf „Ich hab Angst“ folgt „Jona nahm ihre Hand.“ Das kehrt ihre Rollen für einen glaubwürdigen Moment um. Später dimmt Gertrud vor Scham die Lichter, und am Schluss stupst sie Jona mit dem Schal an. Beides lässt sich fühlen, ohne dass jemand ihr Gefühl erklären muss."
+    },
+    "altersangemessenheit": {
+      "score": 7,
+      "why": "„Alle drei?“ bringt die Sorge der Bande auf zwei Wörter. Der kurze Weg von Omas Angst zum gemeinsamen Losgehen trägt auch für Sechsjährige. Beim doppelten Riegel, den zwei roten Wollstücken und den Kastenfächern müssen Kinder räumliche Zusammenhänge ergänzen, die der Text selber zeigen sollte."
+    },
+    "ende": {
+      "score": 8,
+      "why": "„Draußen stand Gertrud wieder auf ihrem Platz. Mit Schal.“ Das beantwortet den leeren Stellplatz vom Anfang und gibt der Bande Anteil an der Heimkehr. Die verschlossene Tür bleibt eine Staffelspur. Zwischen Heimfahrt und Schlussbild bremst die schlecht vorstellbare Arbeitsfolge am Strickkorb."
+    },
+    "kanonTreue": {
+      "score": 7,
+      "why": "„Für Seine Majestät“ und der rote Faden zur Tür setzen den vorgesehenen Staffelhinweis. Das Brummen verrät weder Gestalt noch Motiv. Die Stammbesetzung, das Vogelgezwitscher und der ausgeschriebene Steckbrief stimmen. Die Fangbewegung hält die eben gesetzte Augenhöhe-Regel an der Kastenkante nicht sichtbar ein."
+    },
+    "weitererzaehlFaktor": {
+      "score": 9,
+      "why": "„Genauso laut wie eben rief er: ‚LASTER!‘“ Ein Kind kann die ganze Wendung in zwei Rufen nachspielen. Auf „Gertrud“ kommt nichts, auf das verbotene Wort eine beleidigte Hupe. Der Witz rettet den Einsatz."
+    }
+  },
+  "kinderCheck": {
+    "verstaendlichkeit": {
+      "score": 7,
+      "stolpersteine": [
+        {
+          "quote": "Der Riegel war zu.",
+          "warum": "Kurz darauf ist ein Riegel am offenen Hoftor wichtig. Wer die Hofanlage noch nicht kennt, kann beide Riegel verwechseln.",
+          "vorschlag": "Die kleine Klappe in der Pensionstür war zu. Am großen Hoftor sah es anders aus."
+        },
+        {
+          "quote": "Am Riegel hing eine kurze rote Wollschlaufe. Sie lief durch die Gitterstäbe auf die Straße.",
+          "warum": "Man erfährt, wo die Schlaufe ist, aber erst später, was Ziehen überhaupt am Riegel verändert.",
+          "vorschlag": "Am Torriegel hing eine rote Wollschlaufe. Wer draußen an ihr zog, zog den Riegel aus seiner Halterung."
+        },
+        {
+          "quote": "Auf Gertruds Platz war das Pflaster noch trocken. Ringsum glänzte es nass.",
+          "warum": "Das Bild ist ein guter Hinweis. Warum trocken hier frisch weggefahren bedeutet, muss ein jüngeres Kind aber selbst ergänzen.",
+          "vorschlag": "Wo Gertrud gestanden hatte, waren die Steine noch trocken. Ihr Bauch hatte den Regen abgehalten."
+        },
+        {
+          "quote": "An einer Ecke war ein zweiter, langer roter Faden festgeknotet.",
+          "warum": "„Ein zweiter“ lässt kurz offen, ob der Faden Teil der Torschlaufe oder eine eigene Spur ist.",
+          "vorschlag": "Am Dreieck hing ein langer roter Faden. Der zog sich bis in die dunkle Straße."
+        },
+        {
+          "quote": "Er sah eine alte Frau mit Taschenlampe, einen Jungen in Warnweste, einen Haufen Flaschen und einen Haufen Kabel.",
+          "warum": "Die vollständige Aufzählung klingt kurz wie ein Wechsel zu einer neuen Hauptfigur. Der eigentliche Spaß steckt im Unterschied zwischen seinem Blick und Jonas Blick.",
+          "vorschlag": "Für den Mann waren Klirrklaus und der Kabelsalat bloß ein Haufen Flaschen und ein Haufen Kabel."
+        },
+        {
+          "quote": "Gertrud dimmte ihre Lichter, bis sie fast aus waren.",
+          "warum": "„Dimmte“ ist beim ersten Selbstlesen unnötig technisch. Was Gertrud tut, lässt sich direkt sehen.",
+          "vorschlag": "Gertruds Lichter wurden schwächer, bis sie kaum noch leuchteten."
+        },
+        {
+          "quote": "Sein Schwänzchen lag als Schlaufe um den Gummiball. Es zog die Schlaufe zu.",
+          "warum": "Die Verbindung zwischen Wollschlaufe, Gummiball und Ton erschließt sich schneller, wenn man das Zusammendrücken sieht.",
+          "vorschlag": "Gelb zog am eigenen Faden. Die Schlaufe drückte den Gummiball zusammen. Tröt."
+        },
+        {
+          "quote": "Unter der Bank sah Jona halb fertiges Strickzeug.",
+          "warum": "„Strickzeug“ kann für ein Kind Nadeln, fertige Sachen oder einen Korb voller Wolle heißen. Was genau vergessen wurde, ist für die Lösung entscheidend.",
+          "vorschlag": "Unter der Bank lagen ein paar Reihen gestrickter Maschen und Reste aus roter, gelber und blauer Wolle. Alles war staubig."
+        },
+        {
+          "quote": "Die offenen Fächer zeigten zum Hof.",
+          "warum": "Bei einem gekippten Kasten reicht die Richtung allein nicht. Man muss sehen, welches Loch vom Boden aus erreichbar ist.",
+          "vorschlag": "Klirrklaus kippte den Kasten auf die Seite. Jetzt konnten die Knäuel vom Hof direkt in die unterste Reihe rollen."
+        },
+        {
+          "quote": "„Für Seine Majestät.“",
+          "warum": "„Majestät“ darf rätselhaft bleiben. Wofür die Bande zuständig war, ergibt sich derzeit erst aus mehreren Bruchstücken.",
+          "vorschlag": "„Wir sollten Gertrud hierherlocken“, piepste Rot. „Für Seine Majestät.“"
+        },
+        {
+          "quote": "Oma sicherte den Kasten hinten mit dem Bügel.",
+          "warum": "„Sicherte“ und „Bügel“ ergeben noch kein klares Bild davon, was hinten auf dem Wagen passiert.",
+          "vorschlag": "Oma stellte den Kasten hinten auf Gertrud und klemmte ihn mit dem Bügel fest. Jetzt konnte er nicht rutschen."
+        },
+        {
+          "quote": "„Beim Rubbeln klebt die Wolle zusammen.“",
+          "warum": "„Klebt“ klingt, als hätte Oma Klebstoff am Tuch. Ein sichtbares Ergebnis erklärt die Vorsicht besser.",
+          "vorschlag": "„Nur tupfen, Süße. Wenn ich reibe, machen deine Fäden lauter winzige Knoten.“"
+        },
+        {
+          "quote": "Jedes Knäuel rollte einem baumelnden Ende aus dem Korb nach und wickelte die Wolle bis zu den Nadeln des Gähnmonsters.",
+          "warum": "Wer hält das Ende, wer wickelt ab, und wie kommt der Faden an die Nadeln? Das lässt sich mit dem Satz nicht nachspielen.",
+          "vorschlag": "Das Gähnmonster ließ ein Fadenende vor Rot baumeln. Rot rollte heran und schob das Wollknäuel bis zu seinen Nadeln. Das Gähnmonster zog den Faden heraus und strickte weiter."
+        }
+      ]
+    },
+    "humor": {
+      "score": 8,
+      "witze": [
+        {
+          "quote": "„Fehlt“, klirrte er. „Gertrud. Fehlt.“",
+          "zuendet": "ja",
+          "warum": "Klirrklaus stellt bei einem ganzen Müllwagen dieselbe knappe Diagnose wie bei einer fehlenden Schüssel. Die trockene Stimme passt zu seiner Sorge."
+        },
+        {
+          "quote": "„Für Wolle nehmen wir ‚Hart wie Wolle‘!“",
+          "zuendet": "halb",
+          "warum": "Der verdrehte Rocktitel geht beim ersten Hören leicht vorbei. Die Pause für die ausbleibende Hupe ist der stärkere Witz und kippt schön ins Vermissen.",
+          "besser": "Oma stampft einmal wie zum Takt, wartet auf die Hupe und sagt dann den vorhandenen Satz „Das wär jetzt dein Einsatz, Süße“."
+        },
+        {
+          "quote": "„Sonderabfuhr!“, rief Oma. Der Mann machte das Fenster wieder zu.",
+          "zuendet": "halb",
+          "warum": "Die trockene Reaktion funktioniert als kurzer Einschub. Das Fenster geht so rasch wieder zu, dass der Mann als eigene Pointe kaum trägt.",
+          "besser": "Beim Zuschieben murmelt der Mann „Für Flaschen auch?“. Eine Zeile reicht für den Unterschied zwischen seinem Blick und dem der Crew."
+        },
+        {
+          "quote": "Genauso laut wie eben rief er: „LASTER!“",
+          "zuendet": "ja",
+          "warum": "Der Ruf ist verboten, leicht nachzumachen und für die Lösung entscheidend. Das beleidigte HUUUUP ist die Pointe."
+        },
+        {
+          "quote": "„Ab in die Tonne, Süße!“ Oma sah auf Klirrklaus’ Kasten. „Heute in den Kasten!“",
+          "zuendet": "ja",
+          "warum": "Omas Mund ist schneller als ihr Blick. Kinder kennen den Spruch und hören die Korrektur sofort."
+        },
+        {
+          "quote": "„Süßer, ich glaub, die haben mir einen Doppelschuh gestrickt.“",
+          "zuendet": "halb",
+          "warum": "„Doppelschuh“ hat ein eigenes Bild. Der Hüpfer davor wiederholt Herrn Bergers verknotete Schuhe aus Folge 7 sogar mit demselben Satz.",
+          "besser": "Gib Oma hier eine andere Bewegung. Sie versucht, einen Stiefel zu heben, und nimmt den zweiten gleich mit. Dann sitzt der Doppelschuh-Witz auf einem neuen Bild."
+        },
+        {
+          "quote": "„Flusi kitzelt. Knäuel flitzt.“",
+          "zuendet": "halb",
+          "warum": "Der Klang ist lustiger als die Aussage. Flusi wiederholt, was man gerade gesehen hat.",
+          "besser": "Lass Flusi beim Kitzeln selbst vom Fadenzug mitgenommen werden und erst dann einen knappen Kommentar machen."
+        },
+        {
+          "quote": "„Ich weiß, ich weiß“, sagte Oma. „Stillhalten.“",
+          "zuendet": "ja",
+          "warum": "Ausgerechnet die Frau, der in Folge 7 beim Stillhalten die Nase zuckte, erteilt sich jetzt selbst das Kommando."
+        },
+        {
+          "quote": "„Platz“, klirrte er. „Platz. Platz.“",
+          "zuendet": "ja",
+          "warum": "Jedes Knäuel bekommt sein eigenes Wort und sein eigenes Fach. Das ist beim Vorlesen ein kleiner Dreitakt."
+        }
+      ]
+    },
+    "unterhaltung": {
+      "score": 8,
+      "durchhaenger": [
+        {
+          "stelle": "Kapitel 1, von „Hinter ihnen klirrte es“ bis „Die anderen winkten.“",
+          "warum": "Nach dem starken Verschwinden werden die Gäste erst einzeln vorgestellt und dann noch einmal auf Aufbruch und Wache verteilt. Der rote Wollfaden liegt währenddessen schon auf der Straße.",
+          "vorschlag": "Klirrklaus’ Entdeckung, den Kasten, die Decken und den Wachposten in wenigen gleichzeitigen Handlungen unterbringen. Die übrigen Gäste können gemeinsam an der grünen Tür stehen."
+        },
+        {
+          "stelle": "Kapitel 3, von „Am Kasten ließ Jona das Ende ins unterste Fach fallen“ bis „Platz. Platz.“",
+          "warum": "Beim Höhepunkt muss man zurücklesen, um den gekippten Kasten, die drei Knäuel im selben Fach und das anschließende Umsortieren zusammenzubekommen.",
+          "vorschlag": "Die Bewegung einmal klar von der Höhe der Knopfaugen bis ins Fach führen. Danach genügen Klirrklaus’ drei „Platz“-Rufe für das Bild der drei eigenen Fächer."
+        },
+        {
+          "stelle": "Kapitel 3, Strickkorb und Strickwerkstatt",
+          "warum": "Zwei aufeinanderfolgende Absätze zeigen die Knäuel beim Nachrollen, bevor der Schal als eigentliche Überraschung kommt.",
+          "vorschlag": "Ein Knäuel sichtbar beim Anreichen helfen lassen, dann zum fertigen Schal wechseln. Die Reinigung und den vollständig ausgeschriebenen Steckbrief beibehalten."
+        }
+      ]
+    },
+    "logikLuecken": [
+      {
+        "quote": "Gertrud hatte auf den Wagen mit der Panne gewartet. So lange, bis sie eingeschlafen war.",
+        "problem": "Hupe und Dreiecke erklären, warum Gertrud losfährt. Im Zielhof liegt nur die Hupe. Der Text zeigt noch keinen Anhaltspunkt, warum Gertrud glaubt, der Pannenwagen werde dort auftauchen oder sie müsse auf ihn warten.",
+        "fix": "An der letzten Station ein eindeutiges Wartesignal der Knäuel zeigen. Rot kann beim Aufdecken knapp sagen, dass sie den letzten Pannenruf hinter dem Tor nachgemacht haben, sodass Gertrud den Wagen dort vermutete. Das freiwillige Warten und Einschlafen bleiben erhalten."
+      },
+      {
+        "quote": "Oma zog das Tor zu und schob den Riegel vor. Jona zog von draußen an der Schlaufe.",
+        "problem": "Der Standortwechsel kommt ohne Vorbereitung. Aus der Bewegung wird auch nicht klar, ob die Schlaufe am beweglichen Riegel sitzt oder bloß daran hängt. Der Test ist ein guter Beweis, sobald man ihn vor Augen hat.",
+        "fix": "Jona ausdrücklich auf die Straße treten lassen, bevor Oma das Tor schließt. Beim Ziehen zeigen, wie die Schlaufe den Riegel seitlich aus seiner Halterung zieht und Jona das Tor aufdrückt."
+      },
+      {
+        "quote": "Unter der Bank sah Jona halb fertiges Strickzeug.",
+        "problem": "Farben und Staub machen den Ursprung plausibel. Der Schritt von den vergessenen Resten zur Schwäche beruht bislang vor allem darauf, dass Jona die Knäuel bereits im Kreis rollen sah.",
+        "fix": "Die beiden Entdeckungen in eine Handlung legen. Jona hebt das passende lose Ende aus dem angefangenen Strickstück an und beobachtet, wie Rot es sofort aufwickelt und beim nächsten baumelnden Stück weiterrollt. So zeigt ausgerechnet der Fundort, was sich die Bande angewöhnt hat."
+      },
+      {
+        "quote": "Am Kasten ließ Jona das Ende ins unterste Fach fallen. Rot rollte hinterher.",
+        "problem": "Ein fallendes Ende ist nach dem Loslassen nur kurz in Bewegung und liegt dann im Fach. Der Text hat ausdrücklich gezeigt, dass flach liegende Fäden keinen Zwang auslösen. Anschließend ist bei den anderen Knäueln nur noch von einem heraushängenden Schwänzchen die Rede.",
+        "fix": "Jona hält die Spitze auf Augenhöhe, bis Rot die Kante überrollt. Klirrklaus lässt Gelb und Blau ein Ende vor ihren eigenen Fächern baumeln, bis auch sie drin sind. Damit wirkt dieselbe Schwäche dreimal sichtbar und der Pfandkasten muss keine drei mandarinen­großen Knäuel in einem Flaschenfach aufnehmen."
+      },
+      {
+        "quote": "Darunter lag der lange rote Faden vom Hoftor.",
+        "problem": "Am Eingang zu den Höfen verliert Jona die Spur im Gewirr. Im Hof erkennt er sie später sofort als denselben Faden. Das Hupen hat den Hof gefunden, aber noch nicht gezeigt, welcher rote Faden von der Straße bis zur Tür durchläuft.",
+        "fix": "Jona den roten Faden am mittleren Tor wiederfinden und mit den Fingern bis zur Tür verfolgen lassen. Ein kurzes Anheben zeigt, welcher Faden unter den anderen durchläuft."
+      },
+      {
+        "quote": "„Strickwerkstatt“, sagte Oma. „Wenn ihr mögt.“",
+        "problem": "Die drei sind den Fäden wegen ihrer Schwäche schon gefolgt. Damit ist noch nicht sichtbar, ob ihnen die Arbeit gefällt. Der fertige Schal verdeckt außerdem, wer beim Stricken was beigetragen hat.",
+        "fix": "Erst die Fäden ablegen. Dann ein Knäuel von sich aus Wolle zu den Nadeln rollen lassen oder fragen lassen, ob der Schal für Gertrud sein darf. Ein kurzer Zeitsprung bis zum fertigen Schal genügt."
+      }
+    ],
+    "schulhofSatz": "„LASTER!“ – HUUUUP!",
+    "staerksteMomente": [
+      "Die dünne Nothupe, die wandernden Lichtflecken und der trockene Fleck im nassen Hof erzählen das Verschwinden mit Geräusch und Bild.",
+      "Oma sagt, dass sie Angst hat. Jona nimmt ihre Hand und zählt die Torstangen. Der Mut bleibt glaubwürdig klein.",
+      "Die beiden gleich lauten Rufe machen Gertruds beleidigte Antwort zur Lösung. Das funktioniert beim Vorlesen besonders gut.",
+      "Als die Hupe erneut trötet, rollt Gertrud kurz los und stoppt. Man sieht, wie schnell ihr Hilfsreflex anspringt und dass sie dazulernt.",
+      "Das „Alle drei?“ gibt den Knäueln nach der Täuschung mit einer einzigen Frage etwas, das ihnen wichtig ist.",
+      "Der Schal macht aus der Heimkehr eine Geste der Bande. Gertrud hält ihn hoch, damit ihn alle sehen."
+    ]
+  },
+  "mustFix": [
+    "„Gertrud hatte auf den Wagen mit der Panne gewartet“ → Schon im Hof eine konkrete Spur zeigen, die ihr freiwilliges Warten plausibel macht. Die Fahrradhupe erklärt die Fahrt. Beim Warten fehlt der Anhaltspunkt.",
+    "„Ein loses Fadenende, das direkt vor ihren Knopfaugen baumelt“ → Diese Regel bis zum letzten Zentimeter des Fangs durchspielen. Das Ende vor den Augen halten, während das jeweilige Knäuel ins Fach rollt. Die drei Fächer auch beim Fang nutzen.",
+    "„Am Riegel hing eine kurze rote Wollschlaufe“ und „ein zweiter, langer roter Faden“ → Pensionstür und Hoftor räumlich trennen. Bei der Vorführung den Riegel sichtbar bewegen und im Hof die lange Spur bis zur Waschsalontür verfolgen lassen.",
+    "„wickelte die Wolle bis zu den Nadeln“ → Einen vollständigen Arbeitsgriff der Strickwerkstatt zeigen. Die Bande soll nach dem Angebot einmal aus eigenem Antrieb helfen, bevor der fertige Schal auftaucht."
+  ],
+  "notes": [
+    "Den Laster-Ruf mit gleicher Lautstärke, der beleidigten Antwort und dem einmaligen Blinken auf der Heimfahrt behalten. Der alte Gag bekommt erstmals diese Aufgabe im Einsatz.",
+    "Die Gemeinschaft im Handeln zeigen wie bei Klirrklaus’ Kasten, den Decken und dem Entknoten der Stiefel. Jeder Beitrag kommt aus einer früher erworbenen Fähigkeit oder Aufgabe.",
+    "„Für Seine Majestät“, die Spur zur verschlossenen Tür und das Brummen reichen für den Staffelhinweis. Die Notiz im Ordner bleibt bei dem, was Jona gefunden hat.",
+    "Die ausgeschriebenen Steckbrief-Felder und den knappen letzten Blick auf Gertrud mit Schal behalten.",
+    "Den kurzen Satz am Schluss behalten, mit dem Jona Gertrud um ein Hupen am Fenster bittet. Er macht aus der Rettung eine Abmachung für den nächsten Einsatz."
+  ],
+  "gesamtnote": 7,
+  "_meta": {
+    "provider": "codex",
+    "model": "gpt-6.2-sol (codex)",
+    "effort": "high",
+    "costUSD": null,
+    "tokens": {
+      "completion": 57726
+    },
+    "seconds": 319,
+    "words": [
+      471,
+      391,
+      972
+    ]
+  }
+}

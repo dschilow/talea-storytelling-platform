@@ -1,0 +1,30 @@
+Gesamtnote 8/10 — Verständlich 7, Humor 8, Unterhaltung 8
+  Figurenkonsistenz: 9
+  Plot-Kohärenz: 6
+  Sprachqualität: 8
+  Emotionale Tiefe: 9
+  Altersangemessenheit: 7
+  Ende: 9
+  Kanon-Treue: 9
+  Weitererzähl-Faktor: 9
+
+Kanon-Widersprüche:
+Logiklücken:
+  - „„Das hat einer von draußen aufgemacht“, sagte Jona.“ → Jona hat gezeigt, dass die Schlaufe das Öffnen von draußen ermöglicht. Er hat noch nicht gezeigt, dass sie tatsächlich so benutzt wurde. | Fix: Jona sagen lassen: „Damit kann man das Tor von draußen aufmachen.“ Wenn die Täterschaft an dieser Stelle feststehen soll, kann Gelb später mit einem Halbsatz bestätigen, wer gezogen hat.
+  - „Der Faden lief die Straße entlang. An jeder Ecke stand ein rotes Dreieck.“ → Die Dreiecke können das Signal „Panne“ tragen. An einer Kreuzung weisen sie allein aber keine Richtung. Das ist wichtig, weil der Text erst später zeigt, warum Gertrud genau im mittleren Hof anhielt. | Fix: Einmal zeigen, dass der rote Faden jeweils um die Ecke zum nächsten Dreieck läuft. Im mittleren Hof bestimmen das letzte Dreieck und das zweite Tröt den Haltepunkt.
+  - „Davor verschwand der rote Faden unter gelben und blauen Fäden.“ → Jona kann den roten Faden später direkt bis zur Tür verfolgen. Vorher wirkt es so, als habe er ihn verloren, obwohl er ihn durch Anheben der anderen Fäden wiederfinden kann. In der Suche fehlt ein kurzer Grund, weshalb er zuerst ruft. | Fix: Jona ein kurzes Stück Rot sehen und bewusst zuerst nach Gertrud rufen lassen. Nach Rots Aussage kann er den Faden aufnehmen und der Frage nachgehen, wo er endet.
+  - „Vergessene Strickreste.“ → Gleiche Farben und Staub zeigen, woraus die Bande entstand. Die Verbindung zur Schwäche bleibt kürzer als in den stärkeren Folgen. Der Satz erklärt noch nicht, weshalb ausgerechnet das lose Ende die drei anzieht. | Fix: Den schon beschriebenen Versuch nutzen. Jona sieht Rot das lose Ende aufwickeln und schließt daraus, dass die Knäuel die Wolle wieder aufrollen wollen. Dann benennt er die Bedingung mit dem baumelnden Ende.
+  - „Jona und Klirrklaus hielten die Enden in die Luft, immer eine Handbreit vor den Knopfaugen.“ → Rot erreicht beim Test sein Ende und wickelt es sofort auf. Der Fang verlangt, dass alle drei Enden über mehrere Schritte knapp außer Reichweite bleiben. Dieser Unterschied zwischen Versuch und Fang fehlt als sichtbare Handlung. | Fix: Zeigen, wie Jona das Ende jeweils ein Stück zurückzieht, sobald Rot es fast berührt. Erst im Fach lässt er Rot herankommen.
+  - „Zurück zu ihrem alten Versteck an der Bank.“ → Die Knäuel sind unter Gertruds Stoßstange aufgetaucht. Strickzeug unter der Bank belegt den Ursprungsort, aber noch kein Versteck. Außerdem fehlt ein klarer Ausgangspunkt für den Rückweg. | Fix: Vor dem Fang ein Knäuel kurz unter die Bank huschen und mit den beiden anderen wieder zu Gertrud rollen lassen. Den Kasten vor der Bank abstellen und den Fangweg von Gertrud bis dorthin in einem Satz zeigen.
+  - „Fangtrick: jedem ein baumelndes Ende in seiner Farbe vorhalten“ → Der Steckbrief klingt nach einer Farbregel. Im Kreis folgt Gelb bereits Blau und Blau folgt Rot. Das Kind könnte sich deshalb eine falsche Fangregel merken. | Fix: Im ausformulierten Steckbrief „jedem ein baumelndes Ende vorhalten und bis in ein Fach locken“ schreiben. Die drei Farben bleiben beim Fang als sichtbare Zuordnung erhalten.
+Muss geändert werden:
+  - „Zurück zu ihrem alten Versteck an der Bank“ → Die Bank vor dem Fang als Versteck zeigen und die Positionen von Gertrud, Knäueln und Kasten eindeutig setzen.
+  - „Vergessene Strickreste“ und „immer eine Handbreit vor den Knopfaugen“ → Jona die Verbindung zwischen Strickrest und Aufwickeln hörbar herstellen lassen. Beim Fang einmal zeigen, wie er das Ende in Bewegung und knapp außer Reichweite hält.
+  - „Davor verschwand der rote Faden“ und „Er lief an Gertruds Rädern vorbei“ → Vor der Suche kurz Rot am mittleren Tor sichtbar lassen. Beim Gang zur Tür „der Faden“ als Subjekt wiederholen.
+  - „Das hat einer von draußen aufgemacht“ → Jonas Schluss auf das beschränken, was sein Versuch beweist, oder den tatsächlichen Zug an der Schlaufe später mit einem Halbsatz bestätigen.
+  - „Für Seine Majestät“ → Den Auftrag grammatisch eindeutig machen. Die Identität und den Zweck offen lassen.
+  - „in seiner Farbe“ im ausgeschriebenen Steckbrief → Die Farbe aus der Fangregel streichen. Sie dient beim Fang der Orientierung, während die Knäuel nachweislich auch andersfarbigen Enden folgen.
+  - „Diesmal an der richtigen Stelle“ → Den Rückverweis streichen. Flusis Niesen unmittelbar vor dem Auftauchen der Bande stehen lassen.
+Schulhof-Satz: LASTER!
+
+gpt-6.2-sol (codex), high: 57241 Tokens, 294 s → docs/talea-originals/2026-12-04/sol/monster.final5.json

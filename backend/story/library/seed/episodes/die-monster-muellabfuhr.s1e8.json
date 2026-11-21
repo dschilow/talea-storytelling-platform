@@ -1,0 +1,428 @@
+{
+  "seriesId": "die-monster-muellabfuhr",
+  "season": 1,
+  "episode": 8,
+  "bibleVersion": 2,
+  "publishAt": "2026-12-04T14:00:00.000Z",
+  "title": "Gertrud ist weg!",
+  "summary": "Mitten in der Nacht ist Gertrud verschwunden. Am Hoftor lehnt ein gestricktes Warndreieck, und ein roter Wollfaden führt in die Dunkelheit. Ohne Wagen, ohne Tonnen und ohne Musik folgt die Crew der Spur zu Fuß, und die Gäste der Pension helfen mit. Wer hat Gertrud mit einer falschen Panne weggelockt? Und für wen?",
+  "guests": [
+    {
+      "id": "knaeuelbande",
+      "name": "Die Knäuelbande",
+      "role": "Drei kleine Wollknäuel aus vergessenen Strickresten, neue Strickwerkstatt der Monster-Pension",
+      "visualProfileEn": "three small friendly monsters side by side, each one simply a round, neatly wound ball of soft knitting yarn small enough to hold in one hand: one red, one yellow, one blue, each with two tiny shiny black button eyes and one loose yarn end trailing behind it on the ground like a little tail; just smooth round balls of plain single-colored yarn",
+      "referenceUrl": "/library/series/die-monster-muellabfuhr/s1e8/knaeuelbande.webp"
+    },
+    {
+      "id": "klirrklaus",
+      "name": "Klirrklaus",
+      "role": "Lagerverwalter der Pension aus Folge 6",
+      "visualProfileEn": "friendly tall monster made entirely of old empty glass bottles, a little taller than a grown-up woman: a body and two legs of stacked green, brown and clear glass bottles, two long arms made of chains of small bottles, its head one big thick clear glass bottle standing upright with two shiny golden zigzag-edged bottle caps as round eyes; a single golden knitted wool thread tied in a small bow around the neck of the head bottle like a badge; every bottle is plain glass without any label, sticker or writing",
+      "referenceUrl": "/library/series/die-monster-muellabfuhr/s1e6/klirrklaus.webp"
+    },
+    {
+      "id": "kabelsalat",
+      "name": "Kabelsalat",
+      "role": "Elektriker der Pension aus Folge 7",
+      "visualProfileEn": "friendly monster made of one big tangled ball of old charging cables in black, white and grey, about the size of a beanbag, many small cable plugs sticking out of the tangle like little spikes, two plugs on top wiggling like feelers, two big round friendly eyes peeking out of the knot; plain cables without any writing, no sparks, no electricity, nothing plugged in",
+      "referenceUrl": "/library/series/die-monster-muellabfuhr/s1e7/kabelsalat.webp"
+    }
+  ],
+  "cover": {
+    "url": "/library/series/die-monster-muellabfuhr/s1e8/cover.webp",
+    "sceneEn": "Small cobbled backyard at night between old brick buildings, lit by one street lamp. A red plastic crate divided into many small square compartments like an egg box, every compartment empty, stands tilted forward on the cobbles. [klirrklaus] stands behind it and holds it tilted with both bottle-chain arms. Toward its low front edge rolls [knaeuelbande] in a little row like a tiny train. [jona] in his orange vest kneels beside the crate and reaches into it with one hand, smiling. Exactly these figures, each once",
+    "characterIds": [
+      "knaeuelbande",
+      "klirrklaus",
+      "jona"
+    ],
+    "boxes": {
+      "klirrklaus": [
+        40,
+        20,
+        1000,
+        340
+      ],
+      "knaeuelbande": [
+        560,
+        330,
+        1000,
+        700
+      ],
+      "jona": [
+        380,
+        700,
+        1000,
+        960
+      ]
+    }
+  },
+  "chapters": [
+    {
+      "title": "Tröt",
+      "text": "Jona wachte auf, weil draußen etwas tröt machte.\n\nTröt. Pause. Tröt.\n\nEs klang dünn und wackelig. Wie eine alte Fahrradhupe, die um Hilfe ruft.\n\nJona setzte sich auf dem Klappsofa auf. Draußen sprang ein Motor an. Zwei runde Lichtflecken huschten über die Zimmerdecke. Dann waren sie weg.\n\nJona lief zum Fenster. Der Hof war dunkel und nass vom Regen. Da, wo Gertrud immer parkte, war nichts.\n\n„Oma!“ Jona klopfte an ihre Tür. „Gertrud ist weg!“\n\nOma kam im Schlafanzug heraus und warf sich die Lederjacke über. Sie zogen die Gummistiefel an und liefen hinaus.\n\nAuf dem Weg zum Hoftor leuchtete Jona auf die kleine Klappe an der Pensionstür. Der Riegel war zu. Das Pupsmonster lag quer davor und hielt seine Kordel hoch. Sie hing still.\n\nAuf Gertruds Platz war das Pflaster noch trocken. Ringsum glänzte es nass.\n\n„Die ist eben erst weg“, sagte Jona.\n\nDas Hoftor stand offen. Am Riegel hing eine kurze rote Wollschlaufe. Jona trat hinaus auf die Straße. Oma zog das Tor hinter ihm zu und schob den Riegel vor. Die Schlaufe guckte draußen zwischen den Gitterstäben heraus. Jona zog daran. Der Riegel rutschte zur Seite, und Jona drückte das Tor auf.\n\n„Damit kann man das Tor von draußen aufmachen“, sagte Jona.\n\nDraußen lehnte ein kleines rotes Dreieck aus Wolle am Torpfosten. An einer Ecke war ein zweiter, langer roter Faden festgeknotet. Er lief in die dunkle Straße hinein.\n\n„Ein Warndreieck“, sagte Jona. „Das stellt man auf, wenn man eine Panne hat. Damit einer anhält und hilft.“\n\n„Gertrud hält bei jeder Panne“, flüsterte Oma. „Die hilft jedem. Auch wenn keiner fragt.“\n\nJona ließ den langen Faden liegen und knotete das Dreieck los. „Das ist gestrickt. Und das Tröt vorhin? Vielleicht war das auch ein Trick. Eine falsche Panne.“ Er steckte das Dreieck ein.\n\nOma stand ganz still. „Langsam rollen kann sie allein, Süßer. Aber vom Hof ist sie noch nie ohne mich gefahren.“ Sie schluckte. „Ich hab Angst.“\n\nJona nahm ihre Hand. Er zählte die Stangen am Hoftor. Elf. Da wurde seine Hand ein bisschen ruhiger.\n\nHinter ihnen klirrte es. Kling, kling. Klirrklaus stand in der grünen Tür und sah auf den leeren Platz.\n\n„Fehlt“, klirrte er. „Gertrud. Fehlt.“\n\nDer Socken-Schnüffler steckte den Kopf hinaus. Die Krümelkrake hielt mit einem Arm die Tür auf. Das Gähnmonster kam mit einem Stapel Decken, und der Kabelsalat rollte über die Schwelle.\n\n„Ohne Gertrud haben wir keine Tonnen“, sagte Oma. „Keinen Rüssel. Keine Musik.“\n\nJona sah auf den roten Faden. „Dann gehen wir zu Fuß. Immer dem Faden nach.“\n\nKlirrklaus holte einen seiner leeren Pfandkästen aus der Kammer. „Mit“, klirrte er. „Kasten. Statt Tonne.“\n\nDas Gähnmonster legte Oma eine Decke um die Schultern und Jona eine zweite. Jona zog seine Warnweste darüber. Flusi hüpfte auf seine Schulter. „Flusi hilft!“\n\nOma ging mit der Taschenlampe voraus. Klirrklaus trug den Kasten, der Kabelsalat rollte neben Jona her. Das Pupsmonster blieb bei der Klappe. Die anderen winkten.",
+      "images": [
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e8/ch1.webp",
+          "sceneEn": "Night on a depot yard behind a train station, wet asphalt shining after rain, a small building with a green door and a small flap in it, an open yard gate. On the wet ground there is one empty dry rectangle where a truck was parked. Right in front of the open gate lies one single small knitted red warning triangle made of wool, the only triangle in the whole picture, and a single red yarn thread runs from it out through the gate into the dark street. [jona] in his orange vest crouches right in front of the triangle, the bright beam of his flashlight pointing straight down onto the triangle, frowning at it. [oma-hilde] stands behind him with wide frightened eyes and raised eyebrows, one hand pressed to her mouth, not smiling at all. Exactly these two figures, each once",
+          "characterIds": [
+            "jona",
+            "oma-hilde"
+          ],
+          "afterParagraph": 13,
+          "outfits": {
+            "oma-hilde": "an energetic grandmother around 68, a tall grown-up woman with adult height, short spiky grey hair with one purple streak, a black leather jacket with patches worn over striped pyjamas, black rubber boots"
+          },
+          "boxes": {
+            "oma-hilde": [
+              80,
+              80,
+              1000,
+              420
+            ],
+            "jona": [
+              460,
+              480,
+              1000,
+              860
+            ]
+          }
+        },
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e8/ch1-2.webp",
+          "sceneEn": "Night on a depot yard behind a train station, wet asphalt shining after rain, a small building with a green door and a small flap in it, an open yard gate. In the open green door stands [klirrklaus], holding out an empty red plastic bottle crate with many small square compartments. In front of him [kabelsalat] rolls over the doorstep, its two plug feelers wiggling. [jona] in his orange vest stands in the yard with [flusi] sitting on his shoulder and nods bravely. Exactly these four figures, each once",
+          "characterIds": [
+            "klirrklaus",
+            "kabelsalat",
+            "jona",
+            "flusi"
+          ],
+          "afterParagraph": 23,
+          "boxes": {
+            "klirrklaus": [
+              20,
+              30,
+              1000,
+              360
+            ],
+            "kabelsalat": [
+              520,
+              360,
+              1000,
+              660
+            ],
+            "jona": [
+              300,
+              680,
+              1000,
+              940
+            ],
+            "flusi": [
+              300,
+              760,
+              480,
+              900
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e8/ch1.webp",
+        "sceneEn": "Night on a depot yard behind a train station, wet asphalt shining after rain, a small building with a green door and a small flap in it, an open yard gate. On the wet ground there is one empty dry rectangle where a truck was parked. Right in front of the open gate lies one single small knitted red warning triangle made of wool, the only triangle in the whole picture, and a single red yarn thread runs from it out through the gate into the dark street. [jona] in his orange vest crouches right in front of the triangle, the bright beam of his flashlight pointing straight down onto the triangle, frowning at it. [oma-hilde] stands behind him with wide frightened eyes and raised eyebrows, one hand pressed to her mouth, not smiling at all. Exactly these two figures, each once",
+        "characterIds": [
+          "jona",
+          "oma-hilde"
+        ],
+        "afterParagraph": 13,
+        "outfits": {
+          "oma-hilde": "an energetic grandmother around 68, a tall grown-up woman with adult height, short spiky grey hair with one purple streak, a black leather jacket with patches worn over striped pyjamas, black rubber boots"
+        },
+        "boxes": {
+          "oma-hilde": [
+            80,
+            80,
+            1000,
+            420
+          ],
+          "jona": [
+            460,
+            480,
+            1000,
+            860
+          ]
+        }
+      }
+    },
+    {
+      "title": "Die Wollspur",
+      "text": "Der Faden lief die Straße entlang. An jeder Ecke stand ein rotes Dreieck, und der Faden lief um die Ecke zum nächsten. Bis zum Bahnhof kannte Jona jeden Schritt. Er zählte trotzdem. Dann bog der Faden in eine Gasse ab, die er nicht kannte.\n\n„Für Wolle nehmen wir ‚Hart wie Wolle‘!“, sagte Oma. Sie sang die erste Zeile, laut wie immer. Dann machte sie eine Pause fürs Hupen.\n\nEs blieb still.\n\n„Das wär jetzt dein Einsatz, Süße“, murmelte Oma.\n\nOben ging ein Fenster auf. Ein Mann im Schlafanzug sah hinunter. Er sah eine alte Frau mit Taschenlampe, einen Jungen in Warnweste, einen Haufen Flaschen und einen Haufen Kabel.\n\n„Sonderabfuhr!“, rief Oma.\n\nDer Mann machte das Fenster wieder zu.\n\nDrei breite Hoftore standen offen, eins neben dem anderen. Davor verschwand der rote Faden unter gelben und blauen Fäden. Die liefen in alle drei Höfe und wieder heraus. Kreuz und quer, wie Kritzelei auf dem Boden.\n\n„Als wären hier welche im Kreis gerollt“, sagte Jona.\n\n„Und wo ist jetzt Gertrud?“, fragte Oma.\n\nAlle drei Höfe waren dunkel.\n\n„GERTRUD!“, rief Jona, so laut er konnte.\n\nNichts.\n\n„GERTRUD, SÜSSE!“, rief Oma.\n\nNichts.\n\n„Vielleicht ist sie eingeschlafen“, sagte Oma leise.\n\nJona wusste ein Wort, bei dem Gertrud immer hupte. Immer. Er mochte es nicht. Es war gemein.\n\nEr holte tief Luft. Genauso laut wie eben rief er: „LASTER!“\n\nAus dem mittleren Hof kam ein langes HUUUUP. Sehr beleidigt.\n\nOma lachte laut los. Vor Erleichterung.\n\n„Entschuldigung, Gertrud!“, rief Jona. „Das war nur zum Finden!“\n\nMitten im Hof stand Gertrud. Ihre Scheinwerfer gingen gerade erst an, ganz verschlafen. Vor ihr lagen das letzte rote Dreieck und eine alte Fahrradhupe mit einem Gummiball. Gertrud hatte auf den Wagen mit der Panne gewartet. So lange, bis sie eingeschlafen war.\n\nJona lief zu ihr und strich ihr über die Stoßstange. „Es gibt gar keine Panne, Gertrud. Das war ein Trick.“\n\nGertrud dimmte ihre Lichter, bis sie fast aus waren.\n\n„Darauf wär jeder reingefallen“, sagte Oma. „Jeder, der so gern hilft wie du.“\n\nDa blinkte Gertrud sie an. Zweimal.\n\n„HATSCHI!“, machte Flusi.\n\nUnter Gertruds Stoßstange, im Schatten, bewegte sich etwas. Drei Wollknäuel rollten ins Licht. Ein rotes, ein gelbes und ein blaues, jedes so groß wie eine Mandarine. Sie hatten Knopfaugen und lose Fäden als Schwänzchen.\n\nDas gelbe Knäuel rollte zur Hupe. Sein Schwänzchen lag als Schlaufe um den Gummiball. Es zog die Schlaufe zu.\n\nTröt.",
+      "images": [
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e8/ch2.webp",
+          "sceneEn": "Empty street behind a train station at night, old street lamps, wet cobbles. A single red yarn thread runs along the pavement, and at the street corner stands a small knitted red warning triangle. [oma-hilde] walks in front with a flashlight and a blanket around her shoulders, singing loudly with her mouth wide open and one fist raised like a rock singer. [jona] in his orange vest walks beside her, counting his steps on his fingers. Behind them [klirrklaus] carries an empty red plastic bottle crate, and [kabelsalat] rolls along at the back. Whole scene seen from the side, everyone walking to the right. Exactly these four figures, each once",
+          "characterIds": [
+            "oma-hilde",
+            "jona",
+            "klirrklaus",
+            "kabelsalat"
+          ],
+          "afterParagraph": 5,
+          "outfits": {
+            "oma-hilde": "an energetic grandmother around 68, a tall grown-up woman with adult height, short spiky grey hair with one purple streak, a black leather jacket with patches worn over striped pyjamas, black rubber boots"
+          },
+          "boxes": {
+            "klirrklaus": [
+              20,
+              20,
+              1000,
+              280
+            ],
+            "kabelsalat": [
+              600,
+              280,
+              1000,
+              480
+            ],
+            "jona": [
+              380,
+              480,
+              1000,
+              680
+            ],
+            "oma-hilde": [
+              80,
+              680,
+              1000,
+              960
+            ]
+          }
+        },
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e8/ch2-2.webp",
+          "sceneEn": "Small cobbled backyard at night between old brick buildings, lit by one street lamp. In the middle stands [gertrud] all alone, nobody inside or beside her, her driver's cab empty, just waking up: her big round headlight eyes are half closed and sleepy and glow only faintly. In front of her on the cobbles lie a small knitted red warning triangle and an old bicycle horn with a rubber bulb. In front of her bumper sit three small balls of yarn, [knaeuelbande], red, yellow and blue. In the open wooden gate in front stand [jona] in his orange vest and [oma-hilde], staring at the truck in surprise. Exactly these figures, each once",
+          "characterIds": [
+            "gertrud",
+            "knaeuelbande",
+            "jona",
+            "oma-hilde"
+          ],
+          "afterParagraph": 27,
+          "outfits": {
+            "oma-hilde": "an energetic grandmother around 68, a tall grown-up woman with adult height, short spiky grey hair with one purple streak, a black leather jacket with patches worn over striped pyjamas, black rubber boots"
+          },
+          "boxes": {
+            "gertrud": [
+              80,
+              330,
+              900,
+              980
+            ],
+            "knaeuelbande": [
+              700,
+              520,
+              950,
+              900
+            ],
+            "oma-hilde": [
+              80,
+              20,
+              1000,
+              230
+            ],
+            "jona": [
+              420,
+              200,
+              1000,
+              360
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e8/ch2.webp",
+        "sceneEn": "Empty street behind a train station at night, old street lamps, wet cobbles. A single red yarn thread runs along the pavement, and at the street corner stands a small knitted red warning triangle. [oma-hilde] walks in front with a flashlight and a blanket around her shoulders, singing loudly with her mouth wide open and one fist raised like a rock singer. [jona] in his orange vest walks beside her, counting his steps on his fingers. Behind them [klirrklaus] carries an empty red plastic bottle crate, and [kabelsalat] rolls along at the back. Whole scene seen from the side, everyone walking to the right. Exactly these four figures, each once",
+        "characterIds": [
+          "oma-hilde",
+          "jona",
+          "klirrklaus",
+          "kabelsalat"
+        ],
+        "afterParagraph": 5,
+        "outfits": {
+          "oma-hilde": "an energetic grandmother around 68, a tall grown-up woman with adult height, short spiky grey hair with one purple streak, a black leather jacket with patches worn over striped pyjamas, black rubber boots"
+        },
+        "boxes": {
+          "klirrklaus": [
+            20,
+            20,
+            1000,
+            280
+          ],
+          "kabelsalat": [
+            600,
+            280,
+            1000,
+            480
+          ],
+          "jona": [
+            380,
+            480,
+            1000,
+            680
+          ],
+          "oma-hilde": [
+            80,
+            680,
+            1000,
+            960
+          ]
+        }
+      }
+    },
+    {
+      "title": "Jedem Faden nach",
+      "text": "Gertruds Scheinwerfer gingen sofort hell an. Sie rollte ein Stück auf die Hupe zu. Dann hielt sie an und dimmte die Lichter wieder. Ach ja. Trick.\n\n„Ab in die Tonne, Süße!“ Oma sah auf Klirrklaus’ Kasten. „Heute in den Kasten!“ Sie griff nach Rot.\n\nRot rollte ihr aus der Hand. Gelb rollte dem roten Schwänzchen nach, Blau dem gelben. Dreimal ging es um Omas Gummistiefel herum.\n\nOma wollte einen Schritt machen. Es wurde ein Hüpfer.\n\n„Süßer, ich glaub, die haben mir einen Doppelschuh gestrickt.“\n\n„Moment … ich weiß die Schwäche!“, rief Jona. „Die sind weich wie der Bauch der Krake. Die sind bestimmt auch kitzlig!“\n\nFlusi hüpfte herunter und kitzelte Gelb mit seinem Büschel. Gelb kicherte. Dann sah es Blaus Schwänzchen und rollte hinterher. Blau rollte Rot nach. Und Rot rollte Gelb nach. Im Kreis, immer im Kreis. Bald war der ganze Hof voller Fäden.\n\n„Flusi kitzelt. Knäuel flitzt.“\n\nDer Kabelsalat rollte zu Omas Stiefeln und löste die Fäden, ganz langsam.\n\n„Ich weiß, ich weiß“, sagte Oma. „Stillhalten.“\n\nJona sah den Knäueln nach. Keins rollte vom Kitzeln weg. Jedes rollte dem wackelnden Schwänzchen direkt vor seinen Knopfaugen nach. Genau wie an den drei Toren. Fäden, die flach auf dem Boden lagen, ließen sie liegen. Den langen roten zum Beispiel.\n\nUnter der Bank sah Jona halb fertiges Strickzeug. Rot, gelb und blau. Auf den Maschen lag dicker Staub.\n\n„Hier saßen früher Leute und haben beim Warten gestrickt“, sagte Oma langsam. „Ich glaub, ich kenn diesen Hof.“\n\nVergessene Strickreste. Jona hob ein loses rotes Ende hoch, direkt vor Rots Knopfaugen. Rot sauste darauf zu und wickelte es auf. Ein Stück weiter baumelte das nächste lose Ende vom Strickzeug. Rot rollte gleich weiter.\n\n„Moment … ich weiß die Schwäche!“, sagte Jona. „Die wollen jeden losen Faden aufrollen. Ein Ende, das direkt vor ihren Knopfaugen baumelt, und sie müssen hinterher!“\n\nEr zog am losen Ende des gestrickten Dreiecks. Die Maschen gingen auf. Ein roter Faden wurde immer länger. Dann zupfte er aus dem alten Strickzeug ein gelbes und ein blaues Ende und gab sie Klirrklaus, in jede Flaschenhand eins.\n\nKlirrklaus legte seinen Kasten vor der Bank auf die Seite. Die offenen Fächer zeigten zum Hof.\n\nJona und Klirrklaus hielten die Enden in die Luft, immer eine Handbreit vor den Knopfaugen. Langsam gingen sie rückwärts zum Kasten. Rot rollte dem roten Ende nach, Gelb dem gelben, Blau dem blauen. Wenn Rot sein Ende fast erwischte, zog Jona es ein Stückchen weg. Zurück zu der Bank, unter der die drei entstanden waren.\n\nAm Kasten hielt Jona sein Ende tief in ein Fach hinein. Rot rollte über die Kante hinterher. Plumps. Klirrklaus hielt das gelbe Ende ins Fach daneben und das blaue ins nächste. Plumps. Plumps.\n\nKlirrklaus stellte den Kasten wieder auf. Drei Knäuel, drei Fächer.\n\n„Platz“, klirrte er. „Platz. Platz.“\n\nJona kniete sich vor den Kasten. „Warum habt ihr Gertrud weggelockt?“\n\n„Tröt vorm Tor“, piepste Gelb. „Dann Dreieck, Dreieck, Dreieck. Hier das letzte Dreieck. Und hier noch mal tröt.“\n\n„Da hat sie gedacht, hier steht der kaputte Wagen“, piepste Blau.\n\n„Gertrud sollte hier warten“, piepste Rot. „So wollte es Seine Majestät.“\n\nJona ging zurück zum mittleren Tor. Dort hob er die gelben und blauen Fäden an. Darunter lag der lange rote Faden vom Hoftor. Jona ließ ihn durch die Finger laufen und ging ihm nach. Er lief an Gertruds Rädern vorbei, quer über den Hof, und verschwand unter einer Tür.\n\nOma hob die Taschenlampe. Über der Tür hing ein Blechschild. Eine Waschmaschine mit einem Stern im runden Fenster. Jona hatte sie unter Steckbrief Nr. 7 gemalt, genau nach Mamas Geschichte.\n\n„Der alte Waschsalon“, flüsterte Oma.\n\nFlusi kletterte auf Jonas Schulter und drückte sich an seinen Hals. „Flusi wohnte hier. Unter der großen Maschine.“\n\nHinter der Tür brummte etwas. Tief und leise.\n\nOma drückte die Klinke. Die Tür ging nicht auf. „Abgeschlossen, Süßer. Ohne Schlüssel kommen wir da nicht rein.“ Sie legte Jona die Hand auf die Schulter. „Komm. Jetzt bringen wir Gertrud heim.“\n\nJona sah ins dunkle Fenster. Sein eigenes Gesicht sah zurück. Auf dem Weg zum Tor zählte er dreiundzwanzig Schritte.\n\n„Kommt ihr mit?“, fragte er die Knäuel. „In der Pension gibt’s Wolle.“\n\nGelb guckte zu Rot und Blau. „Alle drei?“, piepste es.\n\n„Alle drei“, sagte Jona.\n\nDa kuschelten sich die drei in ihre Fächer. Oma sicherte den Kasten hinten mit dem Bügel. Klirrklaus setzte sich daneben auf eine gefaltete Decke und hielt sich am Bügel fest. Der Kabelsalat rollte in eine Tonne.\n\nOma setzte sich ans Steuer, Jona kletterte neben sie und Flusi aufs Armaturenbrett. Gertruds Scheinwerfer wurden wieder hell. Oma schob die Kassette ein.\n\n„Hart wie Wolle“ dröhnte aus dem Kassettenspieler. Und Gertrud hupte mit. Genau im Takt. So laut wie noch nie.\n\n„Entschuldigung wegen ‚Laster‘“, sagte Jona.\n\nGertrud blinkte einmal.\n\nIn der Pension tupfte Oma jedes Knäuel mit einem feuchten Tuch ab. „Ganz sacht, Süße. Beim Rubbeln klebt die Wolle zusammen.“\n\nDas Gähnmonster saß auf dem Schrank und strickte an seiner Mütze. Aus seinem Strickkorb baumelten drei lose Fadenenden, genau vor ihren Knopfaugen. Die Knäuel rollten sofort hin.\n\n„Strickwerkstatt“, sagte Oma. „Wenn ihr mögt.“\n\nRot sah zur grünen Tür hinaus, wo Gertrud stand. „Schal für Gertrud?“, piepste es.\n\nDas Gähnmonster nickte und nahm seine Nadeln. Die drei rollten ihm die Wolle aus dem Korb zu, ein Ende nach dem anderen. Die Nadeln klapperten. Ein Schal wuchs. Rot, gelb und blau.\n\nAls er fertig war, trug das Gähnmonster ihn hinaus auf den Hof. Gertrud senkte den Rüssel ganz tief, und das Gähnmonster band ihr den Schal um. Gleich reckte Gertrud den Rüssel so hoch, dass alle ihn sehen konnten.\n\nJona strich ihr über die Stoßstange. „Wenn wieder jemand um Hilfe trötet, hup bei uns am Fenster. Dann helfen wir mit.“\n\nGertrud stupste ihn mit dem weichen Schal an.\n\nJona holte Omas dicken Ordner und schrieb Monster-Steckbrief Nr. 8: Knäuelbande. Ursprung: vergessene Strickreste vom alten Waschsalon. Schwäche: Rollen jedem losen Fadenende nach, das direkt vor ihren Knopfaugen baumelt. Fangtrick: jedem ein baumelndes Ende vorhalten und bis in ein Fach von Klirrklaus' Kasten locken. Job: Strickwerkstatt, rollen dem Gähnmonster die Wolle zu.\n\nDarunter malte er eine Tür mit einem Schloss. Er schrieb dazu: Wollspur zum Waschsalon.\n\nAls die erste Amsel sang, schliefen alle Monster ein. Die Knäuelbande im Strickkorb vom Gähnmonster. Klirrklaus in seinen Kästen. Flusi in Jonas Kapuze.\n\nDraußen stand Gertrud wieder auf ihrem Platz. Mit Schal.",
+      "images": [
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e8/ch3.webp",
+          "sceneEn": "Small cobbled backyard at night between old brick buildings, lit by one street lamp, yarn threads criss-crossing the whole yard. [oma-hilde] hops with both feet together, her two rubber boots tied tightly together by many loops of red, yellow and blue yarn, arms flailing for balance, eyebrows raised in disbelief. Right at her feet [kabelsalat] patiently lifts one yarn loop off her boots with one plug feeler. A little apart [flusi] tickles a small yellow ball of yarn with his single curly tuft, and the yellow ball giggles. Exactly these three figures, each once, and one small yellow ball of yarn",
+          "characterIds": [
+            "oma-hilde",
+            "kabelsalat",
+            "flusi"
+          ],
+          "afterParagraph": 4,
+          "outfits": {
+            "oma-hilde": "an energetic grandmother around 68, a tall grown-up woman with adult height, short spiky grey hair with one purple streak, a black leather jacket with patches worn over striped pyjamas, black rubber boots"
+          },
+          "boxes": {
+            "oma-hilde": [
+              40,
+              30,
+              1000,
+              400
+            ],
+            "kabelsalat": [
+              520,
+              400,
+              1000,
+              760
+            ],
+            "flusi": [
+              700,
+              760,
+              950,
+              960
+            ]
+          }
+        },
+        {
+          "url": "/library/series/die-monster-muellabfuhr/s1e8/ch3-2.webp",
+          "sceneEn": "Small cobbled backyard at night between old brick buildings, lit by one street lamp. A closed old back door under a small plain tin sign showing a simple washing machine with a star in its round window, no letters anywhere. Red, yellow and blue yarn threads come out from under the door. [jona] in his orange vest stands in front of the door and looks up at the sign, holding his breath, with [flusi] trembling on his shoulder. [oma-hilde] stands beside him with her hand on the door handle and whispers, her face serious and amazed, not smiling. Exactly these three figures, each once",
+          "characterIds": [
+            "jona",
+            "flusi",
+            "oma-hilde"
+          ],
+          "afterParagraph": 27,
+          "outfits": {
+            "oma-hilde": "an energetic grandmother around 68, a tall grown-up woman with adult height, short spiky grey hair with one purple streak, a black leather jacket with patches worn over striped pyjamas, black rubber boots"
+          },
+          "boxes": {
+            "oma-hilde": [
+              60,
+              520,
+              1000,
+              860
+            ],
+            "jona": [
+              380,
+              180,
+              1000,
+              480
+            ],
+            "flusi": [
+              380,
+              330,
+              520,
+              460
+            ]
+          }
+        }
+      ],
+      "image": {
+        "url": "/library/series/die-monster-muellabfuhr/s1e8/ch3.webp",
+        "sceneEn": "Small cobbled backyard at night between old brick buildings, lit by one street lamp, yarn threads criss-crossing the whole yard. [oma-hilde] hops with both feet together, her two rubber boots tied tightly together by many loops of red, yellow and blue yarn, arms flailing for balance, eyebrows raised in disbelief. Right at her feet [kabelsalat] patiently lifts one yarn loop off her boots with one plug feeler. A little apart [flusi] tickles a small yellow ball of yarn with his single curly tuft, and the yellow ball giggles. Exactly these three figures, each once, and one small yellow ball of yarn",
+        "characterIds": [
+          "oma-hilde",
+          "kabelsalat",
+          "flusi"
+        ],
+        "afterParagraph": 4,
+        "outfits": {
+          "oma-hilde": "an energetic grandmother around 68, a tall grown-up woman with adult height, short spiky grey hair with one purple streak, a black leather jacket with patches worn over striped pyjamas, black rubber boots"
+        },
+        "boxes": {
+          "oma-hilde": [
+            40,
+            30,
+            1000,
+            400
+          ],
+          "kabelsalat": [
+            520,
+            400,
+            1000,
+            760
+          ],
+          "flusi": [
+            700,
+            760,
+            950,
+            960
+          ]
+        }
+      }
+    }
+  ],
+  "collectible": {
+    "type": "monster_profile",
+    "title": "Monster-Steckbrief Nr. 8",
+    "imageUrl": "/library/series/die-monster-muellabfuhr/s1e8/knaeuelbande.webp",
+    "fields": [
+      {
+        "label": "Name",
+        "value": "Die Knäuelbande"
+      },
+      {
+        "label": "Ursprung",
+        "value": "Vergessene Strickreste unter einer Bank am alten Waschsalon"
+      },
+      {
+        "label": "Schwäche",
+        "value": "Rollen jedem losen Fadenende nach, das direkt vor ihren Knopfaugen baumelt"
+      },
+      {
+        "label": "Fangtrick",
+        "value": "Jedem ein baumelndes Fadenende vorhalten und bis in ein Fach von Klirrklaus' Kasten locken"
+      },
+      {
+        "label": "Job in der Pension",
+        "value": "Strickwerkstatt: rollen dem Gähnmonster die Wolle zu"
+      }
+    ]
+  },
+  "teaser": "Nächste Woche: Oma hat sich den Fuß verknackst. Zum ersten Mal leitet Jona den Einsatz allein. Und unter alten Schattenfiguren liegt etwas, das klimpert.",
+  "canonFactsAdded": [
+    "Gertrud kann langsam ohne Fahrer rollen, war aber noch nie ohne Oma vom Hof gefahren. Kurz vor Mitternacht lockte die Knäuelbande sie mit einer falschen Panne weg: eine alte Fahrradhupe (Tröt, mit einer Schwänzchen-Schlaufe um den Gummiball gedrückt), ein gestricktes rotes Warndreieck am Torpfosten mit einem langen roten Faden und weitere rote Dreiecke an jeder Ecke. Das Hoftor hatten sie von außen mit einer kurzen Wollschlaufe am Riegel geöffnet.",
+    "Oma Hilde gab zu, Angst zu haben. Klirrklaus merkte als Erster: „Fehlt. Gertrud.“ Die Pension half: Klirrklaus kam mit einem leeren Pfandkasten statt Tonne mit, der Kabelsalat kam mit, das Gähnmonster brachte Decken, das Pupsmonster bewachte die Klappe.",
+    "Ohne Wagen folgte die Crew dem roten Faden zu Fuß über den Bahnhof hinaus. Oma sang „Hart wie Wolle“, doch keiner hupte mit („Das wär jetzt dein Einsatz, Süße“). Vor drei Hoftoren verdeckten gelbe und blaue Fäden die Spur. Jona rief „Laster!“, und Gertrud hupte beleidigt aus dem mittleren Hof. Er entschuldigte sich; Gertrud blinkte einmal und verzieh.",
+    "Gertrud stand im Hof hinter dem alten Waschsalon. Sie war nicht gefesselt: Hilfsbereit hatte sie vor dem letzten Dreieck auf den angeblichen Pannenwagen gewartet, bis sie eingeschlafen war. Auf „Gertrud!“ wachte sie nicht auf, auf „Laster!“ sofort. Als Jona ihr sagte, dass es keine Panne gab, dimmte sie beschämt die Lichter; Oma: „Darauf wär jeder reingefallen. Jeder, der so gern hilft wie du.“ Beim nächsten Tröt der Hupe rollte sie aus Reflex wieder los („Ach ja. Trick.“).",
+    "Die Knäuelbande: drei mandarinengroße Wollknäuel, rot, gelb und blau, mit Knopfaugen und losen Fäden als Schwänzchen, entstanden aus vergessenen Strickresten unter der Bank im Hof des alten Waschsalons, wo früher Leute beim Warten strickten. Sie wollen jeden losen Faden aufrollen. Einzige Schwäche: Sie rollen jedem losen Fadenende nach, das direkt vor ihren Knopfaugen baumelt; Fäden, die flach am Boden liegen, lassen sie liegen. Jonas falsche Schwäche war „kitzlig wie die Krake“: Gekitzelt rollten sie einander nur im Kreis nach. Die Knäuel banden Omas Stiefel zum „Doppelschuh“ zusammen, der Kabelsalat löste ihn langsam.",
+    "Fang: Jona ribbelte das gestrickte Warndreieck zu einem roten Faden auf und zupfte aus dem alten Strickzeug ein gelbes und ein blaues Ende für Klirrklaus. Jeder hielt seine Enden eine Handbreit vor den Knopfaugen in die Luft, und jedes Knäuel rollte dem Ende in seiner Farbe zurück zu der Bank nach, unter der die drei entstanden waren,, bis in ein eigenes Fach von Klirrklaus' Kasten („Platz. Platz. Platz.“). Gelb und Blau erklärten: „Tröt vorm Tor. Dann Dreieck, Dreieck, Dreieck. Hier das letzte Dreieck. Und hier noch mal tröt.“ – „Da hat sie gedacht, hier steht der kaputte Wagen.“ Rot: „Gertrud sollte hier warten. So wollte es Seine Majestät.“ Warum, blieb offen.",
+    "Der lange rote Faden vom Hoftor lief über den Hof bis unter die abgeschlossene Hintertür des alten Waschsalons. Darüber hängt das Blechschild aus Folge 7: eine Waschmaschine mit einem Stern im runden Fenster. Hinter der Tür brummte es tief und leise. Flusi hat dort früher unter der großen Maschine gewohnt. Ohne Schlüssel gehen Oma und Jona nicht hinein. Von der Tür bis zum Tor sind es 23 Schritte.",
+    "Die Knäuel kamen freiwillig mit („Alle drei?“ – „Alle drei.“). Oma tupfte sie mit einem feuchten Tuch ab (Wolle nicht rubbeln, sonst filzt sie). Sie arbeiten in der Strickwerkstatt der Pension: Sie rollen dem Gähnmonster die Wolle zu. Ihr erstes Stück, auf Rots Vorschlag („Schal für Gertrud?“), ist ein rot-gelb-blauer Rüsselschal für Gertrud. Jona hat mit Gertrud abgemacht: „Wenn wieder jemand um Hilfe trötet, hup bei uns am Fenster.“ Die Knäuelbande schläft im Strickkorb des Gähnmonsters.",
+    "Monster-Steckbrief Nr. 8 steht im Ordner; darunter hat Jona eine Tür mit einem Schloss gemalt und „Wollspur zum Waschsalon“ geschrieben."
+  ]
+}

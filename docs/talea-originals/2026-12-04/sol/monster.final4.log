@@ -1,0 +1,28 @@
+Gesamtnote 7/10 — Verständlich 7, Humor 8, Unterhaltung 8
+  Figurenkonsistenz: 9
+  Plot-Kohärenz: 6
+  Sprachqualität: 8
+  Emotionale Tiefe: 9
+  Altersangemessenheit: 7
+  Ende: 8
+  Kanon-Treue: 7
+  Weitererzähl-Faktor: 9
+
+Kanon-Widersprüche:
+  - „Am Kasten ließ Jona das Ende ins unterste Fach fallen. Rot rollte hinterher.“ → Die definierte Schwäche verlangt ein baumelndes Ende direkt vor den Augen. Beim entscheidenden Übergang ins Fach zeigt die Szene diesen Auslöser nur bis zum Loslassen.
+  - „Sein Schwänzchen hing noch heraus, und Gelb rollte ihm nach.“ → Für Gelb müsste Rots Schwänzchen direkt vor seinen Augen baumeln. Dass es aus dem Fach hängt, klärt seine Position und Bewegung beim Einrollen nicht ausreichend.
+Logiklücken:
+  - „Gertrud hatte auf den Wagen mit der Panne gewartet. So lange, bis sie eingeschlafen war.“ → Hupe und Dreiecke erklären, warum Gertrud losfährt. Im Zielhof liegt nur die Hupe. Der Text zeigt noch keinen Anhaltspunkt, warum Gertrud glaubt, der Pannenwagen werde dort auftauchen oder sie müsse auf ihn warten. | Fix: An der letzten Station ein eindeutiges Wartesignal der Knäuel zeigen. Rot kann beim Aufdecken knapp sagen, dass sie den letzten Pannenruf hinter dem Tor nachgemacht haben, sodass Gertrud den Wagen dort vermutete. Das freiwillige Warten und Einschlafen bleiben erhalten.
+  - „Oma zog das Tor zu und schob den Riegel vor. Jona zog von draußen an der Schlaufe.“ → Der Standortwechsel kommt ohne Vorbereitung. Aus der Bewegung wird auch nicht klar, ob die Schlaufe am beweglichen Riegel sitzt oder bloß daran hängt. Der Test ist ein guter Beweis, sobald man ihn vor Augen hat. | Fix: Jona ausdrücklich auf die Straße treten lassen, bevor Oma das Tor schließt. Beim Ziehen zeigen, wie die Schlaufe den Riegel seitlich aus seiner Halterung zieht und Jona das Tor aufdrückt.
+  - „Unter der Bank sah Jona halb fertiges Strickzeug.“ → Farben und Staub machen den Ursprung plausibel. Der Schritt von den vergessenen Resten zur Schwäche beruht bislang vor allem darauf, dass Jona die Knäuel bereits im Kreis rollen sah. | Fix: Die beiden Entdeckungen in eine Handlung legen. Jona hebt das passende lose Ende aus dem angefangenen Strickstück an und beobachtet, wie Rot es sofort aufwickelt und beim nächsten baumelnden Stück weiterrollt. So zeigt ausgerechnet der Fundort, was sich die Bande angewöhnt hat.
+  - „Am Kasten ließ Jona das Ende ins unterste Fach fallen. Rot rollte hinterher.“ → Ein fallendes Ende ist nach dem Loslassen nur kurz in Bewegung und liegt dann im Fach. Der Text hat ausdrücklich gezeigt, dass flach liegende Fäden keinen Zwang auslösen. Anschließend ist bei den anderen Knäueln nur noch von einem heraushängenden Schwänzchen die Rede. | Fix: Jona hält die Spitze auf Augenhöhe, bis Rot die Kante überrollt. Klirrklaus lässt Gelb und Blau ein Ende vor ihren eigenen Fächern baumeln, bis auch sie drin sind. Damit wirkt dieselbe Schwäche dreimal sichtbar und der Pfandkasten muss keine drei mandarinen­großen Knäuel in einem Flaschenfach aufnehmen.
+  - „Darunter lag der lange rote Faden vom Hoftor.“ → Am Eingang zu den Höfen verliert Jona die Spur im Gewirr. Im Hof erkennt er sie später sofort als denselben Faden. Das Hupen hat den Hof gefunden, aber noch nicht gezeigt, welcher rote Faden von der Straße bis zur Tür durchläuft. | Fix: Jona den roten Faden am mittleren Tor wiederfinden und mit den Fingern bis zur Tür verfolgen lassen. Ein kurzes Anheben zeigt, welcher Faden unter den anderen durchläuft.
+  - „„Strickwerkstatt“, sagte Oma. „Wenn ihr mögt.““ → Die drei sind den Fäden wegen ihrer Schwäche schon gefolgt. Damit ist noch nicht sichtbar, ob ihnen die Arbeit gefällt. Der fertige Schal verdeckt außerdem, wer beim Stricken was beigetragen hat. | Fix: Erst die Fäden ablegen. Dann ein Knäuel von sich aus Wolle zu den Nadeln rollen lassen oder fragen lassen, ob der Schal für Gertrud sein darf. Ein kurzer Zeitsprung bis zum fertigen Schal genügt.
+Muss geändert werden:
+  - „Gertrud hatte auf den Wagen mit der Panne gewartet“ → Schon im Hof eine konkrete Spur zeigen, die ihr freiwilliges Warten plausibel macht. Die Fahrradhupe erklärt die Fahrt. Beim Warten fehlt der Anhaltspunkt.
+  - „Ein loses Fadenende, das direkt vor ihren Knopfaugen baumelt“ → Diese Regel bis zum letzten Zentimeter des Fangs durchspielen. Das Ende vor den Augen halten, während das jeweilige Knäuel ins Fach rollt. Die drei Fächer auch beim Fang nutzen.
+  - „Am Riegel hing eine kurze rote Wollschlaufe“ und „ein zweiter, langer roter Faden“ → Pensionstür und Hoftor räumlich trennen. Bei der Vorführung den Riegel sichtbar bewegen und im Hof die lange Spur bis zur Waschsalontür verfolgen lassen.
+  - „wickelte die Wolle bis zu den Nadeln“ → Einen vollständigen Arbeitsgriff der Strickwerkstatt zeigen. Die Bande soll nach dem Angebot einmal aus eigenem Antrieb helfen, bevor der fertige Schal auftaucht.
+Schulhof-Satz: „LASTER!“ – HUUUUP!
+
+gpt-6.2-sol (codex), high: 57726 Tokens, 319 s → docs/talea-originals/2026-12-04/sol/monster.final4.json

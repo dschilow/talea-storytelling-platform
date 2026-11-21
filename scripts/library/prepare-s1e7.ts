@@ -64,7 +64,7 @@ const bruno: EpisodeSeed = {
   collectible: { type: "flunker_card", title: "Flunker-Karte Nr. 7", imageUrl: `${b}/cover.webp`, fields: [
     { label: "Flunkerei", value: "„Mein Papa ist Astronaut. Er zeigt uns heute ein schwereloses Training in unserer Küche!“" },
     { label: "Wer flunkert", value: "Ella" },
-    { label: "Was wörtlich passiert", value: "Papa trägt einen Raumanzug und schwebt mit Kaffeetassen und Pfannkuchen durch die Küche. Beim Außeneinsatz schwebt er an der Wäscheleine im Treppenhaus. Und Ella muss bei jedem Training zugucken." },
+    { label: "Was wörtlich passiert", value: "Papa trägt einen Raumanzug und schwebt mit Kaffeetassen und Pfannkuchen durch die Küche. Frau Grimmbach öffnet er kopfüber die Tür. Und Ella muss bei jedem Training zugucken." },
     { label: "Die Wahrheit", value: "Papa ist kein Astronaut. Ella wollte nicht, dass Papa fragt, was sie suchen: den alten Zylinder." },
     { label: "Mutmoment", value: "Die Wahrheit sagen, obwohl sie damit genau das verrät, was sie verstecken wollte." },
   ] },

@@ -1,0 +1,325 @@
+{
+  "reviewer": "gpt-6.2-sol über das Codex-Abo (codex exec), Denkstufe high",
+  "vorgabe": "Abschlussnote mindestens 8",
+  "rounds": {
+    "bruno": [
+      {
+        "round": "r1",
+        "fassung": "Erstfassung, mit Überarbeitung",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 8,
+          "ende": 7,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 8
+        },
+        "mustFix": [
+          "„Wer sich festhält, muss nicht wieder runter“ und „Der Tisch war leer“ lassen Vermutung und Neustart-Regel ineinanderlaufen → den Festhalteversuch als Vermutung formulieren und früh zeigen, dass der Festablauf mitsamt Torte und Geschenken zurückspringt, Erinnerungen und volle Bäuche aber bleiben.",
+          "„Als alle für Mats' Wunsch die Augen zumachten“ führt eine neue Handlung aus dem Nichts ein, und Kaisers Pfote kommt ohne erkennbaren Widerstand ans Glas → ihn während des etablierten Topfschlagens angreifen und an einem sichtbaren Detail des bestehenden Kater-Alarms scheitern lassen.",
+          "„Kaiser schaffte es nur bis zur Fußmatte“ und „Der Kater auch!!!“ liefern keine stimmige Zählung → zweimaliges Hereinschlüpfen, den letzten Neustart und Kaisers Verbleib unten eindeutig setzen.",
+          "„Meine Feier fängt nicht jede Stunde wieder von vorn an“ ist im laufenden Zauber missverständlich → Mats soll seine Behauptung ausdrücklich widerrufen und sagen, dass ursprünglich nur die Feier um drei geplant war.",
+          "„Als hätte ich vier Stück gegessen“ legt nach der verweigerten vierten Torte eine falsche Bilanz nahe → die Pointe vom vollen Bauch behalten und die Stückzahl streichen.",
+          "„Ich wollte sehen, ob er es gut bei euch hat“, „Passt weiter gut auf“ und Brunos stumme Blicke erklären und erweitern den Staffelhinweis → die Fensterbeobachtung belassen, das von den Kindern begonnene Gespräch kurz halten und Brunos rätselhafte Reaktionen streichen.",
+          "„Du hast vier Stunden gar nichts gesagt!“ widerspricht der Beschwerde um vier → ausdrücklich auf Brunos Schweigen vor Lia beziehen.",
+          "„Da stand ein Eintrag in ihrer eigenen Schrift“ lässt die Gedächtnislücke im Schlussritual aus → Grimmbach soll den Eintrag als ihre Schrift erkennen und sich ans Schreiben nicht erinnern."
+        ],
+        "schulhofSatz": "Beim Topfschlagen fand Oma den Topf. Und Papas Fuß.",
+        "seconds": 361
+      },
+      {
+        "round": "final",
+        "fassung": "Abschluss 1 (v2)",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 8,
+          "ende": 7,
+          "kanonTreue": 8,
+          "weitererzaehlFaktor": 8
+        },
+        "mustFix": [
+          "„Dann mussten alle wieder runter“ → Oma und Lia konkret nennen. Beim ersten PLING einmal klar zeigen, wer am Eingang neu beginnt, wer oben bleibt und wie Lias Paket zu ihr gelangt.",
+          "„Für den Zauber war er auch ein Gast“ → Kaisers Mitschleichen beim Klingeln als sichtbaren Auslöser zeigen. Um sechs seinen Weg von der Haustür zur Erdgeschossmatte ergänzen, damit Eintrag 53 beim ersten Lesen aufgeht.",
+          "„Zweite Torte“, „dritte Torte“, „Die vierte Torte“ → beim ersten Reset genau dieselbe Dino-Torte vor Mats’ Augen wieder ganz werden lassen. So trägt der Text die Pointe mit Papas vollem Bauch und die stehen gebliebene Torte am Ende.",
+          "„Das hast du schon zweimal gesagt“ → den dritten Geschenkbeat verändern. Lia zieht das Paket zurück oder hält die Schnur fest, und Mats greift trotzdem nach dem Topf. Dann hat sein späteres Innehalten einen konkreten Auslöser.",
+          "„Aber jetzt seid ihr alle so müde“ → die konkrete Wahrheit in Mats’ Stimme kurz halten und den Blick auf Lias Geschenk wirken lassen. Müdigkeit, peinlicher Vergleich und übergangene Freundin brauchen an derselben Stelle keine dreifache Erklärung.",
+          "„Da blieb sein goldenes Glöckchen am unteren Faden hängen“ → den Fangversuch mit einem Geburtstagsteil scheitern lassen, etwa rutschendem Geschenkpapier. Das Glöckchen kann Kaiser dabei verraten. Die fast identische Falle aus Folge 4 verbraucht hier den Platz für einen eigenen Gag.",
+          "„Mats. Er ist immer noch da“ → den kurzen Kontakt am Hoftor enger fassen und das ausbleibende PLING direkt nach dem gemeinsamen Spiel zeigen. Die Kinder fragen weiterhin aus eigenem Antrieb, und der Mann behält seine knappe Antwort."
+        ],
+        "schulhofSatz": "„Keiner hat Torte gegessen? Komisch. Ich bin pappsatt.“",
+        "seconds": 325
+      },
+      {
+        "round": "r3",
+        "fassung": "v3, mit Überarbeitung",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 8,
+          "ende": 8,
+          "kanonTreue": 8,
+          "weitererzaehlFaktor": 8
+        },
+        "mustFix": [
+          "„Genau wie um Viertel vor drei“ → Den sichtbaren Ausgangspunkt auf das erste Klingeln um drei legen. Bei jedem Neustart dieselbe Anfangslage zeigen und danach Raum für Änderungen lassen.",
+          "„Nur das Puzzle von Mama und Papa lag eingepackt auf dem Tisch“ → Beim Wiederankommen deutlich zeigen, dass Oma und Lia ihre Pakete wieder mitbringen. Die fortlaufende Zeit an Sättigung und Müdigkeit konkret machen.",
+          "„Für den Zauber war er auch ein Gast“ → Kaisers Rückkehr aus dem beobachteten gemeinsamen Weg zur Feier erklären. Beim vierten Beginn sichtbar machen, dass er diesmal unten bleibt.",
+          "„Vielleicht bleibt ihr oben, wenn ihr euch festhaltet!“ → Ellas Versuch ausdrücklich auf den nächsten Treppenaufstieg beziehen und die Zeile im Planer anlegen, bevor sie sie durchstreicht.",
+          "„Dann musste Oma wieder drei Stockwerke runter und rauf“ → Teleportation nach unten und anschließendes Treppensteigen im Satz auseinanderhalten.",
+          "„Ich habe mitgezählt“ → Grimmbach von der ersten Ankunft an in Hör- und Sichtweite zeigen. Ihrem Eintrag vier Ankünfte und genau zwei Katerbesuche zugrunde legen.",
+          "„Beim Topfschlagen fand Oma den Topf. Und Papas Fuß“ → Den Gag so zeigen, dass Oma den Hausschuh mitsamt Fuß tastend findet und kein Schlag auf den Fuß nötig ist.",
+          "„Das hier ist besser“ → Lia eine konkrete Lust am nächsten gemeinsamen Spiel aussprechen lassen. Mats' Kartennachtrag hält fest, was er nächstes Mal tatsächlich anders macht."
+        ],
+        "schulhofSatz": "Die Torte war wieder ganz. Aber in Mats' Bauch war das erste Stück noch drin.",
+        "seconds": 365
+      },
+      {
+        "round": "final2",
+        "fassung": "Abschluss 2 (v4)",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 8,
+          "ende": 8,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Im Arm hielt sie das Sofakissen“ → Beim ersten PLING die Startorte der Gäste, ihrer Geschenke und der Torte klar zeigen. Beim zweiten PLING mit Kissen und Schnipsel sichtbar machen, welche gewöhnlichen Dinge mitkommen, während Mantel und Geschenk zum wiederholten Auftritt gehören.",
+          "„Papa sah die ganze Torte an“ → Beim PLOPP ausdrücklich zeigen, dass die vierte Torte als inzwischen wieder ganze Torte auf dem Tisch bleibt. Um sieben bestätigt das ausbleibende PLING, dass sie sich ab jetzt nicht mehr neu auffüllt.",
+          "„Zweimal sogar mit Kater!!!“ → Frau Grimmbach Kaiser beim zweiten und dritten Aufstieg im Erdgeschoss sehen lassen. Sein Abbiegen zu ihr beim vierten bleibt stehen.",
+          "„Warte. Diesmal zeig ich dir …“ → Das zweite Auspacken stark kürzen und beim dritten Mats' Entscheidung zeigen, am Programm festzuhalten. Ein Griff nach dem Kochlöffel nach einem Blick auf die Liste reicht. So hat Lias Loslassen Gewicht, und Mats wirkt weniger vergesslich."
+        ],
+        "schulhofSatz": "„Noch ein Geschenk!“ Heraus kam Kaiser.",
+        "seconds": 306
+      }
+    ],
+    "monster": [
+      {
+        "round": "r1",
+        "fassung": "Erstfassung, mit Überarbeitung",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 7,
+          "ende": 7,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Hier war niemand hinein- oder herausgekommen“ → aus der stillen Kordel nur auf fehlenden Luftzug schließen.",
+          "„Das Hoftor stand offen“ und „Mit einer falschen Panne“ → zeigen, wie die Bande den Riegel öffnet und mit Dreiecken und Fahrradhupe bis ins Ziel lockt.",
+          "„Jona hob das Dreieck auf“ → Dreieck und Wegfaden sichtbar trennen. Den Verlauf an den drei Toren in einem einzigen klaren Bild zeigen und das Tor weit genug für Gertrud lassen.",
+          "„Die schämt sich“ und „wie vier riesige Socken“ → Scham als Vermutung behandeln und zeigen, was Gertrud am Weiterrollen hindert.",
+          "„Ab in den Kasten, Süße!“ → den Pflichtspruch wortgetreu einsetzen und den Kasten als Pointe ergänzen.",
+          "„Nicht kitzlig“ → das Kichern lassen und zeigen, dass der Versuch den Fang erschwert.",
+          "„Strickreste“ und „jedem Faden“ → den Ursprung sichtbar belegen und die Schwäche durch ein loses Fadenende direkt vor dem Knäuel eindeutig auslösen.",
+          "„so groß wie ein Fußball“ und „plumps in ein Fach“ → Knäuel verkleinern, den Rand erreichbar machen und den Kasten nach dem Fang wieder aufrichten.",
+          "„Die Knäuel waren da drin gewesen“, „Majestät wollte den lila Wagen“ und „Das hieß wohl Ja“ → beim Lockauftrag, der Spur und dem Brummen bleiben. Die verschlossene Tür bleibt bis Folge 9 zu.",
+          "„hinten aufs Trittbrett“ → freiwillige Mitfahrt zeigen, den Kasten sicher verstauen und den Fahrersitz eindeutig Oma geben.",
+          "„gleich singt die Amsel“ → die falsche Eile streichen. Materialpflege, Strickarbeit und Vogelschluss in eine glaubwürdige Reihenfolge bringen.",
+          "„Sie verzieh“ → die zweite gleichlautende Schlussgeste durch Gertruds Reaktion auf den Schal und eine konkrete Verabredung für den nächsten Hilferuf ersetzen."
+        ],
+        "schulhofSatz": "„LASTER!“ Aus dem mittleren Hof kam ein langes HUUUUP. Sehr beleidigt.",
+        "seconds": 445
+      },
+      {
+        "round": "r2",
+        "fassung": "v2, mit Überarbeitung",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 5,
+          "sprachqualitaet": 7,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 7,
+          "ende": 7,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Das Hoftor stand offen“ → Zeigen, dass die rote Schlaufe von außen durch die Gitterstäbe erreichbar ist und den Riegel hebt.",
+          "„Das Tröt war bestimmt auch nicht echt“ → Jonas Verdacht als Verdacht lassen. Die nachgemachte Hilfshupe später in Aktion bestätigen.",
+          "„Zweihundertzwölf bis zum Bahnhof“ → Die kanonische Zahl ausdrücklich auf den Weg ab Omas Haus beziehen.",
+          "„Alle liefen in eine schmale Gasse“ → Den Knoten so anlegen, dass erst der Kabelsalat die weiterführende Spur von losen Resten trennt.",
+          "„Wenn sie auf einen Trick reinfällt, mag sie sich am liebsten verstecken“ → Omas Vermutung offenlassen und Gertruds Verlegenheit bei der Begegnung zeigen.",
+          "„Genau wie bei den drei Toren“ und „bis in ein Fach“ → Die Schwäche an einem vorgehaltenen Ende aus den alten Strickresten zeigen. Danach jedes Knäuel mit einem eigenen, mitbewegten Ende tatsächlich in sein Fach lotsen.",
+          "„Für Seine Majestät!“ und „Seine Majestät hat gesagt“ → Den Auftrag einmal beiläufig nennen. Die falsche Panne endet erkennbar am Waschsalon, und Brummen, geschlossene Tür und unbekannte Absicht bleiben erhalten.",
+          "„Unter der Tür klemmten die Enden“ → Leitspur an der Schwelle räumlich von den bereits gelösten Radfesseln unterscheiden.",
+          "„Als sie trocken waren“ und „Strickwerkstatt“ → Mit materialgerechtem Abtupfen anfangen, der Bande eine sichtbare Werkstattaufgabe geben und den Schal erst gegen Morgen fertig werden lassen."
+        ],
+        "schulhofSatz": "„Süßer, ich glaub, die haben mir einen Doppelschuh gestrickt.“",
+        "seconds": 393
+      },
+      {
+        "round": "r3",
+        "fassung": "v3 ohne Laternenknoten, mit Überarbeitung",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 8,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 7,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 8,
+          "ende": 8,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Zwei runde Lichter wanderten über die Küchendecke“ und „Gertrud hält bei jeder Panne“ → Jonas Blick vom Klappsofa aus verorten und Gertruds langsame Selbstfahrt in Omas Reaktion eindeutig machen.",
+          "„Der Riegel ging hoch“ → erst das Hoftor probeweise schließen, dann zeigen, wie die Schlaufe es von außen öffnet.",
+          "„Vom Hoftor bis zum Bahnhof waren es zweihundertzwölf Schritte“ → die exakte Zahl dem Weg zwischen Bahnhof und Haus vorbehalten. Hier genügt Jonas Zählen bis zum Bahnhof.",
+          "„Alle drei liefen in jeden Hof hinein und wieder heraus“ → den roten Leitfaden durch kreuzende gelbe und blaue Fäden verdecken und im mittleren Hof eindeutig wieder aufnehmen.",
+          "„Sein Schwänzchen hing um den Gummiball. Es zog“ → zeigen, dass die Schlaufe den Ball zusammendrückt.",
+          "„Gertrud hielt sofort still“ → Gertruds Rücksicht als Grund zeigen. Ein Knäuel gerät beim Anrollen beinahe von der Stoßstange, Gertrud hält an, und das Knäuel befreit sein Schwänzchen später sichtbar.",
+          "„Gelb und Blau flitzten hinterher“ → nach Gelbs Start Blau und Rot folgen lassen. Jona soll daraus eine Vermutung entwickeln und sie am Strickzeug gezielt prüfen.",
+          "„Am Kasten ließ Jona das Ende hineinfallen“ → Jona zieht das Ende über den Rand bis hinten in den Kasten. Alle drei Rollen bleiben verfolgbar.",
+          "„Für Seine Majestät!“ und „Hat Majestät gesagt“ → den Auftrag einmal beiläufig in der Antwort auf Jonas Frage benennen. Das Brummen und die verschlossene Tür bleiben.",
+          "„Klirrklaus kletterte in eine Tonne“ → für Klirrklaus einen gesicherten Platz beim Pfandkasten verwenden. Sein bekanntes Tonnenproblem bleibt bestehen.",
+          "Zweimal „die ganze Nacht“ und die ausgeschriebenen Steckbrieffelder → die Zeitabfolge straffen, den Schal aus der Werkstatt sichtbar entstehen lassen und den geschriebenen Steckbrief samt Zeichnung im Erzähltext zeigen."
+        ],
+        "schulhofSatz": "„LASTER!“ – „HUUUUP!“",
+        "seconds": 383
+      },
+      {
+        "round": "final",
+        "fassung": "Abschluss 1 (v4)",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 9,
+          "plotKohaerenz": 7,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 7,
+          "ende": 8,
+          "kanonTreue": 9,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "Die zwei roten Fäden auseinanderhalten. Bei „Am Riegel hing eine rote Wollschlaufe“ ein kurzes Stück am Tor zeigen. Den langen Faden am Dreieck eindeutig als die Spur etablieren, die unter der Waschsalontür verschwindet.",
+          "Den Auslöser der Wollschwäche präzisieren. „Jedem losen Fadenende“ ist weiter gefasst als Jonas Vorführung. Bei Fang, frei hängenden Schwänzchen, Strickkorb und Steckbrief dieselbe sichtbare Bedingung verwenden.",
+          "Aus „Von jedem Rad lief ein Faden zu einem Pfosten“ einen nachvollziehbaren Grund für Gertruds Stillstand machen. Ihr kurzes Anrollen spannt die Wolle und zieht Blau beinahe mit. Gertrud hält aus Rücksicht an.",
+          "Den Fang an der Strickbank räumlich auflösen. Das aufgezogene Dreieck wird zur kurzen Lockspur zurück zum Versteck. Die drei „Plumps“ sind bereits die Landungen in den drei Fächern.",
+          "Bei „In der Pension gibt’s Wolle“ eine klare freiwillige Antwort der Bande zeigen. Ein kurzer Blick oder die Frage „Alle drei?“ reicht, um ihre Entscheidung und ihren Wunsch nach Zusammenbleiben verständlich zu machen.",
+          "Vor „Als er fertig war, hielt Gertrud den Rüssel ganz tief“ den fertigen Schal aus der Pension auf den Hof bringen. Dort kann das Gähnmonster ihn Gertrud umbinden."
+        ],
+        "schulhofSatz": "„Süßer, ich glaub, die haben mir einen Doppelschuh gestrickt.“",
+        "seconds": 350
+      },
+      {
+        "round": "final2",
+        "fassung": "Abschluss 2 (v5)",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 9,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 8,
+          "altersangemessenheit": 7,
+          "ende": 8,
+          "kanonTreue": 9,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "Die drei Einfahrten in den Kasten sichtbar machen. Bei „Jona zog das Ende über den Rand in den Kasten“ führt ein Ende die ganze Reihe in dieselbe Richtung. Die Wollspur bis zur Bank behalten und am Kasten jedem Knäuel ein eigenes Ende vor genau einem Fach geben.",
+          "Gertruds Stillhalten eindeutig verursachen. Bei „Und Blaus Schwänzchen lag genau unter ihrem Vorderrad“ zeigen Pfostenfäden und blauer Faden gleichzeitig auf zwei verschiedene Hindernisse. Schon bei der Entdeckung zeigen, wie Blaus Faden in der Radwolle hängt und beim kleinsten Rollen Blau mitzieht.",
+          "Die Pannenspur für Erstleser greifbar machen. In „Sie lief durch die Gitterstäbe auf die Straße“ die Torschlaufe kurz und sichtbar am Riegel halten. Das lange rote Ende gehört ans aufrecht gestützte Dreieck. Am Waschsalon den Faden im Licht wieder sichtbar werden lassen.",
+          "Die falsche Schwäche im Handlungsablauf trennen. In „Gelb kicherte und flitzte los“ das Kichern einmal stehen lassen und Gelb anschließend eindeutig hinter einem sichtbaren losen Ende herrollen lassen.",
+          "Beim Satz „Die Knäuel gaben dem Gähnmonster Faden“ konkret Wolle aus dem Strickkorb weiterreichen lassen. So bleiben die drei Knäuel im neuen Job sichtbar vollständig."
+        ],
+        "schulhofSatz": "Süßer, ich glaub, die haben mir einen Doppelschuh gestrickt.",
+        "seconds": 266
+      },
+      {
+        "round": "final3",
+        "fassung": "Abschluss 3 (v6, Gertrud nicht mehr gefesselt)",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 9,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 7,
+          "ende": 8,
+          "kanonTreue": 8,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Den langen roten zum Beispiel“ → Die Beobachtung an der Bank mit der Handlung am Hoftor vereinbaren. Der lange Faden liegt auf dem Boden, während ein freies Ende direkt vor den Knopfaugen die Knäuel auslöst. Dieses eine Kriterium durch Beobachtung, Versuch, Fang und Steckbrief durchhalten.",
+          "„Hinter Gertrud lag der lange rote Faden vom Hoftor“ → Jona soll die rote Spur unter dem Fadengewirr wieder aufnehmen und ihr bis zur verschlossenen Tür folgen. So entdeckt er den Zusammenhang selbst.",
+          "„Laster“, flüsterte er, und „LASTER!“ → Gertruds Namen vorher in derselben Lautstärke rufen lassen. Die Empfindlichkeit gegenüber dem Wort löst das Hupen aus.",
+          "„HATSCHI!“ und „Vor ihrer Stoßstange saßen drei Wollknäuel“ → Den Nieser direkt vor den sichtbaren Auftritt setzen und die Knäuel bis dahin im Schatten der Stoßstange halten.",
+          "„Bis das unterste Fach fast den Boden berührte“ → Die Ausrichtung des Kastens und den Weg des losen Endes in zwei einfachen Bewegungen zeigen. Rot darf das Ende erst am Kasten erreichen. Den Vorgang im ausgeschriebenen Steckbrief als Handlung formulieren.",
+          "„Strickwerkstatt“ → Im Text zeigen, wie aus dem Hinterherrollen das Wollzureichen wird. Im Jobfeld die Aufgabe der drei benennen, damit der fertige Schal ihre erste gelungene Arbeit abschließt."
+        ],
+        "schulhofSatz": "„LASTER!“",
+        "seconds": 308
+      },
+      {
+        "round": "final4",
+        "fassung": "Abschluss 4 (v7)",
+        "gesamtnote": 7,
+        "dimensions": {
+          "figurenkonsistenz": 9,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 7,
+          "ende": 8,
+          "kanonTreue": 7,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Gertrud hatte auf den Wagen mit der Panne gewartet“ → Schon im Hof eine konkrete Spur zeigen, die ihr freiwilliges Warten plausibel macht. Die Fahrradhupe erklärt die Fahrt. Beim Warten fehlt der Anhaltspunkt.",
+          "„Ein loses Fadenende, das direkt vor ihren Knopfaugen baumelt“ → Diese Regel bis zum letzten Zentimeter des Fangs durchspielen. Das Ende vor den Augen halten, während das jeweilige Knäuel ins Fach rollt. Die drei Fächer auch beim Fang nutzen.",
+          "„Am Riegel hing eine kurze rote Wollschlaufe“ und „ein zweiter, langer roter Faden“ → Pensionstür und Hoftor räumlich trennen. Bei der Vorführung den Riegel sichtbar bewegen und im Hof die lange Spur bis zur Waschsalontür verfolgen lassen.",
+          "„wickelte die Wolle bis zu den Nadeln“ → Einen vollständigen Arbeitsgriff der Strickwerkstatt zeigen. Die Bande soll nach dem Angebot einmal aus eigenem Antrieb helfen, bevor der fertige Schal auftaucht."
+        ],
+        "schulhofSatz": "„LASTER!“ – HUUUUP!",
+        "seconds": 319
+      },
+      {
+        "round": "final5",
+        "fassung": "Abschluss 5 (v8)",
+        "gesamtnote": 8,
+        "dimensions": {
+          "figurenkonsistenz": 9,
+          "plotKohaerenz": 6,
+          "sprachqualitaet": 8,
+          "emotionaleTiefe": 9,
+          "altersangemessenheit": 7,
+          "ende": 9,
+          "kanonTreue": 9,
+          "weitererzaehlFaktor": 9
+        },
+        "mustFix": [
+          "„Zurück zu ihrem alten Versteck an der Bank“ → Die Bank vor dem Fang als Versteck zeigen und die Positionen von Gertrud, Knäueln und Kasten eindeutig setzen.",
+          "„Vergessene Strickreste“ und „immer eine Handbreit vor den Knopfaugen“ → Jona die Verbindung zwischen Strickrest und Aufwickeln hörbar herstellen lassen. Beim Fang einmal zeigen, wie er das Ende in Bewegung und knapp außer Reichweite hält.",
+          "„Davor verschwand der rote Faden“ und „Er lief an Gertruds Rädern vorbei“ → Vor der Suche kurz Rot am mittleren Tor sichtbar lassen. Beim Gang zur Tür „der Faden“ als Subjekt wiederholen.",
+          "„Das hat einer von draußen aufgemacht“ → Jonas Schluss auf das beschränken, was sein Versuch beweist, oder den tatsächlichen Zug an der Schlaufe später mit einem Halbsatz bestätigen.",
+          "„Für Seine Majestät“ → Den Auftrag grammatisch eindeutig machen. Die Identität und den Zweck offen lassen.",
+          "„in seiner Farbe“ im ausgeschriebenen Steckbrief → Die Farbe aus der Fangregel streichen. Sie dient beim Fang der Orientierung, während die Knäuel nachweislich auch andersfarbigen Enden folgen.",
+          "„Diesmal an der richtigen Stelle“ → Den Rückverweis streichen. Flusis Niesen unmittelbar vor dem Auftauchen der Bande stehen lassen."
+        ],
+        "schulhofSatz": "LASTER!",
+        "seconds": 294
+      }
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+Gesamtnote 8/10 — Verständlich 7, Humor 8, Unterhaltung 8
+  Figurenkonsistenz: 8
+  Plot-Kohärenz: 7
+  Sprachqualität: 8
+  Emotionale Tiefe: 9
+  Altersangemessenheit: 8
+  Ende: 8
+  Kanon-Treue: 7
+  Weitererzähl-Faktor: 9
+
+Kanon-Widersprüche:
+Logiklücken:
+  - „Unten vor der Haustür stand Oma im Mantel. Im Arm hielt sie das Sofakissen.“ → Der Text kennt das Kissen als mitgenommenen Alltagsgegenstand. Omas Mantel muss sie dagegen wieder anhaben, und Lias aufgerissenes Paket ist wieder ordentlich verschnürt. Der Leser kann aus der Flunkerei allein nicht erschließen, warum sich diese Dinge verschieden verhalten. | Fix: Omas Mantel beim ersten Ankommen ausdrücklich als Teil des ursprünglichen Auftritts zeigen. Beim zweiten PLING Ella die Probe auswerten lassen: „Die Feier fängt neu an. Du kommst wieder im Mantel mit deinem Geschenk. Das Kissen hat der Zauber einfach mit dir runtergeschickt.“ Das im Ohr steckende Papier bei Kaiser kann dieselbe Beobachtung bestätigen.
+  - „„Vier“, sagte sie. „Ich habe mitgezählt.““ → Die vier Aufstiege sind nachvollziehbar. Beim ersten Aufstieg mit Kaiser bimmelt es aber erst an der Wohnungstür im dritten Stock, während Frau Grimmbach unten steht. Beim zweiten sieht Ella den Kater im Hof. Der Text schuldet Grimmbach einen Blick auf den Kater, wenn sie ihn zweimal ins Heft einträgt. | Fix: Beim zweiten und dritten Klingeln Kaiser im Erdgeschoss sichtbar an Grimmbach vorbei hinter Lia herlaufen lassen. Beim vierten Mal biegt er vor ihren Augen zu ihr ab.
+  - „Papa sah die ganze Torte an. „Keiner hat Torte gegessen?““ → Der Zauber hat die fehlenden Stücke sichtbar ersetzt. Nach dem PLOPP ist diese direkt veränderte Torte noch ganz und wird später verteilt. Das kann als bleibende Folge funktionieren, doch die Folge macht diesen Unterschied zur endenden Wiederholung nicht sichtbar genug. | Fix: Beim PLOPP auf die Torte schneiden und den Zustand ausdrücklich bestätigen. „Das PLOPP war vorbei. Die Torte blieb ganz. Nur von allein voll werden würde sie jetzt nicht mehr.“ Den letzten Satz bei Bedarf durch das gemeinsame Anschneiden nach sieben zeigen.
+  - „„Okay. Plan B.“ Sie schrieb in ihren Planer: Oben bleiben.“ → Die Idee ist verständlich, aber ihre Niederlage kostet kaum etwas und bringt Ella wenig sichtbare Erkenntnis. Sie streicht nur ihren Satz. Dadurch wirkt Plan B eingeschoben, obwohl der Versuch den Neustart erklären könnte. | Fix: Ella den leeren Sofaplatz und dann das Kissen in Omas Arm sehen lassen. Ihre Folgerung soll Mats später wieder einfallen, wenn er vor sieben Omas nächsten Aufstieg vor sich sieht.
+Muss geändert werden:
+  - „Im Arm hielt sie das Sofakissen“ → Beim ersten PLING die Startorte der Gäste, ihrer Geschenke und der Torte klar zeigen. Beim zweiten PLING mit Kissen und Schnipsel sichtbar machen, welche gewöhnlichen Dinge mitkommen, während Mantel und Geschenk zum wiederholten Auftritt gehören.
+  - „Papa sah die ganze Torte an“ → Beim PLOPP ausdrücklich zeigen, dass die vierte Torte als inzwischen wieder ganze Torte auf dem Tisch bleibt. Um sieben bestätigt das ausbleibende PLING, dass sie sich ab jetzt nicht mehr neu auffüllt.
+  - „Zweimal sogar mit Kater!!!“ → Frau Grimmbach Kaiser beim zweiten und dritten Aufstieg im Erdgeschoss sehen lassen. Sein Abbiegen zu ihr beim vierten bleibt stehen.
+  - „Warte. Diesmal zeig ich dir …“ → Das zweite Auspacken stark kürzen und beim dritten Mats' Entscheidung zeigen, am Programm festzuhalten. Ein Griff nach dem Kochlöffel nach einem Blick auf die Liste reicht. So hat Lias Loslassen Gewicht, und Mats wirkt weniger vergesslich.
+Schulhof-Satz: „Noch ein Geschenk!“ Heraus kam Kaiser.
+
+gpt-6.2-sol (codex), high: 59351 Tokens, 306 s → docs/talea-originals/2026-12-04/sol/bruno.final2.json

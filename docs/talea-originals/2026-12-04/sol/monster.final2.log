@@ -1,0 +1,29 @@
+Gesamtnote 7/10 — Verständlich 7, Humor 8, Unterhaltung 8
+  Figurenkonsistenz: 9
+  Plot-Kohärenz: 6
+  Sprachqualität: 8
+  Emotionale Tiefe: 8
+  Altersangemessenheit: 7
+  Ende: 8
+  Kanon-Treue: 9
+  Weitererzähl-Faktor: 9
+
+Kanon-Widersprüche:
+Logiklücken:
+  - „Draußen stand ein kleines rotes Dreieck aus Wolle.“ → Die falsche Panne hängt daran, dass Gertrud das Zeichen nachts erkennt. Ein kleines weiches Dreieck steht ohne erkennbare Stütze auf dem nassen Boden. | Fix: Das gestrickte Dreieck aufrecht an einen Bordstein oder Pfosten lehnen oder es auf einen festen Rahmen spannen. Ein Dreieck am Ziel im Licht von Gertruds Scheinwerfern zeigen.
+  - „„Vielleicht schämt sie sich“, sagte Oma leise.“ → Scham kann die erste Stille erklären, bleibt hier aber Omas Vermutung. Gerade weil „LASTER!“ augenblicklich eine Antwort auslöst, möchte man lesen können, wie Gertrud auf das Wiedersehen reagiert. | Fix: Gertruds abgewandte oder schwächer werdende Scheinwerfer bei Jonas erster Berührung als kurze Antwort anlegen. Oma darf vorher rätseln.
+  - „Gertrud rollte ein winziges Stück vor. Gleich spannten sich die Fäden zum Pfosten. Und Blaus Schwänzchen lag genau unter ihrem Vorderrad.“ → Die Szene liefert zugleich Wolle an Pfosten und einen gefährdeten blauen Faden. Sie zeigt den Auslöser für Gertruds Entscheidung erst nach ihrer Entdeckung. Offen bleibt, was sie zuvor im Hof hielt und wodurch Blau bei einem weiteren Stück mitgezogen würde. | Fix: Schon bei der Entdeckung zeigen, dass Blaus Schwänzchen in der Wolle vor dem Rad steckt. Beim kleinsten Rollen zieht sich die Wolle straff und Blau rutscht näher. Gertrud stoppt sofort.
+  - „Gelb kicherte und flitzte los.“ → Jonas falsche Vermutung führt unmittelbar zu einer tatsächlich sichtbaren Reaktion. Dass dabei ein Faden und nicht die Berührung die Richtung bestimmt, lässt der Text erst später erkennen. | Fix: Gelb kurz kichern lassen. Im nächsten Satz rollt es hör- und sichtbar hinter einem losen Ende her. Flusis Büschel ist zu diesem Zeitpunkt schon weg.
+  - „„Ein loses Fadenende direkt vor den Knopfaugen, und sie müssen hinterher!““ → Der Zwang ist stark genug, dass die drei beim Fang jedes Ende verfolgen. Beim Stellen der Falle mussten sie trotzdem durch ihre eigenen langen Fäden manövrieren. Die festgebundenen Enden geben eine plausible Antwort, die der Text hier noch nicht mit der falschen Panne verknüpft. | Fix: Zeigen, dass die Spurenden an Dreiecken, Pfosten und Tür festgebunden sind und das freiliegende Ende am Strickzeug die Bande sofort ablenkt. Damit ist die Grenze derselben Schwäche im Bild.
+  - „Jona zog das Ende über den Rand in den Kasten. Plumps, ins erste Fach. Plumps, ins zweite. Plumps, ins dritte.“ → Der Zug führt Rot in ein Fach. Gelb folgt Rot, Blau folgt Gelb. Die Fachwände trennen die Knäuel erst durch einen Bewegungswechsel, den der Text überspringt. | Fix: Die rote Wollspur bis zur Bank behalten. Am Kasten fächert Jona drei lose Enden auf, je eins vor einem Fach. Jedes Knäuel rollt sichtbar seinem eigenen Ende nach und wickelt es im Fach auf.
+  - „„Für Seine Majestät“, piepste Rot.“ → Der Auftrag ist klar genug für den Staffelfund. Für den gelösten Fall fehlt ein kleiner Hinweis darauf, was die Bande nach dem Locken tun sollte. Sonst wirkt das Festsetzen des Wagens wie ein willkürliches zweites Ziel. | Fix: Rot bei der kurzen Antwort das sichtbare Ziel benennen lassen, etwa „Gertrud sollte hier warten. Für Seine Majestät.“ Den Grund für den Auftrag offenlassen.
+  - „Die Knäuel gaben dem Gähnmonster Faden.“ → Gerade waren die Knäuel als lebendige Wollkörper mit Schwänzchen beschrieben. Kinder können verstehen, dass der Schal aus abgewickelten Stücken der Knäuel selbst besteht. | Fix: Die drei rollen zur losen Wolle aus dem Strickkorb und schieben dem Gähnmonster diese Wolle hin. Die Farbfolge des Schals bleibt erhalten.
+Muss geändert werden:
+  - Die drei Einfahrten in den Kasten sichtbar machen. Bei „Jona zog das Ende über den Rand in den Kasten“ führt ein Ende die ganze Reihe in dieselbe Richtung. Die Wollspur bis zur Bank behalten und am Kasten jedem Knäuel ein eigenes Ende vor genau einem Fach geben.
+  - Gertruds Stillhalten eindeutig verursachen. Bei „Und Blaus Schwänzchen lag genau unter ihrem Vorderrad“ zeigen Pfostenfäden und blauer Faden gleichzeitig auf zwei verschiedene Hindernisse. Schon bei der Entdeckung zeigen, wie Blaus Faden in der Radwolle hängt und beim kleinsten Rollen Blau mitzieht.
+  - Die Pannenspur für Erstleser greifbar machen. In „Sie lief durch die Gitterstäbe auf die Straße“ die Torschlaufe kurz und sichtbar am Riegel halten. Das lange rote Ende gehört ans aufrecht gestützte Dreieck. Am Waschsalon den Faden im Licht wieder sichtbar werden lassen.
+  - Die falsche Schwäche im Handlungsablauf trennen. In „Gelb kicherte und flitzte los“ das Kichern einmal stehen lassen und Gelb anschließend eindeutig hinter einem sichtbaren losen Ende herrollen lassen.
+  - Beim Satz „Die Knäuel gaben dem Gähnmonster Faden“ konkret Wolle aus dem Strickkorb weiterreichen lassen. So bleiben die drei Knäuel im neuen Job sichtbar vollständig.
+Schulhof-Satz: Süßer, ich glaub, die haben mir einen Doppelschuh gestrickt.
+
+gpt-6.2-sol (codex), high: 57401 Tokens, 266 s → docs/talea-originals/2026-12-04/sol/monster.final2.json

@@ -1,0 +1,54 @@
+Gesamtnote 8/10 — Verständlich 7, Humor 8, Unterhaltung 8
+  Figurenkonsistenz: 8
+  Plot-Kohärenz: 7
+  Sprachqualität: 8
+  Emotionale Tiefe: 9
+  Altersangemessenheit: 8
+  Ende: 8
+  Kanon-Treue: 8
+  Weitererzähl-Faktor: 8
+
+Kanon-Widersprüche:
+  - „Dann musste Oma wieder drei Stockwerke runter und rauf.“ → Die Brandts wohnen im dritten Stock. Der Zauber hat Oma bei den früheren Neustarts direkt nach unten versetzt. Das „runter und rauf“ widerspricht dem gezeigten Weg, wenn es als zweimaliges Treppensteigen gelesen wird.
+Logiklücken:
+  - „„Papa steckte gerade sieben Kerzen hinein, genau wie um Viertel vor drei.““ → Die Feier soll um drei beginnen. Die Szene bezeichnet den Zustand von Viertel vor drei als Ausgangspunkt, ohne zu erklären, warum gerade die Vorbereitung zurückgesetzt wird. | Fix: Papa stellt die fertige Torte beim ersten Klingeln bereit. Beim PLING steht sie mit sieben frischen Kerzen wieder genauso da.
+  - „„Nur das Puzzle von Mama und Papa lag eingepackt auf dem Tisch.““ → Der Text trennt das Puzzle von den anderen Geschenken, bevor er zeigt, wohin diese geraten. Auch die Erwachsenen dürfen sich an vorige Runden erinnern, während Sachen ihre Ausgangslage wieder annehmen. | Fix: Die beiden mitgebrachten Geschenke sichtbar mit ihren Gästen zurückkommen lassen. Den Teller mit der vollen Torte und Mats' immer volleren Bauch direkt gegeneinander setzen.
+  - „„Diesmal packte Mats noch schneller aus.““ → Die zweite Runde wechselt sofort zu den Geschenken, obwohl die erste mit Lied, Kerzen und Torte etabliert ist. Der Text lässt aus, ob der Neustart denselben Anfang wieder herstellt oder alle Leute zu einer festen Reihenfolge zwingt. | Fix: Den gleichen Auftakt wiederholen. Danach können die Figuren den Ablauf ändern, wie Papa mit den winzigen Stücken und dann mit dem weggelegten Messer zeigt.
+  - „„Vielleicht bleibt ihr oben, wenn ihr euch festhaltet!““ → Ella kennt Plan W. Ohne ihr Ziel klingt der Versuch, als wolle sie den Zauber doch mit Festhalten aushebeln. Außerdem streicht sie später einen Plan durch, den sie vorher nur ausgesprochen hat. | Fix: Ella will den Gästen den nächsten Aufstieg ersparen. Sie schreibt „Oben bleiben“ in ihren Planer und streicht genau diese Zeile nach dem PLING.
+  - „„Vier“, sagte sie. „Ich habe mitgezählt.““ → Grimmbach soll am Ende vier Ankünfte bezeugen. Ihre Beobachtung bei drei und fünf bleibt unsichtbar, obwohl der Eintrag gerade von der Zahl lebt. | Fix: Grimmbach beim ersten Klingeln an der Erdgeschosstür zeigen und sie beim zweiten und dritten Mal einen Strich machen lassen.
+  - „„Dann musste Oma wieder drei Stockwerke runter und rauf.““ → Der Abstieg wird im Text übersprungen. Das PLING versetzt die Gäste direkt vor die Haustür. | Fix: Oma steht beim PLING sofort unten und muss die drei Stockwerke erneut hochsteigen.
+Muss geändert werden:
+  - „Genau wie um Viertel vor drei“ → Den sichtbaren Ausgangspunkt auf das erste Klingeln um drei legen. Bei jedem Neustart dieselbe Anfangslage zeigen und danach Raum für Änderungen lassen.
+  - „Nur das Puzzle von Mama und Papa lag eingepackt auf dem Tisch“ → Beim Wiederankommen deutlich zeigen, dass Oma und Lia ihre Pakete wieder mitbringen. Die fortlaufende Zeit an Sättigung und Müdigkeit konkret machen.
+  - „Für den Zauber war er auch ein Gast“ → Kaisers Rückkehr aus dem beobachteten gemeinsamen Weg zur Feier erklären. Beim vierten Beginn sichtbar machen, dass er diesmal unten bleibt.
+  - „Vielleicht bleibt ihr oben, wenn ihr euch festhaltet!“ → Ellas Versuch ausdrücklich auf den nächsten Treppenaufstieg beziehen und die Zeile im Planer anlegen, bevor sie sie durchstreicht.
+  - „Dann musste Oma wieder drei Stockwerke runter und rauf“ → Teleportation nach unten und anschließendes Treppensteigen im Satz auseinanderhalten.
+  - „Ich habe mitgezählt“ → Grimmbach von der ersten Ankunft an in Hör- und Sichtweite zeigen. Ihrem Eintrag vier Ankünfte und genau zwei Katerbesuche zugrunde legen.
+  - „Beim Topfschlagen fand Oma den Topf. Und Papas Fuß“ → Den Gag so zeigen, dass Oma den Hausschuh mitsamt Fuß tastend findet und kein Schlag auf den Fuß nötig ist.
+  - „Das hier ist besser“ → Lia eine konkrete Lust am nächsten gemeinsamen Spiel aussprechen lassen. Mats' Kartennachtrag hält fest, was er nächstes Mal tatsächlich anders macht.
+Schulhof-Satz: Die Torte war wieder ganz. Aber in Mats' Bauch war das erste Stück noch drin.
+
+Überarbeitung: 3 Kapitel, 1953 Wörter (vorher 2031) → docs/talea-originals/2026-12-04/sol/bruno.r3.txt
+  · Den ersten Bericht über Finn und Lias Rückblick entdoppelt. Lia erzählt direkt von der Taube aus dem Hut. Mats' Blick auf den Planer hält den Vergleich mit Finn präsent.
+  · „Das machte er jedes Mal so“ durch den konkreten Rückgriff „Schon beim letzten Besuch hatte er vor Lia geschwiegen“ ersetzt.
+  · Den ersten Klingelablauf räumlich geklärt. Papa benutzt den Türöffner, Grimmbach sieht Oma und Lia unten, Papa stellt die Torte beim Klingeln um drei bereit.
+  · Lias Paket mit einer Schleife beschrieben und die Schnur am roten Vorhang erst beim Auspacken eingeführt.
+  · Mats' Schritt zum Regal mit „Für einen Moment wollte er bloß, dass Lia staunte“ motiviert und den Zaubersatz wortgetreu gelassen.
+  · Das erste „Ella sah es“ behalten und später durch ihren Blick auf Lias Paket vor Mats' Geständnis aufgegriffen.
+  · „Beim Topfschlagen fand Oma den Topf. Und Papas Fuß“ durch den tastend gefundenen Hausschuh ersetzt. Papas Fuß steckt noch darin.
+  · Den ersten Neustart an den Festbeginn um drei gebunden. Die Torte wird ganz und trägt frische Kerzen, das Puzzle bleibt oben, und die mitgebrachten Geschenke kommen mit Oma und Lia zurück.
+  · „Kaum waren sie allein“ vor Brunos Kommentar durch die sichtbare Platzierung ersetzt. Papa ist im Flur, Mama in der Küche, Ella und Mats stehen am Glas.
+  · Bei der zweiten Runde Lied, Kerzen und Torte als wiederkehrenden Auftakt ergänzt. „Die wollte ich IMMER schon!“ wurde zu „Dino-Socken!“ und Oma behält ihre trockene Antwort.
+  · Kaiser bimmelt beim Hereinhuschen zwischen Lias Füßen. Grimmbach macht beim zweiten und dritten Klingeln sichtbar Zählstriche.
+  · Omas „Ein Haustier wolltest du doch IMMER schon“ durch „Ein Haustier! War das nicht dein Wunsch?“ ersetzt. Mats' „Einen HUND!“ bleibt.
+  · Plan B heißt im Planer nun „Oben bleiben“. Ella will Oma und Lia den nächsten Aufstieg ersparen und streicht die Zeile nach dem missglückten Versuch.
+  · „Für den Zauber war er auch ein Gast“ durch die beobachtete Regel ersetzt, dass die zur Feier Hochgekommenen wieder unten stehen. Kaisers Rückzug zu Grimmbach beim vierten Beginn ist sichtbar.
+  · Die dritte Runde gestrafft. Die Polonaise ist durch Hände auf den Schultern verständlich, und Mats hat den Kochlöffel schon in der Hand, als Lia ihm endlich den Vorhang zeigen will.
+  · „Auf jedem Treppenabsatz“ wurde zu „In jedem Stockwerk“. „Runter und rauf“ wurde zu Omas erneutem Aufstieg nach dem PLING.
+  · Die vierte Runde auf Papas erlahmendes Lied, das weggelegte Messer, Lias Schweigen und Mats' eigene Entscheidung konzentriert. Papas Frage nach der ganzen Torte macht seinen Gedächtnisverlust unmittelbar verständlich.
+  · „Wie geht der Vorhang?“ wurde zu „Wie geht der Vorhang auf?“. Lias „Das hier ist besser“ wurde zu der Verabredung „Nächstes Mal fangen wir mit dem Löwen an.“
+  · Das Klingeln um sieben an der Haustür verortet und den Gang zum Mann am Hoftor gestrafft. „Von hier sieht man gut nach oben“ wurde zu „Von hier seh ich, wer runterguckt.“
+  · Brunos „Das sagt ja wohl alles“ durch „Für die Zugabe will ich Extra-Flocken“ ersetzt. Das Rückwärtslied und seine genaue Auflösungsformel bleiben.
+  · Mats' Kartennachtrag „Lia wollte nur spielen. Ich auch“ durch „Nächstes Mal frag ich gleich: Wie geht der Vorhang auf?“ ersetzt. Grimmbachs Eintrag 53 bleibt wortgetreu.
+
+gpt-6.2-sol (codex), high: 63363 Tokens, 365 s → docs/talea-originals/2026-12-04/sol/bruno.r3.json

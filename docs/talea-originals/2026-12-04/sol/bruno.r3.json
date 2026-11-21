@@ -1,0 +1,745 @@
+{
+  "canonChecks": [
+    {
+      "quote": "Am Sonntag wurde Mats sieben.",
+      "fact": "Mats war zu Reihenbeginn sechs. Sein siebter Geburtstag in dieser Folge ist freigegeben.",
+      "agrees": true
+    },
+    {
+      "quote": "Drei Uhr: Oma und Lia kommen.",
+      "fact": "Oma Rosi kommt sonntags. Lia kehrt in Folge 8 als Gast zurück.",
+      "agrees": true
+    },
+    {
+      "quote": "Mats zog an seiner rutschenden Socke.",
+      "fact": "An seiner rutschenden Socke zupft Mats auch in Folge 3, als er Lia beeindrucken will.",
+      "agrees": true
+    },
+    {
+      "quote": "„Weil Lia die Beste ist.“",
+      "fact": "Lia ist seit Folge 3 seine Freundin. Dass Mats nur sie einlädt, passt zu der Bedeutung, die sie für ihn hat.",
+      "agrees": true
+    },
+    {
+      "quote": "Im Glas auf dem Regal drehte Bruno eine Runde.",
+      "fact": "Bruno lebt im Aquarium auf dem Wohnzimmerregal.",
+      "agrees": true
+    },
+    {
+      "quote": "„Und wer kriegt nichts? Der Fisch, der den ganzen Nachmittag den Mund halten muss.“",
+      "fact": "Bruno klagt gern über fehlende Aufmerksamkeit und schweigt während Lias Besuch freiwillig.",
+      "agrees": true
+    },
+    {
+      "quote": "Solange Lia da war, sagte Bruno kein Wort.",
+      "fact": "Lia hört Bruno gemäß Folge 4 und der Entscheidung für Folge 8 nicht sprechen.",
+      "agrees": true
+    },
+    {
+      "quote": "Das machte er jedes Mal so.",
+      "fact": "Folge 4 zeigt dieselbe Entscheidung. Weitere Besuche sind möglich, im bisherigen Text ist ein solcher Besuch belegt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich bin ein Fisch“, sagte Bruno.",
+      "fact": "Bruno bleibt ein Goldfisch. Zu diesem Zeitpunkt sind nur die beiden Kinder bei ihm. Mama und Papa bereiten die Feier in der Küche vor.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich kann schweigen wie ein Fisch.“",
+      "fact": "Bruno entscheidet selbst, vor Lia zu schweigen. Seine eitle Antwort passt zu seinem Ton.",
+      "agrees": true
+    },
+    {
+      "quote": "Ella streute ihm drei Extra-Flocken ins Wasser.",
+      "fact": "Extra-Flocken sind Brunos wiederkehrende Forderung.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma Rosi kam die Treppe herauf, mit Blumenkleid und Holzperlenkette.",
+      "fact": "Blumenkleid und Holzperlenkette sind aus Folge 5 bekannt.",
+      "agrees": true
+    },
+    {
+      "quote": "Im Wohnzimmer blieb Lia vor Brunos Regal stehen.",
+      "fact": "Das Aquarium steht wie bisher auf dem Wohnzimmerregal.",
+      "agrees": true
+    },
+    {
+      "quote": "Bruno presste das Maul zu.",
+      "fact": "Bruno unterdrückt vor Lia seine Kommentare, wie bereits in Folge 4.",
+      "agrees": true
+    },
+    {
+      "quote": "„Der hat eine Taube aus dem Hut geholt. Zum Glück saß ich ganz hinten.“",
+      "fact": "Lia hat in Folge 4 erzählt, dass sie Angst vor Tauben hat.",
+      "agrees": true
+    },
+    {
+      "quote": "Er stellte sich vor das Regal. Direkt vor Brunos Glas.",
+      "fact": "Mats befindet sich beim Aussprechen der Flunkerei im selben Raum wie das Aquarium.",
+      "agrees": true
+    },
+    {
+      "quote": "„Bei mir gibt's was viel Besseres“, sagte er. „Heute beginnt meine Geburtstagsfeier jede Stunde wieder ganz von vorn!“",
+      "fact": "Mats gibt eine erfundene Behauptung als Tatsache aus, um Lia zu beeindrucken. Das ist eine echte Flunkerei im Sinne der Zauberregel.",
+      "agrees": true
+    },
+    {
+      "quote": "Im Glas knackte es. Wie ein Kiesel, der gegen die Scheibe tippt.",
+      "fact": "Das Knacken markiert wie in den früheren Folgen den Beginn des Zaubers. Bruno löst ihn nicht aus.",
+      "agrees": true
+    },
+    {
+      "quote": "„Das war nicht geflunkert, das war ausgedacht!“, flüsterte Mats.",
+      "fact": "Mats' Spruch steht wortgetreu da. Seine nachgeschobene Verteidigung macht aus der Behauptung kein verabredetes Spiel.",
+      "agrees": true
+    },
+    {
+      "quote": "„Tk“, machte sie mit der Zunge.",
+      "fact": "Lia macht bei Unsicherheit kleine Zungengeräusche.",
+      "agrees": true
+    },
+    {
+      "quote": "Darin war eine Bühne aus Pappe. Mit einem roten Vorhang, festgemacht mit Büroklammern.",
+      "fact": "Lia baut seit Folge 3 Pappbühnen mit Büroklammern am Vorhang.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann waren Lias Paket und Omas Socken weg. Nur das Puzzle von Mama und Papa lag eingepackt auf dem Tisch.",
+      "fact": "Der Zauber setzt den Festbeginn mitsamt der Ausgangslage für die Geschenke zurück. Die unterschiedliche Behandlung der Gegenstände ist plausibel, wird hier aber erst nachträglich sichtbar.",
+      "agrees": true
+    },
+    {
+      "quote": "Papa steckte gerade sieben Kerzen hinein, genau wie um Viertel vor drei.",
+      "fact": "Der Wortlaut setzt die Feier an ihren Anfang zurück. Die ausdrücklich als vor der Feier begonnene Vorbereitung kann hier mitgemeint sein, der genaue Rücksetzpunkt bleibt im Text jedoch unscharf.",
+      "agrees": true
+    },
+    {
+      "quote": "Kaum waren sie allein, drückte Bruno das Maul an die Scheibe.",
+      "fact": "Bruno darf das kurze Fenster nutzen, in dem Lia draußen ist und sich nur Ella und Mats im Wohnzimmer befinden.",
+      "agrees": true
+    },
+    {
+      "quote": "„Noch mal singen?“, knurrte er.",
+      "fact": "Bruno spricht in diesem Moment nur mit Ella und Mats. Seine Beschwerde entspricht seiner Sprechweise.",
+      "agrees": true
+    },
+    {
+      "quote": "„Mats“, sagte Ella. „Sag die Wahrheit. Jetzt gleich.“",
+      "fact": "Ella kennt die Lösung aus den vorigen Folgen. Mats könnte den Zauber schon vor ihr allein beenden.",
+      "agrees": true
+    },
+    {
+      "quote": "„Bei Mats fängt die Feier ja jede Stunde von vorn an. Weiß doch jeder.“",
+      "fact": "Die Erwachsenen halten die Neustarts während des Zaubers für normal. Oma darf dabei wissen, dass sie schon oben war.",
+      "agrees": true
+    },
+    {
+      "quote": "„Wieder von vorn?“, fragte Lia.",
+      "fact": "Als Kind bemerkt Lia das Seltsame. Sie hat frühere Zauber und das Plopp bereits erlebt, ohne Brunos Rolle zu kennen.",
+      "agrees": true
+    },
+    {
+      "quote": "Zwischen ihren Beinen huschte etwas Graues mit einem Glöckchen in die Wohnung.",
+      "fact": "Kaiser schlüpft wieder durch eine geöffnete Wohnungstür. Sein goldenes Glöckchen verrät ihn.",
+      "agrees": true
+    },
+    {
+      "quote": "Unten im Erdgeschoss ging eine Tür auf.",
+      "fact": "Frau Grimmbach wohnt im Erdgeschoss.",
+      "agrees": true
+    },
+    {
+      "quote": "„Schon wieder Besuch bei Brandts?“, rief Frau Grimmbach die Treppe hinauf.",
+      "fact": "Frau Grimmbach überwacht das Treppenhaus und spricht die Familie mit Nachnamen an. „Schon wieder“ zeigt, dass sie einen früheren Besuch mitbekommen hat.",
+      "agrees": true
+    },
+    {
+      "quote": "„Die hast du doch eben schon gekriegt.“",
+      "fact": "Die beschlossene Normalisierung während des Zaubers löscht die Erinnerung an vorige Runden nicht. Das Vergessen setzt beim Ende des Zaubers ein.",
+      "agrees": true
+    },
+    {
+      "quote": "Aber in Mats' Bauch war das erste Stück noch drin.",
+      "fact": "Die Magie wiederholt den Festbeginn. Die Zeit und die körperlichen Folgen der vorigen Runde laufen weiter.",
+      "agrees": true
+    },
+    {
+      "quote": "Von dort wollte er zu Brunos Regal.",
+      "fact": "Kaiser verfolgt weiterhin seinen Plan, Bruno zu fangen. Der in Folge 6 wieder aufgehängte Kater-Alarm bleibt bestehen. Der Sprung scheitert schon am Tisch.",
+      "agrees": true
+    },
+    {
+      "quote": "Das Papier rutschte. Kaiser rutschte mit, über die Tischkante, und plumpste in den Haufen aus zerrissenem Papier.",
+      "fact": "Kaisers Fangversuch scheitert an einer Kleinigkeit. Er erreicht Bruno nicht.",
+      "agrees": true
+    },
+    {
+      "quote": "Der Haufen bimmelte.",
+      "fact": "Kaisers Glöckchen verrät ihn auch nach dem missglückten Sprung.",
+      "agrees": true
+    },
+    {
+      "quote": "„Einen HUND!“, rief Mats.",
+      "fact": "Mats wünscht sich seit Folge 1 einen Hund.",
+      "agrees": true
+    },
+    {
+      "quote": "Kaiser hob das Kinn und stolzierte unters Sofa.",
+      "fact": "Kaiser bleibt stumm und wahrt nach dem Fehlschlag seine Würde.",
+      "agrees": true
+    },
+    {
+      "quote": "„Okay. Plan B“, sagte sie.",
+      "fact": "Ellas Ausweichplan beginnt mit der wortgetreuen Wendung „Okay. Plan B.“",
+      "agrees": true
+    },
+    {
+      "quote": "Vom Fenster aus sah Ella hinunter in den Hof.",
+      "fact": "Das Wohnzimmerfenster bietet wie in Folge 4 und Folge 5 Blick in den Hof.",
+      "agrees": true
+    },
+    {
+      "quote": "Er war mit den Gästen hereingekommen. Für den Zauber war er auch ein Gast.",
+      "fact": "Der örtliche Neustart darf Kaiser über seine Teilnahme erfassen. Die Geschichte braucht dafür keine zweite Flunkerei und keine neue Fähigkeit Brunos.",
+      "agrees": true
+    },
+    {
+      "quote": "Hinten am Hoftor stand ein dünner alter Mann mit einem langen grauen Bart.",
+      "fact": "Das Aussehen entspricht dem Verkäufer aus Folge 1. Sein Standort setzt den Staffelhinweis dieser Folge.",
+      "agrees": true
+    },
+    {
+      "quote": "Auf dem Kopf trug er einen Filzhut, der aussah wie ein Fisch. Mit Flossen.",
+      "fact": "Der Fischhut ist das Erkennungsmerkmal des Flohmarktverkäufers.",
+      "agrees": true
+    },
+    {
+      "quote": "Er sah nach oben. Nicht zu Oma. Zu ihrem Fenster.",
+      "fact": "Der Mann beobachtet das Fenster. Das ist genau der vorgesehene Staffelhinweis.",
+      "agrees": true
+    },
+    {
+      "quote": "„Der Mann vom Flohmarkt.“",
+      "fact": "Ella war beim Fischkauf dabei und kann ihn wiedererkennen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich bin siebzig, Kinder.“",
+      "fact": "Oma Rosi hat in Folge 5 ihr tatsächliches Alter mit siebzig angegeben.",
+      "agrees": true
+    },
+    {
+      "quote": "Als die Tür summte, trottete Kaiser nur noch bis zu Frau Grimmbachs Wohnung.",
+      "fact": "Kaiser gehört Frau Grimmbach und kehrt zu ihrer Wohnung im Erdgeschoss zurück.",
+      "agrees": true
+    },
+    {
+      "quote": "Unten stand Frau Grimmbach in ihrer Tür und schrieb in ihr Heft.",
+      "fact": "Frau Grimmbach hält Auffälligkeiten selbst schriftlich fest. Diese Schrift bleibt nach dem Zauber erhalten.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich habe mitgezählt.“",
+      "fact": "Genaues Beobachten und Zählen passen zu Grimmbach. Der ursprüngliche Text zeigt sie jedoch nur bei zwei der vier Ankünfte ausdrücklich an ihrer Tür.",
+      "agrees": true
+    },
+    {
+      "quote": "Dann musste Oma wieder drei Stockwerke runter und rauf.",
+      "fact": "Die Brandts wohnen im dritten Stock. Der Zauber hat Oma bei den früheren Neustarts direkt nach unten versetzt. Das „runter und rauf“ widerspricht dem gezeigten Weg, wenn es als zweimaliges Treppensteigen gelesen wird.",
+      "agrees": false
+    },
+    {
+      "quote": "„Meine Feier sollte heute nur einmal anfangen. Um drei. Das mit jeder Stunde hab ich geflunkert.“",
+      "fact": "Der Flunkerer sagt vor mehreren anderen Personen laut die Wahrheit über genau seine Behauptung.",
+      "agrees": true
+    },
+    {
+      "quote": "PLOPP.",
+      "fact": "Der Zauber endet unmittelbar durch das Geständnis.",
+      "agrees": true
+    },
+    {
+      "quote": "Oma blinzelte. Sie sah auf ihre Füße. „Nanu. Wieso hab ich die Schuhe aus?“",
+      "fact": "Oma vergisst als erwachsene Zeugin das magische Geschehen. Ihre ausgezogenen Schuhe bleiben eine gewöhnliche körperliche Folge.",
+      "agrees": true
+    },
+    {
+      "quote": "„Komisch. Ich bin pappsatt.“",
+      "fact": "Papa hat die magischen Wiederholungen vergessen. Dass er Torte gegessen hat, wirkt körperlich weiter, wie in früheren Folgen gewöhnliche Folgen des Zaubers bestehen blieben.",
+      "agrees": true
+    },
+    {
+      "quote": "„Ich auch“, sagte Mama.",
+      "fact": "Mama teilt die körperliche Folge der Wiederholungen, obwohl sie deren magischen Ablauf vergessen hat.",
+      "agrees": true
+    },
+    {
+      "quote": "„An der Schnur hast du immer noch nicht gezogen.“",
+      "fact": "Lia erinnert sich als Kind an die Wiederholungen.",
+      "agrees": true
+    },
+    {
+      "quote": "Tk-tk-tschuuu. Ein Zug, der endlich losfährt.",
+      "fact": "Lias Zungengeräusch für einen Zug ist seit Folge 3 etabliert.",
+      "agrees": true
+    },
+    {
+      "quote": "Dahinter stand ein Löwe aus Papier.",
+      "fact": "Der Papierlöwe greift Lias und Mats' erstes gemeinsames Theaterspiel aus Folge 3 auf.",
+      "agrees": true
+    },
+    {
+      "quote": "„Das ist euer Fisch“, sagte Lia. „Weil er immer so guckt.“",
+      "fact": "Lia kennt Brunos Aussehen. Ihre Bemerkung beruht auf Beobachtung und verrät keine Kenntnis seiner Stimme oder seiner Rolle beim Zauber.",
+      "agrees": true
+    },
+    {
+      "quote": "Im echten Glas presste Bruno das Maul ganz fest zu.",
+      "fact": "Bruno bleibt im Aquarium und schweigt weiter vor Lia und den Erwachsenen.",
+      "agrees": true
+    },
+    {
+      "quote": "Mats sprach den Löwen. Lia machte den Zug.",
+      "fact": "Beide finden zu den Spielrollen zurück, die sie in Folge 3 miteinander entwickelt haben.",
+      "agrees": true
+    },
+    {
+      "quote": "Es machte nicht PLING.",
+      "fact": "Das Ausbleiben des Neustarts bestätigt, dass Mats' Geständnis den Zauber beendet hat.",
+      "agrees": true
+    },
+    {
+      "quote": "„Mats. Er ist immer noch da.“",
+      "fact": "Der Mann beobachtet das Haus weiterhin. Die Beobachtung bestätigt nichts über Brunos Herkunft.",
+      "agrees": true
+    },
+    {
+      "quote": "Plan F. F wie Fragen.",
+      "fact": "Ella und Mats haben Plan F in Folge 7 ausdrücklich benannt und wenden ihn hier an.",
+      "agrees": true
+    },
+    {
+      "quote": "„Der Mann vom Flohmarkt!“",
+      "fact": "Papa kam in Folge 1 am Verkaufsstand hinzu und kann den Mann anhand seines Fischhuts wiedererkennen.",
+      "agrees": true
+    },
+    {
+      "quote": "„Sie haben uns Bruno verkauft“, sagte Ella.",
+      "fact": "Der Mann mit dem Fischhut hat Ella und Mats Bruno verkauft.",
+      "agrees": true
+    },
+    {
+      "quote": "„Warum gucken Sie zu unserem Fenster?“",
+      "fact": "Die Kinder suchen wie vorgesehen selbst den Kontakt und fragen nach dem einzigen Hinweis dieser Folge.",
+      "agrees": true
+    },
+    {
+      "quote": "„Von hier sieht man gut nach oben.“",
+      "fact": "Der Mann antwortet kurz und ausweichend. Er verrät weder seine Absicht noch Brunos Herkunft.",
+      "agrees": true
+    },
+    {
+      "quote": "Später brachte Oma Frau Grimmbach ein Stück Torte hinunter, wie jeden Sonntag.",
+      "fact": "Seit Folge 5 bringt Oma Rosi Frau Grimmbach sonntags ein Stück Kuchen.",
+      "agrees": true
+    },
+    {
+      "quote": "Mama und Papa spülten in der Küche. Die Wohnzimmertür fiel zu.",
+      "fact": "Die Erwachsenen sind beim folgenden Gespräch außerhalb des Wohnzimmers. Lia ist bereits gegangen.",
+      "agrees": true
+    },
+    {
+      "quote": "„VIERMAL dieses Lied!“, platzte Bruno heraus.",
+      "fact": "Bruno spricht erst wieder, als nur Ella und Mats im Raum sind. Er hat sich alle vier Runden gemerkt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Hab ich's nicht gesagt? Ich hab's gesagt.“",
+      "fact": "Brunos Spruch zur Auflösung steht wortgetreu da.",
+      "agrees": true
+    },
+    {
+      "quote": "„Vor Lia hast du gar nichts gesagt!“, rief Mats.",
+      "fact": "Bruno hat den Vertrautenkreis in dieser Folge nicht erweitert.",
+      "agrees": true
+    },
+    {
+      "quote": "Ella pinnte Flunker-Karte Nr. 8 neben das Glas.",
+      "fact": "Die nächste Flunker-Karte hängt wie ihre Vorgängerinnen am Aquariumregal.",
+      "agrees": true
+    },
+    {
+      "quote": "Mats schrieb darunter: Lia wollte nur spielen. Ich auch.",
+      "fact": "Mats hat auch auf früheren Karten eigene kurze Nachträge hinterlassen.",
+      "agrees": true
+    },
+    {
+      "quote": "Unten im Erdgeschoss schlug Frau Grimmbach ihr Heft auf und stutzte.",
+      "fact": "Die Folge endet mit Grimmbachs Heftfund in ihrer Wohnung im Erdgeschoss.",
+      "agrees": true
+    },
+    {
+      "quote": "Da stand ein Eintrag in ihrer eigenen Schrift. Sie konnte sich nicht erinnern, ihn geschrieben zu haben.",
+      "fact": "Grimmbachs eigene Schrift bleibt erhalten. Ihre Erinnerung an die magischen Vorgänge und den dazugehörigen Eintrag fehlt.",
+      "agrees": true
+    },
+    {
+      "quote": "„Eintrag 53: Viermal dieselben Gäste bei Brandts. Zweimal sogar mit Kater!!!“",
+      "fact": "Auf Eintrag 52 folgt Eintrag 53. Kaiser kommt zweimal mit den Gästen bis in die Wohnung der Brandts. Beim dritten Anlauf bleibt er unten.",
+      "agrees": true
+    },
+    {
+      "quote": "Kaiser lag auf der Heizung, alle vier Pfoten von sich gestreckt, und schnarchte.",
+      "fact": "Die Heizung ist seit Folge 6 Kaisers gewohnter Schlafplatz.",
+      "agrees": true
+    }
+  ],
+  "dimensions": {
+    "figurenkonsistenz": {
+      "score": 8,
+      "why": "„Zum Glück saß ich ganz hinten“ holt Lias Taubenangst beiläufig zurück. Auch Bruno und Kaiser bleiben wiedererkennbar. Ella bekommt mit dem Festhalten einen schwächeren Einfall als sonst, weil der Text ihr Ziel bei diesem Versuch offenlässt."
+    },
+    "plotKohaerenz": {
+      "score": 7,
+      "why": "„Aber in Mats' Bauch war das erste Stück noch drin“ macht den stärksten Teil der Regel sofort verständlich. Der unklare Startpunkt, der wechselnde Festablauf und „runter und rauf“ verwischen anschließend, was der Zauber tatsächlich wiederholt."
+    },
+    "sprachqualitaet": {
+      "score": 8,
+      "why": "„Die Lücke, wo die Stücke gefehlt hatten, ging zu. Wie ein Reißverschluss.“ Das kann man sehen und hören. An anderen Stellen muss das Kind mit „Papa drückte auf den Knopf“ und mehreren Türen selbst rekonstruieren, wo die Figuren gerade sind."
+    },
+    "emotionaleTiefe": {
+      "score": 9,
+      "why": "„Du musst nicht toll sagen“ trifft die Kränkung genauer als ein Streit. Mats hat Lia dreimal gelobt und ihr dreimal nicht zugehört. Dass er Ellas Hilfe mit „Ich weiß“ zuvorkommt, macht seinen Entschluss zu seinem eigenen."
+    },
+    "altersangemessenheit": {
+      "score": 8,
+      "why": "Die vierte unberührte Torte zeigt den Kindern ohne Moralrede, wann aus Spaß Arbeit wird. Bei „Für den Zauber war er auch ein Gast“ muss ein sechsjähriges Kind dagegen eine Sonderregel für Kaiser schlucken, die sich leichter zeigen ließe."
+    },
+    "ende": {
+      "score": 8,
+      "why": "„An der Schnur hast du immer noch nicht gezogen“ führt direkt zur versäumten gemeinsamen Freude zurück. „Das hier ist besser“ lässt kurz wieder Finns Feier über den Erfolg entscheiden. Die Bühnenhandlung trägt den Schluss bereits."
+    },
+    "kanonTreue": {
+      "score": 8,
+      "why": "„Bruno presste das Maul zu“ und der Blick des Mannes „zu ihrem Fenster“ halten beide Grenzen ein. Keine erwachsene Figur hört Bruno sprechen, Lia erfährt seine Rolle nicht, und der Mann verrät nichts. Die wiederholte Feier braucht vor allem klarere Regeln innerhalb dieser Folge."
+    },
+    "weitererzaehlFaktor": {
+      "score": 8,
+      "why": "„Der Haufen bimmelte“ ist ein kurzer, leicht nachspielbarer Gag. Das beste Bild der Folge bleibt die Torte, die immer wieder ganz wird, während alle immer satter werden."
+    }
+  },
+  "kinderCheck": {
+    "verstaendlichkeit": {
+      "score": 7,
+      "stolpersteine": [
+        {
+          "quote": "„Eine Hüpfburg. Und einen Zauberer.“",
+          "warum": "Mats nennt beides, Lia nennt beides gleich noch einmal. Beim zweiten Mal ist die Taube die neue und für Lia entscheidende Information.",
+          "vorschlag": "Mats nennt Hüpfburg und Zauberer. Lia steigt später direkt mit der Taube aus dem Hut ein."
+        },
+        {
+          "quote": "Papa drückte auf den Knopf, und unten summte die Haustür.",
+          "warum": "Beim ersten Klingeln ist noch unklar, welchen Knopf Papa drückt und welche Tür sich öffnet.",
+          "vorschlag": "Papa drückte auf den Türöffner. Unten summte die Haustür."
+        },
+        {
+          "quote": "Um das Papier hatte sie eine Schnur gebunden, mit einer dicken Schleife.",
+          "warum": "Später zieht Lia an einer Schnur, um die Bühne zu öffnen. Zwei Schnüre am selben Geschenk erschweren das Bild unnötig.",
+          "vorschlag": "Eine dicke Schleife hielt das braune Papier zusammen. Der rote Vorhang hat später seine eigene Schnur."
+        },
+        {
+          "quote": "„Nur das Puzzle von Mama und Papa lag eingepackt auf dem Tisch.“",
+          "warum": "Die Socken und die Bühne verschwinden, während das Puzzle bleibt. Das Kind braucht ein sichtbares Ziel für die verschwundenen Sachen.",
+          "vorschlag": "Das Puzzle blieb auf dem Tisch. Unten klingelte es, und Oma und Lia brachten ihre Geschenke wieder mit."
+        },
+        {
+          "quote": "„Für den Zauber war er auch ein Gast.“",
+          "warum": "Das klingt, als hätte der Zauber eine Gästeliste. Der Leser kann den Zusammenhang schon aus Kaisers Weg verstehen.",
+          "vorschlag": "„Wer mit zur Feier hochgekommen war, stand wieder unten. Sogar Kaiser.“"
+        },
+        {
+          "quote": "„Polonaise!“",
+          "warum": "Ein Teil der Erstleser kennt das Wort und das Spiel noch nicht. „Er zog alle hinter sich her“ lässt offen, wie die Reihe aussieht.",
+          "vorschlag": "„Polonaise!“ Alle fassten den Nächsten an den Schultern und gingen hinter Mats um den Tisch."
+        },
+        {
+          "quote": "„Oma setzte sich auf jedem Treppenabsatz hin.“",
+          "warum": "„Treppenabsatz“ ist ein langes Wort für ein Bild, das sich einfacher erzählen lässt.",
+          "vorschlag": "Oma machte in jedem Stockwerk eine Sitzpause."
+        },
+        {
+          "quote": "„Dann musste Oma wieder drei Stockwerke runter und rauf.“",
+          "warum": "Das klingt, als musste Oma beide Wege laufen. Beim PLING steht sie aber sofort unten.",
+          "vorschlag": "Beim nächsten PLING würde Oma wieder unten stehen. Dann müsste sie alle drei Stockwerke noch einmal hoch."
+        },
+        {
+          "quote": "„Wie geht der Vorhang?“",
+          "warum": "Die Frage ist im Zusammenhang lösbar. Das fehlende „auf“ lässt ein Kind beim Selbstlesen jedoch kurz hängen.",
+          "vorschlag": "„Wie geht der Vorhang auf?“"
+        },
+        {
+          "quote": "„Bei Finn hab ich länger angestanden als gehüpft.“",
+          "warum": "„Angestanden“ kann außerhalb vertrauter Umgangssprache kurz bremsen. Der trockene Vergleich selbst lohnt sich.",
+          "vorschlag": "„Bei Finn hab ich länger gewartet als gehüpft.“"
+        }
+      ]
+    },
+    "humor": {
+      "score": 8,
+      "witze": [
+        {
+          "quote": "„Das ist alles?“ – „Das ist eine ganze Seite.“",
+          "zuendet": "ja",
+          "warum": "Ella hat viel geplant. Mats misst die Feier schon an der fehlenden Hüpfburg. Zwei Stimmen, ein kurzer Schlagabtausch."
+        },
+        {
+          "quote": "„Ich kann schweigen wie ein Fisch.“",
+          "zuendet": "ja",
+          "warum": "Ausgerechnet der sprechende Fisch prahlt damit, wie gut er schweigen kann."
+        },
+        {
+          "quote": "„Schon mal fürs Schweigen.“",
+          "zuendet": "ja",
+          "warum": "Drei Flocken als Vorschuss geben Bruno genau die kleine Sonderbehandlung, die er verlangt."
+        },
+        {
+          "quote": "„Der hat eine Taube aus dem Hut geholt. Zum Glück saß ich ganz hinten.“",
+          "zuendet": "ja",
+          "warum": "Die vermeintliche Attraktion ist für Lia der Grund, möglichst weit weg zu sitzen."
+        },
+        {
+          "quote": "„Das war nicht geflunkert, das war ausgedacht!“",
+          "zuendet": "ja",
+          "warum": "Der Spruch kommt sofort und verrät genau, wie wenig Mats mit dem Knacken gerechnet hat."
+        },
+        {
+          "quote": "„Beim Topfschlagen fand Oma den Topf. Und Papas Fuß.“",
+          "zuendet": "halb",
+          "warum": "Der zweite Satz sitzt rhythmisch. Man weiß aber nicht, ob Oma den Fuß mit der Hand gefunden oder mit dem Kochlöffel getroffen hat.",
+          "besser": "Oma hebt triumphierend Papas Hausschuh hoch. Sein Fuß steckt noch drin."
+        },
+        {
+          "quote": "„Die Lücke, wo die Stücke gefehlt hatten, ging zu. Wie ein Reißverschluss.“",
+          "zuendet": "ja",
+          "warum": "Die Torte macht etwas völlig Unmögliches mit einer Bewegung, die jedes Kind kennt."
+        },
+        {
+          "quote": "„Ich hab das Lied gerade erst überlebt.“",
+          "zuendet": "ja",
+          "warum": "Brunos beleidigter Überschwang passt zur kurzen Pause vor dem nächsten Ständchen und bereitet das Rückwärtslied vor."
+        },
+        {
+          "quote": "„Bei Mats fängt die Feier ja jede Stunde von vorn an. Weiß doch jeder.“",
+          "zuendet": "ja",
+          "warum": "Oma behauptet mit der größten Ruhe der Welt etwas völlig Absurdes."
+        },
+        {
+          "quote": "„Die wollte ich IMMER schon!“ – „Die hast du doch eben schon gekriegt.“",
+          "zuendet": "halb",
+          "warum": "Omas Antwort ist besser als die Vorlage. Mats' „immer schon“ klingt beliebig und lenkt am Aquarium mit einer möglichen zweiten Angeberei vom Neustart ab.",
+          "besser": "Mats jubelt „Dino-Socken!“ und Oma antwortet trocken „Die hast du doch eben schon gekriegt.“"
+        },
+        {
+          "quote": "„Der Haufen bimmelte.“",
+          "zuendet": "ja",
+          "warum": "Man hört Kaiser vor dem Wiederauftauchen. Das Glöckchen liefert die Pointe."
+        },
+        {
+          "quote": "„Ein Kater!“, rief Oma. „Ein Haustier wolltest du doch IMMER schon.“",
+          "zuendet": "halb",
+          "warum": "„Haustier“ passt schlecht, weil Mats schon Bruno hat. Der empörte Hundewunsch ist die eigentliche Pointe.",
+          "besser": "„Ein Haustier! War das nicht dein Wunsch?“ – „Einen HUND!“"
+        },
+        {
+          "quote": "„Er hatte sowieso nur nachsehen wollen. Sagte sein Blick.“",
+          "zuendet": "ja",
+          "warum": "Kaiser rettet seine Würde ausgerechnet nach dem lautesten Sturz der Feier."
+        },
+        {
+          "quote": "„Das Kissen bleibt jetzt hier. Und ich auch.“",
+          "zuendet": "ja",
+          "warum": "Das mit hinuntergezauberte Kissen zahlt Ellas Versuch als sichtbaren Gag aus. Omas Entschluss ist beim nächsten Neustart schon erledigt."
+        },
+        {
+          "quote": "„Wie … schön … dass … du …“",
+          "zuendet": "ja",
+          "warum": "Beim Vorlesen hört man, wie das vierte Ständchen stecken bleibt."
+        },
+        {
+          "quote": "„Nanu. Wieso hab ich die Schuhe aus?“",
+          "zuendet": "ja",
+          "warum": "Oma findet sich im vertrauten Serienritual plötzlich ohne Schuhe wieder. Die Frage ist konkret und komisch."
+        },
+        {
+          "quote": "„Als hätte ich eine halbe Torte gegessen.“",
+          "zuendet": "ja",
+          "warum": "Die Kinder kennen den Grund für Omas Verdacht. Das macht die Bemerkung zur Pointe und erklärt nebenbei die Regel."
+        },
+        {
+          "quote": "„Weil er immer so guckt.“",
+          "zuendet": "ja",
+          "warum": "Lia trifft Brunos empfindliche Stelle, während er sich den Kommentar verkneifen muss."
+        },
+        {
+          "quote": "„Bei Finn hab ich länger angestanden als gehüpft.“",
+          "zuendet": "ja",
+          "warum": "Die beeindruckende Hüpfburg schrumpft auf die Erfahrung, die Lia wirklich hatte: Warten."
+        },
+        {
+          "quote": "„Vielleicht hat er Hunger.“",
+          "zuendet": "ja",
+          "warum": "Mats beantwortet das rätselhafte Starren mit der konkretesten Idee des Tages. Nebenbei hat er endlich jemanden für die Torte."
+        },
+        {
+          "quote": "„Von hier sieht man gut nach oben.“",
+          "zuendet": "halb",
+          "warum": "Die Auskunft hält das Geheimnis, hat aber kaum Witz oder Rhythmus.",
+          "besser": "„Von hier seh ich, wer runterguckt.“"
+        },
+        {
+          "quote": "„Bist geboren du dass schön wie!“",
+          "zuendet": "ja",
+          "warum": "Ein verdrehtes Lied zum Nachsprechen. Der Gag funktioniert auch bei Kindern, die den Titel beim ersten Mal noch nicht mitsingen konnten."
+        },
+        {
+          "quote": "„Eben“, sagte Bruno. „Das sagt ja wohl alles.“",
+          "zuendet": "halb",
+          "warum": "Das variiert Brunos „Meine beste Rede“ aus Folge 4 kaum. Nach dem Rückwärtslied fällt die Antwort ab.",
+          "besser": "„Für die Zugabe will ich Extra-Flocken.“"
+        },
+        {
+          "quote": "„Viermal dieselben Gäste bei Brandts. Zweimal sogar mit Kater!!!“",
+          "zuendet": "ja",
+          "warum": "Grimmbach zählt Kaiser mit, während er sich auf der Heizung vom Fest erholt. Der Eintrag passt zur Folge und zu ihr."
+        }
+      ]
+    },
+    "unterhaltung": {
+      "score": 8,
+      "durchhaenger": [
+        {
+          "stelle": "Kapitel 1, beide Berichte von Finns Geburtstag",
+          "warum": "Die Hüpfburg und der Zauberer werden fast gleich angekündigt. Der zweite Bericht zieht den Moment vor der Flunkerei auseinander.",
+          "vorschlag": "Mats nennt die großen Attraktionen. Lia erzählt nur ihre persönliche Taubenpointe."
+        },
+        {
+          "stelle": "Kapitel 2, die zweite und die dritte Runde",
+          "warum": "Zweimal dieselbe Folge aus „Toll!“ und Topf wirkt geschrieben, obwohl das Übergehen von Lia dreimal wichtig ist. Zugleich fehlt ein kurzer gemeinsamer Takt, der das Ausmaß der Wiederholung sofort hörbar macht.",
+          "vorschlag": "Den Anfang der Runde als kurzen Refrain kenntlich machen. Mats unterbricht Lia jedes Mal, beim dritten Mal mit dem Kochlöffel schon in der Hand."
+        },
+        {
+          "stelle": "Kapitel 3, vom Abholen bis zur Rückkehr ins Wohnzimmer",
+          "warum": "Nach der Bühne folgen der Test um sieben, die Begegnung am Hoftor und drei Serienrituale. Das funktioniert, wenn der Gang zum Mann kurz bleibt und kein zweites Rätselgespräch daraus wird.",
+          "vorschlag": "Mats' Kuchenidee, Plan F, Ellas Frage und eine knappe Antwort behalten. Den Weg und das Überreichen des Tellers in wenigen Sätzen erzählen."
+        }
+      ]
+    },
+    "logikLuecken": [
+      {
+        "quote": "„Papa steckte gerade sieben Kerzen hinein, genau wie um Viertel vor drei.“",
+        "problem": "Die Feier soll um drei beginnen. Die Szene bezeichnet den Zustand von Viertel vor drei als Ausgangspunkt, ohne zu erklären, warum gerade die Vorbereitung zurückgesetzt wird.",
+        "fix": "Papa stellt die fertige Torte beim ersten Klingeln bereit. Beim PLING steht sie mit sieben frischen Kerzen wieder genauso da."
+      },
+      {
+        "quote": "„Nur das Puzzle von Mama und Papa lag eingepackt auf dem Tisch.“",
+        "problem": "Der Text trennt das Puzzle von den anderen Geschenken, bevor er zeigt, wohin diese geraten. Auch die Erwachsenen dürfen sich an vorige Runden erinnern, während Sachen ihre Ausgangslage wieder annehmen.",
+        "fix": "Die beiden mitgebrachten Geschenke sichtbar mit ihren Gästen zurückkommen lassen. Den Teller mit der vollen Torte und Mats' immer volleren Bauch direkt gegeneinander setzen."
+      },
+      {
+        "quote": "„Diesmal packte Mats noch schneller aus.“",
+        "problem": "Die zweite Runde wechselt sofort zu den Geschenken, obwohl die erste mit Lied, Kerzen und Torte etabliert ist. Der Text lässt aus, ob der Neustart denselben Anfang wieder herstellt oder alle Leute zu einer festen Reihenfolge zwingt.",
+        "fix": "Den gleichen Auftakt wiederholen. Danach können die Figuren den Ablauf ändern, wie Papa mit den winzigen Stücken und dann mit dem weggelegten Messer zeigt."
+      },
+      {
+        "quote": "„Vielleicht bleibt ihr oben, wenn ihr euch festhaltet!“",
+        "problem": "Ella kennt Plan W. Ohne ihr Ziel klingt der Versuch, als wolle sie den Zauber doch mit Festhalten aushebeln. Außerdem streicht sie später einen Plan durch, den sie vorher nur ausgesprochen hat.",
+        "fix": "Ella will den Gästen den nächsten Aufstieg ersparen. Sie schreibt „Oben bleiben“ in ihren Planer und streicht genau diese Zeile nach dem PLING."
+      },
+      {
+        "quote": "„Vier“, sagte sie. „Ich habe mitgezählt.“",
+        "problem": "Grimmbach soll am Ende vier Ankünfte bezeugen. Ihre Beobachtung bei drei und fünf bleibt unsichtbar, obwohl der Eintrag gerade von der Zahl lebt.",
+        "fix": "Grimmbach beim ersten Klingeln an der Erdgeschosstür zeigen und sie beim zweiten und dritten Mal einen Strich machen lassen."
+      },
+      {
+        "quote": "„Dann musste Oma wieder drei Stockwerke runter und rauf.“",
+        "problem": "Der Abstieg wird im Text übersprungen. Das PLING versetzt die Gäste direkt vor die Haustür.",
+        "fix": "Oma steht beim PLING sofort unten und muss die drei Stockwerke erneut hochsteigen."
+      }
+    ],
+    "schulhofSatz": "Die Torte war wieder ganz. Aber in Mats' Bauch war das erste Stück noch drin.",
+    "staerksteMomente": [
+      "Der Reißverschluss in der Torte macht die Magie beim ersten Neustart sichtbar.",
+      "Oma hält ein Sofakissen fest und steht beim nächsten Klingeln mit Kissen unten. Ellas Plan scheitert so gründlich, dass er einen Gegenstand mitnimmt.",
+      "Lias leises „Du musst nicht toll sagen“ bringt das ganze Beziehungsproblem in einen Satz.",
+      "Mats entscheidet vor dem fünften Klingeln selbst. Er hat Omas Treppe und Lias Paket vor Augen.",
+      "Der Löwe, der Zug und der schlecht gelaunte Papierfisch machen die kleine Feier zu etwas, das nur diese Freunde zusammen spielen würden."
+    ]
+  },
+  "mustFix": [
+    "„Genau wie um Viertel vor drei“ → Den sichtbaren Ausgangspunkt auf das erste Klingeln um drei legen. Bei jedem Neustart dieselbe Anfangslage zeigen und danach Raum für Änderungen lassen.",
+    "„Nur das Puzzle von Mama und Papa lag eingepackt auf dem Tisch“ → Beim Wiederankommen deutlich zeigen, dass Oma und Lia ihre Pakete wieder mitbringen. Die fortlaufende Zeit an Sättigung und Müdigkeit konkret machen.",
+    "„Für den Zauber war er auch ein Gast“ → Kaisers Rückkehr aus dem beobachteten gemeinsamen Weg zur Feier erklären. Beim vierten Beginn sichtbar machen, dass er diesmal unten bleibt.",
+    "„Vielleicht bleibt ihr oben, wenn ihr euch festhaltet!“ → Ellas Versuch ausdrücklich auf den nächsten Treppenaufstieg beziehen und die Zeile im Planer anlegen, bevor sie sie durchstreicht.",
+    "„Dann musste Oma wieder drei Stockwerke runter und rauf“ → Teleportation nach unten und anschließendes Treppensteigen im Satz auseinanderhalten.",
+    "„Ich habe mitgezählt“ → Grimmbach von der ersten Ankunft an in Hör- und Sichtweite zeigen. Ihrem Eintrag vier Ankünfte und genau zwei Katerbesuche zugrunde legen.",
+    "„Beim Topfschlagen fand Oma den Topf. Und Papas Fuß“ → Den Gag so zeigen, dass Oma den Hausschuh mitsamt Fuß tastend findet und kein Schlag auf den Fuß nötig ist.",
+    "„Das hier ist besser“ → Lia eine konkrete Lust am nächsten gemeinsamen Spiel aussprechen lassen. Mats' Kartennachtrag hält fest, was er nächstes Mal tatsächlich anders macht."
+  ],
+  "notes": [
+    "Die einfache Prämisse ist stark. Der Satz wird wörtlich wahr, und aus mehr Geburtstag wird mit jeder Stunde mehr Arbeit.",
+    "Die Erwachsenen dürfen die Wiederholungen selbstverständlich finden und trotzdem satt, müde und genervt werden. Omas „Weiß doch jeder“ behalten.",
+    "Lias Taubenangst, die Bühne und das Zungengeräusch sind organische Rückgriffe. Ihre Bühne ist das Geschenk, das der Zauber viermal bereitstellt und Mats erst nach dem Geständnis richtig auspackt.",
+    "Der Mutmoment funktioniert über Mats' Beobachtung, nicht über Ellas Belehrung. Sein „Ich weiß“ muss stehen bleiben.",
+    "Der Gang zum Hoftor zahlt Plan F aus. Die Initiative liegt bei den Kindern, und das Stück Torte gibt ihnen einen glaubhaften Grund, hinunterzugehen.",
+    "Kaisers bimmelnden Papierhaufen, Brunos Rückwärtslied und Grimmbachs letzten Eintrag im Text behalten. Der Staffelhinweis braucht keine Erklärung."
+  ],
+  "revision": {
+    "changes": [
+      "Den ersten Bericht über Finn und Lias Rückblick entdoppelt. Lia erzählt direkt von der Taube aus dem Hut. Mats' Blick auf den Planer hält den Vergleich mit Finn präsent.",
+      "„Das machte er jedes Mal so“ durch den konkreten Rückgriff „Schon beim letzten Besuch hatte er vor Lia geschwiegen“ ersetzt.",
+      "Den ersten Klingelablauf räumlich geklärt. Papa benutzt den Türöffner, Grimmbach sieht Oma und Lia unten, Papa stellt die Torte beim Klingeln um drei bereit.",
+      "Lias Paket mit einer Schleife beschrieben und die Schnur am roten Vorhang erst beim Auspacken eingeführt.",
+      "Mats' Schritt zum Regal mit „Für einen Moment wollte er bloß, dass Lia staunte“ motiviert und den Zaubersatz wortgetreu gelassen.",
+      "Das erste „Ella sah es“ behalten und später durch ihren Blick auf Lias Paket vor Mats' Geständnis aufgegriffen.",
+      "„Beim Topfschlagen fand Oma den Topf. Und Papas Fuß“ durch den tastend gefundenen Hausschuh ersetzt. Papas Fuß steckt noch darin.",
+      "Den ersten Neustart an den Festbeginn um drei gebunden. Die Torte wird ganz und trägt frische Kerzen, das Puzzle bleibt oben, und die mitgebrachten Geschenke kommen mit Oma und Lia zurück.",
+      "„Kaum waren sie allein“ vor Brunos Kommentar durch die sichtbare Platzierung ersetzt. Papa ist im Flur, Mama in der Küche, Ella und Mats stehen am Glas.",
+      "Bei der zweiten Runde Lied, Kerzen und Torte als wiederkehrenden Auftakt ergänzt. „Die wollte ich IMMER schon!“ wurde zu „Dino-Socken!“ und Oma behält ihre trockene Antwort.",
+      "Kaiser bimmelt beim Hereinhuschen zwischen Lias Füßen. Grimmbach macht beim zweiten und dritten Klingeln sichtbar Zählstriche.",
+      "Omas „Ein Haustier wolltest du doch IMMER schon“ durch „Ein Haustier! War das nicht dein Wunsch?“ ersetzt. Mats' „Einen HUND!“ bleibt.",
+      "Plan B heißt im Planer nun „Oben bleiben“. Ella will Oma und Lia den nächsten Aufstieg ersparen und streicht die Zeile nach dem missglückten Versuch.",
+      "„Für den Zauber war er auch ein Gast“ durch die beobachtete Regel ersetzt, dass die zur Feier Hochgekommenen wieder unten stehen. Kaisers Rückzug zu Grimmbach beim vierten Beginn ist sichtbar.",
+      "Die dritte Runde gestrafft. Die Polonaise ist durch Hände auf den Schultern verständlich, und Mats hat den Kochlöffel schon in der Hand, als Lia ihm endlich den Vorhang zeigen will.",
+      "„Auf jedem Treppenabsatz“ wurde zu „In jedem Stockwerk“. „Runter und rauf“ wurde zu Omas erneutem Aufstieg nach dem PLING.",
+      "Die vierte Runde auf Papas erlahmendes Lied, das weggelegte Messer, Lias Schweigen und Mats' eigene Entscheidung konzentriert. Papas Frage nach der ganzen Torte macht seinen Gedächtnisverlust unmittelbar verständlich.",
+      "„Wie geht der Vorhang?“ wurde zu „Wie geht der Vorhang auf?“. Lias „Das hier ist besser“ wurde zu der Verabredung „Nächstes Mal fangen wir mit dem Löwen an.“",
+      "Das Klingeln um sieben an der Haustür verortet und den Gang zum Mann am Hoftor gestrafft. „Von hier sieht man gut nach oben“ wurde zu „Von hier seh ich, wer runterguckt.“",
+      "Brunos „Das sagt ja wohl alles“ durch „Für die Zugabe will ich Extra-Flocken“ ersetzt. Das Rückwärtslied und seine genaue Auflösungsformel bleiben.",
+      "Mats' Kartennachtrag „Lia wollte nur spielen. Ich auch“ durch „Nächstes Mal frag ich gleich: Wie geht der Vorhang auf?“ ersetzt. Grimmbachs Eintrag 53 bleibt wortgetreu."
+    ],
+    "text": "KAPITEL 1: Bei Finn gab's eine Hüpfburg\n\nAm Sonntag wurde Mats sieben. Um Viertel vor drei saß er mit einem Papierhut auf dem Sofa und starrte die Wohnzimmertür an.\n\n„Noch mal vorlesen“, sagte er.\n\nElla schlug ihren Planer auf. „Drei Uhr: Oma und Lia kommen. Singen. Kerzen auspusten. Torte. Geschenke. Topfschlagen. Sieben Uhr: Lias Papa holt sie ab.“\n\n„Das ist alles?“\n\n„Das ist eine ganze Seite.“\n\nMats zog an seiner rutschenden Socke. „Bei Finn war die ganze Klasse. Und eine Hüpfburg. Und ein Zauberer.“\n\n„Du wolltest nur Lia einladen.“\n\n„Weil Lia die Beste ist.“ Mats ließ die Socke los. „Und wenn sie meine Feier langweilig findet?“\n\nIm Glas auf dem Regal drehte Bruno eine Runde. „Geburtstag“, knurrte er. „Und wer kriegt nichts? Der Fisch, der den ganzen Nachmittag den Mund halten muss.“\n\nSchon beim letzten Besuch hatte er vor Lia geschwiegen.\n\n„Den ganzen Nachmittag?“, fragte Mats.\n\n„Ich bin ein Fisch. Ich kann schweigen wie ein Fisch.“\n\nElla streute ihm drei Extra-Flocken ins Wasser. „Schon mal fürs Schweigen.“\n\nUm drei klingelte es. Papa stellte die Dino-Torte mit den sieben Kerzen auf den Küchentisch und drückte auf den Türöffner. Unten summte die Haustür. Frau Grimmbach guckte aus ihrer Wohnung. Erst kam Oma Rosi die Treppe herauf, im Blumenkleid und mit Holzperlenkette. Hinter ihr kam Lia mit einem flachen Paket in braunem Papier. Eine dicke Schleife hielt es zusammen.\n\nIm Wohnzimmer blieb Lia vor Brunos Regal stehen. Bruno presste das Maul zu.\n\n„Der Zauberer bei Finn hat eine Taube aus dem Hut geholt“, erzählte Lia. „Zum Glück saß ich ganz hinten.“ Sie sah sich um. „Was machen wir?“\n\nMats sah auf Ellas Planer. Singen. Kerzen. Torte. Keine Hüpfburg. Kein Zauberer. Nur er.\n\nEr stellte sich vor das Regal, direkt vor Brunos Glas. Für einen Moment wollte er bloß, dass Lia staunte.\n\n„Bei mir gibt's was viel Besseres“, sagte er. „Heute beginnt meine Geburtstagsfeier jede Stunde wieder ganz von vorn!“\n\nIm Glas knackte es. Wie ein Kiesel, der gegen die Scheibe tippt.\n\n„Mats!“, zischte Ella.\n\n„Das war nicht geflunkert, das war ausgedacht!“, flüsterte Mats. Aber sein Bauch kribbelte. Jede Stunde Geschenke!\n\nLia legte den Kopf schief. „Tk“, machte sie mit der Zunge.\n\nDann kam Papa mit der Torte. Schokolade, sieben Kerzen und obendrauf ein Dinosaurier aus Zuckerguss. Alle sangen „Wie schön, dass du geboren bist“. Mats pustete alle sieben Kerzen auf einmal aus.\n\nVon Mama und Papa bekam er ein Dino-Puzzle. Von Oma Socken mit Dinos drauf. Dann riss Mats Lias Paket auf. Darin war eine Bühne aus Pappe. Mit einem roten Vorhang, festgemacht mit Büroklammern.\n\n„Hab ich selbst gebaut“, sagte Lia. „Und wenn du an der Schnur ziehst …“\n\n„Toll!“, rief Mats. „Und jetzt: Topfschlagen!“ Er rannte schon in die Küche, um den Topf zu holen.\n\nLia machte den Mund wieder zu. Der Vorhang blieb geschlossen.\n\nElla sah es.\n\nBeim Topfschlagen tastete Oma mit der freien Hand über den Teppich. „Hab ihn!“, rief sie und hob Papas Hausschuh hoch. Sein Fuß steckte noch drin.\n\nUm vier schlug die Kirchturmuhr am Markt. Bong. Bong. Bong. Bong.\n\nDann machte es PLING.\n\nOmas Platz auf dem Sofa war leer. Lias auch. Das Geschenkpapier flog vom Boden hoch und wickelte sich wieder um die Geschenke. Lias Schleife band sich von allein. Dann verschwanden Lias Paket und Omas Socken. Nur das Puzzle lag eingepackt auf dem Tisch.\n\nMats rannte zur Küchentür. Die Dino-Torte stand wieder auf dem Küchentisch. Die Lücke, wo die Stücke gefehlt hatten, ging zu. Wie ein Reißverschluss. Sieben frische Kerzen steckten in der Torte. Genau wie beim ersten Klingeln.\n\nUnten klingelte es wieder.\n\nMats sprang aufs Sofa. „Noch mal Geschenke!“\n\nKAPITEL 2: Noch mal! Noch mal?\n\nPapa ging in den Flur. Mama war in der Küche. Ella und Mats standen bei Brunos Glas.\n\n„Noch mal singen?“, knurrte Bruno. „Ich hab das Lied gerade erst überlebt.“\n\n„Mats“, sagte Ella. „Sag die Wahrheit. Jetzt gleich.“\n\n„Spinnst du?“, rief Mats. „Das ist die beste Feier der Welt!“\n\nUnten summte die Haustür. Frau Grimmbach guckte wieder hinaus. „Schon wieder Besuch bei Brandts?“ Sie machte einen Strich neben den ersten in ihrem Heft.\n\nOma kam im Mantel herauf. „Bei Mats fängt die Feier ja jede Stunde von vorn an. Weiß doch jeder.“ Sie hatte ihr Geschenk wieder dabei. Hinter ihr kam Lia mit dem Paket und derselben dicken Schleife.\n\n„Wieder von vorn?“, fragte Lia.\n\n„Cool, oder?“\n\nLia grinste. Da bimmelte es zwischen ihren Füßen. Etwas Graues huschte an ihr vorbei in die Wohnung. Kater Kaiser.\n\nWieder das Lied. Wieder sieben Kerzen. Wieder Schokoladentorte. Die Torte war ganz gewesen. Aber in Mats' Bauch war das erste Stück noch drin.\n\n„Dino-Socken!“, schrie Mats, als er Omas Geschenk auspackte.\n\n„Die hast du doch eben schon gekriegt“, sagte Oma.\n\n„Egal!“\n\nDann riss er Lias Paket auf. „Eine Bühne! Toll!“ Schon sprang er wieder auf. „Topfschlagen!“\n\n„Tk“, machte Lia.\n\nBeim Topfschlagen guckten alle auf Oma. Kaiser sprang auf den Geschenketisch. Von dort wollte er zu Brunos Regal. Aber unter seinen Pfoten lag glattes Geschenkpapier. Das Papier rutschte. Kaiser rutschte mit, über die Tischkante, direkt in den Haufen aus zerrissenem Papier.\n\nDer Haufen bimmelte.\n\n„Noch ein Geschenk!“, schrie Mats und wühlte. Heraus kam Kaiser.\n\n„Ein Haustier!“, rief Oma. „War das nicht dein Wunsch?“\n\n„Einen HUND!“\n\nKaiser hob das Kinn und stolzierte unters Sofa. Er hatte sowieso nur nachsehen wollen. Sagte sein Blick.\n\nElla sah auf die Uhr. Gleich fünf.\n\n„Okay. Plan B.“ Sie schrieb in ihren Planer: Oben bleiben. „Haltet euch fest. Vielleicht spart ihr euch dann die Treppe.“\n\nOma umarmte ein Sofakissen. Lia hielt sich an der Lehne fest.\n\nBong, machte die Kirchturmuhr. Fünfmal.\n\nPLING.\n\nElla lief zum Fenster. Unten vor der Haustür stand Oma im Mantel. Im Arm hielt sie das Sofakissen. Neben ihr stand Lia mit dem eingepackten Paket. Und Kaiser, mit einem Fetzen Geschenkpapier am Ohr. Wer mit zur Feier hochgekommen war, stand wieder unten. Sogar Kaiser.\n\nElla strich „Oben bleiben“ durch.\n\nHinten am Hoftor stand ein dünner alter Mann mit einem langen grauen Bart. Auf dem Kopf trug er einen Filzhut, der aussah wie ein Fisch. Mit Flossen. Er guckte zu ihrem Fenster hinauf.\n\n„Mats“, flüsterte Ella. „Der Mann vom Flohmarkt.“\n\nMats quetschte sich neben sie. Da klingelte es unten schon wieder. Frau Grimmbach zählte den dritten Besuch.\n\nOma kam mit dem Kissen herauf. „Ich bin siebzig, Kinder“, keuchte sie. „Das Kissen bleibt jetzt hier. Und ich auch.“\n\nKaiser huschte wieder mit herein und legte sich gleich auf die Fußmatte.\n\nBeim dritten Lied sang Papa langsamer. Er schnitt die Torte in winzige Stücke. Mama pustete einen Luftballon auf und musste sich danach hinsetzen.\n\n„Polonaise!“, rief Mats. Alle fassten den Nächsten an den Schultern und gingen hinter ihm um den Tisch. Hinter Mats gähnte es einmal die ganze Reihe entlang.\n\nDann packte er Lias Paket zum dritten Mal aus. „Toll!“\n\n„Das hast du schon zweimal gesagt“, sagte Lia leise. Sie hielt die Schnur fest. „Warte. Diesmal zeig ich dir …“\n\nMats hatte schon den Kochlöffel in der Hand. Lia ließ die Schnur los.\n\nUm sechs schlug die Kirchturmuhr. PLING. Unten standen Oma, Lia und Kaiser wieder vor der Haustür. Diesmal trottete Kaiser gleich zu Frau Grimmbach hinein.\n\nKAPITEL 3: Die vierte Torte\n\nDiesmal dauerte es lange, bis die Gäste oben waren. Oma machte in jedem Stockwerk eine Sitzpause. Lia trug das Paket mit beiden Armen vor dem Bauch.\n\nUnten stand Frau Grimmbach in ihrer Tür und schrieb in ihr Heft. „Vier“, sagte sie. „Ich habe mitgezählt.“\n\nPapa brachte die Torte. Seine Schürze war voller Sahne. „Wie … schön … dass … du …“, sang er. Mama gähnte hinter einem Luftballon.\n\nMats pustete die Kerzen aus. Keiner klatschte.\n\n„Torte?“, fragte Papa.\n\nOma hob beide Hände. „Kind, ich kann nicht mehr.“\n\n„Ich auch nicht“, sagte Mama.\n\nPapa sah auf die Torte. „Ehrlich gesagt … ich auch nicht.“ Er legte das Messer weg.\n\nDie vierte Torte blieb ganz.\n\nOma hatte die Schuhe ausgezogen. Ihre Augen fielen immer wieder zu. Papa saß auf der Sofalehne und hielt sich den Bauch. Mama hielt den schlappen Luftballon in der Hand.\n\nLia saß ganz am Ende vom Sofa, das Paket auf dem Schoß. Sie machte kein Geräusch mit der Zunge. Nicht mal Tk.\n\nDreimal hatte Mats das Papier aufgerissen. Dreimal hatte er „Toll!“ gerufen. Kein einziges Mal hatte er an der Schnur gezogen.\n\nLia hielt ihm das Paket hin. „Hier“, sagte sie leise. „Du musst nicht toll sagen.“\n\nUm sieben würde die Uhr wieder schlagen. Beim nächsten PLING würde Oma wieder unten stehen. Dann müsste sie alle drei Stockwerke noch einmal hoch. Und Lia mit dem großen Paket auch.\n\nElla setzte sich neben ihn. Sie sah auf das Paket und machte den Mund auf.\n\n„Ich weiß“, sagte Mats.\n\nEr stand auf. Sein Papierhut rutschte zur Seite.\n\n„Meine Feier sollte heute nur einmal anfangen. Um drei. Das mit jeder Stunde hab ich geflunkert.“ Er schluckte. „Ich wollte, dass Lia meine Feier so toll findet wie die von Finn.“\n\nPLOPP.\n\nOma blinzelte. „Nanu. Wieso hab ich die Schuhe aus?“\n\nPapa sah auf den Tisch. „Warum ist die Torte noch ganz? Ich bin pappsatt.“\n\n„Ich auch“, sagte Mama.\n\n„Ich auch“, sagte Oma. „Als hätte ich eine halbe Torte gegessen.“\n\nLia sah Mats an. „An der Schnur hast du immer noch nicht gezogen.“ Dann machte sie mit der Zunge ein Geräusch. Tk-tk-tschuuu. Ein Zug, der endlich losfährt.\n\nMats packte das Paket aus. Ganz langsam. „Wie geht der Vorhang auf?“\n\nLia zog an der Schnur. Der rote Vorhang ging auf. Dahinter stand ein Löwe aus Papier. Daneben schwamm ein kleiner orangefarbener Fisch in einem Glas. Auch aus Papier.\n\n„Das ist euer Fisch“, sagte Lia. „Weil er immer so guckt.“\n\nIm echten Glas presste Bruno das Maul ganz fest zu.\n\nMats sprach den Löwen. Lia machte den Zug. Mama und Papa setzten sich auf den Teppich und sahen zu. Oma schlief auf dem Sofa ein.\n\n„Das ist das Beste an der ganzen Feier“, sagte Mats.\n\n„Bei Finn hab ich länger gewartet als gehüpft“, sagte Lia. „Nächstes Mal fangen wir mit dem Löwen an.“\n\nUm sieben schlug die Kirchturmuhr. Mats und Lia hielten die Luft an.\n\nEs machte nicht PLING. Unten klingelte Lias Papa. Lia lief hinunter, und diesmal kam sie nicht wieder.\n\nElla stand am Fenster. „Mats. Er ist immer noch da.“\n\nMats sah zum Hoftor hinunter. Dann sah er die Torte an. „Er guckt schon so lange. Vielleicht hat er Hunger.“\n\nPlan F. F wie Fragen.\n\n„Papa? Dürfen wir dem Mann unten ein Stück Torte bringen? Kommst du mit?“\n\nPapa sah aus dem Fenster. „Der Mann vom Flohmarkt!“ Er holte seine Jacke. „Klar komm ich mit.“\n\nPapa blieb unten an der Haustür stehen. Ella ging mit Mats zum Hoftor. Mats hielt dem Mann den Teller mit dem größten Stück hin. „Ich hab heute Geburtstag. Ich bin sieben.“\n\nDer Mann nahm den Teller. „Danke.“\n\n„Sie haben uns Bruno verkauft“, sagte Ella. „Warum gucken Sie zu unserem Fenster?“\n\nDer Mann sah noch einmal hinauf. „Von hier seh ich, wer runterguckt.“ Er tippte an seinen Fischhut. „Alles Gute zum Siebten.“ Dann ging er mit dem Teller durchs Hoftor.\n\nSpäter brachte Oma Frau Grimmbach ein Stück Torte hinunter, wie jeden Sonntag. Mama und Papa spülten in der Küche. Die Wohnzimmertür war zu.\n\n„VIERMAL dieses Lied!“, platzte Bruno heraus. „Ich kann es jetzt rückwärts!“\n\nEr holte Luft. „Bist geboren du dass schön wie!“ Dann schwamm er eine Runde. „Hab ich's nicht gesagt? Ich hab's gesagt.“\n\n„Vor Lia hast du gar nichts gesagt!“, rief Mats.\n\n„Für die Zugabe will ich Extra-Flocken“, sagte Bruno.\n\nElla pinnte Flunker-Karte Nr. 8 neben das Glas. Mats schrieb darunter: Nächstes Mal frag ich gleich: Wie geht der Vorhang auf?\n\nUnten im Erdgeschoss schlug Frau Grimmbach ihr Heft auf und stutzte. Da stand ein Eintrag in ihrer eigenen Schrift. Sie konnte sich nicht erinnern, ihn geschrieben zu haben.\n\n„Eintrag 53: Viermal dieselben Gäste bei Brandts. Zweimal sogar mit Kater!!!“\n\nFrau Grimmbach sah zu Kaiser. Er lag auf der Heizung, alle vier Pfoten von sich gestreckt, und schnarchte."
+  },
+  "gesamtnote": 8,
+  "_meta": {
+    "provider": "codex",
+    "model": "gpt-6.2-sol (codex)",
+    "effort": "high",
+    "costUSD": null,
+    "tokens": {
+      "completion": 63363
+    },
+    "seconds": 365,
+    "words": [
+      596,
+      615,
+      820
+    ],
+    "revisedWords": [
+      588,
+      574,
+      791
+    ]
+  }
+}
