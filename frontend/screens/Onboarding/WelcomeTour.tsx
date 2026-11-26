@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { CHAPTERS, tourAudio, tourImage, type ChapterMeta } from './tourChapters';
+import { NavIcon } from '../../components/navigation/NavIcon';
 import './WelcomeTour.css';
 
 interface Props {
@@ -183,7 +184,7 @@ export default function WelcomeTour({ onFinish, onDismiss }: Props) {
                           if (entry.chapter) go(CHAPTERS.findIndex(candidate => candidate.id === entry.chapter));
                           else setDiscovery(i);
                         }}>
-                          <span className="tour-discovery-symbol" aria-hidden="true">{entry.symbol}</span><span>{entry.label}</span>
+                          <span className="tour-discovery-symbol" aria-hidden="true">{entry.icon ? <NavIcon name={entry.icon} active className="tour-discovery-glyph" /> : entry.symbol}</span><span>{entry.label}</span>
                           {discovery === i && <Check size={14} className="tour-discovery-check" aria-hidden="true" />}
                         </button>
                       ))}

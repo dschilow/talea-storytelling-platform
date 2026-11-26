@@ -245,6 +245,8 @@ const GenerationProgress: React.FC<{
                   <p className="text-xs" style={{ color: palette.muted }}>
                     {step.description}
                   </p>
+                  {/* Something visibly moves during the long writing step, without pretending to know how far it is. */}
+                  {isActive ? <span aria-hidden className="talea-indeterminate mt-2.5 block h-1 w-full max-w-[16rem]" /> : null}
                 </div>
 
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center" aria-hidden>

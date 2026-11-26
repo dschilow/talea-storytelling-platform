@@ -735,7 +735,7 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
         exit={{ opacity: 0 }}
         type="button"
         data-talea-android-back onClick={togglePlaylistDrawer}
-        className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-[rgba(24,16,12,0.42)] backdrop-blur-sm"
         aria-label="Warteschlange schliessen"
       />
 

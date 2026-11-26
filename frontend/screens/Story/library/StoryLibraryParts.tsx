@@ -73,25 +73,26 @@ export const StoryCoverMedia: React.FC<{
   </div>
 );
 
-const statusTone: Record<Story["status"], string> = {
-  complete: "bg-emerald-100 text-emerald-600 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800",
-  generating: "bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-800",
-  error: "bg-rose-100 text-rose-600 border-rose-200 dark:bg-rose-900/50 dark:text-rose-300 dark:border-rose-800",
-};
-
+/** Same pill as on the start page: a breathing dot while Talea writes, the danger colour when it failed. */
 export const StoryStatusChip: React.FC<{ status: Story["status"] }> = ({ status }) => {
   const { t } = useTranslation();
   if (status === "complete") return null;
   return (
-    <span className={cn("inline-flex rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] shadow-sm", statusTone[status])}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full bg-[var(--talea-surface-primary)] px-2.5 py-1 text-[12px] font-semibold shadow-[var(--talea-shadow-soft)]",
+        status === "error" ? "text-[var(--talea-danger)]" : "text-[var(--talea-text-primary)]",
+      )}
+    >
+      {status === "generating" ? <span aria-hidden className="talea-breathe h-1.5 w-1.5 rounded-full bg-[var(--primary)]" /> : null}
       {t(`storiesScreen.status.${status}`, status)}
     </span>
   );
 };
 
 export const StoryImageSkipChip: React.FC = () => (
-  <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700 shadow-sm dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-300">
-    <ImageOff className="h-3.5 w-3.5" />
+  <span className="inline-flex items-center gap-1 rounded-full bg-[var(--talea-surface-primary)] px-2.5 py-1 text-[12px] font-semibold text-[var(--talea-warning)] shadow-[var(--talea-shadow-soft)]">
+    <ImageOff className="h-3.5 w-3.5" aria-hidden="true" />
     Bilder übersprungen
   </span>
 );

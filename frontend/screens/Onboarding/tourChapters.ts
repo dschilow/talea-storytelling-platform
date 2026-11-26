@@ -1,3 +1,5 @@
+import type { NavIconName } from '../../components/navigation/NavIcon';
+
 export type ChapterId =
   | 'welcome' | 'home' | 'avatar' | 'story' | 'library' | 'reading'
   | 'doku' | 'audio' | 'cosmos' | 'journey' | 'games' | 'treasure'
@@ -6,6 +8,12 @@ export type ChapterId =
 export interface TourDiscovery {
   label: string;
   symbol: string;
+  /**
+   * The navigation glyph of the place this discovery stands for. A child who cannot read
+   * yet sees the same picture here as in the tab bar ("hier bin ich richtig").
+   * When set it replaces the emoji `symbol`.
+   */
+  icon?: NavIconName;
   explanation: string;
   chapter?: ChapterId;
 }
@@ -31,9 +39,9 @@ export const CHAPTERS: ChapterMeta[] = [
     lede: 'Ich bin Tavi. Wir erfinden Geschichten, entdecken Wissen und spielen zusammen. Wohin möchtest du zuerst?',
     imageAlt: 'Tavi begrüßt ein Kind und einen Fuchs vor einem Geschichtenhaus, einem Teleskop und einer Spielewiese.',
     discoveries: [
-      { label: 'Geschichten', symbol: '📖', explanation: 'Hier wird deine Idee zum Abenteuer.', chapter: 'story' },
-      { label: 'Wissen', symbol: '🔭', explanation: 'Hier finden wir Antworten auf deine Fragen.', chapter: 'doku' },
-      { label: 'Spielen', symbol: '🎲', explanation: 'Hier wird geknobelt und gemeinsam gelacht.', chapter: 'games' },
+      { label: 'Geschichten', symbol: '📖', icon: 'stories', explanation: 'Hier wird deine Idee zum Abenteuer.', chapter: 'story' },
+      { label: 'Wissen', symbol: '🔭', icon: 'dokus', explanation: 'Hier finden wir Antworten auf deine Fragen.', chapter: 'doku' },
+      { label: 'Spielen', symbol: '🎲', icon: 'game', explanation: 'Hier wird geknobelt und gemeinsam gelacht.', chapter: 'games' },
     ],
     details: 'Über „Alle Orte“ kannst du jede Seite direkt auswählen. Den Rundgang findest du später wieder im Profilmenü unter „Rundgang starten“. Mit „Tavi erzählt“ werden die Seiten vorgelesen.',
     narration: 'Hallo! Ich bin Tavi. Schön, dass du da bist! In Talea kannst du Geschichten erfinden, Wissen entdecken und spielen. Tippe auf Weiter, oder such dir in Alle Orte ein Ziel aus. Wenn du möchtest, lese ich dir jede Seite vor.',
@@ -56,9 +64,9 @@ export const CHAPTERS: ChapterMeta[] = [
     lede: 'Ein Fuchs, ein Drache oder du selbst? Gestalte deinen Helden. Mit jedem Abenteuer lernt er dazu.',
     imageAlt: 'Ein Kind gestaltet einen Fuchs und einen kleinen freundlichen Drachen im Heldenatelier. Tavi hält Pinsel und Farbpalette bereit.',
     discoveries: [
-      { label: 'Gestalten', symbol: '🎨', explanation: 'Wähle Name, Aussehen und die Art deines Helden.' },
-      { label: 'Wachsen', symbol: '🌱', explanation: 'Wer im Abenteuer anderen hilft, übt zum Beispiel Teamgeist.' },
-      { label: 'Erinnern', symbol: '📔', explanation: 'Im Tagebuch findest du Erlebnisse deines Helden wieder.' },
+      { label: 'Gestalten', symbol: '🎨', icon: 'avatars', explanation: 'Wähle Name, Aussehen und die Art deines Helden.' },
+      { label: 'Wachsen', symbol: '🌱', icon: 'growth', explanation: 'Wer im Abenteuer anderen hilft, übt zum Beispiel Teamgeist.' },
+      { label: 'Erinnern', symbol: '📔', icon: 'diary', explanation: 'Im Tagebuch findest du Erlebnisse deines Helden wieder.' },
     ],
     details: 'Du kannst Avatare neu erstellen, ansehen und bearbeiten. Die neun Grundeigenschaften starten bei null und wachsen durch tatsächliche Erlebnisse. Wissen kann neue Spezialgebiete bekommen. Tagebuch und Schatzkammer liegen im Avatarprofil.',
     location: 'Avatare → Held auswählen', destination: '/avatar',
@@ -173,9 +181,9 @@ export const CHAPTERS: ChapterMeta[] = [
     lede: 'Dein Held sammelt Erinnerungen und Fundstücke. Ein Schatz kann dich beim nächsten Abenteuer begleiten.',
     imageAlt: 'Ein Fuchs und ein Kind öffnen eine Schatztruhe mit einem Kompass, einer leuchtenden Feder und einem Tagebuch voller Abenteuerbilder.',
     discoveries: [
-      { label: 'Schatzkammer', symbol: '💎', explanation: 'Hier liegen die Fundstücke aus den Geschichten deines Helden.' },
+      { label: 'Schatzkammer', symbol: '💎', icon: 'treasure', explanation: 'Hier liegen die Fundstücke aus den Geschichten deines Helden.' },
       { label: 'Mitnehmen', symbol: '🎒', explanation: 'Wähle beim nächsten Geschichtenstart einen Schatz als Begleiter.' },
-      { label: 'Tagebuch', symbol: '📔', explanation: 'Blättere durch die Erinnerungen deines Helden.' },
+      { label: 'Tagebuch', symbol: '📔', icon: 'diary', explanation: 'Blättere durch die Erinnerungen deines Helden.' },
     ],
     details: 'Wähle unter Avatare einen Helden und öffne „Schatzkammer“ oder „Tagebuch“. Fundstücke können im Geschichten-Wizard als Begleiter gewählt werden. Weiterentwicklung und Erinnerungen ergeben sich aus dem jeweiligen Abenteuer.',
     location: 'Avatare → Held → Schatzkammer oder Tagebuch', destination: '/avatar',
@@ -225,9 +233,9 @@ export const CHAPTERS: ChapterMeta[] = [
     lede: 'Jetzt kennst du die Wege. Erfinde deinen ersten Helden oder schau dich in Talea um.',
     imageAlt: 'Ein Kind, sein Fuchs und Tavi gehen durch ein offenes Tor in eine freundliche Welt mit Schloss, Planeten, Büchern und Entdeckerpfaden.',
     discoveries: [
-      { label: 'Mein Held', symbol: '🦊', explanation: 'Gestalte zuerst einen Avatar, der dich begleitet.', chapter: 'avatar' },
-      { label: 'Mein Abenteuer', symbol: '📖', explanation: 'Deine eigene Geschichte beginnt mit einer Idee.', chapter: 'story' },
-      { label: 'Meine Frage', symbol: '🔭', explanation: 'Worüber möchtest du mehr wissen?', chapter: 'doku' },
+      { label: 'Mein Held', symbol: '🦊', icon: 'avatars', explanation: 'Gestalte zuerst einen Avatar, der dich begleitet.', chapter: 'avatar' },
+      { label: 'Mein Abenteuer', symbol: '📖', icon: 'stories', explanation: 'Deine eigene Geschichte beginnt mit einer Idee.', chapter: 'story' },
+      { label: 'Meine Frage', symbol: '🔭', icon: 'dokus', explanation: 'Worüber möchtest du mehr wissen?', chapter: 'doku' },
     ],
     details: 'Mit „Ersten Helden gestalten“ öffnest du den Avatar-Wizard. „Selbst entdecken“ schließt den Rundgang. Du kannst ihn jederzeit im Profilmenü erneut starten.',
     narration: 'Jetzt kennst du die Wege in Talea! Welches Abenteuer wird deins? Gestalte deinen ersten Helden oder schau dich selbst um. Wenn du mich später noch einmal brauchst, findest du den Rundgang im Profilmenü. Ich freue mich auf unsere Abenteuer!',

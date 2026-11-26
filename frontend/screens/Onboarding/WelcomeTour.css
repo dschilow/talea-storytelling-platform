@@ -37,7 +37,9 @@
 .tour-discoveries > button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 9px; min-width: 0; min-height: 105px; padding: 14px 6px 12px; border-radius: 17px; border: 1px solid var(--talea-border-light); background: var(--talea-surface-inset); color: var(--talea-text-primary); font-size: 12px; font-weight: 650; text-align: center; line-height: 1.35; transition: border-color .15s, transform .15s; }
 .tour-discoveries > button:hover { border-color: var(--tour-accent); transform: translateY(-2px); }
 .tour-discoveries > button[aria-pressed="true"] { border-color: var(--tour-accent); background: color-mix(in srgb, var(--tour-accent) 15%, var(--talea-surface-primary)); }
-.tour-discovery-symbol { font-size: 30px; line-height: 1.15; }
+.tour-discovery-symbol { display: flex; min-height: 35px; align-items: center; justify-content: center; font-size: 30px; line-height: 1.15; }
+/* The tab bar's own glyphs (same picture as the navigation), coloured in the brand accent. */
+.tour-discovery-glyph { width: 30px; height: 30px; color: var(--primary); }
 .tour-discovery-check { position: absolute; top: 7px; right: 7px; color: var(--primary); }
 .tour-discovery-caption { min-height: 48px; padding: 13px 1px 0; color: var(--talea-text-secondary); font-size: 13px; line-height: 1.5; }
 .tour-discovery-caption.is-discovered { color: var(--talea-text-primary); }
@@ -100,3 +102,10 @@
 @media (prefers-reduced-motion: reduce) {
   .welcome-tour *, .welcome-tour *::before, .welcome-tour *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Dark mode: the picture page stays a page, but not a bright cream sheet in a dark room. */
+.dark .tour-picture-page { background: var(--talea-surface-inset); border-color: var(--talea-border-light); }
+.dark .tour-image-placeholder { background: var(--talea-surface-inset); color: var(--talea-text-secondary); }
+.dark .tour-picture-caption { color: var(--talea-text-tertiary); }
+.dark .tour-place-grid img { background: var(--talea-surface-inset); }
+.dark .tour-book { box-shadow: 0 18px 65px rgba(0, 0, 0, 0.45); }
