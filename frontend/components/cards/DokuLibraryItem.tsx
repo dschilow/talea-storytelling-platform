@@ -44,7 +44,7 @@ export const DokuLibraryItem: React.FC<{
           {(metadata || (list && badge)) && <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12.5px] text-[var(--talea-text-tertiary)]">{list && badge}{metadata && <span>{metadata}</span>}</div>}
         </div>
       </button>
-      <TaleaCardMenu actions={actions} label={`Aktionen für ${title}`} className={list ? 'self-start [&>button]:bg-[var(--talea-surface-inset)] [&>button]:text-[var(--talea-text-secondary)] [&>button]:backdrop-blur-none' : '!absolute right-2 top-2'} />
+      <TaleaCardMenu actions={actions} label={`Aktionen für ${title}`} tone={list ? 'surface' : 'media'} className={list ? 'self-start' : '!absolute right-2 top-2'} />
     </article>
   );
 };

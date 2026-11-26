@@ -32,6 +32,7 @@ import { DokuLibraryShelves } from './DokuLibraryShelves';
 import { LibraryHero } from '../Story/library/StoryLibraryParts';
 import type { TaleaCardMenuAction } from '@/components/talea/TaleaCardMenu';
 import { IconTabs, iconTabId, type IconTabItem } from '@/components/navigation/IconTabs';
+import { NavIcon, type NavIconName } from '@/components/navigation/NavIcon';
 import { useBackend } from '../../hooks/useBackend';
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext';
 import { AudioPlaybackControls } from '../../components/audio/AudioPlaybackControls';
@@ -46,6 +47,7 @@ import UpgradePlanModal from '../../components/subscription/UpgradePlanModal';
 import { cn } from '@/lib/utils';
 import {
   TaleaActionButton,
+  TaleaSkeletonBlock,
   TaleaPageBackground,
   taleaBodyFont,
   taleaDisplayFont,
@@ -312,36 +314,21 @@ const AudioModal: React.FC<{
 // ────────────────────────────────────────────────────────────────────────────────
 // Skeleton
 // ────────────────────────────────────────────────────────────────────────────────
-const SectionLoading: React.FC<{ palette: Palette }> = ({ palette }) => {
-  const reduceMotion = useReducedMotion();
-  return (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <motion.div
-          key={i}
-          initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.24, delay: i * 0.04 }}
-          className="overflow-hidden rounded-[1.75rem] border"
-          style={{ borderColor: palette.border, background: palette.panel }}
-        >
-          <div className="relative aspect-square w-full motion-safe:animate-pulse overflow-hidden" style={{ background: palette.soft }}>
-            <motion.div
-              className="absolute inset-y-0 -left-1/3 w-1/3 bg-white/30 dark:bg-white/10"
-              animate={reduceMotion ? undefined : { x: ['0%', '420%'] }}
-              transition={{ duration: 1.25, repeat: reduceMotion ? 0 : Infinity, ease: 'easeInOut', delay: i * 0.05 }}
-            />
-          </div>
-          <div className="space-y-3 p-4">
-            <div className="h-5 w-4/5 motion-safe:animate-pulse rounded" style={{ background: palette.soft }} />
-            <div className="h-4 w-full motion-safe:animate-pulse rounded" style={{ background: palette.soft }} />
-            <div className="h-4 w-3/4 motion-safe:animate-pulse rounded" style={{ background: palette.soft }} />
-          </div>
-        </motion.div>
+/** The cover-first collection's outline (same tiles as the story library) while dokus load. */
+const SectionLoading: React.FC<{ palette: Palette }> = () => (
+  <div role="status" aria-live="polite">
+    <span className="sr-only">Dokus werden geladen</span>
+    <div aria-hidden className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4">
+      {Array.from({ length: 8 }, (_, index) => (
+        <div key={index} style={{ opacity: 1 - Math.floor(index / 4) * 0.35 }}>
+          <TaleaSkeletonBlock className="aspect-square rounded-[18px]" />
+          <TaleaSkeletonBlock className="mt-3 h-3 w-1/3" />
+          <TaleaSkeletonBlock className="mt-2 h-4 w-4/5" />
+        </div>
       ))}
     </div>
-  );
-};
+  </div>
+);
 
 // ────────────────────────────────────────────────────────────────────────────────
 // Main Screen
@@ -838,7 +825,8 @@ const TaleaDokusScreen: React.FC = () => {
       onToggleOffline={() => toggleAudioDoku(doku)} />
   );
 
-  const countLabel = (loading: boolean, count: number) => (loading ? '…' : count);
+  // While a count loads the tab shows none: a trailing "…" read like a cut-off label.
+  const countLabel = (loading: boolean, count: number) => (loading ? undefined : count);
   const dokuTabs: IconTabItem<DokuTab>[] = [
     { id: 'mine', label: t('doku.tabMine', 'Meine'), icon: 'mine', count: countLabel(loadingMy, totalMy) },
     { id: 'discover', label: t('doku.tabDiscover', 'Entdecken'), icon: 'discover', count: countLabel(loadingPublic, totalPublic) },
@@ -915,7 +903,7 @@ const TaleaDokusScreen: React.FC = () => {
             </div>
             <p className="mt-1 text-[15px]" style={{ color: palette.muted }}>
               {activeTab === 'audio' ? 'Deine Hörwelt: Wissen und neue Entdeckungen für die Ohren.' : activeTab === 'discover' ? 'Wissensabenteuer aus der Talea-Community entdecken.' : <>
-                {totalMy} {totalMy === 1 ? 'Doku' : 'Dokus'}
+                {loadingMy && totalMy === 0 ? <span aria-hidden className="talea-shimmer inline-block h-3.5 w-20 rounded-lg bg-[var(--talea-media-skeleton)] align-middle" /> : <>{totalMy} {totalMy === 1 ? 'Doku' : 'Dokus'}</>}
                 {remainingDokuLabel !== null ? <> · {remainingDokuLabel} übrig in diesem Monat</> : null}
               </>}
             </p>
@@ -962,11 +950,7 @@ const TaleaDokusScreen: React.FC = () => {
                   type="search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={
-                    activeTab === 'audio'
-                      ? t('doku.searchPlaceholderAudio', 'Audio durchsuchen...')
-                      : t('doku.searchPlaceholderText', 'Dokus durchsuchen...')
-                  }
+                  placeholder={t('common.search', 'Suchen')}
                   className={cn(taleaInputClass, 'pl-10 pr-10')}
                 />
                 {searchQuery && (
@@ -987,7 +971,7 @@ const TaleaDokusScreen: React.FC = () => {
                   { id: 'grid', label: 'Rasteransicht', icon: <Grid3X3 className="h-4 w-4" /> },
                   { id: 'list', label: 'Listenansicht', icon: <LayoutList className="h-4 w-4" /> },
                 ] as Array<{ id: DokuViewMode; label: string; icon: React.ReactNode }>).map((mode) => (
-                  <button key={mode.id} type="button" aria-pressed={viewMode === mode.id} aria-label={mode.label} title={mode.label} onClick={() => setViewMode(mode.id)} className={cn('inline-flex h-11 w-11 items-center justify-center rounded-[0.55rem] transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]', viewMode === mode.id ? 'bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)] shadow-[var(--talea-shadow-soft)]' : 'text-[var(--talea-text-tertiary)]')}>
+                  <button key={mode.id} type="button" aria-pressed={viewMode === mode.id} aria-label={mode.label} title={mode.label} onClick={() => setViewMode(mode.id)} className={cn('inline-flex h-11 w-10 items-center justify-center rounded-[0.55rem] transition-colors sm:w-11 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]', viewMode === mode.id ? 'bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)] shadow-[var(--talea-shadow-soft)]' : 'text-[var(--talea-text-tertiary)]')}>
                     {mode.icon}
                   </button>
                 ))}
@@ -1128,6 +1112,9 @@ const TaleaDokusScreen: React.FC = () => {
                       {filteredMyDokus.length === 0 ? (
                         <EmptyState
                           palette={palette}
+                          icon="mine"
+                          filtered={hasActiveFilters}
+                          description={hasActiveFilters ? undefined : t('doku.noDokusHint', 'Wähle ein Thema, das dich neugierig macht. Talea macht daraus eine kleine Wissensreise.')}
                           message={
                             hasActiveFilters
                               ? t('doku.noDokusQuery', 'Keine Doku passt zum Suchbegriff.')
@@ -1167,6 +1154,8 @@ const TaleaDokusScreen: React.FC = () => {
                       ) : filteredPublicDokus.length === 0 ? (
                         <EmptyState
                           palette={palette}
+                          icon="discover"
+                          filtered={hasActiveFilters}
                           message={
                             hasActiveFilters
                               ? t('doku.noPublicDokusQuery', 'Keine Entdecken-Doku passt zum Suchbegriff.')
@@ -1212,6 +1201,8 @@ const TaleaDokusScreen: React.FC = () => {
                       ) : filteredAudioDokus.length === 0 ? (
                         <EmptyState
                           palette={palette}
+                          icon="listen"
+                          filtered={hasActiveFilters}
                           message={
                             hasActiveFilters
                               ? t('doku.noAudioDokusQuery', 'Keine Audio-Doku passt zum Suchbegriff.')
@@ -1293,27 +1284,46 @@ const FilterSelect: React.FC<{
 const EmptyState: React.FC<{
   palette: Palette;
   message: string;
+  /** One line of why or what next under the message. */
+  description?: string;
+  /** The tab's own picture (Meine, Entdecken, Hörwelt) so the empty page still says where you are. */
+  icon?: NavIconName;
+  /** A filter or search hides everything: no invitation, just the way back. */
+  filtered?: boolean;
   actionLabel?: string;
   onAction?: () => void;
-}> = ({ palette, message, actionLabel, onAction }) => (
+}> = ({ palette, message, description, icon = 'dokus', filtered = false, actionLabel, onAction }) => (
   <motion.div
-    initial={{ opacity: 0, scale: 0.96 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ duration: 0.3 }}
-    className="flex flex-col items-center justify-center gap-4 rounded-[1.75rem] border p-12 text-center"
+    initial={{ opacity: 0, y: 8 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+    className="flex flex-col items-center justify-center rounded-[1.75rem] border px-6 py-10 text-center sm:px-12 sm:py-12"
     style={{ borderColor: palette.border, background: palette.panel }}
   >
-    <div
-      className="flex h-16 w-16 items-center justify-center rounded-2xl"
-      style={{ background: 'color-mix(in srgb, var(--primary) 14%, var(--talea-surface-inset))' }}
-    >
-      <BookOpen className="h-7 w-7" style={{ color: 'var(--primary)' }} />
-    </div>
-    <p className="max-w-md text-sm" style={{ color: palette.muted }}>
+    <span aria-hidden className="relative mb-5 flex h-20 w-20 items-center justify-center">
+      <span className="absolute inset-0 rounded-full bg-[var(--talea-accent-terracotta-soft)]" />
+      {filtered ? (
+        <Search className="relative h-8 w-8 text-[var(--talea-text-tertiary)]" />
+      ) : (
+        <NavIcon name={icon} active className="relative h-10 w-10 text-[var(--primary)]" />
+      )}
+    </span>
+    <p className="max-w-md text-[17px] font-semibold leading-snug text-[var(--talea-text-primary)]" style={{ fontFamily: 'var(--talea-font-display)' }}>
       {message}
     </p>
+    {description ? (
+      <p className="mt-1.5 max-w-sm text-[14.5px] leading-relaxed" style={{ color: palette.muted }}>
+        {description}
+      </p>
+    ) : null}
     {actionLabel && onAction && (
-      <TaleaActionButton type="button" onClick={onAction} icon={<Plus className="h-4 w-4" />}>
+      <TaleaActionButton
+        type="button"
+        className="mt-6"
+        variant={filtered ? 'secondary' : 'primary'}
+        onClick={onAction}
+        icon={filtered ? undefined : <Plus className="h-4 w-4" />}
+      >
         {actionLabel}
       </TaleaActionButton>
     )}

@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback, useSyncExternalStore } from 'r
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { ClerkProvider, useUser } from '@clerk/clerk-react';
-import { Toaster, toast } from 'sonner';
+import { toast } from 'sonner';
 import { MotionConfig } from 'framer-motion';
 import { store } from './store/store';
 
 import TaviButton from './components/common/TaviButton';
-import { colors } from './utils/constants/colors';
+import TaleaToaster from './components/common/TaleaToaster';
 import { clerkPublishableKey } from './config';
 import { ThemeProvider, OfflineThemeProvider } from './contexts/ThemeContext';
 import { AudioPlayerProvider } from './contexts/AudioPlayerContext';
@@ -127,9 +127,14 @@ const GlobalHaptics: React.FC = () => {
   return null;
 };
 
+// Appears only when a screen takes longer than a blink to load, so fast route
+// changes never flash a spinner.
 const RouteLoadingFallback = () => (
-  <div className="flex h-screen items-center justify-center">
-    <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#c47832] border-t-transparent" />
+  <div className="talea-delayed-fade flex h-[70vh] items-center justify-center" role="status" aria-label="Wird geladen">
+    <span className="relative flex h-10 w-10 items-center justify-center">
+      <span className="absolute inset-0 rounded-full border-[2.5px] border-[var(--talea-progress-track)]" />
+      <span className="absolute inset-0 animate-spin rounded-full border-[2.5px] border-transparent border-t-[var(--primary)] [animation-duration:0.8s]" />
+    </span>
   </div>
 );
 
@@ -265,20 +270,7 @@ const RouterContent = () => {
           <WelcomeTour onFinish={welcomeTour.markCompleted} onDismiss={welcomeTour.close} />
         </React.Suspense>
       )}
-      <Toaster
-        position="top-right"
-        richColors
-        closeButton
-        toastOptions={{
-          style: {
-            background: colors.glass.backgroundAlt,
-            backdropFilter: 'blur(20px)',
-            border: `2px solid ${colors.border.light}`,
-            borderRadius: '16px',
-            color: colors.text.primary,
-          },
-        }}
-      />
+      <TaleaToaster />
     </>
   );
 };
@@ -298,214 +290,99 @@ const AppContent = () => {
   );
 };
 
-const MissingKeyScreen = () => (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100vh',
-    background: colors.gradients.background,
-    padding: '2rem',
-    textAlign: 'center',
-    fontFamily: '"Nunito", system-ui, sans-serif',
-  }}>
-    <div style={{
-      maxWidth: '600px',
-      padding: '2.5rem',
-      borderRadius: '24px',
-      background: colors.glass.backgroundAlt,
-      border: `2px solid ${colors.border.light}`,
-      boxShadow: '0 20px 60px rgba(169, 137, 242, 0.2)',
-    }}>
-      <div style={{ fontSize: '64px', marginBottom: '1.5rem' }}>🔐</div>
-      <h1 style={{
-        fontSize: '28px',
-        fontWeight: '700',
-        color: colors.text.primary,
-        marginBottom: '1rem',
-        fontFamily: '"Fredoka", "Nunito", system-ui, sans-serif',
-      }}>
-        Clerk Publishable Key fehlt
-      </h1>
-      <p style={{ color: colors.text.secondary, marginBottom: '1.5rem', fontSize: '16px' }}>
-        Um die Authentifizierung zu nutzen, benötigst du einen Clerk Publishable Key.
-      </p>
-      <p style={{ color: colors.text.secondary, fontSize: '15px' }}>
-        Bitte öffne die Datei <code style={{
-          background: colors.lavender[100],
-          padding: '0.3rem 0.6rem',
-          borderRadius: '8px',
-          color: colors.lavender[700],
-          fontFamily: 'monospace',
-        }}>frontend/config.ts</code> und setze den Wert von <code style={{
-          background: colors.lavender[100],
-          padding: '0.3rem 0.6rem',
-          borderRadius: '8px',
-          color: colors.lavender[700],
-          fontFamily: 'monospace',
-        }}>clerkPublishableKey</code>.
-      </p>
-      <p style={{ color: colors.text.secondary, marginTop: '1.5rem', fontSize: '14px' }}>
-        Du erhältst deinen Key im <a
-          href="https://dashboard.clerk.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            color: colors.lavender[600],
-            textDecoration: 'none',
-            fontWeight: '600',
-          }}
-        >Clerk Dashboard</a>.
-      </p>
+/** The calm full-page layout for the few moments the app itself cannot start. */
+const StatusScreen: React.FC<{
+  title: string;
+  children: React.ReactNode;
+  actions?: React.ReactNode;
+  tone?: 'neutral' | 'warning';
+}> = ({ title, children, actions, tone = 'neutral' }) => (
+  <div className="flex min-h-dvh items-center justify-center bg-[var(--talea-page-solid)] px-5 py-10 text-center font-[family-name:var(--talea-font-ui)]">
+    <div className="w-full max-w-[34rem] rounded-[28px] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] px-6 py-9 shadow-[var(--talea-shadow-medium)] sm:px-10 sm:py-11">
+      <div className="relative mx-auto mb-6 flex h-24 w-24 items-center justify-center">
+        <span
+          aria-hidden
+          className={`absolute inset-0 rounded-full ${tone === 'warning' ? 'bg-[var(--talea-warning-soft)]' : 'bg-[var(--talea-accent-terracotta-soft)]'}`}
+        />
+        <img src="/brand/talea-icon-primary.svg" alt="" width="80" height="80" className="relative h-20 w-20 -rotate-6 drop-shadow-[0_8px_10px_rgba(62,40,31,0.12)]" />
+      </div>
+      <h1 className="text-[1.6rem] font-semibold leading-tight text-[var(--talea-text-primary)] sm:text-[1.85rem]">{title}</h1>
+      <div className="mx-auto mt-3 max-w-md space-y-3 text-[15.5px] leading-relaxed text-[var(--talea-text-secondary)]">{children}</div>
+      {actions ? <div className="mt-8 flex flex-wrap items-center justify-center gap-3">{actions}</div> : null}
     </div>
   </div>
 );
 
+const statusPrimaryButtonClass =
+  'inline-flex min-h-12 items-center justify-center rounded-full px-6 text-[15px] font-semibold text-[var(--primary-foreground)] [background:var(--talea-gradient-brand)] shadow-[0_8px_20px_-8px_color-mix(in_srgb,var(--primary)_60%,transparent)] transition-[filter,transform] hover:brightness-105 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]';
+const statusSecondaryButtonClass =
+  'inline-flex min-h-12 items-center justify-center rounded-full bg-[var(--talea-surface-inset)] px-6 text-[15px] font-semibold text-[var(--talea-text-primary)] transition-[filter,transform] hover:brightness-[0.97] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]';
+
+const MissingKeyScreen = () => (
+  <StatusScreen
+    title="Clerk Publishable Key fehlt"
+    tone="warning"
+    actions={
+      <a href="https://dashboard.clerk.com" target="_blank" rel="noopener noreferrer" className={statusSecondaryButtonClass}>
+        Clerk Dashboard öffnen
+      </a>
+    }
+  >
+    <p>Um die Anmeldung zu nutzen, braucht Talea einen Clerk Publishable Key.</p>
+    <p>
+      Setze <code className="rounded-md bg-[var(--talea-surface-inset)] px-1.5 py-0.5 font-mono text-[13px] text-[var(--talea-text-primary)]">VITE_CLERK_PUBLISHABLE_KEY</code> oder
+      den Wert in <code className="rounded-md bg-[var(--talea-surface-inset)] px-1.5 py-0.5 font-mono text-[13px] text-[var(--talea-text-primary)]">frontend/config.ts</code>.
+    </p>
+  </StatusScreen>
+);
+
 const AuthUnavailableScreen: React.FC<{ onRetry?: () => void }> = ({ onRetry }) => (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100vh',
-    background: colors.gradients.background,
-    padding: '2rem',
-    textAlign: 'center',
-    fontFamily: '"Nunito", system-ui, sans-serif',
-  }}>
-    <div style={{
-      maxWidth: '640px',
-      padding: '2.5rem',
-      borderRadius: '24px',
-      background: colors.glass.backgroundAlt,
-      border: `2px solid ${colors.border.light}`,
-      boxShadow: '0 20px 60px rgba(44, 57, 75, 0.12)',
-    }}>
-      <div style={{ fontSize: '56px', marginBottom: '1.25rem' }}>Auth</div>
-      <h1 style={{
-        fontSize: '28px',
-        fontWeight: '700',
-        color: colors.text.primary,
-        marginBottom: '1rem',
-        fontFamily: '"Fredoka", "Nunito", system-ui, sans-serif',
-      }}>
-        Authentifizierung ist gerade nicht erreichbar
-      </h1>
-      <p style={{ color: colors.text.secondary, marginBottom: '1rem', fontSize: '16px', lineHeight: 1.6 }}>
-        Die Anmeldung konnte nicht geladen werden. Sobald sie wieder erreichbar ist, startet Talea von selbst neu.
-      </p>
-      <p style={{ color: colors.text.secondary, marginBottom: '1.75rem', fontSize: '15px', lineHeight: 1.6 }}>
-        Meist steckt eine kurz gestörte Verbindung dahinter, manchmal auch ein Netzwerkfilter oder eine Privacy-Erweiterung.
-      </p>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          onClick={onRetry ?? (() => void reloadToLatestVersion())}
-          style={{
-            border: 'none',
-            borderRadius: '999px',
-            padding: '0.9rem 1.35rem',
-            background: 'linear-gradient(135deg, var(--primary), var(--talea-accent-sky))',
-            color: '#fff',
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
+  <StatusScreen
+    title="Die Anmeldung ist gerade nicht erreichbar"
+    actions={
+      <>
+        <button type="button" onClick={onRetry ?? (() => void reloadToLatestVersion())} className={statusPrimaryButtonClass}>
           Erneut laden
         </button>
-        <a href="/auth/recover.html" style={{ color: colors.text.primary, alignSelf: 'center' }}>
+        <a href="/auth/recover.html" className={statusSecondaryButtonClass}>
           App neu starten
         </a>
-      </div>
-    </div>
-  </div>
+      </>
+    }
+  >
+    <p>Sobald sie wieder erreichbar ist, startet Talea von selbst neu.</p>
+    <p className="text-[14px] text-[var(--talea-text-tertiary)]">
+      Meist steckt eine kurz gestörte Verbindung dahinter, manchmal auch ein Netzwerkfilter oder eine Privacy-Erweiterung.
+    </p>
+  </StatusScreen>
 );
 
 // Shown when a screen crashes for reasons that have nothing to do with auth.
 // Kept visually distinct from AuthUnavailableScreen so a component bug is never
 // misread as "you are logged out" / "auth is down".
 const AppCrashScreen: React.FC<{ message?: string; onRetry?: () => void }> = ({ message, onRetry }) => (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100vh',
-    background: colors.gradients.background,
-    padding: '2rem',
-    textAlign: 'center',
-    fontFamily: '"Nunito", system-ui, sans-serif',
-  }}>
-    <div style={{
-      maxWidth: '640px',
-      padding: '2.5rem',
-      borderRadius: '24px',
-      background: colors.glass.backgroundAlt,
-      border: `2px solid ${colors.border.light}`,
-      boxShadow: '0 20px 60px rgba(44, 57, 75, 0.12)',
-    }}>
-      <div style={{ fontSize: '56px', marginBottom: '1.25rem' }}>😵</div>
-      <h1 style={{
-        fontSize: '28px',
-        fontWeight: '700',
-        color: colors.text.primary,
-        marginBottom: '1rem',
-        fontFamily: '"Fredoka", "Nunito", system-ui, sans-serif',
-      }}>
-        Diese Seite ist abgestuerzt
-      </h1>
-      <p style={{ color: colors.text.secondary, marginBottom: '1rem', fontSize: '16px', lineHeight: 1.6 }}>
-        Du bist weiterhin angemeldet und online — in dieser Ansicht ist ein Fehler aufgetreten.
-      </p>
-      {message && (
-        <pre style={{
-          color: colors.text.secondary,
-          background: 'rgba(107, 112, 136, 0.12)',
-          borderRadius: '12px',
-          padding: '0.75rem 1rem',
-          marginBottom: '1.75rem',
-          fontSize: '13px',
-          textAlign: 'left',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          maxHeight: '160px',
-          overflow: 'auto',
-        }}>
-          {message}
-        </pre>
-      )}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          onClick={onRetry ?? (() => window.location.reload())}
-          style={{
-            border: 'none',
-            borderRadius: '999px',
-            padding: '0.9rem 1.35rem',
-            background: 'linear-gradient(135deg, var(--primary), var(--talea-accent-sky))',
-            color: '#fff',
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
+  <StatusScreen
+    title="Hier ist etwas schiefgelaufen"
+    tone="warning"
+    actions={
+      <>
+        <button type="button" onClick={onRetry ?? (() => window.location.reload())} className={statusPrimaryButtonClass}>
           Erneut laden
         </button>
-        <button
-          type="button"
-          onClick={() => { window.location.href = '/'; }}
-          style={{
-            border: `2px solid ${colors.border.light}`,
-            borderRadius: '999px',
-            padding: '0.9rem 1.35rem',
-            background: 'transparent',
-            color: colors.text.primary,
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
+        <button type="button" onClick={() => { window.location.href = '/'; }} className={statusSecondaryButtonClass}>
           Zur Startseite
         </button>
-      </div>
-    </div>
-  </div>
+      </>
+    }
+  >
+    <p>Du bist weiterhin angemeldet und online. Nur diese Ansicht hatte einen Fehler.</p>
+    {message ? (
+      <details className="mx-auto mt-2 max-w-md rounded-2xl bg-[var(--talea-surface-inset)] px-4 py-3 text-left text-[13px]">
+        <summary className="cursor-pointer select-none font-semibold text-[var(--talea-text-secondary)]">Technische Details</summary>
+        <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words font-mono text-[12.5px] text-[var(--talea-text-tertiary)]">{message}</pre>
+      </details>
+    ) : null}
+  </StatusScreen>
 );
 
 // Offline app shell. Deliberately the SAME shell as online — same layout, same
@@ -535,20 +412,7 @@ const OfflineApp = () => (
                   </Route>
                 </Routes>
               </React.Suspense>
-              <Toaster
-                position="top-right"
-                richColors
-                closeButton
-                toastOptions={{
-                  style: {
-                    background: colors.glass.backgroundAlt,
-                    backdropFilter: 'blur(20px)',
-                    border: `2px solid ${colors.border.light}`,
-                    borderRadius: '16px',
-                    color: colors.text.primary,
-                  },
-                }}
-              />
+              <TaleaToaster />
             </AudioPlayerProvider>
           </OfflineScopeProvider>
         </OfflineThemeProvider>

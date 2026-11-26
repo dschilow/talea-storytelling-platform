@@ -497,7 +497,7 @@ export const ListStoryRow: React.FC<{
           </div>
         </div>
       </button>
-      <TaleaCardMenu actions={menu} label={`Aktionen für ${story.title}`} className="self-start [&>button]:bg-[var(--talea-surface-inset)] [&>button]:text-[var(--talea-text-secondary)] [&>button]:backdrop-blur-none" />
+      <TaleaCardMenu actions={menu} label={`Aktionen für ${story.title}`} tone="surface" className="self-start" />
     </motion.article>
   );
 };

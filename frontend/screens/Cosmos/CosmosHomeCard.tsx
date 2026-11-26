@@ -88,18 +88,14 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
   return (
     <motion.button
       type="button"
-      whileHover={{ y: -4 }}
-      whileTap={{ scale: 0.97 }}
+      whileTap={{ scale: 0.985 }}
       onClick={() => navigate('/cosmos')}
-      className="group relative w-full h-full overflow-hidden rounded-3xl border text-left"
+      className="group relative h-full w-full overflow-hidden rounded-[inherit] text-left focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-[var(--talea-brand-cream)]"
       style={{
-        borderColor: isDark ? '#1e293b' : '#c8b8d8',
+        // A warm night sky in the Talea palette instead of the generic purple space look.
         background: isDark
-          ? 'linear-gradient(135deg, rgba(8,8,24,0.95) 0%, rgba(15,10,35,0.98) 100%)'
-          : 'linear-gradient(135deg, #0c0c20 0%, #1a1040 100%)',
-        boxShadow: isDark
-          ? '0 12px 40px rgba(80,60,180,0.15)'
-          : '0 12px 40px rgba(80,60,180,0.2)',
+          ? 'linear-gradient(135deg, #15101a 0%, #221822 55%, #2e1c1c 100%)'
+          : 'linear-gradient(135deg, #1b1424 0%, #2a1c2e 55%, #3b2422 100%)',
         minHeight: '200px',
       }}
     >
@@ -150,7 +146,7 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
           initial={{ scale: 0.6, opacity: 0 }}
           animate={{ scale: [1, 1.08, 1], opacity: 1 }}
           transition={{ scale: { duration: 1.6, repeat: Infinity }, opacity: { duration: 0.3 } }}
-          className="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-300 to-pink-400 px-2.5 py-1 text-[11px] font-extrabold text-[#1b1030] shadow-lg shadow-amber-500/30"
+          className="absolute right-3 top-3 z-20 flex items-center gap-1 rounded-full bg-[#f3d58f] px-2.5 py-1 text-[11px] font-bold text-[#3e281f] shadow-[0_6px_16px_-6px_rgba(243,213,143,0.7)]"
         >
           <Sparkles className="h-3 w-3" />
           {grownWorlds === 1 ? 'Eine Welt ist gewachsen!' : `${grownWorlds} Welten sind gewachsen!`}
@@ -161,7 +157,7 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'linear-gradient(to top, rgba(8,8,24,0.9) 0%, transparent 60%)',
+          background: 'linear-gradient(to top, rgba(20,13,14,0.88) 0%, transparent 62%)',
         }}
       />
 
@@ -169,16 +165,16 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
       <div className="relative z-10 flex flex-col justify-end h-full p-5">
         <div className="flex items-end justify-between">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-purple-300/80">
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#f3c3a6]">
               Dein Universum
             </p>
             <h2
-              className="mt-0.5 text-lg font-extrabold leading-tight text-white"
-              style={{ fontFamily: '"Nunito", sans-serif' }}
+              className="mt-0.5 text-[1.35rem] font-semibold leading-tight text-[var(--talea-brand-cream)]"
+              style={{ fontFamily: 'var(--talea-font-display)' }}
             >
               Lernkosmos
             </h2>
-            <p className="mt-1 flex items-center gap-1.5 text-[12px] font-semibold text-white/50">
+            <p className="mt-1 flex items-center gap-1.5 text-[12.5px] font-medium text-[#fff7ec]/65">
               <Telescope className="h-3 w-3" />
               {activeDomains > 0
                 ? `${activeDomains} ${activeDomains === 1 ? 'Welt wächst' : 'Welten wachsen'}`
@@ -187,10 +183,9 @@ const CosmosHomeCard: React.FC<Props> = ({ isDark, cosmosState }) => {
           </div>
 
           {/* CTA */}
-          <div className="flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-purple-500/30">
-            <Sparkles className="h-3.5 w-3.5" />
+          <div className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-full bg-[var(--talea-brand-cream)] px-5 text-[15px] font-semibold text-[var(--talea-brand-brown)] shadow-[0_8px_20px_-10px_rgba(0,0,0,0.6)] transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none">
             Los!
-            <ArrowRight className="h-3.5 w-3.5" />
+            <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 motion-reduce:transition-none" />
           </div>
         </div>
       </div>

@@ -186,8 +186,8 @@ const AuthScreen: React.FC = () => {
               <div className="auth-spinner" />
               <span>Anmeldung wird geladen…</span>
               <div className="auth-skeleton-btns">
-                <div className="auth-skeleton-btn" />
-                <div className="auth-skeleton-btn" />
+                <div className="auth-skeleton-btn talea-shimmer" />
+                <div className="auth-skeleton-btn talea-shimmer" />
               </div>
             </div>
           )}

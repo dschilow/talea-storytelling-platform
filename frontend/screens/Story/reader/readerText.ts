@@ -1,4 +1,5 @@
 import type { Chapter } from '../../../types/story';
+import { genreLabel } from '../../../utils/genreLabel';
 
 /** Words per minute a child is read to at a relaxed pace (used for "ca. X Min."). */
 const READ_ALOUD_WORDS_PER_MINUTE = 130;
@@ -69,9 +70,9 @@ export function canUseDropCap(paragraph: string): boolean {
   return text.length >= DROP_CAP_MIN_CHARS && /^\p{L}/u.test(text);
 }
 
-/** Genres arrive as ids like "gute-nacht"; show them as words. */
+/** Genres arrive as ids like "fairy-tales"; show the translated word ("Märchen"). */
 export function formatGenre(genre: string | undefined): string {
-  return String(genre || '').replace(/[-_]+/g, ' ').trim();
+  return genreLabel(genre);
 }
 
 export const TEXT_SCALE_STEPS = [

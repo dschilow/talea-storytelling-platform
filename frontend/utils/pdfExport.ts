@@ -12,7 +12,7 @@ import type { Doku } from '../types/doku';
 import { getBackendUrl } from '../config';
 import { stripTtsEmotionMarkersForDisplay } from './chapterImagePlacement';
 import { chapterEndingAfterImage, chapterTailStart } from './pdfChapterTail';
-import i18n from '../src/i18n';
+import { genreLabel as sharedGenreLabel } from './genreLabel';
 
 // Type definitions for image loading
 interface ImageLoadResult {
@@ -339,10 +339,7 @@ function addWrappedText(
 
 /** The genre as the library shows it ("Märchen"), never the raw key ("fairy_tales"). */
 function genreLabel(genre: string | undefined): string {
-  if (!genre) return 'Story';
-  const translated = i18n.t(`storiesScreen.genre.${genre}`, { defaultValue: '' });
-  if (typeof translated === 'string' && translated) return translated;
-  return genre.replace(/[_-]+/g, ' ').replace(/\b\p{Ll}/gu, (letter) => letter.toUpperCase());
+  return sharedGenreLabel(genre) || 'Story';
 }
 
 /**

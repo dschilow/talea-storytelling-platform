@@ -3,7 +3,7 @@ import {
   X,
   Send,
   Sparkles,
-  Bot,
+  Palette,
   ArrowRight,
   Image as ImageIcon,
   BookOpen,
@@ -27,6 +27,7 @@ import type {
 import { useOptionalChildProfiles } from '../../contexts/ChildProfilesContext';
 import { useOptionalUserAccess } from '../../contexts/UserAccessContext';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
+import { NavIcon } from '../navigation/NavIcon';
 import './TaviChat.css';
 
 // ---------------------------------------------------------------------------
@@ -52,23 +53,29 @@ type TranslateWithFallback = (key: string, fallback?: string) => string;
 // Sub-components
 // ---------------------------------------------------------------------------
 
-const TypingDots: React.FC<{ isDark: boolean }> = ({ isDark }) => (
+/** Tavi's own face next to his messages (the same genie as in the header and the tab bar). */
+const TaviFace: React.FC = () => (
+  <div
+    aria-hidden
+    className="h-8 w-8 flex-shrink-0 rounded-full bg-[var(--talea-accent-terracotta-soft)] bg-cover bg-center ring-2 ring-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-soft)]"
+    style={{ backgroundImage: 'url(/tavi.png)' }}
+  />
+);
+
+const TypingDots: React.FC<{ isDark: boolean }> = () => (
   <motion.div
     initial={{ opacity: 0, y: 10 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -10 }}
     className="flex max-w-[80%] items-end gap-2 self-start"
   >
-    <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--talea-text-tertiary)] to-[var(--talea-text-tertiary)] shadow-md">
-      <Bot size={14} className="text-white" />
-    </div>
+    <TaviFace />
     <div className="rounded-2xl rounded-bl-sm border border-border bg-card/90 px-4 py-3 shadow-sm backdrop-blur-md">
       <div className="flex items-center gap-1.5">
         {[0, 1, 2].map((i) => (
           <motion.div
             key={i}
-            className="h-2 w-2 rounded-full"
-            style={{ background: isDark ? '#9eb3d9' : '#7e96c7' }}
+            className="h-2 w-2 rounded-full bg-[var(--primary)]"
             animate={{ y: [0, -6, 0], opacity: [0.4, 1, 0.4] }}
             transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
           />
@@ -259,9 +266,7 @@ const MessageBubble: React.FC<{
       className={`flex max-w-[85%] items-end gap-2 ${isTavi ? 'self-start' : 'self-end flex-row-reverse'}`}
     >
       {isTavi && (
-        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--talea-text-tertiary)] to-[var(--talea-text-tertiary)] shadow-md">
-          <Bot size={14} className="text-white" />
-        </div>
+        <TaviFace />
       )}
 
       <div className="flex flex-col gap-1">
@@ -269,7 +274,7 @@ const MessageBubble: React.FC<{
           className={`whitespace-pre-wrap break-words px-4 py-2.5 text-sm leading-relaxed [overflow-wrap:anywhere] ${
             isTavi
               ? 'rounded-2xl rounded-bl-sm border border-border bg-card/90 text-foreground shadow-sm backdrop-blur-md'
-              : 'rounded-2xl rounded-br-sm bg-gradient-to-br from-[var(--talea-text-tertiary)] to-[var(--talea-text-tertiary)] text-white shadow-lg shadow-slate-500/20'
+              : 'rounded-2xl rounded-br-sm bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[0_6px_16px_-8px_color-mix(in_srgb,var(--primary)_70%,transparent)]'
           }`}
         >
           {message.text}
@@ -324,12 +329,13 @@ const QuickSuggestions: React.FC<{
   onSelect: (text: string) => void;
   t: TranslateWithFallback;
 }> = ({ onSelect, t }) => {
-  const suggestions = [
-    { text: t('chat.suggestion_story', 'Erzaehl mir eine Geschichte'), emoji: '\uD83D\uDCDA' },
-    { text: t('chat.suggestion_doku', 'Erstelle eine Doku'), emoji: '\uD83D\uDCD6' },
-    { text: t('chat.suggestion_avatar', 'Neuen Avatar erstellen'), emoji: '\u2728' },
-    { text: t('chat.suggestion_image', 'Male mir ein Bild'), emoji: '\uD83C\uDFA8' },
-    { text: t('chat.suggestion_list', 'Zeig mir meine Avatare'), emoji: '\uD83D\uDC64' },
+  // The app's own pictures instead of emoji: the same glyph a child knows from the tab bar.
+  const suggestions: Array<{ text: string; icon: React.ReactNode }> = [
+    { text: t('chat.suggestion_story', 'Erzähl mir eine Geschichte'), icon: <NavIcon name="stories" active className="h-[18px] w-[18px]" /> },
+    { text: t('chat.suggestion_doku', 'Erstelle eine Doku'), icon: <NavIcon name="dokus" active className="h-[18px] w-[18px]" /> },
+    { text: t('chat.suggestion_avatar', 'Neuen Avatar erstellen'), icon: <NavIcon name="avatars" active className="h-[18px] w-[18px]" /> },
+    { text: t('chat.suggestion_image', 'Male mir ein Bild'), icon: <Palette className="h-[17px] w-[17px]" strokeWidth={2} /> },
+    { text: t('chat.suggestion_list', 'Zeig mir meine Avatare'), icon: <NavIcon name="figures" active className="h-[18px] w-[18px]" /> },
   ];
 
   return (
@@ -345,12 +351,12 @@ const QuickSuggestions: React.FC<{
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.6 + i * 0.1 }}
-          whileHover={{ scale: 1.04, y: -1 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.96 }}
           onClick={() => onSelect(suggestion.text)}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/85 px-3 py-1.5 text-xs font-medium text-foreground/80 shadow-sm transition-colors hover:border-[var(--talea-text-tertiary)]/45 hover:text-[var(--talea-text-tertiary)] dark:hover:text-[var(--talea-text-tertiary)]"
+          className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] py-1.5 pl-2.5 pr-3.5 text-[13.5px] font-medium text-[var(--talea-text-primary)] shadow-[var(--talea-shadow-soft)] transition-colors hover:border-[var(--talea-border-accent)] hover:bg-[var(--talea-accent-terracotta-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
         >
-          <span>{suggestion.emoji}</span>
+          <span aria-hidden className="flex text-[var(--primary)]">{suggestion.icon}</span>
           {suggestion.text}
         </motion.button>
       ))}
@@ -569,24 +575,22 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
         style={{
           '--tavi-viewport-height': mobileViewport ? `${mobileViewport.height}px` : undefined,
           '--tavi-viewport-top': mobileViewport ? `${mobileViewport.top}px` : undefined,
-          background: isDark ? 'rgba(23,31,44,0.95)' : 'rgba(255,251,245,0.96)',
-          borderColor: isDark ? '#33465f' : '#e3d7c8',
+          background: 'color-mix(in srgb, var(--talea-page-solid) 97%, transparent)',
+          borderColor: 'var(--talea-border-light)',
           boxShadow: isDark
-            ? '0 24px 52px rgba(7,13,23,0.5)'
-            : '0 24px 52px rgba(52,61,78,0.2)',
+            ? '0 28px 60px -12px rgba(0,0,0,0.65)'
+            : '0 28px 60px -12px rgba(62,40,31,0.28)',
         } as React.CSSProperties}
       >
         {/* Header */}
         <div className="relative flex shrink-0 items-center justify-between border-b border-border px-5 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
-          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--talea-text-tertiary)] via-[var(--primary)] to-[var(--talea-text-tertiary)]" />
-
           <div className="flex min-w-0 items-center gap-3">
             <div className="relative shrink-0">
               <div
-                className="h-11 w-11 rounded-full border-[2.5px] border-[var(--talea-text-tertiary)]/60 bg-cover bg-center shadow-lg shadow-slate-500/20"
+                className="h-11 w-11 rounded-full bg-[var(--talea-accent-terracotta-soft)] bg-cover bg-center ring-2 ring-[var(--talea-surface-primary)] shadow-[var(--talea-shadow-medium)]"
                 style={{ backgroundImage: 'url(/tavi.png)' }}
               />
-              <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-400 dark:border-[#13102B]" />
+              <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[var(--talea-surface-primary)] bg-[var(--talea-success)]" />
             </div>
 
             <div className="min-w-0">
@@ -638,11 +642,14 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
 
         {/* Input */}
         <div className="tavi-chat-composer shrink-0 border-t border-border bg-card/40 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3">
-          <div
-            className={`mb-1.5 text-right text-[10px] font-semibold ${isOverLimit ? 'text-red-500' : 'text-muted-foreground'}`}
-          >
-            {wordCount}/100 {t('chat.words')}
-          </div>
+          {/* The counter only appears near the limit; an empty chat starts without "0/100". */}
+          {wordCount >= 80 ? (
+            <div
+              className={`mb-1.5 text-right text-[11px] font-semibold tabular-nums ${isOverLimit ? 'text-[var(--talea-danger)]' : 'text-muted-foreground'}`}
+            >
+              {wordCount}/100 {t('chat.words')}
+            </div>
+          ) : null}
 
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
@@ -654,13 +661,13 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
                 aria-label={translate('chat.placeholder', 'Frag Tavi etwas')}
                 disabled={isLoading || isOutOfChatCredits}
                 maxLength={600}
-                className="w-full rounded-2xl border border-border bg-card/80 px-4 py-3 text-base text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[var(--talea-text-tertiary)]/50 focus:ring-2 focus:ring-[var(--talea-text-tertiary)]/20 md:text-sm"
+                className="w-full rounded-full border border-transparent bg-[var(--talea-surface-inset)] px-5 py-3 text-base text-foreground outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground focus:border-[var(--talea-border-accent)] focus:ring-4 focus:ring-[color-mix(in_srgb,var(--primary)_14%,transparent)] md:text-sm"
               />
               {isLoading && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                   <Sparkles
                     size={14}
-                    className="animate-pulse text-[var(--talea-text-tertiary)]"
+                    className="animate-pulse text-[var(--primary)]"
                   />
                 </div>
               )}
@@ -673,10 +680,10 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
               whileTap={{ scale: 0.92 }}
               onClick={handleSendMessage}
               disabled={!canSend}
-              className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl transition-all ${
+              className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full transition-[background-color,color,box-shadow] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] ${
                 canSend
-                  ? 'bg-gradient-to-br from-[var(--talea-text-tertiary)] to-[var(--talea-text-tertiary)] text-white shadow-lg shadow-slate-500/25 hover:shadow-slate-500/40'
-                  : 'cursor-not-allowed border border-border bg-card/70 text-muted-foreground'
+                  ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[0_8px_18px_-8px_color-mix(in_srgb,var(--primary)_75%,transparent)]'
+                  : 'cursor-not-allowed bg-[var(--talea-surface-inset)] text-muted-foreground'
               }`}
             >
               <Send size={16} />
@@ -684,7 +691,6 @@ const TaviChat: React.FC<TaviChatProps> = ({ isOpen, onClose }) => {
           </div>
         </div>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-[var(--talea-text-tertiary)]/10 to-transparent" />
       </DialogContent>
     </Dialog>
   );

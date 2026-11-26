@@ -334,3 +334,37 @@ export const TaleaProgressSteps: React.FC<{
     </div>
   );
 };
+
+/** One shimmering placeholder block in the warm skeleton tone (never a blue-grey box). */
+export const TaleaSkeletonBlock: React.FC<{ className?: string }> = ({ className }) => (
+  <span aria-hidden className={cn("talea-shimmer block rounded-lg bg-[var(--talea-media-skeleton)]", className)} />
+);
+
+/**
+ * A row of cover placeholders shaped like the shelf that will replace it, so the page
+ * keeps its layout while it loads instead of showing a centred spinner first.
+ */
+export const TaleaShelfSkeleton: React.FC<{
+  count?: number;
+  tileClassName?: string;
+  coverClassName?: string;
+}> = ({ count = 4, tileClassName = "w-[min(68vw,15rem)] sm:w-56 lg:w-60", coverClassName = "aspect-[4/5] rounded-2xl" }) => (
+  <div aria-hidden className="flex gap-4 overflow-hidden">
+    {Array.from({ length: count }, (_, index) => (
+      <div key={index} className={cn("shrink-0", tileClassName)} style={{ opacity: 1 - index * 0.14 }}>
+        <TaleaSkeletonBlock className={coverClassName} />
+        <TaleaSkeletonBlock className="mt-3 h-4 w-3/4" />
+        <TaleaSkeletonBlock className="mt-2 h-3 w-1/2" />
+      </div>
+    ))}
+  </div>
+);
+
+/** Section heading placeholder (eyebrow, title, one line) matching `TaleaSectionHeading`. */
+export const TaleaHeadingSkeleton: React.FC = () => (
+  <div aria-hidden>
+    <TaleaSkeletonBlock className="h-3 w-24" />
+    <TaleaSkeletonBlock className="mt-2.5 h-7 w-56 rounded-xl" />
+    <TaleaSkeletonBlock className="mt-2.5 h-3.5 w-72 max-w-full" />
+  </div>
+);

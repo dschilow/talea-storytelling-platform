@@ -824,8 +824,8 @@
 .rd-finale {
   display: flex;
   justify-content: center;
-  /* The floating bottom nav (mobile only) sits over the last screen. */
-  padding: 3rem 1.25rem calc(env(safe-area-inset-bottom, 0px) + 8rem);
+  /* Readers have no tab bar; only the mini player (when audio plays) may float over the end. */
+  padding: 3rem 1.25rem calc(env(safe-area-inset-bottom, 0px) + 3.5rem + var(--talea-player-offset, 0px));
   text-align: center;
 }
 

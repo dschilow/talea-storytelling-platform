@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Clock3, Headphones, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import RevealImage from "@/components/common/RevealImage";
 import { taleaDisplayFont } from "@/components/talea/TaleaPastelPrimitives";
 import { episodeLabel, formatRelease, type LibraryEpisodeCard } from "../libraryShared";
 
@@ -60,14 +61,17 @@ export const Rail: React.FC<{
 
   return (
     <section className="min-w-0">
-      <div className="mb-3 flex items-end justify-between gap-4 px-1">
+      {/* Title and action share one row; a subtitle without a portrait gets the full width below,
+          so a long line never squeezes the title into a narrow column next to "Alle ansehen". */}
+      <div className="mb-3 px-1">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           {leading}
           <div className="min-w-0">
             <Title className="line-clamp-2 text-[1.25rem] font-bold leading-tight text-[var(--talea-text-primary)] [text-wrap:balance] md:text-[1.4rem]" style={{ fontFamily: taleaDisplayFont }}>
               {title}
             </Title>
-            {subtitle ? <p className="mt-0.5 text-[14px] text-[var(--talea-text-secondary)]">{subtitle}</p> : null}
+            {leading && subtitle ? <p className="mt-0.5 text-[14px] text-[var(--talea-text-secondary)]">{subtitle}</p> : null}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -100,6 +104,8 @@ export const Rail: React.FC<{
             ))}
           </div>
         </div>
+      </div>
+      {!leading && subtitle ? <p className="mt-0.5 max-w-2xl text-[14px] leading-snug text-[var(--talea-text-secondary)]">{subtitle}</p> : null}
       </div>
       <div
         ref={scroller}
@@ -134,11 +140,10 @@ export const EpisodeTile: React.FC<{
     >
       <div className="relative aspect-[3/2] overflow-hidden rounded-[16px] bg-[var(--talea-surface-inset)] ring-1 ring-black/5 transition-transform duration-300 group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-[var(--primary)]">
         {card.coverImageUrl ? (
-          <img
+          <RevealImage
             src={card.coverImageUrl}
             alt=""
             loading="lazy"
-            decoding="async"
             className={cn("h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]", (card.locked || upcoming) && "opacity-55 saturate-50")}
           />
         ) : null}

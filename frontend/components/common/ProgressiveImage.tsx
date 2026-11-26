@@ -70,21 +70,16 @@ export const ProgressiveImage: React.FC<ProgressiveImageProps> = ({
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28, delay: revealDelayMs / 1000 }}
-            className={cn('absolute inset-0 animate-pulse bg-[#ebe5d9] dark:bg-[#2b3b51]', skeletonClassName)}
+            className={cn('talea-shimmer absolute inset-0 bg-[var(--talea-media-skeleton)]', skeletonClassName)}
             aria-hidden
           >
-            <motion.div
-              className="absolute inset-y-0 -left-1/3 w-1/3 bg-white/30 dark:bg-white/10"
-              animate={{ x: ['0%', '420%'] }}
-              transition={{ duration: 1.35, repeat: Infinity, ease: 'easeInOut' }}
-            />
           </motion.div>
         )}
       </AnimatePresence>
 
       {showFallback && (
         <div className="absolute inset-0">
-          {fallback ?? <div className="h-full w-full bg-[#ebe5d9] dark:bg-[#2b3b51]" />}
+          {fallback ?? <div className="h-full w-full bg-[var(--talea-media-skeleton)]" />}
         </div>
       )}
     </div>

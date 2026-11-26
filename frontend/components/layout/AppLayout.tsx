@@ -1,7 +1,7 @@
-import React from "react";
-import { useLocation, Outlet, Link } from "react-router-dom";
+import React, { useLayoutEffect } from "react";
+import { useLocation, useNavigationType, Outlet, Link } from "react-router-dom";
 import { SignedIn } from "@clerk/clerk-react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 import Sidebar, { SIDEBAR_RAIL, SIDEBAR_WIDE } from "./Sidebar";
 import BottomNav from "./BottomNav";
@@ -114,7 +114,15 @@ const ChromeGate: React.FC<{ offline: boolean; children: React.ReactNode }> = ({
  */
 const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
   const location = useLocation();
+  const navigationType = useNavigationType();
   const reduceMotion = useReducedMotion();
+
+  // A new page starts at its top. The browser keeps the window scrolled when the
+  // route changes, so "Alle Dokus" at the end of the start page opened the doku
+  // page halfway down. Back/forward (POP) leaves the position to the browser.
+  useLayoutEffect(() => {
+    if (navigationType !== "POP") window.scrollTo(0, 0);
+  }, [location.pathname, navigationType]);
   const isCosmosFullScreenRoute = location.pathname.startsWith("/cosmos");
   const isSettingsRoute = location.pathname.startsWith("/settings");
   const isReaderRoute =
@@ -205,25 +213,24 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
           {!offline && chrome && !isFullBleed && <SignedIn><NotificationsNotice /></SignedIn>}
 
           <div className={cn(contentClassName)}>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={location.pathname}
-                initial={isReaderRoute || reduceMotion ? false : { opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={isReaderRoute || reduceMotion ? undefined : { opacity: 0, y: -6 }}
-                transition={{ duration: reduceMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
-                className="min-h-full"
-              >
-                <Outlet />
-              </motion.div>
-            </AnimatePresence>
+            {/* The new page fades in at once; waiting for the old one to fade out first made every tap feel slow. */}
+            <motion.div
+              key={location.pathname}
+              initial={isReaderRoute || reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+              className="min-h-full"
+            >
+              <Outlet />
+            </motion.div>
           </div>
         </div>
       </main>
 
       <GlobalAudioPlayer />
 
-      <ChromeGate offline={offline}>{chrome && <BottomNav />}</ChromeGate>
+      {/* Readers are full screen like Apple Books: the tab bar would cover the last lines of a page. */}
+      <ChromeGate offline={offline}>{chrome && !isReaderRoute && <BottomNav />}</ChromeGate>
     </div>
   );
 };

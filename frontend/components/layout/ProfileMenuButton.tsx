@@ -251,7 +251,7 @@ const ProfileMenuButton: React.FC = () => {
                       {profile.readingLevel || "Lesestufe offen"}
                     </span>
                   </span>
-                  {profile.isDefault && <Star className="h-4 w-4 text-[#F59E0B]" aria-label="Standardprofil" />}
+                  {profile.isDefault && <Star className="h-4 w-4 fill-current text-[var(--talea-accent-gold)]" aria-label="Standardprofil" />}
                   {selectedProfile && <Check className="h-4 w-4 text-[var(--primary)]" aria-hidden />}
                 </button>
               );

@@ -13,8 +13,10 @@
 .film-video::cue { font-family: var(--journey-serif); font-size: clamp(15px, 2.2vw, 26px); color: #FFF7EC; background: #3e281fcc; }
 
 /* poster state: big gold button with label */
-.film-start { position: absolute; inset: 0; z-index: 2; display: flex; align-items: flex-end; justify-content: flex-start; gap: 16px; padding: clamp(18px, 3.4vw, 38px); border: 0; background: linear-gradient(0deg, #0a172b8c 0%, #0a172b14 38%, transparent 60%); color: #FFF7EC; text-align: left; transition: background .3s; }
-.film-start:hover { background: linear-gradient(0deg, #0a172ba6 0%, #0a172b26 42%, transparent 65%); }
+.film-start { position: absolute; inset: 0; z-index: 2; display: flex; align-items: flex-end; justify-content: flex-start; gap: 16px; padding: clamp(18px, 3.4vw, 38px); border: 0; background: linear-gradient(0deg, #0a172bc7 0%, #0a172b70 28%, #0a172b14 52%, transparent 66%); color: #FFF7EC; text-align: left; transition: background .3s; }
+.film-start:hover { background: linear-gradient(0deg, #0a172bd9 0%, #0a172b85 30%, #0a172b1f 56%, transparent 70%); }
+/* On phones the poster's wordmark sits right behind the label: a deeper scrim keeps both apart. */
+@media (max-width: 640px) { .film-start { background: linear-gradient(0deg, #0a172be6 0%, #0a172ba6 34%, #0a172b2e 62%, transparent 78%); } }
 .film-start-button { display: grid; place-items: center; width: clamp(64px, 7vw, 88px); height: clamp(64px, 7vw, 88px); border-radius: 50%; background: var(--journey-gold); color: #0a172b; box-shadow: 0 0 0 10px #f5d09433, 0 18px 40px -12px #000a; transition: transform .25s, box-shadow .25s; }
 .film-start-button > svg { margin-left: 5px; }
 .film-start:hover .film-start-button { transform: scale(1.06); box-shadow: 0 0 0 16px #f5d09426, 0 18px 40px -12px #000a; }

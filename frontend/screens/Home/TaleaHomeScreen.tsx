@@ -6,12 +6,13 @@ import { toast } from "sonner";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import {
   ArrowRight, Bookmark, BookmarkCheck, BookOpen, Clock3, ImageOff,
-  Library, LogIn, Plus, RefreshCw, Sparkles, Trash2, UserPlus, WandSparkles,
+  Library, LogIn, Plus, RefreshCw, Sparkles, Trash2, UserPlus,
 } from "lucide-react";
 
 import { useBackend } from "../../hooks/useBackend";
 import type { Story, StoryConfig } from "../../types/story";
 import { wereStoryImagesSkipped } from "../../utils/storyQualityGate";
+import { genreLabel } from "../../utils/genreLabel";
 import { cn } from "@/lib/utils";
 import { TaleaLogo } from "@/components/brand/TaleaLogo";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -20,11 +21,12 @@ import CosmosHomeCard from "../Cosmos/CosmosHomeCard";
 import { useCosmosState } from "../Cosmos/useCosmosState";
 import { useOffline } from "@/contexts/OfflineStorageContext";
 import {
-  TaleaActionButton, TaleaLoadingState, TaleaPageBackground, TaleaSectionHeading,
+  TaleaActionButton, TaleaHeadingSkeleton, TaleaPageBackground, TaleaSectionHeading, TaleaShelfSkeleton, TaleaSkeletonBlock,
   taleaBodyFont, taleaDisplayFont, taleaPageShellClass, taleaSurfaceClass,
 } from "@/components/talea/TaleaPastelPrimitives";
 import { TaleaCardMenu, type TaleaCardMenuAction } from "@/components/talea/TaleaCardMenu";
 import { NavIcon } from "@/components/navigation/NavIcon";
+import RevealImage from "@/components/common/RevealImage";
 
 interface Avatar {
   id: string;
@@ -74,14 +76,32 @@ const itemVariants: Variants = {
 
 const KidsAppBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => <TaleaPageBackground isDark={isDark} />;
 
+/** The start page's own outline while it loads: hero, then the first two shelves. */
 const LoadingState: React.FC = () => {
   const { t } = useTranslation();
   return (
-    <TaleaLoadingState
-      title={t("homeScreen.loadingTitle")}
-      subtitle={t("homeScreen.loadingSubtitle")}
-      icon={<WandSparkles className="h-9 w-9" aria-hidden />}
-    />
+    <div className={cn(taleaPageShellClass, "space-y-8 pt-3 sm:space-y-10 sm:pt-5")} role="status" aria-live="polite">
+      <span className="sr-only">{t("homeScreen.loadingTitle")}</span>
+      <div aria-hidden className="overflow-hidden rounded-[1.75rem] border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] sm:rounded-[2rem]">
+        <div className="p-6 sm:p-8 lg:p-10">
+          <TaleaSkeletonBlock className="h-3 w-44" />
+          <TaleaSkeletonBlock className="mt-7 h-9 w-56 rounded-xl sm:h-11 sm:w-72" />
+          <TaleaSkeletonBlock className="mt-2.5 h-9 w-32 rounded-xl sm:h-11 sm:w-44" />
+          <TaleaSkeletonBlock className="mt-5 h-4 w-64 max-w-full" />
+          <div className="mt-7 flex flex-col gap-2.5 sm:flex-row">
+            <TaleaSkeletonBlock className="h-11 w-full rounded-2xl sm:w-48" />
+            <TaleaSkeletonBlock className="h-11 w-full rounded-2xl sm:w-36" />
+          </div>
+        </div>
+        <div className="h-[5.5rem] border-t border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)]" />
+      </div>
+      {[0, 1].map((row) => (
+        <div key={row} className="space-y-5">
+          <TaleaHeadingSkeleton />
+          <TaleaShelfSkeleton tileClassName={row === 0 ? undefined : "w-36 sm:w-40"} coverClassName={row === 0 ? undefined : "h-48 rounded-[1.375rem]"} />
+        </div>
+      ))}
+    </div>
   );
 };
 
@@ -109,10 +129,7 @@ const StoryCard: React.FC<{
   const reduceMotion = useReducedMotion();
   const { t, i18n } = useTranslation();
   const imagesSkipped = wereStoryImagesSkipped(story);
-  const genreKey = String(story.config?.genre || "");
-  const genre = genreKey
-    ? t(`storiesScreen.genre.${genreKey}`, { defaultValue: genreKey.replace(/[-_]+/g, " ") })
-    : "";
+  const genre = genreLabel(story.config?.genre);
   const actions: TaleaCardMenuAction[] = [
     ...(canSaveOffline && story.status === "complete" && onToggleOffline ? [{
       label: isSavedOffline ? t("homeScreen.offlineRemove") : t("homeScreen.offlineSave"),
@@ -127,12 +144,13 @@ const StoryCard: React.FC<{
       <button type="button" onClick={onRead} className={cn("block w-full rounded-2xl text-left", focusClass)} aria-label={[story.title, story.status !== "complete" ? t(`homeScreen.status.${story.status}`) : null, imagesSkipped ? t("homeScreen.imagesSkipped", "Bilder übersprungen") : null].filter(Boolean).join(" · ")}>
         <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-[var(--talea-media-skeleton)] shadow-[var(--talea-shadow-medium)] ring-1 ring-[var(--talea-border-light)]">
           {story.coverImageUrl ? (
-            <img src={story.coverImageUrl} alt="" loading={index < 3 ? "eager" : "lazy"} decoding="async" className="h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.03]" />
+            <RevealImage src={story.coverImageUrl} alt="" loading={index < 3 ? "eager" : "lazy"} className="h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.03]" />
           ) : (
             <div className="flex h-full items-center justify-center text-[var(--primary)]"><BookOpen className="h-12 w-12" aria-hidden /></div>
           )}
           {story.status !== "complete" && (
-            <span className={cn("absolute bottom-3 left-3 rounded-full bg-[var(--talea-surface-primary)] px-3 py-1.5 text-xs font-semibold", story.status === "error" ? "text-[var(--talea-danger)]" : "text-[var(--talea-text-primary)]")}>
+            <span className={cn("absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--talea-surface-primary)] px-3 py-1.5 text-xs font-semibold shadow-[var(--talea-shadow-soft)]", story.status === "error" ? "text-[var(--talea-danger)]" : "text-[var(--talea-text-primary)]")}>
+              {story.status === "generating" ? <span aria-hidden className="talea-breathe h-1.5 w-1.5 rounded-full bg-[var(--primary)]" /> : null}
               {t(`homeScreen.status.${story.status}`)}
             </span>
           )}
@@ -150,15 +168,15 @@ const AvatarTile: React.FC<{ avatar: Avatar; onOpen: () => void; onDelete: () =>
   const { t } = useTranslation();
   const reduceMotion = useReducedMotion();
   return (
-    <motion.article variants={itemVariants} whileHover={reduceMotion ? undefined : { y: -3 }} className={cn(taleaSurfaceClass, "group w-36 shrink-0 overflow-visible sm:w-40")}>
+    <motion.article variants={itemVariants} whileHover={reduceMotion ? undefined : { y: -3 }} className={cn(taleaSurfaceClass, "group w-36 shrink-0 snap-start overflow-visible sm:w-40")}>
       <button type="button" onClick={onOpen} className={cn("flex min-h-48 w-full flex-col items-center justify-center px-3 pb-4 pt-7 text-center", focusClass)}>
         <div className="mb-3 h-24 w-24 overflow-hidden rounded-full bg-[var(--talea-surface-inset)] ring-4 ring-[var(--talea-surface-inset)]">
-          {avatar.imageUrl ? <img src={avatar.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-105" /> : <UserPlus className="mx-auto mt-7 h-10 w-10 text-[var(--primary)]" aria-hidden />}
+          {avatar.imageUrl ? <RevealImage src={avatar.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-105" /> : <UserPlus className="mx-auto mt-7 h-10 w-10 text-[var(--primary)]" aria-hidden />}
         </div>
         <h3 className="w-full truncate text-base font-semibold text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>{avatar.name}</h3>
         <p className="mt-1 text-xs text-[var(--talea-text-secondary)]">{t(avatar.avatarRole === "child" ? "homeScreen.childProfileLabel" : avatar.creationType === "ai-generated" ? "homeScreen.aiFigureLabel" : "homeScreen.photoFigureLabel")}</p>
       </button>
-      <TaleaCardMenu actions={[{ label: t("homeScreen.deleteAvatar"), icon: <Trash2 className="h-4 w-4" />, onSelect: onDelete, destructive: true }]} label={`${t("common.actions", "Aktionen")}: ${avatar.name}`} className="!absolute right-1 top-1" />
+      <TaleaCardMenu actions={[{ label: t("homeScreen.deleteAvatar"), icon: <Trash2 className="h-4 w-4" />, onSelect: onDelete, destructive: true }]} label={`${t("common.actions", "Aktionen")}: ${avatar.name}`} tone="surface" revealOnHover className="!absolute right-1 top-1" />
     </motion.article>
   );
 };
@@ -170,7 +188,7 @@ const DokuBentoTicket: React.FC<{ doku: Doku; onRead: () => void; onDelete: () =
     <motion.article variants={itemVariants} whileHover={reduceMotion ? undefined : { y: -2 }} className={cn(taleaSurfaceClass, "group")}>
       <button type="button" onClick={onRead} className={cn("flex min-h-28 w-full items-center gap-4 p-4 pr-12 text-left sm:p-5 sm:pr-14", focusClass)}>
         <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-[var(--talea-surface-inset)] sm:h-24 sm:w-24">
-          {doku.coverImageUrl ? <img src={doku.coverImageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Library className="mx-auto mt-6 h-8 w-8 text-[var(--primary)] sm:mt-8" aria-hidden />}
+          {doku.coverImageUrl ? <RevealImage src={doku.coverImageUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.04]" /> : <Library className="mx-auto mt-6 h-8 w-8 text-[var(--primary)] sm:mt-8" aria-hidden />}
         </div>
         <div className="min-w-0">
           <h3 className="line-clamp-2 text-base font-semibold leading-snug text-[var(--talea-text-primary)] sm:text-lg" style={{ fontFamily: headingFont }}>{doku.title}</h3>
@@ -181,7 +199,7 @@ const DokuBentoTicket: React.FC<{ doku: Doku; onRead: () => void; onDelete: () =
           </p>
         </div>
       </button>
-      <TaleaCardMenu actions={[{ label: t("homeScreen.deleteDoku"), icon: <Trash2 className="h-4 w-4" />, onSelect: onDelete, destructive: true }]} label={`${t("common.actions", "Aktionen")}: ${doku.title}`} className="!absolute right-2 top-2" />
+      <TaleaCardMenu actions={[{ label: t("homeScreen.deleteDoku"), icon: <Trash2 className="h-4 w-4" />, onSelect: onDelete, destructive: true }]} label={`${t("common.actions", "Aktionen")}: ${doku.title}`} tone="surface" revealOnHover className="!absolute right-2 top-2" />
     </motion.article>
   );
 };
@@ -244,12 +262,14 @@ type HomeSignedInContentProps = {
   onDeleteDoku: (dokuId: string, title: string) => void;
   canUseOffline: boolean; isStorySaved: (storyId: string) => boolean; isSaving: (storyId: string) => boolean;
   toggleStory: (storyId: string) => void; cosmosState: ReturnType<typeof useCosmosState>["cosmosState"];
+  /** The active child's own avatar: the greeting shows their face. */
+  childAvatar?: Avatar | null;
 };
 
 const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
   isDark, greeting, userName, stories, storiesTotal, avatars, dokus, dokusTotal, createAvatarPath,
   refreshing, onRefresh, goTo, onDeleteStory, onDeleteAvatar, onDeleteDoku, canUseOffline,
-  isStorySaved, isSaving, toggleStory, cosmosState,
+  isStorySaved, isSaving, toggleStory, cosmosState, childAvatar,
 }) => {
   const { t, i18n } = useTranslation();
   const reduceMotion = useReducedMotion();
@@ -266,13 +286,33 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
           <div className="relative z-10 p-6 sm:p-8 lg:p-10">
             <div className="flex items-center justify-between gap-4">
               <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[var(--talea-text-secondary)]">{new Intl.DateTimeFormat(getDateLocale(i18n.language), { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</p>
-              <button type="button" onClick={onRefresh} disabled={refreshing} aria-label={t("common.refresh")} aria-busy={refreshing} className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--talea-border-light)] bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)] transition-colors hover:text-[var(--primary)] disabled:opacity-50", focusClass)}><RefreshCw className={cn("h-4 w-4", refreshing && "motion-safe:animate-spin")} aria-hidden /></button>
+              <button type="button" onClick={onRefresh} disabled={refreshing} aria-label={t("common.refresh")} aria-busy={refreshing} className={cn("group/refresh -mr-1.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--talea-text-tertiary)] transition-colors hover:bg-[var(--talea-surface-inset)] hover:text-[var(--primary)] disabled:opacity-50", focusClass)}><RefreshCw className={cn("h-[18px] w-[18px] transition-transform duration-500 motion-safe:group-hover/refresh:rotate-180", refreshing && "motion-safe:animate-spin")} aria-hidden /></button>
             </div>
-            <h1 className="mt-5 text-[2.15rem] font-medium leading-[1.1] tracking-[-0.025em] text-[var(--talea-text-primary)] sm:text-[2.8rem] lg:text-[3.25rem]" style={{ fontFamily: headingFont }}>{greeting},<br /><span className="text-[var(--primary)]">{userName || t("homeScreen.defaultUser")}.</span></h1>
+            <div className="mt-4 flex items-center justify-between gap-4 sm:mt-5">
+              <h1 className="min-w-0 text-[2.15rem] font-medium leading-[1.1] tracking-[-0.025em] text-[var(--talea-text-primary)] sm:text-[2.8rem] lg:text-[3.25rem]" style={{ fontFamily: headingFont }}>{greeting},<br /><span className="text-[var(--primary)]">{userName || t("homeScreen.defaultUser")}.</span></h1>
+              {/* The child's own face next to the greeting; wide screens show the Talea book instead. */}
+              {childAvatar?.imageUrl ? (
+                <motion.button
+                  type="button"
+                  onClick={() => goTo(`/avatar/${childAvatar.id}`)}
+                  aria-label={childAvatar.name}
+                  initial={reduceMotion ? false : { opacity: 0, scale: 0.85, rotate: -6 }}
+                  animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 18, delay: reduceMotion ? 0 : 0.15 }}
+                  whileTap={reduceMotion ? undefined : { scale: 0.95 }}
+                  className={cn("relative shrink-0 rounded-full lg:hidden", focusClass)}
+                >
+                  <span aria-hidden className="absolute -inset-1.5 rounded-full bg-[var(--talea-accent-terracotta-soft)]" />
+                  <span className="relative block h-[4.5rem] w-[4.5rem] overflow-hidden rounded-full bg-[var(--talea-surface-inset)] ring-[3px] ring-[var(--talea-surface-primary)] sm:h-24 sm:w-24">
+                    <RevealImage src={childAvatar.imageUrl} alt="" className="h-full w-full scale-[1.35] object-cover object-[50%_18%]" />
+                  </span>
+                </motion.button>
+              ) : null}
+            </div>
             <p className="mt-4 text-base leading-relaxed text-[var(--talea-text-secondary)]">{t("home.subtitle")}</p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <TaleaActionButton icon={<WandSparkles className="h-5 w-5" />} onClick={() => goTo("/story")}>{t("homeScreen.newStory")}</TaleaActionButton>
-              <TaleaActionButton variant="secondary" icon={<NavIcon name="stories" className="h-5 w-5" />} onClick={() => goTo("/stories")}>{t("homeScreen.library")}</TaleaActionButton>
+            <div className="mt-6 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:gap-3">
+              <TaleaActionButton className="w-full sm:w-auto" icon={<NavIcon name="newStory" active className="h-[18px] w-[18px]" />} onClick={() => goTo("/story")}>{t("homeScreen.newStory")}</TaleaActionButton>
+              <TaleaActionButton className="w-full sm:w-auto" variant="secondary" icon={<NavIcon name="stories" className="h-5 w-5" />} onClick={() => goTo("/stories")}>{t("homeScreen.library")}</TaleaActionButton>
             </div>
           </div>
           <div className="hidden items-center justify-center bg-[var(--talea-surface-inset)] lg:flex"><div className="w-full max-w-sm"><BrandBook compact /></div></div>
@@ -288,8 +328,8 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
 
       <motion.section {...reveal} className="space-y-5">
         <TaleaSectionHeading eyebrow={t("homeScreen.yourStoriesEyebrow")} title={t("homeScreen.yourStories")} subtitle={t("homeScreen.yourStoriesSubtitle")} actionLabel={t("homeScreen.allStories")} onAction={() => goTo("/stories")} icon="stories" />
-        {stories.length === 0 ? <EmptyStateContainer title={t("homeScreen.noStoriesTitle")} description={t("homeScreen.noStoriesDesc")} icon={<BookOpen className="h-7 w-7" />} actionLabel={t("homeScreen.createFirstStory")} onAction={() => goTo("/story")} /> : (
-          <div className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-4 pt-1 [scrollbar-width:thin] [scrollbar-color:var(--talea-border-strong)_transparent] md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+        {stories.length === 0 ? <EmptyStateContainer title={t("homeScreen.noStoriesTitle")} description={t("homeScreen.noStoriesDesc")} icon={<NavIcon name="stories" active className="h-8 w-8" />} actionLabel={t("homeScreen.createFirstStory")} onAction={() => goTo("/story")} /> : (
+          <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-4 overflow-x-auto overscroll-x-contain px-4 pb-4 pt-1 [scrollbar-width:thin] [scrollbar-color:var(--talea-border-strong)_transparent] md:-mx-6 md:scroll-px-6 md:px-6 lg:-mx-8 lg:scroll-px-8 lg:px-8">
             {stories.slice(0, 8).map((story, index) => <StoryCard key={story.id} story={story} index={index} onRead={() => goTo(`/story-reader/${story.id}`)} onDelete={() => onDeleteStory(story.id, story.title)} canSaveOffline={canUseOffline} isSavedOffline={isStorySaved(story.id)} isSavingOffline={isSaving(story.id)} onToggleOffline={() => toggleStory(story.id)} />)}
           </div>
         )}
@@ -297,8 +337,8 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
 
       <motion.section {...reveal} className="space-y-5">
         <TaleaSectionHeading eyebrow={t("homeScreen.yourAvatarsEyebrow")} title={t("homeScreen.yourAvatars")} subtitle={t("homeScreen.yourAvatarsSubtitle")} actionLabel={t("homeScreen.allAvatars")} onAction={() => goTo("/avatar")} icon="avatars" />
-        {avatars.length === 0 ? <EmptyStateContainer title={t("homeScreen.noAvatarsTitle")} description={t("homeScreen.noAvatarsDesc")} icon={<UserPlus className="h-7 w-7" />} actionLabel={t("homeScreen.createAvatar")} onAction={() => goTo(createAvatarPath)} /> : (
-          <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 pt-1 [scrollbar-width:thin] [scrollbar-color:var(--talea-border-strong)_transparent] md:mx-0 md:px-0">
+        {avatars.length === 0 ? <EmptyStateContainer title={t("homeScreen.noAvatarsTitle")} description={t("homeScreen.noAvatarsDesc")} icon={<NavIcon name="avatars" active className="h-8 w-8" />} actionLabel={t("homeScreen.createAvatar")} onAction={() => goTo(createAvatarPath)} /> : (
+          <div className="-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto overscroll-x-contain px-4 pb-4 pt-1 [scrollbar-width:thin] [scrollbar-color:var(--talea-border-strong)_transparent] md:mx-0 md:scroll-px-0 md:px-0">
             <button type="button" onClick={() => goTo(createAvatarPath)} className={cn("flex min-h-48 w-36 shrink-0 snap-start flex-col items-center justify-center gap-3 rounded-[1.375rem] border-2 border-dashed border-[var(--talea-border-strong)] px-3 text-center transition-colors hover:bg-[var(--talea-surface-primary)] sm:w-40", focusClass)}><span className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)]"><Plus className="h-6 w-6" aria-hidden /></span><span className="text-sm font-semibold text-[var(--primary)]">{t("homeScreen.newHero")}</span></button>
             {avatars.map((avatar) => <AvatarTile key={avatar.id} avatar={avatar} onOpen={() => goTo(`/avatar/edit/${avatar.id}`)} onDelete={() => onDeleteAvatar(avatar)} />)}
           </div>
@@ -307,7 +347,7 @@ const HomeSignedInContent: React.FC<HomeSignedInContentProps> = ({
 
       <motion.section {...reveal} className="space-y-5">
         <TaleaSectionHeading eyebrow={t("homeScreen.yourDokusEyebrow")} title={t("homeScreen.yourDokus")} subtitle={t("homeScreen.yourDokusSubtitle")} actionLabel={t("homeScreen.allDokus")} onAction={() => goTo("/doku")} icon="dokus" />
-        {dokus.length === 0 ? <EmptyStateContainer title={t("homeScreen.noDokusTitle")} description={t("homeScreen.noDokusDesc")} icon={<Library className="h-7 w-7" />} actionLabel={t("homeScreen.createFirstDoku")} onAction={() => goTo("/doku/create")} /> : (
+        {dokus.length === 0 ? <EmptyStateContainer title={t("homeScreen.noDokusTitle")} description={t("homeScreen.noDokusDesc")} icon={<NavIcon name="dokus" active className="h-8 w-8" />} actionLabel={t("homeScreen.createFirstDoku")} onAction={() => goTo("/doku/create")} /> : (
           <div className="grid gap-4 md:grid-cols-2">
             <button type="button" onClick={() => goTo("/doku/create")} className={cn("flex min-h-28 items-center gap-4 rounded-[1.375rem] border border-dashed border-[var(--talea-border-strong)] p-5 text-left transition-colors hover:bg-[var(--talea-surface-primary)]", focusClass)}><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--talea-accent-terracotta-soft)] text-[var(--primary)]"><Plus className="h-6 w-6" aria-hidden /></span><span className="flex-1 text-lg font-medium text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>{t("homeScreen.knowledgeJourney")}</span><ArrowRight className="h-5 w-5 text-[var(--primary)]" aria-hidden /></button>
             {dokus.slice(0, 3).map((doku) => <DokuBentoTicket key={doku.id} doku={doku} onRead={() => goTo(`/doku-reader/${doku.id}`)} onDelete={() => onDeleteDoku(doku.id, doku.title)} />)}
@@ -577,6 +617,7 @@ const TaleaHomeScreen: React.FC = () => {
           isSaving={isSaving}
           toggleStory={toggleStory}
           cosmosState={cosmosState}
+          childAvatar={avatars.find((avatar) => avatar.id === activeProfile?.childAvatarId) ?? avatars.find((avatar) => avatar.avatarRole === "child") ?? null}
         />
         )}
       </SignedIn>

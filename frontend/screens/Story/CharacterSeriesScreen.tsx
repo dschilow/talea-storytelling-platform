@@ -339,7 +339,7 @@ const EpisodeRow: React.FC<{
           </span>
         </span>
       </button>
-      <TaleaCardMenu actions={menu} label={`Aktionen für ${story.title}`} className="!absolute right-2.5 top-2.5 [&>button]:bg-[var(--talea-surface-inset)] [&>button]:text-[var(--talea-text-secondary)] [&>button]:backdrop-blur-none" />
+      <TaleaCardMenu actions={menu} label={`Aktionen für ${story.title}`} tone="surface" revealOnHover className="!absolute right-2.5 top-2.5" />
     </div>
   );
 };

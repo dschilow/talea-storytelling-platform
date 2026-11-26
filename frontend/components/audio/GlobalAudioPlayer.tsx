@@ -144,13 +144,13 @@ export const GlobalAudioPlayer: React.FC = () => {
       <AnimatePresence>
         {isVisible ? (
           <>
-            {/* Phone: floats just above the tab bar (62px + its bottom inset + 8px gap) */}
+            {/* Phone: floats just above the tab bar (62px + its bottom inset + 8px gap); readers have none. */}
             <motion.div
               key="mini-mobile"
               {...enter}
               transition={{ type: 'spring', stiffness: 380, damping: 32 }}
               className="fixed inset-x-3 z-[75] md:hidden"
-              style={{ bottom: 'calc(max(env(safe-area-inset-bottom), 0.75rem) + 70px)' }}
+              style={{ bottom: 'calc(max(env(safe-area-inset-bottom), 0.75rem) + var(--talea-tabbar-space, 0px))' }}
             >
               <div
                 role="button"

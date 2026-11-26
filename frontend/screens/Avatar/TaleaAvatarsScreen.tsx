@@ -23,6 +23,7 @@ import {
   taleaSurfaceClass,
 } from "@/components/talea/TaleaPastelPrimitives";
 import { TaleaCardMenu, type TaleaCardMenuAction } from "@/components/talea/TaleaCardMenu";
+import RevealImage from "@/components/common/RevealImage";
 import { IconTabs, iconTabId } from "@/components/navigation/IconTabs";
 
 type AvatarContentTab = "avatars" | "characters";
@@ -165,11 +166,10 @@ const AvatarCard: React.FC<{
       >
         <div className="relative aspect-square overflow-hidden" style={{ background: palette.soft }}>
           {avatar.imageUrl ? (
-            <img
+            <RevealImage
               src={avatar.imageUrl}
               alt=""
               loading="lazy"
-              decoding="async"
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
           ) : (

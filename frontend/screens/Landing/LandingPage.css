@@ -274,6 +274,9 @@
   .journey-nav-links { gap: 23px; }
   .journey-nav-actions { gap: 17px; }
   .motion-control > span { display: none; }
+  /* Icon only: a round outline so the pause glyph reads as a control, not as a stray mark. */
+  .motion-control { justify-content: center; }
+  .motion-control > svg { box-sizing: content-box; padding: 8px; border: 1px solid #3e281f29; border-radius: 999px; }
   .island-navigation-caption { display: none; }
   .island-navigation ol { gap: 20px; }
   .island-copy { left: 5%; width: 45%; }

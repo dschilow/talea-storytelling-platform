@@ -124,6 +124,19 @@ html[data-talea-platform='android'].talea-native-paused .alibi-stage::after {
     outline-offset: 3px;
   }
 
+  /* Running text never ends a paragraph on a lone word ("… Abenteuer / ein."). */
+  p,
+  li,
+  figcaption,
+  blockquote {
+    text-wrap: pretty;
+  }
+
+  /* Dates and timers keep their width while they change. */
+  time {
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Friendly brand headings, with readable body typography in forms and readers. */
   h1,
   h2,
@@ -232,6 +245,169 @@ html[data-talea-platform='android'].talea-native-paused .alibi-stage::after {
   .talea-reading-prose p {
     max-width: 70ch;
   }
+}
+
+/* ========================================
+   Talea micro-interactions (shared)
+   ======================================== */
+
+/* Card "…" menus: with a mouse they wait until the card is hovered or focused,
+   so a shelf of covers is not dotted with menus. Touch keeps them visible. */
+@media (hover: hover) and (pointer: fine) {
+  .talea-card-menu[data-reveal] {
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+
+  :hover > .talea-card-menu[data-reveal],
+  :focus-within > .talea-card-menu[data-reveal],
+  .talea-card-menu[data-reveal][data-open] {
+    opacity: 1;
+  }
+}
+
+/* Popovers grow out of the button that opened them (iOS context menu). */
+@keyframes talea-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.talea-pop-in {
+  animation: talea-pop-in 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+/* Placeholder while a picture loads: a slow warm sheen, never a blue block. */
+@keyframes talea-shimmer {
+  from { background-position: 150% 0; }
+  to { background-position: -50% 0; }
+}
+
+.talea-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--talea-surface-primary) 55%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: talea-shimmer 1.6s ease-in-out infinite;
+}
+
+/* Pictures appear softly once decoded instead of popping in line by line.
+   Visibility + an opacity keyframe (no "to") keep any opacity utility on the
+   image (e.g. a dimmed locked episode) and its hover transitions intact. */
+@keyframes talea-img-in {
+  from { opacity: 0; }
+}
+
+.talea-reveal-img:not([data-loaded]) {
+  visibility: hidden;
+}
+
+.talea-reveal-img[data-loaded] {
+  animation: talea-img-in 0.45s ease-out both;
+}
+
+/* Loading indicators that only appear when loading is not instant. */
+@keyframes talea-delayed-fade {
+  0%, 60% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.talea-delayed-fade {
+  animation: talea-delayed-fade 0.6s ease-out both;
+}
+
+/* A small breathing dot for "is being written" states. */
+@keyframes talea-breathe {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.72); opacity: 0.55; }
+}
+
+.talea-breathe {
+  animation: talea-breathe 1.4s ease-in-out infinite;
+}
+
+/* Toasts in the Talea material: warm card, hairline edge, soft depth. */
+.talea-toaster [data-sonner-toast][data-styled='true'] {
+  --border-radius: 18px;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--talea-border-light);
+  background: var(--talea-surface-elevated);
+  color: var(--talea-text-primary);
+  font-family: var(--talea-font-ui);
+  box-shadow:
+    0 1px 2px rgba(62, 40, 31, 0.06),
+    0 16px 36px -12px rgba(62, 40, 31, 0.3);
+}
+
+.dark .talea-toaster [data-sonner-toast][data-styled='true'] {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 18px 40px -12px rgba(0, 0, 0, 0.65);
+}
+
+.talea-toaster [data-sonner-toast] [data-title] {
+  font-size: 14.5px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+}
+
+.talea-toaster [data-sonner-toast] [data-description] {
+  margin-top: 1px;
+  color: var(--talea-text-secondary) !important;
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+.talea-toaster [data-sonner-toast] [data-icon] {
+  color: var(--talea-text-secondary);
+}
+
+.talea-toaster [data-sonner-toast][data-type='success'] [data-icon] { color: var(--talea-success); }
+.talea-toaster [data-sonner-toast][data-type='error'] [data-icon] { color: var(--talea-danger); }
+.talea-toaster [data-sonner-toast][data-type='warning'] [data-icon] { color: var(--talea-warning); }
+.talea-toaster [data-sonner-toast][data-type='info'] [data-icon] { color: var(--primary); }
+
+.talea-toaster [data-sonner-toast] [data-button] {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.talea-toaster [data-sonner-toast] [data-cancel] {
+  height: 30px;
+  border-radius: 999px;
+  background: var(--talea-surface-inset) !important;
+  color: var(--talea-text-primary) !important;
+}
+
+.talea-toaster [data-sonner-toast] [data-close-button] {
+  left: auto !important;
+  right: 0 !important;
+  transform: translate(32%, -32%) !important;
+  width: 22px;
+  height: 22px;
+  border-color: var(--talea-border-soft) !important;
+  background: var(--talea-surface-elevated) !important;
+  color: var(--talea-text-secondary) !important;
+  box-shadow: var(--talea-shadow-soft);
+}
+
+.talea-toaster [data-sonner-toast] [data-close-button]:hover {
+  color: var(--talea-text-primary) !important;
 }
 
 /* ========================================

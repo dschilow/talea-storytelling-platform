@@ -22,9 +22,20 @@ export const TaleaCardMenu: React.FC<{
   actions: TaleaCardMenuAction[];
   label: string;
   className?: string;
-}> = ({ actions, label, className }) => {
+  /**
+   * `media` (default) sits on a cover picture: a small dark glass dot.
+   * `surface` sits on a plain card or list row and takes the card's own inset tone.
+   */
+  tone?: "media" | "surface";
+  /**
+   * With a mouse the dot waits until the card is hovered or focused, so a shelf of
+   * covers is not dotted with menus. Touch screens always show it (no hover there).
+   * Defaults to on for `media`.
+   */
+  revealOnHover?: boolean;
+}> = ({ actions, label, className, tone = "media", revealOnHover = tone === "media" }) => {
   const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  const [position, setPosition] = useState<{ top: number; left: number; above: boolean } | null>(null);
   const menuId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -44,11 +55,13 @@ export const TaleaCardMenu: React.FC<{
     const gap = 8;
     const below = trigger.bottom + gap;
     const above = trigger.top - gap - menu.height;
-    const preferredTop = below + menu.height <= window.innerHeight - gutter ? below : above;
+    const opensBelow = below + menu.height <= window.innerHeight - gutter;
+    const preferredTop = opensBelow ? below : above;
 
     setPosition({
       left: Math.max(gutter, Math.min(trigger.right - menu.width, window.innerWidth - menu.width - gutter)),
       top: Math.max(gutter, Math.min(preferredTop, window.innerHeight - menu.height - gutter)),
+      above: !opensBelow,
     });
   }, [open]);
 
@@ -96,7 +109,9 @@ export const TaleaCardMenu: React.FC<{
   return (
     <div
       ref={rootRef}
-      className={cn("relative z-20", className)}
+      className={cn("talea-card-menu relative z-20", className)}
+      data-reveal={revealOnHover ? "" : undefined}
+      data-open={open ? "" : undefined}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
@@ -122,13 +137,25 @@ export const TaleaCardMenu: React.FC<{
           setPosition(null);
           setOpen(true);
         }}
-        className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md transition-colors hover:bg-black/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+        // 44 px to tap, a 34 px dot to look at: the menu is secondary to the cover.
+        className="group/menu inline-flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
       >
-        <MoreHorizontal className="h-5 w-5" aria-hidden />
+        <span
+          aria-hidden
+          className={cn(
+            "flex h-[34px] w-[34px] items-center justify-center rounded-full transition-[background-color,transform,color] duration-150 group-active/menu:scale-90 motion-reduce:transition-none",
+            tone === "media"
+              ? "bg-[rgba(24,16,12,0.42)] text-white shadow-[0_2px_8px_rgba(0,0,0,0.18)] ring-1 ring-inset ring-white/15 backdrop-blur-md group-hover/menu:bg-[rgba(24,16,12,0.6)]"
+              : "bg-[var(--talea-surface-inset)] text-[var(--talea-text-secondary)] group-hover/menu:text-[var(--talea-text-primary)] group-hover/menu:brightness-[0.97] dark:group-hover/menu:brightness-110",
+            open && (tone === "media" ? "bg-[rgba(24,16,12,0.6)]" : "text-[var(--talea-text-primary)]"),
+          )}
+        >
+          <MoreHorizontal className="h-[18px] w-[18px]" strokeWidth={2.4} />
+        </span>
       </button>
 
       {open ? createPortal(
@@ -139,8 +166,16 @@ export const TaleaCardMenu: React.FC<{
           data-talea-android-back="escape"
           aria-label={label}
           tabIndex={-1}
-          className="fixed z-[1200] w-60 max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-1.5 shadow-[var(--talea-shadow-strong)] outline-none"
-          style={{ left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? "visible" : "hidden" }}
+          className={cn(
+            "fixed z-[1200] w-60 max-w-[calc(100vw-1.5rem)] max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain rounded-2xl border border-[var(--talea-border-light)] bg-[var(--talea-surface-primary)] p-1.5 shadow-[var(--talea-shadow-strong)] outline-none",
+            position && "talea-pop-in",
+          )}
+          style={{
+            left: position?.left ?? 0,
+            top: position?.top ?? 0,
+            visibility: position ? "visible" : "hidden",
+            transformOrigin: position?.above ? "bottom right" : "top right",
+          }}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={(event) => {
             event.stopPropagation();

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -33,6 +33,13 @@ const BottomNav: React.FC = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const reduceMotion = useReducedMotion();
+
+  // Floating chrome (the mini player) sits above the tab bar only while the tab bar exists.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--talea-tabbar-space', '70px');
+    return () => root.style.setProperty('--talea-tabbar-space', '0px');
+  }, []);
 
   const isActive = (path: string, aliases: string[] = []) =>
     path === '/'

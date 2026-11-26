@@ -24,9 +24,11 @@ import OriginalsHome from "../Library/OriginalsHome";
 import CharacterOriginsScreen from "../CharacterPool/CharacterOriginsScreen";
 import type { TaleaCardMenuAction } from "@/components/talea/TaleaCardMenu";
 import { IconTabs, iconTabId, type IconTabItem } from "@/components/navigation/IconTabs";
+import { NavIcon } from "@/components/navigation/NavIcon";
 import {
   TaleaActionButton,
-  TaleaLoadingState,
+  TaleaHeadingSkeleton,
+  TaleaSkeletonBlock,
   TaleaPageBackground,
   taleaBodyFont,
   taleaChipClass,
@@ -38,6 +40,7 @@ import {
 } from "@/components/talea/TaleaPastelPrimitives";
 import type { CharacterSeriesChoice } from "./wizard-steps/StepCharacterSeries";
 import { useCharacterSeriesCatalogue, useStoryActions, useStoryLibrary } from "./library/useStoryLibrary";
+import { genreLabel } from "../../utils/genreLabel";
 import {
   buildSeriesShelves,
   isStoryRead,
@@ -107,15 +110,7 @@ function translateWithFallback(t: TranslateFn, key: string, fallback: string): s
 
 function formatGenreLabel(genre: string, t: TranslateFn): string {
   if (!genre) return translateWithFallback(t, "storiesScreen.genre.unknown", "Unbekannt");
-  const key = `storiesScreen.genre.${genre}`;
-  const translated = translateWithFallback(t, key, "");
-  if (translated && translated !== key) return translated;
-  return genre
-    .replace(/[_-]+/g, " ")
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+  return genreLabel(genre);
 }
 
 function formatLengthLabel(length: string, t: TranslateFn): string {
@@ -156,14 +151,23 @@ const KidsAppBackground: React.FC<{ isDark: boolean }> = ({ isDark }) => (
   <TaleaPageBackground isDark={isDark} />
 );
 
+/** The cover grid's outline while the first page of stories loads. */
 const LoadingState: React.FC = () => {
   const { t } = useTranslation();
   return (
-    <TaleaLoadingState
-      title={t("storiesScreen.loadingTitle")}
-      subtitle={t("storiesScreen.loadingSubtitle")}
-      icon={<BookOpen className="h-9 w-9" />}
-    />
+    <div role="status" aria-live="polite">
+      <span className="sr-only">{t("storiesScreen.loadingTitle")}</span>
+      <TaleaHeadingSkeleton />
+      <div aria-hidden className="mt-5 grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-4 lg:grid-cols-4">
+        {Array.from({ length: 8 }, (_, index) => (
+          <div key={index} style={{ opacity: 1 - Math.floor(index / 4) * 0.35 }}>
+            <TaleaSkeletonBlock className="aspect-square rounded-[18px]" />
+            <TaleaSkeletonBlock className="mt-3 h-3 w-1/3" />
+            <TaleaSkeletonBlock className="mt-2 h-4 w-4/5" />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 };
 
@@ -379,6 +383,7 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
   const { t } = useTranslation();
   // One clock per load, so a "Neu" badge does not flicker between renders.
   const now = useMemo(() => Date.now(), [stories]);
+  const libraryIsEmpty = !loading && !loadError && stories.length === 0 && !hasActiveFilters;
   // Unknown credits are not shown at all — a bare "-" read like a broken value.
   const remainingStoryLabel = remainingStoryCredits === undefined
     ? null
@@ -521,7 +526,8 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
             "Talea Originals: Reihen für alle Kinder, jeden Freitag eine neue Folge"
           ) : (
             <>
-              {total} {total === 1 ? "Geschichte" : "Geschichten"}
+              {/* No "0 Geschichten" while the first page is still on its way. */}
+              {loading && total === 0 ? <TaleaSkeletonBlock className="inline-block h-3.5 w-28 align-middle" /> : <>{total} {total === 1 ? "Geschichte" : "Geschichten"}</>}
               {remainingStoryLabel !== null ? <> · {remainingStoryLabel} übrig in diesem Monat</> : null}
             </>
           )}
@@ -553,6 +559,9 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
         <div className="space-y-6 sm:space-y-8">
           {hero && !hasActiveFilters && !loading && !loadError ? <LibraryHero {...hero} /> : null}
           <div className="min-w-0">
+            {/* Search and filters only once there is something to search: an empty library starts with the invitation. */}
+            {libraryIsEmpty ? null : (
+            <>
             <div className="flex items-center gap-2.5">
               <label className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--talea-text-tertiary)]" />
@@ -612,8 +621,10 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                 <span className="shrink-0 pl-1 text-[13px] text-[var(--talea-text-tertiary)]">{filteredStories.length} Titel</span>
               </div>
             </div>
+            </>
+            )}
 
-            <div className="mt-6">
+            <div className={libraryIsEmpty ? undefined : "mt-6"}>
               {loadError && stories.length > 0 && (
                 <div className={cn(taleaInsetSurfaceClass, "mb-6 p-4 text-center")} role="alert">
                   <p className="text-[var(--talea-text-primary)]">{loadError}</p>
@@ -629,17 +640,31 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
                 </div>
               ) : stories.length === 0 || (hasActiveFilters && filteredStories.length === 0) ? (
                 <div className="space-y-6">
-                  <div className={cn(taleaInsetSurfaceClass, "p-8 text-center sm:p-10")}>
-                    <h3 className="text-[2rem] font-semibold text-[var(--talea-text-primary)]" style={{ fontFamily: headingFont }}>
+                  <div className={cn(taleaInsetSurfaceClass, "flex flex-col items-center px-6 pb-8 pt-7 text-center sm:px-10 sm:pb-10")}>
+                    {hasActiveFilters ? (
+                      <span aria-hidden className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--talea-surface-primary)] text-[var(--talea-text-tertiary)]">
+                        <Search className="h-7 w-7" />
+                      </span>
+                    ) : (
+                      <span aria-hidden className="relative mb-4 flex h-28 w-28 items-center justify-center">
+                        <span className="absolute inset-2 rounded-full bg-[var(--talea-accent-terracotta-soft)]" />
+                        <img src="/brand/talea-icon-primary.svg" alt="" width="96" height="96" className="relative h-24 w-24 -rotate-6 drop-shadow-[0_10px_12px_rgba(62,40,31,0.12)]" />
+                      </span>
+                    )}
+                    <h3 className="text-[1.55rem] font-semibold leading-tight text-[var(--talea-text-primary)] sm:text-[1.8rem]" style={{ fontFamily: headingFont }}>
                       {hasActiveFilters ? t("storiesScreen.noFilterResults") : t("storiesScreen.noStories")}
                     </h3>
-                    <p className="mt-3 text-sm font-medium leading-7 text-[var(--talea-text-secondary)]">
+                    <p className="mt-2 max-w-md text-[15px] leading-relaxed text-[var(--talea-text-secondary)]">
                       {hasActiveFilters ? t("storiesScreen.noFilterResultsDesc") : t("storiesScreen.noStoriesDesc")}
                     </p>
                     <div className="mt-6 flex justify-center">
-                      <TaleaActionButton onClick={hasActiveFilters ? onResetFilters : () => goTo("/story")}>
-                        {hasActiveFilters ? t("common.cancel") : t("storiesScreen.createFirstStory")}
-                      </TaleaActionButton>
+                      {hasActiveFilters ? (
+                        <TaleaActionButton variant="secondary" onClick={onResetFilters}>Filter zurücksetzen</TaleaActionButton>
+                      ) : (
+                        <TaleaActionButton icon={<NavIcon name="newStory" active className="h-[18px] w-[18px]" />} onClick={() => goTo("/story")}>
+                          {t("storiesScreen.createFirstStory")}
+                        </TaleaActionButton>
+                      )}
                     </div>
                   </div>
                   {hasActiveFilters ? null : seriesTeaser}
