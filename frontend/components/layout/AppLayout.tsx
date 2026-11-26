@@ -128,7 +128,9 @@ const AppLayout: React.FC<{ offline?: boolean }> = ({ offline = false }) => {
   const isReaderRoute =
     location.pathname.startsWith("/story-reader") ||
     location.pathname.startsWith("/doku-reader") ||
-    location.pathname.startsWith("/episode-reader");
+    location.pathname.startsWith("/episode-reader") ||
+    // Talea Origins open in the same story reader.
+    location.pathname.startsWith("/character-life-story");
   const routeMeta = getRouteMeta(location.pathname);
   const usesImmersiveShell =
     location.pathname === "/" ||
