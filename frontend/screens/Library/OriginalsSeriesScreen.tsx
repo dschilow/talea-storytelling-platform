@@ -203,7 +203,8 @@ const OriginalsSeriesScreen: React.FC = () => {
 const EpisodeList: React.FC<{ cards: LibraryEpisodeCard[]; seasonTitle?: string; isAdmin: boolean; onOpen: (card: LibraryEpisodeCard) => void }> = ({ cards, seasonTitle, isAdmin, onOpen }) => (
   <section>
     <h2 className="text-[1.25rem] font-bold text-[var(--talea-text-primary)]" style={{ fontFamily: taleaDisplayFont }}>
-      Staffel 1{seasonTitle ? `: ${seasonTitle}` : ""}
+      {/* A season title that is only "Staffel 1" again must not read "Staffel 1: Staffel 1". */}
+      Staffel 1{seasonTitle && !/^staffel\s*1$/i.test(seasonTitle.trim()) ? `: ${seasonTitle}` : ""}
     </h2>
     <ol className="mt-4 flex flex-col gap-3">
       {cards.map((card) => {

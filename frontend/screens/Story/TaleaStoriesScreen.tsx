@@ -506,13 +506,14 @@ const StoriesSignedInContent: React.FC<StoriesSignedInContentProps> = ({
               type="button"
               onClick={onRefresh}
               aria-label={t("common.refresh")}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[var(--talea-surface-inset)] text-[var(--primary)] transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+              className="group/refresh inline-flex h-11 w-11 items-center justify-center rounded-full bg-[var(--talea-surface-inset)] text-[var(--primary)] transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
             >
-              <RefreshCw className="h-4 w-4" />
+              <RefreshCw className="h-4 w-4 transition-transform duration-500 motion-safe:group-hover/refresh:rotate-180" />
             </button>
-            {/* Phone: round "+" like an iOS nav-bar button; wider screens show the label. */}
+            {/* Phone: round "+" like an iOS nav-bar button; wider screens show the label with the
+                same "Neue Geschichte" glyph as the sidebar. */}
             <TaleaActionButton
-              icon={<Plus className="h-5 w-5" />}
+              icon={<><Plus className="h-5 w-5 sm:hidden" /><NavIcon name="newStory" active className="hidden h-[18px] w-[18px] sm:block" /></>}
               onClick={() => goTo("/story")}
               aria-label={t("homeScreen.newStory")}
               className="h-11 min-h-11 w-11 rounded-full px-0 sm:w-auto sm:px-4"

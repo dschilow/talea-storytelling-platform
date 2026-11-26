@@ -141,7 +141,7 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
       {isHuman && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <label className={`text-sm font-semibold text-[var(--talea-text-secondary)]`}>Groesse</label>
+            <label className={`text-sm font-semibold text-[var(--talea-text-secondary)]`}>Größe</label>
             <div className="flex items-center gap-2">
               <span className="text-2xl">📏</span>
               <span className={`text-lg font-bold text-[var(--primary)]`}>{height} cm</span>
@@ -185,7 +185,7 @@ export const AgeHeightSliders: React.FC<AgeHeightSlidersProps> = ({
             className={`text-sm font-medium flex items-center gap-1 text-[var(--primary)] hover:opacity-80`}
           >
             <span>🔄</span>
-            <span>Altersgerechte Groesse setzen (~{getRecommendedHeight(age)} cm)</span>
+            <span>Altersgerechte Größe setzen (~{getRecommendedHeight(age)} cm)</span>
           </motion.button>
         </div>
       )}
@@ -281,7 +281,7 @@ function getHeightComparison(height: number, age: number): string {
   if (diff < -15) return 'sehr klein';
   if (diff < -5) return 'etwas kleiner';
   if (diff <= 5) return 'durchschnittlich';
-  if (diff <= 15) return 'etwas groesser';
+  if (diff <= 15) return 'etwas größer';
   return 'sehr gross';
 }
 

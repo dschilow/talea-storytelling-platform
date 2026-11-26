@@ -536,7 +536,7 @@ const TaleaHomeScreen: React.FC = () => {
   }, [activeProfile?.childAvatarId, activeProfileId, backend.avatar, childProfiles, t]);
 
   const handleDeleteStory = async (storyId: string, storyTitle: string) => {
-    if (!window.confirm(`${t("common.delete", "Loeschen")} "${storyTitle}"?`)) return;
+    if (!window.confirm(`${t("common.delete", "Löschen")} "${storyTitle}"?`)) return;
     const request = loadRequest.current;
     const profileId = activeProfileId;
 
@@ -552,7 +552,7 @@ const TaleaHomeScreen: React.FC = () => {
   };
 
   const handleDeleteDoku = async (dokuId: string, dokuTitle: string) => {
-    if (!window.confirm(`${t("common.delete", "Loeschen")} "${dokuTitle}"?`)) return;
+    if (!window.confirm(`${t("common.delete", "Löschen")} "${dokuTitle}"?`)) return;
     const request = loadRequest.current;
     const profileId = activeProfileId;
 

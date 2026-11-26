@@ -50,7 +50,7 @@ const STEP_CONFIG = {
     step: 4,
     icon: CheckCircle,
     title: "Story validieren",
-    description: "Struktur und Konsistenz werden geprueft",
+    description: "Struktur und Konsistenz werden geprüft",
     estimatedTime: "2-3 Sek",
   },
   images: {

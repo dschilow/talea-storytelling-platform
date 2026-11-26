@@ -249,22 +249,20 @@ const AvatarProfileScreen: React.FC = () => {
     narrativeProfile?.catchphrase ||
     narrativeProfile?.backstory,
   );
-  const pageBackground = isDark
-
-    ? 'radial-gradient(900px 500px at 5% -10%, rgba(82,123,112,0.20), transparent 58%), radial-gradient(800px 520px at 100% 5%, rgba(109,91,130,0.18), transparent 60%), #131d2b'
-    : 'radial-gradient(900px 500px at 5% -10%, #dfece6, transparent 58%), radial-gradient(800px 520px at 100% 5%, #eee4f0, transparent 60%), #f0efeb';
+  // The same calm page colour as every other screen (no mint/lavender glow, no navy in dark mode).
+  const pageBackground = 'var(--talea-page-solid)';
 
   const panel = {
-    borderColor: isDark ? '#344b61' : '#ded2c3',
-    background: isDark ? 'rgba(24,36,51,0.91)' : 'rgba(255,252,247,0.95)',
+    borderColor: 'var(--talea-border-soft)',
+    background: 'var(--talea-surface-primary)',
   };
 
   if (loading) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center" style={{ background: pageBackground }}>
         <div className="text-center" aria-live="polite">
-          <LoaderCircle className="mx-auto h-8 w-8 animate-spin" style={{ color: isDark ? '#a9c5bc' : '#527b70' }} />
-          <p className="mt-3 text-sm" style={{ color: isDark ? '#aabbd0' : '#65798e' }}>Avatar-Profil wird vorbereitet &hellip;</p>
+          <LoaderCircle className="mx-auto h-8 w-8 animate-spin" style={{ color: 'var(--primary)' }} />
+          <p className="mt-3 text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>Avatar-Profil wird vorbereitet &hellip;</p>
         </div>
       </div>
     );
@@ -274,9 +272,9 @@ const AvatarProfileScreen: React.FC = () => {
     return (
       <div className="flex min-h-[70vh] items-center justify-center px-4" style={{ background: pageBackground }}>
         <section className="w-full max-w-md rounded-[28px] border p-6 text-center" style={panel}>
-          <User className="mx-auto h-9 w-9" style={{ color: isDark ? '#b9c8d8' : '#637a91' }} />
-          <h1 className="mt-3 text-xl font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>Profil nicht gefunden</h1>
-          <p className="mt-2 text-sm leading-relaxed" style={{ color: isDark ? '#9fb2c8' : '#687d93' }}>
+          <User className="mx-auto h-9 w-9" style={{ color: 'var(--talea-text-tertiary)' }} />
+          <h1 className="mt-3 text-xl font-semibold" style={{ color: 'var(--talea-text-primary)' }}>Profil nicht gefunden</h1>
+          <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--talea-text-tertiary)' }}>
             {profileError || 'Dieser Avatar ist nicht verf\u00fcgbar.'}
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
@@ -284,7 +282,7 @@ const AvatarProfileScreen: React.FC = () => {
               type="button"
               onClick={() => navigate('/avatar')}
               className="inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold"
-              style={{ borderColor: isDark ? '#42586d' : '#d5c8b9', color: isDark ? '#c4d2e1' : '#576d84' }}
+              style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-text-tertiary)' }}
             >
               <ArrowLeft className="h-4 w-4" />
               Zur Avatar-Auswahl
@@ -292,7 +290,7 @@ const AvatarProfileScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => void loadAvatar()}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#527b70] px-4 text-sm font-semibold text-white"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--primary)] px-4 text-sm font-semibold text-white"
             >
               <RotateCcw className="h-4 w-4" />
               Neu laden
@@ -306,29 +304,29 @@ const AvatarProfileScreen: React.FC = () => {
   return (
     <div className="min-h-screen overflow-x-hidden pb-24" style={{ background: pageBackground }}>
       <div className="mx-auto w-full max-w-6xl space-y-4 px-3 py-3 sm:px-5 sm:py-5">
-        <header className="sticky top-2 z-30 flex items-center justify-between gap-3 rounded-2xl border px-2.5 py-2 backdrop-blur-xl" style={{ ...panel, background: isDark ? 'rgba(20,31,45,0.82)' : 'rgba(255,252,247,0.86)' }}>
+        <header className="sticky top-2 z-30 flex items-center justify-between gap-3 rounded-2xl border px-2.5 py-2 backdrop-blur-xl" style={{ ...panel, background: 'color-mix(in srgb, var(--talea-surface-primary) 88%, transparent)' }}>
           <button
             type="button"
             onClick={() => navigate('/avatar')}
-            className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#527b70]"
-            style={{ borderColor: isDark ? '#42586d' : '#d5c8b9', color: isDark ? '#d4e0ec' : '#536a81' }}
+            className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+            style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-text-tertiary)' }}
             aria-label="Zur&uuml;ck zur Avatar-Auswahl"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
-          <p className="min-w-0 truncate text-sm font-semibold" style={{ color: isDark ? '#e7eef7' : '#263a4f' }}>Avatar-Profil</p>
+          <p className="min-w-0 truncate text-sm font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>Avatar-Profil</p>
           {canManage ? (
             <button
               type="button"
               onClick={() => navigate(`/avatar/edit/${avatar.id}`)}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#527b70]"
-              style={{ borderColor: isDark ? '#42586d' : '#d5c8b9', color: isDark ? '#c4d2e1' : '#576d84' }}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+              style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-text-tertiary)' }}
             >
               <PencilLine className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Bearbeiten</span>
             </button>
           ) : (
-            <span className="inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold" style={{ borderColor: isDark ? '#3b4f63' : '#ddd3c7', color: isDark ? '#98a9bc' : '#728399' }}>
+            <span className="inline-flex min-h-10 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold" style={{ borderColor: 'var(--talea-border-light)', color: 'var(--talea-text-tertiary)' }}>
               <Lock className="h-3.5 w-3.5" />
               Nur lesen
             </span>
@@ -339,16 +337,16 @@ const AvatarProfileScreen: React.FC = () => {
           initial={reduceMotion ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.28, ease: 'easeOut' }}
-          className="overflow-hidden rounded-[32px] border shadow-[0_18px_50px_rgba(35,47,61,0.10)]"
+          className="overflow-hidden rounded-[32px] border shadow-[var(--talea-shadow-medium)]"
           style={panel}
         >
           <div className="grid gap-5 p-5 sm:p-6 md:grid-cols-[auto_1fr_auto] md:items-center">
             <div className="mx-auto md:mx-0">
-              <div className="h-32 w-32 overflow-hidden rounded-[30px] border-4 shadow-[0_12px_30px_rgba(32,48,63,0.18)]" style={{ borderColor: isDark ? '#3d566d' : '#f6eee5' }}>
+              <div className="h-32 w-32 overflow-hidden rounded-[30px] border-4 shadow-[var(--talea-shadow-medium)]" style={{ borderColor: 'var(--talea-surface-inset)' }}>
                 {avatar.imageUrl ? (
                   <img src={avatar.imageUrl} alt={avatar.name} className="h-full w-full object-cover" />
                 ) : (
-                  <div className="flex h-full items-center justify-center" style={{ background: isDark ? '#2b4055' : '#e9e2d9', color: isDark ? '#d6e2ee' : '#5f758a' }}>
+                  <div className="flex h-full items-center justify-center" style={{ background: 'var(--talea-surface-inset)', color: 'var(--talea-text-tertiary)' }}>
                     <User className="h-10 w-10" />
                   </div>
                 )}
@@ -356,21 +354,21 @@ const AvatarProfileScreen: React.FC = () => {
             </div>
 
             <div className="min-w-0 text-center md:text-left">
-              <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: isDark ? '#9bc4b9' : '#527b70' }}>
+              <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--primary)' }}>
                 {progression?.headline ? progression.headline.replaceAll('ae', '\u00e4').replaceAll('oe', '\u00f6').replaceAll('ue', '\u00fc') : 'Auf Entdeckungsreise'}
               </p>
-              <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl" style={{ color: isDark ? '#f0f5fc' : '#203449' }}>{avatar.name}</h1>
-              <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold" style={{ borderColor: isDark ? '#466259' : '#bfd4ca', background: isDark ? 'rgba(82,123,112,0.18)' : '#edf7f2', color: isDark ? '#b9d5cc' : '#41675a' }}>
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl" style={{ color: 'var(--talea-text-primary)' }}>{avatar.name}</h1>
+              <span className="mb-2 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold" style={{ borderColor: 'var(--talea-border-accent)', background: 'var(--talea-accent-terracotta-soft)', color: 'var(--primary)' }}>
                 {isChildAvatar ? <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" /> : isProfileCopy ? <Share2 className="h-3.5 w-3.5" aria-hidden="true" /> : <User className="h-3.5 w-3.5" aria-hidden="true" />}
                 {roleLabel}
               </span>
-              <p className="mx-auto mt-2 max-w-2xl break-words text-sm leading-relaxed [overflow-wrap:anywhere] md:mx-0" style={{ color: isDark ? '#aabdd1' : '#61768d' }}>
+              <p className="mx-auto mt-2 max-w-2xl break-words text-sm leading-relaxed [overflow-wrap:anywhere] md:mx-0" style={{ color: 'var(--talea-text-tertiary)' }}>
                 {publicDescription || (isChildAvatar
                   ? `${avatar.name} ist der persönliche Kind-Avatar dieses Profils. Er erlebt Geschichten mit und entwickelt dabei seine eigene Reise.`
                   : 'Jedes abgeschlossene Abenteuer hinterlässt Erinnerungen, stärkt Fähigkeiten und kann neue Schätze bringen.')}
               </p>
               {!canManage && avatar.sharedBy ? (
-                <p className="mt-2 text-xs font-semibold" style={{ color: isDark ? '#9cb3ca' : '#6c8298' }}>
+                <p className="mt-2 text-xs font-semibold" style={{ color: 'var(--talea-text-tertiary)' }}>
                   Geteilt von {avatar.sharedBy.name || avatar.sharedBy.email || 'einer vertrauten Person'}
                 </p>
               ) : null}
@@ -386,21 +384,21 @@ const AvatarProfileScreen: React.FC = () => {
 
         {hasNarrativeProfile ? (
           <section
-            className="rounded-[28px] border p-4 shadow-[0_10px_30px_rgba(35,47,61,0.07)] sm:p-5"
+            className="rounded-[28px] border p-4 shadow-[var(--talea-shadow-soft)] sm:p-5"
             style={panel}
             aria-labelledby="avatar-character-profile"
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: isDark ? '#9bc4b9' : '#527b70' }}>
+                <p className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--primary)' }}>
                   Charakterprofil
                 </p>
-                <h2 id="avatar-character-profile" className="mt-1 text-xl font-semibold" style={{ color: isDark ? '#eaf2fb' : '#263a4f' }}>
+                <h2 id="avatar-character-profile" className="mt-1 text-xl font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>
                   Was {avatar.name} unverwechselbar macht
                 </h2>
               </div>
               {narrativeProfile?.dominantPersonality ? (
-                <span className="max-w-full break-words rounded-full border px-3 py-1.5 text-sm font-semibold capitalize [overflow-wrap:anywhere]" style={{ borderColor: isDark ? '#466259' : '#bfd4ca', background: isDark ? 'rgba(82,123,112,0.18)' : '#edf7f2', color: isDark ? '#c3ddd5' : '#41675a' }}>
+                <span className="max-w-full break-words rounded-full border px-3 py-1.5 text-sm font-semibold capitalize [overflow-wrap:anywhere]" style={{ borderColor: 'var(--talea-border-accent)', background: 'var(--talea-accent-terracotta-soft)', color: 'var(--primary)' }}>
                   Pers&ouml;nlichkeit: {narrativeProfile.dominantPersonality}
                 </span>
               ) : null}
@@ -408,15 +406,15 @@ const AvatarProfileScreen: React.FC = () => {
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {narrativeProfile?.quirk ? (
-                <div className="rounded-2xl border p-3.5" style={{ borderColor: isDark ? '#344b61' : '#e4d9cc', background: isDark ? 'rgba(42,61,80,0.45)' : '#f8f4ed' }}>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.13em]" style={{ color: isDark ? '#91a6bb' : '#718399' }}>Besonderheit</p>
-                  <p className="mt-1.5 break-words text-sm leading-relaxed [overflow-wrap:anywhere]" style={{ color: isDark ? '#d2dfea' : '#485f77' }}>{narrativeProfile.quirk}</p>
+                <div className="rounded-2xl border p-3.5" style={{ borderColor: 'var(--talea-border-light)', background: 'var(--talea-surface-inset)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.13em]" style={{ color: 'var(--talea-text-tertiary)' }}>Besonderheit</p>
+                  <p className="mt-1.5 break-words text-sm leading-relaxed [overflow-wrap:anywhere]" style={{ color: 'var(--talea-text-tertiary)' }}>{narrativeProfile.quirk}</p>
                 </div>
               ) : null}
               {narrativeProfile?.backstory ? (
-                <div className="rounded-2xl border p-3.5" style={{ borderColor: isDark ? '#344b61' : '#e4d9cc', background: isDark ? 'rgba(42,61,80,0.45)' : '#f8f4ed' }}>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.13em]" style={{ color: isDark ? '#91a6bb' : '#718399' }}>Vorgeschichte</p>
-                  <p className="mt-1.5 break-words text-sm leading-relaxed [overflow-wrap:anywhere]" style={{ color: isDark ? '#d2dfea' : '#485f77' }}>{narrativeProfile.backstory}</p>
+                <div className="rounded-2xl border p-3.5" style={{ borderColor: 'var(--talea-border-light)', background: 'var(--talea-surface-inset)' }}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.13em]" style={{ color: 'var(--talea-text-tertiary)' }}>Vorgeschichte</p>
+                  <p className="mt-1.5 break-words text-sm leading-relaxed [overflow-wrap:anywhere]" style={{ color: 'var(--talea-text-tertiary)' }}>{narrativeProfile.backstory}</p>
                 </div>
               ) : null}
             </div>
@@ -424,7 +422,7 @@ const AvatarProfileScreen: React.FC = () => {
             {narrativeProfile?.traits?.length ? (
               <div className="mt-3 flex flex-wrap gap-2" aria-label="Charaktereigenschaften">
                 {narrativeProfile.traits.map((trait) => (
-                  <span key={trait} className="max-w-full break-words rounded-full border px-2.5 py-1 text-xs font-semibold capitalize [overflow-wrap:anywhere]" style={{ borderColor: isDark ? '#40566a' : '#d9cfc2', color: isDark ? '#bfd0e0' : '#60758b' }}>
+                  <span key={trait} className="max-w-full break-words rounded-full border px-2.5 py-1 text-xs font-semibold capitalize [overflow-wrap:anywhere]" style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-text-tertiary)' }}>
                     {trait}
                   </span>
                 ))}
@@ -432,7 +430,7 @@ const AvatarProfileScreen: React.FC = () => {
             ) : null}
 
             {narrativeProfile?.catchphrase ? (
-              <blockquote className="mt-4 break-words rounded-2xl border-l-4 px-4 py-3 text-sm italic leading-relaxed [overflow-wrap:anywhere]" style={{ borderColor: isDark ? '#9bc4b9' : '#78a899', background: isDark ? 'rgba(82,123,112,0.14)' : '#edf7f2', color: isDark ? '#c8d9e8' : '#587086' }}>
+              <blockquote className="mt-4 break-words rounded-2xl border-l-4 px-4 py-3 text-sm italic leading-relaxed [overflow-wrap:anywhere]" style={{ borderColor: 'var(--primary)', background: 'var(--talea-accent-terracotta-soft)', color: 'var(--talea-text-tertiary)' }}>
                 &bdquo;{narrativeProfile.catchphrase}&ldquo;
               </blockquote>
             ) : null}
@@ -440,14 +438,14 @@ const AvatarProfileScreen: React.FC = () => {
         ) : null}
         {canManage && !isChildAvatar ? (
           <details className="group rounded-2xl border" style={panel}>
-            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#527b70]">
-              <span className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: isDark ? '#c5d3e2' : '#536a81' }}>
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
+              <span className="inline-flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--talea-text-tertiary)' }}>
                 <Share2 className="h-4 w-4" />
                 Kopien und Freigaben
               </span>
-              <span className="text-xs" style={{ color: isDark ? '#8599af' : '#7a8b9d' }}>{avatar.sharedWithCount || 0} externe Freigaben</span>
+              <span className="text-xs" style={{ color: 'var(--talea-text-tertiary)' }}>{avatar.sharedWithCount || 0} externe Freigaben</span>
             </summary>
-            <div className="border-t p-3" style={{ borderColor: isDark ? '#344b61' : '#e4d9cc' }}>
+            <div className="border-t p-3" style={{ borderColor: 'var(--talea-border-light)' }}>
               <AvatarSharePanel
                 avatarId={avatar.id}
                 avatarName={avatar.name}
@@ -459,10 +457,10 @@ const AvatarProfileScreen: React.FC = () => {
           </details>
         ) : canManage && isChildAvatar ? (
           <div className="flex min-h-12 items-center gap-3 rounded-2xl border px-4 py-3" style={panel}>
-            <ShieldCheck className="h-4 w-4 shrink-0" style={{ color: isDark ? '#9bc4b9' : '#527b70' }} aria-hidden="true" />
+            <ShieldCheck className="h-4 w-4 shrink-0" style={{ color: 'var(--primary)' }} aria-hidden="true" />
             <div className="min-w-0">
-              <p className="text-sm font-semibold" style={{ color: isDark ? '#cfe0ed' : '#405970' }}>Privater Kind-Avatar</p>
-              <p className="text-xs leading-relaxed" style={{ color: isDark ? '#91a6bb' : '#718399' }}>Dieser Avatar bleibt bei {profileName}. Familienfiguren kannst du stattdessen als unabhängige Profilkopie übernehmen.</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>Privater Kind-Avatar</p>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--talea-text-tertiary)' }}>Dieser Avatar bleibt bei {profileName}. Familienfiguren kannst du stattdessen als unabhängige Profilkopie übernehmen.</p>
             </div>
           </div>
         ) : null}
@@ -527,7 +525,7 @@ const AvatarProfileScreen: React.FC = () => {
           ) : null}
         </main>
 
-        <p className="flex items-center justify-center gap-2 px-3 pt-2 text-center text-xs" style={{ color: isDark ? '#8195ab' : '#7a8998' }}>
+        <p className="flex items-center justify-center gap-2 px-3 pt-2 text-center text-xs" style={{ color: 'var(--talea-text-tertiary)' }}>
           <Sparkles className="h-3.5 w-3.5" />
           Fortschritt entsteht automatisch beim Abschlie&szlig;en von Geschichten und Dokus.
         </p>
@@ -537,14 +535,14 @@ const AvatarProfileScreen: React.FC = () => {
 };
 
 const HeroStat: React.FC<{ icon: NavIconName; label: string; value: number; isDark: boolean }> = ({ icon, label, value, isDark }) => (
-  <div className="rounded-2xl border px-2 py-3 text-center" style={{ borderColor: isDark ? '#3d5369' : '#ddd1c3', background: isDark ? 'rgba(27,40,56,0.68)' : '#faf7f2' }}>
-    <dd className="flex items-center justify-center gap-1.5 text-xl font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>
-      <span className="flex" style={{ color: isDark ? '#9bc4b9' : '#527b70' }}>
+  <div className="rounded-2xl border px-2 py-3 text-center" style={{ borderColor: 'var(--talea-border-soft)', background: 'var(--talea-surface-inset)' }}>
+    <dd className="flex items-center justify-center gap-1.5 text-xl font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
+      <span className="flex" style={{ color: 'var(--primary)' }}>
         <NavIcon name={icon} active className="h-5 w-5" />
       </span>
       {value}
     </dd>
-    <dt className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.1em]" style={{ color: isDark ? '#8fa4ba' : '#718399' }}>{label}</dt>
+    <dt className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.1em]" style={{ color: 'var(--talea-text-tertiary)' }}>{label}</dt>
   </div>
 );
 
@@ -563,10 +561,10 @@ const ProfileTabButton: React.FC<{
     aria-selected={active}
     aria-controls={controls}
     onClick={onClick}
-    className="relative flex min-h-[4.25rem] min-w-0 flex-col items-center justify-center gap-1 rounded-[18px] px-1.5 py-2 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#527b70] sm:text-sm"
+    className="relative flex min-h-[4.25rem] min-w-0 flex-col items-center justify-center gap-1 rounded-[18px] px-1.5 py-2 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] sm:text-sm"
     style={{
-      background: active ? (isDark ? '#527b70' : '#e2efe9') : 'transparent',
-      color: active ? (isDark ? '#fff' : '#31574a') : (isDark ? '#a8bbcf' : '#64798f'),
+      background: active ? 'var(--talea-accent-terracotta-soft)' : 'transparent',
+      color: active ? 'var(--primary)' : 'var(--talea-text-tertiary)',
     }}
   >
     {/* The picture names the tab for children who cannot read yet; the count rides on it like an app badge. */}
@@ -576,8 +574,8 @@ const ProfileTabButton: React.FC<{
         <span
           className="absolute -right-3 -top-1.5 min-w-[1.15rem] rounded-full px-1 py-px text-center text-[10px] font-bold leading-[1.1rem] tabular-nums"
           style={{
-            background: active ? (isDark ? 'rgba(255,255,255,0.22)' : '#fff') : (isDark ? '#304459' : '#eee7de'),
-            color: active ? (isDark ? '#fff' : '#31574a') : (isDark ? '#cfe0ed' : '#4f6378'),
+            background: active ? 'var(--talea-surface-primary)' : 'var(--talea-surface-inset)',
+            color: active ? 'var(--primary)' : 'var(--talea-text-tertiary)',
           }}
         >
           {badge > 99 ? '99+' : badge}

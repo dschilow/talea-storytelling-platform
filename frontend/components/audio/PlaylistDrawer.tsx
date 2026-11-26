@@ -209,7 +209,7 @@ export const PlaylistDrawer: React.FC<PlaylistDrawerProps> = ({ variant }) => {
     currentItem?.parentDokuTitle ||
     currentItem?.title ||
     'Playlist';
-  const summaryDetail = currentItem?.description || 'Waehle einen Titel oder starte direkt die naechste Folge.';
+  const summaryDetail = currentItem?.description || 'Wähle einen Titel oder starte direkt die nächste Folge.';
 
   const surfaceStyle = {
     borderColor: 'var(--talea-border-light)',

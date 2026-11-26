@@ -60,7 +60,7 @@ export default function ParentalOnboardingScreen() {
         const routeMissing = message.includes('no route for method') || message.includes('404');
         if (routeMissing) {
           setApiAvailable(false);
-          toast.error('Eltern-Dashboard wird nach Backend-Deploy verfuegbar.');
+          toast.error('Eltern-Dashboard wird nach Backend-Deploy verfügbar.');
         } else {
           toast.error('Onboarding konnte nicht geladen werden.');
         }
@@ -92,7 +92,7 @@ export default function ParentalOnboardingScreen() {
       return;
     }
     if (pin !== confirmPin) {
-      toast.error('PIN und Bestaetigung stimmen nicht ueberein.');
+      toast.error('PIN und Bestätigung stimmen nicht überein.');
       return;
     }
 
@@ -116,7 +116,7 @@ export default function ParentalOnboardingScreen() {
       const message = error instanceof Error ? error.message.toLowerCase() : '';
       if (message.includes('no route for method') || message.includes('404')) {
         setApiAvailable(false);
-        toast.error('Backend ist noch nicht aktualisiert. Bitte spaeter erneut versuchen.');
+        toast.error('Backend ist noch nicht aktualisiert. Bitte später erneut versuchen.');
       } else {
         toast.error(error instanceof Error ? error.message : 'Onboarding fehlgeschlagen.');
       }
@@ -156,7 +156,7 @@ export default function ParentalOnboardingScreen() {
 
         {!apiAvailable && (
           <div className="mb-4 rounded-2xl border border-[var(--talea-border-soft)] bg-[var(--talea-surface-inset)] px-4 py-3 text-sm text-[#4f6075] dark:border-[#4d627d] dark:bg-[#213650] dark:text-[#c9dcf3]">
-            Das Eltern-Dashboard ist auf dem Backend noch nicht verfuegbar. Du kannst die App jetzt nutzen und spaeter erneut konfigurieren.
+            Das Eltern-Dashboard ist auf dem Backend noch nicht verfügbar. Du kannst die App jetzt nutzen und später erneut konfigurieren.
           </div>
         )}
 
@@ -167,7 +167,7 @@ export default function ParentalOnboardingScreen() {
           </div>
           <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#f8f1e8] p-3 text-sm dark:border-[#415774] dark:bg-[#1d2d44]">
             <Target className="mb-2 h-4 w-4 text-[#5a728d]" />
-            Setzt klare Lernziele fuer Storys und Dokus.
+            Setzt klare Lernziele für Storys und Dokus.
           </div>
           <div className="rounded-2xl border border-[var(--talea-border-soft)] bg-[#f8f1e8] p-3 text-sm dark:border-[#415774] dark:bg-[#1d2d44]">
             <Sparkles className="mb-2 h-4 w-4 text-[#5a728d]" />
@@ -194,7 +194,7 @@ export default function ParentalOnboardingScreen() {
               inputMode="numeric"
               value={confirmPin}
               onChange={(event) => setConfirmPin(event.target.value)}
-              placeholder="PIN bestaetigen"
+              placeholder="PIN bestätigen"
               className="h-10 rounded-xl border border-[var(--talea-border-soft)] bg-white px-3 text-sm outline-none focus:border-[var(--talea-text-tertiary)] dark:border-[#4a617a] dark:bg-[#20324a]"
             />
           </div>
@@ -205,7 +205,7 @@ export default function ParentalOnboardingScreen() {
           <div className="flex flex-wrap gap-2">
             {themePresets.length === 0 && (
               <p className="text-xs text-[#6c7d90] dark:text-[#b4c8df]">
-                Voreinstellungen werden geladen, sobald der Dienst verfuegbar ist.
+                Voreinstellungen werden geladen, sobald der Dienst verfügbar ist.
               </p>
             )}
             {themePresets.map((preset) => {
@@ -292,7 +292,7 @@ export default function ParentalOnboardingScreen() {
             onClick={() => void deferOnboarding()}
             className="rounded-xl border border-[var(--talea-border-soft)] bg-white px-4 py-2 text-sm font-semibold text-[#3f526a] dark:border-[#4b617a] dark:bg-[#20324a] dark:text-[#d8e8fa]"
           >
-            Spaeter
+            Später
           </button>
           <button
             type="button"

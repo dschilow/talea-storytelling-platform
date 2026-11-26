@@ -150,7 +150,7 @@ export const ImageUploadCamera: React.FC<ImageUploadCameraProps> = ({
     const file = event.target.files?.[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        alert('Bitte waehle eine Bilddatei aus.');
+        alert('Bitte wähle eine Bilddatei aus.');
         return;
       }
 

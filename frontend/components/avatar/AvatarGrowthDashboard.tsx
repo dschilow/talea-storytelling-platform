@@ -290,8 +290,8 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
     .slice(0, 2) || [];
 
   const panel = {
-    borderColor: isDark ? '#344b61' : '#ded2c3',
-    background: isDark ? 'rgba(24,36,51,0.9)' : 'rgba(255,252,247,0.94)',
+    borderColor: 'var(--talea-border-soft)',
+    background: 'var(--talea-surface-primary)',
   };
 
   return (
@@ -306,21 +306,19 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
         <div
           className="grid gap-4 p-5 md:grid-cols-[1fr_auto] md:items-center"
           style={{
-            background: isDark
-              ? 'linear-gradient(135deg, rgba(78,112,105,0.22), rgba(82,91,132,0.14))'
-              : 'linear-gradient(135deg, #edf6f1, #f6f0ea)',
+            background: 'linear-gradient(135deg, var(--talea-accent-terracotta-soft), var(--talea-surface-primary) 78%)',
           }}
         >
           <div>
             <p
               className="text-xs font-bold uppercase tracking-[0.16em]"
-              style={{ color: isDark ? '#9bc4b9' : '#527b70' }}
+              style={{ color: 'var(--primary)' }}
             >
               {strongest.length > 0 ? 'Entwicklung von ' + avatarName : 'Die Reise von ' + avatarName + ' beginnt'}
             </p>
             <h2
               className="mt-2 text-2xl font-semibold leading-tight"
-              style={{ color: isDark ? '#edf4ff' : '#203449' }}
+              style={{ color: 'var(--talea-text-primary)' }}
             >
               {strongest.length > 0
                 ? `${avatarName} w\u00e4chst mit jedem Abenteuer`
@@ -328,7 +326,7 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
             </h2>
             <p
               className="mt-2 max-w-2xl text-sm leading-relaxed"
-              style={{ color: isDark ? '#b3c4d8' : '#5c7188' }}
+              style={{ color: 'var(--talea-text-tertiary)' }}
             >
               Geschichten und Dokus st&auml;rken passende F&auml;higkeiten. Die Punkte werden nach
               abgeschlossenen Inhalten automatisch aktualisiert.
@@ -338,18 +336,18 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
           <div
             className="flex min-w-32 items-center gap-3 rounded-2xl border px-4 py-3 md:flex-col md:text-center"
             style={{
-              borderColor: isDark ? '#456075' : '#cfddd5',
-              background: isDark ? 'rgba(20,31,45,0.62)' : 'rgba(255,255,255,0.72)',
+              borderColor: 'var(--talea-border-accent)',
+              background: 'color-mix(in srgb, var(--talea-surface-primary) 80%, transparent)',
             }}
             aria-label={`Reisestufe ${progression?.overallLevel || 1}`}
           >
-            <Crown className="h-5 w-5" style={{ color: isDark ? '#e8c788' : '#9b7138' }} />
+            <Crown className="h-5 w-5" style={{ color: 'var(--talea-accent-gold)' }} />
             <div>
-              <p className="text-2xl font-semibold" style={{ color: isDark ? '#f2f6fc' : '#203449' }}>
+              <p className="text-2xl font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
                 {progression?.overallLevel || 1}
               </p>
               <div className="flex items-center justify-center gap-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.13em]" style={{ color: isDark ? '#9eb1c7' : '#6b7d90' }}>
+                <p className="text-[10px] font-bold uppercase tracking-[0.13em]" style={{ color: 'var(--talea-text-tertiary)' }}>
                   Reisestufe
                 </p>
                 <ConceptHelp title="Was ist die Reisestufe?">
@@ -364,8 +362,8 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
       <section className="rounded-[24px] border p-4 sm:p-5" style={panel}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em]" style={{ color: isDark ? '#9bc4b9' : '#527b70' }}>So funktioniert es</p>
-            <h3 className="mt-1 text-lg font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>So w&auml;chst dein Avatar</h3>
+            <p className="text-xs font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--primary)' }}>So funktioniert es</p>
+            <h3 className="mt-1 text-lg font-semibold" style={{ color: 'var(--talea-text-primary)' }}>So w&auml;chst dein Avatar</h3>
           </div>
           <ConceptHelp title="Was bedeuten die Punkte?">
             Punkte zeigen, was der Avatar in abgeschlossenen Geschichten und Dokus oft erlebt hat. Sie bewerten niemals das Kind.
@@ -377,16 +375,16 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
             { step: '2', title: 'Passende St&auml;rke w&auml;chst', text: 'Mutige, kluge oder einf&uuml;hlsame Momente geben passende Punkte.' },
             { step: '3', title: 'Neues entdecken', text: 'Mit genug Punkten steigen Stufen und Talente werden sichtbar.' },
           ].map((item) => (
-            <li key={item.step} className="flex gap-3 rounded-2xl border p-3.5" style={{ borderColor: isDark ? '#3a5066' : '#e0d5c8', background: isDark ? 'rgba(27,41,57,0.58)' : '#fffdfa' }}>
-              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#527b70] text-sm font-bold text-white">{item.step}</span>
+            <li key={item.step} className="flex gap-3 rounded-2xl border p-3.5" style={{ borderColor: 'var(--talea-border-light)', background: 'var(--talea-surface-primary)' }}>
+              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-sm font-bold text-white">{item.step}</span>
               <div>
-                <p className="font-semibold" style={{ color: isDark ? '#e9f0f8' : '#263a4f' }} dangerouslySetInnerHTML={{ __html: item.title }} />
-                <p className="mt-0.5 text-xs leading-relaxed" style={{ color: isDark ? '#9fb2c8' : '#687d93' }} dangerouslySetInnerHTML={{ __html: item.text }} />
+                <p className="font-semibold" style={{ color: 'var(--talea-text-secondary)' }} dangerouslySetInnerHTML={{ __html: item.title }} />
+                <p className="mt-0.5 text-xs leading-relaxed" style={{ color: 'var(--talea-text-tertiary)' }} dangerouslySetInnerHTML={{ __html: item.text }} />
               </div>
             </li>
           ))}
         </ol>
-        <p className="mt-3 text-xs" style={{ color: isDark ? '#8fa3ba' : '#728399' }}>Wichtig: Das sind Story-St&auml;rken des Avatars &ndash; keine Bewertung des Kindes.</p>
+        <p className="mt-3 text-xs" style={{ color: 'var(--talea-text-tertiary)' }}>Wichtig: Das sind Story-St&auml;rken des Avatars &ndash; keine Bewertung des Kindes.</p>
       </section>
 
       {nextGoal ? (
@@ -394,28 +392,28 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
           <div className="flex items-start gap-3">
             <span
               className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
-              style={{ background: isDark ? 'rgba(91,126,113,0.28)' : '#e3f0eb', color: isDark ? '#a9d1c4' : '#527b70' }}
+              style={{ background: 'var(--talea-border-accent)', color: 'var(--primary)' }}
             >
               <Target className="h-5 w-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold uppercase tracking-[0.14em]" style={{ color: isDark ? '#98acc3' : '#6a7e93' }}>
+              <p className="text-xs font-bold uppercase tracking-[0.14em]" style={{ color: 'var(--talea-text-tertiary)' }}>
                 N&auml;chster kleiner Schritt
               </p>
               <div className="mt-1 flex flex-wrap items-baseline justify-between gap-2">
-                <h3 className="text-lg font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>
+                <h3 className="text-lg font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
                   {germanize(nextGoal.title)}
                 </h3>
-                <span className="text-sm font-semibold" style={{ color: isDark ? '#b8c8da' : '#526a82' }}>
+                <span className="text-sm font-semibold" style={{ color: 'var(--talea-text-tertiary)' }}>
                   {nextGoal.progress} von {nextGoal.target}
                 </span>
               </div>
-              <p className="mt-1 text-sm" style={{ color: isDark ? '#aabdd1' : '#61768d' }}>
+              <p className="mt-1 text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>
                 Noch {Math.max(0, nextGoal.target - nextGoal.progress)} {goalUnit(nextGoal.id, nextGoal.target - nextGoal.progress)} &ndash; dann ist dieses Ziel geschafft.
               </p>
               <ProgressBar
                 value={(nextGoal.progress / Math.max(1, nextGoal.target)) * 100}
-                color="#527b70"
+                color="var(--primary)"
                 isDark={isDark}
                 label={`${nextGoal.title}: ${nextGoal.progress} von ${nextGoal.target}`}
               />
@@ -426,12 +424,12 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
 
       <section className="rounded-[24px] border p-4 sm:p-5" style={panel}>
         <div className="flex items-center gap-3">
-          <Sparkles className="h-5 w-5" style={{ color: isDark ? '#e1bd82' : '#9b7138' }} />
+          <Sparkles className="h-5 w-5" style={{ color: 'var(--talea-accent-gold)' }} />
           <div>
-            <h3 className="text-lg font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>
+            <h3 className="text-lg font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
               {strongest.length > 0 ? 'Das kann dein Avatar schon besonders gut' : 'Hier werden die ersten St&auml;rken sichtbar'}
             </h3>
-            <p className="mt-0.5 text-sm" style={{ color: isDark ? '#9fb2c8' : '#687d93' }}>
+            <p className="mt-0.5 text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>
               Nicht jeder Avatar w&auml;chst gleich &ndash; das macht jede Reise einzigartig.
             </p>
           </div>
@@ -446,7 +444,7 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
         ) : (
           <div
             className="mt-4 rounded-2xl border border-dashed px-4 py-5 text-center"
-            style={{ borderColor: isDark ? '#42566b' : '#d8ccbd', color: isDark ? '#aabbd0' : '#65798e' }}
+            style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-text-tertiary)' }}
           >
             Nach der ersten abgeschlossenen Geschichte oder Doku erscheinen hier die st&auml;rksten F&auml;higkeiten.
           </div>
@@ -454,16 +452,16 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
       </section>
 
       <details className="group rounded-[24px] border" style={panel}>
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#527b70] sm:px-5">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] sm:px-5">
           <div>
-            <h3 className="font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>Alle neun St&auml;rken</h3>
-            <p className="mt-0.5 text-sm" style={{ color: isDark ? '#9fb2c8' : '#687d93' }}>
+            <h3 className="font-semibold" style={{ color: 'var(--talea-text-primary)' }}>Alle neun St&auml;rken</h3>
+            <p className="mt-0.5 text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>
               Punkte, Unterbereiche und wof&uuml;r es zuletzt Punkte gab
             </p>
           </div>
-          <ChevronDown className="h-5 w-5 shrink-0 transition-transform duration-200 group-open:rotate-180" style={{ color: isDark ? '#a9bbcf' : '#60758c' }} />
+          <ChevronDown className="h-5 w-5 shrink-0 transition-transform duration-200 group-open:rotate-180" style={{ color: 'var(--talea-text-tertiary)' }} />
         </summary>
-        <div className="grid gap-2 border-t p-3 sm:grid-cols-2 lg:grid-cols-3" style={{ borderColor: isDark ? '#344b61' : '#e3d8ca' }}>
+        <div className="grid gap-2 border-t p-3 sm:grid-cols-2 lg:grid-cols-3" style={{ borderColor: 'var(--talea-border-light)' }}>
           {cards.map((card) => (
             <TraitRow
               key={card.id}
@@ -479,10 +477,10 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
       {(unlockedTalents.length > 0 || nextTalents.length > 0) && (
         <section className="rounded-[24px] border p-4 sm:p-5" style={panel}>
           <div className="flex items-center gap-3">
-            <Crown className="h-5 w-5" style={{ color: isDark ? '#e1bd82' : '#9b7138' }} />
+            <Crown className="h-5 w-5" style={{ color: 'var(--talea-accent-gold)' }} />
             <div>
-              <h3 className="font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>Entdeckte Talente</h3>
-              <p className="mt-0.5 text-sm" style={{ color: isDark ? '#9fb2c8' : '#687d93' }}>
+              <h3 className="font-semibold" style={{ color: 'var(--talea-text-primary)' }}>Entdeckte Talente</h3>
+              <p className="mt-0.5 text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>
                 Talente beschreiben, was dein Avatar in neuen Geschichten einbringen kann.
               </p>
             </div>
@@ -493,16 +491,16 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
                 key={talent.id}
                 className="flex items-start gap-3 rounded-2xl border px-3.5 py-3"
                 style={{
-                  borderColor: isDark ? '#476656' : '#b9d5c6',
-                  background: isDark ? 'rgba(48,78,63,0.25)' : '#edf7f1',
+                  borderColor: 'var(--talea-border-accent)',
+                  background: 'var(--talea-accent-terracotta-soft)',
                 }}
               >
-                <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#527b70] text-white">
+                <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--primary)] text-white">
                   <Check className="h-4 w-4" />
                 </span>
                 <div>
-                  <p className="font-semibold" style={{ color: isDark ? '#eaf4ef' : '#24473b' }}>{germanize(talent.title)}</p>
-                  <p className="mt-0.5 text-sm leading-relaxed" style={{ color: isDark ? '#b1c8bd' : '#567166' }}>{germanize(talent.description)}</p>
+                  <p className="font-semibold" style={{ color: 'var(--primary)' }}>{germanize(talent.title)}</p>
+                  <p className="mt-0.5 text-sm leading-relaxed" style={{ color: 'var(--primary)' }}>{germanize(talent.description)}</p>
                 </div>
               </article>
             ))}
@@ -512,12 +510,12 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
                 <article
                   key={talent.id}
                   className="flex items-start gap-3 rounded-2xl border px-3.5 py-3"
-                  style={{ borderColor: isDark ? '#3a4f65' : '#dfd4c6', background: isDark ? 'rgba(25,38,53,0.68)' : '#fbf8f3' }}
+                  style={{ borderColor: 'var(--talea-border-light)', background: 'var(--talea-surface-inset)' }}
                 >
-                  <LockKeyhole className="mt-1 h-4 w-4 shrink-0" style={{ color: isDark ? '#8196ad' : '#8693a0' }} />
+                  <LockKeyhole className="mt-1 h-4 w-4 shrink-0" style={{ color: 'var(--talea-text-tertiary)' }} />
                   <div>
-                    <p className="font-semibold" style={{ color: isDark ? '#c7d4e3' : '#40556b' }}>{germanize(talent.title)}</p>
-                    <p className="mt-0.5 text-xs" style={{ color: isDark ? '#8fa3ba' : '#718399' }}>Noch {missing} Punkte in {germanize(talent.trait)}</p>
+                    <p className="font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>{germanize(talent.title)}</p>
+                    <p className="mt-0.5 text-xs" style={{ color: 'var(--talea-text-tertiary)' }}>Noch {missing} Punkte in {germanize(talent.trait)}</p>
                   </div>
                 </article>
               );
@@ -529,10 +527,10 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
       {(activeGoals.length > 1 || completedGoals.length > 0) && (
         <section className="overflow-hidden rounded-[24px] border p-4 sm:p-5" style={panel}>
           <div className="flex items-center gap-3">
-            <BookOpen className="h-5 w-5" style={{ color: isDark ? '#a9bdd5' : '#5d7897' }} />
+            <BookOpen className="h-5 w-5" style={{ color: 'var(--talea-text-tertiary)' }} />
             <div>
-              <h3 className="font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>Weitere Reiseziele</h3>
-              <p className="mt-0.5 text-sm" style={{ color: isDark ? '#9fb2c8' : '#687d93' }}>Diese Ziele laufen automatisch mit.</p>
+              <h3 className="font-semibold" style={{ color: 'var(--talea-text-primary)' }}>Weitere Reiseziele</h3>
+              <p className="mt-0.5 text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>Diese Ziele laufen automatisch mit.</p>
             </div>
           </div>
           <div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -541,16 +539,16 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
                 key={goal.id}
                 className="flex min-w-0 items-center gap-3 overflow-hidden rounded-2xl border px-3.5 py-3"
                 style={{
-                  borderColor: goal.status === 'completed' ? (isDark ? '#476656' : '#b9d5c6') : (isDark ? '#3a4f65' : '#dfd4c6'),
-                  background: goal.status === 'completed' ? (isDark ? 'rgba(48,78,63,0.22)' : '#edf7f1') : 'transparent',
+                  borderColor: goal.status === 'completed' ? 'var(--talea-border-accent)' : 'var(--talea-border-light)',
+                  background: goal.status === 'completed' ? 'var(--talea-accent-terracotta-soft)' : 'transparent',
                 }}
               >
-                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-xs font-bold" style={{ borderColor: isDark ? '#496079' : '#d2c5b6', color: isDark ? '#c4d2e1' : '#50667d' }}>
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-xs font-bold" style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-text-tertiary)' }}>
                   {goal.status === 'completed' ? <Check className="h-4 w-4" /> : `${goal.progress}/${goal.target}`}
                 </span>
                 <div className="min-w-0 flex-1 overflow-hidden">
-                  <p className="break-words font-semibold" style={{ color: isDark ? '#e5edf7' : '#263a4f' }}>{germanize(goal.title)}</p>
-                  <p className="line-clamp-2 break-words text-xs leading-relaxed" style={{ color: isDark ? '#95a9c0' : '#718399' }}>{goal.status === 'completed' ? 'Geschafft!' : germanize(goal.description)}</p>
+                  <p className="break-words font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>{germanize(goal.title)}</p>
+                  <p className="line-clamp-2 break-words text-xs leading-relaxed" style={{ color: 'var(--talea-text-tertiary)' }}>{goal.status === 'completed' ? 'Geschafft!' : germanize(goal.description)}</p>
                 </div>
               </div>
             ))}
@@ -560,8 +558,8 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
 
       {progression?.topKnowledgeDomains?.length ? (
         <section className="rounded-[24px] border p-4 sm:p-5" style={panel}>
-          <h3 className="font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>Lieblingsthemen</h3>
-          <p className="mt-0.5 text-sm" style={{ color: isDark ? '#9fb2c8' : '#687d93' }}>
+          <h3 className="font-semibold" style={{ color: 'var(--talea-text-primary)' }}>Lieblingsthemen</h3>
+          <p className="mt-0.5 text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>
             In diesen Wissensgebieten hat {avatarName} schon besonders viel gesammelt.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -569,7 +567,7 @@ const AvatarGrowthDashboard: React.FC<AvatarGrowthDashboardProps> = ({
               <span
                 key={domain.name}
                 className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold"
-                style={{ borderColor: isDark ? '#456259' : '#c8ddd3', background: isDark ? 'rgba(52,83,71,0.24)' : '#edf6f1', color: isDark ? '#b8d2c8' : '#42675a' }}
+                style={{ borderColor: 'var(--talea-border-accent)', background: 'var(--talea-accent-terracotta-soft)', color: 'var(--primary)' }}
               >
                 {germanize(domain.name)}
                 <span className="text-xs opacity-75">{Math.round(domain.value)}</span>
@@ -590,7 +588,7 @@ const ProgressBar: React.FC<{ value: number; color: string; isDark: boolean; lab
 }) => (
   <div
     className="mt-3 h-2 overflow-hidden rounded-full"
-    style={{ background: isDark ? '#293b4e' : '#e6ded4' }}
+    style={{ background: 'var(--talea-border-light)' }}
     role="progressbar"
     aria-valuemin={0}
     aria-valuemax={100}
@@ -605,20 +603,20 @@ const StrengthCard: React.FC<{ card: TraitCard; place: number; isDark: boolean; 
   const meta = TRAIT_META[card.id] || TRAIT_META.knowledge;
   const Icon = meta.icon;
   return (
-    <article className="rounded-2xl border p-3.5" style={{ borderColor: isDark ? '#3a5066' : '#e0d5c8', background: isDark ? 'rgba(27,41,57,0.72)' : '#fffdfa' }}>
+    <article className="rounded-2xl border p-3.5" style={{ borderColor: 'var(--talea-border-light)', background: 'var(--talea-surface-primary)' }}>
       <div className="flex items-start justify-between gap-2">
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl" style={{ background: isDark ? `${meta.color}33` : meta.soft, color: isDark ? '#dce8f4' : meta.color }}>
+        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl" style={{ background: isDark ? `${meta.color}33` : meta.soft, color: isDark ? `color-mix(in srgb, ${meta.color} 55%, #fff7ec)` : meta.color }}>
           <Icon className="h-5 w-5" />
         </span>
         <div className="flex items-center gap-1">
-          <span className="text-xs font-bold" style={{ color: isDark ? '#849ab2' : '#8996a3' }}>#{place}</span>
+          <span className="text-xs font-bold" style={{ color: 'var(--talea-text-tertiary)' }}>#{place}</span>
           <ConceptHelp title={`Was bedeutet ${card.label}?`}>{meta.hint} Die Punkte stammen nur aus abgeschlossenen Inhalten.</ConceptHelp>
         </div>
       </div>
-      <h4 className="mt-3 font-semibold" style={{ color: isDark ? '#e9f0f8' : '#263a4f' }}>{card.label}</h4>
-      <p className="mt-0.5 text-sm" style={{ color: isDark ? '#9fb2c8' : '#687d93' }}>{card.rankName} &middot; {card.value} Punkte</p>
+      <h4 className="mt-3 font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>{card.label}</h4>
+      <p className="mt-0.5 text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>{card.rankName} &middot; {card.value} Punkte</p>
       {latest ? (
-        <p className="mt-2 line-clamp-2 text-xs leading-relaxed" style={{ color: isDark ? '#8fa3ba' : '#728399' }}>
+        <p className="mt-2 line-clamp-2 text-xs leading-relaxed" style={{ color: 'var(--talea-text-tertiary)' }}>
           Zuletzt {latest.change > 0 ? '+' : ''}{latest.change} {latest.label}
           {/^(durch|aus)\s/.test(latest.text) ? ' ' : ': '}
           {latest.text}
@@ -637,46 +635,46 @@ const TraitRow: React.FC<{
   const meta = TRAIT_META[card.id] || TRAIT_META.knowledge;
   const Icon = meta.icon;
   return (
-    <article className="rounded-2xl border p-3.5" style={{ borderColor: isDark ? '#384e64' : '#e2d8cc', background: isDark ? 'rgba(26,39,55,0.7)' : '#fffdfa' }}>
+    <article className="rounded-2xl border p-3.5" style={{ borderColor: 'var(--talea-border-light)', background: 'var(--talea-surface-primary)' }}>
       <div className="flex items-center gap-3">
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: isDark ? `${meta.color}32` : meta.soft, color: isDark ? '#d7e4ef' : meta.color }}>
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" style={{ background: isDark ? `${meta.color}32` : meta.soft, color: isDark ? `color-mix(in srgb, ${meta.color} 55%, #fff7ec)` : meta.color }}>
           <Icon className="h-4.5 w-4.5" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
-            <h4 className="font-semibold" style={{ color: isDark ? '#e7eef7' : '#2b3e52' }}>{card.label}</h4>
+            <h4 className="font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>{card.label}</h4>
             <div className="flex items-center gap-1">
-              <span className="text-sm font-semibold" style={{ color: isDark ? '#b2c2d3' : '#536980' }}>{card.value}</span>
+              <span className="text-sm font-semibold" style={{ color: 'var(--talea-text-tertiary)' }}>{card.value}</span>
               <ConceptHelp title={`Was bedeutet ${card.label}?`}>{meta.hint} Punkte sind keine Schulnoten.</ConceptHelp>
             </div>
           </div>
-          <p className="text-xs" style={{ color: isDark ? '#91a6bd' : '#718399' }}>
+          <p className="text-xs" style={{ color: 'var(--talea-text-tertiary)' }}>
             {card.value === 0 ? 'Noch unentdeckt' : card.rankName}
           </p>
         </div>
       </div>
       <ProgressBar value={card.progress} color={meta.color} isDark={isDark} label={`${card.label}: ${card.progress} Prozent bis zur n\u00e4chsten Stufe`} />
       {subcategories.length > 0 ? (
-        <ul className="mt-3 space-y-1 border-l-2 pl-3" style={{ borderColor: isDark ? '#3f566d' : '#e3d8ca' }} aria-label={`Unterbereiche von ${card.label}`}>
+        <ul className="mt-3 space-y-1 border-l-2 pl-3" style={{ borderColor: 'var(--talea-border-light)' }} aria-label={`Unterbereiche von ${card.label}`}>
           {subcategories.map((entry) => (
             <li key={entry.name} className="flex items-baseline justify-between gap-2 text-xs">
-              <span className="min-w-0 truncate" style={{ color: isDark ? '#c3d1e0' : '#405970' }}>
+              <span className="min-w-0 truncate" style={{ color: 'var(--talea-text-secondary)' }}>
                 {formatTraitLabel(`${card.id}.${entry.name}`)}
               </span>
-              <span className="shrink-0 font-semibold" style={{ color: isDark ? '#b2c2d3' : '#536980' }}>{Math.round(entry.value)}</span>
+              <span className="shrink-0 font-semibold" style={{ color: 'var(--talea-text-tertiary)' }}>{Math.round(entry.value)}</span>
             </li>
           ))}
         </ul>
       ) : null}
       {reasons.length > 0 ? (
         <div className="mt-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: isDark ? '#8fa5bc' : '#72859a' }}>
+          <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--talea-text-tertiary)' }}>
             Wof&uuml;r es Punkte gab
           </p>
           <ul className="mt-1.5 space-y-1.5">
             {reasons.map((reason) => (
-              <li key={reason.key} className="text-xs leading-relaxed" style={{ color: isDark ? '#aabdd1' : '#61768d' }}>
-                <span className="font-semibold" style={{ color: reason.change > 0 ? (isDark ? '#b8d2c8' : '#42675a') : (isDark ? '#d5aeb7' : '#8b5360') }}>
+              <li key={reason.key} className="text-xs leading-relaxed" style={{ color: 'var(--talea-text-tertiary)' }}>
+                <span className="font-semibold" style={{ color: reason.change > 0 ? 'var(--primary)' : 'var(--talea-accent-rose)' }}>
                   {reason.change > 0 ? '+' : ''}{reason.change} {reason.label}
                 </span>{' '}
                 {reason.text}
@@ -685,7 +683,7 @@ const TraitRow: React.FC<{
           </ul>
         </div>
       ) : (
-        <p className="mt-2 text-xs leading-relaxed" style={{ color: isDark ? '#8fa3ba' : '#728399' }}>
+        <p className="mt-2 text-xs leading-relaxed" style={{ color: 'var(--talea-text-tertiary)' }}>
           {card.value === 0 ? 'Startet mit der ersten passenden Geschichte oder Doku.' : meta.hint}
         </p>
       )}

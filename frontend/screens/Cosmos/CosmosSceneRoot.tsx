@@ -1021,7 +1021,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
                   boxShadow: '0 24px 70px rgba(0,0,0,0.55), 0 0 60px rgba(168,85,247,0.18)',
                 }}
               >
-                <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-purple-200/70">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#f3c3a6]/80">
                   Willkommen
                 </p>
                 <h3 className="mt-1 text-xl font-extrabold text-white">Dein Lernkosmos</h3>
@@ -1032,7 +1032,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setShowIntro(false)}
-                  className="mt-4 w-full rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 px-4 py-3 text-sm font-extrabold text-white shadow-lg shadow-purple-500/30 active:scale-[0.98]"
+                  className="mt-4 w-full rounded-full bg-[var(--talea-brand-cream)] px-4 py-3 text-[15px] font-semibold text-[var(--talea-brand-brown)] shadow-[0_10px_24px_-12px_rgba(0,0,0,0.7)] active:scale-[0.98]"
                 >
                   Los geht's!
                 </button>
@@ -1154,7 +1154,7 @@ export const CosmosSceneRoot: React.FC<Props> = ({
         <div className="absolute inset-0 pointer-events-none flex flex-col justify-end p-4">
           <div className="text-center">
             <p
-              className="text-[10px] font-bold uppercase tracking-[0.18em] text-purple-300/80"
+              className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#f3c3a6]"
               style={{ fontFamily: '"Nunito", sans-serif' }}
             >
               Dein Universum

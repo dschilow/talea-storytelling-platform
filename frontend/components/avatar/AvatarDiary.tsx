@@ -45,10 +45,12 @@ const diaryText = (memory: AvatarMemory): string => {
 };
 
 const sourceMeta = (type?: AvatarMemory['contentType']) => {
-  if (type === 'doku') return { label: 'Doku', icon: FileText, color: '#527b70', soft: '#e3f0eb' };
-  if (type === 'quiz') return { label: 'Quiz', icon: Lightbulb, color: '#8a6ca8', soft: '#efe8f6' };
-  if (type === 'activity') return { label: 'Aktivit\u00e4t', icon: Heart, color: '#a45f7a', soft: '#f6e6ed' };
-  return { label: 'Geschichte', icon: BookOpen, color: '#5f78a0', soft: '#e7ecf5' };
+  // Theme tokens: each source keeps its own colour and adapts to dark mode by itself.
+  const tone = (color: string) => ({ color, soft: `color-mix(in srgb, ${color} 15%, transparent)` });
+  if (type === 'doku') return { label: 'Doku', icon: FileText, ...tone('var(--talea-accent-gold)') };
+  if (type === 'quiz') return { label: 'Quiz', icon: Lightbulb, ...tone('var(--talea-accent-sky)') };
+  if (type === 'activity') return { label: 'Aktivit\u00e4t', icon: Heart, ...tone('var(--talea-accent-rose)') };
+  return { label: 'Geschichte', icon: BookOpen, ...tone('var(--primary)') };
 };
 const memoryTierMeta = (tier?: AvatarMemory['memoryTier']) => {
   if (tier === 'core') return { label: 'Bleibt wichtig', explanation: 'Diese Erinnerung gehört zum Langzeitgedächtnis und darf spätere Geschichten prägen.' };
@@ -94,15 +96,15 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
   }, [filter, memories]);
 
   const panel = {
-    borderColor: isDark ? '#344b61' : '#ded2c3',
-    background: isDark ? 'rgba(24,36,51,0.9)' : 'rgba(255,252,247,0.94)',
+    borderColor: 'var(--talea-border-soft)',
+    background: 'var(--talea-surface-primary)',
   };
 
   if (loading) {
     return (
       <section className="rounded-[28px] border px-5 py-16 text-center" style={panel} aria-busy="true">
-        <LoaderCircle className="mx-auto h-7 w-7 animate-spin" style={{ color: isDark ? '#a9c5bc' : '#527b70' }} />
-        <p className="mt-3 text-sm" style={{ color: isDark ? '#aabbd0' : '#65798e' }}>Tagebuch wird ge&ouml;ffnet &hellip;</p>
+        <LoaderCircle className="mx-auto h-7 w-7 animate-spin" style={{ color: 'var(--primary)' }} />
+        <p className="mt-3 text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>Tagebuch wird ge&ouml;ffnet &hellip;</p>
       </section>
     );
   }
@@ -110,13 +112,13 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
   if (error) {
     return (
       <section className="rounded-[28px] border px-5 py-12 text-center" style={panel}>
-        <BookOpen className="mx-auto h-8 w-8" style={{ color: isDark ? '#b7c7d8' : '#657b91' }} />
-        <h2 className="mt-3 text-lg font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>Das Tagebuch konnte nicht geladen werden</h2>
-        <p className="mx-auto mt-1 max-w-md text-sm" style={{ color: isDark ? '#9fb2c8' : '#687d93' }}>{error}</p>
+        <BookOpen className="mx-auto h-8 w-8" style={{ color: 'var(--talea-text-tertiary)' }} />
+        <h2 className="mt-3 text-lg font-semibold" style={{ color: 'var(--talea-text-primary)' }}>Das Tagebuch konnte nicht geladen werden</h2>
+        <p className="mx-auto mt-1 max-w-md text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>{error}</p>
         <button
           type="button"
           onClick={onRetry}
-          className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-[#527b70] px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#527b70]"
+          className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
         >
           <RotateCcw className="h-4 w-4" />
           Noch einmal versuchen
@@ -130,16 +132,16 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
       <section className="rounded-[28px] border p-4 sm:p-5" style={panel}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: isDark ? '#9bc4b9' : '#527b70' }}>Erinnerungen</p>
+            <p className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--primary)' }}>Erinnerungen</p>
             <div className="mt-1 flex items-center gap-1.5">
-              <h2 className="text-2xl font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>Tagebuch von {avatarName}</h2>
+              <h2 className="text-2xl font-semibold" style={{ color: 'var(--talea-text-primary)' }}>Tagebuch von {avatarName}</h2>
               <ConceptHelp title={"So merkt sich " + avatarName + " etwas"} align="left"><p>Frische Erlebnisse helfen zuerst bei den nächsten Geschichten. Wichtiges wandert ins Tagebuch oder ins Langzeitgedächtnis. So erinnert sich dein Avatar, ohne jede Kleinigkeit mitzuschleppen.</p></ConceptHelp>
             </div>
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed" style={{ color: isDark ? '#aabdd1' : '#61768d' }}>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed" style={{ color: 'var(--talea-text-tertiary)' }}>
               Hier steht, was {avatarName} erlebt hat und welche St&auml;rken dabei gewachsen sind.
             </p>
           </div>
-          <span className="inline-flex w-fit rounded-full border px-3 py-1.5 text-sm font-semibold" style={{ borderColor: isDark ? '#40576d' : '#d9cdbf', color: isDark ? '#c2d0df' : '#536a81' }}>
+          <span className="inline-flex w-fit rounded-full border px-3 py-1.5 text-sm font-semibold" style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-text-tertiary)' }}>
             {memories.length} {memories.length === 1 ? 'Eintrag' : 'Eintr\u00e4ge'}
           </span>
         </div>
@@ -159,13 +161,13 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
 
       {filtered.length === 0 ? (
         <section className="rounded-[28px] border px-5 py-14 text-center" style={panel}>
-          <span className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: isDark ? 'rgba(74,101,128,0.28)' : '#e9edf2', color: isDark ? '#c0d1e3' : '#5f7891' }}>
+          <span className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: 'var(--talea-border-light)', color: 'var(--talea-text-tertiary)' }}>
             <BookOpen className="h-7 w-7" />
           </span>
-          <h3 className="mt-4 text-lg font-semibold" style={{ color: isDark ? '#edf4ff' : '#203449' }}>
+          <h3 className="mt-4 text-lg font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
             {memories.length === 0 ? 'Noch ist das Tagebuch leer' : 'Keine passenden Eintr\u00e4ge'}
           </h3>
-          <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed" style={{ color: isDark ? '#9fb2c8' : '#687d93' }}>
+          <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed" style={{ color: 'var(--talea-text-tertiary)' }}>
             {memories.length === 0
               ? 'Nach einer abgeschlossenen Geschichte oder Doku erscheint hier automatisch die erste Erinnerung.'
               : 'W\u00e4hle einen anderen Filter, um weitere Erinnerungen zu sehen.'}
@@ -185,37 +187,37 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
                   <div className="flex items-start gap-3">
                     <span
                       className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
-                      style={{ background: isDark ? `${meta.color}30` : meta.soft, color: isDark ? '#dbe6f2' : meta.color }}
+                      style={{ background: meta.soft, color: meta.color }}
                     >
                       <SourceIcon className="h-5 w-5" />
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <span className="text-xs font-bold uppercase tracking-[0.12em]" style={{ color: isDark ? '#9fb3c9' : meta.color }}>{meta.label}</span>
-                        <span aria-hidden="true" style={{ color: isDark ? '#5f7286' : '#b2a79b' }}>&middot;</span>
-                        <time className="text-xs" dateTime={memory.createdAt || memory.timestamp} style={{ color: isDark ? '#91a5bc' : '#74869a' }}>
+                        <span className="text-xs font-bold uppercase tracking-[0.12em]" style={{ color: meta.color }}>{meta.label}</span>
+                        <span aria-hidden="true" style={{ color: 'var(--talea-text-tertiary)' }}>&middot;</span>
+                        <time className="text-xs" dateTime={memory.createdAt || memory.timestamp} style={{ color: 'var(--talea-text-tertiary)' }}>
                           {formatDate(memory.createdAt || memory.timestamp || '')}
                         </time>
                       </div>
-                        <span className="rounded-full border px-2 py-0.5 text-[10px] font-semibold" title={tier.explanation} style={{ borderColor: isDark ? '#466057' : '#c4d9cf', background: isDark ? 'rgba(82,123,112,0.16)' : '#edf7f2', color: isDark ? '#b8d3ca' : '#45695d' }}>{tier.label}</span>
-                      <h3 className="mt-1 text-lg font-semibold leading-snug" style={{ color: isDark ? '#edf4ff' : '#203449' }}>{memory.storyTitle}</h3>
+                        <span className="rounded-full border px-2 py-0.5 text-[10px] font-semibold" title={tier.explanation} style={{ borderColor: 'var(--talea-border-accent)', background: 'var(--talea-accent-terracotta-soft)', color: 'var(--primary)' }}>{tier.label}</span>
+                      <h3 className="mt-1 text-lg font-semibold leading-snug" style={{ color: 'var(--talea-text-primary)' }}>{memory.storyTitle}</h3>
                     </div>
                   </div>
 
-                  <p className="mt-3 text-sm leading-relaxed" style={{ color: isDark ? '#c3d1e0' : '#405970' }}>{diaryText(memory)}</p>
+                  <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--talea-text-secondary)' }}>{diaryText(memory)}</p>
 
                   {memory.personalityChanges?.length > 0 ? (
                     <div className="mt-4">
-                      <p className="text-xs font-bold uppercase tracking-[0.12em]" style={{ color: isDark ? '#8fa5bc' : '#72859a' }}>Dabei gewachsen</p>
+                      <p className="text-xs font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--talea-text-tertiary)' }}>Dabei gewachsen</p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {memory.personalityChanges.map((change, index) => (
                           <span
                             key={`${memory.id}-${change.trait}-${index}`}
                             className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold"
                             style={{
-                              borderColor: change.change >= 0 ? (isDark ? '#476656' : '#bdd7c9') : (isDark ? '#684953' : '#e3c0c7'),
-                              background: change.change >= 0 ? (isDark ? 'rgba(48,78,63,0.22)' : '#edf7f1') : (isDark ? 'rgba(87,49,59,0.2)' : '#fbf0f2'),
-                              color: change.change >= 0 ? (isDark ? '#b8d2c8' : '#42675a') : (isDark ? '#d5aeb7' : '#8b5360'),
+                              borderColor: change.change >= 0 ? 'var(--talea-border-accent)' : 'var(--talea-border-soft)',
+                              background: change.change >= 0 ? 'var(--talea-accent-terracotta-soft)' : 'var(--talea-surface-inset)',
+                              color: change.change >= 0 ? 'var(--primary)' : 'var(--talea-accent-rose)',
                             }}
                           >
                             {change.change >= 0 ? '+' : ''}{change.change} {formatTraitLabel(change.trait)}
@@ -226,15 +228,15 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
                   ) : null}
 
                   {canDelete ? (
-                    <div className="mt-4 flex justify-end border-t pt-3" style={{ borderColor: isDark ? '#344b61' : '#e4d9cc' }}>
+                    <div className="mt-4 flex justify-end border-t pt-3" style={{ borderColor: 'var(--talea-border-light)' }}>
                       {confirming ? (
                         <div className="flex flex-wrap items-center justify-end gap-2" role="group" aria-label="L&ouml;schen best&auml;tigen">
-                          <span className="mr-1 max-w-sm text-xs font-semibold" style={{ color: isDark ? '#d4bdc2' : '#8d5863' }}>Eintrag wirklich löschen? Deine gesammelten Stärkepunkte und der Lesestatus bleiben erhalten.</span>
+                          <span className="mr-1 max-w-sm text-xs font-semibold" style={{ color: 'var(--talea-accent-rose)' }}>Eintrag wirklich löschen? Deine gesammelten Stärkepunkte und der Lesestatus bleiben erhalten.</span>
                           <button
                             type="button"
                             onClick={() => setConfirmingId(null)}
                             className="inline-flex min-h-9 items-center gap-1 rounded-full border px-3 text-xs font-semibold"
-                            style={{ borderColor: isDark ? '#43596f' : '#d8ccbe', color: isDark ? '#c0cfde' : '#5e7288' }}
+                            style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-text-tertiary)' }}
                           >
                             <X className="h-3.5 w-3.5" />
                             Behalten
@@ -246,7 +248,7 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
                               await onDelete(memory.id);
                               setConfirmingId(null);
                             }}
-                            className="inline-flex min-h-9 items-center gap-1 rounded-full bg-[#9b5966] px-3 text-xs font-semibold text-white disabled:opacity-60"
+                            className="inline-flex min-h-9 items-center gap-1 rounded-full bg-[var(--talea-danger)] px-3 text-xs font-semibold text-white disabled:opacity-60"
                           >
                             {deleting ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                             Löschen
@@ -256,8 +258,8 @@ const AvatarDiary: React.FC<AvatarDiaryProps> = ({
                         <button
                           type="button"
                           onClick={() => setConfirmingId(memory.id)}
-                          className="inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#9b5966]"
-                          style={{ color: isDark ? '#c9a7ae' : '#945764' }}
+                          className="inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--talea-danger)]"
+                          style={{ color: 'var(--talea-accent-rose)' }}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                           Eintrag löschen
@@ -285,11 +287,11 @@ const FilterButton: React.FC<{
     type="button"
     onClick={onClick}
     aria-pressed={active}
-    className="min-h-10 shrink-0 rounded-full border px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#527b70]"
+    className="min-h-10 shrink-0 rounded-full border px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
     style={{
-      borderColor: active ? '#527b70' : isDark ? '#3d5369' : '#d9cdbf',
-      background: active ? '#527b70' : 'transparent',
-      color: active ? '#fff' : isDark ? '#b9c9da' : '#5c7188',
+      borderColor: active ? 'var(--primary)' : 'var(--talea-border-soft)',
+      background: active ? 'var(--primary)' : 'transparent',
+      color: active ? '#fff' : 'var(--talea-text-tertiary)',
     }}
   >
     {children}

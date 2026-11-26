@@ -35,7 +35,7 @@ export function NarrativeProfileFields({
     <div className={compact ? 'space-y-4' : 'space-y-5'}>
       <div className="rounded-2xl border border-[var(--primary)]/20 bg-[var(--primary)]/[0.06] p-3.5">
         <div className="flex items-start gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--primary)]/15 text-[#168d84] dark:text-[#67e8df]">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--primary)]/15 text-[var(--primary)]">
             <Sparkles className="h-4.5 w-4.5" aria-hidden="true" />
           </span>
           <div>
@@ -76,7 +76,7 @@ export function NarrativeProfileFields({
 
       <fieldset>
         <legend className="flex items-center gap-1.5 text-sm font-semibold text-foreground/85">
-          <Tag className="h-3.5 w-3.5 text-[#168d84]" aria-hidden="true" />
+          <Tag className="h-3.5 w-3.5 text-[var(--primary)]" aria-hidden="true" />
           Weitere Facetten
         </legend>
         <p className="mt-1 text-xs text-muted-foreground">Bis zu {MAX_TRAITS} Eigenschaften, die im Zusammenspiel sichtbar werden.</p>
@@ -108,7 +108,7 @@ export function NarrativeProfileFields({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-1.5">
           <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground/85">
-            <MessageCircleHeart className="h-3.5 w-3.5 text-[#168d84]" aria-hidden="true" />
+            <MessageCircleHeart className="h-3.5 w-3.5 text-[var(--primary)]" aria-hidden="true" />
             Besonderheit
           </span>
           <span className="block text-xs text-muted-foreground">Eine kleine Eigenart, die man wiedererkennt.</span>
@@ -124,7 +124,7 @@ export function NarrativeProfileFields({
 
         <label className="block space-y-1.5">
           <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground/85">
-            <Quote className="h-3.5 w-3.5 text-[#168d84]" aria-hidden="true" />
+            <Quote className="h-3.5 w-3.5 text-[var(--primary)]" aria-hidden="true" />
             Lieblingssatz <span className="font-normal text-muted-foreground">(optional)</span>
           </span>
           <span className="block text-xs text-muted-foreground">Ein Satz, der h&ouml;chstens einmal pro Geschichte auftaucht.</span>

@@ -460,7 +460,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
 
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-xs font-semibold" style={{ color: isDark ? '#d9e5f8' : '#2a3b52' }}>
-            {isXai ? 'xAI Stimme waehlen' : isOpenRouter ? 'OpenRouter Modell & Stimme' : isThorsten ? 'Thorsten Stimme' : 'Qwen Stimme waehlen'}
+            {isXai ? 'xAI Stimme wählen' : isOpenRouter ? 'OpenRouter Modell & Stimme' : isThorsten ? 'Thorsten Stimme' : 'Qwen Stimme wählen'}
           </p>
           <button
             type="button"
@@ -482,7 +482,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             disabled={availableSpeakers.length === 0}
           >
             {availableSpeakers.length === 0 ? (
-              <option value="">Keine Stimmen verfuegbar</option>
+              <option value="">Keine Stimmen verfügbar</option>
             ) : hasVoiceCatalog ? (
               voiceOptions.map((voice) => (
                 <option key={voice.id} value={voice.id}>
@@ -502,16 +502,16 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
         {!hasLibraryAudio && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
             {isXai
-              ? 'xAI Grok TTS laeuft ueber Runware (gleicher Account wie Bildgenerierung).'
+              ? 'xAI Grok TTS läuft über Runware (gleicher Account wie Bildgenerierung).'
               : isOpenRouter
-                ? 'OpenRouter-Modelle (Gemini, Microsoft MAI, Fish Audio), abgerechnet ueber den OpenRouter-Account. Preise je Stimme in der Auswahl.'
+                ? 'OpenRouter-Modelle (Gemini, Microsoft MAI, Fish Audio), abgerechnet über den OpenRouter-Account. Preise je Stimme in der Auswahl.'
               : isMoss
-                ? 'MOSS-TTS-Nano laeuft auf einem eigenen Server (nur CPU) und spricht Deutsch mit einer geklonten Stimme.'
+                ? 'MOSS-TTS-Nano läuft auf einem eigenen Server (nur CPU) und spricht Deutsch mit einer geklonten Stimme.'
               : isCosyVoice
-                ? 'Thorsten-Voice (CosyVoice3) laeuft auf einer GPU bei RunPod und spricht nur Deutsch. Nach laengerer Pause kann der erste Teil einige Minuten dauern.'
+                ? 'Thorsten-Voice (CosyVoice3) läuft auf einer GPU bei RunPod und spricht nur Deutsch. Nach längerer Pause kann der erste Teil einige Minuten dauern.'
                 : isThorsten
-                  ? 'Thorsten-Voice (Kokoro) laeuft auf einem eigenen Server und spricht nur Deutsch.'
-                  : 'Qwen-Stimmen sind lokal hinterlegt und sofort verfuegbar. Es wird erst bei echter Audio-Erzeugung RunPod benutzt.'}
+                  ? 'Thorsten-Voice (Kokoro) läuft auf einem eigenen Server und spricht nur Deutsch.'
+                  : 'Qwen-Stimmen sind lokal hinterlegt und sofort verfügbar. Es wird erst bei echter Audio-Erzeugung RunPod benutzt.'}
           </p>
         )}
 
@@ -577,7 +577,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
 
             {multiVoiceEnabled && dialogueSpeakers.length < 2 && (
               <p className="mt-2 text-[11px]" style={{ color: isDark ? '#fca5a5' : '#b45309' }}>
-                Waehle mindestens 2 Stimmen fuer Dialogmodus.
+                Wähle mindestens 2 Stimmen für Dialogmodus.
               </p>
             )}
           </div>
@@ -585,7 +585,7 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
 
         {checkingGeneratedAudio && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
-            Pruefe bereits generierte Audios...
+            Prüfe bereits generierte Audios...
           </p>
         )}
 
@@ -598,12 +598,12 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
         {!checkingGeneratedAudio && generatedAudioItems.length === 0 && (
           <p className="mt-2 text-[11px]" style={{ color: isDark ? '#facc15' : '#9a6700' }}>
             {isXai
-              ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber xAI Grok TTS (Runware).`
+              ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel über xAI Grok TTS (Runware).`
               : isOpenRouter
-                ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber OpenRouter.`
+                ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel über OpenRouter.`
               : isThorsten
-                ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber Thorsten-Voice (${thorstenEngine}).`
-                : `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel ueber RunPod.`}
+                ? `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel über Thorsten-Voice (${thorstenEngine}).`
+                : `Noch kein Story-Audio vorhanden. Eine neue Erzeugung verarbeitet alle ${chapters.length} Kapitel über RunPod.`}
           </p>
         )}
         </>
@@ -683,16 +683,16 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             </DialogTitle>
             <DialogDescription style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
               {pendingAction?.voiceSettings?.provider === 'xai'
-                ? 'xAI Grok TTS (Runware) wird erst nach deiner Bestaetigung gestartet.'
+                ? 'xAI Grok TTS (Runware) wird erst nach deiner Bestätigung gestartet.'
                 : pendingAction?.voiceSettings?.provider === 'openrouter'
-                  ? 'OpenRouter TTS wird erst nach deiner Bestaetigung gestartet.'
+                  ? 'OpenRouter TTS wird erst nach deiner Bestätigung gestartet.'
                 : pendingAction?.voiceSettings?.provider === 'moss-nano'
-                  ? 'MOSS-TTS-Nano (eigener Server) wird erst nach deiner Bestaetigung gestartet.'
+                  ? 'MOSS-TTS-Nano (eigener Server) wird erst nach deiner Bestätigung gestartet.'
                 : pendingAction?.voiceSettings?.provider === 'thorsten'
-                  ? 'Thorsten-Voice (Kokoro) wird erst nach deiner Bestaetigung gestartet.'
+                  ? 'Thorsten-Voice (Kokoro) wird erst nach deiner Bestätigung gestartet.'
                   : pendingAction?.voiceSettings?.provider === 'thorsten-cosyvoice'
-                    ? 'Thorsten-Voice (CosyVoice3, RunPod-GPU) wird erst nach deiner Bestaetigung gestartet.'
-                    : 'RunPod wird erst nach deiner Bestaetigung gestartet.'}
+                    ? 'Thorsten-Voice (CosyVoice3, RunPod-GPU) wird erst nach deiner Bestätigung gestartet.'
+                    : 'RunPod wird erst nach deiner Bestätigung gestartet.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -706,10 +706,10 @@ export const StoryAudioActions: React.FC<StoryAudioActionsProps> = ({
             <p className="font-semibold">{storyTitle}</p>
             <p className="mt-2 text-xs" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>
               {pendingAction?.voiceSettings?.provider === 'xai'
-                ? `Es werden Audios fuer ${chapters.length} Kapitel ueber xAI Grok TTS (Runware) erzeugt.`
+                ? `Es werden Audios für ${chapters.length} Kapitel über xAI Grok TTS (Runware) erzeugt.`
                 : pendingAction?.voiceSettings?.provider === 'openrouter'
-                  ? `Es werden Audios fuer ${chapters.length} Kapitel ueber OpenRouter erzeugt (kostenpflichtig je Zeichen).`
-                : `Es werden Audios fuer ${chapters.length} Kapitel erzeugt und dabei kostenpflichtige RunPod-Aufrufe ausgeloest.`}
+                  ? `Es werden Audios für ${chapters.length} Kapitel über OpenRouter erzeugt (kostenpflichtig je Zeichen).`
+                : `Es werden Audios für ${chapters.length} Kapitel erzeugt und dabei kostenpflichtige RunPod-Aufrufe ausgelöst.`}
             </p>
             {pendingAction?.voiceSettings?.speakerId && (
               <p className="mt-2 text-xs" style={{ color: isDark ? '#9eb3d4' : '#5b6f86' }}>

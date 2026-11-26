@@ -115,7 +115,7 @@ const getTraitGrowthHint = (traitId: string, value: number) => {
   if (value <= 0) {
     return `Warum 0? ${hint}`;
   }
-  return `Naechster Schritt: ${hint}`;
+  return `Nächster Schritt: ${hint}`;
 };
 
 const InfoHint: React.FC<{
@@ -265,7 +265,7 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
               Entwicklungs-Navigation
               <InfoHint
                 isDark={isDark}
-                text="Hier siehst du den aktuellen Entwicklungsstand, den naechsten Fokus und die wichtigsten Ziele fuer den Avatar."
+                text="Hier siehst du den aktuellen Entwicklungsstand, den nächsten Fokus und die wichtigsten Ziele für den Avatar."
               />
             </p>
             <h3 className="text-lg font-semibold" style={{ color: isDark ? '#e8f0fb' : '#24364b' }}>
@@ -294,7 +294,7 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
             Fokus: {focusTrait.label} ({focusTrait.rankName})
             <InfoHint
               isDark={isDark}
-              text="Fokus bedeutet: Das ist aktuell die staerkste oder am weitesten entwickelte Eigenschaft."
+              text="Fokus bedeutet: Das ist aktuell die stärkste oder am weitesten entwickelte Eigenschaft."
             />
           </div>
         )}
@@ -341,7 +341,7 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
 
               <p className="mt-2 text-[11px]" style={{ color: isDark ? '#98acc8' : '#6a7f98' }}>
                 {trait.nextRankAt
-                  ? `Naechster Rang ab ${trait.nextRankAt} (${trait.progressToNext}%)`
+                  ? `Nächster Rang ab ${trait.nextRankAt} (${trait.progressToNext}%)`
                   : 'Hoechster Rang erreicht'}
               </p>
               <p className="mt-1 text-[11px]" style={{ color: isDark ? '#8ea5c4' : '#7289a2' }}>
@@ -380,7 +380,7 @@ export const PersonalityProgressBoard: React.FC<PersonalityProgressBoardProps> =
             Vorteile
             <InfoHint
               isDark={isDark}
-              text="Vorteile werden ab bestimmten Punktestufen automatisch freigeschaltet und staerken die Avatar-Entwicklung."
+              text="Vorteile werden ab bestimmten Punktestufen automatisch freigeschaltet und stärken die Avatar-Entwicklung."
             />
           </p>
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">

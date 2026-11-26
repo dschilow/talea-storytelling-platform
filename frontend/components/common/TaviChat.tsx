@@ -196,26 +196,26 @@ const ActionButton: React.FC<{
     switch (action.type) {
       case 'story':
         return action.title
-          ? `${t('chat.openStory', 'Story oeffnen')}: ${action.title}`
-          : t('chat.openStory', 'Story oeffnen');
+          ? `${t('chat.openStory', 'Story öffnen')}: ${action.title}`
+          : t('chat.openStory', 'Story öffnen');
       case 'doku':
         return action.title
-          ? `${t('chat.openDoku', 'Doku oeffnen')}: ${action.title}`
-          : t('chat.openDoku', 'Doku oeffnen');
+          ? `${t('chat.openDoku', 'Doku öffnen')}: ${action.title}`
+          : t('chat.openDoku', 'Doku öffnen');
       case 'avatar':
         return action.title
           ? `${t('chat.openAvatar', 'Avatar ansehen')}: ${action.title}`
           : t('chat.openAvatar', 'Avatar ansehen');
       case 'wizard_prefill':
         return action.wizardType === 'story'
-          ? t('chat.openWizard', 'Wizard oeffnen')
+          ? t('chat.openWizard', 'Wizard öffnen')
           : action.wizardType === 'avatar'
-            ? t('chat.openAvatarWizard', 'Avatar-Wizard oeffnen')
-            : t('chat.openDokuWizard', 'Doku-Wizard oeffnen');
+            ? t('chat.openAvatarWizard', 'Avatar-Wizard öffnen')
+            : t('chat.openDokuWizard', 'Doku-Wizard öffnen');
       case 'navigate':
-        return action.title || t('chat.navigate', 'Seite oeffnen');
+        return action.title || t('chat.navigate', 'Seite öffnen');
       default:
-        return t('chat.open', 'Oeffnen');
+        return t('chat.open', 'Öffnen');
     }
   };
 

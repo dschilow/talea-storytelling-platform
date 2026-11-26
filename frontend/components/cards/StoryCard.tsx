@@ -95,8 +95,8 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onRead, onDelete })
       if (!fullStory.chapters || fullStory.chapters.length === 0) return;
 
       const confirmed = window.confirm(
-        `Audio fuer "${story.title}" wirklich erzeugen?\n\n` +
-        `Dabei werden ${fullStory.chapters.length} Kapitel ueber RunPod verarbeitet und kostenpflichtige TTS-Aufrufe gestartet.`
+        `Audio für "${story.title}" wirklich erzeugen?\n\n` +
+        `Dabei werden ${fullStory.chapters.length} Kapitel über RunPod verarbeitet und kostenpflichtige TTS-Aufrufe gestartet.`
       );
       if (!confirmed) return;
 

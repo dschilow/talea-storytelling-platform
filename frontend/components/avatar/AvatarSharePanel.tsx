@@ -347,9 +347,9 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
   };
 
   const suggestionStyles = {
-    borderColor: isDark ? "#3a4f67" : "#d6c9b8",
-    background: isDark ? "rgba(24,35,50,0.96)" : "rgba(255,252,247,0.96)",
-    color: isDark ? "#d7e4f5" : "#32475f",
+    borderColor: 'var(--talea-border-soft)',
+    background: 'var(--talea-surface-primary)',
+    color: 'var(--talea-text-secondary)',
   };
 
   if (!canManage) {
@@ -360,17 +360,17 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
     <section
       className="rounded-3xl border px-4 py-5"
       style={{
-        borderColor: isDark ? "#33495f" : "var(--talea-border-soft)",
-        background: isDark ? "rgba(21,32,47,0.88)" : "rgba(255,251,245,0.92)",
+        borderColor: 'var(--talea-border-soft)',
+        background: 'var(--talea-surface-primary)',
       }}
     >
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h2 className="inline-flex items-center gap-2 text-xl font-semibold" style={{ color: isDark ? "#e7effb" : "#223347" }}>
+          <h2 className="inline-flex items-center gap-2 text-xl font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
             <UsersRound className="h-5 w-5" />
             Profilkopie erstellen
           </h2>
-          <p className="mt-1 text-sm" style={{ color: isDark ? "#9eb1ca" : "#697d95" }}>
+          <p className="mt-1 text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>
             Übernimm „{avatarName}“ in ein weiteres Kinderprofil. Jede Kopie entwickelt sich dort unabhängig.
           </p>
         </div>
@@ -378,7 +378,7 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
           type="button"
           onClick={() => void loadData()}
           className="rounded-full border px-3 py-1.5 text-xs font-semibold"
-          style={{ borderColor: isDark ? "#415870" : "#d7c9b7", color: isDark ? "#c9d8ea" : "#60758f" }}
+          style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-text-tertiary)' }}
         >
           Aktualisieren
         </button>
@@ -386,17 +386,17 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
 
       <div
         className="rounded-2xl border px-3 py-3"
-        style={{ borderColor: isDark ? "#3a4f67" : "#d6c9b8", background: isDark ? "rgba(26,38,54,0.78)" : "rgba(255,255,255,0.72)" }}
+        style={{ borderColor: 'var(--talea-border-soft)', background: 'var(--talea-surface-primary)' }}
       >
-        <h3 className="text-sm font-semibold" style={{ color: isDark ? "#dce8f8" : "#2f455f" }}>
+        <h3 className="text-sm font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>
           Für ein anderes Kinderprofil übernehmen
         </h3>
-        <p className="mt-1 text-xs" style={{ color: isDark ? "#9eb2cb" : "#6f8198" }}>
+        <p className="mt-1 text-xs" style={{ color: 'var(--talea-text-tertiary)' }}>
           Gleiches Aussehen, aber eigene Punkte, Erinnerungen und Schätze. Das Bild muss nicht neu erzeugt werden.
         </p>
 
         {targetProfiles.length === 0 ? (
-          <p className="mt-3 rounded-xl border px-3 py-2 text-xs" style={{ borderColor: isDark ? "#40566f" : "#d8cbbb", color: isDark ? "#a9bdd6" : "#6e839d" }}>
+          <p className="mt-3 rounded-xl border px-3 py-2 text-xs" style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-text-tertiary)' }}>
             Du brauchst mindestens zwei Kinderprofile, um eine Profilkopie anzulegen.
           </p>
         ) : (
@@ -405,7 +405,7 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
               value={targetProfileId}
               onChange={(event) => setTargetProfileId(event.target.value)}
               className="h-11 rounded-xl border px-3 text-sm outline-none"
-              style={{ borderColor: isDark ? "#445c76" : "#d6cab9", background: isDark ? "rgba(19,28,41,0.9)" : "rgba(255,255,255,0.92)", color: isDark ? "#dbe7f6" : "#314760" }}
+              style={{ borderColor: 'var(--talea-border-soft)', background: 'var(--talea-surface-primary)', color: 'var(--talea-text-secondary)' }}
             >
               {targetProfiles.map((profile) => (
                 <option key={profile.id} value={profile.id}>
@@ -420,9 +420,9 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
               disabled={copyingProfile}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold"
               style={{
-                borderColor: isDark ? "#445c76" : "#d6cab9",
-                background: isDark ? "linear-gradient(135deg,#89a5ce 0%,#8aa786 100%)" : "linear-gradient(135deg,#d7c2b5 0%,#d2deb9 100%)",
-                color: isDark ? "#0f1a29" : "#2d3f53",
+                borderColor: 'var(--talea-border-soft)',
+                background: "var(--talea-gradient-warm)",
+                color: 'var(--talea-text-secondary)',
                 opacity: copyingProfile ? 0.75 : 1,
               }}
             >
@@ -437,14 +437,14 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
         <>
       <div
         className="relative mt-4 rounded-2xl border p-3"
-        style={{ borderColor: isDark ? "#3a4f67" : "#d6c9b8", background: isDark ? "rgba(26,38,54,0.78)" : "rgba(255,255,255,0.72)" }}
+        style={{ borderColor: 'var(--talea-border-soft)', background: 'var(--talea-surface-primary)' }}
       >
-        <h3 className="mb-2 text-sm font-semibold" style={{ color: isDark ? "#dce8f8" : "#2f455f" }}>
+        <h3 className="mb-2 text-sm font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>
           Zu anderem Account kopieren
         </h3>
         <div className="grid gap-2 sm:grid-cols-[1.3fr_1fr_auto]">
           <label className="relative block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: isDark ? "#8da3bf" : "#7d90a8" }} />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--talea-text-tertiary)' }} />
             <input
               type="email"
               value={email}
@@ -458,7 +458,7 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
               }}
               placeholder="E-Mail (z. B. darina@example.com)"
               className="h-11 w-full rounded-xl border py-2 pl-10 pr-3 text-sm outline-none"
-              style={{ borderColor: isDark ? "#445c76" : "#d6cab9", background: isDark ? "rgba(19,28,41,0.9)" : "rgba(255,255,255,0.92)", color: isDark ? "#dbe7f6" : "#314760" }}
+              style={{ borderColor: 'var(--talea-border-soft)', background: 'var(--talea-surface-primary)', color: 'var(--talea-text-secondary)' }}
             />
 
             <AnimatePresence>
@@ -486,13 +486,13 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
                           setSuggestions([]);
                         }}
                         className="flex w-full items-center justify-between border-b px-3 py-2 text-left text-xs last:border-b-0"
-                        style={{ borderColor: isDark ? "#34495f" : "#e4d8ca" }}
+                        style={{ borderColor: 'var(--talea-border-light)' }}
                       >
                         <span className="min-w-0">
                           <span className="block truncate font-semibold">{suggestion.email}</span>
                           <span className="block truncate opacity-80">{suggestion.targetUserName || suggestion.label}</span>
                         </span>
-                        <span className="ml-3 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.08em]" style={{ borderColor: isDark ? "#445d76" : "#d6cab9" }}>
+                        <span className="ml-3 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.08em]" style={{ borderColor: 'var(--talea-border-soft)' }}>
                           {suggestion.source === "trusted_contact" ? "Kontakt" : "User"}
                         </span>
                       </button>
@@ -509,7 +509,7 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
             onChange={(event) => setAlias(event.target.value)}
             placeholder="Anzeigename (z. B. Darina Cousine)"
             className="h-11 rounded-xl border px-3 text-sm outline-none"
-            style={{ borderColor: isDark ? "#445c76" : "#d6cab9", background: isDark ? "rgba(19,28,41,0.9)" : "rgba(255,255,255,0.92)", color: isDark ? "#dbe7f6" : "#314760" }}
+            style={{ borderColor: 'var(--talea-border-soft)', background: 'var(--talea-surface-primary)', color: 'var(--talea-text-secondary)' }}
           />
 
           <button
@@ -518,9 +518,9 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
             disabled={savingContact}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-semibold"
             style={{
-              borderColor: isDark ? "#445c76" : "#d6cab9",
-              background: isDark ? "linear-gradient(135deg,#7c97be 0%,#8aa786 100%)" : "linear-gradient(135deg,#d7c2b5 0%,#d2deb9 100%)",
-              color: isDark ? "#0f1a29" : "#2d3f53",
+              borderColor: 'var(--talea-border-soft)',
+              background: "var(--talea-gradient-warm)",
+              color: 'var(--talea-text-secondary)',
               opacity: savingContact ? 0.75 : 1,
             }}
           >
@@ -529,7 +529,7 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
           </button>
         </div>
 
-        <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-xs" style={{ color: isDark ? "#9eb2cb" : "#6f8198" }}>
+        <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-xs" style={{ color: 'var(--talea-text-tertiary)' }}>
           <input
             type="checkbox"
             checked={trusted}
@@ -546,17 +546,17 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
             <div
               key={`share-skeleton-${index}`}
               className="h-24 animate-pulse rounded-2xl border"
-              style={{ borderColor: isDark ? "#34495f" : "var(--talea-border-soft)", background: isDark ? "rgba(28,42,60,0.7)" : "rgba(255,255,255,0.72)" }}
+              style={{ borderColor: 'var(--talea-border-soft)', background: 'var(--talea-surface-primary)' }}
             />
           ))}
         </div>
       ) : contacts.length === 0 ? (
         <div
           className="mt-4 rounded-2xl border px-4 py-8 text-center"
-          style={{ borderColor: isDark ? "#34495f" : "var(--talea-border-soft)", background: isDark ? "rgba(24,35,50,0.82)" : "rgba(255,251,245,0.9)" }}
+          style={{ borderColor: 'var(--talea-border-soft)', background: 'var(--talea-surface-primary)' }}
         >
-          <MailPlus className="mx-auto h-8 w-8" style={{ color: isDark ? "#a5b8d0" : "#6a7f98" }} />
-          <p className="mt-2 text-sm" style={{ color: isDark ? "#a5b8d0" : "#6a7f98" }}>
+          <MailPlus className="mx-auto h-8 w-8" style={{ color: 'var(--talea-text-tertiary)' }} />
+          <p className="mt-2 text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>
             Noch keine gespeicherten Kontakte vorhanden.
           </p>
         </div>
@@ -575,20 +575,20 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
                   exit={reduceMotion ? undefined : { opacity: 0, y: 6 }}
                   transition={{ duration: reduceMotion ? 0 : 0.2, delay: reduceMotion ? 0 : index * 0.03 }}
                   className="rounded-2xl border p-3"
-                  style={{ borderColor: isDark ? "#34495f" : "var(--talea-border-soft)", background: isDark ? "rgba(24,35,50,0.9)" : "rgba(255,255,255,0.86)" }}
+                  style={{ borderColor: 'var(--talea-border-soft)', background: 'var(--talea-surface-primary)' }}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold" style={{ color: isDark ? "#e8f0fb" : "#223347" }}>
+                      <p className="truncate text-sm font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
                         {contact.label}
                       </p>
-                      <p className="truncate text-xs" style={{ color: isDark ? "#9db2cc" : "#6c8098" }}>
+                      <p className="truncate text-xs" style={{ color: 'var(--talea-text-tertiary)' }}>
                         {contact.email}
                       </p>
                       {contact.trusted ? (
                         <span
                           className="mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px]"
-                          style={{ borderColor: isDark ? "#4d6f62" : "#b6d0bc", color: isDark ? "#a9d4bf" : "#4f8a62" }}
+                          style={{ borderColor: 'color-mix(in srgb, var(--talea-success) 35%, transparent)', color: 'var(--talea-success)' }}
                         >
                           <ShieldCheck className="h-3 w-3" />
                           vertraut
@@ -601,14 +601,14 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
                       onClick={() => void removeContact(contact)}
                       disabled={isBusy}
                       className="rounded-full border px-2 py-1 text-[10px]"
-                      style={{ borderColor: isDark ? "#5a4450" : "#e4c7c7", color: isDark ? "#d3a8b0" : "#a75d66" }}
+                      style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-accent-rose)' }}
                     >
                       Entfernen
                     </button>
                   </div>
 
                   <div className="mt-3 flex items-center justify-between gap-2">
-                    <p className="text-[11px]" style={{ color: isDark ? "#8fa5bf" : "#7188a3" }}>
+                    <p className="text-[11px]" style={{ color: 'var(--talea-text-tertiary)' }}>
                       {copyEntry
                         ? `Zuletzt kopiert: ${formatCopyDate(copyEntry.copiedAt || copyEntry.updatedAt)}`
                         : "Noch keine Kopie gesendet"}
@@ -619,9 +619,9 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
                       disabled={isBusy}
                       className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold"
                       style={{
-                        borderColor: copyEntry ? (isDark ? "#4e7565" : "#b8d3bd") : isDark ? "#415870" : "#d7c9b7",
-                        background: copyEntry ? (isDark ? "rgba(95,145,125,0.18)" : "rgba(163,207,170,0.2)") : "transparent",
-                        color: copyEntry ? (isDark ? "#afd7c5" : "#4e8f63") : isDark ? "#c9d8ea" : "#60758f",
+                        borderColor: copyEntry ? 'color-mix(in srgb, var(--talea-success) 35%, transparent)' : 'var(--talea-border-soft)',
+                        background: copyEntry ? 'var(--talea-success-soft)' : "transparent",
+                        color: copyEntry ? 'var(--talea-success)' : 'var(--talea-text-tertiary)',
                       }}
                     >
                       {isBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : copyEntry ? <Check className="h-3.5 w-3.5" /> : <CopyPlus className="h-3.5 w-3.5" />}
@@ -636,11 +636,11 @@ const AvatarSharePanel: React.FC<AvatarSharePanelProps> = ({
       )}
         </>
       ) : (
-        <div className="mt-4 flex items-start gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: isDark ? "#3a4f67" : "#d6c9b8", background: isDark ? "rgba(26,38,54,0.78)" : "rgba(255,255,255,0.72)" }}>
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" style={{ color: isDark ? "#a9d4bf" : "#4f8a62" }} aria-hidden="true" />
+        <div className="mt-4 flex items-start gap-3 rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--talea-border-soft)', background: 'var(--talea-surface-primary)' }}>
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" style={{ color: 'var(--talea-success)' }} aria-hidden="true" />
           <div>
-            <h3 className="text-sm font-semibold" style={{ color: isDark ? "#dce8f8" : "#2f455f" }}>Externe Freigaben folgen geschützt</h3>
-            <p className="mt-1 text-xs leading-relaxed" style={{ color: isDark ? "#9eb2cb" : "#6f8198" }}>
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>Externe Freigaben folgen geschützt</h3>
+            <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--talea-text-tertiary)' }}>
               Kopien an andere Accounts werden erst wieder angeboten, wenn die empfangende Person ausdrücklich annehmen oder ablehnen kann. Für deine Kinderprofile nutzt du die sichere Profilkopie oben.
             </p>
           </div>

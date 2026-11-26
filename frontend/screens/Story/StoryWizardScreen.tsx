@@ -82,7 +82,7 @@ function getStoryGenerationErrorMessage(error: unknown, fallback: string): strin
   }
 
   if (message.includes('length limit exceeded')) {
-    return 'Die Geschichte ist zu lang. Bitte waehle eine kuerzere Laenge.';
+    return 'Die Geschichte ist zu lang. Bitte wähle eine kürzere Länge.';
   }
   if (message.includes('timeout')) {
     return 'Die Generierung hat zu lange gedauert. Bitte erneut versuchen.';

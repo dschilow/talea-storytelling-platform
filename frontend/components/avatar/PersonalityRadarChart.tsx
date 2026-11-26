@@ -180,8 +180,8 @@ export const PersonalityRadarChart: React.FC<PersonalityRadarChartProps> = ({
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="overflow-visible">
         <defs>
           <radialGradient id={gradientId} cx="50%" cy="50%" r="65%">
-            <stop offset="0%" stopColor={isDark ? '#9bb2d9' : '#87a3d6'} stopOpacity={isDark ? 0.42 : 0.34} />
-            <stop offset="100%" stopColor={isDark ? '#6f86b8' : '#7f96c7'} stopOpacity={isDark ? 0.12 : 0.08} />
+            <stop offset="0%" stopColor={'var(--talea-text-tertiary)'} stopOpacity={isDark ? 0.42 : 0.34} />
+            <stop offset="100%" stopColor={'var(--talea-text-tertiary)'} stopOpacity={isDark ? 0.12 : 0.08} />
           </radialGradient>
 
           <filter id={glowId} x="-30%" y="-30%" width="160%" height="160%">
@@ -197,7 +197,7 @@ export const PersonalityRadarChart: React.FC<PersonalityRadarChartProps> = ({
           cx={cx}
           cy={cy}
           r={maxRadius + 2}
-          fill={isDark ? 'rgba(22,32,47,0.72)' : 'rgba(255,252,247,0.86)'}
+          fill={'var(--talea-surface-primary)'}
           stroke="none"
         />
 
@@ -212,7 +212,7 @@ export const PersonalityRadarChart: React.FC<PersonalityRadarChartProps> = ({
               })
               .join(' ')}
             fill="none"
-            stroke={isDark ? '#415773' : '#d9cebf'}
+            stroke={'var(--talea-border-soft)'}
             strokeWidth={ring.ratio === 1 ? 1.3 : 0.8}
             strokeDasharray={ring.ratio === 1 ? undefined : '4,3'}
             opacity={ring.ratio === 1 ? 0.9 : 0.65}
@@ -226,7 +226,7 @@ export const PersonalityRadarChart: React.FC<PersonalityRadarChartProps> = ({
             y1={cy}
             x2={point.x}
             y2={point.y}
-            stroke={isDark ? '#3a4f69' : '#d7ccbc'}
+            stroke={'var(--talea-border-soft)'}
             strokeWidth={0.8}
           />
         ))}
@@ -234,7 +234,7 @@ export const PersonalityRadarChart: React.FC<PersonalityRadarChartProps> = ({
         <motion.path
           d={dataPath}
           fill={`url(#${gradientId})`}
-          stroke={isDark ? '#91a8d3' : '#7f96c7'}
+          stroke={'var(--talea-text-tertiary)'}
           strokeWidth={2.2}
           strokeLinejoin="round"
           filter={`url(#${glowId})`}
@@ -250,8 +250,8 @@ export const PersonalityRadarChart: React.FC<PersonalityRadarChartProps> = ({
             cx={dot.x}
             cy={dot.y}
             r={dot.normalizedValue > 0 ? 4.8 : 3.3}
-            fill={dot.normalizedValue > 0 ? dot.tier.color : isDark ? '#4e6078' : '#cdbfae'}
-            stroke={isDark ? '#162132' : '#fffaf4'}
+            fill={dot.normalizedValue > 0 ? dot.tier.color : 'var(--talea-border-soft)'}
+            stroke={'var(--talea-surface-inset)'}
             strokeWidth={1.8}
             initial={animate ? { opacity: 0, r: 0 } : false}
             animate={{ opacity: 1, r: dot.normalizedValue > 0 ? 4.8 : 3.3 }}
@@ -266,7 +266,7 @@ export const PersonalityRadarChart: React.FC<PersonalityRadarChartProps> = ({
               y={labelPoint.y - 7}
               textAnchor="middle"
               dominantBaseline="central"
-              fill={isDark ? '#e1ebfa' : '#223245'}
+              fill={'var(--talea-text-primary)'}
               style={{ fontSize: '10.5px', fontWeight: 700 }}
             >
               {labelPoint.short}
@@ -276,7 +276,7 @@ export const PersonalityRadarChart: React.FC<PersonalityRadarChartProps> = ({
               y={labelPoint.y + 7}
               textAnchor="middle"
               dominantBaseline="central"
-              fill={isDark ? '#9db1cb' : '#6b7d93'}
+              fill={'var(--talea-text-tertiary)'}
               style={{ fontSize: '9px', fontWeight: 600 }}
             >
               {labelPoint.rawValue}
@@ -301,7 +301,7 @@ export const PersonalityRadarChart: React.FC<PersonalityRadarChartProps> = ({
             key={`value-${ring.label}`}
             x={cx - ring.radius - 6}
             y={cy - 2}
-            fill={isDark ? '#8fa3bd' : '#7a8ba0'}
+            fill={'var(--talea-text-tertiary)'}
             style={{ fontSize: '8px', fontWeight: 600 }}
           >
             {ring.label}
@@ -309,7 +309,7 @@ export const PersonalityRadarChart: React.FC<PersonalityRadarChartProps> = ({
         ))}
       </svg>
 
-      <p className="mt-2 text-xs font-medium" style={{ color: isDark ? '#99adc8' : '#667a92' }}>
+      <p className="mt-2 text-xs font-medium" style={{ color: 'var(--talea-text-tertiary)' }}>
         Dynamische Skala: 0 bis {chartData.axisMax}
       </p>
 
@@ -322,14 +322,14 @@ export const PersonalityRadarChart: React.FC<PersonalityRadarChartProps> = ({
                 key={`legend-${trait.id}`}
                 className="rounded-xl border px-2.5 py-2 text-xs"
                 style={{
-                  borderColor: isDark ? '#344b66' : '#dacdbc',
-                  background: isDark ? 'rgba(26,38,55,0.7)' : 'rgba(255,252,246,0.85)',
+                  borderColor: 'var(--talea-border-soft)',
+                  background: 'var(--talea-surface-primary)',
                 }}
               >
-                <p className="font-semibold" style={{ color: isDark ? '#e2ebfa' : '#223245' }}>
+                <p className="font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
                   {trait.label}
                 </p>
-                <p style={{ color: isDark ? '#a1b4cd' : '#6a7c93' }}>
+                <p style={{ color: 'var(--talea-text-tertiary)' }}>
                   {trait.rawValue} Punkte
                 </p>
                 <p className="font-medium" style={{ color: tier.color }}>

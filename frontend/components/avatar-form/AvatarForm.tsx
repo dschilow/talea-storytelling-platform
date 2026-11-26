@@ -229,7 +229,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
     switch (stepId) {
       case 'identity':
         return childMode ? (
-          <div className="rounded-xl border px-3.5 py-3 text-sm" style={{ borderColor: isDark ? '#416057' : '#c5d9d0', background: isDark ? 'rgba(82,123,112,0.16)' : '#edf7f2', color: isDark ? '#c6ddd5' : '#45695d' }}>
+          <div className="rounded-xl border px-3.5 py-3 text-sm" style={{ borderColor: 'var(--talea-border-accent)', background: 'var(--talea-accent-terracotta-soft)', color: 'var(--primary)' }}>
             <p className="font-semibold">Privater Kind-Avatar</p>
             <p className="mt-1 text-xs leading-relaxed">Dieser Avatar stellt das Kind selbst dar. Deshalb bleibt der Charaktertyp Mensch.</p>
           </div>
@@ -244,7 +244,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
         return (
           <div className="space-y-5">
             <div className="space-y-2">
-              <label className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
+              <label className="text-sm font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>
                 Geschlecht
               </label>
               <GenderSelector value={formData.gender} onChange={(gender) => updateFormData({ gender })} darkMode={isDark} />
@@ -262,7 +262,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
 
             {isHuman && (
               <div className="space-y-2">
-                <label className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
+                <label className="text-sm font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>
                   Koerperbau
                 </label>
                 <BodyBuildSelector value={formData.bodyBuild} onChange={(bodyBuild) => updateFormData({ bodyBuild })} darkMode={isDark} />
@@ -313,7 +313,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
       case 'notes':
         return (
           <>
-            <p className="mb-2 text-xs" style={{ color: isDark ? '#9db2cc' : '#6d8198' }}>
+            <p className="mb-2 text-xs" style={{ color: 'var(--talea-text-tertiary)' }}>
               Beschreibe nur bleibende sichtbare Details. Sie werden für konsistente Bilder gespeichert.
             </p>
             <textarea
@@ -323,9 +323,9 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
               rows={4}
               className="w-full resize-none rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors focus:ring-2"
               style={{
-                borderColor: isDark ? '#3a5068' : '#d7c9b8',
-                background: isDark ? 'rgba(31,44,61,0.75)' : 'rgba(255,255,255,0.78)',
-                color: isDark ? '#e9f0fb' : '#24364b',
+                borderColor: 'var(--talea-border-soft)',
+                background: 'var(--talea-surface-primary)',
+                color: 'var(--talea-text-secondary)',
                 boxShadow: 'none',
               }}
             />
@@ -336,7 +336,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
         return (
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
+              <p className="text-sm font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>
                 Deine Avatar-Vorschau
               </p>
               <button
@@ -344,8 +344,8 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
                 onClick={() => setShowDescription((previous) => !previous)}
                 className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold"
                 style={{
-                  borderColor: isDark ? '#415972' : '#d7c9b8',
-                  color: isDark ? '#c4d6ec' : '#6f6258',
+                  borderColor: 'var(--talea-border-soft)',
+                  color: 'var(--talea-text-tertiary)',
                 }}
               >
                 <Eye className="h-3.5 w-3.5" />
@@ -361,9 +361,9 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden rounded-xl border p-3 text-xs leading-relaxed"
                   style={{
-                    borderColor: isDark ? '#3a5068' : '#d7c9b8',
-                    background: isDark ? 'rgba(31,44,61,0.7)' : 'rgba(255,255,255,0.72)',
-                    color: isDark ? '#d3e1f4' : '#3a516a',
+                    borderColor: 'var(--talea-border-soft)',
+                    background: 'var(--talea-surface-primary)',
+                    color: 'var(--talea-text-secondary)',
                   }}
                 >
                   {generatedDescription}
@@ -372,11 +372,11 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
             </AnimatePresence>
 
             <div className="flex flex-col items-center gap-3">
-              <div className="w-full max-w-[240px] overflow-hidden rounded-2xl border" style={{ borderColor: isDark ? '#3a5068' : '#d7c9b8' }}>
+              <div className="w-full max-w-[240px] overflow-hidden rounded-2xl border" style={{ borderColor: 'var(--talea-border-soft)' }}>
                 {previewUrl ? (
                   <img src={previewUrl} alt="Avatar Vorschau" className="h-48 w-full object-cover" />
                 ) : (
-                  <div className="flex h-48 w-full items-center justify-center text-sm font-medium" style={{ background: isDark ? 'rgba(31,44,61,0.8)' : '#efe6db', color: isDark ? '#b8cbe2' : '#4f6580' }}>
+                  <div className="flex h-48 w-full items-center justify-center text-sm font-medium" style={{ background: 'var(--talea-border-light)', color: 'var(--talea-text-tertiary)' }}>
                     Noch kein Bild
                   </div>
                 )}
@@ -420,7 +420,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
     <div className="space-y-4" style={{ fontFamily: 'var(--talea-font-ui)' }}>
       {/* Name (always visible above the steps) */}
       <div className="space-y-2">
-        <label htmlFor="avatar-name" className="text-sm font-semibold" style={{ color: isDark ? '#d8e5f7' : '#2d4158' }}>
+        <label htmlFor="avatar-name" className="text-sm font-semibold" style={{ color: 'var(--talea-text-secondary)' }}>
           {childMode ? 'Name aus dem Kinderprofil' : 'Name des Avatars'}
         </label>
         <input
@@ -432,14 +432,14 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
           placeholder="Wie soll dein Avatar heissen?"
           className="w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition-colors focus:ring-2 read-only:cursor-not-allowed read-only:opacity-80"
           style={{
-            borderColor: isDark ? '#3a5068' : '#d7c9b8',
-            background: childMode ? (isDark ? 'rgba(31,61,54,0.55)' : '#edf7f2') : (isDark ? 'rgba(31,44,61,0.75)' : 'rgba(255,255,255,0.78)'),
-            color: isDark ? '#e9f0fb' : '#24364b',
+            borderColor: 'var(--talea-border-soft)',
+            background: childMode ? 'var(--talea-accent-terracotta-soft)' : 'var(--talea-surface-primary)',
+            color: 'var(--talea-text-secondary)',
             boxShadow: 'none',
           }}
         />
         {childMode && (
-          <p className="text-xs leading-relaxed" style={{ color: isDark ? '#9db2cc' : '#6d8198' }}>
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--talea-text-tertiary)' }}>
             Name und Alter werden im Kinderprofil gepflegt und bleiben hier geschützt.
           </p>
         )}
@@ -447,7 +447,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
 
       {/* ── Wizard progress header ── */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-xs font-medium" style={{ color: isDark ? '#9db2cc' : '#6d8198' }}>
+        <div className="flex items-center justify-between text-xs font-medium" style={{ color: 'var(--talea-text-tertiary)' }}>
           <span>Schritt {clampedIndex + 1} von {steps.length}</span>
           <span className="truncate">{currentStep?.title}</span>
         </div>
@@ -464,8 +464,8 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
                   index < clampedIndex
                     ? 'var(--primary)'
                     : index === clampedIndex
-                    ? (isDark ? 'var(--primary)' : 'var(--primary)')
-                    : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'),
+                    ? 'var(--primary)'
+                    : 'var(--talea-surface-inset)',
               }}
             />
           ))}
@@ -488,16 +488,16 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
             className="rounded-2xl border p-4 min-h-[220px] touch-pan-y"
             style={{
-              borderColor: isDark ? '#33495f' : 'var(--talea-border-soft)',
-              background: isDark ? 'rgba(24,35,50,0.85)' : 'rgba(255,251,245,0.88)',
+              borderColor: 'var(--talea-border-soft)',
+              background: 'var(--talea-surface-primary)',
             }}
           >
             <div className="mb-3">
-              <h3 className="text-base font-semibold" style={{ color: isDark ? '#e8f0fb' : '#223347' }}>
+              <h3 className="text-base font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
                 {currentStep?.title}
               </h3>
               {currentStep?.subtitle && (
-                <p className="mt-0.5 text-xs" style={{ color: isDark ? '#9db2cc' : '#6d8198' }}>
+                <p className="mt-0.5 text-xs" style={{ color: 'var(--talea-text-tertiary)' }}>
                   {currentStep.subtitle}
                 </p>
               )}
@@ -515,16 +515,16 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
           disabled={isFirst}
           className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
           style={{
-            borderColor: isDark ? '#3a5068' : '#d7c9b8',
-            color: isDark ? '#c4d6ec' : '#6f6258',
-            background: isDark ? 'rgba(31,44,61,0.5)' : 'rgba(255,255,255,0.6)',
+            borderColor: 'var(--talea-border-soft)',
+            color: 'var(--talea-text-tertiary)',
+            background: 'var(--talea-surface-primary)',
           }}
         >
           <ArrowLeft className="h-4 w-4" />
           Zurück
         </button>
 
-        <span className="text-[11px]" style={{ color: isDark ? '#7b90a9' : '#9aa7b3' }}>
+        <span className="text-[11px]" style={{ color: 'var(--talea-text-tertiary)' }}>
           Wischen zum Blättern
         </span>
 
@@ -538,7 +538,7 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
             type="button"
             onClick={goNext}
             className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white"
-            style={{ background: isDark ? 'var(--primary)' : 'var(--primary)' }}
+            style={{ background: 'var(--primary)' }}
           >
             Weiter
             <ArrowRight className="h-4 w-4" />

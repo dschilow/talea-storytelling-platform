@@ -96,7 +96,7 @@ const ParentDashboardRoot: React.FC = () => {
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-          className="h-8 w-8 rounded-full border-2 border-purple-500 border-t-transparent"
+          className="h-8 w-8 rounded-full border-2 border-[var(--primary)] border-t-transparent"
         />
       </div>
     );
@@ -115,7 +115,7 @@ const ParentDashboardRoot: React.FC = () => {
             Zurück
           </button>
           <div className="flex items-center gap-2">
-            <Compass className="h-4 w-4 text-purple-500" />
+            <Compass className="h-4 w-4 text-[var(--primary)]" />
             <h1
               className="text-base font-extrabold text-slate-800 dark:text-white"
               style={{ fontFamily: '"Nunito", sans-serif' }}
@@ -131,7 +131,7 @@ const ParentDashboardRoot: React.FC = () => {
         {/* Overview stats */}
         <div className="grid grid-cols-3 gap-3">
           <StatCard
-            icon={<Brain className="h-4 w-4 text-purple-500" />}
+            icon={<Brain className="h-4 w-4 text-[var(--primary)]" />}
             label="Aktive Bereiche"
             value={`${activeDomainCount} / ${resolvedDomains.length}`}
           />

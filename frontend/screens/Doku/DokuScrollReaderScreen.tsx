@@ -427,7 +427,7 @@ const DokuScrollReaderScreen: React.FC = () => {
                         animate={{ opacity: 1, y: 0 }}
                         className="mt-4 text-gray-600 dark:text-gray-300 text-center"
                       >
-                        Der ausgewaehlte Avatar hat neues Wissen erlangt.
+                        Der ausgewählte Avatar hat neues Wissen erlangt.
                       </motion.p>
                     )}
                   </div>

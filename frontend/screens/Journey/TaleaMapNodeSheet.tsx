@@ -237,7 +237,7 @@ const TaleaMapNodeSheet: React.FC<Props> = ({
         {node.action.type === 'fork' && (
           <div className="mt-4 space-y-2">
             <p className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: isDark ? '#7a9bbf' : '#8a9aaa' }}>
-              Welchen Weg waehlst du?
+              Welchen Weg wählst du?
             </p>
             {node.action.options.map((opt) => (
               <button

@@ -373,7 +373,7 @@ const DokuReaderScreen: React.FC = () => {
     } catch (error) {
       console.error('❌ Error applying personality updates:', error);
       if (completionAttemptRef.current !== attemptId) return;
-      const message = 'Dein Lernfortschritt konnte noch nicht gespeichert werden. Kehre kurz zurueck und versuche es erneut.';
+      const message = 'Dein Lernfortschritt konnte noch nicht gespeichert werden. Kehre kurz zurück und versuche es erneut.';
       setCompletionError(message);
       const { showErrorToast } = await import('../../utils/toastUtils');
       showErrorToast(message);
@@ -610,7 +610,7 @@ const DokuReaderScreen: React.FC = () => {
                               : 'Doku abschliessen'}
                       </motion.button>
                     ) : (
-                      <motion.button onClick={() => goToIndex(currentIndex + 1)} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/75 bg-white/72 text-slate-700 transition dark:border-white/10 dark:bg-white/5 dark:text-slate-100" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} animate={{ opacity: showNav ? 1 : 0.7 }} aria-label="Naechster Abschnitt">
+                      <motion.button onClick={() => goToIndex(currentIndex + 1)} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/75 bg-white/72 text-slate-700 transition dark:border-white/10 dark:bg-white/5 dark:text-slate-100" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} animate={{ opacity: showNav ? 1 : 0.7 }} aria-label="Nächster Abschnitt">
                         <ChevronRight className="h-6 w-6" />
                       </motion.button>
                     )}

@@ -39,7 +39,7 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
       features: SPECIAL_FEATURES.filter((f) => f.category === 'face'),
     },
     body: {
-      label: 'Koerper',
+      label: 'Körper',
       icon: '🦋',
       features: SPECIAL_FEATURES.filter((f) => f.category === 'body'),
     },
@@ -50,7 +50,7 @@ export const SpecialFeaturesSelector: React.FC<SpecialFeaturesSelectorProps> = (
       <div className="flex items-center justify-between">
         <label className={`text-sm font-semibold text-[var(--talea-text-secondary)]`}>Besondere Merkmale</label>
         <span className={`text-xs text-[var(--talea-text-tertiary)]`}>
-          {value.length} / {maxSelections} ausgewaehlt
+          {value.length} / {maxSelections} ausgewählt
         </span>
       </div>
 

@@ -71,7 +71,7 @@ const TaviButton: React.FC<TaviButtonProps> = ({ showLauncher = true }) => {
                     ? '0 12px 30px rgba(7,13,23,0.45)'
                     : '0 12px 26px rgba(55,68,88,0.25)',
                 }}
-                aria-label="Tavi Chat oeffnen"
+                aria-label="Tavi Chat öffnen"
               >
                 {!isChatOpen && (
                   <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-white bg-emerald-400 text-[9px] font-bold text-white">

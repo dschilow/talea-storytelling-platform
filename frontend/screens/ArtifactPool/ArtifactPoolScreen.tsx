@@ -319,7 +319,7 @@ const ArtifactPoolScreen: React.FC = () => {
       }
       updates = buildUpdatePayload(editingArtifact, formState);
       if (Object.keys(updates).length === 0) {
-        toast.info('Keine Aenderungen erkannt.');
+        toast.info('Keine Änderungen erkannt.');
         return;
       }
     }
@@ -388,7 +388,7 @@ const ArtifactPoolScreen: React.FC = () => {
       try {
         parsed = JSON.parse(text);
       } catch (parseError) {
-        throw new Error('Die ausgewaehlte Datei enthaelt kein gueltiges JSON.');
+        throw new Error('Die ausgewählte Datei enthaelt kein gueltiges JSON.');
       }
 
       const artifactsPayload = Array.isArray(parsed)
@@ -429,7 +429,7 @@ const ArtifactPoolScreen: React.FC = () => {
       return;
     }
 
-    const confirmDelete = window.confirm(`Soll das Artefakt "${editingArtifact.name?.de || editingArtifact.name?.en}" wirklich geloescht werden?`);
+    const confirmDelete = window.confirm(`Soll das Artefakt "${editingArtifact.name?.de || editingArtifact.name?.en}" wirklich gelöscht werden?`);
     if (!confirmDelete) {
       return;
     }
@@ -443,12 +443,12 @@ const ArtifactPoolScreen: React.FC = () => {
     try {
       setDeleting(true);
       await backend.story.deleteArtifact({ id: artifactId });
-      toast.success('Artefakt wurde geloescht.');
+      toast.success('Artefakt wurde gelöscht.');
       closeEditor();
       await loadArtifacts();
     } catch (err) {
       console.error('Failed to delete artifact', err);
-      toast.error('Artefakt konnte nicht geloescht werden.');
+      toast.error('Artefakt konnte nicht gelöscht werden.');
     } finally {
       setDeleting(false);
     }
@@ -877,7 +877,7 @@ const ArtifactPoolScreen: React.FC = () => {
             <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center', flexWrap: 'wrap' }}>
               {!isNewArtifact && editingArtifact && (
                 <Button
-                  title={deleting ? 'Loeschen...' : 'Loeschen'}
+                  title={deleting ? 'Löschen...' : 'Löschen'}
                   onPress={handleDelete}
                   disabled={deleting}
                   variant="outline"

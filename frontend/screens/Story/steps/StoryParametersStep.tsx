@@ -336,7 +336,7 @@ const StoryParametersStep: React.FC<StoryParametersStepProps> = ({
                     OpenRouter
                   </h3>
                   <p className={`text-xs ${aiProvider === 'openrouter' ? 'text-amber-600' : 'text-gray-600'}`}>
-                    Viele Modelle ueber einen API-Key
+                    Viele Modelle über einen API-Key
                   </p>
                 </button>
               </FadeInView>

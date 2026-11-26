@@ -401,7 +401,7 @@ const EditAvatarScreen: React.FC = () => {
       return;
     }
     if (!resolvedProfileId || (requestedProfileId && !resolvedProfile)) {
-      setLoadError('Das ausgewaehlte Kinderprofil ist nicht verfuegbar.');
+      setLoadError('Das ausgewählte Kinderprofil ist nicht verfügbar.');
       setLoading(false);
       return;
     }
@@ -446,7 +446,7 @@ const EditAvatarScreen: React.FC = () => {
         console.error('Could not load avatar for editing:', error);
         if (alive) {
           setAvatar(null);
-          setLoadError('Der Avatar konnte fuer dieses Kinderprofil nicht geladen werden.');
+          setLoadError('Der Avatar konnte für dieses Kinderprofil nicht geladen werden.');
         }
       } finally {
         if (alive) {
@@ -611,7 +611,7 @@ const EditAvatarScreen: React.FC = () => {
     }
     if (!hasChanges) {
       const { showWarningToast } = await import('../../utils/toastUtils');
-      showWarningToast('Es gibt keine neuen Aenderungen.');
+      showWarningToast('Es gibt keine neuen Änderungen.');
       return;
     }
 
@@ -676,7 +676,7 @@ const EditAvatarScreen: React.FC = () => {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-transparent" style={{ borderTopColor: isDark ? '#93abd3' : '#7f96c8', borderRightColor: isDark ? '#93abd3' : '#7f96c8' }} />
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-transparent" style={{ borderTopColor: 'var(--primary)', borderRightColor: 'var(--primary)' }} />
       </div>
     );
   }
@@ -687,15 +687,15 @@ const EditAvatarScreen: React.FC = () => {
         <div
           className="w-full max-w-md rounded-3xl border p-6 text-center"
           style={{
-            borderColor: isDark ? '#34495f' : 'var(--talea-border-soft)',
-            background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
+            borderColor: 'var(--talea-border-soft)',
+            background: 'var(--talea-surface-primary)',
           }}
         >
-          <h2 className="text-xl font-semibold" style={{ color: isDark ? '#e8effb' : '#213247' }}>
-            {loadError ? 'Profilzuordnung pruefen' : 'Avatar nicht gefunden'}
+          <h2 className="text-xl font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
+            {loadError ? 'Profilzuordnung prüfen' : 'Avatar nicht gefunden'}
           </h2>
           {loadError && (
-            <p className="mt-2 text-sm leading-relaxed" style={{ color: isDark ? '#9eb1ca' : '#697d95' }}>
+            <p className="mt-2 text-sm leading-relaxed" style={{ color: 'var(--talea-text-tertiary)' }}>
               {loadError}
             </p>
           )}
@@ -703,9 +703,9 @@ const EditAvatarScreen: React.FC = () => {
             type="button"
             onClick={() => navigate(loadError ? '/settings' : '/avatar')}
             className="mt-4 rounded-full border px-4 py-2 text-sm font-semibold"
-            style={{ borderColor: isDark ? '#3b5168' : '#d7c9b7', color: isDark ? '#c5d5e8' : '#4b6078' }}
+            style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-text-tertiary)' }}
           >
-            {loadError ? 'Kinderprofile oeffnen' : 'Zurueck zur Avatar-Liste'}
+            {loadError ? 'Kinderprofile öffnen' : 'Zurück zur Avatar-Liste'}
           </button>
         </div>
       </div>
@@ -716,9 +716,8 @@ const EditAvatarScreen: React.FC = () => {
     <div
       className="min-h-screen pb-28"
       style={{
-        background: isDark
-          ? 'radial-gradient(980px 520px at 100% 0%, rgba(102,88,138,0.26) 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, rgba(80,111,148,0.23) 0%, transparent 62%), #131d2b'
-          : 'radial-gradient(980px 520px at 100% 0%, var(--talea-border-light) 0%, transparent 58%), radial-gradient(960px 560px at 0% 18%, var(--talea-surface-inset) 0%, transparent 62%), #edede9',
+        // The calm page colour of every other screen (no lavender/blue glow, no grey).
+        background: 'var(--talea-page-solid)',
       }}
     >
       {/* pt clears the fixed ProfileMenuButton pill (top-right on every breakpoint). */}
@@ -726,21 +725,21 @@ const EditAvatarScreen: React.FC = () => {
         <header
           className="sticky top-14 z-20 flex items-center justify-between gap-2 rounded-2xl border py-2.5 pl-3 pr-14 backdrop-blur-xl sm:top-3 sm:pr-3"
           style={{
-            borderColor: isDark ? '#33485f' : 'var(--talea-border-soft)',
-            background: isDark ? 'rgba(21,31,45,0.8)' : 'rgba(255,251,245,0.86)',
+            borderColor: 'var(--talea-border-soft)',
+            background: 'var(--talea-surface-primary)',
           }}
         >
           <button
             type="button"
             onClick={() => navigate(`/avatar/${avatar.id}`)}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full border"
-            style={{ borderColor: isDark ? '#425a74' : 'var(--primary)', color: isDark ? '#d2e0f4' : '#6a5c52' }}
-            aria-label="Zurueck"
+            style={{ borderColor: 'var(--primary)', color: 'var(--talea-text-tertiary)' }}
+            aria-label="Zurück"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
 
-          <p className="truncate px-3 text-sm font-semibold" style={{ color: isDark ? '#e6eefb' : '#223347' }}>
+          <p className="truncate px-3 text-sm font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
             Avatar bearbeiten
           </p>
 
@@ -750,9 +749,9 @@ const EditAvatarScreen: React.FC = () => {
             disabled={saving || regeneratingImage || !formData.name.trim() || !hasChanges}
             className="inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
             style={{
-              borderColor: isDark ? '#425a74' : 'var(--primary)',
-              color: isDark ? '#d2e0f4' : '#6a5c52',
-              background: saving ? (isDark ? 'rgba(56,74,97,0.6)' : 'rgba(234,226,214,0.8)') : 'transparent',
+              borderColor: 'var(--primary)',
+              color: 'var(--talea-text-tertiary)',
+              background: saving ? 'var(--talea-border-light)' : 'transparent',
             }}
           >
             {saving ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
@@ -764,8 +763,8 @@ const EditAvatarScreen: React.FC = () => {
           <section
             className="rounded-3xl border p-4 sm:p-5"
             style={{
-              borderColor: isDark ? '#33495f' : 'var(--talea-border-soft)',
-              background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
+              borderColor: 'var(--talea-border-soft)',
+              background: 'var(--talea-surface-primary)',
             }}
           >
             <AvatarForm
@@ -787,22 +786,22 @@ const EditAvatarScreen: React.FC = () => {
             <section
               className="rounded-3xl border p-4"
               style={{
-                borderColor: isDark ? '#33495f' : 'var(--talea-border-soft)',
-                background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
+                borderColor: 'var(--talea-border-soft)',
+                background: 'var(--talea-surface-primary)',
               }}
             >
-              <h2 className="text-lg font-semibold" style={{ color: isDark ? '#e7effb' : '#223347' }}>
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
                 Vorschau
               </h2>
-              <p className="mt-1 text-sm" style={{ color: isDark ? '#9eb1ca' : '#697d95' }}>
-                Live-Bild und visuelles Profil fuer konsistente Storybilder.
+              <p className="mt-1 text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>
+                Live-Bild und visuelles Profil für konsistente Storybilder.
               </p>
 
-              <div className="mt-3 overflow-hidden rounded-2xl border" style={{ borderColor: isDark ? '#3b5269' : '#d8cab9' }}>
+              <div className="mt-3 overflow-hidden rounded-2xl border" style={{ borderColor: 'var(--talea-border-soft)' }}>
                 {previewUrl ? (
                   <img src={previewUrl} alt={formData.name} className="h-64 w-full object-cover" />
                 ) : (
-                  <div className="flex h-64 w-full items-center justify-center" style={{ background: isDark ? 'rgba(66,90,118,0.45)' : '#ece4d9', color: isDark ? '#d6e2f5' : '#4b6078' }}>
+                  <div className="flex h-64 w-full items-center justify-center" style={{ background: 'var(--talea-border-light)', color: 'var(--talea-text-tertiary)' }}>
                     <Sparkles className="h-8 w-8" />
                   </div>
                 )}
@@ -815,9 +814,9 @@ const EditAvatarScreen: React.FC = () => {
                   disabled={analyzingImage}
                   className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold disabled:opacity-60"
                   style={{
-                    borderColor: isDark ? '#3b5269' : '#d8cab9',
-                    color: isDark ? '#d2e0f4' : '#6a5c52',
-                    background: isDark ? 'rgba(39,53,72,0.8)' : 'rgba(255,255,255,0.75)',
+                    borderColor: 'var(--talea-border-soft)',
+                    color: 'var(--talea-text-tertiary)',
+                    background: 'var(--talea-surface-primary)',
                   }}
                 >
                   {analyzingImage ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Scan className="h-4 w-4" />}
@@ -829,14 +828,14 @@ const EditAvatarScreen: React.FC = () => {
             <section
               className="rounded-3xl border p-4"
               style={{
-                borderColor: isDark ? '#33495f' : 'var(--talea-border-soft)',
-                background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
+                borderColor: 'var(--talea-border-soft)',
+                background: 'var(--talea-surface-primary)',
               }}
             >
-              <h2 className="text-lg font-semibold" style={{ color: isDark ? '#e7effb' : '#223347' }}>
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
                 Persoenlichkeits-Status
               </h2>
-              <p className="mt-1 text-sm" style={{ color: isDark ? '#9eb1ca' : '#697d95' }}>
+              <p className="mt-1 text-sm" style={{ color: 'var(--talea-text-tertiary)' }}>
                 Nur lesbar. Entwicklung passiert durch Stories und Dokus.
               </p>
 
@@ -858,14 +857,14 @@ const EditAvatarScreen: React.FC = () => {
                       key={trait}
                       className="rounded-xl border px-2.5 py-2"
                       style={{
-                        borderColor: isDark ? '#3a5068' : '#d6c9b8',
-                        background: isDark ? 'rgba(30,43,60,0.72)' : 'rgba(255,255,255,0.72)',
+                        borderColor: 'var(--talea-border-soft)',
+                        background: 'var(--talea-surface-primary)',
                       }}
                     >
-                      <p className="text-[11px] uppercase tracking-[0.08em]" style={{ color: isDark ? '#8fa4c1' : '#6f839d' }}>
+                      <p className="text-[11px] uppercase tracking-[0.08em]" style={{ color: 'var(--talea-text-tertiary)' }}>
                         {TRAIT_LABELS[trait]}
                       </p>
-                      <p className="text-sm font-semibold" style={{ color: isDark ? '#e7effb' : '#223347' }}>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
                         {Math.round(value)}
                       </p>
                     </div>
@@ -878,15 +877,15 @@ const EditAvatarScreen: React.FC = () => {
         <footer
           className="flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:justify-end"
           style={{
-            borderColor: isDark ? '#33495f' : 'var(--talea-border-soft)',
-            background: isDark ? 'rgba(21,32,47,0.88)' : 'rgba(255,251,245,0.92)',
+            borderColor: 'var(--talea-border-soft)',
+            background: 'var(--talea-surface-primary)',
           }}
         >
           <button
             type="button"
             onClick={() => navigate(`/avatar/${avatar.id}`)}
             className="rounded-full border px-4 py-2 text-sm font-semibold"
-            style={{ borderColor: isDark ? '#3b5168' : '#d7c9b7', color: isDark ? '#c5d5e8' : '#4b6078' }}
+            style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-text-tertiary)' }}
           >
             Abbrechen
           </button>
@@ -895,15 +894,10 @@ const EditAvatarScreen: React.FC = () => {
             type="button"
             onClick={handleSave}
             disabled={saving || regeneratingImage || !formData.name.trim() || !hasChanges}
-            className="inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold text-white disabled:opacity-55"
-            style={{
-              borderColor: 'transparent',
-              background: 'linear-gradient(135deg,var(--primary) 0%,var(--talea-border-light) 56%,var(--talea-border-soft) 100%)',
-              color: '#3a322d',
-            }}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-transparent px-5 py-2 text-sm font-semibold text-[var(--primary-foreground)] [background:var(--talea-gradient-brand)] shadow-[0_8px_18px_-10px_color-mix(in_srgb,var(--primary)_70%,transparent)] transition-[filter,transform] hover:brightness-105 active:scale-[0.98] disabled:opacity-55 disabled:shadow-none"
           >
             {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {hasChanges ? 'Aenderungen speichern' : 'Alles gespeichert'}
+            {hasChanges ? 'Änderungen speichern' : 'Alles gespeichert'}
           </button>
         </footer>
       </div>

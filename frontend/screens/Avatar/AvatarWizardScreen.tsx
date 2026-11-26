@@ -277,7 +277,7 @@ const AvatarWizardScreen: React.FC = () => {
   const handleCreateAvatar = async () => {
     if ((requestedProfileId || effectiveChildMode) && !targetProfile) {
       import('../../utils/toastUtils').then(({ showErrorToast }) => {
-        showErrorToast('Das ausgewaehlte Kinderprofil ist noch nicht verfuegbar.');
+        showErrorToast('Das ausgewählte Kinderprofil ist noch nicht verfügbar.');
       });
       return;
     }

@@ -523,7 +523,7 @@ const createOfflineAudioContext = (
 
 const loadLameJs = (): Promise<LameJsNamespace> => {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
-    return Promise.reject(new Error('MP3-Encoder ist in dieser Umgebung nicht verfuegbar.'));
+    return Promise.reject(new Error('MP3-Encoder ist in dieser Umgebung nicht verfügbar.'));
   }
 
   if (window.lamejs?.Mp3Encoder) {
@@ -1358,7 +1358,7 @@ const CreateAudioDokuScreen: React.FC = () => {
   const fetchProviderVoices = async () => {
     if (ttsProvider === 'qwen') {
       setProviderVoices(STATIC_QWEN_PROVIDER_VOICES);
-      setDialogueStatus(`${STATIC_QWEN_PROVIDER_VOICES.length} Qwen-Stimmen lokal verfuegbar.`);
+      setDialogueStatus(`${STATIC_QWEN_PROVIDER_VOICES.length} Qwen-Stimmen lokal verfügbar.`);
       setDialogueStatusType('success');
       return;
     }
@@ -1774,8 +1774,8 @@ const CreateAudioDokuScreen: React.FC = () => {
     if (missingVoiceAssignments.length > 0) {
       const message =
         ttsProvider === 'qwen'
-          ? `Bitte Qwen-Stimme eintragen fuer: ${missingVoiceAssignments.join(', ')}`
-          : `Bitte Voice-ID eintragen fuer: ${missingVoiceAssignments.join(', ')}`;
+          ? `Bitte Qwen-Stimme eintragen für: ${missingVoiceAssignments.join(', ')}`
+          : `Bitte Voice-ID eintragen für: ${missingVoiceAssignments.join(', ')}`;
       setDialogueStatus(message);
       setDialogueStatusType('error');
       return;
@@ -1846,7 +1846,7 @@ const CreateAudioDokuScreen: React.FC = () => {
         ) {
           pollCount += 1;
           setDialogueStatus(
-            `Audio wird im Hintergrund erzeugt... (Versuch ${pollCount}, lange Dokus koennen einige Minuten dauern - bitte das Fenster offen lassen)`,
+            `Audio wird im Hintergrund erzeugt... (Versuch ${pollCount}, lange Dokus können einige Minuten dauern - bitte das Fenster offen lassen)`,
           );
           setDialogueStatusType('success');
           await new Promise((resolve) => setTimeout(resolve, DIALOGUE_POLL_DELAY_MS));
@@ -1979,7 +1979,7 @@ const CreateAudioDokuScreen: React.FC = () => {
         err instanceof TypeError && /Failed to fetch/i.test(err.message || '');
       const message =
         failedToFetch
-          ? 'Die Audio-Anfrage konnte vom Browser nicht ausgewertet werden. Bitte pruefe Backend-Deployment, CORS und die Railway-Logs.'
+          ? 'Die Audio-Anfrage konnte vom Browser nicht ausgewertet werden. Bitte prüfe Backend-Deployment, CORS und die Railway-Logs.'
           : (err as Error).message || 'Dialog-Audio konnte nicht erstellt werden.';
       setDialogueStatus(message);
       setDialogueStatusType('error');
@@ -2031,7 +2031,7 @@ const CreateAudioDokuScreen: React.FC = () => {
       return !profile?.voiceId.trim();
     });
     if (missingVoiceAssignments.length > 0) {
-      const message = `Bitte Voice-ID eintragen fuer: ${missingVoiceAssignments.join(', ')}`;
+      const message = `Bitte Voice-ID eintragen für: ${missingVoiceAssignments.join(', ')}`;
       setDialogueStatus(message);
       setDialogueStatusType('error');
       return;
@@ -2922,12 +2922,12 @@ const CreateAudioDokuScreen: React.FC = () => {
                       Tab = Einruecken, Ctrl/Cmd + Enter = Audio rendern.
                     </p>
                     <p className="mt-1 text-[11px]" style={{ color: palette.muted }}>
-                      Keine leeren Zeilen. Jede Zeile braucht gesprochenen Text. Reine Tags wie "TAVI: [clapping]" sind ungueltig.
+                      Keine leeren Zeilen. Jede Zeile braucht gesprochenen Text. Reine Tags wie "TAVI: [clapping]" sind ungültig.
                     </p>
                     <p className="mt-2 text-xs" style={{ color: palette.muted }}>
                       {detectedSpeakers.length > 0
                         ? `Sprecher im Script: ${detectedSpeakers.join(', ')}`
-                        : 'Fuer jeden Dialogblock eine neue Zeile im Format "SPRECHER: Text" verwenden.'}
+                        : 'Für jeden Dialogblock eine neue Zeile im Format "SPRECHER: Text" verwenden.'}
                     </p>
                     {dialogueValidationIssues.length > 0 && (
                       <div className="mt-2 rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-3 text-xs text-red-700">

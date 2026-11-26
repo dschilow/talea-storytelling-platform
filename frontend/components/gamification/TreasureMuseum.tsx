@@ -165,11 +165,11 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
   const [celebrationSetName, setCelebrationSetName] = useState<string | null>(null);
 
   const panel = {
-    borderColor: isDark ? '#344b61' : '#ded2c3',
-    background: isDark ? 'rgba(24,36,51,0.9)' : 'rgba(255,252,247,0.94)',
+    borderColor: 'var(--talea-border-soft)',
+    background: 'var(--talea-surface-primary)',
   };
-  const textMain = isDark ? '#edf4ff' : '#203449';
-  const textMuted = isDark ? '#9fb2c8' : '#687d93';
+  const textMain = 'var(--talea-text-primary)';
+  const textMuted = 'var(--talea-text-tertiary)';
 
   const loadOverview = useCallback(async () => {
     try {
@@ -312,7 +312,7 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
       <section className="rounded-[28px] border p-4 sm:p-5" style={panel}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: isDark ? '#d0b690' : '#9b7138' }}>
+            <p className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--talea-accent-gold)' }}>
               Museum der Abenteuer
             </p>
             <h2 className="mt-1 text-2xl font-semibold" style={{ color: textMain }}>
@@ -329,15 +329,15 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
           <div
             className="flex items-center gap-3 rounded-2xl border px-4 py-3"
             style={{
-              borderColor: isDark ? '#5b513f' : '#ddccb0',
-              background: isDark ? 'rgba(96,76,43,0.2)' : '#f8f0e3',
+              borderColor: 'var(--talea-border-soft)',
+              background: 'var(--talea-surface-inset)',
             }}
           >
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400/20">
-              <Gem className="h-5 w-5" style={{ color: isDark ? '#e0c79f' : '#9b7138' }} />
+              <Gem className="h-5 w-5" style={{ color: 'var(--talea-accent-gold)' }} />
             </span>
             <div>
-              <p className="text-sm font-bold" style={{ color: isDark ? '#e0c79f' : '#85612f' }}>
+              <p className="text-sm font-bold" style={{ color: 'var(--talea-accent-gold)' }}>
                 {overview.shards} {overview.shards === 1 ? 'Fundstück' : 'Fundstücke'}
               </p>
               <div className="mt-1 flex items-center gap-1" aria-label={`${shardDots.filled} von ${shardDots.total} Fundstücken`}>
@@ -346,7 +346,7 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
                     key={i}
                     className="h-2.5 w-2.5 rounded-full transition-colors"
                     style={{
-                      background: i < shardDots.filled ? (isDark ? '#e0c79f' : '#b98a4b') : (isDark ? '#3a4a5d' : '#e8ddcc'),
+                      background: i < shardDots.filled ? 'var(--talea-accent-gold)' : 'var(--talea-border-light)',
                     }}
                   />
                 ))}
@@ -387,7 +387,7 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-lg font-semibold" style={{ color: textMain }}>{set.name}</h3>
                   {set.completed && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2.5 py-0.5 text-[11px] font-bold" style={{ color: isDark ? '#e8c66f' : '#8c6a1d' }}>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 px-2.5 py-0.5 text-[11px] font-bold" style={{ color: 'var(--talea-accent-gold)' }}>
                       <Crown className="h-3 w-3" /> Vollendet
                     </span>
                   )}
@@ -396,7 +396,7 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
               </div>
               <div className="text-right">
                 <p className="text-sm font-bold" style={{ color: textMain }}>{set.ownedCount}/{set.totalCount}</p>
-                <div className="mt-1 h-1.5 w-24 overflow-hidden rounded-full" style={{ background: isDark ? '#2c3e52' : '#ece2d3' }}>
+                <div className="mt-1 h-1.5 w-24 overflow-hidden rounded-full" style={{ background: 'var(--talea-border-light)' }}>
                   <div className="h-full rounded-full transition-all" style={{ width: `${progressPct}%`, background: accent }} />
                 </div>
               </div>
@@ -415,15 +415,15 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
                       className={`group relative flex h-full w-full flex-col items-center rounded-2xl border p-2.5 text-center transition-transform ${artifact.owned ? 'hover:-translate-y-0.5 cursor-pointer' : 'cursor-default'}`}
                       style={{
                         borderColor: artifact.isCrown
-                          ? (isDark ? '#8c6a1d' : '#d9b45c')
+                          ? 'color-mix(in srgb, var(--talea-accent-gold) 38%, transparent)'
                           : artifact.owned
                             ? `${rarityColor}66`
-                            : (isDark ? '#2c3e52' : '#e4dacb'),
+                            : 'var(--talea-border-light)',
                         background: artifact.isCrown
-                          ? (isDark ? 'rgba(140,106,29,0.12)' : 'rgba(217,180,92,0.12)')
+                          ? 'color-mix(in srgb, var(--talea-accent-gold) 13%, transparent)'
                           : artifact.owned
-                            ? (isDark ? 'rgba(36,52,71,0.85)' : '#fffdf9')
-                            : (isDark ? 'rgba(20,30,43,0.6)' : 'rgba(240,234,224,0.7)'),
+                            ? 'var(--talea-surface-primary)'
+                            : 'var(--talea-border-light)',
                         borderStyle: isLockedCrown ? 'dashed' : 'solid',
                       }}
                       aria-label={artifact.owned ? `${artifact.name} öffnen` : `${artifact.name} — noch nicht gefunden`}
@@ -449,10 +449,10 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
                         {!artifact.owned && (
                           <span
                             className="absolute -bottom-1 -right-1 inline-flex h-6 w-6 items-center justify-center rounded-full border"
-                            style={{ background: isDark ? '#1a2736' : '#f4ecdf', borderColor: isDark ? '#3a4a5d' : '#ddd0bc' }}
+                            style={{ background: 'var(--talea-border-light)', borderColor: 'var(--talea-border-soft)' }}
                           >
                             {artifact.isCrown
-                              ? <Crown className="h-3.5 w-3.5" style={{ color: isDark ? '#c9a648' : '#b08b2e' }} />
+                              ? <Crown className="h-3.5 w-3.5" style={{ color: 'var(--talea-accent-gold)' }} />
                               : <Lock className="h-3 w-3" style={{ color: textMuted }} />}
                           </span>
                         )}
@@ -475,7 +475,7 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
 
             {crown && !crown.owned && (
               <p className="mt-3 flex items-center gap-1.5 text-xs" style={{ color: textMuted }}>
-                <Crown className="h-3.5 w-3.5" style={{ color: isDark ? '#c9a648' : '#b08b2e' }} />
+                <Crown className="h-3.5 w-3.5" style={{ color: 'var(--talea-accent-gold)' }} />
                 Noch {set.totalCount - set.ownedCount} {set.totalCount - set.ownedCount === 1 ? 'Schatz' : 'Schätze'} bis „{crown.name}"!
               </p>
             )}
@@ -495,7 +495,7 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
                   type="button"
                   onClick={() => void openDetail(artifact)}
                   className="flex h-full w-full flex-col items-center rounded-2xl border p-2.5 text-center hover:-translate-y-0.5 transition-transform"
-                  style={{ borderColor: isDark ? '#344b61' : '#e4dacb', background: isDark ? 'rgba(36,52,71,0.85)' : '#fffdf9' }}
+                  style={{ borderColor: 'var(--talea-border-light)', background: 'var(--talea-surface-primary)' }}
                 >
                   {artifact.imageUrl
                     ? <img src={artifact.imageUrl} alt="" className="h-16 w-16 rounded-xl object-cover" loading="lazy" />
@@ -532,7 +532,7 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
                 <div className="flex items-center gap-3">
                   {selected.imageUrl
                     ? <img src={selected.imageUrl} alt="" className="h-16 w-16 rounded-2xl object-cover" />
-                    : <span className="inline-flex h-16 w-16 items-center justify-center rounded-2xl text-3xl" style={{ background: isDark ? '#2c3e52' : '#f4ecdf' }}>{selected.emoji || '❔'}</span>}
+                    : <span className="inline-flex h-16 w-16 items-center justify-center rounded-2xl text-3xl" style={{ background: 'var(--talea-border-light)' }}>{selected.emoji || '❔'}</span>}
                   <div>
                     <h3 className="text-xl font-semibold" style={{ color: textMain }}>{selected.name}</h3>
                     <p className="text-xs font-medium" style={{ color: RARITY_COLORS[selected.rarity] || RARITY_COLORS.common }}>
@@ -557,8 +557,8 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
               <p className="mt-3 text-sm leading-relaxed" style={{ color: textMuted }}>{selected.description}</p>
 
               {selected.storyRole && (
-                <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: isDark ? '#3a4a5d' : '#e4dacb', background: isDark ? 'rgba(96,76,43,0.12)' : 'rgba(217,180,92,0.08)' }}>
-                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: isDark ? '#d0b690' : '#9b7138' }}>
+                <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'var(--talea-border-light)', background: 'color-mix(in srgb, var(--talea-accent-gold) 13%, transparent)' }}>
+                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--talea-accent-gold)' }}>
                     <Sparkles className="mr-1 inline h-3.5 w-3.5" />So wirkt es in Geschichten
                   </p>
                   <p className="mt-1 text-sm leading-relaxed" style={{ color: textMain }}>{selected.storyRole}</p>
@@ -566,7 +566,7 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
               )}
 
               {/* Level track */}
-              <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: isDark ? '#3a4a5d' : '#e4dacb' }}>
+              <div className="mt-3 rounded-2xl border p-3" style={{ borderColor: 'var(--talea-border-light)' }}>
                 <p className="text-xs font-bold uppercase tracking-wide" style={{ color: textMuted }}>
                   <Footprints className="mr-1 inline h-3.5 w-3.5" />
                   {selected.journeys} {selected.journeys === 1 ? 'Reise' : 'Reisen'} unternommen
@@ -591,9 +591,9 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
                       const meta = EVENT_META[entry.event] || EVENT_META.found;
                       const Icon = meta.icon;
                       return (
-                        <li key={entry.id} className="flex items-start gap-2.5 rounded-xl border p-2.5" style={{ borderColor: isDark ? '#2c3e52' : '#efe6d8' }}>
-                          <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: isDark ? '#2c3e52' : '#f4ecdf' }}>
-                            <Icon className="h-3.5 w-3.5" style={{ color: isDark ? '#d0b690' : '#9b7138' }} />
+                        <li key={entry.id} className="flex items-start gap-2.5 rounded-xl border p-2.5" style={{ borderColor: 'var(--talea-border-light)' }}>
+                          <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: 'var(--talea-border-light)' }}>
+                            <Icon className="h-3.5 w-3.5" style={{ color: 'var(--talea-accent-gold)' }} />
                           </span>
                           <div className="min-w-0">
                             <p className="text-xs font-semibold" style={{ color: textMain }}>
@@ -648,7 +648,7 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
               aria-label="Wähle deinen Schatz"
             >
               <div className="text-center">
-                <p className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: isDark ? '#d0b690' : '#9b7138' }}>
+                <p className="text-xs font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--talea-accent-gold)' }}>
                   {overview.shardsForChoice} Fundstücke gesammelt
                 </p>
                 <h3 className="mt-1 text-2xl font-semibold" style={{ color: textMain }}>Wähle deinen Schatz!</h3>
@@ -674,10 +674,10 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
                         onClick={() => setPickedId(artifact.id)}
                         className="flex flex-col items-center rounded-2xl border-2 p-4 text-center transition-colors"
                         style={{
-                          borderColor: isPicked ? rarityColor : (isDark ? '#344b61' : '#e4dacb'),
+                          borderColor: isPicked ? rarityColor : 'var(--talea-border-light)',
                           background: isPicked
                             ? (isDark ? `${rarityColor}22` : `${rarityColor}14`)
-                            : (isDark ? 'rgba(36,52,71,0.85)' : '#fffdf9'),
+                            : 'var(--talea-surface-primary)',
                         }}
                         aria-pressed={isPicked}
                       >
@@ -702,7 +702,7 @@ const TreasureMuseum: React.FC<TreasureMuseumProps> = ({ avatarId, avatarName })
                   disabled={redeeming}
                   data-talea-android-back onClick={() => setChoiceOpen(false)}
                   className="flex-1 rounded-2xl border px-4 py-3 text-sm font-semibold"
-                  style={{ borderColor: isDark ? '#344b61' : '#ded2c3', color: textMuted }}
+                  style={{ borderColor: 'var(--talea-border-soft)', color: textMuted }}
                 >
                   Später entscheiden
                 </button>

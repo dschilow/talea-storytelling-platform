@@ -362,7 +362,7 @@ const CharacterPoolScreen: React.FC = () => {
       }
       updates = buildUpdatePayload(editingCharacter, formState);
       if (Object.keys(updates).length === 0) {
-        toast.info('Keine Aenderungen erkannt.');
+        toast.info('Keine Änderungen erkannt.');
         return;
       }
     }
@@ -431,7 +431,7 @@ const CharacterPoolScreen: React.FC = () => {
       try {
         parsed = JSON.parse(text);
       } catch (parseError) {
-        throw new Error('Die ausgewaehlte Datei enthaelt kein gueltiges JSON.');
+        throw new Error('Die ausgewählte Datei enthaelt kein gueltiges JSON.');
       }
 
       const charactersPayload = Array.isArray(parsed)
@@ -472,7 +472,7 @@ const CharacterPoolScreen: React.FC = () => {
       return;
     }
 
-    const confirmDelete = window.confirm(`Soll der Charakter "${editingCharacter.name}" wirklich geloescht werden?`);
+    const confirmDelete = window.confirm(`Soll der Charakter "${editingCharacter.name}" wirklich gelöscht werden?`);
     if (!confirmDelete) {
       return;
     }
@@ -486,12 +486,12 @@ const CharacterPoolScreen: React.FC = () => {
     try {
       setDeleting(true);
       await backend.story.deleteCharacter({ id: characterId });
-      toast.success('Charakter wurde geloescht.');
+      toast.success('Charakter wurde gelöscht.');
       closeEditor();
       await loadCharacters();
     } catch (err) {
       console.error('Failed to delete character', err);
-      toast.error('Charakter konnte nicht geloescht werden.');
+      toast.error('Charakter konnte nicht gelöscht werden.');
     } finally {
       setDeleting(false);
     }
@@ -599,7 +599,7 @@ const CharacterPoolScreen: React.FC = () => {
         <div>
           <h1 style={{ ...typography.textStyles.headingLg, marginBottom: spacing.xs }}>Charaktere</h1>
           <p style={{ color: colors.text.secondary, maxWidth: 640 }}>
-            Verwalte alle verfuegbaren Charaktervorlagen. Du kannst Eigenschaften anpassen, Kapitelzuordnungen aendern und neue Bilder direkt aus dem visuellen Profil generieren.
+            Verwalte alle verfügbaren Charaktervorlagen. Du kannst Eigenschaften anpassen, Kapitelzuordnungen ändern und neue Bilder direkt aus dem visuellen Profil generieren.
           </p>
         </div>
         <div style={{ display: 'flex', gap: spacing.sm, flexWrap: 'wrap' }}>
@@ -854,7 +854,7 @@ const CharacterPoolScreen: React.FC = () => {
                         style={inputBaseStyle}
                         value={formState.catchphraseContext}
                         onChange={(event) => setFormState({ ...formState, catchphraseContext: event.target.value })}
-                        placeholder="z.B. wenn er jemanden troesten moechte"
+                        placeholder="z.B. wenn er jemanden trösten möchte"
                       />
                     </div>
                     <div>
@@ -864,7 +864,7 @@ const CharacterPoolScreen: React.FC = () => {
                         style={inputBaseStyle}
                         value={formState.quirk}
                         onChange={(event) => setFormState({ ...formState, quirk: event.target.value })}
-                        placeholder="z.B. wischt sich die Haende an der Schuerze ab"
+                        placeholder="z.B. wischt sich die Hände an der Schürze ab"
                       />
                     </div>
                   </div>
@@ -993,7 +993,7 @@ const CharacterPoolScreen: React.FC = () => {
             <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center', flexWrap: 'wrap' }}>
               {!isNewCharacter && editingCharacter && (
                 <Button
-                  title={deleting ? 'Loeschen...' : 'Loeschen'}
+                  title={deleting ? 'Löschen...' : 'Löschen'}
                   onPress={handleDelete}
                   disabled={deleting}
                   variant="outline"

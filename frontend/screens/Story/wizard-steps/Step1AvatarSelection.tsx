@@ -152,15 +152,14 @@ export default function Step1AvatarSelection({ state, updateState, maxAvatars = 
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl border border-border bg-card/70 p-10 text-center shadow-[0_14px_28px_rgba(31,44,62,0.08)]"
+          className="rounded-3xl border border-border bg-card/70 p-10 text-center shadow-[var(--talea-shadow-soft)]"
         >
           <UserRound className="mx-auto mb-4 h-10 w-10 text-muted-foreground/70" />
           <p className="mb-5 text-sm text-muted-foreground">{t('homePage.emptyAvatarsTitle')}</p>
           <button
             type="button"
             onClick={() => navigate(createAvatarRoute)}
-            className="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-[#1e2d42] shadow-[0_10px_20px_rgba(44,57,76,0.14)]"
-            style={{ borderColor: '#d4c5b5', background: 'linear-gradient(135deg,#f2d9d6 0%,#e8d8e9 42%,#d6e3cf 100%)' }}
+            className="inline-flex min-h-11 items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-[var(--primary-foreground)] [background:var(--talea-gradient-brand)] shadow-[0_8px_18px_-10px_color-mix(in_srgb,var(--primary)_70%,transparent)] transition-[filter,transform] hover:brightness-105 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
           >
             <Plus className="h-4 w-4" />
             {needsChildAvatar ? t('wizard.common.createChildAvatar') : t('avatar.create')}

@@ -137,7 +137,7 @@ export default function Step5Preview({
       </div>
         {(formData.dominantPersonality || formData.characterTraits.length > 0 || formData.quirk) && (
           <div className="rounded-xl border border-[#2DD4BF]/20 bg-[#2DD4BF]/[0.06] p-3">
-            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#168d84]">Charakterprofil</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--primary)]">Charakterprofil</p>
             {formData.dominantPersonality ? (
               <p className="mt-1 text-sm font-semibold text-foreground capitalize">{formData.dominantPersonality}</p>
             ) : null}
@@ -194,13 +194,11 @@ export default function Step5Preview({
           whileTap={{ scale: 0.98 }}
           onClick={onGeneratePreview}
           disabled={isGeneratingPreview || !formData.name.trim()}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all disabled:opacity-40"
+          className="flex min-h-12 items-center gap-2 rounded-full px-6 py-3 font-semibold transition-[filter,opacity] hover:brightness-105 disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
           style={{
-            background: isGeneratingPreview
-              ? 'rgba(255,255,255,0.06)'
-              : 'linear-gradient(135deg, #f2d9d6 0%, #e8d8e9 42%, #d6e3cf 100%)',
-            boxShadow: isGeneratingPreview ? 'none' : '0 8px 20px rgba(43,57,77,0.16)',
-            color: '#233347',
+            background: isGeneratingPreview ? 'var(--talea-surface-inset)' : 'var(--talea-gradient-brand)',
+            boxShadow: isGeneratingPreview ? 'none' : '0 10px 22px -10px color-mix(in srgb, var(--primary) 70%, transparent)',
+            color: isGeneratingPreview ? 'var(--talea-text-secondary)' : 'var(--primary-foreground)',
           }}
         >
           {isGeneratingPreview ? (

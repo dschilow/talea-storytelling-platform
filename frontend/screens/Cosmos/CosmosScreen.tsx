@@ -124,7 +124,7 @@ const CosmosScreen: React.FC = () => {
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-              className="h-8 w-8 rounded-full border-2 border-purple-500 border-t-transparent"
+              className="h-8 w-8 rounded-full border-2 border-[var(--primary)] border-t-transparent"
             />
           </div>
         ) : view === '2d' ? (

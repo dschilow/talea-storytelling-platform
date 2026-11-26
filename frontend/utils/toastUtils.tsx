@@ -220,7 +220,7 @@ export const showArtifactEarnedToast = (artifact: InventoryItem, avatarName?: st
           <div className="min-w-0 flex-1">
             <h4 className="truncate text-base font-bold text-white">{artifact.name}</h4>
             {avatarName && (
-              <p className="mb-1 text-xs text-amber-300">fuer {avatarName}</p>
+              <p className="mb-1 text-xs text-amber-300">für {avatarName}</p>
             )}
             <p className="line-clamp-2 text-xs text-amber-200">
               {artifact.description || 'Ein magisches Artefakt aus deinem Abenteuer!'}

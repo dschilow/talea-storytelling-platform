@@ -1157,7 +1157,7 @@ function AudioLibraryPanel() {
   const handleDeleteGroup = useCallback(
     async (group: GroupedGeneratedAudio) => {
       const confirmDelete = window.confirm(
-        `"${group.sourceTitle}" wirklich loeschen? (${group.items.length} Audio-Teil(e))`,
+        `"${group.sourceTitle}" wirklich löschen? (${group.items.length} Audio-Teil(e))`,
       );
       if (!confirmDelete) return;
 

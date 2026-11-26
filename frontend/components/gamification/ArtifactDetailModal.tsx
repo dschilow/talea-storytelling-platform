@@ -101,15 +101,15 @@ const ArtifactDetailModal: React.FC<ArtifactDetailModalProps> = ({
             transition={{ type: 'spring', stiffness: 360, damping: 30 }}
             className="w-full max-w-xl overflow-hidden rounded-3xl border"
             style={{
-              borderColor: isDark ? '#334a61' : '#dccfbe',
-              background: isDark ? 'rgba(24,36,51,0.96)' : 'rgba(255,251,245,0.97)',
+              borderColor: 'var(--talea-border-soft)',
+              background: 'var(--talea-surface-primary)',
             }}
             onClick={(event) => event.stopPropagation()}
           >
             <div
               className="relative border-b px-5 pb-4 pt-5"
               style={{
-                borderColor: isDark ? '#32465f' : '#e2d5c5',
+                borderColor: 'var(--talea-border-light)',
                 background: isDark
                   ? 'linear-gradient(135deg, rgba(79,111,149,0.24) 0%, rgba(134,112,165,0.22) 100%)'
                   : 'linear-gradient(135deg, rgba(234,222,208,0.72) 0%, rgba(229,222,240,0.82) 100%)',
@@ -120,21 +120,21 @@ const ArtifactDetailModal: React.FC<ArtifactDetailModalProps> = ({
                 data-talea-android-back onClick={onClose}
                 className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full border"
                 style={{
-                  borderColor: isDark ? '#3a4f67' : '#d9cbb9',
-                  color: isDark ? '#c2d2e7' : '#607388',
-                  background: isDark ? 'rgba(25,35,49,0.8)' : 'rgba(255,251,245,0.86)',
+                  borderColor: 'var(--talea-border-soft)',
+                  color: 'var(--talea-text-tertiary)',
+                  background: 'var(--talea-surface-primary)',
                 }}
                 aria-label="Modal schliessen"
               >
                 <X className="h-4 w-4" />
               </button>
 
-              <div className="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.1em]" style={{ borderColor: isDark ? '#435a77' : '#d3c4b2', color: isDark ? '#c5d5e8' : '#5c728b' }}>
+              <div className="inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.1em]" style={{ borderColor: 'var(--talea-border-soft)', color: 'var(--talea-text-tertiary)' }}>
                 <TypeIcon className="h-3.5 w-3.5" />
                 {typeMeta.label}
               </div>
 
-              <h2 className="mt-3 text-2xl font-semibold" style={{ color: isDark ? '#e8f0fb' : '#223347' }}>
+              <h2 className="mt-3 text-2xl font-semibold" style={{ color: 'var(--talea-text-primary)' }}>
                 {item.name}
               </h2>
 
@@ -149,15 +149,15 @@ const ArtifactDetailModal: React.FC<ArtifactDetailModalProps> = ({
               <div
                 className="overflow-hidden rounded-2xl border"
                 style={{
-                  borderColor: isDark ? '#334a61' : '#dccfbe',
-                  background: isDark ? 'rgba(18,28,41,0.85)' : 'rgba(255,255,255,0.86)',
+                  borderColor: 'var(--talea-border-soft)',
+                  background: 'var(--talea-surface-primary)',
                 }}
               >
                 {item.imageUrl ? (
                   <img src={item.imageUrl} alt={item.name} className="h-56 w-full object-cover" />
                 ) : (
                   <div className="flex h-56 w-full items-center justify-center">
-                    <TypeIcon className="h-10 w-10" style={{ color: isDark ? '#c8d8eb' : '#607389' }} />
+                    <TypeIcon className="h-10 w-10" style={{ color: 'var(--talea-text-tertiary)' }} />
                   </div>
                 )}
               </div>
@@ -180,21 +180,21 @@ const ArtifactDetailModal: React.FC<ArtifactDetailModalProps> = ({
                 <div
                   className="rounded-2xl border px-3.5 py-3"
                   style={{
-                    borderColor: isDark ? '#334a61' : '#dccfbe',
-                    background: isDark ? 'rgba(20,31,45,0.8)' : 'rgba(255,251,246,0.9)',
+                    borderColor: 'var(--talea-border-soft)',
+                    background: 'var(--talea-surface-primary)',
                   }}
                 >
-                  <p className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: isDark ? '#97abc5' : '#6b7f97' }}>
+                  <p className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--talea-text-tertiary)' }}>
                     {t('artifact.origin', 'Gefunden in')}
                   </p>
                   <button
                     type="button"
                     onClick={handleGoToStory}
                     className="mt-1 inline-flex items-center gap-2 text-sm font-semibold"
-                    style={{ color: isDark ? '#cfe0f5' : '#31465e' }}
+                    style={{ color: 'var(--talea-text-secondary)' }}
                   >
                     <Book className="h-4 w-4" />
-                    <span className="line-clamp-1">{storyTitle || 'Geschichte oeffnen'}</span>
+                    <span className="line-clamp-1">{storyTitle || 'Geschichte öffnen'}</span>
                     <ExternalLink className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -211,14 +211,14 @@ const InfoBlock: React.FC<{ label: string; text: string; isDark: boolean }> = ({
   <div
     className="rounded-2xl border px-3.5 py-3"
     style={{
-      borderColor: isDark ? '#334a61' : '#dccfbe',
-      background: isDark ? 'rgba(20,31,45,0.8)' : 'rgba(255,251,246,0.9)',
+      borderColor: 'var(--talea-border-soft)',
+      background: 'var(--talea-surface-primary)',
     }}
   >
-    <p className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: isDark ? '#97abc5' : '#6b7f97' }}>
+    <p className="text-xs font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--talea-text-tertiary)' }}>
       {label}
     </p>
-    <p className="mt-1.5 text-sm leading-relaxed" style={{ color: isDark ? '#d4e2f4' : '#33485f' }}>
+    <p className="mt-1.5 text-sm leading-relaxed" style={{ color: 'var(--talea-text-secondary)' }}>
       {text}
     </p>
   </div>
